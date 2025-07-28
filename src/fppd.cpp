@@ -54,6 +54,7 @@
 #include "settings.h"
 
 #include "CurlManager.h"
+#include "EPollManager.h"
 #include "Events.h"
 #include "FileMonitor.h"
 #include "MultiSync.h"
@@ -854,40 +855,11 @@ void MainLoop(void) {
     }
     CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
 
-    static const int MAX_EVENTS = 20;
-#ifdef USE_KQUEUE
-    int epollf = kqueue();
-    std::vector<struct kevent> callbackKevents;
-    size_t cur = 0;
     for (auto& a : callbacks) {
-        struct kevent event;
-        event.ident = a.first;
-        event.filter = EVFILT_READ;
-        event.flags = EV_ADD | EV_ENABLE | EV_CLEAR;
-        event.fflags = 0;
-        event.data = 0;
-        event.udata = (void*)cur;
-        cur++;
-        callbackKevents.push_back(event);
+        EPollManager::INSTANCE.addFileDescriptor(a.first, a.second);
     }
-    kevent(epollf, &callbackKevents[0], callbackKevents.size(), nullptr, 0, nullptr);
-    struct kevent events[MAX_EVENTS];
-#else
-    int epollf = epoll_create1(EPOLL_CLOEXEC);
-    for (auto& a : callbacks) {
-        epoll_event event;
-        memset(&event, 0, sizeof(event));
-        event.events = EPOLLIN;
-        event.data.fd = a.first;
-        int rc = epoll_ctl(epollf, EPOLL_CTL_ADD, a.first, &event);
-        if (rc == -1) {
-            LogWarn(VB_GENERAL, "epoll_ctl() failed for socket: %d  %s\n", a.first, strerror(errno));
-        }
-    }
-    epoll_event events[MAX_EVENTS];
-#endif
-    multiSync->Discover();
 
+    multiSync->Discover();
     Events::Ready();
 
     LogInfo(VB_GENERAL, "Starting main processing loop\n");
@@ -898,35 +870,19 @@ void MainLoop(void) {
     else if (lowestLogLevel == LOG_DEBUG)
         WarningHolder::AddWarning(3, DEBUG_LOG_LEVEL_WARNING);
 
-    memset(events, 0, sizeof(events));
     int idleCount = 0;
 
     while (runMainFPPDLoop) {
-#ifdef USE_KQUEUE
-        struct timespec timeoutStruct = { 0, sleepms * 1000000 };
-        int epollresult = kevent(epollf, nullptr, 0, events, MAX_EVENTS, &timeoutStruct);
-#else
-        int epollresult = epoll_wait(epollf, events, MAX_EVENTS, sleepms);
-#endif
-        if (epollresult < 0) {
-            if (errno == EINTR) {
-                // We get interrupted when media players finish
-                continue;
-            } else {
-                LogErr(VB_GENERAL, "Main epoll() failed: %s\n", strerror(errno));
-                runMainFPPDLoop = 0;
-                continue;
-            }
+        EPollManager::WaitResult epollresult = EPollManager::INSTANCE.waitForEvents(sleepms);
+        bool pushBridgeData = epollresult == EPollManager::WaitResult::SOME_TRUE;
+        if (epollresult == EPollManager::WaitResult::INTERRUPTED) {
+            // We get interrupted when media players finish
+            continue;
         }
-        bool pushBridgeData = false;
-        if (epollresult > 0) {
-            for (int x = 0; x < epollresult; x++) {
-#ifdef USE_KQUEUE
-                pushBridgeData |= callbacks[events[x].ident](events[x].ident);
-#else
-                pushBridgeData |= callbacks[events[x].data.fd](events[x].data.fd);
-#endif
-            }
+        if (epollresult == EPollManager::WaitResult::FAILED) {
+            LogErr(VB_GENERAL, "Main epoll() failed: %s\n", strerror(errno));
+            runMainFPPDLoop = 0;
+            continue;
         }
         // Check to see if we need to start up the output thread.
         if ((!ChannelOutputThreadIsRunning()) &&
@@ -986,7 +942,7 @@ void MainLoop(void) {
             ForceChannelOutputNow();
         }
         bool doPing = false;
-        if (!epollresult) {
+        if (epollresult == EPollManager::WaitResult::TIMEOUT) {
             idleCount++;
             if (idleCount >= 20) {
                 doPing = true;
@@ -1019,14 +975,13 @@ void MainLoop(void) {
         CurlManager::INSTANCE.processCurls();
         GPIOManager::INSTANCE.CheckGPIOInputs();
     }
-    close(epollf);
-
     FileMonitor::INSTANCE.Cleanup();
 
     LogInfo(VB_GENERAL, "Stopping channel output thread.\n");
     StopChannelOutputThread();
 
     Bridge_Shutdown();
+    EPollManager::INSTANCE.shutdown();
     LogInfo(VB_GENERAL, "Main Loop complete, shutting down.\n");
 }
 

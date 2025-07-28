@@ -35,6 +35,8 @@
 #include <utility>
 #include <vector>
 
+#include "EPollManager.h"
+#include "FileMonitor.h"
 #include "Sequence.h"
 #include "Warnings.h"
 #include "common.h"
@@ -103,7 +105,7 @@ void RemoveArtNetOpcodeHandler(int opCode) {
 // prototypes for functions below
 bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime);
 bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime);
-
+void BridgeShutdownUDP();
 int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
 inline void SetBridgeData(uint8_t* data, int startChannel, int len, long long packetTime);
@@ -240,13 +242,6 @@ inline void SetBridgeData(uint8_t* data, int startChannel, int len, long long pa
     packetTime += expireOffSet;
     bridgeDataReceived = true;
     sequence->SetBridgeData(data, startChannel, len, packetTime);
-}
-
-double GetSecondsFromInputPacket() {
-    long long t = GetTimeMS();
-    double dt = t - last_packet_time;
-    dt /= 1000.0f;
-    return dt;
 }
 
 /*
@@ -458,6 +453,53 @@ bool Bridge_Initialize_Internal() {
         close(i3);
 
     return enabled;
+}
+
+static void removeMulticastGroups() {
+    int UniverseOctet[2];
+    struct ip_mreq mreq;
+    char strMulticastGroup[16];
+
+    // get all the addresses
+    struct ifaddrs *interfaces, *tmp;
+    getifaddrs(&interfaces);
+
+    char address[16];
+    address[0] = 0;
+    // Join the multicast groups
+    for (int i = 0; i < InputUniverseCount; i++) {
+        if (InputUniverses[i].type == E131_TYPE_MULTICAST) {
+            UniverseOctet[0] = InputUniverses[i].universe / 256;
+            UniverseOctet[1] = InputUniverses[i].universe % 256;
+            snprintf(strMulticastGroup, sizeof(strMulticastGroup), "239.255.%d.%d", UniverseOctet[0], UniverseOctet[1]);
+            mreq.imr_multiaddr.s_addr = inet_addr(strMulticastGroup);
+
+            LogInfo(VB_E131BRIDGE, "Removing group %s\n", strMulticastGroup);
+
+            // add group to groups to listen for on eth0 and wlan0 if it exists
+            tmp = interfaces;
+            // loop through all the interfaces and subscribe to the group
+            while (tmp) {
+                // struct sockaddr_in *sin = (struct sockaddr_in *)tmp->ifa_addr;
+                // strcpy(address, inet_ntoa(sin->sin_addr));
+                if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+                    GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
+                    if (strcmp(address, "127.0.0.1")) {
+                        LogDebug(VB_E131BRIDGE, "   Removing interface %s - %s\n", tmp->ifa_name, address);
+                        mreq.imr_interface.s_addr = inet_addr(address);
+                        if (setsockopt(bridgeSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+                            LogWarn(VB_E131BRIDGE, "   Could not remove Multicast Group for interface %s\n", tmp->ifa_name);
+                        }
+                    }
+                } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
+                    // FIXME for ipv6 multicast
+                    // LogDebug(VB_E131BRIDGE, "   Inet6 interface %s\n", tmp->ifa_name);
+                }
+                tmp = tmp->ifa_next;
+            }
+        }
+    }
+    freeifaddrs(interfaces);
 }
 
 bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime) {
@@ -712,20 +754,6 @@ inline int Bridge_GetIndexFromUniverseNumber(int universe) {
     return val;
 }
 
-void Bridge_Shutdown(void) {
-    if (bridgeSock >= 0)
-        close(bridgeSock);
-    if (ddpSock >= 0)
-        close(ddpSock);
-    if (artnetSock >= 0)
-        close(artnetSock);
-    bridgeSock = -1;
-    ddpSock = -1;
-    artnetSock = -1;
-
-    ArtNetOpcodeHandlers.clear();
-}
-
 void ResetBytesReceived() {
     for (int i = 0; i < InputUniverseCount; i++) {
         InputUniverses[i].bytesReceived = 0;
@@ -899,47 +927,19 @@ bool AddWarningForProtocol(int sock, const std::string& protocol) {
     return false;
 }
 
-void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
-    bool enabled = Bridge_Initialize_Internal();
-    bool disableFakeBridges = getSettingInt("DisableFakeNetworkBridges");
-    if (bridgeSock > 0) {
-        if (enabled) {
-            std::function<bool(int)> f = [](int i) {
-                return Bridge_ReceiveE131Data();
-            };
-            callbacks[bridgeSock] = f;
-        } else if (!disableFakeBridges) {
-            std::function<bool(int)> f = [](int i) {
-                return AddWarningForProtocol(i, "E1.31");
-            };
-            callbacks[bridgeSock] = f;
+static void BridgeReloadDMXInputs() {
+    // remove any existing DMX inputs
+    for (int i = InputUniverseCount - 1; i >= 0; --i) {
+        if (InputUniverses[i].type == DMX_TYPE) {
+            // close the serial port
+            EPollManager::INSTANCE.removeFileDescriptor(InputUniverses[i].inFile);
+            SerialClose(InputUniverses[i].inFile);
+            InputUniverses.erase(InputUniverses.begin() + i);
+            InputUniverseCount--;
         }
     }
-    if (ddpSock > 0) {
-        if (enabled) {
-            std::function<bool(int)> f = [](int i) {
-                return Bridge_ReceiveDDPData();
-            };
-            callbacks[ddpSock] = f;
-        } else if (!disableFakeBridges) {
-            std::function<bool(int)> f = [](int i) {
-                return AddWarningForProtocol(i, "DDP");
-            };
-            callbacks[ddpSock] = f;
-        }
-    }
-    if (artnetSock > 0) {
-        if (enabled) {
-            AddArtNetOpcodeHandler(0x5000, Bridge_StoreArtNetData);  // ArtOutput
-            AddArtNetOpcodeHandler(0x5200, Bridge_HandleArtNetSync); // ArtSync
-            AddArtNetOpcodeHandler(0x2000, Bridge_HandleArtNetPoll); // ArtPoll
 
-            std::function<bool(int)> f = [](int i) {
-                return Bridge_ReceiveArtNetData();
-            };
-            callbacks[artnetSock] = f;
-        }
-    }
+    // load the DMX inputs from the config file
     std::string filename = FPP_DIR_CONFIG("/ci-dmx.json");
     if (FileExists(filename)) {
         Json::Value root;
@@ -962,6 +962,7 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
                             InputUniverses[InputUniverseCount].startAddress = start - 1;
                             InputUniverses[InputUniverseCount].size = count;
                             InputUniverses[InputUniverseCount].type = DMX_TYPE;
+                            InputUniverses[InputUniverseCount].inFile = dmxIn;
 
                             strcpy(InputUniverses[InputUniverseCount].unicastAddress, "\0");
 
@@ -1005,7 +1006,7 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
                                 }
                                 return 0;
                             };
-                            callbacks[dmxIn] = f;
+                            EPollManager::INSTANCE.addFileDescriptor(dmxIn, f);
                         } else {
                             WarningHolder::AddWarning("Could not open DMX input device " + device);
                         }
@@ -1014,6 +1015,139 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
             }
         }
     }
+}
+
+void BridgeReloadUDP() {
+    // close the existing sockets
+    BridgeShutdownUDP();
+
+    bool enabled = Bridge_Initialize_Internal();
+    bool disableFakeBridges = getSettingInt("DisableFakeNetworkBridges");
+    if (bridgeSock > 0) {
+        if (enabled) {
+            std::function<bool(int)> f = [](int i) {
+                return Bridge_ReceiveE131Data();
+            };
+            EPollManager::INSTANCE.addFileDescriptor(bridgeSock, f);
+        } else if (!disableFakeBridges) {
+            std::function<bool(int)> f = [](int i) {
+                return AddWarningForProtocol(i, "E1.31");
+            };
+            EPollManager::INSTANCE.addFileDescriptor(bridgeSock, f);
+        }
+    }
+    if (ddpSock > 0) {
+        if (enabled) {
+            std::function<bool(int)> f = [](int i) {
+                return Bridge_ReceiveDDPData();
+            };
+            EPollManager::INSTANCE.addFileDescriptor(ddpSock, f);
+        } else if (!disableFakeBridges) {
+            std::function<bool(int)> f = [](int i) {
+                return AddWarningForProtocol(i, "DDP");
+            };
+            EPollManager::INSTANCE.addFileDescriptor(ddpSock, f);
+        }
+    }
+    if (artnetSock > 0) {
+        if (enabled) {
+            AddArtNetOpcodeHandler(0x5000, Bridge_StoreArtNetData);  // ArtOutput
+            AddArtNetOpcodeHandler(0x5200, Bridge_HandleArtNetSync); // ArtSync
+            AddArtNetOpcodeHandler(0x2000, Bridge_HandleArtNetPoll); // ArtPoll
+
+            std::function<bool(int)> f = [](int i) {
+                return Bridge_ReceiveArtNetData();
+            };
+            EPollManager::INSTANCE.addFileDescriptor(artnetSock, f);
+        }
+    }
+}
+void BridgeShutdownUDP() {
+    removeMulticastGroups();
+    for (int i = InputUniverseCount - 1; i >= 0; --i) {
+        if (InputUniverses[i].type != DMX_TYPE) {
+            InputUniverses.erase(InputUniverses.begin() + i);
+            InputUniverseCount--;
+        }
+    }
+
+    // close the existing sockets
+    if (bridgeSock >= 0) {
+        EPollManager::INSTANCE.removeFileDescriptor(bridgeSock);
+        close(bridgeSock);
+        bridgeSock = -1;
+    }
+    if (ddpSock >= 0) {
+        EPollManager::INSTANCE.removeFileDescriptor(ddpSock);
+        close(ddpSock);
+        ddpSock = -1;
+    }
+    if (artnetSock >= 0) {
+        EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
+        close(artnetSock);
+        artnetSock = -1;
+    }
+
+    if (bridgeSock >= 0) {
+        EPollManager::INSTANCE.removeFileDescriptor(bridgeSock);
+        close(bridgeSock);
+    }
+    if (ddpSock >= 0) {
+        EPollManager::INSTANCE.removeFileDescriptor(ddpSock);
+        close(ddpSock);
+    }
+    if (artnetSock >= 0) {
+        EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
+        close(artnetSock);
+    }
+    bridgeSock = -1;
+    ddpSock = -1;
+    artnetSock = -1;
+}
+void Bridge_Shutdown(void) {
+    for (int i = InputUniverseCount - 1; i >= 0; --i) {
+        if (InputUniverses[i].type == DMX_TYPE) {
+            // close the serial port
+            EPollManager::INSTANCE.removeFileDescriptor(InputUniverses[i].inFile);
+            SerialClose(InputUniverses[i].inFile);
+        }
+        InputUniverses.erase(InputUniverses.begin() + i);
+        InputUniverseCount--;
+    }
+    BridgeShutdownUDP();
+    unregisterSettingsListener("DisableFakeNetworkBridges", "DisableFakeNetworkBridges");
+    unregisterSettingsListener("ARTNETTimeCodeSync", "ARTNETTimeCodeSync");
+    std::string udpInFile = FPP_DIR_CONFIG("/ci-universes.json");
+    FileMonitor::INSTANCE.RemoveFile("ci-universes.json", udpInFile);
+    std::string dmxInFile = FPP_DIR_CONFIG("/ci-dmx.json");
+    FileMonitor::INSTANCE.RemoveFile("ci-dmx.json", dmxInFile);
+
+    ArtNetOpcodeHandlers.clear();
+}
+
+void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
+    registerSettingsListener("DisableFakeNetworkBridges", "DisableFakeNetworkBridges", [](const std::string& s) {
+        // reload the bridges when the setting changes
+        BridgeReloadUDP();
+    });
+    registerSettingsListener("ARTNETTimeCodeSync", "ARTNETTimeCodeSync", [](const std::string& s) {
+        // reload the bridges when the setting changes
+        BridgeReloadUDP();
+    });
+
+    std::string udpInFile = FPP_DIR_CONFIG("/ci-universes.json");
+    FileMonitor::INSTANCE.AddFile("ci-universes.json", udpInFile,
+                                  []() {
+                                      BridgeReloadUDP();
+                                  })
+        .TriggerFileChanged(udpInFile);
+
+    std::string dmxInFile = FPP_DIR_CONFIG("/ci-dmx.json");
+    FileMonitor::INSTANCE.AddFile("ci-dmx.json", dmxInFile,
+                                  []() {
+                                      BridgeReloadDMXInputs();
+                                  })
+        .TriggerFileChanged(dmxInFile);
 }
 
 bool HasBridgeData() {

@@ -34,4 +34,5 @@ public:
     std::string dmxDevice;
     uint64_t lastTimestamp = 0;
     uint32_t lastIndex = 0;
+    int inFile = -1;
 };

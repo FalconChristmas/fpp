@@ -46,6 +46,7 @@ OBJECTS_fpp_so += \
 	CurlManager.o \
 	e131bridge.o \
 	effects.o \
+	EPollManager.o \
 	Events.o \
 	falcon.o \
 	FileMonitor.o \

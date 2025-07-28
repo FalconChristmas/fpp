@@ -14,9 +14,6 @@
 #include <functional>
 #include <map>
 
-double GetSecondsFromInputPacket();
-void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks);
-
 void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks);
 void Bridge_Shutdown(void);
 
