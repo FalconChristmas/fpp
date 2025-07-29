@@ -112,6 +112,16 @@ function playlist_list_validate()
         } else {
             $plDesc = "";
         }
+        if (isset($pl->playlistInfo->total_duration)) {
+            $plDuration = $pl->playlistInfo->total_duration;
+        } else {
+            $plDuration = "";
+        }
+        if (isset($pl->playlistInfo->total_items)) {
+            $plItems = $pl->playlistInfo->total_items;
+        } else {
+            $plItems = "";
+        }
 
         array_push(
             $rc,
@@ -120,6 +130,8 @@ function playlist_list_validate()
                 "description" => $plDesc,
                 "valid" => $valid,
                 "messages" => $msg,
+                "total_duration" => $plDuration,
+                "total_items" => $plItems
             )
         );
     }
