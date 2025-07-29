@@ -4767,11 +4767,14 @@ function modeToString (mode) {
 function updateVolumeUI (Volume) {
 	//only update UI if no current change in progress
 	if (VolumeChangeInProgress !== true) {
-		$('#volume').html(Volume);
-		$('#remoteVolume').html(Volume);
-		$('#slider').val(Volume);
-		$('#remoteVolumeSlider').val(Volume);
-		SetSpeakerIndicator(Volume);
+		if ($('#volume').html() !== Volume) {
+			// Update the volume display only if changed
+			$('#volume').html(Volume);
+			$('#remoteVolume').html(Volume);
+			$('#slider').val(Volume);
+			$('#remoteVolumeSlider').val(Volume);
+			SetSpeakerIndicator(Volume);
+		}
 	}
 }
 
