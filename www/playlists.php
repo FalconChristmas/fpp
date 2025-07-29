@@ -13,7 +13,7 @@
     include 'common/menuHead.inc'; ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>
-        <? echo $pageTitle; ?>
+        <? echo htmlspecialchars($pageTitle); ?>
     </title>
     <?
     if (isset($_GET['playlist'])) {
@@ -24,10 +24,7 @@
         <?
     }
     ?>
-    <!--jQuery Colpicker to get the fancy color picker-->
-    <link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
-    <link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
-    <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
+
     <script>
         function CopyPlaylist() {
             var name = $('#txtPlaylistName').val();
@@ -151,7 +148,6 @@
 
         function LoadInitialPlaylist() {
             $('#playlistSelect').val(initialPlaylist).trigger('change');
-
         }
 
         function handleDeleteButtonClick(name = "") {
@@ -174,11 +170,15 @@
                 var $playlistCard = $('<div class="card has-shadow playlistCard buttonActionsParent"/>');
                 var $playlistName = String(playList.name);
                 var $playlistDescription = String(playList.description);
+                var $playlistDuration = String(SecondsToHuman(playList.total_duration));
+                var $playlistItems = String(playList.total_items);
                 var $playlistClass = playList.valid ? 'class="card-title"' :
                     'class="card-title playlist-warning" title="' + playList.messages.join(' ') + '"';
                 var $playlistCardHeading = $('<h3 ' + $playlistClass + '>' + $playlistName + '</h3>');
                 var $playlistCardDescription = $('<div class="text-center"/><p class="card-text mb-2 text-muted">' +
                     $playlistDescription + '</p></div>');
+                var $playlistCardDuration = $('<div class="text-left"/><p class="card-text mb-2 text-muted"><span class="fw-bold">Total Duration: </span>' + $playlistDuration + '</p></div>');
+                var $playlistCardItems = $('<div class="text-left"/><p class="card-text mb-2 text-muted"><span class="fw-bold">Total Items: </span>' + $playlistItems + '</p></div>');
                 var $playlistActions = $("<div class='buttonActions' />");
                 var $playlistEditButton = $(
                     '<button class="playlistCardEditButton circularButton circularButton-sm circularEditButton">Edit</button>'
@@ -194,11 +194,12 @@
                 });
                 $playlistActions.append($playlistEditButton);
                 $playlistActions.append($playlistDelete);
-
                 $playlistCol.append($playlistCard);
                 $playlistCard.append($playlistCardHeading);
                 $playlistCard.append($playlistCardDescription);
                 $playlistCard.append($playlistActions);
+                $playlistCard.append($playlistCardDuration);
+                $playlistCard.append($playlistCardItems);
 
                 $('.playlistSelectBody').append($playlistCol)
             })
@@ -238,7 +239,8 @@
                                             $('#playlistSelect').val($(
                                                 "#txtAddPlaylistName").val()).trigger(
                                                     'change');
-                                            //LoadPlaylistDetails($("#txtAddPlaylistName").val())
+                                            LoadPlaylistDetails($("#txtAddPlaylistName").val());
+
                                             CloseModalDialog("AddPlaylistDialog");
                                         }
                                     )
@@ -333,14 +335,20 @@
                         return;
                     }
                 }
-                $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
 
-                //Need to add logic to reload playlist details to pick up changes
+                //logic to reload window playlist details to pick up changes
+                PopulateLists({
+                    onPlaylistArrayLoaded: function () {
+                        $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
+                        onPlaylistArrayLoaded();
+                    }
+                });
             })
 
             PopulateLists({
                 onPlaylistArrayLoaded: onPlaylistArrayLoaded
             });
+
             if (typeof initialPlaylist !== 'undefined') {
                 LoadInitialPlaylist();
             } else {

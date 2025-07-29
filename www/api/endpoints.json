@@ -628,20 +628,20 @@
                 }
             }
         },
-	{
-	   "endpoint": "fppd/mqtt/cache",
-	   "fppd": true,
-	   "methods": {
-	      "GET": {
-	         "desc": "Returns a JSON map of the cached MQTT topic and values that were captured from the 'Subscribe Topic' setting. Note: value is always stored internally as a string.",
-			"output": {
-			   "/christmas/tag1": "true",
-			   "/christmas/tag2": "12345"
-			}
-		    }
-		}
-	}, 
-	{
+        {
+            "endpoint": "fppd/mqtt/cache",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Returns a JSON map of the cached MQTT topic and values that were captured from the 'Subscribe Topic' setting. Note: value is always stored internally as a string.",
+                    "output": {
+                        "/christmas/tag1": "true",
+                        "/christmas/tag2": "12345"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "fppd/multiSyncStats",
             "fppd": true,
             "methods": {
@@ -1921,7 +1921,7 @@
             "endpoint": "playlists/validate",
             "methods": {
                 "GET": {
-                    "desc": "Returns a list of Playlist and any validation errors that are present",
+                    "desc": "Returns a list of Playlist and any validation errors that are present, along with total items and duration",
                     "output": [
                         {
                             "name": "Delete_Media",
@@ -1929,7 +1929,9 @@
                             "valid": false,
                             "message": [
                                 "Invalid Playlist Christmas Every Day.mp3"
-                            ]
+                            ],
+                            "total_items": 3,
+                            "total_duration": 10
                         },
                         {
                             "name": "Delete_Sequence",
@@ -1938,7 +1940,9 @@
                             "message": [
                                 "Invalid mediaName Christmas Every Day.mp3",
                                 "Invalid Sequence Christmas Every Day_128.fseq"
-                            ]
+                            ],
+                            "total_items": 3,
+                            "total_duration": 10
                         },
                         {
                             "name": "Delete_Sequence2",
@@ -1946,7 +1950,9 @@
                             "valid": false,
                             "message": [
                                 "Invalid Sequence Christmas Every Day_128.fseq"
-                            ]
+                            ],
+                            "total_items": 3,
+                            "total_duration": 10
                         },
                         {
                             "name": "Parent_delete_test",
@@ -1954,31 +1960,41 @@
                             "valid": false,
                             "message": [
                                 "Invalid Playlist deleted_playlist"
-                            ]
+                            ],
+                            "total_items": 3,
+                            "total_duration": 10
                         },
                         {
                             "name": "Test1",
                             "description": "User entered playlist description",
                             "valid": true,
-                            "message": []
+                            "message": [],
+                            "total_items": 3,
+                            "total_duration": 10
                         },
                         {
                             "name": "Test2",
                             "description": "User entered playlist description",
                             "valid": true,
-                            "message": []
+                            "message": [],
+                            "total_items": 3,
+                            "total_duration": 10
                         },
                         {
                             "name": "Test3",
                             "description": "User entered playlist description",
                             "valid": true,
-                            "message": []
+                            "message": [],
+                            "total_items": 3,
+                            "total_duration": 10
                         },
                         {
                             "name": "Test4",
                             "description": "User entered playlist description",
                             "valid": true,
-                            "message": []
+                            "message": [],
+                            "total_items": 3,
+                            "total_duration": 10
                         }
                     ]
                 }
