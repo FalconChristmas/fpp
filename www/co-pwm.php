@@ -228,7 +228,6 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
         postData.channelOutputs.push(generateJSONConfig());
         $.post("api/channel/output/co-pwm", JSON.stringify(postData)).done(function (data) {
             $.jGrowl("PWM/Servo Output Configuration Saved", { themeState: 'success' });
-            SetRestartFlag(1);
             common_ViewPortChange();
         }).fail(function () {
             DialogError("Save PWM/Servo Outputs", "Save Failed");

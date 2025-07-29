@@ -236,7 +236,6 @@
                 $.jGrowl(" Channel Output configuration saved", { themeState: 'success' });
                 PopulateChannelOutputLookup();
                 DisplaySaveWarningIfRequired();
-                SetRestartFlag(1);
             }).fail(function () {
                 DialogError("Save Channel Output Config", "Save Failed");
             });

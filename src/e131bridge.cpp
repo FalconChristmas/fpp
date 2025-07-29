@@ -918,7 +918,7 @@ bool AddWarningForProtocol(int sock, const std::string& protocol) {
             if (errrors[at] == "") {
                 std::string ne = "Received " + protocol + " data from " + inet_ntoa(inAddress[x].sin_addr);
                 LogDebug(VB_E131BRIDGE, "%s\n", ne.c_str());
-                WarningHolder::AddWarningTimeout(ne, 30);
+                WarningHolder::AddWarningTimeout(ne, 10);
                 errrors[at] = ne;
             }
         }

@@ -838,7 +838,6 @@
         $.post("api/channel/output/co-other", JSON.stringify(postData)).done(function (data) {
             PopulateChannelOutputTable(data);
             $.jGrowl("Channel Output Configuration Saved", { themeState: 'success' });
-            SetRestartFlag(1);
             common_ViewPortChange();
         }).fail(function () {
             DialogError("Save Channel Outputs", "Save Failed");
