@@ -19,5 +19,16 @@ void SendFPDConfig();
 /* Create a pixelnetDMX config file */
 void CreatePixelnetDMXfile(const char* file);
 
+typedef struct fppChannelOutput {
+    int (*maxChannels)(void* data);
+    int (*open)(const char* device, void** privDataPtr);
+    int (*close)(void* data);
+    int (*isConfigured)(void);
+    int (*isActive)(void* data);
+    int (*send)(void* data, const char* channelData, int channelCount);
+    int (*startThread)(void* data);
+    int (*stopThread)(void* data);
+} FPPChannelOutput;
+
 /* Expose our interface */
 extern FPPChannelOutput FPDOutput;

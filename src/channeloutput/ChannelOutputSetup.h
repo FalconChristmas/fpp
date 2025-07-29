@@ -20,31 +20,6 @@
 class ChannelOutput;
 class OutputProcessors;
 
-typedef struct fppChannelOutput {
-    int (*maxChannels)(void* data);
-    int (*open)(const char* device, void** privDataPtr);
-    int (*close)(void* data);
-    int (*isConfigured)(void);
-    int (*isActive)(void* data);
-    int (*send)(void* data, const char* channelData, int channelCount);
-    int (*startThread)(void* data);
-    int (*stopThread)(void* data);
-} FPPChannelOutput;
-
-class FPPChannelOutputInstance {
-public:
-    FPPChannelOutputInstance() {}
-    ~FPPChannelOutputInstance() {}
-
-    unsigned int startChannel = 0;
-    unsigned int channelCount = 0;
-    FPPChannelOutput* outputOld = nullptr;
-    ChannelOutput* output = nullptr;
-    void* privData = nullptr;
-};
-
-extern char channelData[];
-extern pthread_mutex_t channelDataLock;
 extern unsigned long channelOutputFrame;
 extern float mediaElapsedSeconds;
 extern OutputProcessors outputProcessors;

@@ -44,9 +44,36 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
+class FPPChannelOutputInstance {
+public:
+    FPPChannelOutputInstance() {}
+    ~FPPChannelOutputInstance() {}
+
+    unsigned int startChannel = 0;
+    unsigned int channelCount = 0;
+    FPPChannelOutput* outputOld = nullptr;
+    ChannelOutput* output = nullptr;
+    void* privData = nullptr;
+    std::string sourceFile;
+
+    std::atomic<FPPChannelOutputInstance*> prev;
+    std::atomic<FPPChannelOutputInstance*> next;
+};
+
 unsigned long channelOutputFrame = 0;
 float mediaElapsedSeconds = 0.0;
-std::vector<FPPChannelOutputInstance> channelOutputs;
+
+std::atomic<FPPChannelOutputInstance*> channelOutputs;
+std::atomic<FPPChannelOutputInstance*> lastChannelOutput;
+inline void addChannelOutput(FPPChannelOutputInstance* inst) {
+    inst->prev = lastChannelOutput.load();
+    if (lastChannelOutput) {
+        lastChannelOutput.load()->next = inst;
+    } else {
+        channelOutputs = inst;
+    }
+    lastChannelOutput = inst;
+}
 
 OutputProcessors outputProcessors;
 
@@ -154,20 +181,21 @@ static void addRange(uint32_t min, uint32_t max, std::vector<std::pair<uint32_t,
 static void ComputeOutputRanges() {
     std::vector<std::pair<uint32_t, uint32_t>> normal;
     std::vector<std::pair<uint32_t, uint32_t>> precise;
-
-    for (auto& co : channelOutputs) {
-        if (co.output) {
-            co.output->GetRequiredChannelRanges([&precise, &normal, &co](int m1, int m2) {
-                LogInfo(VB_CHANNELOUT, "%s: Determined range needed %d - %d\n", co.output->GetOutputType().c_str(), m1, m2);
+    FPPChannelOutputInstance* co = channelOutputs;
+    while (co != nullptr) {
+        if (co->output) {
+            co->output->GetRequiredChannelRanges([&precise, &normal, &co](int m1, int m2) {
+                LogInfo(VB_CHANNELOUT, "%s: Determined range needed %d - %d\n", co->output->GetOutputType().c_str(), m1, m2);
                 addRange(m1, m2, precise, normal);
             });
-        } else if (co.outputOld) {
+        } else if (co->outputOld) {
             // old style outputs
-            int m1 = co.startChannel;
-            int m2 = m1 + co.channelCount - 1;
+            int m1 = co->startChannel;
+            int m2 = m1 + co->channelCount - 1;
             LogInfo(VB_CHANNELOUT, "ChannelOutput:  Determined range needed %d - %d\n", m1, m2);
             addRange(m1, m2, precise, normal);
         }
+        co = co->next;
     }
     outputProcessors.GetRequiredChannelRanges([&precise, &normal](int m1, int m2) {
         LogInfo(VB_CHANNELOUT, "OutputProcessor:  Determined range needed %d - %d\n", m1, m2);
@@ -243,26 +271,156 @@ static std::map<std::string, std::string> OUTPUT_REMAPS = {
     { "universes", "UDPOutput" }
 };
 
-/*
- *
- */
+extern int ChannelOutputThreadIsRunning(void);
+static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
+    bool changed = false;
+    std::list<FPPChannelOutputInstance*> toDelete;
+    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+        // remove everything in the list that was loaded from the cfgFile
+        if (inst->sourceFile == cfgFile) {
+            changed = true;
+            toDelete.push_back(inst);
+            if (inst->next) {
+                inst->next.load()->prev = inst->prev.load();
+            }
+            if (inst->prev) {
+                inst->prev.load()->next = inst->next.load();
+            }
+            if (inst == channelOutputs.load()) {
+                channelOutputs = inst->next.load();
+            }
+            if (inst == lastChannelOutput.load()) {
+                lastChannelOutput = inst->prev.load();
+            }
+        }
+    }
+    if (!toDelete.empty() && ChannelOutputThreadIsRunning()) {
+        // if the channel output thread is running, we need to wait at least one cycle
+        // before we can delete the outputs, this isn't ideal, but we don't want to
+        // delete the outputs while the thread is running as it may be using them
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        for (auto inst : toDelete) {
+            if ((inst->outputOld) &&
+                (inst->outputOld->stopThread)) {
+                inst->outputOld->stopThread(inst->privData);
+            } else if (inst->output) {
+                inst->output->StoppingOutput();
+            }
+        }
+    }
+    for (auto inst : toDelete) {
+        if (inst->outputOld) {
+            inst->outputOld->close(inst->privData);
+            free(inst->privData);
+        } else if (inst->output) {
+            inst->output->Close();
+            delete inst->output;
+        }
+        delete inst;
+    }
+
+    if (FileExists(cfgFile)) {
+        Json::Value root;
+        if (!LoadJsonFromFile(cfgFile, root)) {
+            WarningHolder::AddWarning("Could not parse " + cfgFile + ". Some outputs may not work.");
+            LogErr(VB_CHANNELOUT, "Error parsing %s\n", cfgFile.c_str());
+        }
+
+        const Json::Value outputs = root["channelOutputs"];
+        std::string type;
+        int start = 0;
+        int count = 0;
+
+        for (int c = 0; c < outputs.size(); c++) {
+            type = outputs[c]["type"].asString();
+
+            if (!outputs[c]["enabled"].asInt()) {
+                LogDebug(VB_CHANNELOUT, "Skipping Disabled Channel Output: %s\n", type.c_str());
+                continue;
+            }
+
+            start = outputs[c]["startChannel"].asInt();
+            count = outputs[c]["channelCount"].asInt();
+
+            // internally we start channel counts at zero
+            start -= 1;
+            if (start < 0 && count > 0) {
+                // we have a negative channel number, but actually are supposed to be outputting data
+                // Skip this output as that's not valid
+                WarningHolder::AddWarning("Could not initialize output type " + type + ". Invalid start channel.");
+                continue;
+            }
+
+            FPPChannelOutputInstance* channelOutput = new FPPChannelOutputInstance();
+
+            channelOutput->startChannel = start;
+            channelOutput->channelCount = count;
+            channelOutput->sourceFile = cfgFile;
+            std::string libnamePfx = "";
+
+            // First some Channel Outputs enabled everythwere
+            if (type == "LEDPanelMatrix") {
+                // for LED matrices, the driver is determined by the subType
+                libnamePfx = "matrix-";
+                type = outputs[c]["subType"].asString();
+            } else if (OUTPUT_REMAPS.find(type) != OUTPUT_REMAPS.end()) {
+                type = OUTPUT_REMAPS[type];
+            }
+
+            try {
+                FPPPlugins::ChannelOutputPlugin* p = dynamic_cast<FPPPlugins::ChannelOutputPlugin*>(PluginManager::INSTANCE.findPlugin(libnamePfx + type, "fpp-co-" + libnamePfx + type));
+                if (p) {
+                    channelOutput->output = p->createChannelOutput(start, count);
+                }
+                if (channelOutput->output) {
+                    if (channelOutput->output->Init(outputs[c])) {
+                        addChannelOutput(channelOutput);
+                        LogDebug(VB_CHANNELOUT, "Configured %s Channel Output\n", type.c_str());
+                        channelOutput = nullptr;
+                        changed = true;
+                    } else {
+                        WarningHolder::AddWarning("Could not initialize output type " + type + ". Check logs for details.");
+                        delete channelOutput->output;
+                        channelOutput->output = nullptr;
+                    }
+                } else {
+                    LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
+                    WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
+                }
+            } catch (const std::exception& ex) {
+                WarningHolder::AddWarning("Could not initialize output type " + type + ". (" + ex.what() + ")");
+                if (channelOutput && channelOutput->output) {
+                    delete channelOutput->output;
+                    channelOutput->output = nullptr;
+                }
+            }
+            if (channelOutput) {
+                // if we didn't add the channel output, delete it
+                delete channelOutput;
+            }
+        }
+    }
+    return changed;
+}
+
+bool skipOutputRangeCompute = false;
 int InitializeChannelOutputs(void) {
     Json::Value root;
 
     channelOutputFrame = 0;
-    channelOutputs.clear();
 
-    // Reset index so we can start populating the outputs array
     if (FPDOutput.isConfigured()) {
-        FPPChannelOutputInstance inst;
-        inst.startChannel = getSettingInt("FPDStartChannelOffset");
-        inst.outputOld = &FPDOutput;
+        FPPChannelOutputInstance* inst = new FPPChannelOutputInstance();
+        inst->startChannel = getSettingInt("FPDStartChannelOffset");
+        inst->outputOld = &FPDOutput;
+        inst->sourceFile = "FPD";
 
-        if (FPDOutput.open("", &inst.privData)) {
-            inst.channelCount = inst.outputOld->maxChannels(inst.privData);
-            channelOutputs.push_back(inst);
+        if (FPDOutput.open("", &inst->privData)) {
+            inst->channelCount = inst->outputOld->maxChannels(inst->privData);
+            addChannelOutput(inst);
             LogDebug(VB_CHANNELOUT, "Configured FPD Channel Output\n");
         } else {
+            delete inst;
             LogErr(VB_CHANNELOUT, "ERROR Opening FPD Channel Output\n");
         }
     }
@@ -271,106 +429,35 @@ int InitializeChannelOutputs(void) {
     const char* configFiles[] = {
         "/co-universes.json",
         "/co-other.json",
-        "/co-pixelStrings.json",
         "/co-pwm.json",
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
         "/co-bbbStrings.json",
+#else
+        "/co-pixelStrings.json",
 #endif
         "/channeloutputs.json",
         NULL
     };
-
-    FILE* fp;
-    char filename[1024];
-    char csvConfig[2048];
-
-    // Parse the JSON channel outputs config files
+    skipOutputRangeCompute = true;
     for (int f = 0; configFiles[f]; f++) {
-        strcpy(filename, FPP_DIR_CONFIG(configFiles[f]).c_str());
-
-        LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
-
-        if (FileExists(filename)) {
-            if (!LoadJsonFromFile(filename, root)) {
-                WarningHolder::AddWarning("Could not parse " + std::string(filename) + ". Some outputs may not work.");
-                LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
-            }
-
-            const Json::Value outputs = root["channelOutputs"];
-            std::string type;
-            int start = 0;
-            int count = 0;
-
-            for (int c = 0; c < outputs.size(); c++) {
-                csvConfig[0] = '\0';
-
-                type = outputs[c]["type"].asString();
-
-                if (!outputs[c]["enabled"].asInt()) {
-                    LogDebug(VB_CHANNELOUT, "Skipping Disabled Channel Output: %s\n", type.c_str());
-                    continue;
-                }
-
-                start = outputs[c]["startChannel"].asInt();
-                count = outputs[c]["channelCount"].asInt();
-
-                // internally we start channel counts at zero
-                start -= 1;
-                if (start < 0 && count > 0) {
-                    // we have a negative channel number, but actually are supposed to be outputting data
-                    // Skip this output as that's not valid
-                    WarningHolder::AddWarning("Could not initialize output type " + type + ". Invalid start channel.");
-                    continue;
-                }
-
-                FPPChannelOutputInstance channelOutput;
-
-                channelOutput.startChannel = start;
-                channelOutput.channelCount = count;
-                std::string libnamePfx = "";
-
-                // First some Channel Outputs enabled everythwere
-                if (type == "LEDPanelMatrix") {
-                    // for LED matrices, the driver is determined by the subType
-                    libnamePfx = "matrix-";
-                    type = outputs[c]["subType"].asString();
-                } else if (OUTPUT_REMAPS.find(type) != OUTPUT_REMAPS.end()) {
-                    type = OUTPUT_REMAPS[type];
-                }
-
-                try {
-                    FPPPlugins::ChannelOutputPlugin* p = dynamic_cast<FPPPlugins::ChannelOutputPlugin*>(PluginManager::INSTANCE.findPlugin(libnamePfx + type, "fpp-co-" + libnamePfx + type));
-                    if (p) {
-                        ChannelOutput* co = p->createChannelOutput(start, count);
-                        channelOutput.output = co;
-                    }
-                    if (channelOutput.output) {
-                        if (channelOutput.output->Init(outputs[c])) {
-                            channelOutputs.push_back(channelOutput);
-                        } else {
-                            WarningHolder::AddWarning("Could not initialize output type " + type + ". Check logs for details.");
-                            delete channelOutput.output;
-                            channelOutput.output = nullptr;
-                        }
-                    } else {
-                        LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
-                        WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
-                        continue;
-                    }
-
-                    LogDebug(VB_CHANNELOUT, "Configured %s Channel Output\n", type.c_str());
-                } catch (const std::exception& ex) {
-                    WarningHolder::AddWarning("Could not initialize output type " + type + ". (" + ex.what() + ")");
-                    if (channelOutput.output) {
-                        delete channelOutput.output;
-                        channelOutput.output = nullptr;
-                    }
-                }
-            }
-        }
+        std::string configFile = FPP_DIR_CONFIG(configFiles[f]);
+        FileMonitor::INSTANCE.AddFile("ChannelOutputSetup", configFile, [configFile]() {
+                                 LogDebug(VB_CHANNELOUT, "Reloading Channel Outputs for %s\n", configFile.c_str());
+                                 if (ReloadChannelOutputsForFile(configFile) && !skipOutputRangeCompute) {
+                                     ComputeOutputRanges();
+                                 }
+                             })
+            .TriggerFileChanged(configFile);
     }
+    skipOutputRangeCompute = false;
 
-    LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputs.size());
+    int count = 0;
+    FPPChannelOutputInstance* co = channelOutputs;
+    while (co != nullptr) {
+        count++;
+        co = co->next;
+    }
+    LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", count);
     std::string opfilename = FPP_DIR_CONFIG("/outputprocessors.json");
     FileMonitor::INSTANCE.AddFile("outputprocessors.json", opfilename, [opfilename]() {
                              Json::Value newRoot;
@@ -400,26 +487,29 @@ void ResetChannelOutputFrameNumber(void) {
 }
 
 void OverlayOutputTestData(std::set<std::string> types, unsigned char* channelData, int cycleCnt, float percentOfCycle, int testType, const Json::Value& extraConfig) {
-    for (auto& inst : channelOutputs) {
-        if (inst.output && inst.output->SupportsTesting() && (types.empty() || types.find(inst.output->GetOutputType()) != types.end())) {
-            inst.output->OverlayTestData(channelData, cycleCnt, percentOfCycle, testType, extraConfig);
+    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+        auto output = inst->output;
+        if (output && output->SupportsTesting() && (types.empty() || types.find(output->GetOutputType()) != types.end())) {
+            output->OverlayTestData(channelData, cycleCnt, percentOfCycle, testType, extraConfig);
         }
     }
 }
 std::set<std::string> GetOutputTypes() {
     std::set<std::string> ret;
-    for (auto& inst : channelOutputs) {
-        if (inst.output && inst.output->SupportsTesting()) {
-            ret.insert(inst.output->GetOutputType());
+    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+        auto output = inst->output;
+        if (output && output->SupportsTesting()) {
+            ret.insert(output->GetOutputType());
         }
     }
     return ret;
 }
 int PrepareChannelData(char* channelData) {
     outputProcessors.ProcessData((unsigned char*)channelData);
-    for (auto& inst : channelOutputs) {
-        if (inst.output) {
-            inst.output->PrepData((unsigned char*)channelData);
+    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+        auto output = inst->output;
+        if (output) {
+            output->PrepData((unsigned char*)channelData);
         }
     }
     return 0;
@@ -439,14 +529,15 @@ int SendChannelData(const char* channelData) {
         HexDump(buf, &channelData[minimumNeededChannel], 16, VB_CHANNELDATA);
     }
 
-    for (auto& inst : channelOutputs) {
-        if (inst.outputOld) {
-            inst.outputOld->send(
-                inst.privData,
-                channelData + inst.startChannel,
-                inst.channelCount < (FPPD_MAX_CHANNELS - inst.startChannel) ? inst.channelCount : (FPPD_MAX_CHANNELS - inst.startChannel));
-        } else if (inst.output) {
-            inst.output->SendData((unsigned char*)(channelData + inst.startChannel));
+    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+        auto output = inst->output;
+        if (inst->outputOld) {
+            inst->outputOld->send(
+                inst->privData,
+                channelData + inst->startChannel,
+                inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
+        } else if (output) {
+            output->SendData((unsigned char*)(channelData + inst->startChannel));
         }
     }
 
@@ -462,13 +553,14 @@ void StartingOutput(void) {
     FPPChannelOutputInstance* output;
     int i = 0;
 
-    for (auto& inst : channelOutputs) {
-        if ((inst.outputOld) &&
-            (inst.outputOld->startThread)) {
+    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+        auto output = inst->output;
+        if ((inst->outputOld) &&
+            (inst->outputOld->startThread)) {
             // old style outputs
-            inst.outputOld->startThread(inst.privData);
-        } else if (inst.output) {
-            inst.output->StartingOutput();
+            inst->outputOld->startThread(inst->privData);
+        } else if (output) {
+            output->StartingOutput();
         }
     }
 }
@@ -480,15 +572,15 @@ void StoppingOutput(void) {
     FPPChannelOutputInstance* output;
     int i = 0;
 
-    for (auto& inst : channelOutputs) {
-        if ((inst.outputOld) &&
-            (inst.outputOld->stopThread)) {
-            inst.outputOld->stopThread(inst.privData);
-        } else if (inst.output) {
-            inst.output->StoppingOutput();
+    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+        auto output = inst->output;
+        if ((inst->outputOld) &&
+            (inst->outputOld->stopThread)) {
+            inst->outputOld->stopThread(inst->privData);
+        } else if (output) {
+            output->StoppingOutput();
         }
     }
-
     OutputMonitor::INSTANCE.AutoDisableOutputs();
 }
 
@@ -496,22 +588,28 @@ void StoppingOutput(void) {
  *
  */
 void CloseChannelOutputs(void) {
-    int i = 0;
-
-    for (i = channelOutputs.size() - 1; i >= 0; i--) {
-        if (channelOutputs[i].outputOld)
-            channelOutputs[i].outputOld->close(channelOutputs[i].privData);
-        else if (channelOutputs[i].output)
-            channelOutputs[i].output->Close();
-
-        if (channelOutputs[i].privData)
-            free(channelOutputs[i].privData);
-    }
-
-    for (i = channelOutputs.size() - 1; i >= 0; i--) {
-        if (channelOutputs[i].output) {
-            delete channelOutputs[i].output;
-            channelOutputs[i].output = NULL;
+    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+        auto output = inst->output;
+        if (inst->outputOld) {
+            inst->outputOld->close(inst->privData);
+        } else if (output) {
+            output->Close();
         }
+    }
+    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+        auto output = inst->output;
+        if (inst->privData) {
+            free(inst->privData);
+            inst->privData = nullptr;
+        }
+        if (output) {
+            inst->output = nullptr;
+            delete output;
+        }
+    }
+    while (channelOutputs.load() != nullptr) {
+        FPPChannelOutputInstance* inst = channelOutputs.load();
+        channelOutputs = inst->next.load();
+        delete inst;
     }
 }
