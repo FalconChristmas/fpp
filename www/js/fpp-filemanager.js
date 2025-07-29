@@ -457,13 +457,16 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 	$('#tblBackups').on('mousedown', 'tbody tr', function (event, ui) {
 		HandleMouseClick(event, $(this), 'Backups');
 	});
-
+	// there is a bug/issue with FilePond and Safari that causes it to stop when uploading large files, stopping after the first
+	// chunk. This is a workaround to increase the chunk size to 512MB so at least files up to 512MB can be uploaded.
+	var isSafari = window.safari !== undefined;
+	var maxChunkSize = isSafari ? 1024 * 1024 * 512 : 1024 * 1024 * 64;
 	const pond = FilePond.create(document.querySelector('#filepondInput'), {
 		labelIdle: `<b style="font-size: 1.3em;">Drag & Drop or Select Files to upload</b><br><br><span class="btn btn-dark filepond--label-action" style="text-decoration:none;">Select Files</span><br>`,
 		server: 'api/file/upload',
 		credits: false,
 		chunkUploads: true,
-		chunkSize: 1024 * 1024 * 64,
+		chunkSize: maxChunkSize,
 		chunkForce: true,
 		maxParallelUploads: 3,
 		labelTapToUndo: 'Tap to Close'
