@@ -1579,13 +1579,11 @@ function HidePlaylistDetails () {
 
 function PopulateLists (options) {
 	var onPlaylistArrayLoaded = function () {};
-	if (options) {
-		if (typeof options.onPlaylistArrayLoaded === 'function') {
-			onPlaylistArrayLoaded = options.onPlaylistArrayLoaded;
-		}
+	if (options && typeof options.onPlaylistArrayLoaded === 'function') {
+		onPlaylistArrayLoaded = options.onPlaylistArrayLoaded;
 	}
 	DisableButtonClass('playlistEditButton');
-	PlaylistTypeChanged();
+	//PlaylistTypeChanged();
 	PopulatePlaylists(false, { onPlaylistArrayLoaded: onPlaylistArrayLoaded });
 }
 
@@ -5783,9 +5781,9 @@ function PopulatePlaylists (sequencesAlso, options) {
 		.done(function (playlists, sequences, media) {
 			// playlists, sequences, media are arrays like [data, status, xhr]
 			let playlistOptionsText = '';
-			let playListArray = playlists[0];
-			let sequenceArray = sequences[0];
-			let mediaArray = media[0];
+			playListArray = playlists[0];
+			sequenceArray = sequences[0];
+			mediaArray = media[0];
 
 			if (sequencesAlso) playlistOptionsText += "<optgroup label='Playlists'>";
 			for (let j = 0; j < playListArray.length; j++) {
