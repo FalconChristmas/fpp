@@ -4064,8 +4064,10 @@ function postUniverseJSON (input) {
 	$.post('api/channel/output/' + fileName, postDataString)
 		.done(function (data) {
 			$.jGrowl('E1.31 Universes Saved', { themeState: 'success' });
-			SetRestartFlag(2);
-			CheckRestartRebootFlags();
+			if (!input) {
+				SetRestartFlag(2);
+				CheckRestartRebootFlags();
+			}
 		})
 		.fail(function () {
 			DialogError('Save Universes', 'Error: Unable to save E1.31 Universes.');

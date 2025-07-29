@@ -441,7 +441,7 @@ bool Bridge_Initialize_Internal() {
         freeifaddrs(interfaces);
     }
 
-    if (hasArtNet || getSettingInt("ARTNETTimeCodeSync", 0)) {
+    if (hasArtNet) {
         CreateArtNetSocket();
     }
 
@@ -1116,7 +1116,6 @@ void Bridge_Shutdown(void) {
     }
     BridgeShutdownUDP();
     unregisterSettingsListener("DisableFakeNetworkBridges", "DisableFakeNetworkBridges");
-    unregisterSettingsListener("ARTNETTimeCodeSync", "ARTNETTimeCodeSync");
     std::string udpInFile = FPP_DIR_CONFIG("/ci-universes.json");
     FileMonitor::INSTANCE.RemoveFile("ci-universes.json", udpInFile);
     std::string dmxInFile = FPP_DIR_CONFIG("/ci-dmx.json");
@@ -1127,10 +1126,6 @@ void Bridge_Shutdown(void) {
 
 void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
     registerSettingsListener("DisableFakeNetworkBridges", "DisableFakeNetworkBridges", [](const std::string& s) {
-        // reload the bridges when the setting changes
-        BridgeReloadUDP();
-    });
-    registerSettingsListener("ARTNETTimeCodeSync", "ARTNETTimeCodeSync", [](const std::string& s) {
         // reload the bridges when the setting changes
         BridgeReloadUDP();
     });

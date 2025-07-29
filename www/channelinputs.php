@@ -36,43 +36,10 @@
                 });
             });
 
-            $.ajax({
-                url: "api/settings/BridgeInputDelayBeforeBlack",
-                method: "GET",
-                dataType: "json",
-                success: function (data) {
-                    let val = 0;
-                    if ("value" in data) {
-                        val = data.value;
-                    }
-                    $('#txtBridgeInputDelayBeforeBlack').val(val);
-                }
-            });
-
             $('#txtUniverseCount').on('focus', function () {
                 $(this).select();
             });
 
-            $('#txtBridgeInputDelayBeforeBlack').on("change", function () {
-                var newValue = $('#txtBridgeInputDelayBeforeBlack').val();
-                $.ajax({
-                    url: "api/settings/BridgeInputDelayBeforeBlack",
-                    data: newValue,
-                    method: "PUT",
-                    dataType: "text",
-                    success: function (data) {
-                        $.jGrowl("Input Delay Saved", { themeState: 'success' });
-                        SetRestartFlag(2);
-                        CheckRestartRebootFlags();
-                        common_ViewPortChange();
-                    }
-                });
-
-            });
-
-            if (window.innerWidth > 600) {
-
-            }
             var sortableOptions = {
                 start: function (event, ui) {
                     start_pos = ui.item.index();
@@ -165,8 +132,6 @@
             $.post('api/channel/output/dmxInputs', JSON.stringify(data))
                 .done(function (data) {
                     $.jGrowl('DMX Inputs Saved', { themeState: 'success' });
-                    SetRestartFlag(2);
-                    CheckRestartRebootFlags();
                     common_ViewPortChange();
                 })
                 .fail(function () {

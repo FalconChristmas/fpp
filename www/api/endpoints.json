@@ -2714,7 +2714,6 @@
                         "settings": {
                             "AudioMixerDevice": "Master",
                             "AudioOutput": "0",
-                            "BridgeInputDelayBeforeBlack": "5",
                             "masqUIPlatform": "",
                             "uiLevel": "3",
                             "verbosePlaylistItemDetails": "0"
