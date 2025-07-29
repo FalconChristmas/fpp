@@ -337,7 +337,12 @@ OutputMonitor::~OutputMonitor() {
 void OutputMonitor::Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
     eFuseRetryCount = getSettingInt("eFuseRetryCount", 0);
     eFuseRetryInterval = getSettingInt("eFuseRetryInterval", 100);
-
+    registerSettingsListener("OutputMonitor", "eFuseRetryCount", [this](const std::string& value) {
+        eFuseRetryCount = getSettingInt("eFuseRetryCount", 0);
+    });
+    registerSettingsListener("OutputMonitor", "eFuseRetryInterval", [this](const std::string& value) {
+        eFuseRetryCount = getSettingInt("eFuseRetryInterval", 100);
+    });
     CommandManager::INSTANCE.addCommand(&FPPEnableOutputsCommand::INSTANCE);
     CommandManager::INSTANCE.addCommand(&FPPDisableOutputsCommand::INSTANCE);
     if (!portPins.empty()) {
@@ -346,6 +351,8 @@ void OutputMonitor::Initialize(std::map<int, std::function<bool(int)>>& callback
     }
 }
 void OutputMonitor::Cleanup() {
+    unregisterSettingsListener("OutputMonitor", "eFuseRetryCount");
+    unregisterSettingsListener("OutputMonitor", "eFuseRetryInterval");
     CommandManager::INSTANCE.removeCommand(&FPPEnableOutputsCommand::INSTANCE);
     CommandManager::INSTANCE.removeCommand(&FPPDisableOutputsCommand::INSTANCE);
     if (!portPins.empty()) {

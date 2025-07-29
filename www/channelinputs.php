@@ -156,16 +156,7 @@
         }
         /////////////////////////////////////////////////////////////////////////////
 
-        function handleCIKeypress(e) {
-            if (e.keyCode == 113) {
-                //		if (currentTabTitle == "Pi Pixel Strings")
-                //			setPixelStringsStartChannelOnNextRow();
-            }
-        }
-
         $(document).ready(function () {
-            $(document).on('keydown', handleCIKeypress);
-
             // E1.31 initialization
             InitializeUniverses();
             getUniverses('TRUE', 1);

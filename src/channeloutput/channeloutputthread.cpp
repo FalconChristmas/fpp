@@ -39,7 +39,7 @@
 /* used by external sync code */
 float RefreshRate = 20;
 int SequenceLightDelay = 50000;
-int BridgeLightDelay = 50000;
+int BridgeLightDelay = 0;
 int LightDelay = 50000;
 volatile int FrameSkip = 0;
 int MasterFramesPlayed = -1;
@@ -120,8 +120,6 @@ void* RunChannelOutputThread(void* data) {
     struct timespec ts;
     struct timeval tv;
     int slowFrameCount = 0;
-
-    alwaysTransmit = getSettingInt("alwaysTransmit");
 
     LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
 
@@ -302,7 +300,16 @@ float GetChannelOutputRefreshRate() {
 void StartChannelOutputThread(void) {
     LogDebug(VB_CHANNELOUT, "StartChannelOutputThread()\n");
 
-    BridgeLightDelay = getSettingInt("E131BridgingInterval", 50) * 1000;
+    if (BridgeLightDelay == 0) {
+        alwaysTransmit = getSettingInt("alwaysTransmit");
+        BridgeLightDelay = getSettingInt("E131BridgingInterval", 50) * 1000;
+        registerSettingsListener("ChannelOutputThread", "alwaysTransmit", [](const std::string& value) {
+            alwaysTransmit = getSettingInt("alwaysTransmit");
+        });
+        registerSettingsListener("ChannelOutputThread", "E131BridgingInterval", [](const std::string& value) {
+            BridgeLightDelay = getSettingInt("E131BridgingInterval", 50) * 1000;
+        });
+    }
     if (getFPPmode() & PLAYER_MODE) {
         int mediaOffsetInt = getSettingInt("mediaOffset");
         if (mediaOffsetInt) {
