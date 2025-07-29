@@ -62,6 +62,7 @@
 			<legend> Falcon Pixelnet/DMX (FPD) </legend>
 			<div id='divFPDData'>
 				<div style="overflow: hidden; padding: 10px;">
+					<b style="color: red">Warning: FPD output is deprecated and will be removed in FPP 10</b><br><br>
 					<b>Enable FPD Output:</b>
 					<? PrintSettingCheckbox("FPD Output", "FPDEnabled", 2, 0, "1", "0"); ?><br>
 					<b>FPD Start Channel Offset:</b> <? PrintSettingTextSaved("FPDStartChannelOffset", 2, 0, 6, 6); ?>
