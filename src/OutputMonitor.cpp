@@ -421,10 +421,12 @@ void OutputMonitor::EnableOutputs() {
     PinCapabilities::SetMultiPinValue(pullHighOutputPins, 1);
     PinCapabilities::SetMultiPinValue(pullLowOutputPins, 0);
     for (auto p : portPins) {
-        for (auto& r : p->receivers) {
-            if (r.enabled) {
-                r.isOn = true;
-                r.hasTriggered = false;
+        if (p) {
+            for (auto& r : p->receivers) {
+                if (r.enabled) {
+                    r.isOn = true;
+                    r.hasTriggered = false;
+                }
             }
         }
     }
