@@ -553,7 +553,8 @@
                                     </div>
                                     <div class="col-auto playlistRepeatCol">
                                         <span class="settingLabelHeading">Repeat:</span>
-                                        <input class="form-check-input" type="checkbox" value="" id="chkRepeat">
+                                        <input class="form-check-input" type="checkbox" value="" aria-label="Repeat"
+                                            title="Repeat" id="chkRepeat">
                                     </div>
                                 </div>
                             </div>
@@ -660,6 +661,7 @@
                                                             <i class='fas fa-fw fa-volume-down'></i>
                                                         </button>
                                                         <input type="range" min="0" max="100" class="slider" id="slider"
+                                                            aria-label="VolumeSlider"
                                                             oninput="VolumeControlChange(this.value)">
                                                         <button class='volumeButton buttons'
                                                             onClick="IncrementVolume();" aria-label="IncrementVolume">

@@ -867,7 +867,7 @@ function " . $changedFunction . "() {
 }
 </script>
 
-<input type='checkbox' id='$setting' ";
+<input type='checkbox' id='$setting' aria-label='$setting'";
 
     if (isset($sData['children'])) {
         echo "class='parentSetting' ";
