@@ -47,7 +47,7 @@ void EPollManager::addFileDescriptor(int fd, std::function<bool(int)> &callback)
 #ifdef USE_KQUEUE
     struct kevent change;
     EV_SET(&change, fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
-    int rc = kevent(kq, &change, 1, NULL, 0, NULL);    
+    int rc = kevent(epollf, &change, 1, NULL, 0, NULL);
 #else
     epoll_event event;
     memset(&event, 0, sizeof(event));
@@ -67,7 +67,7 @@ void EPollManager::removeFileDescriptor(int fd) {
 #ifdef USE_KQUEUE
     struct kevent change;
     EV_SET(&change, fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
-    int rc = kevent(kq, &change, 1, NULL, 0, NULL);
+    int rc = kevent(epollf, &change, 1, NULL, 0, NULL);
 #else
     epoll_event event;
     memset(&event, 0, sizeof(event));

@@ -179,12 +179,12 @@ void CopyFileToMappedBlock(const std::string& blockName, char* inputFilename) {
         return;
     }
 
-    int channelCount = v["ChannelCount"].asInt();
+    const int channelCount = v["ChannelCount"].asInt();
     int width = v["width"].asInt();
     int height = v["height"].asInt();
 
-    char data[channelCount];
-    int r = read(fd, data, channelCount);
+    std::vector<char> data(channelCount);
+    int r = read(fd, &data[0], channelCount);
     if (r != channelCount) {
         printf("WARNING: Expected %d bytes of data but only read %d.\n",
                channelCount, r);
@@ -195,7 +195,7 @@ void CopyFileToMappedBlock(const std::string& blockName, char* inputFilename) {
         int size = width * height * 3 + 12;
         uint8_t* overlayBufferData = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
         close(f);
-        memcpy(&overlayBufferData[12], data, channelCount);
+        memcpy(&overlayBufferData[12], &data[0], channelCount);
         //data is copied, mark the overlay buffer as dirty so it gets copied into the data buffer
         uint32_t* flags = (uint32_t*)&overlayBufferData[8];
         *flags |= 1;

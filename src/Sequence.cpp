@@ -88,7 +88,7 @@ Sequence::Sequence() :
     } else {
         LogDebug(VB_SEQUENCE, "Using Huge Pages for Sequence Data   %p\n", m_seqData);
     }
-    memset(m_seqData, 0, sizeof(m_seqData));
+    memset(m_seqData, 0, FPPD_MAX_CHANNEL_NUM);
     for (int x = 0; x < 4; x++) {
         m_seqData[FPPD_OFF_CHANNEL + x] = 0;
         m_seqData[FPPD_WHITE_CHANNEL] = 0xFF;

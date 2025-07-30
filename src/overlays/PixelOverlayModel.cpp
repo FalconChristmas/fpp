@@ -803,14 +803,15 @@ void PixelOverlayModel::saveOverlayAsImage(std::string filename) {
     LogDebug(VB_CHANNELOUT, "Saving %dx%d PixelOverlayModel image to: %s\n",
              width, height, filename.c_str());
 
-    uint8_t data[width * height * 3];
-    memset(data, 0, width * height * 3);
+    std::vector<uint8_t> data(width * height * 3);
+    memset(&data[0], 0, width * height * 3);
+    
     for (int c = 0; c < height * width * 3; c++) {
         if (channelMap[c] != FPPD_OFF_CHANNEL) {
             data[c] = channelData[channelMap[c]];
         }
     }
-    blob.update(data, width * height * 3);
+    blob.update(&data[0], width * height * 3);
 
     image.magick("RGB");
     image.depth(8);

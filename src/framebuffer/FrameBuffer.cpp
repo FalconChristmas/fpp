@@ -690,11 +690,12 @@ void FrameBuffer::FBDrawMosaic(void) {
     int squareSize = 32;
     int xSquares = m_width / squareSize + 1;
     int ySquares = m_height / squareSize + 1;
-    int squares[ySquares][xSquares];
+    std::vector<std::vector<int>> squares;
+    squares.resize(ySquares, std::vector<int>(xSquares, 0));
+    
     int count = xSquares * ySquares;
     int sleepTime = 800 * 1000 / count;
 
-    memset(squares, 0, sizeof(squares));
 
     m_bufferLock.lock();
 

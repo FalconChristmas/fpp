@@ -148,15 +148,15 @@ static AudioDeviceID getAudioDeviceID(const char* deviceName) {
         AudioObjectGetPropertyDataSize(defaultID, &devicesAddress, 0, nullptr, &propertySize);
 
         numberOfDevices = propertySize / sizeof(AudioObjectID);
-        AudioDeviceID ids[numberOfDevices];
+        std::vector<AudioDeviceID> ids(numberOfDevices);
 
         // Populate ids from devices address
-        AudioObjectGetPropertyData(defaultID, &devicesAddress, 0, nullptr, &propertySize, ids);
+        AudioObjectGetPropertyData(defaultID, &devicesAddress, 0, nullptr, &propertySize, &ids[0]);
 
         for (int i = 0; i < numberOfDevices; i++) {
             if (hasOutputChannels(ids[i])) {
                 UInt32 nameSize = 256;
-                char name[nameSize];
+                char name[256];
 
                 AudioObjectPropertyAddress deviceNameAddress = {
                     kAudioDevicePropertyDeviceName,

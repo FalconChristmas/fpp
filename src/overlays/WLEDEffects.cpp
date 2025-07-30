@@ -135,7 +135,7 @@ public:
             v["color1"] = color1;
             v["color2"] = color2;
         }
-        virtual int32_t doIteration() {
+        virtual int32_t doIteration() override {
             if (isColor2) {
                 fill(color1);
                 isColor2 = false;
@@ -560,7 +560,7 @@ public:
                 }
             }
         }
-        virtual int32_t doIteration() {
+        virtual int32_t doIteration() override {
             WS2812FXExt::pushCurrent(wled);
             wled->service();
             WS2812FXExt::popCurrent();

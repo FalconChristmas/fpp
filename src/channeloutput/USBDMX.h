@@ -32,7 +32,7 @@ public:
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
-    virtual std::string GetOutputType() const {
+    virtual std::string GetOutputType() const override {
         if (m_dongleType == DMX_DVC_PRO) {
             return "USB-DMX-Pro";
         } else if (m_dongleType == DMX_DVC_OPEN) {

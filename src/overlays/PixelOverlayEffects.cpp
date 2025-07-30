@@ -437,7 +437,7 @@ public:
             model->flushOverlayBuffer();
         }
     }
-    virtual int32_t update() {
+    virtual int32_t update() override {
         if (!done) {
             if (direction == "R2L") {
                 --x;
