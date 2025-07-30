@@ -145,6 +145,9 @@ PixelString::PixelString(bool supportSmart) :
  *
  */
 PixelString::~PixelString() {
+    if (!m_pinConfig.empty()) {
+        OutputMonitor::INSTANCE.RemovePortConfiguration(m_portNumber, m_pinConfig);
+    }
     if (m_brightnessMaps) {
         free(m_brightnessMaps);
     }
@@ -246,7 +249,8 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
         AddVirtualString(VirtualString());
     }
     if (pinConfig) {
-        OutputMonitor::INSTANCE.AddPortConfiguration(m_portNumber, *pinConfig, m_outputChannels > 0);
+        m_pinConfig = *pinConfig;
+        OutputMonitor::INSTANCE.AddPortConfiguration(m_portNumber, m_pinConfig, m_outputChannels > 0);
     }
 
     m_outputMap.resize(m_outputChannels);

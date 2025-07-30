@@ -30,6 +30,7 @@ public:
     void Initialize(std::map<int, std::function<bool(int)>>& callbacks);
     void Cleanup();
 
+    void RemovePortConfiguration(int port, const Json::Value& config);
     void AddPortConfiguration(int port, const Json::Value& config, bool enabled = true);
     const PinCapabilities* AddOutputPin(const std::string& name, const std::string& pin);
 

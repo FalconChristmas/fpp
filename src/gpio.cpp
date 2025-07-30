@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "EPollManager.h"
 #include "common.h"
 #include "log.h"
 #include "settings.h"
@@ -71,6 +72,7 @@ GPIOManager::~GPIOManager() {
 }
 
 void GPIOManager::Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
+    isInitialized = true;
     SetupGPIOInput(callbacks);
     std::vector<std::string> pins = PinCapabilities::getPinNames();
     if (!pins.empty()) {
@@ -198,37 +200,60 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
         }
     }
     LogDebug(VB_GPIO, "%d GPIO Input(s) enabled\n", enabledCount);
-#ifdef HAS_GPIOD
     for (auto& a : eventStates) {
-        std::function<bool(int)> f = [&a, this](int i) {
-            struct gpiod_line_event event;
-            int rc = gpiod_line_event_read_fd(i, &event);
-
-            int v = event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
-            if (v != a.lastValue) {
-                long long lastAllowedTime = GetTime() - a.debounceTime; // usec's ago
-                if (a.lastTriggerTime < lastAllowedTime) {
-                    a.doAction(v);
-                } else {
-                    // we are within the debounce time, we'll record this as a last value
-                    // and if we end up with a different value after the debounce time,
-                    // we'll send the command then
-                    a.futureValue = v;
-                    checkDebounces = true;
-                }
-            }
-            return false;
-        };
-        callbacks[a.file] = f;
+        addGPIOCallback(a);
     }
+}
+
+void GPIOManager::addGPIOCallback(GPIOState& a) {
+#ifdef HAS_GPIOD
+    std::function<bool(int)> f = [&a, this](int i) {
+        struct gpiod_line_event event;
+        int rc = gpiod_line_event_read_fd(i, &event);
+
+        int v = event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
+        if (v != a.lastValue) {
+            long long lastAllowedTime = GetTime() - a.debounceTime; // usec's ago
+            if (a.lastTriggerTime < lastAllowedTime) {
+                a.doAction(v);
+            } else {
+                // we are within the debounce time, we'll record this as a last value
+                // and if we end up with a different value after the debounce time,
+                // we'll send the command then
+                a.futureValue = v;
+                checkDebounces = true;
+            }
+        }
+        return false;
+    };
+    EPollManager::INSTANCE.addFileDescriptor(a.file, f);
 #endif
 }
+
 void GPIOManager::AddGPIOCallback(const PinCapabilities* pin, const std::function<bool(int)>& cb) {
     GPIOState state;
     state.pin = pin;
     state.callback = cb;
     state.hasCallback = true;
     addState(state);
+}
+void GPIOManager::RemoveGPIOCallback(const PinCapabilities* pin) {
+    for (auto it = eventStates.begin(); it != eventStates.end(); ++it) {
+        if (it->pin == pin) {
+            if (it->file != -1) {
+                EPollManager::INSTANCE.removeFileDescriptor(it->file);
+                it->pin->releaseGPIOD();
+            }
+            eventStates.erase(it);
+            return;
+        }
+    }
+    for (auto it = pollStates.begin(); it != pollStates.end(); ++it) {
+        if (it->pin == pin) {
+            pollStates.erase(it);
+            return;
+        }
+    }
 }
 
 void GPIOManager::addState(GPIOState& state) {
@@ -246,6 +271,9 @@ void GPIOManager::addState(GPIOState& state) {
 
     if (state.file > 0) {
         eventStates.push_back(state);
+        if (isInitialized) {
+            addGPIOCallback(state);
+        }
     } else {
         pollStates.push_back(state);
     }

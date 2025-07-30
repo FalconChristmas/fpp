@@ -110,4 +110,6 @@ private:
     int ReadVirtualString(Json::Value& vsc, VirtualString& vs) const;
     void AddVirtualString(const VirtualString& vs);
     void AddNullPixelString();
+
+    Json::Value m_pinConfig;
 };
