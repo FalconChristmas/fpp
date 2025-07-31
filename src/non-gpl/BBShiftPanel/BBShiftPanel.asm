@@ -145,6 +145,10 @@ TOGGLE_LATCH .macro
     NOP
     NOP
     NOP
+    NOP
+    NOP
+    NOP
+    NOP
     CLR r30, r30, LATCH_PIN
     NOP
     NOP
