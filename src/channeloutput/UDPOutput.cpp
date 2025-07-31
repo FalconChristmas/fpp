@@ -288,7 +288,7 @@ int UDPOutput::Init(Json::Value config) {
             break;
         }
 
-        needsBroadcast |= (type == 0 || type == 2 );
+        needsBroadcast |= (type == 0 || type == 2);
     }
     if (config.isMember("threaded")) {
         int style = config["threaded"].asInt();
@@ -410,6 +410,11 @@ int UDPOutput::Close() {
     NetworkMonitor::INSTANCE.removeCallback(networkCallbackId);
     messages.clearMessages();
     messages.clearSockets();
+    for (auto o : outputs) {
+        if (o->IsPingable() && o->Monitor()) {
+            PingManager::INSTANCE.removePeriodicPing(o->ipAddress);
+        }
+    }
     return ChannelOutput::Close();
 }
 void UDPOutput::PrepData(unsigned char* channelData) {
@@ -855,7 +860,6 @@ bool UDPOutput::InitNetwork() {
     localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
 
     if (needsBroadcast) {
-
         if (rv) {
             LogErr(VB_CHANNELOUT, "Invalid interface %s\n", outInterface.c_str());
             WarningHolder::AddWarning("Invalid interface for UDP broadcast/multicast: " + outInterface);
