@@ -579,7 +579,7 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
                         // printf("\n\n\nInterrupt Pin!!!   %d   %d\n\n\n", v, pi->eFuseInterruptPin->getValue());
                         std::unique_lock<std::mutex> lock(gpioLock);
                         for (auto a : portPins) {
-                            if (a->eFuseInterruptPin == pi->eFuseInterruptPin) {
+                            if (a && a->eFuseInterruptPin == pi->eFuseInterruptPin) {
                                 int v = a->eFusePin->getValue();
                                 if (v != a->eFuseOKValue) {
                                     if (a->enablePin) {
@@ -660,11 +660,13 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         int mr = -1;
         bool hasSR = false;
         for (auto a : portPins) {
-            mr = std::max(mr, a->row);
-            hasSR |= a->isSmartReceiver;
+            if (a) {
+                mr = std::max(mr, a->row);
+                hasSR |= a->isSmartReceiver;
+            }
         }
 
-        int col = portPins.empty() ? 1 : portPins.back()->col;
+        int col = (portPins.empty() || portPins.back() == nullptr) ? 1 : portPins.back()->col;
 
         pi->isSmartReceiver = true;
         pi->group = -1;
