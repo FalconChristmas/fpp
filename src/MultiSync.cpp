@@ -635,6 +635,12 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local) {
         return "Genius PRO 16";
     case kSysTypeExperienceG32Pro:
         return "Genius PRO 32";
+    case kSysTypeExperienceAURORACORE16:
+        return "LOR AURORA CORE 16";
+    case kSysTypeExperienceVIDID8:
+        return "YPS VIDID 8";
+    case kSysTypeExperiencePIXELLINK4:
+        return "Genius PIXEL LINK 4";
     case kSysTypeExperienceGenius:
         return "Genius Controller";
     case kSysTypeOtherSystem:
@@ -653,7 +659,6 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local) {
         return "PocketBeagle2";
     case kSysTypeFPPSanCloudBeagleBoneEnhanced:
         return "SanCloud BeagleBone Enhanced";
-
     case kSysTypexSchedule:
         return "xSchedule";
     case kSysTypeESPixelStick:
