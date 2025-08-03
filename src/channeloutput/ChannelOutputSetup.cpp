@@ -277,9 +277,7 @@ bool skipOutputRangeCompute = false;
 static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
     Json::Value root;
     if (FileExists(cfgFile)) {
-        printf("Reloading Channel Outputs for %s\n", cfgFile.c_str());
         if (!LoadJsonFromFile(cfgFile, root)) {
-            printf("failed Reloading Channel Outputs for %s\n", cfgFile.c_str());
             if (!skipOutputRangeCompute) {
                 // this is a reload, it could still be writing the file so we'll wait a bit
                 // and try again
