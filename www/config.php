@@ -542,7 +542,6 @@ $settings['pluginDirectory'] = $pluginDirectory;
 $settings['mediaDirectory'] = $mediaDirectory;
 $settings['bootDirectory'] = $bootDirectory;
 $settings['configDirectory'] = $mediaDirectory . "/config";
-$settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
 $settings['channelOutputsJSON'] = $mediaDirectory . "/config/channeloutputs.json";
 $settings['co-other'] = $mediaDirectory . "/config/co-other.json";
 $settings['co-pixelStrings'] = $mediaDirectory . "/config/co-pixelStrings.json";

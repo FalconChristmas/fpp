@@ -2255,8 +2255,6 @@ function SetButtonState (button, state) {
 		$(button).addClass('buttons').addClass($(button).data('btn-enabled-class'));
 		$(button).removeClass('disableButtons');
 		$(button).removeClass('disabled');
-		//  $(button).removeAttr("disabled"); //commented out as depreci in latest jquery version - left
-		//  in to test implications of inserting replacement line below
 		$(button).prop('disabled', false);
 	} else {
 		$(button)
@@ -4467,16 +4465,20 @@ function IsFPPDrunning () {
 function SetupUIForMode (fppMode) {
 	if (fppMode == 8) {
 		// Remote Mode
-		$('#playerModeInfo').hide();
-		$('#remoteModeInfo').show();
-		$('h1.title.statusTitle')[0].innerHTML = 'Status - Remote Mode';
+		if ($('h1.title.statusTitle')[0].innerHTML != 'Status - Remote Mode') {
+			$('#playerModeInfo').hide();
+			$('#remoteModeInfo').show();
+			$('h1.title.statusTitle')[0].innerHTML = 'Status - Remote Mode';
+		}
 	} else {
 		// Player Mode
-		if ($('#bridgeModeInfo').is(':hidden')) {
-			$('#playerModeInfo').show();
+		if ($('h1.title.statusTitle')[0].innerHTML != 'Status - Player Mode') {
+			if ($('#bridgeModeInfo').is(':hidden')) {
+				$('#playerModeInfo').show();
+			}
+			$('#remoteModeInfo').hide();
+			$('h1.title.statusTitle')[0].innerHTML = 'Status - Player Mode';
 		}
-		$('#remoteModeInfo').hide();
-		$('h1.title.statusTitle')[0].innerHTML = 'Status - Player Mode';
 	}
 	if ($('body').hasClass('is-loading')) {
 		$('body').removeClass('is-loading');
@@ -4767,11 +4769,14 @@ function modeToString (mode) {
 function updateVolumeUI (Volume) {
 	//only update UI if no current change in progress
 	if (VolumeChangeInProgress !== true) {
-		$('#volume').html(Volume);
-		$('#remoteVolume').html(Volume);
-		$('#slider').val(Volume);
-		$('#remoteVolumeSlider').val(Volume);
-		SetSpeakerIndicator(Volume);
+		if ($('#volume').html() !== Volume) {
+			// Update the volume display only if changed
+			$('#volume').html(Volume);
+			$('#remoteVolume').html(Volume);
+			$('#slider').val(Volume);
+			$('#remoteVolumeSlider').val(Volume);
+			SetSpeakerIndicator(Volume);
+		}
 	}
 }
 
@@ -5572,7 +5577,9 @@ function setTopScrollText (text = 'Top') {
 		text = 'See Alert';
 	}
 
-	$('#scrollTopButton').html(text);
+	if ($('#scrollTopButton').html() != text) {
+		$('#scrollTopButton').html(text);
+	}
 }
 
 function ClearRestartFlag () {
@@ -8461,7 +8468,7 @@ function RefreshHeaderBar () {
 							e.wifi.unit +
 							'">';
 						row +=
-							'<img src="images/redesign/wifi-' +
+							'<img title="WiFi Strength" src="images/redesign/wifi-' +
 							e.wifi.desc +
 							'.svg" height="14px"/>';
 						row +=
@@ -8829,11 +8836,15 @@ function checkScrollTopButton () {
 		document.body.scrollTop > limit ||
 		document.documentElement.scrollTop > limit
 	) {
-		btn.addClass('scrollTopButtonShowing');
-		btn.removeClass('scrollTopButtonHidden');
+		if (!btn.hasClass('scrollTopButtonShowing')) {
+			btn.addClass('scrollTopButtonShowing');
+			btn.removeClass('scrollTopButtonHidden');
+		}
 	} else {
-		btn.removeClass('scrollTopButtonShowing');
-		btn.addClass('scrollTopButtonHidden');
+		if (!btn.hasClass('scrollTopButtonHidden')) {
+			btn.removeClass('scrollTopButtonShowing');
+			btn.addClass('scrollTopButtonHidden');
+		}
 	}
 }
 

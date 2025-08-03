@@ -258,6 +258,7 @@ ServerTokens Prod
     # 2.4.x+
 
     AddType image/webp                                  webp
+    AddType image/png                                   png
 
 
   # Web fonts
@@ -310,7 +311,7 @@ AddDefaultCharset utf-8
                      .mjs \
                      .rdf \
                      .rss \
-					 .svg \
+					           .svg \
                      .vtt \
                      .webmanifest \
                      .xml
@@ -340,15 +341,15 @@ AddDefaultCharset utf-8
     Header unset X-Version
 
 # remove unneeded headers
-	<FilesMatch "\.(appcache|atom|bbaw|bmp|crx|css|cur|eot|f4[abpv]|flv|geojson|gif|htc|ic[os]|jpe?g|m?js|json(ld)?|m4[av]|manifest|map|markdown|md|mp4|oex|og[agv]|opus|otf|pdf|png|rdf|rss|safariextz|svgz?|swf|topojson|tt[cf]|txt|vcard|vcf|vtt|webapp|web[mp]|webmanifest|woff2?|xloc|xpi)$">
-        Header unset X-UA-Compatible
-        Header unset X-XSS-Protection
+	<FilesMatch "\.(appcache|atom|bbaw|png|js|bmp|crx|css|cur|eot|f4[abpv]|flv|geojson|gif|htc|ic[os]|jpe?g|m?js|json(ld)?|m4[av]|manifest|map|markdown|md|mp4|oex|og[agv]|opus|otf|pdf|png|rdf|rss|safariextz|svgz?|swf|topojson|tt[cf]|txt|vcard|vcf|vtt|webapp|web[mp]|webmanifest|woff2?|xloc|xpi)$">
+        Header always unset X-UA-Compatible
+        Header always unset X-XSS-Protection
     </FilesMatch>
 
-    <FilesMatch "\.(appcache|atom|bbaw|bmp|crx|css|cur|eot|f4[abpv]|flv|geojson|gif|htc|ic[os]|jpe?g|json(ld)?|m4[av]|manifest|map|markdown|md|mp4|oex|og[agv]|opus|otf|png|rdf|rss|safariextz|swf|topojson|tt[cf]|txt|vcard|vcf|vtt|webapp|web[mp]|webmanifest|woff2?|xloc|xpi)$">
-        Header unset Content-Security-Policy
-        Header unset X-Content-Security-Policy
-        Header unset X-WebKit-CSP
+    <FilesMatch "\.(appcache|atom|bbaw|png|js|bmp|crx|css|cur|eot|f4[abpv]|flv|geojson|gif|htc|ic[os]|jpe?g|json(ld)?|m4[av]|manifest|map|markdown|md|mp4|oex|og[agv]|opus|otf|png|rdf|rss|safariextz|swf|topojson|tt[cf]|txt|vcard|vcf|vtt|webapp|web[mp]|webmanifest|woff2?|xloc|xpi)$">
+        Header always unset Content-Security-Policy
+        Header always unset X-Content-Security-Policy
+        Header always unset X-WebKit-CSP
     </FilesMatch>
 
 </IfModule>

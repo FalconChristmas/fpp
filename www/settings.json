@@ -50,7 +50,6 @@
 				"mediaDirectory",
 				"bootDirectory",
 				"configDirectory",
-				"channelOutputsFile",
 				"channelOutputsJSON",
 				"co-other",
 				"co-pixelStrings",
@@ -2673,13 +2672,6 @@
 		"configDirectory": {
 			"name": "configDirectory",
 			"description": "Configuration Directory",
-			"exposedAsJSToPages": [
-				"none"
-			]
-		},
-		"channelOutputsFile": {
-			"name": "channelOutputsFile",
-			"description": "Channel Outputs File",
 			"exposedAsJSToPages": [
 				"none"
 			]
