@@ -223,9 +223,6 @@
         if (!isset($matrix["maxLEDPanels"])) {
             $matrix["maxLEDPanels"] = $LEDPanelDefaults["maxLEDPanels"];
         }
-        if (!isset($matrix["wiringPinout"])) {
-            $matrix["wiringPinout"] = $LEDPanelDefaults["LEDPanelsWiringPinout"];
-        }
         if (!isset($matrix["LEDPanelsOutputCPUPWM"])) {
             $matrix["LEDPanelsOutputCPUPWM"] = $LEDPanelDefaults["LEDPanelsOutputCPUPWM"];
         }
@@ -486,7 +483,6 @@
             mp.ledPanelsLayout ||= LEDPanelDefaults.ledPanelsLayout;
             mp.ledPanelsSize ||= LEDPanelDefaults.LEDPanelsSize;
             mp.gpioSlowdown ||= LEDPanelDefaults.gpioSlowdown;
-            mp.wiringPinout ||= LEDPanelDefaults.LEDPanelsWiringPinout;
             mp.LEDPanelCanvasUIPixelsHigh ||= LEDPanelDefaults.LEDPanelCanvasUIPixelsHigh;
             mp.LEDPanelCanvasUIPixelsWide ||= LEDPanelDefaults.LEDPanelCanvasUIPixelsWide;
 
@@ -2416,7 +2412,7 @@
         $(`#matrixPanelTab${panelMatrixID}`).hide();
         //logic to save json config file to remove old matrix config
         SaveChannelOutputsJSON();
-
+        UpdateChannelOutputsFromConfigJSON();
         SetMatrixDisplayDefault();
 
     }

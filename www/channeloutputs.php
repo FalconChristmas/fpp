@@ -180,18 +180,18 @@
                         }
 
 
-                        var p = 0;
-                        for (p = 0; p < channelOutputs.channelOutputs[i].panels.length; p++) {
-                            var r = channelOutputs.channelOutputs[i].panels[p].row;
-                            var c = channelOutputs.channelOutputs[i].panels[p].col;
-
-                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelOutputNumber_" + r + "_" + c]
-                                = channelOutputs.channelOutputs[i].panels[p];
-                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelPanelNumber_" + r + "_" + c]
-                                = channelOutputs.channelOutputs[i].panels[p];
-                            channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelColorOrder_" + r + "_" + c]
-                                = channelOutputs.channelOutputs[i].panels[p];
-                        }
+                        /*                         var p = 0;
+                                                for (p = 0; p < channelOutputs.channelOutputs[i].panels.length; p++) {
+                                                    var r = channelOutputs.channelOutputs[i].panels[p].row;
+                                                    var c = channelOutputs.channelOutputs[i].panels[p].col;
+                        
+                                                    channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelOutputNumber_" + r + "_" + c]
+                                                        = channelOutputs.channelOutputs[i].panels[p];
+                                                    channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelPanelNumber_" + r + "_" + c]
+                                                        = channelOutputs.channelOutputs[i].panels[p];
+                                                    channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + channelOutputs.channelOutputs[i].panelMatrixID]["LEDPanelColorOrder_" + r + "_" + c]
+                                                        = channelOutputs.channelOutputs[i].panels[p];
+                                                } */
                     }
                 }
             }
