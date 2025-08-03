@@ -2175,8 +2175,7 @@
                             panelType: LEDPanelDefaults['LEDPanelType'],
                             LEDPanelCanvasUIPixelsHigh: LEDPanelDefaults['LEDPanelCanvasUIPixelsHigh'],
                             LEDPanelCanvasUIPixelsWide: LEDPanelDefaults['LEDPanelCanvasUIPixelsWide'],
-                            gpioSlowdown: LEDPanelDefaults['gpioSlowdown'],
-                            wiringPinout: LEDPanelDefaults['LEDPanelsWiringPinout']
+                            gpioSlowdown: LEDPanelDefaults['gpioSlowdown']
                         }
                         //if type is colorlight, set the defaults
                         if ($(`#AddPanelMatrixDialog #LEDPanelsConnectionSelect`).val() == "ColorLight5a75") {
