@@ -62,14 +62,14 @@ private:
     GPIOManager();
     ~GPIOManager();
     void SetupGPIOInput(std::map<int, std::function<bool(int)>>& callbacks);
-    void addState(GPIOState& state);
-    void addGPIOCallback(GPIOState& state);
 
-    std::vector<GPIOState> pollStates;
-    std::vector<GPIOState> eventStates;
+    void addState(GPIOState* state);
+    void addGPIOCallback(GPIOState* state);
+
+    std::list<GPIOState*> pollStates;
+    std::list<GPIOState*> eventStates;
 
     bool checkDebounces;
-    bool isInitialized = false;
 
     friend class GPIOCommand;
 };

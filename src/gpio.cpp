@@ -72,7 +72,6 @@ GPIOManager::~GPIOManager() {
 }
 
 void GPIOManager::Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
-    isInitialized = true;
     SetupGPIOInput(callbacks);
     std::vector<std::string> pins = PinCapabilities::getPinNames();
     if (!pins.empty()) {
@@ -84,24 +83,24 @@ void GPIOManager::CheckGPIOInputs(void) {
         return;
     }
     long long tm = GetTime();
-    for (auto& a : pollStates) {
-        int val = a.pin->getValue();
-        if (val != a.lastValue) {
-            long long lastAllowedTime = tm - a.debounceTime; // usec's ago
-            if ((a.lastTriggerTime < lastAllowedTime)) {
-                a.doAction(val);
+    for (auto a : pollStates) {
+        int val = a->pin->getValue();
+        if (val != a->lastValue) {
+            long long lastAllowedTime = tm - a->debounceTime; // usec's ago
+            if ((a->lastTriggerTime < lastAllowedTime)) {
+                a->doAction(val);
             }
         }
     }
     if (checkDebounces) {
         checkDebounces = false;
-        for (auto& a : eventStates) {
-            if (a.futureValue != a.lastValue) {
-                long long lastAllowedTime = tm - a.debounceTime; // usec's ago
-                if ((a.lastTriggerTime < lastAllowedTime)) {
-                    int val = a.pin->getValue();
-                    if (val != a.lastValue) {
-                        a.doAction(val);
+        for (auto a : eventStates) {
+            if (a->futureValue != a->lastValue) {
+                long long lastAllowedTime = tm - a->debounceTime; // usec's ago
+                if ((a->lastTriggerTime < lastAllowedTime)) {
+                    int val = a->pin->getValue();
+                    if (val != a->lastValue) {
+                        a->doAction(val);
                     }
                 } else {
                     // will need to check again
@@ -112,16 +111,20 @@ void GPIOManager::CheckGPIOInputs(void) {
     }
 }
 void GPIOManager::Cleanup() {
-    for (auto& a : eventStates) {
-        if (a.file != -1) {
-            a.pin->releaseGPIOD();
+    for (auto a : eventStates) {
+        if (a->file != -1) {
+            a->pin->releaseGPIOD();
         }
+        delete a;
     }
-    for (auto& a : pollStates) {
-        if (a.file) {
-            a.pin->releaseGPIOD();
+    for (auto a : pollStates) {
+        if (a->file) {
+            a->pin->releaseGPIOD();
         }
+        delete a;
     }
+    eventStates.clear();
+    pollStates.clear();
 }
 
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::render_GET(const httpserver::http_request& req) {
@@ -170,110 +173,112 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                 }
                 std::string pin = v.isMember("pin") ? v["pin"].asString() : "";
                 std::string mode = v.isMember("mode") ? v["mode"].asString() : "gpio";
-                GPIOState state;
-                state.pin = PinCapabilities::getPinByName(pin).ptr();
-                if (v.isMember("debounceTime")) {
-                    state.debounceTime = v["debounceTime"].asInt() * 1000;
-                }
-                if (state.pin) {
+                const PinCapabilities* pc = PinCapabilities::getPinByName(pin).ptr();
+                if (pc) {
+                    GPIOState* state = new GPIOState();
+                    if (v.isMember("debounceTime")) {
+                        state->debounceTime = v["debounceTime"].asInt() * 1000;
+                    }
+                    state->pin = pc;
                     if (v.isMember("rising")) {
-                        state.risingAction = v["rising"];
-                        if (state.risingAction["command"].asString() == "OLED Navigation") {
-                            state.risingAction["command"] = "";
+                        state->risingAction = v["rising"];
+                        if (state->risingAction["command"].asString() == "OLED Navigation") {
+                            state->risingAction["command"] = "";
                         }
                     }
                     if (v.isMember("falling")) {
-                        state.fallingAction = v["falling"];
-                        if (state.fallingAction["command"].asString() == "OLED Navigation") {
-                            state.fallingAction["command"] = "";
+                        state->fallingAction = v["falling"];
+                        if (state->fallingAction["command"].asString() == "OLED Navigation") {
+                            state->fallingAction["command"] = "";
                         }
                     }
 
-                    if (state.risingAction["command"].asString() != "" || state.fallingAction["command"].asString() != "") {
-                        state.pin->configPin(mode, false);
+                    if (state->risingAction["command"].asString() != "" || state->fallingAction["command"].asString() != "") {
+                        state->pin->configPin(mode, false);
 
                         addState(state);
                         enabledCount++;
+                    } else {
+                        delete state;
                     }
                 }
             }
         }
     }
     LogDebug(VB_GPIO, "%d GPIO Input(s) enabled\n", enabledCount);
-    for (auto& a : eventStates) {
-        addGPIOCallback(a);
-    }
 }
 
-void GPIOManager::addGPIOCallback(GPIOState& a) {
+void GPIOManager::addGPIOCallback(GPIOState* a) {
 #ifdef HAS_GPIOD
-    std::function<bool(int)> f = [&a, this](int i) {
+    std::function<bool(int)> f = [a, this](int i) {
         struct gpiod_line_event event;
         int rc = gpiod_line_event_read_fd(i, &event);
 
         int v = event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
-        if (v != a.lastValue) {
-            long long lastAllowedTime = GetTime() - a.debounceTime; // usec's ago
-            if (a.lastTriggerTime < lastAllowedTime) {
-                a.doAction(v);
+        if (v != a->lastValue) {
+            long long lastAllowedTime = GetTime() - a->debounceTime; // usec's ago
+            if (a->lastTriggerTime < lastAllowedTime) {
+                a->doAction(v);
             } else {
                 // we are within the debounce time, we'll record this as a last value
                 // and if we end up with a different value after the debounce time,
                 // we'll send the command then
-                a.futureValue = v;
+                a->futureValue = v;
                 checkDebounces = true;
             }
         }
         return false;
     };
-    EPollManager::INSTANCE.addFileDescriptor(a.file, f);
+    EPollManager::INSTANCE.addFileDescriptor(a->file, f);
 #endif
 }
 
 void GPIOManager::AddGPIOCallback(const PinCapabilities* pin, const std::function<bool(int)>& cb) {
-    GPIOState state;
-    state.pin = pin;
-    state.callback = cb;
-    state.hasCallback = true;
+    GPIOState* state = new GPIOState();
+    state->pin = pin;
+    state->callback = cb;
+    state->hasCallback = true;
     addState(state);
 }
 void GPIOManager::RemoveGPIOCallback(const PinCapabilities* pin) {
     for (auto it = eventStates.begin(); it != eventStates.end(); ++it) {
-        if (it->pin == pin) {
-            if (it->file != -1) {
-                EPollManager::INSTANCE.removeFileDescriptor(it->file);
-                it->pin->releaseGPIOD();
+        GPIOState* a = *it;
+        if (a->pin == pin) {
+            if (a->file != -1) {
+                EPollManager::INSTANCE.removeFileDescriptor(a->file);
+                a->pin->releaseGPIOD();
             }
             eventStates.erase(it);
+            delete a;
             return;
         }
     }
     for (auto it = pollStates.begin(); it != pollStates.end(); ++it) {
-        if (it->pin == pin) {
+        GPIOState* a = *it;
+        if (a->pin == pin) {
             pollStates.erase(it);
+            delete a;
             return;
         }
     }
 }
 
-void GPIOManager::addState(GPIOState& state) {
+void GPIOManager::addState(GPIOState* state) {
     // Set the time immediately to utilize the debounce code
     // from triggering our GPIOs on startup.
-    state.lastTriggerTime = GetTime();
-    state.lastValue = state.futureValue = state.pin->getValue();
-    state.file = -1;
+    state->lastTriggerTime = GetTime();
+    state->lastValue = state->futureValue = state->pin->getValue();
+    state->file = -1;
 
-    if (state.pin->supportsGpiod()) {
-        state.file = state.pin->requestEventFile(state.risingAction != "", state.fallingAction != "");
+    if (state->pin->supportsGpiod()) {
+        state->file = state->pin->requestEventFile(state->risingAction != "", state->fallingAction != "");
     } else {
-        state.file = -1;
+        state->file = -1;
     }
 
-    if (state.file > 0) {
+    if (state->file > 0) {
         eventStates.push_back(state);
-        if (isInitialized) {
-            addGPIOCallback(state);
-        }
+        addGPIOCallback(state);
     } else {
         pollStates.push_back(state);
     }
