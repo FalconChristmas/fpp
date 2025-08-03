@@ -697,19 +697,33 @@
         //get currently visible panelMatrixID
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
 
-        let NewValue = $(`#panelMatrix${panelMatrixID} .LEDPanelUIFrontView`).is(":checked");
-        let OldValue;
-        //need to reverse value to reflect the old setting
-        if (NewValue === false) {
-            OldValue = true;
-        } else {
-            OldValue = false;
-        }
-        console.log("FrontBackViewToggled, Old Value: " + OldValue + " New Value: " + NewValue);
+        /*         let NewValue = $(`#panelMatrix${panelMatrixID} .LEDPanelUIFrontView`).is(":checked");
+                let OldValue;
+                //need to reverse value to reflect the old setting
+                if (NewValue === false) {
+                    OldValue = true;
+                } else {
+                    OldValue = false;
+                }
+                console.log("FrontBackViewToggled, Old Value: " + OldValue + " New Value: " + NewValue); */
+
+        //mirror the panel orientation
+        $(`#panelMatrix${panelMatrixID} [class^="LEDPanelOrientation_"]`).each(function () {
+            var src = $(this).attr('src');
+            if (src === 'images/arrow_N.png') {
+                $(this).attr('src', 'images/arrow_N.png');
+            } else if (src === 'images/arrow_L.png') {
+                $(this).attr('src', 'images/arrow_R.png');
+            } else if (src === 'images/arrow_U.png') {
+                $(this).attr('src', 'images/arrow_U.png');
+            } else if (src === 'images/arrow_R.png') {
+                $(this).attr('src', 'images/arrow_L.png');
+            }
+        });
 
         // Update the channelOutputsLookup object with current on screen values
         channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID] = GetLEDPanelConfigFromUI(panelMatrixID);
-        channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]["LEDPanelUIFrontView"] = OldValue;
+        //channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]["LEDPanelUIFrontView"] = OldValue;
         console.log("Updated channelOutputsLookup for panelMatrix" + panelMatrixID + ": ", channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]);
 
         DrawLEDPanelTable(panelMatrixID);
@@ -819,42 +833,29 @@
 
                 html += "<img src='images/arrow_";
 
+                //Config for rotation is saved to JSON as the view from the front
+
                 if (typeof targetPanel !== 'undefined' && typeof targetPanel.orientation !== 'undefined') {
                     if (frontView == 1) {
-                        // Front view orientation now displayed in UI
-                        if (mp.LEDPanelUIFrontView !== true) {
-                            // Map Back Saved config to Front view orientation
-                            if (targetPanel.orientation == "N") {
-                                html += "N";
-                            } else if (targetPanel.orientation == "R") {
-                                html += "L"; // Reverse for front view
-                            } else if (targetPanel.orientation == "U") {
-                                html += "U";
-                            } else if (targetPanel.orientation == "L") {
-                                html += "R"; // Reverse for front view
-                            }
-                        }
-                        else { html += targetPanel.orientation }
+                        // Front view orientation now displayed in UI so pull from saved config
+                        html += targetPanel.orientation
                     }
                     if (frontView == 0) { // Back view
-                        // Back view orientation now displayed in UI
-                        if (mp.LEDPanelUIFrontView === true) {
-                            // Map Front Saved config to Back view orientation
-                            if (targetPanel.orientation == "N") {
-                                html += "N";
-                            } else if (targetPanel.orientation == "R") {
-                                html += "L";
-                            } else if (targetPanel.orientation == "U") {
-                                html += "U";
-                            } else if (targetPanel.orientation == "L") {
-                                html += "R";
-                            }
+                        // Back view orientation now displayed in UI so need to Map from saved config
+                        // Map Front Saved config to Back view orientation
+                        if (targetPanel.orientation == "N") {
+                            html += "N";
+                        } else if (targetPanel.orientation == "R") {
+                            html += "L";
+                        } else if (targetPanel.orientation == "U") {
+                            html += "U";
+                        } else if (targetPanel.orientation == "L") {
+                            html += "R";
                         }
-                        else { html += targetPanel.orientation }
                     }
                 }
                 else {
-                    //default unset to N
+                    //default unset values to N
                     html += "N";
                 }
 
@@ -883,6 +884,7 @@
             tbody[0].insertRow(-1).innerHTML = html;
         }
     }
+
 
     //OLD COde commented out for reference whilst testing
     /*     function DrawLEDPanelTable(panelMatrixID) {
@@ -1193,27 +1195,52 @@
                     panel.xOffset = xOffset;
                     panel.yOffset = yOffset;
 
-                    if (src == 'images/arrow_N.png') {
-                        panel.orientation = "N";
-                        xOffset += mp.panelWidth;
-                        yDiff = mp.panelHeight;
+                    if (config.LEDPanelUIFrontView === true) {
+                        // Front view
+                        if (src == 'images/arrow_N.png') {
+                            panel.orientation = "N";
+                            xOffset += mp.panelWidth;
+                            yDiff = mp.panelHeight;
+                        }
+                        else if (src == 'images/arrow_R.png') {
+                            panel.orientation = "R";
+                            xOffset += mp.panelHeight;
+                            yDiff = mp.panelWidth;
+                        }
+                        else if (src == 'images/arrow_U.png') {
+                            panel.orientation = "U";
+                            xOffset += mp.panelWidth;
+                            yDiff = mp.panelHeight;
+                        }
+                        else if (src == 'images/arrow_L.png') {
+                            panel.orientation = "L";
+                            xOffset += mp.panelHeight;
+                            yDiff = mp.panelWidth;
+                        }
+                    } // Back view
+                    else {
+                        // Back view orientation now displayed in UI so need to Map to save config
+                        if (src == 'images/arrow_N.png') {
+                            panel.orientation = "N";
+                            xOffset += mp.panelWidth;
+                            yDiff = mp.panelHeight;
+                        }
+                        else if (src == 'images/arrow_R.png') {
+                            panel.orientation = "L";
+                            xOffset += mp.panelHeight;
+                            yDiff = mp.panelWidth;
+                        }
+                        else if (src == 'images/arrow_U.png') {
+                            panel.orientation = "U";
+                            xOffset += mp.panelWidth;
+                            yDiff = mp.panelHeight;
+                        }
+                        else if (src == 'images/arrow_L.png') {
+                            panel.orientation = "R";
+                            xOffset += mp.panelHeight;
+                            yDiff = mp.panelWidth;
+                        }
                     }
-                    else if (src == 'images/arrow_R.png') {
-                        panel.orientation = "R";
-                        xOffset += mp.panelHeight;
-                        yDiff = mp.panelWidth;
-                    }
-                    else if (src == 'images/arrow_U.png') {
-                        panel.orientation = "U";
-                        xOffset += mp.panelWidth;
-                        yDiff = mp.panelHeight;
-                    }
-                    else if (src == 'images/arrow_L.png') {
-                        panel.orientation = "L";
-                        xOffset += mp.panelHeight;
-                        yDiff = mp.panelWidth;
-                    }
-
                     panel.row = r;
                     panel.col = c;
 
