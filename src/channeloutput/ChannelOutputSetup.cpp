@@ -272,7 +272,27 @@ static std::map<std::string, std::string> OUTPUT_REMAPS = {
 };
 
 extern int ChannelOutputThreadIsRunning(void);
+bool skipOutputRangeCompute = false;
+
 static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
+    Json::Value root;
+    if (FileExists(cfgFile)) {
+        printf("Reloading Channel Outputs for %s\n", cfgFile.c_str());
+        if (!LoadJsonFromFile(cfgFile, root)) {
+            printf("failed Reloading Channel Outputs for %s\n", cfgFile.c_str());
+            if (!skipOutputRangeCompute) {
+                // this is a reload, it could still be writing the file so we'll wait a bit
+                // and try again
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+            if (!LoadJsonFromFile(cfgFile, root)) {
+                WarningHolder::AddWarning("Could not parse " + cfgFile + ". Some outputs may not work.");
+                LogErr(VB_CHANNELOUT, "Error parsing %s\n", cfgFile.c_str());
+                return false;
+            }
+        }
+    }
+
     bool changed = false;
     std::list<FPPChannelOutputInstance*> toDelete;
     for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
@@ -320,12 +340,6 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
     }
 
     if (FileExists(cfgFile)) {
-        Json::Value root;
-        if (!LoadJsonFromFile(cfgFile, root)) {
-            WarningHolder::AddWarning("Could not parse " + cfgFile + ". Some outputs may not work.");
-            LogErr(VB_CHANNELOUT, "Error parsing %s\n", cfgFile.c_str());
-        }
-
         const Json::Value outputs = root["channelOutputs"];
         std::string type;
         int start = 0;
@@ -403,7 +417,6 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
     return changed;
 }
 
-bool skipOutputRangeCompute = false;
 int InitializeChannelOutputs(void) {
     Json::Value root;
 

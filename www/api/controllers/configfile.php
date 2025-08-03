@@ -3,15 +3,13 @@
 /////////////////////////////////////////////////////////////////////////////
 function GetFilesInDir($dir, $subdir = '')
 {
-	$result = Array();
+	$result = array();
 
 	if ($subdir != '')
 		$subdir .= '/';
 
-	foreach( scandir($dir . '/' . $subdir) as $file)
-	{
-		if($file != '.' && $file != '..')
-		{
+	foreach (scandir($dir . '/' . $subdir) as $file) {
+		if ($file != '.' && $file != '..') {
 			if (is_dir($dir . '/' . $subdir . $file))
 				$result = array_merge($result, GetFilesInDir($dir, $subdir . $file));
 			else
@@ -32,7 +30,7 @@ function GetConfigFileList($dir = '')
 	else
 		$dir = $settings['configDirectory'] . '/' . $dir;
 
-	$result = Array();
+	$result = array();
 
 	$files = GetFilesInDir($dir);
 
@@ -64,11 +62,10 @@ function UploadConfigFile()
 {
 	global $settings;
 
-    $result = Array();
-    
+	$result = array();
+
 	$baseFile = params(0);
-	if (preg_match('/\//', $baseFile))
-	{
+	if (preg_match('/\//', $baseFile)) {
 		// baseFile contains a subdir, so create if needed
 		$subDir = $settings['configDirectory'] . '/' . $baseFile;
 		$subDir = preg_replace('/\/[^\/]*$/', '', $subDir);
@@ -78,39 +75,39 @@ function UploadConfigFile()
 
 	$fileName = $settings['configDirectory'] . '/' . $baseFile;
 
-    if (isset($_FILES['file']) && isset($_FILES['file']['tmp_name'])) {
-        if (rename($_FILES["file"]["tmp_name"], $fileName)) {
-            $result['Status'] = 'OK';
-            $result['Message'] = '';
-        } else {
-            $result['Status'] = 'Error';
-            $result['Message'] = 'Unable to rename uploaded file';
-        }
-    } else if ($f = fopen($fileName, "w")) {
-        $postdata = fopen("php://input", "r");
-        while ($data = fread($postdata, 1024*16)) {
-            fwrite($f, $data);
-        }
-        fclose($postdata);
-        fclose($f);
+	if (isset($_FILES['file']) && isset($_FILES['file']['tmp_name'])) {
+		if (rename($_FILES["file"]["tmp_name"], $fileName)) {
+			$result['Status'] = 'OK';
+			$result['Message'] = '';
+		} else {
+			$result['Status'] = 'Error';
+			$result['Message'] = 'Unable to rename uploaded file';
+		}
+	} else if ($f = fopen($fileName, "c")) {
+		flock($f, LOCK_EX); // Lock the file for writing
+		ftruncate($f, 0); // Clear the file before writing
+		$postdata = fopen("php://input", "r");
+		while ($data = fread($postdata, 1024 * 16)) {
+			fwrite($f, $data);
+		}
+		fclose($postdata);
+		fclose($f);
 
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
-	}
-	else
-	{
+	} else {
 		$result['Status'] = 'Error';
 		$result['Message'] = 'Unable to open file for writing';
-    }
+	}
 
-    if ($result['Status'] == 'OK') {
-        //Trigger a JSON Configuration Backup
-        GenerateBackupViaAPI('Config File ' . $baseFile . ' was uploaded/modified.', 'config_file/' . $baseFile);
-    }
+	if ($result['Status'] == 'OK') {
+		//Trigger a JSON Configuration Backup
+		GenerateBackupViaAPI('Config File ' . $baseFile . ' was uploaded/modified.', 'config_file/' . $baseFile);
+	}
 
-    if ($baseFile == 'authorized_keys') {
-        system("sudo /opt/fpp/scripts/installSSHKeys");
-    }
+	if ($baseFile == 'authorized_keys') {
+		system("sudo /opt/fpp/scripts/installSSHKeys");
+	}
 
 	return json($result);
 }
@@ -119,28 +116,22 @@ function UploadConfigFile()
 function DeleteConfigFile()
 {
 	global $settings;
-	$result = Array();
+	$result = array();
 
 	$fileName = params(0);
 
 	$fullFile = $settings['configDirectory'] . '/' . $fileName;
 
-	if (is_file($fullFile))
-	{
+	if (is_file($fullFile)) {
 		unlink($fullFile);
-		if (is_file($fullFile))
-		{
+		if (is_file($fullFile)) {
 			$result['Status'] = 'Error';
 			$result['Message'] = 'Unable to delete ' . $fileName;
-		}
-		else
-		{
+		} else {
 			$result['Status'] = 'OK';
 			$result['Message'] = '';
 		}
-	}
-	else
-	{
+	} else {
 		$result['Status'] = 'Error';
 		$result['Message'] = $fileName . ' is not a regular file';
 	}
