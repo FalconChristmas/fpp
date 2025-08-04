@@ -2507,7 +2507,7 @@
 
         delete channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
 
-        document.querySelector(`#panelMatrix${panelMatrixID}`).innerHTML = "No Panels Defined - Use \"Add Panel Matrix\" button";
+        document.querySelector(`#panelMatrix${panelMatrixID}`).innerHTML = '<span class="alert alert-danger">No Panels Defined - Use "Add Panel Matrix" button above to add your first Matrix</span>';
         $(`#matrixPanelTab${panelMatrixID}`).hide();
         //logic to save json config file to remove old matrix config
         SaveChannelOutputsJSON();
@@ -2885,8 +2885,9 @@
     <!-- LED Panel Matrix Tab-Content --->
 
     <div class="panelMatrix-tab-content tab-content">
-        <div class="tab-pane active" id="panelMatrix1">No Panels Defined - Use "Add Panel Matrix" button above to add
-            your first Matrix</div>
+        <div class="tab-pane active" id="panelMatrix1"><span class="alert alert-danger">No Panels Defined - Use "Add
+                Panel Matrix" button above to add
+                your first Matrix</span></div>
         <div class="tab-pane" id="panelMatrix2">panel 2 content</div>
         <div class="tab-pane" id="panelMatrix3">panel 3 content</div>
         <div class="tab-pane" id="panelMatrix4">panel 4 content</div>
@@ -3250,7 +3251,7 @@
                         <? //PrintSettingCheckbox("Front View", "LEDPanelUIFrontView", 0, 0, "1", "0", "", "FrontBackViewToggled", 1); ?>
                         <!--<script>$('#LEDPanelUIFrontView').addClass('LEDPanelUIFrontView').removeAttr("id");</script> -->
                     </span>
-                    <span class='ledPanelCanvasUI'>Front View</span>
+                    <span class='ledPanelCanvasUI'><strong>Front View</strong></span>
                     <br>
                     <div style='overflow: auto;'>
                         <table class='ledPanelCanvasUI' style='display:none;'>
