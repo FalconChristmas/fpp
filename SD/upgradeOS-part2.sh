@@ -41,10 +41,6 @@ if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
     /opt/fpp/bin.bbb/bootloader/install.sh
     echo
 fi
-if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
-    echo "Updating Raspberry Pi boot loader:"
-    /bin/rpi-eeprom-update -a
-fi
 
 # temporarily copy the ssh keys
 echo "Saving system ssh keys"
@@ -123,6 +119,10 @@ then
     rm mnt/etc/systemd/system/multi-user.target.wants/regenerate_ssh_host_keys.service
 fi
 
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+    echo "Updating Raspberry Pi boot loader:"
+    /bin/rpi-eeprom-update -a    
+fi
 
 echo "Running sync command to flush data"
 sync
