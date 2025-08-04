@@ -1437,6 +1437,9 @@
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionLabel`).hide();
                 }
                 mp.ledPanelsOutputs = KNOWN_PANEL_CAPE["outputs"].length;
+            } else if (connectionType == "ColorLight5a75") {
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionType`).hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionLabel`).hide();
             }
 
             PanelSubtypeChanged(panelMatrixID);
