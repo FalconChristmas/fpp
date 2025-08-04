@@ -8886,7 +8886,7 @@ function checkForFppUpdate () {
 			// avaiable, then new release available.
 			//
 			// TODO: Need to change link
-			if (FPP_BRANCH != 'master' && FPP_BRANCH != 'latest_non_master_epoch') {
+			if (FPP_BRANCH != 'master' && FPP_BRANCH != latest_non_master) {
 				msg = 'Release: ' + latest_non_master + ' available ';
 				// If update avaiable in current branch
 			} else if (!remote_commit.startsWith(FPP_LOCAL_COMMIT)) {
