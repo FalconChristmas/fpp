@@ -795,6 +795,8 @@
                 channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panels.push(newPanel);
             }
         }
+        HandleChangesInUIValues();
+        DisplaySaveWarningIfRequired();
     }
 
 
@@ -2084,7 +2086,7 @@
         SetSinglePanelSize(panelMatrixID);
     }
 
-    function AutoLayoutPanels(panelMatrixID = GetCurrentActiveMatrixPanelID(), override = 0) {
+    /* function AutoLayoutPanels(panelMatrixID = GetCurrentActiveMatrixPanelID(), override = 0) {
         if (verboseDebug) {
             console.trace("AutoLayoutPanels called with panelMatrixID: " + panelMatrixID + ", override: " + override);
         }
@@ -2136,7 +2138,7 @@
                 channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panels.push(newPanel);
             }
         }
-    }
+    } */
 
 
     function TogglePanelTestPattern() {
