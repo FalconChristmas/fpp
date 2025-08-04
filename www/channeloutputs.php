@@ -20,6 +20,7 @@
     ?>
     <script>
         var currentCapeName = '';
+        var verboseDebug = false; // set to true to enable verbose debugging, will show called functions in console along with parameters and trace
     </script>
 
     <style>
@@ -159,6 +160,9 @@
         /////////////////////////////////////////////////////////////////////////////
 
         function PopulateChannelOutputLookup() {
+            if (verboseDebug) {
+                console.trace("PopulateChannelOutputLookup called");
+            }
             var i = 0;
             for (i = 0; i < channelOutputs.channelOutputs.length; i++) {
 
@@ -198,6 +202,10 @@
         }
 
         function GetChannelOutputConfig() {
+            if (verboseDebug) {
+                console.trace("GetChannelOutputConfig called");
+            }
+            var $i = 0;
             var config = new Object();
 
             config.channelOutputs = [];
@@ -217,6 +225,9 @@
         }
 
         function DisplaySaveWarningIfRequired() {
+            if (verboseDebug) {
+                console.trace("DisplaySaveWarningIfRequired called");
+            }
             if (DetectConfigChangesInUI()) {
                 console.log("Need to show save changes required...");
                 $("#SaveChangeWarningLabel").show();
@@ -228,21 +239,29 @@
         }
 
         function SaveChannelOutputsJSON() {
+            if (verboseDebug) {
+                console.trace("SaveChannelOutputsJSON called");
+            }
             var configStr = GetChannelOutputConfig();
             configStr = configStr.replace("'", "");
             $.post("api/configfile/channeloutputs.json",
                 configStr
             ).done(function (data) {
                 $.jGrowl(" Channel Output configuration saved", { themeState: 'success' });
-                UpdateChannelOutputsFromConfigJSON();
-                PopulateChannelOutputLookup();
-                DisplaySaveWarningIfRequired();
+                channelOutputs = JSON.parse(configStr);
+                //UpdateChannelOutputsFromConfigJSON();
+                HandleChangesInUIValues();
+                //PopulateChannelOutputLookup();
+                //DisplaySaveWarningIfRequired();
             }).fail(function () {
                 DialogError("Save Channel Output Config", "Save Failed");
             });
         }
 
         function UpdateChannelOutputsFromConfigJSON() {
+            if (verboseDebug) {
+                console.trace("UpdateChannelOutputsFromConfigJSON called");
+            }
             const path = "<? echo $settings['channelOutputsJSON']; ?>";
             const $filename = path.split('/').pop();
             var channelOutputsJSON = $.getJSON("api/configfile/" + $filename, function (data) {
@@ -257,6 +276,9 @@
         }
 
         function inputsAreSane() {
+            if (verboseDebug) {
+                console.log("inputsAreSane called");
+            }
             var result = 1;
 
             result &= pixelStringInputsAreSane();
@@ -265,6 +287,9 @@
         }
 
         function okToAddNewInput(type) {
+            if (verboseDebug) {
+                console.trace("okToAddNewInput called with type: " + type);
+            }
             var result = 1;
 
             result &= okToAddNewPixelStringInput(type);
@@ -297,6 +322,9 @@
         ?>
 
         function handleCOKeypress(e) {
+            if (verboseDebug) {
+                console.trace("handleCOKeypress called with keyCode: " + e.keyCode);
+            }
             if (e.keyCode == 113) {
                 if ($('.nav-link.active').attr('tabtype') == 'strings') {
                     setPixelStringsStartChannelOnNextRow();
@@ -306,6 +334,9 @@
 
 
         function pageSpecific_PageLoad_DOM_Setup() {
+            if (verboseDebug) {
+                console.trace("pageSpecific_PageLoad_DOM_Setup called");
+            }
 
             var channelOutputsJSON = "<? echo $channelOutputsJSON; ?>";
 
@@ -322,6 +353,9 @@
         }
 
         function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
+            if (verboseDebug) {
+                console.trace("pageSpecific_PageLoad_PostDOMLoad_ActionsSetup called");
+            }
             $(document).on('keydown', handleCOKeypress);
 
         }

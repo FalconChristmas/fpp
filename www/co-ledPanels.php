@@ -459,6 +459,9 @@
     ];
 
     function checkAndCorrectMissingChannelLookup() {
+        if (verboseDebug) {
+            console.trace("checkAndCorrectMissingChannelLookup called");
+        }
         if (typeof channelOutputsLookup === "undefined" || channelOutputsLookup === null || !channelOutputsLookup.LEDPanelMatrices || Object.keys(channelOutputsLookup.LEDPanelMatrices).length === 0) {
             {
                 channelOutputsLookup = [];
@@ -472,6 +475,9 @@
 
 
     function SetDefaultsInChannelOutputsLookup() {
+        if (verboseDebug) {
+            console.trace("SetDefaultsInChannelOutputsLookup called");
+        }
 
         Object.values(channelOutputsLookup.LEDPanelMatrices).forEach(mp => {
             panelMatrixID = mp.panelMatrixID;
@@ -505,6 +511,9 @@
 
 
     function UpdatePanelSize(panelMatrixID) {
+        if (verboseDebug) {
+            console.trace("UpdatePanelSize called for panelMatrixID: " + panelMatrixID);
+        }
         // Reference the panelMatrix object
         let mp = channelOutputsLookup.LEDPanelMatrices["panelMatrix" + panelMatrixID];
 
@@ -515,7 +524,9 @@
 
 
     function LEDPanelOrientationClicked(id) {
-        console.log("LEDPanelOrientationClicked");
+        if (verboseDebug) {
+            console.trace("LEDPanelOrientationClicked called with id: " + id);
+        }
         //get currently visible panelMatrixID
         panelMatrixID = GetCurrentActiveMatrixPanelID();
         var src = $(`#panelMatrix${panelMatrixID} .${id}`).attr('src');
@@ -548,6 +559,9 @@
     }
 
     function GetLEDPanelNumberSetting(id, key, maxItems, selectedItem) {
+        if (verboseDebug) {
+            console.trace("GetLEDPanelNumberSetting called with id: " + id + ", key: " + key + ", maxItems: " + maxItems + ", selectedItem: " + selectedItem);
+        }
         var html = "";
         var i = 0;
         var o = 0;
@@ -568,6 +582,9 @@
     }
 
     function GetLEDPanelColorOrder(key, selectedItem) {
+        if (verboseDebug) {
+            console.trace("GetLEDPanelColorOrder called with key: " + key + ", selectedItem: " + selectedItem);
+        }
         var colorOrders = ["RGB", "RBG", "GBR", "GRB", "BGR", "BRG"];
         var html = "";
         var selected = "";
@@ -589,6 +606,9 @@
     }
 
     function RowAddressTypeChanged(panelMatrixID) {
+        if (verboseDebug) {
+            console.trace("RowAddressTypeChanged called for panelMatrixID: " + panelMatrixID);
+        }
         if (panelMatrixID === undefined) {
             panelMatrixID = GetCurrentActiveMatrixPanelID();
         }
@@ -614,6 +634,9 @@
     }
 
     function checkInterleave(panelMatrixID) {
+        if (verboseDebug) {
+            console.trace("checkInterleave called for panelMatrixID: " + panelMatrixID);
+        }
         let mp = channelOutputsLookup.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
         if ((mp.panelScan * 2) === mp.panelHeight) {
             $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
@@ -625,7 +648,9 @@
     }
 
     function UpdateLegacyLEDPanelLayout(panelMatrixID) {
-        console.log("UpdateLegacyLEDPanelLayout");
+        if (verboseDebug) {
+            console.trace("UpdateLegacyLEDPanelLayout called for panelMatrixID: " + panelMatrixID);
+        }
         let mp = channelOutputsLookup.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
         if (!mp) {
             console.error("Invalid panelMatrixID or missing LEDPanelMatrices.");
@@ -648,7 +673,9 @@
 
 
     function LEDPanelLayoutChanged() {
-        console.log("LEDPanelLayoutChanged");
+        if (verboseDebug) {
+            console.trace("LEDPanelLayoutChanged called");
+        }
         panelMatrixID = GetCurrentActiveMatrixPanelID();
         UpdateLegacyLEDPanelLayout(panelMatrixID);
 
@@ -665,10 +692,11 @@
 
 
     function LEDPanelsLayoutChanged() {
-        console.log("LEDPanelsLayoutChanged");
+        if (verboseDebug) {
+            console.trace("LEDPanelsLayoutChanged called");
+        }
         //get currently visible panelMatrixID
         panelMatrixID = GetCurrentActiveMatrixPanelID();
-
 
         var PanelLayoutValue = $(`#panelMatrix${panelMatrixID} .LEDPanelsLayoutCols`).val() + "x" + $(`#panelMatrix${panelMatrixID} .LEDPanelsLayoutRows`).val();
 
@@ -682,26 +710,17 @@
 
         var PanelLayoutValueJSON = JSON.stringify(PanelLayoutUpdateJSONObj);
 
-
         LEDPanelLayoutChanged();
         common_ViewPortChange();
     }
 
 
     function FrontBackViewToggled() {
-        console.log("FrontBackViewToggled");
+        if (verboseDebug) {
+            console.trace("FrontBackViewToggled called");
+        }
         //get currently visible panelMatrixID
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
-
-        /*         let NewValue = $(`#panelMatrix${panelMatrixID} .LEDPanelUIFrontView`).is(":checked");
-                let OldValue;
-                //need to reverse value to reflect the old setting
-                if (NewValue === false) {
-                    OldValue = true;
-                } else {
-                    OldValue = false;
-                }
-                console.log("FrontBackViewToggled, Old Value: " + OldValue + " New Value: " + NewValue); */
 
         //mirror the panel orientation
         $(`#panelMatrix${panelMatrixID} [class^="LEDPanelOrientation_"]`).each(function () {
@@ -719,7 +738,6 @@
 
         // Update the channelOutputsLookup object with current on screen values
         channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID] = GetLEDPanelConfigFromUI(panelMatrixID);
-        //channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]["LEDPanelUIFrontView"] = OldValue;
         console.log("Updated channelOutputsLookup for panelMatrix" + panelMatrixID + ": ", channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]);
 
         DrawLEDPanelTable(panelMatrixID);
@@ -727,7 +745,9 @@
     }
 
     function AutoLayoutPanels(panelMatrixID = GetCurrentActiveMatrixPanelID(), override = 0) {
-        console.log("AutoLayoutPanels");
+        if (verboseDebug) {
+            console.trace("AutoLayoutPanels called for panelMatrixID: " + panelMatrixID + ", override: " + override);
+        }
         if (override == 0) {
             var sure = prompt('WARNING: This will re-configure all output and panel numbers.  Are you sure? [Y/N]', 'N');
         } else
@@ -759,16 +779,7 @@
                 $(`#panelMatrix${panelMatrixID} .LEDPanelOutputNumber_${y}_${panel}`).val(y);
                 $(`#panelMatrix${panelMatrixID} .LEDPanelOrientation_${y}_${panel}`).attr('src', 'images/arrow_N.png');
                 $(`#panelMatrix${panelMatrixID} .LEDPanelColorOrder_${y}_${panel}`).val('');
-                //Update channelOutputsLookup
-                // Ensure the legacy objects exist before setting properties
-                // mp["LEDPanelPanelNumber_" + y + "_" + panel] = mp["LEDPanelPanelNumber_" + y + "_" + panel] || {};
-                // mp["LEDPanelOutputNumber_" + y + "_" + panel] = mp["LEDPanelOutputNumber_" + y + "_" + panel] || {};
-                // mp["LEDPanelOrientation_" + y + "_" + panel] = mp["LEDPanelOrientation_" + y + "_" + panel] || {};
 
-
-                // mp["LEDPanelPanelNumber_" + y + "_" + panel].panelNumber = x;
-                //  mp["LEDPanelOutputNumber_" + y + "_" + panel].outputNumber = y;
-                //  mp["LEDPanelOrientation_" + y + "_" + panel].orientation = 'N';
                 //update panels config
                 //
                 var newPanel = {
@@ -788,7 +799,9 @@
 
 
     function DrawLEDPanelTable(panelMatrixID) {
-        console.log("DrawLEDPanelTable");
+        if (verboseDebug) {
+            console.trace("DrawLEDPanelTable called for panelMatrixID: " + panelMatrixID);
+        }
         var r;
         var c;
         var key = "";
@@ -972,6 +985,9 @@
         } */
 
     function isSpan(element) {
+        if (verboseDebug) {
+            console.trace("isSpan called with element: ", element);
+        }
         if (element instanceof jQuery) {
             element = element[0]; // Convert jQuery object to DOM element
         }
@@ -981,7 +997,9 @@
 
 
     function InitializeLEDPanelMatrix(panelMatrixID) {
-        console.log(arguments.callee.name);
+        if (verboseDebug) {
+            console.trace("InitializeLEDPanelMatrix called with panelMatrixID: " + panelMatrixID);
+        }
         return new Promise((resolve) => {
             let mp = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
             if (!mp || typeof mp !== "object") return;
@@ -1042,7 +1060,9 @@
 
 
     function GetLEDPanelConfigFromUI(panelMatrixID) {
-        console.log("GetLEDPanelConfigFromUI");
+        if (verboseDebug) {
+            console.trace("GetLEDPanelConfigFromUI called with panelMatrixID: " + panelMatrixID);
+        }
         var config = new Object();
         var panels = "";
         var xOffset = 0;
@@ -1275,6 +1295,9 @@
     ?>
 
     function LEDPanelsConnectionChanged(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
+        if (verboseDebug) {
+            console.trace("LEDPanelsConnectionChanged called for panelMatrixID: " + panelMatrixID);
+        }
         return new Promise((resolve) => {
 
             const mp = channelOutputsLookup.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
@@ -1425,6 +1448,9 @@
 
 
     function outputByRowClicked() {
+        if (verboseDebug) {
+            console.trace("outputByRowClicked called");
+        }
         <? if ($settings['BeaglePlatform']) { ?>
             var checked = $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).is(':checked')
             if (checked != false) {
@@ -1461,6 +1487,9 @@
 
     ///////////////
     function countChildObjects(obj) {
+        if (verboseDebug) {
+            console.trace("countChildObjects called with obj: ", obj);
+        }
         let count = 0;
 
         if (typeof obj === "object" && obj !== null) {
@@ -1477,6 +1506,9 @@
 
 
     function GetAdvancedPanelConfig(panelMatrixID) {
+        if (verboseDebug) {
+            console.trace("GetAdvancedPanelConfig called with panelMatrixID: " + panelMatrixID);
+        }
         var co = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         var panels = [];
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
@@ -1509,6 +1541,9 @@
     }
 
     function snapToGrid(panelMatrixID, o) {
+        if (verboseDebug) {
+            console.trace("snapToGrid called with panelMatrixID: " + panelMatrixID, o);
+        }
         var co = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
         var left = Math.round(o.left / AdvancedUIcanvas.uiScale);
@@ -1540,6 +1575,9 @@
     }
 
     function panelMovingHandler(evt) {
+        if (verboseDebug) {
+            console.trace("panelMovingHandler called with evt: ", evt);
+        }
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
 
@@ -1568,6 +1606,9 @@
     }
 
     function panelSelectedHandler(evt) {
+        if (verboseDebug) {
+            console.trace("panelSelectedHandler called with evt: ", evt);
+        }
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
         var o = AdvancedUIcanvas.ledPanelCanvas.getActiveObject();
@@ -1596,6 +1637,9 @@
     }
 
     function RotateCanvasPanel() {
+        if (verboseDebug) {
+            console.trace("RotateCanvasPanel called");
+        }
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
         const selection = AdvancedUIcanvas.ledPanelCanvas?.getActiveObject();
@@ -1620,6 +1664,9 @@
     }
 
     function GetOutputNumberColor(output) {
+        if (verboseDebug) {
+            console.trace("GetOutputNumberColor called with output: " + output);
+        }
         switch (output) {
             case 0: return 'rgb(231, 76, 60)';
             case 1: return 'rgb( 88,214,141)';
@@ -1639,6 +1686,9 @@
     }
 
     function SetupCanvasPanel(panelMatrixID, panelNumber) {
+        if (verboseDebug) {
+            console.trace("SetupCanvasPanel called with panelMatrixID: " + panelMatrixID + ", panelNumber: " + panelNumber);
+        }
         var co = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         var p = co.panels[panelNumber];
         var name = 'panel-' + panelNumber;
@@ -1742,6 +1792,9 @@
     }
 
     function UpdateMatrixSize(panelMatrixID) {
+        if (verboseDebug) {
+            console.trace("UpdateMatrixSize called with panelMatrixID: " + panelMatrixID);
+        }
         var matrixWidth = 0;
         var matrixHeight = 0;
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
@@ -1786,6 +1839,9 @@
     }
 
     function SetCanvasSize(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
+        if (verboseDebug) {
+            console.trace("SetCanvasSize called with panelMatrixID: " + panelMatrixID);
+        }
 
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
 
@@ -1799,6 +1855,9 @@
     }
 
     function InitializeCanvas(panelMatrixID, reinit) {
+        if (verboseDebug) {
+            console.trace("InitializeCanvas called with panelMatrixID: " + panelMatrixID + ", reinit: " + reinit);
+        }
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
         AdvancedUIcanvas.canvasInitialized = 1;
 
@@ -1833,6 +1892,9 @@
     }
 
     function ToggleAdvancedLayout(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
+        if (verboseDebug) {
+            console.trace("ToggleAdvancedLayout called with panelMatrixID: " + panelMatrixID);
+        }
 
         let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
@@ -1858,9 +1920,6 @@
                 $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsWide`).val(mp.LEDPanelCanvasUIPixelsWide);
             }
 
-            // $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsWide`).val(mp.panelWidth * (mp.LEDPanelCols + 1));
-            // $(`#panelMatrix${panelMatrixID} .LEDPanelCanvasUIPixelsHigh`).val(mp.panelHeight * (mp.LEDPanelRows + 1));
-
             if (AdvancedUIcanvas.canvasInitialized)
                 InitializeCanvas(panelMatrixID, 1);
             else
@@ -1877,6 +1936,9 @@
     }
 
     function cpOutputNumberChanged() {
+        if (verboseDebug) {
+            console.trace("cpOutputNumberChanged called");
+        }
         //get currently visible panelMatrixID
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
@@ -1888,6 +1950,9 @@
     }
 
     function cpPanelNumberChanged() {
+        if (verboseDebug) {
+            console.trace("cpPanelNumberChanged called");
+        }
         //get currently visible panelMatrixID
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
@@ -1899,6 +1964,9 @@
     }
 
     function cpColorOrderChanged() {
+        if (verboseDebug) {
+            console.trace("cpColorOrderChanged called");
+        }
         //get currently visible panelMatrixID
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
         let AdvancedUIcanvas = eval("AdvancedUIcanvas" + panelMatrixID);
@@ -1910,6 +1978,9 @@
     }
 
     function SetupAdvancedUISelects(panelMatrixID) {
+        if (verboseDebug) {
+            console.trace("SetupAdvancedUISelects called with panelMatrixID: " + panelMatrixID);
+        }
         let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
 
 
@@ -1923,6 +1994,9 @@
     }
 
     function SetSinglePanelSize(panelMatrixID) {
+        if (verboseDebug) {
+            console.trace("SetSinglePanelSize called with panelMatrixID: " + panelMatrixID);
+        }
         if (!("LEDPanelMatrices" in channelOutputsLookup))
             return;
 
@@ -1940,6 +2014,9 @@
     }
 
     function GetCurrentActiveMatrixPanelID() {
+        if (verboseDebug) {
+            console.trace("GetCurrentActiveMatrixPanelID called");
+        }
         let element = $("[id^=panelMatrix].tab-pane.active")[0];
 
         return element && element.firstElementChild
@@ -1948,6 +2025,9 @@
     }
 
     function PanelSubtypeChanged(panelMatrixID) {
+        if (verboseDebug) {
+            console.trace("PanelSubtypeChanged called with panelMatrixID: " + panelMatrixID);
+        }
         var select = document.getElementById("panelMatrix" + panelMatrixID).getElementsByClassName("printSettingFieldCola col-md-4 col-lg-4");
         var html = "";
 
@@ -2005,6 +2085,9 @@
     }
 
     function AutoLayoutPanels(panelMatrixID = GetCurrentActiveMatrixPanelID(), override = 0) {
+        if (verboseDebug) {
+            console.trace("AutoLayoutPanels called with panelMatrixID: " + panelMatrixID + ", override: " + override);
+        }
 
         if (override == 0) {
             var sure = prompt('WARNING: This will re-configure all output and panel numbers.  Are you sure? [Y/N]', 'N');
@@ -2037,16 +2120,7 @@
                 $(`#panelMatrix${panelMatrixID} .LEDPanelOutputNumber_${y}_${panel}`).val(y);
                 $(`#panelMatrix${panelMatrixID} .LEDPanelOrientation_${y}_${panel}`).attr('src', 'images/arrow_N.png');
                 $(`#panelMatrix${panelMatrixID} .LEDPanelColorOrder_${y}_${panel}`).val('');
-                //Update channelOutputsLookup
-                // Ensure the legacy objects exist before setting properties
-                // mp["LEDPanelPanelNumber_" + y + "_" + panel] = mp["LEDPanelPanelNumber_" + y + "_" + panel] || {};
-                // mp["LEDPanelOutputNumber_" + y + "_" + panel] = mp["LEDPanelOutputNumber_" + y + "_" + panel] || {};
-                // mp["LEDPanelOrientation_" + y + "_" + panel] = mp["LEDPanelOrientation_" + y + "_" + panel] || {};
 
-
-                // mp["LEDPanelPanelNumber_" + y + "_" + panel].panelNumber = x;
-                //  mp["LEDPanelOutputNumber_" + y + "_" + panel].outputNumber = y;
-                //  mp["LEDPanelOrientation_" + y + "_" + panel].orientation = 'N';
                 //update panels config
                 //
                 var newPanel = {
@@ -2066,6 +2140,9 @@
 
 
     function TogglePanelTestPattern() {
+        if (verboseDebug) {
+            console.trace("TogglePanelTestPattern called");
+        }
 
         panelMatrixID = GetCurrentActiveMatrixPanelID();
         var val = $("#PanelTestPatternButton").val();
@@ -2106,6 +2183,9 @@
     }
 
     function findNextAvailableId(obj) {
+        if (verboseDebug) {
+            console.trace("findNextAvailableId called with obj: ", obj);
+        }
         const usedIds = Object.keys(obj).map(key => parseInt(key.replace("panelMatrix", ""), 10));
         for (let i = 1; i <= 5; i++) {
             if (!usedIds.includes(i)) {
@@ -2117,6 +2197,9 @@
 
 
     function AddPanelMatrixDialog() {
+        if (verboseDebug) {
+            console.trace("AddPanelMatrixDialog called");
+        }
 
         var mp = channelOutputsLookup["LEDPanelMatrices"];
 
@@ -2341,6 +2424,9 @@
     }
 
     function MatrixNameChange() {
+        if (verboseDebug) {
+            console.trace("MatrixNameChange called");
+        }
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
         let newName = $(`#panelMatrix${panelMatrixID} .LEDPanelMatrixName`).val();
         if (newName !== "") {
@@ -2351,6 +2437,9 @@
     }
 
     function WarnIfSlowNIC(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
+        if (verboseDebug) {
+            console.trace("WarnIfSlowNIC called with panelMatrixID: " + panelMatrixID);
+        }
         var txt = $(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).find(":selected").text();
         var NicSpeed = 1000;
         if (txt != "") {
@@ -2364,6 +2453,9 @@
     }
 
     function LEDPanelsSizeChanged(panelMatrixID) {
+        if (verboseDebug) {
+            console.trace("LEDPanelsSizeChanged called with panelMatrixID: " + panelMatrixID);
+        }
         var value = $(`#panelMatrix${panelMatrixID} .LEDPanelsSize`).val();
         //SetSetting("LEDPanelsSize", value, 1, 0, false, null, function () {
         //settings['LEDPanelsSize'] = value;
@@ -2373,6 +2465,9 @@
     }
 
     function populatePanelMatrixTab(panelMatrixID) {
+        if (verboseDebug) {
+            console.trace("populatePanelMatrixTab called with panelMatrixID: " + panelMatrixID);
+        }
         checkAndCorrectMissingChannelLookup();
         return new Promise((resolve) => {
             //copy from template
@@ -2399,12 +2494,16 @@
     }
 
     function RemovePanelMatrixConfig() {
+        if (verboseDebug) {
+            console.trace("RemovePanelMatrixConfig called");
+        }
         //get currently visible panelMatrixID
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
         var sure = prompt('WARNING: This will remove the LED Panel Matrix configuration.  Are you sure? [Y/N]', 'N');
 
-        if (sure.toUpperCase() != 'Y')
+        if (sure.toUpperCase() != 'Y') {
             return;
+        }
 
         delete channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
 
@@ -2418,6 +2517,9 @@
     }
 
     function SetMatrixDisplayDefault() {
+        if (verboseDebug) {
+            console.trace("SetMatrixDisplayDefault called");
+        }
         // Ensure LEDPanelMatrices exists and is not empty
         if (Array.isArray(channelOutputsLookup.LEDPanelMatrices) && Object.keys(channelOutputsLookup.LEDPanelMatrices).length > 0) {
             // Set first tab to be active
@@ -2449,6 +2551,9 @@
     }
 
     function DetectConfigChangesInUI() {
+        if (verboseDebug) {
+            console.trace("DetectConfigChangesInUI called");
+        }
 
         //get currently visible panelMatrixID
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
@@ -2460,7 +2565,7 @@
         else {
             // Find the matching object from saved config
             let resultObject = structuredClone(channelOutputs.channelOutputs.find(obj => obj.panelMatrixID === panelMatrixID) || {});
-            ;
+
             // Sort object keys alphabetically
             const sortedSavedObj = sortJson(resultObject);
 
@@ -2468,16 +2573,13 @@
             let currentConfigObj = structuredClone(channelOutputsLookup.LEDPanelMatrices[`panelMatrix${panelMatrixID}`] || {});
 
             //remove the elements used only for the UI which are not in the saved config
+            <?php
+            $standardConditions = 'key.startsWith("LEDPanelOutputNumber_") || key.startsWith("LEDPanelPanelNumber_") || key.startsWith("LEDPanelOrientation_") || key.startsWith("LEDPanelColorOrder_")';
+            $extraCondition = ($settings['Platform'] != "Raspberry Pi") ? '|| key.startsWith("gpioSlowdown")' : '';
+            ?>
             Object.keys(currentConfigObj).forEach(key => {
-                if (key.startsWith("LEDPanelOutputNumber_") ||
-                    key.startsWith("LEDPanelPanelNumber_") ||
-                    key.startsWith("LEDPanelOrientation_") ||
-                    key.startsWith("LEDPanelColorOrder_")
-                    <? if ($settings['Platform'] != "Raspberry Pi") { ?>
-                        || key.startsWith("gpioSlowdown")
-                    <? } ?>
-
-                ) {
+                if (<?php echo ($standardConditions);
+                echo ($extraCondition); ?>) {
                     delete currentConfigObj[key]; // Remove the property
                 }
             });
@@ -2521,6 +2623,9 @@
     }
 
     function HandleChangesInUIValues(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
+        if (verboseDebug) {
+            console.trace("HandleChangesInUIValues called with panelMatrixID: " + panelMatrixID);
+        }
         // const panelMatrixID = GetCurrentActiveMatrixPanelID();
         //Update the channelOutputsLookup with the new values from UI screen
         let currentUIConfig = GetLEDPanelConfigFromUI(panelMatrixID);
@@ -2608,6 +2713,9 @@
 
     var lastVendorPanelSelect = new Array();
     function PanelTypeSelected() {
+        if (verboseDebug) {
+            console.trace("PanelTypeSelected called");
+        }
         $('#vendorPanelSelectDialog .vendorPanelURL').html("<br><p></p>");
         var panel = $('#vendorPanelSelectDialog .selectPanel').val();
         Object.entries(lastVendorPanelSelect).forEach(function ([idx, details]) {
@@ -2620,6 +2728,9 @@
         });
     }
     function PopulatePanelTypes() {
+        if (verboseDebug) {
+            console.trace("PopulatePanelTypes called");
+        }
         var url = $('#vendorPanelSelectDialog .selectVendor').val();
         $('#vendorPanelSelectDialog .selectPanel').empty();
         if (url === "") {
