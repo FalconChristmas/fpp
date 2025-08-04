@@ -2406,6 +2406,12 @@
                         return currentText + " (max number reached)";
                     });
                 }
+                if (subtypeCount["BBShiftPanel"] >= 1) {
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='BBShiftPanel']").prop("disabled", true);
+                    $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='BBShiftPanel']").text(function (_, currentText) {
+                        return currentText + " (max number reached)";
+                    });
+                }
 
                 //default to select first non disabled option:
                 let firstEnabledOption = $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option:not(:disabled)").first();
