@@ -52,14 +52,21 @@ FPPPlugins::Plugin* createPlugin() {
 }
 
 #ifdef PLATFORM_BBB
-static const std::vector<std::string> PRU0_PINS = { "P9-31", "P9-29", "P9-30", "P9-28", "P9-92", "P9-27", "P9-91", "P9-25", "P8-12", "P8-11" };
-static const std::vector<std::string> PRU1_PINS = { "P8-39", "P8-40", "P8-41", "P8-42", "P8-43", "P8-44", "P8-45", "P8-46", "P8-28", "P8-30" };
+static const std::vector<std::string> PRU0_DATA_PINS = { "P9-31", "P9-29", "P9-30", "P9-28", "P9-92", "P9-27", "P9-91", "P9-25" };
+static const std::vector<std::string> PRU0_CTRL_PINS = { "P8-12", "P8-11" };
+static const std::vector<std::string> PRU1_DATA_PINS = { "P8-45", "P8-46", "P8-43", "P8-44", "P8-41", "P8-42", "P8-39", "P8-40" };
+static const std::vector<std::string> PRU1_CTRL_PINS = { "P8-28", "P8-30" };
 static const std::string PRU1_ENABLE_PIN = "P8-27";
 #else
-static const std::vector<std::string> PRU0_PINS = {};
-static const std::vector<std::string> PRU1_PINS = { "P1-20", "P2-02", "P2-04", "P2-06", "P2-08", "P2-17", "P2-18", "P2-20", "P2-24", "P2-33" };
+static const std::vector<std::string> PRU0_DATA_PINS = {};
+static const std::vector<std::string> PRU0_CTRL_PINS = {};
+static const std::vector<std::string> PRU1_DATA_PINS = { "P2-02", "P2-04", "P2-06", "P2-08", "P2-20", "P1-20", "P2-24", "P2-33" };
+static const std::vector<std::string> PRU1_CTRL_PINS = { "P2-17", "P2-18" };
 static const std::string PRU1_ENABLE_PIN = "P2-22";
 #endif
+
+static const std::vector<std::string> PRU_CTRL_PINS[2] = { PRU0_CTRL_PINS, PRU1_CTRL_PINS };
+static const std::vector<std::string> PRU_DATA_PINS[2] = { PRU0_DATA_PINS, PRU1_DATA_PINS };
 
 BBShiftStringOutput::BBShiftStringOutput(unsigned int startChannel, unsigned int channelCount) :
     ChannelOutput(startChannel, channelCount) {
@@ -238,6 +245,15 @@ int BBShiftStringOutput::Init(Json::Value config) {
             int pru = root["outputs"][x]["pru"].asInt();
             int pin = root["outputs"][x]["pin"].asInt();
             int pinIdx = root["outputs"][x]["index"].asInt();
+            for (auto& a : PRU_CTRL_PINS[pru]) {
+                if (m_usedPins.find(a) == m_usedPins.end()) {
+                    m_usedPins[a] = "pru" + std::to_string(pru) + "out";
+                }
+            }
+            const std::string& pinName = PRU_DATA_PINS[pru][pin];
+            if (m_usedPins.find(pinName) == m_usedPins.end()) {
+                m_usedPins[pinName] = "pru" + std::to_string(pru) + "out";
+            }
 
             // printf("pru: %d  pin: %d  idx: %d\n", pru, pin, pinIdx);
             if (x >= m_licensedOutputs && m_strings[x]->m_outputChannels > 0) {
@@ -313,10 +329,11 @@ int BBShiftStringOutput::Init(Json::Value config) {
 
 int BBShiftStringOutput::StartPRU() {
     m_curFrame = 0;
+    for (auto& a : m_usedPins) {
+        PinCapabilities::getPinByName(a.first).configPin(a.second, true, "BBShiftString");
+    }
+
     if (m_pru1.maxStringLen) {
-        for (auto& a : PRU1_PINS) {
-            PinCapabilities::getPinByName(a).configPin("pru1out", true, "BBShiftString");
-        }
         m_pru1.pru = new BBBPru(1, true, true);
         m_pru1.pruData = (BBShiftStringData*)m_pru1.pru->data_ram;
 
@@ -326,9 +343,6 @@ int BBShiftStringOutput::StartPRU() {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     if (m_pru0.maxStringLen) {
-        for (auto& a : PRU0_PINS) {
-            PinCapabilities::getPinByName(a).configPin("pru0out", true, "BBShiftString");
-        }
         m_pru0.pru = new BBBPru(0, true, true);
         m_pru0.pruData = (BBShiftStringData*)m_pru0.pru->data_ram;
         m_pru1.pru->run("/opt/fpp/src/non-gpl/BBShiftString/BBShiftString_pru0.out");
@@ -381,19 +395,9 @@ void BBShiftStringOutput::StopPRU(bool wait) {
 int BBShiftStringOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "BBShiftStringOutput::Close()\n");
     StopPRU();
-
-    if (m_pru1.maxStringLen) {
-        for (auto& a : PRU1_PINS) {
-            PinCapabilities::getPinByName(a).configPin("gpio", false);
-        }
-        PinCapabilities::getPinByName(PRU1_ENABLE_PIN).configPin("gpio", false);
+    for (auto& a : m_usedPins) {
+        PinCapabilities::getPinByName(a.first).configPin("gpio", false);
     }
-    if (m_pru0.maxStringLen) {
-        for (auto& a : PRU0_PINS) {
-            PinCapabilities::getPinByName(a).configPin("gpio", false);
-        }
-    }
-
     return ChannelOutput::Close();
 }
 

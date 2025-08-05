@@ -142,6 +142,7 @@ private:
     } m_pru0, m_pru1;
 
     std::vector<PixelString*> m_strings;
+    std::map<std::string, std::string> m_usedPins;
 
     uint32_t m_curFrame = 0;
     uint32_t m_licensedOutputs = 0;
