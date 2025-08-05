@@ -136,6 +136,7 @@ If you are installing to create a SD image zip, do the following:
 
     # Trim the fs
     sudo fstrim -v /
+    journalctl --flush --rotate --vacuum-time=1s
 
 	# Shutdown the Pi
 	sudo shutdown -h now
@@ -149,8 +150,8 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
-    VERSION=9.0-beta2
-    OSVERSION=2025-07b
+    VERSION=9.0
+    OSVERSION=2025-08
     BLOCKS=6800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
@@ -160,6 +161,7 @@ the proper device name for your SD card in place of '/dev/sdg'):
     rm -rf /mnt/home/fpp/media/config/backups/*
     rm -f /mnt/home/fpp/media/config/*
     rm -f /mnt/home/fpp/media/logs/*
+    rm -f /mnt/home/fpp/media/tmp/*
     rm -f /mnt/var/log/*
     rm -f /mnt/etc/ssh/*key*
     rm -f /mnt/root/.bash_history
