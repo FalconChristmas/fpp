@@ -288,19 +288,19 @@ SetupFPPNetworkConfigViaSystemdNetworkd() {
                 echo "" >> $TMPFILE
             fi
 
-            if [ ! -f "${FPPHOME}/media/config/proxies" ]; then
-                # DHCPServer is on, lets make sure proxies are enabled
-                # so they can be found via the proxies page
-                echo "RewriteEngine on" >> ${FPPHOME}/media/config/proxies
-                echo "RewriteBase /proxy/" >> ${FPPHOME}/media/config/proxies
-                echo "" >> ${FPPHOME}/media/config/proxies
-                echo 'RewriteCond %{HTTP:Upgrade}     "websocket" [NC]' >> ${FPPHOME}/media/config/proxies
-                echo 'RewriteCond %{HTTP:Connection}  "Upgrade" [NC]' >> ${FPPHOME}/media/config/proxies
-                echo 'RewriteRule ^(.*)/(.*)$ "ws://$1/$2" [P]'  >> ${FPPHOME}/media/config/proxies
-                echo "" >> ${FPPHOME}/media/config/proxies
-                echo 'RewriteRule ^(.*)/(.*)$  http://$1/$2  [P,L]' >> ${FPPHOME}/media/config/proxies
-                echo 'RewriteRule ^(.*)$  $1/  [R,L]' >> ${FPPHOME}/media/config/proxies
-            fi
+            # if [ ! -f "${FPPHOME}/media/config/proxies" ]; then
+            #     # DHCPServer is on, lets make sure proxies are enabled
+            #     # so they can be found via the proxies page
+            #     echo "RewriteEngine on" >> ${FPPHOME}/media/config/proxies
+            #     echo "RewriteBase /proxy/" >> ${FPPHOME}/media/config/proxies
+            #     echo "" >> ${FPPHOME}/media/config/proxies
+            #     echo 'RewriteCond %{HTTP:Upgrade}     "websocket" [NC]' >> ${FPPHOME}/media/config/proxies
+            #     echo 'RewriteCond %{HTTP:Connection}  "Upgrade" [NC]' >> ${FPPHOME}/media/config/proxies
+            #     echo 'RewriteRule ^(.*)/(.*)$ "ws://$1/$2" [P]'  >> ${FPPHOME}/media/config/proxies
+            #     echo "" >> ${FPPHOME}/media/config/proxies
+            #     echo 'RewriteRule ^(.*)/(.*)$  http://$1/$2  [P,L]' >> ${FPPHOME}/media/config/proxies
+            #     echo 'RewriteRule ^(.*)$  $1/  [R,L]' >> ${FPPHOME}/media/config/proxies
+            # fi
         fi
 
         cp -f $TMPFILE /etc/systemd/network
