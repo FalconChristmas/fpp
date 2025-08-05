@@ -691,12 +691,12 @@ static void setupNetwork() {
                 }
                 content.append("\n");
 
-                if (!FileExists(FPP_MEDIA_DIR + "/config/proxies")) {
+/*                 if (!FileExists(FPP_MEDIA_DIR + "/config/proxies")) {
                     // DHCPServer is on, lets make sure proxies are enabled
                     // so they can be found via the proxies page
                     std::string c2 = "RewriteEngine on\nRewriteBase /proxy/\n\nRewriteCond %{HTTP:Upgrade}     \"websocket\" [NC]\nRewriteCond %{HTTP:Connection}  \"Upgrade\" [NC]\nRewriteRule ^(.*)/(.*)$ \"ws://$1/$2\" [P]\n\nRewriteRule ^(.*)/(.*)$  http://$1/$2  [P,L]\nRewriteRule ^(.*)$  $1/  [R,L]\n";
                     PutFileContents(FPP_MEDIA_DIR + "/config/proxies", c2);
-                }
+                } */
             }
             if (validConfig) {
                 filesNeeded["/etc/systemd/network/10-" + interface + ".network"] = content;
