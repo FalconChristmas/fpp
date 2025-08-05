@@ -266,3 +266,19 @@ function getDHCPLeases()
     return $dhcpIps;
 }
 
+function DeleteAllProxies()
+{
+    global $settings;
+    $mediaDirectory = $settings['mediaDirectory'];
+
+    // Write an empty proxy config file
+    file_put_contents("$mediaDirectory/config/proxy-config.conf", "");
+
+    // Graceful reload of Apache to apply changes
+    global $SUDO, $fppDir;
+    system($SUDO . " $fppDir/scripts/common gracefullyReloadApacheConf > /dev/null 2>&1");
+
+    GenerateBackupViaAPI('All proxies were deleted.');
+    return json([]);
+}
+

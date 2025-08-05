@@ -2271,6 +2271,13 @@
                             "description": "Left House"
                         }
                     ]
+                },
+                "DELETE": {
+                    "desc": "Deletes all proxy entries from the FPP instance",
+                    "output": {
+                        "Status": "OK",
+                        "Message": "All proxies deleted"
+                    }
                 }
             }
         },

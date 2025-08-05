@@ -7,6 +7,52 @@
     require_once 'config.php';
     include 'common/menuHead.inc';
     require_once "common.php";
+
+    // Temp function to help migrate old configs prior to fpp v9:
+    function MigrateOldProxiesIfNeeded()
+    {
+        global $settings;
+        $mediaDirectory = $settings['mediaDirectory'];
+        $oldFile = "$mediaDirectory/config/proxies";
+        $newFile = "$mediaDirectory/config/proxy-config.conf";
+        $renamedFile = "$mediaDirectory/config/proxies-safetodelete";
+
+        // Check if old proxies file exists and new config is empty
+        if (file_exists($oldFile) && (filesize($newFile) == 0 || trim(file_get_contents($newFile)) === "")) {
+            $lines = file($oldFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            $filtered = [];
+            $skipPatterns = [
+                '/^RewriteEngine on$/',
+                '/^RewriteBase \/proxy\/$/',
+                '/^RewriteCond %{HTTP:Upgrade}     "websocket" \[NC\]$/',
+                '/^RewriteCond %{HTTP:Connection}  "Upgrade" \[NC\]$/',
+                '/^RewriteRule \^\(.*\)\/\(.*\)\$ "ws:\/\/\$1\/\$2" \[P\]$/',
+                '/^RewriteRule \^\(.*\)\/\(.*\)\$  http:\/\/\$1\/\$2  \[P,L\]$/',
+                '/^RewriteRule \^\(.*\)\$  \$1\/  \[R,L\]$/'
+            ];
+            foreach ($lines as $line) {
+                $skip = false;
+                foreach ($skipPatterns as $pattern) {
+                    if (preg_match($pattern, $line)) {
+                        $skip = true;
+                        break;
+                    }
+                }
+                if (!$skip) {
+                    $filtered[] = $line;
+                }
+            }
+            file_put_contents($newFile, implode("\n", $filtered) . "\n");
+            // Rename the old proxies file instead of deleting
+            rename($oldFile, $renamedFile);
+        }
+    }
+    //run straight away
+    MigrateOldProxiesIfNeeded();
+
+
+
+
     ?>
     <script type="text/javascript" src="js/validate.min.js"></script>
 
@@ -17,7 +63,40 @@
         }
     </style>
 
+
+
+    <title><? echo $pageTitle; ?></title>
+</head>
+
+<body>
+
     <script language="Javascript">
+
+
+
+        let initialProxiesState = [];
+
+        function getCurrentProxiesState() {
+            let state = [];
+            $(".proxyRow").each(function () {
+                let ip = $(this).find(".ipaddress").val() || "";
+                let desc = $(this).find(".description").val() || "";
+                state.push({ host: ip, description: desc });
+            });
+            return state;
+        }
+
+        function proxiesStateChanged() {
+            let current = getCurrentProxiesState();
+            if (current.length !== initialProxiesState.length) return true;
+            for (let i = 0; i < current.length; i++) {
+                if (current[i].host !== initialProxiesState[i].host ||
+                    current[i].description !== initialProxiesState[i].description) {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         function UpdateLink(row) {
             var val = document.getElementById('ipRow' + row).value;
@@ -42,7 +121,10 @@
                 "<td><input id='descRow" + currentRows + "' class='description' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value=''></td>" +
                 "<td id='linkRow" + currentRows + "'> </td>" +
                 "</tr>");
+
+            checkProxiesDirty();
         }
+
         function AddProxyForHost(host, description = "") {
             var currentRows = $("#proxyTable > tbody > tr").length
 
@@ -66,8 +148,8 @@
                 $this.find("td:first").html(id);
                 id++;
             });
-
         }
+
         function DeleteSelectedProxy() {
             if (tableInfo.selected >= 0) {
                 $('#proxyTable tbody tr:nth-child(' + (tableInfo.selected + 1) + ')').remove();
@@ -75,46 +157,85 @@
                 SetButtonState("#btnDelete", "disable");
                 RenumberColumns("proxyTable");
             }
+            checkProxiesDirty();
         }
 
+        function showSaveAlertIcon() {
+            console.log("Showing Save Alert Icon");
+            if ($("#btnSave .save-alert-icon").length === 0) {
+                $("#btnSave").prepend('<span class="save-alert-icon" style="color:white;margin-right:5px;"><i class="fas fa-exclamation-triangle"></i></span>');
+                //$("#btnSave").addClass("fas fa-exclamation-triangle");
+            }
+        }
+
+        function hideSaveAlertIcon() {
+            console.log("Hiding Save Alert Icon");
+            $("#btnSave .save-alert-icon").remove();
+        }
+
+
         function SetProxies() {
+            console.log("Setting Proxies");
             var formStr = "<form action='proxies.php' method='post' id='proxyForm'>";
 
             var json = new Array();
-            $(".proxyRow").each(function () {
-                var ip = $(this).find(".ipaddress").val();
-                if (ip === undefined || ip === null || ip === '') { ip = ""; }
-                if (isValidHostname(ip) || isValidIpAddress(ip)) {
-                    var desc = $(this).find(".description").val();
-                    if (desc === undefined || desc === null || desc === '') {
-                        desc = "";
-                    }
-                    json.push({
-                        "host": ip,
-                        "description": desc
-                    });
-                }
-            });
+
             if ($(".proxyRow").length == 0) {
                 $.ajax({
                     url: 'api/proxies',
-                    type: 'GET',
+                    type: 'DELETE',
                     async: true,
                     dataType: 'json',
                     success: function (data) {
-                        proxyInfos = data;
-                        for (var i = 0; i < proxyInfos.length; i++) {
-                            Delete("api/proxies/" + proxyInfos[i].host, true, null, true);
-                        }
+                        $.jGrowl('All proxies removed successfully', { themeState: 'success' });
+                        //location.reload();
                     },
                     error: function () {
-                        $.jGrowl('Error: Unable to get list of proxies', { themeState: 'danger' });
+                        $.jGrowl('Error: Failed to remove all proxies', { themeState: 'danger' });
+                    }
+                });
+            } else {
+                $(".proxyRow").each(function () {
+                    var ip = $(this).find(".ipaddress").val();
+                    if (ip === undefined || ip === null || ip === '') { ip = ""; }
+                    if (isValidHostname(ip) || isValidIpAddress(ip)) {
+                        var desc = $(this).find(".description").val();
+                        if (desc === undefined || desc === null || desc === '') {
+                            desc = "";
+                        }
+                        json.push({
+                            "host": ip,
+                            "description": desc
+                        });
+                    }
+                });
+                console.log("Proxies to send:", json);
+                $.ajax({
+                    url: 'api/proxies',
+                    type: 'POST',
+                    async: true,
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    data: JSON.stringify(json, null, 2),
+                    success: function (data) {
+                        $.jGrowl('All proxies saved successfully', { themeState: 'success' });
+                        initialProxiesState = getCurrentProxiesState();
+                        hideSaveAlertIcon();
+                        //location.reload();
+                    },
+                    error: function () {
+                        $.jGrowl('Error: Failed to save all proxies', { themeState: 'danger' });
                     }
                 });
             }
+        }
 
-            Post("api/proxies", false, JSON.stringify(json, null, 2));
-            location.reload();
+        function checkProxiesDirty() {
+            if (proxiesStateChanged()) {
+                showSaveAlertIcon();
+            } else {
+                hideSaveAlertIcon();
+            }
         }
 
         var tableInfo = {
@@ -125,6 +246,7 @@
         };
 
         $(document).ready(function () {
+
             SetupSelectableTableRow(tableInfo);
 
             $.ajax({
@@ -182,19 +304,36 @@
                             })(proxyInfos[i].host);
                         }
                     }
+                    initialProxiesState = getCurrentProxiesState();
                 },
                 error: function () {
                     $.jGrowl('Error: Unable to get list of proxies', { themeState: 'danger' });
                 }
             });
+            $("#proxyTable").on("input", ".ipaddress, .description", checkProxiesDirty);
 
+            const proxyTableBody = document.querySelector("#proxyTable tbody");
+            if (proxyTableBody) {
+                const observer = new MutationObserver(function (mutationsList, observer) {
+                    // Check if any proxyRow was added or removed
+                    let changed = false;
+                    mutationsList.forEach(mutation => {
+                        mutation.addedNodes.forEach(node => {
+                            if (node.classList && node.classList.contains("proxyRow")) changed = true;
+                        });
+                        mutation.removedNodes.forEach(node => {
+                            if (node.classList && node.classList.contains("proxyRow")) changed = true;
+                        });
+                    });
+                    if (changed) checkProxiesDirty();
+                });
+
+                observer.observe(proxyTableBody, { childList: true });
+            }
         });
     </script>
 
-    <title><? echo $pageTitle; ?></title>
-</head>
 
-<body>
     <div id="bodyWrapper">
         <?php
         $activeParentMenuItem = 'status';
@@ -216,8 +355,8 @@
                                     data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>
                                 <button type=button value='Add' onClick='AddNewProxy();'
                                     class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
-                                <input type=button value='Save' onClick='SetProxies();'
-                                    class='buttons btn-success ml-1'>
+                                <button id="btnSave" type=button value='Save' onClick='SetProxies();'
+                                    class='buttons btn-success ml-1'>Save</button>
 
                             </div>
                         </div>
