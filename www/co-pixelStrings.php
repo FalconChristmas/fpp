@@ -165,7 +165,7 @@ function readCapes($cd, $capes)
     function SetPixelTestPattern() {
         var val = $("#PixelTestPatternType").val();
         if (val != "0") {
-            <? if ($settings['Platform'] == "BeagleBone Black") { ?>
+            <? if ($settings['BeaglePlatform']) { ?>
                 var outputType = "BBB Pixel Strings";
             <? } else { ?>
                 var outtype = $('#PixelStringSubType').val();
