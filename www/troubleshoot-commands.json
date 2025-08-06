@@ -269,6 +269,30 @@
                     "platforms": [
                         "all"
                     ]
+                },
+                "kmsprint": {
+                    "title": "kmsprint",
+                    "description": "",
+                    "cmd": "kmsprint",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "kmsprintProps": {
+                    "title": "kmsprint -p",
+                    "description": "",
+                    "cmd": "kmsprint -p",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "kmsprintList": {
+                    "title": "kmsprint -m",
+                    "description": "",
+                    "cmd": "kmsprint -m",
+                    "platforms": [
+                        "all"
+                    ]
                 }
             }
         },
