@@ -48,12 +48,12 @@ require_once 'commandsocket.php';
 $system_config_areas = array(
     'all' => array('friendly_name' => 'All', 'file' => false),
     'channelInputs' => array(
-            'friendly_name' => 'Channel Inputs (E1.31 Bridge)',
-            'file' => array(
-                'universe_inputs' => array('type' => 'file', 'location' => $settings['universeInputs']),
-                'dmx_inputs' => array('type' => 'file', 'location' => $settings['dmxInputs']),
-            ),
-		'special' => true,
+        'friendly_name' => 'Channel Inputs (E1.31 Bridge)',
+        'file' => array(
+            'universe_inputs' => array('type' => 'file', 'location' => $settings['universeInputs']),
+            'dmx_inputs' => array('type' => 'file', 'location' => $settings['dmxInputs']),
+        ),
+        'special' => true,
     ),
     'channelOutputs' => array(
         'friendly_name' => 'Channel Outputs (Universe, Falcon, LED Panels, etc.)',
@@ -118,8 +118,10 @@ $system_config_areas = array(
     'virtualEEPROM' => array(
         'friendly_name' => 'Virtual EEPROM',
         'file' => array(
-            'cape-eeprom.bin' => array('type' => 'file', 'location' => $settings['configDirectory'] . '/cape-eeprom.bin')),
-        'binary' => true),
+            'cape-eeprom.bin' => array('type' => 'file', 'location' => $settings['configDirectory'] . '/cape-eeprom.bin')
+        ),
+        'binary' => true
+    ),
 );
 
 //FPP Backup version - This is used for tracking the CURRENT backup file format or "backup" version as we may move things around and need backwards compatibility when restoring older version
@@ -519,23 +521,23 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
 
     //CHANNEL INPUTS - E1.31 BRIDGE, DMX
     if ($restore_area_key == "channelInputs" && !$restore_data_is_empty) {
-		$settings_restored[$restore_area_key] = array();
+        $settings_restored[$restore_area_key] = array();
 
-		//RESTORE TWEAKS FOR SPECIFIC VERSIONS
-		//Version 8.0 backups - channelInputs now holds an array of channel input configurations (E1.31/DDP, DMX etc), instead of a single entry for the default E1.31
-		//                    - <8.0 we massage the data so it's in the new format (channelInputs => ['universe_inputs' => "data", "dmx_inputs" => "data"]
+        //RESTORE TWEAKS FOR SPECIFIC VERSIONS
+        //Version 8.0 backups - channelInputs now holds an array of channel input configurations (E1.31/DDP, DMX etc), instead of a single entry for the default E1.31
+        //                    - <8.0 we massage the data so it's in the new format (channelInputs => ['universe_inputs' => "data", "dmx_inputs" => "data"]
 
-		if ($backup_version < 8.0) {
-			//Get the existing channel input data
-			$restore_area_data_ci['channelInputs'] = $restore_area_data;
-			//Remove the old channelInputs key and replace it with universe_inputs (to match the new format for the channel input section
-			unset($restore_area_data['channelInputs']);
-			$restore_area_data['universe_inputs'] = $restore_area_data_ci;
-			unset($restore_area_data_ci);
-		}
+        if ($backup_version < 8.0) {
+            //Get the existing channel input data
+            $restore_area_data_ci['channelInputs'] = $restore_area_data;
+            //Remove the old channelInputs key and replace it with universe_inputs (to match the new format for the channel input section
+            unset($restore_area_data['channelInputs']);
+            $restore_area_data['universe_inputs'] = $restore_area_data_ci;
+            unset($restore_area_data_ci);
+        }
 
-		$restore_areas = $system_config_areas[$restore_area_key]['file'];
-		processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data,$backup_version);
+        $restore_areas = $system_config_areas[$restore_area_key]['file'];
+        processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data, $backup_version);
     }
 
     //GPIO INPUTS - GPIO Input Triggers
@@ -562,7 +564,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
         $script_filenames = array();
         $restore_areas = $system_config_areas[$restore_area_key]['file'];
 
-		processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data,$backup_version);
+        processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data, $backup_version);
 
         //Cause any InstallActions to be run for the restored scripts
         RestoreScripts($script_filenames);
@@ -701,8 +703,9 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                     $restore_data = $restore_area_data['system_settings'][0];
 
                     //TODO rework this so it will work future email system implementation, were different providers are used
-                    if (is_array($restore_data)
-//                        && array_key_exists('emailenable', $restore_data)
+                    if (
+                        is_array($restore_data)
+                        //                        && array_key_exists('emailenable', $restore_data)
                         && array_key_exists('emailserver', $restore_data)
                         && array_key_exists('emailuser', $restore_data)
                         && array_key_exists('emailpass', $restore_data)
@@ -783,22 +786,22 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                             //
                             $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
                             //Apply timezone settings via API
-							$url = 'http://localhost/api/settings/TimeZone';
-							//options for the request
-							$options = array(
-								'http' => array(
-									'header' => "Content-type: text/plain",
-									'method' => 'PUT',
-									'content' => $data,
-								),
-							);
-							$context = stream_context_create($options);
+                            $url = 'http://localhost/api/settings/TimeZone';
+                            //options for the request
+                            $options = array(
+                                'http' => array(
+                                    'header' => "Content-type: text/plain",
+                                    'method' => 'PUT',
+                                    'content' => $data,
+                                ),
+                            );
+                            $context = stream_context_create($options);
 
-							if (file_get_contents($url, false, $context) !== false) {
-								$save_result = true;
-							} else {
-								$save_result = true;
-							}
+                            if (file_get_contents($url, false, $context) !== false) {
+                                $save_result = true;
+                            } else {
+                                $save_result = true;
+                            }
                         }
                     }
                 }
@@ -962,7 +965,8 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
     }
 
     //wrote message out
-    if (!$restore_data_is_empty &&
+    if (
+        !$restore_data_is_empty &&
         (array_key_exists($restore_area_key, $settings_restored)
             && array_key_exists('ATTEMPT', $settings_restored[$restore_area_key])
             && $settings_restored[$restore_area_key]['ATTEMPT']
@@ -986,221 +990,225 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
  * @param $backup_version Float Backup version used to determine any backward compatibility tweaks
  * @return void
  */
-function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data,$backup_version)
+function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data, $backup_version)
 {
-	global $SUDO, $settings, $mediaDirectory, $scheduleFile, $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadData_IsProtected, $settings_restored,
-		   $network_settings_restored, $network_settings_restored_post_apply, $network_settings_restored_applied_ips,
-		   $known_ini_config_files, $known_json_config_files;
-	global $args;
+    global $SUDO, $settings, $mediaDirectory, $scheduleFile, $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadData_IsProtected, $settings_restored,
+    $network_settings_restored, $network_settings_restored_post_apply, $network_settings_restored_applied_ips,
+    $known_ini_config_files, $known_json_config_files;
+    global $args;
 
-	//RESTORE TWEAKS FOR SPECIFIC VERSIONS (all changes done by the logic below
-	//Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
-	//Version 3 backups need to restore the schedule to it's new json location
-	//Version 4 backups - nothing changed
-	//Version 5 backups - FPD/Falcon Pixlenet at the root of ['channelOutputs']['falcon_pixelnet_DMX'] is FPDv1 data
-	//Version 6 backups - FPD/Falcon Pixlenet DMX data is keyed by the file it came from to more easily support a future version
-	//                  - ['channelOutputs']['falcon_pixelnet_DMX'] will contain an additional key for each FPD file read
-	//                  - eg Falcon.FPDV1 and in the future Falcon.F16V2
-	//Version >7.2 backups - Panel layout is generated from the actual panel config (using col & row data) if the layout doesn't exist anywhere
-	//                    - Single Panel size is generated from the same config and also written to the system settings
+    //RESTORE TWEAKS FOR SPECIFIC VERSIONS (all changes done by the logic below
+    //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
+    //Version 3 backups need to restore the schedule to it's new json location
+    //Version 4 backups - nothing changed
+    //Version 5 backups - FPD/Falcon Pixlenet at the root of ['channelOutputs']['falcon_pixelnet_DMX'] is FPDv1 data
+    //Version 6 backups - FPD/Falcon Pixlenet DMX data is keyed by the file it came from to more easily support a future version
+    //                  - ['channelOutputs']['falcon_pixelnet_DMX'] will contain an additional key for each FPD file read
+    //                  - eg Falcon.FPDV1 and in the future Falcon.F16V2
+    //Version >7.2 backups - Panel layout is generated from the actual panel config (using col & row data) if the layout doesn't exist anywhere
+    //                    - Single Panel size is generated from the same config and also written to the system settings
 
-	//search through the files that should of been backed up for the specified area, eg. channelOutputs has multiple files
-	//and then loop over the restore data and match up the data and restore it if anything exists.
-	foreach ($restore_areas as $restore_areas_idx => $restore_areas_data) {
-		$restore_location = $restore_areas_data['location'];
-		$restore_type = $restore_areas_data['type'];
-		$final_file_restore_data = "";
+    //search through the files that should of been backed up for the specified area, eg. channelOutputs has multiple files
+    //and then loop over the restore data and match up the data and restore it if anything exists.
+    foreach ($restore_areas as $restore_areas_idx => $restore_areas_data) {
+        $restore_location = $restore_areas_data['location'];
+        $restore_type = $restore_areas_data['type'];
+        $final_file_restore_data = "";
 
-		//If $restore_area_sub_key is empty then no sub-area has been chosen -- restore as normal and restore all sub areas, which should be everything under e.g $system_config_areas['channelOutputs']
-		//Or if $restore_area_sub_key is equal to the $show_setup_area_index we're on, then restore just this area because it matches users selection e.g user may just want the show schedule
-		//and break the loop
-		if ($restore_area_sub_key == "" || ($restore_area_sub_key == $restore_areas_idx)) {
-			//if the restore key and the $system_config_areas key match then restore data to whatever location it is
-			//eg. if we are on events, then look for events in the restore data, when found restore data to the events location (eg look at the location)
-			foreach ($restore_area_data as $restore_area_data_index => $restore_area_data_payload) {
-				$save_result = false;
+        //If $restore_area_sub_key is empty then no sub-area has been chosen -- restore as normal and restore all sub areas, which should be everything under e.g $system_config_areas['channelOutputs']
+        //Or if $restore_area_sub_key is equal to the $show_setup_area_index we're on, then restore just this area because it matches users selection e.g user may just want the show schedule
+        //and break the loop
+        if ($restore_area_sub_key == "" || ($restore_area_sub_key == $restore_areas_idx)) {
+            //if the restore key and the $system_config_areas key match then restore data to whatever location it is
+            //eg. if we are on events, then look for events in the restore data, when found restore data to the events location (eg look at the location)
+            foreach ($restore_area_data as $restore_area_data_index => $restore_area_data_payload) {
+                $save_result = false;
 
-				//$restore_area_data_data is an array representing the file contents
-				//$restore_area_data_index represents the filename (used to key the array)
-				if ($restore_areas_idx == $restore_area_data_index) {
-					//data is an array then we can go
-					if (is_array($restore_area_data_payload)) {
-						//loop over all the files and their data and restore each
-						//e.g $restore_area_data_data array will look like
-						//array ('event'=> array('01_01.fevt' => array(data), '21_10.fevt' => array(data)))
-						foreach ($restore_area_data_payload as $filename_to_restore => $file_data) {
-							$save_result = false;
+                //$restore_area_data_data is an array representing the file contents
+                //$restore_area_data_index represents the filename (used to key the array)
+                if ($restore_areas_idx == $restore_area_data_index) {
+                    //data is an array then we can go
+                    if (is_array($restore_area_data_payload)) {
+                        //loop over all the files and their data and restore each
+                        //e.g $restore_area_data_data array will look like
+                        //array ('event'=> array('01_01.fevt' => array(data), '21_10.fevt' => array(data)))
+                        foreach ($restore_area_data_payload as $filename_to_restore => $file_data) {
+                            $save_result = false;
 
-							$restore_location = $restore_areas_data['location']; //reset
-							$final_file_restore_data = ""; //store restore data in variable
+                            $restore_location = $restore_areas_data['location']; //reset
+                            $final_file_restore_data = ""; //store restore data in variable
 
-							//Work out what method we need to use to get the data back into an array
-							if ($restore_type == "dir" || $restore_type == "file") {
-								if (in_array($restore_area_data_index, $known_json_config_files)) {
-									//JSON
-									$final_file_restore_data = $file_data;
-								} else {
-									//everything else
-									//line separate the lines
-									$final_file_restore_data = implode("\n", $file_data);
-								}
-							} else if ($restore_type == "function") {
-								//get the data as in without any modification so we can pass it into the restore function
-								$final_file_restore_data = $file_data;
-							}
+                            //Work out what method we need to use to get the data back into an array
+                            if ($restore_type == "dir" || $restore_type == "file") {
+                                if (in_array($restore_area_data_index, $known_json_config_files)) {
+                                    //JSON
+                                    $final_file_restore_data = $file_data;
+                                } else {
+                                    //everything else
+                                    //line separate the lines
+                                    $final_file_restore_data = implode("\n", $file_data);
+                                }
+                            } else if ($restore_type == "function") {
+                                //get the data as in without any modification so we can pass it into the restore function
+                                $final_file_restore_data = $file_data;
+                            }
 
-							//If backup/restore type of a sub-area is folder, then build the full path to where the file will be restored
-							if ($restore_type == "dir") {
-								$restore_location .= "/" . $filename_to_restore;
-							}
+                            //If backup/restore type of a sub-area is folder, then build the full path to where the file will be restored
+                            if ($restore_type == "dir") {
+                                $restore_location .= "/" . $filename_to_restore;
+                            }
 
-							//if restore sub-area is scripts, capture the file names so we can pass those along through RestoreScripts which will perform any InstallActions
-							if (strtolower($restore_areas_idx) == "scripts") {
-								$script_filenames[] = $filename_to_restore;
-							}
+                            //if restore sub-area is scripts, capture the file names so we can pass those along through RestoreScripts which will perform any InstallActions
+                            if (strtolower($restore_areas_idx) == "scripts") {
+                                $script_filenames[] = $filename_to_restore;
+                            }
 
-							//if restore sub-area is LED panels, we need write the matrix size / layout setting to the settings file in case it's different to the backup
-							if (strtolower($restore_areas_idx) == "led_panels") {
-								$panel_layout = null;
+                            //if restore sub-area is LED panels, we need write the matrix size / layout setting to the settings file in case it's different to the backup
+                            if (strtolower($restore_areas_idx) == "led_panels") {
+                                $panel_layout = null;
 
-								//Generate the single LED Panel size from info in the LED Panel layout e.g 32x16 1/2 Scan
-								if (is_array($final_file_restore_data['channelOutputs'][0]) &&
-									(
-										array_key_exists('panelHeight', $final_file_restore_data['channelOutputs'][0])
-										&& array_key_exists('panelWidth', $final_file_restore_data['channelOutputs'][0])
-										&& array_key_exists('panelScan', $final_file_restore_data['channelOutputs'][0])
-									)
-								) {
-									$singlePanelSize = $final_file_restore_data['channelOutputs'][0]['panelWidth'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelHeight'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelScan'];
-									WriteSettingToFile('LEDPanelsSize', $singlePanelSize);
-								}
+                                //Generate the single LED Panel size from info in the LED Panel layout e.g 32x16 1/2 Scan
+                                if (
+                                    is_array($final_file_restore_data['channelOutputs'][0]) &&
+                                    (
+                                        array_key_exists('panelHeight', $final_file_restore_data['channelOutputs'][0])
+                                        && array_key_exists('panelWidth', $final_file_restore_data['channelOutputs'][0])
+                                        && array_key_exists('panelScan', $final_file_restore_data['channelOutputs'][0])
+                                    )
+                                ) {
+                                    $singlePanelSize = $final_file_restore_data['channelOutputs'][0]['panelWidth'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelHeight'] . 'x' . $final_file_restore_data['channelOutputs'][0]['panelScan'];
+                                    WriteSettingToFile('LEDPanelsSize', $singlePanelSize);
+                                }
 
-								//Write the panel layout, e.g 4x4 into the system settings
-								//This setting can exist in a few places (by default it's in the system settings)
-								if (is_array($final_file_restore_data['channelOutputs'][0]) &&
-									array_key_exists('ledPanelsLayout', $final_file_restore_data['channelOutputs'][0])
-								) {
-									WriteSettingToFile('LEDPanelsLayout', $final_file_restore_data['channelOutputs'][0]['ledPanelsLayout']);
-								} elseif (!empty($restore_area_system_settings)) {
-									// If it's a full backup we can get the panel settings from the system settings
-									$panel_layout = $restore_area_system_settings[0]['LEDPanelsLayout'];
+                                //Write the panel layout, e.g 4x4 into the system settings
+                                //This setting can exist in a few places (by default it's in the system settings)
+                                if (
+                                    is_array($final_file_restore_data['channelOutputs'][0]) &&
+                                    array_key_exists('ledPanelsLayout', $final_file_restore_data['channelOutputs'][0])
+                                ) {
+                                    WriteSettingToFile('LEDPanelsLayout', $final_file_restore_data['channelOutputs'][0]['ledPanelsLayout']);
+                                } elseif (!empty($restore_area_system_settings)) {
+                                    // If it's a full backup we can get the panel settings from the system settings
+                                    $panel_layout = $restore_area_system_settings[0]['LEDPanelsLayout'];
 
-									if ($panel_layout != null) {
-										//LEDPanelsLayout = "4x4"
-										WriteSettingToFile('LEDPanelsLayout', $panel_layout);
-									}
-								} else {
-									// ledPanelsLayout && LEDPanelsLayout don't exist so we can't determine the matrix size
-									//As a last resort we can calculate the matrix size from the led panel layout
-									$maxCol = $maxRow = null;
-									$panel_layout_data = $final_file_restore_data['channelOutputs'][0]['panels'];
+                                    if ($panel_layout != null) {
+                                        //LEDPanelsLayout = "4x4"
+                                        WriteSettingToFile('LEDPanelsLayout', $panel_layout);
+                                    }
+                                } else {
+                                    // ledPanelsLayout && LEDPanelsLayout don't exist so we can't determine the matrix size
+                                    //As a last resort we can calculate the matrix size from the led panel layout
+                                    $maxCol = $maxRow = null;
+                                    $panel_layout_data = $final_file_restore_data['channelOutputs'][0]['panels'];
 
-									foreach ($panel_layout_data as $idx => $panel) {
-										if ($panel['col'] > $maxCol) {
-											$maxCol = $panel['col'];
-										}
-										if ($panel['row'] > $maxRow) {
-											$maxRow = $panel['row'];
-										}
-									}
+                                    foreach ($panel_layout_data as $idx => $panel) {
+                                        if ($panel['col'] > $maxCol) {
+                                            $maxCol = $panel['col'];
+                                        }
+                                        if ($panel['row'] > $maxRow) {
+                                            $maxRow = $panel['row'];
+                                        }
+                                    }
 
-									if ($maxCol != null && $maxRow != null) {
-										//Adjust max values due to the array being 0 base
-										$maxCol = $maxCol + 1;
-										$maxRow = $maxRow + 1;
+                                    if ($maxCol != null && $maxRow != null) {
+                                        //Adjust max values due to the array being 0 base
+                                        $maxCol = $maxCol + 1;
+                                        $maxRow = $maxRow + 1;
 
-										//LEDPanelsLayout = "4x4"
-										WriteSettingToFile('LEDPanelsLayout', $maxCol . "x" . $maxRow);
-									}
+                                        //LEDPanelsLayout = "4x4"
+                                        WriteSettingToFile('LEDPanelsLayout', $maxCol . "x" . $maxRow);
+                                    }
 
-								}
-							}
+                                }
+                            }
 
-							//if restore sub-area is the schedule, determine how to restore it based on the $backup_version
-							if (strtolower($restore_areas_idx) == "schedule") {
-								if ($backup_version == 2) {
-									//Override the restore location so we write to the old schedule file, FPPD will convert this to the new json file
-									$restore_location = $scheduleFile;
-								}
-//                                    else if ($backup_version == 3){
-								//                                    //restore it to the new json file - don't adjust the path it'll go to configured path
-								//                                    }
-							}
+                            //if restore sub-area is the schedule, determine how to restore it based on the $backup_version
+                            if (strtolower($restore_areas_idx) == "schedule") {
+                                if ($backup_version == 2) {
+                                    //Override the restore location so we write to the old schedule file, FPPD will convert this to the new json file
+                                    $restore_location = $scheduleFile;
+                                }
+                                //                                    else if ($backup_version == 3){
+                                //                                    //restore it to the new json file - don't adjust the path it'll go to configured path
+                                //                                    }
+                            }
 
-							//if restore sub-area is falcon_pixelnet_DMX (under channelOutputs), determine how to restore it based on the $backup_version
-							if (strtolower($restore_areas_idx) == "falcon_pixelnet_dmx") {
-								//For FPD, backups from version 5 and under contain Falcon.FPDV1 data at it's root, extract and re-key the data, so it can be used correctly by the restore function
-								//This change was also made part way through the usage of version 6, we can check the version and presence of the Falcon.FPDV1 key and do the same thing
-								if ($backup_version <= 5 || ($backup_version == 6 and !array_key_exists('Falcon.FPDV1', $final_file_restore_data))) {
-									$FPD_temp = array('Falcon.FPDV1' => $final_file_restore_data);
-									$final_file_restore_data = $FPD_temp;
-								}
-							}
+                            //if restore sub-area is falcon_pixelnet_DMX (under channelOutputs), determine how to restore it based on the $backup_version
+                            if (strtolower($restore_areas_idx) == "falcon_pixelnet_dmx") {
+                                //For FPD, backups from version 5 and under contain Falcon.FPDV1 data at it's root, extract and re-key the data, so it can be used correctly by the restore function
+                                //This change was also made part way through the usage of version 6, we can check the version and presence of the Falcon.FPDV1 key and do the same thing
+                                if ($backup_version <= 5 || ($backup_version == 6 and !array_key_exists('Falcon.FPDV1', $final_file_restore_data))) {
+                                    $FPD_temp = array('Falcon.FPDV1' => $final_file_restore_data);
+                                    $final_file_restore_data = $FPD_temp;
+                                }
+                            }
 
-							///////////////////////////////////////////////////
-							//////////////////////////////////////////////////
-							//If we have data then write to where it needs to go
-							if (!empty($final_file_restore_data)) {
-								//Set we have valid ata
-								$settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = true;
+                            ///////////////////////////////////////////////////
+                            //////////////////////////////////////////////////
+                            //If we have data then write to where it needs to go
+                            if (!empty($final_file_restore_data)) {
+                                //Set we have valid ata
+                                $settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = true;
 
-								//Decide what action to take based on the restore type
-								if (($restore_type == "dir" || $restore_type == "file")) {
-									$settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
+                                //Decide what action to take based on the restore type
+                                if (($restore_type == "dir" || $restore_type == "file")) {
+                                    $settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
 
-									//Work out what method we need to use to get the data back out into the correct format
-									if (in_array($restore_area_data_index, $known_json_config_files)) {
-										//JSON
-										$final_file_restore_data = prettyPrintJSON(json_encode($final_file_restore_data));
-									}
-									//Save out the file
-									if (file_put_contents($restore_location, $final_file_restore_data) === false) {
-										$save_result = false;
-									} else {
-										$save_result = true;
-									}
-								} //If restore type is function - call the function
-								else if ($restore_type == "function") {
-									$settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
+                                    //Work out what method we need to use to get the data back out into the correct format
+                                    if (in_array($restore_area_data_index, $known_json_config_files)) {
+                                        //JSON
+                                        $final_file_restore_data = prettyPrintJSON(json_encode($final_file_restore_data));
+                                    }
+                                    //Save out the file
+                                    if (file_put_contents($restore_location, $final_file_restore_data) === false) {
+                                        $save_result = false;
+                                    } else {
+                                        $save_result = true;
+                                    }
+                                } //If restore type is function - call the function
+                                else if ($restore_type == "function") {
+                                    $settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
 
-									$restore_function = $restore_areas_data['location']['restore'];
-									//if we have valid data and the function exists, call it
-									if (function_exists($restore_function)) {
-										$save_result = $restore_function($final_file_restore_data);
-									}
-								} else {
-									//Unlikely - but no match on restore type
-									$save_result = false;
-								}
-							} else {
-								//Restore data is still empty after massaging
-								$settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = false;
-							}
-						}
-					} else {
-						//Not an array, we need an array here, so data is not valid
-						$settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = false;
-					}
-					$settings_restored[$restore_area_key][$restore_area_data_index]['SUCCESS'] = $save_result;
+                                    $restore_function = $restore_areas_data['location']['restore'];
+                                    //if we have valid data and the function exists, call it
+                                    if (function_exists($restore_function)) {
+                                        $save_result = $restore_function($final_file_restore_data);
+                                    }
+                                } else {
+                                    //Unlikely - but no match on restore type
+                                    $save_result = false;
+                                }
+                            } else {
+                                //Restore data is still empty after massaging
+                                $settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = false;
+                            }
+                        }
+                    } else {
+                        //Not an array, we need an array here, so data is not valid
+                        $settings_restored[$restore_area_key][$restore_area_data_index]['VALID_DATA'] = false;
+                    }
+                    $settings_restored[$restore_area_key][$restore_area_data_index]['SUCCESS'] = $save_result;
 
-					//Cheat and remove the success key if no attempt was even made (no attempt key) and there was no valid data
-					//meaning that we didn't even try, this check is done after the key and value is set because $restore_area_data_index might not exist at all if the ATTEMPT or VALID_DATA key was set
-					if (!array_key_exists('ATTEMPT', $settings_restored[$restore_area_key][$restore_area_data_index])
-						&&
-						!array_key_exists('VALID_DATA', $settings_restored[$restore_area_key][$restore_area_data_index])) {
-						unset($settings_restored[$restore_area_key][$restore_area_data_index]);
-					}
+                    //Cheat and remove the success key if no attempt was even made (no attempt key) and there was no valid data
+                    //meaning that we didn't even try, this check is done after the key and value is set because $restore_area_data_index might not exist at all if the ATTEMPT or VALID_DATA key was set
+                    if (
+                        !array_key_exists('ATTEMPT', $settings_restored[$restore_area_key][$restore_area_data_index])
+                        &&
+                        !array_key_exists('VALID_DATA', $settings_restored[$restore_area_key][$restore_area_data_index])
+                    ) {
+                        unset($settings_restored[$restore_area_key][$restore_area_data_index]);
+                    }
 
-					break; //break after data is restored for this section
-				}
-			}
-			//Don't break if area key is empty, because we want to process all the sub-areas
-			if ($restore_area_sub_key != "") {
-				//we found the sub-area, stop looking
-				break;
-			}
-		}
-	}
+                    break; //break after data is restored for this section
+                }
+            }
+            //Don't break if area key is empty, because we want to process all the sub-areas
+            if ($restore_area_sub_key != "") {
+                //we found the sub-area, stop looking
+                break;
+            }
+        }
+    }
 }
 
 /**
@@ -1342,7 +1350,7 @@ function BackupConfigFolderConfigs()
                             if (array_key_exists($path_parts_filename, $json_config_files)) {
                                 //remove it from the list of misc json config files as it will get backed up in another area
                                 unset($json_config_files[$path_parts_filename]);
-//                                echo "Excluding file from Extra Config backup" . $path_parts_filename;
+                                //                                echo "Excluding file from Extra Config backup" . $path_parts_filename;
                             }
                         } //end loop
                     } else {
@@ -1360,7 +1368,7 @@ function BackupConfigFolderConfigs()
                         if (array_key_exists($path_parts_filename, $json_config_files)) {
                             //remove it from the list of misc json config files as it will get backed up in another area
                             unset($json_config_files[$path_parts_filename]);
-//                            echo "Excluding file from Extra Config backup" . $path_parts_filename;
+                            //                            echo "Excluding file from Extra Config backup" . $path_parts_filename;
                         }
                     } //end else
                 }
@@ -1380,7 +1388,7 @@ function BackupConfigFolderConfigs()
                 if (!empty($path_parts['filename'])) {
                     if (array_key_exists($path_parts_filename, $json_config_files)) {
                         unset($json_config_files[$path_parts_filename]);
-//                        echo "Excluding file from Extra Config backup" . $path_parts_filename;
+                        //                        echo "Excluding file from Extra Config backup" . $path_parts_filename;
                     }
                 }
             }
@@ -1410,7 +1418,7 @@ function BackupConfigFolderConfigs()
                 unset($json_config_files[$filename]);
             }
         }
-//       $file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
+        //       $file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
         //       $file_data = json_decode(file_get_contents($setting_file_to_backup), true);
     }
 
@@ -1471,7 +1479,7 @@ function LoadPixelnetDMXFiles()
         }
     }
 
-//    if (file_exists($settings['configDirectory'] . "/Falcon.F16V2-alpha") || file_exists($settings['configDirectory'] . "/Falcon.F16V2")) {
+    //    if (file_exists($settings['configDirectory'] . "/Falcon.F16V2-alpha") || file_exists($settings['configDirectory'] . "/Falcon.F16V2")) {
 //        $FPD_V2_data = LoadPixelnetDMXFile_FPDV2();
 //
 //        //If data is valid put into return array to be saved into the JSON file
@@ -1500,7 +1508,7 @@ function SavePixelnetDMXFiles($restore_data)
         $write_status_arr['Falcon.FPDV1'] = $FPD_V1_Restore_data;
     }
 
-//    if (array_key_exists('Falcon.F16V2-alpha', $restore_data) && !empty($restore_data['Falcon.F16V2-alpha'])) {
+    //    if (array_key_exists('Falcon.F16V2-alpha', $restore_data) && !empty($restore_data['Falcon.F16V2-alpha'])) {
 //        $FPD_V2_Restore_data = SavePixelnetDMXFile_F16v2Alpha($restore_data['Falcon.F16V2-alpha']);
 //
 //        $write_status_arr['Falcon.F16V2-alpha'] = $FPD_V2_Restore_data;
@@ -1527,7 +1535,7 @@ function LoadPixelnetDMXFile_FPDv1()
     //Store data in an array instead of session
     $return_data = array();
 
-//    if (@filesize($settings['configDirectory'] . "/Falcon.FPDV1") < 1024) {
+    //    if (@filesize($settings['configDirectory'] . "/Falcon.FPDV1") < 1024) {
     //        return $return_data;
     //    }
 
@@ -1723,10 +1731,10 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
         //Create a copy of the areas array to manipulate
         $tmp_config_areas = $system_config_areas;
 
-		//remove email as its in the general settings file and not a separate section (no actual file to backup)
-		unset($tmp_config_areas['settings']['file']['email']);
+        //remove email as its in the general settings file and not a separate section (no actual file to backup)
+        unset($tmp_config_areas['settings']['file']['email']);
 
-		//Generate backup for selected area
+        //Generate backup for selected area
         //AREA - ALL
         if (strtolower($area) == "all") {
             //combine all backup areas into a single file
@@ -2099,8 +2107,10 @@ function retrieveNetworkInterfaces()
     //Loop over the files we have found and weed out the non .json files
     foreach ($network_interfaces as $filename => $fn_bool) {
         //If the filename contains 'interface.' or 'leases.', then we want to keep it, discard anything else
-        if ((stripos(strtolower($filename), "interface") === false) &&
-            (stripos(strtolower($filename), "leases") === false)) {
+        if (
+            (stripos(strtolower($filename), "interface") === false) &&
+            (stripos(strtolower($filename), "leases") === false)
+        ) {
             unset($network_interfaces[$filename]);
         }
         //else true so we keep the file since it's a interface
@@ -2157,7 +2167,7 @@ function retrievePluginList()
                 $locations = array();
                 //Normal Plugin config file location
                 $locations[$fname] = ($settings['configDirectory'] . "/" . $fname);
-//                //Check the extra backup locations where the plugin name matches this plugin and extra the extra path
+                //                //Check the extra backup locations where the plugin name matches this plugin and extra the extra path
                 //                if (isset($extra_backup_locations['plugins'][$plugin_name]) && !empty($extra_backup_locations['plugins'][$plugin_name]))
                 //                {
                 //                    //Loop over the extra locations and add them to the list in case there are more than 1 extra location
@@ -2169,7 +2179,7 @@ function retrievePluginList()
                 //Add the expected & extra locations into the final array to be returned
                 $plugin_names[$plugin_name] = array('type' => 'file', 'location' => $locations);
 
-//                $plugin_names[$plugin_name] = array('type' => 'file', 'location' => $settings['configDirectory'] . "/" . $fname);
+                //                $plugin_names[$plugin_name] = array('type' => 'file', 'location' => $settings['configDirectory'] . "/" . $fname);
 
                 //array('name' => $plugin_name, 'config' => $fname);
             }
@@ -2410,1506 +2420,1590 @@ moveBackupFiles_ToBackupDirectory();
 if ($skipHTMLCodeOutput === false) {
     ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <?php include 'common/htmlMeta.inc'; ?>
-    <?php require_once 'common/menuHead.inc';?>
-    <title><?=$pageTitle?></title>
-    <!--    <script>var helpPage = "help/backup.php";</script>-->
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <!DOCTYPE html>
+    <html lang="en">
 
-	<?php
-$backupHosts = getKnownFPPSystems();
-    ?>
-    <script type="text/javascript">
-        var settings = new Array();
-        var list_of_existing_backups;
-        var debug_mode = <?echo $backups_verbose_logging; ?>
-		<?php
-////Override restartFlag setting not reflecting actual value after restoring, just read what's in the settings file
-    $settings['restartFlag'] = ReadSettingFromFile('restartFlag');
-    $settings['rebootFlag'] = ReadSettingFromFile('rebootFlag');
+    <head>
+        <?php include 'common/htmlMeta.inc'; ?>
+        <?php require_once 'common/menuHead.inc'; ?>
+        <title><?= $pageTitle ?></title>
+        <!--    <script>var helpPage = "help/backup.php";</script>-->
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
-    foreach ($settings as $key => $value) {
-        if (!is_array($value)) {
-            if (preg_match('/\n/', $value)) {
-                continue;
-            }
+        <?php
+        $backupHosts = getKnownFPPSystems();
+        ?>
+        <script type="text/javascript">
+            var settings = new Array();
+            var list_of_existing_backups;
+            var debug_mode = <? echo $backups_verbose_logging; ?>
+                <?php
+                ////Override restartFlag setting not reflecting actual value after restoring, just read what's in the settings file
+                $settings['restartFlag'] = ReadSettingFromFile('restartFlag');
+                $settings['rebootFlag'] = ReadSettingFromFile('rebootFlag');
 
-            printf("	settings['%s'] = \"%s\";\n", $key, $value);
-        } else {
-            $js_array = json_encode($value);
-            printf("    settings['%s'] = %s;\n", $key, $js_array);
-        }
-    }
+                foreach ($settings as $key => $value) {
+                    if (!is_array($value)) {
+                        if (preg_match('/\n/', $value)) {
+                            continue;
+                        }
 
-    ?>
-        var pageName = "<?php echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
-
-        var helpPage = "<?php echo basename($_SERVER['PHP_SELF']) ?>";
-        if (pageName == "plugin") {
-            var pluginPage = "<?php echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
-            var pluginBase = "<?php echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
-            helpPage = pluginBase + "nopage=1&page=help/" + pluginPage;
-        }
-        else {
-            helpPage = "help/" + helpPage;
-        }
-
-function GetCopyFlags() {
-    var flags = "";
-
-    if (document.getElementById("backup.Configuration").checked) {
-        flags += " Configuration";
-    }
-    if (document.getElementById("backup.Playlists").checked) {
-        flags += " Playlists";
-    }
-    if (document.getElementById("backup.Plugins").checked) {
-        flags += " Plugins";
-    }
-    if (document.getElementById("backup.Sequences").checked) {
-        flags += " Sequences";
-    }
-    if (document.getElementById("backup.Effects").checked) {
-        flags += " Effects";
-    }
-    if (document.getElementById("backup.Images").checked) {
-        flags += " Images";
-    }
-    if (document.getElementById("backup.Scripts").checked) {
-        flags += " Scripts";
-    }
-    if (document.getElementById("backup.Music").checked) {
-        flags += " Music";
-    }
-    if (document.getElementById("backup.Videos").checked) {
-        flags += " Videos";
-    }
-    if (document.getElementById("backup.EEPROM").checked) {
-        flags += " EEPROM";
-    }
-    if ((document.getElementById("backup.Backups").checked) &&
-        (direction = document.getElementById("backup.Direction").value == 'TOUSB')) {
-        flags += " Backups";
-    }
-
-    if (flags.length)
-        flags = flags.substring(1);
-
-    return flags;
-}
-
-function PerformCopy() {
-    var dev = document.getElementById("backup.USBDevice").value;
-    var path = document.getElementById("backup.Path").value.replaceAll('\\', '/');
-    var pathSelect = document.getElementById("backup.PathSelect").value;
-    var remoteStorage = document.getElementById("backup.RemoteStorage").value;
-    var host = document.getElementById("backup.Host").value;
-    var direction = document.getElementById("backup.Direction").value;
-    var flags = GetCopyFlags();
-
-    var url = "copystorage.php?wrapped=1&direction=" + direction;
-
-    // Substite back in case we changed \ to /
-    document.getElementById("backup.Path").value = path;
-
-    if ((direction == 'TOUSB') ||
-        (direction == 'FROMUSB')) {
-        storageLocation = document.getElementById("backup.USBDevice").value;
-    } else if ((direction == 'TOREMOTE') ||
-               (direction == 'FROMREMOTE')) {
-        if (host == '') {
-            DialogError('Copy Failed', 'No host specified');
-            return;
-        }
-
-        //Add the remote storage value is restoring to or from remote hosts
-        if (typeof (remoteStorage) !== 'undefined' || remoteStorage !== '') {
-            url += '&remoteStorage=' + remoteStorage;
-        }
-
-        storageLocation = host;
-    } else {
-        storageLocation = settings['mediaDirectory'] + "/backups";
-    }
-
-    //Add in the specified backup path
-    if (direction.substring(0,4) == 'FROM') {
-        if (pathSelect == '') {
-            DialogError('Copy Failed', 'No path specified');
-            return;
-        }
-
-        url += '&path=' + pathSelect;
-    } else {
-        if (path == '') {
-            document.getElementById("backup.Path").value = '/';
-            path = '/';
-            SetSetting('backup.Path', '/', 0, 0, false);
-        }
-
-        url += '&path=' + path;
-    }
-
-    url += '&storageLocation=' + storageLocation;
-    url += '&flags=' + flags;
-
-    var warningMsg = "Confirm File restore of '" + flags + "' from " + storageLocation + "?\n\nWARNING: This will overwrite any current files with the copies being restored";
-
-    if (document.getElementById("backup.DeleteExtra").checked) {
-        url += '&delete=yes';
-        warningMsg += " and delete any local files which do not exist in the backup.";
-    } else {
-        url += '&delete=no';
-    }
-
-    if (document.getElementById("backup.sendCompressed").checked) {
-        url += '&compress=yes';
-    } else {
-        url += '&compress=no';
-    }
-
-    if (direction.substring(0,4) == 'FROM')
-    {
-        if (!confirm(warningMsg)) {
-            $.jGrowl("Restore canceled.",{themeState:'success'});
-            return;
-        }
-    }
-
-    var title_txt = (direction.substring(0,4) == 'FROM') ? "FPP File Copy Restore" : "FPP File Copy Backup";
-
-    DoModalDialog({
-        id: "copyPopup_Modal",
-        title: title_txt,
-        height: 600,
-        width: 900,
-        autoResize: true,
-        closeOnEscape: false,
-        backdrop: true,
-        body:  $('#copyPopup').html(),
-        class: "no-close",
-        buttons: {
-
-        }
-    });
-
-    // $('#copyPopup').fppDialog({ height: 600, width: 900, title: title, dialogClass: 'no-close' });
-    // $('#copyPopup').fppDialog( "moveToTop" );
-    $('#copyText').val('');
-
-    StreamURL(url, 'copyText', 'CopyDone', 'CopyTimeoutError');
-
-}
-
-function CloseCopyDialog() {
-    var cd_remoteHost = settings['backup.Host'];
-    var cd_remoteStorage = settings['backup.RemoteStorage'];
-
-    if (typeof (cd_remoteHost) !== "undefined" && typeof (cd_remoteStorage) !== "undefined"){
-        //Run a Unmount against the remote storage to make sure it's unmounted, this helps when there is a issue with the copy_settings_to_storeage.sh script and it doesn't unmount the specified device at the remote host
-        //We don't do anything with the returned output
-        $.post("http://" + cd_remoteHost + "/api/backups/devices/unmount/" + cd_remoteStorage + "/remote_filecopy");
-
-    }
-
-    CloseModalDialog("copyPopup_Modal");
-}
-
-function CopyDone() {
-    $('#closeDialogButton').show();
-}
-
-function CopyTimeoutError() {
-    var fpp_backup_filecopy_log_url = "api/file/Logs/fpp_backup_filecopy.log";
-    var timeoutErrorMessage = "!!! Attempting to track file copy process via it's fallback log file... \n" +
-        " The file copy is still running in the background and will complete in due course. Progress updates will appear periodically. !!! \n\n ";
-    var noNewDataErrorMessage = "";
-    var iterations = 0;
-    var iterationsWithNoDataWarningsIssued = 1;
-    var noNewDataIterationCount = 600; // The interval is every second so 600 iterations = 10minutes
-    // var noNewDataIterationHardLimit = 900; // 15 minutes - Consider the process failed if no new log data received in 15 minutes
-    var last_response_len = 0;
-
-    //cache the reference to the element
-    var outputArea = $('#copyText');
-    outputArea.val('')
-    outputArea.val(timeoutErrorMessage);
-
-    //Every second read the alternative fpp_backup_filecopy.log
-    var tailLogInterval = setInterval(function () {
-
-            $.get(fpp_backup_filecopy_log_url, function (text) {
-                //This is also a nasty workaround, but we reply on logs api will returning a file not found error to signify the copy process ending
-                //as the log file is deleted at the end of that process
-                if (text === "File does not exist.") {
-                    //The file copy script has competed and removed the logfile
-                    //If the log file cannot be found anymore consider the process complete
-                    clearInterval(tailLogInterval);
-                    CopyDone();
-                } else {
-                    //Track the number of interactions the response remained unchanged
-                    if (last_response_len === 0) {
-                        last_response_len = text.length;
-                    }
-
-                    if (last_response_len === text.length) {
-                        iterations += 1;
+                        printf("	settings['%s'] = \"%s\";\n", $key, $value);
                     } else {
-                        noNewDataErrorMessage = "";
-                        //Reset
-                        iterations = 0;
-                        //Store the new data length
-                        last_response_len = text.length;
-                    }
-
-                    //Check if it's been more than 10 minutes that the data has remained unchanged
-                    if (iterations === (noNewDataIterationCount * iterationsWithNoDataWarningsIssued)) {
-                        iterationsWithNoDataWarningsIssued += 1;
-                        //Some error occurred
-                        noNewDataErrorMessage = "!!! WARNING: No new log entries has been received in over " + Math.floor(iterations / 60) + " minutes, still waiting.... !!! \n\n";
-                    }
-                    // if (iterations >= noNewDataIterationHardLimit) {
-                    //     //Some error occurred
-                    //     noNewDataErrorMessage = "!!! ERROR: No new log entries has been received in over " + noNewDataIterationHardLimit + " seconds - File Copy Backup process has likely failed !!! \n\n";
-                    // }
-
-                    //This is a bit ugly, but put our error message first (just to inform the user), then the contents of the log file every time
-                    outputArea.val(timeoutErrorMessage + text + noNewDataErrorMessage);
-
-                    outputArea.scrollTop(outputArea.prop('scrollHeight'));
-                    outputArea.parent().scrollTop(outputArea.parent().prop('scrollHeight'));
-
-                    //Check for device unmounted text - if this exists then the process has completed... the file should be removed at the end
-                    //but this is just a failsafe in case it wasn't
-                    //exit if we hit the hard limit
-                    if (text.includes("unmounted from") || text.length === 0) {
-                        clearInterval(tailLogInterval);
-                        CopyDone();
+                        $js_array = json_encode($value);
+                        printf("    settings['%s'] = %s;\n", $key, $js_array);
                     }
                 }
-            });
-        },
-        1000);
-}
 
+                ?>
+            var pageName = "<?php echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
 
-function GetBackupDevices() {
-    $('#backup\\.USBDevice').html('<option>Loading...</option>');
-    //Add a loading spinner to show something is happening on the JSON Backup page dropdown list
-    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
-    //Also do the same for the file copy list these both use the same functions and deal with the same data
-    //Add a loading spinner to show something is happening
-    $('#backup\\.USBDevice').parent().closest('td').addClass('fpp-backup-action-loading');
-
-    $.get("api/backups/devices"
-        ).done(function(data) {
-            var options = "";
-            var default_none_selected_option = "<option value='none' selected>None</option>";
-
-        for (var i = 0; i < data.length; i++) {
-                var desc = data[i].name;
-                if (data[i].vendor != '')
-                    desc += ' - ' + data[i].vendor;
-
-                if (data[i].model != '') {
-                    if (data[i].vendor != '')
-                        desc += ' ';
-                    else
-                        desc += ' - ';
-
-                    desc += data[i].model;
-                }
-
-                desc += ' - ' + data[i].size + 'GB';
-                options += "<option value='" + data[i].name + "'>" + desc + "</option>";
+            var helpPage = "<?php echo basename($_SERVER['PHP_SELF']) ?>";
+            if (pageName == "plugin") {
+                var pluginPage = "<?php echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
+                var pluginBase = "<?php echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
+                helpPage = pluginBase + "nopage=1&page=help/" + pluginPage;
+            }
+            else {
+                helpPage = "help/" + helpPage;
             }
 
-            $('#backup\\.USBDevice').html(options);
-            $('#jsonConfigbackup\\.USBDevice').html(default_none_selected_option + options);
+            function GetCopyFlags() {
+                var flags = "";
 
-            //Remove the loading spinner
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
-            //Also do the same for the file copy list these both use the same functions and deal with the same data
-            //Add a loading spinner to show something is happening
-            $('#backup\\.USBDevice').parent().closest('td').removeClass('fpp-backup-action-loading');
-
-            if (options != "") {
-                    if (document.getElementById("backup.Direction").value == 'FROMUSB')
-                        GetBackupDeviceDirectories();
-                    else if (document.getElementById("backup.Direction").value == 'TOUSB')
-                        GetRestoreDeviceDirectories();
-
-                    //Get the selected device setting and update the UI
-                    GetJSONConfigBackupDevice();
+                if (document.getElementById("backup.Configuration").checked) {
+                    flags += " Configuration";
                 }
-        }).fail(function() {
-            $('#backup\\.USBDevice').html('');
-        });
-}
+                if (document.getElementById("backup.Playlists").checked) {
+                    flags += " Playlists";
+                }
+                if (document.getElementById("backup.Plugins").checked) {
+                    flags += " Plugins";
+                }
+                if (document.getElementById("backup.Sequences").checked) {
+                    flags += " Sequences";
+                }
+                if (document.getElementById("backup.Effects").checked) {
+                    flags += " Effects";
+                }
+                if (document.getElementById("backup.Images").checked) {
+                    flags += " Images";
+                }
+                if (document.getElementById("backup.Scripts").checked) {
+                    flags += " Scripts";
+                }
+                if (document.getElementById("backup.Music").checked) {
+                    flags += " Music";
+                }
+                if (document.getElementById("backup.Videos").checked) {
+                    flags += " Videos";
+                }
+                if (document.getElementById("backup.EEPROM").checked) {
+                    flags += " EEPROM";
+                }
+                if ((document.getElementById("backup.Backups").checked) &&
+                    (direction = document.getElementById("backup.Direction").value == 'TOUSB')) {
+                    flags += " Backups";
+                }
 
-function GetBackupDeviceDirectories() {
-    var dev = document.getElementById("backup.USBDevice").value;
+                if (flags.length)
+                    flags = flags.substring(1);
 
-    if (dev == '') {
-        $('#backup\\.PathSelect').html("<option value=''>No USB Device Selected</option>");
-        return;
-    }
-
-    $('#backup\\.PathSelect').html('<option>Loading...</option>');
-    $.get("api/backups/list/" + dev
-        ).done(function(data) {
-            PopulateBackupDirs(data);
-        }).fail(function() {
-            $('#backup\\.PathSelect').html('');
-        });
-}
-
-function GetRestoreDeviceDirectories() {
-    var dev = document.getElementById("backup.USBDevice").value;
-
-    if (dev == '') {
-        $('#backup\\.PathSelect').html("<option value=''>No USB Device Selected</option>");
-        return;
-    }
-
-    $('#usbDirectories').html('');
-    $.get("api/backups/list/" + dev
-        ).done(function(data) {
-            var options = '';
-            for (i = 0; i < data.length; i++) {
-                if (data[i].substring(0,5) != 'ERROR')
-                    options += "<option value='" + data[i] + "'>" + data[i] + "</option>";
+                return flags;
             }
-            $('#usbDirectories').html(options);
-        });
-}
 
-function USBDeviceChanged(toFromRemote=false) {
-    var direction = document.getElementById("backup.Direction").value;
-    if (debug_mode == true) {
-        alert('direction: ' + direction);
-    }
-    if (direction == 'FROMUSB')
-        GetBackupDeviceDirectories();
-    else if (direction == 'TOUSB')
-        GetRestoreDeviceDirectories();
-}
+            function PerformCopy() {
+                var dev = document.getElementById("backup.USBDevice").value;
+                var path = document.getElementById("backup.Path").value.replaceAll('\\', '/');
+                var pathSelect = document.getElementById("backup.PathSelect").value;
+                var remoteStorage = document.getElementById("backup.RemoteStorage").value;
+                var host = document.getElementById("backup.Host").value;
+                var direction = document.getElementById("backup.Direction").value;
+                var flags = GetCopyFlags();
 
-function JSONConfigBackupUSBDeviceChanged() {
-    var storage_location = document.getElementById("jsonConfigbackup.USBDevice").value;
+                var url = "copystorage.php?wrapped=1&direction=" + direction;
 
-    //Add a loading spinner to indicate the setting is being saved
-    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
+                // Substite back in case we changed \ to /
+                document.getElementById("backup.Path").value = path;
 
-    //Write setting to system
-    $.ajax({
-        url: 'api/settings/jsonConfigBackupUSBLocation',
-        type: 'PUT',
-        data: storage_location,
-        success: function(data){
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
+                if ((direction == 'TOUSB') ||
+                    (direction == 'FROMUSB')) {
+                    storageLocation = document.getElementById("backup.USBDevice").value;
+                } else if ((direction == 'TOREMOTE') ||
+                    (direction == 'FROMREMOTE')) {
+                    if (host == '') {
+                        DialogError('Copy Failed', 'No host specified');
+                        return;
+                    }
 
-            if (storage_location !== "none"){
-                $.jGrowl('JSON Configuration Backups will now be copied to: ' + storage_location, {themeState: 'success'});
+                    //Add the remote storage value is restoring to or from remote hosts
+                    if (typeof (remoteStorage) !== 'undefined' || remoteStorage !== '') {
+                        url += '&remoteStorage=' + remoteStorage;
+                    }
 
-                //Pop a dialog and let the user choose if they want to copy backups to USB
-                //Only copy existing backup files to the selected storage if something  other than no device has been selected
-                //so for example only do the initial  copy if going from none -> sda1
+                    storageLocation = host;
+                } else {
+                    storageLocation = settings['mediaDirectory'] + "/backups";
+                }
+
+                //Add in the specified backup path
+                if (direction.substring(0, 4) == 'FROM') {
+                    if (pathSelect == '') {
+                        DialogError('Copy Failed', 'No path specified');
+                        return;
+                    }
+
+                    url += '&path=' + pathSelect;
+                } else {
+                    if (path == '') {
+                        document.getElementById("backup.Path").value = '/';
+                        path = '/';
+                        SetSetting('backup.Path', '/', 0, 0, false);
+                    }
+
+                    url += '&path=' + path;
+                }
+
+                url += '&storageLocation=' + storageLocation;
+                url += '&flags=' + flags;
+
+                var warningMsg = "Confirm File restore of '" + flags + "' from " + storageLocation + "?\n\nWARNING: This will overwrite any current files with the copies being restored";
+
+                if (document.getElementById("backup.DeleteExtra").checked) {
+                    url += '&delete=yes';
+                    warningMsg += " and delete any local files which do not exist in the backup.";
+                } else {
+                    url += '&delete=no';
+                }
+
+                if (document.getElementById("backup.sendCompressed").checked) {
+                    url += '&compress=yes';
+                } else {
+                    url += '&compress=no';
+                }
+
+                if (direction.substring(0, 4) == 'FROM') {
+                    if (!confirm(warningMsg)) {
+                        $.jGrowl("Restore canceled.", { themeState: 'success' });
+                        return;
+                    }
+                }
+
+                var title_txt = (direction.substring(0, 4) == 'FROM') ? "FPP File Copy Restore" : "FPP File Copy Backup";
+
                 DoModalDialog({
-                    id: "dialog_copyToUsb_Modal",
-                    title: "Copy Backups to USB",
-                    width: 400,
+                    id: "copyPopup_Modal",
+                    title: title_txt,
+                    height: 600,
+                    width: 900,
                     autoResize: true,
                     closeOnEscape: false,
                     backdrop: true,
-                    body: $('#dialog_copyToUsb').html(),
-                    class: "modal-dialog-scrollable",
+                    body: $('#copyPopup').html(),
+                    class: "no-close",
                     buttons: {
-                        "Yes Copy To USB": {
-                            id: "dialog_copyToUsb_DoCopy",
-                            click: function () {
-                                CopyBackupsToUSBHelper();
-                                CloseModalDialog("dialog_copyToUsb_Modal");
+
+                    }
+                });
+
+                // $('#copyPopup').fppDialog({ height: 600, width: 900, title: title, dialogClass: 'no-close' });
+                // $('#copyPopup').fppDialog( "moveToTop" );
+                $('#copyText').val('');
+
+                StreamURL(url, 'copyText', 'CopyDone', 'CopyTimeoutError');
+
+            }
+
+            function CloseCopyDialog() {
+                var cd_remoteHost = settings['backup.Host'];
+                var cd_remoteStorage = settings['backup.RemoteStorage'];
+
+                if (typeof (cd_remoteHost) !== "undefined" && typeof (cd_remoteStorage) !== "undefined") {
+                    //Run a Unmount against the remote storage to make sure it's unmounted, this helps when there is a issue with the copy_settings_to_storeage.sh script and it doesn't unmount the specified device at the remote host
+                    //We don't do anything with the returned output
+                    $.post("http://" + cd_remoteHost + "/api/backups/devices/unmount/" + cd_remoteStorage + "/remote_filecopy");
+
+                }
+
+                CloseModalDialog("copyPopup_Modal");
+            }
+
+            function CopyDone() {
+                $('#closeDialogButton').show();
+            }
+
+            function CopyTimeoutError() {
+                var fpp_backup_filecopy_log_url = "api/file/Logs/fpp_backup_filecopy.log";
+                var timeoutErrorMessage = "!!! Attempting to track file copy process via it's fallback log file... \n" +
+                    " The file copy is still running in the background and will complete in due course. Progress updates will appear periodically. !!! \n\n ";
+                var noNewDataErrorMessage = "";
+                var iterations = 0;
+                var iterationsWithNoDataWarningsIssued = 1;
+                var noNewDataIterationCount = 600; // The interval is every second so 600 iterations = 10minutes
+                // var noNewDataIterationHardLimit = 900; // 15 minutes - Consider the process failed if no new log data received in 15 minutes
+                var last_response_len = 0;
+
+                //cache the reference to the element
+                var outputArea = $('#copyText');
+                outputArea.val('')
+                outputArea.val(timeoutErrorMessage);
+
+                //Every second read the alternative fpp_backup_filecopy.log
+                var tailLogInterval = setInterval(function () {
+
+                    $.get(fpp_backup_filecopy_log_url, function (text) {
+                        //This is also a nasty workaround, but we reply on logs api will returning a file not found error to signify the copy process ending
+                        //as the log file is deleted at the end of that process
+                        if (text === "File does not exist.") {
+                            //The file copy script has competed and removed the logfile
+                            //If the log file cannot be found anymore consider the process complete
+                            clearInterval(tailLogInterval);
+                            CopyDone();
+                        } else {
+                            //Track the number of interactions the response remained unchanged
+                            if (last_response_len === 0) {
+                                last_response_len = text.length;
+                            }
+
+                            if (last_response_len === text.length) {
+                                iterations += 1;
+                            } else {
+                                noNewDataErrorMessage = "";
+                                //Reset
+                                iterations = 0;
+                                //Store the new data length
+                                last_response_len = text.length;
+                            }
+
+                            //Check if it's been more than 10 minutes that the data has remained unchanged
+                            if (iterations === (noNewDataIterationCount * iterationsWithNoDataWarningsIssued)) {
+                                iterationsWithNoDataWarningsIssued += 1;
+                                //Some error occurred
+                                noNewDataErrorMessage = "!!! WARNING: No new log entries has been received in over " + Math.floor(iterations / 60) + " minutes, still waiting.... !!! \n\n";
+                            }
+                            // if (iterations >= noNewDataIterationHardLimit) {
+                            //     //Some error occurred
+                            //     noNewDataErrorMessage = "!!! ERROR: No new log entries has been received in over " + noNewDataIterationHardLimit + " seconds - File Copy Backup process has likely failed !!! \n\n";
+                            // }
+
+                            //This is a bit ugly, but put our error message first (just to inform the user), then the contents of the log file every time
+                            outputArea.val(timeoutErrorMessage + text + noNewDataErrorMessage);
+
+                            outputArea.scrollTop(outputArea.prop('scrollHeight'));
+                            outputArea.parent().scrollTop(outputArea.parent().prop('scrollHeight'));
+
+                            //Check for device unmounted text - if this exists then the process has completed... the file should be removed at the end
+                            //but this is just a failsafe in case it wasn't
+                            //exit if we hit the hard limit
+                            if (text.includes("unmounted from") || text.length === 0) {
+                                clearInterval(tailLogInterval);
+                                CopyDone();
+                            }
+                        }
+                    });
+                },
+                    1000);
+            }
+
+
+            function GetBackupDevices() {
+                $('#backup\\.USBDevice').html('<option>Loading...</option>');
+                //Add a loading spinner to show something is happening on the JSON Backup page dropdown list
+                $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
+                //Also do the same for the file copy list these both use the same functions and deal with the same data
+                //Add a loading spinner to show something is happening
+                $('#backup\\.USBDevice').parent().closest('td').addClass('fpp-backup-action-loading');
+
+                $.get("api/backups/devices"
+                ).done(function (data) {
+                    var options = "";
+                    var default_none_selected_option = "<option value='none' selected>None</option>";
+
+                    for (var i = 0; i < data.length; i++) {
+                        var desc = data[i].name;
+                        if (data[i].vendor != '')
+                            desc += ' - ' + data[i].vendor;
+
+                        if (data[i].model != '') {
+                            if (data[i].vendor != '')
+                                desc += ' ';
+                            else
+                                desc += ' - ';
+
+                            desc += data[i].model;
+                        }
+
+                        desc += ' - ' + data[i].size + 'GB';
+                        options += "<option value='" + data[i].name + "'>" + desc + "</option>";
+                    }
+
+                    $('#backup\\.USBDevice').html(options);
+                    $('#jsonConfigbackup\\.USBDevice').html(default_none_selected_option + options);
+
+                    //Remove the loading spinner
+                    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
+                    //Also do the same for the file copy list these both use the same functions and deal with the same data
+                    //Add a loading spinner to show something is happening
+                    $('#backup\\.USBDevice').parent().closest('td').removeClass('fpp-backup-action-loading');
+
+                    if (options != "") {
+                        if (document.getElementById("backup.Direction").value == 'FROMUSB')
+                            GetBackupDeviceDirectories();
+                        else if (document.getElementById("backup.Direction").value == 'TOUSB')
+                            GetRestoreDeviceDirectories();
+
+                        //Get the selected device setting and update the UI
+                        GetJSONConfigBackupDevice();
+                    }
+                }).fail(function () {
+                    $('#backup\\.USBDevice').html('');
+                });
+            }
+
+            function GetBackupDeviceDirectories() {
+                var dev = document.getElementById("backup.USBDevice").value;
+
+                if (dev == '') {
+                    $('#backup\\.PathSelect').html("<option value=''>No USB Device Selected</option>");
+                    return;
+                }
+
+                $('#backup\\.PathSelect').html('<option>Loading...</option>');
+                $.get("api/backups/list/" + dev
+                ).done(function (data) {
+                    PopulateBackupDirs(data);
+                }).fail(function () {
+                    $('#backup\\.PathSelect').html('');
+                });
+            }
+
+            function GetRestoreDeviceDirectories() {
+                var dev = document.getElementById("backup.USBDevice").value;
+
+                if (dev == '') {
+                    $('#backup\\.PathSelect').html("<option value=''>No USB Device Selected</option>");
+                    return;
+                }
+
+                $('#usbDirectories').html('');
+                $.get("api/backups/list/" + dev
+                ).done(function (data) {
+                    var options = '';
+                    for (i = 0; i < data.length; i++) {
+                        if (data[i].substring(0, 5) != 'ERROR')
+                            options += "<option value='" + data[i] + "'>" + data[i] + "</option>";
+                    }
+                    $('#usbDirectories').html(options);
+                });
+            }
+
+            function USBDeviceChanged(toFromRemote = false) {
+                var direction = document.getElementById("backup.Direction").value;
+                if (debug_mode == true) {
+                    alert('direction: ' + direction);
+                }
+                if (direction == 'FROMUSB')
+                    GetBackupDeviceDirectories();
+                else if (direction == 'TOUSB')
+                    GetRestoreDeviceDirectories();
+            }
+
+            function JSONConfigBackupUSBDeviceChanged() {
+                var storage_location = document.getElementById("jsonConfigbackup.USBDevice").value;
+
+                //Add a loading spinner to indicate the setting is being saved
+                $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
+
+                //Write setting to system
+                $.ajax({
+                    url: 'api/settings/jsonConfigBackupUSBLocation',
+                    type: 'PUT',
+                    data: storage_location,
+                    success: function (data) {
+                        $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
+
+                        if (storage_location !== "none") {
+                            $.jGrowl('JSON Configuration Backups will now be copied to: ' + storage_location, { themeState: 'success' });
+
+                            //Pop a dialog and let the user choose if they want to copy backups to USB
+                            //Only copy existing backup files to the selected storage if something  other than no device has been selected
+                            //so for example only do the initial  copy if going from none -> sda1
+                            DoModalDialog({
+                                id: "dialog_copyToUsb_Modal",
+                                title: "Copy Backups to USB",
+                                width: 400,
+                                autoResize: true,
+                                closeOnEscape: false,
+                                backdrop: true,
+                                body: $('#dialog_copyToUsb').html(),
+                                class: "modal-dialog-scrollable",
+                                buttons: {
+                                    "Yes Copy To USB": {
+                                        id: "dialog_copyToUsb_DoCopy",
+                                        click: function () {
+                                            CopyBackupsToUSBHelper();
+                                            CloseModalDialog("dialog_copyToUsb_Modal");
+                                        }
+                                    },
+                                    "Not Right Now": {
+                                        id: "dialog_copyToUsb_NoCopy",
+                                        click: function () {
+                                            CloseModalDialog("dialog_copyToUsb_Modal");
+                                        }
+                                    }
+                                }
+                            });
+                        } else {
+                            $.jGrowl('JSON Configuration Backups will no longer be copied to an additional storage device: ', { themeState: 'detract' });
+                        }
+
+                        //Reload the list of JSON backups on the device, it will now show backups on the selected device
+                        GetJSONConfigBackupList();
+                    },
+                    error: function (data) {
+                        $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
+
+                        DialogError('JSON Configuration Backup Storage Location', 'Failed to set additional storage location.');
+
+                        //Reload the list of JSON backups on the device
+                        GetJSONConfigBackupList();
+                    }
+                });
+            }
+
+            function CopyBackupsToUSBHelper() {
+                //Get the backup path from the File Copy Backup page
+                var selected_jsonConfigBackupUSBLocation = $('#jsonConfigbackup\\.USBDevice').val()
+
+                //Generate the URL
+                var url = 'copystorage.php?wrapped=1&direction=TOUSB&path=' + 'Automatic_Backups' + '&storageLocation=' + selected_jsonConfigBackupUSBLocation + '&flags=JsonBackups&delete=no';
+
+                $.ajax({
+                    url: url,
+                    type: 'GET',
+                    success: function (data) {
+                        $.jGrowl('JSON Configuration Backups copied to: ' + selected_jsonConfigBackupUSBLocation, { themeState: 'success' });
+                    },
+                    error: function (data) {
+                        //do nothing
+                    }
+                });
+            }
+
+            function GetJSONConfigBackupDevice() {
+                //Add a the loading spinner to show something is happening
+                $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
+
+                $.ajax({
+                    url: 'api/settings/jsonConfigBackupUSBLocation',
+                    type: 'GET',
+                    success: function (data) {
+                        if (typeof (data.value) !== "" || typeof (data.value) !== "undefined") {
+                            //Change the JSON Config backup location to the one set by the user if a valid value is set
+                            $('#jsonConfigbackup\\.USBDevice option[value="' + data.value + '"]').attr('selected', true);
+                            //
+                            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
+                        }
+                    },
+                    error: function (data) {
+                        //do nothing
+                        DialogError('JSON Configuration Backup Storage Location', 'Failed to read additional storage location.');
+
+                        $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
+                    }
+                });
+            }
+
+            function GetJSONConfigBackupList() {
+                $.ajax({
+                    url: 'api/backups/configuration/list',
+                    type: 'GET',
+                    success: function (data) {
+                        //Store the list of backups found so we can reuse this for the restore panel which is the exact same but diffrent actions
+                        list_of_existing_backups = data;
+
+                        //Add a placeholder saying we're loading data
+                        $('#table-download-existing-backups-content').html('<tr><td></td><td>Loading Existing Backups....</td><td></td></tr>');
+
+                        if (typeof (data) !== "undefined") {
+                            //Clear the table again
+                            $('#table-download-existing-backups-content').html('');
+                            //Loop over the results and build the rows
+                            $.each(data, function (backup_filename_id, backup_filename_meta) {
+                                //
+                                //Path and Directory
+                                var backup_filename = backup_filename_meta.backup_filename;
+                                var backup_filedirectory = backup_filename_meta.backup_filedirectory;
+                                //Comment and time
+                                var backup_comment = backup_filename_meta.backup_comment;
+                                var backup_time = backup_filename_meta.backup_time;
+                                var backup_is_in_location = backup_filename_meta.backup_alternative_location;
+
+                                //By default
+                                var location_icon = '<span><i class="fas fa-sd-card"></i></span>';
+                                //
+                                //Build the onclick command for downloading the backuo
+                                var onclick_download_command = "DownloadJsonBackupFile('JsonBackups', ['" + backup_filename + "']);";
+                                //Build the onclick command for deleting the backup
+                                var onclick_delete_command = "DeleteJsonBackupFile('JsonBackups', '." + backup_filename_id + "', ['" + backup_filename + "']);";
+
+                                if (backup_is_in_location === true) {
+                                    location_icon = '<span><i class="fas fa-hdd"></i></span>';
+
+                                    onclick_download_command = "DownloadJsonBackupFile('JsonBackupsAlternate', ['" + backup_filename + "']);";
+                                    onclick_delete_command = "DeleteJsonBackupFile('JsonBackupsAlternate', '." + backup_filename_id + "', ['" + backup_filename + "']);";
+                                }
+
+                                var backup_file_data_row = '<tr id="backup-file-id" class="' + backup_filename_id + '" > ' +
+                                    '<td  id="backup-file-date">' + location_icon + ' ' + backup_filename_meta.backup_time + '</td>' +
+                                    '<td  id="backup-file-configuration-change">' + backup_filename_meta.backup_comment + '</td>' +
+                                    '<td id="backup-file-configuration-actions">' +
+
+                                    //Button to Download the Backup
+                                    '<button name="btnDownloadConfig_' + backup_filename_id + '" type="button" class="buttons downloadConfigButton" value="Download Backup" onClick="' + onclick_download_command + '"> ' +
+                                    '<i class="fas fa-fw fa-download"></i> ' +
+                                    '</button>' +
+
+                                    //Button to delete the backup
+                                    '<button name="btnDeleteConfig_' + backup_filename_id + '" type="button" class="buttons deleteConfigButton" value="Delete Backup" onclick="' + onclick_delete_command + '"> ' +
+                                    '<i class="fas fa-fw fa-trash"></i> ' +
+                                    '</button>' +
+
+                                    '</td>' +
+                                    '</tr>'
+
+                                //Append each row to the table content
+                                $('#table-download-existing-backups-content').append(backup_file_data_row);
+                            });
+                            //Once were done with the backup panel, populate the restore list
+                            GetJSONConfigRestoreList();
+
+                            $('table').floatThead('reflow');
+                        }
+                    },
+                    error: function (data) {
+                        var backup_file_data_row = '<tr id="backup-file-id" class="" > ' +
+                            '<td  id="backup-file-date"> </td>' +
+                            '<td  id="backup-file-configuration-change">Error Occured Retreiving Existing Backup List</td>' +
+                            '<td id="backup-file-configuration-actions"> </td>' +
+                            '</tr>'
+
+                        //Add a row saying there was a error
+                        $('#table-download-existing-backups-content').html('');
+                        $('#table-download-existing-backups-content').append(backup_file_data_row);
+                    }
+                });
+            }
+
+            function GetJSONConfigRestoreList() {
+                var data = list_of_existing_backups;
+
+                //Add a placeholder saying we're loading data
+                $('#table-restore-existing-backups-content').html('<tr><td></td><td>Loading Existing Backups....</td><td></td></tr>');
+
+                if (typeof (data) !== "undefined") {
+                    //Clear the table again
+                    $('#table-restore-existing-backups-content').html('');
+                    //Loop over the results and build the rows
+                    $.each(data, function (backup_filename_id, backup_filename_meta) {
+                        //Path and Directory
+                        var backup_filename = backup_filename_meta.backup_filename;
+                        var backup_filedirectory = backup_filename_meta.backup_filedirectory;
+                        //Comment and time
+                        var backup_comment = backup_filename_meta.backup_comment;
+                        var backup_time = backup_filename_meta.backup_time;
+                        var backup_is_in_location = backup_filename_meta.backup_alternative_location
+                            ;
+                        //By default
+                        var location_icon = '<span><i class="fas fa-sd-card"></i></span>';
+                        //
+                        var onclick_restore_command = "RestoreJsonBackup('JsonBackups', ['" + backup_filename + "'], '." + backup_filename_id + "');";
+
+                        //Build the onclick command for restoreing the backuo
+                        if (backup_is_in_location === true) {
+                            location_icon = '<span><i class="fas fa-hdd"></i></span>';
+                            onclick_restore_command = "RestoreJsonBackup('JsonBackupsAlternate', ['" + backup_filename + "'], '." + backup_filename_id + "');";
+                        }
+                        //Build the onclick command for deleting the backup
+                        // var onclick_delete_command = "DeleteFile('JsonBackups', '." + backup_filename_id + "', ['" + backup_filename + "']);"
+
+                        var backup_file_data_row = '<tr id="backup-file-id" class="' + backup_filename_id + '" > ' +
+                            '<td  id="backup-file-date">' + location_icon + ' ' + backup_filename_meta.backup_time + '</td>' +
+                            '<td  id="backup-file-configuration-change">' + backup_filename_meta.backup_comment + '</td>' +
+                            '<td id="backup-file-configuration-actions">' +
+
+                            //Button to restore the Backup
+                            '<button name="btnrestoreConfig_' + backup_filename_id + '" type="button" class="buttons restoreJsonConfigActionButton" value="Restore Backup" onClick="' + onclick_restore_command + '"> ' +
+                            '<i class="fas fa-fw fa-undo"></i> ' +
+                            '</button>' +
+
+                            // //Button to delete the backup
+                            // '<button name="btnDeleteConfig_' + backup_filename_id + '" type="button" class="buttons" value="Delete Backup" onclick="' + onclick_delete_command + '"> ' +
+                            // '<i class="fas fa-fw fa-trash"></i> ' +
+                            // '</button>' +
+
+                            '</td>' +
+                            '</tr>'
+
+                        //Append each row to the table content
+                        $('#table-restore-existing-backups-content').append(backup_file_data_row);
+                    });
+                } else {
+                    var backup_file_data_row = '<tr id="backup-file-id" class="" > ' +
+                        '<td  id="backup-file-date"> </td>' +
+                        '<td  id="backup-file-configuration-change">Error Occured Retreiving Existing Backup List</td>' +
+                        '<td  id="backup-file-configuration-actions"> </td>' +
+                        '</tr>'
+
+                    //Add a row saying there was a error
+                    $('#table-restore-existing-backups-content').html('');
+                    $('#table-restore-existing-backups-content').append(backup_file_data_row);
+
+                }
+            }
+
+            function DownloadJsonBackupFile(dir, files) {
+                //Clone of GetFiles() but with a different URL and just dealing with a single file
+                if (files.length == 1) {
+                    location.href = "api/backups/configuration/" + dir + "/" + encodeURIComponent(files[0].replace(/\//g, '_'));
+                }
+            }
+
+            function DeleteJsonBackupFile(dir, row, file, silent = false) {
+                //Clone of DeleteFiles with a different URL
+                if (file.indexOf("/") > -1) {
+                    alert("You can not delete this file.");
+                    return;
+                }
+
+                //Add a loading  spinner to the delete button for the row we're deleting to add some feedback to the user something is happening
+                $(row + ' .deleteConfigButton > i').addClass('fpp-backup-action-loading');
+
+                $.ajax({
+                    url: "api/backups/configuration/" + dir + "/" + encodeURIComponent(file),
+                    type: 'DELETE'
+                }).done(function (data) {
+                    if (data.Status == "OK") {
+                        $(row).remove();
+                    } else {
+                        if (!silent)
+                            DialogError("ERROR", "Error deleting file \"" + file + "\": " + data.Status);
+                    }
+                }).fail(function () {
+                    if (!silent)
+                        DialogError("ERROR", "Error deleting file: " + file);
+                });
+            }
+
+            function RestoreJsonBackup(directory, filename, row) {
+                //Get the selected backup area in case teh user has selected a specific area to restore
+                var selected_restore_area = $('#restorearea').val();
+
+                //validate directory and filename are not emptry
+                if (typeof (selected_restore_area) && (typeof (directory) !== 'undefined' && typeof (filename) !== 'undefined')) {
+                    //Add a loading  spinner to the delete button for the row we're deleting to add some feedback to the user something is happening
+                    $(row + ' .restoreJsonConfigActionButton > i').addClass('fpp-backup-action-loading');
+
+                    //all the API backend to do the restore
+                    $.ajax({
+                        url: 'api/backups/configuration/restore/' + directory + '/' + filename,
+                        type: 'POST',
+                        data: selected_restore_area,
+                        processData: false,
+                        success: function (data) {
+                            //Remove the loading spinner
+                            $(row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
+
+                            if (data.Success === true) {
+                                $.jGrowl('Successfully restored selected backup: ', { themeState: 'success' });
+                            } else {
+                                $.jGrowl('Error occurred restoring selected backup: ', { themeState: 'danger' });
                             }
                         },
-                        "Not Right Now": {
-                            id: "dialog_copyToUsb_NoCopy",
-                            click: function () {
-                                CloseModalDialog("dialog_copyToUsb_Modal");
-                            }
+                        error: function (data) {
+                            //Remove the loading spinner also if we fail
+                            $(row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
+
+                            DialogError('Error occurred attempting to restore data', data.Message);
                         }
-                    }
+                    });
+                }
+
+
+            }
+
+            function PopulateBackupDirs(data) {
+                var options = "";
+                for (var i = 0; i < data.length; i++) {
+                    if (data[i].substring(0, 5) != 'ERROR')
+                        options += "<option value='" + data[i] + "'>" + data[i] + "</option>";
+                    else
+                        options += "<option value=''>" + data[i] + "</option>";
+                }
+                $('#backup\\.PathSelect').html(options);
+            }
+
+            function GetBackupDirsViaAPI(host, remoteStorageSelected = '') {
+                $('#backup\\.PathSelect').html('<option>Loading...</option>');
+
+                //Build a different URL if a storage device has been specified
+                var url = "http://" + host + "/api/backups/list";
+                if (remoteStorageSelected !== '' || remoteStorageSelected !== false) {
+                    url = "http://" + host + "/api/backups/list/" + remoteStorageSelected;
+                }
+
+                //Add a loading spinner to show the user something is happening
+                $('#backup\\.PathSelect').parent().closest('td').addClass('fpp-backup-action-loading');
+
+                $.get(url
+                ).done(function (data) {
+                    PopulateBackupDirs(data);
+                    $('#backup\\.PathSelect').parent().closest('td').removeClass('fpp-backup-action-loading');
+                }).fail(function () {
+                    $('#backup\\.PathSelect').html('');
+                    $('#backup\\.PathSelect').parent().closest('td').removeClass('fpp-backup-action-loading');
                 });
-            }else{
-                $.jGrowl('JSON Configuration Backups will no longer be copied to an additional storage device: ', {themeState: 'detract'});
             }
 
-            //Reload the list of JSON backups on the device, it will now show backups on the selected device
-            GetJSONConfigBackupList();
-        },
-        error: function(data) {
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
-
-            DialogError('JSON Configuration Backup Storage Location', 'Failed to set additional storage location.');
-
-            //Reload the list of JSON backups on the device
-            GetJSONConfigBackupList();
-        }
-    });
-}
-
-function CopyBackupsToUSBHelper(){
-    //Get the backup path from the File Copy Backup page
-    var selected_jsonConfigBackupUSBLocation = $('#jsonConfigbackup\\.USBDevice').val()
-
-    //Generate the URL
-    var url = 'copystorage.php?wrapped=1&direction=TOUSB&path=' + 'Automatic_Backups' + '&storageLocation=' + selected_jsonConfigBackupUSBLocation + '&flags=JsonBackups&delete=no';
-
-    $.ajax({
-        url: url,
-        type: 'GET',
-        success: function(data){
-            $.jGrowl('JSON Configuration Backups copied to: ' + selected_jsonConfigBackupUSBLocation, {themeState: 'success'});
-        },
-        error: function(data) {
-            //do nothing
-         }
-    });
-}
-
-function GetJSONConfigBackupDevice() {
-    //Add a the loading spinner to show something is happening
-    $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
-
-    $.ajax({
-        url: 'api/settings/jsonConfigBackupUSBLocation',
-        type: 'GET',
-        success: function(data){
-            if (typeof (data.value) !== "" || typeof (data.value) !== "undefined"){
-                //Change the JSON Config backup location to the one set by the user if a valid value is set
-                $('#jsonConfigbackup\\.USBDevice option[value="'+data.value+'"]').attr('selected', true);
-                //
-                $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
-            }
-        },
-        error: function(data) {
-            //do nothing
-            DialogError('JSON Configuration Backup Storage Location', 'Failed to read additional storage location.');
-
-            $('#jsonConfigbackup\\.USBDevice').parent().closest('div').removeClass('fpp-backup-action-loading');
-        }
-    });
-}
-
-function GetJSONConfigBackupList() {
-    $.ajax({
-           url: 'api/backups/configuration/list',
-           type: 'GET',
-           success: function (data) {
-               //Store the list of backups found so we can reuse this for the restore panel which is the exact same but diffrent actions
-               list_of_existing_backups = data;
-
-               //Add a placeholder saying we're loading data
-               $('#table-download-existing-backups-content').html('<tr><td></td><td>Loading Existing Backups....</td><td></td></tr>');
-
-               if (typeof (data) !== "undefined") {
-                   //Clear the table again
-                   $('#table-download-existing-backups-content').html('');
-                   //Loop over the results and build the rows
-                   $.each(data, function (backup_filename_id, backup_filename_meta) {
-                       //
-                       //Path and Directory
-                       var backup_filename = backup_filename_meta.backup_filename;
-                       var backup_filedirectory = backup_filename_meta.backup_filedirectory;
-                       //Comment and time
-                       var backup_comment = backup_filename_meta.backup_comment;
-                       var backup_time = backup_filename_meta.backup_time;
-                       var backup_is_in_location =  backup_filename_meta.backup_alternative_location;
-
-                       //By default
-                       var location_icon = '<span><i class="fas fa-sd-card"></i></span>';
-                       //
-                       //Build the onclick command for downloading the backuo
-                       var onclick_download_command = "DownloadJsonBackupFile('JsonBackups', ['" + backup_filename + "']);";
-                       //Build the onclick command for deleting the backup
-                       var onclick_delete_command = "DeleteJsonBackupFile('JsonBackups', '." + backup_filename_id + "', ['" + backup_filename + "']);";
-
-                       if (backup_is_in_location === true) {
-                           location_icon = '<span><i class="fas fa-hdd"></i></span>';
-
-                           onclick_download_command = "DownloadJsonBackupFile('JsonBackupsAlternate', ['" + backup_filename + "']);";
-                           onclick_delete_command = "DeleteJsonBackupFile('JsonBackupsAlternate', '." + backup_filename_id + "', ['" + backup_filename + "']);";
-                       }
-
-                       var backup_file_data_row = '<tr id="backup-file-id" class="' + backup_filename_id + '" > ' +
-                           '<td  id="backup-file-date">' + location_icon + ' ' + backup_filename_meta.backup_time + '</td>' +
-                           '<td  id="backup-file-configuration-change">' + backup_filename_meta.backup_comment + '</td>' +
-                           '<td id="backup-file-configuration-actions">' +
-
-                            //Button to Download the Backup
-                           '<button name="btnDownloadConfig_' + backup_filename_id + '" type="button" class="buttons downloadConfigButton" value="Download Backup" onClick="' + onclick_download_command + '"> ' +
-                           '<i class="fas fa-fw fa-download"></i> ' +
-                           '</button>' +
-
-                           //Button to delete the backup
-                           '<button name="btnDeleteConfig_' + backup_filename_id + '" type="button" class="buttons deleteConfigButton" value="Delete Backup" onclick="' + onclick_delete_command + '"> ' +
-                           '<i class="fas fa-fw fa-trash"></i> ' +
-                           '</button>' +
-
-                           '</td>' +
-                           '</tr>'
-
-                       //Append each row to the table content
-                       $('#table-download-existing-backups-content').append(backup_file_data_row);
-                   });
-                   //Once were done with the backup panel, populate the restore list
-                   GetJSONConfigRestoreList();
-
-                   $('table').floatThead('reflow');
-               }
-        },
-        error: function (data) {
-            var backup_file_data_row = '<tr id="backup-file-id" class="" > ' +
-                '<td  id="backup-file-date"> </td>' +
-                '<td  id="backup-file-configuration-change">Error Occured Retreiving Existing Backup List</td>' +
-                '<td id="backup-file-configuration-actions"> </td>' +
-                '</tr>'
-
-            //Add a row saying there was a error
-            $('#table-download-existing-backups-content').html('');
-            $('#table-download-existing-backups-content').append(backup_file_data_row);
-        }
-    });
-}
-
-function  GetJSONConfigRestoreList(){
-    var data = list_of_existing_backups;
-
-    //Add a placeholder saying we're loading data
-    $('#table-restore-existing-backups-content').html('<tr><td></td><td>Loading Existing Backups....</td><td></td></tr>');
-
-    if (typeof (data) !== "undefined") {
-        //Clear the table again
-        $('#table-restore-existing-backups-content').html('');
-        //Loop over the results and build the rows
-        $.each(data, function (backup_filename_id, backup_filename_meta) {
-            //Path and Directory
-            var backup_filename = backup_filename_meta.backup_filename;
-            var backup_filedirectory = backup_filename_meta.backup_filedirectory;
-            //Comment and time
-            var backup_comment = backup_filename_meta.backup_comment;
-            var backup_time = backup_filename_meta.backup_time;
-            var backup_is_in_location = backup_filename_meta.backup_alternative_location
-            ;
-            //By default
-            var location_icon = '<span><i class="fas fa-sd-card"></i></span>';
-            //
-            var onclick_restore_command = "RestoreJsonBackup('JsonBackups', ['" + backup_filename + "'], '." + backup_filename_id + "');";
-
-            //Build the onclick command for restoreing the backuo
-            if (backup_is_in_location === true) {
-                location_icon = '<span><i class="fas fa-hdd"></i></span>';
-                onclick_restore_command = "RestoreJsonBackup('JsonBackupsAlternate', ['" + backup_filename + "'], '." + backup_filename_id + "');";
-            }
-            //Build the onclick command for deleting the backup
-            // var onclick_delete_command = "DeleteFile('JsonBackups', '." + backup_filename_id + "', ['" + backup_filename + "']);"
-
-            var backup_file_data_row = '<tr id="backup-file-id" class="' + backup_filename_id + '" > ' +
-                '<td  id="backup-file-date">' + location_icon + ' ' + backup_filename_meta.backup_time + '</td>' +
-                '<td  id="backup-file-configuration-change">' + backup_filename_meta.backup_comment + '</td>' +
-                '<td id="backup-file-configuration-actions">' +
-
-                //Button to restore the Backup
-                '<button name="btnrestoreConfig_' + backup_filename_id + '" type="button" class="buttons restoreJsonConfigActionButton" value="Restore Backup" onClick="' + onclick_restore_command + '"> ' +
-                '<i class="fas fa-fw fa-undo"></i> ' +
-                '</button>' +
-
-                // //Button to delete the backup
-                // '<button name="btnDeleteConfig_' + backup_filename_id + '" type="button" class="buttons" value="Delete Backup" onclick="' + onclick_delete_command + '"> ' +
-                // '<i class="fas fa-fw fa-trash"></i> ' +
-                // '</button>' +
-
-                '</td>' +
-                '</tr>'
-
-            //Append each row to the table content
-            $('#table-restore-existing-backups-content').append(backup_file_data_row);
-        });
-    } else {
-        var backup_file_data_row = '<tr id="backup-file-id" class="" > ' +
-            '<td  id="backup-file-date"> </td>' +
-            '<td  id="backup-file-configuration-change">Error Occured Retreiving Existing Backup List</td>' +
-            '<td  id="backup-file-configuration-actions"> </td>' +
-            '</tr>'
-
-        //Add a row saying there was a error
-        $('#table-restore-existing-backups-content').html('');
-        $('#table-restore-existing-backups-content').append(backup_file_data_row);
-
-    }
-}
-
-function DownloadJsonBackupFile(dir, files) {
-    //Clone of GetFiles() but with a different URL and just dealing with a single file
-    if (files.length == 1) {
-        location.href = "api/backups/configuration/" + dir + "/" + encodeURIComponent(files[0].replace(/\//g, '_'));
-    }
-}
-
-function DeleteJsonBackupFile(dir, row, file, silent = false) {
-    //Clone of DeleteFiles with a different URL
-    if (file.indexOf("/") > -1) {
-        alert("You can not delete this file.");
-        return;
-    }
-
-    //Add a loading  spinner to the delete button for the row we're deleting to add some feedback to the user something is happening
-    $( row + ' .deleteConfigButton > i').addClass('fpp-backup-action-loading');
-
-    $.ajax({
-        url: "api/backups/configuration/" + dir + "/" + encodeURIComponent(file),
-        type: 'DELETE'
-    }).done(function (data) {
-        if (data.Status == "OK") {
-            $(row).remove();
-        } else {
-            if (!silent)
-                DialogError("ERROR", "Error deleting file \"" + file + "\": " + data.Status);
-            }
-    }).fail(function () {
-        if (!silent)
-            DialogError("ERROR", "Error deleting file: " + file);
-    });
-}
-
-function RestoreJsonBackup(directory, filename, row){
-    //Get the selected backup area in case teh user has selected a specific area to restore
-    var selected_restore_area = $('#restorearea').val();
-
-    //validate directory and filename are not emptry
-    if (typeof (selected_restore_area) && (typeof (directory) !== 'undefined' && typeof (filename) !== 'undefined')) {
-        //Add a loading  spinner to the delete button for the row we're deleting to add some feedback to the user something is happening
-        $( row + ' .restoreJsonConfigActionButton > i').addClass('fpp-backup-action-loading');
-
-        //all the API backend to do the restore
-        $.ajax({
-            url: 'api/backups/configuration/restore/' + directory + '/' + filename,
-            type: 'POST',
-            data: selected_restore_area,
-            processData: false,
-            success: function (data) {
-                //Remove the loading spinner
-                $( row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
-
-                if (data.Success === true) {
-                    $.jGrowl('Successfully restored selected backup: ', {themeState: 'success'});
-                } else {
-                    $.jGrowl('Error occurred restoring selected backup: ', {themeState: 'danger'});
+            //Wrapper for GetBackupDirsViaAPI when quering folders on a remote hosts storage device
+            function GetBackupHostBackupDirs(remoteStorageSelected = false) {
+                if (remoteStorageSelected !== false) {
+                    //Get the value of the selected storage
+                    var selectedStorage = remoteStorageSelected;
+                    //ignore if the default of none is still selected
+                    if (selectedStorage == 'none') {
+                        selectedStorage = '';
+                    }
                 }
-            },
-            error: function (data) {
-                //Remove the loading spinner also if we fail
-                $( row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
 
-                DialogError('Error occurred attempting to restore data', data.Message);
-            }
-        });
-    }
-
-
-}
-
-function PopulateBackupDirs(data) {
-    var options = "";
-    for (var i = 0; i < data.length; i++) {
-        if (data[i].substring(0,5) != 'ERROR')
-            options += "<option value='" + data[i] + "'>" + data[i] + "</option>";
-        else
-            options += "<option value=''>" + data[i] + "</option>";
-    }
-    $('#backup\\.PathSelect').html(options);
-}
-
-function GetBackupDirsViaAPI(host, remoteStorageSelected = '') {
-    $('#backup\\.PathSelect').html('<option>Loading...</option>');
-
-    //Build a different URL if a storage device has been specified
-    var url = "http://" + host + "/api/backups/list";
-    if (remoteStorageSelected !== '' || remoteStorageSelected !== false) {
-        url = "http://" + host + "/api/backups/list/" + remoteStorageSelected;
-    }
-
-    //Add a loading spinner to show the user something is happening
-    $('#backup\\.PathSelect').parent().closest('td').addClass('fpp-backup-action-loading');
-
-    $.get(url
-    ).done(function (data) {
-        PopulateBackupDirs(data);
-        $('#backup\\.PathSelect').parent().closest('td').removeClass('fpp-backup-action-loading');
-    }).fail(function () {
-        $('#backup\\.PathSelect').html('');
-        $('#backup\\.PathSelect').parent().closest('td').removeClass('fpp-backup-action-loading');
-    });
-}
-
-//Wrapper for GetBackupDirsViaAPI when quering folders on a remote hosts storage device
-function GetBackupHostBackupDirs(remoteStorageSelected = false) {
-    if (remoteStorageSelected !== false) {
-        //Get the value of the selected storage
-        var selectedStorage = remoteStorageSelected;
-        //ignore if the default of none is still selected
-        if (selectedStorage == 'none') {
-            selectedStorage = '';
-        }
-    }
-
-    //Get the backup directories on the specified storage device
-    GetBackupDirsViaAPI($('#backup\\.Host').val(), selectedStorage);
-}
-
-function BackupDirectionChanged() {
-    var direction = document.getElementById("backup.Direction").value;
-    var host = document.getElementById("backup.Host").value;
-
-    switch (direction) {
-        case 'TOUSB':
-            $('.copyUSB').show();
-            $('.copyPath').show();
-            $('.copyPathSelect').hide();
-            $('.copyHost').hide();
-            $('.copyHostDevice').hide();
-            $('.copyBackups').show();
-            GetRestoreDeviceDirectories();
-            break;
-        case 'FROMUSB':
-            $('.copyUSB').show();
-            $('.copyPath').hide();
-            $('.copyPathSelect').show();
-            $('.copyHost').hide();
-            $('.copyHostDevice').hide();
-            $('.copyBackups').hide();
-            GetBackupDeviceDirectories();
-            break;
-        case 'TOLOCAL':
-            $('.copyUSB').hide();
-            $('.copyPath').show();
-            $('.copyPathSelect').hide();
-            $('.copyHost').hide();
-            $('.copyHostDevice').hide();
-            $('.copyBackups').hide();
-            break;
-        case 'FROMLOCAL':
-            $('.copyUSB').hide();
-            $('.copyPath').hide();
-            $('.copyPathSelect').show();
-            $('.copyHost').hide();
-            $('.copyHostDevice').hide();
-            $('.copyBackups').hide();
-            GetBackupDirsViaAPI('<?php echo $_SERVER['HTTP_HOST'] ?>');
-            break;
-        case 'TOREMOTE':
-            $('.copyUSB').hide();
-            $('.copyPath').show();
-            $('.copyPathSelect').hide();
-            $('.copyHost').show();
-            $('.copyHostDevice').show();
-            $('.copyBackups').hide();
-            $('.sendCompressed').show();
-            //Check if remote has rsynd enabled
-            CheckRemoteHasRsyncdEnabled(host);
-            //USB Device on remote
-            GetRemoteHostUSBStorage();
-            break;
-        case 'FROMREMOTE':
-            $('.copyUSB').hide();
-            $('.copyPath').hide();
-            $('.copyPathSelect').show();
-            $('.copyHost').show();
-            $('.copyHostDevice').show();
-            $('.copyBackups').hide();
-            $('.sendCompressed').show();
-            GetBackupHostBackupDirs();
-            //Check if remote has rsynd enabled
-            CheckRemoteHasRsyncdEnabled(host);
-            //USB device on remote
-            GetRemoteHostUSBStorage();
-            break;
-    }
-}
-
- function CheckRemoteHasRsyncdEnabled(host) {
-    //Read the the setting value for whether the Rsync Daemon is enabled on the host
-    //if it isn't prompt the user that this needs to be enabled before copy TO or FROM the remote host can happen
-    $.ajax({
-        url: 'api/settings/Service_rsync',
-        type: 'GET',
-        success: function (data) {
-            if (typeof (data) !== "undefined") {
-                var rsyncd_setting_value = data['value'];
-                if (rsyncd_setting_value === 0 || rsyncd_setting_value === '0') {
-                    //remove the warning text in case it's hanging around from a previous host
-                    $('.host_rsyncd_warning').remove();
-                    //Generate a URL by IP address to the affected host so the user can navigate easier
-                    var hostHref = "<a href='http://" + host + "/settings.php#settings-system' target='_blank'>" + host + "</a>";
-                    //rsynd is disabled on host, add a warning next to the selected host
-                    $('#backup\\.Host').after('<span class="host_rsyncd_warning"><b>WARNING!</b> Rsync server is disabled on remote host, please enable rsync under FPP Settings -> System -> OS Services on ' + hostHref + ' </span');
-                    //<span><b>WARNING!</b> Rsync server is disabled on this host, please enable under FPP Settings -> System -> OS Services on *host*</span
-                }else{
-                    //remove the warning text in case it's hanging around from a previous host
-                    $('.host_rsyncd_warning').remove();
-                }
-            }else{
-                //something went wrong
-                $.jGrowl('Error occurred reading the Service_rsync value from host - ' + host, {themeState: 'danger'});
-            }
-        },
-        error: function (data) {
-            //something went wrong
-            $.jGrowl('Error occurred reading the Service_rsync value from host - ' + host, {themeState: 'danger'});
-        }
-    });
-}
-
-//Retrieves a list of available backup devices on the selected remote host
-function GetRemoteHostUSBStorage() {
-    //Very similar to GetBackupDevices() but adapted to collect storage info from a remote system
-    var host = document.getElementById("backup.Host").value;
-    var requestUrl = "http://" + host + "/" + "api/backups/devices";
-    var default_none_selected_option = "<option value='none' selected>Default FPP Storage</option>";
-
-    // $('#backup\\.USBDevice').html('<option>Loading...</option>');
-    //Add a loading spinner to show something is happening
-    $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
-
-    $.get(requestUrl
-    ).done(function (data) {
-        var options = "";
-
-        for (var i = 0; i < data.length; i++) {
-            var desc = data[i].name;
-            if (data[i].vendor != '')
-                desc += ' - ' + data[i].vendor;
-
-            if (data[i].model != '') {
-                if (data[i].vendor != '')
-                    desc += ' ';
-                else
-                    desc += ' - ';
-
-                desc += data[i].model;
+                //Get the backup directories on the specified storage device
+                GetBackupDirsViaAPI($('#backup\\.Host').val(), selectedStorage);
             }
 
-            desc += ' - ' + data[i].size + 'GB';
-            options += "<option value='" + data[i].name + "'>" + desc + "</option>";
-        }
-        //Populate the dropdown with the detected storage devices
-        $('#backup\\.RemoteStorage').html(default_none_selected_option + options);
+            function BackupDirectionChanged() {
+                var direction = document.getElementById("backup.Direction").value;
+                var host = document.getElementById("backup.Host").value;
 
-        //Remove the loading spinner
-        $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
-
-        if (options !== "") {
-            //After populating the list, Get the currently set remote host storage device
-            GetBackupRemoteStorageDevice();
-        }
-    }).fail(function () {
-        $('#backup\\.RemoteStorage').html(default_none_selected_option);
-    });
-}
-
-//Save the selected remote backup storage device selection to settings
-function backupRemoteStorageChanged() {
-    //Get the value of the selected remove storage device
-    var value = encodeURIComponent($('#backup\\.RemoteStorage').val());
-
-    //Add the loading spinner
-    $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
-
-    //Write setting to system
-    $.ajax({
-        url: 'api/settings/backup.RemoteStorage/',
-        type: 'PUT',
-        data: value,
-        success: function (data) {
-            $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
-
-            $.jGrowl('Remote Backup Storage saved', {themeState: 'success'});
-            settings['backup.RemoteStorage'] = value;
-
-            //Get the directories on the selected storage
-            GetBackupHostBackupDirs(encodeURIComponent(value));
-        },
-        error: function (data) {
-            DialogError('Remote Backup Storage', 'Failed to save Backup Storage');
-            //remove the spinner
-            $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
-        }
-    });
-}
-
-//Get the current setting for the remote hosts remote backup storage device (where the file copy will go to)
-function GetBackupRemoteStorageDevice() {
-    //Add a the loading spinner to show something is happening
-    $('#backup\\.RemoteStorage').parent().closest('div').addClass('fpp-backup-action-loading');
-
-    $.ajax({
-        url: 'api/settings/backup.RemoteStorage',
-        type: 'GET',
-        success: function (data) {
-            if (data.value !== "" || typeof (data.value) !== "undefined") {
-                //Check if the chosen USB device/location exists in the dropdown list
-                //The USB device dropdown list only lists devices which are available for use, so if the chosen device is not in the list
-                //it's likely unavailable or still mounted (as such not available for use)
-                var remote_storage_ddl_selector = $('#backup\\.RemoteStorage option[value="' + data.value + '"]');
-                if (remote_storage_ddl_selector.length){
-                    //Change the JSON Config backup location to the one set by the user if a valid value is set
-                    remote_storage_ddl_selector.attr('selected', true);
-                }else{
-                    var host = document.getElementById("backup.Host").value;
-                    $('#backup\\.RemoteStorage').parent().append("<span> <b>Warning:</b> " + data.value + " is not available. Check device is attached to host and that is not currently mounted. Check <a href='http://" + host + "/settings.php#settings-storage' target='_blank'>" + host + " - Mounted USB Devices</a></span>");
-                }
-                //
-                $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
-
-                //Get the backup directories avaiable on the selected storage device if were restoring from remote,
-                if (document.getElementById("backup.Direction").value == 'FROMREMOTE') {
-                    //If no Remote Storage device is selected don't pass anything to this function telling it to look at another device
-                    //so we just get what is on the default FPP storage device
-                    var selectedStorage = encodeURIComponent($('#backup\\.RemoteStorage').val());
-
-                    GetBackupHostBackupDirs(selectedStorage);
+                switch (direction) {
+                    case 'TOUSB':
+                        $('.copyUSB').show();
+                        $('.copyPath').show();
+                        $('.copyPathSelect').hide();
+                        $('.copyHost').hide();
+                        $('.copyHostDevice').hide();
+                        $('.copyBackups').show();
+                        GetRestoreDeviceDirectories();
+                        break;
+                    case 'FROMUSB':
+                        $('.copyUSB').show();
+                        $('.copyPath').hide();
+                        $('.copyPathSelect').show();
+                        $('.copyHost').hide();
+                        $('.copyHostDevice').hide();
+                        $('.copyBackups').hide();
+                        GetBackupDeviceDirectories();
+                        break;
+                    case 'TOLOCAL':
+                        $('.copyUSB').hide();
+                        $('.copyPath').show();
+                        $('.copyPathSelect').hide();
+                        $('.copyHost').hide();
+                        $('.copyHostDevice').hide();
+                        $('.copyBackups').hide();
+                        break;
+                    case 'FROMLOCAL':
+                        $('.copyUSB').hide();
+                        $('.copyPath').hide();
+                        $('.copyPathSelect').show();
+                        $('.copyHost').hide();
+                        $('.copyHostDevice').hide();
+                        $('.copyBackups').hide();
+                        GetBackupDirsViaAPI('<?php echo $_SERVER['HTTP_HOST'] ?>');
+                        break;
+                    case 'TOREMOTE':
+                        $('.copyUSB').hide();
+                        $('.copyPath').show();
+                        $('.copyPathSelect').hide();
+                        $('.copyHost').show();
+                        $('.copyHostDevice').show();
+                        $('.copyBackups').hide();
+                        $('.sendCompressed').show();
+                        //Check if remote has rsynd enabled
+                        CheckRemoteHasRsyncdEnabled(host);
+                        //USB Device on remote
+                        GetRemoteHostUSBStorage();
+                        break;
+                    case 'FROMREMOTE':
+                        $('.copyUSB').hide();
+                        $('.copyPath').hide();
+                        $('.copyPathSelect').show();
+                        $('.copyHost').show();
+                        $('.copyHostDevice').show();
+                        $('.copyBackups').hide();
+                        $('.sendCompressed').show();
+                        GetBackupHostBackupDirs();
+                        //Check if remote has rsynd enabled
+                        CheckRemoteHasRsyncdEnabled(host);
+                        //USB device on remote
+                        GetRemoteHostUSBStorage();
+                        break;
                 }
             }
-        },
-        error: function (data) {
-            //do nothing
-            DialogError('Remote Host Backup Storage Location', 'Failed to read remote storage location.');
 
-            $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
-        }
-    });
-}
-
-
-
-function pageSpecific_PageLoad_DOM_Setup() {
-    $('#backup\\.Path').attr('list', 'usbDirectories');
-    GetBackupDevices();
-    GetJSONConfigBackupList();
-}
-
-function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup(){
-    $('a[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
-        $('table').floatThead('reflow');
-    });
-
-        //float th thead on download existing backups table
-        $('.table-download-existing-backups').floatThead({
-                zIndex: 990,
-                debug: true ,
-                scrollContainer: function() {
-                    return $('.table-download-existing-backups').closest(".table-download-existing-backups-container");
-                }
-        });
-
-
-        //float th thead on restore existing backups table
-        $('.table-restore-existing-backups').floatThead({
-                zIndex: 990,
-                debug: false ,
-                scrollContainer: function() {
-                    return $('.table-restore-existing-backups').closest(".table-restore-existing-backups-container");
-                }
-        });
-
-
-}
-
-        var activeTabNumber =
-			<?php
-if (isset($_GET['tab']) and is_numeric($_GET['tab'])) {
-        print $_GET['tab'];
-    } else {
-        print "0";
-    }
-
-    ?>;
-    </script>
-
-    <style>
-        .copyHost {
-            display: none;
-        }
-        .copyPathSelect {
-            display: none;
-        }
-        .copyHostDevice {
-            display: none;
-        }
-        .sendCompressed{
-            display: none;
-        }
-    </style>
-</head>
-<body>
-<div id="bodyWrapper">
-    <?php
-$activeParentMenuItem = 'status';
-    include 'menu.inc';?>
-    <div class="mainContainer">
-        <h1 class='title'>FPP Backups</h1>
-        <div class="pageContent">
-            <div class="fppTabs">
-                <div id="fppBackups">
-                    <ul id="fppBackupTabs" class="nav nav-pills pageContent-tabs" role="tablist">
-
-                        <li class="nav-item">
-                            <a class="nav-link active" id="backups-jsonBackup-tab" data-bs-toggle="tab" data-bs-target="#tab-jsonBackup" href="#tab-jsonBackup" role="tab" aria-controls="tab-jsonBackup" aria-selected="true">
-                            JSON Configuration Backup
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" id="backups-fileCopy-tab" data-bs-toggle="tab" data-bs-target="#tab-fileCopy" href="#tab-fileCopy" role="tab" aria-controls="tab-fileCopy" aria-selected="false">
-                            File Copy Backup
-                            </a>
-                        </li>
-                    </ul>
-
-                    <div id="fppBackupsTabsContent" class="tab-content">
-                    <div id="tab-jsonBackup" class="tab-pane fade show active" role="tabpanel" aria-labelledby="backups-jsonBackup-tab">
-                        <form action="backup.php" method="post" name="frmBackup" enctype="multipart/form-data">
-                            <?php
-//Spit out the backup errors if the backup_errors array isn't empty
-    if (!is_array_empty($backup_errors)) {
-        ?>
-                                <div id="rebootFlag" style="display: block; margin-right: auto; margin-left: auto; width: 60%;">Backup failed: <br>
-                                    <ul>
-        								<?php
-foreach ($backup_errors as $backup_error) {
-            echo "<li>$backup_error</li>";
-        }
-        ?>
-                                    </ul>
-                                </div>
-        						<?php
-}
-    ?>
-                        <?php if ($restore_done == true) {
-        ?>
-                            <div id="rebootFlag" style="display: block;" class="callout callout-warning">Backup Restored, FPPD Restart or Reboot may be required.
-                            </div>
-                            <div id="restoreSuccessFlag" class="callout callout-primary">What was restored: <br>
-                                <?php
-foreach ($settings_restored as $area_restored => $success) {
-            $success_str = "";
-            if (is_array($success)) {
-//                $success_area_data = false;
-                $success_messages = "";
-
-                //If the ATTEMPT and SUCCESS keys don't exist in the array, then try to process the internals which will be a sub areas and possibly have them.
-                if (!array_key_exists('ATTEMPT', $success) && !array_key_exists('SUCCESS', $success) && !empty($success)) {
-                    //process internal array for areas with sub areas
-                    foreach ($success as $success_area_idx => $success_area_data) {
-                        if (is_array($success_area_data) && array_key_exists('ATTEMPT', $success_area_data) && array_key_exists('SUCCESS', $success_area_data)) {
-                            $success_area_attempt = $success_area_data['ATTEMPT'];
-                            $success_area_success = $success_area_data['SUCCESS'];
-
-                            if ($success_area_attempt == true && $success_area_success == true) {
-                                $success_str = "Success";
-                                $success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $success_area_idx)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+            function CheckRemoteHasRsyncdEnabled(host) {
+                //Read the the setting value for whether the Rsync Daemon is enabled on the host
+                //if it isn't prompt the user that this needs to be enabled before copy TO or FROM the remote host can happen
+                $.ajax({
+                    url: 'api/settings/Service_rsync',
+                    type: 'GET',
+                    success: function (data) {
+                        if (typeof (data) !== "undefined") {
+                            var rsyncd_setting_value = data['value'];
+                            if (rsyncd_setting_value === 0 || rsyncd_setting_value === '0') {
+                                //remove the warning text in case it's hanging around from a previous host
+                                $('.host_rsyncd_warning').remove();
+                                //Generate a URL by IP address to the affected host so the user can navigate easier
+                                var hostHref = "<a href='http://" + host + "/settings.php#settings-services' target='_blank'>" + host + "</a>";
+                                //rsynd is disabled on host, add a warning next to the selected host
+                                $('#backup\\.Host').after('<span class="host_rsyncd_warning"><b>WARNING!</b> Rsync server is disabled on remote host, please enable rsync under FPP Settings -> Services -> OS Services on ' + hostHref + ' </span');
+                                //<span><b>WARNING!</b> Rsync server is disabled on this host, please enable under FPP Settings -> System -> OS Services on *host*</span
                             } else {
-                                $success_str = "Failed";
-                                $success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $success_area_idx)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                                //remove the warning text in case it's hanging around from a previous host
+                                $('.host_rsyncd_warning').remove();
                             }
+                        } else {
+                            //something went wrong
+                            $.jGrowl('Error occurred reading the Service_rsync value from host - ' + host, { themeState: 'danger' });
                         }
-                    }
-                } //There is an ATTEMPT and SUCCESS key, check values of both
-                else if (array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
-                    $success_area_attempt = $success['ATTEMPT'];
-                    $success_area_success = $success['SUCCESS'];
-
-                    if ($success_area_attempt == true && $success_area_success == true) {
-                        $success_str = "Success";
-                        $success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
-                    } else {
-                        $success_str = "Failed";
-                        $success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
-                    }
-
-                } // No Attempt key, then we shouldn't print the success
-                else if (!array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
-                    //Ignore
-                }
-                //Print out the restore successes
-                echo $success_messages;
-            } else {
-                //normal area
-                if ($success == true) {
-                    $success_str = "Success";
-                    $success_messages = "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
-                } else {
-                    $success_str = "Failed";
-                    $success_messages = "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
-
-                }
-                echo $success_messages;
-            }
-        }
-        //If network settings have been restored, print out the IP addresses that should come info effect
-        if ($network_settings_restored) {
-            //Print the IP addresses out
-            foreach ($network_settings_restored_applied_ips as $idx => $network_ip_address) {
-                if (!empty($network_ip_address)) {
-                    echo ucwords(str_replace("_", " ", $idx)) . " - Network Settings" . "<br/>";
-                    //If there is a SSID, print it also
-                    if (is_array($network_ip_address) && array_key_exists('SSID', $network_ip_address)) {
-                        echo "SSID: " . ($network_ip_address['SSID']) . "<br/>";
-                    }
-                    //Print out details for static addresses
-                    echo "Type: " . ($network_ip_address['PROTO']) . "<br/>";
-                    if (strtolower($network_ip_address['PROTO']) == 'static') {
-                        echo "IP: " . "<a href='http://" . $network_ip_address['ADDRESS'] . "'>" . $network_ip_address['ADDRESS'] . "</a>" . "<br/>";
-                        echo "Netmask: " . ($network_ip_address['NETMASK']) . "<br/>";
-                        echo "GW: " . ($network_ip_address['GATEWAY']) . "<br/>";
-                    }
-                    echo "<br/>";
-                }
-            }
-
-            echo "<span class='callout callout-danger'>REBOOT REQUIRED: Please VERIFY the above settings, if they seem incorrect please adjust them in <a href='./networkconfig.php'>Network Settings</a> BEFORE rebooting. </span>";
-        }
-        ?>
-                            </div>
-                            <?php
-}
-    ?>
-                            <div class="backdrop">
-                                <div class="container-fluid">
-                                    <div class="row">
-                                        <div class="col-md-6 backup-config-start-panel">
-                                            <div class="row">
-                                                <h2>Backup Configuration</h2>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-4">
-                                                    <span>Protect sensitive data?</span>
-                                                </div>
-                                                <div class="col-md-8">
-                                                    <input id="dataProtect" name="protectSensitive"
-                                                           type="checkbox"
-                                                           checked="true">
-                                                </div>
-                                            </div>
-
-                                            <div class="row">
-                                                <div class="col-md-4">
-                                                    <span class='jsonConfigUSB'>Copy Backups To Additional Location:</span>
-                                                </div>
-                                                <div class="col-md-8">
-                                                    <select name='jsonConfigbackup.USBDevice'
-                                                            id='jsonConfigbackup.USBDevice'
-                                                            onChange='JSONConfigBackupUSBDeviceChanged();'></select>
-                                                    <input type='button' class='buttons refreshBackupDevicesList' onClick='GetBackupDevices();'
-                                                           value='Refresh List'>
-                                                    <img id="jsonConfigUSBUsage_img"
-                                                         title="Specify an additional storage device where configuration backups will be copied to. Backups will first be saved to the config directory (<?php echo $settings['configDirectory'] . "/backups" ?>), and then copied to the alternative location."
-                                                         src="images/redesign/help-icon.svg" class="icon-help">
-                                                </div>
-                                            </div>
-
-                                            <div class="row">
-                                                <div class="col-md-4"><span>Backup Area</span></div>
-                                                <div class="col-md-8"><?php echo genSelectList('backuparea'); ?></div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-4"></div>
-                                                <div class="col-md-8">
-                                                    <button name="btnDownloadConfig" type="Submit" class="buttons"
-                                                            value="Download Configuration"><i
-                                                                class="fas fa-fw fa-nbsp fa-download"></i>Download
-                                                        Configuration
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-6 backup-config-end-panel">
-                                            <div class="row">
-                                                <div class="col-md-12">
-                                                    <h2>Download Existing Backups</h2>
-                                                </div>
-                                            </div>
-
-                                            <div class="row">
-                                                <div class="col-md-12 table-download-existing-backups-container table-responsive">
-                                                    <table class="table table-download-existing-backups">
-                                                        <thead>
-                                                        <tr>
-                                                            <th scope="col">Date</th>
-                                                            <th scope="col">Configuration Change</th>
-                                                            <th scope="col">Actions</th>
-                                                        </tr>
-                                                        </thead>
-                                                        <tbody id="table-download-existing-backups-content">
-
-                                                        <tr>
-                                                            <td></td>
-                                                            <td>Loading Existing Backups....</td>
-                                                            <td></td>
-                                                        </tr>
-
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-
-                                            <div class="row">
-                                                <div class="col-md-6 text-center table-download-existing-backups-legend">
-                                                    <span>
-                                                        <i class="fas fa-sd-card"></i> - Located On FPP Storage Device
-                                                    </span>
-                                                </div>
-                                                <div class="col-md-6 text-center table-download-existing-backups-legend">
-                                                    <span><i class="fas fa-hdd">
-                                                        </i> - Located On Alternate Backup Location
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <br/>
-
-                            <div class="backdrop">
-
-                                <div class="container-fluid">
-
-                                    <div class="row">
-                                        <div class="col-md-6 restore-config-start-panel">
-                                            <div class="row">
-                                                <h2>Restore Configuration</h2>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-4">Keep Existing Network Settings</div>
-                                                <div class="col-md-8">
-                                                    <input name="keepExitingNetwork"
-                                                           type="checkbox"
-                                                           checked="true">
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-4">Keep Existing Player/Remote Settings</div>
-                                                <div class="col-md-8">
-                                                    <input name="keepMasterSlave"
-                                                           type="checkbox"
-                                                           checked="true">
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-4">Restore Area</div>
-                                                <div class="col-md-8">
-													<?php echo genSelectList('restorearea'); ?></div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-4"></div>
-                                                <div class="col-md-8">
-                                                    <i class="fas fa-fw fa-nbsp fa-upload"></i>
-                                                    <input id="btnUploadConfig" name="conffile" type="file"
-                                                           accept=".json" id="conffile" autocomplete="off">
-                                                    <script>
-                                                        $('#btnUploadConfig').on("change", function (e) {
-                                                            if (e.target.files[0].name.length > 4) {
-                                                                $('#btnRestoreConfig').show();
-                                                            }
-                                                        });
-                                                    </script>
-                                                </div>
-                                            </div>
-                                            <div class='row'>
-                                                <div class="col-md-4"></div>
-                                                <div class="col-md-8">
-                                                    <button id="btnRestoreConfig" name="btnRestoreConfig" type="Submit"
-                                                            class="buttons hidden">
-                                                        <i class="fas fa-fw fa-nbsp fa-file-import"></i>Restore
-                                                        Configuration
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-6 restore-config-end-panel">
-                                            <div class="row">
-                                                <div class="col-md-12">
-                                                    <h2>Restore Existing Backups</h2>
-                                                </div>
-                                            </div>
-
-                                            <div class="row">
-                                                <div class="col-md-12 table-restore-existing-backups-container">
-                                                    <table class="table table-restore-existing-backups">
-                                                        <thead>
-                                                        <tr>
-                                                            <th scope="col">Date</th>
-                                                            <th scope="col">Configuration Change</th>
-                                                            <th scope="col">Actions</th>
-                                                        </tr>
-                                                        </thead>
-                                                        <tbody id="table-restore-existing-backups-content">
-
-                                                        <tr>
-                                                            <td></td>
-                                                            <td>Loading Existing Backups....</td>
-                                                            <td></td>
-                                                        </tr>
-
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div id="tab-fileCopy" class="tab-pane fade" role="tabpanel" aria-labelledby="backups-fileCopy-tab">
-                        <div class="backdrop"><h2>File Copy Backup/Restore</h2>
-                                Copy configuration, sequences, etc... to/from a backup device.
-                                <table>
-        <tr><td>Copy Type:</td><td><select id="backup.Direction" onChange='BackupDirectionChanged();'>
-        <option value="TOUSB" selected>Backup To USB</option>
-        <option value="FROMUSB">Restore From USB</option>
-        <option value="TOLOCAL">Backup To Local FPP Backups Directory</option>
-        <option value="FROMLOCAL">Restore From Local FPP Backups Directory</option>
-        <option value="TOREMOTE">Backup To Remote FPP Backups Directory</option>
-        <option value="FROMREMOTE">Restore From Remote FPP Backups Directory</option>
-        </select></td></tr>
-        <tr class='copyUSB'><td>USB Device:</td><td><select name='backup.USBDevice' id='backup.USBDevice' onChange='USBDeviceChanged();'></select> <input type='button' class='buttons' onClick='GetBackupDevices();' value='Refresh List'></td></tr>
-        <tr class='copyHost'><td>Remote Host:</td><td><?php PrintSettingSelect('Backup Host', 'backup.Host', 0, 0, '', $backupHosts, '', 'GetBackupHostBackupDirs');?></td></tr>
-        <tr class='copyHostDevice'><td>Remote Storage:</td><td><select id="backup.RemoteStorage" onchange="backupRemoteStorageChanged();"><option value="none" selected="">Default FPP Storage</option></select></td></tr>
-        <tr class='copyPath'><td>Backup Path:</td><td><?php PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', $settings["HostName"]);?></td></tr>
-        <tr class='copyPathSelect'><td>Backup Path:</td><td><select name='backup.PathSelect' id='backup.PathSelect'></select></td></tr>
-        <tr class='sendCompressed'>
-            <td>Send Compressed Data: </td>
-            <td>
-				<?php PrintSettingCheckbox('Send Compressed Data:', 'backup.sendCompressed', 0, 0, 1, 0, "", "", 0, ' (Compress files during copy to speed up the copy process. NOTE: Newer xLights versions already used a compressed FSEQ format, so this option may only slow down the transfer as FPP tries to recompress already-compressed data. Some data like Music and Videos are not compressed.)');?>
-                <br>
-            </td>
-        </tr>
-
-       <tr><td>What to copy:</td><td>
-        <table id="CopyFlagsTable">
-        <tr><td>
-				<?php PrintSettingCheckbox('Backup Configuration', 'backup.Configuration', 0, 0, 1, 0, "", "", 1, 'Configuration');?><br>
-				<?php PrintSettingCheckbox('Backup Playlists', 'backup.Playlists', 0, 0, 1, 0, "", "", 1, 'Playlists');?><br>
-            </td><td width='10px'></td><td>
-				<?php PrintSettingCheckbox('Backup Plugins', 'backup.Plugins', 0, 0, 1, 0, "", "", 1, 'Plugins');?><br>
-            </td><td width='10px'></td><td>
-				<?php PrintSettingCheckbox('Backup Sequences', 'backup.Sequences', 0, 0, 1, 0, "", "", 1, 'Sequences');?><span style="color: #AA0000">*</span><br>
-				<?php PrintSettingCheckbox('Backup Images', 'backup.Images', 0, 0, 1, 0, "", "", 1, 'Images');?><br>
-            </td><td width='10px'></td><td>
-				<?php PrintSettingCheckbox('Backup Scripts', 'backup.Scripts', 0, 0, 1, 0, "", "", 1, 'Scripts');?><br>
-				<?php PrintSettingCheckbox('Backup Effects', 'backup.Effects', 0, 0, 1, 0, "", "", 1, 'Effects');?><br>
-            </td><td width='10px'></td><td>
-				<?php PrintSettingCheckbox('Backup Music', 'backup.Music', 0, 0, 1, 0, "", "", 1, 'Music');?><br>
-				<?php PrintSettingCheckbox('Backup Videos', 'backup.Videos', 0, 0, 1, 0, "", "", 1, 'Videos');?><br>
-            </td><td width='10px'></td><td valign='top'>
-<?php
-$eepromValue = file_exists('/home/fpp/media/config/cape-eeprom.bin') ? 1 : 0;
-    PrintSettingCheckbox('Backup Virtual EEPROM', 'backup.EEPROM', 0, 0, 1, 0, "", "", $eepromValue, 'Virtual EEPROM');
-    ?>
-                <span class='copyBackups'><br><input type='checkbox' id='backup.Backups'>Backups <span style="color: #AA0000">*</span></span>
-        </td></tr></table>
-        </td></tr>
-        <tr><td>Delete extras:</td><td><input type='checkbox' id='backup.DeleteExtra'> (Delete extra files on destination that do not exist on the source)</td></tr>
-                                <tr><td></td><td>
-                                        <input type='button' class="buttons" value="Copy" onClick="PerformCopy();">
-                                </table>
-
-                                <div class="callout callout-danger">
-                                    <h4>Notes:</h4>
-                                    <ul>
-                                        <li>Sequence backups may not work correctly when restored on other FPP systems if the sequences are FSEQ v2 files and the Channel Output configurations of the two systems do not match.</li>
-                                        <li class='copyBackups'>*Backing up Backups will copy all local backups to the USB device.</li>
-                                    </ul>
-
-                                </div>
-                          </div>
-                        </div>
-
-                    </div>
-                    </div>
-                </div>
-            <div id="dialogSensitiveDetails" title="Warning!" style="display:none">
-                <p>Un-checking this box will disable protection (automatic removal) of sensitive data like passwords.
-                    <br>
-                    <b>ONLY</b> Un-check this if you want to be able make an exact clone of settings to another FPP.
-                    <br>
-                    <b>NOTE:</b> The backup will include passwords in plaintext, you assume full responsibility for this
-                    file.
-                    <br>
-                </p>
-            </div>
-
-            <div id="dialog_copyToUsb" title="Do You To Copy Existing Backups to USB?" style="display:none">
-                <p>Do you want to perform an initial copy of any existing backups on SD card to the chosen USB device?.
-                    <br>
-                    <b>If Yes</b>, any existing JSON Setting backups on the SD card will be copied to the selected USB storage device.
-                    <br>
-                    <b>If No</b>, backups will copied across on any future setting change.
-                </p>
-            </div>
-
-        </div>
-    </div>
-    <script>
-        $('#dataProtect').on("click", function () {
-            var checked = $(this).is(':checked');
-            if (!checked) {
-
-                DoModalDialog({
-                    id: "dialogSensitiveDetails_Modal",
-                    title: "Sensitive Details Will Not Be Protected",
-                    width: 400,
-                    autoResize: true,
-                    closeOnEscape: false,
-                    backdrop: true,
-                    body: $('#dialogSensitiveDetails').html(),
-                    class: "",
-                    buttons: {
-                        "Ok": {
-                            id: "dialog_copyToUsb_DoCopy",
-                            click: function () {
-                                CloseModalDialog("dialogSensitiveDetails_Modal");
-                            }
-                        }
+                    },
+                    error: function (data) {
+                        //something went wrong
+                        $.jGrowl('Error occurred reading the Service_rsync value from host - ' + host, { themeState: 'danger' });
                     }
                 });
             }
-        });
 
-        // $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+            //Retrieves a list of available backup devices on the selected remote host
+            function GetRemoteHostUSBStorage() {
+                //Very similar to GetBackupDevices() but adapted to collect storage info from a remote system
+                var host = document.getElementById("backup.Host").value;
+                var requestUrl = "http://" + host + "/" + "api/backups/devices";
+                var default_none_selected_option = "<option value='none' selected>Default FPP Storage</option>";
 
-    </script>
-    <?php include 'common/footer.inc';?>
-</div>
-<div id='copyPopup' title='FPP Backup/Restore' style="display: none;">
-    <textarea style='min-height: 600px; width: 100%' disabled id='copyText'></textarea>
-    <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseCopyDialog();' style='display: none;'>
-</div>
+                // $('#backup\\.USBDevice').html('<option>Loading...</option>');
+                //Add a loading spinner to show something is happening
+                $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
 
-<datalist id='usbDirectories'>
-</datalist>
-</body>
-</html>
-	<?php
+                $.get(requestUrl
+                ).done(function (data) {
+                    var options = "";
+
+                    for (var i = 0; i < data.length; i++) {
+                        var desc = data[i].name;
+                        if (data[i].vendor != '')
+                            desc += ' - ' + data[i].vendor;
+
+                        if (data[i].model != '') {
+                            if (data[i].vendor != '')
+                                desc += ' ';
+                            else
+                                desc += ' - ';
+
+                            desc += data[i].model;
+                        }
+
+                        desc += ' - ' + data[i].size + 'GB';
+                        options += "<option value='" + data[i].name + "'>" + desc + "</option>";
+                    }
+                    //Populate the dropdown with the detected storage devices
+                    $('#backup\\.RemoteStorage').html(default_none_selected_option + options);
+
+                    //Remove the loading spinner
+                    $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
+
+                    if (options !== "") {
+                        //After populating the list, Get the currently set remote host storage device
+                        GetBackupRemoteStorageDevice();
+                    }
+                }).fail(function () {
+                    $('#backup\\.RemoteStorage').html(default_none_selected_option);
+                });
+            }
+
+            //Save the selected remote backup storage device selection to settings
+            function backupRemoteStorageChanged() {
+                //Get the value of the selected remove storage device
+                var value = encodeURIComponent($('#backup\\.RemoteStorage').val());
+
+                //Add the loading spinner
+                $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
+
+                //Write setting to system
+                $.ajax({
+                    url: 'api/settings/backup.RemoteStorage/',
+                    type: 'PUT',
+                    data: value,
+                    success: function (data) {
+                        $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
+
+                        $.jGrowl('Remote Backup Storage saved', { themeState: 'success' });
+                        settings['backup.RemoteStorage'] = value;
+
+                        //Get the directories on the selected storage
+                        GetBackupHostBackupDirs(encodeURIComponent(value));
+                    },
+                    error: function (data) {
+                        DialogError('Remote Backup Storage', 'Failed to save Backup Storage');
+                        //remove the spinner
+                        $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
+                    }
+                });
+            }
+
+            //Get the current setting for the remote hosts remote backup storage device (where the file copy will go to)
+            function GetBackupRemoteStorageDevice() {
+                //Add a the loading spinner to show something is happening
+                $('#backup\\.RemoteStorage').parent().closest('div').addClass('fpp-backup-action-loading');
+
+                $.ajax({
+                    url: 'api/settings/backup.RemoteStorage',
+                    type: 'GET',
+                    success: function (data) {
+                        if (data.value !== "" || typeof (data.value) !== "undefined") {
+                            //Check if the chosen USB device/location exists in the dropdown list
+                            //The USB device dropdown list only lists devices which are available for use, so if the chosen device is not in the list
+                            //it's likely unavailable or still mounted (as such not available for use)
+                            var remote_storage_ddl_selector = $('#backup\\.RemoteStorage option[value="' + data.value + '"]');
+                            if (remote_storage_ddl_selector.length) {
+                                //Change the JSON Config backup location to the one set by the user if a valid value is set
+                                remote_storage_ddl_selector.attr('selected', true);
+                            } else {
+                                var host = document.getElementById("backup.Host").value;
+                                $('#backup\\.RemoteStorage').parent().append("<span> <b>Warning:</b> " + data.value + " is not available. Check device is attached to host and that is not currently mounted. Check <a href='http://" + host + "/settings.php#settings-storage' target='_blank'>" + host + " - Mounted USB Devices</a></span>");
+                            }
+                            //
+                            $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
+
+                            //Get the backup directories avaiable on the selected storage device if were restoring from remote,
+                            if (document.getElementById("backup.Direction").value == 'FROMREMOTE') {
+                                //If no Remote Storage device is selected don't pass anything to this function telling it to look at another device
+                                //so we just get what is on the default FPP storage device
+                                var selectedStorage = encodeURIComponent($('#backup\\.RemoteStorage').val());
+
+                                GetBackupHostBackupDirs(selectedStorage);
+                            }
+                        }
+                    },
+                    error: function (data) {
+                        //do nothing
+                        DialogError('Remote Host Backup Storage Location', 'Failed to read remote storage location.');
+
+                        $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
+                    }
+                });
+            }
+
+
+
+            function pageSpecific_PageLoad_DOM_Setup() {
+                $('#backup\\.Path').attr('list', 'usbDirectories');
+                GetBackupDevices();
+                GetJSONConfigBackupList();
+            }
+
+            function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
+                $('a[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
+                    $('table').floatThead('reflow');
+                });
+
+                //float th thead on download existing backups table
+                $('.table-download-existing-backups').floatThead({
+                    zIndex: 990,
+                    debug: true,
+                    scrollContainer: function () {
+                        return $('.table-download-existing-backups').closest(".table-download-existing-backups-container");
+                    }
+                });
+
+
+                //float th thead on restore existing backups table
+                $('.table-restore-existing-backups').floatThead({
+                    zIndex: 990,
+                    debug: false,
+                    scrollContainer: function () {
+                        return $('.table-restore-existing-backups').closest(".table-restore-existing-backups-container");
+                    }
+                });
+
+
+            }
+
+            var activeTabNumber =
+                <?php
+                if (isset($_GET['tab']) and is_numeric($_GET['tab'])) {
+                    print $_GET['tab'];
+                } else {
+                    print "0";
+                }
+
+                ?>;
+        </script>
+
+        <style>
+            .copyHost {
+                display: none;
+            }
+
+            .copyPathSelect {
+                display: none;
+            }
+
+            .copyHostDevice {
+                display: none;
+            }
+
+            .sendCompressed {
+                display: none;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="bodyWrapper">
+            <?php
+            $activeParentMenuItem = 'status';
+            include 'menu.inc'; ?>
+            <div class="mainContainer">
+                <h1 class='title'>FPP Backups</h1>
+                <div class="pageContent">
+                    <div class="fppTabs">
+                        <div id="fppBackups">
+                            <ul id="fppBackupTabs" class="nav nav-pills pageContent-tabs" role="tablist">
+
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="backups-jsonBackup-tab" data-bs-toggle="tab"
+                                        data-bs-target="#tab-jsonBackup" href="#tab-jsonBackup" role="tab"
+                                        aria-controls="tab-jsonBackup" aria-selected="true">
+                                        JSON Configuration Backup
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="backups-fileCopy-tab" data-bs-toggle="tab"
+                                        data-bs-target="#tab-fileCopy" href="#tab-fileCopy" role="tab"
+                                        aria-controls="tab-fileCopy" aria-selected="false">
+                                        File Copy Backup
+                                    </a>
+                                </li>
+                            </ul>
+
+                            <div id="fppBackupsTabsContent" class="tab-content">
+                                <div id="tab-jsonBackup" class="tab-pane fade show active" role="tabpanel"
+                                    aria-labelledby="backups-jsonBackup-tab">
+                                    <form action="backup.php" method="post" name="frmBackup" enctype="multipart/form-data">
+                                        <?php
+                                        //Spit out the backup errors if the backup_errors array isn't empty
+                                        if (!is_array_empty($backup_errors)) {
+                                            ?>
+                                            <div id="rebootFlag"
+                                                style="display: block; margin-right: auto; margin-left: auto; width: 60%;">
+                                                Backup failed: <br>
+                                                <ul>
+                                                    <?php
+                                                    foreach ($backup_errors as $backup_error) {
+                                                        echo "<li>$backup_error</li>";
+                                                    }
+                                                    ?>
+                                                </ul>
+                                            </div>
+                                            <?php
+                                        }
+                                        ?>
+                                        <?php if ($restore_done == true) {
+                                            ?>
+                                            <div id="rebootFlag" style="display: block;" class="callout callout-warning">Backup
+                                                Restored, FPPD Restart or Reboot may be required.
+                                            </div>
+                                            <div id="restoreSuccessFlag" class="callout callout-primary">What was restored: <br>
+                                                <?php
+                                                foreach ($settings_restored as $area_restored => $success) {
+                                                    $success_str = "";
+                                                    if (is_array($success)) {
+                                                        //                $success_area_data = false;
+                                                        $success_messages = "";
+
+                                                        //If the ATTEMPT and SUCCESS keys don't exist in the array, then try to process the internals which will be a sub areas and possibly have them.
+                                                        if (!array_key_exists('ATTEMPT', $success) && !array_key_exists('SUCCESS', $success) && !empty($success)) {
+                                                            //process internal array for areas with sub areas
+                                                            foreach ($success as $success_area_idx => $success_area_data) {
+                                                                if (is_array($success_area_data) && array_key_exists('ATTEMPT', $success_area_data) && array_key_exists('SUCCESS', $success_area_data)) {
+                                                                    $success_area_attempt = $success_area_data['ATTEMPT'];
+                                                                    $success_area_success = $success_area_data['SUCCESS'];
+
+                                                                    if ($success_area_attempt == true && $success_area_success == true) {
+                                                                        $success_str = "Success";
+                                                                        $success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $success_area_idx)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                                                                    } else {
+                                                                        $success_str = "Failed";
+                                                                        $success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $success_area_idx)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                                                                    }
+                                                                }
+                                                            }
+                                                        } //There is an ATTEMPT and SUCCESS key, check values of both
+                                                        else if (array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
+                                                            $success_area_attempt = $success['ATTEMPT'];
+                                                            $success_area_success = $success['SUCCESS'];
+
+                                                            if ($success_area_attempt == true && $success_area_success == true) {
+                                                                $success_str = "Success";
+                                                                $success_messages .= "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                                                            } else {
+                                                                $success_str = "Failed";
+                                                                $success_messages .= "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                                                            }
+
+                                                        } // No Attempt key, then we shouldn't print the success
+                                                        else if (!array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
+                                                            //Ignore
+                                                        }
+                                                        //Print out the restore successes
+                                                        echo $success_messages;
+                                                    } else {
+                                                        //normal area
+                                                        if ($success == true) {
+                                                            $success_str = "Success";
+                                                            $success_messages = "<span class='callout callout-success' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+                                                        } else {
+                                                            $success_str = "Failed";
+                                                            $success_messages = "<span class='callout callout-danger' style='padding-top: 0.2em; padding-bottom: 0.2em;margin-top: 0.2em;margin-bottom: 0.2em;'>" . ucwords(str_replace("_", " ", $area_restored)) . " - " . "<b>" . $success_str . "</b>" . "</span><br/>";
+
+                                                        }
+                                                        echo $success_messages;
+                                                    }
+                                                }
+                                                //If network settings have been restored, print out the IP addresses that should come info effect
+                                                if ($network_settings_restored) {
+                                                    //Print the IP addresses out
+                                                    foreach ($network_settings_restored_applied_ips as $idx => $network_ip_address) {
+                                                        if (!empty($network_ip_address)) {
+                                                            echo ucwords(str_replace("_", " ", $idx)) . " - Network Settings" . "<br/>";
+                                                            //If there is a SSID, print it also
+                                                            if (is_array($network_ip_address) && array_key_exists('SSID', $network_ip_address)) {
+                                                                echo "SSID: " . ($network_ip_address['SSID']) . "<br/>";
+                                                            }
+                                                            //Print out details for static addresses
+                                                            echo "Type: " . ($network_ip_address['PROTO']) . "<br/>";
+                                                            if (strtolower($network_ip_address['PROTO']) == 'static') {
+                                                                echo "IP: " . "<a href='http://" . $network_ip_address['ADDRESS'] . "'>" . $network_ip_address['ADDRESS'] . "</a>" . "<br/>";
+                                                                echo "Netmask: " . ($network_ip_address['NETMASK']) . "<br/>";
+                                                                echo "GW: " . ($network_ip_address['GATEWAY']) . "<br/>";
+                                                            }
+                                                            echo "<br/>";
+                                                        }
+                                                    }
+
+                                                    echo "<span class='callout callout-danger'>REBOOT REQUIRED: Please VERIFY the above settings, if they seem incorrect please adjust them in <a href='./networkconfig.php'>Network Settings</a> BEFORE rebooting. </span>";
+                                                }
+                                                ?>
+                                            </div>
+                                            <?php
+                                        }
+                                        ?>
+                                        <div class="backdrop">
+                                            <div class="container-fluid">
+                                                <div class="row">
+                                                    <div class="col-md-6 backup-config-start-panel">
+                                                        <div class="row">
+                                                            <h2>Backup Configuration</h2>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-4">
+                                                                <span>Protect sensitive data?</span>
+                                                            </div>
+                                                            <div class="col-md-8">
+                                                                <input id="dataProtect" name="protectSensitive"
+                                                                    type="checkbox" checked="true">
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row">
+                                                            <div class="col-md-4">
+                                                                <span class='jsonConfigUSB'>Copy Backups To Additional
+                                                                    Location:</span>
+                                                            </div>
+                                                            <div class="col-md-8">
+                                                                <select name='jsonConfigbackup.USBDevice'
+                                                                    id='jsonConfigbackup.USBDevice'
+                                                                    onChange='JSONConfigBackupUSBDeviceChanged();'></select>
+                                                                <input type='button'
+                                                                    class='buttons refreshBackupDevicesList'
+                                                                    onClick='GetBackupDevices();' value='Refresh List'>
+                                                                <img id="jsonConfigUSBUsage_img"
+                                                                    title="Specify an additional storage device where configuration backups will be copied to. Backups will first be saved to the config directory (<?php echo $settings['configDirectory'] . "/backups" ?>), and then copied to the alternative location."
+                                                                    src="images/redesign/help-icon.svg" class="icon-help">
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row">
+                                                            <div class="col-md-4"><span>Backup Area</span></div>
+                                                            <div class="col-md-8"><?php echo genSelectList('backuparea'); ?>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-4"></div>
+                                                            <div class="col-md-8">
+                                                                <button name="btnDownloadConfig" type="Submit"
+                                                                    class="buttons" value="Download Configuration"><i
+                                                                        class="fas fa-fw fa-nbsp fa-download"></i>Download
+                                                                    Configuration
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-6 backup-config-end-panel">
+                                                        <div class="row">
+                                                            <div class="col-md-12">
+                                                                <h2>Download Existing Backups</h2>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row">
+                                                            <div
+                                                                class="col-md-12 table-download-existing-backups-container table-responsive">
+                                                                <table class="table table-download-existing-backups">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th scope="col">Date</th>
+                                                                            <th scope="col">Configuration Change</th>
+                                                                            <th scope="col">Actions</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="table-download-existing-backups-content">
+
+                                                                        <tr>
+                                                                            <td></td>
+                                                                            <td>Loading Existing Backups....</td>
+                                                                            <td></td>
+                                                                        </tr>
+
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row">
+                                                            <div
+                                                                class="col-md-6 text-center table-download-existing-backups-legend">
+                                                                <span>
+                                                                    <i class="fas fa-sd-card"></i> - Located On FPP Storage
+                                                                    Device
+                                                                </span>
+                                                            </div>
+                                                            <div
+                                                                class="col-md-6 text-center table-download-existing-backups-legend">
+                                                                <span><i class="fas fa-hdd">
+                                                                    </i> - Located On Alternate Backup Location
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <br />
+
+                                        <div class="backdrop">
+
+                                            <div class="container-fluid">
+
+                                                <div class="row">
+                                                    <div class="col-md-6 restore-config-start-panel">
+                                                        <div class="row">
+                                                            <h2>Restore Configuration</h2>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-4">Keep Existing Network Settings</div>
+                                                            <div class="col-md-8">
+                                                                <input name="keepExitingNetwork" type="checkbox"
+                                                                    checked="true">
+                                                            </div>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-4">Keep Existing Player/Remote Settings</div>
+                                                            <div class="col-md-8">
+                                                                <input name="keepMasterSlave" type="checkbox"
+                                                                    checked="true">
+                                                            </div>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-4">Restore Area</div>
+                                                            <div class="col-md-8">
+                                                                <?php echo genSelectList('restorearea'); ?>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-4"></div>
+                                                            <div class="col-md-8">
+                                                                <i class="fas fa-fw fa-nbsp fa-upload"></i>
+                                                                <input id="btnUploadConfig" name="conffile" type="file"
+                                                                    accept=".json" id="conffile" autocomplete="off">
+                                                                <script>
+                                                                    $('#btnUploadConfig').on("change", function (e) {
+                                                                        if (e.target.files[0].name.length > 4) {
+                                                                            $('#btnRestoreConfig').show();
+                                                                        }
+                                                                    });
+                                                                </script>
+                                                            </div>
+                                                        </div>
+                                                        <div class='row'>
+                                                            <div class="col-md-4"></div>
+                                                            <div class="col-md-8">
+                                                                <button id="btnRestoreConfig" name="btnRestoreConfig"
+                                                                    type="Submit" class="buttons hidden">
+                                                                    <i class="fas fa-fw fa-nbsp fa-file-import"></i>Restore
+                                                                    Configuration
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-6 restore-config-end-panel">
+                                                        <div class="row">
+                                                            <div class="col-md-12">
+                                                                <h2>Restore Existing Backups</h2>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row">
+                                                            <div class="col-md-12 table-restore-existing-backups-container">
+                                                                <table class="table table-restore-existing-backups">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th scope="col">Date</th>
+                                                                            <th scope="col">Configuration Change</th>
+                                                                            <th scope="col">Actions</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="table-restore-existing-backups-content">
+
+                                                                        <tr>
+                                                                            <td></td>
+                                                                            <td>Loading Existing Backups....</td>
+                                                                            <td></td>
+                                                                        </tr>
+
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+
+                                                    </div>
+
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                <div id="tab-fileCopy" class="tab-pane fade" role="tabpanel"
+                                    aria-labelledby="backups-fileCopy-tab">
+                                    <div class="backdrop">
+                                        <h2>File Copy Backup/Restore</h2>
+                                        Copy configuration, sequences, etc... to/from a backup device.
+                                        <table>
+                                            <tr>
+                                                <td>Copy Type:</td>
+                                                <td><select id="backup.Direction" onChange='BackupDirectionChanged();'>
+                                                        <option value="TOUSB" selected>Backup To USB</option>
+                                                        <option value="FROMUSB">Restore From USB</option>
+                                                        <option value="TOLOCAL">Backup To Local FPP Backups Directory
+                                                        </option>
+                                                        <option value="FROMLOCAL">Restore From Local FPP Backups Directory
+                                                        </option>
+                                                        <option value="TOREMOTE">Backup To Remote FPP Backups Directory
+                                                        </option>
+                                                        <option value="FROMREMOTE">Restore From Remote FPP Backups Directory
+                                                        </option>
+                                                    </select></td>
+                                            </tr>
+                                            <tr class='copyUSB'>
+                                                <td>USB Device:</td>
+                                                <td><select name='backup.USBDevice' id='backup.USBDevice'
+                                                        onChange='USBDeviceChanged();'></select> <input type='button'
+                                                        class='buttons' onClick='GetBackupDevices();' value='Refresh List'>
+                                                </td>
+                                            </tr>
+                                            <tr class='copyHost'>
+                                                <td>Remote Host:</td>
+                                                <td><?php PrintSettingSelect('Backup Host', 'backup.Host', 0, 0, '', $backupHosts, '', 'GetBackupHostBackupDirs'); ?>
+                                                </td>
+                                            </tr>
+                                            <tr class='copyHostDevice'>
+                                                <td>Remote Storage:</td>
+                                                <td><select id="backup.RemoteStorage"
+                                                        onchange="backupRemoteStorageChanged();">
+                                                        <option value="none" selected="">Default FPP Storage</option>
+                                                    </select></td>
+                                            </tr>
+                                            <tr class='copyPath'>
+                                                <td>Backup Path:</td>
+                                                <td><?php PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', $settings["HostName"]); ?>
+                                                </td>
+                                            </tr>
+                                            <tr class='copyPathSelect'>
+                                                <td>Backup Path:</td>
+                                                <td><select name='backup.PathSelect' id='backup.PathSelect'></select></td>
+                                            </tr>
+                                            <tr class='sendCompressed'>
+                                                <td>Send Compressed Data: </td>
+                                                <td>
+                                                    <?php PrintSettingCheckbox('Send Compressed Data:', 'backup.sendCompressed', 0, 0, 1, 0, "", "", 0, ' (Compress files during copy to speed up the copy process. NOTE: Newer xLights versions already used a compressed FSEQ format, so this option may only slow down the transfer as FPP tries to recompress already-compressed data. Some data like Music and Videos are not compressed.)'); ?>
+                                                    <br>
+                                                </td>
+                                            </tr>
+
+                                            <tr>
+                                                <td>What to copy:</td>
+                                                <td>
+                                                    <table id="CopyFlagsTable">
+                                                        <tr>
+                                                            <td>
+                                                                <?php PrintSettingCheckbox('Backup Configuration', 'backup.Configuration', 0, 0, 1, 0, "", "", 1, 'Configuration'); ?><br>
+                                                                <?php PrintSettingCheckbox('Backup Playlists', 'backup.Playlists', 0, 0, 1, 0, "", "", 1, 'Playlists'); ?><br>
+                                                            </td>
+                                                            <td width='10px'></td>
+                                                            <td>
+                                                                <?php PrintSettingCheckbox('Backup Plugins', 'backup.Plugins', 0, 0, 1, 0, "", "", 1, 'Plugins'); ?><br>
+                                                            </td>
+                                                            <td width='10px'></td>
+                                                            <td>
+                                                                <?php PrintSettingCheckbox('Backup Sequences', 'backup.Sequences', 0, 0, 1, 0, "", "", 1, 'Sequences'); ?><span
+                                                                    style="color: #AA0000">*</span><br>
+                                                                <?php PrintSettingCheckbox('Backup Images', 'backup.Images', 0, 0, 1, 0, "", "", 1, 'Images'); ?><br>
+                                                            </td>
+                                                            <td width='10px'></td>
+                                                            <td>
+                                                                <?php PrintSettingCheckbox('Backup Scripts', 'backup.Scripts', 0, 0, 1, 0, "", "", 1, 'Scripts'); ?><br>
+                                                                <?php PrintSettingCheckbox('Backup Effects', 'backup.Effects', 0, 0, 1, 0, "", "", 1, 'Effects'); ?><br>
+                                                            </td>
+                                                            <td width='10px'></td>
+                                                            <td>
+                                                                <?php PrintSettingCheckbox('Backup Music', 'backup.Music', 0, 0, 1, 0, "", "", 1, 'Music'); ?><br>
+                                                                <?php PrintSettingCheckbox('Backup Videos', 'backup.Videos', 0, 0, 1, 0, "", "", 1, 'Videos'); ?><br>
+                                                            </td>
+                                                            <td width='10px'></td>
+                                                            <td valign='top'>
+                                                                <?php
+                                                                $eepromValue = file_exists('/home/fpp/media/config/cape-eeprom.bin') ? 1 : 0;
+                                                                PrintSettingCheckbox('Backup Virtual EEPROM', 'backup.EEPROM', 0, 0, 1, 0, "", "", $eepromValue, 'Virtual EEPROM');
+                                                                ?>
+                                                                <span class='copyBackups'><br><input type='checkbox'
+                                                                        id='backup.Backups'>Backups <span
+                                                                        style="color: #AA0000">*</span></span>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Delete extras:</td>
+                                                <td><input type='checkbox' id='backup.DeleteExtra'> (Delete extra files on
+                                                    destination that do not exist on the source)</td>
+                                            </tr>
+                                            <tr>
+                                                <td></td>
+                                                <td>
+                                                    <input type='button' class="buttons" value="Copy"
+                                                        onClick="PerformCopy();">
+                                        </table>
+
+                                        <div class="callout callout-danger">
+                                            <h4>Notes:</h4>
+                                            <ul>
+                                                <li>Sequence backups may not work correctly when restored on other FPP
+                                                    systems if the sequences are FSEQ v2 files and the Channel Output
+                                                    configurations of the two systems do not match.</li>
+                                                <li class='copyBackups'>*Backing up Backups will copy all local backups to
+                                                    the USB device.</li>
+                                            </ul>
+
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    <div id="dialogSensitiveDetails" title="Warning!" style="display:none">
+                        <p>Un-checking this box will disable protection (automatic removal) of sensitive data like
+                            passwords.
+                            <br>
+                            <b>ONLY</b> Un-check this if you want to be able make an exact clone of settings to another FPP.
+                            <br>
+                            <b>NOTE:</b> The backup will include passwords in plaintext, you assume full responsibility for
+                            this
+                            file.
+                            <br>
+                        </p>
+                    </div>
+
+                    <div id="dialog_copyToUsb" title="Do You To Copy Existing Backups to USB?" style="display:none">
+                        <p>Do you want to perform an initial copy of any existing backups on SD card to the chosen USB
+                            device?.
+                            <br>
+                            <b>If Yes</b>, any existing JSON Setting backups on the SD card will be copied to the selected
+                            USB storage device.
+                            <br>
+                            <b>If No</b>, backups will copied across on any future setting change.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+            <script>
+                $('#dataProtect').on("click", function () {
+                    var checked = $(this).is(':checked');
+                    if (!checked) {
+
+                        DoModalDialog({
+                            id: "dialogSensitiveDetails_Modal",
+                            title: "Sensitive Details Will Not Be Protected",
+                            width: 400,
+                            autoResize: true,
+                            closeOnEscape: false,
+                            backdrop: true,
+                            body: $('#dialogSensitiveDetails').html(),
+                            class: "",
+                            buttons: {
+                                "Ok": {
+                                    id: "dialog_copyToUsb_DoCopy",
+                                    click: function () {
+                                        CloseModalDialog("dialogSensitiveDetails_Modal");
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+
+                // $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+
+            </script>
+            <?php include 'common/footer.inc'; ?>
+        </div>
+        <div id='copyPopup' title='FPP Backup/Restore' style="display: none;">
+            <textarea style='min-height: 600px; width: 100%' disabled id='copyText'></textarea>
+            <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseCopyDialog();'
+                style='display: none;'>
+        </div>
+
+        <datalist id='usbDirectories'>
+        </datalist>
+    </body>
+
+    </html>
+    <?php
 }
 ?>
