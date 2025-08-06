@@ -1516,8 +1516,7 @@
             getGeniusControllerStatus(gips, true);
             getWLEDControllerStatus(wips, true);
             getFalconControllerStatus(fv3ips, fv4ips, true);
-            $('#fppSystemsTable').trigger('sorton', [[[9, 0]]]); // Sort by Color columns
-            $("#fppSystemsTable").trigger("update"); // Refresh Tablesorter
+            $('#fppSystemsTable').trigger("updateAll"); // Refresh Tablesorter 
         }
 
         function MultiSyncEnableToggled() {
