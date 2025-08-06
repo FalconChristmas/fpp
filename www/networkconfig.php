@@ -376,6 +376,7 @@
                 });
 
                 SaveDNSConfig();
+                SetRebootFlag();
             });
         }
 
@@ -863,8 +864,13 @@
                                         <div class="row" id="backupessidRow">
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
                                                 <div class="description">
-                                                    <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1" data-bs-tooltip-title="Advanced Level Setting" data-bs-toggle="tooltip" data-bs-placement="auto" aria-label="Advanced Level Setting" data-bs-original-title="Advanced Level Setting"></i>
-                                                    Backup WPA SSID</div>
+                                                    <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1"
+                                                        data-bs-tooltip-title="Advanced Level Setting"
+                                                        data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                        aria-label="Advanced Level Setting"
+                                                        data-bs-original-title="Advanced Level Setting"></i>
+                                                    Backup WPA SSID
+                                                </div>
                                             </div>
                                             <div class="printSettingFieldCol col-md"><input list="eth_ssids"
                                                     name="backupeth_ssid" id="backupeth_ssid" size="32"
@@ -876,8 +882,13 @@
                                         <div class="row" id="backuppskRow">
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
                                                 <div class="description">
-                                                    <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1" data-bs-tooltip-title="Advanced Level Setting" data-bs-toggle="tooltip" data-bs-placement="auto" aria-label="Advanced Level Setting" data-bs-original-title="Advanced Level Setting"></i>
-                                                    Backup WPA Pre Shared key (PSK)</div>
+                                                    <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1"
+                                                        data-bs-tooltip-title="Advanced Level Setting"
+                                                        data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                        aria-label="Advanced Level Setting"
+                                                        data-bs-original-title="Advanced Level Setting"></i>
+                                                    Backup WPA Pre Shared key (PSK)
+                                                </div>
                                             </div>
                                             <div class="printSettingFieldCol col-md"><input type="password"
                                                     name="backupeth_psk" id="backupeth_psk" size="32"
@@ -943,11 +954,12 @@
                     <div class="tab-pane fade" id="tab-host-dns" role="tabpanel" aria-labelledby="tab-host-dns-tab">
 
                         <h2>Host Settings</h2>
-                        <b>Changing the Host Name from FPP will cause http://fpp.local/ to change and you will need to use the new Host Name eg http://&ltHost Name&gt.local/</b>
+                        <b>Changing the Host Name from FPP will cause http://fpp.local/ to change and you will need to
+                            use the new Host Name eg http://&ltHost Name&gt.local/</b>
                         <br>
                         <br>
                         <?
-                        PrintSettingGroup('host','','','','','',false);
+                        PrintSettingGroup('host', '', '', '', '', '', false);
                         ?>
 
 

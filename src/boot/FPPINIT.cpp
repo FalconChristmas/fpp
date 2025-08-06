@@ -515,7 +515,7 @@ static void unblockWifi() {
     }
 }
 
-static void setupNetwork() {
+static void setupNetwork(bool fullReload = false) {
     unblockWifi();
     auto dnsSettings = loadSettingsFile(FPP_MEDIA_DIR + "/config/dns");
     std::string dns = dnsSettings["DNS1"];
@@ -535,6 +535,7 @@ static void setupNetwork() {
     std::map<std::string, std::string> filesNeeded;
     std::list<std::string> filesToConsider;
     std::list<std::string> commandsToRun;
+    std::list<std::string> postCommandsToRun;
     for (const auto& entry : std::filesystem::directory_iterator("/etc/systemd/network")) {
         std::string dev = entry.path().filename();
         if (startsWith(dev, "10-") && endsWith(dev, ".network")) {
@@ -637,6 +638,7 @@ static void setupNetwork() {
                         commandsToRun.emplace_back("systemctl enable \"wpa_supplicant@" + interface + ".service\" &");
                         commandsToRun.emplace_back("systemctl daemon-reload");
                     }
+                    postCommandsToRun.emplace_back("systemctl reload-or-restart \"wpa_supplicant@" + interface + ".service\" &");
                 } else {
                     validConfig = false;
                 }
@@ -690,13 +692,6 @@ static void setupNetwork() {
                     content.append(GetFileContents(FPP_MEDIA_DIR + "config/leases." + interface));
                 }
                 content.append("\n");
-
-/*                 if (!FileExists(FPP_MEDIA_DIR + "/config/proxies")) {
-                    // DHCPServer is on, lets make sure proxies are enabled
-                    // so they can be found via the proxies page
-                    std::string c2 = "RewriteEngine on\nRewriteBase /proxy/\n\nRewriteCond %{HTTP:Upgrade}     \"websocket\" [NC]\nRewriteCond %{HTTP:Connection}  \"Upgrade\" [NC]\nRewriteRule ^(.*)/(.*)$ \"ws://$1/$2\" [P]\n\nRewriteRule ^(.*)/(.*)$  http://$1/$2  [P,L]\nRewriteRule ^(.*)$  $1/  [R,L]\n";
-                    PutFileContents(FPP_MEDIA_DIR + "/config/proxies", c2);
-                } */
             }
             if (validConfig) {
                 filesNeeded["/etc/systemd/network/10-" + interface + ".network"] = content;
@@ -718,9 +713,14 @@ static void setupNetwork() {
     }
     changed |= compareAndCopyFiles(filesNeeded);
     if (changed) {
-        printf("Need to restart/reload stuff\n");
+        bool localFullReload = false;
+        printf("Need to restart/reload stuff.\n");
         for (auto& c : commandsToRun) {
+            printf("    %s\n", c.c_str());
             exec(c);
+        }
+        if (fullReload) {
+            exec("/usr/bin/systemctl daemon-reload");
         }
         execbg("/usr/bin/systemctl reload-or-restart systemd-networkd.service &");
         if (hostapd) {
@@ -729,11 +729,22 @@ static void setupNetwork() {
         } else {
             if (contains(execAndReturn("/usr/bin/systemctl is-enabled hostapd"), "enabled")) {
                 execbg("/usr/bin/systemctl disable hostapd.service &");
+                execbg("/usr/bin/systemctl reload-or-restart systemd-networkd.service &");
+                localFullReload = true;
             }
             if (!contains(execAndReturn("/usr/bin/systemctl is-active hostapd"), "inactive")) {
-                execbg("/usr/bin/systemctl stop hostapd.service &");
+                exec("/usr/bin/systemctl stop hostapd.service");
+                localFullReload = true;
             }
             exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
+        }
+        if (fullReload && localFullReload) {
+            exec("/usr/bin/systemctl daemon-reload");
+            exec("/usr/bin/systemctl reload-or-restart systemd-networkd.service");
+            for (auto& c : postCommandsToRun) {
+                printf("    %s\n", c.c_str());
+                exec(c);
+            }
         }
     }
 
@@ -1553,7 +1564,7 @@ int main(int argc, char* argv[]) {
         installKiosk();
     } else if (action == "setupNetwork") {
         PutFileContents(networkSetupMut, "1");
-        setupNetwork();
+        setupNetwork(true);
         waitForInterfacesUp(false, 70);
         detectNetworkModules();
         maybeEnableTethering();
