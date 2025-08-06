@@ -489,23 +489,31 @@
             "grpDisplayTitle": "GPIO",
             "grpDescription": "Set of tools for GPIO troubleshooting",
             "platforms": [
-                "Raspberry Pi"
+                "Raspberry Pi", "BeagleBone Black", "BeagleBone 64"
             ],
             "commands": {
                 "GPIO": {
                     "title": "GPIO",
-                    "description": "",
+                    "description": "Information about the GPIO chips on the system",
                     "cmd": "gpiodetect",
                     "platforms": [
-                        "Raspberry Pi"
+                        "Raspberry Pi", "BeagleBone Black", "BeagleBone 64"
                     ]
                 },
                 "GPIOInfo": {
                     "title": "GPIO Info",
-                    "description": "",
+                    "description": "Information about the GPIO lines on the system",
                     "cmd": "gpioinfo",
                     "platforms": [
-                        "Raspberry Pi"
+                        "Raspberry Pi", "BeagleBone Black", "BeagleBone 64"
+                    ]
+                },
+                "pinctrl": {
+                    "title": "pinctrl",
+                    "description": "A tool to display the GPIO and pin muxing state of a system, bypassing the kernel",
+                    "cmd": "pinctrl -q",
+                    "platforms": [
+                        "BeagleBone 64"
                     ]
                 }
             }

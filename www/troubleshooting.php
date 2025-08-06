@@ -65,8 +65,8 @@
                     foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
                         //Loop through groupings
                         //Display group if relevant for current platform
+                        ${'hotlinks-' . $commandGrpID} = "<div class=\"container\"><div class=\"row mb-3\">";
                         if (count(array_intersect($troubleshootingCommandGroups[$commandGrpID]["platforms"], $target_platforms)) > 0) {
-                            ${'hotlinks-' . $commandGrpID} = "<div class=\"container\"><div class=\"row mb-3\">";
                             echo "<div class=\"tab-pane fade\"  id=\"pills-" . $commandGrpID . "\" role=\"tabpanel\" aria-labelledby=\"pills-" . $commandGrpID . "-tab\">";
                             ?>
                             <div id="troubleshooting-grp-<? echo $commandGrpID; ?>" class="backdrop">
@@ -162,7 +162,7 @@
                                 }
                             });
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <?
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <?
                         }
                     } ?>}<?
         }
