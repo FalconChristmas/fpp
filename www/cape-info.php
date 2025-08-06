@@ -346,9 +346,19 @@ if (isset($settings["cape-info"])) {
                 eepromVendorCapeVersions.empty();
                 if (capeName in eepromList[vendor]) {
                     for (v in eepromList[vendor][capeName]["versions"]) {
-                        var option = "<option value='" + eepromList[vendor][capeName]["versions"][v].url + "'>" + v + "</option>";
-                        eepromVendorCapeVersions.append(option);
-                        eepromVendorCapeVersions.removeAttr('disabled');
+                        let ver = eepromList[vendor][capeName]["versions"][v];
+                        var valid = true;
+                        if ("platforms" in ver) {
+                            if (!ver.platforms.includes(settings["Platform"])
+                                && !ver.platforms.includes(settings["Variant"])) {
+                                valid = false;
+                            }
+                        }
+                        if (valid) {
+                            var option = "<option value='" + v.url + "'>" + v + "</option>";
+                            eepromVendorCapeVersions.append(option);
+                            eepromVendorCapeVersions.removeAttr('disabled');
+                        }
                     }
                 } else {
                     $('#eepromVendorCapeVersions').append("<option value=''>-- Select Vendor/Cape --</option>");
