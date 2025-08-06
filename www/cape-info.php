@@ -355,7 +355,7 @@ if (isset($settings["cape-info"])) {
                             }
                         }
                         if (valid) {
-                            var option = "<option value='" + v.url + "'>" + v + "</option>";
+                            var option = "<option value='" + ver.url + "'>" + v + "</option>";
                             eepromVendorCapeVersions.append(option);
                             eepromVendorCapeVersions.removeAttr('disabled');
                         }
