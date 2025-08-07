@@ -25,3 +25,5 @@ void RemoveArtNetOpcodeHandler(int opCode);
 void ResetBytesReceived();
 bool HasBridgeData();
 Json::Value GetE131UniverseBytesReceived();
+
+bool InputsEnabled();

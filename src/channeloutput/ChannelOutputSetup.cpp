@@ -77,6 +77,11 @@ inline void addChannelOutput(FPPChannelOutputInstance* inst) {
 
 OutputProcessors outputProcessors;
 
+bool HasChannelOutputs() {
+    return channelOutputs.load() != nullptr;
+}
+
+static std::map<std::string, std::set<std::string>> outputLoadWarnings;
 static std::vector<std::pair<uint32_t, uint32_t>> outputRanges;
 static std::vector<std::pair<uint32_t, uint32_t>> preciseOutputRanges;
 
@@ -284,7 +289,9 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(5));
             }
             if (!LoadJsonFromFile(cfgFile, root)) {
-                WarningHolder::AddWarning("Could not parse " + cfgFile + ". Some outputs may not work.");
+                std::string warning = "Could not parse " + cfgFile + ". Some outputs may not work.";    
+                WarningHolder::AddWarning(warning);
+                outputLoadWarnings[cfgFile].insert(warning);
                 LogErr(VB_CHANNELOUT, "Error parsing %s\n", cfgFile.c_str());
                 return false;
             }
@@ -336,7 +343,10 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
         }
         delete inst;
     }
-
+    for (auto& warning : outputLoadWarnings[cfgFile]) {
+        WarningHolder::RemoveWarning(warning);
+    }
+    outputLoadWarnings.erase(cfgFile);
     if (FileExists(cfgFile)) {
         const Json::Value outputs = root["channelOutputs"];
         std::string type;
@@ -359,7 +369,10 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
             if (start < 0 && count > 0) {
                 // we have a negative channel number, but actually are supposed to be outputting data
                 // Skip this output as that's not valid
-                WarningHolder::AddWarning("Could not initialize output type " + type + ". Invalid start channel.");
+                std::string warning = "Could not initialize output type " + type + ". Invalid start channel.";
+                WarningHolder::AddWarning(warning);
+                outputLoadWarnings[cfgFile].insert(warning);
+                LogInfo(VB_CHANNELOUT, "%s\n", warning.c_str());
                 continue;
             }
 
@@ -391,16 +404,24 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                         channelOutput = nullptr;
                         changed = true;
                     } else {
-                        WarningHolder::AddWarning("Could not initialize output type " + type + ". Check logs for details.");
+                        std::string warning = "Could not initialize output type " + type + ". Check logs for details.";
+                        WarningHolder::AddWarning(warning);
+                        LogErr(VB_CHANNELOUT, warning.c_str());
+                        outputLoadWarnings[cfgFile].insert(warning);
                         delete channelOutput->output;
                         channelOutput->output = nullptr;
                     }
                 } else {
-                    LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
-                    WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
+                    std::string warning = "Could not create output type " + type + ". Check logs for details.";
+                    WarningHolder::AddWarning(warning);
+                    outputLoadWarnings[cfgFile].insert(warning);
+                    LogErr(VB_CHANNELOUT, warning.c_str());
                 }
             } catch (const std::exception& ex) {
-                WarningHolder::AddWarning("Could not initialize output type " + type + ". (" + ex.what() + ")");
+                std::string warning = "Could not initialize output type " + type + ". (" + ex.what() + ")";
+                WarningHolder::AddWarning(warning);
+                LogErr(VB_CHANNELOUT, warning.c_str());
+                outputLoadWarnings[cfgFile].insert(warning);
                 if (channelOutput && channelOutput->output) {
                     delete channelOutput->output;
                     channelOutput->output = nullptr;

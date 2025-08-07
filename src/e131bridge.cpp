@@ -102,6 +102,12 @@ void RemoveArtNetOpcodeHandler(int opCode) {
     ArtNetOpcodeHandlers.erase(opCode);
 }
 
+static bool hasUDP = false;
+static bool hasDMX = false;
+bool InputsEnabled() {
+    return hasUDP || hasDMX;
+}
+
 // prototypes for functions below
 bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime);
 bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime);
@@ -314,6 +320,7 @@ bool Bridge_Initialize_Internal() {
     }
 
     bool enabled = LoadInputUniversesFromFile();
+    hasUDP = enabled;
     bool disableFakeBridges = getSettingInt("DisableFakeNetworkBridges");
 
     LogInfo(VB_E131BRIDGE, "Universe Count = %d\n", InputUniverseCount);
@@ -928,6 +935,7 @@ bool AddWarningForProtocol(int sock, const std::string& protocol) {
 }
 
 static void BridgeReloadDMXInputs() {
+    hasDMX = false;
     // remove any existing DMX inputs
     for (int i = InputUniverseCount - 1; i >= 0; --i) {
         if (InputUniverses[i].type == DMX_TYPE) {
@@ -1007,6 +1015,7 @@ static void BridgeReloadDMXInputs() {
                                 return 0;
                             };
                             EPollManager::INSTANCE.addFileDescriptor(dmxIn, f);
+                            hasDMX = true;
                         } else {
                             WarningHolder::AddWarning("Could not open DMX input device " + device);
                         }
@@ -1021,6 +1030,8 @@ void BridgeReloadUDP() {
     // close the existing sockets
     BridgeShutdownUDP();
 
+    bridgeDataReceived = false;
+    hasUDP = false;
     bool enabled = Bridge_Initialize_Internal();
     bool disableFakeBridges = getSettingInt("DisableFakeNetworkBridges");
     if (bridgeSock > 0) {

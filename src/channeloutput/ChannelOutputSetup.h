@@ -24,17 +24,18 @@ extern unsigned long channelOutputFrame;
 extern float mediaElapsedSeconds;
 extern OutputProcessors outputProcessors;
 
-int InitializeChannelOutputs(void);
+bool HasChannelOutputs();
+int InitializeChannelOutputs();
 int PrepareChannelData(char* channelData);
 int SendChannelData(const char* channelData);
 void OverlayOutputTestData(std::set<std::string> types, unsigned char* channelData, int cycleCnt, float percentOfCycle, int testType, const Json::Value& extraConfig);
 std::set<std::string> GetOutputTypes();
-void CloseChannelOutputs(void);
+void CloseChannelOutputs();
 void SetChannelOutputFrameNumber(int frameNumber);
-void ResetChannelOutputFrameNumber(void);
+void ResetChannelOutputFrameNumber();
 
-void StartingOutput(void);
-void StoppingOutput(void);
+void StartingOutput();
+void StoppingOutput();
 
 const std::vector<std::pair<uint32_t, uint32_t>>& GetOutputRanges(bool precise = true);
 std::string GetOutputRangesAsString(bool precise = true, bool oneBased = false);

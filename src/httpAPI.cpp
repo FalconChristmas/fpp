@@ -50,6 +50,7 @@
 #include "mqtt.h"
 #include "settings.h"
 #include "channeloutput/channeloutputthread.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "channeltester/ChannelTester.h"
 #include "commands/Commands.h"
 #include "mediaoutput/MediaOutputBase.h"
@@ -89,6 +90,9 @@ void GetCurrentFPPDStatus(Json::Value& result) {
     result["bridging"] = HasBridgeData();
     result["multisync"] = multiSync->isMultiSyncEnabled();
     result["powerBad"] = piPowerBad;
+
+    result["channelInputsEnabled"] = InputsEnabled();
+    result["channelOutputsEnabled"] = HasChannelOutputs();
 
     if (ChannelTester::INSTANCE.Testing()) {
         result["status_name"] = "testing";
