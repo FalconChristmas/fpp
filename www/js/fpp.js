@@ -3355,36 +3355,32 @@ function IPOutputTypeChanged (item, input) {
 	if (type == 4 || type == 5 || type == 8) {
 		// DDP, Twinkly
 		var univ = $(item).parent().parent().find('input.txtUniverse');
-		univ.prop('disabled', true);
+		univ.prop('hidden', true);
 		var univc = $(item).parent().parent().find('input.numUniverseCount');
-		univc.prop('disabled', true);
+		univc.prop('hidden', true);
 		var sz = $(item).parent().parent().find('input.txtSize');
 		sz.prop('max', FPPD_MAX_CHANNELS);
 
 		var monitor = $(item).parent().parent().find('input.txtMonitor');
-		monitor.prop('disabled', false);
+		monitor.prop('hidden', false);
 
 		var universe = $(item).parent().parent().find('input.txtUniverse');
 		universe.prop('min', 1);
 
-		$(item).parent().parent().find('input.txtIP').prop('disabled', false);
+		$(item).parent().parent().find('input.txtIP').prop('hidden', false);
 
 		if (!input) {
-			$(item)
-				.parent()
-				.parent()
-				.find('input.pingButton')
-				.prop('disabled', false);
+			$(item).parent().parent().find('input.pingButton').prop('hidden', false);
 		}
 	} else {
 		// 0,1 = E1.31, 2,3 = Artnet, 6,7 = KiNet
 		var univ = $(item).parent().parent().find('input.txtUniverse');
-		univ.prop('disabled', false);
+		univ.prop('hidden', false);
 		if (parseInt(univ.val()) < 1) {
 			univ.val(1);
 		}
 		var univc = $(item).parent().parent().find('input.numUniverseCount');
-		univc.prop('disabled', false);
+		univc.prop('hidden', false);
 		if (parseInt(univc.val()) < 1) {
 			univc.val(1);
 		}
@@ -3398,27 +3394,23 @@ function IPOutputTypeChanged (item, input) {
 		if (!input) {
 			if (type == 0 || type == 2) {
 				$(item).parent().parent().find('input.txtIP').val('');
-				$(item).parent().parent().find('input.txtIP').prop('disabled', true);
-				$(item)
-					.parent()
-					.parent()
-					.find('input.pingButton')
-					.prop('disabled', true);
+				$(item).parent().parent().find('input.txtIP').prop('hidden', true);
+				$(item).parent().parent().find('input.pingButton').prop('hidden', true);
 			} else {
-				$(item).parent().parent().find('input.txtIP').prop('disabled', false);
+				$(item).parent().parent().find('input.txtIP').prop('hidden', false);
 				$(item)
 					.parent()
 					.parent()
 					.find('input.pingButton')
-					.prop('disabled', false);
+					.prop('hidden', false);
 			}
 
 			var monitor = $(item).parent().parent().find('input.txtMonitor');
 			if (type == 0 || type == 2) {
-				monitor.prop('disabled', true);
+				monitor.prop('hidden', true);
 				$('#sourceInterfaceDiv').show();
 			} else {
-				monitor.prop('disabled', false);
+				monitor.prop('hidden', false);
 				//$('#sourceInterfaceDiv').hide();
 			}
 
@@ -3431,7 +3423,7 @@ function IPOutputTypeChanged (item, input) {
 		}
 	}
 	var priority = $(item).parent().parent().find('input.txtPriority');
-	priority.prop('disabled', type > 1);
+	priority.prop('hidden', type > 1);
 }
 
 function updateUniverseEndChannel (row) {
