@@ -3685,6 +3685,15 @@ function populateUniverseData (data, reload, input) {
 
 	SetUniverseInputNames(); // in co-universes.php
 }
+
+function SetUniverseInputShownFields () {
+	// Show/Hide the fields based on the type of universe
+	$('#tblUniversesBody tr').each(function () {
+		var UniTypeSelector = $(this).find('select.universeType');
+		IPOutputTypeChanged(UniTypeSelector, false);
+	});
+}
+
 function getUniverses (reload, input) {
 	var url = 'api/channel/output/universeOutputs';
 	if (input) {
@@ -3692,6 +3701,7 @@ function getUniverses (reload, input) {
 	}
 	$.getJSON(url, function (data) {
 		populateUniverseData(data, reload, input);
+		SetUniverseInputShownFields(); // hide fields based on output type
 	}).fail(function () {
 		UniverseCount = 0;
 		$('#txtUniverseCount').val(UniverseCount);
