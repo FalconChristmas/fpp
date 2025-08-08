@@ -1056,6 +1056,7 @@
             if (mp?.advanced == 1) {
                 ToggleAdvancedLayout(panelMatrixID);
             }
+            checkInterleave(panelMatrixID); //ensure interleave option is hidden if required 
             resolve();
         });
     }
