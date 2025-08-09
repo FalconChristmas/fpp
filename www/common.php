@@ -1776,13 +1776,13 @@ function get_server_cpu_usage()
     $vs = sprintf("%d %d %d %d %d %d %d", $stats[0], $stats[1], $stats[2], $stats[3], $stats[4], $stats[5], $stats[6]);
     @file_put_contents("/tmp/cpustats.txt", $vs, LOCK_EX);
 
-    $user = $stats[0] - $ostats[0];
-    $nice = $stats[1] - $ostats[1];
-    $system = $stats[2] - $ostats[2];
-    $idle = $stats[3] - $ostats[3];
-    $iowait = $stats[4] - $ostats[4];
-    $irq = $stats[5] - $ostats[5];
-    $softirq = $stats[6] - $ostats[6];
+    $user = (int) $stats[0] - (int) $ostats[0];
+    $nice = (int) $stats[1] - (int) $ostats[1];
+    $system = (int) $stats[2] - (int) $ostats[2];
+    $idle = (int) $stats[3] - (int) $ostats[3];
+    $iowait = (int) $stats[4] - (int) $ostats[4];
+    $irq = (int) $stats[5] - (int) $ostats[5];
+    $softirq = (int) $stats[6] - (int) $ostats[6];
 
     $total = $user + $nice + $system + $idle + $iowait + $irq + $softirq;
     $val = $idle * 100.0;
