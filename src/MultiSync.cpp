@@ -1087,6 +1087,37 @@ void MultiSync::DiscoverViaHTTP(const std::set<std::string>& ipSet, const std::s
     curl_multi_cleanup(multi_handle);
 }
 
+
+void MultiSync::WriteRuntimeInfoFile() {
+    Json::Value v = GetSystems(true, false);
+    std::string filename = FPP_DIR_MEDIA("/fpp-info.json");
+    Json::Value systems = v["systems"];
+
+    // If there is no network, then delete the file
+    // to avoid confusion.
+    if (systems.empty()) {
+        const int ok = remove(filename.c_str());
+        if (!ok) {
+            LogWarn(VB_ALL, "Failed to remove file: %s\n", filename.c_str());
+        }
+        LogInfo(VB_ALL, "Not creating %s as no IP addresses found\n", filename.c_str());
+        return;
+    }
+
+    std::string addresses = "";
+    for (int x = 0; x < systems.size(); x++) {
+        if (addresses != "") {
+            addresses += ",";
+        }
+        addresses += systems[x]["address"].asString();
+    }
+    Json::Value local = systems[0];
+    local.removeMember("address");
+    local["addresses"] = addresses;
+
+    SaveJsonToFile(local, filename);
+}
+
 /*
  *
  */

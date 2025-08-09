@@ -215,6 +215,7 @@ static void ComputeOutputRanges() {
     preciseOutputRanges.swap(precise);
     outputRanges.swap(normal);
     MultiSync::INSTANCE.Ping();
+    MultiSync::INSTANCE.WriteRuntimeInfoFile();
 }
 
 /////////////////////////////////////////////////////////////////////////////

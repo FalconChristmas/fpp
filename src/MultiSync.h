@@ -257,6 +257,8 @@ public:
     Json::Value GetSyncStats();
     void ResetSyncStats();
 
+    void WriteRuntimeInfoFile();
+
     void Ping(int discover = 0, bool broadcast = true);
     void PingSingleRemote(const char* address, int discover = 0);
     void Discover(void);
