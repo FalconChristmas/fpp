@@ -625,7 +625,7 @@ void PixelString::invertOutput() {
     }
 }
 
-void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strings) {
+void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strings, std::list<std::string>& autoModelNames) {
     if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::map<std::string, std::vector<VirtualString*>> vstrings;
         for (int s = 0; s < strings.size(); s++) {
@@ -697,6 +697,7 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
             }
 
             if ((channelCount > 0) && (rn == -1)) {
+                autoModelNames.push_back(name);
                 PixelOverlayManager::INSTANCE.addAutoOverlayModel(name, startChannel, channelCount, channelsPerNode, orientation,
                                                                   startLocation, strings, strands);
             }

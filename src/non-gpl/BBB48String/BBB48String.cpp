@@ -33,6 +33,8 @@
 #include "channeloutput/stringtesters/PixelStringTester.h"
 #include "util/BBBUtils.h"
 
+#include "../overlays/PixelOverlay.h"
+
 #include "Plugin.h"
 class BBB48StringPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
@@ -466,7 +468,7 @@ int BBB48StringOutput::Init(Json::Value config) {
     offset = ((m_gpio0Data.frameSize / 4096) + 2) * 4096;
     m_gpio0Data.lastData = m_gpio0Data.curData + offset;
 
-    PixelString::AutoCreateOverlayModels(m_strings);
+    PixelString::AutoCreateOverlayModels(m_strings, m_autoCreatedModelNames);
     return retVal;
 }
 
@@ -530,6 +532,9 @@ void BBB48StringOutput::StopPRU(bool wait) {
  */
 int BBB48StringOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "BBB48StringOutput::Close()\n");
+    for (auto& n : m_autoCreatedModelNames) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(n);
+    }
     if (!m_gpioData.gpioStringMap.empty() || !m_gpio0Data.gpioStringMap.empty()) {
         StopPRU();
     }

@@ -294,6 +294,10 @@ PixelOverlayModel::~PixelOverlayModel() {
     }
 }
 
+bool PixelOverlayModel::isAutoCreated() {
+    return config.isMember("autoCreated") && config["autoCreated"].asBool();
+}
+
 PixelOverlayState PixelOverlayModel::getState() const {
     return state;
 }

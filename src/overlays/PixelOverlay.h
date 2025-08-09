@@ -48,6 +48,7 @@ public:
                              uint32_t startChannel, uint32_t channelCount, uint32_t channelsPerNode,
                              const std::string& orientation, const std::string& startLocation,
                              uint32_t strings, uint32_t strands);
+    void removeAutoOverlayModel(const std::string& name);
 
     const std::string& mapFont(const std::string& f);
     static uint32_t mapColor(const std::string& c);

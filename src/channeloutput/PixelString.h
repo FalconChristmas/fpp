@@ -97,7 +97,7 @@ public:
     bool m_isSmartReceiver = false;
     bool m_isInverted = false;
 
-    static void AutoCreateOverlayModels(const std::vector<PixelString*>& strings);
+    static void AutoCreateOverlayModels(const std::vector<PixelString*>& strings, std::list<std::string>& autoModelNames);
 
     // returned buffer is owned by the PixelString and reused next frame
     uint8_t* prepareOutput(uint8_t* channelData);

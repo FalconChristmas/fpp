@@ -20,6 +20,8 @@
 #include "../common.h"
 #include "../log.h"
 
+#include "../overlays/PixelOverlay.h"
+
 #include "spixels.h"
 
 #include "Plugin.h"
@@ -183,7 +185,7 @@ int SpixelsOutput::Init(Json::Value config) {
     }
 
     LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", m_strings.size());
-    PixelString::AutoCreateOverlayModels(m_strings);
+    PixelString::AutoCreateOverlayModels(m_strings, m_autoCreatedModelNames);
     return ThreadedChannelOutput::Init(config);
 }
 
@@ -192,7 +194,9 @@ int SpixelsOutput::Init(Json::Value config) {
  */
 int SpixelsOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "SpixelsOutput::Close()\n");
-
+    for (auto& n : m_autoCreatedModelNames) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(n);
+    }
     return ThreadedChannelOutput::Close();
 }
 

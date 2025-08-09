@@ -762,6 +762,7 @@ int BBBMatrix::Init(Json::Value config) {
                                                           m_startChannel, m_channelCount, 3,
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
+        m_autoCreatedModelName = desc;
     }
     // We need to send the data once to make sure the panels are cleared and "off"
     // However, this doesn't always work so we'll set everything slightly "on" first
@@ -782,6 +783,10 @@ int BBBMatrix::Init(Json::Value config) {
 
 int BBBMatrix::Close(void) {
     LogDebug(VB_CHANNELOUT, "BBBMatrix::Close()\n");
+    if (!m_autoCreatedModelName.empty()) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
+    }
+
     // Send the stop command
     m_pruData->command = 0xFF;
     if (m_pru) {

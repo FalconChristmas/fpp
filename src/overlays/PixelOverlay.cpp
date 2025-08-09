@@ -100,7 +100,6 @@ void PixelOverlayManager::Initialize() {
 }
 
 void PixelOverlayManager::addModel(Json::Value config) {
-    bool wasEmpty = models.empty();
     PixelOverlayModel* pmodel = nullptr;
 
     if (!config.isMember("Type"))
@@ -124,11 +123,12 @@ void PixelOverlayManager::addModel(Json::Value config) {
         pmodel = new PixelOverlayModelSub(config);
     }
 
+    std::unique_lock<std::mutex> lock(modelsLock);
+    bool wasEmpty = models.empty();
     if (pmodel) {
         models[pmodel->getName()] = pmodel;
         modelNames.push_back(pmodel->getName());
     }
-
     if (wasEmpty) {
         RegisterCommands();
     }
@@ -987,6 +987,23 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
 
     addModel(val);
 }
+void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
+    std::unique_lock<std::mutex> lock(modelsLock);
+    PixelOverlayModel* pmodel = models[name];
+    if (pmodel && pmodel->isAutoCreated()) {
+        modelNames.remove(name);
+        models.erase(name);        
+        lock.unlock();
+
+        removePeriodicUpdate(pmodel);
+        std::unique_lock<std::recursive_mutex> alock(activeModelsLock);
+        activeModels.remove(pmodel);
+        alock.unlock();
+    }
+}
+
+
+
 Json::Value PixelOverlayManager::getActiveOverlayEffects() {
     Json::Value ret = Json::arrayValue;
 

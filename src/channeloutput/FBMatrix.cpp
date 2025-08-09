@@ -140,6 +140,7 @@ int FBMatrixOutput::Init(Json::Value config) {
                                                           m_startChannel, m_channelCount, 3,
                                                           "H", "TL",
                                                           height, 1);
+        m_autoCreatedModelName = desc;
     }
     return ChannelOutput::Init(config);
 }
@@ -149,7 +150,9 @@ int FBMatrixOutput::Init(Json::Value config) {
  */
 int FBMatrixOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "FBMatrixOutput::Close()\n");
-
+    if (!m_autoCreatedModelName.empty()) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
+    }
     return ChannelOutput::Close();
 }
 

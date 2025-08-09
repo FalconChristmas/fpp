@@ -135,6 +135,7 @@ private:
     uint32_t rowLen = 0;
 
     bool singlePRU = false;
+    std::string m_autoCreatedModelName;
 
     std::queue<std::function<void()>> bgTasks;
     volatile bool bgThreadsRunning = false;

@@ -22,6 +22,7 @@
 #include "../log.h"
 
 #include "rpi_ws281x.h"
+#include "../overlays/PixelOverlay.h"
 #include "../util/GPIOUtils.h"
 #include "stringtesters/PixelStringTester.h"
 
@@ -209,7 +210,7 @@ int RPIWS281xOutput::Init(Json::Value config) {
         WarningHolder::AddWarning("RPIWS281x: ws2811_init() failed.  Error code: " + std::to_string(res));
         return 0;
     }
-    PixelString::AutoCreateOverlayModels(m_strings);
+    PixelString::AutoCreateOverlayModels(m_strings, m_autoCreatedModelNames);
     return ThreadedChannelOutput::Init(config);
 }
 
@@ -218,7 +219,9 @@ int RPIWS281xOutput::Init(Json::Value config) {
  */
 int RPIWS281xOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::Close()\n");
-
+    for (auto& n : m_autoCreatedModelNames) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(n);
+    }
     ws2811_fini(&ledstring);
 
     return ThreadedChannelOutput::Close();

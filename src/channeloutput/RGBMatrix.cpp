@@ -310,6 +310,7 @@ int RGBMatrixOutput::Init(Json::Value config) {
                                                           m_startChannel, m_channelCount, 3,
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
+        m_autoCreatedModelName = desc;
     }
     return ChannelOutput::Init(config);
 }
@@ -326,6 +327,10 @@ int RGBMatrixOutput::Close(void) {
     delete m_rgbmatrix;
     m_rgbmatrix = nullptr;
     m_canvas = nullptr;
+
+    if (!m_autoCreatedModelName.empty()) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
+    }
 
     return ChannelOutput::Close();
 }

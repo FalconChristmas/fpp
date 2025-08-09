@@ -107,6 +107,8 @@ private:
     uint32_t delayValues[12];
     uint16_t gammaCurve[256];
 
+    std::string m_autoCreatedModelName;
+
     class GPIOPinInfo {
     public:
         class Pins {

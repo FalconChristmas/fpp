@@ -702,6 +702,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
                                                           m_startChannel, m_channelCount, 3,
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
+        m_autoCreatedModelName = desc;
     }
 
     return ChannelOutput::Init(config);
@@ -712,7 +713,10 @@ int ColorLight5a75Output::Init(Json::Value config) {
  */
 int ColorLight5a75Output::Close(void) {
     LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::Close()\n");
-
+    if (!m_autoCreatedModelName.empty()) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
+        m_autoCreatedModelName.clear();
+    }
     return ChannelOutput::Close();
 }
 

@@ -40,4 +40,5 @@ private:
 
     std::vector<LEDStrip*> m_strips;
     std::vector<PixelString*> m_strings;
+    std::list<std::string> m_autoCreatedModelNames;
 };

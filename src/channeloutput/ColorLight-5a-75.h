@@ -128,4 +128,6 @@ private:
     struct ifreq m_if_mac;
     struct ether_header* m_eh;
     struct sockaddr_ll m_sock_addr;
+
+    std::string m_autoCreatedModelName;
 };

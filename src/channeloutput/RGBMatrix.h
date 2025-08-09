@@ -65,6 +65,7 @@ private:
 
     Matrix* m_matrix = nullptr;
     PanelMatrix* m_panelMatrix = nullptr;
+    std::string m_autoCreatedModelName;
 
     uint8_t m_gammaCurve[256];
 };

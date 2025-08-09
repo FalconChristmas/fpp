@@ -305,6 +305,7 @@ int BBShiftPanelOutput::Init(Json::Value config) {
                                                           m_startChannel, m_channelCount, 3,
                                                           "H", m_invertedData ? "BL" : "TL",
                                                           m_height, 1);
+        m_autoCreatedModelName = desc;
     }
 
     bgThreadsRunning = true;
@@ -391,6 +392,9 @@ void BBShiftPanelOutput::StopPRU(bool wait) {
 
 int BBShiftPanelOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "BBShiftPanelOutput::Close()\n");
+    if (!m_autoCreatedModelName.empty()) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
+    }
     StopPRU();
     for (auto& pinName : PRU_PINS) {
         const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
@@ -539,7 +543,8 @@ void BBShiftPanelOutput::PrepDataPWM() {
     pruData->numBlocks = rowLen / 16;
     pruData->numRows = numRows;
     pruData->cmd = PWM_COMMAND_DATA;
-    __asm__ __volatile__("" ::: "memory");
+    __asm__ __volatile__("" ::
+                             : "memory");
 }
 
 void BBShiftPanelOutput::PrepDataShift() {
@@ -769,7 +774,8 @@ void BBShiftPanelOutput::setupPWMRegisters() {
     pruData->numBlocks = rowLen / 16;
     pruData->numRows = numRows;
     pruData->cmd = PWM_COMMAND_REGISTERS;
-    __asm__ __volatile__("" ::: "memory");
+    __asm__ __volatile__("" ::
+                             : "memory");
 }
 
 void BBShiftPanelOutput::setupBrightnessValues() {

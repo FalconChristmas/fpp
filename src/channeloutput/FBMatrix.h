@@ -34,7 +34,8 @@ public:
 
 private:
     std::string modelName;
-    PixelOverlayModel *model = nullptr;
+    PixelOverlayModel* model = nullptr;
+    std::string m_autoCreatedModelName;
 
     unsigned char* buffer = nullptr;
 
@@ -42,4 +43,3 @@ private:
     int height = 0;
     int inverted = 0;
 };
-

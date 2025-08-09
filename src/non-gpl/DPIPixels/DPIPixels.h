@@ -86,4 +86,6 @@ private:
     int m_testCycle = -1;
     int m_testType = 0;
     float m_testPercent = 0.0f;
+
+    std::list<std::string> m_autoCreatedModelNames;
 };

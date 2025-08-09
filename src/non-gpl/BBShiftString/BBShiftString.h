@@ -152,6 +152,7 @@ private:
     float m_testPercent = 0.0f;
 
     FalconV5Support* falconV5Support = nullptr;
+    std::list<std::string> m_autoCreatedModelNames;
 
     void prepData(FrameData& d, unsigned char* channelData);
     void sendData(FrameData& d);

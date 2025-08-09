@@ -120,7 +120,7 @@ public:
     int32_t updateRunningEffects();
 
     void setChildState(const std::string& n, const PixelOverlayState& state, int ox, int oy, int w, int h);
-
+    bool isAutoCreated();
 protected:
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
     bool flushChildren(uint8_t* dst);

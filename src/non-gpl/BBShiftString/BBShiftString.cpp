@@ -31,6 +31,7 @@
 
 #include "BBShiftString.h"
 #include "../CapeUtils/CapeUtils.h"
+#include "../overlays/PixelOverlayManager.h"
 #include "channeloutput/stringtesters/PixelStringTester.h"
 #include "util/BBBUtils.h"
 
@@ -183,7 +184,7 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
     }
     commandTable[curCommandTable++] = 0xFFFF;
     // round up to nearest 64 byte boundary
-    int len = (curCommandTable) * 2;
+    int len = (curCommandTable)*2;
     len += 64 - (len % 64);
     d.pru->memcpyToPRU((uint8_t*)&d.pruData->commandTable[0], (uint8_t*)&commandTable[0], len);
     free(buffer);
@@ -323,7 +324,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
         setupFalconV5Support(root, m_pru1.lastData + offset);
     }
 
-    PixelString::AutoCreateOverlayModels(m_strings);
+    PixelString::AutoCreateOverlayModels(m_strings, m_autoCreatedModelNames);
     return retVal;
 }
 
@@ -394,6 +395,9 @@ void BBShiftStringOutput::StopPRU(bool wait) {
  */
 int BBShiftStringOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "BBShiftStringOutput::Close()\n");
+    for (auto& n : m_autoCreatedModelNames) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(n);
+    }
     StopPRU();
     for (auto& a : m_usedPins) {
         PinCapabilities::getPinByName(a.first).configPin("gpio", false);

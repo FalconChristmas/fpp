@@ -31,6 +31,8 @@
 #include "channeloutput/stringtesters/PixelStringTester.h"
 #include "util/GPIOUtils.h"
 
+#include "../../overlays/PixelOverlay.h"
+
 #define _0H 1
 #define _0L 2
 #define _1H 2
@@ -408,13 +410,15 @@ int DPIPixelsOutput::Init(Json::Value config) {
         return 0;
     }
 
-    PixelString::AutoCreateOverlayModels(pixelStrings);
+    PixelString::AutoCreateOverlayModels(pixelStrings, m_autoCreatedModelNames);
     return ChannelOutput::Init(config);
 }
 
 int DPIPixelsOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::Close()\n");
-
+    for (auto& n : m_autoCreatedModelNames) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(n);
+    }
     return ChannelOutput::Close();
 }
 
