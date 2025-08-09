@@ -36,6 +36,7 @@
 #include "../Plugin.h"
 #include "../Plugins.h"
 #include "../config.h"
+#include "../MultiSync.h"
 
 // old style that still need porting
 #include "FPD.h"
@@ -213,6 +214,7 @@ static void ComputeOutputRanges() {
     }
     preciseOutputRanges.swap(precise);
     outputRanges.swap(normal);
+    MultiSync::INSTANCE.Ping();
 }
 
 /////////////////////////////////////////////////////////////////////////////

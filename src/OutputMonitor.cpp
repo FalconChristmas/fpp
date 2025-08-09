@@ -176,7 +176,33 @@ public:
     int row = -1;
     int col = -1;
 
+    void reset() {
+        name = "";
+        bankLabel = "";
+        config = Json::Value();
+        group = 0;
+
+        enablePin = nullptr;
+        highToEnable = true;
+        eFusePin = nullptr;
+        eFuseOKValue = 0;
+        eFuseInterruptPin = nullptr;
+        if (currentMonitor) {
+            delete currentMonitor;
+            currentMonitor = nullptr;
+        }
+        isSmartReceiver = false;
+        for (auto& r : receivers) {
+            r = ReceiverInfo();
+        }
+        row = -1;
+        col = -1;
+    }
+
     void appendTo(Json::Value& result) {
+        if (name.empty()) {
+            return;
+        }
         Json::Value v;
         v["name"] = name;
 
@@ -504,8 +530,7 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
         } else if (pi->eFusePin) {
             GPIOManager::INSTANCE.RemoveGPIOCallback(pi->eFusePin);
         }
-        portPins[port] = nullptr;
-        delete pi;
+        pi->reset();
     }
 }
 
@@ -518,8 +543,10 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         portPins[port]->setConfig(pinConfig);
         return;
     }
-
-    PortPinInfo* pi = new PortPinInfo(name, pinConfig);
+    PortPinInfo* pi = portPins[port];
+    if (!pi) {
+        pi = new PortPinInfo(name, pinConfig);
+    }   
     bool hasInfo = false;
     pi->receivers[0].enabled = true;
     if (pinConfig.isMember("enablePin")) {
@@ -686,6 +713,9 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         }
         int mc = pi->col;
         mr = pi->row;
+        if ((port + 4) > portPins.size()) {
+            portPins.resize(port + 4);
+        }
         for (int x = 1; x < 4; x++) {
             std::string name = "Port " + std::to_string(port + 1 + x);
             pi = new PortPinInfo(name, pinConfig);
@@ -698,7 +728,11 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
             portPins[port + x] = pi;
         }
     } else {
-        delete pi;
+        if (portPins[port] == pi) {
+            pi->reset();
+        } else {
+            delete pi;
+        }
     }
 }
 
