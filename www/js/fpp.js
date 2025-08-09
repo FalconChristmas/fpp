@@ -425,7 +425,7 @@ function sortHTMLSelectByText (selector, skip_first, sortAscending) {
 }
 
 function getManualLink () {
-	return 'https://falconchristmas.github.io/FPP_Manual.pdf';
+	return 'https://falconchristmas.github.io/FPP_Manual(9.x).pdf';
 }
 
 function CloseModalDialog (id) {
