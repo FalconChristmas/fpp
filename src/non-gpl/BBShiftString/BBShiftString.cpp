@@ -31,7 +31,9 @@
 
 #include "BBShiftString.h"
 #include "../CapeUtils/CapeUtils.h"
-#include "../overlays/PixelOverlayManager.h"
+
+#include "../../overlays/PixelOverlay.h"
+
 #include "channeloutput/stringtesters/PixelStringTester.h"
 #include "util/BBBUtils.h"
 

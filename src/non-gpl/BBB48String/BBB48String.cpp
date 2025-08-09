@@ -33,7 +33,7 @@
 #include "channeloutput/stringtesters/PixelStringTester.h"
 #include "util/BBBUtils.h"
 
-#include "../overlays/PixelOverlay.h"
+#include "../../overlays/PixelOverlay.h"
 
 #include "Plugin.h"
 class BBB48StringPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
