@@ -140,7 +140,7 @@
                 "RTC": {
                     "title": "RTC",
                     "description": "",
-                    "cmd": "hwclock -r -f [[rtcDevice]]",
+                    "cmd": "hwclock -v -r -f [[rtcDevice]]",
                     "platforms": [
                         "all"
                     ]

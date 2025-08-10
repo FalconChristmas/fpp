@@ -20,6 +20,14 @@ if ($settings['BeaglePlatform']) {
         }
     }
     $i2cDevice = "2";
+} else if ($settings['Platform'] == "Raspberry Pi") {
+    if (file_exists("/sys/class/rtc/rtc0/name")) {
+        $drv = file_get_contents("/sys/class/rtc/rtc0/name");
+        if (str_contains($drv, ":rpi_rtc") && file_exists("/dev/rtc1")) {
+            // Raspberry Pi 5 RTC, we are configuring the cape clock which would be rtc1
+            $rtcDevice = "/dev/rtc1";
+        }
+    }
 }
 
 //Load commands from JSON

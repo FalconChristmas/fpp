@@ -193,7 +193,7 @@ static std::string getRTCDev() {
 #elif defined(PLATFORM_PI)
     if (FileExists("/sys/class/rtc/rtc0/name")) {
         std::string drv = GetFileContents("/sys/class/rtc/rtc0/name");
-        if (contains(drv, "soc:rpi_rtc")) {
+        if (contains(drv, ":rpi_rtc") && FileExists("/dev/rtc1")) {
             // Raspberry Pi 5 RTC, we are configuring the cape clock which would be rtc1
             rtc = "/dev/rtc1";
         }
