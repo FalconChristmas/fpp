@@ -81,7 +81,7 @@ public:
 private:
     void SetHostMACs(void* data);
     int SendMessagesHelper(struct mmsghdr* msgs, int cnt);
-    int SendMessages(std::vector<struct mmsghdr> &msgsToSend);
+    int SendMessages(std::vector<struct mmsghdr>& msgsToSend);
 
     int m_width;
     int m_height;
@@ -130,4 +130,5 @@ private:
     struct sockaddr_ll m_sock_addr;
 
     std::string m_autoCreatedModelName;
+    std::list<std::string> m_warnings;
 };

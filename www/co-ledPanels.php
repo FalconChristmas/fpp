@@ -36,7 +36,9 @@
     $LEDPanelDefaults['LEDPanelCanvasUIPixelsHigh'] = 192; // Default to 192 pixels high
     $LEDPanelDefaults['LEDPanelCanvasUIPixelsWide'] = 128; // Default to 128 pixels wide
     $LEDPanelDefaults['LEDPanelsSize'] = "32x16x8"; // Default to 32x16x8
-    
+    $LEDPanelDefaults['LEDPanelsCLFirmwareVersion'] = 0;
+    $LEDPanelDefaults['LEDPanelsCLLinkCheck'] = 1;
+
     if (count($panelCapes) == 1) {
         echo "var KNOWN_PANEL_CAPE = " . $panelCapes[0] . ";";
         $panelCapes[0] = json_decode($panelCapes[0], true);
@@ -240,6 +242,12 @@
         }
         if (!isset($matrix["LEDPanelCanvasUIPixelsWide"])) {
             $matrix["LEDPanelCanvasUIPixelsWide"] = $LEDPanelDefaults["LEDPanelCanvasUIPixelsWide"];
+        }
+        if (!isset($matrix["LEDPanelsCLFirmwareVersion"])) {
+            $matrix["LEDPanelsCLFirmwareVersion"] = $LEDPanelDefaults["LEDPanelsCLFirmwareVersion"];
+        }
+        if (!isset($matrix["LEDPanelsCLLinkCheck"])) {
+            $matrix["LEDPanelsCLLinkCheck"] = $LEDPanelDefaults["LEDPanelsCLLinkCheck"];
         }
     }
     // Unset reference to avoid side effects
@@ -455,7 +463,9 @@
         ["LEDPanelsLayoutCols", "LEDPanelCols"],
         ["LEDPanelsLayoutRows", "LEDPanelRows"],
         ["LEDPanelCanvasUIPixelsHigh", "LEDPanelCanvasUIPixelsHigh"],
-        ["LEDPanelCanvasUIPixelsWide", "LEDPanelCanvasUIPixelsWide"]
+        ["LEDPanelCanvasUIPixelsWide", "LEDPanelCanvasUIPixelsWide"],
+        ["LEDPanelsCLFirmwareVersion", "firmwareVersion"],
+        ["LEDPanelsCLLinkCheck", "linkCheck"]
     ];
 
     function checkAndCorrectMissingChannelLookup() {
@@ -1127,6 +1137,8 @@
             if (matrixDiv.find('.LEDPanelsConnectionSelect')[0].value != "X11PanelMatrix")
                 config.interface = matrixDiv.find('.LEDPanelsInterface').val();
 
+            config.firmwareVersion = parseInt(matrixDiv.find('.LEDPanelsCLFirmwareVersion').val());
+            config.linkCheck = matrixDiv.find('.LEDPanelsCLLinkCheck').is(':checked') ? 1 : 0;
         }
         <?
         if ($settings['Platform'] == "Raspberry Pi" || $settings['BeaglePlatform']) {
@@ -1327,12 +1339,19 @@
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightness`).hide();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightnessLabel`).hide();
-
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsCLFirmwareVersion`).hide();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsCLLinkCheck`).hide();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsCLFirmwareVersionLabel`).hide();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsCLLinkCheckLabel`).hide();
                 } else {
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionInterface`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightness`).show();
                     $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightnessLabel`).show();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsCLFirmwareVersion`).show();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsCLLinkCheck`).show();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsCLFirmwareVersionLabel`).show();
+                    $(`#panelMatrix${panelMatrixID} .LEDPanelsCLLinkCheckLabel`).show();
                 }
 
                 <?
@@ -1367,6 +1386,10 @@
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsWiringPinout`).show();
                 $(`#panelMatrix${panelMatrixID} .vendorPanelSettingsBtn`).show();
 
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsCLFirmwareVersion`).hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsCLLinkCheck`).hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsCLFirmwareVersionLabel`).hide();
+                $(`#panelMatrix${panelMatrixID} .LEDPanelsCLLinkCheckLabel`).hide();
 
                 <? //NEEDS FIX
                 if ($settings['BeaglePlatform']) { ?>
@@ -3098,8 +3121,15 @@
                         <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <? printLEDPanelGammaSelect($settings['Platform']); ?>
                         </div>
-                        <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
-                        <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
+                        <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                class='LEDPanelsCLFirmwareVersionLabel'><b>Firmware Version:</b> </span></div>
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
+                            <select class='LEDPanelsCLFirmwareVersion'>
+                                <option value='0'>Auto Detect</option>
+                                <option value='2'>v2.x - v12.x</option>
+                                <option value='13'>v13.x+</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><span
@@ -3183,8 +3213,12 @@
                                 <option value='6'>6 Bit</option>
                             </select>
                         </div>
-                        <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
-                        <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
+                        <div class="printSettingLabelCol col-md-2 col-lg-2">
+                            <span class='LEDPanelsCLLinkCheckLabel'><b>Check Ethernet Link:</b></span>
+                        </div>
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
+                            <input class='LEDPanelsCLLinkCheck' type='checkbox'>
+                        </div>
                     </div>
 
                     <div class="row">

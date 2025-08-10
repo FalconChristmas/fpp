@@ -432,16 +432,25 @@ int ColorLight5a75Output::Init(Json::Value config) {
     m_colorlightDisable = true;
     m_colorlightDisable = getSettingInt("ColorlightLinkDownDisable") == 1;
 
+    if (config.isMember("linkCheck")) {
+        m_colorlightDisable = config["linkCheck"].asBool();
+    }
+    if (config.isMember("firmwareVersion")) {
+        m_highestFirmwareVersion = config["firmwareVersion"].asInt();
+    }
+
     if (ifstate != "up") {
         LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s does not have link %s\n", m_ifName.c_str(), strerror(errno));
         WarningHolder::AddWarning("ColorLight: Configured interface " + m_ifName + " does not have link");
-
         if (m_colorlightDisable) {
             return 0;
         }
+    } else {
+        WarningHolder::RemoveWarning("ColorLight: Configured interface " + m_ifName + " does not have link");
     }
 
     // Check interface is 1000Mbps capable and display error if not
+    ifspeed = 0;
     std::ifstream ifspeed_src("/sys/class/net/" + m_ifName + "/speed");
 
     if (ifspeed_src.is_open()) { // always check whether the file is open
@@ -449,18 +458,19 @@ int ColorLight5a75Output::Init(Json::Value config) {
         ifspeed_src.close();
     }
 
-    if (ifspeed < 1000) {
+    if (ifspeed > 0 && ifspeed < 1000) {
         LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s is not 1000Mbps Capable: %s\n", m_ifName.c_str(), strerror(errno));
         WarningHolder::AddWarning("ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
         if (m_colorlightDisable) {
             return 0;
         }
+    } else {
+        WarningHolder::RemoveWarning("ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
     }
 
     // Open our raw socket
     if ((m_fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
         LogErr(VB_CHANNELOUT, "Error creating raw socket: %s\n", strerror(errno));
-        WarningHolder::AddWarning("ColorLight: Error creating raw socket");
         return 0;
     }
 
@@ -470,7 +480,6 @@ int ColorLight5a75Output::Init(Json::Value config) {
     if (ioctl(m_fd, SIOCGIFINDEX, &m_if_idx) < 0) {
         LogErr(VB_CHANNELOUT, "Error getting index of %s interface: %s\n",
                m_ifName.c_str(), strerror(errno));
-        WarningHolder::AddWarning("ColorLight: Error getting index of interface " + m_ifName);
         return 0;
     }
 
@@ -484,7 +493,6 @@ int ColorLight5a75Output::Init(Json::Value config) {
     // Force packets out the desired interface
     if ((bind(m_fd, (struct sockaddr*)&m_sock_addr, sizeof(m_sock_addr))) == -1) {
         LogErr(VB_CHANNELOUT, "bind() failed\n");
-        WarningHolder::AddWarning("ColorLight: Could not bind to interface " + m_ifName);
         return 0;
     }
 
@@ -716,6 +724,9 @@ int ColorLight5a75Output::Close(void) {
     if (!m_autoCreatedModelName.empty()) {
         PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
         m_autoCreatedModelName.clear();
+    }
+    for (auto& m : m_warnings) {
+        WarningHolder::RemoveWarning(m);
     }
     return ChannelOutput::Close();
 }
@@ -983,10 +994,15 @@ void ColorLight5a75Output::GetReceiverInfo() {
 
     memset(receiveBuffer, 0, CL_RESP_PACKET_SIZE);
 
+    int retryCount = 2;
     while (tryNextReceiver && r < 32) {
         foundReceiver = false;
         discoverBuffer[16] = r;
         sendmmsg(m_fd, msgs, 1, MSG_DONTWAIT);
+        if (retryCount == 0) {
+            sendmmsg(m_fd, msgs, 1, MSG_DONTWAIT);
+            sendmmsg(m_fd, msgs, 1, MSG_DONTWAIT);
+        }
 
         // Should only get one packet from a receiver, but consume all just in case
         while ((recvBytes = recvfrom(sockfd, receiveBuffer, CL_RESP_PACKET_SIZE, 0, NULL, NULL)) > 0) {
@@ -1035,18 +1051,24 @@ void ColorLight5a75Output::GetReceiverInfo() {
                 m_receivers[r] = receiver;
             }
         }
-
-        if (!foundReceiver)
-            tryNextReceiver = false;
-
+        if (!foundReceiver) {
+            if (r == 0 && retryCount > 0) {
+                r--;
+                retryCount--;
+            } else {
+                tryNextReceiver = false;
+            }
+        }
         r++;
     }
 
     if (m_receivers.size()) {
         LogInfo(VB_CHANNELOUT, "Found %d ColorLight receiver(s)\n", m_receivers.size());
     } else {
-        WarningHolder::AddWarning("ColorLight: No receiver cards were detected on interface " + m_ifName);
-        LogWarn(VB_CHANNELOUT, "WARNING: No ColorLight receiver cards were discovered\n");
+        std::string warning = "ColorLight: No receiver cards were detected on interface " + m_ifName;
+        WarningHolder::AddWarning(warning);
+        LogWarn(VB_CHANNELOUT, "WARNING: %s\n", warning.c_str());
+        m_warnings.push_front(warning);
     }
 
     close(sockfd);
