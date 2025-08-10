@@ -26,5 +26,6 @@ public:
 
 private:
     std::string m_modelName;
+    bool modelCreated = false;
     PixelOverlayModel* m_model = nullptr;
 };

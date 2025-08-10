@@ -14,8 +14,8 @@
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <fcntl.h>
 #include <cmath>
+#include <fcntl.h>
 
 #include "../common.h"
 #include "../log.h"
@@ -104,6 +104,7 @@ int VirtualDisplayOutput::Init(Json::Value config) {
                 val["autoCreated"] = true;
 
                 PixelOverlayManager::INSTANCE.addModel(val);
+                modelCreated = true;
             } else {
                 LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
                 return 0;
@@ -160,7 +161,9 @@ int VirtualDisplayOutput::Init(Json::Value config) {
  */
 int VirtualDisplayOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::Close()\n");
-
+    if (modelCreated) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_modelName);
+    }
     if (m_virtualDisplay) {
         free(m_virtualDisplay);
         m_virtualDisplay = nullptr;
