@@ -60,7 +60,7 @@
 
     <?php
     exec("df -k " . $mediaDirectory . "/upload |awk '/\/dev\//{printf(\"%d\\n\", $5);}'", $output, $return_val);
-    $freespace = $output[0];
+    $freespace = (int) $output[0];
     unset($output);
     ?>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
