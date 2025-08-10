@@ -36,6 +36,7 @@ private:
     std::string modelName;
     PixelOverlayModel* model = nullptr;
     std::string m_autoCreatedModelName;
+    std::string m_autoCreatedFBModelName;
 
     unsigned char* buffer = nullptr;
 

@@ -992,17 +992,17 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
     PixelOverlayModel* pmodel = models[name];
     if (pmodel && pmodel->isAutoCreated()) {
         modelNames.remove(name);
-        models.erase(name);        
+        models.erase(name);
         lock.unlock();
 
         removePeriodicUpdate(pmodel);
         std::unique_lock<std::recursive_mutex> alock(activeModelsLock);
         activeModels.remove(pmodel);
         alock.unlock();
+
+        delete pmodel;
     }
 }
-
-
 
 Json::Value PixelOverlayManager::getActiveOverlayEffects() {
     Json::Value ret = Json::arrayValue;

@@ -89,6 +89,7 @@ int FBMatrixOutput::Init(Json::Value config) {
                 val["autoCreated"] = true;
 
                 PixelOverlayManager::INSTANCE.addModel(val);
+                m_autoCreatedFBModelName = modelName;
             } else {
                 LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
                 WarningHolder::AddWarning("VirtualMatrix: Empty Pixel Overlay Model name");
@@ -152,6 +153,9 @@ int FBMatrixOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "FBMatrixOutput::Close()\n");
     if (!m_autoCreatedModelName.empty()) {
         PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
+    }
+    if (!m_autoCreatedFBModelName.empty()) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedFBModelName);
     }
     return ChannelOutput::Close();
 }
