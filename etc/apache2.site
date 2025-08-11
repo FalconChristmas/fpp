@@ -142,6 +142,9 @@ ServerTokens Prod
    RewriteCond %{HTTP:Connection} Upgrade [NC]
    RewriteRule ^(.)/(.)$ ws://%{HTTP_HOST}/$2 [P,L]
 
+  # Include proxy rewrite rules for devices configured via UI
+  # These need occur before the generic "api" rules below
+   IncludeOptional /home/fpp/media/config/proxy-config.conf
 
   # Proxy to API endpoint on private subnet devices
    RewriteRule ^(192\.168\.\d{1,3}\.\d{1,3})/api/?(.*)$ http://$1/api/$2 [P,L]
@@ -152,8 +155,6 @@ ServerTokens Prod
    RewriteCond %{REQUEST_URI} ^/proxy/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$
    RewriteRule ^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$ /proxy/$1/ [R=301,L]
 
- # Include proxy rewrite rules for devices configured via UI
- IncludeOptional /home/fpp/media/config/proxy-config.conf
 </Directory>
 
 
