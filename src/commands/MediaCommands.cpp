@@ -231,17 +231,14 @@ VLCPlayData::VLCPlayData(const std::string& file, int l, int vol) :
     volumeAdjust(vol) {
     SetVolumeAdjustment(vol);
     runningMediaLock.lock();
-    runningCommandMedia[file] = this;
+    while (runningCommandMedia.find(filename) != runningCommandMedia.end()) {
+        filename += "_";
+    }
+    runningCommandMedia[filename] = this;
     runningMediaLock.unlock();
 }
 
 VLCPlayData::~VLCPlayData() {
-    runningMediaLock.lock();
-    if (runningCommandMedia[filename] == this) {
-        runningCommandMedia.erase(filename);
-        LogDebug(VB_COMMAND, "Removed cached VLCPlayData for file: \"%s\"\n", filename.c_str());
-    }
-    runningMediaLock.unlock();
 }
 
 void VLCPlayData::Stopped() {
@@ -249,6 +246,12 @@ void VLCPlayData::Stopped() {
     VLCPlayData* dt = this;
     intptr_t i = (intptr_t)this;
     Timers::INSTANCE.addTimer(std::to_string(i), GetTimeMS() + 1, [dt]() {
+        runningMediaLock.lock();
+        if (runningCommandMedia[dt->filename] == dt) {
+            runningCommandMedia.erase(dt->filename);
+            LogDebug(VB_COMMAND, "Removed cached VLCPlayData for file: \"%s\"\n", dt->filename.c_str());
+        }
+        runningMediaLock.unlock();
         delete dt;
     });
 }
@@ -307,7 +310,9 @@ std::unique_ptr<Command::Result> StopAllMediaCommand::run(const std::vector<std:
     runningMediaLock.lock();
     for (const auto& item : runningCommandMedia) {
         LogDebug(VB_COMMAND, "Stopping: \"%s\"\n", item.first.c_str());
-        item.second->Stop();
+        if (item.second) {
+            item.second->Stop();
+        }
     }
     runningMediaLock.unlock();
     return std::make_unique<Command::Result>("Stopped");
