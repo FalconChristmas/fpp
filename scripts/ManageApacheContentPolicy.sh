@@ -16,7 +16,7 @@ JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 # Default key values hard-coded to include in all configs
 declare -A DEFAULT_VALUES
 DEFAULT_VALUES=( 
-    ["default-src"]="'self' http://www.w3.org"
+    ["default-src"]="'self' http://www.w3.org https://ipapi.co"
     ["connect-src"]="'self' https://raw.githubusercontent.com https://ipapi.co https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com https://fppstats.falconchristmas.com"
     ["object-src"]="'none' "
     ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
