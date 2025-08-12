@@ -125,10 +125,13 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
     this->hostname = hostname;
     this->version = version;
     this->model = model;
-    this->ranges = ranges;
+    if (!ranges.empty() && (ranges != "0-0" || this->ranges.empty())) {
+        this->ranges = ranges;
+    }
 
-    if (!this->multiSync && multiSync)
+    if (!this->multiSync && multiSync) {
         this->multiSync = true;
+    }
 
     std::vector<std::string> parts = split(address, '.');
     if (parts.size() != 4) {
@@ -1086,7 +1089,6 @@ void MultiSync::DiscoverViaHTTP(const std::set<std::string>& ipSet, const std::s
     }
     curl_multi_cleanup(multi_handle);
 }
-
 
 void MultiSync::WriteRuntimeInfoFile() {
     Json::Value v = GetSystems(true, false);
