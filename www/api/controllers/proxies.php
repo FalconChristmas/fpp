@@ -130,6 +130,8 @@ function WriteProxyFile($proxies)
             $newht .= "# D:" . $description . "\n";
         }
         $newht .= "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
+        $newht .= "RewriteRule ^" . $host . ":([0-9]*)$  http://" . $host . ":$1/  [P,L]\n";
+        $newht .= "RewriteRule ^" . $host . ":([0-9]*)/(.*)$  http://" . $host . ":$1/$2  [P,L]\n";
         $newht .= "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
     }
     file_put_contents("$mediaDirectory/config/proxy-config.conf", $newht);
