@@ -489,9 +489,7 @@ static std::string CreateHostAPDConfig(const std::string& interface) {
     content.append(ssid).append("\ncountry_code=").append(WifiRegulatoryDomain);
     content.append("\nhw_mode=g\nchannel=11\nmacaddr_acl=0\nauth_algs=3\nwpa=2\n");
     content.append("wpa_key_mgmt=WPA-PSK\nwpa_pairwise=TKIP\nrsn_pairwise=CCMP\nwmm_enabled=0\nignore_broadcast_ssid=0\nwpa_group_rekey=3600\nwpa_gmk_rekey=86400\n");
-#if __GNUC__ > 11
     content.append("reassociation_deadline=3000\npmk_r1_push=1\nft_over_ds=0\nbss_transition=1\n");
-#endif
     if (FileExists("/usr/bin/qrencode")) {
         // Low error correction MAY result in a QR that can be pixel doubled which generally works better for phones to pick up
         std::string cmd = "/usr/bin/qrencode -t ASCII -m 0 -s 6 -l L -o \"";
@@ -667,10 +665,8 @@ static void setupNetwork(bool fullReload = false) {
                 exec("/usr/sbin/nft add rule nat postrouting oif " + interface + " masquerade");
             }
             content.append(addressLines);
-#if __GNUC__ > 11
             // some of the FPP7 images don't support this setting.  They use older gcc
             content.append("IgnoreCarrierLoss=5s\n");
-#endif
             content.append("\n");
 
             if (!interfaceSettings["GATEWAY"].empty()) {
