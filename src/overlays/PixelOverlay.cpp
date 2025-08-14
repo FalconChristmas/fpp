@@ -47,6 +47,18 @@ public:
     int value = 0;
 };
 
+class PixelOverlayModelHolder {
+public:
+    PixelOverlayModel* model;
+    std::map<std::string, std::function<void(PixelOverlayModel*)>> listeners;
+
+    void toJson(Json::Value& json) const {
+        if (model) {
+            model->toJson(json);
+        }
+    }
+};
+
 uint32_t PixelOverlayManager::mapColor(const std::string& c) {
     if (c[0] == '#') {
         std::string color = "0x" + c.substr(1);
@@ -74,7 +86,11 @@ uint32_t PixelOverlayManager::mapColor(const std::string& c) {
     }
     return std::stoul(c, nullptr, 0);
 }
-
+void PixelOverlayManager::PixelOverlayModelHolder::toJson(Json::Value& v) const {
+    if (model) {
+        model->toJson(v);
+    }
+}
 PixelOverlayManager::PixelOverlayManager() :
     numActive(0) {
 }
@@ -89,7 +105,9 @@ PixelOverlayManager::~PixelOverlayManager() {
         updateThread = nullptr;
     }
     for (auto a : models) {
-        delete a.second;
+        if (a.second.model) {
+            delete a.second.model;
+        }
     }
     models.clear();
     modelNames.clear();
@@ -126,8 +144,11 @@ void PixelOverlayManager::addModel(Json::Value config) {
     std::unique_lock<std::mutex> lock(modelsLock);
     bool wasEmpty = models.empty();
     if (pmodel) {
-        models[pmodel->getName()] = pmodel;
+        models[pmodel->getName()].model = pmodel;
         modelNames.push_back(pmodel->getName());
+        for (auto& l : models[pmodel->getName()].listeners) {
+            l.second(pmodel);
+        }
     }
     if (wasEmpty) {
         RegisterCommands();
@@ -147,7 +168,10 @@ void PixelOverlayManager::loadModelMap() {
         updateThread = nullptr;
     }
     for (auto a : models) {
-        delete a.second;
+        for (auto& l : a.second.listeners) {
+            l.second(a.second.model);
+        }
+        delete a.second.model;
     }
     models.clear();
     modelNames.clear();
@@ -321,11 +345,24 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
 }
 
 PixelOverlayModel* PixelOverlayManager::getModel(const std::string& name) {
+    std::unique_lock<std::mutex> lock(modelsLock);
     auto a = models.find(name);
     if (a == models.end()) {
         return nullptr;
     }
-    return a->second;
+    return a->second.model;
+}
+
+void PixelOverlayManager::addModelListener(const std::string& name, const std::string& id, std::function<void(PixelOverlayModel*)> listener) {
+    std::unique_lock<std::mutex> lock(modelsLock);
+    models[name].listeners[id] = listener;
+}
+void PixelOverlayManager::removeModelListener(const std::string& name, const std::string& id) {
+    std::unique_lock<std::mutex> lock(modelsLock);
+    auto a = models.find(name);
+    if (a != models.end()) {
+        a->second.listeners.erase(id);
+    }
 }
 
 static bool isTTF(const std::string& mainStr) {
@@ -393,7 +430,7 @@ Json::Value PixelOverlayManager::getModelsAsJson() {
     std::unique_lock<std::mutex> lock(modelsLock);
     for (auto& mn : modelNames) {
         Json::Value model;
-        models[mn]->toJson(model);
+        models[mn].toJson(model);
         ret.append(model);
     }
     return ret;
@@ -421,7 +458,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
                     empty = false;
                 } else {
                     Json::Value model;
-                    models[mn]->toJson(model);
+                    models[mn].toJson(model);
                     result.append(model);
                     empty = false;
                 }
@@ -430,7 +467,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
             std::string model = req.get_path_pieces()[1];
             std::string type;
             std::unique_lock<std::mutex> lock(modelsLock);
-            auto m = getModel(model);
+            auto m = models[model].model;
             if (m) {
                 m->toJson(result);
             } else {
@@ -460,7 +497,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
             bool hasModels = false;
             for (auto& mn : modelNames) {
                 Json::Value model;
-                PixelOverlayModel* m = models[mn];
+                PixelOverlayModel* m = models[mn].model;
                 m->toJson(model);
                 model["isActive"] = (int)m->getState().getState();
                 std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
@@ -481,7 +518,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
             }
         } else if (p2 == "model") {
             std::unique_lock<std::mutex> lock(modelsLock);
-            auto m = getModel(p3);
+            auto m = models[p3].model;
             if (m) {
                 std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
                 if (p4 == "data") {
@@ -578,7 +615,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
     if (p1 == "overlays") {
         if (p2 == "model") {
             std::unique_lock<std::mutex> lock(modelsLock);
-            auto m = getModel(p3);
+            auto m = models[p3].model;
             if (m) {
                 if (p4 == "state") {
                     Json::Value root;
@@ -989,10 +1026,13 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
 }
 void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
     std::unique_lock<std::mutex> lock(modelsLock);
-    PixelOverlayModel* pmodel = models[name];
+    PixelOverlayModel* pmodel = models[name].model;
     if (pmodel && pmodel->isAutoCreated()) {
         modelNames.remove(name);
-        models.erase(name);
+        models[name].model = nullptr;
+        for (auto& l : models[name].listeners) {
+            l.second(nullptr);
+        }
         lock.unlock();
 
         removePeriodicUpdate(pmodel);

@@ -39,6 +39,9 @@ public:
     void addModel(Json::Value config);
     PixelOverlayModel* getModel(const std::string& name);
 
+    void addModelListener(const std::string& name, const std::string& id, std::function<void(PixelOverlayModel*)> listener);
+    void removeModelListener(const std::string& name, const std::string& id);
+
     void Initialize();
 
     bool isAutoCreatePixelOverlayModels() const {
@@ -63,6 +66,14 @@ public:
     const std::list<std::string>& getModelNames() const { return modelNames; };
 
 private:
+    class PixelOverlayModelHolder {
+    public:
+        PixelOverlayModel* model;
+        std::map<std::string, std::function<void(PixelOverlayModel*)>> listeners;
+
+        void toJson(Json::Value& json) const;
+    };
+
     PixelOverlayManager();
     ~PixelOverlayManager();
 
@@ -75,7 +86,7 @@ private:
     std::list<OverlayRange> activeRanges;
     std::recursive_mutex activeModelsLock;
 
-    std::map<std::string, PixelOverlayModel*> models;
+    std::map<std::string, PixelOverlayModelHolder> models;
     std::list<std::string> modelNames;
     std::map<std::string, std::string> fonts;
     bool fontsLoaded = false;

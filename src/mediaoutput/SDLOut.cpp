@@ -188,6 +188,8 @@ public:
     unsigned int totalVideoLen;
     long long videoStartTime;
     PixelOverlayModel* videoOverlayModel = nullptr;
+    std::string videoOverlayModelName;
+    std::mutex videoOverlayModelLock;
     bool wasOverlayDisabled = false;
 
     bool doneRead;
@@ -737,42 +739,42 @@ bool SDL::openAudio() {
 
         std::string audioDeviceName;
         std::string forceAudioId = getSetting("ForceAudioId");
-        
+
         if (!forceAudioId.empty()) {
-            audioDeviceName = forceAudioId.c_str();                                                                                                                                                                                    
+            audioDeviceName = forceAudioId.c_str();
         } else {
 #ifdef PLATFORM_OSX
             std::string dev = getSetting("AudioOutput", "--System Default--");
             if (dev != "--System Default--") {
                 int cnt = SDL_GetNumAudioDevices(0);
                 for (int x = 0; x < cnt; x++) {
-                    std::string dn = SDL_GetAudioDeviceName(x, 0);                                                                                                                                                                     
+                    std::string dn = SDL_GetAudioDeviceName(x, 0);
                     if (endsWith(dn, dev)) {
-                        audioDeviceName = SDL_GetAudioDeviceName(x, 0);                                                                                                                                                                
-                    }                                                                                                                                                                                                                  
-                }                                                                                                                                                                                                                      
-            }                                                                                                                                                                                                                          
+                        audioDeviceName = SDL_GetAudioDeviceName(x, 0);
+                    }
+                }
+            }
 #else
             std::string fn = "/sys/class/sound/card" + getSetting("AudioOutput", "0") + "/id";
             std::string dev = "";
             if (FileExists(fn)) {
-                dev = GetFileContents(fn);                                                                                                                                                                                             
-                TrimWhiteSpace(dev);                                                                                                                                                                                                   
+                dev = GetFileContents(fn);
+                TrimWhiteSpace(dev);
                 if (dev[dev.size() - 1] == '\n' || dev[dev.size() - 1] == '\r') {
-                    dev = dev.substr(0, dev.size() - 2);                                                                                                                                                                               
-                }                                                                                                                                                                                                                      
-            }                                                                                                                                                                                                                          
+                    dev = dev.substr(0, dev.size() - 2);
+                }
+            }
             if (dev != "") {
                 int cnt = SDL_GetNumAudioDevices(0);
                 for (int x = 0; x < cnt; x++) {
-                    std::string dn = SDL_GetAudioDeviceName(x, 0);                                                                                                                                                                     
+                    std::string dn = SDL_GetAudioDeviceName(x, 0);
                     if (startsWith(dn, dev)) {
-                        audioDeviceName = dn;                                                                                                                                                                                          
-                    }                                                                                                                                                                                                                  
-                }                                                                                                                                                                                                                      
-            }                                                                                                                                                                                                                          
+                        audioDeviceName = dn;
+                    }
+                }
+            }
 #endif
-        }         
+        }
         LogDebug(VB_MEDIAOUT, "Using output device: %s\n", audioDeviceName.c_str());
         int clayout = getSettingInt("AudioLayout");
         _wanted_spec.channels = ChannelsForLayout(clayout);
@@ -846,7 +848,7 @@ bool SDLOutput::IsOverlayingVideo() {
 }
 bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
     SDLInternalData* data = sdlManager.data;
-    if (data && !data->stopped && data->video_stream_idx != -1 && data->curVideoFrame && data->videoOverlayModel) {
+    if (data && !data->stopped && data->video_stream_idx != -1 && data->curVideoFrame) {
         while (data->curVideoFrame->next && data->curVideoFrame->next->timestamp <= msTimestamp) {
             data->curVideoFrame = data->curVideoFrame->next;
         }
@@ -857,10 +859,13 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
             int t2 = ((int)t) - data->videoStartTime;
 
             // printf("v:  %d  %d      %d        %d\n", msTimestamp, vf->timestamp, t2, sdlManager.data->videoFrameCount);
-            data->videoOverlayModel->setData(vf->data);
-            if (data->videoOverlayModel->getState() == PixelOverlayState::Disabled) {
-                data->wasOverlayDisabled = true;
-                data->videoOverlayModel->setState(PixelOverlayState::Enabled);
+            std::unique_lock<std::mutex> lock(data->videoOverlayModelLock);
+            if (data->videoOverlayModel) {
+                data->videoOverlayModel->setData(vf->data);
+                if (data->videoOverlayModel->getState() == PixelOverlayState::Disabled) {
+                    data->wasOverlayDisabled = true;
+                    data->videoOverlayModel->setState(PixelOverlayState::Enabled);
+                }
             }
         }
     }
@@ -1004,7 +1009,12 @@ SDLOutput::SDLOutput(const std::string& mediaFilename,
     }
     int videoOverlayWidth, videoOverlayHeight;
     if (videoOutput != "--Disabled--" && videoOutput != "" && (videoOutput != "--HDMI--" && videoOutput != "HDMI")) {
+        PixelOverlayManager::INSTANCE.addModelListener(videoOutput, "SDLOut", [this](PixelOverlayModel* m) {
+            std::unique_lock<std::mutex> lock(data->videoOverlayModelLock);
+            data->videoOverlayModel = m;
+        });
         data->videoOverlayModel = PixelOverlayManager::INSTANCE.getModel(videoOutput);
+        data->videoOverlayModelName = videoOutput;
 
         if (data->videoOverlayModel &&
             open_codec_context(&data->video_stream_idx, &data->videoCodecContext, data->formatContext, AVMEDIA_TYPE_VIDEO, fullAudioPath.c_str()) >= 0) {
@@ -1243,9 +1253,13 @@ int SDLOutput::Close(void) {
     sdlManager.Close();
 
     if (data && data->videoOverlayModel) {
+        std::unique_lock<std::mutex> lock(data->videoOverlayModelLock);
         data->videoOverlayModel->clearOverlayBuffer();
         data->videoOverlayModel->flushOverlayBuffer();
         data->videoOverlayModel = nullptr;
+    }
+    if (!data->videoOverlayModelName.empty()) {
+        PixelOverlayManager::INSTANCE.removeModelListener(data->videoOverlayModelName, "SDLOut");
     }
     return 0;
 }
@@ -1259,6 +1273,7 @@ int SDLOutput::Stop(void) {
     if (data) {
         data->stopped = data->stopped + 1;
         if (data->video_stream_idx >= 0 && data->videoOverlayModel) {
+            std::unique_lock<std::mutex> lock(data->videoOverlayModelLock);
             if (data->wasOverlayDisabled) {
                 data->videoOverlayModel->setState(PixelOverlayState::Disabled);
             }
