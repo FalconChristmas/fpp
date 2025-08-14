@@ -530,6 +530,9 @@ static void setupNetwork(bool fullReload = false) {
     int tetherEnabled = getRawSettingInt("EnableTethering", 0);
     std::string tetherInterface = FindTetherWIFIAdapater();
 
+    const std::string dhcpProxyFile = FPP_MEDIA_DIR + "/config/dhcp-proxy-config.conf";
+    std::string dhcpProxies;
+
     bool ipForward = false;
     bool hostapd = false;
     std::map<std::string, std::string> filesNeeded;
@@ -566,6 +569,13 @@ static void setupNetwork(bool fullReload = false) {
             int DHCPPOOLSIZE = getIntFromMap(interfaceSettings, "DHCPPOOLSIZE", 50);
             int ROUTEMETRIC = getIntFromMap(interfaceSettings, "ROUTEMETRIC", 0);
             int IPFORWARDING = getIntFromMap(interfaceSettings, "IPFORWARDING", 0);
+
+            if (DHCPSERVER == 1) {
+                std::string address = interfaceSettings["ADDRESS"];
+                address = address.substr(0, address.find_last_of("."));
+                dhcpProxies += "RewriteRule ^" + address + ".([0-9:]*)$  http://" + address + ".$1/  [P,L]\n";
+                dhcpProxies += "RewriteRule ^" + address + ".([0-9:]*)/(.*)$  http://" + address + ".$1/$2  [P,L]\n\n";
+            }
 
             content.append(interface).append("\nType=");
             if (startsWith(interface, "wl")) {
@@ -650,9 +660,8 @@ static void setupNetwork(bool fullReload = false) {
                 content.append("IPForward=yes\n");
                 ipForward = true;
             } else if (IPFORWARDING == 2) {
-                // systemd-networkd might not have masqarate support compiled in, we'll just do it manually
+                // systemd-networkd might not have masquerade support compiled in, we'll just do it manually
                 ipForward = true;
-                exec("/usr/sbin/modprobe iptable_nat");
                 exec("/usr/sbin/nft add table nat");
                 exec("/usr/sbin/nft 'add chain nat postrouting { type nat hook postrouting priority 100 ; }'");
                 exec("/usr/sbin/nft add rule nat postrouting oif " + interface + " masquerade");
@@ -697,6 +706,14 @@ static void setupNetwork(bool fullReload = false) {
                 filesNeeded["/etc/systemd/network/10-" + interface + ".network"] = content;
             }
         }
+    }
+    bool reloadApache = false;
+    if (dhcpProxies.empty() && FileExists(dhcpProxyFile)) {
+        unlink(dhcpProxyFile.c_str());
+        reloadApache = true;
+    } else if (!dhcpProxies.empty()) {
+        PutFileContents(dhcpProxyFile, dhcpProxies);
+        reloadApache = true;
     }
     bool changed = false;
     for (auto& ftc : filesToConsider) {
@@ -755,8 +772,10 @@ static void setupNetwork(bool fullReload = false) {
     } else {
         exec("/usr/sbin/sysctl net.ipv4.ip_forward=0");
     }
+    if (reloadApache && (!contains(execAndReturn("/usr/bin/systemctl is-active apache2"), "inactive"))) {
+        exec("/usr/bin/systemctl reload-or-restart apache2");
+    }
 }
-
 static void setFileOwnership() {
     exec("/usr/bin/chown -R fpp:fpp " + FPP_MEDIA_DIR);
 }

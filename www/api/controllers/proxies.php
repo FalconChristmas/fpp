@@ -15,7 +15,7 @@ function LoadProxyList()
         if (strpos($line, 'http://') !== false) {
             $parts = preg_split("/[\s]+/", $line);
             $host = preg_split("/[\/]+/", $parts[2])[1];
-            if ($host != "$1") {
+            if (!str_contains($host, "$1")) {
                 $proxies[] = array("host" => $host, "description" => $description);
                 $description = "";
             }
