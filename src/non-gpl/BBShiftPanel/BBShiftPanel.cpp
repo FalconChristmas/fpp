@@ -443,6 +443,9 @@ void BBShiftPanelOutput::processTasks(std::atomic<int>& counter) {
 }
 
 void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
+    // if (!isPWMPanel() && FileExists(FPP_DIR_MEDIA("/config/panel_timing.txt"))) {
+    //     setupBrightnessValues();
+    // }
     LogExcess(VB_CHANNELOUT, "BBShiftPanelOutput::PrepData(%p)\n", channelData);
     m_matrix->OverlaySubMatrices(channelData);
     channelData += m_startChannel;
@@ -779,13 +782,30 @@ void BBShiftPanelOutput::setupPWMRegisters() {
 }
 
 void BBShiftPanelOutput::setupBrightnessValues() {
-    uint32_t maxBright = 0x8000;
-    if (rowLen > 384) {
-        maxBright = 0xD000;
-    } else if (rowLen > 256) {
-        maxBright = 0xB000;
+    static uint32_t lastBright = 0;
+    uint32_t maxBright = 0x8800;
+    if (rowLen >= 384) {
+        maxBright += 0x2000;
     }
-
+    if (rowLen >= 512) {
+        maxBright += 0x2000;
+    }
+    if (rowLen >= 640) {
+        maxBright += 0x2000;
+    }
+    if (FileExists(FPP_DIR_MEDIA("/config/panel_timing.txt"))) {
+        std::string v = GetFileContents(FPP_DIR_MEDIA("/config/panel_timing.txt"));
+        if (!v.empty()) {
+            maxBright = std::stoi(v, nullptr, 16);
+        }
+    }
+    /*
+    static uint32_t lastBright = 0;
+    if (maxBright != lastBright) {
+        printf("Using max bright: %04X\n", maxBright);
+        lastBright = maxBright;
+    }
+    */
     uint32_t* cur = &pruData->brightness[0];
 
     if (m_outputByRow) {

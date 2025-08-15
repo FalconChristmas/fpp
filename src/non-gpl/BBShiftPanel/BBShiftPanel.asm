@@ -135,7 +135,6 @@ TOGGLE_CLOCK .macro
     NOP
     NOP
     SET r30, r30, CLOCK_PIN
-    NOP
     .endm
 
 TOGGLE_LATCH .macro
@@ -148,9 +147,7 @@ TOGGLE_LATCH .macro
     NOP
     NOP
     NOP
-    NOP
     CLR r30, r30, LATCH_PIN
-    NOP
     NOP
     .endm
 
