@@ -935,19 +935,6 @@ int Init_Col_PG_addrs(unsigned char col_start_addr, unsigned char col_end_addr,
 void setRotation(unsigned char x)
 {
     _rotation = x & 3;
-    switch(_rotation)
-    {
-    case 0:
-    case 2:
-        _width = LED_DISPLAY_WIDTH;
-        _height = LED_DISPLAY_HEIGHT;
-        break;
-    case 1:
-    case 3:
-        _width = LED_DISPLAY_HEIGHT;
-        _height = LED_DISPLAY_WIDTH;
-        break;
-    }
 }
 
 /****************************************************************
@@ -1595,15 +1582,10 @@ signed char drawPixel(short x, short y, short color)
     switch(_rotation)
     {
     case 1:
-        SWAP(x,y);
         x = _width - x - 1;
         break;
     case 2:
         x = _width - x - 1;
-        y = _height - y - 1;
-        break;
-    case 3:
-        SWAP(x,y);
         y = _height - y - 1;
         break;
     }

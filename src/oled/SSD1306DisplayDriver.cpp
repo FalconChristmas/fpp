@@ -73,6 +73,8 @@ bool SSD1306DisplayDriver::initialize(int& i2cBus) {
     setTextSize(1);
     if (ledType == 2 || ledType == 4 || ledType == 6 || ledType == 8 || ledType == 10) {
         ::setRotation(2);
+    } else if (ledType == 32 || ledType == 33) {
+        ::setRotation(1);
     } else if (ledType) {
         ::setRotation(0);
     }

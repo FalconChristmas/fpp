@@ -5,7 +5,6 @@
 #include "OLEDPages.h"
 #include "../common.h"
 
-
 static std::unique_ptr<DisplayDriver> displayDriver{ nullptr };
 
 OLEDPage::OLEDType OLEDPage::oledType = OLEDPage::OLEDType::SINGLE_COLOR;
@@ -25,7 +24,7 @@ bool OLEDPage::InitializeDisplay(int ledType) {
         SetOLEDType(OLEDPage::OLEDType::NONE);
         return false;
     }
-    if (ledType <= 10) {
+    if (ledType <= 10 || ledType >= 32) {
         displayDriver = std::make_unique<SSD1306DisplayDriver>(ledType);
         if (!displayDriver->initialize(DISPLAY_I2CBUS)) {
             displayDriver.reset(nullptr);
