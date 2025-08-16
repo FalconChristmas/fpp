@@ -33,6 +33,8 @@ function HandleSettings()
         ApplyServiceSetting("Service_vsftpd", $settings["Service_vsftpd"], "--now");
     if (array_key_exists("Service_MQTT_localbroker", $settings))
         ApplySetting("Service_MQTT_localbroker", $settings["Service_MQTT_localbroker"]);
+    if (array_key_exists("screensaver", $settings))
+        ApplySetting("screensaver", $settings["screensaver"]);
     if (array_key_exists("osPasswordEnable", $settings)) {
         ApplySetting("osPasswordEnable", $settings["osPasswordEnable"]);
     } else {
