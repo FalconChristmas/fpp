@@ -88,6 +88,8 @@
                                 let type = "UNKNOWN";
                                 if (f.name.startsWith("BBB-")) {
                                     type = "BBB";
+                                } else if (f.name.startsWith("BB64-")) {
+                                    type = "BB64";
                                 } else if (f.name.startsWith("Pi-")) {
                                     type = "PI";
                                 }
