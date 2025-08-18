@@ -237,9 +237,7 @@ function list_plugin_entries($menu)
                 <?
             }
             ?>
-            <!--
-  <div id='upgradeFlag' class="alert detract"><span class='inlineBlock'>FPP v7.1 is available for install</span><span class='inlineBlock'><button name="btnUpgrade" type="button" onClick="ViewReleaseNotes('7.1');"  class = "buttons btn-outline-light" ><i class='fas fa-fw fa-sync fa-nbsp'></i>Upgrade FPP</button></span></div>
--->
+  <div id='upgradeFlag' class="alert detract"><span class='inlineBlock'>FPP v9.1 is available for install</span><span class='inlineBlock'><button name="btnUpgrade" type="button" onClick="ViewReleaseNotes('9.1');"  class = "buttons btn-outline-light" ><i class='fas fa-fw fa-sync fa-nbsp'></i>Upgrade FPP</button></span></div>
             <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart
                     Required</span><span class='inlineBlock'><button name="btnRestartFPPD" type="button"
                         onClick="RestartFPPD();common_ViewPortChange();" class="buttons btn-outline-light"><i
