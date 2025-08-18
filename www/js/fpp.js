@@ -8876,7 +8876,15 @@ function checkForFppUpdate () {
 					remote_commit = branch.commit.sha;
 				}
 				if (branch.name != 'master') {
-					if (branch.commit.date_epoch > latest_non_master_epoch) {
+					var bn = branch.name.substr(1);
+					if (bn.startsWith('v')) {
+						bn = branch.name.substr(1);
+					}
+					bn = parseFloat(bn);
+					if (
+						bn >= getFPPVersionFloat() &&
+						branch.commit.date_epoch > latest_non_master_epoch
+					) {
 						latest_non_master = branch.name;
 						latest_non_master_epoch = branch.commit.date_epoch;
 					}
