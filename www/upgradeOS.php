@@ -33,27 +33,9 @@ require_once "common.php";
 
 DisableOutputBuffering();
 
-if (!$wrapped) {
-    ?>
-
-<title>
-FPP OS Upgrade
-</title>
-</head>
-<body>
-<h2>FPP OS Upgrade</h2>
-Image: <?echo strip_tags($_GET['os']); ?><br>
-<pre>
-<?
-} else {
-    echo "\nFPP OS Upgrade\n";
-    echo "Image: " . strip_tags($_GET['os']) . "\n";
-}
-
-if (preg_match('/^https?:/', $_GET['os'])) {
+function downloadImage($localFile): bool
+{
     echo "==========================================================================\n";
-    $baseFile = escapeshellcmd(preg_replace('/.*\/([^\/]*)$/', '$1', $_GET['os']));
-    $localFile = fopen("/home/fpp/media/upload/$baseFile", "wb");
     echo "Downloading OS Image:\n";
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_FILE, $localFile);
@@ -61,22 +43,55 @@ if (preg_match('/^https?:/', $_GET['os'])) {
     curl_setopt($ch, CURLOPT_HEADER, 0);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // Connect in 10 seconds or less
     curl_setopt($ch, CURLOPT_TIMEOUT, 86400); // 1 Day Timeout to transfer
-    curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible;)");
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, 'progress');
     curl_setopt($ch, CURLOPT_NOPROGRESS, false); // needed to make progress function work
+    curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
 
     $result = curl_exec($ch);
 
     if ($result) {
         echo ("Download complete...\n");
+        return true;
     } else {
         echo ("Download aborted!\n");
         $applyUpdate = false;
         $msg = curl_error($ch);
-        echo("Error Message: $msg");
+        echo ("Error Message: $msg");
     }
+    return false;
+}
 
+if (!$wrapped) {
+    ?>
+
+    <title>
+        FPP OS Upgrade
+    </title>
+    </head>
+
+    <body>
+        <h2>FPP OS Upgrade</h2>
+        Image: <? echo strip_tags($_GET['os']); ?><br>
+        <pre>
+                                                    <?
+} else {
+    echo "\nFPP OS Upgrade\n";
+    echo "Image: " . strip_tags($_GET['os']) . "\n";
+}
+
+if (preg_match('/^https?:/', $_GET['os'])) {
+    $baseFile = escapeshellcmd(preg_replace('/.*\/([^\/]*)$/', '$1', $_GET['os']));
+    $localFile = fopen("/home/fpp/media/upload/$baseFile", "wb");
+
+    if (!downloadImage($localFile)) {
+        echo "Failed to download image, retrying.\n";
+        fclose($localFile);
+        unlink("/home/fpp/media/upload/$baseFile");
+        $localFile = fopen("/home/fpp/media/upload/$baseFile", "wb");
+        downloadImage($localFile);
+    }
+    fclose($localFile);
 }
 
 if ($applyUpdate) {
@@ -108,14 +123,15 @@ if ($applyUpdate) {
 
 if (!$wrapped) {
     ?>
-</pre>
-==========================================================================
-<b>Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot</b>
-<a href='index.php'>Go to FPP Main Status Page</a><br>
-<a href='about.php'>Go back to FPP About page</a><br>
-</body>
-</html>
-<?
+                                                    </pre>
+        ==========================================================================
+        <b>Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot</b>
+        <a href='index.php'>Go to FPP Main Status Page</a><br>
+        <a href='about.php'>Go back to FPP About page</a><br>
+    </body>
+
+    </html>
+    <?
 } else if ($applyUpdate && ($return_code == 0)) {
     echo "==========================================================================\n";
     echo "Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot\n";
@@ -126,17 +142,18 @@ if (!$wrapped) {
     echo "FPP UPGRADE FAILED\n";
     echo "==========================================================================\n";
 }
-while (@ob_end_flush());
+while (@ob_end_flush())
+    ;
 flush();
 session_write_close();
 
 if ($applyUpdate && ($return_code == 0)) {
     sleep(3);
-    
+
     # Force reboot the system, try a variety of methods
     # to see if one will properly trigger
     system("echo b > /proc/sysrq-trigger");
-    
+
     sleep(1);
     system("echo b | sudo tee /proc/sysrq-trigger");
 
