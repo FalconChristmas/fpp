@@ -74,7 +74,8 @@ if (!$wrapped) {
         <h2>FPP OS Upgrade</h2>
         Image: <? echo strip_tags($_GET['os']); ?><br>
         <pre>
-                                                    <?
+
+    <?
 } else {
     echo "\nFPP OS Upgrade\n";
     echo "Image: " . strip_tags($_GET['os']) . "\n";
@@ -82,6 +83,24 @@ if (!$wrapped) {
 
 if (preg_match('/^https?:/', $_GET['os'])) {
     $baseFile = escapeshellcmd(preg_replace('/.*\/([^\/]*)$/', '$1', $_GET['os']));
+
+
+    // For now, we'll fork wget to get the file.   There is an issue with OpenSSL combined with the cURL built into PHP
+    // on certain versions of debian (which includes what was shipped with FPP 8.5) which is causing very 
+    // slow transfers if using the above curl_easy stuff.   
+
+    $command = "sudo wget --quiet --show-progress --progress=bar:force:noscroll " . $_GET['os'] . " -O /home/fpp/media/upload/$baseFile 2>&1";
+    //$command = "sudo curl --progress-bar -L " . $_GET['os'] . " -o /home/fpp/media/upload/$baseFile 2>&1";
+    echo "Running command: $command\n";
+    passthru($command, $rc);
+    if ($rc != 0) {
+        echo ("Download aborted!\n");
+        $applyUpdate = false;
+    } else {
+        echo ("Download complete...\n");
+    }
+
+    /*
     $localFile = fopen("/home/fpp/media/upload/$baseFile", "wb");
 
     if (!downloadImage($localFile)) {
@@ -92,6 +111,7 @@ if (preg_match('/^https?:/', $_GET['os'])) {
         downloadImage($localFile);
     }
     fclose($localFile);
+    */
 }
 
 if ($applyUpdate) {
@@ -123,7 +143,7 @@ if ($applyUpdate) {
 
 if (!$wrapped) {
     ?>
-                                                    </pre>
+                                                                                                                                                                                                                    </pre>
         ==========================================================================
         <b>Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot</b>
         <a href='index.php'>Go to FPP Main Status Page</a><br>
