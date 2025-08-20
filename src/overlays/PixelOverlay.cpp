@@ -346,13 +346,15 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
 
 PixelOverlayModel* PixelOverlayManager::getModel(const std::string& name) {
     std::unique_lock<std::mutex> lock(modelsLock);
+    return getModelLocked(name);
+}
+PixelOverlayModel* PixelOverlayManager::getModelLocked(const std::string& name) {
     auto a = models.find(name);
     if (a == models.end()) {
         return nullptr;
     }
     return a->second.model;
 }
-
 void PixelOverlayManager::addModelListener(const std::string& name, const std::string& id, std::function<void(PixelOverlayModel*)> listener) {
     std::unique_lock<std::mutex> lock(modelsLock);
     models[name].listeners[id] = listener;
@@ -806,6 +808,10 @@ public:
     virtual ~OverlayCommand() {}
 
     std::mutex& getLock() { return manager->modelsLock; }
+    PixelOverlayModel* getModelLocked(const std::string& name) {
+        return manager->getModelLocked(name);
+    }
+
     PixelOverlayManager* manager;
 };
 
@@ -824,7 +830,7 @@ public:
         std::unique_lock<std::mutex> lock(getLock());
         std::list<PixelOverlayModel*> models;
         for (auto& ms : split(args[0], ',')) {
-            auto m = manager->getModel(ms);
+            auto m = getModelLocked(ms);
             if (m) {
                 models.push_back(m);
             } else {
@@ -851,7 +857,7 @@ public:
         std::unique_lock<std::mutex> lock(getLock());
         std::list<PixelOverlayModel*> models;
         for (auto& ms : split(args[0], ',')) {
-            auto m = manager->getModel(ms);
+            auto m = getModelLocked(ms);
             if (m) {
                 models.push_back(m);
             } else {
@@ -880,7 +886,7 @@ public:
         std::unique_lock<std::mutex> lock(getLock());
         std::list<PixelOverlayModel*> models;
         for (auto& ms : split(args[0], ',')) {
-            auto m = manager->getModel(ms);
+            auto m = getModelLocked(ms);
             if (m) {
                 models.push_back(m);
             } else {
@@ -972,12 +978,12 @@ public:
         for (auto& ms : split(args[0], ',')) {
             if (ms == "--All Models--") {
                 for (auto& mn : manager->getModelNames()) {
-                    auto m = manager->getModel(mn);
+                    auto m = getModelLocked(mn);
                     models.push_back(m);
                 }
                 break;
             }
-            auto m = manager->getModel(ms);
+            auto m = getModelLocked(ms);
             if (m) {
                 models.push_back(m);
             } else {

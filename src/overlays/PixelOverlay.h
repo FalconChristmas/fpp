@@ -80,6 +80,7 @@ private:
     void ConvertCMMFileToJSON();
     void loadModelMap();
     void RegisterCommands();
+    PixelOverlayModel* getModelLocked(const std::string& name);
 
     std::atomic_int numActive;
     std::list<PixelOverlayModel*> activeModels;
