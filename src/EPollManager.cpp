@@ -10,17 +10,16 @@
  * included LICENSE.GPL file.
  */
 
- #include "EPollManager.h"
+#include "EPollManager.h"
 
-#include <cstring>
 #include <cerrno>
-#include <unistd.h>
+#include <cstring>
 #include <fcntl.h>
+#include <unistd.h>
 
- #include "log.h"
+#include "log.h"
 
 EPollManager EPollManager::INSTANCE;
-
 
 EPollManager::EPollManager() {
 #ifdef USE_KQUEUE
@@ -42,8 +41,11 @@ void EPollManager::shutdown() {
     callbacks.clear();
 }
 
-
-void EPollManager::addFileDescriptor(int fd, std::function<bool(int)> &callback) {
+void EPollManager::addFileDescriptor(int fd, std::function<bool(int)>& callback) {
+    if (epollf == -1) {
+        // EPoll has been shutdown, cannot add file descriptor
+        return;
+    }
 #ifdef USE_KQUEUE
     struct kevent change;
     EV_SET(&change, fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
@@ -56,13 +58,17 @@ void EPollManager::addFileDescriptor(int fd, std::function<bool(int)> &callback)
     int rc = epoll_ctl(epollf, EPOLL_CTL_ADD, fd, &event);
 #endif
     if (rc == -1) {
-        LogWarn(VB_GENERAL, "Failed to add descripto: %d  %s\n", fd, strerror(errno));
+        LogWarn(VB_GENERAL, "Failed to add descriptor: %d  %s\n", fd, strerror(errno));
     } else {
         callbacks[fd] = std::move(callback);
     }
 }
 
 void EPollManager::removeFileDescriptor(int fd) {
+    if (epollf == -1) {
+        // EPoll has been shutdown, cannot remove file descriptor
+        return;
+    }
     // Implementation for removing a file descriptor from the epoll instance
 #ifdef USE_KQUEUE
     struct kevent change;
@@ -76,7 +82,7 @@ void EPollManager::removeFileDescriptor(int fd) {
     int rc = epoll_ctl(epollf, EPOLL_CTL_DEL, fd, &event);
 #endif
     if (rc == -1) {
-        LogWarn(VB_GENERAL, "Failed to remove descripto: %d  %s\n", fd, strerror(errno));
+        LogWarn(VB_GENERAL, "Failed to remove descriptor: %d  %s\n", fd, strerror(errno));
     } else {
         callbacks.erase(fd);
     }
@@ -98,7 +104,6 @@ EPollManager::WaitResult EPollManager::waitForEvents(int mstimeout) {
         } else {
             return WaitResult::FAILED;
         }
-
     }
 #endif
     bool retVal = false;
