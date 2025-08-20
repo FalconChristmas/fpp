@@ -35,7 +35,7 @@ Json::Value PinCapabilities::toJSON() const {
         ret["gpioChip"] = gpioIdx;
         ret["gpioLine"] = gpio;
         if (gpioIdx == 0) {
-            //somewhat for compatibility with the old kernel GPIO numbers on the Pi's
+            // somewhat for compatibility with the old kernel GPIO numbers on the Pi's
             ret["gpio"] = gpio;
         }
         if (pwm != -1) {
@@ -213,6 +213,9 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
 
 bool GPIODCapabilities::getValue() const {
 #ifdef HASGPIOD
+    if (lastRequestType == gpiod::line_request::DIRECTION_OUTPUT) {
+        return lastValue;
+    }
     return line.get_value();
 #else
     return 0;
@@ -220,6 +223,7 @@ bool GPIODCapabilities::getValue() const {
 }
 void GPIODCapabilities::setValue(bool i) const {
 #ifdef HASGPIOD
+    lastValue = i;
     line.set_value(i ? 1 : 0);
 #endif
 }
@@ -286,7 +290,6 @@ const PinCapabilities& PinCapabilities::getPinByName(const std::string& n) {
     return PIN_PROVIDER->getPinByName(n);
 }
 const PinCapabilities& PinCapabilities::getPinByGPIO(int chip, int gpio) {
-    
     for (auto& a : GPIOD_PINS) {
         if (a.gpioIdx == chip && a.gpio == gpio) {
             return a;

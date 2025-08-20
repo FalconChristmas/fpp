@@ -156,6 +156,7 @@ public:
     mutable gpiod::chip* chip = nullptr;
     mutable gpiod::line line;
     mutable int lastRequestType = 0;
+    mutable bool lastValue = false;
 #endif
 };
 
