@@ -135,7 +135,8 @@ bool FPPOLEDUtils::setupControlPin(const std::string& file) {
 
 FPPOLEDUtils::InputAction* FPPOLEDUtils::configureGPIOPin(const std::string& pinName,
                                                           const std::string& mode,
-                                                          const std::string& edge) {
+                                                          const std::string& edge,
+                                                          const std::string& name) {
     const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
     pin.configPin(mode, false);
     pin.releaseGPIOD();
@@ -150,7 +151,12 @@ FPPOLEDUtils::InputAction* FPPOLEDUtils::configureGPIOPin(const std::string& pin
     }
     action->gpiodLine = gpiod_chip_get_line(gpiodChips[pin.gpioIdx], pin.gpio);
     struct gpiod_line_request_config lineConfig;
-    lineConfig.consumer = "FPPOLED";
+    std::string nameDesc = "FPPOLED";
+    if (!name.empty()) {
+        nameDesc += "-" + name;
+    }
+    lineConfig.consumer = nameDesc.c_str();
+
     lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
     lineConfig.flags = 0;
     if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
@@ -224,7 +230,7 @@ bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string& file) {
                     setInputFlag(risingAction);
                 }
                 if (edge != "") {
-                    InputAction* action = configureGPIOPin(pinName, mode, edge);
+                    InputAction* action = configureGPIOPin(pinName, mode, edge, risingAction.empty() ? fallingAction : risingAction);
                     if (risingAction != "") {
                         printf("Configuring pin %s as input of type %s   (mode: %s,  file: %d)\n", action->pin.c_str(), risingAction.c_str(), action->mode.c_str(), action->file);
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(risingAction, 1, 1, 100000));
@@ -272,6 +278,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                 action->gpiodLine = nullptr;
                 if (action->mode.find("gpio") != std::string::npos) {
                     std::string edge = root["inputs"][x]["edge"].asString();
+                    std::string type = root["inputs"][x]["type"].asString();
                     int actionValue = (edge == "falling" ? 0 : 1);
                     const PinCapabilities& pin = PinCapabilities::getPinByName(action->pin);
 
@@ -283,7 +290,11 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                     action->gpiodLine = gpiod_chip_get_line(gpiodChips[pin.gpioIdx], pin.gpio);
 
                     struct gpiod_line_request_config lineConfig;
-                    lineConfig.consumer = "FPPOLED";
+                    std::string nameDesc = "FPPOLED";
+                    if (type != "gpiod") {
+                        nameDesc += "-" + type;
+                    }
+                    lineConfig.consumer = nameDesc.c_str();
                     lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
                     lineConfig.flags = 0;
                     if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
@@ -307,7 +318,6 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                     }
                     action->file = gpiod_line_event_get_fd(action->gpiodLine);
 
-                    std::string type = root["inputs"][x]["type"].asString();
                     if (type == "gpiod") {
                         // this is the mode for various gpio extenders like the pca9675 chip that
                         // use a single interrupt line (configured above) fall all the buttons.
@@ -325,7 +335,11 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                                 if (gpioline < lines) {
                                     gpiod_line* l = gpiod_chip_get_line(chip, gpioline);
                                     struct gpiod_line_request_config lineConfig;
-                                    lineConfig.consumer = "FPPOLED";
+                                    std::string nameDesc = "FPPOLED";
+                                    if (!buttonaction.empty()) {
+                                        nameDesc += "-" + buttonaction;
+                                    }
+                                    lineConfig.consumer = nameDesc.c_str();
                                     lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
                                     lineConfig.flags = 0;
                                     if (gpiod_line_request(l, &lineConfig, 0) == -1) {

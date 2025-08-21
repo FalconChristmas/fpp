@@ -311,7 +311,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         if (m_strings[x]->m_outputChannels > 0) {
             // need to output this pin, configure it
             const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][x]["pin"].asString());
-            pin.configPin();
+            pin.configPin("gpio", true, "BBB48String-" + std::to_string(x + 1));
             allStringMap.push_back(x);
             if (x >= m_licensedOutputs && m_strings[x]->m_outputChannels > 0) {
                 // apply limit

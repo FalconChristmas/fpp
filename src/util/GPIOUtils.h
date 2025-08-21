@@ -157,6 +157,7 @@ public:
     mutable gpiod::line line;
     mutable int lastRequestType = 0;
     mutable bool lastValue = false;
+    mutable std::string lastDesc;
 #endif
 };
 

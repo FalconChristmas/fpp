@@ -142,6 +142,7 @@ int GPIODCapabilities::configPin(const std::string& mode,
     if (!desc.empty()) {
         req.consumer += "-" + desc;
     }
+    lastDesc = req.consumer;
     if (directionOut) {
         req.request_type = gpiod::line_request::DIRECTION_OUTPUT;
     } else {
@@ -174,6 +175,7 @@ void GPIODCapabilities::releaseGPIOD() const {
         // printf("Releasing %s %d %d\n", name.c_str(), gpioIdx, gpio);
         line.release();
         lastRequestType = 0;
+        lastDesc.clear();
     }
 #endif
 }
@@ -181,7 +183,7 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
     int fd = -1;
 #ifdef HASGPIOD
     gpiod::line_request req;
-    req.consumer = PROCESS_NAME;
+    req.consumer = lastDesc.empty() ? PROCESS_NAME : lastDesc;
     req.request_type = lastRequestType;
     if (risingEdge && fallingEdge) {
         req.request_type |= gpiod::line_request::EVENT_BOTH_EDGES;

@@ -52,9 +52,9 @@ int ChannelOutput::Init(Json::Value config) {
                     if ((pinMode == "gpio") || (pinMode == "gpio_pu") || (pinMode == "gpio_pd")) {
                         std::string pinDirection = gpios[i]["direction"].asString();
                         if (pinDirection == "out") {
-                            pin.configPin(pinMode, true);
+                            pin.configPin(pinMode, true, GetOutputType());
                         } else if (pinDirection == "in") {
-                            pin.configPin(pinMode, false);
+                            pin.configPin(pinMode, false, GetOutputType());
                         } else {
                             LogErr(VB_CHANNELOUT, "Invalid pin direction of '%s' on GPIO pin %s\n", pinDirection.c_str(), pinName.c_str());
                             continue;
@@ -73,7 +73,7 @@ int ChannelOutput::Init(Json::Value config) {
                             }
                         }
                     } else {
-                        pin.configPin(pinMode);
+                        pin.configPin(pinMode, true, GetOutputType());
                     }
                 }
             }
