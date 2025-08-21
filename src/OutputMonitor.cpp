@@ -134,9 +134,7 @@ public:
 
 class PortPinInfo {
 public:
-    PortPinInfo(const std::string& n, const Json::Value& c) :
-        name(n), config(c) {
-        setConfig(c);
+    PortPinInfo() {
     }
     ~PortPinInfo() {
         if (currentMonitor) {
@@ -144,7 +142,8 @@ public:
         }
     }
 
-    void setConfig(const Json::Value& c) {
+    void setConfig(const std::string& n, const Json::Value& c) {
+        name = n;
         config = c;
         if (config.isMember("row")) {
             row = config["row"].asInt();
@@ -540,13 +539,14 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         portPins.resize(port + 1);
     }
     if (portPins[port] && portPins[port]->name == name) {
-        portPins[port]->setConfig(pinConfig);
+        portPins[port]->setConfig(name, pinConfig);
         return;
     }
     PortPinInfo* pi = portPins[port];
     if (!pi) {
-        pi = new PortPinInfo(name, pinConfig);
-    }   
+        pi = new PortPinInfo();
+    }
+    pi->setConfig(name, pinConfig);
     bool hasInfo = false;
     pi->receivers[0].enabled = true;
     if (pinConfig.isMember("enablePin")) {
@@ -718,7 +718,8 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         }
         for (int x = 1; x < 4; x++) {
             std::string name = "Port " + std::to_string(port + 1 + x);
-            pi = new PortPinInfo(name, pinConfig);
+            pi = new PortPinInfo();
+            pi->setConfig(name, pinConfig);
             if (pi->row == -1) {
                 pi->row = mr;
                 pi->col = mc + x;
