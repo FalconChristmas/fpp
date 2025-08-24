@@ -746,22 +746,7 @@
 			"reloadUI": 1,
 			"gatherStats": true,
 			"default": "",
-			"type": "select",
-			"options": {
-				"Default": "",
-				"Red": "FF0000",
-				"Green": "008000",
-				"Blue": "0000FF",
-				"Aqua": "00FFFF",
-				"Black": "000000",
-				"Gray": "808080",
-				"Lime": "00FF00",
-				"Navy": "000080",
-				"Olive": "808000",
-				"Purple": "800080",
-				"Silver": "C0C0C0",
-				"Teal": "008080"
-			}
+			"type": "color"
 		},
 		"BBBLedPWR": {
 			"name": "BBBLedPWR",
