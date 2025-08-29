@@ -25,6 +25,7 @@ if (isset($_GET['keepOptFPP'])) {
 
 if (!$wrapped) {
     echo "<html>\n";
+    echo "<head>\n";
 }
 
 $skipJSsettings = 1;
@@ -32,90 +33,75 @@ require_once "common.php";
 
 DisableOutputBuffering();
 
+function downloadImage($localFile): bool
+{
+    echo "==========================================================================\n";
+    echo "Downloading OS Image:\n";
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_FILE, $localFile);
+    curl_setopt($ch, CURLOPT_URL, $_GET['os']);
+    curl_setopt($ch, CURLOPT_HEADER, 0);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // Connect in 10 seconds or less
+    curl_setopt($ch, CURLOPT_TIMEOUT, 86400); // 1 Day Timeout to transfer
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, 'progress');
+    curl_setopt($ch, CURLOPT_NOPROGRESS, false); // needed to make progress function work
+    curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+
+    $result = curl_exec($ch);
+
+    if ($result) {
+        echo ("Download complete...\n");
+        return true;
+    } else {
+        echo ("Download aborted!\n");
+        $applyUpdate = false;
+        $msg = curl_error($ch);
+        echo ("Error Message: $msg");
+    }
+    return false;
+}
+
 if (!$wrapped) {
     ?>
 
-    <head>
-        <title>
-            FPP OS Upgrade
-        </title>
+    <title>
+        FPP OS Upgrade
+    </title>
     </head>
 
     <body>
         <h2>FPP OS Upgrade</h2>
         Image: <? echo strip_tags($_GET['os']); ?><br>
-        <pre>
-                <?
+        <pre><?
 } else {
     echo "\nFPP OS Upgrade\n";
     echo "Image: " . strip_tags($_GET['os']) . "\n";
 }
 
 if (preg_match('/^https?:/', $_GET['os'])) {
-    echo "==========================================================================\n";
-    /*    
-        $baseFile = escapeshellcmd(preg_replace('/.*\/([^\/]*)$/', '$1', $_GET['os']));
-        $localFile = fopen("/home/fpp/media/upload/$baseFile", "wb");
-        echo "Downloading OS Image:\n";
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_FILE, $localFile);
-        curl_setopt($ch, CURLOPT_URL, $_GET['os']);
-        curl_setopt($ch, CURLOPT_HEADER, 0);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // Connect in 10 seconds or less
-        curl_setopt($ch, CURLOPT_TIMEOUT, 86400); // 1 Day Timeout to transfer
-        curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible;)");
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, 'progress');
-        curl_setopt($ch, CURLOPT_NOPROGRESS, false); // needed to make progress function work
-
-        $result = curl_exec($ch);
-
-        if ($result) {
-            echo ("Download complete...\n");
-        } else {
-            echo ("Download aborted!\n");
-            $applyUpdate = false;
-        }
-            */
-
     $baseFile = escapeshellcmd(preg_replace('/.*\/([^\/]*)$/', '$1', $_GET['os']));
+
+
     // For now, we'll fork wget to get the file.   There is an issue with OpenSSL combined with the cURL built into PHP
     // on certain versions of debian (which includes what was shipped with FPP 8.5) which is causing very 
     // slow transfers if using the above curl_easy stuff.   
 
-    $command = "sudo wget --quiet --show-progress --progress=bar:force:noscroll " . $_GET['os'] . " -O /home/fpp/media/upload/$baseFile 2>&1";
+    $retryCount = 0;
+    $command = "sudo wget -c --quiet --show-progress --progress=bar:force:noscroll " . $_GET['os'] . " -O /home/fpp/media/upload/$baseFile 2>&1";
     //$command = "sudo curl --progress-bar -L " . $_GET['os'] . " -o /home/fpp/media/upload/$baseFile 2>&1";
-    echo "Running command: $command\n";
-    passthru($command, $rc);
+    $rc = 1;
+    while ($retryCount < 20 && $rc != 0) {
+        echo "Running command: $command\n";
+        passthru($command, $rc);
+        $retryCount++;
+    }
     if ($rc != 0) {
         echo ("Download aborted!\n");
         $applyUpdate = false;
     } else {
         echo ("Download complete...\n");
     }
-}
-
-if (!$wrapped) {
-    ?>
-
-                    <title>
-                        FPP OS Upgrade
-                    </title>
-                    </head>
-
-                    <body>
-                        <h2>FPP OS Upgrade</h2>
-                        Image: <? echo strip_tags($_GET['os']); ?><br>
-                        <pre>
-
-                    <?
-} else {
-    echo "\nFPP OS Upgrade\n";
-    echo "Image: " . strip_tags($_GET['os']) . "\n";
-}
-
-if (preg_match('/^https?:/', $_GET['os'])) {
-
 
     /*
     $localFile = fopen("/home/fpp/media/upload/$baseFile", "wb");
@@ -134,6 +120,10 @@ if (preg_match('/^https?:/', $_GET['os'])) {
 if ($applyUpdate) {
     echo "==========================================================================\n";
     echo "Upgrading OS:\n";
+
+    # Ensure /proc/sysrq-trigger is writable by fpp for reboot later.  Do it now whilst libraries are all good
+    system($SUDO . " chmod a+w /proc/sysrq-trigger");
+
     $TMP_FILE = "/home/fpp/media/tmp/upgradeOS-part1.sh";
     echo ("Checking for previous $TMP_FILE\n");
     if (file_exists($TMP_FILE)) {
@@ -155,8 +145,7 @@ if ($applyUpdate) {
 }
 
 if (!$wrapped) {
-    ?>
-                </pre>
+    ?></pre>
         ==========================================================================
         <b>Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot</b>
         <a href='index.php'>Go to FPP Main Status Page</a><br>
@@ -165,7 +154,6 @@ if (!$wrapped) {
 
     </html>
     <?
-
 } else if ($applyUpdate && ($return_code == 0)) {
     echo "==========================================================================\n";
     echo "Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot\n";
@@ -183,7 +171,16 @@ session_write_close();
 
 if ($applyUpdate && ($return_code == 0)) {
     sleep(3);
-    system($SUDO . " shutdown -r now");
+
+    # Force reboot the system, try a variety of methods
+    # to see if one will properly trigger
+    system("echo b > /proc/sysrq-trigger");
+
+    sleep(1);
+    system("echo b | sudo tee /proc/sysrq-trigger");
+
+    sleep(1);
+    system("shutdown -r now");
 }
 
 function progress($resource, $download_size, $downloaded, $upload_size, $uploaded)
