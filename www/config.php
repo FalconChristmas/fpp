@@ -747,6 +747,7 @@ if (!isset($skipJSsettings)) {
         var FPP_VERSION = '<? echo getFPPVersionFloatStr(); ?>';
         var FPP_MAJOR_VERSION = <? echo getFPPMajorVersion(); ?>;
         var FPP_MINOR_VERSION = <? echo getFPPMinorVersion(); ?>;
+        var FPP_VERSION_FLOAT = <? echo getFPPVersionFloat(); ?>;
         <? if (getFPPPatchVersion() == "") { ?>
             var FPP_PATCH_VERSION = 0;
         <? } else { ?>
