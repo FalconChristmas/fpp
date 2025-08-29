@@ -1,39 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<?php
-require_once('config.php');
-require_once('common.php');
+	<?php
+	include 'common/htmlMeta.inc';
+	require_once 'config.php';
+	require_once 'common.php';
+	include 'common/menuHead.inc';
 
-// 16:9 default aspect but smaller by default
-$canvasWidth = 800;
-$canvasHeight = 450;
 
-if (isset($_GET['width']))
-{
-	$canvasWidth = (int)($_GET['width']);
-	$canvasHeight = (int)($canvasWidth * 9.0 / 16.0);
-}
-?>
-<script type="text/javascript" src="js/jquery-latest.min.js"></script>
-<script type="text/javascript" src="js/jquery-ui.min.js"></script>
-<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
-<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
-<link rel="stylesheet" href="css/jquery-ui.css" />
-<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
-<link rel="stylesheet" href="css/classicTheme/style.css" media="all" />
-<link rel="stylesheet" href="css/minimal.css?ref=<?php echo filemtime('css/minimal.css'); ?>" />
-<script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
+	// 16:9 default aspect but smaller by default
+	$canvasWidth = 800;
+	$canvasHeight = 450;
 
-<title>Virtual Display</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimal-ui">
-<meta name="apple-mobile-web-app-capable" content="yes" />
+	if (isset($_GET['width'])) {
+		$canvasWidth = (int) ($_GET['width']);
+		$canvasHeight = (int) ($canvasWidth * 9.0 / 16.0);
+	}
+	?>
+	<script type="text/javascript" src="js/jquery-latest.min.js"></script>
+	<script type="text/javascript" src="js/jquery-ui.min.js"></script>
+	<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
+	<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
+	<link rel="stylesheet" href="css/jquery-ui.css" />
+	<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
+	<link rel="stylesheet" href="css/classicTheme/style.css" media="all" />
+	<link rel="stylesheet" href="css/minimal.css?ref=<?php echo filemtime('css/minimal.css'); ?>" />
+	<script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
+
+	<title>Virtual Display</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimal-ui">
+	<meta name="apple-mobile-web-app-capable" content="yes" />
 </head>
+
 <body>
-<h3>FPP Virtual Display</h3>
-<?
-require_once('virtualdisplaybody.php');
-?>
+	<h3>FPP Virtual Display</h3>
+	<?
+	require_once('virtualdisplaybody.php');
+	?>
 
 </body>
+
 </html>
