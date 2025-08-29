@@ -109,8 +109,6 @@ services:
       - "192.168.1.10:4048:4048/udp" # DDP
       - "192.168.1.10:5568:5568/udp" # sACN/E1.31
       - "192.168.1.10:32320:32320/udp" # FPP MultiSync
-      - "192.168.1.10:32322:32322/tcp" # FPP fppd API
-      - "192.168.1.10:32328:32328/tcp" # FPP HTTP Virtual Display
     # Uncomment BOTH networks sections below to create a second container
     # interface tied to a physical network interface which is connected
     # to a ColorLight.  You can also use this example config to create a
