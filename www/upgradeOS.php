@@ -87,10 +87,15 @@ if (preg_match('/^https?:/', $_GET['os'])) {
     // on certain versions of debian (which includes what was shipped with FPP 8.5) which is causing very 
     // slow transfers if using the above curl_easy stuff.   
 
-    $command = "sudo wget --quiet --show-progress --progress=bar:force:noscroll " . $_GET['os'] . " -O /home/fpp/media/upload/$baseFile 2>&1";
+    $retryCount = 0;
+    $command = "sudo wget -c --quiet --show-progress --progress=bar:force:noscroll " . $_GET['os'] . " -O /home/fpp/media/upload/$baseFile 2>&1";
     //$command = "sudo curl --progress-bar -L " . $_GET['os'] . " -o /home/fpp/media/upload/$baseFile 2>&1";
-    echo "Running command: $command\n";
-    passthru($command, $rc);
+    $rc = 1;
+    while ($retryCount < 20 && $rc != 0) {
+        echo "Running command: $command\n";
+        passthru($command, $rc);
+        $retryCount++;
+    }
     if ($rc != 0) {
         echo ("Download aborted!\n");
         $applyUpdate = false;
@@ -115,6 +120,10 @@ if (preg_match('/^https?:/', $_GET['os'])) {
 if ($applyUpdate) {
     echo "==========================================================================\n";
     echo "Upgrading OS:\n";
+
+    # Ensure /proc/sysrq-trigger is writable by fpp for reboot later.  Do it now whilst libraries are all good
+    system($SUDO . " chmod a+w /proc/sysrq-trigger");
+
     $TMP_FILE = "/home/fpp/media/tmp/upgradeOS-part1.sh";
     echo ("Checking for previous $TMP_FILE\n");
     if (file_exists($TMP_FILE)) {
@@ -136,9 +145,8 @@ if ($applyUpdate) {
 }
 
 if (!$wrapped) {
-    ?>
-            ==========================================================================
-            </pre>
+    ?></pre>
+        ==========================================================================
         <b>Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot</b>
         <a href='index.php'>Go to FPP Main Status Page</a><br>
         <a href='about.php'>Go back to FPP About page</a><br>
