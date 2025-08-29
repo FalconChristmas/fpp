@@ -67,6 +67,12 @@ void I2CUtils::Init(const char* dev, int addr) {
     if (ioctl(file, I2C_FUNCS, &funcs) < 0) {
         funcs = -1;
     }
+
+    // read a byte to make sure the device actually exists on the i2c bus
+    if (readByte() == -1) {
+        close(file);
+        file = -1;
+    }
 #endif
 }
 I2CUtils::~I2CUtils() {
