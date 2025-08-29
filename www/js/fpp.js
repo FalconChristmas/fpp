@@ -8882,7 +8882,7 @@ function checkForFppUpdate () {
 					}
 					bn = parseFloat(bn);
 					if (
-						bn >= getFPPVersionFloat() &&
+						bn >= FPP_VERSION_FLOAT &&
 						branch.commit.date_epoch > latest_non_master_epoch
 					) {
 						latest_non_master = branch.name;
