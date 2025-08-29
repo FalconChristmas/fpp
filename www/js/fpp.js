@@ -3376,7 +3376,7 @@ function IPOutputTypeChanged (item, input) {
 		// 0,1 = E1.31, 2,3 = Artnet, 6,7 = KiNet
 		var univ = $(item).parent().parent().find('input.txtUniverse');
 		univ.prop('hidden', false);
-		if (parseInt(univ.val()) < 1) {
+		if (type <= 1 && parseInt(univ.val()) < 1) {
 			univ.val(1);
 		}
 		var univc = $(item).parent().parent().find('input.numUniverseCount');
