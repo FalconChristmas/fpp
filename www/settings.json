@@ -301,6 +301,7 @@
 				"uiLevel",
 				"showAllOptions",
 				"disableUIWarnings",
+				"disableUIPopoverAlerts",
 				"fileManagerThumbnailSize",
 				"fileManagerTableFilter"
 			]
@@ -996,6 +997,23 @@
 			"reboot": 0,
 			"restart": 0,
 			"reloadUI": 0,
+			"default": "0",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0",
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"disableUIPopoverAlerts": {
+			"name": "disableUIPopoverAlerts",
+			"description": "Disable UI Popover Event Alerts",
+			"tip": "Disable the popover alerts that appear in the UI top right when an alert fires, these alerts are useful for providing feedback to the user so this setting should only be used in special circumstances.",
+			"level": 1,
+			"gatherStats": true,
+			"reboot": 0,
+			"restart": 0,
+			"reloadUI": 1,
 			"default": "0",
 			"type": "checkbox",
 			"checkedValue": "1",
