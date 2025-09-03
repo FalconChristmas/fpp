@@ -15,7 +15,7 @@ if (((!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == 
 if ((!isset($settings['disableUIPopoverAlerts'])) || ($settings['disableUIPopoverAlerts'] == '0')) {
     // Enable popover alerts
     echo "<script type='text/javascript' src='js/jquery.jgrowl.min.js'></script>";
-} else {
+} elseif (isset($settings['disableUIPopoverAlerts']) && ($settings['disableUIPopoverAlerts'] == '1')) {
     echo "<script type='text/javascript' src='js/jquery.jgrowl.disabled.js'></script>";
 }
 ?>

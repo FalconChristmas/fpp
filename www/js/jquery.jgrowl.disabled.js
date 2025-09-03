@@ -2,7 +2,7 @@
 	if (!$.jGrowl) {
 		$.jGrowl = function (message, options) {
 			// Notifications disabled
-			console.log('Notification suppressed:', message);
+			console.log('UI jGrowl Notification suppressed:', message);
 			return null;
 		};
 
