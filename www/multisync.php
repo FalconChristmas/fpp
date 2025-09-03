@@ -1518,6 +1518,7 @@
             getGeniusControllerStatus(gips, true);
             getWLEDControllerStatus(wips, true);
             getFalconControllerStatus(fv3ips, fv4ips, true);
+            $('#columnSelector').empty(); //required to overcome bug where columnSelector widget appends on update rather than clearing first
             $('#fppSystemsTable').trigger("updateAll"); // Refresh Tablesorter 
         }
 
