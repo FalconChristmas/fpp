@@ -12,7 +12,7 @@ if (((!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == 
 <script type="text/javascript" src="js/jquery-ui.min.js"></script>
 <script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
 <?
-if ((isset($settings['disableUIPopoverAlerts'])) && ($settings['disableUIPopoverAlerts'] == '0')) {
+if ((!isset($settings['disableUIPopoverAlerts'])) || ($settings['disableUIPopoverAlerts'] == '0')) {
     // Enable popover alerts
     echo "<script type='text/javascript' src='js/jquery.jgrowl.min.js'></script>";
 } else {
