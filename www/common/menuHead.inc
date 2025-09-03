@@ -11,7 +11,15 @@ if (((!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == 
 <!-- <script src="https://code.jquery.com/jquery-migrate-3.4.1.js"></script> -->
 <script type="text/javascript" src="js/jquery-ui.min.js"></script>
 <script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
-<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
+<?
+if ((isset($settings['disableUIPopoverAlerts'])) && ($settings['disableUIPopoverAlerts'] == '0')) {
+    // Enable popover alerts
+    echo "<script type='text/javascript' src='js/jquery.jgrowl.min.js'></script>";
+} else {
+    echo "<script type='text/javascript' src='js/jquery.jgrowl.disabled.js'></script>";
+}
+?>
+
 <script type="text/javascript" src="js/zebra_pin.min.js"></script>
 <script type="text/javascript" src="js/popper.min.js"></script>
 <script type="text/javascript" src="jquery/jquery.floatThead/jquery.floatThead.min.js"></script>
