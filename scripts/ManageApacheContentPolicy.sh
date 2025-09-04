@@ -22,6 +22,7 @@ DEFAULT_VALUES=(
     ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
     ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
     ["style-src"]="'self' 'unsafe-inline'"
+    ["font-src"]="'self' data:"
 )
 
 # local JSON template content
@@ -31,7 +32,8 @@ DEFAULT_VALUES=(
       "script-src": [],
       "style-src": [],
       "connect-src": [],
-      "object-src": []
+      "object-src": [],
+      "font-src": []
     }'
 
 # Generate local CSP JSON override file if NOT exists
