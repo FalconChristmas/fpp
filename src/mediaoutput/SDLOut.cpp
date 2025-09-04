@@ -1258,7 +1258,7 @@ int SDLOutput::Close(void) {
         data->videoOverlayModel->flushOverlayBuffer();
         data->videoOverlayModel = nullptr;
     }
-    if (!data->videoOverlayModelName.empty()) {
+    if (data && !data->videoOverlayModelName.empty()) {
         PixelOverlayManager::INSTANCE.removeModelListener(data->videoOverlayModelName, "SDLOut");
     }
     return 0;
