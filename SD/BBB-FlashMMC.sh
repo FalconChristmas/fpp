@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+ARCH=$(uname -m)
+
 export PARTSIZE=""
 export DOREBOOT="y"
 export CLEARFPP="n"
@@ -20,47 +22,66 @@ fi
 
 DEVICE=$2
 if [ "x${DEVICE}" == "x" ]; then
-    DEVICE="/dev/mmcblk1"
+    if [ "$ARCH" == "aarch64" ]; then
+        DEVICE="/dev/mmcblk0"
+    else
+        DEVICE="/dev/mmcblk1"
+    fi
 fi
+
+DEVSIZE=$(blockdev --getsz ${DEVICE})
 
 
 cylon_leds () {
         if [ -e /sys/class/leds/beaglebone\:green\:usr0/trigger ] ; then
                 BASE=/sys/class/leds/beaglebone\:green\:usr
-                echo none > ${BASE}0/trigger
-                echo none > ${BASE}1/trigger
-                echo none > ${BASE}2/trigger
-                echo none > ${BASE}3/trigger
+                ARCH=$(uname -m)
+                if [ "${ARCH}" = "aarch64" ] ; then
+                    BASE0=${BASE}1
+                    BASE1=${BASE}2
+                    BASE2=${BASE}3
+                    BASE3=${BASE}4
+                else
+                    BASE0=${BASE}0
+                    BASE1=${BASE}1
+                    BASE2=${BASE}2
+                    BASE3=${BASE}3
+                fi
+
+                echo "none" > ${BASE0}/trigger
+                echo "none" > ${BASE1}/trigger
+                echo "none" > ${BASE2}/trigger
+                echo "none" > ${BASE3}/trigger
 
                 STATE=1
                 while : ; do
                         case $STATE in
-                        1)      echo 255 > ${BASE}0/brightness
-                                echo 0   > ${BASE}1/brightness
+                        1)      echo "255" > ${BASE0}/brightness
+                                echo "0"   > ${BASE1}/brightness
                                 STATE=2
                                 ;;
-                        2)      echo 255 > ${BASE}1/brightness
-                                echo 0   > ${BASE}0/brightness
+                        2)      echo "255" > ${BASE1}/brightness
+                                echo "0"   > ${BASE0}/brightness
                                 STATE=3
                                 ;;
-                        3)      echo 255 > ${BASE}2/brightness
-                                echo 0   > ${BASE}1/brightness
+                        3)      echo "255" > ${BASE2}/brightness
+                                echo "0"   > ${BASE1}/brightness
                                 STATE=4
                                 ;;
-                        4)      echo 255 > ${BASE}3/brightness
-                                echo 0   > ${BASE}2/brightness
+                        4)      echo "255" > ${BASE3}/brightness
+                                echo "0"   > ${BASE2}/brightness
                                 STATE=5
                                 ;;
-                        5)      echo 255 > ${BASE}2/brightness
-                                echo 0   > ${BASE}3/brightness
+                        5)      echo "255" > ${BASE2}/brightness
+                                echo "0"   > ${BASE3}/brightness
                                 STATE=6
                                 ;;
-                        6)      echo 255 > ${BASE}1/brightness
-                                echo 0   > ${BASE}2/brightness
+                        6)      echo "255" > ${BASE1}/brightness
+                                echo "0"   > ${BASE2}/brightness
                                 STATE=1
                                 ;;
-                        *)      echo 255 > ${BASE}0/brightness
-                                echo 0   > ${BASE}1/brightness
+                        *)      echo "255" > ${BASE0}/brightness
+                                echo "0"   > ${BASE1}/brightness
                                 STATE=2
                                 ;;
                         esac
@@ -102,6 +123,55 @@ __EOF__
     mkdir -p /tmp/rootfs/boot
     mount -t ext4 -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs/boot
 }
+
+
+prepareThreePartitions() {
+    echo "---------------------------------------"
+    echo "Creating partitions"
+    echo ""
+
+if [ "$ARCH" == "aarch64" ]; then
+    # create partitions
+    sfdisk --force ${DEVICE} <<-__EOF__
+1M,256M,c,*
+257M,512M,82,*
+769M,${PARTSIZE},,-
+__EOF__
+else
+    # create partitions
+    sfdisk --force ${DEVICE} <<-__EOF__
+4M,36M,c,*
+40M,512M,82,*
+542M,${PARTSIZE},,-
+__EOF__
+fi
+
+    blockdev --rereadpt ${DEVICE}  || true
+    fdisk -l ${DEVICE}  || true
+
+    echo "---------------------------------------"
+    echo "Formating partitions"
+    echo ""
+
+    #format partitions
+    mkfs.vfat -F 16 ${DEVICE}p1  -n boot
+    mkfs.ext4 -F -O ^metadata_csum,^64bit ${DEVICE}p3  -L rootfs
+    # mkfs.btrfs -f ${DEVICE}p3 -L rootfs
+    mkswap ${DEVICE}p2 -L swap
+
+    echo "---------------------------------------"
+    echo "Creating mount points and mounting rootfs"
+    echo ""
+
+    #mount
+    mkdir -p /tmp/rootfs
+    mount -t ext4 -o noatime,nodiratime ${DEVICE}p3 /tmp/rootfs
+    # mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p3 /tmp/rootfs
+    mkdir -p /tmp/rootfs/boot
+    mkdir -p /tmp/rootfs/boot/firmware
+    mount -t vfat -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs/boot/firmware
+}
+
 prepareEXT4Partitions() {
     echo "---------------------------------------"
     echo "Creating partitions"
@@ -151,7 +221,15 @@ adjustEnvBTRFS() {
     echo "${DEVICE}p1  /boot  ext4  defaults,noatime,nodiratime  0  2" >> /tmp/rootfs/etc/fstab
 }
 adjustEnvEXT4() {
-    echo "${DEVICE}p1  /  ext4  defaults,noatime,nodiratime  0  1" > /tmp/rootfs/etc/fstab
+
+    if [ "$DEVSIZE" -gt 9000 ]; then
+        echo "${DEVICE}p3  /  ext4  defaults,noatime,nodiratime  0  1" > /tmp/rootfs/etc/fstab
+        echo "${DEVICE}p1  /boot/firmware vfat user,uid=1000,gid=1000,defaults 0 2" >> /tmp/rootfs/etc/fstab
+        echo "${DEVICE}p2       none    swap    sw      0       0" >>  /tmp/rootfs/etc/fstab
+    else 
+        echo "${DEVICE}p1  /  ext4  defaults,noatime,nodiratime  0  1" > /tmp/rootfs/etc/fstab
+    fi
+
 
 }
 
@@ -161,19 +239,28 @@ fi
 
 set -o pipefail
 
-echo "---------------------------------------"
-echo "Installing bootloader "
-echo ""
 
-#install bootloader
-if [ -f  /opt/fpp/bin.bbb/bootloader/install.sh ]; then
-/opt/fpp/bin.bbb/bootloader/install.sh
-fi
-
-if [ "$1" = "btrfs" ]; then
-    prepareBTRFSPartitions
+if [ "$ARCH" == "aarch64" ]; then
+    prepareThreePartitions
 else
-    prepareEXT4Partitions
+    echo "---------------------------------------"
+    echo "Installing bootloader "
+    echo ""
+
+    #install bootloader
+    if [ -f  /opt/fpp/bin.bbb/bootloader/install.sh ]; then
+    /opt/fpp/bin.bbb/bootloader/install.sh
+    fi
+
+    if [ "$1" = "btrfs" ]; then
+        prepareBTRFSPartitions
+    else
+        if [ "$PARTSIZE" == "" ] && [ "$DEVSIZE" -gt 9000 ]; then
+            prepareThreePartitions
+        else 
+            prepareEXT4Partitions
+        fi
+    fi
 fi
 
 
@@ -184,43 +271,59 @@ echo ""
 #copy files
 time rsync -aAXxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt || true
 
-echo "---------------------------------------"
-echo "Configure /boot"
-echo ""
-
-#configure /boot
-cd /tmp/rootfs/boot
-
-#remove btrfs stuff from uEnv.txt (may be re-added later)
-sed -i '/mmcpart=2/d' uEnv.txt
-sed -i '/rootfstype=btrfs/d' uEnv.txt
-sed -i '/mmcrootfstype=btrfs/d' uEnv.txt
-
-rm -f boot
-ln -sf . boot
-cd /
-
-if [ "$1" = "btrfs" ]; then
-    adjustEnvBTRFS
+if [ "$ARCH" == "aarch64" ]; then
+    echo "---------------------------------------"
+    echo "Configure /etc/fstab"
+    echo ""
+    #echo "${DEVICE}p3  /  ext4  defaults,noatime,nodiratime,errors=remount-ro  0  1" > /tmp/rootfs/etc/fstab
+    echo "${DEVICE}p3  /  btrfs  noatime,nodiratime,compress=zstd  0  1" > /tmp/rootfs/etc/fstab
+    echo "${DEVICE}p1  /boot/firmware vfat user,uid=1000,gid=1000,defaults 0 2" >> /tmp/rootfs/etc/fstab
+    echo "${DEVICE}p2       none    swap    sw      0       0" >>  /tmp/rootfs/etc/fstab
+    echo "debugfs  /sys/kernel/debug  debugfs  mode=755,uid=root,gid=gpio,defaults  0  0" >> /tmp/rootfs/etc/fstab
+    echo "#####################################" >> /tmp/rootfs/etc/fstab
+    echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=75M 0 0" >> /tmp/rootfs/etc/fstab
+    echo "#####################################" >> /tmp/rootfs/etc/fstab
+    echo "#/dev/sda1     /home/fpp/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /tmp/rootfs/etc/fstab
+    echo "#####################################" >> /tmp/rootfs/etc/fstab
 else
-    adjustEnvEXT4
+    echo "---------------------------------------"
+    echo "Configure /boot"
+    echo ""
+
+    #configure /boot
+    cd /tmp/rootfs/boot
+
+    #remove btrfs stuff from uEnv.txt (may be re-added later)
+    sed -i '/mmcpart=2/d' uEnv.txt
+    sed -i '/rootfstype=btrfs/d' uEnv.txt
+    sed -i '/mmcrootfstype=btrfs/d' uEnv.txt
+
+    rm -f boot
+    ln -sf . boot
+    cd /
+
+    if [ "$1" = "btrfs" ]; then
+        adjustEnvBTRFS
+    else
+        adjustEnvEXT4
+    fi
+
+    echo "---------------------------------------"
+    echo "Configure /etc/fstab"
+    echo "  "
+
+    #configure fstab
+    echo "debugfs  /sys/kernel/debug  debugfs  defaults  0  0" >> /tmp/rootfs/etc/fstab
+    echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=50M 0 0" >> /tmp/rootfs/etc/fstab
+    echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /tmp/rootfs/etc/fstab
+    echo "#####################################" >> /tmp/rootfs/etc/fstab
+    echo "#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /tmp/rootfs/etc/fstab
+    echo "#####################################" >> /tmp/rootfs/etc/fstab
+
+    echo "---------------------------------------"
+    echo "Cleaning up"
+    echo "  "
 fi
-
-echo "---------------------------------------"
-echo "Configure /etc/fstab"
-echo ""
-
-#configure fstab
-echo "debugfs  /sys/kernel/debug  debugfs  defaults  0  0" >> /tmp/rootfs/etc/fstab
-echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=50M 0 0" >> /tmp/rootfs/etc/fstab
-echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /tmp/rootfs/etc/fstab
-echo "#####################################" >> /tmp/rootfs/etc/fstab
-echo "#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /tmp/rootfs/etc/fstab
-echo "#####################################" >> /tmp/rootfs/etc/fstab
-
-echo "---------------------------------------"
-echo "Cleaning up"
-echo ""
 rm -rf /tmp/rootfs/etc/ssh/*key*
 
 
@@ -255,7 +358,8 @@ fi
 
 echo "---------------------------------------"
 echo "Unmounting filesystems"
-echo ""
+echo "  "
+umount -R /tmp/rootfs/boot/firmware || true
 umount -R /tmp/rootfs
 
 echo "---------------------------------------"
@@ -264,4 +368,3 @@ echo ""
 if [ "$DOREBOOT" == "y" ]; then
     systemctl poweroff || halt
 fi
-

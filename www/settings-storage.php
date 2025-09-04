@@ -258,6 +258,11 @@ if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2' || $rootDevice == '
         }
     }
 }
+if ($rootDevice == "mmcblk1p3" && $settings['Variant'] == "PocketBeagle2") {
+    if (file_exists("/dev/mmcblk0")) {
+        $addflashbutton = true;
+    }
+}
 
 if ($addnewfsbutton) {
     ?>
@@ -283,7 +288,7 @@ if ($addnewfsbutton) {
     <?php
 }
 if ($addflashbutton) {
-    if ($settings['Platform'] == "BeagleBone Black") {
+    if ($settings['BeaglePlatform']) {
         ?>
         <h3>eMMC Actions:</h3>
 
@@ -292,7 +297,7 @@ if ($addflashbutton) {
                     onClick='flashEMMC();'></div>
             <div class="col-auto">&nbsp;This will copy FPP to the internal eMMC.</div>
         </div>
-        <? if ($uiLevel >= 1) { ?>
+        <? if ($uiLevel >= 1 && $settings['Variant'] != "PocketBeagle2") { ?>
             <div class="row mt-2">
                 <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Copy to eMMC (BTRFS)'
                         onClick='flashEMMCBtrfs();'></div>
