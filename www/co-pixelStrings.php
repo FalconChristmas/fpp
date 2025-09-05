@@ -2249,7 +2249,7 @@ function readCapes($cd, $capes)
         defaultData.channelOutputs.push(output);
 
 
-        <? if ($settings['Platform'] == "BeagleBone Black") { ?>
+        <? if ($settings['BeaglePlatform']) { ?>
             var output = {};
             output.type = 'BBBSerial';
             <?
@@ -2281,7 +2281,7 @@ function readCapes($cd, $capes)
 
         var postData = getPixelStringOutputJSON();
 
-        <? if ($settings['Platform'] == "BeagleBone Black") { ?>
+        <? if ($settings['BeaglePlatform']) { ?>
             postData = addSerialOutputJSON(postData);
         <? } ?>
 
