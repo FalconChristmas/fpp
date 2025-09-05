@@ -132,6 +132,9 @@ function WriteProxyFile($proxies)
         $newht .= "RewriteRule ^" . $host . "$  " . $host . "/  [R,L]\n";
         $newht .= "RewriteRule ^" . $host . ":([0-9]*)$  http://" . $host . ":$1/  [P,L]\n";
         $newht .= "RewriteRule ^" . $host . ":([0-9]*)/(.*)$  http://" . $host . ":$1/$2  [P,L]\n";
+        $newht .= "RewriteCond %{HTTP:Upgrade}     \"websocket\" [NC]\n";
+        $newht .= "RewriteCond %{HTTP:Connection}  \"Upgrade\" [NC]\n";
+        $newht .= "RewriteRule ^" . $host . "/(.*)$  ws://" . $host . "/$1 [P,L]\n";
         $newht .= "RewriteRule ^" . $host . "/(.*)$  http://" . $host . "/$1  [P,L]\n\n";
     }
     file_put_contents("$mediaDirectory/config/proxy-config.conf", $newht);

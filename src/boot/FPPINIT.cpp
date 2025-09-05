@@ -571,6 +571,9 @@ static void setupNetwork(bool fullReload = false) {
             if (DHCPSERVER == 1) {
                 std::string address = interfaceSettings["ADDRESS"];
                 address = address.substr(0, address.find_last_of("."));
+                dhcpProxies += "RewriteCond %{HTTP:Upgrade}     \"websocket\" [NC]\n";
+                dhcpProxies += "RewriteCond %{HTTP:Connection}  \"Upgrade\" [NC]\n";
+                dhcpProxies += "RewriteRule ^" + address + ".([0-9:]*)/(.*)$  ws://" + address + ".$1/$2 [P,L]\n";
                 dhcpProxies += "RewriteRule ^" + address + ".([0-9:]*)$  http://" + address + ".$1/  [P,L]\n";
                 dhcpProxies += "RewriteRule ^" + address + ".([0-9:]*)/(.*)$  http://" + address + ".$1/$2  [P,L]\n\n";
             }
