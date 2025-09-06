@@ -146,6 +146,7 @@
 				"HardwareDecoding",
 				"VLCOptions",
 				"mediaOffset",
+				"globalMediaOffset",
 				"remoteIgnoreSync"
 			]
 		},
@@ -1700,9 +1701,26 @@
 		},
 		"mediaOffset": {
 			"name": "mediaOffset",
-			"description": "Media/Sequence Offset",
+			"description": "Local Media/Sequence Offset",
 			"gatherStats": true,
-			"tip": "The Media Offset value allows adjusting the synchronization of the media and sequences being played.  The value is specified in milliseconds.  A positive value moves the media ahead, a negative value moves the media back.  Changing this value requires a FPPD restart.  WARNING - This offset applies to all media files played.  If your media files require different offsets per file then you will have to edit the audio files or sequences to bring them into sync.",
+			"tip": "The Media Offset value allows adjusting the synchronization of the media and sequences being played on the local device.  The value is specified in milliseconds.  A positive value moves the media ahead, a negative value moves the media back.  Changing this value requires a FPPD restart.  WARNING - This offset applies to all media files played.  If your media files require different offsets per file then you will have to edit the audio files or sequences to bring them into sync.",
+			"level": 1,
+			"restart": 2,
+			"fppModes": [
+				"player"
+			],
+			"default": 0,
+			"type": "number",
+			"min": -9999,
+			"max": 9999,
+			"step": 1,
+			"suffix": "ms"
+		},
+		"globalMediaOffset": {
+			"name": "globalMediaOffset",
+			"description": "Global Audio/Sequence Offset",
+			"gatherStats": true,
+			"tip": "The Global Audio/Sequence Offset value allows adjusting the synchronization of the audio and sequences being played.  This affects the Multi Sync packets and thus will adjust the timing across all synchronized devices.  The value is specified in milliseconds.  A positive value moves the audio ahead, a negative value moves the audio back.  Changing this value requires a FPPD restart.  WARNING - This offset applies to all audio files played.  If your audio files require different offsets per file then you will have to edit the audio files or sequences to bring them into sync.",
 			"level": 1,
 			"restart": 2,
 			"fppModes": [

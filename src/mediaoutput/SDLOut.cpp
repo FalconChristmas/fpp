@@ -76,8 +76,9 @@ static int DTStoMS(int64_t dts, int dtspersec) {
 
 class SDLInternalData {
 public:
-    SDLInternalData(int rate, int bps, bool flt, int ch) :
-        curPos(0) {
+    SDLInternalData(int rate, int bps, bool flt, int ch, int offset) :
+        curPos(0),
+        mediaOffset(offset) {
         formatContext = nullptr;
         audioCodecContext = nullptr;
         videoCodecContext = nullptr;
@@ -195,6 +196,8 @@ public:
     bool doneRead;
     unsigned int curPos;
     std::mutex curPosLock;
+    int32_t mediaOffset = 0;
+    uint32_t extraDataLen = 0;
 
     void addVideoFrame(int ms, uint8_t* d, int sz) {
         VideoFrame* f = new VideoFrame(ms, d, sz);
@@ -256,6 +259,10 @@ public:
         }
         if (doneRead) {
             // done reading, they are as full as they will get
+            if (mediaOffset > 0 && outBufferPos == 0) {
+                queueSilence(mediaOffset);
+                mediaOffset = 0;
+            }
             return 2;
         }
         queue += outBufferPos;
@@ -360,6 +367,28 @@ public:
         totalDataLen = decodedDataLen;
         doneRead = true;
         return outBufferPos - orig;
+    }
+    void queueSilence(uint32_t ms) {
+        if (audioDev == 0) {
+            return;
+        }
+        int samples = (currentRate * channels * ms) / 1000;
+        if (isSamplesFloat) {
+            float* fbytes = new float[samples];
+            for (int x = 0; x < samples; x++) {
+                fbytes[x] = 0.0;
+            }
+            SDL_QueueAudio(audioDev, fbytes, samples * sizeof(float));
+            delete[] fbytes;
+            extraDataLen = samples * sizeof(float);
+        } else {
+            int tbytes = samples * bytesPerSample;
+            uint8_t* bytes = new uint8_t[tbytes];
+            memset(bytes, 0, tbytes);
+            SDL_QueueAudio(audioDev, bytes, tbytes);
+            delete[] bytes;
+            extraDataLen = tbytes;
+        }
     }
 };
 
@@ -494,9 +523,14 @@ public:
         }
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
             data = d;
+            data->audioDev = audioDev;
             if (audioDev) {
                 data->curPosLock.lock();
                 SDL_ClearQueuedAudio(audioDev);
+                if (data->mediaOffset < 0) {
+                    data->queueSilence(-data->mediaOffset);
+                    data->mediaOffset = 0;
+                }
                 SDL_QueueAudio(audioDev, data->outBuffer, data->outBufferPos);
                 memcpy(data->sampleBuffer, data->outBuffer, data->outBufferPos);
                 data->sampleBufferCount = data->outBufferPos;
@@ -508,8 +542,6 @@ public:
                 data->curPos = 0;
                 data->outBufferPos = 0;
             }
-            data->audioDev = audioDev;
-
             long long t = GetTime() / 1000;
             data->videoStartTime = t;
             _state = SDLSTATE::SDLPLAYING;
@@ -986,7 +1018,7 @@ SDLOutput::SDLOutput(const std::string& mediaFilename,
     sdlManager.initSDL();
     sdlManager.openAudio();
 
-    data = new SDLInternalData(sdlManager.getRate(), sdlManager.getBytesPerSample(), sdlManager.isSamplesFloat(), sdlManager.numChannels());
+    data = new SDLInternalData(sdlManager.getRate(), sdlManager.getBytesPerSample(), sdlManager.isSamplesFloat(), sdlManager.numChannels(), getMediaOffsetMS());
 
     // Initialize FFmpeg codecs
 #if LIBAVFORMAT_VERSION_MAJOR < 58
@@ -1159,10 +1191,10 @@ int SDLOutput::Process(void) {
     if (data->audio_stream_idx != -1 && data->audioDev) {
         // if we have an audio stream, that drives everything
         data->curPosLock.lock();
-        float qas = SDL_GetQueuedAudioSize(data->audioDev);
-        long cp = data->curPos;
+        uint32_t audioSize = SDL_GetQueuedAudioSize(data->audioDev);
+        long cp = data->curPos + data->extraDataLen;
         data->curPosLock.unlock();
-        float curtime = cp - qas;
+        float curtime = cp - (float)audioSize;
         curtime -= (DEFAULT_NUM_SAMPLES * data->channels);
 
         if (curtime < 0)
@@ -1184,21 +1216,15 @@ int SDLOutput::Process(void) {
         curtime /= data->currentRate;                     // samples per sec
         curtime /= data->channels * data->bytesPerSample; // bytes per sample * 2 channels
 
-        m_mediaOutputStatus->mediaSeconds = curtime;
-
-        float ss, s;
-        ss = std::modf(m_mediaOutputStatus->mediaSeconds, &s);
-        m_mediaOutputStatus->secondsElapsed = s;
-        ss *= 100;
-        m_mediaOutputStatus->subSecondsElapsed = ss;
-
         float rem = data->totalLen - m_mediaOutputStatus->mediaSeconds;
-        ss = std::modf(rem, &s);
-        m_mediaOutputStatus->secondsRemaining = s;
-        ss *= 100;
-        m_mediaOutputStatus->subSecondsRemaining = ss;
+        setMediaElapsed(curtime, rem);
 
-        if (data->doneRead && SDL_GetQueuedAudioSize(data->audioDev) == 0) {
+        // float ms = m_mediaOutputStatus->secondsElapsed + (m_mediaOutputStatus->subSecondsElapsed * 0.01);
+        // float me = m_mediaOutputStatus->secondsRemaining + (m_mediaOutputStatus->subSecondsRemaining * 0.01);
+        // printf("MS:  %.2f    CT: %.2f  Rem: %.2f   el: %.2f   rem: %.2f    Tot: %.2f    Size:%d      Offset: %.3f.   DoneRead: %d\n", m_mediaOutputStatus->mediaSeconds,
+        //        curtime, rem, ms, me, (me + ms), audioSize, mediaOffset, data->doneRead);
+
+        if (data->doneRead && audioSize == 0) {
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
         }
     } else if (data->video_stream_idx != -1) {
@@ -1211,24 +1237,13 @@ int SDLOutput::Process(void) {
         elapsed /= 1000;
         float remaining = total - elapsed;
 
-        m_mediaOutputStatus->mediaSeconds = elapsed;
-
-        float ss, s;
-        ss = std::modf(elapsed, &s);
-        ss *= 100;
-        m_mediaOutputStatus->secondsElapsed = s;
-        m_mediaOutputStatus->subSecondsElapsed = ss;
-
-        ss = std::modf(remaining, &s);
-        ss *= 100;
-        m_mediaOutputStatus->secondsRemaining = s;
-        m_mediaOutputStatus->subSecondsRemaining = ss;
+        setMediaElapsed(elapsed, remaining);
 
         if (remaining < 0.0 && data->doneRead) {
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
         }
     }
-    if (multiSync->isMultiSyncEnabled()) {
+    if (multiSync->isMultiSyncEnabled() && m_mediaOutputStatus->mediaSeconds > 0.0) {
         multiSync->SendMediaSyncPacket(m_mediaFilename,
                                        m_mediaOutputStatus->mediaSeconds);
     }

@@ -20,23 +20,18 @@
 
 #include "MediaOutputBase.h"
 
-MediaOutputBase::MediaOutputBase(void) :
-    m_isPlaying(0),
-    m_childPID(0) {
+MediaOutputBase::MediaOutputBase(void) {
     LogDebug(VB_MEDIAOUT, "MediaOutputBase::MediaOutputBase()\n");
 
-    pthread_mutex_init(&m_outputLock, NULL);
-
-    m_childPipe[0] = 0;
-    m_childPipe[1] = 0;
+    if (getFPPmode() != REMOTE_MODE) {
+        mediaOffsetMS = getSettingInt("globalMediaOffset", 0);
+        mediaOffset = (float)mediaOffsetMS * 0.001;
+    }
 }
 
 MediaOutputBase::~MediaOutputBase() {
     LogDebug(VB_MEDIAOUT, "MediaOutputBase::~MediaOutputBase()\n");
-
     Close();
-
-    pthread_mutex_destroy(&m_outputLock);
 }
 
 /*
@@ -66,17 +61,6 @@ int MediaOutputBase::Process(void) {
 int MediaOutputBase::Close(void) {
     LogDebug(VB_MEDIAOUT, "MediaOutputBase::Close\n");
 
-    pthread_mutex_lock(&m_outputLock);
-
-    for (int i = 0; i < 2; i++) {
-        if (m_childPipe[i]) {
-            close(m_childPipe[i]);
-            m_childPipe[i] = 0;
-        }
-    }
-
-    pthread_mutex_unlock(&m_outputLock);
-
     return 1;
 }
 
@@ -97,27 +81,31 @@ void MediaOutputBase::SetVolume(int volume) {
  *
  */
 int MediaOutputBase::IsPlaying(void) {
-    int result = 0;
-
-    pthread_mutex_lock(&m_outputLock);
-
-    if (m_childPID > 0) {
-        result = 1;
-    }
-
-    pthread_mutex_unlock(&m_outputLock);
-
-    return result;
+    return 0;
 }
 
-bool MediaOutputBase::isChildRunning() {
-    if (m_childPID > 0) {
-        int status = 0;
-        if (waitpid(m_childPID, &status, WNOHANG)) {
-            return false;
-        } else {
-            return true;
-        }
+void MediaOutputBase::setMediaElapsed(float curtime, float remaining) {
+    m_mediaOutputStatus->mediaSeconds = curtime;
+    float rem = remaining;
+    if (mediaOffset > 0) {
+        m_mediaOutputStatus->mediaSeconds -= mediaOffset;
+    } else {
+        rem -= mediaOffset;
     }
-    return false;
+    if (m_mediaOutputStatus->mediaSeconds < 0.0) {
+        m_mediaOutputStatus->mediaSeconds = 0.0;
+    }
+    if (rem < 0.0) {
+        rem = 0.0;
+    }
+    float ss, s;
+    ss = std::modf(m_mediaOutputStatus->mediaSeconds, &s);
+    m_mediaOutputStatus->secondsElapsed = s;
+    ss *= 100;
+    m_mediaOutputStatus->subSecondsElapsed = ss;
+
+    ss = std::modf(rem, &s);
+    m_mediaOutputStatus->secondsRemaining = s;
+    ss *= 100;
+    m_mediaOutputStatus->subSecondsRemaining = ss;
 }

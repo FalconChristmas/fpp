@@ -187,15 +187,6 @@ int PlaylistEntryBase::Stop(void) {
 /*
  *
  */
-int PlaylistEntryBase::HandleSigChild(pid_t pid) {
-    LogDebug(VB_PLAYLIST, "PlaylistEntryBase::HandleSigChild()\n");
-
-    return 0;
-}
-
-/*
- *
- */
 void PlaylistEntryBase::Dump(void) {
     LogDebug(VB_PLAYLIST, "---- Playlist Entry ----\n");
     LogDebug(VB_PLAYLIST, "Entry Type: %s\n", m_type.c_str());

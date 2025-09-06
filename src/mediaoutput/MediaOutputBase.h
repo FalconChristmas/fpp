@@ -44,17 +44,15 @@ public:
 
     virtual int IsPlaying(void);
 
+    float getMediaOffset() { return mediaOffset; };
+    int getMediaOffsetMS() { return mediaOffsetMS; };
+
     std::string m_mediaFilename;
     MediaOutputStatus* m_mediaOutputStatus;
-    pid_t m_childPID;
 
 protected:
-    bool isChildRunning();
+    void setMediaElapsed(float curtime, float remaining);
 
-    unsigned int m_isPlaying;
-    int m_childPipe[2];
-    fd_set m_activeFDSet;
-    fd_set m_readFDSet;
-
-    pthread_mutex_t m_outputLock;
+    float mediaOffset = 0.0;
+    int mediaOffsetMS = 0;
 };

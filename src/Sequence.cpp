@@ -435,6 +435,7 @@ void Sequence::StartSequence() {
             multiSync->SendSeqSyncStartPacket(m_seqFilename);
         }
         m_seqStarting = 0;
+        SetChannelOutputRefreshRate(m_seqRefreshRate);
         StartChannelOutputThread();
     }
 

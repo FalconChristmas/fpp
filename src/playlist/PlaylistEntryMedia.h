@@ -32,8 +32,6 @@ public:
     virtual bool IsPaused() override;
     virtual void Resume() override;
 
-    virtual int HandleSigChild(pid_t pid) override;
-
     virtual void Dump(void) override;
 
     virtual Json::Value GetConfig(void) override;
@@ -44,9 +42,13 @@ public:
     virtual uint64_t GetLengthInMS() override;
     virtual uint64_t GetElapsedMS() override;
 
+    bool HasExtraAtEnd();
+    int32_t GetMediaOffsetMS();
+
     int m_status;
 
     long long m_openTime;
+    long long m_startTime;
     static int m_openStartDelay;
 
 private:

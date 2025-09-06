@@ -37,8 +37,6 @@ public:
     virtual bool IsPaused() { return false; }
     virtual void Resume() {}
 
-    virtual int HandleSigChild(pid_t pid);
-
     virtual void Dump(void);
 
     virtual Json::Value GetConfig(void);

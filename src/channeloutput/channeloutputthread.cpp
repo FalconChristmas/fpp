@@ -426,8 +426,9 @@ void CalculateNewChannelOutputDelay(float mediaPosition) {
         return;
 
     if ((mediaPosition <= nextSyncCheck) &&
-        (nextSyncCheck < (mediaPosition + 2.0)))
+        (nextSyncCheck < (mediaPosition + 2.0))) {
         return;
+    }
 
     nextSyncCheck = mediaPosition + (20.0 / RefreshRate);
 

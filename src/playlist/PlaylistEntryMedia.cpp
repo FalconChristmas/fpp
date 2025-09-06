@@ -126,8 +126,9 @@ int PlaylistEntryMedia::PreparePlay() {
         return 0;
     }
 
-    if (multiSync->isMultiSyncEnabled())
+    if (multiSync->isMultiSyncEnabled()) {
         multiSync->SendMediaOpenPacket(m_mediaFilename);
+    }
 
     m_openTime = GetTimeMS();
     Events::Publish("playlist/media/status", m_mediaFilename);
@@ -169,8 +170,9 @@ int PlaylistEntryMedia::StartPlaying(void) {
     }
     pthread_mutex_lock(&m_mediaOutputLock);
 
-    if (multiSync->isMultiSyncEnabled())
+    if (m_mediaOutput->getMediaOffsetMS() <= 0 && multiSync->isMultiSyncEnabled()) {
         multiSync->SendMediaSyncStartPacket(m_mediaFilename);
+    }
 
     ResetChannelOutputFrameNumber();
     if (!m_mediaOutput->Start()) {
@@ -183,7 +185,7 @@ int PlaylistEntryMedia::StartPlaying(void) {
     }
 
     pthread_mutex_unlock(&m_mediaOutputLock);
-
+    m_startTime = GetTimeMS();
     return PlaylistEntryBase::StartPlaying();
 }
 
@@ -194,6 +196,13 @@ int PlaylistEntryMedia::Process(void) {
     pthread_mutex_lock(&m_mediaOutputLock);
 
     if (m_mediaOutput) {
+        if (m_mediaOutput->getMediaOffsetMS() > 0 && multiSync->isMultiSyncEnabled()) {
+            long long ct = GetTimeMS() - m_startTime;
+            if (ct > (m_mediaOutput->getMediaOffsetMS() - 20)) {
+                multiSync->SendMediaSyncStartPacket(m_mediaFilename);
+            }
+        }
+
         m_mediaOutput->Process();
         if (!m_mediaOutput->IsPlaying()) {
             FinishPlay();
@@ -207,6 +216,19 @@ int PlaylistEntryMedia::Process(void) {
 
     pthread_mutex_unlock(&m_mediaOutputLock);
     return PlaylistEntryBase::Process();
+}
+
+bool PlaylistEntryMedia::HasExtraAtEnd() {
+    if (m_mediaOutput) {
+        return m_mediaOutput->getMediaOffsetMS() < 0;
+    }
+    return false;
+}
+int32_t PlaylistEntryMedia::GetMediaOffsetMS() {
+    if (m_mediaOutput) {
+        return m_mediaOutput->getMediaOffsetMS();
+    }
+    return 0;
 }
 
 uint64_t PlaylistEntryMedia::GetLengthInMS() {
@@ -261,36 +283,6 @@ int PlaylistEntryMedia::Stop(void) {
     mediaOutputStatus.subSecondsElapsed = 0;
 
     return PlaylistEntryBase::Stop();
-}
-
-/*
- *
- */
-int PlaylistEntryMedia::HandleSigChild(pid_t pid) {
-    LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::HandleSigChild(%d)\n", pid);
-
-    pthread_mutex_lock(&m_mediaOutputLock);
-
-    if (pid != m_mediaOutput->m_childPID) {
-        pthread_mutex_unlock(&m_mediaOutputLock);
-        return 0;
-    }
-
-    m_mediaOutput->Close();
-    m_mediaOutput->m_childPID = 0;
-
-    delete m_mediaOutput;
-    m_mediaOutput = NULL;
-
-    FinishPlay();
-
-    pthread_mutex_unlock(&m_mediaOutputLock);
-
-    Events::Publish("playlist/media/status", "");
-    Events::Publish("playlist/media/title", "");
-    Events::Publish("playlist/media/artist", "");
-
-    return 1;
 }
 
 /*
@@ -374,12 +366,6 @@ int PlaylistEntryMedia::CloseMediaOutput(void) {
 
     if (multiSync->isMultiSyncEnabled())
         multiSync->SendMediaSyncStopPacket(m_mediaFilename);
-
-    if (m_mediaOutput->m_childPID) {
-        pthread_mutex_unlock(&m_mediaOutputLock);
-        m_mediaOutput->Stop();
-        pthread_mutex_lock(&m_mediaOutputLock);
-    }
 
     delete m_mediaOutput;
     m_mediaOutput = NULL;

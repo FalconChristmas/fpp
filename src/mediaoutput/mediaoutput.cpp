@@ -386,8 +386,9 @@ int StartMediaOutput(const std::string& filename) {
         return 0;
     }
     std::unique_lock<std::mutex> lock(mediaOutputLock);
-    if (multiSync->isMultiSyncEnabled())
+    if (multiSync->isMultiSyncEnabled()) {
         multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename);
+    }
 
     if (!mediaOutput->Start()) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", mediaOutput->m_mediaFilename.c_str());
@@ -417,8 +418,9 @@ void CloseMediaOutput() {
         lock.lock();
     }
 
-    if (multiSync->isMultiSyncEnabled())
+    if (multiSync->isMultiSyncEnabled()) {
         multiSync->SendMediaSyncStopPacket(mediaOutput->m_mediaFilename);
+    }
 
     std::map<std::string, std::string> keywords;
     keywords["MEDIA_NAME"] = mediaOutput->m_mediaFilename;

@@ -35,7 +35,7 @@ PlaylistEntryBoth::~PlaylistEntryBoth() {
     if (m_sequenceEntry) {
         delete m_sequenceEntry;
     }
-    if (m_mediaEntry)  {
+    if (m_mediaEntry) {
         delete m_mediaEntry;
     }
 }
@@ -100,13 +100,15 @@ int PlaylistEntryBoth::StartPlaying(void) {
         }
     }
 
-    if (!m_sequenceEntry->StartPlaying()) {
-        LogDebug(VB_PLAYLIST, "Could not start sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
-        if (m_mediaEntry) {
-            m_mediaEntry->Stop();
+    if (!m_mediaEntry || m_mediaEntry->GetMediaOffsetMS() <= 0) {
+        if (!m_sequenceEntry->StartPlaying()) {
+            LogDebug(VB_PLAYLIST, "Could not start sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
+            if (m_mediaEntry) {
+                m_mediaEntry->Stop();
+            }
+            FinishPlay();
+            return 0;
         }
-        FinishPlay();
-        return 0;
     }
     if (m_mediaEntry && !m_mediaEntry->StartPlaying()) {
         LogDebug(VB_PLAYLIST, "Could not start media: %s\n", m_mediaName.c_str());
@@ -129,14 +131,26 @@ int PlaylistEntryBoth::Process(void) {
 
     if (m_mediaEntry)
         m_mediaEntry->Process();
-    m_sequenceEntry->Process();
+
+    if (!m_mediaEntry || m_mediaEntry->GetMediaOffsetMS() > 0) {
+        long long ct = GetTimeMS();
+        long long df = ct - m_mediaEntry->m_startTime;
+        if (df > (m_mediaEntry->GetMediaOffsetMS() - m_sequenceEntry->GetSequenceFrameTime())) {
+            if (!m_sequenceEntry->IsStarted()) {
+                m_sequenceEntry->StartPlaying();
+            }
+        }
+    }
+    if (m_sequenceEntry->IsStarted()) {
+        m_sequenceEntry->Process();
+    }
 
     if (m_mediaEntry && m_mediaEntry->IsFinished()) {
         FinishPlay();
         m_sequenceEntry->Stop();
     }
 
-    if (m_sequenceEntry->IsFinished()) {
+    if (m_sequenceEntry->IsFinished() && (!m_mediaEntry || !m_mediaEntry->HasExtraAtEnd())) {
         FinishPlay();
         if (m_mediaEntry)
             m_mediaEntry->Stop();
@@ -178,7 +192,7 @@ uint64_t PlaylistEntryBoth::GetLengthInMS() {
     uint64_t m = m_mediaEntry ? m_mediaEntry->GetLengthInMS() : 0;
     uint64_t s = m_sequenceEntry ? m_sequenceEntry->GetLengthInMS() : 0;
     if (m && m < s) {
-        //media drives it, when media completes, we stop
+        // media drives it, when media completes, we stop
         return m;
     }
     return s;
@@ -204,8 +218,8 @@ Json::Value PlaylistEntryBoth::GetConfig(void) {
     if (m_mediaEntry) {
         result["media"] = m_mediaEntry->GetConfig();
     } else {
-        //fake it so the display will display the times
-        //where the sequence is
+        // fake it so the display will display the times
+        // where the sequence is
         result["media"] = m_sequenceEntry->GetConfig();
     }
     result["sequence"] = m_sequenceEntry->GetConfig();
