@@ -420,6 +420,8 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PlayerResource::r
     } else if (url == "mqtt/cache") {
         LogDebug(VB_HTTP, "API - Getting MQTT Cached data\n");
         if (mqtt) {
+            result["respCode"] = 200;
+            result["Status"] = "OK";
             mqtt->dumpMessageCache(result);
         } else {
             result["Status"] = "ERROR";

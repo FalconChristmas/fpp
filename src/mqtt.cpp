@@ -358,11 +358,38 @@ void MosquittoClient::HandleConnect() {
     std::vector<std::string> subscribe_topics;
     subscribe_topics.push_back(m_baseTopic + "/set/#");
 
-    m_subBaseTopic = getSetting("MQTTSubscribe");
-    if (m_subBaseTopic != "") {
-        LogDebug(VB_CONTROL, "MQTT Subscribing to topic: '%s'\n", m_subBaseTopic.c_str());
-        subscribe_topics.push_back(m_subBaseTopic);
+    std::string add_topics = getSetting("MQTTSubscribe");
+
+    if (add_topics != "") {
+        // Handle single topic with no semicolon
+        std::vector<std::string> subscribe_to_me;
+        if (add_topics.find(';') == std::string::npos && !add_topics.empty()) {
+            subscribe_to_me.push_back(add_topics);
+        }
+
+        // Handle multiple topics separated by semicolon
+        size_t start = 0, end = 0;
+        while ((end = add_topics.find(';', start)) != std::string::npos) {
+            std::string sub = add_topics.substr(start, end - start);
+            subscribe_to_me.push_back(sub);
+            start = end + 1;
+        }
+        // Add last topic if there is no trailing semicolon
+        if (start < add_topics.length()) {
+            subscribe_to_me.push_back(add_topics.substr(start));
+        }
+
+        // Trip topic names and add to subscribe list
+        for (auto& s : subscribe_to_me) {
+            s.erase(0, s.find_first_not_of(" \t\n\r\f\v"));
+            s.erase(s.find_last_not_of(" \t\n\r\f\v") + 1);
+            if (!s.empty()) {
+                LogInfo(VB_CONTROL, "Adding extra MQTT subscribe topic: %s\n", s.c_str());
+                subscribe_topics.push_back(s);
+            }
+        }
     }
+
 
     for (auto& topic : callbackTopics) {
         if (topic.rfind("/set/", 0) != 0) {
@@ -418,15 +445,6 @@ void MosquittoClient::MessageCallback(void* obj, const struct mosquitto_message*
 
     CacheSetMessage(topic, payload);
 
-    // If not our base, then return.
-    if (topic.find(m_baseTopic) != 0) {
-        // Warn if we are not subscribing to any other topics
-        if (m_subBaseTopic == "")
-            LogWarn(VB_CONTROL, "Topic '%s' doesn't match base. How is that possible?\n", message->topic);
-
-        return;
-    }
-
     for (auto& a : callbackTopics) {
         std::string s = m_baseTopic + a;
         LogDebug(VB_CONTROL, "Testing Callback '%s'\n", s.c_str());
@@ -440,7 +458,7 @@ void MosquittoClient::MessageCallback(void* obj, const struct mosquitto_message*
         }
     }
 
-    LogWarn(VB_CONTROL, "No match found for Mosquitto topic '%s'\n",
+    LogDebug(VB_CONTROL, "No match found for Mosquitto topic '%s'. Assuming it is an additional subscribe topic\n",
             message->topic);
 }
 

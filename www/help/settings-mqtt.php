@@ -12,6 +12,7 @@ require_once '../common/mqtthelp.php';
 <li>MQTT events will be published to "<?echo GetSettingValue('MQTTPrefix', '', '', '/'); ?>falcon/player/<?echo GetSettingValue('HostName', 'FPP'); ?>/" with playlist events being in the "playlist" subtopic.
 <li><b>CA file</b> is the full path to the signer certificate.  Only needed if using mqtts server that is self signed.
 <li><b>Publish Frequence</b> should be zero (disabled) or the number of seconds between periodic mqtt publish events<br/>
+<li>The <b>Subscribe Topic</b> can be used to bring variables into FPP for Playlist branching or accessing via the REST API: api/fppd/mqtt/cache.
 <li>FPP will respond to certain events:
 </ul>
 <div class='fppTableWrapper selectable'>
