@@ -1122,7 +1122,8 @@
             rest += "<option value='" + n + "' " + (config.preset == n ? "selected" : "") + ">" + n + "</option>";
         }
         rest += "</select></div>";
-        rest += "<div class='col-sm-4'></div>";
+        rest += "<div class='col-sm-1'><span data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='Remove Preset Row'><font class='fas fa-remove' onClick='RemovePresetRow(this)'></font></span></div>";
+        rest += "<div class='col-sm-3'></div>";
         rest += "</div>";
         return rest;
     }
@@ -1132,6 +1133,10 @@
         config.value = 1;
         config.preset = "";
         container.innerHTML += CreatePesetRow(config);
+    }
+    function RemovePresetRow(button) {
+        var row = button.parentElement.parentElement.parentElement;
+        row.remove();
     }
 
     class ControlChannelOutput extends OtherBase {
@@ -1145,7 +1150,8 @@
             result += "<div class='col-sm-3'><button id='btnAddPreset' class='buttons btn-outline-success' type='button' value='Add' onclick='AddPresetValue(this);'><i class='fas fa-plus'></i> Add</button></div>"
             result += "<div class='col-sm-2'><b>Channel Value</b></div>";
             result += "<div class='col-sm-3'><b>Preset</b></div>";
-            result += "<div class='col-sm-4'></div>";
+            result += "<div class='col-sm-1'></div>";
+            result += "<div class='col-sm-3'></div>";
             result += "</div>";
             for (var a in config.values) {
                 result += CreatePesetRow(config.values[a]);
