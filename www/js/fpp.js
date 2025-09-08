@@ -114,14 +114,16 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 	// Handling touch
 	if (hasTouch == true) {
 		$('body').addClass('has-touch');
-		var swipeHandler = new SwipeHandler($('.header').get(0));
-		swipeHandler.onLeft(function () {
-			$('.header').toggleClass('swiped');
-		});
-		swipeHandler.onRight(function () {
-			$('.header').toggleClass('swiped');
-		});
-		swipeHandler.run();
+		if ($('.header').length > 0) {
+			var swipeHandler = new SwipeHandler($('.header').get(0));
+			swipeHandler.onLeft(function () {
+				$('.header').toggleClass('swiped');
+			});
+			swipeHandler.onRight(function () {
+				$('.header').toggleClass('swiped');
+			});
+			swipeHandler.run();
+		}
 	} else {
 		$('body').addClass('no-touch');
 	}
@@ -4487,7 +4489,13 @@ function SetupUIForMode (fppMode) {
 	}
 }
 
-var temperatureUnit = settings['temperatureInF'] == 1;
+if (
+	typeof settings !== 'undefined' &&
+	settings.hasOwnProperty('temperatureInF')
+) {
+	var temperatureUnit = settings['temperatureInF'] == 1;
+}
+
 function changeTemperatureUnit () {
 	if (temperatureUnit) {
 		SetSetting('temperatureInF', '0', 0, 0);
@@ -5643,28 +5651,30 @@ function hideRebootAlert () {
 }
 
 function CheckRestartRebootFlags () {
-	if (settings['disableUIWarnings'] == 1) {
-		setTopScrollText('Top');
-		hideRestartAlert();
-		hideRebootAlert();
-		return;
-	}
+	if (typeof settings !== 'undefined') {
+		if (settings['disableUIWarnings'] == 1) {
+			setTopScrollText('Top');
+			hideRestartAlert();
+			hideRebootAlert();
+			return;
+		}
 
-	if (settings['restartFlag'] >= 1) {
-		showRestartAlert();
-	} else {
-		hideRestartAlert();
-	}
+		if (settings['restartFlag'] >= 1) {
+			showRestartAlert();
+		} else {
+			hideRestartAlert();
+		}
 
-	if (settings['rebootFlag'] == 1) {
-		hideRestartAlert();
-		showRebootAlert();
-	} else {
-		hideRebootAlert();
-	}
+		if (settings['rebootFlag'] == 1) {
+			hideRestartAlert();
+			showRebootAlert();
+		} else {
+			hideRebootAlert();
+		}
 
-	// Adjust the scroll up text to match state.
-	setTopScrollText();
+		// Adjust the scroll up text to match state.
+		setTopScrollText();
+	}
 }
 
 function RestartFPPD () {
@@ -8524,7 +8534,12 @@ function RefreshHeaderBar () {
 			var icon = 'bolt';
 			var val = e.formatted;
 			if (e.valueType == 'Temperature') {
-				var inF = settings['temperatureInF'] == 1;
+				if (
+					typeof setting !== 'undefined' &&
+					settings.hasOwnProperty('temperatureInF')
+				) {
+					var inF = settings['temperatureInF'] == 1;
+				}
 				icon = 'thermometer-half';
 				if (inF) {
 					val = val * 1.8 + 32;
@@ -8642,11 +8657,11 @@ function RefreshHeaderBar () {
 		}
 	}
 
-	if (data.rebootFlag != undefined) {
+	if (data.rebootFlag != undefined && typeof settings !== 'undefined') {
 		settings['rebootFlag'] = data.rebootFlag;
 	}
 
-	if (data.restartFlag != undefined) {
+	if (data.restartFlag != undefined && typeof settings !== 'undefined') {
 		settings['restartFlag'] = data.restartFlag;
 	}
 
