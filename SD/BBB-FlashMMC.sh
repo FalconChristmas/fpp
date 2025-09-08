@@ -155,8 +155,8 @@ fi
 
     #format partitions
     mkfs.vfat -F 16 ${DEVICE}p1  -n boot
-    mkfs.ext4 -F -O ^metadata_csum,^64bit ${DEVICE}p3  -L rootfs
-    # mkfs.btrfs -f ${DEVICE}p3 -L rootfs
+    #mkfs.ext4 -F -O ^metadata_csum,^64bit ${DEVICE}p3  -L rootfs
+    mkfs.btrfs -f ${DEVICE}p3 -L rootfs
     mkswap ${DEVICE}p2 -L swap
 
     echo "---------------------------------------"
@@ -165,8 +165,8 @@ fi
 
     #mount
     mkdir -p /tmp/rootfs
-    mount -t ext4 -o noatime,nodiratime ${DEVICE}p3 /tmp/rootfs
-    # mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p3 /tmp/rootfs
+    #mount -t ext4 -o noatime,nodiratime ${DEVICE}p3 /tmp/rootfs
+    mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p3 /tmp/rootfs
     mkdir -p /tmp/rootfs/boot
     mkdir -p /tmp/rootfs/boot/firmware
     mount -t vfat -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs/boot/firmware
@@ -272,6 +272,10 @@ echo ""
 time rsync -aAXxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt || true
 
 if [ "$ARCH" == "aarch64" ]; then
+    cp -a /boot/firmware/* /tmp/rootfs/boot/firmware/ || true
+
+    mkdir -p /tmp/rootfs/etc
+
     echo "---------------------------------------"
     echo "Configure /etc/fstab"
     echo ""
@@ -285,6 +289,10 @@ if [ "$ARCH" == "aarch64" ]; then
     echo "#####################################" >> /tmp/rootfs/etc/fstab
     echo "#/dev/sda1     /home/fpp/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /tmp/rootfs/etc/fstab
     echo "#####################################" >> /tmp/rootfs/etc/fstab
+
+    sed -i "s|root=/dev/[a-zA-Z0-9]*\([0-9]\) |root=${DEVICE}p3 |g" /tmp/rootfs/boot/firmware/extlinux/extlinux.conf
+    sed -i "s|resume=/dev/[a-zA-Z0-9]*\([0-9]\) |resume=${DEVICE}p2 |g" /tmp/rootfs/boot/firmware/extlinux/extlinux.conf
+    sed -i "s|ext4|btrfs|g" /tmp/rootfs/boot/firmware/extlinux/extlinux.conf
 else
     echo "---------------------------------------"
     echo "Configure /boot"

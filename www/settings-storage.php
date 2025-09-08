@@ -80,7 +80,7 @@ require_once('common.php');
     }
 
     <?php
-    if ($settings['Platform'] == "BeagleBone Black") {
+    if ($settings['BeaglePlatform']) {
         ?>
         function flashEMMCDone() {
             $('#flashEMMCProgressCloseButton').prop("disabled", false);
