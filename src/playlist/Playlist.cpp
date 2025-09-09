@@ -1698,6 +1698,8 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         ple = dyn->GetCurrentEntry();
         if (ple) {
             type = ple->GetType();
+        } else {
+            type = "unknown";
         }
     }
 

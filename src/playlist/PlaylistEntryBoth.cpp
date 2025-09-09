@@ -132,7 +132,7 @@ int PlaylistEntryBoth::Process(void) {
     if (m_mediaEntry)
         m_mediaEntry->Process();
 
-    if (!m_mediaEntry || m_mediaEntry->GetMediaOffsetMS() > 0) {
+    if (m_mediaEntry && m_mediaEntry->GetMediaOffsetMS() > 0) {
         long long ct = GetTimeMS();
         long long df = ct - m_mediaEntry->m_startTime;
         if (df > (m_mediaEntry->GetMediaOffsetMS() - m_sequenceEntry->GetSequenceFrameTime())) {
