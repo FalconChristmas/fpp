@@ -1111,10 +1111,10 @@
     ?>
     function CreatePesetRow(config) {
 
-        var rest = "<div class='row presetRow justify-content-start' id='presetRow'>";
-        rest += "<div class='col-sm-3'>&nbsp;</div>";
+        var rest = "<div class='row presetRow justify-content-start'>";
+        rest += "<div class='col-sm-2'>&nbsp;</div>";
         rest += "<div class='col-sm-2'><input id='channelValue' type='number' min='1' max='255' value='" + config.value + "'></div>";
-        rest += "<div class='col-sm-3'><select id='presetName'>";
+        rest += "<div class='col-sm-5 command-select'><select id='presetName'>";
         rest += "<option value='' " + (config.preset == "" ? "selected" : "") + ">--Select Command Preset--</option>";
         var commands = commandPresets.commands;
         for (a in commands) {
@@ -1122,8 +1122,8 @@
             rest += "<option value='" + n + "' " + (config.preset == n ? "selected" : "") + ">" + n + "</option>";
         }
         rest += "</select></div>";
-        rest += "<div class='col-sm-1'><span data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='Remove Preset Row'><font class='fas fa-remove' onClick='RemovePresetRow(this)'></font></span></div>";
-        rest += "<div class='col-sm-3'></div>";
+        rest += "<div class='col-sm-2 remove-row'><input class='buttons btn-outline-danger' type='button' value='Remove Row' data-btn-enabled-class='btn-outline-danger' onClick='RemovePresetRow(this)' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='Remove Preset Row'></div>";
+        rest += "<div class='col-sm-1'></div>";
         rest += "</div>";
         return rest;
     }
@@ -1135,7 +1135,7 @@
         container.innerHTML += CreatePesetRow(config);
     }
     function RemovePresetRow(button) {
-        var row = button.parentElement.parentElement.parentElement;
+        var row = button.parentElement.parentElement;
         row.remove();
     }
 
@@ -1147,11 +1147,11 @@
             var result = super.PopulateHTMLRow(config);
             result += "<div class='container' id='presetRows'>";
             result += "<div class='row'>";
-            result += "<div class='col-sm-3'><button id='btnAddPreset' class='buttons btn-outline-success' type='button' value='Add' onclick='AddPresetValue(this);'><i class='fas fa-plus'></i> Add</button></div>"
+            result += "<div class='col-sm-2'><button id='btnAddPreset' class='buttons btn-outline-success' type='button' value='Add' onclick='AddPresetValue(this);'><i class='fas fa-plus'></i> Add</button></div>"
             result += "<div class='col-sm-2'><b>Channel Value</b></div>";
-            result += "<div class='col-sm-3'><b>Preset</b></div>";
+            result += "<div class='col-sm-5'><b>Preset</b></div>";
+            result += "<div class='col-sm-2'></div>";
             result += "<div class='col-sm-1'></div>";
-            result += "<div class='col-sm-3'></div>";
             result += "</div>";
             for (var a in config.values) {
                 result += CreatePesetRow(config.values[a]);
