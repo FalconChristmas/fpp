@@ -1,0 +1,5 @@
+#!/bin/bash
+# This script is executed by Apache when the "/git" URL is hit
+# Ths only purpose is to call git-http-backend, but as root
+# as /opt/fpp is root:root and Apache runs as fpp. 
+sudo -E /usr/lib/git-core/git-http-backend $@

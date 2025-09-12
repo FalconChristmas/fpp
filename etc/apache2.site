@@ -171,9 +171,9 @@ ServerTokens Prod
 
 	SetEnv GIT_PROJECT_ROOT /opt/fpp/.git
 	SetEnv GIT_HTTP_EXPORT_ALL 1
-	ScriptAlias /git/ /usr/lib/git-core/git-http-backend/
+	ScriptAlias /git/ /opt/fpp/scripts/git-http-backend-wrapper/
 
-	<Directory "/usr/lib/git-core">
+	<Directory "/opt/fpp/scripts/">
 		Options +ExecCgi -MultiViews +SymLinksIfOwnerMatch
 		AllowOverride none
 		Require all granted
