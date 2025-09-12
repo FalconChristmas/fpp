@@ -3706,3 +3706,16 @@ a.api-anchor {
 	border-collapse: separate;
 	background-color: lightgray;
 }
+
+.rowUniverseDetails .presetRow {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px; /* adds spacing between elements */
+	margin-bottom: 2px;
+}
+
+.rowUniverseDetails .command-select,
+.rowUniverseDetails .remove-row {
+	flex: 1 1 auto;
+	min-width: 120px;
+}
