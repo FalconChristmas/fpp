@@ -1500,17 +1500,23 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
         $duration_cache = file_get_contents($file_path);
         if ($duration_cache !== false && !empty($duration_cache)) {
             $duration_cache = json_decode($duration_cache, true);
-            //if file hashes are the same - then it's the same file
-            if (array_key_exists($media, $duration_cache) && $duration_cache[$media]['filesize'] == $filesize) {
-                //Key exists, then return the cached duration
-                $return_duration = $duration_cache[$media]['duration'];
-            } else if ($duration_seconds !== null) {
-                //put the media duration into the cache, but only if it isn't null
-                $duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
-                $return_duration = $duration_seconds;
-
-                file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT), LOCK_EX);
+            if ($duration_cache === null) {
+                //failed to decode json, reset the cache
+                $duration_cache = array();
             }
+        } else {
+            $duration_cache = array();
+        }
+        //if file hashes are the same - then it's the same file
+        if (array_key_exists($media, $duration_cache) && $duration_cache[$media]['filesize'] == $filesize) {
+            //Key exists, then return the cached duration
+            $return_duration = $duration_cache[$media]['duration'];
+        } else if ($duration_seconds !== null) {
+            //put the media duration into the cache, but only if it isn't null
+            $duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
+            $return_duration = $duration_seconds;
+
+            file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT), LOCK_EX);
         }
     }
 
