@@ -126,11 +126,13 @@ TOGGLE_OSHIFT .macro
 TOGGLE_OLATCH .macro
     SET r30, r30, OLATCH_PIN
     CLR r30, r30, OLATCH_PIN
-    .endm    
+    .endm
 
 TOGGLE_CLOCK .macro
     NOP
     CLR r30, r30, CLOCK_PIN
+    NOP
+    NOP
     NOP
     NOP
     NOP
