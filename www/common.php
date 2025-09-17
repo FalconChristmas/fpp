@@ -1503,9 +1503,12 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
             if ($duration_cache === null) {
                 //failed to decode json, reset the cache
                 $duration_cache = array();
+                unlink($file_path);
             }
         } else {
+            // file exists but failed to read it or it's empty, reset the cache
             $duration_cache = array();
+            unlink($file_path);
         }
         //if file hashes are the same - then it's the same file
         if (array_key_exists($media, $duration_cache) && $duration_cache[$media]['filesize'] == $filesize) {
