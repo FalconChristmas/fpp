@@ -7578,6 +7578,10 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				if (typeof val['contentListUrl'] != 'undefined') {
 					line += " data-contentlisturl='" + val['contentListUrl'] + "'";
 				}
+				if (val['allowBlanks']) {
+					line += " data-allowblanks='true'";
+				}
+
 				if (typeof val['children'] === 'object') {
 					if (tblCommand == 'playlistEntryCommandOptions')
 						line += " onChange='UpdateChildVisibility();";
@@ -7836,6 +7840,7 @@ function ReloadContentList (baseUrl, inp) {
 		arg = $('#' + inp);
 	}
 	var url = arg.data('contentlisturl');
+	var allowblank = arg.data('allowblanks');
 	arg.empty();
 
 	// Get current browser IP (assumes http://IP/...)
@@ -7855,8 +7860,8 @@ function ReloadContentList (baseUrl, inp) {
 			url: requestUrl,
 			success: function (data) {
 				var firstToRemove = 0;
-				if (arg.find('options[0]').value == '') {
-					arg.innerHTML = "<option value=''></option>";
+				if (arg.find('options[0]').value == '' || allowblank) {
+					arg.append("<option value=''></option>");
 				}
 
 				if (Array.isArray(data)) {
