@@ -748,10 +748,17 @@ function removeDir(string $dir): void
 
 function DeleteFile()
 {
+    global $uploadDirectory;
+
     $status = "File not found";
     $dirName = params("DirName");
     $dir = MapDirectoryKey($dirName);
     $fileName = params(0);
+
+    if ($fileName == "" && $dir == $uploadDirectory) {
+        // Hitting cancel on an upload will call delete with no filename
+        return json(array("status" => "Invalid parameters", "file" => $fileName, "dir" => $dirName));
+    }
 
     // Avoid too much saniziation so that we can delete files with unicode in them
     $allowedDir = realpath($dir); // Allowed base directory
