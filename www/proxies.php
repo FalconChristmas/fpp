@@ -123,6 +123,7 @@
                 "</tr>");
 
             checkProxiesDirty();
+            float_fppStickyThead();
         }
 
         function AddProxyForHost(host, description = "") {
@@ -140,6 +141,20 @@
                 "</td></tr>");
         }
 
+        function AddProxyForDHCPHost(host, description = "") {
+            var currentRows = $("#DHCPproxyTable > tbody > tr").length;
+
+            let descCellId = "dhcpDesc_" + host.replace(/\./g, "_");
+
+            $("#DHCPproxyTable tbody").append(
+                "<tr class=''>" +
+                "<td>" + (currentRows + 1) + "</td>" +
+                "<td>&nbsp;&nbsp;&nbsp;" + host + "</td>" +
+                "<td id='" + descCellId + "'>&nbsp;&nbsp;&nbsp;" + description + "</td>" +
+                "<td><a target='_blank' href='proxy/" + host + "/'>" + host + "</a></td>" +
+                "</tr>"
+            );
+        }
 
         function RenumberColumns(tableName) {
             var id = 1;
@@ -158,10 +173,11 @@
                 RenumberColumns("proxyTable");
             }
             checkProxiesDirty();
+            float_fppStickyThead();
         }
 
         function showSaveAlertIcon() {
-            console.log("Showing Save Alert Icon");
+            //console.log("Showing Save Alert Icon");
             if ($("#btnSave .save-alert-icon").length === 0) {
                 $("#btnSave").prepend('<span class="save-alert-icon" style="color:white;margin-right:5px;"><i class="fas fa-exclamation-triangle"></i></span>');
                 //$("#btnSave").addClass("fas fa-exclamation-triangle");
@@ -169,13 +185,13 @@
         }
 
         function hideSaveAlertIcon() {
-            console.log("Hiding Save Alert Icon");
+            //console.log("Hiding Save Alert Icon");
             $("#btnSave .save-alert-icon").remove();
         }
 
 
         function SetProxies() {
-            console.log("Setting Proxies");
+            //console.log("Setting Proxies");
             var formStr = "<form action='proxies.php' method='post' id='proxyForm'>";
 
             var json = new Array();
@@ -188,7 +204,7 @@
                     dataType: 'json',
                     success: function (data) {
                         $.jGrowl('All proxies removed successfully', { themeState: 'success' });
-                        //location.reload();
+                        location.reload();
                     },
                     error: function () {
                         $.jGrowl('Error: Failed to remove all proxies', { themeState: 'danger' });
@@ -221,7 +237,7 @@
                         $.jGrowl('All proxies saved successfully', { themeState: 'success' });
                         initialProxiesState = getCurrentProxiesState();
                         hideSaveAlertIcon();
-                        //location.reload();
+                        location.reload();
                     },
                     error: function () {
                         $.jGrowl('Error: Failed to save all proxies', { themeState: 'danger' });
@@ -256,30 +272,14 @@
                 dataType: 'json',
                 success: function (data) {
                     proxyInfos = data;
-                    let hasPending = false;
                     for (var i = 0; i < proxyInfos.length; i++) {
                         if (proxyInfos[i].dhcp) {
-                            let desc = proxyInfos[i].pending ? "DHCP (Not currently in saved proxy config)" : "DHCP";
-                            let rowClass = proxyInfos[i].pending ? "pendingDhcpProxy" : "";
-                            let descCellId = "dhcpDesc_" + proxyInfos[i].host.replace(/\./g, "_");
-                            if (proxyInfos[i].pending) hasPending = true;
-                            $("#proxyTable tbody").append(
-                                "<tr class='" + rowClass + "' style='" + (proxyInfos[i].pending ? "background-color: #fff3cd;" : "") + "'>" +
-                                "<td>" + (i + 1) + "</td>" +
-                                "<td>&nbsp;&nbsp;&nbsp;" + proxyInfos[i].host + "</td>" +
-                                "<td id='" + descCellId + "'>&nbsp;&nbsp;&nbsp;" + desc + "</td>" +
-                                "<td><a target='_blank' href='proxy/" + proxyInfos[i].host + "/'>" + proxyInfos[i].host + "</a></td>" +
-                                "</tr>"
-                            );
+                            AddProxyForDHCPHost(proxyInfos[i].host, proxyInfos[i].description);
                         } else {
                             AddProxyForHost(proxyInfos[i].host, proxyInfos[i].description);
                         }
                     }
-                    if (hasPending) {
-                        $(".backdrop").prepend(
-                            "<div class='alert alert-danger' style='margin-bottom:10px;'><b>Note:</b> Highlighted DHCP hosts are detected on the network but are <u>not yet in the proxy configuration</u>. Click <b>Save</b> to add them.</div>"
-                        );
-                    }
+
                     for (var i = 0; i < proxyInfos.length; i++) {
                         if (proxyInfos[i].dhcp) {
                             (function (ip) {
@@ -291,14 +291,14 @@
                                     success: function (data) {
                                         if (data && data.HostName) {
                                             let cell = $("#" + descCellId);
-                                            let currentDesc = cell.text();
-                                            // Replace or append hostname
-                                            if (currentDesc.indexOf("DHCP") !== -1) {
-                                                cell.html(currentDesc.replace(/DHCP.*/, "DHCP (FPP Instance: " + data.HostName + ")" + (currentDesc.indexOf("Not in config") !== -1 ? " (Not in config)" : "")));
-                                            } else {
-                                                cell.html("DHCP (" + data.HostName + ")");
-                                            }
+                                            // Set Description for DHCP
+                                            cell.html("DHCP (FPP Instance: " + data.HostName + ")");
                                         }
+                                    },
+                                    error: function () {
+                                        // Set Description when not FPP
+                                        let cell = $("#" + descCellId);
+                                        cell.html("DHCP - System Type not recognised");
                                     }
                                 });
                             })(proxyInfos[i].host);
@@ -346,7 +346,7 @@
 
                     <div class="row tablePageHeader">
                         <div class="col-md">
-                            <h2>Proxied Hosts</h2>
+                            <h2>Proxied Hosts (Manually Maintained)</h2>
                         </div>
                         <div class="col-md-auto ms-lg-auto">
                             <div class="form-actions">
@@ -367,6 +367,34 @@
                         <div class='fppTableContents fppFThScrollContainer' role="region" aria-labelledby="proxyTable"
                             tabindex="0">
                             <table id="proxyTable" class="fppSelectableRowTable fppStickyTheadTable">
+                                <thead>
+                                    <tr>
+                                        <th>#</td>
+                                        <th>IP/HostName</td>
+                                        <th>Description</td>
+                                        <th>
+                                            <? if (!$settings['hideExternalURLs']) { ?>
+                                                Link
+                                            <? } ?>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+
+                    <div class="col-md">
+                        <h2>DHCP Proxied Hosts (Auto Populated)</h2>
+                    </div>
+
+
+                    <div class="fppTableWrapper fppTableWrapperAsTable">
+                        <div class='fppTableContents fppFThScrollContainer' role="region"
+                            aria-labelledby="DHCPproxyTable" tabindex="0">
+                            <table id="DHCPproxyTable" class="fppSelectableRowTable fppStickyTheadTable">
                                 <thead>
                                     <tr>
                                         <th>#</td>
