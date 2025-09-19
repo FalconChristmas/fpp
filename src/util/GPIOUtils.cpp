@@ -175,7 +175,6 @@ int GPIODCapabilities::configPin(const std::string& mode,
 void GPIODCapabilities::releaseGPIOD() const {
 #ifdef HASGPIOD
     if (line.is_requested()) {
-        // printf("Releasing %s %d %d\n", name.c_str(), gpioIdx, gpio);
         line.release();
         lastRequestType = 0;
         lastDesc.clear();
@@ -195,7 +194,8 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
     } else if (fallingEdge) {
         req.request_type |= gpiod::line_request::EVENT_FALLING_EDGE;
     }
-    if (line.is_requested()) {
+    bool wasRequested = line.is_requested();
+    if (wasRequested) {
         line.release();
     }
     try {
@@ -208,6 +208,12 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
         fd = line.event_get_fd();
         if (fd < 0) {
             WarningHolder::AddWarning("Could not get event file descriptor for pin " + name);
+        }
+    } else if (wasRequested) {
+        req.request_type = lastRequestType;
+        line.request(req, 0);
+        if (!line.is_requested()) {
+            WarningHolder::AddWarning("Could not re-request pin " + name + " after failing to request events");
         }
     } else {
         WarningHolder::AddWarning("Could not request event for pin " + name);

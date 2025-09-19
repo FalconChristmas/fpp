@@ -194,7 +194,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                     }
 
                     if (state->risingAction["command"].asString() != "" || state->fallingAction["command"].asString() != "") {
-                        state->pin->configPin(mode, false);
+                        state->pin->configPin(mode, false, "GPIO Input");
 
                         addState(state);
                         enabledCount++;
