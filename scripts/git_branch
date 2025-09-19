@@ -43,6 +43,14 @@ compileBinaries
 # Delete any statistics
 /usr/bin/curl -X DELETE http://localhost/api/statistics/usage
 
+# If apache config file has changed copy across from branch standard
+if [ -f ${FPPDIR}/etc/apache2.site ] && ! cmp -s ${FPPDIR}/etc/apache2.site /etc/apache2/sites-available/000-default.conf
+then
+	echo "Updating apache2 site configuration"
+	${SUDO} cp ${FPPDIR}/etc/apache2.site /etc/apache2/sites-available/000-default.conf
+fi
+
+
 echo "Restarting fppd"
 ${SUDO} ${FPPDIR}/scripts/fppd_start
 
