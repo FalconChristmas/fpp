@@ -201,8 +201,10 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
     try {
         line.request(req, 0);
     } catch (const std::exception& ex) {
-        WarningHolder::AddWarning("Could not configure pin " + name + " for events (" + ex.what() + ") for edges Rising:" +
-                                  std::to_string(risingEdge) + "   Falling:" + std::to_string(fallingEdge));
+        if (!wasRequested) {
+            WarningHolder::AddWarning("Could not configure pin " + name + " for events (" + ex.what() + ") for edges Rising:" +
+                                      std::to_string(risingEdge) + "   Falling:" + std::to_string(fallingEdge));
+        }
     }
     if (line.is_requested()) {
         fd = line.event_get_fd();
