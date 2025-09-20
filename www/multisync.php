@@ -1314,6 +1314,14 @@
                             var tempthreshold = s.P.BS;
                             var t1temp = s.P.T1 / 10;
                             var t2temp = s.P.T2 / 10;
+                            var t1tempLabel = t1temp + "C";
+
+                            if (settings['temperatureInF'] == 1) {
+                                t1temp = Math.round((t1temp * 9 / 5) + 32);
+                                t2temp = Math.round((t2temp * 9 / 5) + 32);
+                                tempthreshold = Math.round((tempthreshold * 9 / 5) + 32);
+                                t1tempLabel = t1temp + "F";
+                            }
 
                             var v1voltage = s.P.V1 / 10;
                             var v2voltage = s.P.V2 / 10;
@@ -1338,7 +1346,7 @@
                             if (s.P.BR != 48) {
                                 u += "<tr><td>V2 Voltage:</td><td> " + v2voltage + "v</td></tr>";
                             }
-                            u += "<tr><td>Temp:</td><td> " + t1temp + "C</td></tr>";
+                            u += "<tr><td>Temp:</td><td> " + t1tempLabel + "</td></tr>";
                             u += "</table>";
 
                             var hostRowKey = ip.replace(/\./g, '_');
