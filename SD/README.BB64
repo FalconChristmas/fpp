@@ -15,19 +15,23 @@
 
 # First, mount the rootfs on a Linux machine.   We need to disable the growfs on
 # first boot:
-cd /media/${USER}/rootfs
-sudo rm ./etc/systemd/system/multi-user.target.wants/grow_partition.service
-sudo rm ./var/lib/systemd/deb-systemd-helper-enabled/grow_partition.service.dsh-also
-sudo wget -4 -O ./etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
-sudo sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' ./etc/systemd/network/50-default.network
-sudo rm ./etc/systemd/network/eth0* ./etc/systemd/network/mlan* ./etc/systemd/network/wlan*
-cd /media/${USER}/BOOT
-sudo nano sysconf.txt
-    user_name=fpp
-    user_password=falcon
-cd /media/${USER}/
-sudo umount BOOT
-sudo umount rootfs
+mkdir -p /mnt/tmp
+mount /dev/sdc3 /mnt/tmp
+mount /dev/sdc1 /mnt/tmp/boot/firmware
+cd /mnt/tmp
+rm -f ./etc/systemd/system/multi-user.target.wants/grow_partition.service
+rm -f ./var/lib/systemd/deb-systemd-helper-enabled/grow_partition.service.dsh-also
+rm -f ./etc/bbb.io/growpart
+mv ./usr/bin/bb-growpart ./usr/bin/bb-growpart.orig
+wget -4 -O ./etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' ./etc/systemd/network/50-default.network
+rm ./etc/systemd/network/eth0* ./etc/systemd/network/mlan* ./etc/systemd/network/wlan*
+cd /mnt/tmp/boot/firmware
+echo  "user_name=fpp" >> sysconf.txt
+echo  "user_password=falcon" >> sysconf.txt
+cd ~
+umount /mnt/tmp/boot/firmware
+umount /mnt/tmp
 
 
 # Insert into PB2 and power up
@@ -77,6 +81,7 @@ reboot
 cd /root
 wget -4 -O ./FPP_Install.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 chmod 700 ./FPP_Install.sh
+export FPPBRANCH=v9.2
 ./FPP_Install.sh --img
 
 # Reboot and make sure everything looks ok
@@ -84,14 +89,16 @@ chmod 700 ./FPP_Install.sh
 # Before shutting down, run:
 systemctl enable grow_partition.service
 journalctl --flush --rotate --vacuum-time=1s
+mv /usr/bin/bb-growpart.orig /usr/bin/bb-growpart
+touch /etc/bbb.io/growpart
 sync
 fstrim -v /
 
 
 
     DEVICE=/dev/sdc
-    VERSION=9.1
-    OSVERSION=2025-08
+    VERSION=9.2
+    OSVERSION=2025-09
     BLOCKS=7800
     mount "${DEVICE}3" /mnt
     rm -f /mnt/home/fpp/.bash_history
