@@ -222,7 +222,7 @@ adjustEnvBTRFS() {
 }
 adjustEnvEXT4() {
 
-    if [ "$DEVSIZE" -gt 9000 ]; then
+    if [ "$DEVSIZE" -gt 9000000 ]; then
         echo "${DEVICE}p3  /  ext4  defaults,noatime,nodiratime  0  1" > /tmp/rootfs/etc/fstab
         echo "${DEVICE}p1  /boot/firmware vfat user,uid=1000,gid=1000,defaults 0 2" >> /tmp/rootfs/etc/fstab
         echo "${DEVICE}p2       none    swap    sw      0       0" >>  /tmp/rootfs/etc/fstab
@@ -240,6 +240,7 @@ fi
 set -o pipefail
 
 
+
 if [ "$ARCH" == "aarch64" ]; then
     prepareThreePartitions
 else
@@ -255,7 +256,7 @@ else
     if [ "$1" = "btrfs" ]; then
         prepareBTRFSPartitions
     else
-        if [ "$PARTSIZE" == "" ] && [ "$DEVSIZE" -gt 9000 ]; then
+        if [ "$PARTSIZE" == "" ] && [ "$DEVSIZE" -gt 9000000 ]; then
             prepareThreePartitions
         else 
             prepareEXT4Partitions
