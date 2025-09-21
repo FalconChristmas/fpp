@@ -227,7 +227,14 @@
                                     DialogError('No name given',
                                         'The playlist name cannot be empty.');
                                     return;
-                                } else {
+                                }
+                                //check if playlist name already in use
+                                else if ($("#txtAddPlaylistName").val() === playListArray.find(p => p.name === $("#txtAddPlaylistName").val())?.name) {
+                                    DialogError('Playlist Name in Use',
+                                        'The playlist name already exists.');
+                                    return;
+                                }
+                                else {
                                     SavePlaylistAs(
                                         $("#txtAddPlaylistName").val(), {
                                         desc: $("#txtAddPlaylistDesc").val(),
@@ -240,6 +247,8 @@
                                                 "#txtAddPlaylistName").val()).trigger(
                                                     'change');
                                             LoadPlaylistDetails($("#txtAddPlaylistName").val());
+                                            //Set Page header to new playlist name
+                                            $('.playlistEditorHeaderTitle').html($("#txtAddPlaylistName").val());
 
                                             CloseModalDialog("AddPlaylistDialog");
                                         }
