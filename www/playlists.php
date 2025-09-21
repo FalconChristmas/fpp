@@ -247,6 +247,8 @@
                                                 "#txtAddPlaylistName").val()).trigger(
                                                     'change');
                                             LoadPlaylistDetails($("#txtAddPlaylistName").val());
+                                            //Set Page header to new playlist name
+                                            $('.playlistEditorHeaderTitle').html($("#txtAddPlaylistName").val());
 
                                             CloseModalDialog("AddPlaylistDialog");
                                         }
