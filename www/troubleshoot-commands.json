@@ -18,7 +18,7 @@
                 "Wired": {
                     "title": "Wired",
                     "description": "",
-                    "cmd": "for interface in $(ifconfig | grep -oP \"^\\w+(?=:)\" | grep \"eth\"); do echo \" \"; ethtool \"$interface\"; done;",
+                    "cmd": "for interface in $(ifconfig | grep -oP \"^\\w+(?=:)\" | egrep \"eth|enx\"); do echo \" \"; ethtool \"$interface\"; done;",
                     "platforms": [
                         "all"
                     ]
@@ -489,7 +489,9 @@
             "grpDisplayTitle": "GPIO",
             "grpDescription": "Set of tools for GPIO troubleshooting",
             "platforms": [
-                "Raspberry Pi", "BeagleBone Black", "BeagleBone 64"
+                "Raspberry Pi",
+                "BeagleBone Black",
+                "BeagleBone 64"
             ],
             "commands": {
                 "GPIO": {
@@ -497,7 +499,9 @@
                     "description": "Information about the GPIO chips on the system",
                     "cmd": "gpiodetect",
                     "platforms": [
-                        "Raspberry Pi", "BeagleBone Black", "BeagleBone 64"
+                        "Raspberry Pi",
+                        "BeagleBone Black",
+                        "BeagleBone 64"
                     ]
                 },
                 "GPIOInfo": {
@@ -505,7 +509,9 @@
                     "description": "Information about the GPIO lines on the system",
                     "cmd": "gpioinfo",
                     "platforms": [
-                        "Raspberry Pi", "BeagleBone Black", "BeagleBone 64"
+                        "Raspberry Pi",
+                        "BeagleBone Black",
+                        "BeagleBone 64"
                     ]
                 },
                 "pinctrl": {
