@@ -141,7 +141,7 @@ void PixelOverlayManager::addModel(Json::Value config) {
         pmodel = new PixelOverlayModelSub(config);
     }
 
-    std::unique_lock<std::mutex> lock(modelsLock);
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
     bool wasEmpty = models.empty();
     if (pmodel) {
         models[pmodel->getName()].model = pmodel;
@@ -286,6 +286,16 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
 bool PixelOverlayManager::hasActiveOverlays() {
     return numActive > 0;
 }
+void PixelOverlayManager::resetChildParent(const std::string& name) {
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
+    PixelOverlayModel* model = getModelLocked(name);
+    if (model) {
+        PixelOverlayModelSub* subModel = dynamic_cast<PixelOverlayModelSub*>(model);
+        if (subModel) {
+            subModel->resetParent();
+        }
+    }
+}
 
 void PixelOverlayManager::modelStateChanged(PixelOverlayModel* m, const PixelOverlayState& old, const PixelOverlayState& state) {
     if (old.getState() == 0) {
@@ -345,7 +355,7 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
 }
 
 PixelOverlayModel* PixelOverlayManager::getModel(const std::string& name) {
-    std::unique_lock<std::mutex> lock(modelsLock);
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
     return getModelLocked(name);
 }
 PixelOverlayModel* PixelOverlayManager::getModelLocked(const std::string& name) {
@@ -356,11 +366,11 @@ PixelOverlayModel* PixelOverlayManager::getModelLocked(const std::string& name) 
     return a->second.model;
 }
 void PixelOverlayManager::addModelListener(const std::string& name, const std::string& id, std::function<void(PixelOverlayModel*)> listener) {
-    std::unique_lock<std::mutex> lock(modelsLock);
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
     models[name].listeners[id] = listener;
 }
 void PixelOverlayManager::removeModelListener(const std::string& name, const std::string& id) {
-    std::unique_lock<std::mutex> lock(modelsLock);
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
     auto a = models.find(name);
     if (a != models.end()) {
         a->second.listeners.erase(id);
@@ -429,7 +439,7 @@ const std::string& PixelOverlayManager::mapFont(const std::string& f) {
 
 Json::Value PixelOverlayManager::getModelsAsJson() {
     Json::Value ret;
-    std::unique_lock<std::mutex> lock(modelsLock);
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
     for (auto& mn : modelNames) {
         Json::Value model;
         models[mn].toJson(model);
@@ -446,7 +456,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
         Json::Value result;
         bool empty = true;
         if (plen == 1) {
-            std::unique_lock<std::mutex> lock(modelsLock);
+            std::unique_lock<std::recursive_mutex> lock(modelsLock);
             bool simple = false;
             if (std::string(req.get_arg("simple")) == "true") {
                 simple = true;
@@ -468,7 +478,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
         } else {
             std::string model = req.get_path_pieces()[1];
             std::string type;
-            std::unique_lock<std::mutex> lock(modelsLock);
+            std::unique_lock<std::recursive_mutex> lock(modelsLock);
             auto m = models[model].model;
             if (m) {
                 m->toJson(result);
@@ -495,7 +505,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
         } else if (p2 == "settings") {
             result["autoCreate"] = autoCreate;
         } else if (p2 == "models") {
-            std::unique_lock<std::mutex> lock(modelsLock);
+            std::unique_lock<std::recursive_mutex> lock(modelsLock);
             bool hasModels = false;
             for (auto& mn : modelNames) {
                 Json::Value model;
@@ -519,7 +529,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
                 result.resize(0);
             }
         } else if (p2 == "model") {
-            std::unique_lock<std::mutex> lock(modelsLock);
+            std::unique_lock<std::recursive_mutex> lock(modelsLock);
             auto m = models[p3].model;
             if (m) {
                 std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
@@ -616,7 +626,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
     std::string p4 = req.get_path_pieces().size() > 3 ? req.get_path_pieces()[3] : "";
     if (p1 == "overlays") {
         if (p2 == "model") {
-            std::unique_lock<std::mutex> lock(modelsLock);
+            std::unique_lock<std::recursive_mutex> lock(modelsLock);
             auto m = models[p3].model;
             if (m) {
                 if (p4 == "state") {
@@ -807,7 +817,7 @@ public:
         manager(m) {}
     virtual ~OverlayCommand() {}
 
-    std::mutex& getLock() { return manager->modelsLock; }
+    std::recursive_mutex& getLock() { return manager->modelsLock; }
     PixelOverlayModel* getModelLocked(const std::string& name) {
         return manager->getModelLocked(name);
     }
@@ -827,7 +837,7 @@ public:
         if (args.size() != 2) {
             return std::make_unique<Command::ErrorResult>("Command needs 2 arguments, found " + std::to_string(args.size()));
         }
-        std::unique_lock<std::mutex> lock(getLock());
+        std::unique_lock<std::recursive_mutex> lock(getLock());
         std::list<PixelOverlayModel*> models;
         for (auto& ms : split(args[0], ',')) {
             auto m = getModelLocked(ms);
@@ -854,7 +864,7 @@ public:
         if (args.size() != 1) {
             return std::make_unique<Command::ErrorResult>("Command needs 1 argument, found " + std::to_string(args.size()));
         }
-        std::unique_lock<std::mutex> lock(getLock());
+        std::unique_lock<std::recursive_mutex> lock(getLock());
         std::list<PixelOverlayModel*> models;
         for (auto& ms : split(args[0], ',')) {
             auto m = getModelLocked(ms);
@@ -883,7 +893,7 @@ public:
         if (args.size() < 2 || args.size() > 3) {
             return std::make_unique<Command::ErrorResult>("Command needs 2 or 3 arguments, found " + std::to_string(args.size()));
         }
-        std::unique_lock<std::mutex> lock(getLock());
+        std::unique_lock<std::recursive_mutex> lock(getLock());
         std::list<PixelOverlayModel*> models;
         for (auto& ms : split(args[0], ',')) {
             auto m = getModelLocked(ms);
@@ -972,7 +982,7 @@ public:
         if (args.size() < 3) {
             return std::make_unique<Command::ErrorResult>("Command needs at least 3 arguments, found " + std::to_string(args.size()));
         }
-        std::unique_lock<std::mutex> lock(getLock());
+        std::unique_lock<std::recursive_mutex> lock(getLock());
         std::list<PixelOverlayModel*> models;
 
         for (auto& ms : split(args[0], ',')) {
@@ -1031,7 +1041,7 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
     addModel(val);
 }
 void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
-    std::unique_lock<std::mutex> lock(modelsLock);
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
     PixelOverlayModel* pmodel = models[name].model;
     if (pmodel && pmodel->isAutoCreated()) {
         modelNames.remove(name);

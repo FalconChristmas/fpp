@@ -114,13 +114,14 @@ public:
 
     bool applyEffect(const std::string& autoState, const std::string& effect, const std::vector<std::string>& args);
     void setRunningEffect(RunningEffect* r, int32_t firstUpdateMS);
-    
+
     std::recursive_mutex& getRunningEffectMutex() { return effectLock; }
     RunningEffect* getRunningEffect() const { return runningEffect; } // make sure you have the mutex locked
     int32_t updateRunningEffects();
 
     void setChildState(const std::string& n, const PixelOverlayState& state, int ox, int oy, int w, int h);
     bool isAutoCreated();
+
 protected:
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
     bool flushChildren(uint8_t* dst);

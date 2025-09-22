@@ -50,6 +50,10 @@ void PixelOverlayModelSub::setState(const PixelOverlayState& st) {
         parent->setChildState(name, st, xOffset, yOffset, width, height);
     }
 }
+void PixelOverlayModelSub::resetParent() {
+    parent = nullptr;
+    PixelOverlayModel::setState(PixelOverlayState(PixelOverlayState::Disabled));
+}
 
 void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     if (PixelOverlayModel::overlayBufferIsDirty())

@@ -292,6 +292,9 @@ PixelOverlayModel::~PixelOverlayModel() {
         }
         shm_unlink(overlayBufferName.c_str());
     }
+    for (auto& c : children) {
+        PixelOverlayManager::INSTANCE.resetChildParent(c.name);
+    }
 }
 
 bool PixelOverlayModel::isAutoCreated() {
@@ -809,7 +812,7 @@ void PixelOverlayModel::saveOverlayAsImage(std::string filename) {
 
     std::vector<uint8_t> data(width * height * 3);
     memset(&data[0], 0, width * height * 3);
-    
+
     for (int c = 0; c < height * width * 3; c++) {
         if (channelMap[c] != FPPD_OFF_CHANNEL) {
             data[c] = channelData[channelMap[c]];

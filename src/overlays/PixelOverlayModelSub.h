@@ -23,6 +23,8 @@ public:
 
     virtual void setState(const PixelOverlayState& st) override;
 
+    void resetParent();
+
 private:
     bool foundParent();
 

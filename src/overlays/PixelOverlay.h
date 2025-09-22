@@ -58,6 +58,7 @@ public:
 
     void addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel* m);
     void removePeriodicUpdate(PixelOverlayModel* m);
+    void resetChildParent(const std::string& name);
 
     Json::Value getModelsAsJson();
 
@@ -91,7 +92,7 @@ private:
     std::list<std::string> modelNames;
     std::map<std::string, std::string> fonts;
     bool fontsLoaded = false;
-    std::mutex modelsLock;
+    std::recursive_mutex modelsLock;
 
     void doOverlayModelEffects();
     std::thread* updateThread = nullptr;
