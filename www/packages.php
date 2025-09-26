@@ -159,7 +159,7 @@
                         <strong>Selected Package:</strong> ${selectedPackageName} ${installed}<br>
                         ${data.Installed !== "Yes"
                             ? `<strong>Description:</strong> ${description}<br>
-                               <strong>Will also install these packages:</strong> ${dependencies}<br>
+                               <strong>Will also install these packages (if not already installed):</strong> ${dependencies}<br>
                                <div class="buttons btn-lg btn-rounded btn-outline-success mt-2" onClick="InstallPackage('${selectedPackageName}');">
                                    <i class="fas fa-download"></i> Install Package
                                </div>`
