@@ -251,8 +251,17 @@
                 html += '</div><div align="right">';
                 html += '</div><div align="right">';
                 if (compatibleVersion >= 0 || untestedVersion >= 0) {
-                    let idx = compatibleVersion < 0 ? untestedVersion : compatibleVersion;
-                    html += "<button class='buttons btn-success' onClick=' InstallPlugin(\"" + data.repoName + "\", \"" + data.versions[idx].branch + "\", \"" + data.versions[idx].sha + "\");'><i class='far fa-arrow-alt-circle-down'></i> Install</button>";
+                   let idx = compatibleVersion < 0 ? untestedVersion : compatibleVersion;
+
+                   let installText = "Install";
+                   let btnClass    = "btn-success";
+
+                   if (compatibleVersion < 0 && untestedVersion >= 0) {
+                      installText = "Install untested plugin at your own risk";
+                      btnClass    = "btn-warning";
+                   }
+
+                   html += "<button class='buttons " + btnClass + "' onClick=' InstallPlugin(\"" + data.repoName + "\", \"" + data.versions[idx].branch + "\", \"" + data.versions[idx].sha + "\");'><i class='far fa-arrow-alt-circle-down'></i> " + installText + "</button>";
                 }
             }
 
