@@ -62,7 +62,7 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
     $SUDO ${SCRIPTDIR}/upgrade_config
     compileBinaries
 else
-    echo "Can not access ${HTTPURL}, unable to pull git updates"
+    echo "Can not access ${HTTPURL}, unable to pull git updates.  Check if you have Internet Access from this FPP by going to Help->System Health Check"
 
     if [ ! -x ${FPPBINDIR}/fppd ]; then
         echo "${FPPBINDIR}/fppd doesn't exist, need to build it"
