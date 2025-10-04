@@ -4,6 +4,21 @@
 include 'common/htmlMeta.inc';
 require_once 'config.php';
 require_once "common.php";
+
+// Check for cape-inputs.json file to determine which GPIO pins are already in use
+$capeInputsFile = $mediaDirectory . '/tmp/cape-inputs.json';
+$usedGpioPins = array();
+if (file_exists($capeInputsFile)) {
+    $capeInputsData = file_get_contents($capeInputsFile);
+    $capeInputsJson = json_decode($capeInputsData, true);
+    if (isset($capeInputsJson['inputs']) && is_array($capeInputsJson['inputs'])) {
+        foreach ($capeInputsJson['inputs'] as $input) {
+            if (isset($input['pin']) && isset($input['type'])) {
+                $usedGpioPins[$input['pin']] = $input['type'];
+            }
+        }
+    }
+}
 ?>
 <head>
 <?php
@@ -33,7 +48,23 @@ echo "\n";
 
 function SaveGPIOInputs() {
     var gpios = Array();
+    
+    // Get the list of used GPIO pins from PHP
+    var usedPins = {
+<?php
+foreach ($usedGpioPins as $pin => $usage) {
+    $pinNameClean = preg_replace('/[-\.]/', "_", $pin);
+    echo "        \"" . $pinNameClean . "\": \"" . addslashes($pin) . "\",\n";
+}
+?>
+    };
+    
     $.each(gpioPinNames, function(key, val) {
+        // Skip pins that are already in use by cape configuration
+        if (usedPins[key]) {
+            return true; // continue to next iteration
+        }
+        
         var gp = {};
         gp["pin"] = val;
         gp["enabled"] = $("#gpio_" + key + "_enabled").is(':checked');
@@ -207,36 +238,62 @@ foreach ($gpiojson as $gpio) {
     }
     ?>
             <tr class='fppTableRow <?=$style?>' <?=$hideStyle?> id='row_<?=$pinNameClean?>'>
-                <td><input type="checkbox" id="gpio_<?=$pinNameClean?>_enabled"></td>
-                <td><?=$pinName?></td>
-            <td><?=$gpio['gpioChip']?>/<?=$gpio['gpioLine']?></td>
-        <?
-    if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {
-        ?>
-                    <td>
-                    <select id='gpio_<?=$pinNameClean?>_PullUpDown' <?if (!$gpio['supportsPullUp'] && !$gpio['supportsPullDown']) {
-            echo "style='display:none;'";
-        }
-        ?> >
-                    <option value='gpio'>None/External</option>
-                    <?if ($gpio['supportsPullUp']) {
-            echo "<option value='gpio_pu'>Pull Up</option>\n";
-        }
-        ?>
-                    <?if ($gpio['supportsPullDown']) {
-            echo "<option value='gpio_pd'>Pull Down</option>\n";
-        }
-        ?>
-                </select>
-            </td>
-            <td>
-            <input type="number" min="10" max="60000" id="gpio_<?=$pinNameClean?>_debounce" value="100">
-            </td>
-            <?
-    } else if ($pCount > 0) {
-        echo "<td></td>";
-    }
-    ?>
+                <?php
+                // Check if this GPIO pin is already in use by cape-inputs.json
+                $isGpioInUse = isset($usedGpioPins[$pinName]);
+                
+                if ($isGpioInUse) {
+                    // Pin is in use - show read-only information
+                    ?>
+                    <td><span style="color: #888;">N/A</span></td>
+                    <td><?=$pinName?></td>
+                    <td><?=$gpio['gpioChip']?>/<?=$gpio['gpioLine']?></td>
+                    <?php
+                    if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {
+                        ?>
+                        <td><span style="color: #888;">Cape Controlled</span></td>
+                        <td><span style="color: #888;">N/A</span></td>
+                        <?php
+                    } else if ($pCount > 0) {
+                        echo "<td></td><td></td>";
+                    }
+                    ?>
+                    <td><strong style="color: #0066cc;">In Use: <?=htmlspecialchars($usedGpioPins[$pinName])?></strong></td>
+                    <td colspan="2" style="color: #888; font-style: italic;">GPIO pin reserved by cape configuration</td>
+                    <?php
+                } else {
+                    // Pin is available - show normal configuration options
+                    ?>
+                    <td><input type="checkbox" id="gpio_<?=$pinNameClean?>_enabled"></td>
+                    <td><?=$pinName?></td>
+                    <td><?=$gpio['gpioChip']?>/<?=$gpio['gpioLine']?></td>
+                    <?php
+                    if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {
+                        ?>
+                        <td>
+                        <select id='gpio_<?=$pinNameClean?>_PullUpDown' <?if (!$gpio['supportsPullUp'] && !$gpio['supportsPullDown']) {
+                echo "style='display:none;'";
+            }
+            ?> >
+                        <option value='gpio'>None/External</option>
+                        <?if ($gpio['supportsPullUp']) {
+                echo "<option value='gpio_pu'>Pull Up</option>\n";
+            }
+            ?>
+                        <?if ($gpio['supportsPullDown']) {
+                echo "<option value='gpio_pd'>Pull Down</option>\n";
+            }
+            ?>
+                    </select>
+                </td>
+                <td>
+                <input type="number" min="10" max="60000" id="gpio_<?=$pinNameClean?>_debounce" value="100">
+                </td>
+                <?php
+                    } else if ($pCount > 0) {
+                        echo "<td></td><td></td>";
+                    }
+                    ?>
                     <td><input id='gpio_<?=$pinNameClean?>_Desc' type='text' size=30 maxlength=128 style='width: 6em'/></td>
                     <td>
                     <table border=0 class='fppTable' id='tableRisingGPIO<?=$pinNameClean?>'>
@@ -259,7 +316,9 @@ foreach ($gpiojson as $gpio) {
                         </tr>
                         </table>
                 </td>
-
+                <?php
+                }
+                ?>
             </tr>
 
         <?
@@ -284,6 +343,11 @@ if (file_exists($mediaDirectory . '/config/gpio.json')) {
     foreach ($gpioInputJson as $gpio) {
         $pinName = $gpio['pin'];
         $pinNameClean = preg_replace('/[-\.]/', "_", $pinName);
+
+        // Skip configuration loading for pins that are already in use by cape
+        if (isset($usedGpioPins[$pinName])) {
+            continue;
+        }
 
         if ($gpio['enabled'] == true) {
             echo "$('#gpio_" . $pinNameClean . "_enabled').prop('checked', true);\n";
