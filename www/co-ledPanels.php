@@ -164,6 +164,12 @@
                 $matricesArray[$z]["LEDPanelCols"] = $parts[0];
                 $matricesArray[$z]["LEDPanelRows"] = $parts[1];
             }
+
+            // If panelWidth, panelHeight, and panelScan exist (from legacy channelOutputs), 
+            // reconstruct LEDPanelsSize from them
+            if (isset($matricesArray[$z]["panelWidth"]) && isset($matricesArray[$z]["panelHeight"]) && isset($matricesArray[$z]["panelScan"])) {
+                $matricesArray[$z]["LEDPanelsSize"] = $matricesArray[$z]["panelWidth"] . "x" . $matricesArray[$z]["panelHeight"] . "x" . $matricesArray[$z]["panelScan"];
+            }
         }
     } else {
         //set some defaults for the first panelMatrix
@@ -497,15 +503,20 @@
             mp.LEDPanelAddressing ||= LEDPanelDefaults.LEDPanelAddressing;
             mp.gamma ||= LEDPanelDefaults.LEDPanelGamma;
             mp.ledPanelsLayout ||= LEDPanelDefaults.ledPanelsLayout;
-            mp.ledPanelsSize ||= LEDPanelDefaults.LEDPanelsSize;
             mp.gpioSlowdown ||= LEDPanelDefaults.gpioSlowdown;
             mp.LEDPanelCanvasUIPixelsHigh ||= LEDPanelDefaults.LEDPanelCanvasUIPixelsHigh;
             mp.LEDPanelCanvasUIPixelsWide ||= LEDPanelDefaults.LEDPanelCanvasUIPixelsWide;
 
-
-            const sizeparts = mp.ledPanelsSize.split("x");
-            // Assign values using destructuring
-            [mp.panelWidth, mp.panelHeight, mp.panelScan, mp.LEDPanelAddressing] = sizeparts.map(Number);
+            // If panelWidth, panelHeight, and panelScan exist (from legacy channelOutputs), 
+            // reconstruct ledPanelsSize from them instead of using defaults
+            if (mp.panelWidth && mp.panelHeight && mp.panelScan) {
+                mp.ledPanelsSize = `${mp.panelWidth}x${mp.panelHeight}x${mp.panelScan}`;
+            } else {
+                mp.ledPanelsSize ||= LEDPanelDefaults.LEDPanelsSize;
+                const sizeparts = mp.ledPanelsSize.split("x");
+                // Assign values using destructuring
+                [mp.panelWidth, mp.panelHeight, mp.panelScan, mp.LEDPanelAddressing] = sizeparts.map(Number);
+            }
 
 
 
