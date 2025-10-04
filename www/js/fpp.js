@@ -4489,11 +4489,13 @@ function SetupUIForMode (fppMode) {
 	}
 }
 
+// Initialize temperature unit variable
+var temperatureUnit = false;
 if (
 	typeof settings !== 'undefined' &&
 	settings.hasOwnProperty('temperatureInF')
 ) {
-	var temperatureUnit = settings['temperatureInF'] == 1;
+	temperatureUnit = settings['temperatureInF'] == 1;
 }
 
 function changeTemperatureUnit () {
@@ -8539,14 +8541,9 @@ function RefreshHeaderBar () {
 			var icon = 'bolt';
 			var val = e.formatted;
 			if (e.valueType == 'Temperature') {
-				if (
-					typeof setting !== 'undefined' &&
-					settings.hasOwnProperty('temperatureInF')
-				) {
-					var inF = settings['temperatureInF'] == 1;
-				}
 				icon = 'thermometer-half';
-				if (inF) {
+				// Use the same global variable as the main sensor display
+				if (typeof temperatureUnit !== 'undefined' && temperatureUnit) {
 					val = val * 1.8 + 32;
 					val = parseFloat(val).toFixed(2);
 					val += '&deg;F';
