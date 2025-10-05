@@ -49,6 +49,25 @@ function network_wifi_scan()
             $current['SSID'] = $matches[1];
         } else if (preg_match('/signal: (.*)/', $row, $matches)) {
             $current['signal'] = $matches[1];
+        } else if (preg_match('/capability:.*Privacy/', $row)) {
+            // Basic encryption detection (WEP or WPA/WPA2)
+            $current['encrypted'] = true;
+        } else if (preg_match('/RSN:/', $row)) {
+            // WPA2/WPA3 detected
+            $current['encrypted'] = true;
+            $current['security'] = isset($current['security']) ? $current['security'] . ' WPA2' : 'WPA2';
+        } else if (preg_match('/WPA:/', $row)) {
+            // WPA detected
+            $current['encrypted'] = true;
+            $current['security'] = isset($current['security']) ? $current['security'] . ' WPA' : 'WPA';
+        } else if (preg_match('/Authentication suites:.*PSK/', $row)) {
+            // Personal/PSK authentication
+            $current['auth'] = 'PSK';
+        } else if (preg_match('/Authentication suites:.*802\.1x/', $row)) {
+            // Enterprise authentication
+            $current['auth'] = 'Enterprise';
+        } else if (preg_match('/Group cipher: (.*)/', $row, $matches)) {
+            $current['cipher'] = trim($matches[1]);
         }
     }
     if (count($current) > 0) {
@@ -187,6 +206,57 @@ function network_save_dns()
     return json(array("status" => "OK", "DNS" => $data));
 }
 
+// GET /api/network/gateway
+function network_get_gateway()
+{
+    global $settings;
+
+    $cfgFile = $settings['configDirectory'] . "/gateway";
+    $result = array("GATEWAY" => "");
+
+    if (file_exists($cfgFile)) {
+        $content = file_get_contents($cfgFile);
+        $lines = explode("\n", $content);
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (strpos($line, 'GATEWAY=') === 0) {
+                $result['GATEWAY'] = trim(str_replace('GATEWAY=', '', $line), '"');
+                break;
+            }
+        }
+    }
+
+    return json($result);
+}
+
+// POST /api/network/gateway
+function network_save_gateway()
+{
+    global $settings;
+
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    $cfgFile = $settings['configDirectory'] . "/gateway";
+
+    $f = fopen($cfgFile, "w");
+    if ($f == false) {
+        return json(array("status" => "ERROR", "message" => "Unable to create gateway configuration file"));
+    }
+
+    fprintf(
+        $f,
+        "GATEWAY=\"%s\"\n",
+        $data['GATEWAY']
+    );
+    fclose($f);
+
+    //Trigger a JSON Configuration Backup
+    GenerateBackupViaAPI('Global Gateway Configuration was modified.');
+
+    return json(array("status" => "OK", "GATEWAY" => $data['GATEWAY']));
+}
+
 // GET /network/interface/:interface
 function network_get_interface()
 {
@@ -199,6 +269,11 @@ function network_get_interface()
     if (file_exists($cfgFile)) {
         $result = parse_ini_file($cfgFile);
         $result['status'] = 'OK';
+        
+        // Remove GATEWAY from interface configuration since it's now handled globally
+        if (isset($result['GATEWAY'])) {
+            unset($result['GATEWAY']);
+        }
     }
 
     exec("/sbin/ifconfig $interface", $output);
@@ -349,12 +424,10 @@ function network_set_interface()
             "INTERFACE=\"%s\"\n" .
             "PROTO=\"static\"\n" .
             "ADDRESS=\"%s\"\n" .
-            "NETMASK=\"%s\"\n" .
-            "GATEWAY=\"%s\"\n",
+            "NETMASK=\"%s\"\n",
             $data['INTERFACE'],
             $data['ADDRESS'],
-            $data['NETMASK'],
-            $data['GATEWAY']
+            $data['NETMASK']
         );
 
     } else if ($data['PROTO'] == "dhcp") {

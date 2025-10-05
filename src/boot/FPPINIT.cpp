@@ -568,6 +568,44 @@ static void unblockWifi() {
 static void setupNetwork(bool fullReload = false) {
     unblockWifi();
     auto dnsSettings = loadSettingsFile(FPP_MEDIA_DIR + "/config/dns");
+    
+    // Load global gateway configuration with migration support
+    auto gatewaySettings = loadSettingsFile(FPP_MEDIA_DIR + "/config/gateway");
+    std::string globalGateway = gatewaySettings["GATEWAY"];
+    
+    // Migration: If no global gateway exists, check for old per-interface gateways
+    if (globalGateway.empty()) {
+        for (const auto& entry : std::filesystem::directory_iterator(FPP_MEDIA_DIR + "/config")) {
+            std::string filename = entry.path().filename();
+            if (startsWith(filename, "interface.")) {
+                auto interfaceSettings = loadSettingsFile(entry.path());
+                std::string oldGateway = interfaceSettings["GATEWAY"];
+                if (!oldGateway.empty() && oldGateway != "\"\"") {
+                    // Found an old gateway setting - migrate it to global
+                    printf("FPP - Migrating gateway %s from %s to global configuration\n", 
+                           oldGateway.c_str(), filename.c_str());
+                    
+                    // Save to global gateway file
+                    std::string gatewayContent = "GATEWAY=\"" + oldGateway + "\"\n";
+                    PutFileContents(FPP_MEDIA_DIR + "/config/gateway", gatewayContent);
+                    globalGateway = oldGateway;
+                    
+                    // Remove old GATEWAY setting from interface file (optional cleanup)
+                    std::string interfaceContent = GetFileContents(entry.path());
+                    size_t pos = interfaceContent.find("GATEWAY=");
+                    if (pos != std::string::npos) {
+                        size_t endPos = interfaceContent.find('\n', pos);
+                        if (endPos != std::string::npos) {
+                            interfaceContent.erase(pos, endPos - pos + 1);
+                            PutFileContents(entry.path(), interfaceContent);
+                        }
+                    }
+                    break; // Use first gateway found
+                }
+            }
+        }
+    }
+    
     std::string dns = dnsSettings["DNS1"];
     if (dnsSettings["DNS2"] != "") {
         dns += ",";
@@ -729,10 +767,11 @@ static void setupNetwork(bool fullReload = false) {
 #endif
                 content.append("\n");
 
-                if (!interfaceSettings["GATEWAY"].empty()) {
-                    content.append("[Route]\nGateway=").append(interfaceSettings["GATEWAY"]).append("\n");
+                // Apply global gateway to static interfaces only
+                if (!globalGateway.empty() && interfaceSettings["PROTO"] != "dhcp") {
+                    content.append("[Route]\nGateway=").append(globalGateway).append("\n");
                     if (ROUTEMETRIC != 0) {
-                        content.append("Metric=").append(interfaceSettings["ROUTEMETRIC"]).append("\n");
+                        content.append("Metric=").append(std::to_string(ROUTEMETRIC)).append("\n");
                     }
                 }
                 content.append("\n");
@@ -752,6 +791,7 @@ static void setupNetwork(bool fullReload = false) {
                     content.append("[IPv6AcceptRA]\nRouteMetric=").append(interfaceSettings["ROUTEMETRIC"]).append("\n\n");
                 } else {
                     content.append("\n");
+                }
                 }
                 if (DHCPSERVER == 1) {
                     content.append("[DHCPServer]\nPoolOffset=").append(std::to_string(DHCPOFFSET)).append("\nPoolSize=").append(std::to_string(DHCPPOOLSIZE)).append("\n");
