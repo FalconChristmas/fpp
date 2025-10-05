@@ -217,7 +217,7 @@ function network_get_gateway()
     if (file_exists($cfgFile)) {
         $content = file_get_contents($cfgFile);
         $lines = explode("\n", $content);
-        
+
         foreach ($lines as $line) {
             $line = trim($line);
             if (strpos($line, 'GATEWAY=') === 0) {
@@ -269,7 +269,7 @@ function network_get_interface()
     if (file_exists($cfgFile)) {
         $result = parse_ini_file($cfgFile);
         $result['status'] = 'OK';
-        
+
         // Remove GATEWAY from interface configuration since it's now handled globally
         if (isset($result['GATEWAY'])) {
             unset($result['GATEWAY']);

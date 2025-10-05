@@ -44,8 +44,8 @@
         function initializeTooltips(container) {
             // If no container specified, initialize for entire document
             var selector = container ? container.find('[data-bs-toggle="tooltip"]') : $('[data-bs-toggle="tooltip"]');
-            
-            selector.each(function() {
+
+            selector.each(function () {
                 var element = this;
                 // Dispose existing tooltip if any
                 var existingTooltip = bootstrap.Tooltip.getInstance(element);
@@ -63,13 +63,24 @@
         #netmaskRow {
             transition: opacity 0.3s ease-in-out;
         }
-        
+
         /* WiFi Signal Strength Styling */
-        .wifi-signal.excellent { color: #28a745; }
-        .wifi-signal.good { color: #fd7e14; }
-        .wifi-signal.fair { color: #dc3545; }
-        .wifi-signal.poor { color: #6c757d; }
-        
+        .wifi-signal.excellent {
+            color: #28a745;
+        }
+
+        .wifi-signal.good {
+            color: #fd7e14;
+        }
+
+        .wifi-signal.fair {
+            color: #dc3545;
+        }
+
+        .wifi-signal.poor {
+            color: #6c757d;
+        }
+
         /* Security Badge Styling */
         .security-badge {
             display: inline-block;
@@ -79,37 +90,37 @@
             font-weight: bold;
             text-transform: uppercase;
         }
-        
+
         .security-none {
             background-color: #dc3545;
             color: white;
         }
-        
+
         .security-wep {
             background-color: #fd7e14;
             color: white;
         }
-        
+
         .security-wpa {
             background-color: #198754;
             color: white;
         }
-        
+
         .security-wpa2 {
             background-color: #0d6efd;
             color: white;
         }
-        
+
         .security-wpa3 {
             background-color: #6f42c1;
             color: white;
         }
-        
+
         /* WiFi Network Row Hover Effects */
         .wifi-network-row:hover {
             background-color: #f5f5f5;
         }
-        
+
         .wifi-network-row:active {
             background-color: #e9ecef;
         }
@@ -228,7 +239,7 @@
                 return;
             }
             var safeName = iface.replace(/[^a-zA-Z0-9]/g, '_');
-            
+
             var eth_ip = $('#eth_ip_' + safeName).val();
             $("#ipWarning").html('');
             if ($('#eth_static_' + safeName).is(':checked')) {
@@ -326,7 +337,7 @@
             // First check the current UI state for the selected interface
             var currentIface = currentInterface;
             if (!currentIface) return;
-            
+
             var safeName = currentIface.replace(/[^a-zA-Z0-9]/g, '_');
             var currentIsStatic = $('#eth_static_' + safeName).is(':checked');
 
@@ -898,7 +909,7 @@
         function CheckDNSCallback(data) {
             var iface = currentInterface;
             if (!iface) return;
-            
+
             var safeName = iface.replace(/[^a-zA-Z0-9]/g, '_');
             if (iface.startsWith('e')) {
                 // FIXME, check the size of #selInterfaces here to be > 1
@@ -948,7 +959,7 @@
         function populateInterfaceTabs() {
             // Get list of interfaces from hidden select element
             interfaceList = [];
-            $('#selInterfaces option').each(function() {
+            $('#selInterfaces option').each(function () {
                 interfaceList.push($(this).val());
             });
 
@@ -956,11 +967,11 @@
             var contentHtml = '';
             var first = true;
 
-            interfaceList.forEach(function(iface, index) {
+            interfaceList.forEach(function (iface, index) {
                 var activeClass = first ? ' active' : '';
                 var showClass = first ? ' show active' : '';
                 var safeName = iface.replace(/[^a-zA-Z0-9]/g, '_');
-                
+
                 tabsHtml += '<li class="nav-item">' +
                     '<a class="nav-link' + activeClass + '" id="' + safeName + '-tab" ' +
                     'data-bs-toggle="tab" data-bs-target="#' + safeName + '-content" ' +
@@ -989,7 +1000,7 @@
                 var iface = e.target.textContent;
                 var safeName = iface.replace(/[^a-zA-Z0-9]/g, '_');
                 var targetContent = $('#' + safeName + '-content');
-                setTimeout(function() {
+                setTimeout(function () {
                     initializeTooltips(targetContent);
                 }, 100);
             });
@@ -1010,32 +1021,32 @@
         function loadInterfaceConfiguration(iface) {
             var safeName = iface.replace(/[^a-zA-Z0-9]/g, '_');
             var contentDiv = $('#' + safeName + '-content .interface-config-content');
-            
+
             // Show loading state
             contentDiv.html('<div class="loading-placeholder">Loading ' + iface + ' configuration...</div>');
-            
+
             // Update the hidden select value for compatibility with existing functions
             $('#selInterfaces').val(iface);
-            
+
             // Load interface configuration
             var url = "api/network/interface/" + iface;
             var visible = iface.slice(0, 2).toLowerCase() == "wl" ? true : false;
 
-            $.get(url, function(data) {
+            $.get(url, function (data) {
                 // Copy the configuration content to this tab
                 var configContent = $('#interfaceConfigTemplate').html();
                 contentDiv.html(configContent);
-                
+
                 // Update form IDs to be unique for this interface
-                contentDiv.find('[id]').each(function() {
+                contentDiv.find('[id]').each(function () {
                     var oldId = $(this).attr('id');
                     var newId = oldId + '_' + safeName;
                     $(this).attr('id', newId);
-                    
+
                     // Update any labels or onclick references
                     contentDiv.find('[for="' + oldId + '"]').attr('for', newId);
                 });
-                
+
                 // Update wireless visibility for this interface
                 if (visible) {
                     contentDiv.find('#WirelessSubsection_' + safeName).show();
@@ -1046,24 +1057,24 @@
                     contentDiv.find('#WirelessSettings_' + safeName).hide();
                     contentDiv.find('#wifiNetworksRow_' + safeName).hide();
                 }
-                
+
                 // Now populate the form with the interface data
                 populateInterfaceForm(data, safeName, contentDiv, iface);
-                
+
                 // Load WiFi networks if it's a wireless interface
                 if (visible) {
                     LoadSIDSForInterface(iface, safeName);
                 }
-                
+
                 // Initialize tooltips for the new content
                 initializeTooltips(contentDiv);
             });
         }
-        
+
         function populateInterfaceForm(data, safeName, contentDiv, interfaceName) {
             // Store the interface name in the content div for later use
             contentDiv.data('interface', interfaceName);
-            
+
             // Debug: Log the data to see what we're getting
             // Populate the form fields with the interface data
             if (data.ADDRESS) {
@@ -1073,7 +1084,7 @@
             if (data.NETMASK) {
                 contentDiv.find('#eth_netmask_' + safeName).val(data.NETMASK);
             }
-            
+
             // Set interface mode (static/dhcp)
             if (data.PROTO == "static") {
                 contentDiv.find('#eth_static_' + safeName).prop('checked', true);
@@ -1086,7 +1097,7 @@
                 contentDiv.find('#ipAddressRow_' + safeName).hide();
                 contentDiv.find('#netmaskRow_' + safeName).hide();
             }
-            
+
             // Populate wireless settings if available
             if (data.SSID) {
                 var ssidElement = contentDiv.find('#eth_ssid_' + safeName);
@@ -1112,7 +1123,7 @@
             if (data.WPA3) {
                 contentDiv.find('#eth_wpa3_' + safeName).prop('checked', data.WPA3 == "1");
             }
-            
+
             // Populate backup wireless settings if available
             if (data.BACKUPSSID) {
                 contentDiv.find('#backupeth_ssid_' + safeName).val(data.BACKUPSSID);
@@ -1126,19 +1137,19 @@
             if (data.BACKUPWPA3) {
                 contentDiv.find('#backupeth_wpa3_' + safeName).prop('checked', data.BACKUPWPA3 == "1");
             }
-            
+
             if (data.ROUTEMETRIC) {
                 contentDiv.find('#eth_route_metric_' + safeName).val(data.ROUTEMETRIC);
             }
-            
+
             // Set up event handlers for this interface
             setupInterfaceEvents(safeName, contentDiv);
         }
-        
+
         function updateInterfaceChildSettings(safeName, contentDiv) {
             // Handle DHCP Server settings visibility for this interface
             var dhcpServerChecked = contentDiv.find('#dhcpServer_' + safeName).is(':checked');
-            
+
             if (dhcpServerChecked) {
                 // Show DHCP Pool fields and Static Leases
                 contentDiv.find('#dhcpOffset_' + safeName).closest('.row').show();
@@ -1151,72 +1162,72 @@
                 contentDiv.find('#staticLeases_' + safeName).hide();
             }
         }
-        
+
         function setupInterfaceEvents(safeName, contentDiv) {
             var interfaceName = contentDiv.data('interface');
-            
+
             // Store original static values when interface is first loaded
             var originalIP = contentDiv.find('#eth_ip_' + safeName).val();
             var originalNetmask = contentDiv.find('#eth_netmask_' + safeName).val();
-            
+
             // Setup static/dhcp radio button handlers
-            contentDiv.find('#eth_static_' + safeName).on('click', function() {
+            contentDiv.find('#eth_static_' + safeName).on('click', function () {
                 if ($(this).is(':checked')) {
                     // Switch to static mode
                     contentDiv.find('#eth_dhcp_' + safeName).prop('checked', false);
                     contentDiv.find('#ipAddressRow_' + safeName).show();
                     contentDiv.find('#netmaskRow_' + safeName).show();
-                    
+
                     // Restore original values if they exist and fields are currently empty
                     var currentIP = contentDiv.find('#eth_ip_' + safeName).val();
                     var currentNetmask = contentDiv.find('#eth_netmask_' + safeName).val();
-                    
+
                     if (!currentIP && originalIP) {
                         contentDiv.find('#eth_ip_' + safeName).val(originalIP);
                     }
                     if (!currentNetmask && originalNetmask) {
                         contentDiv.find('#eth_netmask_' + safeName).val(originalNetmask);
                     }
-                    
+
                     // Update DNS settings (global)
                     $('#dns_dhcp').prop('checked', false);
                     $('#dns_manual').prop('checked', true);
-                    
+
                     // Re-check gateway availability
                     checkGatewayAvailability();
                 }
             });
-            
-            contentDiv.find('#eth_dhcp_' + safeName).on('click', function() {
+
+            contentDiv.find('#eth_dhcp_' + safeName).on('click', function () {
                 if ($(this).is(':checked')) {
                     // Switch to DHCP mode
                     contentDiv.find('#eth_static_' + safeName).prop('checked', false);
                     contentDiv.find('#ipAddressRow_' + safeName).hide();
                     contentDiv.find('#netmaskRow_' + safeName).hide();
-                    
+
                     // Store current values before clearing (in case user entered new ones)
                     var currentIP = contentDiv.find('#eth_ip_' + safeName).val();
                     var currentNetmask = contentDiv.find('#eth_netmask_' + safeName).val();
-                    
+
                     if (currentIP) originalIP = currentIP;
                     if (currentNetmask) originalNetmask = currentNetmask;
-                    
+
                     // Clear IP fields for DHCP mode
                     contentDiv.find('#eth_ip_' + safeName).val("");
                     contentDiv.find('#eth_netmask_' + safeName).val("");
-                    
+
                     // Re-check gateway availability
                     checkGatewayAvailability();
                 }
             });
-            
+
             // Setup refresh networks button
-            contentDiv.find('.refresh-networks-btn').on('click', function() {
+            contentDiv.find('.refresh-networks-btn').on('click', function () {
                 LoadSIDSForInterface(interfaceName, safeName);
             });
-            
+
             // Setup ping IP button
-            contentDiv.find('.ping-ip-btn').on('click', function() {
+            contentDiv.find('.ping-ip-btn').on('click', function () {
                 var ipValue = contentDiv.find('#eth_ip_' + safeName).val();
                 if (ipValue) {
                     PingIP(ipValue, 3);
@@ -1224,26 +1235,26 @@
                     $.jGrowl("Please enter an IP address to ping", { themeState: 'danger' });
                 }
             });
-            
+
             // Setup DHCP Server checkbox event handler
-            contentDiv.find('#dhcpServer_' + safeName).on('change', function() {
+            contentDiv.find('#dhcpServer_' + safeName).on('change', function () {
                 updateInterfaceChildSettings(safeName, contentDiv);
             });
-            
+
             // Set initial visibility based on current DHCP Server state
-            setTimeout(function() {
+            setTimeout(function () {
                 updateInterfaceChildSettings(safeName, contentDiv);
             }, 100);
         }
-        
+
         function LoadSIDSForInterface(iface, safeName) {
             // Load WiFi networks for this specific interface
             var wifiTableBody = $('#wifiNetworksList_' + safeName);
             wifiTableBody.html('<tr><td colspan="3">Scanning for networks...</td></tr>');
-            
+
             // Get the current SSID for this interface
             var currentSSID = $('#eth_ssid_' + safeName).val();
-            
+
             $.get("api/network/wifi/scan/" + iface, {
                 timeout: 30000
             }).done(function (data) {
@@ -1338,21 +1349,21 @@
                     html = '<tr><td colspan="3">No networks found</td></tr>';
                 }
                 wifiTableBody.html(html);
-            }).fail(function() {
+            }).fail(function () {
                 wifiTableBody.html('<tr><td colspan="3" style="padding: 8px; text-align: center; color: #666;">Scan failed</td></tr>');
             });
         }
-        
+
         function selectWifiNetworkForInterface(ssid, safeName, security) {
             // Remove previous selection highlighting for this interface
             $('#wifiNetworksList_' + safeName + ' .wifi-network-row').removeClass('table-primary');
-            
+
             // Highlight the selected row
             event.target.closest('tr').classList.add('table-primary');
-            
+
             // Set the SSID value for this interface
             $('#eth_ssid_' + safeName).val(ssid);
-            
+
             // Auto-set WPA3 checkbox if network supports it
             $('#eth_wpa3_' + safeName).prop('checked', security === 'WPA3');
 
@@ -1619,8 +1630,9 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" id="tab-global-network-tab" data-bs-toggle="tab" data-bs-target="#tab-global-network"
-                            href="#tab-global-network" role="tab" aria-controls="tab-global-network" aria-selected="false">
+                        <a class="nav-link" id="tab-global-network-tab" data-bs-toggle="tab"
+                            data-bs-target="#tab-global-network" href="#tab-global-network" role="tab"
+                            aria-controls="tab-global-network" aria-selected="false">
                             Global Network Settings
                         </a>
                     </li>
@@ -1641,7 +1653,8 @@
 
                                 <!-- Interface Sub-tabs -->
                                 <div class="interface-tabs-container" style="margin-bottom: 20px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                         <ul class="nav nav-tabs interface-tabs" id="interfaceTabs" role="tablist">
                                             <!-- Interface tabs will be populated by JavaScript -->
                                         </ul>
@@ -1658,7 +1671,7 @@
                                                 class="buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
                                         </div>
                                     </div>
-                                    
+
                                     <div class="tab-content interface-tab-content" id="interfaceTabContent">
                                         <!-- Interface configuration content will be populated by JavaScript -->
                                     </div>
@@ -1671,7 +1684,7 @@
 
                                 <!-- Hidden interface configuration template -->
                                 <div id="interfaceConfigTemplate" style="display: none;">
-                                    
+
                                     <!-- Wireless Configuration Subsection -->
                                     <h3 class="interface-subsection" id="WirelessSubsection" style="display: none;">
                                         <i class="fas fa-wifi"></i> Wireless Configuration
@@ -1685,7 +1698,8 @@
                                                 <div class="description">Available Networks</div>
                                             </div>
                                             <div class="printSettingFieldCol col-md">
-                                                <div class="warning-text" style="display: none;" id="wifisearch">Scanning
+                                                <div class="warning-text" style="display: none;" id="wifisearch">
+                                                    Scanning
                                                     for WiFi networks...</div>
                                                 <div id="wifiNetworksTable"
                                                     style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
@@ -1702,7 +1716,8 @@
                                                         </tbody>
                                                     </table>
                                                 </div>
-                                                <button type="button" class="btn btn-sm btn-secondary" class="refresh-networks-btn">
+                                                <button type="button" class="btn btn-sm btn-secondary"
+                                                    class="refresh-networks-btn">
                                                     <i class="fas fa-sync"></i> Refresh Networks
                                                 </button>
                                             </div>
@@ -1712,19 +1727,22 @@
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
                                                 <div class="description">WPA SSID</div>
                                             </div>
-                                            <div class="printSettingFieldCol col-md"><input list="eth_ssids" name="eth_ssid"
-                                                    id="eth_ssid" size="32" maxlength="32"><datalist
+                                            <div class="printSettingFieldCol col-md"><input list="eth_ssids"
+                                                    name="eth_ssid" id="eth_ssid" size="32" maxlength="32"><datalist
                                                     id='eth_ssids'></datalist><input type="checkbox" name="eth_hidden"
-                                                    id="eth_hidden" value="Hidden">Hidden&nbsp;<span id="eth_hidden_help"
+                                                    id="eth_hidden" value="Hidden">Hidden&nbsp;<span
+                                                    id="eth_hidden_help"
                                                     data-bs-title="Enable this for networks that don't broadcast their SSID (hidden networks)"
-                                                    data-bs-toggle="tooltip" data-bs-placement="auto" data-bs-html="true">
+                                                    data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                    data-bs-html="true">
                                                     <img id="eth_hidden_help_icon" src="images/redesign/help-icon.svg"
                                                         class="icon-help"
                                                         alt="Help icon for Hidden network setting"></span>&nbsp;<input
                                                     type="checkbox" name="eth_wpa3" id="eth_wpa3"
                                                     value="WPA3">WPA3&nbsp;<span id="eth_wpa3_help"
                                                     data-bs-title="Enable this for networks that support WPA3 (newer, more secure than WPA2)"
-                                                    data-bs-toggle="tooltip" data-bs-placement="auto" data-bs-html="true">
+                                                    data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                    data-bs-html="true">
                                                     <img id="eth_wpa3_help_icon" src="images/redesign/help-icon.svg"
                                                         class="icon-help" alt="Help icon for WPA3 setting"></span></div>
                                         </div>
@@ -1732,17 +1750,19 @@
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
                                                 <div class="description">WPA Pre Shared key (PSK)</div>
                                             </div>
-                                            <div class="printSettingFieldCol col-md"><input type="password" name="eth_psk"
-                                                    id="eth_psk" size="32" maxlength="64">&nbsp;<i class='fas fa-eye'
-                                                    id='eth_pskHideShow' onClick='TogglePasswordHideShow("eth_psk");'></i>
+                                            <div class="printSettingFieldCol col-md"><input type="password"
+                                                    name="eth_psk" id="eth_psk" size="32" maxlength="64">&nbsp;<i
+                                                    class='fas fa-eye' id='eth_pskHideShow'
+                                                    onClick='TogglePasswordHideShow("eth_psk");'></i>
                                             </div>
                                         </div>
                                         <div class="row" id="keyRow" style="display: none;">
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
                                                 <div class="description">WEP Key</div>
                                             </div>
-                                            <div class="printSettingFieldCol col-md"><input type="password" name="eth_key"
-                                                    id="eth_key" size="26">&nbsp;<i class='fas fa-eye' id='eth_keyHideShow'
+                                            <div class="printSettingFieldCol col-md"><input type="password"
+                                                    name="eth_key" id="eth_key" size="26">&nbsp;<i class='fas fa-eye'
+                                                    id='eth_keyHideShow'
                                                     onClick='TogglePasswordHideShow("eth_key");'></i></div>
                                         </div>
                                         <? if ($settings['uiLevel'] >= 2) { ?>
@@ -1763,16 +1783,19 @@
                                                         type="checkbox" name="backupeth_hidden" id="backupeth_hidden"
                                                         value="BACKUPHIDDEN">Hidden&nbsp;<span id="backupeth_hidden_help"
                                                         data-bs-title="Enable this for networks that don't broadcast their SSID (hidden networks)"
-                                                        data-bs-toggle="tooltip" data-bs-placement="auto" data-bs-html="true">
-                                                        <img id="backupeth_hidden_help_icon" src="images/redesign/help-icon.svg"
-                                                            class="icon-help"
+                                                        data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                        data-bs-html="true">
+                                                        <img id="backupeth_hidden_help_icon"
+                                                            src="images/redesign/help-icon.svg" class="icon-help"
                                                             alt="Help icon for backup Hidden network setting"></span>&nbsp;<input
                                                         type="checkbox" name="backupeth_wpa3" id="backupeth_wpa3"
                                                         value="BACKUPWPA3">WPA3&nbsp;<span id="backupeth_wpa3_help"
                                                         data-bs-title="Enable this for networks that support WPA3 (newer, more secure than WPA2)"
-                                                        data-bs-toggle="tooltip" data-bs-placement="auto" data-bs-html="true">
-                                                        <img id="backupeth_wpa3_help_icon" src="images/redesign/help-icon.svg"
-                                                            class="icon-help" alt="Help icon for backup WPA3 setting"></span>
+                                                        data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                        data-bs-html="true">
+                                                        <img id="backupeth_wpa3_help_icon"
+                                                            src="images/redesign/help-icon.svg" class="icon-help"
+                                                            alt="Help icon for backup WPA3 setting"></span>
                                                 </div>
                                             </div>
                                             <div class="row" id="backuppskRow">
@@ -1788,99 +1811,100 @@
                                                 </div>
                                                 <div class="printSettingFieldCol col-md"><input type="password"
                                                         name="backupeth_psk" id="backupeth_psk" size="32"
-                                                        maxlength="64">&nbsp;<i class='fas fa-eye' id='backupeth_pskHideShow'
+                                                        maxlength="64">&nbsp;<i class='fas fa-eye'
+                                                        id='backupeth_pskHideShow'
                                                         onClick='TogglePasswordHideShow("backupeth_psk");'></i></div>
                                             </div>
                                         <? } ?>
                                     </div>
 
                                     <!-- Basic Configuration -->
-                                <h3 class="interface-subsection">
-                                    <i class="fas fa-network-wired"></i> Basic Configuration
-                                </h3>
-                                <div class="container-fluid settingsTable settingsGroupTable">
-                                    <div class="row" id="interfaceConfigTypeRow">
-                                        <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                            <div class="description">Interface Mode</div>
-                                        </div>
-                                        <div class="printSettingFieldCol col-md"><label><input type="radio"
-                                                    id="eth_static" value="static">
-                                                Static</label>
-                                            <label><input type="radio" id="eth_dhcp" value="dhcp">
-                                                DHCP</label>
-                                        </div>
-                                    </div>
-                                    <div class="row" id="ipAddressRow">
-                                        <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                            <div class="description">IP Address</div>
-                                        </div>
-                                        <div class="printSettingFieldCol col-md"><input type="text" name="eth_ip"
-                                                id="eth_ip" size=15 maxlength=15 onChange="checkStaticIP();">
-                                            <input type="button" class="buttons ping-ip-btn" value='Ping'>
-                                        </div>
-                                    </div>
-                                    <div class="row" id="netmaskRow">
-                                        <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                            <div class="description">Netmask</div>
-                                        </div>
-                                        <div class="printSettingFieldCol col-md"><input type="text" name="eth_netmask"
-                                                id="eth_netmask" size="15" maxlength="15"></div>
-                                    </div>
-
-                                    <div class="row">
-                                        <div class="col-md-6"> <b>
-                                                <font color='#ff0000'><span id='ipWarning'></span></font>
-                                            </b>
-                                            <b>
-                                                <font color='#ff0000'><span id='dnsWarning'></span></font>
-                                            </b>
-                                        </div>
-                                    </div>
-                                </div>
-
-
-
-
-
-
-
-
-                                <!-- Advanced Settings Subsection -->
-                                <? if ($settings['uiLevel'] >= 1) { ?>
                                     <h3 class="interface-subsection">
-                                        <i class="fas fa-cogs"></i> Advanced Configuration
+                                        <i class="fas fa-network-wired"></i> Basic Configuration
                                     </h3>
                                     <div class="container-fluid settingsTable settingsGroupTable">
-                                        <?php PrintSettingGroup("advNetworkSettingsGroup", "", "", 1, "", "", true); ?>
-                                        
-                                        <div class="row">
+                                        <div class="row" id="interfaceConfigTypeRow">
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                <div class="description">Interface Mode</div>
                                             </div>
-                                            <div class="printSettingFieldCol col-md">
-                                                <div id="staticLeases">
-                                                    <h4>Static Leases</h4>
-                                                    <div class="fppTableWrapper">
-                                                        <div class='fppTableContents' role="region"
-                                                            aria-labelledby="staticLeasesTable" tabindex="0">
-                                                            <table id="staticLeasesTable" class="fppSelectableRowTable"
-                                                                style="width:500px;">
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th>Enable</td>
-                                                                        <th>IP</td>
-                                                                        <th>MAC Address</td>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                </tbody>
-                                                            </table>
+                                            <div class="printSettingFieldCol col-md"><label><input type="radio"
+                                                        id="eth_static" value="static">
+                                                    Static</label>
+                                                <label><input type="radio" id="eth_dhcp" value="dhcp">
+                                                    DHCP</label>
+                                            </div>
+                                        </div>
+                                        <div class="row" id="ipAddressRow">
+                                            <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                <div class="description">IP Address</div>
+                                            </div>
+                                            <div class="printSettingFieldCol col-md"><input type="text" name="eth_ip"
+                                                    id="eth_ip" size=15 maxlength=15 onChange="checkStaticIP();">
+                                                <input type="button" class="buttons ping-ip-btn" value='Ping'>
+                                            </div>
+                                        </div>
+                                        <div class="row" id="netmaskRow">
+                                            <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                <div class="description">Netmask</div>
+                                            </div>
+                                            <div class="printSettingFieldCol col-md"><input type="text"
+                                                    name="eth_netmask" id="eth_netmask" size="15" maxlength="15"></div>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-6"> <b>
+                                                    <font color='#ff0000'><span id='ipWarning'></span></font>
+                                                </b>
+                                                <b>
+                                                    <font color='#ff0000'><span id='dnsWarning'></span></font>
+                                                </b>
+                                            </div>
+                                        </div>
+                                    </div>
+
+
+
+
+
+
+
+
+                                    <!-- Advanced Settings Subsection -->
+                                    <? if ($settings['uiLevel'] >= 1) { ?>
+                                        <h3 class="interface-subsection">
+                                            <i class="fas fa-cogs"></i> Advanced Configuration
+                                        </h3>
+                                        <div class="container-fluid settingsTable settingsGroupTable">
+                                            <?php PrintSettingGroup("advNetworkSettingsGroup", "", "", 1, "", "", true); ?>
+
+                                            <div class="row">
+                                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                </div>
+                                                <div class="printSettingFieldCol col-md">
+                                                    <div id="staticLeases">
+                                                        <h4>Static Leases</h4>
+                                                        <div class="fppTableWrapper">
+                                                            <div class='fppTableContents' role="region"
+                                                                aria-labelledby="staticLeasesTable" tabindex="0">
+                                                                <table id="staticLeasesTable" class="fppSelectableRowTable"
+                                                                    style="width:500px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Enable</td>
+                                                                            <th>IP</td>
+                                                                            <th>MAC Address</td>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                <? } ?>
+                                    <? } ?>
                                 </div>
                             </div>
 
@@ -1914,8 +1938,9 @@
 
                         </div>
                     </div>
-                    <div class="tab-pane fade" id="tab-global-network" role="tabpanel" aria-labelledby="tab-global-network-tab">
-                        
+                    <div class="tab-pane fade" id="tab-global-network" role="tabpanel"
+                        aria-labelledby="tab-global-network-tab">
+
                         <!-- Global Network Settings -->
                         <div class="global-network-section">
                             <h2>Global Network Settings</h2>
@@ -1925,8 +1950,9 @@
                                 <i class="fas fa-desktop"></i> Host Configuration
                             </h3>
                             <div class="warning-text" style="margin-bottom: 15px;">
-                                <b>Changing the Host Name from FPP will cause http://fpp.local/ to change and you will need to
-                                use the new Host Name eg http://&lt;Host Name&gt;.local/</b>
+                                <b>Changing the Host Name from FPP will cause http://fpp.local/ to change and you will
+                                    need to
+                                    use the new Host Name eg http://&lt;Host Name&gt;.local/</b>
                             </div>
                             <div class="container-fluid settingsTable settingsGroupTable">
                                 <?
@@ -1948,8 +1974,8 @@
                                             maxlength="15">
                                         <input type="button" class="buttons"
                                             onClick='PingIP($("#global_gateway").val(), 3);' value='Ping'>
-                                        <input type="button" class="buttons btn-success"
-                                            onClick='SaveGlobalGateway();' value='Update Gateway'>
+                                        <input type="button" class="buttons btn-success" onClick='SaveGlobalGateway();'
+                                            value='Update Gateway'>
                                         <div class="description-text"
                                             style="font-size: 0.9em; color: #666; margin-top: 5px;">
                                             Global gateway for all interfaces. Leave blank if using DHCP on any
@@ -1969,8 +1995,8 @@
                                     <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
                                         <div class="description">DNS Server Mode</div>
                                     </div>
-                                    <div class="printSettingFieldCol col-md"><label><input type="radio"
-                                                id="dns_manual" value="manual">
+                                    <div class="printSettingFieldCol col-md"><label><input type="radio" id="dns_manual"
+                                                value="manual">
                                             Manual</label>
                                         <label><input type="radio" id="dns_dhcp" value="dhcp" checked>
                                             DHCP</label>
@@ -2023,7 +2049,7 @@
                         <script>
                             function NoSaveSettingCallback() {
                             }
-                            
+
                             function dhcpServerEnabledCallback() {
                                 // This function is called by PHP-generated DHCP Server checkboxes
                                 // We need to find which interface tab is currently active and update its settings
