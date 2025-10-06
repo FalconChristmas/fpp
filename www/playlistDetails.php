@@ -54,6 +54,12 @@ $simplifiedPlaylist = 0;
                                 <div class="labelHeading">Randomize:</div>
                                 <div id="txtRandomize" class="labelValue">NULL</div>
                             </div>
+                            <div id="playlistMainGlobalPauseDetails">
+                                <div class="labelHeading">Global Pause:</div>
+                                <div id="txtGlobalPause" class="labelValue">
+                                    <span class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 10px;">Disabled</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

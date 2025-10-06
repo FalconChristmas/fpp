@@ -458,6 +458,7 @@
                                     {
                                         desc: $("#txtAddPlaylistDesc").val(),
                                         random: $("#randomizeAddPlaylist").val(),
+                                        globalPauseBetweenSequencesMS: parseInt($("#globalPauseAddPlaylist").val()) || 0,
                                         empty: true
                                     },
                                     function () {
@@ -494,10 +495,35 @@
                     title: "Edit Playlist Details",
                     body: $("#playlistEdit"),
                     class: "modal-lg",
+                    open: function() {
+                        // Refresh form values with current playlist data when modal opens
+                        var playlistName = $('#txtPlaylistName').val();
+                        if (playlistName) {
+                            // Get current playlist data and populate the form
+                            $.get('api/playlist/' + playlistName)
+                                .done(function(data) {
+                                    // Restore original values
+                                    $('#txtPlaylistName').val(data.name || '');
+                                    $('#txtPlaylistDesc').val(data.desc || '');
+                                    $('#randomizePlaylist').val(data.random || 0);
+                                    $('#globalPauseBetweenSequences').val(data.globalPauseBetweenSequencesMS || 0);
+                                    // Update the indicator
+                                    updateGlobalPauseIndicator();
+                                })
+                                .fail(function() {
+                                    console.log('Failed to reload playlist data for modal');
+                                });
+                        }
+                    },
                     buttons: {
                         "Save": {
                             click: function () {
                                 SavePlaylist('', function () {
+                                    // Reload playlist details to update the display
+                                    var playlistName = $('#txtPlaylistName').val();
+                                    if (playlistName) {
+                                        LoadPlaylistDetails(playlistName);
+                                    }
                                     CloseModalDialog("EditPlaylistDetailsDialog");
                                 });
                             },
@@ -561,7 +587,13 @@
             });
 
             $('.savePlaylistBtn').on("click", function () {
-                SavePlaylist($('#txtPlaylistName').val())
+                var playlistName = $('#txtPlaylistName').val();
+                SavePlaylist(playlistName, function() {
+                    // Reload playlist details to update the display
+                    if (playlistName) {
+                        LoadPlaylistDetails(playlistName);
+                    }
+                });
             })
             $('.playlistEditorBackButton').on("click", function () {
                 if (isCurrentPlaylistModified()) {
@@ -767,6 +799,17 @@
                             <option value='2'>Every iteration</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="globalPauseAddPlaylist">Global Pause Between Sequences:</label>
+                        <input type="number" id="globalPauseAddPlaylist" class="form-control" 
+                            min="0" max="999999" step="100" value="0" placeholder="0" onchange="updateAddGlobalPauseIndicator()" />
+                        <small class="form-text text-muted">milliseconds (0 = disabled)</small>
+                        <div id="globalPauseAddIndicator" style="display: none; margin-top: 5px;">
+                            <span class="btn btn-sm btn-success" style="padding: 2px 8px; font-size: 11px;">
+                                <i class="fas fa-clock"></i> Global pause enabled
+                            </span>
+                        </div>
+                    </div>
                 </div>
                 <div class="playlistEdit hidden" id="playlistEdit">
                     <div class="row">
@@ -786,6 +829,19 @@
                                 <option value='1'>Once per load</option>
                                 <option value='2'>Every iteration</option>
                             </select></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-4"><label for="globalPauseBetweenSequences">Global Pause Between Sequences:</label></div>
+                        <div class="col-4"><input type="number" id="globalPauseBetweenSequences" class="form-control" 
+                                min="0" max="999999" step="100" value="0" placeholder="0" onchange="updateGlobalPauseIndicator(); markCurrentPlaylistModified();" /></div>
+                        <div class="col-4">
+                            <small class="form-text text-muted">milliseconds (0 = disabled)</small>
+                            <div id="globalPauseConfigIndicator" style="display: none; margin-top: 5px;">
+                                <span class="btn btn-sm btn-success" style="padding: 2px 8px; font-size: 11px;">
+                                    <i class="fas fa-clock"></i> Global pause enabled
+                                </span>
+                            </div>
+                        </div>
                     </div>
                     <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
                 </div>

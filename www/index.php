@@ -541,13 +541,17 @@
                                         <select id="playlistSelect" title="playlistSelect" name="playlistSelect"
                                             class="form-control form-control-lg form-control-rounded has-shadow"
                                             size="1" onClick="PopulatePlaylistDetailsEntries(true,'');"
-                                            onChange="PopulatePlaylistDetailsEntries(true,'');">
+                                            onChange="PopulatePlaylistDetailsEntries(true,''); if (typeof window.updateMainPageGlobalPauseIndicator === 'function') { window.updateMainPageGlobalPauseIndicator(); }">>
                                         </select>
                                     </div>
                                     <div class="col-auto playlistRepeatCol">
                                         <span class="settingLabelHeading">Repeat:</span>
                                         <input class="form-check-input" type="checkbox" value="" aria-label="Repeat"
                                             title="Repeat" id="chkRepeat">
+                                    </div>
+                                    <div class="col-auto playlistGlobalPauseCol" id="globalPauseIndicator" style="display: none;">
+                                        <span class="settingLabelHeading">Global Pause:</span>
+                                        <span id="globalPauseStatus" class="btn btn-sm btn-info" style="padding: 2px 6px; font-size: 11px;">Configured</span>
                                     </div>
                                 </div>
                             </div>

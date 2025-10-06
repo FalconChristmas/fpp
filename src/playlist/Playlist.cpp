@@ -72,6 +72,10 @@ Playlist::Playlist(Playlist* parent) :
     m_currentSectionStr("New"),
     m_sectionPosition(0),
     m_startPosition(0),
+    m_globalPauseBetweenSequencesMS(0),
+    m_isInGlobalPause(false),
+    m_shouldStartGlobalPause(false),
+    m_globalPauseStartTime(0),
     m_status(FPP_STATUS_IDLE) {
     SetIdle(false);
 
@@ -164,6 +168,12 @@ int Playlist::Load(Json::Value& config) {
     m_repeat = config["repeat"].asInt();
     m_loopCount = config["loopCount"].asInt();
     m_subPlaylistDepth = 0;
+
+    // Load global pause between sequences configuration
+    if (config.isMember("globalPauseBetweenSequencesMS"))
+        m_globalPauseBetweenSequencesMS = config["globalPauseBetweenSequencesMS"].asInt();
+    else
+        m_globalPauseBetweenSequencesMS = 0;
 
     m_playlistInfo = config["playlistInfo"];
 
@@ -554,7 +564,7 @@ void Playlist::SwitchToMainPlaylist(void) {
     m_currentSectionStr = "MainPlaylist";
     m_currentSection = &m_mainPlaylist;
     m_sectionPosition = 0;
-    m_mainPlaylist[0]->StartPlaying();
+    StartPlayingWithGlobalPause(m_mainPlaylist[0]);
 }
 
 /*
@@ -568,7 +578,7 @@ void Playlist::SwitchToLeadOut(void) {
     m_currentSectionStr = "LeadOut";
     m_currentSection = &m_leadOut;
     m_sectionPosition = 0;
-    m_leadOut[0]->StartPlaying();
+    StartPlayingWithGlobalPause(m_leadOut[0]);
 }
 
 /*
@@ -804,6 +814,22 @@ int Playlist::Process(void) {
         return 0;
     }
 
+    // Handle global pause between sequences
+    if (m_isInGlobalPause) {
+        long long currentTime = GetTimeMS();
+        if ((currentTime - m_globalPauseStartTime) >= m_globalPauseBetweenSequencesMS) {
+            LogDebug(VB_PLAYLIST, "Global pause between sequences completed, starting next item\n");
+            m_isInGlobalPause = false;
+            // Start the current item (which was delayed by the pause)
+            if (m_currentSection && m_sectionPosition < m_currentSection->size()) {
+                m_currentSection->at(m_sectionPosition)->StartPlaying();
+            }
+        } else {
+            // Still in pause period, don't process anything
+            return 1;
+        }
+    }
+
     if (!m_currentSection->at(m_sectionPosition)->IsPaused() && m_currentSection->at(m_sectionPosition)->IsPlaying()) {
         m_currentSection->at(m_sectionPosition)->Process();
     }
@@ -821,6 +847,17 @@ int Playlist::Process(void) {
             m_currentSection->at(m_sectionPosition)->Dump();
 
         LogDebug(VB_PLAYLIST, "============================================================================\n");
+
+        // Check if we should start a global pause before the next item
+        if (m_globalPauseBetweenSequencesMS > 0) {
+            bool isStoppingGracefully = (m_status == FPP_STATUS_STOPPING_GRACEFULLY || 
+                                       m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP);
+            
+            if (!isStoppingGracefully) {
+                LogDebug(VB_PLAYLIST, "Marking for global pause between sequences for %d ms\n", m_globalPauseBetweenSequencesMS);
+                m_shouldStartGlobalPause = true;
+            }
+        }
 
         PluginManager::INSTANCE.playlistCallback(GetInfo(), "query_next", m_currentSectionStr, m_sectionPosition);
 
@@ -946,7 +983,7 @@ int Playlist::Process(void) {
                     }
 
                     m_sectionPosition = 0;
-                    m_mainPlaylist[0]->StartPlaying();
+                    StartPlayingWithGlobalPause(m_mainPlaylist[0]);
                 } else if (m_leadOut.size()) {
                     ReloadIfNeeded();
 
@@ -961,7 +998,7 @@ int Playlist::Process(void) {
             }
         } else {
             // Start the next item in the current section
-            m_currentSection->at(m_sectionPosition)->StartPlaying();
+            StartPlayingWithGlobalPause(m_currentSection->at(m_sectionPosition));
         }
 
         while (!startNewPlaylistFilename.empty()) {
@@ -1335,6 +1372,11 @@ void Playlist::RestartItem(void) {
     }
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    
+    // Clear global pause state when manually navigating
+    m_shouldStartGlobalPause = false;
+    m_isInGlobalPause = false;
+    
     int pos = GetPosition() - 1;
     if (m_currentSection->at(m_sectionPosition)->IsPlaying())
         m_currentSection->at(m_sectionPosition)->Stop();
@@ -1353,6 +1395,10 @@ void Playlist::NextItem(void) {
     }
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    
+    // Clear global pause state when manually navigating
+    m_shouldStartGlobalPause = false;
+    m_isInGlobalPause = false;
     bool somewhereToGo = true;
     int pos = GetPosition();
     if (m_currentSectionStr == "LeadIn") {
@@ -1415,6 +1461,11 @@ void Playlist::PrevItem(void) {
     }
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    
+    // Clear global pause state when manually navigating
+    m_shouldStartGlobalPause = false;
+    m_isInGlobalPause = false;
+    
     int pos = GetPosition();
     if ((m_currentSectionStr == "LeadIn") ||
         (m_currentSectionStr == "LeadOut")) {
@@ -1698,6 +1749,11 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         result["seconds_remaining"] = "0";
         result["time_elapsed"] = "00:00";
         result["time_remaining"] = "00:00";
+        
+        // Still provide global pause info even when idle
+        result["global_pause"]["configured"] = m_globalPauseBetweenSequencesMS > 0;
+        result["global_pause"]["duration_ms"] = m_globalPauseBetweenSequencesMS;
+        result["global_pause"]["active"] = false; // Always false when idle
         return;
     }
 
@@ -1706,6 +1762,19 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     result["current_playlist"]["description"] = m_desc;
     result["current_playlist"]["count"] = std::to_string(GetSize());
     result["current_playlist"]["index"] = std::to_string(GetPosition());
+
+    // Global pause between sequences status
+    result["global_pause"]["configured"] = m_globalPauseBetweenSequencesMS > 0;
+    result["global_pause"]["duration_ms"] = m_globalPauseBetweenSequencesMS;
+    result["global_pause"]["active"] = m_isInGlobalPause;
+    if (m_isInGlobalPause && m_globalPauseBetweenSequencesMS > 0) {
+        long long elapsed = GetTimeMS() - m_globalPauseStartTime;
+        long long remaining = m_globalPauseBetweenSequencesMS - elapsed;
+        if (remaining < 0) remaining = 0;
+        result["global_pause"]["elapsed_ms"] = elapsed;
+        result["global_pause"]["remaining_ms"] = remaining;
+        result["global_pause"]["remaining_seconds"] = (remaining + 999) / 1000; // Round up
+    }
 
     auto ple = m_currentSection->at(m_sectionPosition);
     std::string type = ple->GetType();
@@ -1728,35 +1797,57 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     result["current_playlist"]["type"] = type;
 
     if (ple) {
-        int msecs = ple->GetElapsedMS();
-        int secsElapsed = (int)(msecs / 1000);
-        int secsRemaining = (int)((ple->GetLengthInMS() - ple->GetElapsedMS()) / 1000);
-        std::string currentSeq;
-        std::string currentSong;
-        if (type == "media") {
-            PlaylistEntryMedia* med = dynamic_cast<PlaylistEntryMedia*>(ple);
-            currentSong = med->GetMediaName();
-        } else if (type == "both") {
-            PlaylistEntryBoth* both = dynamic_cast<PlaylistEntryBoth*>(ple);
-            currentSeq = both->GetSequenceName();
-            currentSong = both->GetMediaName();
-        } else if (type == "sequence") {
-            PlaylistEntrySequence* seq = dynamic_cast<PlaylistEntrySequence*>(ple);
-            currentSeq = seq->GetSequenceName();
-            secsElapsed = sequence->m_seqMSElapsed / 1000;
-            secsRemaining = sequence->m_seqMSRemaining / 1000;
-        } else if (type == "script") {
-            PlaylistEntryScript* scr = dynamic_cast<PlaylistEntryScript*>(ple);
-            currentSeq = scr->GetScriptName();
+        // Check if we're currently in a global pause - if so, show pause progress instead of item progress
+        if (m_isInGlobalPause && m_globalPauseBetweenSequencesMS > 0) {
+            // Show global pause progress
+            long long elapsed = GetTimeMS() - m_globalPauseStartTime;
+            long long remaining = m_globalPauseBetweenSequencesMS - elapsed;
+            if (remaining < 0) remaining = 0;
+            
+            int secsElapsed = (int)(elapsed / 1000);
+            int secsRemaining = (int)(remaining / 1000);
+            
+            result["current_sequence"] = "Global Pause";
+            result["current_song"] = "";
+            result["seconds_played"] = std::to_string(secsElapsed);
+            result["seconds_elapsed"] = std::to_string(secsElapsed);
+            result["milliseconds_elapsed"] = elapsed;
+            result["seconds_remaining"] = std::to_string(secsRemaining);
+            result["time_elapsed"] = secondsToTime(secsElapsed);
+            result["time_remaining"] = secondsToTime(secsRemaining);
+        } else {
+            // Normal item progress
+            int msecs = ple->GetElapsedMS();
+            int secsElapsed = (int)(msecs / 1000);
+            int secsRemaining = (int)((ple->GetLengthInMS() - ple->GetElapsedMS()) / 1000);
+            
+            std::string currentSeq;
+            std::string currentSong;
+            if (type == "media") {
+                PlaylistEntryMedia* med = dynamic_cast<PlaylistEntryMedia*>(ple);
+                currentSong = med->GetMediaName();
+            } else if (type == "both") {
+                PlaylistEntryBoth* both = dynamic_cast<PlaylistEntryBoth*>(ple);
+                currentSeq = both->GetSequenceName();
+                currentSong = both->GetMediaName();
+            } else if (type == "sequence") {
+                PlaylistEntrySequence* seq = dynamic_cast<PlaylistEntrySequence*>(ple);
+                currentSeq = seq->GetSequenceName();
+                secsElapsed = sequence->m_seqMSElapsed / 1000;
+                secsRemaining = sequence->m_seqMSRemaining / 1000;
+            } else if (type == "script") {
+                PlaylistEntryScript* scr = dynamic_cast<PlaylistEntryScript*>(ple);
+                currentSeq = scr->GetScriptName();
+            }
+            result["current_sequence"] = currentSeq;
+            result["current_song"] = currentSong;
+            result["seconds_played"] = std::to_string(secsElapsed);
+            result["seconds_elapsed"] = std::to_string(secsElapsed);
+            result["milliseconds_elapsed"] = msecs;
+            result["seconds_remaining"] = std::to_string(secsRemaining);
+            result["time_elapsed"] = secondsToTime(secsElapsed);
+            result["time_remaining"] = secondsToTime(secsRemaining);
         }
-        result["current_sequence"] = currentSeq;
-        result["current_song"] = currentSong;
-        result["seconds_played"] = std::to_string(secsElapsed);
-        result["seconds_elapsed"] = std::to_string(secsElapsed);
-        result["milliseconds_elapsed"] = msecs;
-        result["seconds_remaining"] = std::to_string(secsRemaining);
-        result["time_elapsed"] = secondsToTime(secsElapsed);
-        result["time_remaining"] = secondsToTime(secsRemaining);
     }
 
     std::list<std::string> parents;
@@ -1851,6 +1942,7 @@ Json::Value Playlist::GetConfig(void) {
     result["configTime"] = (Json::UInt64)m_configTime;
 
     result["random"] = m_random;
+    result["globalPauseBetweenSequencesMS"] = m_globalPauseBetweenSequencesMS;
 
     result["playlistInfo"] = m_playlistInfo;
     m_config = result;
@@ -1950,4 +2042,20 @@ std::string Playlist::ReplaceMatches(std::string in) {
     LogDebug(VB_PLAYLIST, "Out: '%s'\n", out.c_str());
 
     return out;
+}
+
+/*
+ * Helper method to start playing an entry, handling global pause between sequences
+ */
+void Playlist::StartPlayingWithGlobalPause(PlaylistEntryBase* entry) {
+    if (m_shouldStartGlobalPause && m_globalPauseBetweenSequencesMS > 0) {
+        LogDebug(VB_PLAYLIST, "Starting global pause between sequences for %d ms before next item\n", m_globalPauseBetweenSequencesMS);
+        m_shouldStartGlobalPause = false;
+        m_isInGlobalPause = true;
+        m_globalPauseStartTime = GetTimeMS();
+        // Don't start the entry yet, it will be started when the pause completes
+    } else {
+        // No global pause needed, start immediately
+        entry->StartPlaying();
+    }
 }

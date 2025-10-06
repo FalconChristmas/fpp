@@ -68,6 +68,9 @@ public:
 
     void Dump(void);
 
+    // Helper method for global pause between sequences
+    void StartPlayingWithGlobalPause(PlaylistEntryBase* entry);
+
     void NextItem(void);
     void RestartItem(void);
     void PrevItem(void);
@@ -139,6 +142,12 @@ private:
     std::string m_currentSectionStr;
     int m_sectionPosition;
     int m_startPosition;
+
+    // Global pause between sequences feature
+    int m_globalPauseBetweenSequencesMS;
+    bool m_isInGlobalPause;
+    bool m_shouldStartGlobalPause;
+    long long m_globalPauseStartTime;
 
     std::string m_insertedPlaylist;
     int m_insertedPlaylistPosition;

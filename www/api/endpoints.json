@@ -1509,6 +1509,11 @@
                         "current_song": "",
                         "dateStr": "Sat Feb 26",
                         "fppd": "running",
+                        "global_pause": {
+                            "active": false,
+                            "configured": true,
+                            "duration_ms": 5000
+                        },
                         "mode": 2,
                         "mode_name": "player",
                         "multisync": false,
@@ -2533,6 +2538,7 @@
                     "desc": "Insert a new playlist",
                     "input": {
                         "name": "UploadTest",
+                        "globalPauseBetweenSequencesMS": 5000,
                         "mainPlaylist": [
                             {
                                 "type": "pause",
@@ -2690,6 +2696,160 @@
             }
         },
         {
+        {
+            "endpoint": "playlists/stop",
+            "methods": {
+                "GET": {
+                    "desc": "Immediately stop the currently running playlist"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/stopgracefully",
+            "methods": {
+                "GET": {
+                    "desc": "Gracefully stop the currently running playlist"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/stopgracefullyafterloop",
+            "methods": {
+                "GET": {
+                    "desc": "Gracefully stop the currently running playlist after completion of the current loop"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/pause",
+            "methods": {
+                "GET": {
+                    "desc": "Pause the currently running playlist"
+                }
+            }
+        },
+=======
+            "endpoint": "playlists/stop",
+            "methods": {
+                "GET": {
+                    "desc": "Immediately stop the currently running playlist"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/stopgracefully",
+            "methods": {
+                "GET": {
+                    "desc": "Gracefully stop the currently running playlist"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/stopgracefullyafterloop",
+            "methods": {
+                "GET": {
+                    "desc": "Gracefully stop the currently running playlist after completion of the current loop"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/pause",
+            "methods": {
+                "GET": {
+                    "desc": "Pause the currently running playlist"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/resume",
+            "methods": {
+                "GET": {
+                    "desc": "Resume a previously paused playlist"
+                }
+            }
+        },
+        {
+            "endpoint": "playlist/:PlaylistName",
+            "methods": {
+                "GET": {
+                    "desc": "Get Playlist named :PlaylistName in FPP JSON format. If ?mergeSubs=1 is specified, then any sub playlist will be recursively merged into the parent playlist.",
+                    "output": {
+                        "name": "UploadTest",
+                        "globalPauseBetweenSequencesMS": 5000,
+                        "mainPlaylist": [
+                            {
+                                "type": "pause",
+                                "enabled": 1,
+                                "playOnce": 0,
+                                "duration": 8
+                            }
+                        ],
+                        "playlistInfo": {
+                            "total_duration": 8,
+                            "total_items": 1
+                        }
+                    }
+                },
+                "POST": {
+                    "desc": "Update/Insert the Playlist named :PlaylistName.",
+                    "input": {
+                        "name": "UploadTest",
+                        "globalPauseBetweenSequencesMS": 5000,
+                        "mainPlaylist": [
+                            {
+                                "type": "pause",
+                                "enabled": 1,
+                                "playOnce": 0,
+                                "duration": 8
+                            }
+                        ],
+                        "playlistInfo": {
+                            "total_duration": 8,
+                            "total_items": 1
+                        }
+                    },
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                },
+                "DELETE": {
+                    "desc": "Delete the Playlist named :PlaylistName.",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "playlist/:PlaylistName/start",
+            "methods": {
+                "GET": {
+                    "desc": "Start the playlist named :PlaylistName."
+                }
+            }
+        },
+        {
+            "endpoint": "playlist/:PlaylistName/:SectionName/item",
+            "methods": {
+                "POST": {
+                    "desc": "Insert an item into the :SectionName section of the playlist :PlaylistName",
+                    "input": {
+                        "type": "pause",
+                        "enabled": 1,
+                        "playOnce": 0,
+                        "duration": 8
+                    },
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+>>>>>>> 84fc3fb9e (addition option global pause between sequences)
             "endpoint": "plugin",
             "methods": {
                 "GET": {
