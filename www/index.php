@@ -549,9 +549,11 @@
                                         <input class="form-check-input" type="checkbox" value="" aria-label="Repeat"
                                             title="Repeat" id="chkRepeat">
                                     </div>
-                                    <div class="col-auto playlistGlobalPauseCol" id="globalPauseIndicator" style="display: none;">
+                                    <div class="col-auto playlistGlobalPauseCol" id="globalPauseIndicator"
+                                        style="display: none;">
                                         <span class="settingLabelHeading">Global Pause:</span>
-                                        <span id="globalPauseStatus" class="btn btn-sm btn-info" style="padding: 2px 6px; font-size: 11px;">Configured</span>
+                                        <span id="globalPauseStatus" class="btn btn-sm btn-info"
+                                            style="padding: 2px 6px; font-size: 11px;">Configured</span>
                                     </div>
                                 </div>
                             </div>

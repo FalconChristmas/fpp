@@ -2391,7 +2391,7 @@ function UpdatePlaylistDurations () {
 				}
 				duration += current;
 				totalItemCount++;
-				
+
 				// Count items that aren't already pause entries for global pause calculation
 				var entryType = $(this).find('.entryType').html();
 				if (entryType && entryType !== 'pause') {
@@ -2403,14 +2403,19 @@ function UpdatePlaylistDurations () {
 		// Add global pause time for MainPlaylist section
 		if (sections[s] == 'MainPlaylist' && pauseableItemCount > 1) {
 			// Try to get global pause value from input field, or from global variable if available
-			var globalPauseMS = parseInt($('#globalPauseBetweenSequences').val()) || 0;
-			if (globalPauseMS === 0 && typeof window.currentPlaylistGlobalPause !== 'undefined') {
+			var globalPauseMS =
+				parseInt($('#globalPauseBetweenSequences').val()) || 0;
+			if (
+				globalPauseMS === 0 &&
+				typeof window.currentPlaylistGlobalPause !== 'undefined'
+			) {
 				globalPauseMS = window.currentPlaylistGlobalPause;
 			}
-			
+
 			if (globalPauseMS > 0) {
 				// Add pause time between pauseable items (pauseableItemCount - 1 pauses between pauseableItemCount items)
-				var totalPauseSeconds = (globalPauseMS * (pauseableItemCount - 1)) / 1000;
+				var totalPauseSeconds =
+					(globalPauseMS * (pauseableItemCount - 1)) / 1000;
 				duration += totalPauseSeconds;
 			}
 		}
@@ -2900,7 +2905,7 @@ function markCurrentPlaylistModified (modified = true) {
 	}
 }
 
-function updateGlobalPauseIndicator() {
+function updateGlobalPauseIndicator () {
 	// Only update the global pause value if the input field exists (on edit pages)
 	if ($('#globalPauseBetweenSequences').length) {
 		var pauseValue = parseInt($('#globalPauseBetweenSequences').val()) || 0;
@@ -2909,18 +2914,18 @@ function updateGlobalPauseIndicator() {
 		// On index page, use existing value from window.currentPlaylistGlobalPause
 		var pauseValue = window.currentPlaylistGlobalPause || 0;
 	}
-	
+
 	if (pauseValue > 0) {
 		$('#globalPauseConfigIndicator').show();
 	} else {
 		$('#globalPauseConfigIndicator').hide();
 	}
-	
+
 	// Update playlist durations to include global pause time
 	UpdatePlaylistDurations();
 }
 
-function updateAddGlobalPauseIndicator() {
+function updateAddGlobalPauseIndicator () {
 	var pauseValue = parseInt($('#globalPauseAddPlaylist').val()) || 0;
 	console.log('Updating add global pause indicator, value:', pauseValue);
 	if (pauseValue > 0) {
@@ -2933,11 +2938,11 @@ function updateAddGlobalPauseIndicator() {
 }
 
 // Function to manually check and update the main page global pause indicator
-window.updateMainPageGlobalPauseIndicator = function() {
+window.updateMainPageGlobalPauseIndicator = function () {
 	// Check if a playlist is currently selected (not sequence or media)
 	var selectedValue = $('#playlistSelect').val();
 	var isPlaylistSelected = false;
-	
+
 	if (selectedValue && playListArray) {
 		// Check if the selected value is in the playlist array
 		for (var i = 0; i < playListArray.length; i++) {
@@ -2947,47 +2952,77 @@ window.updateMainPageGlobalPauseIndicator = function() {
 			}
 		}
 	}
-	
+
 	// Only proceed if a playlist is selected
 	if (!isPlaylistSelected) {
 		$('#globalPauseIndicator').hide();
 		return;
 	}
-	
+
 	// First try to get the current player status to see if we're actively playing
-	$.get('api/player/status', function(statusData) {
-		if (statusData && statusData.global_pause && statusData.global_pause.configured) {
+	$.get('api/player/status', function (statusData) {
+		if (
+			statusData &&
+			statusData.global_pause &&
+			statusData.global_pause.configured
+		) {
 			// We're playing and have global pause info from the player
 			$('#globalPauseIndicator').show();
 			if (statusData.global_pause.active) {
-				$('#globalPauseStatus').removeClass('btn-info btn-warning').addClass('btn-danger').text('Active');
+				$('#globalPauseStatus')
+					.removeClass('btn-info btn-warning')
+					.addClass('btn-danger')
+					.text('Active');
 			} else {
-				$('#globalPauseStatus').removeClass('btn-danger btn-warning').addClass('btn-info').text('Configured');
+				$('#globalPauseStatus')
+					.removeClass('btn-danger btn-warning')
+					.addClass('btn-info')
+					.text('Configured');
 			}
 		} else {
 			// Not playing or no global pause from player, check the selected playlist file directly
-			$.get('api/playlist/' + encodeURIComponent(selectedValue), function(playlistData) {
-				if (playlistData && playlistData.globalPauseBetweenSequencesMS && playlistData.globalPauseBetweenSequencesMS > 0) {
-					$('#globalPauseIndicator').show();
-					$('#globalPauseStatus').removeClass('btn-danger btn-warning').addClass('btn-info').text('Configured');
-				} else {
-					$('#globalPauseIndicator').hide();
+			$.get(
+				'api/playlist/' + encodeURIComponent(selectedValue),
+				function (playlistData) {
+					if (
+						playlistData &&
+						playlistData.globalPauseBetweenSequencesMS &&
+						playlistData.globalPauseBetweenSequencesMS > 0
+					) {
+						$('#globalPauseIndicator').show();
+						$('#globalPauseStatus')
+							.removeClass('btn-danger btn-warning')
+							.addClass('btn-info')
+							.text('Configured');
+					} else {
+						$('#globalPauseIndicator').hide();
+					}
 				}
-			}).fail(function() {
+			).fail(function () {
 				// If we can't load the playlist, hide the indicator
 				$('#globalPauseIndicator').hide();
 			});
 		}
-	}).fail(function() {
+	}).fail(function () {
 		// If player status fails, try to load the playlist directly
-		$.get('api/playlist/' + encodeURIComponent(selectedValue), function(playlistData) {
-			if (playlistData && playlistData.globalPauseBetweenSequencesMS && playlistData.globalPauseBetweenSequencesMS > 0) {
-				$('#globalPauseIndicator').show();
-				$('#globalPauseStatus').removeClass('btn-danger btn-warning').addClass('btn-info').text('Configured');
-			} else {
-				$('#globalPauseIndicator').hide();
+		$.get(
+			'api/playlist/' + encodeURIComponent(selectedValue),
+			function (playlistData) {
+				if (
+					playlistData &&
+					playlistData.globalPauseBetweenSequencesMS &&
+					playlistData.globalPauseBetweenSequencesMS > 0
+				) {
+					$('#globalPauseIndicator').show();
+					$('#globalPauseStatus')
+						.removeClass('btn-danger btn-warning')
+						.addClass('btn-info')
+						.text('Configured');
+				} else {
+					$('#globalPauseIndicator').hide();
+				}
 			}
-		}).fail(function() {
+		).fail(function () {
 			console.log('Failed to get playlist data for global pause indicator');
 			$('#globalPauseIndicator').hide();
 		});
@@ -3005,7 +3040,8 @@ function SavePlaylistAs (name, options, callback) {
 	pl.loopCount = 0; // currently unused by player
 	pl.desc = $('#txtPlaylistDesc').val();
 	pl.random = parseInt($('#randomizePlaylist').prop('value'));
-	pl.globalPauseBetweenSequencesMS = parseInt($('#globalPauseBetweenSequences').val()) || 0;
+	pl.globalPauseBetweenSequencesMS =
+		parseInt($('#globalPauseBetweenSequences').val()) || 0;
 	if (typeof options === 'object') {
 		$.extend(pl, options);
 	}
@@ -5330,10 +5366,16 @@ function parseStatus (jsonStatus) {
 			if (jsonStatus.global_pause && jsonStatus.global_pause.configured) {
 				$('#globalPauseIndicator').show();
 				if (jsonStatus.global_pause.active) {
-					$('#globalPauseStatus').removeClass('btn-info btn-warning').addClass('btn-danger').text('Active');
+					$('#globalPauseStatus')
+						.removeClass('btn-info btn-warning')
+						.addClass('btn-danger')
+						.text('Active');
 					// Removed countdown display - main elapsed/remaining time shows pause progress
 				} else {
-					$('#globalPauseStatus').removeClass('btn-danger btn-warning').addClass('btn-info').text('Configured');
+					$('#globalPauseStatus')
+						.removeClass('btn-danger btn-warning')
+						.addClass('btn-info')
+						.text('Configured');
 				}
 			} else {
 				$('#globalPauseIndicator').hide();
@@ -6706,14 +6748,23 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 	} else if (data.random == 1) $('#txtRandomize').html('Once at load time');
 	else if (data.random == 2) $('#txtRandomize').html('Once per iteration');
 	else $('#txtRandomize').html('Invalid value');
-	
+
 	// Update main playlist view global pause indicator
-	if (typeof data.globalPauseBetweenSequencesMS !== 'undefined' && data.globalPauseBetweenSequencesMS > 0) {
-		$('#txtGlobalPause').html('<span class="btn btn-sm btn-info" style="padding: 2px 6px; font-size: 10px;">' + data.globalPauseBetweenSequencesMS + 'ms</span>');
+	if (
+		typeof data.globalPauseBetweenSequencesMS !== 'undefined' &&
+		data.globalPauseBetweenSequencesMS > 0
+	) {
+		$('#txtGlobalPause').html(
+			'<span class="btn btn-sm btn-info" style="padding: 2px 6px; font-size: 10px;">' +
+				data.globalPauseBetweenSequencesMS +
+				'ms</span>'
+		);
 	} else {
-		$('#txtGlobalPause').html('<span class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 10px;">Disabled</span>');
+		$('#txtGlobalPause').html(
+			'<span class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 10px;">Disabled</span>'
+		);
 	}
-	
+
 	// Load global pause between sequences setting
 	if (typeof data.globalPauseBetweenSequencesMS === 'undefined') {
 		$('#globalPauseBetweenSequences').val(0);
@@ -6722,15 +6773,15 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 		$('#globalPauseBetweenSequences').val(data.globalPauseBetweenSequencesMS);
 		window.currentPlaylistGlobalPause = data.globalPauseBetweenSequencesMS;
 	}
-	
+
 	// Update global pause indicator
 	updateGlobalPauseIndicator();
-	
+
 	// Update playlist durations now that global pause value is loaded
 	if (!editMode) {
 		UpdatePlaylistDurations();
 	}
-	
+
 	// Also update the main page indicator if this is a playlist edit scenario
 	if (typeof window.updateMainPageGlobalPauseIndicator === 'function') {
 		window.updateMainPageGlobalPauseIndicator();
