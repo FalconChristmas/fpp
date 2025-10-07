@@ -175,6 +175,8 @@ if (isset($settings["cape-info"])) {
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <script language='Javascript' src='https://<?= $APIhost ?>/js/internetTest.js?ref=<?php echo time(); ?>'></script>
     <script language="Javascript">
+        // Define API host for use in JavaScript
+        var apiHost = '<?php echo $APIhost; ?>';
 
         function CloseUpgradeDialog(reload = false) {
             $('#upgradePopup').fppDialog('close');
@@ -553,7 +555,7 @@ if (isset($settings["cape-info"])) {
                     if (data.hasOwnProperty('key')) {
                         $('#upgradeText').append('- Uploading signing packet to signing API\n');
                         $.ajax({
-                            url: 'https://<?= $APIhost ?>/api/fpp/eeprom/sign',
+                            url: 'https://' + apiHost + '/api/fpp/eeprom/sign',
                             type: 'POST',
                             contentType: 'application/json',
                             data: JSON.stringify(data),
