@@ -166,7 +166,7 @@ function GitBranches()
 
     // Get the remote parameter from the query string, default to 'origin'
     $remote = isset($_GET['remote']) ? $_GET['remote'] : (isset($settings['gitRemote']) ? $settings['gitRemote'] : 'origin');
-    
+
     // Validate remote name to prevent injection
     if (!preg_match('/^[a-zA-Z0-9_-]+$/', $remote)) {
         $remote = 'origin';

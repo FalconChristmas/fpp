@@ -28,7 +28,7 @@ $remote = isset($_GET['remote']) ? escapeshellcmd(htmlspecialchars($_GET['remote
 
 // Validate remote name to prevent injection
 if (!preg_match('/^[a-zA-Z0-9_-]+$/', $remote)) {
-    $remote = 'origin';
+	$remote = 'origin';
 }
 
 $command = "$SUDO " . $fppDir . "/scripts/git_branch " . $branch . " " . $remote . " 2>&1";
