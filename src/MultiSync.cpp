@@ -1981,7 +1981,10 @@ bool MultiSync::FillInInterfaces() {
     std::unique_lock<std::mutex> lock(m_socketLock);
     while (tmp) {
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
-            if (isSupportedForMultisync("", tmp->ifa_name)) {
+            // Check if interface is UP and RUNNING before adding it
+            if (isSupportedForMultisync("", tmp->ifa_name) && 
+                (tmp->ifa_flags & IFF_UP) && 
+                (tmp->ifa_flags & IFF_RUNNING)) {
                 // skip the usb* interfaces as we won't support multisync on those
 #ifdef PLATFORM_OSX
                 struct sockaddr_in* ba = (struct sockaddr_in*)(tmp->ifa_dstaddr);

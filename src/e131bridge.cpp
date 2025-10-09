@@ -28,6 +28,7 @@
 #include <inttypes.h>
 #include <map>
 #include <memory>
+#include <net/if.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -666,7 +667,9 @@ bool Bridge_HandleArtNetPoll(uint8_t* bridgeBuffer, long long packetTime) {
         tmp = interfaces;
         while (tmp) {
             if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
-                if (strncmp("usb", tmp->ifa_name, 3) != 0 && strncmp("lo", tmp->ifa_name, 2) != 0 && tmp->ifa_addr) {
+                // Check if interface is UP and RUNNING before sending ArtNet poll response
+                if (strncmp("usb", tmp->ifa_name, 3) != 0 && strncmp("lo", tmp->ifa_name, 2) != 0 && tmp->ifa_addr &&
+                    (tmp->ifa_flags & IFF_UP) && (tmp->ifa_flags & IFF_RUNNING)) {
                     struct sockaddr_in* sain = (struct sockaddr_in*)tmp->ifa_addr;
                     unsigned long s_addr = sain->sin_addr.s_addr;
                     buf[13] = s_addr >> 24; // IP
