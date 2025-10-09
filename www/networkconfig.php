@@ -454,6 +454,10 @@
                 DisableDNSFields(true);
             }
 
+            if (typeof updateDNSInputVisibility === 'function') {
+                updateDNSInputVisibility();
+            }
+
             CheckDNS();
         }
 
@@ -637,7 +641,12 @@
 
         function LoadDNSConfig() {
             var url = "api/network/dns";
-            $.get(url, GetDNSInfo);
+            $.get(url, function(data) {
+                GetDNSInfo(data);
+                if (typeof updateDNSInputVisibility === 'function') {
+                    updateDNSInputVisibility();
+                }
+            });
         }
 
         function ApplyNetworkConfig() {
@@ -1402,9 +1411,20 @@
                 }
             });
 
+            function updateDNSInputVisibility() {
+                if ($('#dns_manual').is(':checked')) {
+                    $('#dns1Row').show();
+                    $('#dns2Row').show();
+                } else {
+                    $('#dns1Row').hide();
+                    $('#dns2Row').hide();
+                }
+            }
+
             $("#dns_manual").on("click", function () {
                 DisableDNSFields(false);
                 $('#dns_dhcp').prop('checked', false);
+                updateDNSInputVisibility();
             });
 
             $("#dns_dhcp").on("click", function () {
@@ -1412,7 +1432,15 @@
                 $('#dns_manual').prop('checked', false);
                 $('#dns1').val("");
                 $('#dns2').val("");
+                updateDNSInputVisibility();
             });
+
+            // Initial state on page load
+            updateDNSInputVisibility();
+            // Force re-check after a short delay in case browser autofill or async radio state
+            setTimeout(function() {
+                updateDNSInputVisibility();
+            }, 200);
         });
 
         function GetInterfaceInfo(data, status) {
