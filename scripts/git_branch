@@ -7,17 +7,20 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 if [ "x$1" = "x" ]
 then
-	echo "USAGE: $0 BRANCHNAME"
+	echo "USAGE: $0 BRANCHNAME [REMOTE]"
 	exit 1
 fi
 
+# Get the remote name, default to 'origin'
+REMOTE=${2:-origin}
+
 teeOutput
 
-echo "$0 running to switch branches to $1"
+echo "$0 running to switch branches to $1 from remote $REMOTE"
 
-CNT=`cd ${FPPDIR} && git show-ref | grep "refs/remotes/origin" | grep -i $1 | wc -l`
+CNT=`cd ${FPPDIR} && git show-ref | grep "refs/remotes/$REMOTE" | grep -i $1 | wc -l`
 if [ $CNT -eq 0 ]; then
-	echo "Invalid Branch Name: $1"
+	echo "Invalid Branch Name: $1 for remote: $REMOTE"
 	exit 1
 fi
 
@@ -27,12 +30,12 @@ ${SUDO} ${FPPDIR}/scripts/fppd_stop
 echo "Cleaning up any compiled binaries"
 cleanCompiledBinaries
 
-echo "Switching git branch to $1"
+echo "Switching git branch to $1 from remote $REMOTE"
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
-	cd ${FPPDIR} && $SUDO git clean -df && $SUDO git reset --hard &&  $SUDO git submodule foreach git reset --hard && $SUDO git checkout $1 && $SUDO git pull && git fetch --tags -f && $SUDO git submodule sync && $SUDO git submodule update --init
+	cd ${FPPDIR} && $SUDO git clean -df && $SUDO git reset --hard &&  $SUDO git submodule foreach git reset --hard && $SUDO git fetch $REMOTE && $SUDO git checkout -B $1 $REMOTE/$1 && $SUDO git pull $REMOTE $1 && git fetch --tags -f && $SUDO git submodule sync && $SUDO git submodule update --init
 else
-	cd ${FPPDIR} && sudo git clean -df && sudo -u ${FPPUSER} git reset --hard && $SUDO -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git submodule sync && sudo git submodule update --init
+	cd ${FPPDIR} && sudo git clean -df && sudo -u ${FPPUSER} git reset --hard && $SUDO -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git fetch $REMOTE && sudo -u ${FPPUSER} git checkout -B $1 $REMOTE/$1 && sudo -u ${FPPUSER} git pull $REMOTE $1 && sudo -u ${FPPUSER} git submodule sync && sudo git submodule update --init
 fi
 
 ${SUDO} ${SCRIPTDIR}/upgrade_config

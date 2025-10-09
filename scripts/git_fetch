@@ -7,6 +7,16 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 logOutput
 
+# Ensure newfeatures remote exists
+cd ${FPPDIR}
+if ! git remote get-url newfeatures > /dev/null 2>&1; then
+	if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+		$SUDO git remote add newfeatures https://github.com/FalconChristmas/fpp-new-feature-testing.git
+	else
+		sudo -u ${FPPUSER} git remote add newfeatures https://github.com/FalconChristmas/fpp-new-feature-testing.git
+	fi
+fi
+
 if curl --silent --head https://github.com | grep -i "Content-Type: text/html; charset=utf-8" >/dev/null; then
 	GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
 

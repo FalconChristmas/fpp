@@ -22,6 +22,16 @@ ${SUDO} ${FPPDIR}/scripts/fppd_stop
 echo "Cleaning up any compiled binaries"
 cleanCompiledBinaries
 
+echo "Adding newfeatures remote if not present"
+cd ${FPPDIR}
+if ! git remote get-url newfeatures > /dev/null 2>&1; then
+    if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+        $SUDO git remote add newfeatures https://github.com/FalconChristmas/fpp-new-feature-testing.git
+    else
+        sudo -u ${FPPUSER} git remote add newfeatures https://github.com/FalconChristmas/fpp-new-feature-testing.git
+    fi
+fi
+
 echo "Switching git branch to $1"
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then

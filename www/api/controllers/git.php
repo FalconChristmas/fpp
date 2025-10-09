@@ -162,7 +162,15 @@ function GitOSReleaseSizes()
 function GitBranches()
 {
     $rows = array();
-    global $fppDir;
+    global $fppDir, $settings;
+
+    // Get the remote parameter from the query string, default to 'origin'
+    $remote = isset($_GET['remote']) ? $_GET['remote'] : (isset($settings['gitRemote']) ? $settings['gitRemote'] : 'origin');
+
+    // Validate remote name to prevent injection
+    if (!preg_match('/^[a-zA-Z0-9_-]+$/', $remote)) {
+        $remote = 'origin';
+    }
 
     exec("$fppDir/scripts/git_fetch", $log);
     unset($log);
@@ -170,8 +178,8 @@ function GitBranches()
 
     foreach ($log as $line) {
         $line = trim($line);
-        if (startsWith($line, "origin/")) {
-            $branch = substr($line, 7);
+        if (startsWith($line, "$remote/")) {
+            $branch = substr($line, strlen($remote) + 1);
 
             if (
                 !(preg_match("*v[01]\.[0-9x]*", $branch)   // very very old v0.x and v1.x branches

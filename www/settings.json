@@ -1332,6 +1332,19 @@
 			"type": "select",
 			"optionsURL": "hdmi_table.json.php"
 		},
+		"gitRemote": {
+			"name": "gitRemote",
+			"description": "Git Remote Repository",
+			"gatherStats": true,
+			"tip": "Select the git remote repository to use for branch selection. 'origin' is the main FPP repository, 'newfeatures' is for new feature testing.",
+			"default": "origin",
+			"type": "select",
+			"options": {
+				"FPP Releases": "origin",
+				"FPP New Feature Testing": "newfeatures"
+			},
+			"level": 3
+		},
 		"gitBranch": {
 			"name": "gitBranch",
 			"description": "Git Branch",

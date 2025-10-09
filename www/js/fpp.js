@@ -3230,7 +3230,8 @@ function ChangeGitBranch (newBranch) {
 				"' branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue."
 		)
 	) {
-		location.href = 'changebranch.php?branch=' + newBranch;
+		var remote = $('#gitRemote').val() || 'origin';
+		location.href = 'changebranch.php?branch=' + newBranch + '&remote=' + remote;
 	} else {
 		location.reload(true);
 	}
