@@ -58,6 +58,9 @@ NetworkController* NetworkController::DetectControllerViaHTML(const std::string&
     if (nc->DetectESPixelStickController(ip, html)) {
         return nc;
     }
+    if (nc->DetectBaldrickController(ip, html)) {
+        return nc;
+    }
     if (nc->DetectAlphaPixController(ip, html)) {
         return nc;
     }
@@ -278,6 +281,60 @@ bool NetworkController::DetectESPixelStickController(const std::string& ip,
         if (hostname != "") {
             DumpControllerInfo();
 
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool NetworkController::DetectBaldrickController(const std::string& ip,
+                                                  const std::string& html) {
+    LogExcess(VB_SYNC, "Checking if %s is a Baldrick controller\n", ip.c_str());
+
+    if (!contains(html, "Baldrick Board"))
+        return false;
+
+    LogExcess(VB_SYNC, "%s is potentially a Baldrick controller, checking further\n", ip.c_str());
+
+    vendor = "ILightThat";
+    vendorURL = "https://www.ilightthat.com";
+    typeId = kSysTypeBaldrick;
+    typeStr = "Baldrick";
+    systemMode = BRIDGE_MODE;
+
+    std::string url = "http://" + ip + "/system_state";
+    std::string resp;
+
+    if (urlGet(url, resp)) {
+        Json::Value state = LoadJsonFromString(resp);
+        if (state.isMember("hostname")) {
+            hostname = state["hostname"].asString();
+        }
+        if (state.isMember("board_model")) {
+            typeStr = state["board_model"].asString();
+        }
+        if (state.isMember("ota")) {
+            if (state["ota"].isMember("current_firmware_version")) {
+                version = state["ota"]["current_firmware_version"].asString();
+                
+                // Parse version string like "v3.1.0"
+                if (version.length() > 1 && version[0] == 'v') {
+                    std::string verNum = version.substr(1);
+                    std::size_t verDot = verNum.find(".");
+                    if (verDot != std::string::npos) {
+                        majorVersion = atoi(verNum.substr(0, verDot).c_str());
+                        std::size_t verDot2 = verNum.find(".", verDot + 1);
+                        if (verDot2 != std::string::npos) {
+                            minorVersion = atoi(verNum.substr(verDot + 1, verDot2 - (verDot + 1)).c_str());
+                        }
+                    }
+                }
+            }
+        }
+
+        if (hostname != "") {
+            DumpControllerInfo();
             return true;
         }
     }

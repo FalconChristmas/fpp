@@ -672,6 +672,8 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local) {
         return "ESPixelStick-ESP8266";
     case kSysTypeESPixelStickESP32:
         return "ESPixelStick-ESP32";
+    case kSysTypeBaldrick:
+        return "Baldrick";
     case kSysTypeMacOS:
         return "MacOS";
     case kSysTypeFPPArmbian:

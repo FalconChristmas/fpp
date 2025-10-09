@@ -110,6 +110,7 @@ typedef enum systemType {
     kSysTypexSchedule = 0xC1,
     kSysTypeESPixelStick = 0xC2,
     kSysTypeESPixelStickESP32 = 0xC3,
+    kSysTypeBaldrick = 0xC4,
     kSysTypeNonMultiSyncCapable = 0xF0,
     kSysTypeWLED = 0xFB,
     kSysTypeDIYLEDExpress = 0xFC,

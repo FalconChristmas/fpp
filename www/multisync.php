@@ -432,6 +432,15 @@
             return false;
         }
 
+        function isBaldrick(typeId) {
+            typeId = parseInt(typeId);
+
+            if (typeId == 0xC4)
+                return true;
+
+            return false;
+        }
+
         function proxyURLsInString(str, ip) {
             if (!isProxied(ip))
                 return str;
@@ -484,11 +493,13 @@
         var refreshTimer = null;
         var geniusRefreshTimer = null;
         var wledRefreshTimer = null;
+        var baldrickRefreshTimer = null;
         var falconRefreshTimer = null;
         function clearRefreshTimers() {
             clearTimeout(refreshTimer);
             clearTimeout(geniusRefreshTimer);
             clearTimeout(wledRefreshTimer);
+            clearTimeout(baldrickRefreshTimer);
             clearTimeout(falconRefreshTimer);
             refreshTimer = null;
             geniusRefreshTimer = null;
@@ -848,6 +859,7 @@
             var fppIpAddresses = [];
             var wledIpAddresses = [];
             var geniusIpAddresses = [];
+            var baldrickIpAddresses = [];
             var falconV4Addresses = [];
             var falconV3Addresses = [];
 
@@ -1041,12 +1053,15 @@
                         wledIpAddresses.push(ip);
                     } else if (isGenius(data[i].typeId)) {
                         geniusIpAddresses.push(ip);
+                    } else if (isBaldrick(data[i].typeId)) {
+                        baldrickIpAddresses.push(ip);
                     }
                 }
             }
             getFPPSystemStatus(fppIpAddresses, false);
             getWLEDControllerStatus(wledIpAddresses, false);
             getGeniusControllerStatus(geniusIpAddresses, false);
+            getBaldrickControllerStatus(baldrickIpAddresses, false);
             getFalconControllerStatus(falconV3Addresses, falconV4Addresses, false);
 
             var extraRemotes = [];
@@ -1487,11 +1502,88 @@
                 });
         }
 
+        function getBaldrickControllerStatus(ipAddresses, refreshing = false) {
+            ips = "";
+            if (Array.isArray(ipAddresses)) {
+                if (baldrickRefreshTimer != null) {
+                    clearTimeout(baldrickRefreshTimer);
+                    delete baldrickRefreshTimer;
+                    baldrickRefreshTimer = null;
+                }
+                ipAddresses.forEach(function (entry) {
+                    ips += "&ip[]=" + entry;
+                });
+            } else {
+                ips = "&ip[]=" + ipAddresses;
+            }
+            if (ips == "") {
+                return;
+            }
+            $.get("api/system/status?type=Baldrick" + ips)
+                .done(function (alldata) {
+                    jQuery.each(alldata, function (ip, data) {
+                        if (data == null || data == "" || data == "null") {
+                            return;
+                        }
+                        var ips = ip.replace(/\./g, '_');
+                        var t = data.uptime;
+                        var days = Math.floor(t / 86400);
+                        var hours = Math.floor((t - 86400 * days) / 3600);
+                        var mins = Math.floor((t - 86400 * days - 3600 * hours) / 60);
+
+                        var uptime = '';
+                        uptime += (days + " days, ");
+                        uptime += ("0" + hours).slice(-2) + ":";
+                        uptime += ("0" + mins).slice(-2);
+
+                        var u = "<table class='multiSyncVerboseTable'>";
+                        u += "<tr><td>Up:</td><td>" + uptime + "</td></tr>";
+                        u += "</table>";
+
+                        var hostRowKey = ip.replace(/\./g, '_');
+                        var rowId = hostRows[hostRowKey];
+                        $('#advancedViewUtilization_' + rowId).html(u);
+
+                        var origDesc = $('#' + rowId + '_desc').html();
+                        if (origDesc == '') {
+                            $('#' + rowId + '_desc').html(data.board_model || data.hostname);
+                        }
+
+                        // Set status based on test mode
+                        var status = 'Idle';
+                        if (data.test_mode_active) {
+                            status = 'Testing';
+                        } else if (data.frame_rate && data.frame_rate > 0) {
+                            status = 'Playing';
+                        }
+                        $('#' + rowId + '_status').html(status);
+
+                        // Check for firmware update available
+                        var versionCell = $('#' + rowId + '_version');
+                        if (data.ota && data.ota.current_firmware_version && data.ota.available_firmware_version) {
+                            var current = data.ota.current_firmware_version;
+                            var available = data.ota.available_firmware_version;
+                            if (current !== available) {
+                                versionCell.html('<span class="text-warning" title="Update available: ' + available + '">' +
+                                    current + ' <i class="fas fa-exclamation-triangle"></i></span>');
+                            } else {
+                                versionCell.html(current);
+                            }
+                        }
+                    });
+
+                    if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+                        baldrickRefreshTimer = setTimeout(function () { getBaldrickControllerStatus(ipAddresses, true); }, 2000);
+                    }
+                });
+        }
+
         function RefreshStats() {
             var keys = Object.keys(hostRows);
             var ips = [];
             var gips = [];
             var wips = [];
+            var bips = [];
             var fv3ips = [];
             var fv4ips = [];
 
@@ -1520,11 +1612,14 @@
                     wips.push(ip);
                 } else if (isGenius(typeId)) {
                     gips.push(ip);
+                } else if (isBaldrick(typeId)) {
+                    bips.push(ip);
                 }
             }
             getFPPSystemStatus(ips, true);
             getGeniusControllerStatus(gips, true);
             getWLEDControllerStatus(wips, true);
+            getBaldrickControllerStatus(bips, true);
             getFalconControllerStatus(fv3ips, fv4ips, true);
             $('#columnSelector').empty(); //required to overcome bug where columnSelector widget appends on update rather than clearing first
             $('#fppSystemsTable').trigger("updateAll"); // Refresh Tablesorter 

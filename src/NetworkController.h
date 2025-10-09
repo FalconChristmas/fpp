@@ -38,6 +38,7 @@ private:
     bool DetectFalconController(const std::string& ip, const std::string& html);
     bool DetectSanDevicesController(const std::string& ip, const std::string& html);
     bool DetectESPixelStickController(const std::string& ip, const std::string& html);
+    bool DetectBaldrickController(const std::string& ip, const std::string& html);
     bool DetectAlphaPixController(const std::string& ip, const std::string& html);
     bool DetectHinksPixController(const std::string& ip, const std::string& html);
     bool DetectDIYLEDExpressController(const std::string& ip, const std::string& html);

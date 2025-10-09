@@ -238,6 +238,8 @@ function SystemGetStatus()
                     $curl = curl_init("http://" . $ip . "/api/state");
                 } else if ($type == "WLED") {
                     $curl = curl_init("http://" . $ip . "/json/info");
+                } else if ($type == "Baldrick") {
+                    $curl = curl_init("http://" . $ip . "/system_state");
                 } else if ($type == "FV3") {
                     $curl = curl_init("http://" . $ip . "/status.xml");
                 } else if ($type == "FV4") {
