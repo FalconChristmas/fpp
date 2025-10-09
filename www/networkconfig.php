@@ -641,7 +641,7 @@
 
         function LoadDNSConfig() {
             var url = "api/network/dns";
-            $.get(url, function(data) {
+            $.get(url, function (data) {
                 GetDNSInfo(data);
                 if (typeof updateDNSInputVisibility === 'function') {
                     updateDNSInputVisibility();
@@ -1438,7 +1438,7 @@
             // Initial state on page load
             updateDNSInputVisibility();
             // Force re-check after a short delay in case browser autofill or async radio state
-            setTimeout(function() {
+            setTimeout(function () {
                 updateDNSInputVisibility();
             }, 200);
         });

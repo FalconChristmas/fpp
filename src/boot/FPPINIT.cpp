@@ -792,7 +792,6 @@ static void setupNetwork(bool fullReload = false) {
                 } else {
                     content.append("\n");
                 }
-                }
                 if (DHCPSERVER == 1) {
                     content.append("[DHCPServer]\nPoolOffset=").append(std::to_string(DHCPOFFSET)).append("\nPoolSize=").append(std::to_string(DHCPPOOLSIZE)).append("\n");
                     if (!dnsSettings["DNS1"].empty()) {
