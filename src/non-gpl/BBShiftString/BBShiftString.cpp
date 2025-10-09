@@ -186,7 +186,7 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
     }
     commandTable[curCommandTable++] = 0xFFFF;
     // round up to nearest 64 byte boundary
-    int len = (curCommandTable)*2;
+    int len = (curCommandTable) * 2;
     len += 64 - (len % 64);
     d.pru->memcpyToPRU((uint8_t*)&d.pruData->commandTable[0], (uint8_t*)&commandTable[0], len);
     free(buffer);
@@ -348,7 +348,7 @@ int BBShiftStringOutput::StartPRU() {
     if (m_pru0.maxStringLen) {
         m_pru0.pru = new BBBPru(0, true, true);
         m_pru0.pruData = (BBShiftStringData*)m_pru0.pru->data_ram;
-        m_pru1.pru->run("/opt/fpp/src/non-gpl/BBShiftString/BBShiftString_pru0.out");
+        m_pru0.pru->run("/opt/fpp/src/non-gpl/BBShiftString/BBShiftString_pru0.out");
         createOutputLengths(m_pru0, "pru0");
     }
     return 1;
