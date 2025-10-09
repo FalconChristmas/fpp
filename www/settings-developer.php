@@ -24,22 +24,49 @@ function filterBranch($branch) {
 
 function PrintGitBranchOptions()
 {
-	global $git_branch, $SUDO;
+	global $git_branch, $SUDO, $settings;
 
   $branches = Array();
-  exec("$SUDO git fetch -p --all && sudo git remote prune origin");
-  exec("$SUDO git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch -a | grep -v -- '->' | sed -e 's/remotes\/origin\///' -e 's/\\* *//' -e 's/ *//' | sort -u", $branches);
+  // Get remote from settings, default to 'origin' if not set
+  $remote = 'origin'; // default
+  if (isset($settings['gitRemote'])) {
+      // Handle both old and new format - extract remote name from value
+      if (strpos($settings['gitRemote'], 'newfeatures') !== false) {
+          $remote = 'newfeatures';
+      } else if (strpos($settings['gitRemote'], 'origin') !== false) {
+          $remote = 'origin';
+      }
+  }
+  
+  exec("$SUDO git fetch -p --all && sudo git remote prune $remote");
+  
+  // Get all remote branches
+  exec("$SUDO git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch -r", $all_branches);
+  
+  // Filter to only branches from the selected remote
+  foreach($all_branches as $branch_line) {
+      $branch_line = trim($branch_line);
+      // Check if this branch is from the selected remote
+      if (strpos($branch_line, "$remote/") === 0 && strpos($branch_line, '->') === false) {
+          // Remove the remote prefix
+          $branch = substr($branch_line, strlen($remote) + 1);
+          $branch = filterBranch($branch);
+          if ($branch != "" && $branch !== false) {
+              $branches[] = $branch;
+          }
+      }
+  }
+  
+  // Sort and remove duplicates
+  $branches = array_unique($branches);
+  sort($branches);
+  
   foreach($branches as $branch)
   {
-      $branch = filterBranch($branch);
-      if ($branch != "") {
-        if ($branch == $git_branch) {
-    //       $branch = preg_replace('/^\\* */', '', $branch);
+      if ($branch == $git_branch) {
            echo "<option value='$branch' selected>$branch</option>\n";
-        } else {
-     //      $branch = preg_replace('/^ */', '', $branch);
+      } else {
            echo "<option value='$branch'>$branch</option>\n";
-        }
       }
   }
 }
@@ -70,8 +97,38 @@ function GitReset() {
 		});
 }
 
+function reloadGitBranches(remote) {
+    $.ajax({
+        url: 'api/git/branches?remote=' + remote,
+        type: 'GET',
+        success: function(branches) {
+            var currentBranch = $('#gitBranch').val();
+            $('#gitBranch').empty();
+            branches.forEach(function(branch) {
+                var selected = (branch === currentBranch) ? ' selected' : '';
+                $('#gitBranch').append('<option value="' + branch + '"' + selected + '>' + branch + '</option>');
+            });
+        },
+        error: function(data) {
+            alert('Call to api/git/branches failed'); 
+        }
+    });
+}
+
 $( document ).ready(function() {
     reloadGitStatus();
+    
+    // Listen for changes to the git remote setting
+    $('#gitRemote').on('change', function() {
+        var remote = $(this).val();
+        // Extract the remote name from the value (in case it contains description text)
+        if (remote.indexOf('newfeatures') !== -1) {
+            remote = 'newfeatures';
+        } else if (remote.indexOf('origin') !== -1) {
+            remote = 'origin';
+        }
+        reloadGitBranches(remote);
+    });
 });
 
 </script>
@@ -79,6 +136,7 @@ $( document ).ready(function() {
 <div class="settingsTable container-fluid">
     <?
     PrintSetting('masqUIPlatform');
+    PrintSetting('gitRemote');
     ?>
     <div class="row">
         <div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2 align-top'>

@@ -24,7 +24,14 @@ DisableOutputBuffering();
 echo "==================================================================================\n";
 
 $branch = escapeshellcmd(htmlspecialchars($_GET['branch']));
-$command = "$SUDO " . $fppDir . "/scripts/git_branch " . $branch . " 2>&1";
+$remote = isset($_GET['remote']) ? escapeshellcmd(htmlspecialchars($_GET['remote'])) : 'origin';
+
+// Validate remote name to prevent injection
+if (!preg_match('/^[a-zA-Z0-9_-]+$/', $remote)) {
+    $remote = 'origin';
+}
+
+$command = "$SUDO " . $fppDir . "/scripts/git_branch " . $branch . " " . $remote . " 2>&1";
 
 echo "Command: $command\n";
 echo "----------------------------------------------------------------------------------\n";

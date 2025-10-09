@@ -1000,6 +1000,13 @@ fi
 git config --global pull.rebase true
 git config --global --add safe.directory /opt/fpp
 
+# Add newfeatures remote for testing new features
+cd /opt/fpp
+if ! git remote get-url newfeatures > /dev/null 2>&1; then
+    echo "FPP - Adding newfeatures remote"
+    git remote add newfeatures https://github.com/FalconChristmas/fpp-new-feature-testing.git
+fi
+
 #######################################
 # Build VLC
 if $build_vlc; then
