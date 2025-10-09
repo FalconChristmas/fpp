@@ -72,9 +72,9 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
 }
 
 void PixelOverlayModelSub::setData(const uint8_t* data) {
-    if (!foundParent())
-        return;
-
+    // Don't call foundParent() here to avoid potential deadlock
+    // when called from flushOverlayBuffer() while holding runningEffectMutex.
+    // The parent will be resolved in doOverlay() before data is needed.
     PixelOverlayModel::setData(data);
 
     dirtyBuffer = true;
