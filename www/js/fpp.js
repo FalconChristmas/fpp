@@ -8895,7 +8895,9 @@ function checkForFppUpdate () {
 					remote_found = true;
 					remote_commit = branch.commit.sha;
 				}
-				if (branch.name != 'master') {
+				// Only consider branches that start with 'v' followed by a digit as releases
+				// This ignores dev branches like '2345 - new functionality test'
+				if (branch.name != 'master' && /^v\d/.test(branch.name)) {
 					var bn = branch.name.substr(1);
 					if (bn.startsWith('v')) {
 						bn = branch.name.substr(1);
