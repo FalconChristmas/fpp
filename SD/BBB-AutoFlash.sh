@@ -8,14 +8,17 @@
 #indicate it's done
 
 mount -o remount,rw /dev/mmcblk0p1 /  || true
+mkdir -p /proc
+mount -t proc proc /proc
+
+mkdir -p /sys
+mount -t sysfs sysfs /sys
 
 PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin
 DEVICE=/dev/mmcblk1
 
 
 mount  -t tmpfs /tmp
-
-PARTS=$(/sbin/sfdisk -l ${DEVICE} | /bin/grep ${DEVICE}p | /usr/bin/wc -l)
 
 echo "---------------------------------------"
 echo "Installing bootloader "
@@ -25,27 +28,14 @@ echo ""
 /opt/fpp/bin.bbb/bootloader/install.sh
 
 
-if [ "$PARTS" != "1" ]; then
-    echo "---------------------------------------"
-    echo "Partitioning "
-    echo ""
+/boot/BBB-FlashMMC.sh -noreboot ext4
 
-    /sbin/sfdisk --force ${DEVICE} <<-__EOF__
-4M,${PARTSIZE},,-
-__EOF__
-
-    blockdev --rereadpt ${DEVICE}  || true
-    fdisk -l ${DEVICE}  || true
-
-    reboot
-fi
-
-/opt/fpp/SD/BBB-FlashMMC.sh -noreboot ext4
-
+mkdir -p /tmp/rootfs
 mount ${DEVICE}p1 /tmp/rootfs
 sed -i '/.*AutoFlash\.sh/d' /tmp/rootfs/boot/uEnv.txt
 echo ""  >> /tmp/rootfs/boot/uEnv.txt
 echo "cmdline=coherent_pool=1M net.ifnames=0 lpj=1990656 rng_core.default_quality=100 quiet rootwait" >> /tmp/rootfs/boot/uEnv.txt
+rm -f /tmp/rootfs/boot/BBB-*
 umount /tmp/rootfs
 shutdown -h now
 

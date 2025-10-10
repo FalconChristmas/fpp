@@ -155,8 +155,8 @@ fi
 
     #format partitions
     mkfs.vfat -F 16 ${DEVICE}p1  -n boot
-    #mkfs.ext4 -F -O ^metadata_csum,^64bit ${DEVICE}p3  -L rootfs
-    mkfs.btrfs -f ${DEVICE}p3 -L rootfs
+    mkfs.ext4 -F -O ^metadata_csum,^64bit ${DEVICE}p3  -L rootfs
+    #mkfs.btrfs -f ${DEVICE}p3 -L rootfs
     mkswap ${DEVICE}p2 -L swap
 
     echo "---------------------------------------"
@@ -165,8 +165,8 @@ fi
 
     #mount
     mkdir -p /tmp/rootfs
-    #mount -t ext4 -o noatime,nodiratime ${DEVICE}p3 /tmp/rootfs
-    mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p3 /tmp/rootfs
+    mount -t ext4 -o noatime,nodiratime ${DEVICE}p3 /tmp/rootfs
+    #mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p3 /tmp/rootfs
     mkdir -p /tmp/rootfs/boot
     mkdir -p /tmp/rootfs/boot/firmware
     mount -t vfat -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs/boot/firmware
