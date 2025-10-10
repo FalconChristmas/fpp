@@ -30,8 +30,10 @@ echo ""
 
 /boot/BBB-FlashMMC.sh -noreboot ext4
 
+PARTS=$(/sbin/sfdisk -l ${DEVICE} | /bin/grep ${DEVICE}p | /usr/bin/wc -l)
+
 mkdir -p /tmp/rootfs
-mount ${DEVICE}p1 /tmp/rootfs
+mount ${DEVICE}p${PARTS} /tmp/rootfs
 sed -i '/.*AutoFlash\.sh/d' /tmp/rootfs/boot/uEnv.txt
 echo ""  >> /tmp/rootfs/boot/uEnv.txt
 echo "cmdline=coherent_pool=1M net.ifnames=0 lpj=1990656 rng_core.default_quality=100 quiet rootwait" >> /tmp/rootfs/boot/uEnv.txt
