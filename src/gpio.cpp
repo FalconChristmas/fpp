@@ -150,8 +150,132 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::rend
             }
             std::string resultStr = SaveJsonToString(result);
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
+        } else if (plen == 2) {
+            // Handle reading individual GPIO pin value: /gpio/{pin_name}
+            std::string pinName = req.get_path_pieces()[1];
+            const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+            
+            if (pin.ptr()) {
+                Json::Value result;
+                try {
+                    // Configure the pin for input if not already configured
+                    pin.configPin("gpio", false, "GPIO Value Read");
+                    
+                    // Read the current value
+                    int value = pin.getValue();
+                    
+                    result["pin"] = pinName;
+                    result["value"] = value;
+                    result["Status"] = "OK";
+                    result["respCode"] = 200;
+                    
+                    std::string resultStr = SaveJsonToString(result);
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
+                } catch (const std::exception& e) {
+                    Json::Value errorResult;
+                    errorResult["pin"] = pinName;
+                    errorResult["Status"] = "ERROR";
+                    errorResult["respCode"] = 500;
+                    errorResult["Message"] = std::string("Error reading GPIO pin: ") + e.what();
+                    
+                    std::string errorStr = SaveJsonToString(errorResult);
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(errorStr, 500, "application/json"));
+                }
+            } else {
+                Json::Value errorResult;
+                errorResult["pin"] = pinName;
+                errorResult["Status"] = "ERROR";
+                errorResult["respCode"] = 404;
+                errorResult["Message"] = "GPIO pin not found: " + pinName;
+                
+                std::string errorStr = SaveJsonToString(errorResult);
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(errorStr, 404, "application/json"));
+            }
         }
     }
+    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
+}
+
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::render_POST(const httpserver::http_request& req) {
+    int plen = req.get_path_pieces().size();
+    std::string p1 = req.get_path_pieces()[0];
+    
+    if (p1 == "gpio" && plen == 2) {
+        // Handle setting individual GPIO pin value: POST /gpio/{pin_name}
+        std::string pinName = req.get_path_pieces()[1];
+        const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+        
+        if (pin.ptr()) {
+            Json::Value data;
+            Json::Value result;
+            
+            // Parse POST data
+            if (req.get_content() != "") {
+                if (!LoadJsonFromString(std::string(req.get_content()), data)) {
+                    Json::Value errorResult;
+                    errorResult["pin"] = pinName;
+                    errorResult["Status"] = "ERROR";
+                    errorResult["respCode"] = 400;
+                    errorResult["Message"] = "Error parsing POST content";
+                    
+                    std::string errorStr = SaveJsonToString(errorResult);
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(errorStr, 400, "application/json"));
+                }
+            }
+            
+            // Check for required 'value' field
+            if (!data.isMember("value")) {
+                Json::Value errorResult;
+                errorResult["pin"] = pinName;
+                errorResult["Status"] = "ERROR";
+                errorResult["respCode"] = 400;
+                errorResult["Message"] = "'value' field not specified. Use {\"value\": 0} or {\"value\": 1}";
+                
+                std::string errorStr = SaveJsonToString(errorResult);
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(errorStr, 400, "application/json"));
+            }
+            
+            try {
+                // Configure the pin for output
+                pin.configPin("gpio", true, "GPIO Output");
+                
+                // Set the value (convert to boolean)
+                bool value = data["value"].asBool() || (data["value"].isInt() && data["value"].asInt() != 0);
+                pin.setValue(value);
+                
+                // Update the last value tracking (for Opposite command functionality)
+                fppCommandLastValue[pinName] = value;
+                
+                result["pin"] = pinName;
+                result["value"] = value ? 1 : 0;
+                result["Status"] = "OK";
+                result["respCode"] = 200;
+                result["Message"] = "GPIO pin value set successfully";
+                
+                std::string resultStr = SaveJsonToString(result);
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
+            } catch (const std::exception& e) {
+                Json::Value errorResult;
+                errorResult["pin"] = pinName;
+                errorResult["Status"] = "ERROR";
+                errorResult["respCode"] = 500;
+                errorResult["Message"] = std::string("Error setting GPIO pin: ") + e.what();
+                
+                std::string errorStr = SaveJsonToString(errorResult);
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(errorStr, 500, "application/json"));
+            }
+        } else {
+            Json::Value errorResult;
+            errorResult["pin"] = pinName;
+            errorResult["Status"] = "ERROR";
+            errorResult["respCode"] = 404;
+            errorResult["Message"] = "GPIO pin not found: " + pinName;
+            
+            std::string errorStr = SaveJsonToString(errorResult);
+            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(errorStr, 404, "application/json"));
+        }
+    }
+    
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
 
