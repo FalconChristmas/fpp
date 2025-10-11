@@ -19,6 +19,41 @@ if (file_exists($capeInputsFile)) {
         }
     }
 }
+
+// Check for cape channel output configuration to block those GPIO pins as well
+$stringsDir = $mediaDirectory . '/tmp/strings/';
+if (is_dir($stringsDir)) {
+    $stringFiles = scandir($stringsDir);
+    foreach ($stringFiles as $file) {
+        if (substr($file, 0, 1) != '.' && substr($file, -5) == '.json') {
+            $stringFilePath = $stringsDir . $file;
+            $stringData = file_get_contents($stringFilePath);
+            $stringJson = json_decode($stringData, true);
+            
+            if (isset($stringJson['outputs']) && is_array($stringJson['outputs'])) {
+                $portNumber = 1; // Start port numbering at 1 for display
+                foreach ($stringJson['outputs'] as $output) {
+                    if (isset($output['pin'])) {
+                        $pin = $output['pin'];
+                        // Store the driver type with port information
+                        $driverType = isset($stringJson['driver']) ? $stringJson['driver'] : 'Channel Output';
+                        $portInfo = $driverType . ' (Port ' . $portNumber . ')';
+                        
+                        // Add description if available
+                        if (isset($output['description']) && !empty($output['description'])) {
+                            $portInfo .= ' - ' . $output['description'];
+                        }
+                        
+                        if (!isset($usedGpioPins[$pin])) {
+                            $usedGpioPins[$pin] = $portInfo;
+                        }
+                    }
+                    $portNumber++;
+                }
+            }
+        }
+    }
+}
 ?>
 <head>
 <?php
@@ -123,6 +158,15 @@ foreach ($usedGpioPins as $pin => $usage) {
 $(document).ready(function(){
 });
 
+function toggleCapeControlledRows() {
+    var hideRows = $('#hideCapeControlled').is(':checked');
+    if (hideRows) {
+        $('.capeControlledRow').hide();
+    } else {
+        $('.capeControlledRow').show();
+    }
+}
+
 extraCommands = [
 {
     "name": "OLED Navigation",
@@ -172,6 +216,14 @@ include 'menu.inc';?>
                 </div>
                 <div class="col-md-auto ms-lg-auto">
                      <input type="button" value="Save" class="buttons btn-success" onClick="SaveGPIOInputs();"></input>
+                </div>
+            </div>
+            <div class="row" style="margin-bottom: 10px;">
+                <div class="col-md">
+                    <label style="font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" id="hideCapeControlled" onChange="toggleCapeControlledRows();">
+                        Hide Cape-Controlled GPIO Pins
+                    </label>
                 </div>
             </div>
             <hr>
@@ -236,11 +288,13 @@ foreach ($gpiojson as $gpio) {
             }
         }
     }
+    
+    // Check if this GPIO pin is already in use by cape configuration
+    $isGpioInUse = isset($usedGpioPins[$pinName]);
+    $capeControlledClass = $isGpioInUse ? " capeControlledRow" : "";
     ?>
-            <tr class='fppTableRow <?=$style?>' <?=$hideStyle?> id='row_<?=$pinNameClean?>'>
+            <tr class='fppTableRow <?=$style?><?=$capeControlledClass?>' <?=$hideStyle?> id='row_<?=$pinNameClean?>'>
                 <?php
-                // Check if this GPIO pin is already in use by cape-inputs.json
-                $isGpioInUse = isset($usedGpioPins[$pinName]);
                 
                 if ($isGpioInUse) {
                     // Pin is in use - show read-only information
