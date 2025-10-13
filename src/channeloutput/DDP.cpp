@@ -109,6 +109,14 @@
 #define DDP_ID_CONFIG 250
 #define DDP_ID_STATUS 251
 
+// DDP Data Type byte (byte 2) format: C R TTT SSS
+//   C = 0 for standard types
+//   R = 0 (reserved)
+//   TTT = data type (001=RGB, 011=RGBW, 100=grayscale)
+//   SSS = size in bits per element (011=8-bit, 100=16-bit, etc.)
+// For RGB 8-bit: 0x0B = 0b00001011 (type=001, size=011)
+#define DDP_DATATYPE_RGB8 0x0B
+
 //1440 channels per packet
 #define DDP_CHANNELS_PER_PACKET 1440
 
@@ -156,7 +164,7 @@ DDPOutputData::DDPOutputData(const Json::Value& config) :
         ddpIovecs[x * 2 + 1].iov_base = nullptr;
 
         ddpBuffers[x][0] = DDP_FLAGS1_VER1;
-        ddpBuffers[x][2] = 0;
+        ddpBuffers[x][2] = DDP_DATATYPE_RGB8;
         ddpBuffers[x][3] = DDP_ID_DISPLAY;
         int pktSize = DDP_CHANNELS_PER_PACKET;
         if (x == (pktCount - 1)) {
