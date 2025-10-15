@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <vector>
 
+#include "FileMonitor.h"
 #include "Plugin.h"
 #include "Warnings.h"
 #include "common.h"
@@ -43,14 +44,8 @@ PluginManager PluginManager::INSTANCE;
 
 namespace FPPPlugins
 {
-    Plugin::Plugin(const std::string& n) :
-        name(n) {
-        reloadSettings();
-    }
-
-    void Plugin::reloadSettings() {
-        settings.clear();
-        std::string dname = FPP_DIR_CONFIG("/plugin." + name);
+    static std::map<std::string, std::string> parseSettingsFile(const std::string& dname) {
+        std::map<std::string, std::string> settings;
         if (FileExists(dname)) {
             FILE* file = fopen(dname.c_str(), "r");
 
@@ -107,6 +102,39 @@ namespace FPPPlugins
                 fclose(file);
             }
         }
+        return settings;
+    }
+
+    Plugin::Plugin(const std::string& n) :
+        name(n) {
+        std::string dname = FPP_DIR_CONFIG("/plugin." + name);
+        settings = parseSettingsFile(dname);
+    }
+    Plugin::Plugin(const std::string& n, bool monitorSettings) :
+        name(n) {
+        if (monitorSettings) {
+            std::string dname = FPP_DIR_CONFIG("/plugin." + name);
+            settings = parseSettingsFile(dname);
+            FileMonitor::INSTANCE.AddFile(name, dname, [this, dname]() {
+                std::map<std::string, std::string> newSettings = parseSettingsFile(dname);
+                for (auto& s : newSettings) {
+                    if (settings.find(s.first) == settings.end() || settings[s.first] != s.second) {
+                        LogInfo(VB_PLUGIN, "Plugin %s setting %s changed to %s\n", name.c_str(), s.first.c_str(), s.second.c_str());
+                        settings[s.first] = s.second;
+                        settingChanged(s.first, s.second);
+                    }
+                }
+            });
+        }
+    }
+
+    Plugin::~Plugin() {
+        FileMonitor::INSTANCE.RemoveFile(name, FPP_DIR_CONFIG("/plugin." + name));
+    }
+
+    void Plugin::reloadSettings() {
+        std::string dname = FPP_DIR_CONFIG("/plugin." + name);
+        settings = parseSettingsFile(dname);
     }
 }
 class LifecycleCallback {

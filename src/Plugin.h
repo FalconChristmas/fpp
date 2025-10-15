@@ -33,7 +33,8 @@ namespace FPPPlugins
     class Plugin {
     public:
         Plugin(const std::string& n);
-        virtual ~Plugin() {}
+        Plugin(const std::string& n, bool monitorSettings);
+        virtual ~Plugin();
 
         const std::string& getName() const { return name; }
 
@@ -44,6 +45,7 @@ namespace FPPPlugins
 
     protected:
         void reloadSettings();
+        virtual void settingChanged(const std::string& key, const std::string& value) {}
 
         std::string name;
         std::map<std::string, std::string> settings;
@@ -98,5 +100,7 @@ class FPPPlugin : public FPPPlugins::Plugin, public FPPPlugins::PlaylistEventPlu
 public:
     FPPPlugin(const std::string& n) :
         FPPPlugins::Plugin(n) {}
+    FPPPlugin(const std::string& n, bool monitorSettings) :
+        FPPPlugins::Plugin(n, monitorSettings) {}
     virtual ~FPPPlugin() {}
 };
