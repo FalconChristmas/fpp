@@ -197,6 +197,46 @@ if (!$settings['BeaglePlatform']) {
 }
 
 /**
+ * Add FPP remotes to CSP connect-src to allow access to API for backup operations
+ * @return void
+ */
+function CSP_AllowRemoteSystems()
+{
+	global $mediaDirectory, $fppDir;
+	$backupHosts = getKnownFPPSystems();
+	$http_backupHostsAdded = 0;
+	$csp_config_path = $mediaDirectory . '/config/csp_allowed_domains.json';
+
+	if (file_exists($csp_config_path)) {
+		$csp_allowed_domains = json_decode(file_get_contents($csp_config_path), true);
+
+		//Insert known FPP systems into csp_config
+		foreach ($backupHosts as $csp_backupHost) {
+			if (!in_array("http://" . $csp_backupHost . " ", $csp_allowed_domains['connect-src'])) {
+				$csp_allowed_domains['connect-src'][] = "http://" . $csp_backupHost . " ";
+				$http_backupHostsAdded++;
+			}
+		}
+
+		//If we have hosts to add
+		if ($http_backupHostsAdded > 0) {
+			if (file_put_contents($csp_config_path, json_encode($csp_allowed_domains, JSON_PRETTY_PRINT)) !== false) {
+				//Regenerate CSP
+				$script_path = $fppDir . "/scripts/ManageApacheContentPolicy.sh";
+
+				// Make sure the script has execute permissions
+				if (shell_exec("sudo bash $script_path regenerate 2>&1") !== NULL) {
+					//Cause page refresh to get new content policy
+					echo "<script>location.reload();</script>";
+				}
+			}
+		}
+	}
+}
+
+CSP_AllowRemoteSystems();
+
+/**
  * Handle POST for download or restore
  * Check which submit button was pressed
  */
@@ -3369,7 +3409,7 @@ if ($skipHTMLCodeOutput === false) {
                     url: 'api/settings/backup.RemoteStorage',
                     type: 'GET',
                     success: function (data) {
-                        if (data.value !== "" || typeof (data.value) !== "undefined") {
+                        if (data.value !== "" && data.value !== 'undefined' && typeof (data.value) !== "undefined") {
                             //Check if the chosen USB device/location exists in the dropdown list
                             //The USB device dropdown list only lists devices which are available for use, so if the chosen device is not in the list
                             //it's likely unavailable or still mounted (as such not available for use)
