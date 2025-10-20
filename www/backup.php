@@ -213,7 +213,7 @@ function CSP_AllowRemoteSystems()
 		//Insert known FPP systems into csp_config
 		foreach ($backupHosts as $csp_backupHost) {
 			if (!in_array("http://" . $csp_backupHost . " ", $csp_allowed_domains['connect-src'])) {
-				$csp_allowed_domains['connect-src'][] = "http://" . $csp_backupHost . " ";
+				$csp_allowed_domains['connect-src'][] = "http://" . $csp_backupHost;
 				$http_backupHostsAdded++;
 			}
 		}
