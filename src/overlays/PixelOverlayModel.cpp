@@ -193,22 +193,26 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
         if (config.isMember("data")) {
             customData = config["data"].asString();
         }
+        int endOfFirstLayer = 0;
         std::vector<std::string> layers = split(customData, '|');
         std::vector<std::vector<std::string>> allData;
+        width = 1;
         for (auto& layer : layers) {
             std::vector<std::string> lines = split(layer, ';');
             for (auto& l : lines) {
                 allData.push_back(split(l, ','));
+                width = std::max(width, (int)allData.back().size());
+                height++;
+            }
+            if (endOfFirstLayer == 0) {
+                endOfFirstLayer = allData.size();
             }
             lines.clear();
-        }
-        width = 1;
-        height = allData.size();
-        for (auto& l : allData) {
-            width = std::max(width, (int)l.size());
-        }
-        if (height < 1) {
-            height = 1;
+            if ((width * height) > (600 * 600)) {
+                height = endOfFirstLayer;
+                allData.erase(allData.begin() + endOfFirstLayer, allData.end());
+                break;
+            }
         }
         channelMap.resize(width * height * 3);
         for (int y = 0; y < height; y++) {
