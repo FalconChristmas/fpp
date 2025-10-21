@@ -132,7 +132,14 @@ StartPlaylistAtCommand::StartPlaylistAtCommand() :
 }
 std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<std::string>& args) {
     bool r = false;
-    int idx = std::atoi(args[1].c_str());
+
+    if (args.empty()) {
+        return std::make_unique<Command::ErrorResult>("Playlist is a requirement argument");
+    }
+    int idx = 1;
+    if (args.size() > 1) {
+        idx = std::atoi(args[1].c_str());
+    }
     bool iNR = false;
     if (args.size() > 2) {
         r = args[2] == "true" || args[2] == "1";
