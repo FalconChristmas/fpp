@@ -162,12 +162,13 @@ int GPIODCapabilities::configPin(const std::string& mode,
         }
         try {
             line.request(req, 1);
+            lastRequestType = req.request_type;
         } catch (const std::exception& ex) {
             std::string w = "Could not configure pin " + name + "(" + desc + ") as " + mode + " (" + ex.what() + ")";
             WarningHolder::AddWarning(w);
             LogWarn(VB_GPIO, "%s\n", w.c_str());
+            lastRequestType = 0;
         }
-        lastRequestType = req.request_type;
     }
 #endif
     return 0;
@@ -228,6 +229,9 @@ bool GPIODCapabilities::getValue() const {
 #ifdef HASGPIOD
     if (lastRequestType == gpiod::line_request::DIRECTION_OUTPUT) {
         return lastValue;
+    }
+    if (lastRequestType == 0 && !line.is_requested()) {
+        return 0;
     }
     return line.get_value();
 #else
