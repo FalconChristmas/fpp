@@ -243,11 +243,16 @@ UDPOutput::~UDPOutput() {
 
     INSTANCE = nullptr;
     NetworkMonitor::INSTANCE.removeCallback(networkCallbackId);
-    for (auto a : outputs) {
-        delete a;
-    }
     while (numWorkThreads) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    // Need to make sure all curls are processed before we delete the outputs
+    // or we may have curl callbacks trying to access deleted data.
+    while (CurlManager::INSTANCE.processCurls()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    for (auto a : outputs) {
+        delete a;
     }
 }
 
