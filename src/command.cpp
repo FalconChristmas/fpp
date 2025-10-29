@@ -256,21 +256,21 @@ char* ProcessCommand(char* command, char* response) {
               (Player::INSTANCE.GetInfo()["currentEntry"]["type"] == "sequence")))) {
             sequence->SingleStepSequence();
         }
-// Has been broken for some time issue #986
-//    } else if (!strcmp(CommandStr, "SingleStepSequenceBack")) {
-//        if ((sequence->IsSequenceRunning()) &&
-//            (sequence->SequenceIsPaused()) &&
-//            ((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) ||
-//             ((Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) &&
-//              (Player::INSTANCE.GetInfo()["currentEntry"]["type"] == "sequence")))) {
-//            sequence->SingleStepSequenceBack();
-//        }
+        // Has been broken for some time issue #986
+        //    } else if (!strcmp(CommandStr, "SingleStepSequenceBack")) {
+        //        if ((sequence->IsSequenceRunning()) &&
+        //            (sequence->SequenceIsPaused()) &&
+        //            ((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) ||
+        //             ((Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) &&
+        //              (Player::INSTANCE.GetInfo()["currentEntry"]["type"] == "sequence")))) {
+        //            sequence->SingleStepSequenceBack();
+        //        }
     } else if (!strcmp(CommandStr, "SetupExtGPIO")) {
         // Configure the given GPIO to the given mode
         s = strtok(NULL, ",");
         s2 = strtok(NULL, ",");
         if (s && s2) {
-            const PinCapabilities *pin = PinCapabilities::getPinByName(s).ptr();
+            const PinCapabilities* pin = PinCapabilities::getPinByName(s).ptr();
             if (!pin) {
                 pin = PinCapabilities::getPinByGPIO(0, atoi(s)).ptr();
             }
@@ -302,7 +302,7 @@ char* ProcessCommand(char* command, char* response) {
         s2 = strtok(NULL, ",");
         s3 = strtok(NULL, ",");
         if (s && s2 && s3) {
-            const PinCapabilities *pin = PinCapabilities::getPinByName(s).ptr();
+            const PinCapabilities* pin = PinCapabilities::getPinByName(s).ptr();
             if (!pin) {
                 pin = PinCapabilities::getPinByGPIO(0, atoi(s)).ptr();
             }
@@ -310,8 +310,10 @@ char* ProcessCommand(char* command, char* response) {
             if (pin) {
                 std::string mode = s2;
                 if (mode == "Input") {
+                    pin->configPin("gpio", false);
                     i = pin->getValue();
                 } else if (mode == "Output") {
+                    pin->configPin("gpio", true);
                     pin->setValue(atoi(s3));
                 } else if (mode == "SoftPWM" || mode == "PWM") {
                     if (pin->supportPWM()) {
