@@ -38,6 +38,14 @@ FPPPlugins::Plugin* createPlugin() {
 }
 }
 
+static std::map<std::string, int> HAT_MAX_CHAINS = {
+    { "regular-pi1", 2 },
+    { "adafruit-hat", 1 },
+    { "adafruit-hat-pwm", 1 },
+    { "classic-pi1", 1 },
+    { "compute-module", 6 }
+};
+
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -249,6 +257,15 @@ int RGBMatrixOutput::Init(Json::Value config) {
             break;
         default:
             break;
+        }
+    }
+
+    if (HAT_MAX_CHAINS.find(options.hardware_mapping) != HAT_MAX_CHAINS.end()) {
+        int maxChains = HAT_MAX_CHAINS[options.hardware_mapping];
+        if (options.chain_length > maxChains) {
+            LogWarn(VB_CHANNELOUT, "The %s pinout supports a maximum of %d chains.\n",
+                    options.hardware_mapping, maxChains);
+            return 0;
         }
     }
 
