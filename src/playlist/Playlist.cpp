@@ -244,10 +244,17 @@ int Playlist::Load(Json::Value& config) {
         ++curPos;
     }
 
-    if (config.isMember("random"))
-        m_random = config["random"].asInt();
-    else
+    if (config.isMember("random")) {
+        if (config["random"].isNumeric()) {
+            m_random = config["random"].asInt();
+        } else if (config["random"].isBool() && config["random"].asBool()) {
+            m_random = 1;
+        } else if (config["random"].isString()) {
+            m_random = std::atoi(config["random"].asString().c_str());
+        }
+    } else {
         m_random = 0;
+    }
 
     m_sectionPosition = 0;
     m_currentSection = nullptr;
@@ -437,7 +444,7 @@ int Playlist::Load(const std::string& filename) {
         return Load(root);
     } catch (std::exception& er) {
         std::string warn = "Playlist " + GetPlaylistName() + " is invalid: " + er.what();
-        LogWarn(VB_PLAYLIST, warn.c_str());
+        LogWarn(VB_PLAYLIST, "%s\n", warn.c_str());
         WarningHolder::AddWarningTimeout(warn, 60);
         return 0;
     }
