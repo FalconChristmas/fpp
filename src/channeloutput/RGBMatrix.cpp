@@ -87,6 +87,11 @@ int RGBMatrixOutput::Init(Json::Value config) {
         LogErr(VB_CHANNELOUT, "RGBMatrix does work on Raspberry Pi 5\n");
         return 0;
     }
+    if (channelCount > FPPD_MAX_CHANNELS) {
+        LogErr(VB_CHANNELOUT, "RGBMatrixOutput::Init: channelCount %u exceeds maximum of %u\n",
+               channelCount, FPPD_MAX_CHANNELS);
+        return 0;
+    }
 
     m_panelWidth = config["panelWidth"].asInt();
     m_panelHeight = config["panelHeight"].asInt();
