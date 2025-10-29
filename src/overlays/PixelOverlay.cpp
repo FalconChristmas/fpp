@@ -447,6 +447,9 @@ Json::Value PixelOverlayManager::getModelsAsJson() {
     }
     return ret;
 }
+HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_HEAD(const httpserver::http_request& req) {
+    return render_GET(req);
+}
 
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET(const httpserver::http_request& req) {
     std::string p1 = req.get_path_pieces()[0];
