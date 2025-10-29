@@ -2963,4 +2963,50 @@ function json_object_validate($json, $depth = 512, $flags = 0)
     }
 }
 
+/**
+ * Fetches a REST API via GET, but only if the response size is within a given limit.
+ *
+ * @param string $url The URL of the API endpoint.
+ * @param int $max_size_bytes The maximum allowed response size in bytes.
+ * @return string|false The API response body as a string if successful and within size limit, otherwise false.
+ */
+function fetch_api_with_limit(string $url, int $max_size_bytes = 1024*50): string|false
+{
+    // Initialize a cURL session to check the Content-Length header.
+    $ch_head = curl_init($url);
+    
+    // Set cURL options for a HEAD request.
+    curl_setopt($ch_head, CURLOPT_RETURNTRANSFER, true); // Return the transfer as a string
+    curl_setopt($ch_head, CURLOPT_HEADER, true);       // Include header in output
+    curl_setopt($ch_head, CURLOPT_NOBODY, true);       // Exclude the body from the output
+    curl_setopt($ch_head, CURLOPT_FOLLOWLOCATION, true); // Follow any redirects
+
+    // Execute the HEAD request.
+    $response_headers = curl_exec($ch_head);
+    
+    // Check for cURL errors.
+    if (curl_errno($ch_head)) {
+        curl_close($ch_head);
+        return false;
+    }
+    
+    // Close the cURL session.
+    curl_close($ch_head);
+
+    // Extract the content length from the response headers.
+    $content_length = -1;
+    if (preg_match('/Content-Length: (\d+)/i', $response_headers, $matches)) {
+        $content_length = (int)$matches[1];
+    }
+    
+    // If Content-Length is unavailable or exceeds the max size, return false.
+    // Some APIs may not provide a Content-Length header. Don't handle this.
+    if ($content_length > -1 && $content_length > $max_size_bytes) {
+        return false;
+    }
+
+    return file_get_contents($url);
+}
+
+
 ?>

@@ -408,7 +408,8 @@ function stats_getSchedule()
 
 function stats_getModels()
 {
-    $data = json_decode(file_get_contents("http://localhost/api/models"), true);
+    $raw = fetch_api_with_limit("http://localhost/api/models");
+    $data = json_decode($raw, true);
     $rc = array("count" => 0);
     if (is_array($data)) {
         $rc["count"] = count($data);
