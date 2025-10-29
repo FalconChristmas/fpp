@@ -255,7 +255,11 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     if (f != commands.end()) {
         std::vector<std::string> args;
         for (int x = 0; x < argsArray.size(); x++) {
-            args.push_back(argsArray[x].asString());
+            if (argsArray[x].isNull()) {
+                args.push_back("");
+            } else {
+                args.push_back(argsArray[x].asString());
+            }
         }
         if (WillLog(LOG_DEBUG, VB_COMMAND)) {
             std::string argString;
@@ -280,7 +284,11 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
             std::string hosts = cmd.isMember("multisyncHosts") ? cmd["multisyncHosts"].asString() : "";
             std::vector<std::string> args;
             for (int x = 0; x < cmd["args"].size(); x++) {
-                args.push_back(cmd["args"][x].asString());
+                if (cmd["args"][x].isNull()) {
+                    args.push_back("");
+                } else {
+                    args.push_back(cmd["args"][x].asString());
+                }
             }
             MultiSync::INSTANCE.SendFPPCommandPacket(hosts, command, args);
             return std::make_unique<Command::Result>("Command Sent");
