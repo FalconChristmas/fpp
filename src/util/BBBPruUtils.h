@@ -27,7 +27,7 @@ public:
     BBBPru(int pru, bool mapShared = false, bool mapOther = false);
     ~BBBPru();
 
-    int run(const std::string& program);
+    bool run(const std::string& program);
     void stop();
 
     void clearPRUMem(uint8_t* ptr, size_t sz);

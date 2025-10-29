@@ -319,18 +319,24 @@ int BBShiftPanelOutput::Init(Json::Value config) {
 int BBShiftPanelOutput::StartPRU() {
     pru = new BBBPru(1, true, true);
     pruData = (BBShiftPanelData*)pru->data_ram;
+    bool started = true;
     if (isPWMPanel()) {
         pwmPru = new BBBPru(0);
-        pwmPru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_gclk.out");
-        pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_pwm.out");
+        started &= pwmPru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_gclk.out");
+        started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_pwm.out");
     } else {
         if (singlePRU) {
-            pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_single.out");
+            started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_single.out");
         } else {
-            pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.out");
+            started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.out");
             pwmPru = new BBBPru(0);
-            pwmPru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_oe.out");
+            started &= pwmPru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_oe.out");
         }
+    }
+    if (!started) {
+        LogErr(VB_CHANNELOUT, "BBShiftPanel: Unable to start PRU(s). May require a reboot.\n");
+        WarningHolder::AddWarning("BBShiftPanel: Unable to start PRU(s). May require a reboot.");
+        return 0;
     }
     uint32_t strideLen = rowLen * 6;
     uint32_t numStride = numRows * m_colorDepth;

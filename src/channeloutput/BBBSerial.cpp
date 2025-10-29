@@ -14,8 +14,8 @@
 
 #include <sys/wait.h>
 #include <fstream>
-#include <unistd.h>
 #include <thread>
+#include <unistd.h>
 
 #include "../Warnings.h"
 #include "../common.h"
@@ -235,7 +235,11 @@ int BBBSerialOutput::Init(Json::Value config) {
     m_serialData->address_dma = m_pru->ddr_addr + offset;
     m_serialData->command = 0;
     m_serialData->response = 0;
-    m_pru->run(pru_program);
+    if (!m_pru->run(pru_program)) {
+        LogErr(VB_CHANNELOUT, "BBBSerial: Unable to start PRU. May require a reboot.\n");
+        WarningHolder::AddWarning("BBBSerial: Unable to start PRU. May require a reboot.");
+        return 0;
+    }
 
     int sz = m_pixelnet ? (4096 + 6) : (512 + 1);
 

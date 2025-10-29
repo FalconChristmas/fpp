@@ -227,7 +227,6 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
                         if (node == 0 && s != "0") {
                             node = -1;
                         }
-                        node = std::stoi(s);
                         if (node > FPPD_MAX_CHANNEL_NUM) {
                             node = -1;
                         }

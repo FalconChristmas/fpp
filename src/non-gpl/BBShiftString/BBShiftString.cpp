@@ -339,16 +339,22 @@ int BBShiftStringOutput::StartPRU() {
     if (m_pru1.maxStringLen) {
         m_pru1.pru = new BBBPru(1, true, true);
         m_pru1.pruData = (BBShiftStringData*)m_pru1.pru->data_ram;
-
-        m_pru1.pru->run("/opt/fpp/src/non-gpl/BBShiftString/BBShiftString_pru1.out");
-
+        if (!m_pru1.pru->run("/opt/fpp/src/non-gpl/BBShiftString/BBShiftString_pru1.out")) {
+            LogErr(VB_CHANNELOUT, "BBShiftString: Unable to start PRU1. May require a reboot.\n");
+            WarningHolder::AddWarning("BBShiftString: Unable to start PRU1. May require a reboot.");
+            return 0;
+        }
         createOutputLengths(m_pru1, "pru1");
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     if (m_pru0.maxStringLen) {
         m_pru0.pru = new BBBPru(0, true, true);
         m_pru0.pruData = (BBShiftStringData*)m_pru0.pru->data_ram;
-        m_pru0.pru->run("/opt/fpp/src/non-gpl/BBShiftString/BBShiftString_pru0.out");
+        if (!m_pru0.pru->run("/opt/fpp/src/non-gpl/BBShiftString/BBShiftString_pru0.out")) {
+            LogErr(VB_CHANNELOUT, "BBShiftString: Unable to start PRU0. May require a reboot.\n");
+            WarningHolder::AddWarning("BBShiftString: Unable to start PRU0. May require a reboot.");
+            return 0;
+        }
         createOutputLengths(m_pru0, "pru0");
     }
     return 1;

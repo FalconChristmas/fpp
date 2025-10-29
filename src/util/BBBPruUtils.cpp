@@ -95,7 +95,7 @@ public:
             }
         }
     }
-    void enable() {
+    bool enable() {
         std::string filename = getRemoteProcStateFile();
         int cnt = 0;
         while (!FileExists(filename) && cnt < 10000) {
@@ -118,10 +118,13 @@ public:
             }
             if (f != "running") {
                 LogWarn(VB_CHANNELOUT, "BBBPru::Pru::enable() - could not start PRU core %d    State: %s\n", pru_num, f.c_str());
+                return false;
             }
         } else {
             LogWarn(VB_CHANNELOUT, "BBBPru::Pru::enable() - could not start PRU core %d\n", pru_num);
+            return false;
         }
+        return true;
     }
 };
 
@@ -343,13 +346,17 @@ BBBPru::~BBBPru() {
     }
 }
 
-int BBBPru::run(const std::string& program) {
+bool BBBPru::run(const std::string& program) {
     LogDebug(VB_CHANNELOUT, "BBBPru[%d]::run(%s)\n", pru_num, program.c_str());
 
+    bool enabled = true;
     if (!FAKE_PRU) {
         prus[pru_num].disable();
         CopyFileContents(program, "/lib/firmware/" + FIRMWARE_PREFIX + "-pru" + std::to_string(pru_num) + "-fw");
-        prus[pru_num].enable();
+        enabled = prus[pru_num].enable();
+        if (!enabled) {
+            return false;
+        }
     } else {
         CopyFileContents(program, "/lib/firmware/" + FIRMWARE_PREFIX + "-pru" + std::to_string(pru_num) + "-fw");
     }
@@ -366,7 +373,7 @@ int BBBPru::run(const std::string& program) {
     printf("SH:  %p\n", shared_ram);
     printf("DDR:  %p\n", ddr);
     */
-    return false;
+    return true;
 }
 
 #ifdef PLATFORM_BBB

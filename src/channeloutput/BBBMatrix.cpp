@@ -635,15 +635,23 @@ int BBBMatrix::Init(Json::Value config) {
 
     m_pru = new BBBPru(pru);
     m_pruData = (BBBPruMatrixData*)m_pru->data_ram;
-    m_pruCopy->clearPRUMem(m_pru->data_ram, sizeof(BBBPruMatrixData));
+    m_pru->clearPRUMem(m_pru->data_ram, sizeof(BBBPruMatrixData));
     m_pruData->address_dma = m_pru->ddr_addr + m_dataOffset;
     m_pruData->command = 0;
     m_pruData->response = 0;
 
     if (!m_singlePRU) {
-        m_pruCopy->run("/tmp/FalconMatrixPRUCpy.out");
+        if (!m_pruCopy->run("/tmp/FalconMatrixPRUCpy.out")) {
+            LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to start PRU. May require a reboot.\n");
+            WarningHolder::AddWarning("BBBMatrix: Unable to start PRU. May require a reboot.");
+            return 0;
+        }
     }
-    m_pru->run(pru_program);
+    if (!m_pru->run(pru_program)) {
+        LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to start PRU. May require a reboot.\n");
+        WarningHolder::AddWarning("BBBMatrix: Unable to start PRU. May require a reboot.");
+        return 0;
+    }
 
     float gamma = 2.2;
     if (config.isMember("gamma")) {
