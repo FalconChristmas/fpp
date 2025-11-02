@@ -75,6 +75,7 @@ private:
     int firstStringInBank[MAX_DPI_PIXEL_BANKS];
     uint32_t latchPinMask = 0x000000;
     uint32_t latchPinMasks[MAX_DPI_PIXEL_BANKS];
+    uint32_t nonLatchPins = 0xFFFFFF;  // All pins except latches
 
     int protoBitsPerLine = 0;
     int protoBitOnLine = 0;

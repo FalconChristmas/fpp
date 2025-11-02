@@ -813,7 +813,9 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
 
 bool DPIPixelsOutput::InitializeWS281x(void) {
     int sBeginEndSize = 1;
-    uint32_t nonLatchPins = 0xFFFFFF - latchPinMasks[0] - latchPinMasks[1] - latchPinMasks[2];
+
+    // Calculate non-latch pins for smart receiver/latch mode
+    nonLatchPins = 0xFFFFFF - latchPinMasks[0] - latchPinMasks[1] - latchPinMasks[2];
 
     // Clear all framebuffer pages to start with a clean slate.
     // The first ws281xResetLines rows will remain zero to provide WS281x RESET period.
@@ -863,11 +865,31 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint8_t* rowData, int maxString) {
         // We write all 3 FB pixels per WS bit instead of relying on a template.
         
         // First FB pixel: HIGH pulse for all configured outputs (timing)
-        firstPixel = latchPinMask; // Will be 0x000000 when not using latches
-        for (int s = 0; s < maxString; s++) {
-            oindex = bitPos[s];
-            if (oindex != -1) {
-                firstPixel |= POSITION_TO_BITMASK(oindex);
+        // For smart receivers, check onOffMap to see if this pixel position should be active
+        if (licensedOutputs) {
+            if (usingSmartReceivers) {
+                firstPixel = latchPinMask; // Will be 0x000000 when not using latches
+                for (int s = 0; s < maxString; s++) {
+                    oindex = bitPos[s];
+                    if (oindex != -1 && onOffMap) {
+                        int strPixel = (protoBitOnLine / 8); // Current pixel in string
+                        if (onOffMap[strPixel * stringCount + s]) {
+                            firstPixel |= POSITION_TO_BITMASK(oindex);
+                        }
+                    }
+                }
+            } else if (usingLatches) {
+                firstPixel = latchPinMask | nonLatchPins;
+            } else {
+                firstPixel = 0xFFFFFF;
+            }
+        } else {
+            firstPixel = latchPinMask; // Will be 0x000000 when not using latches
+            for (int s = 0; s < maxString; s++) {
+                oindex = bitPos[s];
+                if (oindex != -1) {
+                    firstPixel |= POSITION_TO_BITMASK(oindex);
+                }
             }
         }
         
