@@ -305,14 +305,14 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 outputList += std::to_string(s + 1);
             }
         }
-    }
-    if (outputList != "") {
-        std::string warning = "DPIPixels is licensed for ";
-        warning += std::to_string(licensedOutputs);
-        warning += " outputs, but one or more outputs is configured for more than 50 pixels.  Output(s): ";
-        warning += outputList;
-        WarningHolder::AddWarning(warning);
-        LogWarn(VB_CHANNELOUT, "WARNING: %s\n", warning.c_str());
+        if (outputList != "") {
+            std::string warning = "DPIPixels is licensed for ";
+            warning += std::to_string(licensedOutputs);
+            warning += " outputs, but one or more outputs is configured for more than 50 pixels.  Output(s): ";
+            warning += outputList;
+            WarningHolder::AddWarning(warning);
+            LogWarn(VB_CHANNELOUT, "WARNING: %s\n", warning.c_str());
+        }
     }
 
     if (licensedOutputs) {
