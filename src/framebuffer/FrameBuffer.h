@@ -94,6 +94,9 @@ public:
 
     void ClearAllPages();
     void Clear();
+    
+    virtual void EnableDisplay() {}
+    virtual void DisableDisplay() {}
 
     void NextPage(bool producer = false);
 

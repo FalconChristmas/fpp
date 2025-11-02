@@ -106,6 +106,21 @@ DPIPixelsOutput::DPIPixelsOutput(unsigned int startChannel, unsigned int channel
 DPIPixelsOutput::~DPIPixelsOutput() {
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::~DPIPixelsOutput()\n");
 
+    if (displayEnabled && fb) {
+        fb->DisableDisplay();
+        displayEnabled = false;
+    }
+    
+    if (!m_configuredDpiPins.empty()) {
+        for (const auto& pinName : m_configuredDpiPins) {
+            try {
+                const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+                pin.configPin("gpio", true);
+            } catch (...) {
+            }
+        }
+    }
+
     for (int s = 0; s < stringCount; s++)
         delete pixelStrings[s];
 
@@ -118,6 +133,11 @@ DPIPixelsOutput::~DPIPixelsOutput() {
 
 int DPIPixelsOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::Init(JSON)\n");
+
+    // Reset flags at start of Init
+    displayEnabled = false;
+    initComplete = false;
+    nonZeroFrameCount = 0;
 
     std::string subType = config["subType"].asString();
     if (subType == "") {
@@ -236,11 +256,10 @@ int DPIPixelsOutput::Init(Json::Value config) {
         for (int l = 0; l < root["latches"].size(); l++) {
             std::string pinName = root["latches"][l].asString();
             if (pinName[0] == 'P') {
-                LogExcess(VB_CHANNELOUT, "   Enabling Pin %s for DPI output since it is a latch pin\n", pinName.c_str());
+                LogExcess(VB_CHANNELOUT, "   Will enable Pin %s for latch\n", pinName.c_str());
+                m_configuredDpiPins.push_back(pinName);
+                
                 const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
-
-                pin.configPin("dpi");
-
                 latchPinMasks[l] = POSITION_TO_BITMASK(GetDPIPinBitPosition(pinName));
             }
         }
@@ -262,11 +281,9 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 pixelCount += a.pixelCount;
         }
         if (pixelCount) {
-            LogExcess(VB_CHANNELOUT, "   Enabling Pin %s for DPI output since it has %d pixels configured\n",
+            LogExcess(VB_CHANNELOUT, "   Will enable Pin %s for DPI output (%d pixels)\n",
                       outputPinMap[s].c_str(), pixelCount);
-
-            const PinCapabilities& pin = PinCapabilities::getPinByName(outputPinMap[s]);
-            pin.configPin("dpi");
+            m_configuredDpiPins.push_back(outputPinMap[s]);
 
             nonZeroStrings++;
         }
@@ -401,7 +418,11 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     bool initOK = false;
     if (protocol == "ws2811") {
+        // InitializeWS281x sets up parameters and clears the framebuffer.
+        // No template is created anymore - OutputPixelRowWS281x writes all pixels.
+        LogInfo(VB_CHANNELOUT, "DPIPixelsOutput::Init calling InitializeWS281x\n");
         initOK = InitializeWS281x();
+        LogInfo(VB_CHANNELOUT, "DPIPixelsOutput::Init InitializeWS281x done\n");
     }
 
     if (!initOK) {
@@ -411,11 +432,75 @@ int DPIPixelsOutput::Init(Json::Value config) {
     }
 
     PixelString::AutoCreateOverlayModels(pixelStrings, m_autoCreatedModelNames);
+    
+    // Write blank WS281x data to framebuffer BEFORE configuring pins as DPI
+    // This prevents garbage/flash when pins start outputting
+    if (protocol == "ws2811") {
+        std::vector<unsigned char> blankData(FPPD_MAX_CHANNELS, 0);
+        
+        initComplete = true;
+        
+        for (int page = 0; page < fb->PageCount(); page++) {
+            fbPage = page;
+            PrepData(blankData.data());
+        }
+        fbPage = 0;
+    }
+    
+    // Configure DPI pins - they will output blank data from framebuffer
+    for (const auto& pinName : m_configuredDpiPins) {
+        try {
+            const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+            pin.configPin("dpi");
+        } catch (const std::exception& ex) {
+            LogErr(VB_CHANNELOUT, "Failed to configure %s as DPI: %s\n", pinName.c_str(), ex.what());
+        }
+    }
+    
+    displayEnabled = false;
+    initComplete = true;
+    
     return ChannelOutput::Init(config);
 }
 
 int DPIPixelsOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::Close()\n");
+    
+    // Send blank WS281x data to clear latched pixels before shutdown
+    if (fb && stringCount > 0 && protocol == "ws2811") {
+        std::vector<unsigned char> blankData(FPPD_MAX_CHANNELS, 0);
+        
+        bool wasEnabled = displayEnabled;
+        for (int page = 0; page < fb->PageCount(); page++) {
+            fbPage = page;
+            PrepData(blankData.data());
+        }
+        fbPage = 0;
+        
+        if (!wasEnabled) {
+            fb->EnableDisplay();
+            displayEnabled = true;
+        }
+        
+        fb->SyncDisplay(false);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    
+    if (displayEnabled && fb) {
+        fb->DisableDisplay();
+        displayEnabled = false;
+    }
+    
+    // Reconfigure DPI pins back to GPIO input
+    for (const auto& pinName : m_configuredDpiPins) {
+        try {
+            const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+            pin.configPin("gpio", true);
+        } catch (...) {
+        }
+    }
+    m_configuredDpiPins.clear();
+    
     for (auto& n : m_autoCreatedModelNames) {
         PixelOverlayManager::INSTANCE.removeAutoOverlayModel(n);
     }
@@ -462,6 +547,39 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     int sStart = 0;
     int sEnd = stringCount;
     int ch = 0;
+
+    // Check if display should be enabled when significant data arrives
+    if (!displayEnabled && fb && initComplete) {
+        bool hasSignificantData = (m_testType != 0);
+        
+        if (!hasSignificantData) {
+            int nonZeroChannels = 0;
+            for (int s = 0; s < stringCount; s++) {
+                ps = pixelStrings[s];
+                for (int p = 0; p < ps->m_outputChannels; p++) {
+                    int channelIdx = ps->m_outputMap[p];
+                    if (channelIdx < FPPD_MAX_CHANNELS && channelData[channelIdx] != 0) {
+                        nonZeroChannels++;
+                    }
+                }
+            }
+            
+            // Require at least 10 non-zero channels for 3 consecutive frames
+            if (nonZeroChannels >= 10) {
+                nonZeroFrameCount++;
+                if (nonZeroFrameCount >= 3) {
+                    hasSignificantData = true;
+                }
+            } else {
+                nonZeroFrameCount = 0;
+            }
+        }
+        
+        if (hasSignificantData) {
+            fb->EnableDisplay();
+            displayEnabled = true;
+        }
+    }
 
 #ifdef USE_AUTO_SYNC
     fbPage = fb->Page(true);
@@ -694,14 +812,11 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
 ////////////////////////////////////////////////
 
 bool DPIPixelsOutput::InitializeWS281x(void) {
-    uint32_t onOff = 0x000000;
-    int y = 0;
-    int strPixel = 0;
-    int sStart = 0;
-    int sEnd = stringCount;
     int sBeginEndSize = 1;
     uint32_t nonLatchPins = 0xFFFFFF - latchPinMasks[0] - latchPinMasks[1] - latchPinMasks[2];
 
+    // Clear all framebuffer pages to start with a clean slate.
+    // The first ws281xResetLines rows will remain zero to provide WS281x RESET period.
     fb->ClearAllPages();
 
     if (!usingLatches)
@@ -715,143 +830,57 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     // Each WS bit is three (or 9 on Pi4) FB pixels, but skip first/last FB pixel
     protoBitsPerLine = (fb->Width() - 2 * sBeginEndSize) / (3 * fbPixelMult);
 
-    // Skip over the hsync/porch pad area and first/last FB pixel
+    // Skip over the hsync/porch pad area and header FB pixels, plus account for
+    // the fact that we now write all 3 FB pixels per bit
     protoDestExtra = fb->RowPadding() + (2 * sBeginEndSize * fb->BytesPerPixel());
 
-    // Skip the first FB pixel for WS data
-    protoDest = fb->BufferPage(0) + fb->BytesPerPixel() * sBeginEndSize;
+    LogInfo(VB_CHANNELOUT, "DPIPixelsOutput::InitializeWS281x: Added %d blank lines at top for WS281x RESET\n", ws281xResetLines);
 
-    while (y < longestString) {
-        // For each WS281x pixel on the scan line
-        for (int x = 0; x < protoBitsPerLine; x += 8) {
-            if (usingLatches) {
-                if (y == 0) {
-                    strPixel = 0;
-                    sStart = 0;
-                    sEnd = firstStringInBank[1];
-                    latchPinMask = latchPinMasks[0];
-                } else if (y == longestStringInBank[0]) {
-                    strPixel = 0;
-                    sStart = firstStringInBank[1];
-                    sEnd = stringCount > firstStringInBank[2] ? firstStringInBank[2] : stringCount;
-                    latchPinMask = latchPinMasks[1];
-                } else if (y == (longestStringInBank[0] + longestStringInBank[1])) {
-                    strPixel = 0;
-                    sStart = firstStringInBank[2];
-                    sEnd = stringCount > 52 ? 52 : stringCount;
-                    latchPinMask = latchPinMasks[2];
-                }
-            }
-
-            // For each bit in the WS281x pixel protocol
-            for (int rp = 0; rp < 8; rp++) {
-                if (licensedOutputs) {
-                    if (usingLatches && (rp == 0) && ((x == 0) || (strPixel == 0))) {
-                        *(protoDest - 3) = (latchPinMask >> 16);
-                        *(protoDest - 2) = (latchPinMask >> 8);
-                        *(protoDest - 1) = (latchPinMask);
-                    }
-
-                    if (usingSmartReceivers) {
-                        onOff = latchPinMask; // Will be 0x000000 when not using latches
-                        for (int s = sStart; s < sEnd; s++) {
-                            if ((bitPos[s - sStart] != -1) && (onOffMap[strPixel * stringCount + s]))
-                                onOff |= POSITION_TO_BITMASK(bitPos[s - sStart]);
-                        }
-                    } else if (usingLatches) {
-                        onOff = nonLatchPins | latchPinMask;
-                    } else {
-                        onOff = 0xFFFFFF;
-                    }
-                } else {
-                    onOff = 0xFFFFFF;
-                }
-
-                // Update first FB pixel that makes up the WS281x bit
-                // This FB pixel will never be modified outside this routine.
-                for (int i = 0; i < fbPixelMult; i++) {
-                    *(protoDest++) = (onOff >> 16);
-                    *(protoDest++) = (onOff >> 8);
-                    *(protoDest++) = (onOff);
-                    protoDest += fb->BytesPerPixel() - 3;
-                }
-
-                if (usingLatches) {
-                    for (int i = 0; i < fbPixelMult; i++) {
-                        // Fill in the middle FB pixel even though it will get overwritten
-                        // by OutputPixelRowWS281x() later.  It doesn't take much time
-                        // doing this once in this init routine, but will be needed if we
-                        // ever optimize later to only fill in WS data for pixels that
-                        // actually exist.
-                        *(protoDest++) = (latchPinMask >> 16);
-                        *(protoDest++) = (latchPinMask >> 8);
-                        *(protoDest++) = (latchPinMask);
-                        protoDest += fb->BytesPerPixel() - 3;
-                    }
-
-                    for (int i = 0; i < fbPixelMult; i++) {
-                        // Set the latch pin mask on the last FB pixel in the WS bit.
-                        // This FB pixel will never be modified outside this routine.
-                        *(protoDest++) = (latchPinMask >> 16);
-                        *(protoDest++) = (latchPinMask >> 8);
-                        *(protoDest++) = (latchPinMask);
-                        protoDest += fb->BytesPerPixel() - 3;
-                    }
-                } else {
-                    // Skip over the last two FB pixels.  The middle one
-                    // will get updated by OutputPixelRowWS281x() later
-                    // and the last one is always 0x000000
-                    for (int i = 0; i < fbPixelMult; i++) {
-                        protoDest += fb->BytesPerPixel() * 2;
-                    }
-                }
-            }
-
-            y++;
-            strPixel++;
-        }
-
-        protoDest += protoDestExtra;
-    }
-
-    for (int p = 1; p < fb->PageCount(); p++) {
-        // Copy first page to rest of pages
-        memcpy(fb->BufferPage(p), fb->BufferPage(0), fb->PageSize());
-    }
-
-    // Inside OutputPixelRowWS281x(), we'll skip an extra 2 FB pixels due to the way it works
-    for (int i = 0; i < fbPixelMult; i++) {
-        protoDestExtra += fb->BytesPerPixel() * 2;
-    }
-    // int perLine = fb->BytesPerPixel() * fbPixelMult * 3;
-    // int header = fb->BytesPerPixel() * sBeginEndSize;
-    // int numLines = 76 * 8;
-    // HexDump("fb data:", fb->Buffer() + header, numLines * perLine, VB_CHANNELOUT, perLine);
     return true;
 }
 
 void DPIPixelsOutput::InitFrameWS281x(void) {
     protoBitOnLine = 0;
 
-    // Start at front of page but skip the first && second FB pixels
-    // which are already populated and don't change
-    protoDest = fb->BufferPage(fbPage) + ((1 + fbPixelMult) * fb->BytesPerPixel());
+    // Start after the WS281x RESET blank lines at the top of the framebuffer.
+    // These blank lines (all zeros) provide the >50μs LOW period required for
+    // WS281x protocol RESET when the CRTC starts scanning from the top.
+    // At ~6.775μs per line (160MHz DPI clock), 10 lines = ~67.75μs of RESET.
+    int sBeginEndSize = (fb->Width() == 1084) ? 2 : 1;
+    int rowStride = fb->Width() * fb->BytesPerPixel() + fb->RowPadding();
+    protoDest = fb->BufferPage(fbPage) + (ws281xResetLines * rowStride) + (sBeginEndSize * fb->BytesPerPixel());
 }
 
 void DPIPixelsOutput::OutputPixelRowWS281x(uint8_t* rowData, int maxString) {
     uint32_t onOff = 0;
+    uint32_t firstPixel = 0;
+    uint32_t lastPixel = 0;
     int oindex = 0;
 
     // 8 bits in WS281x output data
     for (int bt = 0; bt < 8; bt++) {
-        // 3 FB pixels per WS281x bit.  WS281x 0 == 100, WS281x 1 == 110
+        // WS281x encoding: 0-bit = 100 (HIGH-LOW-LOW), 1-bit = 110 (HIGH-HIGH-LOW)
+        // We write all 3 FB pixels per WS bit instead of relying on a template.
+        
+        // First FB pixel: HIGH pulse for all configured outputs (timing)
+        firstPixel = latchPinMask; // Will be 0x000000 when not using latches
+        for (int s = 0; s < maxString; s++) {
+            oindex = bitPos[s];
+            if (oindex != -1) {
+                firstPixel |= POSITION_TO_BITMASK(oindex);
+            }
+        }
+        
+        // Write first FB pixel (HIGH pulse)
+        for (int i = 0; i < fbPixelMult; i++) {
+            *(protoDest++) = (firstPixel >> 16);
+            *(protoDest++) = (firstPixel >> 8);
+            *(protoDest++) = (firstPixel);
+            protoDest += fb->BytesPerPixel() - 3;
+        }
 
-        // First FB pixel for the WS bit has already been initialized in InitializeWS281x(),
-        // and is skipped over on initialization of protoDest in InitFrameWS281x() and
-        // at the bottom of this loop when incrementing protoDest.
-
-        // Second FB pixel for the WS bit
-        onOff = latchPinMask; // Will be 0x000000 when not using latches;
+        // Second/middle FB pixel: HIGH if bit is 1, LOW if bit is 0 (data)
+        onOff = latchPinMask; // Will be 0x000000 when not using latches
 
         for (int s = 0; s < maxString; s++) {
             oindex = bitPos[s];
@@ -861,14 +890,23 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint8_t* rowData, int maxString) {
             }
         }
 
+        // Write middle FB pixel (data bit)
         for (int i = 0; i < fbPixelMult; i++) {
             *(protoDest++) = (onOff >> 16);
             *(protoDest++) = (onOff >> 8);
             *(protoDest++) = (onOff);
-#ifdef TEST_USING_X11
-            // This is just a slowdown and unneeded when not testing
             protoDest += fb->BytesPerPixel() - 3;
-#endif
+        }
+
+        // Third/last FB pixel: LOW for all outputs (always 0x00 unless latches)
+        lastPixel = latchPinMask; // Will be 0x000000 when not using latches
+        
+        // Write last FB pixel (LOW pulse)
+        for (int i = 0; i < fbPixelMult; i++) {
+            *(protoDest++) = (lastPixel >> 16);
+            *(protoDest++) = (lastPixel >> 8);
+            *(protoDest++) = (lastPixel);
+            protoDest += fb->BytesPerPixel() - 3;
         }
 
         protoBitOnLine++;
@@ -876,16 +914,8 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint8_t* rowData, int maxString) {
             // Jump to beginning of next scan line and reset counter
             protoDest += protoDestExtra;
             protoBitOnLine = 0;
-        } else {
-            // Third FB pixel for the WS bit and first FB pixel for next WS bit
-            // are already set and don't change, so jump over them.
-#ifdef TEST_USING_X11
-            // This is just a slowdown and static when not testing
-            protoDest += fb->BytesPerPixel() * 2 * fbPixelMult;
-#else
-            protoDest += 6 * fbPixelMult;
-#endif
         }
+        // No else needed - we've already moved protoDest to the right position
     }
 }
 

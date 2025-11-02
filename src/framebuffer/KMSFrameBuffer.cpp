@@ -42,6 +42,23 @@ KMSFrameBuffer::KMSFrameBuffer() {
 }
 
 KMSFrameBuffer::~KMSFrameBuffer() {
+    // Ensure display is disabled before destroying framebuffer
+    if (m_displayEnabled && m_crtc && m_plane) {
+        LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::~KMSFrameBuffer() disabling display before destruction\n");
+        std::unique_lock<std::mutex> lock(mediaOutputLock);
+        int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
+        if (im == 0) {
+            try {
+                m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, 0, 0, 0, 0, 0, 0);
+                m_crtc->disable_mode();
+                m_displayEnabled = false;
+            } catch (const std::exception& ex) {
+                LogErr(VB_CHANNELOUT, "KMSFrameBuffer::~KMSFrameBuffer() exception during disable: %s\n", ex.what());
+            }
+            ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
+        }
+    }
+    
     --FRAMEBUFFER_COUNT;
     if (FRAMEBUFFER_COUNT == 0) {
         for (auto& i : CARDS) {
@@ -108,7 +125,29 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                 m_rowPadding = m_rowStride - (m_width * m_bpp / 8);
                 m_pageSize = m_fb[0]->size(0);
                 m_bufferSize = m_pageSize;
-                m_crtc->set_plane(m_plane, *m_fb[0], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
+                
+                // Initialize display as disabled - it will be enabled when needed
+                m_displayEnabled = false;
+                
+                // Disable CRTC/plane from previous session to prevent old data output
+                int im = ioctl(card.first->fd(), DRM_IOCTL_SET_MASTER, 0);
+                if (im == 0) {
+                    try {
+                        m_crtc->set_plane(m_plane, *m_fb[0], 0, 0, 0, 0, 0, 0, 0, 0);
+                        m_crtc->disable_mode();
+                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    } catch (...) {
+                    }
+                    ioctl(card.first->fd(), DRM_IOCTL_DROP_MASTER, 0);
+                }
+                
+                m_cardFd = card.first->fd();
+                
+                // Clear framebuffer pages
+                for (int x = 0; x < 2; x++) {
+                    memset(m_pageBuffers[x], 0, m_pageSize);
+                }
+                
                 m_cardFd = card.first->fd();
                 return 1;
             }
@@ -179,11 +218,59 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
         // if there isn't media being output on this connector, we can display the page
         int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
         if (im == 0) {
-            // was able to get master so we cana page flip
             int i = m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
             if (i) {
-                m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
-                m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
+                if (m_displayEnabled) {
+                    m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
+                    m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
+                }
+            }
+            ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
+        }
+    }
+}
+
+void KMSFrameBuffer::DisableDisplay() {
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    if (mediaOutputStatus.mediaLoading) {
+        return;
+    }
+    if (mediaOutputStatus.output != m_connector->fullname()) {
+        int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
+        if (im == 0) {
+            if (m_crtc && m_plane) {
+                m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, 0, 0, 0, 0, 0, 0);
+                try {
+                    m_crtc->disable_mode();
+                } catch (...) {
+                }
+                m_displayEnabled = false;
+            }
+            ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
+        }
+    }
+}
+
+void KMSFrameBuffer::EnableDisplay() {
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    if (mediaOutputStatus.mediaLoading) {
+        return;
+    }
+    if (mediaOutputStatus.output != m_connector->fullname()) {
+        int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
+        if (im == 0) {
+            if (m_crtc && m_plane) {
+                try {
+                    m_crtc->set_mode(m_connector, m_mode);
+                } catch (const std::exception& ex) {
+                    LogErr(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay set_mode exception: %s\n", ex.what());
+                }
+                try {
+                    m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
+                    m_displayEnabled = true;
+                } catch (const std::exception& ex) {
+                    LogErr(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay set_plane exception: %s\n", ex.what());
+                }
             }
             ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
         }

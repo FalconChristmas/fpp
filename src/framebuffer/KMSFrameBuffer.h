@@ -28,6 +28,9 @@ public:
     virtual void DestroyFrameBuffer() override;
     virtual void SyncLoop() override;
     virtual void SyncDisplay(bool pageChanged = false) override;
+    
+    virtual void EnableDisplay() override;
+    virtual void DisableDisplay() override;
 
     int m_cardFd = -1;
     kms::Connector* m_connector = nullptr;
@@ -36,6 +39,8 @@ public:
     kms::DumbFramebuffer* m_fb[3] = { nullptr, nullptr, nullptr };
     kms::Plane* m_plane = nullptr;
     kms::ResourceManager* m_resourceManager = nullptr;
+    
+    bool m_displayEnabled = false;  // Track if display/CRTC is intentionally enabled
 
     static std::atomic_int FRAMEBUFFER_COUNT;
     static std::map<kms::Card*, kms::ResourceManager*> CARDS;
