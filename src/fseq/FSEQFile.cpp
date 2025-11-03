@@ -18,6 +18,7 @@ using namespace std::literals;
 using namespace std::chrono_literals;
 using namespace std::literals::chrono_literals;
 
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -215,7 +216,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
         LogErr(VB_SEQUENCE, "Error pre-reading FSEQ file (%s), fopen returned NULL\n", fn.c_str());
         return nullptr;
     }
-
+    flock(fileno(seqFile), LOCK_SH);
     fseeko(seqFile, 0L, SEEK_SET);
 
     // An initial read request of 8 bytes covers the file identifier, version fields and channel data offset
@@ -233,6 +234,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
     if (bytesRead < initialReadLen) {
         LogErr(VB_SEQUENCE, "Error pre-reading FSEQ file (%s) header, required %d bytes but read %d\n", fn.c_str(), initialReadLen, bytesRead);
         DumpHeader("File hader peek:", headerPeek, bytesRead);
+        flock(fileno(seqFile), LOCK_UN);
         fclose(seqFile);
         return nullptr;
     }
@@ -241,6 +243,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
     if ((headerPeek[0] != 'P' && headerPeek[0] != 'F' && headerPeek[0] != V1ESEQ_HEADER_IDENTIFIER) || headerPeek[1] != 'S' || headerPeek[2] != 'E' || headerPeek[3] != 'Q') {
         LogErr(VB_SEQUENCE, "Error pre-reading FSEQ file (%s) header, invalid identifier\n", fn.c_str());
         DumpHeader("File header peek:", headerPeek, bytesRead);
+        flock(fileno(seqFile), LOCK_UN);
         fclose(seqFile);
         return nullptr;
     }
@@ -265,6 +268,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
     if (bytesRead != seqChanDataOffset) {
         LogErr(VB_SEQUENCE, "Error reading FSEQ file (%s) header, length is %d bytes but read %d\n", fn.c_str(), seqChanDataOffset, bytesRead);
         DumpHeader("File header:", &header[0], bytesRead);
+        flock(fileno(seqFile), LOCK_UN);
         fclose(seqFile);
         return nullptr;
     }
@@ -279,6 +283,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
     } else {
         LogErr(VB_SEQUENCE, "Error opening FSEQ file (%s), unknown version %d.%d\n", fn.c_str(), seqVersionMajor, seqVersionMinor);
         DumpHeader("File header:", &header[0], bytesRead);
+        flock(fileno(seqFile), LOCK_UN);
         fclose(seqFile);
         return nullptr;
     }
@@ -344,6 +349,7 @@ FSEQFile::FSEQFile(const std::string& fn) :
         m_memoryBuffer.reserve(1024 * 1024);
     } else {
         m_seqFile = fopen((const char*)fn.c_str(), "wb");
+        flock(fileno(m_seqFile), LOCK_EX);
     }
 }
 
@@ -406,6 +412,7 @@ FSEQFile::FSEQFile(const std::string& fn, FILE* file, const std::vector<uint8_t>
 }
 FSEQFile::~FSEQFile() {
     if (m_seqFile) {
+        flock(fileno(m_seqFile), LOCK_UN);
         fclose(m_seqFile);
     }
 }
@@ -1830,8 +1837,7 @@ void V2FSEQFile::dumpInfo(bool indent) {
 
 bool isWithinRange(const std::vector<std::pair<uint32_t, uint32_t>>& ranges, uint32_t start_channel, uint32_t channel_count) {
     for (auto& a : ranges) {
-        if ((start_channel >= a.first && start_channel < (a.first + a.second) )
-            && ((start_channel + channel_count - 1) < (a.first + a.second))) {
+        if ((start_channel >= a.first && start_channel < (a.first + a.second)) && ((start_channel + channel_count - 1) < (a.first + a.second))) {
             return true;
         }
     }
