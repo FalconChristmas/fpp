@@ -1,0 +1,15 @@
+[Unit]
+Description=Expand RootFS Service
+DefaultDependencies=no
+Before=fpprtc.service fppinit.service
+After=home-fpp-media.mount tmp.mount haveged.service
+Wants=home-fpp-media.mount tmp.mount
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+TimeoutStartSec=300
+ExecStart=/opt/fpp/src/fppinit resizeRootFS
+
+[Install]
+WantedBy=sysinit.target
