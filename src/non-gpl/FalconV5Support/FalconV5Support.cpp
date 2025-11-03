@@ -362,18 +362,22 @@ bool FalconV5Support::ReceiverChain::generatePixelCountPacket(uint8_t* packet) c
 }
 
 void FalconV5Support::ReceiverChain::handleQueryResponse(Json::Value& json) {
-    int index = json["index"].asInt();
-    int port = json["port"].asInt();
-    int dial = json["dial"].asInt();
-    int numPorts = json["numPorts"].asInt();
-    int id = json["id"].asInt();
-    // printf("Resp:  Idx: %d     Port: %d    dial:  %d    NP: %d    ID: %d\n", index, port, dial, numPorts, id);
-    for (int x = 0; x < numPorts; x++) {
-        OutputMonitor::INSTANCE.setSmartReceiverInfo(port + x % 4, index,
-                                                     json["ports"][x]["fuseOn"].asBool(),
-                                                     json["ports"][x]["fuseBlown"].asBool(),
-                                                     json["ports"][x]["current"].asInt(),
-                                                     json["ports"][x]["pixelCount"].asInt());
+    try {
+        int index = json["index"].asInt();
+        int port = json["port"].asInt();
+        int dial = json["dial"].asInt();
+        int numPorts = json["numPorts"].asInt();
+        int id = json["id"].asInt();
+        // printf("Resp:  Idx: %d     Port: %d    dial:  %d    NP: %d    ID: %d\n", index, port, dial, numPorts, id);
+        for (int x = 0; x < numPorts; x++) {
+            OutputMonitor::INSTANCE.setSmartReceiverInfo(port + x % 4, index,
+                                                         json["ports"][x]["fuseOn"].asBool(),
+                                                         json["ports"][x]["fuseBlown"].asBool(),
+                                                         json["ports"][x]["current"].asInt(),
+                                                         json["ports"][x]["pixelCount"].asInt());
+        }
+    } catch (std::exception& e) {
+        LogInfo(VB_CHANNELOUT, "FalconV5Support", "Error (%s) handling response JSON: %s\n", e.what(), SaveJsonToString(json, "  ").c_str());
     }
 }
 
