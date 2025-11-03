@@ -206,9 +206,7 @@ journalctl --flush --rotate --vacuum-time=1s
 /opt/fpp/SD/BBB-FlashMMC.sh -s 3500M -noreboot -clear ext4 /dev/mmcblk0
 mount  /dev/mmcblk0p1 /mnt
 echo "uninitialized" > /mnt/etc/machine-id
-chroot /mnt
-systemctl enable grow_partition.service
-exit
+touch /mnt/boot/fpp_expand_rootfs
 fstrim -v /mnt
 umount /mnt
 rmdir /tmp/rootfs

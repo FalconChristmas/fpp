@@ -87,10 +87,8 @@ export FPPBRANCH=v9.2
 # Reboot and make sure everything looks ok
 
 # Before shutting down, run:
-systemctl enable grow_partition.service
 journalctl --flush --rotate --vacuum-time=1s
-mv /usr/bin/bb-growpart.orig /usr/bin/bb-growpart
-touch /etc/bbb.io/growpart
+touch /boot/firmware/fpp_expand_rootfs
 sync
 fstrim -v /
 
