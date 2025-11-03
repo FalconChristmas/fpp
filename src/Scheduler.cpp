@@ -435,6 +435,160 @@ void Scheduler::DumpScheduledItems() {
     }
 }
 
+void Scheduler::doCountdown(const std::time_t& now, const std::time_t& itemTime, std::vector<ScheduledItem*>* items) {
+    // Check to see if we should be counting down to the next item
+    bool logItems = false;
+    int diff = itemTime - now;
+
+    // Print the countdown more frequently as we get closer
+    if (((diff > 300) && ((diff % 300) == 0)) ||
+        ((diff > 60) && (diff <= 300) && ((diff % 60) == 0)) ||
+        ((diff > 10) && (diff <= 60) && ((diff % 10) == 0)) ||
+        ((diff <= 10))) {
+        logItems = true;
+    }
+
+    if (logItems) {
+        LogDebug(VB_SCHEDULE, "Scheduled Item%s running in %d second%s:\n",
+                 items->size() == 1 ? "" : "s",
+                 diff,
+                 diff == 1 ? "" : "s");
+
+        for (auto& item : *items) {
+            if ((item->command == "Start Playlist") &&
+                (diff < 1000)) {
+                char tmpStr[27];
+                std::map<std::string, std::string> keywords;
+                snprintf(tmpStr, 26, "PLAYLIST_START_TMINUS_%03d", diff);
+                keywords["PLAYLIST_NAME"] = item->entry->playlist;
+                CommandManager::INSTANCE.TriggerPreset(tmpStr, keywords);
+            }
+
+            DumpScheduledItem(itemTime, item);
+        }
+    }
+}
+void Scheduler::doScheduledCommand(const std::time_t& itemTime, ScheduledItem* item) {
+    LogDebug(VB_SCHEDULE, "Running scheduled item:\n");
+    DumpScheduledItem(itemTime, item);
+    Json::Value cmd;
+    cmd["command"] = item->command;
+    cmd["args"] = item->args;
+    cmd["multisyncCommand"] = item->entry->multisyncCommand;
+    cmd["multisyncHosts"] = item->entry->multisyncHosts;
+
+    std::thread th([this](Json::Value cmd) {
+        SetThreadName("FPP-RunCmd");
+        CommandManager::INSTANCE.run(cmd);
+    },
+                   cmd);
+    th.detach();
+}
+
+bool Scheduler::doScheduledPlaylist(const std::time_t& now, const std::time_t& itemTime, ScheduledItem* item, bool restarted) {
+    LogDebug(VB_SCHEDULE, "Checking scheduled 'Start Playlist'\n");
+    DumpScheduledItem(itemTime, item);
+
+    if (item->endTime <= now) {
+        SetItemRan(item, true);
+
+        // don't try to start if scheduled end has passed
+        return false;
+    }
+
+    // Don't restart a playlist if it was just force stopped
+    if ((Player::INSTANCE.GetForceStopped()) &&
+        (Player::INSTANCE.GetOrigStartTime() == item->startTime) &&
+        (Player::INSTANCE.GetForceStoppedPlaylist() == item->entry->playlist)) {
+        SetItemRan(item, true);
+        return false;
+    }
+
+    if (Player::INSTANCE.GetStatus() == FPP_STATUS_PLAYLIST_PLAYING) {
+        // If we are playing, check to see if we should be playing something else
+
+        // Check to see if we are already playing this item, for
+        // instance if we reloaded the schedule while a scheduled
+        // playlist was playing.
+        if ((Player::INSTANCE.GetPlaylistName() == item->entry->playlist) &&
+            (Player::INSTANCE.WasScheduled()) &&
+            (Player::INSTANCE.GetRepeat() == item->entry->repeat) &&
+            ((Player::INSTANCE.GetOrigStopTime() == item->endTime) ||
+             (Player::INSTANCE.GetStopTime() == item->endTime)) &&
+            (Player::INSTANCE.GetStopMethod() == item->entry->stopType)) {
+            SetItemRan(item, true);
+            return false;
+        }
+
+        if (!Player::INSTANCE.WasScheduled()) {
+            // Manually started playlist is running so stop it
+            while (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
+                Player::INSTANCE.StopNow(1);
+            }
+        } else if (Player::INSTANCE.GetPriority() > item->priority) {
+            // Lower priority (higher number) playlist is running
+            // Reset the ran status on the schedule entry for the
+            // running playlist to false so it shows as 'next' again
+            std::time_t oldStartTime = Player::INSTANCE.GetOrigStartTime();
+            std::string playlistName = Player::INSTANCE.GetPlaylistName();
+            std::vector<ScheduledItem*>* oldItems = m_scheduledItems[oldStartTime];
+            if (oldItems) {
+                for (auto& oldItem : *oldItems) {
+                    if ((oldItem->command == "Start Playlist") &&
+                        (oldItem->entry->playlist == playlistName)) {
+                        oldItem->ran = false;
+                        m_forcedNextPlaylist = oldItem->entryIndex;
+                    }
+                }
+            }
+
+            int forceStop = 0;
+            if (Player::INSTANCE.GetStopTime() < Player::INSTANCE.GetOrigStopTime()) {
+                forceStop = 1;
+            }
+
+            // Stop whatever is playing, and the next time through this loop we'll
+            switch (Player::INSTANCE.GetStopMethod()) {
+            case 0:
+                Player::INSTANCE.StopGracefully(forceStop);
+                break;
+            case 2:
+                Player::INSTANCE.StopGracefully(forceStop, 1);
+                break;
+            case 1:
+            default:
+                Player::INSTANCE.StopNow(forceStop);
+                break;
+            }
+        } else {
+            // Need to wait for current Scheduled Higher-Priority
+            // item to end until we can play multiple playlists
+            // concurrently
+            return false;
+        }
+    } else if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
+        // We are either paused or stopping already so do nothing
+        return false;
+    }
+
+    LogDebug(VB_SCHEDULE, "Starting Scheduled Playlist:\n");
+    DumpScheduledItem(itemTime, item);
+
+    int position = 0;
+    if (restarted && (getSetting("resumePlaylist") == item->entry->playlist)) {
+        position = getSettingInt("resumePosition");
+
+        SetSetting("resumePlaylist", "");
+        SetSetting("resumePosition", 0);
+    }
+
+    Player::INSTANCE.StartScheduledPlaylist(item->entry->playlist, position,
+                                            item->entry->repeat, item->entryIndex,
+                                            item->entryIndex, // priority is entry index for now
+                                            item->startTime, item->endTime, item->entry->stopType);
+    return true;
+}
+
 void Scheduler::CheckScheduledItems(bool restarted) {
     if (m_schedulerDisabled)
         return;
@@ -443,38 +597,7 @@ void Scheduler::CheckScheduledItems(bool restarted) {
 
     for (auto& itemTime : m_scheduledItems) {
         if (itemTime.first > now) {
-            // Check to see if we should be counting down to the next item
-            bool logItems = false;
-            int diff = itemTime.first - now;
-
-            // Print the countdown more frequently as we get closer
-            if (((diff > 300) && ((diff % 300) == 0)) ||
-                ((diff > 60) && (diff <= 300) && ((diff % 60) == 0)) ||
-                ((diff > 10) && (diff <= 60) && ((diff % 10) == 0)) ||
-                ((diff <= 10))) {
-                logItems = true;
-            }
-
-            if (logItems) {
-                LogDebug(VB_SCHEDULE, "Scheduled Item%s running in %d second%s:\n",
-                         itemTime.second->size() == 1 ? "" : "s",
-                         diff,
-                         diff == 1 ? "" : "s");
-
-                for (auto& item : *itemTime.second) {
-                    if ((item->command == "Start Playlist") &&
-                        (diff < 1000)) {
-                        char tmpStr[27];
-                        std::map<std::string, std::string> keywords;
-                        snprintf(tmpStr, 26, "PLAYLIST_START_TMINUS_%03d", diff);
-                        keywords["PLAYLIST_NAME"] = item->entry->playlist;
-                        CommandManager::INSTANCE.TriggerPreset(tmpStr, keywords);
-                    }
-
-                    DumpScheduledItem(itemTime.first, item);
-                }
-            }
-
+            doCountdown(now, itemTime.first, itemTime.second);
             break; // no need to look at items that are further in the future
         }
 
@@ -483,124 +606,15 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                 continue; // skip over any items that ran already
 
             if (item->command == "Start Playlist") {
-                LogDebug(VB_SCHEDULE, "Checking scheduled 'Start Playlist'\n");
-                DumpScheduledItem(itemTime.first, item);
-
-                if (item->endTime <= now) {
-                    SetItemRan(item, true);
-
-                    // don't try to start if scheduled end has passed
+                if (!doScheduledPlaylist(now, itemTime.first, item, restarted)) {
                     continue;
                 }
-
-                // Don't restart a playlist if it was just force stopped
-                if ((Player::INSTANCE.GetForceStopped()) &&
-                    (Player::INSTANCE.GetOrigStartTime() == item->startTime) &&
-                    (Player::INSTANCE.GetForceStoppedPlaylist() == item->entry->playlist)) {
-                    SetItemRan(item, true);
-                    continue;
-                }
-
-                if (Player::INSTANCE.GetStatus() == FPP_STATUS_PLAYLIST_PLAYING) {
-                    // If we are playing, check to see if we should be playing something else
-
-                    // Check to see if we are already playing this item, for
-                    // instance if we reloaded the schedule while a scheduled
-                    // playlist was playing.
-                    if ((Player::INSTANCE.GetPlaylistName() == item->entry->playlist) &&
-                        (Player::INSTANCE.WasScheduled()) &&
-                        (Player::INSTANCE.GetRepeat() == item->entry->repeat) &&
-                        ((Player::INSTANCE.GetOrigStopTime() == item->endTime) ||
-                         (Player::INSTANCE.GetStopTime() == item->endTime)) &&
-                        (Player::INSTANCE.GetStopMethod() == item->entry->stopType)) {
-                        SetItemRan(item, true);
-                        continue;
-                    }
-
-                    if (!Player::INSTANCE.WasScheduled()) {
-                        // Manually started playlist is running so stop it
-                        while (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
-                            Player::INSTANCE.StopNow(1);
-                        }
-                    } else if (Player::INSTANCE.GetPriority() > item->priority) {
-                        // Lower priority (higher number) playlist is running
-                        // Reset the ran status on the schedule entry for the
-                        // running playlist to false so it shows as 'next' again
-                        std::time_t oldStartTime = Player::INSTANCE.GetOrigStartTime();
-                        std::string playlistName = Player::INSTANCE.GetPlaylistName();
-                        std::vector<ScheduledItem*>* oldItems = m_scheduledItems[oldStartTime];
-                        for (auto& oldItem : *oldItems) {
-                            if ((oldItem->command == "Start Playlist") &&
-                                (oldItem->entry->playlist == playlistName)) {
-                                oldItem->ran = false;
-                                m_forcedNextPlaylist = oldItem->entryIndex;
-                            }
-                        }
-
-                        int forceStop = 0;
-                        if (Player::INSTANCE.GetStopTime() < Player::INSTANCE.GetOrigStopTime()) {
-                            forceStop = 1;
-                        }
-
-                        // Stop whatever is playing, and the next time through this loop we'll
-                        switch (Player::INSTANCE.GetStopMethod()) {
-                        case 0:
-                            Player::INSTANCE.StopGracefully(forceStop);
-                            break;
-                        case 2:
-                            Player::INSTANCE.StopGracefully(forceStop, 1);
-                            break;
-                        case 1:
-                        default:
-                            Player::INSTANCE.StopNow(forceStop);
-                            break;
-                        }
-                    } else {
-                        // Need to wait for current Scheduled Higher-Priority
-                        // item to end until we can play multiple playlists
-                        // concurrently
-                        continue;
-                    }
-                } else if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
-                    // We are either paused or stopping already so do nothing
-                    continue;
-                }
-
-                LogDebug(VB_SCHEDULE, "Starting Scheduled Playlist:\n");
-                DumpScheduledItem(itemTime.first, item);
-
-                int position = 0;
-                if (restarted && (getSetting("resumePlaylist") == item->entry->playlist)) {
-                    position = getSettingInt("resumePosition");
-
-                    SetSetting("resumePlaylist", "");
-                    SetSetting("resumePosition", 0);
-                }
-
-                Player::INSTANCE.StartScheduledPlaylist(item->entry->playlist, position,
-                                                        item->entry->repeat, item->entryIndex,
-                                                        item->entryIndex, // priority is entry index for now
-                                                        item->startTime, item->endTime, item->entry->stopType);
             } else {
                 if (itemTime.first < now) {
                     SetItemRan(item, true);
                     continue; // skip any FPP Commands that are in the past
                 }
-
-                LogDebug(VB_SCHEDULE, "Running scheduled item:\n");
-                DumpScheduledItem(itemTime.first, item);
-                Json::Value cmd;
-                cmd["command"] = item->command;
-                cmd["args"] = item->args;
-                cmd["multisyncCommand"] = item->entry->multisyncCommand;
-                cmd["multisyncHosts"] = item->entry->multisyncHosts;
-
-                std::thread th([this](Json::Value cmd) {
-                    SetThreadName("FPP-RunCmd");
-                    CommandManager::INSTANCE.run(cmd);
-                },
-                               cmd);
-                th.detach();
+                doScheduledCommand(itemTime.first, item);
             }
 
             SetItemRan(item, true);
@@ -683,7 +697,7 @@ void Scheduler::LoadScheduleFromFile(void) {
             (scheduleEntry.enabled) &&
             (scheduleEntry.playlist != "")) {
             std::string warning = std::string("Playlist '") + scheduleEntry.playlist +
-                "' was scheduled but system is running in Remote mode.";
+                                  "' was scheduled but system is running in Remote mode.";
             LogWarn(VB_SCHEDULE, "%s\n", warning.c_str());
             WarningHolder::AddWarning(warning);
             continue;

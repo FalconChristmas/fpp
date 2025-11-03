@@ -106,6 +106,10 @@ private:
 
     void RegisterCommands();
 
+    void doCountdown(const std::time_t& now, const std::time_t& itemTime, std::vector<ScheduledItem*>* items);
+    void doScheduledCommand(const std::time_t& itemTime, ScheduledItem* item);
+    bool doScheduledPlaylist(const std::time_t& now, const std::time_t& itemTime, ScheduledItem* item, bool restarted);
+
     bool m_schedulerDisabled;
     bool m_loadSchedule;
     int m_lastLoadDate;
