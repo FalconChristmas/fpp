@@ -29,7 +29,7 @@
             "image_download_sha256": "502024642ab62e8141e7153716b9283c84108dca0d0b2e9b7ce06862cecc412f",
             "release_date": "2025-09-21",
             "devices": [
-                "pi1-32bit"
+                "pi1-32bit", "beagle-am335"
             ]
         },
         {
@@ -45,7 +45,7 @@
             "image_download_sha256": "827087b53eb6b475fe9032ba23c3d8565cb4d7fef712fb05c0ceabfb3645642e",
             "release_date": "2025-09-21",
             "devices": [
-                "pi1-32bit"
+                "pi1-32bit", "pocketbeagle2-am62"
             ]
         },
         {
@@ -77,7 +77,7 @@
             "image_download_sha256": "448fcb3994702fb15de36c030d4f9fdeec4bd16f1c48e33e83342b99d3ced3a5",
             "release_date": "2025-02-12",
             "devices": [
-                "pi1-32bit"
+                "pi1-32bit", "beagle-am335"
             ]
         }
     ]
