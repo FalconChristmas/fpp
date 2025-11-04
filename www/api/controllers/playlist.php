@@ -218,10 +218,8 @@ function playlist_insert()
 
     $json = json_encode($playlist/*, JSON_PRETTY_PRINT*/);
 
-    $f = fopen($filename, "w");
-    if ($f) {
-        fwrite($f, $json);
-        fclose($f);
+    $f = file_put_contents($filename, $json, LOCK_EX);
+    if ($f != false) {
 
         //Trigger a JSON Configuration Backup
         GenerateBackupViaAPI('Playlist ' . $playlistName . ' was created.');
@@ -325,7 +323,7 @@ function GetPlaylist($playlistName)
 {
     global $settings;
 
-    $jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlistName . ".json");
+    $jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlistName . ".json", LOCK_SH);
 
     return json_decode($jsonStr);
 }
@@ -361,12 +359,8 @@ function playlist_update()
     $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
 
     $json = json_encode($playlist, JSON_PRETTY_PRINT);
-
-    $f = fopen($filename, "w");
-    if ($f) {
-        fwrite($f, $json);
-        fclose($f);
-
+    $f = file_put_contents($filename, $json, LOCK_EX);
+    if ($f != false) {
         //Trigger a JSON Configuration Backup
         GenerateBackupViaAPI('Playlist ' . $playlistName . ' was updated.');
     } else {
@@ -418,7 +412,7 @@ function PlaylistSectionInsertItem()
 
     $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
     if (file_exists($filename)) {
-        $json = file_get_contents($filename);
+        $json = file_get_contents($filename, LOCK_SH);
         $playlist = json_decode($json, true);
 
         if (!isset($playlist[$sectionName])) {
@@ -430,11 +424,8 @@ function PlaylistSectionInsertItem()
 
         $json = json_encode($playlist, JSON_PRETTY_PRINT);
 
-        $f = fopen($filename, "w");
-        if ($f) {
-            fwrite($f, $json);
-            fclose($f);
-
+        $f = file_put_contents($filename, $json, LOCK_EX);
+        if ($f != false) {
             $resp['Status'] = 'OK';
             $resp['Message'] = '';
             $resp['playlistName'] = $playlistName;
