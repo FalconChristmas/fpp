@@ -368,12 +368,12 @@ int Playlist::Load(const std::string& filename) {
             if (src && !src->getVariableHeaders().empty()) {
                 for (auto& head : src->getVariableHeaders()) {
                     if ((head.code[0] == 'm') && (head.code[1] == 'f')) {
-                        if (strchr((char*)&head.data[0], '/')) {
-                            mediaName = (char*)(strrchr((char*)&head.data[0], '/') + 1);
-                        } else if (strchr((char*)&head.data[0], '\\')) {
-                            mediaName = (char*)(strrchr((char*)&head.data[0], '\\') + 1);
+                        if (strchr((char*)&head.getData()[0], '/')) {
+                            mediaName = (char*)(strrchr((char*)&head.getData()[0], '/') + 1);
+                        } else if (strchr((char*)&head.getData()[0], '\\')) {
+                            mediaName = (char*)(strrchr((char*)&head.getData()[0], '\\') + 1);
                         } else {
-                            mediaName = (const char*)&head.data[0];
+                            mediaName = (const char*)&head.getData()[0];
                         }
                         std::string tmpMedia = sanitizeMediaName(mediaName);
                         if (tmpMedia == "") {

@@ -323,7 +323,7 @@ std::string FSEQFile::getMediaFilename(const std::string& fn) {
 std::string FSEQFile::getMediaFilename() const {
     for (auto& a : m_variableHeaders) {
         if (a.code[0] == 'm' && a.code[1] == 'f') {
-            const char* d = (const char*)&a.data[0];
+            const char* d = (const char*)&a.getData()[0];
             return d;
         }
     }
@@ -471,7 +471,22 @@ inline bool isRecognizedBinaryVariableHeader(uint8_t a, uint8_t b) {
     // FC - FPP Commands
     // FE - FPP Effects
     // ED - Extended data
-    return (a == 'F' && b == 'C') || (a == 'F' && b == 'E') || (a == 'E' && b == 'D');
+    // XS - xLight xsq (zstd compressed binary)
+    // XN - xLight xlights_network.xml (zstd compressed binary)
+    // XR - xLight xlights_rgbeffects.xml (zstd compressed binary)
+    return (a == 'F' && b == 'C') || (a == 'F' && b == 'E') || (a == 'E' && b == 'D') || (a == 'X' && b == 'S') || (a == 'X' && b == 'N') || (a == 'X' && b == 'R');
+}
+void FSEQFile::VariableHeader::loadData() const {
+    if (!data.empty() || length == 0 || !fseqFile) {
+        return;
+    }
+
+    // seek to the offset and read the data
+    uint64_t currentPos = fseqFile->tell();
+    fseqFile->seek(offset, SEEK_SET);
+    data.resize(length);
+    fseqFile->read(&data[0], length);
+    fseqFile->seek(currentPos, SEEK_SET);
 }
 
 void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int readIndex) {
@@ -488,7 +503,7 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
         uint8_t code1 = header[readIndex + 1];
         readIndex += VariableCodeSize;
 
-        VariableHeader vheader;
+        VariableHeader vheader(this);
         vheader.code[0] = code0;
         vheader.code[1] = code1;
         if (dataLength <= FSEQ_VARIABLE_HEADER_SIZE) {
@@ -507,12 +522,8 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
             memcpy(&offset, &header[readIndex], 8);
             uint32_t len;
             memcpy(&len, &header[readIndex + 8], 4);
-            vheader.data.resize(len);
 
-            uint64_t t = tell();
-            seek(offset, SEEK_SET);
-            read(&vheader.data[0], len);
-            seek(t, SEEK_SET);
+            vheader.setDataLocation(offset, len);
             readIndex += 12;
         } else if (readIndex + (dataLength - FSEQ_VARIABLE_HEADER_SIZE) > header.size()) {
             // ensure the data length is contained within the header
@@ -526,11 +537,7 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
         } else {
             // log when reading unrecongized variable headers
             dataLength -= FSEQ_VARIABLE_HEADER_SIZE;
-            if (!isRecognizedStringVariableHeader(code0, code1)) {
-                if (!isRecognizedBinaryVariableHeader(code0, code1)) {
-                    LogDebug(VB_SEQUENCE, "Unrecognized VariableHeader code: %c%c, length: %d bytes\n", code0, code1, dataLength);
-                }
-            } else {
+            if (isRecognizedStringVariableHeader(code0, code1)) {
                 // print a warning if the data is not null terminated
                 // this is to assist debugging potential string related issues
                 // the data is not forcibly null terminated to avoid mutating unknown data
@@ -540,10 +547,12 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
                 } else if (header[readIndex + dataLength - 1] != '\0') {
                     LogErr(VB_SEQUENCE, "VariableHeader %c%c data is not NULL terminated!\n", code0, code1);
                 }
+            } else if (!isRecognizedBinaryVariableHeader(code0, code1)) {
+                LogDebug(VB_SEQUENCE, "Unrecognized VariableHeader code: %c%c, length: %d bytes\n", code0, code1, dataLength);
             }
 
-            vheader.data.resize(dataLength);
-            memcpy(&vheader.data[0], &header[readIndex], dataLength);
+            vheader.resizeData(dataLength);
+            memcpy(&vheader.getData()[0], &header[readIndex], dataLength);
 
             LogDebug(VB_SEQUENCE, "Read VariableHeader: %c%c, length: %d bytes\n", vheader.code[0], vheader.code[1], dataLength);
 
@@ -575,7 +584,7 @@ void V1FSEQFile::writeHeader() {
     int headerSize = V1FSEQ_HEADER_SIZE;
     headerSize += m_variableHeaders.size() * FSEQ_VARIABLE_HEADER_SIZE;
     for (auto& a : m_variableHeaders) {
-        headerSize += a.data.size();
+        headerSize += a.getData().size();
     }
 
     // Round to a product of 4 for better memory alignment
@@ -630,11 +639,12 @@ void V1FSEQFile::writeHeader() {
     // Variable headers
     // 4 byte size minimum (2 byte length + 2 byte code)
     for (auto& a : m_variableHeaders) {
-        uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
+        auto& data = a.getData();
+        uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + data.size();
         write2ByteUInt(&header[writePos], len);
         header[writePos + 2] = a.code[0];
         header[writePos + 3] = a.code[1];
-        memcpy(&header[writePos + 4], &a.data[0], a.data.size());
+        memcpy(&header[writePos + 4], &data[0], data.size());
         writePos += len;
     }
 
@@ -816,7 +826,8 @@ public:
                 if (m_variableHeaderOffsets[x] != 0) {
                     uint64_t curEnd = tell();
                     auto& h = m_file->getVariableHeaders()[x];
-                    write(&h.data[0], h.data.size());
+                    auto& data = h.getData();
+                    write(&data[0], data.size());
                     size_t cur = tell();
                     uint64_t off = m_variableHeaderOffsets[x];
                     seek(off, SEEK_SET);
@@ -1560,7 +1571,7 @@ void V2FSEQFile::writeHeader() {
     m_seqChanDataOffset = headerSize;
     uint64_t seqChanDataOffset2 = headerSize;
     for (auto& a : m_variableHeaders) {
-        uint32_t sze = a.data.size() + FSEQ_VARIABLE_HEADER_SIZE;
+        uint32_t sze = a.getDataLength() + FSEQ_VARIABLE_HEADER_SIZE;
         if (a.extendedData) {
             seqChanDataOffset2 += FSEQ_VARIABLE_HEADER_SIZE + 14;
             m_seqChanDataOffset += FSEQ_VARIABLE_HEADER_SIZE + 14;
@@ -1648,7 +1659,7 @@ void V2FSEQFile::writeHeader() {
     int idx = 0;
     m_handler->m_variableHeaderOffsets.resize(m_variableHeaders.size());
     for (auto& a : m_variableHeaders) {
-        uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
+        uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + a.getDataLength();
         bool doExtended = a.extendedData;
         if (!doExtended && forceExtended && len > 18) {
             // longer than the extended header and we need to save space
@@ -1671,12 +1682,13 @@ void V2FSEQFile::writeHeader() {
             memset(&header[writePos], 0, 8);
             m_handler->m_variableHeaderOffsets[idx] = writePos;
             writePos += 8; // file position
-            write4ByteUInt(&header[writePos], a.data.size());
+            write4ByteUInt(&header[writePos], a.getDataLength());
             writePos += 4;
         } else {
+            auto& data = a.getData();
             m_handler->m_variableHeaderOffsets[idx] = 0;
-            memcpy(&header[writePos], &a.data[0], a.data.size());
-            writePos += a.data.size();
+            memcpy(&header[writePos], &data[0], data.size());
+            writePos += data.size();
         }
         ++idx;
     }

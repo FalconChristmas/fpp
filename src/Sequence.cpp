@@ -391,7 +391,8 @@ void Sequence::ProcessVariableHeaders() {
     for (auto& vh : m_seqFile->getVariableHeaders()) {
         if (vh.code[0] == 'F') {
             if (vh.code[1] == 'C' || vh.code[1] == 'E') {
-                uint8_t* data = (uint8_t*)(&vh.data[0]);
+                const std::vector<uint8_t>& vhd = vh.getData();
+                const uint8_t* data = &vhd[0];
                 if (data[0] != 1)
                     continue; // version flag, only understand v1 right now
                 uint32_t* uintData = (uint32_t*)&data[1];
