@@ -182,6 +182,13 @@ int FrameBuffer::FBInit(const Json::Value& config) {
 
 FrameBuffer* FrameBuffer::createFrameBuffer(const Json::Value& config) {
     FrameBuffer* fb = nullptr;
+    std::string device;
+    if (config.isMember("Device")) {
+        device = config["Device"].asString();
+    }
+    
+    LogDebug(VB_CHANNELOUT, "FrameBuffer::createFrameBuffer for device='%s'\n", device.c_str());
+    
 #ifdef USE_X11
     fb = new X11FrameBuffer();
     if (fb->FBInit(config)) {
@@ -199,12 +206,30 @@ FrameBuffer* FrameBuffer::createFrameBuffer(const Json::Value& config) {
     fb = nullptr;
 #endif
 #ifdef HAS_KMS_FB
-    fb = new KMSFrameBuffer();
-    if (fb->FBInit(config)) {
-        return fb;
+    // DPI needs KMS for direct pixel output
+    // For HDMI: Try KMS first for full-resolution displays (better performance)
+    // Small models will fall through to IOCTL which has auto-scaling
+    bool isDPI = (device.find("DPI") != std::string::npos);
+    bool isSmallModel = false;
+    
+    // Check if this is a small model that needs scaling
+    if (config.isMember("Width") && config.isMember("Height")) {
+        int width = config["Width"].asInt();
+        int height = config["Height"].asInt();
+        // Consider anything smaller than 1280x720 as "small" needing potential scaling
+        isSmallModel = (width < 1280 || height < 720);
     }
-    delete fb;
-    fb = nullptr;
+    
+    bool tryKMS = isDPI || device.empty() || !isSmallModel;
+    
+    if (tryKMS) {
+        fb = new KMSFrameBuffer();
+        if (fb->FBInit(config)) {
+            return fb;
+        }
+        delete fb;
+        fb = nullptr;
+    }
 #endif
 #ifdef HAS_IOCTL_FB
     fb = new IOCTLFrameBuffer();
