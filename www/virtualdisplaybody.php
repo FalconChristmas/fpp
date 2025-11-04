@@ -106,6 +106,9 @@
 	var imgHeight;
 	const img = new Image();
 	var clearTimer;
+	var pendingUpdates = [];
+	var animationFrameId = null;
+	var lastFrameTime = 0;
 
 	function initCanvas() {
 		const canvas = document.getElementById('vCanvas');
@@ -154,44 +157,66 @@
 
 		clearTimeout(clearTimer);
 
-		for (i = 0; i < pixels.length; i++) {
-			// color:pixel;pixel;pixel|color:pixel|color:pixel;pixel
-			var data = pixels[i].split(':');
+		// Replace pending update with latest (drop intermediate frames if behind)
+		pendingUpdates = [pixels];
 
-			var rgb = data[0];
+		// Request animation frame if not already pending
+		if (!animationFrameId) {
+			animationFrameId = requestAnimationFrame(renderFrame);
+		}
 
-			var r = base64[rgb.substring(0, 1)];
-			var g = base64[rgb.substring(1, 2)];
-			var b = base64[rgb.substring(2, 3)];
+		// Clear the display after 6 seconds if no more events.  Max update time in test mode is 5 seconds.
+		clearTimer = setTimeout(function () { ctx.drawImage(img, 0, 0, imgWidth, imgHeight); }, 6000);
+	}
 
-			bctx.fillStyle = '#' + r + g + b;
+	function renderFrame(timestamp) {
+		animationFrameId = null;
 
-			// Uncomment to see the incoming color and location data in real time
-			// $('#data').html(bctx.fillStyle + ' => ' + data[1] + '<br>' + $('#data').html().substring(0,500));
+		// Calculate FPS (optional, for debugging)
+		// var fps = 1000 / (timestamp - lastFrameTime);
+		// lastFrameTime = timestamp;
 
-			bctx.lineWidth = 0;
-			bctx.strokeStyle = '#000000';
+		// Process all pending updates in batch
+		while (pendingUpdates.length > 0) {
+			var pixels = pendingUpdates.shift();
 
-			var locs = data[1].split(';');
-			for (j = 0; j < locs.length; j++) {
-				var s = scaleMap[locs[j]];
+			for (i = 0; i < pixels.length; i++) {
+				// color:pixel;pixel;pixel|color:pixel|color:pixel;pixel
+				var data = pixels[i].split(':');
 
-				// Draw a circle if size is greater than one pixel
-				if (s.size > 1) {
-					bctx.beginPath();
-					bctx.arc(s.x, s.y, parseInt(s.size / 2.0), 0, 2 * Math.PI);
-					bctx.stroke();
-					bctx.fill();
-				} else {
-					bctx.fillRect(s.x, s.y, 1, 1);
+				var rgb = data[0];
+
+				var r = base64[rgb.substring(0, 1)];
+				var g = base64[rgb.substring(1, 2)];
+				var b = base64[rgb.substring(2, 3)];
+
+				bctx.fillStyle = '#' + r + g + b;
+
+				// Uncomment to see the incoming color and location data in real time
+				// $('#data').html(bctx.fillStyle + ' => ' + data[1] + '<br>' + $('#data').html().substring(0,500));
+
+				bctx.lineWidth = 0;
+				bctx.strokeStyle = '#000000';
+
+				var locs = data[1].split(';');
+				for (j = 0; j < locs.length; j++) {
+					var s = scaleMap[locs[j]];
+
+					// Draw a circle if size is greater than one pixel
+					if (s.size > 1) {
+						bctx.beginPath();
+						bctx.arc(s.x, s.y, parseInt(s.size / 2.0), 0, 2 * Math.PI);
+						bctx.stroke();
+						bctx.fill();
+					} else {
+						bctx.fillRect(s.x, s.y, 1, 1);
+					}
 				}
 			}
 		}
 
+		// Single screen update per frame
 		ctx.drawImage(buffer, 0, 0);
-
-		// Clear the display after 6 seconds if no more events.  Max update time in test mode is 5 seconds.
-		clearTimer = setTimeout(function () { ctx.drawImage(img, 0, 0, imgWidth, imgHeight); }, 6000);
 	}
 
 	function startSSE() {

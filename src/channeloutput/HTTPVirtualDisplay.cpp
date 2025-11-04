@@ -52,6 +52,7 @@ HTTPVirtualDisplayOutput::HTTPVirtualDisplayOutput(unsigned int startChannel,
     VirtualDisplayBaseOutput(startChannel, channelCount),
     m_port(HTTPVIRTUALDISPLAYPORT),
     m_screenSize(0),
+    m_updateInterval(1),  // Default: send every frame for smooth playback
     m_socket(-1),
     m_running(true),
     m_connListChanged(true),
@@ -119,6 +120,13 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
 
     if (config.isMember("port"))
         m_port = config["port"].asInt();
+
+    if (config.isMember("updateInterval"))
+        m_updateInterval = config["updateInterval"].asInt();
+    
+    // Clamp to reasonable values (1-10 frames)
+    if (m_updateInterval < 1) m_updateInterval = 1;
+    if (m_updateInterval > 10) m_updateInterval = 10;
 
     // Signal base class to allocate m_virtualDisplay buffer
     m_width = -1;
@@ -326,6 +334,7 @@ int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, std::string data) {
  */
 void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
     static int id = 0;
+    static bool lastFrameWasBlack = false;
 
     LogExcess(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::PrepData(%p)\n",
               channelData);
@@ -336,6 +345,20 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
         if (!m_connList.size())
             return;
     }
+
+    // Check if all channel data is zero (sequence ended/stopped)
+    bool allBlack = true;
+    for (int i = 0; i < m_pixels.size() && allBlack; i++) {
+        unsigned char r, g, b;
+        GetPixelRGB(m_pixels[i], channelData, r, g, b);
+        if (r != 0 || g != 0 || b != 0) {
+            allBlack = false;
+        }
+    }
+
+    // If transitioning to black, force update of all pixels
+    bool forceBlackUpdate = (allBlack && !lastFrameWasBlack);
+    lastFrameWasBlack = allBlack;
 
     std::string data;
     int pixelsChanged = 0;
@@ -365,7 +388,9 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
         g = g >> 2;
         b = b >> 2;
 
-        if ((m_virtualDisplay[m_pixels[i].r] != r) ||
+        // Send pixels that changed OR when forcing black update (sequence ended)
+        if (forceBlackUpdate ||
+            (m_virtualDisplay[m_pixels[i].r] != r) ||
             (m_virtualDisplay[m_pixels[i].g] != g) ||
             (m_virtualDisplay[m_pixels[i].b] != b)) {
             m_virtualDisplay[m_pixels[i].r] = r;
@@ -427,8 +452,13 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
 
         LogExcess(VB_CHANNELOUT, "PixelsChanged: %d, Colors: %d, Data Size: %d\n",
                   pixelsChanged, colors.size(), m_sseData.size());
-    } else
-        m_sseData = "";
+    } else {
+        // Send empty update to keep connection alive and maintain frame timing
+        m_sseData = "id: ";
+        m_sseData += std::to_string(id) + "\r\n";
+        m_sseData += "event: ping\r\n";
+        m_sseData += "data: \r\n\r\n";
+    }
 
     id++;
 }
