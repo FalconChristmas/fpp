@@ -183,24 +183,33 @@ int VirtualDisplayOutput::SendData(unsigned char* channelData) {
     int tx = 0;
     int ty = 0;
     int radius = m_pixelSize >= 2 ? m_pixelSize / 2 : 1;
+    
+    // Pre-calculate radius squared to avoid sqrt() in hot loop
+    int radiusSquared = radius * radius;
 
     for (int i = 0; i < m_pixels.size(); i++) {
         pixel = m_pixels[i];
 
         GetPixelRGB(pixel, channelData, r, g, b);
 
-        for (int xo = 0 - radius; xo < radius; xo++) {
-            for (int yo = 0 - radius; yo < radius; yo++) {
-                if (std::sqrt(xo * xo + yo * yo) > radius)
-                    continue;
+        // Optimize: For single pixel (radius=1), skip the expensive nested loops
+        if (radius == 1) {
+            m_model->setPixelValue(pixel.xs, pixel.ys, r, g, b);
+        } else {
+            for (int xo = 0 - radius; xo < radius; xo++) {
+                for (int yo = 0 - radius; yo < radius; yo++) {
+                    // Replace expensive sqrt() with integer multiplication
+                    if ((xo * xo + yo * yo) > radiusSquared)
+                        continue;
 
-                tx = pixel.xs + xo;
-                ty = pixel.ys + yo;
+                    tx = pixel.xs + xo;
+                    ty = pixel.ys + yo;
 
-                if ((tx < 0) || (ty < 0) || (tx > (m_width - 1)) || (ty > (m_height - 1)))
-                    continue;
+                    if ((tx < 0) || (ty < 0) || (tx > (m_width - 1)) || (ty > (m_height - 1)))
+                        continue;
 
-                m_model->setPixelValue(tx, ty, r, g, b);
+                    m_model->setPixelValue(tx, ty, r, g, b);
+                }
             }
         }
     }
