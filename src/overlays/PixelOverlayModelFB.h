@@ -24,4 +24,5 @@ public:
 
 private:
     FrameBuffer* fb = nullptr;
+    bool displayEnabled = false;
 };

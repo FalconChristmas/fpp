@@ -35,6 +35,12 @@ void PixelOverlayModelFB::doOverlay(uint8_t* channels) {
     if (!fb)
         return;
 
+    // Always enable display on first call, even if no dirty buffer
+    if (!displayEnabled) {
+        fb->EnableDisplay();
+        displayEnabled = true;
+    }
+
     if (children.empty() && !dirtyBuffer)
         return;
 

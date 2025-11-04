@@ -148,11 +148,10 @@ int VirtualDisplayOutput::Init(Json::Value config) {
     if (!result)
         return 0;
 
-    // Put the background image onto the model.
+    // Put the background image onto the model and always call doOverlay
+    // to ensure display is enabled (even if model state is not Disabled)
     m_model->setData(m_virtualDisplay);
-    if (m_model->getState() == 0) {
-        m_model->doOverlay(m_virtualDisplay);
-    }
+    m_model->doOverlay(m_virtualDisplay);
     return 1;
 }
 
