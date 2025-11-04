@@ -52,7 +52,34 @@ IOCTLFrameBuffer::~IOCTLFrameBuffer() {
 }
 
 int IOCTLFrameBuffer::InitializeFrameBuffer() {
-    std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/" + m_device;
+    std::string devicePath = m_device;
+    
+    // If device is a DRM connector name (e.g., "HDMI-A-1"), map to framebuffer device
+    if (m_device.find("HDMI") != std::string::npos || 
+        m_device.find("DPI") != std::string::npos || 
+        m_device.find("DisplayPort") != std::string::npos) {
+        // For HDMI, use /dev/fb0 (primary framebuffer console)
+        devicePath = "fb0";
+        LogDebug(VB_CHANNELOUT, "IOCTLFrameBuffer: Mapping DRM connector '%s' to '%s'\n", 
+                 m_device.c_str(), devicePath.c_str());
+    }
+    
+    std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/" + devicePath;
+    
+    // For fb0, disable console and set mode before opening
+    if (devicePath == "fb0" && m_width > 0 && m_height > 0) {
+        // Disable console to allow mode change
+        int ttyFd = open("/dev/console", O_RDWR);
+        if (ttyFd > 0) {
+            ioctl(ttyFd, KDSETMODE, KD_GRAPHICS);
+            close(ttyFd);
+        }
+        
+        // DON'T change the framebuffer mode - keep it at native resolution
+        // This allows auto-scaling to work properly
+        // The code below will detect if we need to scale (e.g. 192x108 → 1920x1080)
+    }
+    
     m_fbFd = open(devString.c_str(), O_RDWR);
     if (!m_fbFd) {
         LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
@@ -101,21 +128,34 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
         LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
     }
 
+    // Save actual framebuffer dimensions before we potentially override them
+    int actualFbWidth = m_vInfo.xres;
+    int actualFbHeight = m_vInfo.yres;
+
     if (m_width && m_height) {
-        m_vInfo.xres = m_width;
-        m_vInfo.yres = m_height;
+        // DON'T change the actual resolution - keep framebuffer at native resolution
+        // Only set virtual resolution for panning/double buffering
+        // m_vInfo.xres = m_width;  // REMOVED - don't change visible resolution
+        // m_vInfo.yres = m_height;  // REMOVED - don't change visible resolution
     } else {
         m_width = m_vInfo.xres;
         m_height = m_vInfo.yres;
     }
-    m_vInfo.xres_virtual = m_width;
-    m_vInfo.yres_virtual = m_height * m_pages;
+    
+    LogDebug(VB_CHANNELOUT, "IOCTLFrameBuffer: Before FBIOPUT - xres: %d, yres: %d, xres_virtual: %d, yres_virtual: %d\n",
+             m_vInfo.xres, m_vInfo.yres, m_vInfo.xres_virtual, m_vInfo.yres_virtual);
+    
+    m_vInfo.xres_virtual = actualFbWidth;  // Use actual FB width for virtual
+    m_vInfo.yres_virtual = actualFbHeight * m_pages;  // Use actual FB height for virtual
     m_vInfo.yoffset = 0;
 
     if (m_autoSync) {
         m_cPage = 1; // Drawing will be on the second page first
         m_pPage = 1; // Producer gets Page(true) then NextPage(true) after checking if page is clean
     }
+
+    LogDebug(VB_CHANNELOUT, "IOCTLFrameBuffer: Setting resolution to %dx%d (virtual: %dx%d)\n",
+             m_vInfo.xres, m_vInfo.yres, m_vInfo.xres_virtual, m_vInfo.yres_virtual);
 
     if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
         m_vInfo.yres_virtual = m_height;
@@ -137,6 +177,10 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
         close(m_fbFd);
         return 0;
     }
+    
+    LogDebug(VB_CHANNELOUT, "IOCTLFrameBuffer: After FBIOPUT - line_length: %d, xres: %d, yres: %d, xres_virtual: %d, yres_virtual: %d\n",
+             m_fInfo.line_length, m_vInfo.xres, m_vInfo.yres, m_vInfo.xres_virtual, m_vInfo.yres_virtual);
+    
     m_bpp = m_vInfo.bits_per_pixel;
     if (devString == "/dev/fb0") {
         m_ttyFd = open("/dev/console", O_RDWR);
@@ -174,6 +218,22 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
     }
     if (m_pages >= 3) {
         m_pageBuffers[2] = m_buffer + 2 * m_pageSize;
+    }
+    
+    // Auto-detect pixel scaling if actual framebuffer is larger than requested
+    if (m_pixelSize == 0 && m_width > 0 && m_height > 0) {
+        // Check if we have a resolution mismatch (framebuffer bigger than model)
+        if (actualFbWidth > m_width && actualFbHeight > m_height) {
+            int xScale = actualFbWidth / m_width;
+            int yScale = actualFbHeight / m_height;
+            
+            // Use the smaller scale factor to ensure we fit
+            if (xScale == yScale && xScale > 1) {
+                m_pixelSize = xScale;
+                LogInfo(VB_CHANNELOUT, "IOCTLFrameBuffer: Auto-detected pixelSize=%d (fb: %dx%d, model: %dx%d)\n",
+                        m_pixelSize, actualFbWidth, actualFbHeight, m_width, m_height);
+            }
+        }
     }
 
     if (m_bpp == 16) {
