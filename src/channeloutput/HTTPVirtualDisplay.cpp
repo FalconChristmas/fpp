@@ -302,13 +302,19 @@ void HTTPVirtualDisplayOutput::SelectThread(void) {
  */
 int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, std::string data) {
     int len = data.size();
-    std::stringstream stream;
     std::string sendData;
-
-    stream << std::hex << len;
-    sendData = stream.str();
+    
+    // Pre-allocate to avoid reallocations
+    sendData.reserve(20 + len); // hex length + delimiters + data
+    
+    // Convert length to hex directly into string
+    char hexBuf[16];
+    snprintf(hexBuf, sizeof(hexBuf), "%x", len);
+    
+    sendData = hexBuf;
     sendData += "\r\n";
-    sendData += data + "\r\n";
+    sendData += data;
+    sendData += "\r\n";
 
     write(fd, sendData.c_str(), sendData.size());
 
@@ -341,7 +347,7 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
     char loc[7];
     int y;
     VirtualDisplayPixel pixel;
-    char base64[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
+    static const char* const base64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
 
     //	if ((id % 2) == 0)
     //	{
@@ -396,15 +402,24 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
     }
 
     if (colors.size()) {
+        // Pre-allocate to avoid reallocations during string building
+        m_sseData.clear();
+        m_sseData.reserve(128 + colors.size() * 16); // Estimate: header + avg color data
+        
         m_sseData = "id: ";
         m_sseData += std::to_string(id) + "\r\n";
         m_sseData += "event: message\r\n";
         m_sseData += "data: ";
 
         std::string data2;
+        data2.reserve(colors.size() * 16); // Pre-allocate for color data
+        
+        bool first = true;
         for (const auto& pair : colors) {
-            if (data2 != "")
+            if (!first)
                 data2 += "|";
+            else
+                first = false;
 
             data2 += pair.second;
         }
