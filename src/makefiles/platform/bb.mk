@@ -21,7 +21,7 @@ BUILD_FPPCAPEDETECT=1
 BUILD_FPPRTC=1
 BUILD_FPPINIT=1
 
-LDFLAGS=-lrt -lpthread
+LDFLAGS+=-lrt -lpthread
 SHLIB_EXT=so
 
 ARMV := $(shell uname -m 2> /dev/null)

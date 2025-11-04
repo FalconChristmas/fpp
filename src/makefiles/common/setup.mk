@@ -75,8 +75,15 @@ else
     CXXFLAGS += -std=c++20
 endif
 
-
-
+# If the mold or gold linker is availabe and we're using g++, we'll
+# go ahead and use it as it's MUCH faster
+ifeq '$(CXXCOMPILER)' 'g++'
+ifneq ($(wildcard /usr/bin/ld.mold),)
+LDFLAGS += -fuse-ld=mold
+else ifneq ($(wildcard /usr/bin/ld.gold),)
+LDFLAGS += -fuse-ld=gold
+endif
+endif
 
 
 CFLAGS+=$(OPTIMIZE_FLAGS) -pipe \
