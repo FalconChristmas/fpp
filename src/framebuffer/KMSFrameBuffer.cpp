@@ -252,28 +252,38 @@ void KMSFrameBuffer::DisableDisplay() {
 }
 
 void KMSFrameBuffer::EnableDisplay() {
+    LogDebug(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay() called for %s\n", m_connector ? m_connector->fullname().c_str() : "null");
     std::unique_lock<std::mutex> lock(mediaOutputLock);
     if (mediaOutputStatus.mediaLoading) {
+        LogDebug(VB_CHANNELOUT, "  Skipping: media is loading\n");
         return;
     }
     if (mediaOutputStatus.output != m_connector->fullname()) {
+        LogDebug(VB_CHANNELOUT, "  mediaOutputStatus.output='%s', proceeding with enable\n", mediaOutputStatus.output.c_str());
         int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
         if (im == 0) {
             if (m_crtc && m_plane) {
                 try {
+                    LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay: setting mode for %s\n", m_connector->fullname().c_str());
                     m_crtc->set_mode(m_connector, m_mode);
                 } catch (const std::exception& ex) {
                     LogErr(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay set_mode exception: %s\n", ex.what());
                 }
                 try {
+                    LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay: setting plane for %s\n", m_connector->fullname().c_str());
                     m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
                     m_displayEnabled = true;
+                    LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay: SUCCESS for %s\n", m_connector->fullname().c_str());
                 } catch (const std::exception& ex) {
                     LogErr(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay set_plane exception: %s\n", ex.what());
                 }
             }
             ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
+        } else {
+            LogWarn(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay: Failed to get DRM master (ioctl returned %d)\n", im);
         }
+    } else {
+        LogDebug(VB_CHANNELOUT, "  Skipping: mediaOutputStatus.output matches connector\n");
     }
 }
 

@@ -396,12 +396,18 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
             }
 
             try {
+                LogInfo(VB_CHANNELOUT, "Loading output plugin: type=%s, libname=%s\n", type.c_str(), ("fpp-co-" + libnamePfx + type).c_str());
                 FPPPlugins::ChannelOutputPlugin* p = dynamic_cast<FPPPlugins::ChannelOutputPlugin*>(PluginManager::INSTANCE.findPlugin(libnamePfx + type, "fpp-co-" + libnamePfx + type));
                 if (p) {
+                    LogInfo(VB_CHANNELOUT, "Plugin found, creating output: start=%d, count=%d\n", start, count);
                     channelOutput->output = p->createChannelOutput(start, count);
+                } else {
+                    LogWarn(VB_CHANNELOUT, "Plugin NOT found for type: %s\n", type.c_str());
                 }
                 if (channelOutput->output) {
+                    LogInfo(VB_CHANNELOUT, "Calling Init() on %s output\n", type.c_str());
                     if (channelOutput->output->Init(outputs[c])) {
+                        LogInfo(VB_CHANNELOUT, "Init succeeded, adding to channel outputs\n");
                         addChannelOutput(channelOutput);
                         LogDebug(VB_CHANNELOUT, "Configured %s Channel Output\n", type.c_str());
                         channelOutput = nullptr;

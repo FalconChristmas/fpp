@@ -145,6 +145,7 @@ protected:
 
     volatile bool m_runLoop = false;
     volatile bool m_imageReady = false;
+    bool m_displayEnabledOnce = false;  // Track if EnableDisplay() has been called
 
     std::thread* m_drawThread = nullptr;
     bool m_autoSync = false;
