@@ -38,6 +38,7 @@ private:
 
     int m_port;
     int m_screenSize;
+    int m_updateInterval;  // Send update every N frames (1=every frame, 2=every other frame, etc.)
 
     int m_socket;
 
