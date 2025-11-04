@@ -815,8 +815,20 @@ static bool checkUnpartitionedSpace() {
                 setRawSetting("storageDevice", osd);
             }
         }
-
+        std::string fs = "0";
+        if (FileExists(SD_CARD_DEVICE)) {
+            fs = execAndReturn("/usr/sbin/sfdisk -F " + SD_CARD_DEVICE + " | tail -n 1");
+            TrimWhiteSpace(fs);
+            auto splits = split(fs, ' ');
+            fs = splits.back();
+            if (endsWith(fs, "G")) {
+                fs = fs.substr(0, fs.size() - 1);
+            } else {
+                fs = "0";
+            }
+        }
         if (FileExists("/boot/firmware/fpp_expand_rootfs") || FileExists("/boot/fpp_expand_rootfs")) {
+            fs = "0";
             std::string rootPart = execAndReturn("/usr/bin/findmnt -n -o SOURCE /");
             TrimWhiteSpace(rootPart);
             if (startsWith(rootPart, SD_CARD_DEVICE)) {
@@ -832,18 +844,6 @@ static bool checkUnpartitionedSpace() {
             }
             unlink("/boot/firmware/fpp_expand_rootfs");
             unlink("/boot/fpp_expand_rootfs");
-        }
-        std::string fs = "0";
-        if (FileExists(SD_CARD_DEVICE)) {
-            fs = execAndReturn("/usr/sbin/sfdisk -F " + SD_CARD_DEVICE + " | tail -n 1");
-            TrimWhiteSpace(fs);
-            auto splits = split(fs, ' ');
-            fs = splits.back();
-            if (endsWith(fs, "G")) {
-                fs = fs.substr(0, fs.size() - 1);
-            } else {
-                fs = "0";
-            }
         }
         std::string oldfs;
         getRawSetting("UnpartitionedSpace", oldfs);
