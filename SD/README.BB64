@@ -44,27 +44,13 @@ rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1-* /opt/source/dtb-6.6-* /opt/sourc
 apt-get remove bbb.io-kernel-6.16-k3 bbb.io-kernel-6.16-k3-am62 linux-image-$(uname -r)
 apt-get install bbb.io-kernel-6.17-k3
 
-reboot
-
-# The in-kernel driver for the standard USB -> Gigabit device we use has some reporting issues and
+# The "default" driver for the standard USB->Gigabit device we use has some reporting issues and
 # always report half duplex mode and sometimes only 100MB connection (despite actualy gigabit connection
 # as verified by unifi and speed tests) and other issues which can cause warnings to pop up (for
-# colorlights that need gigabit).  We'll install the driver directly from Asix and use it.
-apt-get install -y linux-headers-$(uname -r)
-cd /opt
-curl "https://www.asix.com.tw/en/support/download/file/1943?time=1748550560053" --output asix.tar.bz2
-tar -xjf asix.tar.bz2
-mv /lib/modules/$(uname -r)/kernel/drivers/net/usb/ax88179_178a.ko.xz /lib/modules/$(uname -r)/kernel/drivers/net/usb/ax88179_178a.ko.xz.old
-cd ASIX_USB_NIC_Linux_Driver_Source_v3.5.0
-make
-make install
-cd ..
-rm -rf ASIX_USB_NIC_Linux_Driver_Source_v3.5.0
+# colorlights that need gigabit).  Setup to use the specific module for it.
 cat > /etc/udev/rules.d/99-asix.rules << EOF
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0b95", ATTR{idProduct}=="1790", ATTR{bConfigurationValue}!="1", ATTR{bConfigurationValue}="1"
 EOF
-rm  asix.tar.bz2
-apt-get remove -y --autoremove linux-headers-$(uname -r)
 
 #remove some unneeded things to clear up space
 rm -rf /opt/bb-code-server
