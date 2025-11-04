@@ -9,8 +9,8 @@ pinctrl: src/AM6232.o src/Ball.o src/PocketBeagle2.o src/ConfigPin.o src/Pin.o
 	chmod +s pinctrl
 
 fpp-base-overlay.dtb: fpp-base-overlay.dts
-	cpp -I/opt/source/dtb-6.12-Beagle/include/ -I/opt/source/dtb-6.12-Beagle/src/arm64/ti/ -nostdinc -undef -x assembler-with-cpp fpp-base-overlay.dts > .fpp-base-overlay.dts
-	dtc --include /opt/source/dtb-6.12-Beagle/include/ --include /opt/source/dtb-6.12-Beagle/src/arm64/ti/ -O dtb -o fpp-base-overlay.dtb .fpp-base-overlay.dts	
+	cpp -I/opt/source/dtb-6.17.x/include/ -I/opt/source/dtb-6.17.x/src/arm64/ti/ -nostdinc -undef -x assembler-with-cpp fpp-base-overlay.dts > .fpp-base-overlay.dts
+	dtc --include /opt/source/dtb-6.17.x/include/ --include /opt/source/dtb-6.17.x/src/arm64/ti/ -O dtb -o fpp-base-overlay.dtb .fpp-base-overlay.dts	
 	rm .fpp-base-overlay.dts	
 
 fpp-cape-overlay.dtb: fpp-cape-overlay.dts

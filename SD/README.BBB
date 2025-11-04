@@ -48,7 +48,6 @@ apt-get install systemd-resolved
 # This MAY cause the beagle to change IP addresses, reboot to get things to settle and continue
 rm -f /etc/systemd/network/50-default.network
 wget -4 -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
-sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' /etc/systemd/network/50-default.network
 
 #this may "hang" as it may grab a different IP address.  You may need to log back in
 systemctl reload systemd-networkd

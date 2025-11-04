@@ -58,19 +58,19 @@
 };
 
 &main_uart1 {
-	status = "ok";
+	status = "okay";
 };
 &main_uart2 {
-	status = "ok";
+	status = "okay";
 };
 &main_uart3 {
-	status = "ok";
+	status = "okay";
 };
 &main_uart4 {
-	status = "ok";
+	status = "okay";
 };
 &main_uart5 {
-	status = "ok";
+	status = "okay";
 };
 
 

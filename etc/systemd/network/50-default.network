@@ -6,7 +6,7 @@ RequiredForOnline=no
 
 [Network]
 DHCP=ipv4
-LinkLocalAddressing=fallback
+LinkLocalAddressing=yes
 
 [DHCPv4]
 ClientIdentifier=mac
