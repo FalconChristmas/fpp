@@ -833,7 +833,9 @@ static bool checkUnpartitionedSpace() {
             TrimWhiteSpace(rootPart);
             if (startsWith(rootPart, SD_CARD_DEVICE)) {
                 std::string lastPartNum = execAndReturn("/usr/sbin/parted " + SD_CARD_DEVICE + " -ms unit s p | tail -n 1 | cut -f 1 -d:");
+                TrimWhiteSpace(lastPartNum);
                 std::string startPos = execAndReturn("/usr/sbin/parted " + SD_CARD_DEVICE + " -ms unit s p | grep \"^" + lastPartNum + "\" | cut -f 2 -d: | sed 's/[^0-9]//g'");
+                TrimWhiteSpace(startPos);
                 std::string fdiskInstructions = "p\nd\n" + lastPartNum + "\nn\np\n" + lastPartNum + "\n" + startPos + "\n\np\nw\n";
                 PutFileContents("/tmp/fdisk.cmds", fdiskInstructions);
                 exec("/usr/sbin/fdisk " + SD_CARD_DEVICE + " < /tmp/fdisk.cmds");
