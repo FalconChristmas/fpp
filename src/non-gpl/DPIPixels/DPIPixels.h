@@ -62,6 +62,7 @@ private:
 
     std::vector<PixelString*> pixelStrings;
     int bitPos[24];
+    uint32_t bitMask[24];  // Pre-calculated bitmasks for performance
 
     FrameBuffer* fb = nullptr;
     int fbPage = -1;

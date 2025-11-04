@@ -197,10 +197,12 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
             if (pinName[0] == 'P') {
                 bitPos[i] = GetDPIPinBitPosition(pinName);
+                bitMask[i] = POSITION_TO_BITMASK(bitPos[i]);  // Pre-calculate bitmask
 
                 outputPinMap.push_back(pinName);
             } else {
                 outputPinMap.push_back("");
+                bitMask[i] = 0;  // No output on this string
             }
         } else if (root["outputs"][i].isMember("sharedOutput")) {
             std::string oPin = outputPinMap[root["outputs"][i]["sharedOutput"].asInt()];
@@ -874,7 +876,7 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint8_t* rowData, int maxString) {
                     if (oindex != -1 && onOffMap) {
                         int strPixel = (protoBitOnLine / 8); // Current pixel in string
                         if (onOffMap[strPixel * stringCount + s]) {
-                            firstPixel |= POSITION_TO_BITMASK(oindex);
+                            firstPixel |= bitMask[s];  // Use pre-calculated bitmask
                         }
                     }
                 }
@@ -886,9 +888,8 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint8_t* rowData, int maxString) {
         } else {
             firstPixel = latchPinMask; // Will be 0x000000 when not using latches
             for (int s = 0; s < maxString; s++) {
-                oindex = bitPos[s];
-                if (oindex != -1) {
-                    firstPixel |= POSITION_TO_BITMASK(oindex);
+                if (bitPos[s] != -1) {
+                    firstPixel |= bitMask[s];  // Use pre-calculated bitmask
                 }
             }
         }
@@ -908,7 +909,7 @@ void DPIPixelsOutput::OutputPixelRowWS281x(uint8_t* rowData, int maxString) {
             oindex = bitPos[s];
             if (oindex != -1) {
                 if (rowData[s] & (0x80 >> bt))
-                    onOff |= POSITION_TO_BITMASK(oindex);
+                    onOff |= bitMask[s];  // Use pre-calculated bitmask
             }
         }
 
