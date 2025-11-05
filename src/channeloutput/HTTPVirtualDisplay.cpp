@@ -346,19 +346,29 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
             return;
     }
 
-    // Check if all channel data is zero (sequence ended/stopped)
-    bool allBlack = true;
-    for (int i = 0; i < m_pixels.size() && allBlack; i++) {
-        unsigned char r, g, b;
-        GetPixelRGB(m_pixels[i], channelData, r, g, b);
-        if (r != 0 || g != 0 || b != 0) {
-            allBlack = false;
+    // Fast black detection - check if all channel data is zero (sequence ended/stopped)
+    // Only do this check occasionally to reduce CPU overhead
+    static int blackCheckCounter = 0;
+    bool allBlack = false;
+    bool forceBlackUpdate = false;
+    
+    // Check for black every 10th frame to reduce CPU, but always check if last frame was black
+    // to catch the transition back to color quickly
+    if (lastFrameWasBlack || (++blackCheckCounter >= 10)) {
+        blackCheckCounter = 0;
+        allBlack = true;
+        for (int i = 0; i < m_pixels.size() && allBlack; i++) {
+            unsigned char r, g, b;
+            GetPixelRGB(m_pixels[i], channelData, r, g, b);
+            if (r != 0 || g != 0 || b != 0) {
+                allBlack = false;
+            }
         }
+        
+        // If transitioning to black, force update of all pixels
+        forceBlackUpdate = (allBlack && !lastFrameWasBlack);
+        lastFrameWasBlack = allBlack;
     }
-
-    // If transitioning to black, force update of all pixels
-    bool forceBlackUpdate = (allBlack && !lastFrameWasBlack);
-    lastFrameWasBlack = allBlack;
 
     std::string data;
     int pixelsChanged = 0;
@@ -371,13 +381,6 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
     int y;
     VirtualDisplayPixel pixel;
     static const char* const base64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
-
-    //	if ((id % 2) == 0)
-    //	{
-    //		id++;
-    //
-    //		return m_channelCount;
-    //	}
 
     for (int i = 0; i < m_pixels.size(); i++) {
         GetPixelRGB(m_pixels[i], channelData, r, g, b);
