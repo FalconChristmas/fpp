@@ -1,49 +1,49 @@
 {
     "os_list": [
         {
-            "name": "FPP v9.2 Pi",
+            "name": "FPP v9.3 Pi",
             "description": "Falcon Player for all RPi models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.2/FPP-v9.2-Pi.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.3/FPP-v9.3-Pi.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 7130316800,
-            "extract_sha256": "5b0b71dae53cbe698f78aa13099d5e8d882cffee06f2bfa44444846fe4d561a9",
-            "image_download_size": 1746899263,
-            "image_download_sha256": "eba1baf5dd372a74849a33b83bc39bec3123716cb79de41c50a746bf4c7ea528",
-            "release_date": "2025-09-21",
+            "extract_sha256": "a454b163b0544986e190952f213da5c7981f96d1da36277976cd9de43a7245d1",
+            "image_download_size": 1532621695,
+            "image_download_sha256": "f1e93cb6ac89c5ce293639fbc00d3b922d313e9f7b107775873363bf44023a42",
+            "release_date": "2025-11-05",
             "devices": [
                 "pi5-32bit", "pi4-32bit", "pi3-32bit", "pi2-32bit", "pi1-32bit"
             ]
         },
         {
-            "name": "FPP v9.2 BBB",
-            "description": "Falcon Player for all BeagleBone models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.2/FPP-v9.2-BBB.img.zip",
+            "name": "FPP v9.3 BBB",
+            "description": "Falcon Player for all BB models",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.3/FPP-v9.3-BBB.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 3745513472,
-            "extract_sha256": "0234dac382e6502acd327283ef3b3834c21094e146d6d6071e91d323fffcb72b",
-            "image_download_size": 1042181151,
-            "image_download_sha256": "502024642ab62e8141e7153716b9283c84108dca0d0b2e9b7ce06862cecc412f",
-            "release_date": "2025-09-21",
+            "extract_sha256": "7d221853bb4e0ce72cf5edbc78543a542de106ec26457162be1739ac140ce261",
+            "image_download_size": 1024468789,
+            "image_download_sha256": "9591ed8d749bc993bb62f234eaf789968a696cbdb5d236ea99ccd3f89c0685c8",
+            "release_date": "2025-11-05",
             "devices": [
                 "pi1-32bit", "beagle-am335"
             ]
         },
         {
-            "name": "FPP v9.2 BB64/PocketBeagle2",
-            "description": "Falcon Player for PocketBeagle2",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.2/FPP-v9.2-BB64.img.zip",
+            "name": "FPP v9.3 BB64/PB2",
+            "description": "Falcon Player for PB2",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/9.3/FPP-v9.3-BB64.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 8178892800,
-            "extract_sha256": "48f712a36dcbcb968668f2dcc01d620222067bf6f528dfb5b6a37a85dc3001db",
-            "image_download_size": 1392503306,
-            "image_download_sha256": "827087b53eb6b475fe9032ba23c3d8565cb4d7fef712fb05c0ceabfb3645642e",
-            "release_date": "2025-09-21",
+            "extract_sha256": "e2559f119acab713be9fd9fc8649e8eba5e08605fbadd927ad1d4e0529d59530",
+            "image_download_size": 1481609871,
+            "image_download_sha256": "0835070d83350073a2a1b91153bfa54e65a88c37409907e3949fce6a8c164e1d",
+            "release_date": "2025-11-05",
             "devices": [
                 "pi1-32bit", "pocketbeagle2-am62"
             ]
