@@ -17,8 +17,8 @@
             ]
         },
         {
-            "name": "FPP v9.3 BBB",
-            "description": "Falcon Player for all BB models",
+            "name": "FPP v9.3 BBB/PB",
+            "description": "Falcon Player for BBB/PB models",
             "url": "https://github.com/FalconChristmas/fpp/releases/download/9.3/FPP-v9.3-BBB.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
@@ -34,7 +34,7 @@
         },
         {
             "name": "FPP v9.3 BB64/PB2",
-            "description": "Falcon Player for PB2",
+            "description": "Falcon Player for BBB64/PB2 models",
             "url": "https://github.com/FalconChristmas/fpp/releases/download/9.3/FPP-v9.3-BB64.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
