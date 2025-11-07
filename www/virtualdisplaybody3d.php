@@ -167,12 +167,35 @@
             modelBounds.maxY - modelBounds.minY,
             modelBounds.maxZ - modelBounds.minZ
         );
-        var cameraDistance = modelSize * 2;
+        
+        // Calculate tight zoom: find the bounding sphere radius
+        var maxRadius = Math.sqrt(
+            Math.pow(modelBounds.maxX - modelCenter.x, 2) +
+            Math.pow(modelBounds.maxY - modelCenter.y, 2) +
+            Math.pow(modelBounds.maxZ - modelCenter.z, 2)
+        );
+        
+        // Position camera to fit all pixels with minimal padding
+        // Factor of 1.2 gives ~10% padding, adjust FOV consideration
+        var fov = 75;
+        var fovRadians = fov * Math.PI / 180;
+        var cameraDistance = maxRadius / Math.tan(fovRadians / 2) * 1.2;
 
         console.log('Model size:', modelSize, 'Camera distance:', cameraDistance);
 
-        camera = new THREE.PerspectiveCamera(75, canvasWidth / canvasHeight, 0.1, 10000);
-        camera.position.set(cameraDistance, cameraDistance / 2, cameraDistance);
+        camera = new THREE.PerspectiveCamera(fov, canvasWidth / canvasHeight, 0.1, 10000);
+        
+        // Position camera: 20 degrees to the right, 10 degrees looking down
+        // Convert angles to radians
+        var horizontalAngle = 20 * Math.PI / 180;  // 20 degrees right
+        var verticalAngle = 10 * Math.PI / 180;    // 10 degrees up (positive = looking down from above)
+        
+        // Calculate camera position using spherical coordinates
+        var x = cameraDistance * Math.cos(verticalAngle) * Math.sin(horizontalAngle);
+        var y = cameraDistance * Math.sin(verticalAngle);
+        var z = cameraDistance * Math.cos(verticalAngle) * Math.cos(horizontalAngle);
+        
+        camera.position.set(x, y, z);
         camera.lookAt(0, 0, 0);
 
         // Create renderer
