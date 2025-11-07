@@ -120,6 +120,11 @@ void* RunChannelOutputThread(void* data) {
     struct timespec ts;
     struct timeval tv;
     int slowFrameCount = 0;
+    
+    // Frame timing sync to prevent drift
+    long long frameStartTimeBase = 0;
+    long long frameDriftAccumulator = 0;
+    long long maxDriftCorrection = LightDelay / 2; // Max 50% correction per frame
 
     LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
 
@@ -147,6 +152,12 @@ void* RunChannelOutputThread(void* data) {
     bool doForceOutput = false;
     while (RunThread) {
         startTime = GetTime();
+        
+        // Initialize frame timing base on first frame
+        if (frameStartTimeBase == 0 && sequence->IsSequenceRunning()) {
+            frameStartTimeBase = startTime;
+            frameDriftAccumulator = 0;
+        }
         if (multiSync->isMultiSyncEnabled() && sequence->IsSequenceRunning()) {
             multiSync->SendSeqSyncPacket(sequence->m_seqFilename, channelOutputFrame, 1.0 * ((float)channelOutputFrame) / RefreshRate);
         }
@@ -220,6 +231,32 @@ void* RunChannelOutputThread(void* data) {
             // REMOTE mode keeps looping a few extra times before we blank
             onceMore = (getFPPmode() == REMOTE_MODE) ? 20 : 1;
             int sleepTime = LightDelay - (processTime - startTime);
+            
+            // Calculate drift correction when sequence is running
+            if (sequence->IsSequenceRunning() && frameStartTimeBase > 0) {
+                long long expectedTime = frameStartTimeBase + (channelOutputFrame * LightDelay);
+                long long actualTime = startTime;
+                long long drift = expectedTime - actualTime;
+                
+                // Accumulate drift but limit correction per frame to avoid jerky playback
+                frameDriftAccumulator += drift;
+                long long driftCorrection = frameDriftAccumulator;
+                if (driftCorrection > maxDriftCorrection) {
+                    driftCorrection = maxDriftCorrection;
+                } else if (driftCorrection < -maxDriftCorrection) {
+                    driftCorrection = -maxDriftCorrection;
+                }
+                
+                sleepTime += driftCorrection;
+                frameDriftAccumulator -= driftCorrection;
+                
+                // Log significant drift for debugging
+                if (abs(frameDriftAccumulator) > LightDelay * 2) {
+                    LogDebug(VB_CHANNELOUT, "Frame timing drift: %lldus accumulated, correcting by %lldus\n",
+                             frameDriftAccumulator, driftCorrection);
+                }
+            }
+            
             if ((channelOutputFrame <= 1) || (sleepTime <= 0) || (startTime > (lastStatTime + 1000000))) {
                 if (sleepTime < 0)
                     sleepTime = 0;
@@ -236,6 +273,10 @@ void* RunChannelOutputThread(void* data) {
             }
         } else {
             LightDelay = BridgeLightDelay;
+            
+            // Reset frame timing when sequence stops
+            frameStartTimeBase = 0;
+            frameDriftAccumulator = 0;
 
             if (onceMore) {
                 onceMore--;
