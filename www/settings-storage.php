@@ -385,7 +385,7 @@ if ($settings['Platform'] != "Docker") { ?>
             kinds of problems including network lag, packet drops, audio clicks/pops, high CPU usage, etc...
             <br><br>
             In addition, a good cooling solution, particularly for the USB HUB chips on the Pi, is critical. It is recommended
-            to have a cooling fan and heat syncs on the Pi4/5 chips to keep everything cool. When the chips get too hot, the
+            to have a cooling fan and heat sinks on the Pi4/5 chips to keep everything cool. When the chips get too hot, the
             entire system is throttled which introduces latency and lag.
         </div>
         <br>
