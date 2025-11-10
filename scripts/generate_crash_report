@@ -6,7 +6,20 @@
 
 CRASH_LOG_LEVEL=$1
 OUTPUT_ZIP=$2
-TEMP_DIR=$(mktemp -d)
+
+# Change to FPP media directory
+cd /home/fpp/media || cd /opt/fpp || exit 1
+
+# Make output path absolute if it's relative
+if [[ "$OUTPUT_ZIP" != /* ]]; then
+    OUTPUT_ZIP="/home/fpp/media/$OUTPUT_ZIP"
+fi
+
+# Ensure output directory exists
+mkdir -p "$(dirname "$OUTPUT_ZIP")"
+
+# Use media tmp directory instead of system /tmp to avoid space issues
+TEMP_DIR=$(mktemp -d -p /home/fpp/media/tmp)
 
 # Exit if temp directory creation failed
 if [ ! -d "$TEMP_DIR" ]; then
