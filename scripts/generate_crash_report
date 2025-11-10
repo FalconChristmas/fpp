@@ -42,10 +42,28 @@ cp fpp-info.json "$TEMP_DIR/" 2>/dev/null || true
 # Level 2+: Include settings
 if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
     echo "Including settings (with passwords redacted)..."
-    mkdir -p "$TEMP_DIR/settings"
     
-    # Copy settings files and scrub passwords
+    # Handle settings file (single file)
+    if [ -f "settings" ]; then
+        # Redact password fields - match any field containing "password", "passwd", or "pwd"
+        # This catches: osPasswordVerify, systemPassword, mqtt_password, PWD, etc.
+        sed -E \
+            -e 's/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+            -e "s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+            -e 's/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+            -e 's/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+            -e "s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+            -e 's/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+            -e 's/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+            -e "s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+            -e 's/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+            "settings" > "$TEMP_DIR/settings" 2>/dev/null || \
+        cp "settings" "$TEMP_DIR/settings"
+    fi
+    
+    # Handle settings directory (multiple files)
     if [ -d "settings" ]; then
+        mkdir -p "$TEMP_DIR/settings"
         for file in settings/*; do
             if [ -f "$file" ]; then
                 filename=$(basename "$file")
