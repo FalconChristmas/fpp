@@ -49,26 +49,16 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
         # This catches: osPasswordVerify, systemPassword, mqtt_password, PWD, etc.
         # BUT excludes fields ending in "Enable" (e.g., osPasswordEnable, passwordEnable)
         sed -E \
-            -e 's/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*[^Ee])(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-            -e 's/([a-zA-Z_]*[Pp]assword)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-            -e "s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*[^Ee])(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-            -e "s/([a-zA-Z_]*[Pp]assword)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-            -e 's/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*[^Ee])(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-            -e 's/([a-zA-Z_]*[Pp]assword)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-            -e 's/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*[^Ee])(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-            -e 's/([a-zA-Z_]*[Pp]asswd)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-            -e "s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*[^Ee])(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-            -e "s/([a-zA-Z_]*[Pp]asswd)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-            -e 's/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*[^Ee])(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-            -e 's/([a-zA-Z_]*[Pp]asswd)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-            -e 's/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*[^Ee])(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-            -e 's/([a-zA-Z_]*[Pp]wd)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-            -e "s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*[^Ee])(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-            -e "s/([a-zA-Z_]*[Pp]wd)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-            -e 's/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*[^Ee])(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-            -e 's/([a-zA-Z_]*[Pp]wd)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-            | grep -v "Enable.*=.*\*\*REDACTED\*\*" || cat \
-            > "$TEMP_DIR/settings" 2>/dev/null || \
+            -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+            -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+            -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+            -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+            -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+            -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+            -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+            -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+            -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+            "settings" > "$TEMP_DIR/settings" 2>/dev/null || \
         cp "settings" "$TEMP_DIR/settings"
     fi
     
@@ -79,15 +69,18 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
             if [ -f "$file" ]; then
                 filename=$(basename "$file")
                 
-                # Redact password fields (case-insensitive matching)
-                # Handle various formats:
-                # - password="value" or password='value'
-                # - Password: "value" or Password: value
-                # - MQTT_PWD=value
+                # Redact password fields - match any field containing "password", "passwd", or "pwd"
+                # BUT excludes fields ending in "Enable" (e.g., osPasswordEnable, passwordEnable)
                 sed -E \
-                    -e 's/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/gI' \
-                    -e "s/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/gI" \
-                    -e 's/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/gI' \
+                    -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                    -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                    -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                    -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                    -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                    -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                    -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                    -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                    -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
                     "$file" > "$TEMP_DIR/settings/$filename" 2>/dev/null || \
                 cp "$file" "$TEMP_DIR/settings/$filename"
             fi
