@@ -109,11 +109,17 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
                             echo "**REDACTED SSH/KEY FILE**" > "$TEMP_DIR/config/$filename"
                             ;;
                         *)
-                            # Scrub passwords from other config files
+                            # Scrub passwords from other config files (except Enable flags)
                             sed -E \
-                                -e 's/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/gI' \
-                                -e "s/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/gI" \
-                                -e 's/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/gI' \
+                                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                                -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                                -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                                -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
                                 "$file" > "$TEMP_DIR/config/$filename" 2>/dev/null || \
                             cp "$file" "$TEMP_DIR/config/$filename"
                             ;;
@@ -122,20 +128,32 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
             done
         fi
         
-        # Logs (scrub any passwords that might appear in logs)
+        # Logs (scrub any passwords that might appear in logs, except Enable flags)
         mkdir -p "$TEMP_DIR/logs"
         if [ -f "logs/fppd.log" ]; then
             sed -E \
-                -e 's/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/gI' \
-                -e "s/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/gI" \
-                -e 's/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/gI' \
+                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
                 "logs/fppd.log" > "$TEMP_DIR/logs/fppd.log" 2>/dev/null || true
         fi
         if [ -f "logs/apache2-error.log" ]; then
             sed -E \
-                -e 's/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/gI' \
-                -e "s/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/gI" \
-                -e 's/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/gI' \
+                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
                 "logs/apache2-error.log" > "$TEMP_DIR/logs/apache2-error.log" 2>/dev/null || true
         fi
         
@@ -152,16 +170,22 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
             done
         fi
         
-        # /etc/fpp (scrub sensitive data)
+        # /etc/fpp (scrub sensitive data, except Enable flags)
         if [ -d "/etc/fpp" ]; then
             mkdir -p "$TEMP_DIR/etc_fpp"
             for file in /etc/fpp/*; do
                 if [ -f "$file" ]; then
                     filename=$(basename "$file")
                     sed -E \
-                        -e 's/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/gI' \
-                        -e "s/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/gI" \
-                        -e 's/(password|passwd|pwd|Pass|PWD|PASS)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/gI' \
+                        -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                        -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                        -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                        -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                        -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                        -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                        -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                        -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                        -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
                         "$file" > "$TEMP_DIR/etc_fpp/$filename" 2>/dev/null || \
                     cp "$file" "$TEMP_DIR/etc_fpp/$filename"
                 fi
