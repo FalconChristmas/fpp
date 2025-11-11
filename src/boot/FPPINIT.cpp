@@ -302,7 +302,7 @@ static void checkFSTAB() {
 static void createDirectories() {
     static std::vector<std::string> DIRS = { "", "config", "effects", "logs", "music", "playlists", "scripts", "sequences",
                                              "upload", "videos", "plugins", "plugindata", "exim4", "images", "cache",
-                                             "backups", "tmp" };
+                                             "backups", "tmp", "virtualdisplay_assets" };
     printf("FPP - Checking for required directories\n");
     struct passwd* pwd = getpwnam("fpp");
     for (auto& d : DIRS) {
