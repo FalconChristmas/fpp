@@ -110,6 +110,7 @@ mkdir -p sequences
 mkdir -p tmp
 mkdir -p upload
 mkdir -p videos
+mkdir -p virtualdisplay_assets
 echo "Cloning FPP"
 git clone https://github.com/FalconChristmas/fpp fpp
 echo "Building FPP"
