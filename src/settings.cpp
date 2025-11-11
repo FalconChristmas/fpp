@@ -104,13 +104,13 @@ public:
 
     void setSetting(const std::string& key, const std::string& value, bool persist);
 
-    int LoadSettings(const std::string& base);
+    int LoadSettings(const std::string& base, bool logChanges = false);
 
     void registerSettingsListener(const std::string& id, const std::string& setting, std::function<void(const std::string&)>&& cb);
     void unregisterSettingsListener(const std::string& id, const std::string& setting);
 
 private:
-    bool setSettingLocked(const std::string& key, const std::string& value);
+    bool setSettingLocked(const std::string& key, const std::string& value, bool logInfo);
     void LoadSettingsInfo();
 
     Json::Value settingsInfo;
@@ -232,7 +232,7 @@ void SettingsConfig::LoadSettingsInfo() {
 }
 void SettingsConfig::setSetting(const std::string& key, const std::string& value, bool persist) {
     std::unique_lock<std::shared_mutex> lock(settingsMutex);
-    if (setSettingLocked(key, value)) {
+    if (setSettingLocked(key, value, false)) {
         if (persist) {
             std::string contents = GetFileContents(FPP_FILE_SETTINGS);
             auto pos = contents.find(key + " = ");
@@ -265,10 +265,19 @@ void SettingsConfig::setSetting(const std::string& key, const std::string& value
         }
     }
 }
-bool SettingsConfig::setSettingLocked(const std::string& key, const std::string& value) {
+bool SettingsConfig::setSettingLocked(const std::string& key, const std::string& value, bool logInfo) {
     std::string val = settings[key].asString();
     if (val != value) {
-        LogDebug(VB_SETTING, "Setting %s:  from %s to %s\n", key.c_str(), val.c_str(), value.c_str());
+        if (logInfo) {
+            std::shared_lock<std::shared_mutex> listenersLock(settingsListenersMutex);
+            if (settingsListeners.find(key) != settingsListeners.end()) {
+                LogInfo(VB_SETTING, "Setting %s changed from %s to %s\n", key.c_str(), val.c_str(), value.c_str());
+            } else {
+                LogDebug(VB_SETTING, "Setting %s:  from %s to %s\n", key.c_str(), val.c_str(), value.c_str());
+            }
+        } else {
+            LogDebug(VB_SETTING, "Setting %s:  from %s to %s\n", key.c_str(), val.c_str(), value.c_str());
+        }
         settings[key] = value;
         if (key == "fppMode") {
             if (value == "player" || value.empty()) {
@@ -375,7 +384,7 @@ char* modeToString(int mode) {
     return strdup("unknown");
 }
 
-int SettingsConfig::LoadSettings(const std::string& base) {
+int SettingsConfig::LoadSettings(const std::string& base, bool logChanges) {
     std::unique_lock<std::shared_mutex> lock(settingsMutex);
     Init();
 
@@ -423,7 +432,7 @@ int SettingsConfig::LoadSettings(const std::string& base) {
                 continue;
             }
             value = trimwhitespace(token);
-            if (setSettingLocked(key, value)) {
+            if (setSettingLocked(key, value, logChanges)) {
                 changed[key] = value; // Store the changed setting
             }
 
@@ -461,8 +470,8 @@ int SettingsConfig::LoadSettings(const std::string& base) {
     return 0;
 }
 
-int LoadSettings(const char* base) {
-    return settings.LoadSettings(base);
+int LoadSettings(const char* base, bool logChanges) {
+    return settings.LoadSettings(base, logChanges);
 }
 
 int setSetting(const std::string& key, const int value) {

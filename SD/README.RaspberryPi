@@ -109,6 +109,7 @@ rm ./FPP-Wifi-Drivers.sh
 
 On the Pi, run the FPP installer:
 	wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+    export FPPBRANCH=v9.3
 	chmod 700 ./FPP_Install.sh
 	sudo ./FPP_Install.sh --img
 
@@ -150,8 +151,8 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
-    VERSION=9.2
-    OSVERSION=2025-09
+    VERSION=9.3
+    OSVERSION=2025-11
     BLOCKS=6800
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*

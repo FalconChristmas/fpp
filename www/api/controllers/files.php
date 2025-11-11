@@ -872,27 +872,38 @@ function PatchFile()
 
         // create output file
         $file_handle = false;
-
         // write patches to file
         foreach ($offsets as $offset) {
             // apply patch
             if (bccomp($offset, 0) == 0) {
-                //first chunk, we can rename it instead of copying the data
-                $ok = unlink($fullPath);
-                $ok = rename($fullPath . '.patch.' . $offset, $fullPath);
-                $file_handle = fopen($fullPath, 'a');
-            } else {
-                $patch_handle = fopen($fullPath . '.patch.' . $offset, 'r');
-                while (!feof($patch_handle)) {
-                    $read = fread($patch_handle, 64 * 1024);
-                    fwrite($file_handle, $read);
+                if (file_exists($fullPath)) {
+                    $file_handle = fopen($fullPath, 'r+b');
+                    $wouldBlock = false;
+                    if (flock($file_handle, LOCK_EX | LOCK_NB, $wouldBlock)) {
+                        ftruncate($file_handle, 0);
+                    } else {
+                        fclose($file_handle);
+                        http_response_code(500);
+                        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "size" => $size, "error" => "Could not lock file for writing"));
+                    }
+                } else {
+                    error_log("Creating new file $fullPath");
+                    // create empty file
+                    $file_handle = fopen($fullPath, 'w+b');
+                    flock($file_handle, LOCK_EX);
                 }
-                fclose($patch_handle);
-                unlink($fullPath . '.patch.' . $offset);
             }
+            $patch_handle = fopen($fullPath . '.patch.' . $offset, 'r');
+            while (!feof($patch_handle)) {
+                $read = fread($patch_handle, 64 * 1024);
+                fwrite($file_handle, $read);
+            }
+            fclose($patch_handle);
+            unlink($fullPath . '.patch.' . $offset);
         }
 
         // done with file
+        flock($file_handle, LOCK_UN);
         fclose($file_handle);
 
         if ($dirName != "upload" && $dirName != "uploads") {

@@ -18,6 +18,7 @@ using namespace std::literals;
 using namespace std::chrono_literals;
 using namespace std::literals::chrono_literals;
 
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -215,7 +216,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
         LogErr(VB_SEQUENCE, "Error pre-reading FSEQ file (%s), fopen returned NULL\n", fn.c_str());
         return nullptr;
     }
-
+    flock(fileno(seqFile), LOCK_SH);
     fseeko(seqFile, 0L, SEEK_SET);
 
     // An initial read request of 8 bytes covers the file identifier, version fields and channel data offset
@@ -233,6 +234,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
     if (bytesRead < initialReadLen) {
         LogErr(VB_SEQUENCE, "Error pre-reading FSEQ file (%s) header, required %d bytes but read %d\n", fn.c_str(), initialReadLen, bytesRead);
         DumpHeader("File hader peek:", headerPeek, bytesRead);
+        flock(fileno(seqFile), LOCK_UN);
         fclose(seqFile);
         return nullptr;
     }
@@ -241,6 +243,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
     if ((headerPeek[0] != 'P' && headerPeek[0] != 'F' && headerPeek[0] != V1ESEQ_HEADER_IDENTIFIER) || headerPeek[1] != 'S' || headerPeek[2] != 'E' || headerPeek[3] != 'Q') {
         LogErr(VB_SEQUENCE, "Error pre-reading FSEQ file (%s) header, invalid identifier\n", fn.c_str());
         DumpHeader("File header peek:", headerPeek, bytesRead);
+        flock(fileno(seqFile), LOCK_UN);
         fclose(seqFile);
         return nullptr;
     }
@@ -265,6 +268,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
     if (bytesRead != seqChanDataOffset) {
         LogErr(VB_SEQUENCE, "Error reading FSEQ file (%s) header, length is %d bytes but read %d\n", fn.c_str(), seqChanDataOffset, bytesRead);
         DumpHeader("File header:", &header[0], bytesRead);
+        flock(fileno(seqFile), LOCK_UN);
         fclose(seqFile);
         return nullptr;
     }
@@ -279,6 +283,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
     } else {
         LogErr(VB_SEQUENCE, "Error opening FSEQ file (%s), unknown version %d.%d\n", fn.c_str(), seqVersionMajor, seqVersionMinor);
         DumpHeader("File header:", &header[0], bytesRead);
+        flock(fileno(seqFile), LOCK_UN);
         fclose(seqFile);
         return nullptr;
     }
@@ -318,7 +323,7 @@ std::string FSEQFile::getMediaFilename(const std::string& fn) {
 std::string FSEQFile::getMediaFilename() const {
     for (auto& a : m_variableHeaders) {
         if (a.code[0] == 'm' && a.code[1] == 'f') {
-            const char* d = (const char*)&a.data[0];
+            const char* d = (const char*)&a.getData()[0];
             return d;
         }
     }
@@ -344,6 +349,7 @@ FSEQFile::FSEQFile(const std::string& fn) :
         m_memoryBuffer.reserve(1024 * 1024);
     } else {
         m_seqFile = fopen((const char*)fn.c_str(), "wb");
+        flock(fileno(m_seqFile), LOCK_EX);
     }
 }
 
@@ -406,6 +412,7 @@ FSEQFile::FSEQFile(const std::string& fn, FILE* file, const std::vector<uint8_t>
 }
 FSEQFile::~FSEQFile() {
     if (m_seqFile) {
+        flock(fileno(m_seqFile), LOCK_UN);
         fclose(m_seqFile);
     }
 }
@@ -464,7 +471,22 @@ inline bool isRecognizedBinaryVariableHeader(uint8_t a, uint8_t b) {
     // FC - FPP Commands
     // FE - FPP Effects
     // ED - Extended data
-    return (a == 'F' && b == 'C') || (a == 'F' && b == 'E') || (a == 'E' && b == 'D');
+    // XS - xLight xsq (zstd compressed binary)
+    // XN - xLight xlights_network.xml (zstd compressed binary)
+    // XR - xLight xlights_rgbeffects.xml (zstd compressed binary)
+    return (a == 'F' && b == 'C') || (a == 'F' && b == 'E') || (a == 'E' && b == 'D') || (a == 'X' && b == 'S') || (a == 'X' && b == 'N') || (a == 'X' && b == 'R');
+}
+void FSEQFile::VariableHeader::loadData() const {
+    if (!data.empty() || length == 0 || !fseqFile) {
+        return;
+    }
+
+    // seek to the offset and read the data
+    uint64_t currentPos = fseqFile->tell();
+    fseqFile->seek(offset, SEEK_SET);
+    data.resize(length);
+    fseqFile->read(&data[0], length);
+    fseqFile->seek(currentPos, SEEK_SET);
 }
 
 void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int readIndex) {
@@ -481,7 +503,7 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
         uint8_t code1 = header[readIndex + 1];
         readIndex += VariableCodeSize;
 
-        VariableHeader vheader;
+        VariableHeader vheader(this);
         vheader.code[0] = code0;
         vheader.code[1] = code1;
         if (dataLength <= FSEQ_VARIABLE_HEADER_SIZE) {
@@ -500,12 +522,8 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
             memcpy(&offset, &header[readIndex], 8);
             uint32_t len;
             memcpy(&len, &header[readIndex + 8], 4);
-            vheader.data.resize(len);
 
-            uint64_t t = tell();
-            seek(offset, SEEK_SET);
-            read(&vheader.data[0], len);
-            seek(t, SEEK_SET);
+            vheader.setDataLocation(offset, len);
             readIndex += 12;
         } else if (readIndex + (dataLength - FSEQ_VARIABLE_HEADER_SIZE) > header.size()) {
             // ensure the data length is contained within the header
@@ -519,11 +537,7 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
         } else {
             // log when reading unrecongized variable headers
             dataLength -= FSEQ_VARIABLE_HEADER_SIZE;
-            if (!isRecognizedStringVariableHeader(code0, code1)) {
-                if (!isRecognizedBinaryVariableHeader(code0, code1)) {
-                    LogDebug(VB_SEQUENCE, "Unrecognized VariableHeader code: %c%c, length: %d bytes\n", code0, code1, dataLength);
-                }
-            } else {
+            if (isRecognizedStringVariableHeader(code0, code1)) {
                 // print a warning if the data is not null terminated
                 // this is to assist debugging potential string related issues
                 // the data is not forcibly null terminated to avoid mutating unknown data
@@ -533,10 +547,12 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
                 } else if (header[readIndex + dataLength - 1] != '\0') {
                     LogErr(VB_SEQUENCE, "VariableHeader %c%c data is not NULL terminated!\n", code0, code1);
                 }
+            } else if (!isRecognizedBinaryVariableHeader(code0, code1)) {
+                LogDebug(VB_SEQUENCE, "Unrecognized VariableHeader code: %c%c, length: %d bytes\n", code0, code1, dataLength);
             }
 
-            vheader.data.resize(dataLength);
-            memcpy(&vheader.data[0], &header[readIndex], dataLength);
+            vheader.resizeData(dataLength);
+            memcpy(&vheader.getData()[0], &header[readIndex], dataLength);
 
             LogDebug(VB_SEQUENCE, "Read VariableHeader: %c%c, length: %d bytes\n", vheader.code[0], vheader.code[1], dataLength);
 
@@ -568,7 +584,7 @@ void V1FSEQFile::writeHeader() {
     int headerSize = V1FSEQ_HEADER_SIZE;
     headerSize += m_variableHeaders.size() * FSEQ_VARIABLE_HEADER_SIZE;
     for (auto& a : m_variableHeaders) {
-        headerSize += a.data.size();
+        headerSize += a.getData().size();
     }
 
     // Round to a product of 4 for better memory alignment
@@ -623,11 +639,12 @@ void V1FSEQFile::writeHeader() {
     // Variable headers
     // 4 byte size minimum (2 byte length + 2 byte code)
     for (auto& a : m_variableHeaders) {
-        uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
+        auto& data = a.getData();
+        uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + data.size();
         write2ByteUInt(&header[writePos], len);
         header[writePos + 2] = a.code[0];
         header[writePos + 3] = a.code[1];
-        memcpy(&header[writePos + 4], &a.data[0], a.data.size());
+        memcpy(&header[writePos + 4], &data[0], data.size());
         writePos += len;
     }
 
@@ -809,7 +826,8 @@ public:
                 if (m_variableHeaderOffsets[x] != 0) {
                     uint64_t curEnd = tell();
                     auto& h = m_file->getVariableHeaders()[x];
-                    write(&h.data[0], h.data.size());
+                    auto& data = h.getData();
+                    write(&data[0], data.size());
                     size_t cur = tell();
                     uint64_t off = m_variableHeaderOffsets[x];
                     seek(off, SEEK_SET);
@@ -1553,7 +1571,7 @@ void V2FSEQFile::writeHeader() {
     m_seqChanDataOffset = headerSize;
     uint64_t seqChanDataOffset2 = headerSize;
     for (auto& a : m_variableHeaders) {
-        uint32_t sze = a.data.size() + FSEQ_VARIABLE_HEADER_SIZE;
+        uint32_t sze = a.getDataLength() + FSEQ_VARIABLE_HEADER_SIZE;
         if (a.extendedData) {
             seqChanDataOffset2 += FSEQ_VARIABLE_HEADER_SIZE + 14;
             m_seqChanDataOffset += FSEQ_VARIABLE_HEADER_SIZE + 14;
@@ -1641,7 +1659,7 @@ void V2FSEQFile::writeHeader() {
     int idx = 0;
     m_handler->m_variableHeaderOffsets.resize(m_variableHeaders.size());
     for (auto& a : m_variableHeaders) {
-        uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
+        uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + a.getDataLength();
         bool doExtended = a.extendedData;
         if (!doExtended && forceExtended && len > 18) {
             // longer than the extended header and we need to save space
@@ -1664,12 +1682,13 @@ void V2FSEQFile::writeHeader() {
             memset(&header[writePos], 0, 8);
             m_handler->m_variableHeaderOffsets[idx] = writePos;
             writePos += 8; // file position
-            write4ByteUInt(&header[writePos], a.data.size());
+            write4ByteUInt(&header[writePos], a.getDataLength());
             writePos += 4;
         } else {
+            auto& data = a.getData();
             m_handler->m_variableHeaderOffsets[idx] = 0;
-            memcpy(&header[writePos], &a.data[0], a.data.size());
-            writePos += a.data.size();
+            memcpy(&header[writePos], &data[0], data.size());
+            writePos += data.size();
         }
         ++idx;
     }
@@ -1830,8 +1849,7 @@ void V2FSEQFile::dumpInfo(bool indent) {
 
 bool isWithinRange(const std::vector<std::pair<uint32_t, uint32_t>>& ranges, uint32_t start_channel, uint32_t channel_count) {
     for (auto& a : ranges) {
-        if ((start_channel >= a.first && start_channel < (a.first + a.second) )
-            && ((start_channel + channel_count - 1) < (a.first + a.second))) {
+        if ((start_channel >= a.first && start_channel < (a.first + a.second)) && ((start_channel + channel_count - 1) < (a.first + a.second))) {
             return true;
         }
     }

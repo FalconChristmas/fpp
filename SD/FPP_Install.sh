@@ -55,7 +55,7 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2025-09"
+FPPIMAGEVER="2025-11"
 FPPCFGVER="99"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -419,9 +419,6 @@ case "${OSVER}" in
             # Need to make sure there is configuration for eth0 or uninstalling dhcpclient will cause network to drop
             rm -f /etc/systemd/network/50-default.network
             curl -o /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
-            if [ "${OSVER}" == "debian_12" ]; then
-                sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' /etc/systemd/network/50-default.network
-            fi
             
             apt-get install -y systemd-resolved
             systemctl reload systemd-networkd

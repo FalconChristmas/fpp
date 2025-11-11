@@ -154,6 +154,7 @@ $effectDirectory = $mediaDirectory . "/effects";
 $scriptDirectory = $mediaDirectory . "/scripts";
 $logDirectory = $mediaDirectory . "/logs";
 $uploadDirectory = $mediaDirectory . "/upload";
+$virtualDisplayAssetsDirectory = $mediaDirectory . "/virtualdisplay_assets";
 $universeFile = $mediaDirectory . "/universes";
 $pixelnetFile = $mediaDirectory . "/pixelnetDMX";
 $scheduleFile = $mediaDirectory . "/schedule";
@@ -561,6 +562,7 @@ $settings['effectDirectory'] = $effectDirectory;
 $settings['eventDirectory'] = $eventDirectory;
 $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
+$settings['virtualDisplayAssetsDirectory'] = $virtualDisplayAssetsDirectory;
 $settings['docsDirectory'] = $docsDirectory;
 $settings['fppRfsVersion'] = $fppRfsVersion;
 $settings['exim4Directory'] = $exim4Directory;
@@ -709,6 +711,8 @@ function GetDirSetting($dir)
         return GetSettingValue('playlistDirectory');
     } else if ($dir == 'plugins') {
         return GetSettingValue('pluginDirectory');
+    } else if ($dir == 'virtualdisplay_assets') {
+        return GetSettingValue('virtualDisplayAssetsDirectory');
     }
     return "";
 }

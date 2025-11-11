@@ -55,7 +55,7 @@ OBJECTS_GPIO_ADDITIONS+=
 LIBS_GPIO_ADDITIONS+=-lgpiod -lgpiodcxx
 OBJECTS_fppoled += util/SPIUtils.o
 
-LDFLAGS=-lrt -lpthread
+LDFLAGS+=-lrt -lpthread
 SHLIB_EXT=so
 
 endif

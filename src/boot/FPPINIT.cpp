@@ -40,6 +40,18 @@
 #include <json/json.h>
 #endif
 
+#ifdef PLATFORM_BB64
+constexpr std::string SD_CARD_DEVICE = "/dev/mmcblk1";
+#else
+constexpr std::string SD_CARD_DEVICE = "/dev/mmcblk0";
+#endif
+
+#ifdef PLATFORM_PI
+constexpr std::string I2C_DEV = "/dev/i2c-1";
+#else
+constexpr std::string I2C_DEV = "/dev/i2c-2";
+#endif
+
 static const std::string FPP_MEDIA_DIR = "/home/fpp/media";
 
 void teeOutput(const std::string& log) {
@@ -142,18 +154,28 @@ inline bool isPi5() {
 }
 #endif
 
+static void modprobe(const char* mod) {
+    std::string cmd = std::string("/usr/sbin/modprobe ") + mod;
+    exec(cmd);
+}
+
 static void DetectCape() {
     if (!FileExists("/.dockerenv")) {
 #ifdef CAPEDETECT
+        int count = 0;
+#ifdef PLATFORM_PI
+        modprobe("i2c-dev");
+#endif
+        while (!FileExists(I2C_DEV) && count < 500) {
+            printf("FPP - Waiting for %s to appear for Cape/Hat detection %d\n", I2C_DEV.c_str(), count);
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            count++;
+        }
         printf("FPP - Checking for Cape/Hat\n");
         exec("/opt/fpp/src/fppcapedetect -no-set-permissions");
 #endif
     }
     PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
-}
-static void modprobe(const char* mod) {
-    std::string cmd = std::string("/usr/sbin/modprobe ") + mod;
-    exec(cmd);
 }
 
 static void checkSSHKeys() {
@@ -280,7 +302,7 @@ static void checkFSTAB() {
 static void createDirectories() {
     static std::vector<std::string> DIRS = { "", "config", "effects", "logs", "music", "playlists", "scripts", "sequences",
                                              "upload", "videos", "plugins", "plugindata", "exim4", "images", "cache",
-                                             "backups", "tmp" };
+                                             "backups", "tmp", "virtualdisplay_assets" };
     printf("FPP - Checking for required directories\n");
     struct passwd* pwd = getpwnam("fpp");
     for (auto& d : DIRS) {
@@ -775,7 +797,9 @@ static void setupNetwork(bool fullReload = false) {
 static void setFileOwnership() {
     exec("/usr/bin/chown -R fpp:fpp " + FPP_MEDIA_DIR);
 }
-static void checkUnpartitionedSpace() {
+
+static bool checkUnpartitionedSpace() {
+    bool ret = false;
     if (!FileExists("/etc/fpp/desktop")) {
         std::string sourceDev = execAndReturn("/usr/bin/findmnt -n -o SOURCE " + FPP_MEDIA_DIR);
         TrimWhiteSpace(sourceDev);
@@ -792,8 +816,8 @@ static void checkUnpartitionedSpace() {
             }
         }
         std::string fs = "0";
-        if (FileExists("/dev/mmcblk0")) {
-            fs = execAndReturn("/usr/sbin/sfdisk -F /dev/mmcblk0 | tail -n 1");
+        if (FileExists(SD_CARD_DEVICE)) {
+            fs = execAndReturn("/usr/sbin/sfdisk -F " + SD_CARD_DEVICE + " | tail -n 1");
             TrimWhiteSpace(fs);
             auto splits = split(fs, ' ');
             fs = splits.back();
@@ -803,22 +827,39 @@ static void checkUnpartitionedSpace() {
                 fs = "0";
             }
         }
-#ifdef PLATFORM_PI
-        if (FileExists("/boot/firmware/fpp_expand_rootfs")) {
-            if (fs != "0") {
-                exec("/usr/bin/raspi-config --expand-rootfs");
-                fs = "0";
+        if (FileExists("/boot/firmware/fpp_expand_rootfs") || FileExists("/boot/fpp_expand_rootfs")) {
+            fs = "0";
+            std::string rootPart = execAndReturn("/usr/bin/findmnt -n -o SOURCE /");
+            TrimWhiteSpace(rootPart);
+            if (startsWith(rootPart, SD_CARD_DEVICE)) {
+                std::string lastPartNum = execAndReturn("/usr/sbin/parted " + SD_CARD_DEVICE + " -ms unit s p | tail -n 1 | cut -f 1 -d:");
+                TrimWhiteSpace(lastPartNum);
+                std::string startPos = execAndReturn("/usr/sbin/parted " + SD_CARD_DEVICE + " -ms unit s p | grep \"^" + lastPartNum + "\" | cut -f 2 -d: | sed 's/[^0-9]//g'");
+                TrimWhiteSpace(startPos);
+                std::string fdiskInstructions = "p\nd\n" + lastPartNum + "\nn\np\n" + lastPartNum + "\n" + startPos + "\n\np\nw\n";
+                PutFileContents("/tmp/fdisk.cmds", fdiskInstructions);
+                exec("/usr/sbin/fdisk " + SD_CARD_DEVICE + " < /tmp/fdisk.cmds");
+                unlink("/tmp/fdisk.cmds");
+                exec("systemctl enable fpp-expand-rootfs.service");
                 setRawSetting("rebootFlag", "1");
+                ret = true;
             }
-            exec("/usr/bin/rm -f /boot/firmware/fpp_expand_rootfs");
+            unlink("/boot/firmware/fpp_expand_rootfs");
+            unlink("/boot/fpp_expand_rootfs");
         }
-#endif
         std::string oldfs;
         getRawSetting("UnpartitionedSpace", oldfs);
         if (oldfs != fs) {
             setRawSetting("UnpartitionedSpace", fs);
         }
     }
+    return ret;
+}
+static void resizeRootFS() {
+    std::string rootPart = execAndReturn("/usr/bin/findmnt -n -o SOURCE /");
+    TrimWhiteSpace(rootPart);
+    exec("/usr/sbin/resize2fs " + rootPart);
+    exec("systemctl disable fpp-expand-rootfs.service");
 }
 static void setupTimezone() {
     std::string s;
@@ -1506,6 +1547,7 @@ int main(int argc, char* argv[]) {
         }
         createDirectories();
         printf("FPP - Directories created\n");
+        bool needReboot = checkUnpartitionedSpace();
         checkSSHKeys();
         handleBootPartition();
         checkPi5Wifi();
@@ -1515,7 +1557,7 @@ int main(int argc, char* argv[]) {
         DetectCape();
         setupTimezone();
         int reboot = getRawSettingInt("rebootFlag", 0);
-        if (reboot) {
+        if (reboot && !needReboot) {
             printf("FPP - Clearing reboot flags\n");
             setRawSetting("rebootFlag", "0");
         }
@@ -1528,7 +1570,6 @@ int main(int argc, char* argv[]) {
         configureBBB();
         setupChannelOutputs();
         setupKiosk();
-        checkUnpartitionedSpace();
         printf("Setting file ownership\n");
         setFileOwnership();
         PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
@@ -1619,6 +1660,8 @@ int main(int argc, char* argv[]) {
         detectNetworkModules();
     } else if (action == "reboot") {
         handleRebootActions();
+    } else if (action == "resizeRootFS") {
+        resizeRootFS();
     }
     printf("------------------------------\n");
     return 0;

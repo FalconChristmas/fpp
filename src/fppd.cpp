@@ -612,8 +612,8 @@ int main(int argc, char* argv[]) {
 
     FileMonitor::INSTANCE.AddFile(
         "FPPD:Settings", FPP_DIR_MEDIA("/settings"), [argv]() {
-        LogInfo(VB_SETTING, "Settings file changed, reloading settings\n");
-        LoadSettings(argv[0]); }, true);
+        LogDebug(VB_SETTING, "Settings file changed, reloading settings\n");
+        LoadSettings(argv[0], true); }, true);
 
     // Start functioning
     if (getSettingInt("daemonize")) {

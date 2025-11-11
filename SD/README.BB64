@@ -1,7 +1,7 @@
 # FPP BB64 Image creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian pocketbeagle2 images:
-# https://rcn-ee.net/rootfs/debian-arm64-12-bookworm-minimal-v6.12-ti/2025-07-02/
+# https://rcn-ee.net/rootfs/debian-arm64-12-iot-v6.16-k3/2025-10-29/
 
 # Burn the above image onto an SD card and insert into a running Linux machine
 # We need to make changes to the filesystems and layout prior to booting
@@ -9,7 +9,7 @@
 
 # Need to resize the root to be at least 5G
 # Using gparted on Linux/gui is easiest option.
-# In general, if using the above image, it will default to about 6.3G which is fine
+# In general, if using the above image, it will default to about 6G which is fine
 # and this step can be skipped
 
 
@@ -19,12 +19,8 @@ mkdir -p /mnt/tmp
 mount /dev/sdc3 /mnt/tmp
 mount /dev/sdc1 /mnt/tmp/boot/firmware
 cd /mnt/tmp
-rm -f ./etc/systemd/system/multi-user.target.wants/grow_partition.service
-rm -f ./var/lib/systemd/deb-systemd-helper-enabled/grow_partition.service.dsh-also
 rm -f ./etc/bbb.io/growpart
-mv ./usr/bin/bb-growpart ./usr/bin/bb-growpart.orig
 wget -4 -O ./etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
-sed -i -e 's/LinkLocalAddressing=fallback/LinkLocalAddressing=yes/' ./etc/systemd/network/50-default.network
 rm ./etc/systemd/network/eth0* ./etc/systemd/network/mlan* ./etc/systemd/network/wlan*
 cd /mnt/tmp/boot/firmware
 echo  "user_name=fpp" >> sysconf.txt
@@ -40,35 +36,21 @@ apt-get update
 apt-get upgrade
 
 # Free up some space by removing stuff we know won't be needed
-apt-get remove --autoremove --purge bb-node-red-installer bb-code-server ti-zephyr-firmware bb-u-boot-beagleboneai64 bb-u-boot-beagleplay bb-u-boot-beagleplay-mainline libstd-rust-dev rustc
+apt-get remove --autoremove --purge bb-node-red-installer bb-code-server ti-zephyr-firmware bb-u-boot-beagleboneai64 bb-u-boot-beagleplay bb-u-boot-beagley-ai bb-u-boot-beagleplay-mainline libstd-rust-dev rustc docker.io containerd nginx
 apt-get remove --autoremove firmware-nvidia-graphics firmware-intel-graphics
-rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1-* /opt/source/dtb-6.6-*  /opt/source/spi*
+rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1-* /opt/source/dtb-6.6-* /opt/source/dtb-6.12-*  /opt/source/spi*
 
 #update to the latest 6.15 kernel to get the latest wifi drivers and other fixes
-apt-get remove bbb.io-kernel-6.12-ti bbb.io-kernel-6.12-ti-k3-am62 linux-image-$(uname -r)
-apt-get install bbb.io-kernel-6.15-k3
+apt-get remove bbb.io-kernel-6.16-k3 bbb.io-kernel-6.16-k3-am62 linux-image-$(uname -r)
+apt-get install bbb.io-kernel-6.17-k3
 
-reboot
-
-# The in-kernel driver for the standard USB -> Gigabit device we use has some reporting issues and
+# The "default" driver for the standard USB->Gigabit device we use has some reporting issues and
 # always report half duplex mode and sometimes only 100MB connection (despite actualy gigabit connection
 # as verified by unifi and speed tests) and other issues which can cause warnings to pop up (for
-# colorlights that need gigabit).  We'll install the driver directly from Asix and use it.
-apt-get install -y linux-headers-$(uname -r)
-cd /opt
-curl "https://www.asix.com.tw/en/support/download/file/1943?time=1748550560053" --output asix.tar.bz2
-tar -xjf asix.tar.bz2
-mv /lib/modules/$(uname -r)/kernel/drivers/net/usb/ax88179_178a.ko.xz /lib/modules/$(uname -r)/kernel/drivers/net/usb/ax88179_178a.ko.xz.old
-cd ASIX_USB_NIC_Linux_Driver_Source_v3.5.0
-make
-make install
-cd ..
-rm -rf ASIX_USB_NIC_Linux_Driver_Source_v3.5.0
+# colorlights that need gigabit).  Setup to use the specific module for it.
 cat > /etc/udev/rules.d/99-asix.rules << EOF
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0b95", ATTR{idProduct}=="1790", ATTR{bConfigurationValue}!="1", ATTR{bConfigurationValue}="1"
 EOF
-rm  asix.tar.bz2
-apt-get remove -y --autoremove linux-headers-$(uname -r)
 
 #remove some unneeded things to clear up space
 rm -rf /opt/bb-code-server
@@ -81,24 +63,22 @@ reboot
 cd /root
 wget -4 -O ./FPP_Install.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 chmod 700 ./FPP_Install.sh
-export FPPBRANCH=v9.2
+export FPPBRANCH=v9.3
 ./FPP_Install.sh --img
 
 # Reboot and make sure everything looks ok
 
 # Before shutting down, run:
-systemctl enable grow_partition.service
 journalctl --flush --rotate --vacuum-time=1s
-mv /usr/bin/bb-growpart.orig /usr/bin/bb-growpart
-touch /etc/bbb.io/growpart
+touch /boot/firmware/fpp_expand_rootfs
 sync
 fstrim -v /
 
 
 
     DEVICE=/dev/sdc
-    VERSION=9.2
-    OSVERSION=2025-09
+    VERSION=9.3
+    OSVERSION=2025-11
     BLOCKS=7800
     mount "${DEVICE}3" /mnt
     rm -f /mnt/home/fpp/.bash_history

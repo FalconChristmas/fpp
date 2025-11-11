@@ -38,12 +38,13 @@
 		alignment = <0x1000>;
 		no-map;
 	};
- 	wkup_r5fss0_core0_dma_memory_region: r5f-dma-memory@9db00000 {
-			compatible = "shared-dma-pool";
-			reg = <0x00 0x9db00000 0x00 0x400000>;
-			no-map;
-	};
+    wkup_r5fss0_core0_memory_region: memory@9db00000 {
+        compatible = "shared-dma-pool";
+        reg = <0x00 0x9db00000 0x00 0x400000>;
+        no-map;
+    };
 };
+// Disable m4 core as we don't use it
 &mcu_m4fss_memory_region {
 	status = "disabled";
 };
@@ -53,24 +54,35 @@
 &mcu_m4fss {
 	status = "disabled";
 };
+// Disable gpu core as we don't use it
 &gpu {
 	status = "disabled";
 };
+// Disable r5 core as we don't use it
+&wkup_r5fss0 {
+    status = "disabled";
+};
+&wkup_r5fss0_core0 {
+    status = "disabled";
+};
 
 &main_uart1 {
-	status = "ok";
+    // this one will consume four pins
+    // preventing a bunch of capes from working.  No capes are known
+    // to use this UART so just disable it to keep the pins free
+	status = "disabled";
 };
 &main_uart2 {
-	status = "ok";
+	status = "okay";
 };
 &main_uart3 {
-	status = "ok";
+	status = "okay";
 };
 &main_uart4 {
-	status = "ok";
+	status = "okay";
 };
 &main_uart5 {
-	status = "ok";
+	status = "okay";
 };
 
 

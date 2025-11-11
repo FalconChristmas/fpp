@@ -180,7 +180,7 @@ static char* escape(char* buf, const char* data) {
     *dest = 0;
     return buf;
 }
-std::string getFPPDDir(const std::string &path) {
+std::string getFPPDDir(const std::string& path) {
     return "/tmp";
 }
 int main(int argc, char* argv[]) {
@@ -216,7 +216,7 @@ int main(int argc, char* argv[]) {
                 for (auto& head : src->getVariableHeaders()) {
                     if (head.code[0] > 32 && head.code[0] <= 127 && head.code[1] > 32 && head.code[1] <= 127) {
                         bool allAscii = true;
-                        for (auto b : head.data) {
+                        for (auto b : head.getData()) {
                             if (b && (b < 32 || b > 127)) {
                                 allAscii = false;
                             }
@@ -227,7 +227,14 @@ int main(int argc, char* argv[]) {
                             } else {
                                 first = false;
                             }
-                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], escape(buf, (const char*)&head.data[0]));
+                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], escape(buf, (const char*)&head.getData()[0]));
+                        } else {
+                            if (!first) {
+                                printf(", ");
+                            } else {
+                                first = false;
+                            }
+                            printf("\"%c%c\": \"<binary data of length %d>\"", head.code[0], head.code[1], (int)head.getDataLength());
                         }
                     }
                 }
@@ -248,7 +255,7 @@ int main(int argc, char* argv[]) {
                     printf("]");
                 }
                 printf(", \"CompressionType\": %d", (int)f->m_compressionType);
-				printf(", \"CompressionTypeString\": \"%s\"", f->CompressionTypeString().c_str());
+                printf(", \"CompressionTypeString\": \"%s\"", f->CompressionTypeString().c_str());
             }
             printf("}\n");
         } else if (dump) {

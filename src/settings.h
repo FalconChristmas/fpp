@@ -50,7 +50,7 @@ char* modeToString(int mode);
 const std::string getFPPmodeStr(FPPMode mode = UNKNOWN_MODE);
 
 // Action functions
-int LoadSettings(const char* base);
+int LoadSettings(const char* base, bool logChanges = false);
 
 // Setters & Getters
 std::string getSetting(const char* setting, const char* defaultVal = "");
