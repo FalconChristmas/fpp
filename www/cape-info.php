@@ -819,6 +819,9 @@ if (isset($settings["cape-info"])) {
                                                             if (isset($currentCapeInfo['version'])) {
                                                                 echo "<tr><td><b>Version:</b></td><td>" . $currentCapeInfo['version'] . "</td></tr>";
                                                             }
+                                                            if (isset($currentCapeInfo['eepromVersion'])) {
+                                                                echo "<tr><td><b>EEPROM Version:</b></td><td>" . $currentCapeInfo['eepromVersion'] . "</td></tr>";
+                                                            }
                                                             if (isset($currentCapeInfo['serialNumber'])) {
                                                                 echo "<tr><td><b>Serial&nbsp;Number:</b></td><td>" . $currentCapeInfo['serialNumber'] . "</td></tr>";
                                                             }
