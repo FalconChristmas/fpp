@@ -481,38 +481,38 @@
     function loadObjWithMaterial(objPath, mtlPath, objConfig, index) {
         // Create a custom loading manager to intercept and fix texture paths
         var manager = new THREE.LoadingManager();
-        
+
         // Intercept texture loading to fix paths
         manager.setURLModifier((url) => {
             // If URL contains a subdirectory path, strip it and use just the filename
             var filename = url.split('/').pop();
             var fixedUrl = '/virtualdisplay_assets/' + filename;
-            
+
             if (url !== fixedUrl) {
                 console.log('Fixed texture URL:', url, '->', fixedUrl);
             }
-            
+
             return fixedUrl;
         });
-        
+
         // Create a new MTL loader with the custom manager
         var customMtlLoader = new window.MTLLoader(manager);
         customMtlLoader.setPath('/virtualdisplay_assets/');
-        
+
         // Load MTL file with the custom loader
         customMtlLoader.load(
             mtlPath,
             (materials) => {
                 console.log('Successfully loaded materials for:', objConfig.name);
-                
+
                 // Preload materials and textures
                 materials.preload();
-                
+
                 console.log('Materials and textures preloaded for:', objConfig.name);
-                
+
                 // Set materials to OBJ loader
                 objLoader.setMaterials(materials);
-                
+
                 // Now load the OBJ with materials
                 loadObjFile(objPath, objConfig, index, true);
             },
@@ -553,7 +553,7 @@
                     console.log('Applied default materials to', meshCount, 'meshes in', objConfig.name);
                 } else {
                     console.log('Using loaded MTL materials for', objConfig.name);
-                    
+
                     // Log material details for debugging
                     var materialCount = 0;
                     var textureCount = 0;
@@ -567,7 +567,7 @@
                         }
                     });
                     console.log('Applied', materialCount, 'materials with', textureCount, 'textures to', objConfig.name);
-                    
+
                     // Reset the materials on the loader for next object
                     objLoader.setMaterials(null);
                 }
