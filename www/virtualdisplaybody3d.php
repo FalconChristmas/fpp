@@ -1297,6 +1297,15 @@
         if (window.brightnessMultiplier !== 2.0) {
             params.push('brightness=' + window.brightnessMultiplier.toFixed(1));
         }
+        
+        // Ambient light
+        var ambientLightSlider = document.getElementById('ambientLightSlider');
+        if (ambientLightSlider) {
+            var ambientValue = parseFloat(ambientLightSlider.value);
+            if (ambientValue !== 1.0) {
+                params.push('ambientLight=' + ambientValue.toFixed(1));
+            }
+        }
 
         // Pixel size
         if (window.pixelMaterial && window.pixelMaterial.size !== 3) {
@@ -1731,6 +1740,12 @@
         if (urlPixelSize !== null) {
             pixelSize = urlPixelSize;
         }
+        
+        // Apply URL parameter for ambient light
+        var urlAmbientLight = getURLParam('ambientLight', null);
+        if (urlAmbientLight !== null) {
+            window.urlAmbientLightValue = urlAmbientLight;
+        }
 
         try {
             init3D();
@@ -1759,6 +1774,15 @@
             pixelSizeSlider.value = pixelSize;
             if (window.pixelMaterial) {
                 window.pixelMaterial.size = pixelSize;
+            }
+        }
+        
+        // Apply ambient light slider if it exists and was set via URL
+        if (window.urlAmbientLightValue !== undefined) {
+            var ambientLightSlider = document.getElementById('ambientLightSlider');
+            if (ambientLightSlider) {
+                ambientLightSlider.value = window.urlAmbientLightValue;
+                updateAmbientLight();
             }
         }
 

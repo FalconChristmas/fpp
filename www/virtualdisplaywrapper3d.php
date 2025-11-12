@@ -82,11 +82,12 @@
                     <li><b>Fullscreen:</b> <code>?fullscreen=true</code> - Auto-enter fullscreen (click page if browser
                         blocks it)</li>
                     <li><b>Brightness:</b> <code>?brightness=3.0</code> - Pixel brightness multiplier (default 2.0)</li>
+                    <li><b>Ambient Light:</b> <code>?ambientLight=0.5</code> - Scene lighting intensity (default 1.0, 0.0=dark)</li>
                     <li><b>Pixel Size:</b> <code>?pixelSize=5</code> - Pixel point size (default 1)</li>
                     <li><b>Show Grid:</b> <code>?showGrid=false</code> - Hide the grid helper</li>
                     <li><b>Show Axes:</b> <code>?showAxes=true</code> - Show the axis helper</li>
                     <li><b>Holiday Mode:</b> <code>?holidayMode=true</code> - Enable holiday animations</li>
-                    <li><b>Combine multiple:</b> <code>?zoom=0.8&brightness=2.5&fullscreen=true&holidayMode=true</code>
+                    <li><b>Combine multiple:</b> <code>?zoom=0.8&brightness=2.5&ambientLight=0.3&fullscreen=true</code>
                     </li>
                 </ul>
                 <br>
