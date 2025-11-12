@@ -1534,6 +1534,12 @@
         var pixels = e.data.split('|');
         clearTimeout(clearTimer);
 
+        // Log first time we receive data
+        if (!window.hasReceivedPixelData) {
+            console.log('First pixel data received:', pixels.length, 'pixel updates');
+            window.hasReceivedPixelData = true;
+        }
+
         // Replace pending update with latest
         pendingUpdates = [pixels];
 
@@ -1552,10 +1558,19 @@
     }
 
     function startSSE() {
+        console.log('Starting SSE connection to api/http-virtual-display/');
         evtSource = new EventSource('api/http-virtual-display/');
 
         evtSource.onmessage = function (event) {
             processEvent(event);
+        };
+
+        evtSource.onerror = function (error) {
+            console.error('SSE connection error:', error);
+        };
+
+        evtSource.onopen = function () {
+            console.log('SSE connection opened successfully');
         };
     }
 
@@ -1676,6 +1691,14 @@
     }
 
     function setupClient() {
+        // Verify THREE.js is available
+        if (typeof window.THREE === 'undefined') {
+            console.error('THREE.js not loaded! Cannot initialize 3D view.');
+            return;
+        }
+
+        console.log('Setting up 3D Virtual Display client...');
+
         // Apply URL parameters for brightness
         var brightness = getURLParam('brightness', window.brightnessMultiplier);
         window.brightnessMultiplier = brightness;
@@ -1686,8 +1709,13 @@
             pixelSize = urlPixelSize;
         }
 
-        init3D();
-        startSSE();
+        try {
+            init3D();
+            startSSE();
+            console.log('3D view initialized, SSE started');
+        } catch (error) {
+            console.error('Error initializing 3D view:', error);
+        }
 
         // Apply URL parameters after DOM is ready
         setTimeout(function () {
