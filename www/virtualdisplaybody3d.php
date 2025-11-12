@@ -1195,6 +1195,81 @@
         }
     }
 
+    function toggleFullscreen() {
+        var container = document.getElementById('canvas-container');
+        
+        if (!document.fullscreenElement && 
+            !document.webkitFullscreenElement && 
+            !document.mozFullScreenElement) {
+            // Enter fullscreen
+            if (container.requestFullscreen) {
+                container.requestFullscreen();
+            } else if (container.webkitRequestFullscreen) {
+                container.webkitRequestFullscreen();
+            } else if (container.mozRequestFullScreen) {
+                container.mozRequestFullScreen();
+            } else if (container.msRequestFullscreen) {
+                container.msRequestFullscreen();
+            }
+            
+            console.log('Entering fullscreen mode');
+        } else {
+            // Exit fullscreen
+            exitFullscreen();
+        }
+    }
+
+    function exitFullscreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+        
+        console.log('Exiting fullscreen mode');
+    }
+
+    // Handle fullscreen change events
+    function handleFullscreenChange() {
+        if (!document.fullscreenElement && 
+            !document.webkitFullscreenElement && 
+            !document.mozFullScreenElement) {
+            // Exited fullscreen - resize renderer
+            var container = document.getElementById('canvas-container');
+            renderer.setSize(canvasWidth, canvasHeight);
+            camera.aspect = canvasWidth / canvasHeight;
+            camera.updateProjectionMatrix();
+            console.log('Exited fullscreen, resized to:', canvasWidth, 'x', canvasHeight);
+        } else {
+            // Entered fullscreen - resize to screen
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            console.log('Entered fullscreen, resized to:', window.innerWidth, 'x', window.innerHeight);
+        }
+    }
+
+    // Listen for fullscreen change events
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    // ESC key handler
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' || event.keyCode === 27) {
+            if (document.fullscreenElement || 
+                document.webkitFullscreenElement || 
+                document.mozFullScreenElement) {
+                exitFullscreen();
+            }
+        }
+    });
+
     function animate3D() {
         requestAnimationFrame(animate3D);
 
@@ -1412,6 +1487,36 @@
     #canvas-container {
         border: 1px solid #333;
         display: inline-block;
+        position: relative;
+    }
+
+    /* Fullscreen styles */
+    #canvas-container:fullscreen {
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: #000;
+        border: none;
+    }
+
+    #canvas-container:-webkit-full-screen {
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: #000;
+        border: none;
+    }
+
+    #canvas-container:-moz-full-screen {
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: #000;
+        border: none;
+    }
+
+    #canvas-container:-ms-fullscreen {
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: #000;
+        border: none;
     }
 
     #controls {
@@ -1459,6 +1564,8 @@
         <input type='button' onClick='toggle3DObjects();' value='Toggle 3D Objects'>
         <input type='button' onClick='toggleHolidayAnimations();' value='Toggle Holiday Fun!'
             style='background-color: #ff6b6b; color: white; font-weight: bold;'>
+        <input type='button' onClick='toggleFullscreen();' value='Fullscreen' 
+            style='background-color: #4a90e2; color: white; font-weight: bold;'>
     </div>
     <div>
         <span class="control-group">

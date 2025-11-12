@@ -61,6 +61,7 @@
                     <li>Use your <b>left mouse button to drag</b> to rotate the 3D view</li>
                     <li>Use your <b>middle mouse button (scroll wheel press) to drag</b> to pan/move the view</li>
                     <li>Use your <b>scroll wheel</b> to zoom in/out</li>
+                    <li>Click the <b>Fullscreen button</b> for an immersive full-screen experience (press <b>ESC</b> to exit)</li>
                     <li>The display shows your pixel layout in <b>true 3D space</b> using the Z-axis data from your
                         virtualdisplaymap</li>
                 </ul>
