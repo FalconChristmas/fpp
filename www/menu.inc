@@ -336,7 +336,8 @@ function list_plugin_entries($menu)
                                     if (isset($js["channelOutputs"])) {
                                         foreach ($js["channelOutputs"] as $key => $val) {
                                             if (($val["enabled"] == 1) && ($val["type"] == "HTTPVirtualDisplay")) {
-                                                echo "<a class='dropdown-item' href='virtualdisplaywrapper.php'><i class='fas fa-tv'></i> Virtual Display</a>";
+                                                echo "<a class='dropdown-item' href='virtualdisplaywrapper.php'><i class='fas fa-tv'></i> 2D Virtual Display</a>";
+                                                echo "<a class='dropdown-item' href='virtualdisplaywrapper3d.php'><i class='fas fa-object-group'></i> 3D Virtual Display</a>";
                                             }
                                         }
                                     }
