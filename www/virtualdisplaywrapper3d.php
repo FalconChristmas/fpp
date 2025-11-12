@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-    <!-- Three.js import map MUST be first, before any other scripts -->
+    <!-- Three.js import map MUST be absolutely first, before ANY other scripts -->
     <script type="importmap">
     {
         "imports": {
@@ -11,6 +11,9 @@
         }
     }
     </script>
+
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>FPP 3D Virtual Display</title>
 
     <?php
     include 'common/htmlMeta.inc';
@@ -24,9 +27,6 @@
     }
 
     ?>
-
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>FPP 3D Virtual Display</title>
 
     <!-- Load Three.js modules after import map is defined -->
     <script type="module">
@@ -63,6 +63,8 @@
                     <li>Use your <b>scroll wheel</b> to zoom in/out</li>
                     <li>Click the <b>Fullscreen button</b> for an immersive full-screen experience (press <b>ESC</b> to
                         exit)</li>
+                    <li>Click <b>📋 Copy View URL</b> to save your current camera position and settings as a shareable
+                        URL</li>
                     <li>The display shows your pixel layout in <b>true 3D space</b> using the Z-axis data from your
                         virtualdisplaymap</li>
                 </ul>

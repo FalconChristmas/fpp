@@ -1264,6 +1264,140 @@
         }
     }
 
+    function getCurrentViewURL() {
+        // Get base URL without query parameters
+        var baseUrl = window.location.origin + window.location.pathname;
+
+        // Build query parameters from current state
+        var params = [];
+
+        // Camera position
+        if (camera) {
+            params.push('cameraX=' + camera.position.x.toFixed(2));
+            params.push('cameraY=' + camera.position.y.toFixed(2));
+            params.push('cameraZ=' + camera.position.z.toFixed(2));
+        }
+
+        // Camera target (what it's looking at)
+        if (controls && controls.target) {
+            params.push('targetX=' + controls.target.x.toFixed(2));
+            params.push('targetY=' + controls.target.y.toFixed(2));
+            params.push('targetZ=' + controls.target.z.toFixed(2));
+        }
+
+        // Brightness
+        if (window.brightnessMultiplier !== 2.0) {
+            params.push('brightness=' + window.brightnessMultiplier.toFixed(1));
+        }
+
+        // Pixel size
+        if (window.pixelMaterial && window.pixelMaterial.size !== 3) {
+            params.push('pixelSize=' + window.pixelMaterial.size.toFixed(1));
+        }
+
+        // Grid visibility
+        if (window.gridHelper && !window.gridHelper.visible) {
+            params.push('showGrid=false');
+        }
+
+        // Axes visibility
+        if (window.axesHelper && window.axesHelper.visible) {
+            params.push('showAxes=true');
+        }
+
+        // Holiday animations
+        if (holidayAnimations.enabled) {
+            params.push('holidayMode=true');
+        }
+
+        // Fullscreen state (note: can't be auto-applied due to browser restrictions)
+        var isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+        if (isFullscreen) {
+            params.push('fullscreen=true');
+        }
+
+        // Combine into full URL
+        var fullUrl = baseUrl;
+        if (params.length > 0) {
+            fullUrl += '?' + params.join('&');
+        }
+
+        return fullUrl;
+    }
+
+    function copyCurrentViewURL() {
+        var url = getCurrentViewURL();
+
+        // Copy to clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function () {
+                showCopyFeedback('URL copied to clipboard!');
+                console.log('Copied URL:', url);
+            }).catch(function (err) {
+                // Fallback for clipboard API failure
+                fallbackCopyToClipboard(url);
+            });
+        } else {
+            // Fallback for older browsers
+            fallbackCopyToClipboard(url);
+        }
+    }
+
+    function fallbackCopyToClipboard(text) {
+        var textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            showCopyFeedback('URL copied to clipboard!');
+            console.log('Copied URL:', text);
+        } catch (err) {
+            showCopyFeedback('Failed to copy. URL logged to console.');
+            console.log('Copy this URL:', text);
+        }
+
+        document.body.removeChild(textArea);
+    }
+
+    function showCopyFeedback(message) {
+        // Create or update feedback element
+        var feedback = document.getElementById('copyFeedback');
+        if (!feedback) {
+            feedback = document.createElement('div');
+            feedback.id = 'copyFeedback';
+            feedback.style.position = 'fixed';
+            feedback.style.top = '20px';
+            feedback.style.right = '20px';
+            feedback.style.backgroundColor = '#4CAF50';
+            feedback.style.color = 'white';
+            feedback.style.padding = '12px 24px';
+            feedback.style.borderRadius = '4px';
+            feedback.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+            feedback.style.zIndex = '10000';
+            feedback.style.fontSize = '14px';
+            feedback.style.fontWeight = 'bold';
+            feedback.style.transition = 'opacity 0.3s';
+            document.body.appendChild(feedback);
+        }
+
+        feedback.textContent = message;
+        feedback.style.opacity = '1';
+        feedback.style.display = 'block';
+
+        // Auto-hide after 3 seconds
+        setTimeout(function () {
+            feedback.style.opacity = '0';
+            setTimeout(function () {
+                feedback.style.display = 'none';
+            }, 300);
+        }, 3000);
+    }
+
     function toggleFullscreen() {
         var container = document.getElementById('canvas-container');
 
@@ -1613,7 +1747,20 @@
     }
 
     $(document).ready(function () {
-        setupClient();
+        // Wait for THREE.js to be loaded from the ES6 module
+        function waitForThree() {
+            if (typeof window.THREE !== 'undefined' &&
+                typeof window.OBJLoader !== 'undefined' &&
+                typeof window.MTLLoader !== 'undefined' &&
+                typeof window.OrbitControls !== 'undefined') {
+                console.log('Three.js modules loaded, initializing 3D view');
+                setupClient();
+            } else {
+                console.log('Waiting for Three.js modules to load...');
+                setTimeout(waitForThree, 50);
+            }
+        }
+        waitForThree();
     });
 
 </script>
@@ -1701,6 +1848,9 @@
             style='background-color: #ff6b6b; color: white; font-weight: bold;'>
         <input type='button' onClick='toggleFullscreen();' value='Fullscreen'
             style='background-color: #4a90e2; color: white; font-weight: bold;'>
+        <input type='button' onClick='copyCurrentViewURL();' value='📋 Copy View URL'
+            style='background-color: #2ecc71; color: white; font-weight: bold;'
+            title='Copy URL with current camera position and settings'>
     </div>
     <div>
         <span class="control-group">
