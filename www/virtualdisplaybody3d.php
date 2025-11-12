@@ -355,9 +355,9 @@
         console.log('Renderer attached to DOM');
 
         // Add lights
-        var ambientLight = new THREE.AmbientLight(0x404040);
+        var ambientLight = new THREE.AmbientLight(0x404040, 1.0);
         scene.add(ambientLight);
-
+        
         var directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
         directionalLight.position.set(1, 1, 1);
         scene.add(directionalLight);
@@ -370,6 +370,14 @@
         var hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
         hemisphereLight.position.set(0, 1, 0);
         scene.add(hemisphereLight);
+        
+        // Store references for ambient light control (store base intensities)
+        window.sceneLights = {
+            ambient: { light: ambientLight, baseIntensity: 1.0 },
+            directional1: { light: directionalLight, baseIntensity: 0.5 },
+            directional2: { light: directionalLight2, baseIntensity: 0.5 },
+            hemisphere: { light: hemisphereLight, baseIntensity: 0.6 }
+        };
 
         // Use Points (point cloud) for efficient rendering of many pixels
         console.log('Creating point cloud with', pixelData.length, 'pixels');
@@ -1605,6 +1613,19 @@
         document.getElementById('brightnessValue').textContent = brightness.toFixed(2) + 'x';
     }
 
+    function updateAmbientLight() {
+        var multiplier = parseFloat(document.getElementById('ambientLightSlider').value);
+        document.getElementById('ambientLightValue').textContent = multiplier.toFixed(2) + 'x';
+        
+        // Apply multiplier to all scene lights proportionally
+        if (window.sceneLights) {
+            window.sceneLights.ambient.light.intensity = window.sceneLights.ambient.baseIntensity * multiplier;
+            window.sceneLights.directional1.light.intensity = window.sceneLights.directional1.baseIntensity * multiplier;
+            window.sceneLights.directional2.light.intensity = window.sceneLights.directional2.baseIntensity * multiplier;
+            window.sceneLights.hemisphere.light.intensity = window.sceneLights.hemisphere.baseIntensity * multiplier;
+        }
+    }
+
     function updatePixelOffset() {
         var xOffset = parseFloat(document.getElementById('pixelXSlider').value);
         var yOffset = parseFloat(document.getElementById('pixelYSlider').value);
@@ -1664,6 +1685,8 @@
         if (loadedObjects[index] && loadedObjects[index].object) {
             loadedObjects[index].object.visible = !loadedObjects[index].object.visible;
             console.log('Toggled', loadedObjects[index].config.name, 'visibility to:', loadedObjects[index].object.visible);
+            // Update the objects list to refresh the checkmark
+            updateObjectsList();
         }
     }
 
@@ -1890,6 +1913,11 @@
             Pixel Brightness: <input type='range' id='brightnessSlider' min='0.1' max='5.0' value='2.0' step='0.1'
                 oninput='updateBrightness();'>
             <span id='brightnessValue'>2.00x</span>
+        </span>
+        <span class="control-group">
+            Ambient Light: <input type='range' id='ambientLightSlider' min='0.0' max='3.0' value='1.0' step='0.1'
+                oninput='updateAmbientLight();'>
+            <span id='ambientLightValue'>1.00x</span>
         </span>
     </div>
     <div style="margin-top: 8px;">
