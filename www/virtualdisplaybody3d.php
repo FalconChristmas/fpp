@@ -1,4 +1,6 @@
 <script src="js/three.min.js"></script>
+<script src="js/OBJLoader.js"></script>
+<script src="js/MTLLoader.js"></script>
 <script>
     var pixelData = [];
     var pixelLookup = {};  // Fast lookup by key
@@ -10,6 +12,11 @@
     var pendingUpdates = [];
     var animationFrameId = null;
     window.brightnessMultiplier = 2.0;  // Default brightness
+
+    // 3D Objects variables
+    var loadedObjects = [];
+    var objLoader = null;
+    var mtlLoader = null;
 
     <?php
     // Canvas size for the 3D viewport
@@ -115,10 +122,10 @@
                 $ch = isset($entry[3]) ? $entry[3] : 0;
                 $colors = isset($entry[4]) ? $entry[4] : '';
 
-                // Center the model (use raw Y for 3D positioning, inverted oy for key)
-                $x = $ox - $centerX;
-                $y = $rawY - $centerY;
-                $z = $oz - $centerZ;
+                // Store raw coordinates - we'll center them in JavaScript using gridlines offset
+                $x = $ox;
+                $y = $rawY;
+                $z = $oz;
 
                 $ps = 1;
                 if (sizeof($entry) >= 7) {
@@ -149,13 +156,87 @@
         }
     }
 
+    // Load 3D asset configuration
+    $assetsConfigFile = $settings['virtualDisplayAssetsDirectory'] . '/virtdisplay.json';
+    $assetsConfig = null;
+    $viewObjects = array();
+
+    if (file_exists($assetsConfigFile)) {
+        $assetsContent = file_get_contents($assetsConfigFile);
+        $assetsConfig = json_decode($assetsContent, true);
+
+        if ($assetsConfig && isset($assetsConfig['view_objects'])) {
+            $viewObjects = $assetsConfig['view_objects'];
+            echo "console.log('Loaded " . count($viewObjects) . " view objects from virtdisplay.json');\n";
+
+            // Find gridlines to determine the coordinate system offset
+            // Gridlines position tells us where (0,0,0) is in the xLights coordinate system
+            $gridlinesOffsetX = 0;
+            $gridlinesOffsetY = 0;
+            $gridlinesOffsetZ = 0;
+            foreach ($viewObjects as $obj) {
+                if (isset($obj['DisplayAs']) && $obj['DisplayAs'] === 'Gridlines') {
+                    $gridlinesOffsetX = (float) $obj['WorldPosX'];
+                    $gridlinesOffsetY = (float) $obj['WorldPosY'];
+                    $gridlinesOffsetZ = (float) $obj['WorldPosZ'];
+                    echo "console.log('Found gridlines at X=$gridlinesOffsetX, Y=$gridlinesOffsetY, Z=$gridlinesOffsetZ');\n";
+                    echo "console.log('Pixel center is X=$centerX, Y=$centerY, Z=$centerZ');\n";
+                    break;
+                }
+            }
+            echo "var gridlinesOffset = { x: $gridlinesOffsetX, y: $gridlinesOffsetY, z: $gridlinesOffsetZ };\n";
+        } else {
+            echo "console.warn('No view_objects found in virtdisplay.json');\n";
+            echo "var gridlinesOffset = { x: 0, y: 0, z: 0 };\n";
+        }
+    } else {
+        echo "console.warn('virtdisplay.json not found at: " . $assetsConfigFile . "');\n";
+        echo "var gridlinesOffset = { x: 0, y: 0, z: 0 };\n";
+    }
+
+    // Output the view objects configuration to JavaScript
+    echo "var viewObjects = " . json_encode($viewObjects) . ";\n";
+    echo "var assetsDirectory = '" . $settings['virtualDisplayAssetsDirectory'] . "';\n";
+
+    // Get the 2D settings for coordinate system info
+    $previewWidth2D = isset($assetsConfig['2D-settings']['previewWidth']) ? $assetsConfig['2D-settings']['previewWidth'] : $previewWidth;
+    $previewHeight2D = isset($assetsConfig['2D-settings']['previewHeight']) ? $assetsConfig['2D-settings']['previewHeight'] : $previewHeight;
+    $centerAt0 = isset($assetsConfig['2D-settings']['Display2DCenter0']) ? $assetsConfig['2D-settings']['Display2DCenter0'] == '1' : false;
+
+    echo "var view2DSettings = { previewWidth: $previewWidth2D, previewHeight: $previewHeight2D, centerAt0: " . ($centerAt0 ? 'true' : 'false') . " };\n";
+    echo "console.log('2D View settings:', view2DSettings);\n";
+
+    // Also pass the 2D settings if available for coordinate system reference
+    if ($assetsConfig && isset($assetsConfig['2D-settings'])) {
+        $settings2D = $assetsConfig['2D-settings'];
+        echo "var display2DSettings = " . json_encode($settings2D) . ";\n";
+        echo "console.log('2D display settings:', display2DSettings);\n";
+    }
+
     ?>
 
     var canvasWidth = <?php echo $canvasWidth; ?>;
     var canvasHeight = <?php echo $canvasHeight; ?>;
+    var objectCenterOffset = { x: 0, y: 0, z: 0 };  // Will be calculated from gridlines
+
+    function calculateObjectCenterOffset() {
+        // Objects and pixels are both in xLights 3D coordinate system
+        // Gridlines define where (0,0,0) is in xLights coordinates
+        // Both should be centered relative to the gridlines position to maintain their relationship
+
+        // Use gridlines offset as the center point for both pixels and objects
+        objectCenterOffset.x = gridlinesOffset.x;
+        objectCenterOffset.y = gridlinesOffset.y;
+        objectCenterOffset.z = gridlinesOffset.z;
+
+        console.log('Object center offset (using gridlines):', objectCenterOffset);
+        console.log('Pixel model center:', modelCenter);
+        console.log('Gridlines offset:', gridlinesOffset);
+    }
 
     function init3D() {
         console.log('Initializing 3D view with', pixelData.length, 'pixels');
+        console.log('Three.js version info:', THREE.REVISION || 'version unknown');
 
         // Create scene
         scene = new THREE.Scene();
@@ -218,6 +299,15 @@
         directionalLight.position.set(1, 1, 1);
         scene.add(directionalLight);
 
+        // Add additional lights for better 3D object visibility
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight2.position.set(-1, -1, -1);
+        scene.add(directionalLight2);
+
+        var hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        hemisphereLight.position.set(0, 1, 0);
+        scene.add(hemisphereLight);
+
         // Use Points (point cloud) for efficient rendering of many pixels
         console.log('Creating point cloud with', pixelData.length, 'pixels');
 
@@ -225,15 +315,46 @@
         var positions = new Float32Array(pixelData.length * 3);
         var colors = new Float32Array(pixelData.length * 3);
 
+        // Debug: log first few pixel positions
+        console.log('First 3 pixels - RAW coordinates:');
+        for (var i = 0; i < Math.min(3, pixelData.length); i++) {
+            console.log('  Pixel', i, '- x:', pixelData[i].x, 'y:', pixelData[i].y, 'z:', pixelData[i].z);
+        }
+        console.log('Model center:', modelCenter);
+        console.log('Center at 0:', view2DSettings.centerAt0);
+
         for (var i = 0; i < pixelData.length; i++) {
-            positions[i * 3] = pixelData[i].x;
-            positions[i * 3 + 1] = pixelData[i].y;
-            positions[i * 3 + 2] = pixelData[i].z;
+            // Pixels come from virtualdisplaymap which may have Display2DCenter0 applied
+            // When Display2DCenter0 is enabled, pixel X coordinates are offset by preview center X
+            // Objects (from view_objects) are in pure 3D space, not affected by Display2DCenter0
+            // So we need to convert pixel X coordinates back to match object space
+
+            var pixelX = pixelData[i].x;
+            var pixelY = pixelData[i].y;
+            var pixelZ = pixelData[i].z;
+
+            if (view2DSettings.centerAt0) {
+                // When Display2DCenter0 is enabled, pixels need to align with object coordinate system
+                // Subtract modelCenter.x and apply additional correction factor
+                pixelX = pixelX - modelCenter.x - 274;
+                // Y and Z are fine as-is
+            }
+
+            // Now apply the same gridlines offset as objects
+            positions[i * 3] = pixelX - gridlinesOffset.x;
+            positions[i * 3 + 1] = pixelY - gridlinesOffset.y;
+            positions[i * 3 + 2] = pixelZ - gridlinesOffset.z;
 
             // Start all black
             colors[i * 3] = 0;
             colors[i * 3 + 1] = 0;
             colors[i * 3 + 2] = 0;
+        }
+
+        // Debug: log first few pixel positions after centering
+        console.log('First 3 pixels - CENTERED coordinates:');
+        for (var i = 0; i < Math.min(3, pixelData.length); i++) {
+            console.log('  Pixel', i, '- x:', positions[i * 3], 'y:', positions[i * 3 + 1], 'z:', positions[i * 3 + 2]);
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -271,7 +392,344 @@
         // Start render loop
         animate3D();
 
+        // Initialize 3D object loaders
+        if (initObjectLoaders()) {
+            // Calculate the coordinate offset from gridlines
+            calculateObjectCenterOffset();
+
+            // Load 3D objects from configuration
+            load3DObjects();
+        } else {
+            console.warn('3D object loaders failed to initialize, skipping 3D object loading');
+        }
+
         console.log('3D initialization complete');
+    }
+
+    function initObjectLoaders() {
+        // Initialize the OBJ and MTL loaders
+        try {
+            if (typeof THREE.OBJLoader === 'undefined') {
+                console.error('THREE.OBJLoader is not available. Make sure OBJLoader.js is loaded.');
+                return false;
+            }
+            if (typeof THREE.MTLLoader === 'undefined') {
+                console.error('THREE.MTLLoader is not available. Make sure MTLLoader.js is loaded.');
+                return false;
+            }
+
+            objLoader = new THREE.OBJLoader();
+            mtlLoader = new THREE.MTLLoader();
+            console.log('Successfully initialized 3D object loaders');
+        } catch (error) {
+            console.error('Failed to initialize 3D object loaders:', error);
+            return false;
+        }
+
+        // Set the path for loading assets via web server
+        if (typeof assetsDirectory !== 'undefined' && objLoader && mtlLoader) {
+            var assetPath = '/virtualdisplay_assets/';
+            console.log('Setting asset path to:', assetPath);
+            mtlLoader.setPath(assetPath);
+            objLoader.setPath(assetPath);
+            return true;
+        }
+        return false;
+    }
+
+    function load3DObjects() {
+        if (!viewObjects || viewObjects.length === 0) {
+            console.log('No 3D objects to load');
+            return;
+        }
+
+        console.log('Loading', viewObjects.length, '3D objects');
+
+        // Check if loaders are available, otherwise use fallback
+        var useLoaders = (objLoader && mtlLoader);
+
+        viewObjects.forEach((objConfig, index) => {
+            // Skip if not active
+            if (objConfig.Active === "0") {
+                console.log('Skipping inactive object:', objConfig.name);
+                return;
+            }
+
+            // Handle different display types
+            if (objConfig.DisplayAs === "Mesh" && objConfig.ObjFile) {
+                if (useLoaders) {
+                    loadMeshObject(objConfig, index);
+                } else {
+                    loadFallbackMesh(objConfig, index);
+                }
+            } else if (objConfig.DisplayAs === "Gridlines") {
+                loadGridlines(objConfig, index);
+            } else if (objConfig.DisplayAs === "Ruler") {
+                loadRuler(objConfig, index);
+            }
+        });
+    }
+
+    function loadMeshObject(objConfig, index) {
+        console.log('Loading mesh object:', objConfig.name, 'from', objConfig.ObjFile);
+
+        // Check if there's a corresponding MTL file
+        var mtlFile = objConfig.ObjFile.replace('.obj', '.mtl');
+        
+        // Try to load with MTL first
+        console.log('Attempting to load materials from:', mtlFile);
+        loadObjWithMaterial(objConfig.ObjFile, mtlFile, objConfig, index);
+    }
+
+    function loadObjWithMaterial(objPath, mtlPath, objConfig, index) {
+        // Try loading MTL file first
+        mtlLoader.load(
+            mtlPath,
+            (materials) => {
+                console.log('Successfully loaded materials for:', objConfig.name);
+                
+                try {
+                    // Disable texture loading to avoid compatibility issues
+                    // We'll use colors from the MTL but not textures
+                    for (var materialName in materials.materials) {
+                        var mat = materials.materials[materialName];
+                        // Clear any texture references to avoid loader errors
+                        if (mat.map) mat.map = null;
+                        if (mat.normalMap) mat.normalMap = null;
+                        if (mat.specularMap) mat.specularMap = null;
+                        if (mat.bumpMap) mat.bumpMap = null;
+                    }
+                    
+                    materials.preload();
+                    
+                    // Set materials to OBJ loader
+                    objLoader.setMaterials(materials);
+                    
+                    // Now load the OBJ with materials
+                    loadObjFile(objPath, objConfig, index, true);
+                } catch (error) {
+                    console.warn('Error processing MTL materials for', objConfig.name, ':', error);
+                    console.log('Falling back to default materials');
+                    loadObjFile(objPath, objConfig, index, false);
+                }
+            },
+            (progress) => {
+                // Progress callback
+            },
+            (error) => {
+                console.warn('Could not load MTL file for', objConfig.name, '- using default materials');
+                // Fall back to loading without materials
+                loadObjFile(objPath, objConfig, index, false);
+            }
+        );
+    }
+
+    function loadObjFile(objPath, objConfig, index, hasMaterials) {
+        objLoader.load(
+            objPath,
+            (object) => {
+                console.log('Successfully loaded 3D object:', objConfig.name);
+
+                // If no materials were loaded, apply default materials
+                if (!hasMaterials) {
+                    var meshCount = 0;
+                    object.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            meshCount++;
+                            // Apply a default material with reasonable properties
+                            child.material = new THREE.MeshPhongMaterial({
+                                color: 0xcccccc,  // Light gray default
+                                flatShading: false,
+                                side: THREE.DoubleSide,
+                                shininess: 30
+                            });
+                        }
+                    });
+                    console.log('Applied default materials to', meshCount, 'meshes in', objConfig.name);
+                } else {
+                    console.log('Using loaded MTL materials for', objConfig.name);
+                    // Reset the materials on the loader for next object
+                    objLoader.setMaterials(null);
+                }
+
+                // Calculate and log bounding box for debugging
+                var bbox = new THREE.Box3().setFromObject(object);
+                console.log('Object bounding box:', objConfig.name, '- min:', bbox.min, 'max:', bbox.max);
+
+                // Apply transformations
+                applyObjectTransform(object, objConfig);
+
+                // Add to scene
+                scene.add(object);
+
+                // Store reference
+                loadedObjects[index] = {
+                    object: object,
+                    config: objConfig
+                };
+
+                console.log('Added 3D object to scene:', objConfig.name);
+
+                // Update UI list
+                updateObjectsList();
+            },
+            (progress) => {
+                if (progress.lengthComputable) {
+                    console.log('Loading progress for', objConfig.name, ':', (progress.loaded / progress.total * 100).toFixed(1) + '%');
+                }
+            },
+            (error) => {
+                console.error('Error loading 3D object', objConfig.name, ':', error);
+                // Fall back to simple mesh
+                console.log('Falling back to placeholder mesh for', objConfig.name);
+                loadFallbackMesh(objConfig, index);
+            }
+        );
+    }
+
+    function applyObjectTransform(object, config) {
+        // Apply position
+        // Objects from virtdisplay.json are in xLights coordinate system
+        // Use the objectCenterOffset calculated from gridlines to align with pixel coordinates
+        let x = parseFloat(config.WorldPosX || 0);
+        let y = parseFloat(config.WorldPosY || 0);
+        let z = parseFloat(config.WorldPosZ || 0);
+
+        console.log('Original object position:', config.name, '- x:', x, 'y:', y, 'z:', z);
+        console.log('Object center offset:', objectCenterOffset);
+
+        // Subtract the offset to align with pixel coordinate system
+        x = x - objectCenterOffset.x;
+        y = y - objectCenterOffset.y;
+        z = z - objectCenterOffset.z;
+
+        console.log('Final object position:', config.name, '- x:', x, 'y:', y, 'z:', z);
+
+        object.position.set(x, y, z);
+
+        // Apply rotation (convert degrees to radians)
+        const rotX = (parseFloat(config.RotateX || 0) * Math.PI) / 180;
+        const rotY = (parseFloat(config.RotateY || 0) * Math.PI) / 180;
+        const rotZ = (parseFloat(config.RotateZ || 0) * Math.PI) / 180;
+
+        object.rotation.set(rotX, rotY, rotZ);
+
+        // Apply scale - multiply by a large factor to match the pixel coordinate system
+        // The pixel coordinates are in the range of hundreds/thousands, so we need to scale up significantly
+        const scaleFactor = 100; // Objects are in model units (typically cm or inches), pixels are in virtual units
+        const scaleX = (parseFloat(config.ScaleX || 100) / 100) * scaleFactor;
+        const scaleY = (parseFloat(config.ScaleY || 100) / 100) * scaleFactor;
+        const scaleZ = (parseFloat(config.ScaleZ || 100) / 100) * scaleFactor;
+
+        object.scale.set(scaleX, scaleY, scaleZ);
+
+        console.log('Applied transform to', config.name, '- Position:', { x, y, z }, 'Rotation:', { rotX, rotY, rotZ }, 'Scale:', { scaleX, scaleY, scaleZ });
+    }
+
+    function loadGridlines(config, index) {
+        console.log('Creating gridlines:', config.name);
+
+        const gridWidth = parseFloat(config.GridWidth || 1000);
+        const gridHeight = parseFloat(config.GridHeight || 1000);
+        const spacing = parseFloat(config.GridLineSpacing || 50);
+        const color = new THREE.Color(config.GridColor || '#004a00');
+
+        // Create grid - THREE.GridHelper is already horizontal (XZ plane)
+        const grid = new THREE.GridHelper(Math.max(gridWidth, gridHeight), Math.max(gridWidth, gridHeight) / spacing, color, color);
+
+        // Apply position and scale, but NOT rotation since GridHelper is already in the correct orientation
+        // In xLights, gridlines are rotated -90 degrees to be horizontal
+        // But THREE.GridHelper is already horizontal by default
+        const x = parseFloat(config.WorldPosX || 0) - objectCenterOffset.x;
+        const y = parseFloat(config.WorldPosY || 0) - objectCenterOffset.y;
+        const z = parseFloat(config.WorldPosZ || 0) - objectCenterOffset.z;
+
+        grid.position.set(x, y, z);
+
+        // Apply scale if needed
+        const scaleFactor = 100;
+        const scaleX = (parseFloat(config.ScaleX || 100) / 100) * scaleFactor;
+        const scaleY = (parseFloat(config.ScaleY || 100) / 100) * scaleFactor;
+        const scaleZ = (parseFloat(config.ScaleZ || 100) / 100) * scaleFactor;
+        grid.scale.set(scaleX, scaleY, scaleZ);
+
+        console.log('Gridlines positioned at:', { x, y, z }, 'scale:', { scaleX, scaleY, scaleZ });
+
+        scene.add(grid);
+
+        loadedObjects[index] = {
+            object: grid,
+            config: config
+        };
+
+        console.log('Added gridlines to scene:', config.name);
+
+        // Update UI list
+        updateObjectsList();
+    }
+
+    function loadRuler(config, index) {
+        console.log('Creating ruler:', config.name);
+
+        // Create a simple line for the ruler
+        const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+        const points = [];
+
+        const startX = parseFloat(config.WorldPosX || 0) - modelCenter.x;
+        const startY = parseFloat(config.WorldPosY || 0) - modelCenter.y;
+        const startZ = parseFloat(config.WorldPosZ || 0) - modelCenter.z;
+
+        const endX = parseFloat(config.X2 || 0) - modelCenter.x;
+        const endY = parseFloat(config.Y2 || 0) - modelCenter.y;
+        const endZ = parseFloat(config.Z2 || 0) - modelCenter.z;
+
+        points.push(new THREE.Vector3(startX, startY, startZ));
+        points.push(new THREE.Vector3(endX, endY, endZ));
+
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const line = new THREE.Line(geometry, material);
+
+        scene.add(line);
+
+        loadedObjects[index] = {
+            object: line,
+            config: config
+        };
+
+        console.log('Added ruler to scene:', config.name);
+
+        // Update UI list
+        updateObjectsList();
+    }
+
+    function loadFallbackMesh(config, index) {
+        console.log('Creating fallback mesh for:', config.name);
+
+        // Create a simple box as a placeholder for the 3D object
+        var geometry = new THREE.BoxGeometry(50, 50, 50);
+        var material = new THREE.MeshBasicMaterial({
+            color: 0x888888,
+            wireframe: true,
+            opacity: 0.7,
+            transparent: true
+        });
+
+        var mesh = new THREE.Mesh(geometry, material);
+
+        // Apply transformations
+        applyObjectTransform(mesh, config);
+
+        scene.add(mesh);
+
+        loadedObjects[index] = {
+            object: mesh,
+            config: config
+        };
+
+        console.log('Added fallback mesh to scene:', config.name);
+
+        // Update UI list
+        updateObjectsList();
     }
 
     function setupOrbitControls() {
@@ -473,6 +931,91 @@
         document.getElementById('brightnessValue').textContent = brightness.toFixed(2) + 'x';
     }
 
+    function updatePixelOffset() {
+        var xOffset = parseFloat(document.getElementById('pixelXSlider').value);
+        var yOffset = parseFloat(document.getElementById('pixelYSlider').value);
+        var zOffset = parseFloat(document.getElementById('pixelZSlider').value);
+
+        // Update display values
+        document.getElementById('pixelXValue').textContent = xOffset.toFixed(0);
+        document.getElementById('pixelYValue').textContent = yOffset.toFixed(0);
+        document.getElementById('pixelZValue').textContent = zOffset.toFixed(0);
+
+        // Update pixel positions in the geometry
+        if (window.pixelGeometry && pixelData) {
+            var positions = window.pixelGeometry.attributes.position.array;
+
+            for (var i = 0; i < pixelData.length; i++) {
+                var pixelX = pixelData[i].x;
+                var pixelY = pixelData[i].y;
+                var pixelZ = pixelData[i].z;
+                
+                if (view2DSettings.centerAt0) {
+                    // Convert X from Display2DCenter0 coordinate space to object space
+                    pixelX = pixelX - modelCenter.x - 274;
+                    // Y and Z are fine as-is
+                }
+                
+                // Apply gridlines offset and manual adjustment
+                positions[i * 3] = (pixelX - gridlinesOffset.x) + xOffset;
+                positions[i * 3 + 1] = (pixelY - gridlinesOffset.y) + yOffset;
+                positions[i * 3 + 2] = (pixelZ - gridlinesOffset.z) + zOffset;
+            }            window.pixelGeometry.attributes.position.needsUpdate = true;
+            console.log('Pixel offset adjusted to: X=' + xOffset + ', Y=' + yOffset + ', Z=' + zOffset);
+        }
+    }
+
+    function toggle3DObjects() {
+        var allVisible = true;
+
+        // Check if all objects are currently visible
+        for (var i = 0; i < loadedObjects.length; i++) {
+            if (loadedObjects[i] && loadedObjects[i].object && !loadedObjects[i].object.visible) {
+                allVisible = false;
+                break;
+            }
+        }
+
+        // Toggle all objects to opposite state
+        for (var i = 0; i < loadedObjects.length; i++) {
+            if (loadedObjects[i] && loadedObjects[i].object) {
+                loadedObjects[i].object.visible = !allVisible;
+            }
+        }
+
+        console.log('3D objects visibility set to:', !allVisible);
+    }
+
+    function toggleObject(index) {
+        if (loadedObjects[index] && loadedObjects[index].object) {
+            loadedObjects[index].object.visible = !loadedObjects[index].object.visible;
+            console.log('Toggled', loadedObjects[index].config.name, 'visibility to:', loadedObjects[index].object.visible);
+        }
+    }
+
+    function get3DObjectsList() {
+        var list = '<div style="margin-top: 10px;"><strong>3D Objects:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+
+        for (var i = 0; i < loadedObjects.length; i++) {
+            if (loadedObjects[i] && loadedObjects[i].config) {
+                var config = loadedObjects[i].config;
+                var isVisible = loadedObjects[i].object ? loadedObjects[i].object.visible : false;
+                var status = isVisible ? '✓' : '✗';
+                list += '<li style="margin: 2px 0;"><button onclick="toggleObject(' + i + ')" style="margin-right: 5px; padding: 2px 6px;">' + status + '</button>' + config.name + ' (' + config.DisplayAs + ')</li>';
+            }
+        }
+
+        list += '</ul></div>';
+        return list;
+    }
+
+    function updateObjectsList() {
+        var container = document.getElementById('objectsList');
+        if (container) {
+            container.innerHTML = get3DObjectsList();
+        }
+    }
+
     function setupClient() {
         init3D();
         startSSE();
@@ -532,6 +1075,7 @@
         <input type='button' id='stopButton' onClick='stopSSE();' value='Stop 3D Virtual Display'>
         <input type='button' onClick='toggleAxes();' value='Toggle Axes'>
         <input type='button' onClick='toggleGrid();' value='Toggle Grid'>
+        <input type='button' onClick='toggle3DObjects();' value='Toggle 3D Objects'>
     </div>
     <div>
         <span class="control-group">
@@ -544,10 +1088,31 @@
                 oninput='updateBrightness();'>
             <span id='brightnessValue'>2.00x</span>
         </span>
+    </div>
+    <div style="margin-top: 8px;">
+        <span class="control-group">
+            <strong>Pixel X Offset:</strong> <input type='range' id='pixelXSlider' min='-2000' max='2000' value='0'
+                step='1' oninput='updatePixelOffset();'>
+            <span id='pixelXValue' style="font-weight: bold; color: #e74c3c;">0</span>
+        </span>
+        <span class="control-group">
+            <strong>Pixel Y Offset:</strong> <input type='range' id='pixelYSlider' min='-2000' max='2000' value='0'
+                step='1' oninput='updatePixelOffset();'>
+            <span id='pixelYValue' style="font-weight: bold; color: #e74c3c;">0</span>
+        </span>
+        <span class="control-group">
+            <strong>Pixel Z Offset:</strong> <input type='range' id='pixelZSlider' min='-2000' max='2000' value='0'
+                step='1' oninput='updatePixelOffset();'>
+            <span id='pixelZValue' style="font-weight: bold; color: #e74c3c;">0</span>
+        </span>
         <span style="margin-left: 15px; color: #666; font-style: italic;">
             Left-click: rotate | Middle-click: pan | Scroll: zoom
         </span>
     </div>
 </div>
 <div id='canvas-container'></div>
+<div id='objectsList'
+    style="margin-top: 10px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+    <em>3D Objects will appear here once loaded...</em>
+</div>
 <div id='data'></div>
