@@ -8,12 +8,53 @@
     var clearTimer;
     var pendingUpdates = [];
     var animationFrameId = null;
-    window.brightnessMultiplier = 2.0;  // Default brightness
+    window.brightnessMultiplier = 2.0;  // Default brightness (can be overridden by URL param)
 
     // 3D Objects variables
     var loadedObjects = [];
     var objLoader = null;
     var mtlLoader = null;
+
+    // URL parameter configuration
+    var urlParams = {};
+
+    // Parse URL parameters
+    function parseURLParams() {
+        var params = {};
+        var queryString = window.location.search.substring(1);
+        if (queryString) {
+            var pairs = queryString.split('&');
+            for (var i = 0; i < pairs.length; i++) {
+                var pair = pairs[i].split('=');
+                var key = decodeURIComponent(pair[0]);
+                var value = decodeURIComponent(pair[1] || '');
+                params[key] = value;
+            }
+        }
+        return params;
+    }
+
+    // Get URL parameter with default value
+    function getURLParam(name, defaultValue) {
+        if (urlParams.hasOwnProperty(name)) {
+            var value = urlParams[name];
+            
+            // Handle boolean values
+            if (value === 'true') return true;
+            if (value === 'false') return false;
+            
+            // Handle numeric values
+            if (!isNaN(value) && value !== '') {
+                return parseFloat(value);
+            }
+            
+            return value;
+        }
+        return defaultValue;
+    }
+
+    // Initialize URL parameters
+    urlParams = parseURLParams();
 
     <?php
     // Canvas size for the 3D viewport
@@ -255,26 +296,51 @@
 
         // Position camera to fit all pixels with minimal padding
         // Factor of 1.2 gives ~10% padding, adjust FOV consideration
-        var fov = 75;
+        var fov = getURLParam('fov', 75);
         var fovRadians = fov * Math.PI / 180;
         var cameraDistance = maxRadius / Math.tan(fovRadians / 2) * 1.2;
+
+        // Allow URL parameter to override camera distance (zoom level)
+        var zoomParam = getURLParam('zoom', null);
+        if (zoomParam !== null) {
+            // zoom parameter is a multiplier (1.0 = default, 0.5 = half distance, 2.0 = double distance)
+            cameraDistance = cameraDistance * zoomParam;
+        }
 
         console.log('Model size:', modelSize, 'Camera distance:', cameraDistance);
 
         camera = new THREE.PerspectiveCamera(fov, canvasWidth / canvasHeight, 0.1, 10000);
 
-        // Position camera: 20 degrees to the right, 10 degrees looking down
-        // Convert angles to radians
-        var horizontalAngle = 20 * Math.PI / 180;  // 20 degrees right
-        var verticalAngle = 10 * Math.PI / 180;    // 10 degrees up (positive = looking down from above)
+        // Check if camera position is specified in URL parameters
+        var cameraX = getURLParam('cameraX', null);
+        var cameraY = getURLParam('cameraY', null);
+        var cameraZ = getURLParam('cameraZ', null);
 
-        // Calculate camera position using spherical coordinates
-        var x = cameraDistance * Math.cos(verticalAngle) * Math.sin(horizontalAngle);
-        var y = cameraDistance * Math.sin(verticalAngle);
-        var z = cameraDistance * Math.cos(verticalAngle) * Math.cos(horizontalAngle);
+        if (cameraX !== null && cameraY !== null && cameraZ !== null) {
+            // Use explicit camera position from URL
+            camera.position.set(cameraX, cameraY, cameraZ);
+            console.log('Using camera position from URL:', cameraX, cameraY, cameraZ);
+        } else {
+            // Calculate default camera position: 20 degrees to the right, 10 degrees looking down
+            // Allow override via angles in URL
+            var horizontalAngle = getURLParam('cameraAngleH', 20) * Math.PI / 180;  // degrees right
+            var verticalAngle = getURLParam('cameraAngleV', 10) * Math.PI / 180;    // degrees up (positive = looking down from above)
 
-        camera.position.set(x, y, z);
-        camera.lookAt(0, 0, 0);
+            // Calculate camera position using spherical coordinates
+            var x = cameraDistance * Math.cos(verticalAngle) * Math.sin(horizontalAngle);
+            var y = cameraDistance * Math.sin(verticalAngle);
+            var z = cameraDistance * Math.cos(verticalAngle) * Math.cos(horizontalAngle);
+
+            camera.position.set(x, y, z);
+            console.log('Using calculated camera position:', x, y, z);
+        }
+
+        // Check if camera target (lookAt) is specified in URL parameters
+        var targetX = getURLParam('targetX', 0);
+        var targetY = getURLParam('targetY', 0);
+        var targetZ = getURLParam('targetZ', 0);
+        camera.lookAt(targetX, targetY, targetZ);
+        console.log('Camera looking at:', targetX, targetY, targetZ);
 
         // Create renderer
         renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -376,13 +442,14 @@
         console.log('Point cloud created');
 
 
-        // Add axis helper for reference (default off)
+        // Add axis helper for reference (default off, can be overridden by URL)
         window.axesHelper = new THREE.AxesHelper(modelSize / 2);
-        window.axesHelper.visible = false;
+        window.axesHelper.visible = getURLParam('showAxes', false);
         scene.add(window.axesHelper);
 
-        // Add grid helper
+        // Add grid helper (can be hidden via URL)
         window.gridHelper = new THREE.GridHelper(modelSize * 2, 20);
+        window.gridHelper.visible = getURLParam('showGrid', true);
         scene.add(window.gridHelper);		// Simple orbit controls (mouse drag to rotate)
         setupOrbitControls();
 
@@ -900,7 +967,8 @@
         snowParticles: null,
         groundSnow: null,
         santa: null,
-        animationTime: 0
+        animationTime: 0,
+        frameCounter: 0  // For optimizing particle updates
     };
 
     function initHolidayAnimations() {
@@ -908,8 +976,8 @@
 
         console.log('Initializing holiday animations...');
 
-        // Create falling snow particles
-        var snowCount = 2000;
+        // Create falling snow particles (reduced count for better performance)
+        var snowCount = 500;
         var snowGeometry = new THREE.BufferGeometry();
         var snowPositions = new Float32Array(snowCount * 3);
         var snowVelocities = [];
@@ -1148,9 +1216,10 @@
         if (!holidayAnimations.enabled) return;
 
         holidayAnimations.animationTime += 0.016; // Assume ~60fps
+        holidayAnimations.frameCounter++;
 
-        // Update falling snow
-        if (holidayAnimations.snowParticles) {
+        // Update falling snow (every other frame for better performance)
+        if (holidayAnimations.snowParticles && holidayAnimations.frameCounter % 2 === 0) {
             var positions = holidayAnimations.snowParticles.geometry.attributes.position.array;
             var velocities = holidayAnimations.snowParticles.velocities;
 
@@ -1197,9 +1266,9 @@
 
     function toggleFullscreen() {
         var container = document.getElementById('canvas-container');
-        
-        if (!document.fullscreenElement && 
-            !document.webkitFullscreenElement && 
+
+        if (!document.fullscreenElement &&
+            !document.webkitFullscreenElement &&
             !document.mozFullScreenElement) {
             // Enter fullscreen
             if (container.requestFullscreen) {
@@ -1211,7 +1280,7 @@
             } else if (container.msRequestFullscreen) {
                 container.msRequestFullscreen();
             }
-            
+
             console.log('Entering fullscreen mode');
         } else {
             // Exit fullscreen
@@ -1229,14 +1298,14 @@
         } else if (document.msExitFullscreen) {
             document.msExitFullscreen();
         }
-        
+
         console.log('Exiting fullscreen mode');
     }
 
     // Handle fullscreen change events
     function handleFullscreenChange() {
-        if (!document.fullscreenElement && 
-            !document.webkitFullscreenElement && 
+        if (!document.fullscreenElement &&
+            !document.webkitFullscreenElement &&
             !document.mozFullScreenElement) {
             // Exited fullscreen - resize renderer
             var container = document.getElementById('canvas-container');
@@ -1260,10 +1329,10 @@
     document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
     // ESC key handler
-    document.addEventListener('keydown', function(event) {
+    document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' || event.keyCode === 27) {
-            if (document.fullscreenElement || 
-                document.webkitFullscreenElement || 
+            if (document.fullscreenElement ||
+                document.webkitFullscreenElement ||
                 document.mozFullScreenElement) {
                 exitFullscreen();
             }
@@ -1450,7 +1519,7 @@
     }
 
     function get3DObjectsList() {
-        var list = '<div style="margin-top: 10px;"><strong>3D Objects:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+        var list = '<div style="margin-top: 10px;"><strong>3D Objects from xLights:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
 
         for (var i = 0; i < loadedObjects.length; i++) {
             if (loadedObjects[i] && loadedObjects[i].config) {
@@ -1473,8 +1542,74 @@
     }
 
     function setupClient() {
+        // Apply URL parameters for brightness
+        var brightness = getURLParam('brightness', window.brightnessMultiplier);
+        window.brightnessMultiplier = brightness;
+        
+        // Apply URL parameter for pixel size
+        var urlPixelSize = getURLParam('pixelSize', null);
+        if (urlPixelSize !== null) {
+            pixelSize = urlPixelSize;
+        }
+        
         init3D();
         startSSE();
+        
+        // Apply URL parameters after DOM is ready
+        setTimeout(function() {
+            applyURLParameters();
+        }, 100);
+    }
+
+    function applyURLParameters() {
+        // Apply brightness slider if it exists
+        var brightnessSlider = document.getElementById('brightnessSlider');
+        if (brightnessSlider) {
+            brightnessSlider.value = window.brightnessMultiplier;
+        }
+        
+        // Apply pixel size slider if it exists
+        var pixelSizeSlider = document.getElementById('pixelSizeSlider');
+        if (pixelSizeSlider) {
+            pixelSizeSlider.value = pixelSize;
+            if (window.pixelMaterial) {
+                window.pixelMaterial.size = pixelSize;
+            }
+        }
+        
+        // Auto-enter fullscreen if requested
+        // Note: Most browsers block automatic fullscreen without user interaction
+        // We'll show a message and add a one-time click listener
+        var fullscreen = getURLParam('fullscreen', false);
+        if (fullscreen === true) {
+            console.log('Fullscreen requested via URL parameter');
+            
+            // Try to enter fullscreen immediately (may be blocked by browser)
+            toggleFullscreen();
+            
+            // Also add a fallback: show a message and enable click-anywhere to fullscreen
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
+                // If fullscreen didn't work, add a one-time click handler
+                var clickToFullscreen = function() {
+                    toggleFullscreen();
+                    document.removeEventListener('click', clickToFullscreen);
+                    document.removeEventListener('touchstart', clickToFullscreen);
+                };
+                
+                document.addEventListener('click', clickToFullscreen, { once: true });
+                document.addEventListener('touchstart', clickToFullscreen, { once: true });
+                
+                console.log('Fullscreen blocked by browser - click anywhere to enter fullscreen mode');
+            }
+        }
+        
+        // Initialize holiday animations if requested
+        var holidayMode = getURLParam('holidayMode', false);
+        if (holidayMode === true && !holidayAnimations.enabled) {
+            initHolidayAnimations();
+        }
+        
+        console.log('URL parameters applied');
     }
 
     $(document).ready(function () {
@@ -1564,7 +1699,7 @@
         <input type='button' onClick='toggle3DObjects();' value='Toggle 3D Objects'>
         <input type='button' onClick='toggleHolidayAnimations();' value='Toggle Holiday Fun!'
             style='background-color: #ff6b6b; color: white; font-weight: bold;'>
-        <input type='button' onClick='toggleFullscreen();' value='Fullscreen' 
+        <input type='button' onClick='toggleFullscreen();' value='Fullscreen'
             style='background-color: #4a90e2; color: white; font-weight: bold;'>
     </div>
     <div>
@@ -1574,7 +1709,7 @@
             <span id='pixelSizeValue'>3.0</span>
         </span>
         <span class="control-group">
-            Brightness: <input type='range' id='brightnessSlider' min='0.1' max='3.0' value='2.0' step='0.1'
+            Pixel Brightness: <input type='range' id='brightnessSlider' min='0.1' max='5.0' value='2.0' step='0.1'
                 oninput='updateBrightness();'>
             <span id='brightnessValue'>2.00x</span>
         </span>
