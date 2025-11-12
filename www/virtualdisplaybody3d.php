@@ -480,10 +480,10 @@
 
     function loadObjWithMaterial(objPath, mtlPath, objConfig, index) {
         // Create a custom loading manager to intercept and fix texture paths
-        var manager = new THREE.LoadingManager();
+        var textureManager = new THREE.LoadingManager();
 
         // Intercept texture loading to fix paths
-        manager.setURLModifier((url) => {
+        textureManager.setURLModifier((url) => {
             // If URL contains a subdirectory path, strip it and use just the filename
             var filename = url.split('/').pop();
             var fixedUrl = '/virtualdisplay_assets/' + filename;
@@ -495,8 +495,8 @@
             return fixedUrl;
         });
 
-        // Create a new MTL loader with the custom manager
-        var customMtlLoader = new window.MTLLoader(manager);
+        // Create a new MTL loader with the custom manager for texture path fixing
+        var customMtlLoader = new window.MTLLoader(textureManager);
         customMtlLoader.setPath('/virtualdisplay_assets/');
 
         // Load MTL file with the custom loader
@@ -510,11 +510,13 @@
 
                 console.log('Materials and textures preloaded for:', objConfig.name);
 
-                // Set materials to OBJ loader
-                objLoader.setMaterials(materials);
+                // Create a new OBJ loader with the same texture manager
+                var customObjLoader = new window.OBJLoader(textureManager);
+                customObjLoader.setPath('/virtualdisplay_assets/');
+                customObjLoader.setMaterials(materials);
 
                 // Now load the OBJ with materials
-                loadObjFile(objPath, objConfig, index, true);
+                loadObjFileWithLoader(customObjLoader, objPath, objConfig, index, true);
             },
             (progress) => {
                 // Progress callback
@@ -522,9 +524,64 @@
             (error) => {
                 console.warn('Could not load MTL file for', objConfig.name, '- using default materials');
                 console.error('MTL load error:', error);
-                // Fall back to loading without materials
-                objLoader.setMaterials(null);
+                // Fall back to loading without materials using the standard loader
                 loadObjFile(objPath, objConfig, index, false);
+            }
+        );
+    }
+
+    function loadObjFileWithLoader(loader, objPath, objConfig, index, hasMaterials) {
+        loader.load(
+            objPath,
+            (object) => {
+                console.log('Successfully loaded 3D object:', objConfig.name);
+
+                if (hasMaterials) {
+                    console.log('Using loaded MTL materials for', objConfig.name);
+
+                    // Log material details for debugging
+                    var materialCount = 0;
+                    var textureCount = 0;
+                    object.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            materialCount++;
+                            if (child.material.map) {
+                                textureCount++;
+                                console.log('  Mesh has texture:', child.material.map.image?.src || 'loading...');
+                            }
+                        }
+                    });
+                    console.log('Applied', materialCount, 'materials with', textureCount, 'textures to', objConfig.name);
+                }
+
+                // Calculate and log bounding box for debugging
+                var bbox = new THREE.Box3().setFromObject(object);
+                console.log('Object bounding box:', objConfig.name, '- min:', bbox.min, 'max:', bbox.max);
+
+                // Apply transformations
+                applyObjectTransform(object, objConfig);
+
+                // Add to scene
+                scene.add(object);
+
+                // Store reference
+                loadedObjects[index] = {
+                    object: object,
+                    config: objConfig
+                };
+
+                console.log('Added 3D object to scene:', objConfig.name);
+
+                // Update UI list
+                updateObjectsList();
+            },
+            (progress) => {
+                if (progress.lengthComputable) {
+                    console.log('Loading progress for', objConfig.name, ':', (progress.loaded / progress.total * 100).toFixed(1) + '%');
+                }
+            },
+            (error) => {
+                console.error('Error loading 3D object', objConfig.name, ':', error);
             }
         );
     }
@@ -837,8 +894,312 @@
         });
     }
 
+    // Holiday Animations
+    var holidayAnimations = {
+        enabled: false,
+        snowParticles: null,
+        groundSnow: null,
+        santa: null,
+        animationTime: 0
+    };
+
+    function initHolidayAnimations() {
+        if (holidayAnimations.enabled) return;
+
+        console.log('Initializing holiday animations...');
+
+        // Create falling snow particles
+        var snowCount = 2000;
+        var snowGeometry = new THREE.BufferGeometry();
+        var snowPositions = new Float32Array(snowCount * 3);
+        var snowVelocities = [];
+
+        for (var i = 0; i < snowCount; i++) {
+            snowPositions[i * 3] = (Math.random() - 0.5) * 2000;     // X
+            snowPositions[i * 3 + 1] = Math.random() * 1000;         // Y
+            snowPositions[i * 3 + 2] = (Math.random() - 0.5) * 2000; // Z
+            snowVelocities.push(Math.random() * 0.5 + 0.5); // Fall speed
+        }
+
+        snowGeometry.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
+
+        var snowMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 3,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        holidayAnimations.snowParticles = new THREE.Points(snowGeometry, snowMaterial);
+        holidayAnimations.snowParticles.velocities = snowVelocities;
+        scene.add(holidayAnimations.snowParticles);
+
+        // Create snow on ground
+        var groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+        var groundMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.DoubleSide
+        });
+        holidayAnimations.groundSnow = new THREE.Mesh(groundGeometry, groundMaterial);
+        holidayAnimations.groundSnow.rotation.x = -Math.PI / 2;
+        holidayAnimations.groundSnow.position.y = -50;
+        scene.add(holidayAnimations.groundSnow);
+
+        // Create Santa and Sleigh
+        var santaGroup = new THREE.Group();
+
+        // Santa's body - more detailed
+        var bodyGeometry = new THREE.SphereGeometry(25, 32, 32);
+        bodyGeometry.scale(1, 1.2, 0.8); // Make it more oval
+        var bodyMaterial = new THREE.MeshPhongMaterial({
+            color: 0xcc0000,
+            shininess: 10
+        });
+        var body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 10;
+        santaGroup.add(body);
+
+        // Santa's head
+        var headGeometry = new THREE.SphereGeometry(15, 32, 32);
+        var headMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffdbac,
+            shininess: 30
+        });
+        var head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.y = 35;
+        santaGroup.add(head);
+
+        // White beard
+        var beardGeometry = new THREE.SphereGeometry(12, 16, 16);
+        beardGeometry.scale(1, 0.8, 0.8);
+        var beardMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        var beard = new THREE.Mesh(beardGeometry, beardMaterial);
+        beard.position.set(0, 30, 8);
+        santaGroup.add(beard);
+
+        // Santa's hat
+        var hatGeometry = new THREE.ConeGeometry(16, 35, 32);
+        var hatMaterial = new THREE.MeshPhongMaterial({ color: 0xcc0000 });
+        var hat = new THREE.Mesh(hatGeometry, hatMaterial);
+        hat.position.y = 55;
+        santaGroup.add(hat);
+
+        // Hat pom-pom
+        var pomGeometry = new THREE.SphereGeometry(8, 16, 16);
+        var pomMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        var pom = new THREE.Mesh(pomGeometry, pomMaterial);
+        pom.position.y = 72;
+        santaGroup.add(pom);
+
+        // White belt
+        var beltGeometry = new THREE.TorusGeometry(25, 3, 8, 32);
+        var beltMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        var belt = new THREE.Mesh(beltGeometry, beltMaterial);
+        belt.rotation.x = Math.PI / 2;
+        belt.position.y = 10;
+        santaGroup.add(belt);
+
+        // Gold buckle
+        var buckleGeometry = new THREE.BoxGeometry(8, 8, 4);
+        var buckleMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffd700,
+            shininess: 100
+        });
+        var buckle = new THREE.Mesh(buckleGeometry, buckleMaterial);
+        buckle.position.set(0, 10, 26);
+        santaGroup.add(buckle);
+
+        // Sleigh
+        var sleighGroup = new THREE.Group();
+
+        // Sleigh body - curved
+        var sleighBodyGeometry = new THREE.BoxGeometry(60, 20, 40);
+        var sleighBodyMaterial = new THREE.MeshPhongMaterial({
+            color: 0x8B4513,
+            shininess: 50
+        });
+        var sleighBody = new THREE.Mesh(sleighBodyGeometry, sleighBodyMaterial);
+        sleighBody.position.y = -15;
+        sleighGroup.add(sleighBody);
+
+        // Sleigh front curved part
+        var sleighFrontGeometry = new THREE.CylinderGeometry(20, 20, 40, 32, 1, false, 0, Math.PI);
+        var sleighFrontMaterial = new THREE.MeshPhongMaterial({
+            color: 0x8B4513,
+            side: THREE.DoubleSide
+        });
+        var sleighFront = new THREE.Mesh(sleighFrontGeometry, sleighFrontMaterial);
+        sleighFront.rotation.z = Math.PI / 2;
+        sleighFront.rotation.y = Math.PI / 2;
+        sleighFront.position.set(40, -5, 0);
+        sleighGroup.add(sleighFront);
+
+        // Sleigh runners (skis)
+        var runnerGeometry = new THREE.BoxGeometry(80, 3, 8);
+        var runnerMaterial = new THREE.MeshPhongMaterial({
+            color: 0xcccccc,
+            metalness: 0.8,
+            shininess: 100
+        });
+        var runner1 = new THREE.Mesh(runnerGeometry, runnerMaterial);
+        runner1.position.set(0, -28, -15);
+        sleighGroup.add(runner1);
+
+        var runner2 = new THREE.Mesh(runnerGeometry, runnerMaterial);
+        runner2.position.set(0, -28, 15);
+        sleighGroup.add(runner2);
+
+        // Gift bags in sleigh
+        var giftColors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
+        for (var i = 0; i < 4; i++) {
+            var giftGeo = new THREE.BoxGeometry(12, 12, 12);
+            var giftMat = new THREE.MeshPhongMaterial({
+                color: giftColors[i],
+                shininess: 30
+            });
+            var gift = new THREE.Mesh(giftGeo, giftMat);
+            gift.position.set(-10 + (i * 8), -8, -5 + Math.random() * 10);
+            gift.rotation.y = Math.random() * 0.5;
+            sleighGroup.add(gift);
+        }
+
+        // Reindeer (lead reindeer)
+        var reindeerGroup = new THREE.Group();
+
+        // Reindeer body
+        var reindeerBodyGeo = new THREE.CylinderGeometry(8, 10, 30, 16);
+        var reindeerBodyMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+        var reindeerBody = new THREE.Mesh(reindeerBodyGeo, reindeerBodyMat);
+        reindeerBody.rotation.z = Math.PI / 2;
+        reindeerGroup.add(reindeerBody);
+
+        // Reindeer head
+        var reindeerHeadGeo = new THREE.ConeGeometry(6, 15, 16);
+        var reindeerHead = new THREE.Mesh(reindeerHeadGeo, reindeerBodyMat);
+        reindeerHead.rotation.z = Math.PI / 2;
+        reindeerHead.position.set(20, 0, 0);
+        reindeerGroup.add(reindeerHead);
+
+        // Red nose (Rudolph!)
+        var noseGeo = new THREE.SphereGeometry(4, 16, 16);
+        var noseMat = new THREE.MeshPhongMaterial({
+            color: 0xff0000,
+            emissive: 0xff0000,
+            emissiveIntensity: 0.5
+        });
+        var nose = new THREE.Mesh(noseGeo, noseMat);
+        nose.position.set(27, 0, 0);
+        reindeerGroup.add(nose);
+
+        // Antlers
+        var antlerGeo = new THREE.CylinderGeometry(0.5, 1, 15, 8);
+        var antlerMat = new THREE.MeshPhongMaterial({ color: 0xD2691E });
+
+        var antler1 = new THREE.Mesh(antlerGeo, antlerMat);
+        antler1.position.set(15, 10, -5);
+        antler1.rotation.z = -0.3;
+        reindeerGroup.add(antler1);
+
+        var antler2 = new THREE.Mesh(antlerGeo, antlerMat);
+        antler2.position.set(15, 10, 5);
+        antler2.rotation.z = -0.3;
+        reindeerGroup.add(antler2);
+
+        // Position reindeer in front of sleigh
+        reindeerGroup.position.set(80, -10, 0);
+
+        // Add Santa to sleigh
+        santaGroup.position.set(-10, 15, 0);
+        sleighGroup.add(santaGroup);
+        sleighGroup.add(reindeerGroup);
+
+        holidayAnimations.santa = sleighGroup;
+        holidayAnimations.santa.position.set(0, 400, 0);
+        scene.add(holidayAnimations.santa);
+
+        holidayAnimations.enabled = true;
+        console.log('Holiday animations initialized!');
+    }
+
+    function removeHolidayAnimations() {
+        if (!holidayAnimations.enabled) return;
+
+        if (holidayAnimations.snowParticles) {
+            scene.remove(holidayAnimations.snowParticles);
+            holidayAnimations.snowParticles = null;
+        }
+        if (holidayAnimations.groundSnow) {
+            scene.remove(holidayAnimations.groundSnow);
+            holidayAnimations.groundSnow = null;
+        }
+        if (holidayAnimations.santa) {
+            scene.remove(holidayAnimations.santa);
+            holidayAnimations.santa = null;
+        }
+
+        holidayAnimations.enabled = false;
+        holidayAnimations.animationTime = 0;
+        console.log('Holiday animations removed');
+    }
+
+    function updateHolidayAnimations() {
+        if (!holidayAnimations.enabled) return;
+
+        holidayAnimations.animationTime += 0.016; // Assume ~60fps
+
+        // Update falling snow
+        if (holidayAnimations.snowParticles) {
+            var positions = holidayAnimations.snowParticles.geometry.attributes.position.array;
+            var velocities = holidayAnimations.snowParticles.velocities;
+
+            for (var i = 0; i < positions.length / 3; i++) {
+                positions[i * 3 + 1] -= velocities[i]; // Fall down
+
+                // Reset to top when it falls below ground
+                if (positions[i * 3 + 1] < -50) {
+                    positions[i * 3 + 1] = 1000;
+                    positions[i * 3] = (Math.random() - 0.5) * 2000;
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 2000;
+                }
+            }
+
+            holidayAnimations.snowParticles.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // Animate Santa and Sleigh flying in a circle
+        if (holidayAnimations.santa) {
+            var santaRadius = 700;
+            var santaSpeed = 0.25;
+            var angle = holidayAnimations.animationTime * santaSpeed;
+
+            holidayAnimations.santa.position.x = Math.cos(angle) * santaRadius;
+            holidayAnimations.santa.position.z = Math.sin(angle) * santaRadius;
+            holidayAnimations.santa.position.y = 400 + Math.sin(angle * 2) * 40;
+
+            // Point Santa in the direction of travel
+            holidayAnimations.santa.rotation.y = angle + Math.PI / 2;
+
+            // Add gentle bobbing motion
+            holidayAnimations.santa.rotation.x = Math.sin(angle * 4) * 0.05;
+            holidayAnimations.santa.rotation.z = Math.sin(angle * 3) * 0.03;
+        }
+    }
+
+    function toggleHolidayAnimations() {
+        if (holidayAnimations.enabled) {
+            removeHolidayAnimations();
+        } else {
+            initHolidayAnimations();
+        }
+    }
+
     function animate3D() {
         requestAnimationFrame(animate3D);
+
+        // Update holiday animations if enabled
+        updateHolidayAnimations();
 
         // Process pending color updates
         if (pendingUpdates.length > 0) {
@@ -1096,6 +1457,8 @@
         <input type='button' onClick='toggleAxes();' value='Toggle Axes'>
         <input type='button' onClick='toggleGrid();' value='Toggle Grid'>
         <input type='button' onClick='toggle3DObjects();' value='Toggle 3D Objects'>
+        <input type='button' onClick='toggleHolidayAnimations();' value='Toggle Holiday Fun!'
+            style='background-color: #ff6b6b; color: white; font-weight: bold;'>
     </div>
     <div>
         <span class="control-group">
