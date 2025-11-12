@@ -475,7 +475,7 @@
 
         // Check if there's a corresponding MTL file
         var mtlFile = objConfig.ObjFile.replace('.obj', '.mtl');
-        
+
         // Try to load with MTL first
         console.log('Attempting to load materials from:', mtlFile);
         loadObjWithMaterial(objConfig.ObjFile, mtlFile, objConfig, index);
@@ -487,7 +487,7 @@
             mtlPath,
             (materials) => {
                 console.log('Successfully loaded materials for:', objConfig.name);
-                
+
                 try {
                     // Disable texture loading to avoid compatibility issues
                     // We'll use colors from the MTL but not textures
@@ -499,12 +499,12 @@
                         if (mat.specularMap) mat.specularMap = null;
                         if (mat.bumpMap) mat.bumpMap = null;
                     }
-                    
+
                     materials.preload();
-                    
+
                     // Set materials to OBJ loader
                     objLoader.setMaterials(materials);
-                    
+
                     // Now load the OBJ with materials
                     loadObjFile(objPath, objConfig, index, true);
                 } catch (error) {
@@ -949,18 +949,18 @@
                 var pixelX = pixelData[i].x;
                 var pixelY = pixelData[i].y;
                 var pixelZ = pixelData[i].z;
-                
+
                 if (view2DSettings.centerAt0) {
                     // Convert X from Display2DCenter0 coordinate space to object space
                     pixelX = pixelX - modelCenter.x - 274;
                     // Y and Z are fine as-is
                 }
-                
+
                 // Apply gridlines offset and manual adjustment
                 positions[i * 3] = (pixelX - gridlinesOffset.x) + xOffset;
                 positions[i * 3 + 1] = (pixelY - gridlinesOffset.y) + yOffset;
                 positions[i * 3 + 2] = (pixelZ - gridlinesOffset.z) + zOffset;
-            }            window.pixelGeometry.attributes.position.needsUpdate = true;
+            } window.pixelGeometry.attributes.position.needsUpdate = true;
             console.log('Pixel offset adjusted to: X=' + xOffset + ', Y=' + yOffset + ', Z=' + zOffset);
         }
     }
