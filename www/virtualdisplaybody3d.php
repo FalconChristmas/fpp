@@ -1,6 +1,3 @@
-<script src="js/three.min.js"></script>
-<script src="js/OBJLoader.js"></script>
-<script src="js/MTLLoader.js"></script>
 <script>
     var pixelData = [];
     var pixelLookup = {};  // Fast lookup by key
@@ -407,19 +404,19 @@
     }
 
     function initObjectLoaders() {
-        // Initialize the OBJ and MTL loaders
+        // Initialize the OBJ and MTL loaders with new ES6 modules
         try {
-            if (typeof THREE.OBJLoader === 'undefined') {
-                console.error('THREE.OBJLoader is not available. Make sure OBJLoader.js is loaded.');
+            if (typeof window.OBJLoader === 'undefined') {
+                console.error('OBJLoader is not available. Make sure Three.js modules are loaded.');
                 return false;
             }
-            if (typeof THREE.MTLLoader === 'undefined') {
-                console.error('THREE.MTLLoader is not available. Make sure MTLLoader.js is loaded.');
+            if (typeof window.MTLLoader === 'undefined') {
+                console.error('MTLLoader is not available. Make sure Three.js modules are loaded.');
                 return false;
             }
 
-            objLoader = new THREE.OBJLoader();
-            mtlLoader = new THREE.MTLLoader();
+            objLoader = new window.OBJLoader();
+            mtlLoader = new window.MTLLoader();
             console.log('Successfully initialized 3D object loaders');
         } catch (error) {
             console.error('Failed to initialize 3D object loaders:', error);
@@ -482,43 +479,51 @@
     }
 
     function loadObjWithMaterial(objPath, mtlPath, objConfig, index) {
-        // Try loading MTL file first
-        mtlLoader.load(
+        // Create a custom loading manager to intercept and fix texture paths
+        var manager = new THREE.LoadingManager();
+        
+        // Intercept texture loading to fix paths
+        manager.setURLModifier((url) => {
+            // If URL contains a subdirectory path, strip it and use just the filename
+            var filename = url.split('/').pop();
+            var fixedUrl = '/virtualdisplay_assets/' + filename;
+            
+            if (url !== fixedUrl) {
+                console.log('Fixed texture URL:', url, '->', fixedUrl);
+            }
+            
+            return fixedUrl;
+        });
+        
+        // Create a new MTL loader with the custom manager
+        var customMtlLoader = new window.MTLLoader(manager);
+        customMtlLoader.setPath('/virtualdisplay_assets/');
+        
+        // Load MTL file with the custom loader
+        customMtlLoader.load(
             mtlPath,
             (materials) => {
                 console.log('Successfully loaded materials for:', objConfig.name);
-
-                try {
-                    // Disable texture loading to avoid compatibility issues
-                    // We'll use colors from the MTL but not textures
-                    for (var materialName in materials.materials) {
-                        var mat = materials.materials[materialName];
-                        // Clear any texture references to avoid loader errors
-                        if (mat.map) mat.map = null;
-                        if (mat.normalMap) mat.normalMap = null;
-                        if (mat.specularMap) mat.specularMap = null;
-                        if (mat.bumpMap) mat.bumpMap = null;
-                    }
-
-                    materials.preload();
-
-                    // Set materials to OBJ loader
-                    objLoader.setMaterials(materials);
-
-                    // Now load the OBJ with materials
-                    loadObjFile(objPath, objConfig, index, true);
-                } catch (error) {
-                    console.warn('Error processing MTL materials for', objConfig.name, ':', error);
-                    console.log('Falling back to default materials');
-                    loadObjFile(objPath, objConfig, index, false);
-                }
+                
+                // Preload materials and textures
+                materials.preload();
+                
+                console.log('Materials and textures preloaded for:', objConfig.name);
+                
+                // Set materials to OBJ loader
+                objLoader.setMaterials(materials);
+                
+                // Now load the OBJ with materials
+                loadObjFile(objPath, objConfig, index, true);
             },
             (progress) => {
                 // Progress callback
             },
             (error) => {
                 console.warn('Could not load MTL file for', objConfig.name, '- using default materials');
+                console.error('MTL load error:', error);
                 // Fall back to loading without materials
+                objLoader.setMaterials(null);
                 loadObjFile(objPath, objConfig, index, false);
             }
         );
@@ -548,6 +553,21 @@
                     console.log('Applied default materials to', meshCount, 'meshes in', objConfig.name);
                 } else {
                     console.log('Using loaded MTL materials for', objConfig.name);
+                    
+                    // Log material details for debugging
+                    var materialCount = 0;
+                    var textureCount = 0;
+                    object.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            materialCount++;
+                            if (child.material.map) {
+                                textureCount++;
+                                console.log('  Mesh has texture:', child.material.map.image?.src || 'loading...');
+                            }
+                        }
+                    });
+                    console.log('Applied', materialCount, 'materials with', textureCount, 'textures to', objConfig.name);
+                    
                     // Reset the materials on the loader for next object
                     objLoader.setMaterials(null);
                 }
