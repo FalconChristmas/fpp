@@ -61,25 +61,31 @@
                     <li>Use your <b>left mouse button to drag</b> to rotate the 3D view</li>
                     <li>Use your <b>middle mouse button (scroll wheel press) to drag</b> to pan/move the view</li>
                     <li>Use your <b>scroll wheel</b> to zoom in/out</li>
-                    <li>Click the <b>Fullscreen button</b> for an immersive full-screen experience (press <b>ESC</b> to exit)</li>
+                    <li>Click the <b>Fullscreen button</b> for an immersive full-screen experience (press <b>ESC</b> to
+                        exit)</li>
                     <li>The display shows your pixel layout in <b>true 3D space</b> using the Z-axis data from your
                         virtualdisplaymap</li>
                 </ul>
                 <br>
                 <b>URL Parameters:</b> You can customize the view by adding parameters to the URL. Examples:
                 <ul style="font-size: 0.9em;">
-                    <li><b>Camera Position:</b> <code>?cameraX=500&cameraY=300&cameraZ=800</code> - Set exact camera position</li>
-                    <li><b>Camera Angles:</b> <code>?cameraAngleH=45&cameraAngleV=20</code> - Set horizontal/vertical angles (degrees)</li>
-                    <li><b>Camera Target:</b> <code>?targetX=0&targetY=100&targetZ=0</code> - Set what camera looks at</li>
+                    <li><b>Camera Position:</b> <code>?cameraX=500&cameraY=300&cameraZ=800</code> - Set exact camera
+                        position</li>
+                    <li><b>Camera Angles:</b> <code>?cameraAngleH=45&cameraAngleV=20</code> - Set horizontal/vertical
+                        angles (degrees)</li>
+                    <li><b>Camera Target:</b> <code>?targetX=0&targetY=100&targetZ=0</code> - Set what camera looks at
+                    </li>
                     <li><b>Zoom Level:</b> <code>?zoom=0.5</code> - Zoom multiplier (0.5=closer, 2.0=farther)</li>
                     <li><b>Field of View:</b> <code>?fov=90</code> - Camera FOV in degrees (default 75)</li>
-                    <li><b>Fullscreen:</b> <code>?fullscreen=true</code> - Auto-enter fullscreen (click page if browser blocks it)</li>
+                    <li><b>Fullscreen:</b> <code>?fullscreen=true</code> - Auto-enter fullscreen (click page if browser
+                        blocks it)</li>
                     <li><b>Brightness:</b> <code>?brightness=3.0</code> - Pixel brightness multiplier (default 2.0)</li>
                     <li><b>Pixel Size:</b> <code>?pixelSize=5</code> - Pixel point size (default 1)</li>
                     <li><b>Show Grid:</b> <code>?showGrid=false</code> - Hide the grid helper</li>
                     <li><b>Show Axes:</b> <code>?showAxes=true</code> - Show the axis helper</li>
                     <li><b>Holiday Mode:</b> <code>?holidayMode=true</code> - Enable holiday animations</li>
-                    <li><b>Combine multiple:</b> <code>?zoom=0.8&brightness=2.5&fullscreen=true&holidayMode=true</code></li>
+                    <li><b>Combine multiple:</b> <code>?zoom=0.8&brightness=2.5&fullscreen=true&holidayMode=true</code>
+                    </li>
                 </ul>
                 <br>
                 <b>NOTE:</b> If the 3D Virtual Display is not working, you need to add the HTTP Virtual Display Channel

@@ -38,16 +38,16 @@
     function getURLParam(name, defaultValue) {
         if (urlParams.hasOwnProperty(name)) {
             var value = urlParams[name];
-            
+
             // Handle boolean values
             if (value === 'true') return true;
             if (value === 'false') return false;
-            
+
             // Handle numeric values
             if (!isNaN(value) && value !== '') {
                 return parseFloat(value);
             }
-            
+
             return value;
         }
         return defaultValue;
@@ -1545,18 +1545,18 @@
         // Apply URL parameters for brightness
         var brightness = getURLParam('brightness', window.brightnessMultiplier);
         window.brightnessMultiplier = brightness;
-        
+
         // Apply URL parameter for pixel size
         var urlPixelSize = getURLParam('pixelSize', null);
         if (urlPixelSize !== null) {
             pixelSize = urlPixelSize;
         }
-        
+
         init3D();
         startSSE();
-        
+
         // Apply URL parameters after DOM is ready
-        setTimeout(function() {
+        setTimeout(function () {
             applyURLParameters();
         }, 100);
     }
@@ -1567,7 +1567,7 @@
         if (brightnessSlider) {
             brightnessSlider.value = window.brightnessMultiplier;
         }
-        
+
         // Apply pixel size slider if it exists
         var pixelSizeSlider = document.getElementById('pixelSizeSlider');
         if (pixelSizeSlider) {
@@ -1576,39 +1576,39 @@
                 window.pixelMaterial.size = pixelSize;
             }
         }
-        
+
         // Auto-enter fullscreen if requested
         // Note: Most browsers block automatic fullscreen without user interaction
         // We'll show a message and add a one-time click listener
         var fullscreen = getURLParam('fullscreen', false);
         if (fullscreen === true) {
             console.log('Fullscreen requested via URL parameter');
-            
+
             // Try to enter fullscreen immediately (may be blocked by browser)
             toggleFullscreen();
-            
+
             // Also add a fallback: show a message and enable click-anywhere to fullscreen
             if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
                 // If fullscreen didn't work, add a one-time click handler
-                var clickToFullscreen = function() {
+                var clickToFullscreen = function () {
                     toggleFullscreen();
                     document.removeEventListener('click', clickToFullscreen);
                     document.removeEventListener('touchstart', clickToFullscreen);
                 };
-                
+
                 document.addEventListener('click', clickToFullscreen, { once: true });
                 document.addEventListener('touchstart', clickToFullscreen, { once: true });
-                
+
                 console.log('Fullscreen blocked by browser - click anywhere to enter fullscreen mode');
             }
         }
-        
+
         // Initialize holiday animations if requested
         var holidayMode = getURLParam('holidayMode', false);
         if (holidayMode === true && !holidayAnimations.enabled) {
             initHolidayAnimations();
         }
-        
+
         console.log('URL parameters applied');
     }
 
