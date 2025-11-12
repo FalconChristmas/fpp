@@ -195,7 +195,7 @@
     }
 
     // Load 3D asset configuration
-    $assetsConfigFile = $settings['virtualDisplayAssetsDirectory'] . '/virtdisplay.json';
+    $assetsConfigFile = $settings['configDirectory'] . '/virtdisplay.json';
     $assetsConfig = null;
     $viewObjects = array();
 
