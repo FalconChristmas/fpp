@@ -1,3 +1,9 @@
+<?php
+// Ensure $standalone is defined (default to false if not set)
+if (!isset($standalone)) {
+    $standalone = false;
+}
+?>
 <script>
     var pixelData = [];
     var pixelLookup = {};  // Fast lookup by key
@@ -63,6 +69,13 @@
 
     if (!isset($canvasHeight))
         $canvasHeight = 768;
+    
+    echo "var canvasWidth = " . $canvasWidth . ";\n";
+    echo "var canvasHeight = " . $canvasHeight . ";\n";
+    
+    // Override with window size if available (standalone mode)
+    echo "if (typeof window.canvasWidth !== 'undefined') canvasWidth = window.canvasWidth;\n";
+    echo "if (typeof window.canvasHeight !== 'undefined') canvasHeight = window.canvasHeight;\n";
 
     $base64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/"; // Base64 index table
     for ($i = 0; $i < 64; $i++) {
@@ -253,8 +266,6 @@
 
     ?>
 
-    var canvasWidth = <?php echo $canvasWidth; ?>;
-    var canvasHeight = <?php echo $canvasHeight; ?>;
     var objectCenterOffset = { x: 0, y: 0, z: 0 };  // Will be calculated from gridlines
 
     function calculateObjectCenterOffset() {
@@ -1592,8 +1603,12 @@
     }
 
     function stopSSE() {
-        $('#stopButton').hide();
-        evtSource.close();
+        if (typeof $ !== 'undefined') {
+            $('#stopButton').hide();
+        }
+        if (evtSource) {
+            evtSource.close();
+        }
     }
 
     function toggleAxes() {
@@ -1821,8 +1836,8 @@
         console.log('URL parameters applied');
     }
 
-    $(document).ready(function () {
-        // Wait for THREE.js to be loaded from the ES6 module
+    // Wait for DOM and THREE.js to be ready
+    function initializeWhenReady() {
         function waitForThree() {
             if (typeof window.THREE !== 'undefined' &&
                 typeof window.OBJLoader !== 'undefined' &&
@@ -1836,7 +1851,14 @@
             }
         }
         waitForThree();
-    });
+    }
+    
+    // Use native DOMContentLoaded (works with or without jQuery)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeWhenReady);
+    } else {
+        initializeWhenReady();
+    }
 
 </script>
 
@@ -1913,6 +1935,7 @@
     }
 </style>
 
+<?php if (!isset($standalone) || !$standalone): ?>
 <div id="controls">
     <div style="margin-bottom: 8px;">
         <input type='button' id='stopButton' onClick='stopSSE();' value='Stop 3D Virtual Display'>
@@ -1965,9 +1988,12 @@
         </span>
     </div>
 </div>
+<?php endif; ?>
 <div id='canvas-container'></div>
+<?php if (!isset($standalone) || !$standalone): ?>
 <div id='objectsList'
     style="margin-top: 10px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
     <em>3D Objects will appear here once loaded...</em>
 </div>
+<?php endif; ?>
 <div id='data'></div>
