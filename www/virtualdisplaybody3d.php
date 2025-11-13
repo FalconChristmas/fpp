@@ -14,6 +14,7 @@ if (!isset($standalone)) {
     var clearTimer;
     var pendingUpdates = [];
     var animationFrameId = null;
+    var lookAtTarget = null;  // Global camera target for orbit controls (initialized when THREE.js loads)
     window.brightnessMultiplier = 2.0;  // Default brightness (can be overridden by URL param)
 
     // 3D Objects variables
@@ -352,6 +353,9 @@ if (!isset($standalone)) {
         var targetZ = getURLParam('targetZ', 0);
         camera.lookAt(targetX, targetY, targetZ);
         console.log('Camera looking at:', targetX, targetY, targetZ);
+        
+        // Initialize lookAtTarget for orbit controls
+        lookAtTarget = new THREE.Vector3(targetX, targetY, targetZ);
 
         // Create renderer
         renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -902,7 +906,11 @@ if (!isset($standalone)) {
         var previousMousePosition = { x: 0, y: 0 };
         var rotationSpeed = 0.005;
         var panSpeed = 0.5;
-        var lookAtTarget = new THREE.Vector3(0, 0, 0);
+        
+        // Initialize lookAtTarget now that THREE.js is loaded
+        if (!lookAtTarget) {
+            lookAtTarget = new THREE.Vector3(0, 0, 0);
+        }
 
         renderer.domElement.addEventListener('mousedown', function (e) {
             if (e.button === 0) {  // Left mouse button - rotate
@@ -1290,6 +1298,11 @@ if (!isset($standalone)) {
         // Build query parameters from current state
         var params = [];
 
+        // Standalone mode (preserve if present)
+        if (window.standaloneMode) {
+            params.push('standalone=true');
+        }
+
         // Camera position
         if (camera) {
             params.push('cameraX=' + camera.position.x.toFixed(2));
@@ -1298,10 +1311,15 @@ if (!isset($standalone)) {
         }
 
         // Camera target (what it's looking at)
-        if (controls && controls.target) {
-            params.push('targetX=' + controls.target.x.toFixed(2));
-            params.push('targetY=' + controls.target.y.toFixed(2));
-            params.push('targetZ=' + controls.target.z.toFixed(2));
+        if (lookAtTarget) {
+            params.push('targetX=' + lookAtTarget.x.toFixed(2));
+            params.push('targetY=' + lookAtTarget.y.toFixed(2));
+            params.push('targetZ=' + lookAtTarget.z.toFixed(2));
+        }
+
+        // FOV (if not default)
+        if (camera && camera.fov && camera.fov !== 75) {
+            params.push('fov=' + camera.fov.toFixed(0));
         }
 
         // Brightness
