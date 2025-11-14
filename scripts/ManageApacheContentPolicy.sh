@@ -179,7 +179,7 @@ generate_csp() {
     cape_domains=$(detectCapeDomains)
     if [ -n "$cape_domains" ]; then
         combined_values["img-src"]="${combined_values["img-src"]} $cape_domains"
-        # combined_values["connect-src"]="${combined_values["connect-src"]} $cape_domains"
+        combined_values["connect-src"]="${combined_values["connect-src"]} $cape_domains"
     fi
 
     # Detect FPPD Discovered MultiSync Hosts to trust
