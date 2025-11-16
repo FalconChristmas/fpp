@@ -304,7 +304,8 @@
 				"disableUIWarnings",
 				"disableUIPopoverAlerts",
 				"fileManagerThumbnailSize",
-				"fileManagerTableFilter"
+				"fileManagerTableFilter",
+				"gpioHideCapePins"
 			]
 		},
 		"uiColors": {
@@ -1173,6 +1174,19 @@
 			"uncheckedValue": "0",
 			"exposedAsJSToPages": [
 				"filemanager"
+			]
+		},
+		"gpioHideCapePins": {
+			"name": "gpioHideCapePins",
+			"description": "Hide Cape Controlled GPIO Pins",
+			"tip": "Hide GPIO pins that are controlled by the currently installed cape from the GPIO Pin Control page to prevent accidental changes to pins that are in use by the cape.",
+			"level": 1,
+			"default": "1",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0",
+			"exposedAsJSToPages": [
+				"gpio"
 			]
 		},
 		"FPP_UUID": {

@@ -61,6 +61,7 @@ include 'common/menuHead.inc';
 
 $data = file_get_contents('http://127.0.0.1:32322/gpio');
 $gpiojson = json_decode($data, true);
+$hideCapePinsSetting = (!isset($settings['gpioHideCapePins']) || $settings['gpioHideCapePins'] == '1') ? '1' : '0';
 ?>
 <script language="Javascript">
 allowMultisyncCommands = true;
@@ -156,14 +157,26 @@ foreach ($usedGpioPins as $pin => $usage) {
 
 /////////////////////////////////////////////////////////////////////////////
 $(document).ready(function(){
+    if (typeof settings !== 'undefined' && settings.hasOwnProperty('gpioHideCapePins')) {
+        $('#hideCapeControlled').prop('checked', settings['gpioHideCapePins'] == '1');
+    } else {
+        $('#hideCapeControlled').prop('checked', <?php echo ($hideCapePinsSetting == '1') ? 'true' : 'false'; ?>);
+    }
+    toggleCapeControlledRows();
 });
 
-function toggleCapeControlledRows() {
+function toggleCapeControlledRows(persistSetting) {
     var hideRows = $('#hideCapeControlled').is(':checked');
     if (hideRows) {
         $('.capeControlledRow').hide();
     } else {
         $('.capeControlledRow').show();
+    }
+    if (persistSetting === true) {
+        var newValue = hideRows ? '1' : '0';
+        if (typeof SetSetting === 'function') {
+            SetSetting('gpioHideCapePins', newValue, 0, 0, true);
+        }
     }
 }
 
@@ -221,7 +234,7 @@ include 'menu.inc';?>
             <div class="row" style="margin-bottom: 10px;">
                 <div class="col-md">
                     <label style="font-weight: normal; cursor: pointer;">
-                        <input type="checkbox" id="hideCapeControlled" onChange="toggleCapeControlledRows();">
+                        <input type="checkbox" id="hideCapeControlled" onChange="toggleCapeControlledRows(true);" <?php echo ($hideCapePinsSetting == '1') ? 'checked' : ''; ?>>
                         Hide Cape-Controlled GPIO Pins
                     </label>
                 </div>
