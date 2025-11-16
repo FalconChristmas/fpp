@@ -15,6 +15,8 @@ if (!isset($standalone)) {
     var pendingUpdates = [];
     var animationFrameId = null;
     var lookAtTarget = null;  // Global camera target for orbit controls (initialized when THREE.js loads)
+    var cameraControlState = { distanceMin: 100, distanceMax: 5000, initialized: false };
+    var pixelOffsetAdvancedVisible = false;
     window.brightnessMultiplier = 2.0;  // Default brightness (can be overridden by URL param)
 
     // 3D Objects variables
@@ -944,6 +946,7 @@ if (!isset($standalone)) {
                 camera.lookAt(lookAtTarget);
 
                 previousMousePosition = { x: e.clientX, y: e.clientY };
+                syncCameraControlSliders();
             } else if (isPanning) {
                 var deltaX = e.clientX - previousMousePosition.x;
                 var deltaY = e.clientY - previousMousePosition.y;
@@ -963,6 +966,7 @@ if (!isset($standalone)) {
                 camera.lookAt(lookAtTarget);
 
                 previousMousePosition = { x: e.clientX, y: e.clientY };
+                syncCameraControlSliders();
             }
         });
 
@@ -984,8 +988,202 @@ if (!isset($standalone)) {
             e.preventDefault();
             var zoomSpeed = 0.1;
             var delta = e.deltaY > 0 ? 1 + zoomSpeed : 1 - zoomSpeed;
-            camera.position.multiplyScalar(delta);
+            var relative = new THREE.Vector3().subVectors(camera.position, lookAtTarget);
+            relative.multiplyScalar(delta);
+            camera.position.copy(lookAtTarget).add(relative);
+            camera.lookAt(lookAtTarget);
+            syncCameraControlSliders();
         });
+    }
+
+    function computeCameraState() {
+        if (!camera || !lookAtTarget) {
+            return null;
+        }
+
+        var offset = new THREE.Vector3().subVectors(camera.position, lookAtTarget);
+        var distance = offset.length();
+        if (distance < 0.0001) {
+            distance = 0.0001;
+        }
+
+        var yaw = Math.atan2(offset.x, offset.z) * (180 / Math.PI);
+        if (yaw < 0) {
+            yaw += 360;
+        }
+
+        var verticalRatio = offset.y / distance;
+        verticalRatio = Math.min(1, Math.max(-1, verticalRatio));
+        var pitch = Math.asin(verticalRatio) * (180 / Math.PI);
+
+        return {
+            yaw: yaw,
+            pitch: pitch,
+            distance: distance,
+            target: {
+                x: lookAtTarget.x,
+                y: lookAtTarget.y,
+                z: lookAtTarget.z
+            }
+        };
+    }
+
+    function updateCameraValueLabels(state) {
+        if (!state) {
+            return;
+        }
+
+        var yawLabel = document.getElementById('cameraYawValue');
+        if (yawLabel) {
+            yawLabel.textContent = state.yaw.toFixed(0) + '\u00B0';
+        }
+
+        var pitchLabel = document.getElementById('cameraPitchValue');
+        if (pitchLabel) {
+            pitchLabel.textContent = state.pitch.toFixed(0) + '\u00B0';
+        }
+
+        var zoomLabel = document.getElementById('cameraDistanceValue');
+        if (zoomLabel) {
+            zoomLabel.textContent = state.distance.toFixed(0) + ' units';
+        }
+
+        var panXLabel = document.getElementById('panXValue');
+        if (panXLabel) {
+            panXLabel.textContent = state.target.x.toFixed(0);
+        }
+
+        var panYLabel = document.getElementById('panYValue');
+        if (panYLabel) {
+            panYLabel.textContent = state.target.y.toFixed(0);
+        }
+
+        var panZLabel = document.getElementById('panZValue');
+        if (panZLabel) {
+            panZLabel.textContent = state.target.z.toFixed(0);
+        }
+    }
+
+    function syncCameraControlSliders() {
+        if (!camera || !lookAtTarget) {
+            return;
+        }
+
+        var state = computeCameraState();
+        if (!state) {
+            return;
+        }
+
+        var yawSlider = document.getElementById('cameraYawSlider');
+        if (yawSlider) {
+            var normalizedYaw = ((state.yaw % 360) + 360) % 360;
+            yawSlider.value = Math.round(normalizedYaw);
+        }
+
+        var pitchSlider = document.getElementById('cameraPitchSlider');
+        if (pitchSlider) {
+            pitchSlider.value = Math.round(state.pitch);
+        }
+
+        var distanceSlider = document.getElementById('cameraDistanceSlider');
+        if (distanceSlider) {
+            distanceSlider.value = Math.round(state.distance);
+        }
+
+        var panXSlider = document.getElementById('panXSlider');
+        if (panXSlider) {
+            panXSlider.value = Math.round(state.target.x);
+        }
+
+        var panYSlider = document.getElementById('panYSlider');
+        if (panYSlider) {
+            panYSlider.value = Math.round(state.target.y);
+        }
+
+        var panZSlider = document.getElementById('panZSlider');
+        if (panZSlider) {
+            panZSlider.value = Math.round(state.target.z);
+        }
+
+        updateCameraValueLabels(state);
+    }
+
+    function handleCameraControlInput() {
+        if (!camera || !lookAtTarget) {
+            return;
+        }
+
+        var yawSlider = document.getElementById('cameraYawSlider');
+        var pitchSlider = document.getElementById('cameraPitchSlider');
+        var distanceSlider = document.getElementById('cameraDistanceSlider');
+        var panXSlider = document.getElementById('panXSlider');
+        var panYSlider = document.getElementById('panYSlider');
+        var panZSlider = document.getElementById('panZSlider');
+
+        if (!yawSlider || !pitchSlider || !distanceSlider) {
+            return;
+        }
+
+        var yaw = parseFloat(yawSlider.value) || 0;
+        var pitch = parseFloat(pitchSlider.value) || 0;
+        var distance = Math.max(cameraControlState.distanceMin, Math.min(cameraControlState.distanceMax, parseFloat(distanceSlider.value) || 0));
+
+        var targetX = panXSlider ? parseFloat(panXSlider.value) || 0 : lookAtTarget.x;
+        var targetY = panYSlider ? parseFloat(panYSlider.value) || 0 : lookAtTarget.y;
+        var targetZ = panZSlider ? parseFloat(panZSlider.value) || 0 : lookAtTarget.z;
+
+        lookAtTarget.set(targetX, targetY, targetZ);
+
+        var yawRad = yaw * (Math.PI / 180);
+        var pitchRad = pitch * (Math.PI / 180);
+        var cosPitch = Math.cos(pitchRad);
+
+        var offsetX = distance * cosPitch * Math.sin(yawRad);
+        var offsetY = distance * Math.sin(pitchRad);
+        var offsetZ = distance * cosPitch * Math.cos(yawRad);
+
+        camera.position.set(
+            lookAtTarget.x + offsetX,
+            lookAtTarget.y + offsetY,
+            lookAtTarget.z + offsetZ
+        );
+        camera.lookAt(lookAtTarget);
+
+        syncCameraControlSliders();
+    }
+
+    function initializeCameraControlUI() {
+        var distanceSlider = document.getElementById('cameraDistanceSlider');
+        if (!distanceSlider || !camera) {
+            return;
+        }
+
+        var maxDimension = Math.max(
+            modelBounds.maxX - modelBounds.minX,
+            modelBounds.maxY - modelBounds.minY,
+            modelBounds.maxZ - modelBounds.minZ
+        );
+
+        cameraControlState.distanceMin = 100;
+        cameraControlState.distanceMax = Math.max(1000, maxDimension * 4);
+
+        distanceSlider.min = cameraControlState.distanceMin;
+        distanceSlider.max = cameraControlState.distanceMax;
+
+        cameraControlState.initialized = true;
+        syncCameraControlSliders();
+    }
+
+    function togglePixelOffsetAdvanced() {
+        var section = document.getElementById('pixelOffsetSection');
+        var button = document.getElementById('pixelOffsetToggle');
+        if (!section || !button) {
+            return;
+        }
+
+        pixelOffsetAdvancedVisible = !pixelOffsetAdvancedVisible;
+        section.style.display = pixelOffsetAdvancedVisible ? 'block' : 'none';
+        button.value = pixelOffsetAdvancedVisible ? 'Hide Pixel Offset Controls' : 'Show Advanced Pixel Offset Controls';
     }
 
     // Holiday Animations
@@ -1782,6 +1980,7 @@ if (!isset($standalone)) {
 
         try {
             init3D();
+            initializeCameraControlUI();
             startSSE();
             console.log('3D view initialized, SSE started');
         } catch (error) {
@@ -1851,6 +2050,7 @@ if (!isset($standalone)) {
             initHolidayAnimations();
         }
 
+        syncCameraControlSliders();
         console.log('URL parameters applied');
     }
 
@@ -1951,6 +2151,24 @@ if (!isset($standalone)) {
         display: inline-block;
         margin-right: 20px;
     }
+
+    .control-section {
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .advanced-toggle {
+        margin-top: 12px;
+        display: inline-block;
+    }
+
+    .advanced-section {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed #ccc;
+        display: none;
+    }
 </style>
 
 <?php if (!isset($standalone) || !$standalone): ?>
@@ -1985,7 +2203,51 @@ if (!isset($standalone)) {
             <span id='ambientLightValue'>1.00x</span>
         </span>
     </div>
-    <div style="margin-top: 8px;">
+    <div class="control-section">
+        <span class="control-group">
+            Camera Yaw: <input type='range' id='cameraYawSlider' min='0' max='360' value='20' step='1'
+                oninput='handleCameraControlInput();'>
+            <span id='cameraYawValue'>20°</span>
+        </span>
+        <span class="control-group">
+            Camera Pitch: <input type='range' id='cameraPitchSlider' min='-89' max='89' value='10' step='1'
+                oninput='handleCameraControlInput();'>
+            <span id='cameraPitchValue'>10°</span>
+        </span>
+        <span class="control-group">
+            Camera Distance: <input type='range' id='cameraDistanceSlider' min='100' max='5000' value='1000' step='10'
+                oninput='handleCameraControlInput();'>
+            <span id='cameraDistanceValue'>1000 units</span>
+        </span>
+    </div>
+    <div class="control-section">
+        <span class="control-group">
+            Pan X: <input type='range' id='panXSlider' min='-3000' max='3000' value='0' step='5'
+                oninput='handleCameraControlInput();'>
+            <span id='panXValue'>0</span>
+        </span>
+        <span class="control-group">
+            Pan Y: <input type='range' id='panYSlider' min='-3000' max='3000' value='0' step='5'
+                oninput='handleCameraControlInput();'>
+            <span id='panYValue'>0</span>
+        </span>
+        <span class="control-group">
+            Pan Z: <input type='range' id='panZSlider' min='-3000' max='3000' value='0' step='5'
+                oninput='handleCameraControlInput();'>
+            <span id='panZValue'>0</span>
+        </span>
+        <span style="margin-left: 15px; color: #666; font-style: italic;">
+            Left-click: rotate | Middle-click: pan | Scroll: zoom
+        </span>
+    </div>
+    <div class="advanced-toggle">
+        <input type='button' id='pixelOffsetToggle' value='Show Advanced Pixel Offset Controls'
+            onclick='togglePixelOffsetAdvanced();'>
+    </div>
+    <div id='pixelOffsetSection' class='advanced-section'>
+        <div style="margin-bottom: 8px; color: #555;">
+            Precise pixel offsets are rarely needed. Adjust only when aligning pixels to imported objects.
+        </div>
         <span class="control-group">
             <strong>Pixel X Offset:</strong> <input type='range' id='pixelXSlider' min='-2000' max='2000' value='0'
                 step='1' oninput='updatePixelOffset();'>
@@ -2000,9 +2262,6 @@ if (!isset($standalone)) {
             <strong>Pixel Z Offset:</strong> <input type='range' id='pixelZSlider' min='-2000' max='2000' value='0'
                 step='1' oninput='updatePixelOffset();'>
             <span id='pixelZValue' style="font-weight: bold; color: #e74c3c;">0</span>
-        </span>
-        <span style="margin-left: 15px; color: #666; font-style: italic;">
-            Left-click: rotate | Middle-click: pan | Scroll: zoom
         </span>
     </div>
 </div>
