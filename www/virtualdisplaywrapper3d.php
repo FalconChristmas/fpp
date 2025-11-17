@@ -184,6 +184,10 @@
                 'Other' tab of the Channel Outputs config page. Your pixel map must be copied to FPP's configuration
                 directory from xLights
                 as a file called 'virtualdisplaymap'.
+                <br><br>
+                <b>Warning:</b> If your tree models appear tilted or off-vertical inside the 3D view, recreate those
+                trees in the current version of xLights. Older xLights releases generated tree model data with
+                alignment inaccuracies, and only a fresh tree generation and export will correct the geometry FPP receives.
             </div>
         </div>
 

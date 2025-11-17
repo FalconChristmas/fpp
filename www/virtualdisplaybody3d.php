@@ -18,6 +18,11 @@ if (!isset($standalone)) {
     var cameraControlState = { distanceMin: 100, distanceMax: 5000, initialized: false };
     var pixelOffsetAdvancedVisible = false;
     window.brightnessMultiplier = 2.0;  // Default brightness (can be overridden by URL param)
+    var testMode = {
+        enabled: false,
+        color: '#ff0000',
+        rgb: [1.0, 0.0, 0.0]
+    };
 
     // 3D Objects variables
     var loadedObjects = [];
@@ -1183,7 +1188,7 @@ if (!isset($standalone)) {
 
         pixelOffsetAdvancedVisible = !pixelOffsetAdvancedVisible;
         section.style.display = pixelOffsetAdvancedVisible ? 'block' : 'none';
-        button.value = pixelOffsetAdvancedVisible ? 'Hide Pixel Offset Controls' : 'Show Advanced Pixel Offset Controls';
+        button.value = pixelOffsetAdvancedVisible ? 'Hide Advanced Virtual Display Controls' : 'Show Advanced Virtual Display Controls';
     }
 
     // Holiday Animations
@@ -1775,6 +1780,9 @@ if (!isset($standalone)) {
     }
 
     function processEvent(e) {
+        if (testMode.enabled) {
+            return;
+        }
         var pixels = e.data.split('|');
         clearTimeout(clearTimer);
 
@@ -1851,6 +1859,9 @@ if (!isset($standalone)) {
         var brightness = parseFloat(document.getElementById('brightnessSlider').value);
         window.brightnessMultiplier = brightness;
         document.getElementById('brightnessValue').textContent = brightness.toFixed(2) + 'x';
+        if (testMode.enabled) {
+            applyTestColorToPixels();
+        }
     }
 
     function updateAmbientLight() {
@@ -1863,6 +1874,86 @@ if (!isset($standalone)) {
             window.sceneLights.directional1.light.intensity = window.sceneLights.directional1.baseIntensity * multiplier;
             window.sceneLights.directional2.light.intensity = window.sceneLights.directional2.baseIntensity * multiplier;
             window.sceneLights.hemisphere.light.intensity = window.sceneLights.hemisphere.baseIntensity * multiplier;
+        }
+    }
+
+    function hexToRgbFloats(hexColor) {
+        if (!hexColor) {
+            return [1.0, 0.0, 0.0];
+        }
+        var hex = hexColor.replace('#', '');
+        if (hex.length === 3) {
+            hex = hex.split('').map(function (c) { return c + c; }).join('');
+        }
+        var r = parseInt(hex.substring(0, 2), 16) / 255.0;
+        var g = parseInt(hex.substring(2, 4), 16) / 255.0;
+        var b = parseInt(hex.substring(4, 6), 16) / 255.0;
+        return [r, g, b];
+    }
+
+    function applyTestColorToPixels() {
+        if (!window.pixelColors || !window.pixelGeometry) {
+            return;
+        }
+        var brightness = window.brightnessMultiplier || 1.0;
+        var r = Math.min(1.0, testMode.rgb[0] * brightness);
+        var g = Math.min(1.0, testMode.rgb[1] * brightness);
+        var b = Math.min(1.0, testMode.rgb[2] * brightness);
+
+        for (var i = 0; i < pixelData.length; i++) {
+            window.pixelColors[i * 3] = r;
+            window.pixelColors[i * 3 + 1] = g;
+            window.pixelColors[i * 3 + 2] = b;
+        }
+
+        window.pixelGeometry.attributes.color.needsUpdate = true;
+    }
+
+    function setTestModeEnabled(enabled) {
+        testMode.enabled = enabled;
+        var status = document.getElementById('testModeStatus');
+        if (enabled) {
+            pendingUpdates = [];
+            clearTimeout(clearTimer);
+            applyTestColorToPixels();
+            if (status) {
+                status.textContent = 'Static color active';
+            }
+        } else {
+            if (window.pixelColors && window.pixelGeometry) {
+                for (var i = 0; i < pixelData.length; i++) {
+                    window.pixelColors[i * 3] = 0;
+                    window.pixelColors[i * 3 + 1] = 0;
+                    window.pixelColors[i * 3 + 2] = 0;
+                }
+                window.pixelGeometry.attributes.color.needsUpdate = true;
+            }
+            if (status) {
+                status.textContent = 'Live data';
+            }
+        }
+    }
+
+    function handleTestModeToggle() {
+        var checkbox = document.getElementById('testModeToggle');
+        if (!checkbox) {
+            return;
+        }
+        setTestModeEnabled(checkbox.checked);
+    }
+
+    function handleTestColorChange(value) {
+        if (!value) {
+            return;
+        }
+        testMode.color = value;
+        testMode.rgb = hexToRgbFloats(value);
+        var label = document.getElementById('testModeColorValue');
+        if (label) {
+            label.textContent = value.toUpperCase();
+        }
+        if (testMode.enabled) {
+            applyTestColorToPixels();
         }
     }
 
@@ -2016,6 +2107,11 @@ if (!isset($standalone)) {
                 ambientLightSlider.value = window.urlAmbientLightValue;
                 updateAmbientLight();
             }
+        }
+
+        var testColorInput = document.getElementById('testModeColor');
+        if (testColorInput) {
+            handleTestColorChange(testColorInput.value);
         }
 
         // Auto-enter fullscreen if requested
@@ -2241,12 +2337,13 @@ if (!isset($standalone)) {
         </span>
     </div>
     <div class="advanced-toggle">
-        <input type='button' id='pixelOffsetToggle' value='Show Advanced Pixel Offset Controls'
+        <input type='button' id='pixelOffsetToggle' value='Show Visualizer Advanced Settings'
             onclick='togglePixelOffsetAdvanced();'>
     </div>
     <div id='pixelOffsetSection' class='advanced-section'>
         <div style="margin-bottom: 8px; color: #555;">
-            Precise pixel offsets are rarely needed. Adjust only when aligning pixels to imported objects.
+            Advanced visualizer controls for precise pixel offsets and static color testing. Adjust sparingly when
+            aligning pixels to imported objects or when you need a solid color reference inside the 3D view.
         </div>
         <span class="control-group">
             <strong>Pixel X Offset:</strong> <input type='range' id='pixelXSlider' min='-2000' max='2000' value='0'
@@ -2263,6 +2360,24 @@ if (!isset($standalone)) {
                 step='1' oninput='updatePixelOffset();'>
             <span id='pixelZValue' style="font-weight: bold; color: #e74c3c;">0</span>
         </span>
+        <div class="control-section" style="margin-top:15px;">
+            <span class="control-group" style="margin-bottom:6px; display:inline-block;">
+                <label style="font-weight:bold;">
+                    <input type="checkbox" id="testModeToggle" onchange="handleTestModeToggle();">
+                    Static Color Test Mode
+                </label>
+            </span>
+            <span class="control-group">
+                Color: <input type="color" id="testModeColor" value="#ff0000"
+                    onchange="handleTestColorChange(this.value);">
+                <span id="testModeColorValue">#FF0000</span>
+            </span>
+            <span class="control-group" id="testModeStatus">Live data</span>
+            <div style="margin-top: 5px; color: #666; font-style: italic;">
+                When enabled, incoming data is ignored and every pixel renders the selected color so you can inspect
+                spatial placement.
+            </div>
+        </div>
     </div>
 </div>
 <?php endif; ?>
