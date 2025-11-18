@@ -478,24 +478,24 @@ int BBB48StringOutput::StartPRU(bool both) {
 
     m_pru = new BBBPru(pruNumber, true, true);
     m_pruData = (BBB48StringData*)m_pru->data_ram;
-    m_pruData->command = 0;
-    m_pruData->address_dma = m_pru->ddr_addr;
     if (!m_pru->run("/tmp/FalconWS281x.out")) {
         LogErr(VB_CHANNELOUT, "BBB48String: Unable to start PRU. May require a reboot.\n");
         WarningHolder::AddWarning("BBB48String: Unable to start PRU. May require a reboot.");
         return 0;
     }
+    m_pruData->command = 0;
+    m_pruData->address_dma = m_pru->ddr_addr;
 
     if (both) {
         m_pru0 = new BBBPru(!pruNumber, true, true);
         m_pru0Data = (BBB48StringData*)m_pru0->data_ram;
-        m_pru0Data->command = 0;
-        m_pru0Data->address_dma = m_pru0->ddr_addr;
         if (!m_pru0->run("/tmp/FalconWS281x_gpio0.out")) {
             LogErr(VB_CHANNELOUT, "BBB48String: Unable to start PRU0. May require a reboot.\n");
             WarningHolder::AddWarning("BBB48String: Unable to start PRU0. May require a reboot.");
             return 0;
         }
+        m_pru0Data->command = 0;
+        m_pru0Data->address_dma = m_pru0->ddr_addr;
     }
 
     return 1;
