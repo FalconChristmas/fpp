@@ -16,7 +16,10 @@
 #include <sys/wait.h>
 #include <errno.h>
 
+#include <cmath> 
+
 #include "../log.h"
+#include "../settings.h"
 
 #include "MediaOutputBase.h"
 

@@ -12,6 +12,7 @@
  */
 
 #include <cmath>
+#include <list>
 #include <stdint.h>
 #include <string>
 #include <vector>
