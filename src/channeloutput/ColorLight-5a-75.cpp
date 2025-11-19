@@ -441,12 +441,12 @@ int ColorLight5a75Output::Init(Json::Value config) {
 
     if (ifstate != "up") {
         LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s does not have link %s\n", m_ifName.c_str(), strerror(errno));
-        WarningHolder::AddWarning("ColorLight: Configured interface " + m_ifName + " does not have link");
+        WarningHolder::AddWarning(7, "ColorLight: Configured interface " + m_ifName + " does not have link");
         if (m_colorlightDisable) {
             return 0;
         }
     } else {
-        WarningHolder::RemoveWarning("ColorLight: Configured interface " + m_ifName + " does not have link");
+        WarningHolder::RemoveWarning(7, "ColorLight: Configured interface " + m_ifName + " does not have link");
     }
 
     // Check interface is 1000Mbps capable and display error if not
@@ -460,12 +460,12 @@ int ColorLight5a75Output::Init(Json::Value config) {
 
     if (ifspeed > 0 && ifspeed < 1000) {
         LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s is not 1000Mbps Capable: %s\n", m_ifName.c_str(), strerror(errno));
-        WarningHolder::AddWarning("ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
+        WarningHolder::AddWarning(8, "ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
         if (m_colorlightDisable) {
             return 0;
         }
     } else {
-        WarningHolder::RemoveWarning("ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
+        WarningHolder::RemoveWarning(8, "ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
     }
 
     // Open our raw socket
@@ -1066,7 +1066,7 @@ void ColorLight5a75Output::GetReceiverInfo() {
         LogInfo(VB_CHANNELOUT, "Found %d ColorLight receiver(s)\n", m_receivers.size());
     } else {
         std::string warning = "ColorLight: No receiver cards were detected on interface " + m_ifName;
-        WarningHolder::AddWarning(warning);
+        WarningHolder::AddWarning(9, warning);
         LogWarn(VB_CHANNELOUT, "WARNING: %s\n", warning.c_str());
         m_warnings.push_front(warning);
     }

@@ -57,6 +57,34 @@
             "HelpTxt": "",
             "HelpPageType": "md",
             "WarningGroup": "Plugin_Warnings"
+        },
+        {
+            "id": 6,
+            "Title": "Sending data to myself",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 7,
+            "Title": "Colorlight Link",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 8,
+            "Title": "Colorlight Speed",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 9,
+            "Title": "Colorlight Version",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
         }
     ]
 }

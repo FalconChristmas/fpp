@@ -347,7 +347,7 @@ int UDPOutput::Init(Json::Value config) {
                     std::string msg = "UDP Output set to send data to myself.  Disabling ";
                     msg += host.c_str();
                     LogWarn(VB_CHANNELOUT, msg.c_str());
-                    WarningHolder::AddWarning(msg);
+                    WarningHolder::AddWarning(6,msg);
                     o->active = false;
                 }
             }
