@@ -521,9 +521,15 @@ bool Scheduler::doScheduledPlaylist(const std::time_t& now, const std::time_t& i
         }
 
         if (!Player::INSTANCE.WasScheduled()) {
-            // Manually started playlist is running so stop it
-            while (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
-                Player::INSTANCE.StopNow(1);
+            // Manually started playlist is running, check priority
+            if (Player::INSTANCE.GetPriority() > item->priority) {
+                // Scheduled playlist has higher priority, stop the manual one
+                while (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
+                    Player::INSTANCE.StopNow(1);
+                }
+            } else {
+                // Manual playlist has higher or equal priority, let it continue
+                return false;
             }
         } else if (Player::INSTANCE.GetPriority() > item->priority) {
             // Lower priority (higher number) playlist is running
