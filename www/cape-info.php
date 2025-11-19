@@ -1268,6 +1268,9 @@ if (isset($settings["cape-info"])) {
                                 <div class="aboutLeft col-md">
                                     Your cape appears to have an unprogrammed physical EEPROM installed. Select a downloadable
                                     EEPROM image or a local file to program the EEPROM:<br>
+                                    <div class="callout callout-warning">
+                                       IMPORTANT: EEPROM Version selected below must match hardware version of your specific cape.
+                                    </div>
                                     <div><b>Vendor:</b>&nbsp;
                                         <select id='eepromVendorList' disabled onChange='eepromVendorListChanged();'>
                                             <option value=''>-- Select Vendor --</option>
