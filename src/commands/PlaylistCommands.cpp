@@ -151,15 +151,20 @@ std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<s
         int scheduledRepeat = 0;
         std::string playlistName = scheduler->GetPlaylistThatShouldBePlaying(scheduledRepeat);
         bool repeat = scheduledRepeat;
-        // if we should be playing this playlist and repeat mode matches then let scheduler start it
-        if (((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) ||
-             (Player::INSTANCE.GetPlaylistName() != args[0])) &&
+        // Only defer to scheduler if we're idle AND the requested playlist matches what should be scheduled
+        // AND it's not currently being played. This prevents the race condition where we're playing a
+        // scheduled background playlist and want to start a different playlist via API.
+        if ((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) &&
             (args[0] == playlistName) &&
             (r == repeat)) {
             // Allow the scheduler to restart even if force stopped
             Player::INSTANCE.ClearForceStopped();
             scheduler->CheckIfShouldBePlayingNow(1);
         } else {
+            // Always directly start the playlist if:
+            // 1. Something is already playing (even if it's the scheduled playlist)
+            // 2. The requested playlist doesn't match what's scheduled
+            // 3. The repeat mode doesn't match
             Player::INSTANCE.StartPlaylist(args[0], r, idx - 1);
         }
     }
