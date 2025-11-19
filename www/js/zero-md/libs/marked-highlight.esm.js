@@ -1,0 +1,8 @@
+/**
+ * Bundled by jsDelivr using Rollup v2.79.2 and Terser v5.39.0.
+ * Original file: /npm/marked-highlight@2.2.3/src/index.js
+ *
+ * Do NOT use SRI with dynamically generated files! More information: https://www.jsdelivr.com/using-sri-with-dynamic-files
+ */
+function e(e){if("function"==typeof e&&(e={highlight:e}),!e||"function"!=typeof e.highlight)throw new Error("Must provide highlight function");return"string"!=typeof e.langPrefix&&(e.langPrefix="language-"),"string"!=typeof e.emptyLangClass&&(e.emptyLangClass=""),{async:!!e.async,walkTokens(r){if("code"!==r.type)return;const i=t(r.lang);if(e.async)return Promise.resolve(e.highlight(r.text,i,r.lang||"")).then(n(r));const o=e.highlight(r.text,i,r.lang||"");if(o instanceof Promise)throw new Error("markedHighlight is not set to async but the highlight function is async. Set the async option to true on markedHighlight to await the async highlight function.");n(r)(o)},useNewRenderer:!0,renderer:{code(n,r,i){"object"==typeof n&&(i=n.escaped,r=n.lang,n=n.text);const o=t(r),s=o?e.langPrefix+c(o):e.emptyLangClass,a=s?` class="${s}"`:"";return n=n.replace(/\n$/,""),`<pre><code${a}>${i?n:c(n,!0)}\n</code></pre>`}}}}function t(e){return(e||"").match(/\S*/)[0]}function n(e){return t=>{"string"==typeof t&&t!==e.text&&(e.escaped=!0,e.text=t)}}const r=/[&<>"']/,i=new RegExp(r.source,"g"),o=/[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/,s=new RegExp(o.source,"g"),a={"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"},g=e=>a[e];function c(e,t){if(t){if(r.test(e))return e.replace(i,g)}else if(o.test(e))return e.replace(s,g);return e}export{e as markedHighlight};export default null;
+//# sourceMappingURL=/sm/18f800f399e59bcf9e1ca171b81adb0feeac243e30b7260444b5ff50992a3443.map
