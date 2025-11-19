@@ -1301,6 +1301,9 @@ if (isset($settings["cape-info"])) {
 
                     Unable to find a physical or virtual EEPROM. If you have a cape without a physical EEPROM installed,
                     you will need to select a virtual EEPROM from the Pixel Strings Channel Output configuration page.
+                    <div class="callout callout-warning">
+                       IMPORTANT: EEPROM Version selected below must match hardware version of your specific cape.
+                    </div>
                     <?
                     }
                 }
