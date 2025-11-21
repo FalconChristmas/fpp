@@ -245,6 +245,12 @@ void VLCPlayData::Stopped() {
     VLCOutput::Stopped();
     VLCPlayData* dt = this;
     intptr_t i = (intptr_t)this;
+    
+    // Trigger MEDIA_STOPPED event
+    std::map<std::string, std::string> keywords;
+    keywords["MEDIA_NAME"] = dt->filename;
+    CommandManager::INSTANCE.TriggerPreset("MEDIA_STOPPED", keywords);
+    
     Timers::INSTANCE.addTimer(std::to_string(i), GetTimeMS() + 1, [dt]() {
         runningMediaLock.lock();
         if (runningCommandMedia[dt->filename] == dt) {
@@ -272,7 +278,11 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
         loop = 1;
     }
     VLCOutput* out = new VLCPlayData(args[0], loop, volAdjust);
-    out->Start();
+    if (out->Start()) {
+        std::map<std::string, std::string> keywords;
+        keywords["MEDIA_NAME"] = args[0];
+        CommandManager::INSTANCE.TriggerPreset("MEDIA_STARTED", keywords);
+    }
 
     return std::make_unique<Command::Result>("Playing");
 }
