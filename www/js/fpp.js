@@ -8406,6 +8406,16 @@ function OnSystemStatusChange (funcToCall) {
 }
 
 /*
+ * Helper function to format IP address with CIDR notation
+ */
+function formatIPWithCIDR(ip, prefixlen) {
+	if (prefixlen !== undefined && prefixlen !== null) {
+		return ip + '/' + prefixlen;
+	}
+	return ip;
+}
+
+/*
  * Called each time the system status JSON is updated to refresh icons in the header bar.
  */
 var headerCache = {}; // Used to cache what we've displayed on screen so we only update it if it has changed
@@ -8466,11 +8476,12 @@ function RefreshHeaderBar () {
 							e.ifname.startsWith('SoftAp') ||
 							e.ifname.startsWith('tether'))
 					) {
+						var ipWithCIDR = formatIPWithCIDR(n.local, n.prefixlen);
 						var row =
 							'<span ifname="' +
 							e.ifname +
 							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="Tether IP: ' +
-							n.local +
+							ipWithCIDR +
 							'"><i class="fas fa-broadcast-tower"></i><small>' +
 							e.ifname +
 							'<div class="divIPAddress">: ' +
@@ -8478,11 +8489,12 @@ function RefreshHeaderBar () {
 							'</div></small></span>';
 						rc.push(row);
 					} else if (n.family === 'inet' && 'wifi' in e) {
+						var ipWithCIDR = formatIPWithCIDR(n.local, n.prefixlen);
 						var row =
 							'<span ifname="' +
 							e.ifname +
 							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' +
-							n.local +
+							ipWithCIDR +
 							'<br/>Strength: ' +
 							e.wifi.level +
 							e.wifi.unit +
@@ -8505,11 +8517,12 @@ function RefreshHeaderBar () {
 						} else if (e.flags.includes('STATIC') && e.operstate != 'UP') {
 							icon = 'text-danger';
 						}
+						var ipWithCIDR = formatIPWithCIDR(n.local, n.prefixlen);
 						var row =
 							'<span ifname="' +
 							e.ifname +
 							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' +
-							n.local +
+							ipWithCIDR +
 							'" ><i class="fas fa-network-wired ' +
 							icon +
 							'"></i><small>' +
