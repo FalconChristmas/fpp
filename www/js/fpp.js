@@ -2816,7 +2816,6 @@ function SavePlaylistAs (name, options, callback) {
 	pl.version = 3; // v1 == CSV, v2 == JSON, v3 == deprecated some things
 	pl.repeat = 0; // currently unused by player
 	pl.loopCount = 0; // currently unused by player
-	pl.empty = false;
 	pl.desc = $('#txtPlaylistDesc').val();
 	pl.random = parseInt($('#randomizePlaylist').prop('value'));
 	if (typeof options === 'object') {
@@ -2828,24 +2827,28 @@ function SavePlaylistAs (name, options, callback) {
 	var leadOut = [];
 	var playlistInfo = {};
 
-	if (pl.empty == false) {
-		$('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function () {
-			leadIn.push(GetPlaylistEntry(this));
-		});
+	// Collect all playlist entries
+	$('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function () {
+		leadIn.push(GetPlaylistEntry(this));
+	});
 
-		$('#tblPlaylistMainPlaylist > tr:not(.unselectable)').each(function () {
-			mainPlaylist.push(GetPlaylistEntry(this));
-		});
+	$('#tblPlaylistMainPlaylist > tr:not(.unselectable)').each(function () {
+		mainPlaylist.push(GetPlaylistEntry(this));
+	});
 
-		$('#tblPlaylistLeadOut > tr:not(.unselectable)').each(function () {
-			leadOut.push(GetPlaylistEntry(this));
-		});
+	$('#tblPlaylistLeadOut > tr:not(.unselectable)').each(function () {
+		leadOut.push(GetPlaylistEntry(this));
+	});
 
-		playlistInfo.total_duration = parseFloat($('#playlistDuration').html());
-		playlistInfo.total_items = mainPlaylist.length;
-	} else {
+	// Determine if playlist is empty based on actual content
+	pl.empty = (leadIn.length === 0 && mainPlaylist.length === 0 && leadOut.length === 0);
+
+	if (pl.empty) {
 		playlistInfo.total_duration = parseFloat(0);
 		playlistInfo.total_items = 0;
+	} else {
+		playlistInfo.total_duration = parseFloat($('#playlistDuration').html());
+		playlistInfo.total_items = mainPlaylist.length;
 	}
 	pl.leadIn = leadIn;
 	pl.mainPlaylist = mainPlaylist;

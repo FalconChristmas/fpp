@@ -713,6 +713,9 @@ function BulkAddPlaylist () {
 			pl.playlistInfo.total_items += 1;
 		});
 
+	// Mark playlist as non-empty since we're adding items to it
+	pl.empty = false;
+
 	var result = Post('api/playlist/' + playlistName, false, JSON.stringify(pl));
 	if (result.hasOwnProperty('Status') && result.Status == 'Error') {
 		$.jGrowl('Error Saving Playlist: ' + result.Message, {
