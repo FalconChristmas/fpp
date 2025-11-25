@@ -31,6 +31,12 @@ FPP will published the following sub_topics (using the full topic format) if MQT
 */playlist/media/title - Title of the audio / video media being displayed
 */playlist/media/status - filename of the current audio/movie
 */playlist/media/artist - The artist listing in the audio / video file being played
+
+*/gpio/{pin_name}/rising - Published when GPIO input goes high (rising edge). Value is always 1.
+*/gpio/{pin_name}/falling - Published when GPIO input goes low (falling edge). Value is always 0.
+
+Note: GPIO pin names match those shown in GPIO configuration (e.g., GPIO17, P8-07). GPIO inputs must be configured and enabled in Status/Control → GPIO Inputs for events to be published.
+
 */playlist_details - If the MQTT Playlist Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified.
 */fppd_status - If the MQTT Status Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified.
 */port_status - If the MQTT Port Status Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified.
@@ -259,3 +265,53 @@ It is possible to send command
 
 * /set/command/${command} - Would run the specify command (any playload will be passed as if it was a REST API call)
 
+
+Example MQTT Subscriptions
+---------------------------
+
+### Subscribe to all topics for a specific FPP instance
+```bash
+mosquitto_sub -h localhost -t "falcon/player/FPP/#" -v
+```
+
+### Subscribe to GPIO events
+```bash
+# All GPIO events
+mosquitto_sub -h localhost -t "falcon/player/FPP/gpio/#" -v
+
+# Specific GPIO pin - all events
+mosquitto_sub -h localhost -t "falcon/player/FPP/gpio/GPIO17/#" -v
+
+# Only rising edge events
+mosquitto_sub -h localhost -t "falcon/player/FPP/gpio/GPIO17/rising" -v
+
+# Only falling edge events
+mosquitto_sub -h localhost -t "falcon/player/FPP/gpio/GPIO17/falling" -v
+```
+
+### Home Assistant Integration Example
+```yaml
+# Example Home Assistant configuration for GPIO inputs
+mqtt:
+  binary_sensor:
+    - name: "FPP GPIO17 Button"
+      state_topic: "falcon/player/FPP/gpio/GPIO17/rising"
+      payload_on: "1"
+      off_delay: 1
+
+automation:
+  - alias: "GPIO Button Pressed"
+    trigger:
+      - platform: mqtt
+        topic: "falcon/player/FPP/gpio/GPIO17/rising"
+    action:
+      - service: notify.mobile_app
+        data:
+          message: "GPIO button pressed!"
+```
+
+### GPIO Setup Notes
+- GPIO inputs must be configured in Status/Control → GPIO Inputs
+- Each configured GPIO publishes two topics: /rising and /falling
+- Events respect debounce settings configured per GPIO input
+- GPIO events are published regardless of whether FPP commands are configured for that GPIO

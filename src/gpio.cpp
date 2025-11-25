@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "EPollManager.h"
+#include "Events.h"
 #include "common.h"
 #include "log.h"
 #include "settings.h"
@@ -401,6 +402,16 @@ void GPIOManager::addState(GPIOState* state) {
 
 void GPIOManager::GPIOState::doAction(int v) {
     LogDebug(VB_GPIO, "GPIO %s triggered.  Value:  %d\n", pin->name.c_str(), v);
+    
+    // Publish GPIO edge events to MQTT
+    if (v == 1) {
+        std::string risingTopic = "gpio/" + pin->name + "/rising";
+        Events::Publish(risingTopic, 1);
+    } else {
+        std::string fallingTopic = "gpio/" + pin->name + "/falling";
+        Events::Publish(fallingTopic, 0);
+    }
+    
     if (hasCallback) {
         callback(v);
     } else {
