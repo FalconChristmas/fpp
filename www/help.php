@@ -83,6 +83,8 @@
                                         Outputs</a></li>
                                 <li><a href='javascript:void(0);' onClick="helpPage='help/gpio.php'; DisplayHelp();">GPIO
                                         Input Triggers</a></li>
+                                <li><a href='javascript:void(0);' onClick="helpPage='help/mqtt.php'; DisplayHelp();">MQTT
+                                        Integration</a></li>
                                 <li><a href='javascript:void(0);'
                                         onClick="helpPage='help/networkconfig.php'; DisplayHelp();">Network Config</a>
                                 </li>
