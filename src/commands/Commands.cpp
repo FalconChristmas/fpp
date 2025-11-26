@@ -282,6 +282,19 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
             }
             LogDebug(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), argString.c_str());
         }
+        
+        // Publish MQTT event for command execution
+        Json::Value payload;
+        payload["command"] = command;
+        payload["args"] = Json::Value(Json::arrayValue);
+        for (const auto& arg : args) {
+            payload["args"].append(arg);
+        }
+        std::string topic = "command/run";
+        std::string payloadStr = SaveJsonToString(payload);
+        LogWarn(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), payloadStr.c_str());
+        Events::Publish(topic, payloadStr);
+        
         return f->second->run(args);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
@@ -366,6 +379,19 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
         auto f = commands.find(command);
         if (f != commands.end()) {
             LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
+            
+            // Publish MQTT event for command execution
+            Json::Value payload;
+            payload["command"] = command;
+            payload["args"] = Json::Value(Json::arrayValue);
+            for (const auto& arg : args) {
+                payload["args"].append(arg);
+            }
+            std::string topic = "command/run";
+            std::string payloadStr = SaveJsonToString(payload);
+            LogWarn(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), payloadStr.c_str());
+            Events::Publish(topic, payloadStr);
+            
             std::unique_ptr<Command::Result> r = f->second->run(args);
             int count = 0;
             while (!r->isDone() && count < 1000) {
@@ -399,6 +425,19 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
             auto f = commands.find(command);
             if (f != commands.end()) {
                 LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
+                
+                // Publish MQTT event for command execution
+                Json::Value payload;
+                payload["command"] = command;
+                payload["args"] = Json::Value(Json::arrayValue);
+                for (const auto& arg : args) {
+                    payload["args"].append(arg);
+                }
+                std::string topic = "command/run";
+                std::string payloadStr = SaveJsonToString(payload);
+                LogWarn(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), payloadStr.c_str());
+                Events::Publish(topic, payloadStr);
+                
                 std::unique_ptr<Command::Result> r = f->second->run(args);
                 int count = 0;
                 while (!r->isDone() && count < 1000) {
