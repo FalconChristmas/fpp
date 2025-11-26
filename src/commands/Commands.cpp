@@ -232,6 +232,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         for (const auto& arg : args) {
             payload["args"].append(arg);
         }
+        payload["trigger"] = "internal";
         std::string topic = "command/run";
         Events::Publish(topic, SaveJsonToString(payload));
         
@@ -290,6 +291,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         for (const auto& arg : args) {
             payload["args"].append(arg);
         }
+        payload["trigger"] = "ui";
         std::string topic = "command/run";
         std::string payloadStr = SaveJsonToString(payload);
         LogWarn(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), payloadStr.c_str());
@@ -387,6 +389,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
             for (const auto& arg : args) {
                 payload["args"].append(arg);
             }
+            payload["trigger"] = "api-get";
             std::string topic = "command/run";
             std::string payloadStr = SaveJsonToString(payload);
             LogWarn(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), payloadStr.c_str());
@@ -433,6 +436,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
                 for (const auto& arg : args) {
                     payload["args"].append(arg);
                 }
+                payload["trigger"] = "api-post";
                 std::string topic = "command/run";
                 std::string payloadStr = SaveJsonToString(payload);
                 LogWarn(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), payloadStr.c_str());
