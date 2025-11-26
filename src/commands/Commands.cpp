@@ -224,6 +224,17 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     auto f = commands.find(command);
     if (f != commands.end()) {
         LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
+        
+        // Publish MQTT event for command execution
+        Json::Value payload;
+        payload["command"] = command;
+        payload["args"] = Json::Value(Json::arrayValue);
+        for (const auto& arg : args) {
+            payload["args"].append(arg);
+        }
+        std::string topic = "command/run";
+        Events::Publish(topic, SaveJsonToString(payload));
+        
         return f->second->run(args);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
@@ -453,6 +464,18 @@ int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& 
     }
     lock.unlock();
 
+    // Publish MQTT event for preset slot trigger
+    Json::Value payload;
+    payload["slot"] = slot;
+    if (!keywords.empty()) {
+        payload["keywords"] = Json::Value(Json::objectValue);
+        for (const auto& kv : keywords) {
+            payload["keywords"][kv.first] = kv.second;
+        }
+    }
+    std::string topic = "command/preset/triggered";
+    Events::Publish(topic, SaveJsonToString(payload));
+
     for (auto const& preset : slotPresets) {
         run(preset);
     }
@@ -472,6 +495,18 @@ int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::s
 
     auto it = presets[name];
     lock.unlock();
+
+    // Publish MQTT event for preset trigger
+    Json::Value payload;
+    payload["preset"] = name;
+    if (!keywords.empty()) {
+        payload["keywords"] = Json::Value(Json::objectValue);
+        for (const auto& kv : keywords) {
+            payload["keywords"][kv.first] = kv.second;
+        }
+    }
+    std::string topic = "command/preset/triggered";
+    Events::Publish(topic, SaveJsonToString(payload));
 
     for (int i = 0; i < it.size(); i++) {
         Json::Value cmd = ReplaceCommandKeywords(it[i], keywords);

@@ -37,6 +37,9 @@ FPP will published the following sub_topics (using the full topic format) if MQT
 
 Note: GPIO pin names match those shown in GPIO configuration (e.g., GPIO17, P8-07). GPIO inputs must be configured and enabled in Status/Control → GPIO Inputs for events to be published.
 
+*/command/run - Published when any FPP command is executed. Payload is JSON with command name and arguments array.
+*/command/preset/triggered - Published when a command preset is triggered. Payload is JSON with preset name or slot number, and optional keyword replacements.
+
 */playlist_details - If the MQTT Playlist Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified.
 */fppd_status - If the MQTT Status Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified.
 */port_status - If the MQTT Port Status Publish Frequency option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified.
@@ -289,6 +292,44 @@ mosquitto_sub -h localhost -t "falcon/player/FPP/gpio/GPIO17/rising" -v
 mosquitto_sub -h localhost -t "falcon/player/FPP/gpio/GPIO17/falling" -v
 ```
 
+### Subscribe to Command and Preset events
+```bash
+# All command executions
+mosquitto_sub -h localhost -t "falcon/player/FPP/command/run" -v
+
+# Command preset triggers
+mosquitto_sub -h localhost -t "falcon/player/FPP/command/preset/triggered" -v
+
+# All command-related events
+mosquitto_sub -h localhost -t "falcon/player/FPP/command/#" -v
+```
+
+### Message Examples for Command Topics
+
+**command/run** - Published when any command executes:
+```json
+{
+  "command": "Start Playlist",
+  "args": ["MyPlaylist", "true"]
+}
+```
+
+**command/preset/triggered** - Published when a preset is triggered:
+```json
+{
+  "preset": "MyPresetName",
+  "keywords": {
+    "PLAYLIST": "HolidayShow"
+  }
+}
+```
+Or for slot-based trigger:
+```json
+{
+  "slot": 5
+}
+```
+
 ### Home Assistant Integration Example
 ```yaml
 # Example Home Assistant configuration for GPIO inputs
@@ -298,6 +339,15 @@ mqtt:
       state_topic: "falcon/player/FPP/gpio/GPIO17/rising"
       payload_on: "1"
       off_delay: 1
+  
+  sensor:
+    - name: "FPP Last Command"
+      state_topic: "falcon/player/FPP/command/run"
+      value_template: "{{ value_json.command }}"
+    
+    - name: "FPP Last Preset"
+      state_topic: "falcon/player/FPP/command/preset/triggered"
+      value_template: "{{ value_json.preset | default(value_json.slot) }}"
 
 automation:
   - alias: "GPIO Button Pressed"
@@ -308,6 +358,16 @@ automation:
       - service: notify.mobile_app
         data:
           message: "GPIO button pressed!"
+  
+  - alias: "Log FPP Commands"
+    trigger:
+      - platform: mqtt
+        topic: "falcon/player/FPP/command/run"
+    action:
+      - service: logbook.log
+        data:
+          name: "FPP Command"
+          message: "{{ trigger.payload_json.command }}: {{ trigger.payload_json.args }}"
 ```
 
 ### GPIO Setup Notes
@@ -315,3 +375,10 @@ automation:
 - Each configured GPIO publishes two topics: /rising and /falling
 - Events respect debounce settings configured per GPIO input
 - GPIO events are published regardless of whether FPP commands are configured for that GPIO
+
+### Command and Preset Event Notes
+- All FPP commands publish to `command/run` when executed (from any source: API, GPIO, schedule, etc.)
+- Command presets publish to `command/preset/triggered` when triggered
+- Payloads are JSON format for easy parsing and automation
+- Command events include the full command name and all arguments
+- Preset events include preset name (or slot number) and any keyword replacements used
