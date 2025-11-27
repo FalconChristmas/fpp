@@ -3719,3 +3719,26 @@ a.api-anchor {
 	flex: 1 1 auto;
 	min-width: 120px;
 }
+
+/* Plugin Header Indicators */
+.pluginIndicator {
+    display: inline-block;
+    margin-left: 5px;
+    transition: color 0.3s ease, transform 0.2s ease;
+}
+
+.pluginIndicator:hover {
+    transform: scale(1.1);
+    opacity: 0.8;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.15);
+        opacity: 0.85;
+    }
+}

@@ -8658,6 +8658,34 @@ function RefreshHeaderBar () {
 			headerCache.Player = row;
 		}
 	}
+// Render plugin header indicators
+if (data.pluginHeaderIndicators != undefined) {
+var indicators = [];
+data.pluginHeaderIndicators.forEach(function(indicator) {
+if (indicator && indicator.visible) {
+var icon = indicator.icon || 'fa-puzzle-piece';
+var color = indicator.color || '#999';
+var tooltip = indicator.tooltip || 'Plugin Indicator';
+var link = indicator.link || '#';
+var animate = indicator.animate || '';
+var animStyle = animate ? ' style="animation: ' + animate + ' 2s infinite;"' : '';
+
+var row = '<span class="pluginIndicator headerBox" data-plugin="' + indicator.pluginName + '"' +
+' style="cursor: pointer; color: ' + color + '; margin-left: 5px; transition: color 0.3s ease;"' +
+' title="' + tooltip + '"' +
+' onclick="window.location.href=\'' + link + '\'">' +
+'<i class="fas ' + icon + '"' + animStyle + '></i>' +
+'</span>';
+indicators.push(row);
+}
+});
+var indicatorsJoined = indicators.join('');
+if (headerCache.PluginIndicators != indicatorsJoined) {
+$('#header_plugin_indicators').html(indicatorsJoined);
+headerCache.PluginIndicators = indicatorsJoined;
+}
+}
+
 	if (data.mode_name != undefined) {
 		$('#fppModeDropdownButtonModeText').html(
 			data.mode_name == 'player' ? 'Player' : data.mode_name

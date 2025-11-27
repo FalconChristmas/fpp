@@ -107,6 +107,7 @@ function list_plugin_entries($menu)
 
             ?>
             <span class="headerBox" id="header_player"></span>
+            <span class="headerBox" id="header_plugin_indicators"></span>
             <span class="headerBox largeonly" id="header_sensors"
                 data-defaultsensor="<? echo $currentHeaderSensor; ?>"></span>
             <span class="headerBox" id="header_IPs"></span>

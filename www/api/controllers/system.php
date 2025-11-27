@@ -387,6 +387,11 @@ function finalizeStatusJson($obj)
     //Add data into the final response, since we have the status as an array already then just add the expert view
     //Add a new key for the expert data to the original data array
     $obj['advancedView'] = $request_expert_content;
+    // Add plugin header indicators
+    if (!isset($_GET['noplugins'])) {
+        $obj['pluginHeaderIndicators'] = json_decode(GetPluginHeaderIndicators(), true);
+    }
+
 
     if (is_dir($settings['mediaDirectory'] . "/crashes")) {
         $num = count(glob($settings['mediaDirectory'] . "/crashes/*.zip"));

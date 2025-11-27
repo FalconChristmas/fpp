@@ -114,6 +114,7 @@ dispatch_post('/playlist/:PlaylistName', 'playlist_update');
 dispatch_delete('/playlist/:PlaylistName', 'playlist_delete');
 dispatch_post('/playlist/:PlaylistName/:SectionName/item', 'PlaylistSectionInsertItem');
 
+dispatch_get('/plugin/headerIndicators', 'GetPluginHeaderIndicators');
 dispatch_get('/plugin', 'GetInstalledPlugins');
 dispatch_post('/plugin', 'InstallPlugin');
 dispatch_get('/plugin/:RepoName', 'GetPluginInfo');
