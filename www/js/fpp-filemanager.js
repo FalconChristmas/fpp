@@ -328,7 +328,7 @@ function ButtonHandler (table, button) {
 		}
 	} else if (button == 'tailFile') {
 		if (selectedCount == 1) {
-			TailFile(table, filename, 50);
+			TailFile(table, filename, 250);
 		} else {
 			DialogError(
 				'Error',
