@@ -84,6 +84,8 @@ void InitPocketBeagle2() {
     Pin::addPin("P2_35").addBall("W21").modesFromBall();
     Pin::addPin("P2_36").addBall("C13").modesFromBall();
 
+    Pin::addPin("NRST").addBall("C20").modesFromBall();
+    Pin::addPin("BSL_Invoke").addBall("B8").modesFromBall();
     /*
         Pin::addPin("I2C0_SCL").addBall("B16");
         Pin::addPin("I2C0_SDA").addBall("A16");

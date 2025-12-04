@@ -151,4 +151,7 @@ void InitAM6232Balls() {
 
     addBall("B9", MCU_DOMAIN, 0x04C);
     addBall("A9", MCU_DOMAIN, 0x050);
+
+    addBall("C20", MAIN_DOMAIN, 0x0254);
+    addBall("B8", MCU_DOMAIN, 0x0004);
 }
