@@ -246,6 +246,14 @@ void Sequence::ReadFramesLoop() {
     }
 }
 
+inline void checkForReplacementFile(const std::string &fname) {
+    std::string replaceFileName = fname + ".replace";
+    if (FileExists(replaceFileName)) {
+        unlink(fname.c_str());
+        rename(replaceFileName.c_str(), fname.c_str());
+    }
+}
+
 int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int startSecond) {
     LogDebug(VB_SEQUENCE, "OpenSequenceFile(%s, %d, %d)\n", filename.c_str(), startFrame, startSecond);
 
@@ -269,11 +277,13 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     std::unique_lock<std::mutex> lock(frameCacheLock);
     if (m_seqFile) {
+        std::string fn = m_seqFile->getFilename();
         delete m_seqFile;
         m_seqFile = nullptr;
         commandPresets.clear();
         effectsOn.clear();
         effectsOff.clear();
+        checkForReplacementFile(fn);
     }
 
     m_seqStarting = 2;
@@ -302,6 +312,8 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     if (getFPPmode() == REMOTE_MODE)
         CheckForHostSpecificFile(getSetting("HostName").c_str(), tmpFilename);
+
+    checkForReplacementFile(std::string(tmpFilename));
 
     if (!FileExists(tmpFilename)) {
         std::string warning = "Sequence file ";
@@ -803,10 +815,12 @@ void Sequence::CloseSequenceFile(void) {
 
     std::unique_lock<std::mutex> readLock(readFileLock);
     if (m_seqFile) {
+        std::string fn = m_seqFile->getFilename();
         std::unique_lock<std::mutex> fclock(frameCacheLock);
         delete m_seqFile;
         m_seqFile = nullptr;
         fclock.unlock();
+        checkForReplacementFile(fn);
 
         std::map<std::string, std::string> keywords;
         keywords["SEQUENCE_NAME"] = m_seqFilename;

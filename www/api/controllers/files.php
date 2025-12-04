@@ -883,8 +883,12 @@ function PatchFile()
                         ftruncate($file_handle, 0);
                     } else {
                         fclose($file_handle);
-                        http_response_code(500);
-                        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "size" => $size, "error" => "Could not lock file for writing"));
+                        if (!str_ends_with($fullPath, ".fseq")) {
+                            http_response_code(500);
+                            return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "size" => $size, "error" => "Could not lock file for writing"));
+                        }
+                        $file_handle = fopen($fullPath . '.replace', 'w+b');
+                        flock($file_handle, LOCK_EX);
                     }
                 } else {
                     error_log("Creating new file $fullPath");
@@ -893,9 +897,9 @@ function PatchFile()
                     flock($file_handle, LOCK_EX);
                 }
             }
-            $patch_handle = fopen($fullPath . '.patch.' . $offset, 'r');
+            $patch_handle = fopen($fullPath . '.patch.' . $offset, 'rb');
             while (!feof($patch_handle)) {
-                $read = fread($patch_handle, 64 * 1024);
+                $read = fread($patch_handle, 128 * 1024);
                 fwrite($file_handle, $read);
             }
             fclose($patch_handle);
