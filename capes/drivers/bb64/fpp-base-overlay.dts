@@ -66,6 +66,10 @@
     status = "disabled";
 };
 
+&main_uart0 {
+    pinctrl-0 = <>;
+    status = "okay";	
+};
 &main_uart1 {
     // this one will consume four pins
     // preventing a bunch of capes from working.  No capes are known
@@ -85,6 +89,40 @@
 	status = "okay";
 };
 
+&wkup_rtc0 {
+	// wakeup RTC is non battery backed and useless for our use case but
+	// can conflict with actually setting the time from usable RTC's
+	status = "disabled";
+};
+&main_spi0 {
+        pinctrl-0 = <>;
+        status = "disabled";
+};
+&ecap0 {
+        pinctrl-0 = <>;
+        status = "disabled";
+};
+&ecap1 {
+        pinctrl-0 = <>;
+        status = "disabled";
+};
+&ecap2 {
+        pinctrl-0 = <>;
+        status = "disabled";
+};
+
+&epwm0 {
+        pinctrl-0 = <>;
+        status = "okay";
+};
+&epwm1 {
+        pinctrl-0 = <>;
+        status = "okay";
+};
+&epwm2 {
+        pinctrl-0 = <>;
+        status = "okay";
+};
 
 &main_pmx0 {
     mcasp2_pins: mcasp2-pins {
@@ -102,6 +140,18 @@
 			AM62X_IOPAD(0x01b4, PIN_INPUT, 7) /* (A13) SPI0_CS0 */
 		>;
 	};
+	main_uart1_pins_default: main-uart1-default-pins {
+		pinctrl-single,pins = <
+		>;
+		bootph-all;
+		status = "disabled";
+	};	
+	main_uart0_pins_default: main-uart0-default-pins {
+        pinctrl-single,pins = <
+        >;
+        bootph-all;
+		status = "disabled";
+    };
 };
 
 
