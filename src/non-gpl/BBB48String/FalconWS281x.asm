@@ -432,9 +432,12 @@ LONGWAIT_AND_CHECK_TIMEOUT .macro TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
 	LDI32	r1, CTPPR_1 + PRU_MEMORY_OFFSET
     SBBO    &r0, r1, 0x00, 4
 
-	// Write a 0x1 into the response field so that they know we have started
-	LDI 	r2, 0x1
-	SBCO	&r2, CONST_PRUDRAM, 8, 4
+    // Clear first set of PRUDRAM space
+    LDI     r1, 0
+    LDI     r2, 0
+    LDI     r3, 0
+    LDI     r4, 0
+    SBCO    &r1, CONST_PRUDRAM, 0, 16
 
     LDI32 gpio0_address, GPIO0
     LDI32 gpio1_address, GPIO1
