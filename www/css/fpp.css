@@ -3742,3 +3742,26 @@ a.api-anchor {
         opacity: 0.85;
     }
 }
+
+/* Command Preset Invalid Command Styling */
+.commandPresetInvalidCommand {
+    background-color: #fff3cd !important;
+    border-left: 3px solid #ff9800 !important;
+}
+
+.commandPresetInvalidCommand .cmdTmplCommand {
+    background-color: #ffcccc !important;
+}
+
+.commandPresetInvalidWarning {
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+    color: #856404;
+}
+
+.commandPresetInvalidWarning strong {
+    color: #dc3545;
+}

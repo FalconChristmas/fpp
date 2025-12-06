@@ -8142,6 +8142,18 @@ function FillInCommandTemplate (row, data) {
 	if (data.hasOwnProperty('presetSlot'))
 		row.find('.cmdTmplPresetSlot').val(data.presetSlot);
 
+	// Check if command exists in the command list
+	var commandExists = data.command !== '' && commandListByName.hasOwnProperty(data.command);
+	
+	// Add visual indicator if command is missing
+	if (data.command !== '' && !commandExists) {
+		row.addClass('commandPresetInvalidCommand');
+		row.find('.cmdTmplCommand').css('background-color', '#ffcccc');
+	} else {
+		row.removeClass('commandPresetInvalidCommand');
+		row.find('.cmdTmplCommand').css('background-color', '');
+	}
+
 	if (data.args.length) {
 		var args = '';
 		if (data.command == 'Run Script') {
@@ -8185,30 +8197,41 @@ function FillInCommandTemplate (row, data) {
 	if (json != '') {
 		var data = JSON.parse(json);
 		if (data.command != '') {
-			tip =
-				"<span class='tooltipSpan' style='display: block; text-align: left;'><b>Command: </b>" +
-				data.command +
-				'<br>';
+			// Check if command exists before accessing its properties
+			if (!commandExists) {
+				tip =
+					"<span class='tooltipSpan' style='display: block; text-align: left; color: red;'><b>WARNING: Command not available</b><br>" +
+					"<b>Command: </b>" +
+					data.command +
+					'<br>' +
+					'This command is not currently available. It may be from a disabled plugin or require additional configuration (e.g., MQTT).' +
+					'</span>';
+			} else {
+				tip =
+					"<span class='tooltipSpan' style='display: block; text-align: left;'><b>Command: </b>" +
+					data.command +
+					'<br>';
 
-			if (data.hasOwnProperty('multisyncCommand')) {
-				tip += '<b>Multisync: </b>';
-				if (data.multisyncCommand) tip += 'Yes';
-				else tip += 'No';
+				if (data.hasOwnProperty('multisyncCommand')) {
+					tip += '<b>Multisync: </b>';
+					if (data.multisyncCommand) tip += 'Yes';
+					else tip += 'No';
 
-				tip += '<br>';
+					tip += '<br>';
 
-				if (data.hasOwnProperty('multisyncHosts')) {
-					tip += '<b>Multisync Hosts: </b>' + data.multisyncHosts + '<br>';
+					if (data.hasOwnProperty('multisyncHosts')) {
+						tip += '<b>Multisync Hosts: </b>' + data.multisyncHosts + '<br>';
+					}
 				}
-			}
-			var args = commandListByName[data.command]['args'];
-			if (data.args.length) {
-				for (var j = 0; j < args.length; j++) {
-					tip +=
-						'<b>' + args[j]['description'] + ': </b>' + data.args[j] + '<br>';
+				var args = commandListByName[data.command]['args'];
+				if (data.args.length) {
+					for (var j = 0; j < args.length; j++) {
+						tip +=
+							'<b>' + args[j]['description'] + ': </b>' + data.args[j] + '<br>';
+					}
 				}
+				tip += '</span>';
 			}
-			tip += '</span>';
 		}
 	}
 

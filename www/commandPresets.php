@@ -71,10 +71,74 @@
                 if (!data.hasOwnProperty('commands'))
                     return;
 
+                var invalidCommands = [];
                 for (var i = 0; i < data.commands.length; i++) {
                     AddCommand(data.commands[i]);
+                    
+                    // Check if command exists in the command list
+                    if (data.commands[i].command && !commandListByName.hasOwnProperty(data.commands[i].command)) {
+                        invalidCommands.push({
+                            name: data.commands[i].name || 'Unnamed',
+                            command: data.commands[i].command
+                        });
+                    }
+                }
+
+                // Show warning if invalid commands were found
+                if (invalidCommands.length > 0) {
+                    var warningHtml = '<div class="commandPresetInvalidWarning">' +
+                        '<strong><i class="fas fa-exclamation-triangle"></i> Warning:</strong> ' +
+                        'Some command presets reference commands that are not currently available. ' +
+                        'These presets rows are highlighted in orange and will not execute until the required commands become available ' +
+                        '(e.g., by installing a plugin or configuring MQTT).<br><br>' +
+                        '<strong>Affected Presets:</strong><ul>';
+                    
+                    for (var i = 0; i < invalidCommands.length; i++) {
+                        warningHtml += '<li><strong>' + invalidCommands[i].name + '</strong> - Command: ' + invalidCommands[i].command + '</li>';
+                    }
+                    
+                    warningHtml += '</ul></div>';
+                    
+                    $('#commandPresetsWarning').html(warningHtml);
+                } else {
+                    $('#commandPresetsWarning').html('');
                 }
             });
+        }
+
+        function ValidateAndUpdateWarning() {
+            var invalidCommands = [];
+            $('#tblCommandsBody > tr').each(function () {
+                var cmd = GetNamedCommandTemplateData($(this));
+                
+                // Check if command exists in the command list
+                if (cmd.command && !commandListByName.hasOwnProperty(cmd.command)) {
+                    invalidCommands.push({
+                        name: cmd.name || 'Unnamed',
+                        command: cmd.command
+                    });
+                }
+            });
+
+            // Show or hide warning based on validation
+            if (invalidCommands.length > 0) {
+                var warningHtml = '<div class="commandPresetInvalidWarning">' +
+                    '<strong><i class="fas fa-exclamation-triangle"></i> Warning:</strong> ' +
+                    'Some command presets reference commands that are not currently available. ' +
+                    'These presets rows are highlighted in orange and will not execute until the required commands become available ' +
+                    '(e.g., by installing a plugin or configuring MQTT).<br><br>' +
+                    '<strong>Affected Presets:</strong><ul>';
+                
+                for (var i = 0; i < invalidCommands.length; i++) {
+                    warningHtml += '<li><strong>' + invalidCommands[i].name + '</strong> - Command: ' + invalidCommands[i].command + '</li>';
+                }
+                
+                warningHtml += '</ul></div>';
+                
+                $('#commandPresetsWarning').html(warningHtml);
+            } else {
+                $('#commandPresetsWarning').html('');
+            }
         }
 
         function SaveCommands() {
@@ -108,6 +172,10 @@
                 alert('Error saving commands!');
             } else {
                 $.jGrowl('Commands saved.', { themeState: 'success' });
+                // Re-validate and update warning after save
+                ValidateAndUpdateWarning();
+                // Reflow sticky table headers to fix positioning
+                $('#commandTable').floatThead('reflow');
             }
         }
 
@@ -159,6 +227,7 @@
         <div class="mainContainer">
             <h2 class="title">Command Presets</h2>
             <div class="pageContent">
+                <div id="commandPresetsWarning"></div>
                 <div id="commandPresets" class="settings">
                     <div class="row tablePageHeader">
                         <div class="col">
