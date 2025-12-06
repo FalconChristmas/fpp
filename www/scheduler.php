@@ -246,6 +246,12 @@ error_reporting(E_ALL);
                 SetScheduleInputNames();
             }).fail(function () {
             });
+                if (window.innerWidth < 1000) {
+                $('.fppStickyTheadTable thead').hide();
+                var headClone = $('.fppStickyTheadTable thead tr').clone();
+                headClone.addClass('mobileHeader');
+                $('#tblScheduleBody').prepend(headClone);
+                }
         }
 
         function ReloadSchedule() {
