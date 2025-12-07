@@ -509,8 +509,17 @@
 
             // If panelWidth, panelHeight, and panelScan exist (from legacy channelOutputs), 
             // reconstruct ledPanelsSize from them instead of using defaults
+            // This handles the upgrade path from pre-v3 configs
             if (mp.panelWidth && mp.panelHeight && mp.panelScan) {
                 mp.ledPanelsSize = `${mp.panelWidth}x${mp.panelHeight}x${mp.panelScan}`;
+                if (mp.panelAddressing) {
+                    mp.ledPanelsSize += `x${mp.panelAddressing}`;
+                }
+            } else if (mp.LEDPanelsSize) {
+                // Handle uppercase LEDPanelsSize from PHP-side reconstruction
+                mp.ledPanelsSize = mp.LEDPanelsSize;
+                const sizeparts = mp.ledPanelsSize.split("x");
+                [mp.panelWidth, mp.panelHeight, mp.panelScan, mp.LEDPanelAddressing] = sizeparts.map(Number);
             } else {
                 mp.ledPanelsSize ||= LEDPanelDefaults.LEDPanelsSize;
                 const sizeparts = mp.ledPanelsSize.split("x");
