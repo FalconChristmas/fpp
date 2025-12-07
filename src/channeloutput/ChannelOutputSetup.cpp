@@ -478,7 +478,29 @@ int InitializeChannelOutputs(void) {
         std::string configFile = FPP_DIR_CONFIG(configFiles[f]);
         FileMonitor::INSTANCE.AddFile("ChannelOutputSetup", configFile, [configFile]() {
                                  LogDebug(VB_CHANNELOUT, "Reloading Channel Outputs for %s\n", configFile.c_str());
-                                 if (ReloadChannelOutputsForFile(configFile) && !skipOutputRangeCompute) {
+                                 bool changed = ReloadChannelOutputsForFile(configFile);
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
+                                 // On BBB platforms, if co-bbbStrings.json changes and we have BBBMatrix outputs,
+                                 // we need to reload channeloutputs.json too so compileMatrix.sh gets called
+                                 if (changed && configFile.find("co-bbbStrings.json") != std::string::npos) {
+                                     std::string channelOutputsFile = FPP_DIR_CONFIG("/channeloutputs.json");
+                                     if (FileExists(channelOutputsFile)) {
+                                         Json::Value root;
+                                         if (LoadJsonFromFile(channelOutputsFile, root) && root.isMember("channelOutputs")) {
+                                             for (int i = 0; i < root["channelOutputs"].size(); i++) {
+                                                 if (root["channelOutputs"][i]["type"].asString() == "LEDPanelMatrix" &&
+                                                     root["channelOutputs"][i]["subType"].asString() == "BBBMatrix" &&
+                                                     root["channelOutputs"][i]["enabled"].asInt() == 1) {
+                                                     LogDebug(VB_CHANNELOUT, "BBBMatrix output detected, reloading %s to ensure PRU code is compiled\n", channelOutputsFile.c_str());
+                                                     ReloadChannelOutputsForFile(channelOutputsFile);
+                                                     break;
+                                                 }
+                                             }
+                                         }
+                                     }
+                                 }
+#endif
+                                 if (changed && !skipOutputRangeCompute) {
                                      ComputeOutputRanges();
                                  }
                              })
