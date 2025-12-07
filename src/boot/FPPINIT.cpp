@@ -701,7 +701,8 @@ static void setupNetwork(bool fullReload = false) {
             if (interfaceSettings["PROTO"] == "dhcp") {
                 content.append("[DHCPv4]\nClientIdentifier=mac\nUseDomains=true\n");
                 // Only use NTP from DHCP if explicitly enabled
-                std::string useNTPFromDHCP = getRawSetting("UseNTPFromDHCP");
+                std::string useNTPFromDHCP;
+                getRawSetting("UseNTPFromDHCP", useNTPFromDHCP);
                 if (useNTPFromDHCP != "1") {
                     content.append("UseNTP=no\n");
                 }
