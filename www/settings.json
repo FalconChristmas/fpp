@@ -293,6 +293,7 @@
 				"ClockTime",
 				"piRTC",
 				"ntpServer",
+				"UseNTPFromDHCP",
 				"TimeZone"
 			]
 		},
@@ -2058,6 +2059,14 @@
 			"type": "text",
 			"size": 30,
 			"maxlength": 64
+		},
+		"UseNTPFromDHCP": {
+			"name": "UseNTPFromDHCP",
+			"description": "Use NTP Server from DHCP",
+			"tip": "When enabled, allows DHCP to provide NTP server information which will override the configured NTP server above. When disabled (default), only the configured NTP server will be used.",
+			"level": 1,
+			"type": "checkbox",
+			"default": 0
 		},
 		"openStartDelay": {
 			"name": "openStartDelay",

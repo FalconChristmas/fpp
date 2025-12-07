@@ -362,6 +362,10 @@ function ApplySetting($setting, $value)
         case 'ntpServer':
             SetNTPServer($value);
             break;
+        case 'UseNTPFromDHCP':
+            // Reconfigure network to apply UseNTP setting
+            exec("sudo " . $settings['fppDir'] . "/src/fppinit configureNetwork", $output);
+            break;
         case 'passwordEnable':
             EnableUIPassword($value);
             break;

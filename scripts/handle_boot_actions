@@ -11,6 +11,8 @@ function HandleSettings()
         ApplySetting("TimeZone", $settings["TimeZone"]);
     if (array_key_exists("ntpServer", $settings))
         ApplySetting("ntpServer", $settings["ntpServer"]);
+    if (array_key_exists("UseNTPFromDHCP", $settings))
+        ApplySetting("UseNTPFromDHCP", $settings["UseNTPFromDHCP"]);
     if (array_key_exists("ForceHDMI", $settings))
         ApplySetting("ForceHDMI", $settings["ForceHDMI"]);
     if (array_key_exists("ForceHDMIResolution", $settings))
