@@ -1002,6 +1002,32 @@ function " . $changedFunction . "() {
 
     echo ">\n";
 
+    // Check if the current setting value exists in the available options
+    $currentValue = null;
+    $valueExists = false;
+    if ($pluginName != "") {
+        if (isset($pluginSettings[$setting])) {
+            $currentValue = $pluginSettings[$setting];
+            $valueExists = in_array($currentValue, $values);
+        }
+    } else {
+        if (isset($settings[$setting])) {
+            $currentValue = $settings[$setting];
+            $valueExists = in_array($currentValue, $values);
+        }
+    }
+
+    // If the current value doesn't exist in options and this is not a multiple select,
+    // we need to either select the first option or the default
+    $firstOption = !empty($values) ? reset($values) : null;
+    $shouldAutoSelect = false;
+    if (!$multiple && $currentValue !== null && !$valueExists && $firstOption !== null) {
+        // The saved value no longer exists in the options list
+        // We'll auto-select either the default or the first available option
+        $shouldAutoSelect = true;
+        $newValue = ($defaultValue !== "" && in_array($defaultValue, $values)) ? $defaultValue : $firstOption;
+    }
+
     foreach ($values as $key => $value) {
         echo "<option value='$value'";
 
@@ -1009,7 +1035,12 @@ function " . $changedFunction . "() {
             if ($multiple) {
                 IfSettingInListPrint($setting, $value, " selected", $pluginName);
             } else {
-                IfSettingEqualPrint($setting, $value, " selected", $pluginName);
+                if ($shouldAutoSelect && $value == $newValue) {
+                    // Auto-select this option since the saved value doesn't exist
+                    echo " selected";
+                } else {
+                    IfSettingEqualPrint($setting, $value, " selected", $pluginName);
+                }
             }
         } else if ($value == $defaultValue) {
             echo " selected";
@@ -1019,6 +1050,20 @@ function " . $changedFunction . "() {
     }
 
     echo "</select>\n";
+    
+    // If we auto-selected a different value, output JavaScript to update the setting
+    if ($shouldAutoSelect && $newValue != $currentValue) {
+        echo "<script>\n";
+        echo "$(document).ready(function() {\n";
+        echo "    // The saved value '$currentValue' is no longer available. Auto-updating to '$newValue'.\n";
+        if ($pluginName !== "") {
+            echo "    SetPluginSetting('$pluginName', '$setting', '$newValue', $restart, $reboot, true);\n";
+        } else {
+            echo "    SetSetting('$setting', '$newValue', $restart, $reboot, true);\n";
+        }
+        echo "});\n";
+        echo "</script>\n";
+    }
 }
 function PrintSettingMultiSelect($title, $setting, $restart, $reboot, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = array())
 {
