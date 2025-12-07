@@ -2700,6 +2700,54 @@
         DisplaySaveWarningIfRequired();
     }
 
+    function CheckForOldConfigVersion() {
+        if (verboseDebug) {
+            console.trace("CheckForOldConfigVersion called");
+        }
+        
+        // Check if any matrix has an old config version
+        let hasOldVersion = false;
+        let oldVersionPanels = [];
+        
+        if (channelOutputs && channelOutputs.channelOutputs) {
+            channelOutputs.channelOutputs.forEach((output, index) => {
+                if (output.type === "LEDPanelMatrix") {
+                    const cfgVersion = output.cfgVersion || 1;
+                    const panelMatrixID = output.panelMatrixID || (index + 1);
+                    
+                    if (cfgVersion < 3) {
+                        hasOldVersion = true;
+                        oldVersionPanels.push({
+                            id: panelMatrixID,
+                            version: cfgVersion,
+                            name: output.LEDPanelMatrixName || `Panel Matrix ${panelMatrixID}`
+                        });
+                    }
+                }
+            });
+        }
+        
+        if (hasOldVersion) {
+            const panelList = oldVersionPanels.map(p => `${p.name} (v${p.version})`).join(", ");
+            const message = `Configuration upgrade detected: ${panelList}. Please review your panel settings and click Save to upgrade to config version 3.`;
+            
+            // Show warning banner
+            if ($('.configUpgradeWarning').length === 0) {
+                const warningHtml = `
+                    <div class="alert alert-warning alert-dismissible fade show configUpgradeWarning" role="alert" style="margin: 10px 0;">
+                        <strong><i class="fas fa-exclamation-triangle"></i> Configuration Upgrade Required:</strong> 
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                $('#divLEDPanelMatrices').prepend(warningHtml);
+            }
+            
+            // Also trigger the standard save warning
+            DisplaySaveWarningIfRequired();
+        }
+    }
+
     $(document).ready(function () {
 
         <?
@@ -2736,6 +2784,9 @@
             ?>
             WarnIfSlowNIC(1);
             SetupToolTips();
+            
+            // Check for old config versions that need upgrading
+            CheckForOldConfigVersion();
         <? } else { ?> //No Panel Matrices Defined
             channelOutputsLookup["LEDPanelMatrices"] = {};
         <? } ?>
