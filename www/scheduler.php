@@ -730,6 +730,12 @@ error_reporting(E_ALL);
             display: none;
         }
     </style>
+<style>
+@media (max-width: 1000px) {
+  .fppTableWrapper { overflow: visible !important; }
+  .mobileHeader { position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 10 !important; }
+}
+</style>    
 </head>
 
 <body onload="PopulateCommandListCache(); getSchedule();">
