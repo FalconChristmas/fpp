@@ -147,7 +147,9 @@ int PlaylistEntryBoth::Process(void) {
 
     if (m_mediaEntry && m_mediaEntry->IsFinished()) {
         FinishPlay();
-        m_sequenceEntry->Stop();
+        if (!m_sequenceEntry->IsFinished()) {
+            m_sequenceEntry->Stop();
+        }
     }
 
     if (m_sequenceEntry->IsFinished() && (!m_mediaEntry || !m_mediaEntry->HasExtraAtEnd())) {
