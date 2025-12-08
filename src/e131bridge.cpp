@@ -63,6 +63,7 @@ socklen_t addrlen;
 int bridgeSock = -1;
 int ddpSock = -1;
 std::atomic<int> artnetSock = -1;
+volatile bool artnetSocketAsInput = false;
 
 long long last_packet_time = GetTimeMS();
 long long expireOffSet = 1000; // expire after 1 second
@@ -112,7 +113,7 @@ bool InputsEnabled() {
 // prototypes for functions below
 bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime);
 bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime);
-void BridgeShutdownUDP();
+void BridgeShutdownUDP(bool reloading);
 int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
 inline void SetBridgeData(uint8_t* data, int startChannel, int len, long long packetTime);
@@ -315,7 +316,7 @@ bool Bridge_ReceiveArtNetData(void) {
     return sync;
 }
 
-bool Bridge_Initialize_Internal() {
+bool Bridge_Initialize_Internal(bool& hasArtNet) {
     LogExcess(VB_E131BRIDGE, "Bridge_Initialize()\n");
 
     // prepare the msg receive buffers
@@ -369,7 +370,7 @@ bool Bridge_Initialize_Internal() {
         setsockopt(ddpSock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
     }
 
-    bool hasArtNet = false;
+    hasArtNet = false;
     bool hase131 = false;
     if (enabled) {
         for (int i = 0; i < InputUniverseCount; i++) {
@@ -1045,11 +1046,12 @@ static void BridgeReloadDMXInputs() {
 
 void BridgeReloadUDP() {
     // close the existing sockets
-    BridgeShutdownUDP();
+    BridgeShutdownUDP(true);
 
     bridgeDataReceived = false;
     hasUDP = false;
-    bool enabled = Bridge_Initialize_Internal();
+    bool hasArtNet = false;
+    bool enabled = Bridge_Initialize_Internal(hasArtNet);
     bool disableFakeBridges = getSettingInt("DisableFakeNetworkBridges");
     if (bridgeSock > 0) {
         if (enabled) {
@@ -1077,20 +1079,22 @@ void BridgeReloadUDP() {
             EPollManager::INSTANCE.addFileDescriptor(ddpSock, f);
         }
     }
+    artnetSocketAsInput = false;
     if (artnetSock > 0) {
-        if (enabled) {
+        if (enabled && hasArtNet) {
             AddArtNetOpcodeHandler(0x5000, Bridge_StoreArtNetData);  // ArtOutput
             AddArtNetOpcodeHandler(0x5200, Bridge_HandleArtNetSync); // ArtSync
             AddArtNetOpcodeHandler(0x2000, Bridge_HandleArtNetPoll); // ArtPoll
-
             std::function<bool(int)> f = [](int i) {
                 return Bridge_ReceiveArtNetData();
             };
             EPollManager::INSTANCE.addFileDescriptor(artnetSock, f);
+            printf("Added listener\n");
+            artnetSocketAsInput = true;
         }
     }
 }
-void BridgeShutdownUDP() {
+void BridgeShutdownUDP(bool reloading) {
     removeMulticastGroups();
     for (int i = InputUniverseCount - 1; i >= 0; --i) {
         if (InputUniverses[i].type != DMX_TYPE) {
@@ -1111,26 +1115,18 @@ void BridgeShutdownUDP() {
         ddpSock = -1;
     }
     if (artnetSock >= 0) {
-        EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
-        close(artnetSock);
-        artnetSock = -1;
+        if (artnetSocketAsInput) {
+            printf("Removing artnet listener\n");
+            EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
+            artnetSocketAsInput = false;
+        }
+        if (!reloading) {
+            // don't close the artNet socket if we are reloading
+            // as outputs or inputs may still be using it
+            close(artnetSock);
+            artnetSock = -1;
+        }
     }
-
-    if (bridgeSock >= 0) {
-        EPollManager::INSTANCE.removeFileDescriptor(bridgeSock);
-        close(bridgeSock);
-    }
-    if (ddpSock >= 0) {
-        EPollManager::INSTANCE.removeFileDescriptor(ddpSock);
-        close(ddpSock);
-    }
-    if (artnetSock >= 0) {
-        EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
-        close(artnetSock);
-    }
-    bridgeSock = -1;
-    ddpSock = -1;
-    artnetSock = -1;
 }
 void Bridge_Shutdown(void) {
     for (int i = InputUniverseCount - 1; i >= 0; --i) {
@@ -1142,7 +1138,7 @@ void Bridge_Shutdown(void) {
         InputUniverses.erase(InputUniverses.begin() + i);
         InputUniverseCount--;
     }
-    BridgeShutdownUDP();
+    BridgeShutdownUDP(false);
     unregisterSettingsListener("DisableFakeNetworkBridges", "DisableFakeNetworkBridges");
     std::string udpInFile = FPP_DIR_CONFIG("/ci-universes.json");
     FileMonitor::INSTANCE.RemoveFile("ci-universes.json", udpInFile);

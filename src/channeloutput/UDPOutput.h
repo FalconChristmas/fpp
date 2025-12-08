@@ -39,7 +39,7 @@ public:
     UDPOutputMessages();
     ~UDPOutputMessages();
 
-    void ForceSocket(unsigned int key, int socket);
+    void ForceSocket(unsigned int key, int socket, bool preventClose = false);
     int GetSocket(unsigned int key);
 
     std::vector<struct mmsghdr>& GetMessages(unsigned int key);

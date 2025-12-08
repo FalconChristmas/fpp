@@ -71,14 +71,17 @@ public:
         curSocket = -1;
     }
     ~SendSocketInfo() {
-        for (int x : sockets) {
-            close(x);
+        if (!preventClose) {
+            for (int x : sockets) {
+                close(x);
+            }
         }
     }
 
     std::vector<int> sockets;
     int errCount;
     int curSocket;
+    bool preventClose = false;
 };
 
 UDPOutputMessages::UDPOutputMessages() {
@@ -96,15 +99,18 @@ int UDPOutputMessages::GetSocket(unsigned int key) {
     }
     return -1;
 }
-void UDPOutputMessages::ForceSocket(unsigned int key, int socket) {
+void UDPOutputMessages::ForceSocket(unsigned int key, int socket, bool preventClose) {
     SendSocketInfo* info = sendSockets[key];
     if (info == nullptr) {
         info = new SendSocketInfo();
         sendSockets[key] = info;
     }
-    for (int x = 0; x < info->sockets.size(); x++) {
-        close(info->sockets[x]);
+    if (!info->preventClose) {
+        for (int x = 0; x < info->sockets.size(); x++) {
+            close(info->sockets[x]);
+        }
     }
+    info->preventClose = preventClose;
     info->sockets.clear();
     info->sockets.push_back(socket);
 }

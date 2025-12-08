@@ -167,7 +167,7 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
         // as per the ArtNet protocol
         if (messages.GetSocket(ARTNET_DEST_PORT) == -1) {
             // we MAY be bridging ArtNet so we need to use that same socket
-            messages.ForceSocket(ARTNET_DEST_PORT, CreateArtNetSocket());
+            messages.ForceSocket(ARTNET_DEST_PORT, CreateArtNetSocket(), true);
         }
 
         unsigned char* cur = channelData + startChannel - 1;
