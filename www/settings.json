@@ -132,7 +132,8 @@
 				"ForceAudioId",
 				"WLEDAudioInput",
 				"disableIPAnnouncement",
-				"disableAudioVolumeSlider"
+				"disableAudioVolumeSlider",
+				"globalMediaOffset"
 			]
 		},
 		"generalVideo": {
@@ -146,7 +147,6 @@
 				"HardwareDecoding",
 				"VLCOptions",
 				"mediaOffset",
-				"globalMediaOffset",
 				"remoteIgnoreSync"
 			]
 		},
@@ -274,7 +274,8 @@
 				"GPIOFan",
 				"GPIOFanTemperature",
 				"LEDDisplayType",
-				"bootDelay"
+				"bootDelay",
+				"FPP_UUID"
 			]
 		},
 		"tethering": {
@@ -1192,13 +1193,15 @@
 		},
 		"FPP_UUID": {
 			"name": "FPP_UUID",
-			"description": "UUID to use for stats collection",
+			"description": "Override UUID",
 			"gatherStats": true,
-			"tip": "FPP UUID to use for stats collection.  This will override using the serial number from /proc/cpuinfo or dmidecode.",
-			"level": 3,
+			"tip": "FPP UUID to use for FPP Connect de-duplication, stats, and services.  This will override using the serial number from /proc/cpuinfo or dmidecode.",
+			"level": 1,
 			"type": "text",
 			"size": 30,
-			"maxlength": 30
+			"maxlength": 30,
+			"default": "",
+			"reboot": 1
 		},
 		"fppMode": {
 			"name": "fppMode",
