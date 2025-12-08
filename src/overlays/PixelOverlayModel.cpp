@@ -562,7 +562,13 @@ void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel
     dirtyBuffer = true;
 }
 void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
+    if (y >= height || x >= width || x < 0 || y < 0) {
+        return;
+    }
     int c = (y * width * 3) + x * 3;
+    if (c >= channelCount || c < 0) {
+        return;
+    }
     if (channelMap[c] != FPPD_OFF_CHANNEL) {
         channelData[channelMap[c++]] = r;
     }
@@ -575,7 +581,13 @@ void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
     dirtyBuffer = true;
 }
 void PixelOverlayModel::getPixelValue(int x, int y, int& r, int& g, int& b) {
+    if (y >= height || x >= width || x < 0 || y < 0) {
+        return;
+    }
     int c = (y * width * 3) + x * 3;
+    if (c >= channelCount || c < 0) {
+        return;
+    }
     if (channelMap[c] != FPPD_OFF_CHANNEL) {
         r = channelData[channelMap[c++]];
     }
