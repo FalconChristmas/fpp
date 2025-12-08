@@ -2123,6 +2123,7 @@
                 html += "<option value='80x40x10'>80x40 1/10 Scan</option>"
                 html += "<option value='80x40x20'>80x40 1/20 Scan</option>"
             }
+            html += "<option value='128x64x16'>128x64 1/16 Scan</option>"
             html += "<option value='128x64x32'>128x64 1/32 Scan</option>"
         <? } ?>
 
