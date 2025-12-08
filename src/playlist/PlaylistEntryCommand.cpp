@@ -52,7 +52,7 @@ int PlaylistEntryCommand::StartPlaying(void) {
         return 0;
     }
 
-    m_result = CommandManager::INSTANCE.run(m_command);
+    m_result = std::move(CommandManager::INSTANCE.run(m_command));
     if (m_result->isDone() && m_result->isError()) {
         // failed, so mark finished
         FinishPlay();
