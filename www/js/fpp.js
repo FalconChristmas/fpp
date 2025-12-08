@@ -8137,13 +8137,22 @@ function FillInCommandTemplate (row, data) {
 		row.find('.cmdTmplName').val(data.name);
 	}
 
+	// Check if command exists in the command list
+	var commandExists = data.command !== '' && commandListByName.hasOwnProperty(data.command);
+	
+	// If command doesn't exist in the dropdown, add it as a disabled option
+	if (data.command !== '' && !commandExists) {
+		var $select = row.find('.cmdTmplCommand');
+		// Remove any previously added invalid option to avoid duplicates
+		$select.find('option.invalidCommandOption').remove();
+		// Add the invalid command as a disabled option
+		$select.prepend('<option class="invalidCommandOption" value="' + data.command + '" disabled>' + data.command + ' (unavailable)</option>');
+	}
+
 	row.find('.cmdTmplCommand').val(data.command);
 
 	if (data.hasOwnProperty('presetSlot'))
 		row.find('.cmdTmplPresetSlot').val(data.presetSlot);
-
-	// Check if command exists in the command list
-	var commandExists = data.command !== '' && commandListByName.hasOwnProperty(data.command);
 	
 	// Add visual indicator if command is missing
 	if (data.command !== '' && !commandExists) {
