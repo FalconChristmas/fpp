@@ -102,6 +102,9 @@ BBShiftPanelOutput::~BBShiftPanelOutput() {
     while (bgThreadCount > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
+
+    StopPRU();
+
     if (channelOffsets)
         delete[] channelOffsets;
     if (currentChannelData)
@@ -401,13 +404,11 @@ int BBShiftPanelOutput::Close(void) {
     if (!m_autoCreatedModelName.empty()) {
         PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
     }
-    StopPRU();
     for (auto& pinName : PRU_PINS) {
         const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
         pin.configPin("default", false);
     }
-    bgThreadsRunning = false;
-    bgTaskCondVar.notify_all();
+
     return ChannelOutput::Close();
 }
 
@@ -432,7 +433,7 @@ void BBShiftPanelOutput::runBackgroundTasks() {
 
 void BBShiftPanelOutput::processTasks(std::atomic<int>& counter) {
     std::unique_lock<std::mutex> lock(bgTaskMutex);
-    while (counter > 0) {
+    while (counter > 0 && bgThreadsRunning) {
         std::function<void()> task;
         if (!bgTasks.empty()) {
             task = bgTasks.front();
@@ -483,11 +484,12 @@ void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
     lock.unlock();
     bgTaskCondVar.notify_all();
     processTasks(counter);
-
-    if (isPWMPanel()) {
-        PrepDataPWM();
-    } else {
-        PrepDataShift();
+    if (bgThreadsRunning) {
+        if (isPWMPanel()) {
+            PrepDataPWM();
+        } else {
+            PrepDataShift();
+        }
     }
 }
 
@@ -623,6 +625,9 @@ void BBShiftPanelOutput::PrepDataShift() {
 
 int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBShiftPanelOutput::SendData(%p)\n", channelData);
+    if (!bgThreadsRunning) {
+        return m_channelCount;
+    }
 
     if (!isPWMPanel()) {
         uint32_t dataOffset = (outputBuffers[currOutputBuffer] - outputBuffers[0]);
