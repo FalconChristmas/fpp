@@ -204,7 +204,7 @@ int MosquittoClient::Init(const std::string& username, const std::string& passwo
     // Tell MQTT broker to make MQTT "ready" topic go to zero if crash or network loss
     static std::string last_ready_message = "0";
     static std::string last_ready_topic = m_baseTopic + "/" + MQTT_READY_TOPIC_NAME;
-    int rc = mosquitto_will_set(m_mosq, last_ready_topic.c_str(), last_ready_message.size(), last_ready_message.c_str(), 1, false);
+    int rc = mosquitto_will_set(m_mosq, last_ready_topic.c_str(), last_ready_message.size(), last_ready_message.c_str(), 1, true);
     if (rc != MOSQ_ERR_SUCCESS) {
         LogErr(VB_CONTROL, "MQTT: Unable to set last will for  %s. Error code: %d\n", MQTT_READY_TOPIC_NAME, rc);
     }
