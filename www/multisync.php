@@ -986,7 +986,7 @@
                     <? if ($settings['hideExternalURLs']) { ?>
                         var hostTxt = hostname;
                     <? } else { ?>
-                        var hostTxt = data[i].local ? hostname : "<a target='host_" + data[i].address + "' href='http://" + data[i].address + "'>" + hostname + "</a>";
+                        var hostTxt = data[i].local ? hostname : "<a target='host_" + data[i].address + "' href='" + wrapUrlWithProxy(data[i].address, "/") + "'>" + hostname + "</a>";
                         if (data[i].address == hostname) {
                             hostTxt = hostname;
                         }
@@ -2469,13 +2469,14 @@
         $(document).ready(function () {
 
             $.get("api/proxies", function (data) {
-                proxies = data;
+                // Extract just the host IPs from the proxy objects
+                proxies = data.map(function(proxy) { return proxy.host; });
 
                 // Update any existing links now that proxies
                 // are loaded
                 $("a[ip]").each(function () {
                     let ip = $(this).attr('ip');
-                    $(this).attr('href', wrapUrlWithProxy(ip));
+                    $(this).attr('href', wrapUrlWithProxy(ip, "/"));
                 });
 
                 getFPPSystems();
