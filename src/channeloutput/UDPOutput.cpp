@@ -347,7 +347,7 @@ int UDPOutput::Init(Json::Value config) {
                     std::string msg = "UDP Output set to send data to myself.  Disabling ";
                     msg += host.c_str();
                     LogWarn(VB_CHANNELOUT, msg.c_str());
-                    WarningHolder::AddWarning(6,msg);
+                    WarningHolder::AddWarning(6, msg);
                     o->active = false;
                 }
             }
@@ -407,7 +407,7 @@ int UDPOutput::Init(Json::Value config) {
     if (hasArtNet) {
         // we have artnet packets so we'll need to get the special artnet socket created,
         // but we want to make sure it's on the given interface
-        CreateArtNetSocket(localAddress.sin_addr.s_addr);
+        CreateArtNetSocket(localAddress.sin_addr.s_addr, true);
     }
     return ChannelOutput::Init(config);
 }

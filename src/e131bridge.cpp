@@ -17,6 +17,7 @@
 #endif
 
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
@@ -28,7 +29,6 @@
 #include <inttypes.h>
 #include <map>
 #include <memory>
-#include <net/if.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -62,7 +62,7 @@ socklen_t addrlen;
 
 int bridgeSock = -1;
 int ddpSock = -1;
-int artnetSock = -1;
+std::atomic<int> artnetSock = -1;
 
 long long last_packet_time = GetTimeMS();
 long long expireOffSet = 1000; // expire after 1 second
@@ -117,26 +117,29 @@ int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
 inline void SetBridgeData(uint8_t* data, int startChannel, int len, long long packetTime);
 
-int CreateArtNetSocket(uint32_t sourceAddr) {
+int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
+    static std::mutex artnetSocketMutex;
+    std::lock_guard<std::mutex> lock(artnetSocketMutex);
     if (artnetSock < 0) {
-        artnetSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-        if (artnetSock < 0) {
-            LogDebug(VB_E131BRIDGE, "ArtNet socket failed: %s", strerror(errno));
+        int artnetSockT = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+        if (artnetSockT < 0) {
+            LogWarn(VB_E131BRIDGE, "ArtNet socket failed: %s", strerror(errno));
+            WarningHolder::AddWarning("Socket creation failed for ArtNet");
             exit(1);
         }
         int enable = 1;
         // need to be able to send broadcast for ArtPollReply
-        setsockopt(artnetSock, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
+        setsockopt(artnetSockT, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
         enable = 1;
 #ifdef PLATFORM_OSX
-        setsockopt(artnetSock, IPPROTO_UDP, UDP_NOCKSUM, (void*)&enable, sizeof enable);
+        setsockopt(artnetSockT, IPPROTO_UDP, UDP_NOCKSUM, (void*)&enable, sizeof enable);
 #else
-        setsockopt(artnetSock, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
+        setsockopt(artnetSockT, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
 #endif
         int bufSize = 512 * 1024;
-        setsockopt(artnetSock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
+        setsockopt(artnetSockT, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
         bufSize = 512 * 1024;
-        setsockopt(artnetSock, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
+        setsockopt(artnetSockT, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
 
         memset((char*)&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
@@ -144,10 +147,21 @@ int CreateArtNetSocket(uint32_t sourceAddr) {
         addr.sin_port = htons(0x1936); // artnet port
         addrlen = sizeof(addr);
         // Bind the socket to address/port
-        if (bind(artnetSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LogDebug(VB_E131BRIDGE, "ArtNet bind failed: %s", strerror(errno));
-            exit(1);
+        if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+            if (allowPortChange) {
+                addr.sin_port = htons(0); // let OS pick port
+                if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+                    LogWarn(VB_E131BRIDGE, "ArtNet bind failed even after port change: %s", strerror(errno));
+                    WarningHolder::AddWarning("Socket bind failed for ArtNet");
+                    return -1;
+                }
+            } else {
+                LogWarn(VB_E131BRIDGE, "ArtNet bind failed: %s", strerror(errno));
+                WarningHolder::AddWarning("Socket bind failed for ArtNet");
+                return -1;
+            }
         }
+        artnetSock = artnetSockT;
     }
     return artnetSock;
 }
