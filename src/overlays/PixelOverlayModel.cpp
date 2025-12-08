@@ -120,7 +120,7 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     }
 
     if (config["Type"].asString() != "Channel") {
-        if (config.isMember("PixelSize")) {
+        if (config.isMember("PixelSize") && config["PixelSize"].asInt() > 1) {            
             width = config["Width"].asInt() / config["PixelSize"].asInt();
             height = config["Height"].asInt() / config["PixelSize"].asInt();
         } else {
