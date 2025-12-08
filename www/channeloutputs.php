@@ -347,8 +347,12 @@
 
 
             PopulateChannelOutputLookup();
-            checkAndCorrectMissingChannelLookup();
-            SetDefaultsInChannelOutputsLookup();
+            if (typeof checkAndCorrectMissingChannelLookup === 'function') {
+                checkAndCorrectMissingChannelLookup();
+            }
+            if (typeof SetDefaultsInChannelOutputsLookup === 'function') {
+                SetDefaultsInChannelOutputsLookup();
+            }
 
         }
 

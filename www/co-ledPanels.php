@@ -2734,7 +2734,7 @@
             // Show warning banner
             if ($('.configUpgradeWarning').length === 0) {
                 const warningHtml = `
-                    <div class="alert alert-warning alert-dismissible fade show configUpgradeWarning" role="alert" style="margin: 10px 0;">
+                    <div class="alert alert-warning alert-dismissible fade show configUpgradeWarning" role="alert" style="margin: 10px 0; color: #856404; background-color: #fff3cd; border-color: #ffeaa7;">
                         <strong><i class="fas fa-exclamation-triangle"></i> Configuration Upgrade Required:</strong> 
                         ${message}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
