@@ -852,7 +852,7 @@ void Sequence::CloseSequenceFile(void) {
 void Sequence::SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS) {
     if (this->IsSequenceRunning()) {
         if (m_warn_if_bridging) {
-            WarningHolder::AddWarningTimeout("Received bridging data while sequence is running.", 60);
+            WarningHolder::AddWarningTimeout(60 ,11, "Received bridging data while sequence is running.");
         }
         if (m_prioritize_sequence_over_bridge) {
             return;

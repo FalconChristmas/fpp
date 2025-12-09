@@ -92,6 +92,13 @@
             "HelpTxt": "",
             "HelpPageType": "md",
             "WarningGroup": "Device_Warnings"
+        },
+        {
+            "id": 11,
+            "Title": "Received bridging data while sequence is running",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Network_Warnings"
         }
     ]
 }
