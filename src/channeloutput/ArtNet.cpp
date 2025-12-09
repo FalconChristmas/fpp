@@ -165,9 +165,10 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
         // ALL ArtNet messages must go out on the same socket
         // and the socket MUST have the source port of ARTNET_DEST_PORT
         // as per the ArtNet protocol
-        if (messages.GetSocket(ARTNET_DEST_PORT) == -1) {
+        // Use a reserved key that won't collide with IP addresses
+        if (messages.GetSocket(ARTNET_MESSAGES_KEY) == -1) {
             // we MAY be bridging ArtNet so we need to use that same socket
-            messages.ForceSocket(ARTNET_DEST_PORT, CreateArtNetSocket(), true);
+            messages.ForceSocket(ARTNET_MESSAGES_KEY, CreateArtNetSocket(), true);
         }
 
         unsigned char* cur = channelData + startChannel - 1;
@@ -175,7 +176,7 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
         bool anySkipped = false;
         bool allSkipped = true;
 
-        std::vector<struct mmsghdr>& msgs = messages[ARTNET_DEST_PORT];
+        std::vector<struct mmsghdr>& msgs = messages[ARTNET_MESSAGES_KEY];
         for (int x = 0; x < universeCount; x++) {
             if (NeedToOutputFrame(channelData, startChannel - 1, start, channelCount)) {
                 struct mmsghdr msg;
