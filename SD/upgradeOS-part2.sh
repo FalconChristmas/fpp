@@ -78,7 +78,7 @@ fi
 
 #copy everything other than fstab and the persistent net names
 echo "Running rsync to update / (root) file system:"
-stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh ${SKIPFPP}
+stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/10-*.network --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh ${SKIPFPP}
 echo
 
 # force copy a few files that rsync cannot properly replace
