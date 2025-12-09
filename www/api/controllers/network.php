@@ -60,9 +60,38 @@ function network_wifi_scan()
 
 function network_persistentNames_delete()
 {
+    global $settings;
+    
     shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
     shell_exec("sudo ln -sf /dev/null /etc/systemd/network/99-default.link");
     shell_exec("sudo ln -sf /dev/null /etc/systemd/network/73-usb-net-by-mac.link");
+
+    // Rename any enx* interface config files back to eth* names
+    // This restores configs when clearing persistent names for USB ethernet adapters
+    $configDir = $settings['configDirectory'];
+    $interfaces = network_list_interfaces_array();
+    
+    foreach ($interfaces as $iface) {
+        $iface = preg_replace("/:$/", "", $iface);
+        
+        // Check if this is a USB ethernet adapter with an enx name
+        if (substr_compare($iface, "enx", 0, 3) == 0) {
+            $enxConfigFile = $configDir . "/interface." . $iface;
+            if (file_exists($enxConfigFile)) {
+                // Find the next available eth number
+                $ethNum = 1; // Start with eth1 since eth0 is usually built-in
+                while (file_exists($configDir . "/interface.eth" . $ethNum)) {
+                    $ethNum++;
+                }
+                
+                $newName = "eth" . $ethNum;
+                $ifaceConfig = file_get_contents($enxConfigFile);
+                $ifaceConfig = str_replace($iface, $newName, $ifaceConfig);
+                file_put_contents($configDir . "/interface." . $newName, $ifaceConfig);
+                unlink($enxConfigFile);
+            }
+        }
+    }
 
     $output = array("status" => "OK");
     return json($output);
@@ -93,9 +122,9 @@ function network_persistentNames_create()
             //FPP config file
             $new_iface = "enx" . str_replace(':', '', $macAddress);
             if (file_exists($settings['configDirectory'] . "/interface." . $iface)) {
-                $cont = file_get_contents($settings['configDirectory'] . "/interface." . $iface);
-                $cont = str_replace($iface, $new_iface, $cont);
-                file_put_contents($settings['configDirectory'] . "/interface." . $new_iface, $cont);
+                $ifaceConfig = file_get_contents($settings['configDirectory'] . "/interface." . $iface);
+                $ifaceConfig = str_replace($iface, $new_iface, $ifaceConfig);
+                file_put_contents($settings['configDirectory'] . "/interface." . $new_iface, $ifaceConfig);
             }
             $cont = $cont . "\n\n[Link]\nNamePolicy=\nName=" . $new_iface . "\n";
         } else {
