@@ -1020,10 +1020,11 @@ private:
     void configurePin(const std::string& pin, const std::string& mode) {
 #ifdef PLATFORM_BB64
         std::string cmd = "/usr/bin/pinctrl -s " + pin + " " + mode;
+        exec(cmd);
 #elif defined(PLATFORM_PI)
         std::string cmd = "/usr/bin/pinctrl set " + pin + " " + mode;
-#endif
         exec(cmd);
+#endif
     }
 
     void processEEPROM() {
