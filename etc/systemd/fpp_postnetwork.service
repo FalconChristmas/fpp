@@ -7,7 +7,7 @@ DefaultDependencies=no
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-TimeoutStartSec=120
+TimeoutStartSec=400
 ExecStart=/opt/fpp/src/fppinit postNetwork
 
 [Install]

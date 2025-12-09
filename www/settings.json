@@ -889,7 +889,7 @@
 			"name": "bootDelay",
 			"description": "FPPD Boot Delay",
 			"gatherStats": true,
-			"tip": "The time that FPP waits after system boot up to start fppd.  For environments that are powered down regularly, fppd may start up quicker than the network environment fully starts up which may cause E1.31 multicast to not work properly.  Setting a Boot Delay will cause the system to wait the specified amount of time during startup which can give the network switches and routers time to fully start up.  If Auto is selected, the system will wait until a valid time has been retrieved via NTP or a RTC (real-time clock) OR a maximum of 10 minutes.",
+			"tip": "The time that FPP waits after system boot up to start fppd.  For environments that are powered down regularly, fppd may start up quicker than the network environment fully starts up which may cause E1.31 multicast to not work properly.  Setting a Boot Delay will cause the system to wait the specified amount of time during startup which can give the network switches and routers time to fully start up.  If Auto is selected, the system will wait until a valid time has been retrieved via NTP or a RTC (real-time clock) OR a maximum of 5 minutes.",
 			"default": "0",
 			"type": "select",
 			"options": {

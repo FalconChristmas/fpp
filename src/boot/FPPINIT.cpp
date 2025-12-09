@@ -907,11 +907,11 @@ static void handleBootDelay() {
         if (diffSecs > 0) {
             char buffer[26];
             strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tmFile);
-            printf("FPP - FPP - Waiting until system date is at least %s or 15s\n", buffer);
+            printf("FPP - FPP - Waiting until system date is at least %s or 5 minutes\n", buffer);
         }
 
         int count = 0;
-        while (diffSecs > 0 && count < 150) {
+        while (diffSecs > 0 && count < 3000) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             t = time(nullptr);
             localtime_r(&(attr.st_ctime), &tmNow);

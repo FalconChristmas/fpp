@@ -3,7 +3,7 @@ Description=FPPd
 After=fpp_postnetwork.service
 Requires=fpp_postnetwork.service
 DefaultDependencies=no
-StartLimitIntervalSec=60
+StartLimitIntervalSec=400
 StartLimitBurst=5
 
 [Service]
