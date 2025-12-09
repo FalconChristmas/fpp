@@ -1,6 +1,6 @@
 
 %.o: %.cpp 
-	ccache g++ -O3 -std=gnu++23 -c $(SRCDIR)$< -o $@
+	ccache g++ -O3 -std=gnu++23 -c $< -o $@
 
 all: pinctrl fpp-base-overlay.dtb fpp-cape-overlay.dtb
 
