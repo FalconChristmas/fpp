@@ -33,6 +33,7 @@
 #include "common_mini.h"
 #include <arpa/inet.h>
 #include <ifaddrs.h>
+#include <systemd/sd-daemon.h>
 
 #if __has_include(<jsoncpp/json/json.h>)
 #include <jsoncpp/json/json.h>
@@ -886,7 +887,27 @@ static void handleBootDelay() {
     int i = getRawSettingInt("bootDelay", -1);
     if (i > 0) {
         printf("FPP - Sleeping for %d seconds\n", i);
-        std::this_thread::sleep_for(std::chrono::seconds(i));
+        // Create flag file with start time and duration for UI countdown
+        time_t startTime = time(nullptr);
+        std::string flagContent = std::to_string(startTime) + "," + std::to_string(i);
+        PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
+        // Notify systemd we're starting the delay and extend timeout
+        sd_notify(0, "STATUS=Boot delay in progress");
+        
+        // Sleep with periodic watchdog notifications and timeout extensions
+        int remaining = i;
+        while (remaining > 0) {
+            int sleepTime = (remaining > 30) ? 30 : remaining;
+            // Extend timeout by 60 seconds before each sleep
+            sd_notifyf(0, "EXTEND_TIMEOUT_USEC=%llu", (unsigned long long)60000000);
+            std::this_thread::sleep_for(std::chrono::seconds(sleepTime));
+            remaining -= sleepTime;
+            if (remaining > 0) {
+                sd_notify(0, "WATCHDOG=1");
+            }
+        }
+        // Remove flag file when delay completes
+        unlink((FPP_MEDIA_DIR + "/tmp/boot_delay").c_str());
     } else if (i == -1) {
         const auto processor_count = std::thread::hardware_concurrency();
         if (processor_count > 2) {
@@ -908,6 +929,9 @@ static void handleBootDelay() {
             char buffer[26];
             strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tmFile);
             printf("FPP - FPP - Waiting until system date is at least %s or 5 minutes\n", buffer);
+            // Create flag file for UI to show warning
+            PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", "auto");
+            sd_notify(0, "STATUS=Waiting for valid system time (NTP/RTC)");
         }
 
         int count = 0;
@@ -918,7 +942,15 @@ static void handleBootDelay() {
             t2 = mktime(&tmNow);
             diffSecs = difftime(t1, t2);
             count++;
+            
+            // Notify systemd every 10 seconds (100 iterations)
+            if (count % 100 == 0) {
+                // Extend timeout by 30 seconds and send watchdog ping
+                sd_notifyf(0, "EXTEND_TIMEOUT_USEC=%llu\nWATCHDOG=1", (unsigned long long)30000000);
+            }
         }
+        // Remove flag file when delay completes
+        unlink((FPP_MEDIA_DIR + "/tmp/boot_delay").c_str());
     }
 }
 void cleanupChromiumFiles() {
@@ -1580,6 +1612,24 @@ int main(int argc, char* argv[]) {
         setFileOwnership();
         PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
         checkInstallKiosk();
+        
+        // Create boot delay flag file early if boot delay is configured
+        // so UI can show warning immediately when Apache starts
+        int bootDelaySetting = getRawSettingInt("bootDelay", -1);
+        if (bootDelaySetting != 0) {
+            // Store start time and duration/mode for UI countdown
+            time_t startTime = time(nullptr);
+            if (bootDelaySetting > 0) {
+                std::string flagContent = std::to_string(startTime) + "," + std::to_string(bootDelaySetting);
+                PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
+            } else if (bootDelaySetting == -1) {
+                std::string flagContent = std::to_string(startTime) + ",auto";
+                PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
+            }
+        }
+        
+        // Notify systemd that initialization is complete
+        sd_notify(0, "READY=1\nSTATUS=FPP initialization complete");
     } else if (action == "postNetwork") {
         removeDummyInterface();
         handleBootDelay();
@@ -1599,6 +1649,8 @@ int main(int argc, char* argv[]) {
         setFileOwnership();
         checkInstallPackages();
         startZRAMSwap();
+        // Notify systemd that post-network setup is complete
+        sd_notify(0, "READY=1\nSTATUS=FPP post-network setup complete");
     } else if (action == "bootPre") {
         int restart = getRawSettingInt("restartFlag", 0);
         if (restart) {

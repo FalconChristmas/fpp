@@ -674,6 +674,19 @@ int main(int argc, char* argv[]) {
 
     WarningHolder::StartNotifyThread();
 
+    // Check if boot delay is in progress and add warning
+    if (FileExists(getFPPMediaDir("/tmp/boot_delay"))) {
+        std::string delayValue = GetFileContents(getFPPMediaDir("/tmp/boot_delay"));
+        TrimWhiteSpace(delayValue);
+        std::string msg;
+        if (delayValue == "auto") {
+            msg = "Boot delay in progress: Waiting for valid system time (NTP/RTC) - up to 5 minutes";
+        } else {
+            msg = "Boot delay in progress: Waiting " + delayValue + " seconds before starting FPPD";
+        }
+        WarningHolder::AddWarning(12, msg);
+    }
+
     LogInfo(VB_GENERAL, "Creating Scheduler, Playlist, and Sequence\n");
     scheduler = new Scheduler();
     sequence = new Sequence();

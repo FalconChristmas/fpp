@@ -4522,20 +4522,54 @@ function GetFPPStatus () {
 	if (response && typeof response === 'object') {
 		$('#btnDaemonControl').show();
 
-		if (response.status_name == 'stopped') {
-			if (!('warnings' in response)) {
-				response.warnings = [];
+	if (response.status_name == 'stopped') {
+		if (!('warnings' in response)) {
+			response.warnings = [];
+		}
+		if (!('warningInfo' in response)) {
+			response.warningInfo = [];
+		}
+		// Check if boot delay is active
+		if (response.bootDelayActive == 1) {
+			var message = 'Boot Delay in Progress - FPPD will start when delay completes';
+			
+			// Calculate remaining time if we have timing info
+			if (response.bootDelayStart && response.bootDelayDuration) {
+				var currentTime = Math.floor(Date.now() / 1000);
+				var elapsed = currentTime - response.bootDelayStart;
+				
+				if (response.bootDelayDuration === 'auto') {
+					message = 'Boot Delay in Progress - Waiting for valid system time (max 5 minutes)';
+					var maxDuration = 300; // 5 minutes
+					var remaining = Math.max(0, maxDuration - elapsed);
+					if (remaining > 0) {
+						var mins = Math.floor(remaining / 60);
+						var secs = remaining % 60;
+						message += ' - ' + (mins > 0 ? mins + 'm ' : '') + secs + 's remaining';
+					}
+				} else {
+					var duration = parseInt(response.bootDelayDuration);
+					var remaining = Math.max(0, duration - elapsed);
+					if (remaining > 0) {
+						var mins = Math.floor(remaining / 60);
+						var secs = remaining % 60;
+						message = 'Boot Delay in Progress - ' + (mins > 0 ? mins + 'm ' : '') + secs + 's remaining';
+					}
+				}
 			}
-			if (!('warningInfo' in response)) {
-				response.warningInfo = [];
-			}
+			
+			response.warnings.push(message);
+			response.warningInfo.push({
+				message: message,
+				id: 12
+			});
+		} else {
 			response.warnings.push('FPPD Daemon is not running');
 			response.warningInfo.push({
 				message: 'FPPD Daemon is not running',
 				id: 1
 			});
-
-			$.get('api/system/volume')
+		}			$.get('api/system/volume')
 				.done(function (data) {
 					updateVolumeUI(parseInt(data.volume));
 				})

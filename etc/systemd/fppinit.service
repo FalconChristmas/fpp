@@ -6,9 +6,11 @@ After=home-fpp-media.mount tmp.mount haveged.service
 Wants=home-fpp-media.mount tmp.mount systemd-networkd.service networking.target
 
 [Service]
-Type=oneshot
+Type=notify
+NotifyAccess=all
 RemainAfterExit=yes
-TimeoutStartSec=400
+TimeoutStartSec=90
+WatchdogSec=60
 ExecStartPre=-/bin/sh -c "mkdir -p /home/fpp/media/logs; rm -f /home/fpp/media/tmp/cape_detect_done"
 ExecStart=/opt/fpp/src/fppinit start
 ExecStop=-/bin/sh -c "rm -rf /home/fpp/media/tmp/*"

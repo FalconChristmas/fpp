@@ -5,9 +5,11 @@ Wants=network.target
 DefaultDependencies=no
 
 [Service]
-Type=oneshot
+Type=notify
+NotifyAccess=all
 RemainAfterExit=yes
-TimeoutStartSec=400
+TimeoutStartSec=120
+WatchdogSec=60
 ExecStart=/opt/fpp/src/fppinit postNetwork
 
 [Install]

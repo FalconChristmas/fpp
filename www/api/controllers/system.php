@@ -378,6 +378,20 @@ function finalizeStatusJson($obj)
         $obj['restartFlag'] = 0;
     }
 
+    // Check if boot delay is in progress
+    $bootDelayFile = $settings['mediaDirectory'] . '/tmp/boot_delay';
+    if (file_exists($bootDelayFile)) {
+        $obj['bootDelayActive'] = 1;
+        $delayInfo = trim(file_get_contents($bootDelayFile));
+        $parts = explode(',', $delayInfo);
+        if (count($parts) == 2) {
+            $obj['bootDelayStart'] = intval($parts[0]);
+            $obj['bootDelayDuration'] = $parts[1]; // Could be number or "auto"
+        }
+    } else {
+        $obj['bootDelayActive'] = 0;
+    }
+
     //Get the advanced info directly as an array
     $request_expert_content = GetSystemInfoJsonInternal(isset($_GET['simple']), !isset($_GET['nonetwork']));
     //check we have valid data

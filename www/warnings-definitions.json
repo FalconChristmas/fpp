@@ -99,6 +99,13 @@
             "HelpTxt": "",
             "HelpPageType": "md",
             "WarningGroup": "Network_Warnings"
+        },
+        {
+            "id": 12,
+            "Title": "Boot Delay Active",
+            "HelpTxt": "Boot delay is in progress. FPPD will start automatically when the configured delay completes or valid system time is received.",
+            "HelpPageType": "",
+            "WarningGroup": "FPPD_Warnings"
         }
     ]
 }
