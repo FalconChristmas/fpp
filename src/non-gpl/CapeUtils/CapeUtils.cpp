@@ -1017,6 +1017,14 @@ private:
             removeIfExist(outputPath + "/tmp/defaults/config/sensors.json");
         }
     }
+    void configurePin(const std::string& pin, const std::string& mode) {
+#ifdef PLATFORM_BB64
+        std::string cmd = "/usr/bin/pinctrl -s " + pin + " " + mode;
+#elif defined(PLATFORM_PI)
+        std::string cmd = "/usr/bin/pinctrl set " + pin + " " + mode;
+#endif
+        exec(cmd);
+    }
 
     void processEEPROM() {
         // if the cape-info has default settings and those settings are not already set, set them
@@ -1152,7 +1160,20 @@ private:
                             exec(v.c_str());
                         }
                     }
+                    if (result.isMember("pinctrl")) {
+                        // if the cape requires pins set to a particular mode, set them now
+                        for (auto pin : result["pinctrl"].getMemberNames()) {
+                            for (int x = 0; x < result["pinctrl"][pin].size(); x++) {
+                                std::string v = result["pinctrl"][pin][x].asString();
+                                configurePin(pin, v);
+                            }
+                        }
 
+                        for (int x = 0; x < result["modules"].size(); x++) {
+                            std::string v = "/sbin/modprobe " + result["modules"][x].asString() + " 2> /dev/null  > /dev/null";
+                            exec(v.c_str());
+                        }
+                    }
                     if (result.isMember("i2cDevices") && !readOnly) {
                         // if the cape has i2c devices on it that need to be registered, load them at this
                         // time so they will be available later
