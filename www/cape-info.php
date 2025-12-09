@@ -374,7 +374,31 @@ if (isset($settings["cape-info"])) {
             eepromVendorCapeVersionChanged();
         }
         function eepromVendorCapeVersionChanged() {
+            var notes = '';
+            var vendor = $('#eepromVendorList').val();
             var url = $('#eepromVendorCapeVersions').val();
+            var ver = $('#eepromVendorCapeVersions').text();
+            if (vendor in eepromList) {
+                var capeName = $('#eepromVendorCapes').val();
+                if (capeName in eepromList[vendor]) {
+                    for (v in eepromList[vendor][capeName]["versions"]) {
+                        let versionObj = eepromList[vendor][capeName]["versions"][v];
+                        if (versionObj.url == url) {
+                            if ("notes" in versionObj) {
+                                notes = versionObj.notes;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $('#eepromVendorVersionNotes').html(notes);
+            if (notes == '') {
+                $('#eepromVendorVersionNotesLabel').hide();
+            } else {
+                $('#eepromVendorVersionNotesLabel').show();
+            }
             if (url == '') {
                 $('#UpdateFirmware').removeClass('btn-success');
                 $('#UpdateFirmware').attr('disabled', 'disabled');
@@ -1201,21 +1225,48 @@ if (isset($settings["cape-info"])) {
                                                     <div class="aboutLeft col-8">
                                                         Select a downloadable EEPROM image or a local file to upgrade EEPROM
                                                         firmware:<br>
-                                                        <div><b>Vendor:</b>&nbsp;
-                                                            <select id='eepromVendorList' disabled
-                                                                onChange='eepromVendorListChanged();'>
-                                                                <option value=''>-- Select Vendor --</option>
-                                                            </select><br>
-                                                            <b>Cape/Hat:</b>&nbsp;
-                                                            <select id='eepromVendorCapes' disabled
-                                                                onChange='eepromVendorCapeChanged();'>
-                                                                <option value=''>-- Select Cape --</option>
-                                                            </select><br>
-                                                            <b>Version:</b>&nbsp;
-                                                            <select id='eepromVendorCapeVersions' disabled
-                                                                onChange='eepromVendorCapeVersionChanged();'>
-                                                                <option value=''>-- Select Version --</option>
-                                                            </select><br>
+                                                        <div>
+                                                            <table>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td><b>Vendor:</b></td>
+                                                                        <td><select id='eepromVendorList' disabled
+                                                                                onChange='eepromVendorListChanged();'>
+                                                                                <option value=''>-- Select Vendor --
+                                                                                </option>
+                                                                            </select></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td><b>Cape/Hat:</b></td>
+                                                                        <td><select id='eepromVendorCapes' disabled
+                                                                                onChange='eepromVendorCapeChanged();'>
+                                                                                <option value=''>-- Select Cape --</option>
+                                                                            </select></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td><b>Version:</b></td>
+                                                                        <td><select id='eepromVendorCapeVersions' disabled
+                                                                                onChange='eepromVendorCapeVersionChanged();'>
+                                                                                <option value=''>-- Select Version --
+                                                                                </option>
+                                                                            </select>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <div id="eepromVendorVersionNotesLabel"
+                                                                                class="style: hidden">
+                                                                                <b>Notes:</b>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td>
+                                                                            <div id='eepromVendorVersionNotes'>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+
                                                         </div>
 
                                                         <br>
@@ -1245,9 +1296,9 @@ if (isset($settings["cape-info"])) {
                                                     </div>
                                                 </div>
                                                 <br>
-                                                Firmware backups are automatically created whenever an EEPROM is upgraded or
-                                                signed. You may delete old
-                                                backups from the <a href='filemanager.php#tab-uploads'>File Manager</a>.
+                                                Firmware backups are automatically created whenever an EEPROM is
+                                                upgraded or signed. You may delete old backups from the
+                                                <a href='filemanager.php#tab-uploads'>File Manager</a>.
                                             </div>
                                         </div>
                                     </div>
@@ -1266,10 +1317,11 @@ if (isset($settings["cape-info"])) {
                         <div class="container-fluid">
                             <div class="row">
                                 <div class="aboutLeft col-md">
-                                    Your cape appears to have an unprogrammed physical EEPROM installed. Select a downloadable
-                                    EEPROM image or a local file to program the EEPROM:<br>
+                                    Your cape appears to have an unprogrammed physical EEPROM installed. Select a
+                                    downloadable EEPROM image or a local file to program the EEPROM:<br>
                                     <div class="callout callout-warning">
-                                       IMPORTANT: EEPROM Version selected below must match hardware version of your specific cape.
+                                        IMPORTANT: EEPROM Version selected below must match hardware version of your
+                                        specific cape.
                                     </div>
                                     <div><b>Vendor:</b>&nbsp;
                                         <select id='eepromVendorList' disabled onChange='eepromVendorListChanged();'>
@@ -1302,7 +1354,7 @@ if (isset($settings["cape-info"])) {
                     Unable to find a physical or virtual EEPROM. If you have a cape without a physical EEPROM installed,
                     you will need to select a virtual EEPROM from the Pixel Strings Channel Output configuration page.
                     <div class="callout callout-warning">
-                       IMPORTANT: EEPROM Version selected below must match hardware version of your specific cape.
+                        IMPORTANT: EEPROM Version selected below must match hardware version of your specific cape.
                     </div>
                     <?
                     }
