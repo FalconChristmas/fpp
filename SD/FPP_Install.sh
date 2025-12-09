@@ -56,7 +56,7 @@
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="2025-11"
-FPPCFGVER="100"
+FPPCFGVER="101"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
