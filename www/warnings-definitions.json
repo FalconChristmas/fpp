@@ -85,6 +85,13 @@
             "HelpTxt": "",
             "HelpPageType": "md",
             "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 10,
+            "Title": "Dummy Audio",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Device_Warnings"
         }
     ]
 }

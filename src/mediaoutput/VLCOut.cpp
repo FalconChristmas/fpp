@@ -321,7 +321,7 @@ public:
 
             std::string cardType = getSetting("AudioCardType");
             if (cardType.find("Dummy") == 0) {
-                WarningHolder::AddWarningTimeout("Outputting Audio to Dummy device.", 60);
+                WarningHolder::AddWarningTimeout(60, 10, "Outputting Audio to Dummy device.");
             }
             return 0;
         }
