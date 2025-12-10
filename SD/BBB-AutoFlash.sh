@@ -28,7 +28,7 @@ echo ""
 /opt/fpp/bin.bbb/bootloader/install.sh
 
 
-/boot/BBB-FlashMMC.sh -noreboot ext4
+/opt/fpp/SD/BBB-FlashMMC.sh -noreboot ext4
 
 PARTS=$(/sbin/sfdisk -l ${DEVICE} | /bin/grep ${DEVICE}p | /usr/bin/wc -l)
 
