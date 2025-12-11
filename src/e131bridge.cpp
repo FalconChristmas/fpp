@@ -1116,7 +1116,6 @@ void BridgeShutdownUDP(bool reloading) {
     }
     if (artnetSock >= 0) {
         if (artnetSocketAsInput) {
-            printf("Removing artnet listener\n");
             EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
             artnetSocketAsInput = false;
         }

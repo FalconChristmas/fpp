@@ -276,6 +276,7 @@ int UDPOutput::Init(Json::Value config) {
             break;
         case 2:
         case 3:
+        case 9:
             // ArtNet types
             outputs.push_back(new ArtNetOutputData(s));
             hasArtNet = true;
@@ -606,7 +607,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
         int total = 0;
         auto t1 = clock.now();
         for (auto& msgs : messages.messages) {
-            if (!msgs.second.empty() && msgs.first < LATE_MULTICAST_MESSAGES_KEY) {
+            if (!msgs.second.empty() && msgs.first < LATE_MESSAGES_START) {
                 SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first);
 
                 std::unique_lock<std::mutex> lock(workMutex);
@@ -635,7 +636,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
             for (auto& msgs : messages.messages) {
                 if (!msgs.second.empty()) {
                     SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first);
-                    if (msgs.first >= LATE_MULTICAST_MESSAGES_KEY) {
+                    if (msgs.first >= LATE_MESSAGES_START) {
                         t1 = clock.now();
                         int outputCount = SendMessages(msgs.first, socketInfo, msgs.second);
                         t2 = clock.now();

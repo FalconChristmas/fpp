@@ -110,6 +110,7 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value& config) :
         ipAddress = "";
         break;
     case 3: // UnicastAddress
+    case 9: // UnicastAddress
         ipAddress = config["address"].asString();
         break;
     }
@@ -162,21 +163,30 @@ bool ArtNetOutputData::IsPingable() {
 
 void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& messages) {
     if (valid && active) {
-        // ALL ArtNet messages must go out on the same socket
-        // and the socket MUST have the source port of ARTNET_DEST_PORT
-        // as per the ArtNet protocol
-        // Use a reserved key that won't collide with IP addresses
-        if (messages.GetSocket(ARTNET_MESSAGES_KEY) == -1) {
+        if (messages.GetSocket(ARTNET_SYNC_KEY) == -1) {
             // we MAY be bridging ArtNet so we need to use that same socket
-            messages.ForceSocket(ARTNET_MESSAGES_KEY, CreateArtNetSocket(), true);
+            messages.ForceSocket(ARTNET_SYNC_KEY, CreateArtNetSocket(), true);
         }
 
+        int key = ARTNET_MESSAGES_KEY;
+        if (type == 9) {
+            key = anAddress.sin_addr.s_addr;
+        } else {
+            // ALL ArtNet messages must go out on the same socket
+            // and the socket MUST have the source port of ARTNET_DEST_PORT
+            // as per the ArtNet protocol
+            // Use a reserved key that won't collide with IP addresses
+            if (messages.GetSocket(ARTNET_MESSAGES_KEY) == -1) {
+                // we MAY be bridging ArtNet so we need to use that same socket
+                messages.ForceSocket(ARTNET_MESSAGES_KEY, CreateArtNetSocket(), true);
+            }
+        }
         unsigned char* cur = channelData + startChannel - 1;
         int start = 0;
         bool anySkipped = false;
         bool allSkipped = true;
 
-        std::vector<struct mmsghdr>& msgs = messages[ARTNET_MESSAGES_KEY];
+        std::vector<struct mmsghdr>& msgs = messages[key];
         for (int x = 0; x < universeCount; x++) {
             if (NeedToOutputFrame(channelData, startChannel - 1, start, channelCount)) {
                 struct mmsghdr msg;
@@ -211,7 +221,7 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
 }
 void ArtNetOutputData::PostPrepareData(unsigned char* channelData, UDPOutputMessages& msgs) {
     if (valid && active) {
-        for (auto msg : msgs[ARTNET_DEST_PORT]) {
+        for (auto msg : msgs[ARTNET_SYNC_KEY]) {
             if (msg.msg_hdr.msg_iov == &ArtNetSyncIovecs) {
                 // already added, skip
                 return;
@@ -226,7 +236,7 @@ void ArtNetOutputData::PostPrepareData(unsigned char* channelData, UDPOutputMess
         msg.msg_hdr.msg_iov = &ArtNetSyncIovecs;
         msg.msg_hdr.msg_iovlen = 1;
         msg.msg_len = ARTNET_SYNC_PACKET_LENGTH;
-        msgs[ARTNET_DEST_PORT].push_back(msg);
+        msgs[ARTNET_SYNC_KEY].push_back(msg);
     }
 }
 

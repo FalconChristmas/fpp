@@ -2841,7 +2841,8 @@ function SavePlaylistAs (name, options, callback) {
 	});
 
 	// Determine if playlist is empty based on actual content
-	pl.empty = (leadIn.length === 0 && mainPlaylist.length === 0 && leadOut.length === 0);
+	pl.empty =
+		leadIn.length === 0 && mainPlaylist.length === 0 && leadOut.length === 0;
 
 	if (pl.empty) {
 		playlistInfo.total_duration = parseFloat(0);
@@ -3234,7 +3235,8 @@ function ChangeGitBranch (newBranch) {
 		)
 	) {
 		var remote = $('#gitRemote').val() || 'origin';
-		location.href = 'changebranch.php?branch=' + newBranch + '&remote=' + remote;
+		location.href =
+			'changebranch.php?branch=' + newBranch + '&remote=' + remote;
 	} else {
 		location.reload(true);
 	}
@@ -3379,7 +3381,7 @@ function IPOutputTypeChanged (item, input) {
 			$(item).parent().parent().find('input.pingButton').prop('hidden', false);
 		}
 	} else {
-		// 0,1 = E1.31, 2,3 = Artnet, 6,7 = KiNet
+		// 0,1 = E1.31, 2,3,9 = Artnet, 6,7 = KiNet
 		var univ = $(item).parent().parent().find('input.txtUniverse');
 		univ.prop('hidden', false);
 		if (type <= 1 && parseInt(univ.val()) < 1) {
@@ -3421,7 +3423,7 @@ function IPOutputTypeChanged (item, input) {
 			}
 
 			var universe = $(item).parent().parent().find('input.txtUniverse');
-			if (type == 2 || type == 3) {
+			if (type == 2 || type == 3 || type == 9) {
 				universe.prop('min', 0);
 			} else {
 				universe.prop('min', 1);
@@ -3497,6 +3499,7 @@ function populateUniverseData (data, reload, input) {
 		var typeKiNet1 = type == 6 ? 'selected' : '';
 		var typeKiNet2 = type == 7 ? 'selected' : '';
 		var typeTwinkly = type == 8 ? 'selected' : '';
+		var typeUniqueArtNet = type == 9 ? 'selected' : '';
 		var monitor = 1;
 		if (universe.monitor != null) {
 			monitor = universe.monitor;
@@ -3521,7 +3524,7 @@ function populateUniverseData (data, reload, input) {
 			hasMCBC = true;
 		}
 		var minNum = 1;
-		if (type == 2 || type == 3) {
+		if (type == 2 || (type == 3) | (type == 9)) {
 			minNum = 0;
 		}
 		if (type == 0 || type == 2) {
@@ -3543,7 +3546,7 @@ function populateUniverseData (data, reload, input) {
 			"<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" +
 			desc +
 			"'/></td>";
-		bodyHTML += "<td><select class='universeType' style='width:150px'";
+		bodyHTML += "<td><select class='universeType'";
 
 		if (input) {
 			bodyHTML +=
@@ -3573,6 +3576,9 @@ function populateUniverseData (data, reload, input) {
 				'>ArtNet - Broadcast</option>' +
 				"<option value='3' " +
 				typeUnicastArtNet +
+				'>ArtNet - Unicast/ArtNet Port</option>' +
+				"<option value='9' " +
+				typeUniqueArtNet +
 				'>ArtNet - Unicast</option>' +
 				"<option value='4' " +
 				typeDDPR +
@@ -4522,54 +4528,62 @@ function GetFPPStatus () {
 	if (response && typeof response === 'object') {
 		$('#btnDaemonControl').show();
 
-	if (response.status_name == 'stopped') {
-		if (!('warnings' in response)) {
-			response.warnings = [];
-		}
-		if (!('warningInfo' in response)) {
-			response.warningInfo = [];
-		}
-		// Check if boot delay is active
-		if (response.bootDelayActive == 1) {
-			var message = 'Boot Delay in Progress - FPPD will start when delay completes';
-			
-			// Calculate remaining time if we have timing info
-			if (response.bootDelayStart && response.bootDelayDuration) {
-				var currentTime = Math.floor(Date.now() / 1000);
-				var elapsed = currentTime - response.bootDelayStart;
-				
-				if (response.bootDelayDuration === 'auto') {
-					message = 'Boot Delay in Progress - Waiting for valid system time (max 5 minutes)';
-					var maxDuration = 300; // 5 minutes
-					var remaining = Math.max(0, maxDuration - elapsed);
-					if (remaining > 0) {
-						var mins = Math.floor(remaining / 60);
-						var secs = remaining % 60;
-						message += ' - ' + (mins > 0 ? mins + 'm ' : '') + secs + 's remaining';
-					}
-				} else {
-					var duration = parseInt(response.bootDelayDuration);
-					var remaining = Math.max(0, duration - elapsed);
-					if (remaining > 0) {
-						var mins = Math.floor(remaining / 60);
-						var secs = remaining % 60;
-						message = 'Boot Delay in Progress - ' + (mins > 0 ? mins + 'm ' : '') + secs + 's remaining';
+		if (response.status_name == 'stopped') {
+			if (!('warnings' in response)) {
+				response.warnings = [];
+			}
+			if (!('warningInfo' in response)) {
+				response.warningInfo = [];
+			}
+			// Check if boot delay is active
+			if (response.bootDelayActive == 1) {
+				var message =
+					'Boot Delay in Progress - FPPD will start when delay completes';
+
+				// Calculate remaining time if we have timing info
+				if (response.bootDelayStart && response.bootDelayDuration) {
+					var currentTime = Math.floor(Date.now() / 1000);
+					var elapsed = currentTime - response.bootDelayStart;
+
+					if (response.bootDelayDuration === 'auto') {
+						message =
+							'Boot Delay in Progress - Waiting for valid system time (max 5 minutes)';
+						var maxDuration = 300; // 5 minutes
+						var remaining = Math.max(0, maxDuration - elapsed);
+						if (remaining > 0) {
+							var mins = Math.floor(remaining / 60);
+							var secs = remaining % 60;
+							message +=
+								' - ' + (mins > 0 ? mins + 'm ' : '') + secs + 's remaining';
+						}
+					} else {
+						var duration = parseInt(response.bootDelayDuration);
+						var remaining = Math.max(0, duration - elapsed);
+						if (remaining > 0) {
+							var mins = Math.floor(remaining / 60);
+							var secs = remaining % 60;
+							message =
+								'Boot Delay in Progress - ' +
+								(mins > 0 ? mins + 'm ' : '') +
+								secs +
+								's remaining';
+						}
 					}
 				}
+
+				response.warnings.push(message);
+				response.warningInfo.push({
+					message: message,
+					id: 12
+				});
+			} else {
+				response.warnings.push('FPPD Daemon is not running');
+				response.warningInfo.push({
+					message: 'FPPD Daemon is not running',
+					id: 1
+				});
 			}
-			
-			response.warnings.push(message);
-			response.warningInfo.push({
-				message: message,
-				id: 12
-			});
-		} else {
-			response.warnings.push('FPPD Daemon is not running');
-			response.warningInfo.push({
-				message: 'FPPD Daemon is not running',
-				id: 1
-			});
-		}			$.get('api/system/volume')
+			$.get('api/system/volume')
 				.done(function (data) {
 					updateVolumeUI(parseInt(data.volume));
 				})
@@ -8172,22 +8186,29 @@ function FillInCommandTemplate (row, data) {
 	}
 
 	// Check if command exists in the command list
-	var commandExists = data.command !== '' && commandListByName.hasOwnProperty(data.command);
-	
+	var commandExists =
+		data.command !== '' && commandListByName.hasOwnProperty(data.command);
+
 	// If command doesn't exist in the dropdown, add it as a disabled option
 	if (data.command !== '' && !commandExists) {
 		var $select = row.find('.cmdTmplCommand');
 		// Remove any previously added invalid option to avoid duplicates
 		$select.find('option.invalidCommandOption').remove();
 		// Add the invalid command as a disabled option
-		$select.prepend('<option class="invalidCommandOption" value="' + data.command + '" disabled>' + data.command + ' (unavailable)</option>');
+		$select.prepend(
+			'<option class="invalidCommandOption" value="' +
+				data.command +
+				'" disabled>' +
+				data.command +
+				' (unavailable)</option>'
+		);
 	}
 
 	row.find('.cmdTmplCommand').val(data.command);
 
 	if (data.hasOwnProperty('presetSlot'))
 		row.find('.cmdTmplPresetSlot').val(data.presetSlot);
-	
+
 	// Add visual indicator if command is missing
 	if (data.command !== '' && !commandExists) {
 		row.addClass('commandPresetInvalidCommand');
@@ -8244,7 +8265,7 @@ function FillInCommandTemplate (row, data) {
 			if (!commandExists) {
 				tip =
 					"<span class='tooltipSpan' style='display: block; text-align: left; color: red;'><b>WARNING: Command not available</b><br>" +
-					"<b>Command: </b>" +
+					'<b>Command: </b>' +
 					data.command +
 					'<br>' +
 					'This command is not currently available. It may be from a disabled plugin or require additional configuration (e.g., MQTT).' +
@@ -8477,7 +8498,7 @@ function OnSystemStatusChange (funcToCall) {
 /*
  * Helper function to format IP address with CIDR notation
  */
-function formatIPWithCIDR(ip, prefixlen) {
+function formatIPWithCIDR (ip, prefixlen) {
 	if (prefixlen !== undefined && prefixlen !== null) {
 		return ip + '/' + prefixlen;
 	}
@@ -8724,33 +8745,48 @@ function RefreshHeaderBar () {
 			headerCache.Player = row;
 		}
 	}
-// Render plugin header indicators
-if (data.pluginHeaderIndicators != undefined) {
-var indicators = [];
-data.pluginHeaderIndicators.forEach(function(indicator) {
-if (indicator && indicator.visible) {
-var icon = indicator.icon || 'fa-puzzle-piece';
-var color = indicator.color || '#999';
-var tooltip = indicator.tooltip || 'Plugin Indicator';
-var link = indicator.link || '#';
-var animate = indicator.animate || '';
-var animStyle = animate ? ' style="animation: ' + animate + ' 2s infinite;"' : '';
+	// Render plugin header indicators
+	if (data.pluginHeaderIndicators != undefined) {
+		var indicators = [];
+		data.pluginHeaderIndicators.forEach(function (indicator) {
+			if (indicator && indicator.visible) {
+				var icon = indicator.icon || 'fa-puzzle-piece';
+				var color = indicator.color || '#999';
+				var tooltip = indicator.tooltip || 'Plugin Indicator';
+				var link = indicator.link || '#';
+				var animate = indicator.animate || '';
+				var animStyle = animate
+					? ' style="animation: ' + animate + ' 2s infinite;"'
+					: '';
 
-var row = '<span class="pluginIndicator headerBox" data-plugin="' + indicator.pluginName + '"' +
-' style="cursor: pointer; color: ' + color + '; margin-left: 5px; transition: color 0.3s ease;"' +
-' title="' + tooltip + '"' +
-' onclick="window.location.href=\'' + link + '\'">' +
-'<i class="fas ' + icon + '"' + animStyle + '></i>' +
-'</span>';
-indicators.push(row);
-}
-});
-var indicatorsJoined = indicators.join('');
-if (headerCache.PluginIndicators != indicatorsJoined) {
-$('#header_plugin_indicators').html(indicatorsJoined);
-headerCache.PluginIndicators = indicatorsJoined;
-}
-}
+				var row =
+					'<span class="pluginIndicator headerBox" data-plugin="' +
+					indicator.pluginName +
+					'"' +
+					' style="cursor: pointer; color: ' +
+					color +
+					'; margin-left: 5px; transition: color 0.3s ease;"' +
+					' title="' +
+					tooltip +
+					'"' +
+					' onclick="window.location.href=\'' +
+					link +
+					'\'">' +
+					'<i class="fas ' +
+					icon +
+					'"' +
+					animStyle +
+					'></i>' +
+					'</span>';
+				indicators.push(row);
+			}
+		});
+		var indicatorsJoined = indicators.join('');
+		if (headerCache.PluginIndicators != indicatorsJoined) {
+			$('#header_plugin_indicators').html(indicatorsJoined);
+			headerCache.PluginIndicators = indicatorsJoined;
+		}
+	}
 
 	if (data.mode_name != undefined) {
 		$('#fppModeDropdownButtonModeText').html(
