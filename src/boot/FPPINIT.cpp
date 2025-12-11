@@ -929,8 +929,10 @@ static void handleBootDelay() {
             char buffer[26];
             strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tmFile);
             printf("FPP - FPP - Waiting until system date is at least %s or 5 minutes\n", buffer);
-            // Create flag file for UI to show warning
-            PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", "auto");
+            // Create flag file for UI to show warning with timestamp
+            time_t startTime = time(nullptr);
+            std::string flagContent = std::to_string(startTime) + ",auto";
+            PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
             sd_notify(0, "STATUS=Waiting for valid system time (NTP/RTC)");
         }
 

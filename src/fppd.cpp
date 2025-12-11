@@ -676,13 +676,26 @@ int main(int argc, char* argv[]) {
 
     // Check if boot delay is in progress and add warning
     if (FileExists(getFPPMediaDir("/tmp/boot_delay"))) {
-        std::string delayValue = GetFileContents(getFPPMediaDir("/tmp/boot_delay"));
-        TrimWhiteSpace(delayValue);
+        std::string delayInfo = GetFileContents(getFPPMediaDir("/tmp/boot_delay"));
+        TrimWhiteSpace(delayInfo);
         std::string msg;
-        if (delayValue == "auto") {
-            msg = "Boot delay in progress: Waiting for valid system time (NTP/RTC) - up to 5 minutes";
+        
+        // Parse the delay info - format is "startTime,duration" or "startTime,auto"
+        size_t commaPos = delayInfo.find(',');
+        if (commaPos != std::string::npos && commaPos + 1 < delayInfo.length()) {
+            std::string delayValue = delayInfo.substr(commaPos + 1);
+            if (delayValue == "auto") {
+                msg = "Boot delay in progress: Waiting for valid system time (NTP/RTC) - up to 5 minutes";
+            } else {
+                msg = "Boot delay in progress: Waiting " + delayValue + " seconds before starting FPPD";
+            }
         } else {
-            msg = "Boot delay in progress: Waiting " + delayValue + " seconds before starting FPPD";
+            // Fallback for old format or malformed data
+            if (delayInfo == "auto") {
+                msg = "Boot delay in progress: Waiting for valid system time (NTP/RTC) - up to 5 minutes";
+            } else {
+                msg = "Boot delay in progress: Waiting " + delayInfo + " seconds before starting FPPD";
+            }
         }
         WarningHolder::AddWarning(12, msg);
     }
