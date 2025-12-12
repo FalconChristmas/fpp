@@ -65,6 +65,11 @@ function ScrubFile($filename, $taboo = array("emailpass", "emailgpass", "MQTTPas
             fclose($fd);
         }
 
+        // parse_ini_file can return false on failure
+        if (!is_array($data)) {
+            $data = [];
+        }
+
         foreach ($taboo as $key) {
             if (array_key_exists($key, $data)) {
                 $data[$key] = "********";
