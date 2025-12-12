@@ -407,6 +407,15 @@ void MosquittoClient::HandleConnect() {
     }
 
     WarningHolder::RemoveWarning(4, "MQTT Disconnected");
+    
+    // Re-publish retained status messages on reconnection
+    // This ensures the broker has the current values after a network disconnection
+    // that may have triggered the last will (ready=0)
+    LogInfo(VB_CONTROL, "MQTT: Re-publishing retained status on reconnection\n");
+    Publish(MQTT_READY_TOPIC_NAME, 1, true, 1);
+    Publish("version", getFPPVersion(), true, 1);
+    Publish("branch", getFPPBranch(), true, 1);
+    
     LogInfo(VB_CONTROL, "MQTT HandleConnect Complete\n");
 }
 
