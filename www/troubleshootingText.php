@@ -4,6 +4,29 @@ $skipJSsettings =1;
 
 require_once 'common.php';
 
+putenv("PATH=/bin:/usr/bin:/sbin:/usr/sbin");
+
+// Set up platform-specific variables (from troubleshootingHelper.php)
+$rtcDevice = "/dev/rtc0";
+$i2cDevice = "1";
+
+if ($settings['BeaglePlatform']) {
+    if (file_exists("/sys/class/rtc/rtc0/name")) {
+        $rtcname = file_get_contents("/sys/class/rtc/rtc0/name");
+        if (strpos($rtcname, "omap_rtc") !== false) {
+            $rtcDevice = "/dev/rtc1";
+        }
+    }
+    $i2cDevice = "2";
+} else if ($settings['Platform'] == "Raspberry Pi") {
+    if (file_exists("/sys/class/rtc/rtc0/name")) {
+        $drv = file_get_contents("/sys/class/rtc/rtc0/name");
+        if (str_contains($drv, ":rpi_rtc") && file_exists("/dev/rtc1")) {
+            // Raspberry Pi 5 RTC, we are configuring the cape clock which would be rtc1
+            $rtcDevice = "/dev/rtc1";
+        }
+    }
+}
 
 //LoadCommands
 $troubleshootingCommandsLoaded = 0;
@@ -30,10 +53,20 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
             $commandCmd = $commandID["cmd"];
             $commandDesc = $commandID["description"];
 
-            $url = "http://localhost/troubleshootingHelper.php?key=" . urlencode($commandKey);
-           $results = file_get_contents($url);
-    
+            // Execute command directly instead of making HTTP request
+            // Substitute PHP variables denoted by [[ variable name (without $) ]]
+            preg_match_all('/\[\[(.*?)\]\]/', $commandCmd, $matches);
+            foreach ($matches[1] as $value) {
+                $commandCmd = str_replace('[[' . $value . ']]', ${$value}, $commandCmd);
+            }
             
+            exec($SUDO . ' ' . "/bin/sh -c '" . $commandCmd . "' 2>&1 | fold -w 160 -s", $output, $return_val);
+            if ($return_val == 0) {
+                $results = implode("\n", $output) . "\n";
+            } else {
+                $results = "Failed to return valid result\n";
+            }
+            unset($output);
 
     echo "Title  : $commandTitle\n";
     echo "Command: $commandCmd\n";
