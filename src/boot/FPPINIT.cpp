@@ -920,7 +920,7 @@ static void handleBootDelay() {
         struct tm tmFile, tmNow;
         localtime_r(&(attr.st_ctime), &tmFile);
         time_t t = time(nullptr);
-        localtime_r(&(attr.st_ctime), &tmNow);
+        localtime_r(&t, &tmNow);
 
         time_t t1 = mktime(&tmFile);
         time_t t2 = mktime(&tmNow);
@@ -940,7 +940,7 @@ static void handleBootDelay() {
         while (diffSecs > 0 && count < 3000) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             t = time(nullptr);
-            localtime_r(&(attr.st_ctime), &tmNow);
+            localtime_r(&t, &tmNow);
             t2 = mktime(&tmNow);
             diffSecs = difftime(t1, t2);
             count++;
