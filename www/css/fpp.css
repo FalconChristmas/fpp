@@ -1985,6 +1985,13 @@ body .sm-clean a .sub-arrow {
 .pluginsHeader {
 	margin-top: 2em;
 	margin-bottom: 1em;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.pluginsHeader h2 {
+	margin: 0;
 }
 
 .fppScriptEntry > .row {

@@ -87,6 +87,55 @@
             });
         }
 
+        function CheckAllPluginsForUpdates() {
+            if (installedPlugins.length === 0) {
+                $.jGrowl('No plugins installed', { themeState: 'detract' });
+                return;
+            }
+
+            $('html,body').css('cursor', 'wait');
+            $('#checkAllUpdatesBtn').prop('disabled', true);
+            
+            var checked = 0;
+            var total = installedPlugins.length;
+            var updatesFound = 0;
+
+            installedPlugins.forEach(function(plugin) {
+                var url = 'api/plugin/' + plugin + '/updates';
+                
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    dataType: 'json',
+                    success: function (data) {
+                        checked++;
+                        if (data.Status == 'OK' && data.updatesAvailable) {
+                            $('#row-' + plugin).find('.updatesAvailable').show();
+                            updatesFound++;
+                        }
+                        
+                        if (checked === total) {
+                            $('html,body').css('cursor', 'auto');
+                            $('#checkAllUpdatesBtn').prop('disabled', false);
+                            if (updatesFound > 0) {
+                                $.jGrowl('Found updates for ' + updatesFound + ' plugin(s)', { themeState: 'success' });
+                            } else {
+                                $.jGrowl('All plugins are up to date', { themeState: 'success' });
+                            }
+                        }
+                    },
+                    error: function () {
+                        checked++;
+                        if (checked === total) {
+                            $('html,body').css('cursor', 'auto');
+                            $('#checkAllUpdatesBtn').prop('disabled', false);
+                            $.jGrowl('Completed checking plugins (some checks failed)', { themeState: 'warn' });
+                        }
+                    }
+                });
+            });
+        }
+
         function UpgradePlugin(plugin) {
             var url = 'api/plugin/' + plugin + '/upgrade?stream=true';
             DisplayProgressDialog("pluginsProgressPopup", "Upgrade Plugin");
@@ -510,6 +559,9 @@
                         <div id='installedPlugins' class="fppPluginSection">
                             <div class='pluginsHeader'>
                                 <h2>Installed Plugins</h2>
+                                <button id="checkAllUpdatesBtn" class="buttons btn-outline-success" onClick='CheckAllPluginsForUpdates();' title="Check all installed plugins for updates">
+                                    <i class='fas fa-sync-alt'></i> Check All for Updates
+                                </button>
                             </div>
                         </div>
                         <div id='pluginTable' class="fppPluginSection">
