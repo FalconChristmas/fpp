@@ -12,6 +12,11 @@
 
 #include "fpp-pch.h"
 
+#ifndef PLATFORM_OSX
+#include <linux/sockios.h>
+#include <sys/ioctl.h>
+#endif
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -461,6 +466,27 @@ void UDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& ad
 void UDPOutput::addOutput(UDPOutputData* out) {
     outputs.push_back(out);
 }
+
+static void flushBuffers(int socket, int msgs, int total) {
+#ifndef PLATFORM_OSX
+    int bytes_in_buffer = 0;
+    if (ioctl(socket, SIOCOUTQ, &bytes_in_buffer) == 0) {
+        // Check bytes_in_buffer, if its too high, wait for it to drain
+        int cnt = 0;
+        int start = bytes_in_buffer;
+        while (bytes_in_buffer > 1024 && cnt < 50) {
+            cnt++;
+            std::this_thread::sleep_for(std::chrono::microseconds(1));
+            ioctl(socket, SIOCOUTQ, &bytes_in_buffer);
+        }
+        // if (cnt > 0) {
+        //     printf("Flush: Socket %d had to wait %d  (%d->%d)      (%d/%d)...\n", socket, cnt, start, bytes_in_buffer, msgs, total);
+        // }
+    }
+#endif
+}
+
+constexpr int MSGS_PER_SENDMMSG = 8;
 int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, std::vector<struct mmsghdr>& sendmsgs) {
     errno = 0;
     struct mmsghdr* msgs = &sendmsgs[0];
@@ -478,6 +504,7 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
     if (blockingOutput) {
         int errorCount = 0;
         for (int x = 0; x < msgCount; x++) {
+            flushBuffers(sendSocket, x, msgCount);
             ssize_t s = sendmsg(sendSocket, &msgs[x].msg_hdr, 0);
             if (s != -1) {
                 errorCount = 0;
@@ -492,19 +519,29 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
             }
         }
     } else {
-        int oc = sendmmsg(sendSocket, msgs, msgCount, MSG_DONTWAIT);
+        int oc = sendmmsg(sendSocket, msgs, msgCount > MSGS_PER_SENDMMSG ? MSGS_PER_SENDMMSG : msgCount, MSG_DONTWAIT);
         if (oc > 0) {
             outputCount += oc;
         }
         if (outputCount != msgCount) {
-            // in many cases, a simple thread yield will allow the network stack
-            // to flush some data and free up space, give that a chance first
+#ifndef PLATFORM_OSX
+            flushBuffers(sendSocket, outputCount, msgCount);
+#else
+            // On OSX we have no good way to check the socket buffer, so just
+            // sleep a bit to allow the stack to flush
             std::this_thread::sleep_for(std::chrono::microseconds(100));
-            oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+#endif
+            int outMsgCnt = msgCount - outputCount;
+            oc = sendmmsg(sendSocket, &msgs[outputCount], outMsgCnt > MSGS_PER_SENDMMSG ? MSGS_PER_SENDMMSG : outMsgCnt, MSG_DONTWAIT);
             while (oc > 0) {
                 outputCount += oc;
+#ifndef PLATFORM_OSX
+                flushBuffers(sendSocket, outputCount, msgCount);
+#else
                 std::this_thread::sleep_for(std::chrono::microseconds(100));
-                oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+#endif
+                outMsgCnt = msgCount - outputCount;
+                oc = sendmmsg(sendSocket, &msgs[outputCount], outMsgCnt > MSGS_PER_SENDMMSG ? MSGS_PER_SENDMMSG : outMsgCnt, MSG_DONTWAIT);
             }
         }
     }
@@ -609,7 +646,6 @@ int UDPOutput::SendData(unsigned char* channelData) {
         for (auto& msgs : messages.messages) {
             if (!msgs.second.empty() && msgs.first < LATE_MESSAGES_START) {
                 SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first);
-
                 std::unique_lock<std::mutex> lock(workMutex);
                 workQueue.push_back(WorkItem(msgs.first, socketInfo, msgs.second));
                 lock.unlock();
@@ -632,6 +668,18 @@ int UDPOutput::SendData(unsigned char* channelData) {
             t2 = clock.now();
         }
         if (doneWorkCount == total) {
+#ifndef PLATFORM_OSX
+            // now make sure the buffers are drained for the early packets do that they are
+            // fully received before we send the late packets
+            for (auto& msgs : messages.messages) {
+                if (!msgs.second.empty() && msgs.first < LATE_MESSAGES_START) {
+                    int bytes_in_buffer = 0;
+                    SendSocketInfo* socketInfo = findOrCreateSocket(msgs.first);
+                    int sendSocket = socketInfo->sockets[socketInfo->curSocket];
+                    flushBuffers(sendSocket, msgs.second.size(), msgs.second.size());
+                }
+            }
+#endif
             // now output the LATE/Broadcast packets (likely sync packets)
             for (auto& msgs : messages.messages) {
                 if (!msgs.second.empty()) {
@@ -810,7 +858,7 @@ int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
         return -1;
     }
     // make sure the send buffer is actually set to a reasonable size for non-blocking mode
-    int bufSize = 1024 * (blockingOutput ? 4 : 512);
+    int bufSize = (blockingOutput ? 4096 : (MSGS_PER_SENDMMSG * 1511)) - 1;
     setsockopt(sendSocket, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
     // these sockets are for sending only, don't need a large receive buffer so
     // free some memory by setting to just a single page

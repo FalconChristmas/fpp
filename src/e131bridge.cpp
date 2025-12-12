@@ -1089,7 +1089,6 @@ void BridgeReloadUDP() {
                 return Bridge_ReceiveArtNetData();
             };
             EPollManager::INSTANCE.addFileDescriptor(artnetSock, f);
-            printf("Added listener\n");
             artnetSocketAsInput = true;
         }
     }
