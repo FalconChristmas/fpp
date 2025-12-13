@@ -153,6 +153,9 @@ std::string SaveJsonToString(const Json::Value& root) {
 inline bool isPi5() {
     return startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi 5") || startsWith(GetFileContents("/proc/device-tree/model"), "Raspberry Pi Compute Module 5");
 }
+inline bool isPiZero2W() {
+    return contains(GetFileContents("/proc/device-tree/model"), "Raspberry Pi Zero 2 W");
+}
 #endif
 
 static void modprobe(const char* mod) {
@@ -689,7 +692,14 @@ static void setupNetwork(bool fullReload = false) {
             }
             content.append(addressLines);
             // some of the FPP7 images don't support this setting.  They use older gcc
+            // Pi Zero 2 W has issues with IgnoreCarrierLoss causing network visibility problems (Issue #2487)
+#ifdef PLATFORM_PI
+            if (!isPiZero2W()) {
+                content.append("IgnoreCarrierLoss=5s\n");
+            }
+#else
             content.append("IgnoreCarrierLoss=5s\n");
+#endif
             content.append("\n");
 
             if (!interfaceSettings["GATEWAY"].empty()) {
