@@ -1625,7 +1625,8 @@ function readCapes($cd, $capes)
                     if (outputs) {
                         for (var i = 0; i < outputs.length; i++) {
                             var outputNumber = outputs[i].outputNumber + 1;
-                            $('#BBBSerialStartChannel' + outputNumber).val(outputs[i].startChannel);
+                            var startChannel = outputs[i].startChannel || 1;
+                            $('#BBBSerialStartChannel' + outputNumber).val(startChannel);
                         }
                     }
                 }
