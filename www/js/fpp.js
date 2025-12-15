@@ -5506,6 +5506,16 @@ function SetSetting (
 		success: function () {
 			settings[key] = value;
 			if (key != 'restartFlag' && key != 'rebootFlag') {
+				// Set restart/reboot flags BEFORE callback to ensure they're saved
+				// even if callback reloads the page
+				if (restart > 0 && restart != settings['restartFlag']) {
+					SetRestartFlag(restart);
+				}
+				if (reboot > 0 && reboot != settings['rebootFlag']) {
+					SetRebootFlag(restart);
+				}
+				CheckRestartRebootFlags();
+				
 				if (!hideChange) {
 					if (isBool === null) {
 						$.jGrowl(key + ' setting saved.', { themeState: 'success' });
@@ -5519,13 +5529,6 @@ function SetSetting (
 					callback();
 				}
 			}
-			if (restart > 0 && restart != settings['restartFlag']) {
-				SetRestartFlag(restart);
-			}
-			if (reboot > 0 && reboot != settings['rebootFlag']) {
-				SetRebootFlag(restart);
-			}
-			CheckRestartRebootFlags();
 		}
 	}).fail(function () {
 		if (isBool === null) {
@@ -5559,6 +5562,16 @@ function SetPluginSetting (
 		async: false,
 		success: function () {
 			if (key != 'restartFlag' && key != 'rebootFlag') {
+				// Set restart/reboot flags BEFORE callback to ensure they're saved
+				// even if callback reloads the page
+				if (restart > 0 && restart != settings['restartFlag']) {
+					SetRestartFlag(restart);
+				}
+				if (reboot > 0 && reboot != settings['rebootFlag']) {
+					SetRebootFlag(restart);
+				}
+				CheckRestartRebootFlags();
+				
 				if (isBool === null) {
 					$.jGrowl(key + ' setting saved.', { themeState: 'success' });
 				} else if (isBool) {
@@ -5570,13 +5583,6 @@ function SetPluginSetting (
 					callback();
 				}
 			}
-			if (restart > 0 && restart != settings['restartFlag']) {
-				SetRestartFlag(restart);
-			}
-			if (reboot > 0 && reboot != settings['rebootFlag']) {
-				SetRebootFlag(restart);
-			}
-			CheckRestartRebootFlags();
 		}
 	}).fail(function () {
 		if (isBool === null) {
