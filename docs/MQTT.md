@@ -155,7 +155,7 @@ entries in a Playlist are allowed, only one will be displayed in real life.
         {
             "name": "Name of current playlist",
             "desc": "Description of the PlayList",
-            "repeat": 1, // 0 if playist is not repating, 1 if repeating
+            "repeat": 1, // 0 if playist is not repeating, 1 if repeating
             "currentItems": [
                 {
                     "type": "both",
