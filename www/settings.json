@@ -916,6 +916,9 @@
 			},
 			"platforms": [
 				"!MacOS"
+			],
+			"checkFile": [
+				"!/.dockerenv"
 			]
 		},
 		"ClockDate": {

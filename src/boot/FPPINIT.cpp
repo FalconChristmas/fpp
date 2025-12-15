@@ -1625,19 +1625,24 @@ int main(int argc, char* argv[]) {
         PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
         checkInstallKiosk();
         
-        // Create boot delay flag file early if boot delay is configured
-        // so UI can show warning immediately when Apache starts
-        int bootDelaySetting = getRawSettingInt("bootDelay", -1);
-        if (bootDelaySetting != 0) {
-            // Store start time and duration/mode for UI countdown
-            time_t startTime = time(nullptr);
-            if (bootDelaySetting > 0) {
-                std::string flagContent = std::to_string(startTime) + "," + std::to_string(bootDelaySetting);
-                PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
-            } else if (bootDelaySetting == -1) {
-                std::string flagContent = std::to_string(startTime) + ",auto";
-                PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
+        if (!FileExists("/.dockerenv")) {
+            // Create boot delay flag file early if boot delay is configured
+            // so UI can show warning immediately when Apache starts
+            int bootDelaySetting = getRawSettingInt("bootDelay", -1);
+            if (bootDelaySetting != 0) {
+                // Store start time and duration/mode for UI countdown
+                time_t startTime = time(nullptr);
+                if (bootDelaySetting > 0) {
+                    std::string flagContent = std::to_string(startTime) + "," + std::to_string(bootDelaySetting);
+                    PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
+                } else if (bootDelaySetting == -1) {
+                    std::string flagContent = std::to_string(startTime) + ",auto";
+                    PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
+                }
             }
+        } else {
+            // Ensure no boot delay flag file exists. No delay in docker.
+            unlink((FPP_MEDIA_DIR + "/tmp/boot_delay").c_str());
         }
         
         // Notify systemd that initialization is complete
