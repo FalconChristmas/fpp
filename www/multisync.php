@@ -1008,7 +1008,19 @@
                         majorVersion = parseInt(versionParts[0]);
 
                     if ((isFPP(data[i].typeId))) {
-                        newRow += "<td><table class='multiSyncVerboseTable'><tr><td>FPP:</td><td id='" + rowID + "_version'>" + data[i].version.replace('.x-master', '.x').replace(/-g[A-Za-z0-9]*/, '').replace('-dirty', "<br><a href='settings.php#settings-developer'>Modified</a>") + "</td></tr><tr><td>OS:</td><td id='" + rowID + "_osversion'></td></tr></table></td>";
+                        var versionStr = data[i].version.replace('.x-master', '.x').replace(/-g[A-Za-z0-9]*/, '');
+                        if (versionStr.endsWith('-dirty')) {
+                            versionStr = versionStr.replace('-dirty', '');
+                            var link = "<br><a ";
+                            if (data[i].local) {
+                                link += "href='settings.php#settings-developer'";
+                            } else {
+                                link += "target='host_" + data[i].address + "' href='" + wrapUrlWithProxy(data[i].address, '/settings.php#settings-developer') + "'";
+                            }
+                            link += ">Modified</a>";
+                            versionStr += link;
+                        }
+                        newRow += "<td><table class='multiSyncVerboseTable'><tr><td>FPP:</td><td id='" + rowID + "_version'>" + versionStr + "</td></tr><tr><td>OS:</td><td id='" + rowID + "_osversion'></td></tr></table></td>";
                     } else {
                         newRow += "<td id='" + rowID + "_version'>" + data[i].version + "</td>";
                     }
