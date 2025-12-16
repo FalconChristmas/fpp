@@ -1,18 +1,18 @@
 <?php
 
-namespace FalconChristmas\Fpp\Command;
+namespace FalconChristmas\Fpp\Shell;
 
 /**
  * Thin wrapper around exec() to keep shell interactions centralized/testable.
  */
-class CommandExecutor
+class ShellExecutor
 {
     /**
      * @param string $command
      * @param bool $redirectStdErr
-     * @return CommandResult
+     * @return ShellResult
      */
-    public function run(string $command, bool $redirectStdErr = true)
+    public function run(string $command, bool $redirectStdErr = true): ShellResult
     {
         if ($redirectStdErr) {
             $command .= ' 2>&1';
@@ -22,6 +22,6 @@ class CommandExecutor
         $exitCode = 0;
         exec($command, $output, $exitCode);
 
-        return new CommandResult($command, $output, $exitCode);
+        return new ShellResult($command, $output, $exitCode);
     }
 }

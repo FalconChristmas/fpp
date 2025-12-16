@@ -2,7 +2,7 @@
 
 namespace FalconChristmas\Fpp\Container;
 
-use FalconChristmas\Fpp\Command\CommandExecutor;
+use FalconChristmas\Fpp\Shell\ShellExecutor;
 use FalconChristmas\Fpp\Container\Exception\ContainerException;
 use FalconChristmas\Fpp\Container\Exception\NotFoundException;
 use Throwable;
@@ -10,7 +10,7 @@ use Throwable;
 /**
  * Minimal IoC container to centralize service access inside the web UI.
  *
- * @property CommandExecutor $command
+ * @property ShellExecutor $shell
  */
 class Container
 {

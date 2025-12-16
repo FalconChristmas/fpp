@@ -1,8 +1,8 @@
 <?php
 
-namespace FalconChristmas\Fpp\Command;
+namespace FalconChristmas\Fpp\Shell;
 
-class CommandResult
+class ShellResult
 {
     private string $command;
     private array $output;

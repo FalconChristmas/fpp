@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
-use FalconChristmas\Fpp\Command\CommandResult;
+use FalconChristmas\Fpp\Shell\ShellResult;
 use PHPUnit\Framework\TestCase;
 
 final class CronjobsTest extends TestCase
@@ -37,18 +37,18 @@ final class CronjobsTest extends TestCase
             public array $nextOutput = [];
             public int $exitCode = 0;
 
-            public function run(string $command, bool $redirectStdErr = true): CommandResult
+            public function run(string $command, bool $redirectStdErr = true): ShellResult
             {
                 $this->lastCommand = $command;
 
-                return new CommandResult($command, $this->nextOutput, $this->exitCode);
+                return new ShellResult($command, $this->nextOutput, $this->exitCode);
             }
         };
 
         // Reset and swap the command executor.
         $container = fpp();
         $container->clear();
-        $container->instance('command', $this->fake);
+        $container->instance('shell', $this->fake);
     }
 
     public function testGetJobsRunsCrontabList(): void

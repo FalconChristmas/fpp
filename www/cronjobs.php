@@ -42,13 +42,13 @@
 
     static public function getJobs()
     {
-      $result = fpp()->command->run('crontab -l');
+      $result = fpp()->shell->run('crontab -l');
       return self::stringToArray((string) $result);
     }
 
     static public function saveJobs($jobs = array())
     {
-      return (string) fpp()->command
+      return (string) fpp()->shell
         ->run('echo "' . self::arrayToString($jobs) . '" | crontab -');
     }
 

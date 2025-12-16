@@ -1,7 +1,7 @@
 <?php
 
 use FalconChristmas\Fpp\Container\Container;
-use FalconChristmas\Fpp\Command\CommandExecutor;
+use FalconChristmas\Fpp\Shell\ShellExecutor;
 
 spl_autoload_register(function ($class) {
     $prefix = 'FalconChristmas\\Fpp\\';
@@ -33,8 +33,8 @@ if (!function_exists('fpp')) {
             $container = new Container();
 
             // Default service bindings; tests can override them as needed.
-            $container->singleton('command', function () {
-                return new CommandExecutor();
+            $container->singleton('shell', function () {
+                return new ShellExecutor();
             });
         }
 
