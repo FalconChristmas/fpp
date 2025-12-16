@@ -32,7 +32,10 @@ if (!$wrapped) {
 Pulling in updates...
 <?
 $startTime = microtime(true);
-system("$fppDir/scripts/git_pull");
+exec("$fppDir/scripts/git_pull", $output, $return_val);
+foreach ($output as $line) {
+  echo $line . "\n";
+}
 $endTime = microtime(true);
 $diffTime = round($endTime - $startTime);
 
@@ -41,53 +44,57 @@ $m = floor($diffTime % 3600 / 60);
 $s = floor($diffTime % 60);
 
 printf("----------------------\nElapsed Time: %02d:%02d:%02d\n", $h, $m, $s);
-?>
-==========================================================================
-Restarting fppd...
-<?
+echo "==========================================================================\n";
 
-// Compare and copy apache config if needed
-$srcConf = "/opt/fpp/etc/apache2.site";
-$dstConf = "/etc/apache2/sites-enabled/000-default.conf";
-$needCopy = true;
+if ($return_val === 0) {
+  echo "Restarting fppd...\n";
 
-if (file_exists($srcConf) && file_exists($dstConf)) {
-  // Compare file hashes
-  if (md5_file($srcConf) === md5_file($dstConf)) {
-    $needCopy = false;
+  // Compare and copy apache config if needed
+  $srcConf = "/opt/fpp/etc/apache2.site";
+  $dstConf = "/etc/apache2/sites-enabled/000-default.conf";
+  $needCopy = true;
+
+  if (file_exists($srcConf) && file_exists($dstConf)) {
+    // Compare file hashes
+    if (md5_file($srcConf) === md5_file($dstConf)) {
+      $needCopy = false;
+    }
   }
-}
 
-if ($needCopy) {
-  echo "Updating Apache config...\n";
-  // Use sudo if needed for permissions
-  system("$SUDO cp $srcConf $dstConf");
+  if ($needCopy) {
+    echo "Updating Apache config...\n";
+    // Use sudo if needed for permissions
+    system("$SUDO cp $srcConf $dstConf");
+  } else {
+    echo "Apache config is already up to date.\n";
+  }
+
+  touch("$mediaDirectory/tmp/fppd_restarted");
+
+  system($SUDO . " $fppDir/scripts/fppd_restart");
+
+  system($SUDO . " $fppDir/scripts/ManageApacheContentPolicy regenerate");
+
+  if (file_exists($settings['statsFile'])) {
+    unlink($settings['statsFile']);
+  }
+
+  exec($SUDO . " rm -f /tmp/cache_*.cache");
+
+  if (file_exists($fppDir . "/src/fppd")) {
+    print ("==========================================================================\n");
+    print ("Upgrade Complete.\n");
+  } else {
+    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    print ("Upgrade FAILED.\n");
+    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+  }
 } else {
-  echo "Apache config is already up to date.\n";
-}
-
-touch("$mediaDirectory/tmp/fppd_restarted");
-
-system($SUDO . " $fppDir/scripts/fppd_restart");
-
-system($SUDO . " $fppDir/scripts/ManageApacheContentPolicy regenerate");
-
-if (file_exists($settings['statsFile'])) {
-  unlink($settings['statsFile']);
-}
-
-exec($SUDO . " rm -f /tmp/cache_*.cache");
-if (file_exists($fppDir . "/src/fppd")) {
-  print ("==========================================================================\n");
-  print ("Upgrade Complete.\n");
-} else {
-  print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-  print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-  print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-  print ("Upgrade FAILED.\n");
-  print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-  print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-  print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+  print ("Upgrade FAILED. See above for details.\n");
 }
 
 if (!$wrapped) {
