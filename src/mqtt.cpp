@@ -242,7 +242,12 @@ int MosquittoClient::PublishRaw(const std::string& topic, const std::string& msg
     pthread_mutex_unlock(&m_mosqLock);
 
     if (result != 0) {
-        LogErr(VB_CONTROL, "Error running mosquitto_publish: %d\n", result);
+        // MOSQ_ERR_NO_CONN (4) is expected when disconnected, don't spam logs
+        if (result == 4 && !m_isConnected) {
+            LogDebug(VB_CONTROL, "Cannot publish to MQTT, not connected to broker\n");
+        } else {
+            LogErr(VB_CONTROL, "Error running mosquitto_publish: %d\n", result);
+        }
         return 0;
     }
 
