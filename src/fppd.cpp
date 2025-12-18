@@ -144,6 +144,8 @@ static bool dumpstack_gdb(void) {
     char name_buf[512];
     name_buf[readlink("/proc/self/exe", name_buf, 511)] = 0;
 
+    constexpr static int kTimeoutSec = 30;
+
     if (IsDebuggerPresent()) {
         return false;
     }
@@ -165,8 +167,7 @@ static bool dumpstack_gdb(void) {
             _Exit(1);
         }
         if (timeout_pid1 == 0) {
-            int timeout = 10;
-            sleep(timeout);
+            sleep(kTimeoutSec);
             _Exit(1);
         }
 
@@ -177,8 +178,7 @@ static bool dumpstack_gdb(void) {
             _Exit(1);
         }
         if (timeout_pid2 == 0) {
-            int timeout = 20;
-            sleep(timeout);
+            sleep(kTimeoutSec + 10);
             _Exit(1);
         }
 
@@ -257,6 +257,10 @@ static bool dumpstack_gdb(void) {
     return false;
 }
 
+static const char* safe(const char* in) {
+    return in ? in : "<NULL>";
+}
+
 static void handleCrash(int s) {
     static volatile bool inCrashHandler = false;
     if (inCrashHandler) {
@@ -265,7 +269,7 @@ static void handleCrash(int s) {
     }
     inCrashHandler = true;
     int crashLog = getSettingInt("ShareCrashData", 3);
-    LogErr(VB_ALL, "Crash handler called:  %d\n", s);
+    LogErr(VB_ALL, "Crash handler called in thread %u:  signal=%d (SIG%s: %s)\n", gettid(), s, safe(sigabbrev_np(s)), safe(sigdescr_np(s)));
 
     if (!sequence->m_seqFilename.empty()) {
         LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", sequence->m_seqFilename.c_str(), sequence->m_seqMSElapsed);
@@ -679,7 +683,7 @@ int main(int argc, char* argv[]) {
         std::string delayInfo = GetFileContents(getFPPMediaDir("/tmp/boot_delay"));
         TrimWhiteSpace(delayInfo);
         std::string msg;
-        
+
         // Parse the delay info - format is "startTime,duration" or "startTime,auto"
         size_t commaPos = delayInfo.find(',');
         if (commaPos != std::string::npos && commaPos + 1 < delayInfo.length()) {
