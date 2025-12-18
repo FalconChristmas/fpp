@@ -32,10 +32,7 @@ if (!$wrapped) {
 Pulling in updates...
 <?
 $startTime = microtime(true);
-exec("$fppDir/scripts/git_pull", $output, $return_val);
-foreach ($output as $line) {
-  echo $line . "\n";
-}
+system("$fppDir/scripts/git_pull", $return_val);
 $endTime = microtime(true);
 $diffTime = round($endTime - $startTime);
 
@@ -44,7 +41,9 @@ $m = floor($diffTime % 3600 / 60);
 $s = floor($diffTime % 60);
 
 printf("----------------------\nElapsed Time: %02d:%02d:%02d\n", $h, $m, $s);
-echo "==========================================================================\n";
+?>
+==========================================================================
+<?
 
 if ($return_val === 0) {
   echo "Restarting fppd...\n";
@@ -80,7 +79,6 @@ if ($return_val === 0) {
   }
 
   exec($SUDO . " rm -f /tmp/cache_*.cache");
-
   if (file_exists($fppDir . "/src/fppd")) {
     print ("==========================================================================\n");
     print ("Upgrade Complete.\n");
