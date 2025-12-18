@@ -37,7 +37,6 @@
 #include "e131bridge.h"
 #include "fpp.h"
 
-#define MAX_ARTNET_UNIVERSE_COUNT 512
 #define ARTNET_HEADER_LENGTH 18
 #define ARTNET_SYNC_PACKET_LENGTH 14
 
@@ -48,7 +47,8 @@
 #define ARTNET_LENGTH_INDEX 16
 
 #define ARTNET_TYPE_BROADCAST 2
-#define ARTNET_TYPE_UNICAST 3
+#define ARTNET_TYPE_UNICAST_ARTNETPORT 3
+#define ARTNET_TYPE_UNICAST 9
 
 const char ArtNetHeader[] = {
     'A', 'r', 't', '-', 'N', 'e', 't', 0x00, // 8-byte ID
@@ -109,8 +109,8 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value& config) :
     case ARTNET_TYPE_BROADCAST: // Multicast
         ipAddress = "";
         break;
-    case 3: // UnicastAddress
-    case 9: // UnicastAddress
+    case ARTNET_TYPE_UNICAST_ARTNETPORT: // UnicastAddress
+    case ARTNET_TYPE_UNICAST:            // UnicastAddress
         ipAddress = config["address"].asString();
         break;
     }
@@ -158,7 +158,7 @@ ArtNetOutputData::~ArtNetOutputData() {
 }
 
 bool ArtNetOutputData::IsPingable() {
-    return type == ARTNET_TYPE_UNICAST;
+    return type == ARTNET_TYPE_UNICAST || type == ARTNET_TYPE_UNICAST_ARTNETPORT;
 }
 
 void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& messages) {
@@ -169,7 +169,7 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
         }
 
         int key = ARTNET_MESSAGES_KEY;
-        if (type == 9) {
+        if (type == ARTNET_TYPE_UNICAST) {
             key = anAddress.sin_addr.s_addr;
         } else {
             // ALL ArtNet messages must go out on the same socket
