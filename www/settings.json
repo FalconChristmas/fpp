@@ -314,6 +314,7 @@
 			"description": "UI Colors",
 			"settings": [
 				"backgroundColor",
+				"enableReadabilityFix",
 				"tableColorPair1A",
 				"tableColorPair1B",
 				"tableColorPair2A",
@@ -3049,6 +3050,17 @@
 			"exposedAsJSToPages": [
 				"index"
 			]
+		},
+		"enableReadabilityFix": {
+			"name": "enableReadabilityFix",
+			"description": "Enable Readability Fix",
+			"tip": "Dynamically adjusts text color in headers and MultiSync rows for better visibility on light backgrounds.",
+			"gatherStats": false,
+			"level": 0,
+			"restart": 0,
+			"reboot": 0,
+			"default": false,
+			"type": "checkbox"
 		}
 	}
 }

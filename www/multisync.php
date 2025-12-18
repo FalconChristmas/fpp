@@ -2784,6 +2784,64 @@
 
 
     </script>
+
+<?php
+if (GetSettingValue('enableReadabilityFix')) {
+?>
+<script>
+function hexToRgb(hex) {
+    hex = hex.replace(/^#/, '');
+    if (hex.length === 3) {
+        hex = hex.split('').map(char => char + char).join('');
+    }
+    const num = parseInt(hex, 16);
+    return { r: num >> 16, g: (num >> 8) & 255, b: num & 255 };
+}
+
+function getLuminance(rgb) {
+    return (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+}
+
+function adjustMultiSyncRows() {
+    const rows = document.querySelectorAll('#fppSystemsTable tr.systemRow');
+    rows.forEach(row => {
+        let bgColor = window.getComputedStyle(row).backgroundColor;
+        let rgb;
+        if (bgColor.startsWith('rgb')) {
+            const rgbStr = bgColor.match(/\d+/g);
+            if (rgbStr && rgbStr.length >= 3) {
+                rgb = { r: parseInt(rgbStr[0]), g: parseInt(rgbStr[1]), b: parseInt(rgbStr[2]) };
+            }
+        } else if (bgColor.startsWith('#')) {
+            rgb = hexToRgb(bgColor);
+        }
+        if (!rgb) return;
+
+        const luminance = getLuminance(rgb);
+        const textElements = row.querySelectorAll('td, td a, td span, td small, td p, td div, td i');
+
+        textElements.forEach(el => {
+            if (luminance > 0.55) {
+                el.style.color = 'black';
+                el.style.textShadow = '1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white';
+            } else {
+                el.style.color = '';
+                el.style.textShadow = 'none';
+            }
+        });
+    });
+}
+
+window.addEventListener('load', adjustMultiSyncRows);
+
+// Use MutationObserver to watch for changes in the table (e.g., auto-refresh) and re-apply styles without constant interval
+const table = document.querySelector('#fppSystemsTable');
+if (table) {
+    const observer = new MutationObserver(adjustMultiSyncRows);
+    observer.observe(table, { childList: true, subtree: true });  // Watch for added/removed nodes in table
+}
+</script>
+<?php } ?>
 </body>
 
 </html>
