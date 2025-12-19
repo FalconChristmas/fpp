@@ -416,6 +416,8 @@
                 // Refresh dropdown to pick up any newly added sequences (only when filter is active)
                 if ($('#filterUsedSequences').is(':checked')) {
                     PlaylistTypeChanged();
+                    // Re-trigger auto-select matching after rebuilding the form
+                    SequenceChanged();
                 }
 
                 var playlistEntriesAddNewFooter = $('<div class="modal-actions"/>');
