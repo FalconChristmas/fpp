@@ -145,6 +145,124 @@
             });
         }
 
+        function ExportPlaylist() {
+            var name = $('#txtPlaylistName').val();
+            
+            DoModalDialog({
+                id: "ExportPlaylistDialog",
+                title: "Export Playlist",
+                body: '<div class="form-group"><label for="exportFormat">Select Export Format:</label><select id="exportFormat" class="form-control"><option value="json">JSON</option><option value="txt">Text (TXT)</option><option value="xls">Excel (CSV)</option></select></div>',
+                class: "modal-m",
+                backdrop: true,
+                keyboard: true,
+                buttons: {
+                    "Export": function () {
+                        var format = $("#exportFormat").val();
+                        
+                        $.ajax({
+                            dataType: "json",
+                            url: "api/playlist/" + name,
+                            type: "GET",
+                            success: function (data) {
+                                var content = "";
+                                var filename = name;
+                                var mimeType = "";
+                                
+                                if (format === "json") {
+                                    content = JSON.stringify(data, null, 2);
+                                    filename += ".json";
+                                    mimeType = "application/json";
+                                } else if (format === "txt") {
+                                    content = "Playlist: " + data.name + "\n";
+                                    content += "Description: " + (data.desc || "") + "\n";
+                                    content += "Random: " + (data.random || "0") + "\n";
+                                    content += "\nEntries:\n";
+                                    content += "==========\n\n";
+                                    
+                                    if (data.mainPlaylist && data.mainPlaylist.length > 0) {
+                                        data.mainPlaylist.forEach(function(entry, index) {
+                                            content += (index + 1) + ". ";
+                                            if (entry.type === "both" || entry.type === "media") {
+                                                content += "Media: " + (entry.mediaName || entry.mediaFilename || "");
+                                            } else if (entry.type === "sequence") {
+                                                content += "Sequence: " + (entry.sequenceName || "");
+                                            } else if (entry.type === "pause") {
+                                                content += "Pause: " + (entry.duration || 0) + " seconds";
+                                            } else if (entry.type === "playlist") {
+                                                content += "Playlist: " + (entry.playlistName || "");
+                                            } else if (entry.type === "command") {
+                                                content += "Command: " + (entry.command || "");
+                                            } else if (entry.type === "plugin") {
+                                                content += "Plugin: " + (entry.pluginHost || "");
+                                            } else {
+                                                content += entry.type || "Unknown";
+                                            }
+                                            content += "\n";
+                                        });
+                                    } else {
+                                        content += "(No entries)\n";
+                                    }
+                                    
+                                    filename += ".txt";
+                                    mimeType = "text/plain";
+                                } else if (format === "xls") {
+                                    // CSV format
+                                    content = "#,Type,Name/Details,Duration\n";
+                                    
+                                    if (data.mainPlaylist && data.mainPlaylist.length > 0) {
+                                        data.mainPlaylist.forEach(function(entry, index) {
+                                            var row = (index + 1) + ",";
+                                            row += '"' + (entry.type || "") + '","';
+                                            
+                                            if (entry.type === "both" || entry.type === "media") {
+                                                row += (entry.mediaName || entry.mediaFilename || "");
+                                            } else if (entry.type === "sequence") {
+                                                row += (entry.sequenceName || "");
+                                            } else if (entry.type === "pause") {
+                                                row += "Pause";
+                                            } else if (entry.type === "playlist") {
+                                                row += (entry.playlistName || "");
+                                            } else if (entry.type === "command") {
+                                                row += (entry.command || "");
+                                            } else if (entry.type === "plugin") {
+                                                row += (entry.pluginHost || "");
+                                            }
+                                            
+                                            row += '","' + (entry.duration || "") + '"\n';
+                                            content += row;
+                                        });
+                                    }
+                                    
+                                    filename += ".csv";
+                                    mimeType = "text/csv";
+                                }
+                                
+                                // Create download
+                                var blob = new Blob([content], { type: mimeType });
+                                var link = document.createElement('a');
+                                link.href = window.URL.createObjectURL(blob);
+                                link.download = filename;
+                                link.click();
+                                
+                                $.jGrowl("Playlist exported successfully", {
+                                    themeState: 'success'
+                                });
+                                
+                                CloseModalDialog("ExportPlaylistDialog");
+                            },
+                            error: function (...args) {
+                                DialogError('Error Exporting Playlist', "Error exporting '" + name + "' playlist" +
+                                    show_details(args));
+                            }
+                        });
+                    },
+                    "Cancel": function () {
+                        CloseModalDialog("ExportPlaylistDialog");
+                    }
+                }
+            });
+        }
+
 
         function LoadInitialPlaylist() {
             $('#playlistSelect').val(initialPlaylist).trigger('change');
@@ -467,6 +585,8 @@
                                             class="dropdown-item ">Rename Playlist</a>
                                         <a href="#" value="Randomize" onclick="RandomizePlaylistEntries();"
                                             class="dropdown-item ">Randomize Playlist</a>
+                                        <a href="#" value="Export" onclick="ExportPlaylist();"
+                                            class="dropdown-item ">Export Playlist</a>
                                         <a href="#" value="Reset" onclick="EditPlaylist();" class="dropdown-item ">Reset
                                             Playlist</a>
                                         <a href="#" value="Delete" onclick="handleDeleteButtonClick();"
