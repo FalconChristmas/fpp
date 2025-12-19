@@ -210,6 +210,19 @@
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
+			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
+				"optional": true,
+				"simpleUI": false
 			}
 		}
 	},
@@ -285,6 +298,19 @@
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
+			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
+				"optional": true,
+				"simpleUI": false
 			}
 		}
 	},
@@ -327,6 +353,19 @@
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
+			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
+				"optional": true,
+				"simpleUI": false
 			}
 		}
 	},
@@ -360,6 +399,19 @@
 				"name": "note",
 				"description": "Note",
 				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
 				"optional": true,
 				"simpleUI": false
 			}
@@ -424,6 +476,19 @@
 				"optional": true,
 				"simpleUI": false
 			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
+				"optional": true,
+				"simpleUI": false
+			},
 			"timecode": {
 				"name": "timecode",
 				"description": "Time Code",
@@ -467,6 +532,19 @@
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
+			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
+				"optional": true,
+				"simpleUI": false
 			}
 		}
 	},
@@ -486,6 +564,19 @@
 				"name": "note",
 				"description": "Note",
 				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
 				"optional": true,
 				"simpleUI": false
 			}
@@ -551,6 +642,19 @@
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
+			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
+				"optional": true,
+				"simpleUI": false
 			}
 		}
 	},
@@ -583,6 +687,19 @@
 				"name": "note",
 				"description": "Note",
 				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
 				"optional": true,
 				"simpleUI": false
 			}
@@ -625,6 +742,19 @@
 				"optional": true,
 				"simpleUI": false
 			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
+				"optional": true,
+				"simpleUI": false
+			},
 			"timecode": {
 				"name": "timecode",
 				"description": "Time Code",
@@ -664,6 +794,19 @@
 				"name": "note",
 				"description": "Note",
 				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
 				"optional": true,
 				"simpleUI": false
 			},
@@ -725,6 +868,19 @@
 				"name": "note",
 				"description": "Note",
 				"type": "string",
+				"optional": true,
+				"simpleUI": false
+			},
+			"displayMode": {
+				"name": "displayMode",
+				"description": "Display Mode",
+				"type": "string",
+				"default": "argsOnly",
+				"contents": {
+					"Args Only": "argsOnly",
+					"Args and Note": "argsAndNote",
+					"Just Note": "justNote"
+				},
 				"optional": true,
 				"simpleUI": false
 			}

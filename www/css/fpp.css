@@ -1787,6 +1787,12 @@ body .sm-clean a .sub-arrow {
 	width: 80%;
 }
 
+.psiDataSimple .psiNote {
+	font-style: italic;
+	color: #666;
+	margin-left: 4px;
+}
+
 .psiData {
 	flex: 1;
 	padding: 0px;

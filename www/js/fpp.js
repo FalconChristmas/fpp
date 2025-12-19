@@ -2071,15 +2071,36 @@ function GetPlaylistRowHTML (ID, entry, editMode) {
 		HTML += " title='" + entry.note + "'";
 	HTML += '>';
 
-	if (entry.type == 'dynamic') {
-		HTML += psiDetailsForEntrySimple(entry, editMode);
-
-		if (entry.hasOwnProperty('dynamic'))
-			HTML += psiDetailsForEntrySimple(entry.dynamic, editMode);
-	} else if (entry.type == 'branch') {
-		HTML += psiDetailsForEntrySimpleBranch(entry, editMode);
+	// Determine display mode (default to argsOnly for backward compatibility)
+	var displayMode = entry.displayMode || 'argsOnly';
+	var noteText = (typeof entry.note == 'string' && entry.note != '') ? entry.note : '';
+	
+	if (displayMode === 'justNote' && noteText) {
+		// Display only the note
+		HTML += "<span class='psiNote'>Note: " + noteText + "</span>";
+	} else if (displayMode === 'argsAndNote' && noteText) {
+		// Display args first, then note
+		if (entry.type == 'dynamic') {
+			HTML += psiDetailsForEntrySimple(entry, editMode);
+			if (entry.hasOwnProperty('dynamic'))
+				HTML += psiDetailsForEntrySimple(entry.dynamic, editMode);
+		} else if (entry.type == 'branch') {
+			HTML += psiDetailsForEntrySimpleBranch(entry, editMode);
+		} else {
+			HTML += psiDetailsForEntrySimple(entry, editMode);
+		}
+		HTML += " <span class='psiNote'>Note: " + noteText + "</span>";
 	} else {
-		HTML += psiDetailsForEntrySimple(entry, editMode);
+		// Default: argsOnly - display just the args (current behavior)
+		if (entry.type == 'dynamic') {
+			HTML += psiDetailsForEntrySimple(entry, editMode);
+			if (entry.hasOwnProperty('dynamic'))
+				HTML += psiDetailsForEntrySimple(entry.dynamic, editMode);
+		} else if (entry.type == 'branch') {
+			HTML += psiDetailsForEntrySimpleBranch(entry, editMode);
+		} else {
+			HTML += psiDetailsForEntrySimple(entry, editMode);
+		}
 	}
 	HTML += '</div>';
 
