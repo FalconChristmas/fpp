@@ -34,15 +34,21 @@ I2CUtils::I2CUtils(int bus, int address) {
     file = -1;
     char dev[64];
     snprintf(dev, sizeof(dev), "/dev/i2c-%d", bus);
-    Init(dev, address);
+    Init(dev, address, false);
+}
+I2CUtils::I2CUtils(int bus, int address, bool skipDetect) {
+    file = -1;
+    char dev[64];
+    snprintf(dev, sizeof(dev), "/dev/i2c-%d", bus);
+    Init(dev, address, skipDetect);
 }
 I2CUtils::I2CUtils(const char* bus, int address) {
     file = -1;
     char dev[64];
     snprintf(dev, sizeof(dev), "/dev/%s", bus);
-    Init(dev, address);
+    Init(dev, address, false);
 }
-void I2CUtils::Init(const char* dev, int addr) {
+void I2CUtils::Init(const char* dev, int addr, bool skipDetect) {
     address = addr;
     file = -1;
     funcs = -1;
@@ -69,7 +75,7 @@ void I2CUtils::Init(const char* dev, int addr) {
     }
 
     // read a byte to make sure the device actually exists on the i2c bus
-    if (readByte() == -1) {
+    if (!skipDetect && readByte() == -1) {
         close(file);
         file = -1;
     }
