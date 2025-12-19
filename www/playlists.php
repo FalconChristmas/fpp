@@ -413,6 +413,11 @@
                 RenamePlaylist();
             })
             $('.playlistEntriesAddNewBtn').on("click", function () {
+                // Refresh dropdown to pick up any newly added sequences (only when filter is active)
+                if ($('#filterUsedSequences').is(':checked')) {
+                    PlaylistTypeChanged();
+                }
+
                 var playlistEntriesAddNewFooter = $('<div class="modal-actions"/>');
                 //  <a href="#" onclick="AddPlaylistEntry(2);" class="dropdown-item" value="Insert Before">Insert Before</a>
                 // <a href="#" onclick="AddPlaylistEntry(3);" class="dropdown-item" value="Insert After">Insert After</a>

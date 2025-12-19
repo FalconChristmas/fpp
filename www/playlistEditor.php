@@ -127,6 +127,10 @@ if (!isset($simplifiedPlaylist)) {
 
         $('.time').timepicker({ 'timeFormat': 'H:i:s', 'typeaheadHighlight': false });
 
+        $('#filterUsedSequences').on('change', function() {
+            PlaylistTypeChanged();
+        });
+
         PlaylistTypeChanged();
         DisableButtonClass('playlistEditButton');
         DisableButtonClass('playlistDetailsEditButton');
@@ -275,6 +279,8 @@ if (!isset($simplifiedPlaylist)) {
                         </select>
                         <span id='autoSelectWrapper' class='playlistOptions'><input type='checkbox'
                                 id='autoSelectMatches' checked> Auto-Select Matching Media/Sequence</span>
+                        <span id='filterSequencesWrapper' class='playlistOptions'><input type='checkbox'
+                                id='filterUsedSequences'> Hide sequences already in playlist</span>
                     </td>
                 </tr>
             </tbody>
