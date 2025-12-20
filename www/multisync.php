@@ -2823,7 +2823,7 @@ function adjustMultiSyncRows() {
         textElements.forEach(el => {
             if (luminance > 0.55) {
                 el.style.color = 'black';
-                el.style.textShadow = '1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white';
+                // el.style.textShadow = '1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white'; // Commented for no outline
             } else {
                 el.style.color = '';
                 el.style.textShadow = 'none';
@@ -2838,7 +2838,7 @@ window.addEventListener('load', adjustMultiSyncRows);
 const table = document.querySelector('#fppSystemsTable');
 if (table) {
     const observer = new MutationObserver(adjustMultiSyncRows);
-    observer.observe(table, { childList: true, subtree: true });  // Watch for added/removed nodes in table
+    observer.observe(table, { childList: true, subtree: true }); // Watch for added/removed nodes in table
 }
 </script>
 <?php } ?>

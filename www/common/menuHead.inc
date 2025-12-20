@@ -159,32 +159,41 @@ function adjustHeaderText() {
     const textElements = header.querySelectorAll('a, span, p, div, li, small, i');
 
     textElements.forEach(el => {
-    if (luminance > 0.55) {
-        el.style.color = 'black';
-        el.style.textShadow = '1px 1px 1px rgba(255,255,255,0.7), -1px -1px 1px rgba(255,255,255,0.7), 1px -1px 1px rgba(255,255,255,0.7), -1px 1px 1px rgba(255,255,255,0.7)';  // Softer outline with blur and opacity
-    } else {
-        el.style.color = 'white';
-        el.style.textShadow = 'none';
-    }
-});
+        if (luminance > 0.55) {
+            el.style.color = 'black';
+            // el.style.textShadow = '1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white'; // Commented for no outline
+        } else {
+            el.style.color = 'white';
+            el.style.textShadow = 'none';
+        }
+    });
 
     // Fix top left falcon logos (both falconlogo.svg with class="logo" and fpp-logo.svg with class="fpp-logo", excluding #platformLogo)
     const falconLogos = header.querySelectorAll('img.logo:not(#platformLogo), img.fpp-logo:not(#platformLogo)');
     falconLogos.forEach(logo => {
         if (luminance > 0.55) {
-            logo.style.filter = 'invert(1)';  // Invert to black for light BG
+            logo.style.filter = 'invert(1)'; // Invert to black for light BG
         } else {
-            logo.style.filter = 'none';  // Reset for dark BG
+            logo.style.filter = 'none'; // Reset for dark BG
         }
     });
 
-    // Fix update available button icon (<i class="fa-solid fa-download">)
-    const updateIcon = header.querySelector('#navbarUpdateAvailIcon');
-    if (updateIcon) {
-        updateIcon.style.color = luminance > 0.55 ? 'black' : 'white';
-        updateIcon.style.textShadow = luminance > 0.55 ? '1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white' : 'none';
+    // Reset styles for download available section to avoid messing with it
+    const updateDiv = header.querySelector('#navbarUpdateAvail');
+    if (updateDiv) {
+        updateDiv.style.color = '';
+        updateDiv.style.textShadow = '';
+        const updateA = updateDiv.querySelector('a');
+        if (updateA) {
+            updateA.style.color = '';
+            updateA.style.textShadow = '';
+        }
+        const updateIcon = updateDiv.querySelector('#navbarUpdateAvailIcon');
+        if (updateIcon) {
+            updateIcon.style.color = '';
+            updateIcon.style.textShadow = '';
+        }
     }
-
 }
 
 window.addEventListener('load', adjustHeaderText);
