@@ -3054,7 +3054,7 @@
 		"enableReadabilityFix": {
 			"name": "enableReadabilityFix",
 			"description": "Enable Readability Fix",
-			"tip": "Dynamically adjusts text color in headers and MultiSync rows for better visibility on light backgrounds.",
+			"tip": "Dynamically adjusts text color in headers and MultiSync rows for better visibility on light backgrounds. A browser refresh is required for changes to take effect.",
 			"gatherStats": false,
 			"level": 0,
 			"restart": 0,
