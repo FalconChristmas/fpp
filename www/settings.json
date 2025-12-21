@@ -3059,7 +3059,7 @@
 			"level": 0,
 			"restart": 0,
 			"reboot": 0,
-			"default": false,
+			"default": true,
 			"type": "checkbox"
 		}
 	}
