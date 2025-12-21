@@ -2823,10 +2823,8 @@ function adjustMultiSyncRows() {
         textElements.forEach(el => {
             if (luminance > 0.55) {
                 el.style.color = 'black';
-                // el.style.textShadow = '1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white'; // Commented for no outline
             } else {
                 el.style.color = '';
-                el.style.textShadow = 'none';
             }
         });
     });

@@ -161,10 +161,8 @@ function adjustHeaderText() {
     textElements.forEach(el => {
         if (luminance > 0.55) {
             el.style.color = 'black';
-            // el.style.textShadow = '1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white'; // Commented for no outline
         } else {
             el.style.color = 'white';
-            el.style.textShadow = 'none';
         }
     });
 
@@ -182,16 +180,13 @@ function adjustHeaderText() {
     const updateDiv = header.querySelector('#navbarUpdateAvail');
     if (updateDiv) {
         updateDiv.style.color = '';
-        updateDiv.style.textShadow = '';
         const updateA = updateDiv.querySelector('a');
         if (updateA) {
             updateA.style.color = '';
-            updateA.style.textShadow = '';
         }
         const updateIcon = updateDiv.querySelector('#navbarUpdateAvailIcon');
         if (updateIcon) {
             updateIcon.style.color = '';
-            updateIcon.style.textShadow = '';
         }
     }
 }
