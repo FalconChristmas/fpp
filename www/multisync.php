@@ -2797,15 +2797,17 @@ function hexToRgb(hex) {
     const num = parseInt(hex, 16);
     return { r: num >> 16, g: (num >> 8) & 255, b: num & 255 };
 }
-
 function getLuminance(rgb) {
     return (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
 }
-
 function adjustMultiSyncRows() {
     const rows = document.querySelectorAll('#fppSystemsTable tr.systemRow');
     rows.forEach(row => {
         let bgColor = window.getComputedStyle(row).backgroundColor;
+        // Skip rows with no background (transparent or rgba with alpha 0) - leave defaults
+        if (bgColor === 'transparent' || bgColor === 'rgba(0, 0, 0, 0)') {
+            return;
+        }
         let rgb;
         if (bgColor.startsWith('rgb')) {
             const rgbStr = bgColor.match(/\d+/g);
@@ -2816,22 +2818,28 @@ function adjustMultiSyncRows() {
             rgb = hexToRgb(bgColor);
         }
         if (!rgb) return;
-
         const luminance = getLuminance(rgb);
-        const textElements = row.querySelectorAll('td, td a, td span, td small, td p, td div, td i');
-
+        // Main text, including hyperlinks (treat as text)
+        const textElements = row.querySelectorAll('td, td a, td span:not(.warning-text), td small, td p, td div:not(.warning-text), td i');
         textElements.forEach(el => {
             if (luminance > 0.55) {
                 el.style.color = 'black';
             } else {
-                el.style.color = '';
+                el.style.color = 'white';
+            }
+        });
+        // Keep warnings separate (light red on dark, dark red on light - matches FPP intent)
+        const warningElements = row.querySelectorAll('.warning-text');
+        warningElements.forEach(el => {
+            if (luminance > 0.55) {
+                el.style.color = '#b02a37'; // Dark red on light
+            } else {
+                el.style.color = '#FF8080'; // Light red on dark
             }
         });
     });
 }
-
 window.addEventListener('load', adjustMultiSyncRows);
-
 // Use MutationObserver to watch for changes in the table (e.g., auto-refresh) and re-apply styles without constant interval
 const table = document.querySelector('#fppSystemsTable');
 if (table) {
