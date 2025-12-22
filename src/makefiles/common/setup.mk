@@ -59,6 +59,10 @@ endif
 	ifeq '$(FPPDEBUG)' '1'
 	    OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
 	endif
+    asan: OPTIMIZE_FLAGS=-g -O1 -Wno-psabi -fsanitize=address -fno-omit-frame-pointer
+    asan: LDFLAGS+=-fsanitize=address
+    tsan: OPTIMIZE_FLAGS=-g -O1 -Wno-psabi -fsanitize=thread -fno-omit-frame-pointer
+    tsan: LDFLAGS+=-fsanitize=thread
     ifeq "$(GCCVERSIONGTEQ12)" "1"
         CXXFLAGS += -std=gnu++23
     else
@@ -70,6 +74,10 @@ else
 	ifeq '$(FPPDEBUG)' '1'
 	OPTIMIZE_FLAGS=-g -DDEBUG
 	endif
+    asan: OPTIMIZE_FLAGS=-g -O1 -fsanitize=address -fno-omit-frame-pointer
+    asan: LDFLAGS+=-fsanitize=address
+    tsan: OPTIMIZE_FLAGS=-g -O1 -fsanitize=thread -fno-omit-frame-pointer
+    tsan: LDFLAGS+=-fsanitize=thread
     CXXFLAGS += -std=c++20
 endif
 
