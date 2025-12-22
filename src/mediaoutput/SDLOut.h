@@ -13,6 +13,8 @@
 
 #include "MediaOutputBase.h"
 
+#include <memory>
+
 class SDLInternalData;
 
 class SDLOutput : public MediaOutputBase {
@@ -28,8 +30,8 @@ public:
 
     static bool IsOverlayingVideo();
     static bool ProcessVideoOverlay(unsigned int msTimestamp);
-    static bool GetAudioSamples(float *samples, int numSamples, int &sampleRate);
+    static bool GetAudioSamples(float* samples, int numSamples, int& sampleRate);
 
 private:
-    SDLInternalData* data;
+    std::shared_ptr<SDLInternalData> data;
 };

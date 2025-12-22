@@ -448,6 +448,8 @@ typedef enum SDLSTATE {
     SDLDESTROYED
 } SDLSTATE;
 
+static std::atomic<std::shared_ptr<SDLInternalData>> internalData{};
+
 class SDL {
     volatile SDLSTATE _state;
     SDL_AudioSpec _wanted_spec;
@@ -460,7 +462,6 @@ class SDL {
 
 public:
     SDL() :
-        data(nullptr),
         _state(SDLSTATE::SDLUNINITIALISED),
         decodeThread(nullptr) {}
     virtual ~SDL();
@@ -474,7 +475,7 @@ public:
         SetThreadName("FPP-SDLDecode");
         sdl->runDecode();
     }
-    bool Start(SDLInternalData* d, int msTime) {
+    bool Start(std::shared_ptr<SDLInternalData> d, int msTime) {
         if (!initSDL()) {
             return false;
         }
@@ -522,28 +523,28 @@ public:
             decodeThread = new std::thread(decodeThreadEntry, this);
         }
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
-            data = d;
-            data->audioDev = audioDev;
+            internalData.store(d);
+            d->audioDev = audioDev;
             if (audioDev) {
-                data->curPosLock.lock();
+                d->curPosLock.lock();
                 SDL_ClearQueuedAudio(audioDev);
-                if (data->mediaOffset < 0) {
-                    data->queueSilence(-data->mediaOffset);
-                    data->mediaOffset = 0;
+                if (d->mediaOffset < 0) {
+                    d->queueSilence(-d->mediaOffset);
+                    d->mediaOffset = 0;
                 }
-                SDL_QueueAudio(audioDev, data->outBuffer, data->outBufferPos);
-                memcpy(data->sampleBuffer, data->outBuffer, data->outBufferPos);
-                data->sampleBufferCount = data->outBufferPos;
-                data->curPos += data->outBufferPos;
-                data->outBufferPos = 0;
-                data->curPosLock.unlock();
+                SDL_QueueAudio(audioDev, d->outBuffer, d->outBufferPos);
+                memcpy(d->sampleBuffer, d->outBuffer, d->outBufferPos);
+                d->sampleBufferCount = d->outBufferPos;
+                d->curPos += d->outBufferPos;
+                d->outBufferPos = 0;
+                d->curPosLock.unlock();
                 SDL_PauseAudioDevice(audioDev, 0);
             } else {
-                data->curPos = 0;
-                data->outBufferPos = 0;
+                d->curPos = 0;
+                d->outBufferPos = 0;
             }
             long long t = GetTime() / 1000;
-            data->videoStartTime = t;
+            d->videoStartTime = t;
             _state = SDLSTATE::SDLPLAYING;
             return true;
         }
@@ -555,8 +556,7 @@ public:
                 SDL_PauseAudioDevice(audioDev, 1);
                 SDL_ClearQueuedAudio(audioDev);
             }
-            SDLInternalData* d = data;
-            data = nullptr;
+            auto d = internalData.exchange({});
             _state = SDLSTATE::SDLNOTPLAYING;
             while (decoding) {
                 // wait for decoding thread to be done with it
@@ -578,11 +578,11 @@ public:
     bool openAudio();
     void runDecode();
 
-    SDLInternalData* volatile data;
     std::thread* decodeThread;
     std::set<std::string> blacklisted;
 };
 
+static std::string currentMediaFilename;
 static SDL sdlManager;
 
 bool SDL::initSDL() {
@@ -599,8 +599,8 @@ bool SDL::initSDL() {
 void SDL::runDecode() {
     while (_state != SDLSTATE::SDLUNINITIALISED) {
         decoding = true;
-        SDLInternalData* data = this->data;
-        if (data == nullptr) {
+        auto data = internalData.load();
+        if (!data) {
             decoding = false;
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         } else {
@@ -875,11 +875,11 @@ SDL::~SDL() {
 }
 
 bool SDLOutput::IsOverlayingVideo() {
-    SDLInternalData* data = sdlManager.data;
+    auto data = internalData.load();
     return data && data->video_stream_idx != -1 && !data->stopped;
 }
 bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
-    SDLInternalData* data = sdlManager.data;
+    auto data = internalData.load();
     if (data && !data->stopped && data->video_stream_idx != -1 && data->curVideoFrame) {
         while (data->curVideoFrame->next && data->curVideoFrame->next->timestamp <= msTimestamp) {
             data->curVideoFrame = data->curVideoFrame->next;
@@ -904,7 +904,7 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
     return false;
 }
 bool SDLOutput::GetAudioSamples(float* samples, int numSamples, int& sampleRate) {
-    SDLInternalData* data = sdlManager.data;
+    auto data = internalData.load();
     if (data && !data->stopped) {
         // printf("In Samples:  %d\n", data->outBufferPos);
         data->curPosLock.lock();
@@ -940,8 +940,6 @@ bool SDLOutput::GetAudioSamples(float* samples, int numSamples, int& sampleRate)
     }
     return false;
 }
-
-static std::string currentMediaFilename;
 
 static void LogCallback(void* avcl,
                         int level,
@@ -1018,7 +1016,7 @@ SDLOutput::SDLOutput(const std::string& mediaFilename,
     sdlManager.initSDL();
     sdlManager.openAudio();
 
-    data = new SDLInternalData(sdlManager.getRate(), sdlManager.getBytesPerSample(), sdlManager.isSamplesFloat(), sdlManager.numChannels(), getMediaOffsetMS());
+    data = std::make_shared<SDLInternalData>(sdlManager.getRate(), sdlManager.getBytesPerSample(), sdlManager.isSamplesFloat(), sdlManager.numChannels(), getMediaOffsetMS());
 
     // Initialize FFmpeg codecs
 #if LIBAVFORMAT_VERSION_MAJOR < 58
@@ -1134,19 +1132,15 @@ SDLOutput::SDLOutput(const std::string& mediaFilename,
  *
  */
 SDLOutput::~SDLOutput() {
-    LogDebug(VB_MEDIAOUT, "SDLOutput::~SDLOutput() %X\n", data);
+    LogDebug(VB_MEDIAOUT, "SDLOutput::~SDLOutput() %p %p\n", this, data.get());
     Close();
-    if (data) {
-        delete data;
-        data = nullptr;
-    }
 }
 
 /*
  *
  */
 int SDLOutput::Start(int msTime) {
-    LogDebug(VB_MEDIAOUT, "SDLOutput::Start() %X\n", data);
+    LogDebug(VB_MEDIAOUT, "SDLOutput::Start() %p %p\n", this, data.get());
     if (data) {
         SetChannelOutputFrameNumber(0);
         if (!sdlManager.Start(data, msTime)) {
