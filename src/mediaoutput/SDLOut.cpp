@@ -14,6 +14,7 @@
 
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <cassert>
 #include <cmath>
 #include <errno.h>
 #include <stdbool.h>
@@ -241,15 +242,15 @@ public:
         if (outBufferPos && ((queue < minQueueSize) || doneRead)) {
             curPosLock.lock();
             SDL_QueueAudio(audioDev, outBuffer, outBufferPos);
-            queue = SDL_GetQueuedAudioSize(audioDev);
-            int ms = queue - outBufferPos;
-            if (ms < sampleBufferCount) {
-                memmove(sampleBuffer, &sampleBuffer[sampleBufferCount - ms], ms);
-                sampleBufferCount = ms;
+            assert(queue <= sampleBufferCount);
+            if (queue < sampleBufferCount) {
+                memmove(sampleBuffer, &sampleBuffer[sampleBufferCount - queue], queue);
+                sampleBufferCount = queue;
             }
             memcpy(&sampleBuffer[sampleBufferCount], outBuffer, outBufferPos);
             sampleBufferCount += outBufferPos;
 
+            queue += outBufferPos;
             curPos += outBufferPos;
             outBufferPos = 0;
             curPosLock.unlock();
@@ -304,11 +305,14 @@ public:
                                                      (const uint8_t**)frame->extended_data,
                                                      frame->nb_samples);
 
-                        outBufferPos += (outSamples * bytesPerSample * channels);
-                        if (outBufferPos > maxQueueSize) {
-                            AudioHasStalled = true;
+                        if (outSamples > 0) {
+                            outBufferPos += (outSamples * bytesPerSample * channels);
+                            if (outBufferPos > maxQueueSize) {
+                                AudioHasStalled = true;
+                            }
+                            decodedDataLen += (outSamples * bytesPerSample * channels);
                         }
-                        decodedDataLen += (outSamples * bytesPerSample * channels);
+
                         av_frame_unref(frame);
                     }
                     if (packetSendCount > 1000 && lastPacketRecvCount == packetRecvCount) {
@@ -909,33 +913,37 @@ bool SDLOutput::GetAudioSamples(float* samples, int numSamples, int& sampleRate)
         // printf("In Samples:  %d\n", data->outBufferPos);
         data->curPosLock.lock();
         int queue = SDL_GetQueuedAudioSize(data->audioDev);
+        sampleRate = data->currentRate;
+        int offset = data->sampleBufferCount - queue;
+        const int origNumSamples = numSamples;
+        assert(offset >= 0);
         if (data->bytesPerSample == 2) {
-            int offset = data->sampleBufferCount - queue;
-            int16_t* ds = (int16_t*)(&data->sampleBuffer[offset]);
+            int16_t* ds = reinterpret_cast<int16_t*>(data->sampleBuffer + offset);
+            numSamples = std::min<int>(numSamples, (data->sampleBufferCount - offset) / sizeof(int16_t));
             // just grab the left channel audio
             for (int x = 0; x < numSamples; x++) {
-                samples[x] = ds[x * data->channels];
-                samples[x] /= 32767.0f;
+                samples[x] = float(ds[x * data->channels]) / 32767.f;
             }
         } else if (data->isSamplesFloat) {
-            int offset = data->sampleBufferCount - queue;
-            float* ds = (float*)(&data->sampleBuffer[offset]);
+            float* ds = reinterpret_cast<float*>(data->sampleBuffer + offset);
+            numSamples = std::min<int>(numSamples, (data->sampleBufferCount - offset) / sizeof(float));
             // just grab the left channel audio
             for (int x = 0; x < numSamples; x++) {
                 samples[x] = ds[x * data->channels];
             }
         } else {
             // 32bit sampling
-            int offset = data->sampleBufferCount - queue;
-            int32_t* ds = (int32_t*)(&data->sampleBuffer[offset]);
+            int32_t* ds = reinterpret_cast<int32_t*>(data->sampleBuffer + offset);
+            numSamples = std::min<int>(numSamples, (data->sampleBufferCount - offset) / sizeof(int32_t));
             // just grab the left channel audio
             for (int x = 0; x < numSamples; x++) {
                 samples[x] = ds[x * data->channels];
                 samples[x] /= 0x8FFFFFFF;
             }
         }
-        sampleRate = data->currentRate;
         data->curPosLock.unlock();
+        for (; numSamples != origNumSamples; ++numSamples)
+            samples[numSamples] = 0.f;
         return true;
     }
     return false;
