@@ -66,6 +66,10 @@ release: optimized
 
 debug: all
 
+asan: all
+
+tsan: all
+
 local: $(TARGETS)
 
 fppversion.c: fppversion.sh
