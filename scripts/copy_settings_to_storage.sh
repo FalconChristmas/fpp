@@ -209,3 +209,12 @@ fi
 if [ "$BASEDIRECTION" = "FROM" ]; then
     chown -R fpp:fpp /home/fpp/media
 fi
+
+echo " "
+echo "========================================="
+echo "BACKUP COMPLETE"
+echo "All selected items have been successfully copied."
+echo "You may now close this window."
+echo "Safe to remove storage device if applicable."
+echo "========================================="
+echo " "
