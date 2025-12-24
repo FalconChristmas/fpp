@@ -2182,8 +2182,17 @@ function PlaylistTypeChanged () {
 		$('#autoSelectMatches').prop('checked', true);
 	}
 
+	if (type == 'both' || type == 'sequence') {
+		$('#filterSequencesWrapper').show();
+	}
+
 	if (oldSequence != '') {
 		$('.arg_sequenceName').val(oldSequence);
+	}
+
+	// If no sequence is selected (e.g., old sequence was filtered out), select the first one
+	if ($('.arg_sequenceName').length && !$('.arg_sequenceName').val()) {
+		$('.arg_sequenceName').prop('selectedIndex', 0);
 	}
 
 	if (oldMedia != '') {
@@ -7856,6 +7865,20 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 		$('#' + tblCommand).append(line);
 		if (typeof val['contentListUrl'] != 'undefined') {
 			var selId = '#' + tblCommand + '_arg_' + count + contentListPostfix;
+
+			// Check if we should filter used sequences - reuse existing GetPlaylistEntry()
+			var filterSequences = [];
+			if (val['contentListUrl'].includes('sequences') &&
+				$('#filterUsedSequences').length &&
+				$('#filterUsedSequences').is(':checked')) {
+				$('#tblPlaylistLeadIn > tr:not(.unselectable), #tblPlaylistMainPlaylist > tr:not(.unselectable), #tblPlaylistLeadOut > tr:not(.unselectable)').each(function() {
+					var entry = GetPlaylistEntry(this);
+					if (entry.sequenceName) {
+						filterSequences.push(entry.sequenceName);
+					}
+				});
+			}
+
 			$.ajax({
 				dataType: 'json',
 				url: val['contentListUrl'],
@@ -7863,6 +7886,10 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				success: function (data) {
 					if (Array.isArray(data)) {
 						$.each(data, function (key, v) {
+							// Skip if filtering and sequence is already used
+							if (filterSequences.length > 0 && filterSequences.includes(v)) {
+								return true; // continue to next iteration
+							}
 							var line = '<option value="' + v.replace('"', '&quot;') + '"';
 							if (v == dv) {
 								line += ' selected';
@@ -7875,6 +7902,10 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 						});
 					} else {
 						$.each(data, function (key, v) {
+							// Skip if filtering and sequence is already used
+							if (filterSequences.length > 0 && filterSequences.includes(key)) {
+								return true; // continue to next iteration
+							}
 							var line = '<option value="' + key.replace('"', '&quot;') + '"';
 							if (key == dv) {
 								line += ' selected';
