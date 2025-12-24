@@ -14,7 +14,6 @@
 
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include <cassert>
 #include <cmath>
 #include <errno.h>
 #include <stdbool.h>
@@ -242,7 +241,6 @@ public:
         if (outBufferPos && ((queue < minQueueSize) || doneRead)) {
             curPosLock.lock();
             SDL_QueueAudio(audioDev, outBuffer, outBufferPos);
-            assert(queue <= sampleBufferCount);
             if (queue < sampleBufferCount) {
                 memmove(sampleBuffer, &sampleBuffer[sampleBufferCount - queue], queue);
                 sampleBufferCount = queue;
@@ -452,8 +450,6 @@ typedef enum SDLSTATE {
     SDLDESTROYED
 } SDLSTATE;
 
-static std::atomic<std::shared_ptr<SDLInternalData>> internalData{};
-
 class SDL {
     volatile SDLSTATE _state;
     SDL_AudioSpec _wanted_spec;
@@ -582,6 +578,7 @@ public:
     bool openAudio();
     void runDecode();
 
+    std::atomic<std::shared_ptr<SDLInternalData>> internalData{};
     std::thread* decodeThread;
     std::set<std::string> blacklisted;
 };
@@ -879,11 +876,11 @@ SDL::~SDL() {
 }
 
 bool SDLOutput::IsOverlayingVideo() {
-    auto data = internalData.load();
+    auto data = sdlManager.internalData.load();
     return data && data->video_stream_idx != -1 && !data->stopped;
 }
 bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
-    auto data = internalData.load();
+    auto data = sdlManager.internalData.load();
     if (data && !data->stopped && data->video_stream_idx != -1 && data->curVideoFrame) {
         while (data->curVideoFrame->next && data->curVideoFrame->next->timestamp <= msTimestamp) {
             data->curVideoFrame = data->curVideoFrame->next;
@@ -908,7 +905,7 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
     return false;
 }
 bool SDLOutput::GetAudioSamples(float* samples, int numSamples, int& sampleRate) {
-    auto data = internalData.load();
+    auto data = sdlManager.internalData.load();
     if (data && !data->stopped) {
         // printf("In Samples:  %d\n", data->outBufferPos);
         data->curPosLock.lock();
@@ -916,7 +913,6 @@ bool SDLOutput::GetAudioSamples(float* samples, int numSamples, int& sampleRate)
         sampleRate = data->currentRate;
         int offset = data->sampleBufferCount - queue;
         const int origNumSamples = numSamples;
-        assert(offset >= 0);
         if (data->bytesPerSample == 2) {
             int16_t* ds = reinterpret_cast<int16_t*>(data->sampleBuffer + offset);
             numSamples = std::min<int>(numSamples, (data->sampleBufferCount - offset) / sizeof(int16_t));
