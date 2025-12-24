@@ -1,35 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <?php
     include 'common/htmlMeta.inc';
     require_once('config.php');
     require_once('common.php');
-
     writeFPPVersionJavascriptFunctions();
-
     include 'common/menuHead.inc';
     ?>
     <script>
         var installedPlugins = [];
         var pluginInfos = [];
         var pluginInfoURLs = [];
-
         function PluginIsInstalled(plugin) {
             for (var i = 0; i < installedPlugins.length; i++) {
                 if (installedPlugins[i] == plugin)
                     return 1;
             }
-
             return 0;
         }
-
         function PluginProgressDialogDone() {
             $('#pluginsProgressPopupCloseButton').prop("disabled", false);
             EnableModalDialogCloseButton("pluginsProgressPopup");
         }
-
         function GetInstalledPlugins() {
             var url = 'api/plugin';
             $.ajax({
@@ -46,7 +39,6 @@
                 }
             });
         }
-
         function GetPluginList() {
             var url = 'https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/pluginList.json';
             $.ajax({
@@ -60,10 +52,8 @@
                 }
             });
         }
-
         function CheckPluginForUpdates(plugin) {
             var url = 'api/plugin/' + plugin + '/updates';
-
             $('html,body').css('cursor', 'wait');
             $.ajax({
                 url: url,
@@ -86,23 +76,20 @@
                 }
             });
         }
-
         function CheckAllPluginsForUpdates() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
                 return;
             }
-
             $('html,body').css('cursor', 'wait');
             $('#checkAllUpdatesBtn').prop('disabled', true);
-            
+          
             var checked = 0;
             var total = installedPlugins.length;
             var updatesFound = 0;
-
             installedPlugins.forEach(function(plugin) {
                 var url = 'api/plugin/' + plugin + '/updates';
-                
+              
                 $.ajax({
                     url: url,
                     type: 'POST',
@@ -113,7 +100,7 @@
                             $('#row-' + plugin).find('.updatesAvailable').show();
                             updatesFound++;
                         }
-                        
+                      
                         if (checked === total) {
                             $('html,body').css('cursor', 'auto');
                             $('#checkAllUpdatesBtn').prop('disabled', false);
@@ -135,38 +122,31 @@
                 });
             });
         }
-
         function UpgradePlugin(plugin) {
             var url = 'api/plugin/' + plugin + '/upgrade?stream=true';
             DisplayProgressDialog("pluginsProgressPopup", "Upgrade Plugin");
             StreamURL(url, 'pluginsProgressPopupText', 'PluginProgressDialogDone', 'PluginProgressDialogDone');
         }
-
         function InstallPlugin(plugin, branch, sha) {
             var url = 'api/plugin?stream=true';
             var i = FindPluginInfo(plugin);
-
             if (i < -1) {
                 alert('Could not find plugin ' + plugin + ' in pluginInfo cache.');
                 return;
             }
-
             var pluginInfo = pluginInfos[i];
             pluginInfo['branch'] = branch;
             pluginInfo['sha'] = sha;
             pluginInfo['infoURL'] = pluginInfoURLs[plugin];
-
             var postData = JSON.stringify(pluginInfo);
             DisplayProgressDialog("pluginsProgressPopup", "Install Plugin");
             StreamURL(url, 'pluginsProgressPopupText', 'PluginProgressDialogDone', 'PluginProgressDialogDone', 'POST', postData, 'application/json');
         }
-
         function UninstallPlugin(plugin) {
             var url = 'api/plugin/' + plugin + '?stream=true'; // Assuming your API supports streaming for uninstall
             DisplayProgressDialog("pluginsProgressPopup", "Uninstall Plugin");
             StreamURL(url, 'pluginsProgressPopupText', 'PluginProgressDialogDone', 'PluginProgressDialogDone', 'DELETE');
         }
-
         function ShowUninstallPluginPopup(plugin, pluginName) {
             DoModalDialog({
                 id: "uninstallPluginDialog",
@@ -185,16 +165,13 @@
                 }
             });
         }
-
         function FindPluginInfo(plugin) {
             for (var i = 0; i < pluginInfos.length; i++) {
                 if (pluginInfos[i].repoName == plugin)
                     return i;
             }
-
             return -1;
         }
-
         function InsertPluginTableItem(tableName, key, html) {
             var i = 0;
             var strcmp = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare;
@@ -212,7 +189,6 @@
                 $('#' + tableName).append(html);
             }
         }
-
         var firstInstalled = 1;
         var firstCompatible = 1;
         var firstUntested = 1;
@@ -220,7 +196,6 @@
         function LoadPlugin(data, insert = false) {
             var html = '';
             var infoURL = pluginInfoURLs[data.repoName];
-
             if ($('#row-' + data.repoName).length) {
                 // Delete the original entry so we can re-add with the latest info
                 $('#row-' + data.repoName).next('.row').remove();
@@ -228,12 +203,10 @@
                     $('#row-' + data.repoName).next('.row').remove();
                 else
                     $('#row-' + data.repoName).prev('.row').remove();
-
                 $('#row-' + data.repoName).remove();
             } else {
                 pluginInfos.push(data);
             }
-
             var installed = PluginIsInstalled(data.repoName);
             var compatibleVersion = -1;
             var untestedVersion = -1;
@@ -247,12 +220,11 @@
                         data.versions[i].maxFPPVersion = nv;
                         untestedVersion = i;
                     } else if (nv == getFPPMajorVersion()) {
-                        maxFPPVersion = -1;
+
                     }
                 }
-
                 if ((CompareFPPVersions(data.versions[i].minFPPVersion, getFPPVersionTriplet()) <= 0) &&
-                    ((data.versions[i].maxFPPVersion == "0") || (data.versions[i].maxFPPVersion == "0.0") ||
+                    ((data.versions[i].maxFPPVersion == "0") || (data.versions[i].maxFPPVersion == "0.0") || (data.versions[i].maxFPPVersion == "") ||
                         (CompareFPPVersions(data.versions[i].maxFPPVersion, getFPPVersionTriplet()) > 0)) &&
                     ((!data.versions[i].hasOwnProperty('platforms')) ||
                         (data.versions[i].platforms.includes(settings['Platform'])))) {
@@ -262,60 +234,51 @@
             var compatibleVersionClass = (compatibleVersion == -1) ? " has-previous-compatible-version" : '';
             html += '<div id="row-' + data.repoName + '" class="fppPluginEntry' + compatibleVersionClass + '"><div class="backdrop fppPluginEntryBackdrop"><div class="row">';
             html += '<div class="col-lg-3"><h3 class="pluginTitle">' + data.name + '</h3>';
-
             if (installed) {
                 html += '<div class="text-success fppPluginEntryInstallStatus"><i class="far fa-check-circle"></i> <b>Installed</b></div>';
             }
-
             html += '</div>';
             html += '<div class="col-lg-2 text-muted"><div class="labelHeading">Author:</div>' + data.author + '</div>';
             html += '<div class="col-lg text-muted"><div class="labelHeading">Description:</div><div class="fppPluginEntryDescription">' + data.description + '</div>';
-
             html += '</div>';
             html += '<div class="col-lg-auto fppPluginEntryActions">';
-
             html += '<div align="right">';
-
             if (installed) {
                 if (!data.hasOwnProperty('allowUpdates') || data.allowUpdates) {
                     html += "<div class='pendingSpan updatesAvailable'";
                     if (!data.updatesAvailable)
                         html += " style='display: none;'";
-
                     html += "><div class='updateTable text-success fppPluginEntryUpdateStatus'><i class='fas fa-exclamation-circle'></i> <b>Updates Available</b></div>";
                     html += "<button class='buttons btn-success' onClick='UpgradePlugin(\"" + data.repoName + "\");'><i class='far fa-arrow-alt-circle-down'></i> Update Now</button>";
-
                     html += '</div>';
                     html += '</div><div align="right">';
-
                     html += "<button class='buttons btn-outline-success' onClick='CheckPluginForUpdates(\"" + data.repoName + "\");'><i class='fas fa-sync-alt'></i> Check for Updates</button>";
-
                 } else {
                     html += '</div><div align="right">';
                 }
-
                 html += '</div><div align="right">';
-                html += "<button class='buttons btn-outline-danger'  onClick='ShowUninstallPluginPopup(\"" + data.repoName + "\",\"" + data.name + "\");'><i class='fas fa-trash-alt'></i> Uninstall</button>";
+                html += "<button class='buttons btn-outline-danger' onClick='ShowUninstallPluginPopup(\"" + data.repoName + "\",\"" + data.name + "\");'><i class='fas fa-trash-alt'></i> Uninstall</button>";
             } else {
                 html += '</div><div align="right">';
                 html += '</div><div align="right">';
-                if (compatibleVersion >= 0 || untestedVersion >= 0) {
-                   let idx = compatibleVersion < 0 ? untestedVersion : compatibleVersion;
-
-                   let installText = "Install";
-                   let btnClass    = "btn-success";
-
-                   if (compatibleVersion < 0 && untestedVersion >= 0) {
-                      installText = "Install untested plugin at your own risk";
-                      btnClass    = "btn-warning";
-                   }
-
-                   html += "<button class='buttons " + btnClass + "' onClick=' InstallPlugin(\"" + data.repoName + "\", \"" + data.versions[idx].branch + "\", \"" + data.versions[idx].sha + "\");'><i class='far fa-arrow-alt-circle-down'></i> " + installText + "</button>";
+                let idx = compatibleVersion >= 0 ? compatibleVersion : untestedVersion;
+                let installText = "Install";
+                let btnClass = "btn-success";
+                let buttonStyle = '';
+                if (compatibleVersion < 0 && untestedVersion >= 0) {
+                    installText = "Install untested plugin at your own risk";
+                    btnClass = "btn-warning";
+                } else if (compatibleVersion < 0 && untestedVersion < 0) {
+                    idx = data.versions.length - 1;
+                    installText = "Install incompatible plugin at your own risk";
+                    btnClass = "btn-danger forceInstallButton";
+                    buttonStyle = " style='display:none;'";
+                }
+                if (idx >= 0) {
+                    html += "<button class='buttons " + btnClass + "'" + buttonStyle + " onClick=' InstallPlugin(\"" + data.repoName + "\", \"" + data.versions[idx].branch + "\", \"" + data.versions[idx].sha + "\");'><i class='far fa-arrow-alt-circle-down'></i> " + installText + "</button>";
                 }
             }
-
             html += '</div>';
-
             html += '</div></div>';
             html += '<div class="row fppPluginEntryFooter"><div class="col-lg"><a href="' + data.homeURL + '" target="_blank" rel="noopener noreferrer"><i class="fas fa-home"></i> ' + data.homeURL + '</a></div>';
             html += '<div class="col-lg-auto"><a href="' + data.srcURL + '" target="_blank" rel="noopener noreferrer"><i class="fas fa-code"></i> View Source</a>';
@@ -323,14 +286,12 @@
             html += '</div>';
             html += '</div>';
             html += '</div>';
-
-            if (compatibleVersion == -1) {
+            if (settings["uiLevel"] > 1) { // Visible only for experimental/dev UI levels
                 html += '<div class="text-muted fppPluginEntryCompatibilityStatus">';
                 html += '<i class="fas fa-info-circle"></i> Plugin has compatible versions for FPP Versions: <b>';
                 for (var i = 0; i < data.versions.length; i++) {
                     if (i > 0)
                         html += ',';
-
                     if ((data.versions[i].minFPPVersion > 0) &&
                         (data.versions[i].maxFPPVersion > 0)) {
                         html += ' v' + data.versions[i].minFPPVersion + ' - v' + data.versions[i].maxFPPVersion;
@@ -339,7 +300,6 @@
                     } else if (data.versions[i].maxFPPVersion > 0) {
                         html += ' < v' + data.versions[i].maxFPPVersion;
                     }
-
                     if (data.versions[i].hasOwnProperty('platforms')) {
                         var platforms = data.versions[i].platforms;
                         html += " ";
@@ -358,34 +318,20 @@
                         }
                     }
                 }
-                html += '</b></div></div>';
+                html += '</b></div>';
             }
-
-            if (installed) {
-                $('#installedPlugins').show();
-                if (firstInstalled) {
-                    firstInstalled = 0;
-                }
-
-                if (compatibleVersion == -1) {
-                    html += '<div class="row"><div class="col" class="bad">WARNING: This plugin is already installed, but may be incompatible with this FPP version or platform.</div></div>';
-                }
-
-                InsertPluginTableItem('installedPlugins', data.name, html);
-            } else if (data.repoName == 'fpp-plugin-Template') {
-                if (settings["uiLevel"] > 2) {
-                    $('#templatePlugin').show();
-                    $('#templatePlugin').append(html);
-                }
-            } else if (compatibleVersion != -1) {
-                if (firstCompatible) {
-                    firstCompatible = 0;
-                }
-
-                if (insert) {
-                    $('#pluginTable').children(':first-child').after(html);
-                    document.getElementById("pluginTable").scrollIntoView();
+            if (compatibleVersion >= 0) {
+                if (installed) {
+                    if (firstInstalled) {
+                        $('#installedPlugins').show();
+                        firstInstalled = 0;
+                    }
+                    InsertPluginTableItem('installedPlugins', data.name, html);
                 } else {
+                    if (firstCompatible) {
+                        $('#pluginTable').show();
+                        firstCompatible = 0;
+                    }
                     InsertPluginTableItem('pluginTable', data.name, html);
                 }
             } else if (untestedVersion >= 0) {
@@ -393,18 +339,15 @@
                     $('#untestedPlugins').show();
                     firstUntested = 0;
                 }
-
                 InsertPluginTableItem('untestedPlugins', data.name, html);
             } else {
                 if (firstIncompatible && settings["uiLevel"] > 2) {
                     $('#incompatiblePlugins').show();
                     firstIncompatible = 0;
                 }
-
                 InsertPluginTableItem('incompatiblePlugins', data.name, html);
             }
         }
-
         function LoadInstalledPlugins() {
             for (var i = 0; i < installedPlugins.length; i++) {
                 var url = 'api/plugin/' + installedPlugins[i];
@@ -422,14 +365,12 @@
                 });
             }
         }
-
         function LoadPlugins(pluginList) {
             for (var i = 0; i < pluginList.length; i++) {
                 if (!PluginIsInstalled(pluginList[i][0])) {
                     var url = pluginList[i][1];
                     let index = i;
                     pluginInfoURLs[pluginList[i][0]] = url;
-
                     $('html,body').css('cursor', 'wait');
                     $.ajax({
                         url: url,
@@ -439,7 +380,6 @@
                             LoadPlugin(data);
                             $('#pluginInput').on('input', FilterPlugins);
                             FilterPlugins();
-
                         },
                         error: function (d) {
                             $('html,body').css('cursor', 'auto');
@@ -452,15 +392,12 @@
                 }
             }
         }
-
         function ManualLoadInfo() {
             var url = $('#pluginInput').val();
-
             if (url.indexOf('://') > -1) {
                 if (url.indexOf('https://github.com/') > -1) {
                     url = url.replace(/https:\/\/github.com\//, 'https://raw.githubusercontent.com/').replace(/\/blob\//, '/');
                 }
-
                 $('html,body').css('cursor', 'wait');
                 $.ajax({
                     url: url,
@@ -516,16 +453,27 @@
                     });
                 }
             }
-
         }
         $(document).ready(function () {
             GetInstalledPlugins();
-
+            // Always show untested and incompatible sections
+            $('#untestedPlugins').show();
+            $('#incompatiblePlugins').show();
+            // Add checkbox event listener for force install (only if checkbox exists)
+            if ($('#allowRiskyInstalls').length) {
+                $('#allowRiskyInstalls').on('change', function() {
+                    if ($(this).is(':checked')) {
+                        $('.forceInstallButton').show();
+                    } else {
+                        $('.forceInstallButton').hide();
+                    }
+                    FilterPlugins();
+                });
+            }
         });
     </script>
     <title><? echo $pageTitle; ?></title>
 </head>
-
 <body>
     <div id="bodyWrapper">
         <?php
@@ -534,17 +482,13 @@
         <div class="mainContainer">
             <h1 class="title">Plugins</h1>
             <div class="pageContent">
-
                 <div id="plugins" class="settings">
-
                     <div id='pluginTableHead'>
-
                         <div class="row fppPluginInput">
                             <div class="col">
                                 <input type="text" id="pluginInput"
                                     class="form-control form-control-lg form-control-rounded has-shadow"
                                     placeholder="Find a Plugin or Enter a plugininfo.json URL" />
-
                             </div>
                             <div class="col-auto fppPluginInputActionCol">
                                 <div class="buttons btn-lg btn-rounded btn-outline-success" onClick='ManualLoadInfo();'>
@@ -552,10 +496,15 @@
                                 </div>
                             </div>
                         </div>
-
+                        <div class="row">
+                            <div class="col-auto">
+                                <?php if (isset($settings['uiLevel']) && $settings['uiLevel'] > 1): ?>
+                                    <input type="checkbox" id="allowRiskyInstalls"> Allow installation of incompatible plugins (at own risk)
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </div>
                     <div class='plugindiv'>
-
                         <div id='installedPlugins' class="fppPluginSection">
                             <div class='pluginsHeader'>
                                 <h2>Installed Plugins</h2>
@@ -585,18 +534,12 @@
                             </div>
                         </div>
                     </div>
-
                     <div id="overlay">
                     </div>
-
                 </div>
             </div>
         </div>
-
-
         <?php include 'common/footer.inc'; ?>
     </div>
-
 </body>
-
 </html>
