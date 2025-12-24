@@ -170,8 +170,10 @@ static void DetectCape() {
 #ifdef PLATFORM_PI
         modprobe("i2c-dev");
 #endif
-        while (!FileExists(I2C_DEV) && count < 500) {
-            printf("FPP - Waiting for %s to appear for Cape/Hat detection %d\n", I2C_DEV.c_str(), count);
+        if (!FileExists(I2C_DEV)) {
+            printf("FPP - Waiting up to 3s for %s to appear for Cape/Hat detection\n", I2C_DEV.c_str());
+        }
+        while (!FileExists(I2C_DEV) && count < 600) {
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             count++;
         }
