@@ -68,6 +68,9 @@ services:
     # access the sound card, this may be required.
 
     # privileged: true
+    cap_add:
+      - SYS_PTRACE
+      - SYS_NICE
 
     devices:
       # To pass through an audio card, entries similar to the following

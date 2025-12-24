@@ -31,24 +31,25 @@ services:
       - "4048:4048/udp"
       - "5568:5568/udp"
       - "32320:32320/udp"
-    devices:
+    #devices:
       # To pass through an audio card, entries similar to the following
       # should work.  The device names may be different depending on
       # how many sound cards are present in the host system.  The 'C0'
       # portion of the file names is Card 0, 'D0' is Device 0.
-      - /dev/snd/controlC0
-      - /dev/snd/pcmC0D0c
-      - /dev/snd/pcmC0D0p
-      - /dev/snd/seq
-      - /dev/snd/timer
+      #- /dev/snd/controlC0
+      #- /dev/snd/pcmC0D0c
+      #- /dev/snd/pcmC0D0p
+      #- /dev/snd/seq
+      #- /dev/snd/timer
     cap_add:
       - SYS_PTRACE
+      - SYS_NICE
 
   node:
     build:
       context: ../
       dockerfile: ./Docker/Dockerfile.node
-    command: /bin/sh -c "( /bin/ln -s /opt/node_modules /opt/fpp/www/; /opt/node_modules/.bin/gulp -f /opt/fpp/www/gulpfile.js watch-bs; )"
+    command: /bin/sh -c "( /bin/ln -f -s /opt/node_modules /opt/fpp/www/; /opt/node_modules/.bin/gulp -f /opt/fpp/www/gulpfile.js watch-bs; )"
     restart: always
     volumes:
       - ../:/opt/fpp
