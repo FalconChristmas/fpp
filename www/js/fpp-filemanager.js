@@ -335,6 +335,15 @@ function ButtonHandler (table, button) {
 				'Error, unable to view multiple files at the same time.'
 			);
 		}
+	} else if (button == 'tailFollow') {
+		if (selectedCount == 1) {
+			TailFollowFile(table, filename);
+		} else {
+			DialogError(
+				'Error',
+				'Error, unable to tail follow multiple files at the same time.'
+			);
+		}
 	} else if (button == 'viewImage') {
 		if (selectedCount == 1) {
 			ViewImage(filename);

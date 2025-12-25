@@ -6834,6 +6834,193 @@ function TailFile (dir, file, lines) {
 	// console.log(url);
 	ViewFileImpl(url, file);
 }
+
+var tailFollowXHR = null;
+var tailFollowCurrentDir = null;
+var tailFollowCurrentFile = null;
+var TAIL_FOLLOW_MAX_CHARS = 512 * 1024; // 512KB max buffer size
+var TAIL_FOLLOW_DEFAULT_LINES = 100;
+
+// kills tail process when user navigates away
+function tailFollowBeforeUnload () {
+	if (tailFollowCurrentDir && tailFollowCurrentFile) {
+		var stopUrl = 'api/file/' + tailFollowCurrentDir + '/tailfollow/' +
+			encodeURIComponent(tailFollowCurrentFile).replaceAll('%2F', '/');
+		if (navigator.sendBeacon) {
+			navigator.sendBeacon(stopUrl);
+		} else {
+			$.ajax({
+				url: stopUrl,
+				type: 'POST',
+				async: false
+			});
+		}
+	}
+}
+
+function startTailFollowStream (lines) {
+	if (tailFollowXHR) {
+		tailFollowXHR.abort();
+		tailFollowXHR = null;
+	}
+
+	var url = 'api/file/' + tailFollowCurrentDir + '/tailfollow/' +
+		encodeURIComponent(tailFollowCurrentFile).replaceAll('%2F', '/') +
+		'?lines=' + lines;
+
+	var outputArea = document.getElementById('tailFollowText');
+	var modalBody = $('#tailFollowDialog .modal-body')[0];
+	var last_response_len = 0;
+
+	tailFollowXHR = $.ajax(url, {
+		type: 'GET',
+		xhrFields: {
+			onprogress: function (e) {
+				var response = e.currentTarget.response;
+				var this_response = last_response_len === 0
+					? response
+					: response.substring(last_response_len);
+				last_response_len = response.length;
+
+				if (outputArea && this_response.length > 0) {
+					outputArea.textContent += this_response;
+
+					// trim if buffer exceeds max size
+					if (outputArea.textContent.length > TAIL_FOLLOW_MAX_CHARS) {
+						var text = outputArea.textContent;
+						var trimPoint = text.length - TAIL_FOLLOW_MAX_CHARS;
+						var newlinePos = text.indexOf('\n', trimPoint);
+						outputArea.textContent = '... (older content trimmed) ...\n' +
+							(newlinePos > 0 ? text.substring(newlinePos + 1) : text.substring(trimPoint));
+					}
+
+					if (modalBody) {
+						modalBody.scrollTop = modalBody.scrollHeight;
+					}
+				}
+			}
+		}
+	})
+		.done(function () {
+			TailFollowDone();
+		})
+		.fail(function (jqXHR, textStatus, errorThrown) {
+			if (textStatus !== 'abort') {
+				if (outputArea) {
+					var errorMsg = jqXHR.responseText || errorThrown || 'Unknown error';
+					outputArea.textContent += '\n\n--- Error: ' + errorMsg + ' ---';
+				}
+				TailFollowDone();
+			}
+		});
+}
+
+function TailFollowFile (dir, file, lines = TAIL_FOLLOW_DEFAULT_LINES) {
+	tailFollowCurrentDir = dir;
+	tailFollowCurrentFile = file;
+
+	var options = {
+		id: 'tailFollowDialog',
+		title: 'Tail Follow: ' + file,
+		body: "<pre id='tailFollowText' class='fileText' style='margin: 0; white-space: pre-wrap; word-wrap: break-word;'></pre>",
+		class: 'modal-dialog-scrollable modal-lg',
+		keyboard: false,
+		backdrop: 'static',
+		buttons: {
+			Stop: {
+				id: 'tailFollowStopButton',
+				click: ToggleTailFollow,
+				class: 'btn-warning'
+			},
+			Close: {
+				id: 'tailFollowCloseButton',
+				click: function () {
+					if (tailFollowXHR) {
+						tailFollowBeforeUnload();
+						tailFollowXHR.abort();
+						tailFollowXHR = null;
+					}
+					CloseModalDialog('tailFollowDialog');
+				},
+				class: 'btn-success'
+			}
+		}
+	};
+
+	DoModalDialog(options);
+	// reset button state
+	$('#tailFollowStopButton')
+		.text('Stop')
+		.removeClass('btn-success')
+		.addClass('btn-warning')
+		.prop('disabled', false);
+	$('#tailFollowCloseButton').prop('disabled', true);
+
+	window.addEventListener('beforeunload', tailFollowBeforeUnload);
+
+	// kill tail process and abort XHR when modal is closed by any means
+	$('#tailFollowDialog').off('hidden.bs.modal.tailfollow').on('hidden.bs.modal.tailfollow', function () {
+		window.removeEventListener('beforeunload', tailFollowBeforeUnload);
+		tailFollowBeforeUnload();
+		tailFollowCurrentDir = null;
+		tailFollowCurrentFile = null;
+		if (tailFollowXHR) {
+			tailFollowXHR.abort();
+			tailFollowXHR = null;
+		}
+	});
+
+	// scroll to bottom so we are "tailing"
+	$('#tailFollowDialog').off('shown.bs.modal.tailfollow').on('shown.bs.modal.tailfollow', function () {
+		var mb = $('#tailFollowDialog .modal-body')[0];
+		if (mb) {
+			mb.scrollTop = mb.scrollHeight;
+		}
+	});
+
+	startTailFollowStream(lines);
+}
+
+function ToggleTailFollow () {
+	if (tailFollowXHR) {
+		tailFollowBeforeUnload();
+		tailFollowXHR.abort();
+		tailFollowXHR = null;
+
+		var pre = document.getElementById('tailFollowText');
+		if (pre) {
+			pre.textContent += '\n\n--- Streaming stopped ---';
+		}
+		TailFollowDone();
+	} else {
+		if (!tailFollowCurrentDir || !tailFollowCurrentFile) {
+			return;
+		}
+
+		$('#tailFollowStopButton')
+			.text('Stop')
+			.removeClass('btn-success')
+			.addClass('btn-warning');
+		$('#tailFollowCloseButton').prop('disabled', true);
+
+		var pre = document.getElementById('tailFollowText');
+		if (pre) {
+			pre.textContent += '\n\n--- Restarting stream ---\n';
+		}
+
+		startTailFollowStream(TAIL_FOLLOW_DEFAULT_LINES);
+	}
+}
+
+function TailFollowDone () {
+	tailFollowXHR = null;
+	$('#tailFollowStopButton')
+		.text('Start')
+		.removeClass('btn-warning')
+		.addClass('btn-success');
+	$('#tailFollowCloseButton').prop('disabled', false);
+}
+
 function ViewFileImpl (url, file, html = '') {
 	var options = {
 		id: 'fileViewerDialog',

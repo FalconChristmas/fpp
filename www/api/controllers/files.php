@@ -1062,3 +1062,131 @@ function DeleteDir()
 
     return json(array("status" => $status, "subdir" => $subDir, "dir" => $dirName));
 }
+
+/*
+* Returns the validated real path
+*/
+function ResolveTailFollowPath($dirName, $fileName)
+{
+    if (strtolower($dirName) != "logs") {
+        return null;
+    }
+
+    $dir = MapDirectoryKey($dirName);
+
+    if (substr($fileName, 0, 8) == "var/log/") {
+        $dir = "/var/log";
+        $fileName = substr($fileName, 8);
+    }
+
+    $fullPath = $dir . '/' . $fileName;
+
+    // validate path to prevent directory traversal
+    $realDir = realpath($dir);
+    $realPath = realpath($fullPath);
+
+    if (!$realDir || !$realPath || strpos($realPath, $realDir) !== 0) {
+        return null;
+    }
+
+    return $realPath;
+}
+
+/*
+* POST /api/file/:DirName/tailfollow/*
+* Stops a running tail -f process
+*/
+function StopTailFollow()
+{
+    $dirName = params("DirName");
+    $fileName = params(0);
+
+    $realPath = ResolveTailFollowPath($dirName, $fileName);
+    if (!$realPath) {
+        http_response_code(403);
+        return json(array("status" => "error", "message" => "Only allowed for logs"));
+    }
+
+    // kill tail processes tailing this file using SIGTERM
+    exec("pkill -f " . escapeshellarg("timeout.*tail.*" . $realPath) . " 2>/dev/null");
+
+    return json(array("status" => "ok"));
+}
+
+/*
+* GET /api/file/:DirName/tailfollow/*
+* Streams log file content in real-time (tail -f)
+* Optional query param: ?lines=N (default 100, max 1000)
+*/
+function TailFollowFile()
+{
+    $dirName = params("DirName");
+    $fileName = params(0);
+
+    $realPath = ResolveTailFollowPath($dirName, $fileName);
+    if (!$realPath) {
+        http_response_code(403);
+        echo "Tail follow is only allowed for log files.";
+        return;
+    }
+
+    if (!is_file($realPath)) {
+        http_response_code(404);
+        echo "File not found: $fileName";
+        return;
+    }
+
+    $fullPath = $realPath;
+
+    $lines = 100;
+    if (isset($_GET['lines'])) {
+        $lines = intval($_GET['lines']);
+        if ($lines < 1) $lines = 1;
+        if ($lines > 1000) $lines = 1000;
+    }
+
+    DisableOutputBuffering();
+
+    header('Content-Type: text/plain; charset=utf-8');
+    header('Cache-Control: no-cache');
+    header('Connection: keep-alive');
+
+    $descriptorspec = array(
+        0 => array("pipe", "r"),
+        1 => array("pipe", "w"),
+        2 => array("file", "/dev/null", "w")
+    );
+
+    // 300 second timeout to prevent runaway processes
+    $cmd = "timeout 300 tail -n " . $lines . " -f " . escapeshellarg($fullPath) . " 2>&1";
+    $process = proc_open($cmd, $descriptorspec, $pipes);
+
+    if (!is_resource($process)) {
+        http_response_code(500);
+        echo "Failed to start tail process.";
+        return;
+    }
+
+    fclose($pipes[0]);
+    stream_set_blocking($pipes[1], false);
+
+    while (!feof($pipes[1])) {
+        $read = array($pipes[1]);
+        $write = $except = null;
+
+        if (stream_select($read, $write, $except, 0, 100000)) {
+            $data = fread($pipes[1], 4096);
+            if ($data !== false && strlen($data) > 0) {
+                echo $data;
+                flush();
+            }
+        }
+        if (connection_aborted()) {
+            break;
+        }
+    }
+
+    // cleanup
+    fclose($pipes[1]);
+    proc_close($process);
+}
