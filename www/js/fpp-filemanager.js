@@ -164,7 +164,12 @@ function formatBytes (bytes) {
 }
 
 function UpdateFileCount ($dir) {
-	const visibleRows = $('#tbl' + $dir + ' tbody tr')
+	var fileCountEl = $('#fileCount_' + $dir)[0];
+	if (!fileCountEl) {
+		return; // Element doesn't exist, skip update
+	}
+
+	fileCountEl.innerText = $('#tbl' + $dir + ' tbody tr')
 		.not('.unselectableRow')
 		.not('.filtered');
 
@@ -195,8 +200,10 @@ function UpdateFileCount ($dir) {
 
 	if ($('#tbl' + $dir + ' tbody tr.filtered').length > 0) {
 		//is filtered
-		$('#div' + $dir + ' .fileCountlabelHeading')[0].innerHTML =
-			'<span class="filtered">Filtered items:<span>';
+		var headingEl = $('#div' + $dir + ' .fileCountlabelHeading')[0];
+		if (headingEl) {
+			headingEl.innerHTML = '<span class="filtered">Filtered items:<span>';
+		}
 		$('#fileCount_' + $dir)
 			.removeClass('text-bg-secondary')
 			.addClass('text-bg-success');
@@ -205,8 +212,10 @@ function UpdateFileCount ($dir) {
 			.addClass('text-bg-success');
 	} else {
 		//not filtered
-		$('#div' + $dir + ' .fileCountlabelHeading')[0].innerHTML =
-			'<span class="">Items:<span>';
+		var headingEl = $('#div' + $dir + ' .fileCountlabelHeading')[0];
+		if (headingEl) {
+			headingEl.innerHTML = '<span class="">Items:<span>';
+		}
 		$('#fileCount_' + $dir)
 			.removeClass('text-bg-success')
 			.addClass('text-bg-secondary');
