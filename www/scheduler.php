@@ -498,7 +498,7 @@ error_reporting(E_ALL);
 
         function GetScheduleEntryRowData(item) {
             var schType = $(item).find('.schType').val();
-            e = {};
+            var e = {};
             e.enabled = $(item).find('.schEnable').is(':checked') ? 1 : 0;
             e.sequence = 0;
 
@@ -525,10 +525,10 @@ error_reporting(E_ALL);
 
                 if (json == '') {
                     var cmd = {};
-                    cmd.command = command;
+                    cmd.command = $(item).find('.cmdTmplCommand').val() || '';
                     cmd.args = [];
                     json = JSON.stringify(cmd);
-                    $(row).find('.cmdTmplJSON').html(json);
+                    $(item).find('.cmdTmplJSON').html(json);
                 }
 
                 // Just in case, FPP Commands can't immediately repeat so disable
@@ -540,7 +540,7 @@ error_reporting(E_ALL);
 
                 var jdata = JSON.parse(json);
                 e.playlist = '';
-                e.command = $(item).find('.cmdTmplCommand').val();
+                e.command = $(item).find('.cmdTmplCommand').val() || '';
                 e.args = jdata.args;
 
                 if (jdata.hasOwnProperty('multisyncCommand')) {
