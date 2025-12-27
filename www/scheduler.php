@@ -19,7 +19,7 @@ error_reporting(E_ALL);
     foreach ($data as $cmd) {
         // Disallow Start Playlist FPP command to be scheduled.  Instead schedule a playlist
         // It only half works, and provides less functionality than scheduling a playlist directly on the same screen.
-        if ($cmd['name'] !== 'Start Playlist') { 
+        if ($cmd['name'] !== 'Start Playlist') {
             $commandOptions .= "<option value='" . $cmd['name'] . "'>" . $cmd['name'] . "</option>";
         }
     }
@@ -183,6 +183,7 @@ error_reporting(E_ALL);
                 }
             }
 
+            ValidateScheduleRow(row);
             SetupDatePicker(row);
         }
         function formatDate(date) {
@@ -380,6 +381,38 @@ error_reporting(E_ALL);
 
         }
 
+        function ValidateScheduleRow(row) {
+            var schType = $(row).find('.schType').val();
+            var isValid = true;
+
+            // Remove previous warnings
+            $(row).find('.schPlaylist').removeClass('inputWarning');
+            $(row).find('.schSequence').removeClass('inputWarning');
+            $(row).find('.cmdTmplCommand').removeClass('inputWarning');
+
+            if (schType == 'playlist') {
+                var playlistVal = $(row).find('.schPlaylist').val();
+                if (!playlistVal || playlistVal === '' || playlistVal === 'null') {
+                    $(row).find('.schPlaylist').addClass('inputWarning');
+                    isValid = false;
+                }
+            } else if (schType == 'sequence') {
+                var sequenceVal = $(row).find('.schSequence').val();
+                if (!sequenceVal || sequenceVal === '' || sequenceVal === 'null') {
+                    $(row).find('.schSequence').addClass('inputWarning');
+                    isValid = false;
+                }
+            } else if (schType == 'command') {
+                var commandVal = $(row).find('.cmdTmplCommand').val();
+                if (!commandVal || commandVal === '' || commandVal === 'null') {
+                    $(row).find('.cmdTmplCommand').addClass('inputWarning');
+                    isValid = false;
+                }
+            }
+
+            return isValid;
+        }
+
         function ScheduleEntryRepeatChanged(item) {
             var row = $(item).parent().parent();
 
@@ -398,6 +431,8 @@ error_reporting(E_ALL);
             } else {
                 $(row).removeClass('inputWarning');
             }
+
+            ValidateScheduleRow(row);
 
             if ($(item).val() == 'playlist') {
                 // Playlist
@@ -578,6 +613,10 @@ error_reporting(E_ALL);
 
             $('#tblScheduleBody > tr').each(function () {
                 var entry = GetScheduleEntryRowData($(this));
+
+                // Validate dropdowns for null/invalid values
+                ValidateScheduleRow($(this));
+
                 if ((settings['fppMode'] != 'player') && (entry.enabled) && (entry.playlist != '')) {
                     showTypeWarning = true;
                     $(this).addClass('inputWarning');
@@ -865,11 +904,13 @@ error_reporting(E_ALL);
                                         </select>
                                     </td>
                                     <td class='schOptionsPlaylist'>
-                                        <select class='schPlaylist' title=''>
+                                        <select class='schPlaylist' title=''
+                                            onChange='ValidateScheduleRow($(this).parent().parent());'>
                                         </select>
                                     </td>
                                     <td class='schOptionsSequence'>
-                                        <select class='schSequence' title=''>
+                                        <select class='schSequence' title=''
+                                            onChange='ValidateScheduleRow($(this).parent().parent());'>
                                         </select>
                                     </td>
                                     <td class='schOptionsPlaylist schOptionsSequence' class=''>
@@ -881,9 +922,10 @@ error_reporting(E_ALL);
                                     </td>
                                     <td class='schOptionsCommand' colspan='2'>
                                         <select class='cmdTmplCommand'
-                                            onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
-                                        <img class='cmdTmplTooltipIcon' title='' data-bs-html='true' data-bs-toggle='tooltip'
-                                            src='images/redesign/help-icon.svg' width=22 height=22>
+                                            onChange='EditCommandTemplate($(this).parent().parent()); ValidateScheduleRow($(this).parent().parent());'><? echo $commandOptions; ?></select>
+                                        <img class='cmdTmplTooltipIcon' title='' data-bs-html='true'
+                                            data-bs-toggle='tooltip' src='images/redesign/help-icon.svg' width=22
+                                            height=22>
                                         <input type='button' class='buttons reallySmallButton' value='Edit'
                                             onClick='EditCommandTemplate($(this).parent().parent());'>
                                         <input type='button' class='buttons smallButton' value='Run Now'
