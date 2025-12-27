@@ -90,8 +90,16 @@
                 },
                 "Filesystems": {
                     "title": "Filesystems",
-                    "description": "",
-                    "cmd": "df -h ; echo ''; du -sh /home/fpp/media/*/ | sort -h",
+                    "description": "File System Layout and Usage",
+                    "cmd": "df -h",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "MediaDirectoryUsage": {
+                    "title": "Media Directory Usage",
+                    "description": "Media Directory Usage ordered largest to smallest",
+                    "cmd": "du -sh /home/fpp/media/*/ | sort -rh",
                     "platforms": [
                         "all"
                     ]
