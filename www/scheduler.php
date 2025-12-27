@@ -337,7 +337,16 @@ error_reporting(E_ALL);
         function SetupDatePicker(item) {
             if (hasTouch && window.innerWidth < 601) {
                 //use native date picker for small touchscreens (datepicker widget is bad experience on mobile)
-                $(item).attr('type', 'date');
+                //but skip if field contains a holiday name
+                $(item).each(function() {
+                    var val = $(this).val();
+                    if (val && !val.match(/^\d{4}[-\/]\d{2}[-\/]\d{2}$/)) {
+                        // value is a holiday, don't convert to native date picker
+                        // as it would clear the holiday value
+                        return true;
+                    }
+                    $(this).attr('type', 'date');
+                });
             } else {
                 $(item).datepicker({
                     'changeMonth': true,
@@ -490,7 +499,19 @@ error_reporting(E_ALL);
             var val = $(item).val();
             var re = new RegExp(/^\d{4}[-/]\d{2}[-/]\d{2}$/i);
             if (!val.match(re)) {
-                $(item).val(MAXYEAR + "-12-31");
+                // check if value is a valid holiday name before replacing
+                var isHoliday = false;
+                if (settings['locale'] && settings['locale']['holidays']) {
+                    for (var i in settings['locale']['holidays']) {
+                        if (settings['locale']['holidays'][i]['shortName'] == val) {
+                            isHoliday = true;
+                            break;
+                        }
+                    }
+                }
+                if (!isHoliday) {
+                    $(item).val(MAXYEAR + "-12-31");
+                }
             }
         }
 
