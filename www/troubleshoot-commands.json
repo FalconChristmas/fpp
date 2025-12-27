@@ -91,7 +91,7 @@
                 "Filesystems": {
                     "title": "Filesystems",
                     "description": "",
-                    "cmd": "df -k",
+                    "cmd": "df -h ; echo ''; du -sh /home/fpp/media/*/ | sort -h",
                     "platforms": [
                         "all"
                     ]
