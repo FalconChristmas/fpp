@@ -1904,7 +1904,7 @@ void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>>& r
     }
     for (auto const& [st, cnt] : ranges) {
         if (!isWithinRange(m_rangesToRead, st, cnt)) {
-            LogErr(VB_SEQUENCE, "Requested ouput range outside read ranges. Requested %d channels starting at %d\n", cnt, st);
+            LogErr(VB_SEQUENCE, "Requested output range outside read ranges. Requested %d channels starting at %d\n", cnt, st);
         }
     }
     m_handler->prepareRead(startFrame);
