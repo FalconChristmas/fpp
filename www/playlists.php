@@ -592,6 +592,10 @@
                                             class="dropdown-item ">Rename Playlist</a>
                                         <a href="#" value="Randomize" onclick="RandomizePlaylistEntries();"
                                             class="dropdown-item ">Randomize Playlist</a>
+                                        <a href="#" value="SortASC" onclick="SortPlaylistEntries(false);"
+                                            class="dropdown-item ">Sort Playlist ASC</a>
+                                        <a href="#" value="SortDESC" onclick="SortPlaylistEntries(true);"
+                                            class="dropdown-item ">Sort Playlist DESC</a>
                                         <a href="#" value="Export" onclick="ExportPlaylist();"
                                             class="dropdown-item ">Export Playlist</a>
                                         <a href="#" value="Reset" onclick="EditPlaylist();" class="dropdown-item ">Reset

@@ -2932,23 +2932,97 @@ function SavePlaylistAs (name, options, callback) {
 }
 
 function RandomizePlaylistEntries () {
-	$('#randomizeBuffer').html($('#tblPlaylistMainPlaylist').html());
+	$('#playlistBuffer').html($('#tblPlaylistMainPlaylist').html());
 	$('#tblPlaylistMainPlaylist').empty();
 
-	var itemsLeft = $('#randomizeBuffer > tr').length;
+	var itemsLeft = $('#playlistBuffer > tr').length;
 	while (itemsLeft > 0) {
 		var x = Math.floor(Math.random() * Math.floor(itemsLeft)) + 1;
-		var item = $('#randomizeBuffer > tr:nth-child(' + x + ')').clone();
-		$('#randomizeBuffer > tr:nth-child(' + x + ')').remove();
-
+		var item = $('#playlistBuffer > tr:nth-child(' + x + ')').clone();
+		$('#playlistBuffer > tr:nth-child(' + x + ')').remove();
 		$('#tblPlaylistMainPlaylist').append(item);
 
-		itemsLeft = $('#randomizeBuffer > tr').length;
+		itemsLeft = $('#playlistBuffer > tr').length;
 	}
 
 	RenumberPlaylistEditorEntries();
 
 	//    $('.playlistEntriesBody').sortable('refresh').sortable('refreshPositions');
+}
+
+function getPlaylistEntrySortKey (row) {
+	var type = $(row).find('.entryType').html();
+	var sortKey = '';
+
+	// Map types to their sortable field
+	switch (type) {
+		case 'both':
+			sortKey = $(row).find('.field_sequenceName').text();
+			break;
+		case 'sequence':
+			sortKey = $(row).find('.field_sequenceName').text();
+			break;
+		case 'media':
+			sortKey = $(row).find('.field_mediaName').text();
+			break;
+		case 'playlist':
+			sortKey = $(row).find('.field_name').text();
+			break;
+		case 'script':
+			sortKey = $(row).find('.field_scriptName').text();
+			break;
+		case 'command':
+			sortKey = $(row).find('.field_command').text();
+			break;
+		case 'image':
+			sortKey = $(row).find('.field_imagePath').text();
+			break;
+		case 'url':
+			sortKey = $(row).find('.field_url').text();
+			break;
+		case 'pause':
+			sortKey = String($(row).find('.field_duration').html()).padStart(10, '0');
+			break;
+		default:
+			sortKey = $(row).find('.psiDataSimple').text();
+	}
+
+	return sortKey.toLowerCase();
+}
+
+function SortPlaylistEntries (descending) {
+	var sections = ['LeadIn', 'MainPlaylist', 'LeadOut'];
+
+	sections.forEach(function (section) {
+		var tableId = '#tblPlaylist' + section;
+
+		// Copy rows to buffer; same as RandomizePlaylistEntries
+		$('#playlistBuffer').html($(tableId).html());
+		$(tableId).empty();
+
+		var rows = $('#playlistBuffer > tr').toArray();
+
+		if (rows.length === 0) {
+			return;
+		}
+
+		// Sort rows by their sort key
+		rows.sort(function (a, b) {
+			var keyA = getPlaylistEntrySortKey(a);
+			var keyB = getPlaylistEntrySortKey(b);
+			var result = keyA.localeCompare(keyB);
+			return descending ? -result : result;
+		});
+
+		rows.forEach(function (row) {
+			$(tableId).append($(row).clone());
+		});
+
+		$('#playlistBuffer').empty();
+	});
+
+	RenumberPlaylistEditorEntries();
+	markCurrentPlaylistModified();
 }
 
 function GetTimeZone () {

@@ -307,5 +307,5 @@ if (!isset($simplifiedPlaylist)) {
 </div>
 
 
-<span id='randomizeBuffer' style='display: none;'>
+<span id='playlistBuffer' style='display: none;'>
 </span>
