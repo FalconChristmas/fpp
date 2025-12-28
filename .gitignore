@@ -80,3 +80,4 @@ www/warnings.json
 www/warnings_full.json
 fppdLog.txt
 _notes
+.phpunit.result.cache

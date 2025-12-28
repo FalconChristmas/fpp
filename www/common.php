@@ -1,5 +1,6 @@
 <?php
 require_once "config.php";
+require_once __DIR__ . '/lib/bootstrap.php';
 
 function check($var, $var_name = "", $function_name = "")
 {
