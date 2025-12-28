@@ -12,7 +12,6 @@
  */
 
 #include <map>
-#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -60,15 +59,11 @@
 
 class ScheduledItem {
 public:
-    ScheduledItem();
-    ScheduledItem(ScheduledItem* item);
-    ~ScheduledItem() {}
-
-    int priority;
-    ScheduleEntry* entry;
-    int entryIndex;
+    ScheduleEntry* const entry;
+    int const priority;
+    int const entryIndex;
     bool ran;
-    time_t startTime;
+    time_t const startTime;
     time_t endTime;
     std::string command;
     Json::Value args;
@@ -93,7 +88,7 @@ public:
     Json::Value GetSchedule(void);
 
 private:
-    using ScheduledItemVec = std::vector<std::unique_ptr<ScheduledItem>>;
+    using ScheduledItemVec = std::vector<ScheduledItem>;
 
     void AddScheduledItems(ScheduleEntry* entry, int index);
     void DumpScheduledItem(const std::time_t itemTime, const ScheduledItem& item);

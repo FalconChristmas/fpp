@@ -40,22 +40,8 @@ Scheduler* scheduler = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
-ScheduledItem::ScheduledItem() :
-    priority(1),
-    entry(nullptr),
-    ran(false) {
-}
-
-ScheduledItem::ScheduledItem(ScheduledItem* item) {
-    priority = item->priority;
-    entry = nullptr;
-    entryIndex = item->entryIndex;
-    ran = item->ran;
-    startTime = item->startTime;
-    endTime = item->endTime;
-    command = item->command;
-    args = item->args;
-}
+// Test assumptions
+static_assert(std::is_move_constructible_v<ScheduledItem>);
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -80,8 +66,7 @@ Scheduler::Scheduler() :
     LoadScheduleFromFile();
 }
 
-Scheduler::~Scheduler() {
-}
+Scheduler::~Scheduler() = default;
 
 void Scheduler::ScheduleProc(void) {
     time_t procTime = time(NULL);
@@ -134,25 +119,25 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
         LogExcess(VB_SCHEDULE, "Checking scheduled items:\n");
         for (auto& item : itemTime.second) {
             if (WillLog(LOG_EXCESSIVE, VB_SCHEDULE))
-                DumpScheduledItem(item->startTime, *item);
-            if (item->command == "Start Playlist") {
-                if (item->endTime <= now) {
+                DumpScheduledItem(item.startTime, item);
+            if (item.command == "Start Playlist") {
+                if (item.endTime <= now) {
                     LogExcess(VB_SCHEDULE, "End time is in the past, skipping item\n");
                     continue;
                 }
 
                 bool ir = ignoreRepeat;
-                if (m_forcedNextPlaylist == item->entryIndex) {
+                if (m_forcedNextPlaylist == item.entryIndex) {
                     LogExcess(VB_SCHEDULE, "This item entry index == m_forcedNextPlaylist\n");
                     ir = true;
                 }
 
                 if (((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) ||
-                     (Player::INSTANCE.GetPlaylistName() != item->entry->playlist)) &&
-                    (forceStopped != item->entryIndex) &&
-                    (item->entry->repeat || ir)) {
+                     (Player::INSTANCE.GetPlaylistName() != item.entry->playlist)) &&
+                    (forceStopped != item.entryIndex) &&
+                    (item.entry->repeat || ir)) {
                     LogExcess(VB_SCHEDULE, "Item run status reset\n");
-                    item->ran = false;
+                    item.ran = false;
                 }
             }
         }
@@ -175,14 +160,14 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int& repeat) {
         }
 
         for (auto& item : itemTime.second) {
-            if (item->command == "Start Playlist") {
+            if (item.command == "Start Playlist") {
                 // Skip things that should have ended in the past
-                if (item->endTime <= now) {
+                if (item.endTime <= now) {
                     continue;
                 }
 
-                repeat = item->entry->repeat;
-                return item->entry->playlist;
+                repeat = item.entry->repeat;
+                return item.entry->playlist;
             }
         }
     }
@@ -199,7 +184,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
     if (!entry->enabled)
         return;
 
-    if (entry->playlist != "") {
+    if (!entry->playlist.empty()) {
         std::string playlistFile;
         std::string warning = "Scheduled ";
 
@@ -351,48 +336,46 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
             continue;
         }
 
-        auto newItem = std::make_unique<ScheduledItem>();
+        auto& vec = m_scheduledItems[startTime];
+        vec.push_back({ .entry = entry,
+                        .priority = index, // change this if we add a priority field
+                        .entryIndex = index,
+                        .ran = false,
+                        .startTime = startTime,
+                        .endTime = startTime });
+        ScheduledItem& newItem = vec.back();
 
-        newItem->entry = entry;
-        newItem->entryIndex = index;
-        newItem->priority = index; // change this if we add a priority field
-        newItem->startTime = startTime;
-        newItem->endTime = startTime;
-
-        if (entry->playlist != "") {
+        if (!entry->playlist.empty()) {
             // Old style schedule entry without a FPP Command
             Json::Value args(Json::arrayValue);
             args.append(entry->playlist);
             args.append(entry->repeat ? "true" : "false");
             args.append("false");
 
-            newItem->command = "Start Playlist";
-            newItem->args = args;
-            newItem->endTime = endTime;
+            newItem.command = "Start Playlist";
+            newItem.args = std::move(args);
+            newItem.endTime = endTime;
 
             // Check to see if this item already ran
-            if (auto it = m_ranItems.find(newItem->startTime); it != m_ranItems.end()) {
+            if (auto it = m_ranItems.find(newItem.startTime); it != m_ranItems.end()) {
                 for (auto& item : it->second) {
-                    if ((newItem->command == item->command) &&
-                        (newItem->startTime == item->startTime) &&
-                        (newItem->endTime == item->endTime) &&
-                        (newItem->args.size() == item->args.size()) &&
-                        ((!newItem->args.size() && !item->args.size()) ||
-                         (newItem->args[0].asString() == item->args[0].asString()))) {
+                    if ((newItem.command == item.command) &&
+                        (newItem.startTime == item.startTime) &&
+                        (newItem.endTime == item.endTime) &&
+                        (newItem.args.size() == item.args.size()) &&
+                        ((!newItem.args.size() && !item.args.size()) ||
+                         (newItem.args[0].asString() == item.args[0].asString()))) {
                         LogDebug(VB_SCHEDULE, "Marking playlist item as already ran:\n");
-                        DumpScheduledItem(newItem->startTime, *newItem);
-                        newItem->ran = true;
+                        DumpScheduledItem(newItem.startTime, newItem);
+                        newItem.ran = true;
                     }
                 }
             }
         } else {
             // New style schedule entry with a FPP Command
-            newItem->command = entry->command;
-            newItem->args = entry->args;
+            newItem.command = entry->command;
+            newItem.args = entry->args;
         }
-
-        auto& vec = m_scheduledItems[startTime];
-        vec.push_back(std::move(newItem));
     }
 }
 
@@ -418,7 +401,7 @@ void Scheduler::DumpScheduledItems() {
 
     for (const auto& itemTime : m_scheduledItems) {
         for (const auto& item : itemTime.second) {
-            DumpScheduledItem(itemTime.first, *item);
+            DumpScheduledItem(itemTime.first, item);
         }
     }
 }
@@ -443,16 +426,16 @@ void Scheduler::doCountdown(const std::time_t now, const std::time_t itemTime, c
                  diff == 1 ? "" : "s");
 
         for (auto& item : items) {
-            if ((item->command == "Start Playlist") &&
+            if ((item.command == "Start Playlist") &&
                 (diff < 1000)) {
                 char tmpStr[27];
                 std::map<std::string, std::string> keywords;
                 snprintf(tmpStr, 26, "PLAYLIST_START_TMINUS_%03d", diff);
-                keywords["PLAYLIST_NAME"] = item->entry->playlist;
+                keywords["PLAYLIST_NAME"] = item.entry->playlist;
                 CommandManager::INSTANCE.TriggerPreset(tmpStr, keywords);
             }
 
-            DumpScheduledItem(itemTime, *item);
+            DumpScheduledItem(itemTime, item);
         }
     }
 }
@@ -527,10 +510,10 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
             std::string playlistName = Player::INSTANCE.GetPlaylistName();
             if (auto it = m_scheduledItems.find(oldStartTime); it != m_scheduledItems.end()) {
                 for (auto& oldItem : it->second) {
-                    if ((oldItem->command == "Start Playlist") &&
-                        (oldItem->entry->playlist == playlistName)) {
-                        oldItem->ran = false;
-                        m_forcedNextPlaylist = oldItem->entryIndex;
+                    if ((oldItem.command == "Start Playlist") &&
+                        (oldItem.entry->playlist == playlistName)) {
+                        oldItem.ran = false;
+                        m_forcedNextPlaylist = oldItem.entryIndex;
                     }
                 }
             }
@@ -595,22 +578,22 @@ void Scheduler::CheckScheduledItems(bool restarted) {
         }
 
         for (auto& item : itemTime.second) {
-            if (item->ran)
+            if (item.ran)
                 continue; // skip over any items that ran already
 
-            if (item->command == "Start Playlist") {
-                if (!doScheduledPlaylist(now, itemTime.first, *item, restarted)) {
+            if (item.command == "Start Playlist") {
+                if (!doScheduledPlaylist(now, itemTime.first, item, restarted)) {
                     continue;
                 }
             } else {
                 if (itemTime.first < now) {
-                    SetItemRan(*item, true);
+                    SetItemRan(item, true);
                     continue; // skip any FPP Commands that are in the past
                 }
-                doScheduledCommand(itemTime.first, *item);
+                doScheduledCommand(itemTime.first, item);
             }
 
-            SetItemRan(*item, true);
+            SetItemRan(item, true);
         }
     }
 }
@@ -623,17 +606,17 @@ void Scheduler::SetItemRan(ScheduledItem& item, bool ran) {
     item.ran = ran;
 
     auto& vec = m_ranItems[item.startTime];
-    auto it = std::find_if(vec.begin(), vec.end(), [&](std::unique_ptr<ScheduledItem>& ranItem) {
-        return item.command == ranItem->command &&
-               item.startTime == ranItem->startTime &&
-               item.endTime == ranItem->endTime &&
-               item.args.size() == ranItem->args.size() &&
-               (item.args.empty() || item.args[0].asString() == ranItem->args[0].asString());
+    auto it = std::find_if(vec.begin(), vec.end(), [&](const ScheduledItem& ranItem) {
+        return item.command == ranItem.command &&
+               item.startTime == ranItem.startTime &&
+               item.endTime == ranItem.endTime &&
+               item.args.size() == ranItem.args.size() &&
+               (item.args.empty() || item.args[0].asString() == ranItem.args[0].asString());
     });
     if (it != vec.end()) {
-        (*it)->ran = ran;
+        it->ran = ran;
     } else {
-        vec.push_back(std::make_unique<ScheduledItem>(item));
+        vec.push_back(item);
     }
 }
 
@@ -673,7 +656,7 @@ void Scheduler::LoadScheduleFromFile(void) {
 
         if ((getFPPmode() != PLAYER_MODE) &&
             (scheduleEntry.enabled) &&
-            (scheduleEntry.playlist != "")) {
+            (!scheduleEntry.playlist.empty())) {
             std::string warning = std::string("Playlist '") + scheduleEntry.playlist +
                                   "' was scheduled but system is running in Remote mode.";
             LogWarn(VB_SCHEDULE, "%s\n", warning.c_str());
@@ -682,7 +665,7 @@ void Scheduler::LoadScheduleFromFile(void) {
         }
 
         if ((scheduleEntry.enabled) &&
-            (scheduleEntry.playlist != "") &&
+            (!scheduleEntry.playlist.empty()) &&
             (!FileExists(playlistFile))) {
             LogErr(VB_SCHEDULE, "ERROR: Scheduled %s '%s' does not exist\n",
                    scheduleEntry.sequence ? "Sequence" : "Playlist",
@@ -736,9 +719,9 @@ void Scheduler::SchedulePrint(void) {
                 (int)(m_Schedule[i].endDate % 100),
                 dayStr.c_str(),
                 m_Schedule[i].startTimeStr.c_str(),
-                m_Schedule[i].playlist != "" ? '-' : ' ',
-                m_Schedule[i].playlist != "" ? m_Schedule[i].endTimeStr.c_str() : "",
-                m_Schedule[i].playlist != "" ? m_Schedule[i].playlist.c_str() : m_Schedule[i].command.c_str());
+                m_Schedule[i].playlist.empty() ? ' ' : '-',
+                m_Schedule[i].playlist.empty() ? "" : m_Schedule[i].endTimeStr.c_str(),
+                m_Schedule[i].playlist.empty() ? m_Schedule[i].command.c_str() : m_Schedule[i].playlist.c_str());
     }
 
     LogDebug(VB_SCHEDULE, "//////////////////////////////////////////////////\n");
@@ -750,11 +733,11 @@ ScheduledItem* Scheduler::GetNextScheduledPlaylist() {
 
     for (auto& itemTime : m_scheduledItems) {
         for (auto& item : itemTime.second) {
-            if (item->ran)
+            if (item.ran)
                 continue; // skip over any items that ran already
 
-            if (item->command == "Start Playlist")
-                return item.get();
+            if (item.command == "Start Playlist")
+                return &item;
         }
     }
 
@@ -945,12 +928,7 @@ Json::Value Scheduler::GetSchedule() {
     for (int i = 0; i < m_Schedule.size(); i++) {
         entry = m_Schedule[i].GetJson();
         entry["id"] = i;
-
-        if (m_Schedule[i].playlist != "")
-            entry["type"] = "playlist";
-        else
-            entry["type"] = "command";
-
+        entry["type"] = m_Schedule[i].playlist.empty() ? "command" : "playlist";
         entry["dayStr"] = GetDayTextFromDayIndex(m_Schedule[i].dayIndex);
 
         entries.append(entry);
@@ -1003,35 +981,35 @@ Json::Value Scheduler::GetSchedule() {
 
     for (auto& itemTime : m_scheduledItems) {
         for (auto& item : itemTime.second) {
-            if (item->ran)
+            if (item.ran)
                 continue;
 
-            scheduledItem["priority"] = item->priority;
-            scheduledItem["id"] = item->entryIndex;
+            scheduledItem["priority"] = item.priority;
+            scheduledItem["id"] = item.entryIndex;
 
-            localtime_r(&item->startTime, &timeStruct);
+            localtime_r(&item.startTime, &timeStruct);
             strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             scheduledItem["startTimeStr"] = timeStr;
-            scheduledItem["startTime"] = (Json::UInt64)item->startTime;
+            scheduledItem["startTime"] = (Json::UInt64)item.startTime;
 
             strftime(timeStr, 32, "%Y%m%d", &timeStruct);
             scheduledItem["startDateStr"] = timeStr;
             scheduledItem["startDateInt"] = atoi(timeStr);
 
-            localtime_r(&item->endTime, &timeStruct);
+            localtime_r(&item.endTime, &timeStruct);
             strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             scheduledItem["endTimeStr"] = timeStr;
-            scheduledItem["endTime"] = (Json::UInt64)item->endTime;
+            scheduledItem["endTime"] = (Json::UInt64)item.endTime;
 
             strftime(timeStr, 32, "%Y%m%d", &timeStruct);
             scheduledItem["endDateStr"] = timeStr;
             scheduledItem["endDateInt"] = atoi(timeStr);
 
-            scheduledItem["command"] = item->command;
+            scheduledItem["command"] = item.command;
 
-            scheduledItem["args"] = item->args;
-            scheduledItem["multisyncCommand"] = item->entry->multisyncCommand;
-            scheduledItem["multisyncHosts"] = item->entry->multisyncHosts;
+            scheduledItem["args"] = item.args;
+            scheduledItem["multisyncCommand"] = item.entry->multisyncCommand;
+            scheduledItem["multisyncHosts"] = item.entry->multisyncHosts;
 
             items.append(scheduledItem);
         }
@@ -1060,7 +1038,7 @@ bool Scheduler::StartNextScheduledItemNow() {
         }
 
         LogDebug(VB_SCHEDULE, "Force-Starting next scheduled playlist now:\n");
-        DumpScheduledItem(item->startTime, item);
+        DumpScheduledItem(item->startTime, *item);
 
         time_t now = time(NULL);
         Player::INSTANCE.StartScheduledPlaylist(item->entry->playlist, 0,
