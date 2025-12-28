@@ -338,7 +338,7 @@ error_reporting(E_ALL);
             if (hasTouch && window.innerWidth < 601) {
                 //use native date picker for small touchscreens (datepicker widget is bad experience on mobile)
                 //but skip if field contains a holiday name
-                $(item).each(function() {
+                $(item).each(function () {
                     var val = $(this).val();
                     if (val && !val.match(/^\d{4}[-\/]\d{2}[-\/]\d{2}$/)) {
                         // value is a holiday, don't convert to native date picker
@@ -852,7 +852,8 @@ error_reporting(E_ALL);
                         </div>
                     </div>
                     <div class='fppTableWrapper'>
-                        <div class='fppTableContents' role="region" aria-labelledby="tblSchedule" tabindex="0">
+                        <div class='fppTableContents fppFThScrollContainer' role="region" aria-labelledby="tblSchedule"
+                            tabindex="0">
                             <div id='remoteEntryTypeWarning' style='display: none;' class='inputWarning'>
                                 <b>WARNING: Non-Command schedule entries found. Scheduled Playlist/Sequence entries are
                                     ignored on FPP systems running in Remote mode.</b>
