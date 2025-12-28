@@ -6851,8 +6851,8 @@ function TailFollowFile (dir, file, lines = 50) {
 	var options = {
 		id: 'tailFollowDialog',
 		title: 'Tail Follow: ' + file,
-		body: "<pre id='tailFollowText' class='fileText' style='margin: 0; padding: 10px; background: #000; color: #0f0; max-height: 600px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;'></pre>",
-		class: 'modal-dialog-scrollable modal-xl',
+		body: "<pre id='tailFollowText' class='fileText' style='margin: 0; padding: 10px; background: #000; color: #0f0; max-height: 65vh; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;'></pre>",
+		class: 'modal-xl',
 		keyboard: false,
 		backdrop: 'static',
 		buttons: {
