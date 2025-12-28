@@ -122,3 +122,75 @@ if (isset($settings['backgroundColor']) && $settings['backgroundColor'] != "") {
 <?
 }
 ?>
+
+<?php
+if (GetSettingValue('enableReadabilityFix')) {
+?>
+<script>
+function hexToRgb(hex) {
+    hex = hex.replace(/^#/, '');
+    if (hex.length === 3) {
+        hex = hex.split('').map(char => char + char).join('');
+    }
+    const num = parseInt(hex, 16);
+    return { r: num >> 16, g: (num >> 8) & 255, b: num & 255 };
+}
+
+function getLuminance(rgb) {
+    return (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+}
+
+function adjustHeaderText() {
+    const header = document.querySelector('.header');
+    if (!header) return;
+
+    let bgColor = window.getComputedStyle(header).backgroundColor;
+    let rgb;
+    if (bgColor.startsWith('rgb')) {
+        const rgbStr = bgColor.match(/\d+/g);
+        rgb = { r: parseInt(rgbStr[0]), g: parseInt(rgbStr[1]), b: parseInt(rgbStr[2]) };
+    } else if (bgColor.startsWith('#')) {
+        rgb = hexToRgb(bgColor);
+    } else {
+        return;
+    }
+
+    const luminance = getLuminance(rgb);
+    const textElements = header.querySelectorAll('a, span, p, div, li, small, i');
+
+    textElements.forEach(el => {
+        if (luminance > 0.55) {
+            el.style.color = 'black';
+        } else {
+            el.style.color = 'white';
+        }
+    });
+
+    // Fix top left falcon logos (both falconlogo.svg with class="logo" and fpp-logo.svg with class="fpp-logo", excluding #platformLogo)
+    const falconLogos = header.querySelectorAll('img.logo:not(#platformLogo), img.fpp-logo:not(#platformLogo)');
+    falconLogos.forEach(logo => {
+        if (luminance > 0.55) {
+            logo.style.filter = 'invert(1)'; // Invert to black for light BG
+        } else {
+            logo.style.filter = 'none'; // Reset for dark BG
+        }
+    });
+
+    // Reset styles for download available section to avoid messing with it
+    const updateDiv = header.querySelector('#navbarUpdateAvail');
+    if (updateDiv) {
+        updateDiv.style.color = '';
+        const updateA = updateDiv.querySelector('a');
+        if (updateA) {
+            updateA.style.color = '';
+        }
+        const updateIcon = updateDiv.querySelector('#navbarUpdateAvailIcon');
+        if (updateIcon) {
+            updateIcon.style.color = '';
+        }
+    }
+}
+
+window.addEventListener('load', adjustHeaderText);
+</script>
+<?php } ?>
