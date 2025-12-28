@@ -6851,7 +6851,7 @@ function TailFollowFile (dir, file, lines = 50) {
 	var options = {
 		id: 'tailFollowDialog',
 		title: 'Tail Follow: ' + file,
-		body: "<pre id='tailFollowText' class='fileText' style='margin: 0; padding: 10px; background: #000; color: #0f0; max-height: 65vh; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;'></pre>",
+		body: "<pre id='tailFollowText' class='fileText' style='margin: 0; padding: 10px; background: #000; color: #0f0; max-height: 65vh; overflow-y: auto; overflow-anchor: none; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;'></pre>",
 		class: 'modal-xl',
 		keyboard: false,
 		backdrop: 'static',
@@ -6944,8 +6944,10 @@ function startTailFollowStream (url) {
 				lineCount = TAIL_FOLLOW_MAX_LINES;
 			}
 
-			// Auto-scroll to bottom
-			outputArea.scrollTop = outputArea.scrollHeight;
+			// Auto-scroll to bottom (deferred for cross-platform reliability)
+			requestAnimationFrame(function () {
+				outputArea.scrollTop = outputArea.scrollHeight;
+			});
 		}
 	};
 
