@@ -20,6 +20,8 @@
 
 #include "wled/wled.h"
 
+#include <string_view>
+
 WLEDEffect::WLEDEffect(const std::string& name) :
     PixelOverlayEffect(name) {
 }
@@ -157,8 +159,40 @@ public:
     };
 };
 
-static std::vector<std::string>* BUFFERMAPS = nullptr;
-static std::vector<std::string>* PALETTES = nullptr;
+static std::array<std::string_view, 4> BUFFERMAPS{
+    "Horizontal", "Vertical", "Horizontal Flipped", "Vertical Flipped"
+};
+
+static std::vector<std::string_view> fillPalettes() {
+    // TODO: It would be better to have a span of string_views directly in program memory
+    // rather than parsing it from JSON
+    std::vector<std::string_view> palettes;
+
+    auto sv = std::string_view(JSON_palette_names);
+    // Count the number of quotes
+    unsigned quotes = 0;
+    std::for_each(sv.begin(), sv.end(), [&quotes](char c) { if (c == '"') ++quotes; });
+    palettes.reserve(quotes / 2);
+
+    // Walk the list doing a simple parse of strings in quotes
+    auto index = sv.find('"');
+    sv.remove_prefix(index + 1);
+    while (!sv.empty()) {
+        index = sv.find('"');
+        palettes.push_back(sv.substr(0, index));
+        index = sv.find('"', index + 1);
+        if (index == sv.npos)
+            break;
+        sv.remove_prefix(index + 1);
+    }
+    return palettes;
+}
+
+static const std::vector<std::string_view>& PALETTES() {
+    static std::vector<std::string_view> palettes = fillPalettes();
+    return palettes;
+}
+
 extern float GetChannelOutputRefreshRate();
 
 enum class ArgMapping {
@@ -230,8 +264,7 @@ public:
     RawWLEDEffect(const std::string& name, const std::string& config, int m) :
         WLEDEffect(name),
         mode(m) {
-        fillVectors();
-        args.push_back(CommandArg("BufferMapping", "string", "Buffer Mapping").setContentList(*BUFFERMAPS));
+        args.push_back(CommandArg("BufferMapping", "string", "Buffer Mapping").setContentListRange(BUFFERMAPS));
         argMap.push_back(ArgMapping::Mapping); // always have mapping
         args.push_back(CommandArg("brightness", "range", "Brightness").setRange(0, 255).setDefaultValue("128"));
         argMap.push_back(ArgMapping::Brightness); // always have brightness
@@ -324,7 +357,7 @@ public:
                 if (i < 0) {
                     i = 0;
                 }
-                args.push_back(CommandArg("palette", "string", "Palette").setContentList(*PALETTES).setDefaultValue(PALETTES->at(i)));
+                args.push_back(CommandArg("palette", "string", "Palette").setContentListRange(PALETTES()).setDefaultValue(PALETTES().at(i)));
                 argMap.push_back(ArgMapping::Palette); // Palette
             }
             if (!pallete.empty()) {
@@ -369,7 +402,7 @@ public:
             argMap.push_back(ArgMapping::Speed);     // speed
             argMap.push_back(ArgMapping::Intensity); // intensity
 
-            args.push_back(CommandArg("palette", "string", "Palette").setContentList(*PALETTES).setDefaultValue("Default"));
+            args.push_back(CommandArg("palette", "string", "Palette").setContentListRange(PALETTES()).setDefaultValue("Default"));
             args.push_back(CommandArg("color1", "color", "Color1").setDefaultValue("#FF0000"));
             args.push_back(CommandArg("color2", "color", "Color2").setDefaultValue("#0000FF"));
             args.push_back(CommandArg("color3", "color", "Color3").setDefaultValue("#000000"));
@@ -383,38 +416,6 @@ public:
             argMap.push_back(ArgMapping::Text);
         }
     }
-    static void fillVectors() {
-        if (PALETTES == nullptr) {
-            PALETTES = new std::vector<std::string>();
-            const char* p = JSON_palette_names;
-            while (*p != '\"') {
-                ++p;
-            }
-            ++p;
-            while (*p) {
-                const char* p2 = p;
-                while (*p2 != '\"') {
-                    ++p2;
-                }
-                std::string n = p;
-                n = n.substr(0, p2 - p);
-                PALETTES->push_back(n);
-                p = p2;
-                ++p;
-                while (*p && *p != '\"') {
-                    ++p;
-                }
-                ++p;
-            }
-        }
-        if (BUFFERMAPS == nullptr) {
-            BUFFERMAPS = new std::vector<std::string>();
-            BUFFERMAPS->emplace_back("Horizontal");
-            BUFFERMAPS->emplace_back("Vertical");
-            BUFFERMAPS->emplace_back("Horizontal Flipped");
-            BUFFERMAPS->emplace_back("Vertical Flipped");
-        }
-    }
 
     virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
         model->setRunningEffect(new RawWLEDEffectInternal(model, name, autoEnable, args, mode, argMap), 25);
@@ -425,8 +426,6 @@ public:
     public:
         RawWLEDEffectInternal(PixelOverlayModel* m, const std::string& n, const std::string& ad, const std::vector<std::string>& args, int mode, const std::vector<ArgMapping> am) :
             WLEDRunningEffect(m, n, ad), argMap(am) {
-            RawWLEDEffect::fillVectors();
-
             int mapping = 0;
             bool hasC3 = false;
             int count = args.size();
@@ -436,7 +435,7 @@ public:
             for (int x = 0; x < count; x++) {
                 switch (argMap[x]) {
                 case ArgMapping::Mapping:
-                    mapping = std::find(BUFFERMAPS->begin(), BUFFERMAPS->end(), args[x]) - BUFFERMAPS->begin();
+                    mapping = std::find(BUFFERMAPS.begin(), BUFFERMAPS.end(), std::string_view(args[x])) - BUFFERMAPS.begin();
                     break;
                 case ArgMapping::Brightness:
                     brightness = parseInt(args[x]);
@@ -488,12 +487,10 @@ public:
             }
 
             int p = 0;
-            RawWLEDEffect::fillVectors();
-            for (int x = 0; x < PALETTES->size(); x++) {
-                if ((*PALETTES)[x] == palette) {
-                    p = x;
-                }
-            }
+            auto& palettes = PALETTES();
+            if (auto it = std::find(palettes.begin(), palettes.end(), (std::string_view)palette); it != palettes.end())
+                p = (int)(it - palettes.begin());
+
             if (!hasC3) {
                 color3 = color1;
             }
@@ -627,9 +624,5 @@ std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
     return v;
 }
 void WLEDEffect::cleanupWLEDEffects() {
-    delete BUFFERMAPS;
-    BUFFERMAPS = nullptr;
-    delete PALETTES;
-    PALETTES = nullptr;
     WS2812FXExt::clearInstance();
 }
