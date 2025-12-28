@@ -63,6 +63,7 @@ dispatch_get('/file/move/:fileName', 'MoveFile'); // keep above file/:DirName
 dispatch_get('/files/zip/:DirNames', 'GetZipDir');
 dispatch_post('/file/:DirName/copy/:source/:dest', 'files_copy');
 dispatch_post('/file/:DirName/rename/:source/:dest', 'files_rename');
+dispatch_get('/file/:DirName/tailfollow/**', 'TailFollowFile');
 dispatch_get('/file/:DirName/**', 'GetFile');
 dispatch_delete('/file/:DirName/**', 'DeleteFile');
 dispatch_post('/file/:DirName', 'PatchFile');

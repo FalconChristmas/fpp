@@ -1062,3 +1062,126 @@ function DeleteDir()
 
     return json(array("status" => $status, "subdir" => $subDir, "dir" => $dirName));
 }
+
+/*
+ * GET /api/file/:DirName/tailfollow/*
+ * Streams log file content in real-time using Server-Sent Events (SSE)
+ * Optional query param: ?lines=N (default 50, max 500)
+ */
+function TailFollowFile()
+{
+    $dirName = params("DirName");
+    $fileName = params(0);
+
+    // Only allow for Logs directory
+    if (strtolower($dirName) != "logs") {
+        http_response_code(403);
+        echo "Tail follow is only allowed for log files.";
+        return;
+    }
+
+    $dir = MapDirectoryKey($dirName);
+
+    if ($dir == "") {
+        http_response_code(403);
+        echo "Invalid directory.";
+        return;
+    }
+
+    if (substr($fileName, 0, 8) == "var/log/") {
+        $dir = "/var/log";
+        $fileName = substr($fileName, 8);
+    }
+
+    $fullPath = $dir . '/' . $fileName;
+
+    // Validate path to prevent directory traversal
+    $realDir = realpath($dir);
+    $realPath = realpath($fullPath);
+
+    if (!$realDir || !$realPath || strpos($realPath, $realDir) !== 0) {
+        http_response_code(403);
+        echo "Invalid file path.";
+        return;
+    }
+
+    if (!is_file($realPath)) {
+        http_response_code(404);
+        echo "File not found: $fileName";
+        return;
+    }
+
+    $lines = 50;
+    if (isset($_GET['lines'])) {
+        $lines = intval($_GET['lines']);
+        if ($lines < 1)
+            $lines = 1;
+        if ($lines > 500)
+            $lines = 500;
+    }
+
+    // Set up SSE headers
+    DisableOutputBuffering();
+    header('Content-Type: text/event-stream');
+    header('Cache-Control: no-cache');
+    header('Connection: keep-alive');
+    header('X-Accel-Buffering: no');
+
+    // Open tail process
+    $descriptorspec = array(
+        0 => array("pipe", "r"),
+        1 => array("pipe", "w"),
+        2 => array("file", "/dev/null", "w")
+    );
+
+    $cmd = "tail -n " . $lines . " -f " . escapeshellarg($realPath) . " 2>&1";
+    $process = proc_open($cmd, $descriptorspec, $pipes);
+
+    if (!is_resource($process)) {
+        echo "event: error\n";
+        echo "data: Failed to start tail process\n\n";
+        flush();
+        return;
+    }
+
+    fclose($pipes[0]);
+    stream_set_blocking($pipes[1], false);
+
+    $buffer = '';
+    $lastSend = microtime(true);
+
+    while (!feof($pipes[1])) {
+        $read = array($pipes[1]);
+        $write = $except = null;
+
+        if (stream_select($read, $write, $except, 0, 100000)) {
+            $data = fread($pipes[1], 8192);
+            if ($data !== false && strlen($data) > 0) {
+                $buffer .= $data;
+            }
+        }
+
+        // Send buffered data every 100ms or if buffer is large
+        $now = microtime(true);
+        if ((strlen($buffer) > 0 && ($now - $lastSend) > 0.1) || strlen($buffer) > 4096) {
+            // SSE format: each line must be prefixed with "data: "
+            $lines = explode("\n", $buffer);
+            foreach ($lines as $line) {
+                echo "data: " . $line . "\n";
+            }
+            echo "\n";
+            flush();
+            $buffer = '';
+            $lastSend = $now;
+        }
+
+        if (connection_aborted()) {
+            break;
+        }
+    }
+
+    // Cleanup
+    fclose($pipes[1]);
+    proc_terminate($process);
+    proc_close($process);
+}

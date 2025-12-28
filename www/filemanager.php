@@ -603,6 +603,9 @@
                                         <input onclick="ButtonHandler('Logs', 'tailFile');"
                                             class="disableButtons noDirButton singleLogsButton" type="button"
                                             value="Tail" />
+                                        <input onclick="ButtonHandler('Logs', 'tailFollow');"
+                                            class="disableButtons noDirButton singleLogsButton" type="button"
+                                            value="Tail Follow" />
                                         <input onclick="ButtonHandler('Logs', 'download');"
                                             class="disableButtons noDirButton singleLogsButton multiLogsButton"
                                             type="button" value="Download" />

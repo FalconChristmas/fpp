@@ -2073,11 +2073,12 @@ function GetPlaylistRowHTML (ID, entry, editMode) {
 
 	// Determine display mode (default to argsOnly for backward compatibility)
 	var displayMode = entry.displayMode || 'argsOnly';
-	var noteText = (typeof entry.note == 'string' && entry.note != '') ? entry.note : '';
-	
+	var noteText =
+		typeof entry.note == 'string' && entry.note != '' ? entry.note : '';
+
 	if (displayMode === 'justNote' && noteText) {
 		// Display only the note
-		HTML += "<span class='psiNote'>Note: " + noteText + "</span>";
+		HTML += "<span class='psiNote'>Note: " + noteText + '</span>';
 	} else if (displayMode === 'argsAndNote' && noteText) {
 		// Display args first, then note
 		if (entry.type == 'dynamic') {
@@ -2089,7 +2090,7 @@ function GetPlaylistRowHTML (ID, entry, editMode) {
 		} else {
 			HTML += psiDetailsForEntrySimple(entry, editMode);
 		}
-		HTML += " <span class='psiNote'>Note: " + noteText + "</span>";
+		HTML += " <span class='psiNote'>Note: " + noteText + '</span>';
 	} else {
 		// Default: argsOnly - display just the args (current behavior)
 		if (entry.type == 'dynamic') {
@@ -5545,7 +5546,7 @@ function SetSetting (
 					SetRebootFlag(restart);
 				}
 				CheckRestartRebootFlags();
-				
+
 				if (!hideChange) {
 					if (isBool === null) {
 						$.jGrowl(key + ' setting saved.', { themeState: 'success' });
@@ -5601,7 +5602,7 @@ function SetPluginSetting (
 					SetRebootFlag(restart);
 				}
 				CheckRestartRebootFlags();
-				
+
 				if (isBool === null) {
 					$.jGrowl(key + ' setting saved.', { themeState: 'success' });
 				} else if (isBool) {
@@ -6834,6 +6835,135 @@ function TailFile (dir, file, lines) {
 	// console.log(url);
 	ViewFileImpl(url, file);
 }
+
+var tailFollowEventSource = null;
+var TAIL_FOLLOW_MAX_LINES = 1000;
+
+function TailFollowFile (dir, file, lines = 50) {
+	var url =
+		'api/file/' +
+		dir +
+		'/tailfollow/' +
+		encodeURIComponent(file).replaceAll('%2F', '/') +
+		'?lines=' +
+		lines;
+
+	var options = {
+		id: 'tailFollowDialog',
+		title: 'Tail Follow: ' + file,
+		body: "<pre id='tailFollowText' class='fileText' style='margin: 0; padding: 10px; background: #000; color: #0f0; max-height: 600px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word;'></pre>",
+		class: 'modal-dialog-scrollable modal-xl',
+		keyboard: false,
+		backdrop: 'static',
+		buttons: {
+			Stop: {
+				id: 'tailFollowStopButton',
+				click: function () {
+					if (tailFollowEventSource) {
+						tailFollowEventSource.close();
+						tailFollowEventSource = null;
+						$('#tailFollowStopButton')
+							.text('Start')
+							.removeClass('btn-danger')
+							.addClass('btn-success');
+						var pre = document.getElementById('tailFollowText');
+						if (pre) {
+							pre.textContent += '\n--- Streaming stopped ---\n';
+						}
+					} else {
+						// Restart
+						$('#tailFollowStopButton')
+							.text('Stop')
+							.removeClass('btn-success')
+							.addClass('btn-danger');
+						var pre = document.getElementById('tailFollowText');
+						if (pre) {
+							pre.textContent += '\n--- Restarting stream ---\n';
+						}
+						startTailFollowStream(url);
+					}
+				},
+				class: 'btn-danger'
+			},
+			Close: {
+				id: 'tailFollowCloseButton',
+				click: function () {
+					if (tailFollowEventSource) {
+						tailFollowEventSource.close();
+						tailFollowEventSource = null;
+					}
+					CloseModalDialog('tailFollowDialog');
+				},
+				class: 'btn-secondary'
+			}
+		}
+	};
+
+	DoModalDialog(options);
+
+	// Reset button state
+	$('#tailFollowStopButton')
+		.text('Stop')
+		.removeClass('btn-success')
+		.addClass('btn-danger')
+		.prop('disabled', false);
+
+	// Clean up on modal close
+	$('#tailFollowDialog')
+		.off('hidden.bs.modal.tailfollow')
+		.on('hidden.bs.modal.tailfollow', function () {
+			if (tailFollowEventSource) {
+				tailFollowEventSource.close();
+				tailFollowEventSource = null;
+			}
+		});
+
+	startTailFollowStream(url);
+}
+
+function startTailFollowStream (url) {
+	if (tailFollowEventSource) {
+		tailFollowEventSource.close();
+	}
+
+	tailFollowEventSource = new EventSource(url);
+	var outputArea = document.getElementById('tailFollowText');
+	var lineCount = 0;
+
+	tailFollowEventSource.onmessage = function (event) {
+		if (outputArea && event.data) {
+			outputArea.textContent += event.data + '\n';
+			lineCount++;
+
+			// Trim if exceeds max lines (keep most recent)
+			if (lineCount > TAIL_FOLLOW_MAX_LINES) {
+				var lines = outputArea.textContent.split('\n');
+				var trimmed = lines.slice(-TAIL_FOLLOW_MAX_LINES);
+				outputArea.textContent =
+					'... (older content trimmed) ...\n' + trimmed.join('\n');
+				lineCount = TAIL_FOLLOW_MAX_LINES;
+			}
+
+			// Auto-scroll to bottom
+			outputArea.scrollTop = outputArea.scrollHeight;
+		}
+	};
+
+	tailFollowEventSource.onerror = function (error) {
+		if (outputArea) {
+			outputArea.textContent += '\n--- Connection error or stream ended ---\n';
+		}
+		if (tailFollowEventSource) {
+			tailFollowEventSource.close();
+			tailFollowEventSource = null;
+		}
+		$('#tailFollowStopButton')
+			.text('Start')
+			.removeClass('btn-danger')
+			.addClass('btn-success');
+	};
+}
+
 function ViewFileImpl (url, file, html = '') {
 	var options = {
 		id: 'fileViewerDialog',
@@ -7868,10 +7998,14 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 
 			// Check if we should filter used sequences - reuse existing GetPlaylistEntry()
 			var filterSequences = [];
-			if (val['contentListUrl'].includes('sequences') &&
+			if (
+				val['contentListUrl'].includes('sequences') &&
 				$('#filterUsedSequences').length &&
-				$('#filterUsedSequences').is(':checked')) {
-				$('#tblPlaylistLeadIn > tr:not(.unselectable), #tblPlaylistMainPlaylist > tr:not(.unselectable), #tblPlaylistLeadOut > tr:not(.unselectable)').each(function() {
+				$('#filterUsedSequences').is(':checked')
+			) {
+				$(
+					'#tblPlaylistLeadIn > tr:not(.unselectable), #tblPlaylistMainPlaylist > tr:not(.unselectable), #tblPlaylistLeadOut > tr:not(.unselectable)'
+				).each(function () {
 					var entry = GetPlaylistEntry(this);
 					if (entry.sequenceName) {
 						filterSequences.push(entry.sequenceName);
