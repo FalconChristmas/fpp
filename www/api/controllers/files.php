@@ -1127,14 +1127,15 @@ function TailFollowFile()
     header('Connection: keep-alive');
     header('X-Accel-Buffering: no');
 
-    // Open tail process
+    // Open tail process with timeout wrapper to prevent orphaned processes
     $descriptorspec = array(
         0 => array("pipe", "r"),
         1 => array("pipe", "w"),
         2 => array("file", "/dev/null", "w")
     );
 
-    $cmd = "tail -n " . $lines . " -f " . escapeshellarg($realPath) . " 2>&1";
+    // Wrap tail in timeout to kill process after 5 minutes of inactivity
+    $cmd = "timeout 300 tail -n " . $lines . " -f " . escapeshellarg($realPath) . " 2>&1";
     $process = proc_open($cmd, $descriptorspec, $pipes);
 
     if (!is_resource($process)) {
@@ -1149,6 +1150,9 @@ function TailFollowFile()
 
     $buffer = '';
     $lastSend = microtime(true);
+    $startTime = microtime(true);
+    $lastActivity = microtime(true);
+    $heartbeatInterval = 30; // Send heartbeat every 30 seconds
 
     while (!feof($pipes[1])) {
         $read = array($pipes[1]);
@@ -1158,11 +1162,13 @@ function TailFollowFile()
             $data = fread($pipes[1], 8192);
             if ($data !== false && strlen($data) > 0) {
                 $buffer .= $data;
+                $lastActivity = microtime(true);
             }
         }
 
-        // Send buffered data every 100ms or if buffer is large
         $now = microtime(true);
+
+        // Send buffered data every 100ms or if buffer is large
         if ((strlen($buffer) > 0 && ($now - $lastSend) > 0.1) || strlen($buffer) > 4096) {
             // SSE format: each line must be prefixed with "data: "
             $lines = explode("\n", $buffer);
@@ -1175,9 +1181,23 @@ function TailFollowFile()
             $lastSend = $now;
         }
 
+        // Send periodic heartbeat to keep connection alive and detect disconnects
+        if (($now - $lastSend) > $heartbeatInterval) {
+            echo ": heartbeat\n\n";
+            flush();
+            $lastSend = $now;
+        }
+
+        // Check connection status more aggressively
         if (connection_aborted()) {
             break;
         }
+
+        // Additional check: try to detect broken connection by checking output buffer
+        if (@ob_get_level() > 0) {
+            @ob_flush();
+        }
+        @flush();
     }
 
     // Cleanup
