@@ -6917,8 +6917,9 @@ function TailFollowFile (dir, file, lines = 50) {
 				tailFollowEventSource = null;
 			}
 		});
-
-	startTailFollowStream(url);
+	$('#tailFollowDialog').on('shown.bs.modal', function () {
+		startTailFollowStream(url);
+	});
 }
 
 function startTailFollowStream (url) {
