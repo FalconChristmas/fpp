@@ -431,7 +431,9 @@ static int open_codec_context(int* stream_idx,
         (*dec_ctx)->thread_count = std::thread::hardware_concurrency() + 1;
         /* Init the decoders, with or without reference counting */
         av_dict_set(&opts, "refcounted_frames", "0", 0);
-        if ((ret = avcodec_open2(*dec_ctx, dec, &opts)) < 0) {
+        ret = avcodec_open2(*dec_ctx, dec, &opts);
+        av_dict_free(&opts);
+        if (ret < 0) {
             fprintf(stderr, "Failed to open %s codec\n",
                     av_get_media_type_string(type));
             return ret;
@@ -1100,6 +1102,8 @@ SDLOutput::SDLOutput(const std::string& mediaFilename,
         d += usf;
         data->totalLen = d;
         data->totalDataLen = d * data->currentRate * data->bytesPerSample * data->channels;
+        av_channel_layout_uninit(&in_channel_layout);
+        av_channel_layout_uninit(&out_channel_layout);
     }
     if (data->video_stream_idx != -1) {
         data->video_frames = (long)data->videoStream->nb_frames;
