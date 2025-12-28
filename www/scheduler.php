@@ -533,12 +533,47 @@ error_reporting(E_ALL);
             }
         }
 
+        var userHolidays = [];
+
+        function LoadUserHolidays(callback) {
+            $.get('api/configfile/user-holidays.json', function (data) {
+                if (data && Array.isArray(data)) {
+                    userHolidays = data;
+                } else {
+                    userHolidays = [];
+                }
+                if (callback) callback();
+            }).fail(function () {
+                userHolidays = [];
+                if (callback) callback();
+            });
+        }
+
+        function GetAllHolidays() {
+            var allHolidays = [];
+
+            // Add locale holidays
+            if (settings['locale'] && settings['locale']['holidays']) {
+                for (var i in settings['locale']['holidays']) {
+                    allHolidays.push(settings['locale']['holidays'][i]);
+                }
+            }
+
+            // Add user-defined holidays
+            for (var i = 0; i < userHolidays.length; i++) {
+                allHolidays.push(userHolidays[i]);
+            }
+
+            return allHolidays;
+        }
+
         function HolidaySelect(userKey, classToAdd) {
             var result = "<select class='holidays " + classToAdd + "' onChange='HolidaySelected(this);' style='display: none;'>";
             result += "<option value='SpecifyDate'>Specify Date</option>";
 
-            for (var i in settings['locale']['holidays']) {
-                var holiday = settings['locale']['holidays'][i];
+            var allHolidays = GetAllHolidays();
+            for (var i = 0; i < allHolidays.length; i++) {
+                var holiday = allHolidays[i];
 
                 result += "<option value='" + holiday['shortName'] + "'";
 
@@ -550,6 +585,98 @@ error_reporting(E_ALL);
 
             result += "</select>";
             return result;
+        }
+
+        function OpenHolidayEditor() {
+            LoadUserHolidays(function () {
+                $('#tblUserHolidaysBody').empty();
+
+                for (var i = 0; i < userHolidays.length; i++) {
+                    var h = userHolidays[i];
+                    AddHolidayRow(h.name, h.shortName, h.month, h.day);
+                }
+
+                var modal = new bootstrap.Modal(document.getElementById('holidayEditorModal'));
+                modal.show();
+            });
+        }
+
+        function AddHolidayRow(name, shortName, month, day) {
+            name = name || '';
+            shortName = shortName || '';
+            month = month || 1;
+            day = day || 1;
+
+            var monthOptions = '';
+            var months = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+            for (var i = 0; i < months.length; i++) {
+                var selected = (month == (i + 1)) ? ' selected' : '';
+                monthOptions += '<option value="' + (i + 1) + '"' + selected + '>' + months[i] + '</option>';
+            }
+
+            var dayOptions = '';
+            for (var i = 1; i <= 31; i++) {
+                var selected = (day == i) ? ' selected' : '';
+                dayOptions += '<option value="' + i + '"' + selected + '>' + i + '</option>';
+            }
+
+            var row = '<tr>' +
+                '<td><input type="text" class="form-control form-control-sm holName" value="' + name + '" placeholder="e.g., My Holiday"></td>' +
+                '<td><input type="text" class="form-control form-control-sm holShortName" value="' + shortName + '" placeholder="e.g., MyHoliday"></td>' +
+                '<td><select class="form-select form-select-sm holMonth">' + monthOptions + '</select></td>' +
+                '<td><select class="form-select form-select-sm holDay">' + dayOptions + '</select></td>' +
+                '<td><button type="button" class="btn btn-sm btn-danger" onclick="DeleteHolidayRow(this);"><i class="fas fa-trash"></i></button></td>' +
+                '</tr>';
+
+            $('#tblUserHolidaysBody').append(row);
+        }
+
+        function DeleteHolidayRow(btn) {
+            $(btn).closest('tr').remove();
+        }
+
+        function SaveUserHolidays() {
+            var holidays = [];
+
+            $('#tblUserHolidaysBody tr').each(function () {
+                var name = $(this).find('.holName').val().trim();
+                var shortName = $(this).find('.holShortName').val().trim();
+                var month = parseInt($(this).find('.holMonth').val());
+                var day = parseInt($(this).find('.holDay').val());
+
+                if (name && shortName) {
+                    holidays.push({
+                        name: name,
+                        shortName: shortName,
+                        month: month,
+                        day: day
+                    });
+                }
+            });
+
+            $.ajax({
+                url: 'api/configfile/user-holidays.json',
+                type: 'POST',
+                dataType: 'json',
+                contentType: 'application/json',
+                data: JSON.stringify(holidays),
+                success: function (response) {
+                    userHolidays = holidays;
+                    $.jGrowl('User holidays saved', { themeState: 'success' });
+
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('holidayEditorModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+
+                    // Refresh schedule display to show new holidays
+                    ReloadSchedule();
+                },
+                error: function () {
+                    DialogError('Error saving', 'Error saving user holidays');
+                }
+            });
         }
 
         function GetScheduleEntryRowData(item) {
@@ -786,7 +913,7 @@ error_reporting(E_ALL);
     </style>
 </head>
 
-<body onload="PopulateCommandListCache(); getSchedule();">
+<body onload="PopulateCommandListCache(); LoadUserHolidays(function() { getSchedule(); });">
     <div id="bodyWrapper">
         <?php
         $activeParentMenuItem = 'content';
@@ -810,6 +937,9 @@ error_reporting(E_ALL);
                                             <button type='button' class='buttons' onClick='PreviewSchedule();'
                                                 value='View Schedule'><i
                                                     class="fas fa-fw fa-calendar-alt"></i>Preview</button>
+                                            <button type='button' class='buttons' onClick='OpenHolidayEditor();'
+                                                value='Edit Holidays'><i class="fas fa-fw fa-gift"></i>Edit
+                                                Holidays</button>
                                             <button class='buttons' type="button" value="Reload"
                                                 onClick="ReloadSchedule();"><i class="fas fa-redo"></i> Reload</button>
                                             <button class='buttons' type="button" value="Clear Selection"
@@ -826,6 +956,9 @@ error_reporting(E_ALL);
                                 <div class='largeonly'><button type='button' class='buttons wideButton'
                                         onClick='PreviewSchedule();' value='View Schedule'><i
                                             class="fas fa-fw fa-calendar-alt"></i>Preview</button></div>
+                                <div class='largeonly'><button type='button' class='buttons wideButton'
+                                        onClick='OpenHolidayEditor();' value='Edit Holidays'><i
+                                            class="fas fa-fw fa-gift"></i>Edit Holidays</button></div>
                                 <div class='largeonly'><button class="buttons" type="button" value="Reload"
                                         onClick="ReloadSchedule();"><i class="fas fa-redo"></i> Reload</button></div>
                                 <div class='largeonly'><input class="buttons" type="button" value="Clear Selection"
@@ -1030,6 +1163,47 @@ error_reporting(E_ALL);
 
             </div>
             <?php include 'common/footer.inc'; ?>
+        </div>
+
+        <!-- Holiday Editor Modal -->
+        <div id="holidayEditorModal" class="modal fade" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit User-Defined Holidays</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="backdrop">
+                            <p><strong>Note:</strong> These custom holidays will be available in addition to your
+                                locale's standard holidays when scheduling.</p>
+                        </div>
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-sm btn-success" onclick="AddHolidayRow();"><i
+                                    class="fas fa-plus"></i> Add Holiday</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="tblUserHolidays" class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Short Name</th>
+                                        <th>Month</th>
+                                        <th>Day</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tblUserHolidaysBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-success" onclick="SaveUserHolidays();">Save</button>
+                    </div>
+                </div>
+            </div>
         </div>
 </body>
 
