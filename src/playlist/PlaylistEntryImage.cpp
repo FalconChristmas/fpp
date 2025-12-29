@@ -437,5 +437,48 @@ void PlaylistEntryImage::CacheImage(std::string fileName, Image& image) {
  *
  */
 void PlaylistEntryImage::CleanupCache(void) {
-    // FIXME
+    try {
+        if (!exists(m_cacheDir)) {
+            return;
+        }
+
+        // Collect all cache files with their metadata
+        std::vector<std::pair<std::string, std::filesystem::file_time_type>> cacheFiles;
+        uintmax_t totalSize = 0;
+
+        for (const auto& entry : directory_iterator(m_cacheDir)) {
+            if (entry.is_regular_file()) {
+                std::string filename = entry.path().filename().string();
+                // Only process our cache files
+                if (filename.find("pei-") == 0 && filename.find(".png") != std::string::npos) {
+                    cacheFiles.push_back({entry.path().string(), last_write_time(entry)});
+                    totalSize += file_size(entry);
+                }
+            }
+        }
+
+        // Sort by modification time (oldest first)
+        std::sort(cacheFiles.begin(), cacheFiles.end(),
+                  [](const auto& a, const auto& b) { return a.second < b.second; });
+
+        // Remove files if we exceed entry count or size limit
+        size_t maxEntries = m_cacheEntries;
+        uintmax_t maxSize = static_cast<uintmax_t>(m_cacheSize) * 1024 * 1024; // Convert MB to bytes
+
+        while ((!cacheFiles.empty()) &&
+               ((cacheFiles.size() > maxEntries) || (totalSize > maxSize))) {
+            // Remove the oldest file
+            const auto& oldest = cacheFiles.front();
+            uintmax_t fileSize = file_size(oldest.first);
+            
+            remove(oldest.first);
+            LogDebug(VB_PLAYLIST, "Removed cache file: %s (size: %lu bytes)\n",
+                     oldest.first.c_str(), fileSize);
+            
+            totalSize -= fileSize;
+            cacheFiles.erase(cacheFiles.begin());
+        }
+    } catch (std::filesystem::filesystem_error& e) {
+        LogErr(VB_PLAYLIST, "Error cleaning up cache: %s\n", e.what());
+    }
 }
