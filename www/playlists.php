@@ -147,7 +147,7 @@
 
         function ExportPlaylist() {
             var name = $('#txtPlaylistName').val();
-            
+
             DoModalDialog({
                 id: "ExportPlaylistDialog",
                 title: "Export Playlist",
@@ -158,7 +158,7 @@
                 buttons: {
                     "Export": function () {
                         var format = $("#exportFormat").val();
-                        
+
                         $.ajax({
                             dataType: "json",
                             url: "api/playlist/" + name,
@@ -167,7 +167,7 @@
                                 var content = "";
                                 var filename = name;
                                 var mimeType = "";
-                                
+
                                 if (format === "json") {
                                     content = JSON.stringify(data, null, 2);
                                     filename += ".json";
@@ -178,9 +178,9 @@
                                     content += "Random: " + (data.random || "0") + "\n";
                                     content += "\nEntries:\n";
                                     content += "==========\n\n";
-                                    
+
                                     if (data.mainPlaylist && data.mainPlaylist.length > 0) {
-                                        data.mainPlaylist.forEach(function(entry, index) {
+                                        data.mainPlaylist.forEach(function (entry, index) {
                                             content += (index + 1) + ". ";
                                             if (entry.type === "both" || entry.type === "media") {
                                                 content += "Media: " + (entry.mediaName || entry.mediaFilename || "");
@@ -202,18 +202,18 @@
                                     } else {
                                         content += "(No entries)\n";
                                     }
-                                    
+
                                     filename += ".txt";
                                     mimeType = "text/plain";
                                 } else if (format === "xls") {
                                     // CSV format
                                     content = "#,Type,Name/Details,Duration\n";
-                                    
+
                                     if (data.mainPlaylist && data.mainPlaylist.length > 0) {
-                                        data.mainPlaylist.forEach(function(entry, index) {
+                                        data.mainPlaylist.forEach(function (entry, index) {
                                             var row = (index + 1) + ",";
                                             row += '"' + (entry.type || "") + '","';
-                                            
+
                                             if (entry.type === "both" || entry.type === "media") {
                                                 row += (entry.mediaName || entry.mediaFilename || "");
                                             } else if (entry.type === "sequence") {
@@ -227,27 +227,27 @@
                                             } else if (entry.type === "plugin") {
                                                 row += (entry.pluginHost || "");
                                             }
-                                            
+
                                             row += '","' + (entry.duration || "") + '"\n';
                                             content += row;
                                         });
                                     }
-                                    
+
                                     filename += ".csv";
                                     mimeType = "text/csv";
                                 }
-                                
+
                                 // Create download
                                 var blob = new Blob([content], { type: mimeType });
                                 var link = document.createElement('a');
                                 link.href = window.URL.createObjectURL(blob);
                                 link.download = filename;
                                 link.click();
-                                
+
                                 $.jGrowl("Playlist exported successfully", {
                                     themeState: 'success'
                                 });
-                                
+
                                 CloseModalDialog("ExportPlaylistDialog");
                             },
                             error: function (...args) {
@@ -272,12 +272,29 @@
             if (name == "") {
                 name = $('#txtPlaylistName').val();
             }
-            DeleteNamedPlaylist(name, {
-                onPlaylistArrayLoaded: function () {
-                    $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
-                    onPlaylistArrayLoaded();
+            DoModalDialog({
+                id: "DeletePlaylistDialog",
+                title: "Delete Playlist?",
+                body: 'Are you sure you want to delete the playlist `' + name + '`?',
+                class: "modal-sm",
+                backdrop: true,
+                keyboard: false,
+                buttons: {
+                    "Delete": function () {
+                        DeleteNamedPlaylist(name, {
+                            onPlaylistArrayLoaded: function () {
+                                $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
+                                onPlaylistArrayLoaded();
+                            }
+                        });
+                        location.reload();
+                        CloseModalDialog("DeletePlaylistDialog");
+                    },
+                    "Cancel": function () {
+                        CloseModalDialog("DeletePlaylistDialog");
+                    }
                 }
-            });
+            })
         }
 
         function onPlaylistArrayLoaded() {
@@ -307,8 +324,9 @@
                     $('#playlistSelect').val($playlistName).trigger('change');
                     e.stopPropagation();
                 })
-                $playlistDelete.on("click", function () {
+                $playlistDelete.on("click", function (e) {
                     handleDeleteButtonClick($playlistName);
+                    e.stopPropagation();
                 });
                 $playlistActions.append($playlistEditButton);
                 $playlistActions.append($playlistDelete);
@@ -338,6 +356,7 @@
                     title: "Add a New Playlist",
                     body: $("#playlistAdd"),
                     class: "modal-m",
+                    focus: "txtAddPlaylistName",
                     buttons: {
                         "Add Playlist": {
                             click: function () {
@@ -477,6 +496,9 @@
                         onPlaylistArrayLoaded();
                     }
                 });
+                
+                // Update history state when clicking back button
+                history.pushState({ view: 'list' }, '', window.location.href);
             })
 
             PopulateLists({
@@ -488,6 +510,29 @@
             } else {
                 $('#playlistSelect').prepend('<option value="" disabled selected>Select a Playlist</option>');
             }
+
+            // Handle browser back/forward button
+            window.addEventListener('popstate', function(e) {
+                if (e.state) {
+                    if (e.state.view === 'list') {
+                        // Go back to list view
+                        if ($('#playlistEditor').hasClass('hasPlaylistDetailsLoaded')) {
+                            $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
+                            PopulateLists({
+                                onPlaylistArrayLoaded: onPlaylistArrayLoaded
+                            });
+                        }
+                    } else if (e.state.view === 'editor' && e.state.playlist) {
+                        // Go forward to editor view
+                        if (!$('#playlistEditor').hasClass('hasPlaylistDetailsLoaded')) {
+                            $('#playlistSelect').val(e.state.playlist).trigger('change');
+                        }
+                    }
+                }
+            });
+
+            // Set initial history state
+            history.replaceState({ view: 'list' }, '', location.href);
 
         })
     </script>

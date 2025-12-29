@@ -520,6 +520,9 @@ function DoModalDialog (options) {
 		dlg.find('#modalCloseButton').prop('disabled', true);
 	}
 
+	var focus = options.focus;
+	delete options.focus;
+
 	if (typeof options.title === 'string') {
 		dlg.find('.modal-title').html(options.title);
 	}
@@ -530,6 +533,14 @@ function DoModalDialog (options) {
 
 	$('#' + options.id).on('shown.bs.modal', function () {
 		float_fppModalStickyThead();
+
+		// Now that the bootstrap is shown, focus the element if specified
+		if (typeof focus === 'function') {
+			focus = focus.call(self); // call the function to get the element to focus
+		}
+		if (typeof focus === 'string') {
+			$('#' + focus).focus();
+		}
 	});
 }
 function DisplayProgressDialog (id, title) {
@@ -2284,6 +2295,11 @@ function EditPlaylist () {
 
 	LoadPlaylistDetails(name);
 	$('#playlistEditor').addClass('hasPlaylistDetailsLoaded');
+	
+	// Push history state so browser back button works
+	if (window.location.pathname.includes('playlists.php')) {
+		history.pushState({ view: 'editor', playlist: name }, '', window.location.href);
+	}
 }
 function SetButtonState (button, state) {
 	// Enable Button
