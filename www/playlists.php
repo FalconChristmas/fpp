@@ -338,6 +338,7 @@
                     title: "Add a New Playlist",
                     body: $("#playlistAdd"),
                     class: "modal-m",
+                    focus: "txtAddPlaylistName",
                     buttons: {
                         "Add Playlist": {
                             click: function () {
