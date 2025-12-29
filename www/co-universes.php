@@ -203,9 +203,18 @@ if (file_exists(__DIR__ . "/fppdefines.php")) {
 									<th aria-label='Universe Count for this controller'>Universe <br>Count</th>
 									<th aria-label='Universe size'>Universe <br>Size</th>
 									<th aria-label='Universe Priority'>Universe <br>Priority</th>
-									<th aria-label='Monitor controller'>Monitor</th>
-									<th aria-label='Suppress Duplicate network packets'>DeDup</th>
-									<th aria-label='Test ping controller'>Ping</th>
+									<th aria-label='Monitor controller'>Monitor <span data-bs-toggle='tooltip'
+											data-bs-html='true' data-bs-placement='auto'
+											data-bs-title='Monitor incoming data for this controller/universe. Useful for debugging and verifying that data is being received.'><i
+												class="fas fa-eye"></i></span></th>
+									<th aria-label='Suppress Duplicate network packets'>DeDup <span
+											data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+											data-bs-title='De-Duplication: Suppress sending duplicate network packets when channel data has not changed. Reduces network traffic and controller processing load.'><i
+												class="fas fa-filter"></i></span></th>
+									<th aria-label='Test ping controller'>Ping <span data-bs-toggle='tooltip'
+											data-bs-html='true' data-bs-placement='auto'
+											data-bs-title='Test network connectivity by pinging the controller. Helps verify that the controller is reachable on the network.'><i
+												class="fas fa-network-wired"></i></span></th>
 								</tr>
 							</thead>
 							<tbody id='tblUniversesBody'>
