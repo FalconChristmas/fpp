@@ -26,6 +26,7 @@
     ?>
 
     <script>
+        console.log('Playlists.php loaded - version 2025-12-29-v2');
         function CopyPlaylist() {
             var name = $('#txtPlaylistName').val();
 
@@ -138,11 +139,17 @@
                         themeState: 'success'
                     });
                 },
-                error: function (...args) {
-                    DialogError('Error Deleting Playlist', "Error deleting '" + name + "' playlist" +
-                        show_details(args));
+                error: function (xhr, status, error) {
+                    DialogError('Error Deleting Playlist', "Error deleting '" + name + "' playlist: " + error);
                 }
             });
+        }
+
+        function formatTime(seconds) {
+            if (!seconds) return '0:00';
+            var mins = Math.floor(seconds / 60);
+            var secs = Math.floor(seconds % 60);
+            return mins + ':' + (secs < 10 ? '0' : '') + secs;
         }
 
         function ExportPlaylist() {
@@ -179,60 +186,117 @@
                                     content += "\nEntries:\n";
                                     content += "==========\n\n";
 
-                                    if (data.mainPlaylist && data.mainPlaylist.length > 0) {
-                                        data.mainPlaylist.forEach(function (entry, index) {
-                                            content += (index + 1) + ". ";
-                                            if (entry.type === "both" || entry.type === "media") {
-                                                content += "Media: " + (entry.mediaName || entry.mediaFilename || "");
-                                            } else if (entry.type === "sequence") {
-                                                content += "Sequence: " + (entry.sequenceName || "");
-                                            } else if (entry.type === "pause") {
-                                                content += "Pause: " + (entry.duration || 0) + " seconds";
-                                            } else if (entry.type === "playlist") {
-                                                content += "Playlist: " + (entry.playlistName || "");
-                                            } else if (entry.type === "command") {
-                                                content += "Command: " + (entry.command || "");
-                                            } else if (entry.type === "plugin") {
-                                                content += "Plugin: " + (entry.pluginHost || "");
-                                            } else {
-                                                content += entry.type || "Unknown";
-                                            }
+                                    var totalTime = 0;
+                                    var itemNumber = 0;
+
+                                    var sectionNames = ["LeadIn", "MainPlaylist", "LeadOut"];
+                                    var sectionLabels = ["Lead In", "Main", "Lead Out"];
+
+                                    for (var s = 0; s < sectionNames.length; s++) {
+                                        var rows = $('#tblPlaylist' + sectionNames[s] + ' tr.playlistRow');
+                                        if (rows.length > 0) {
+                                            content += "--- " + sectionLabels[s] + " ---\n";
+                                            rows.each(function () {
+                                                itemNumber++;
+                                                content += itemNumber + ". ";
+
+                                                var duration = parseFloat($(this).find('.psiDurationSeconds').html()) || 0;
+                                                totalTime += duration;
+
+                                                var type = $(this).find('.entryType').html();
+                                                var name = "";
+
+                                                if (type === "both" || type === "media") {
+                                                    var seqName = $(this).find('.field_sequenceName').text();
+                                                    var mediaName = $(this).find('.field_mediaName').text();
+                                                    name = seqName || mediaName;
+                                                    content += "Media: " + name;
+                                                } else if (type === "sequence") {
+                                                    name = $(this).find('.field_sequenceName').text();
+                                                    content += "Sequence: " + name;
+                                                } else if (type === "pause") {
+                                                    content += "Pause: " + formatTime(duration);
+                                                } else if (type === "playlist") {
+                                                    name = $(this).find('.field_name').text();
+                                                    content += "Playlist: " + name;
+                                                } else if (type === "command") {
+                                                    name = $(this).find('.field_command').text();
+                                                    content += "Command: " + name;
+                                                } else if (type === "script") {
+                                                    var scriptName = $(this).find('.field_scriptName').text();
+                                                    var scriptArgs = $(this).find('.field_scriptArgs').text();
+                                                    content += "Script: " + scriptName;
+                                                    if (scriptArgs) {
+                                                        content += " (" + scriptArgs + ")";
+                                                    }
+                                                } else if (type === "plugin") {
+                                                    name = $(this).find('.field_pluginHost').text();
+                                                    content += "Plugin: " + name;
+                                                } else {
+                                                    content += type || "Unknown";
+                                                }
+
+                                                if (duration > 0 && type !== "pause") {
+                                                    content += " (" + formatTime(duration) + ")";
+                                                }
+                                                content += "\n";
+                                            });
                                             content += "\n";
-                                        });
-                                    } else {
-                                        content += "(No entries)\n";
+                                        }
                                     }
 
+                                    content += "Total Time: " + formatTime(totalTime) + "\n";
                                     filename += ".txt";
                                     mimeType = "text/plain";
                                 } else if (format === "xls") {
-                                    // CSV format
-                                    content = "#,Type,Name/Details,Duration\n";
+                                    content = "#,Section,Type,Name/Details,Duration\n";
 
-                                    if (data.mainPlaylist && data.mainPlaylist.length > 0) {
-                                        data.mainPlaylist.forEach(function (entry, index) {
-                                            var row = (index + 1) + ",";
-                                            row += '"' + (entry.type || "") + '","';
+                                    var totalTime = 0;
+                                    var itemNumber = 0;
 
-                                            if (entry.type === "both" || entry.type === "media") {
-                                                row += (entry.mediaName || entry.mediaFilename || "");
-                                            } else if (entry.type === "sequence") {
-                                                row += (entry.sequenceName || "");
-                                            } else if (entry.type === "pause") {
-                                                row += "Pause";
-                                            } else if (entry.type === "playlist") {
-                                                row += (entry.playlistName || "");
-                                            } else if (entry.type === "command") {
-                                                row += (entry.command || "");
-                                            } else if (entry.type === "plugin") {
-                                                row += (entry.pluginHost || "");
+                                    var sectionNames = ["LeadIn", "MainPlaylist", "LeadOut"];
+                                    var sectionLabels = ["Lead In", "Main", "Lead Out"];
+
+                                    for (var s = 0; s < sectionNames.length; s++) {
+                                        var rows = $('#tblPlaylist' + sectionNames[s] + ' tr.playlistRow');
+                                        rows.each(function () {
+                                            itemNumber++;
+                                            var duration = parseFloat($(this).find('.psiDurationSeconds').html()) || 0;
+                                            totalTime += duration;
+
+                                            var type = $(this).find('.entryType').html();
+                                            var name = "";
+
+                                            if (type === "both" || type === "media") {
+                                                var seqName = $(this).find('.field_sequenceName').text();
+                                                var mediaName = $(this).find('.field_mediaName').text();
+                                                name = seqName || mediaName;
+                                            } else if (type === "sequence") {
+                                                name = $(this).find('.field_sequenceName').text();
+                                            } else if (type === "pause") {
+                                                name = "Pause";
+                                            } else if (type === "playlist") {
+                                                name = $(this).find('.field_name').text();
+                                            } else if (type === "command") {
+                                                name = $(this).find('.field_command').text();
+                                            } else if (type === "script") {
+                                                var scriptName = $(this).find('.field_scriptName').text();
+                                                var scriptArgs = $(this).find('.field_scriptArgs').text();
+                                                name = scriptName;
+                                                if (scriptArgs) {
+                                                    name += " (" + scriptArgs + ")";
+                                                }
+                                            } else if (type === "plugin") {
+                                                name = $(this).find('.field_pluginHost').text();
                                             }
 
-                                            row += '","' + (entry.duration || "") + '"\n';
+                                            var row = itemNumber + ",";
+                                            row += '"' + sectionLabels[s] + '","' + type + '","' + name + '","' + formatTime(duration) + '"\n';
                                             content += row;
                                         });
                                     }
 
+                                    content += "Total,,," + formatTime(totalTime) + "\n";
                                     filename += ".csv";
                                     mimeType = "text/csv";
                                 }
@@ -250,9 +314,8 @@
 
                                 CloseModalDialog("ExportPlaylistDialog");
                             },
-                            error: function (...args) {
-                                DialogError('Error Exporting Playlist', "Error exporting '" + name + "' playlist" +
-                                    show_details(args));
+                            error: function (xhr, status, error) {
+                                DialogError('Error Exporting Playlist', "Error exporting '" + name + "' playlist: " + error);
                             }
                         });
                     },
@@ -361,36 +424,42 @@
                         "Add Playlist": {
                             click: function () {
                                 if ($("#txtAddPlaylistName").val() === "") {
-                                    DialogError('No name given',
-                                        'The playlist name cannot be empty.');
+                                    DialogError('No name given', 'The playlist name cannot be empty.');
                                     return;
                                 }
                                 //check if playlist name already in use
-                                else if ($("#txtAddPlaylistName").val() === playListArray.find(p => p.name === $("#txtAddPlaylistName").val())?.name) {
-                                    DialogError('Playlist Name in Use',
-                                        'The playlist name already exists.');
+                                var playlistName = $("#txtAddPlaylistName").val();
+                                var existingPlaylist = null;
+                                for (var i = 0; i < playListArray.length; i++) {
+                                    if (playListArray[i].name === playlistName) {
+                                        existingPlaylist = playListArray[i];
+                                        break;
+                                    }
+                                }
+                                if (existingPlaylist) {
+                                    DialogError('Playlist Name in Use', 'The playlist name already exists.');
                                     return;
                                 }
-                                else {
-                                    SavePlaylistAs(
-                                        $("#txtAddPlaylistName").val(), {
+
+                                SavePlaylistAs(
+                                    $("#txtAddPlaylistName").val(),
+                                    {
                                         desc: $("#txtAddPlaylistDesc").val(),
                                         random: $("#randomizeAddPlaylist").val(),
                                         empty: true
                                     },
-                                        function () {
-                                            onPlaylistArrayLoaded();
-                                            $('#playlistSelect').val($(
-                                                "#txtAddPlaylistName").val()).trigger(
-                                                    'change');
-                                            LoadPlaylistDetails($("#txtAddPlaylistName").val());
-                                            //Set Page header to new playlist name
-                                            $('.playlistEditorHeaderTitle').html($("#txtAddPlaylistName").val());
+                                    function () {
+                                        onPlaylistArrayLoaded();
+                                        $('#playlistSelect').val($(
+                                            "#txtAddPlaylistName").val()).trigger(
+                                                'change');
+                                        LoadPlaylistDetails($("#txtAddPlaylistName").val());
+                                        //Set Page header to new playlist name
+                                        $('.playlistEditorHeaderTitle').html($("#txtAddPlaylistName").val());
 
-                                            CloseModalDialog("AddPlaylistDialog");
-                                        }
-                                    )
-                                }
+                                        CloseModalDialog("AddPlaylistDialog");
+                                    }
+                                );
                             },
                             class: 'btn-success'
                         },
@@ -496,7 +565,7 @@
                         onPlaylistArrayLoaded();
                     }
                 });
-                
+
                 // Update history state when clicking back button
                 history.pushState({ view: 'list' }, '', window.location.href);
             })
@@ -512,7 +581,7 @@
             }
 
             // Handle browser back/forward button
-            window.addEventListener('popstate', function(e) {
+            window.addEventListener('popstate', function (e) {
                 if (e.state) {
                     if (e.state.view === 'list') {
                         // Go back to list view
