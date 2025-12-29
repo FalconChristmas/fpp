@@ -147,7 +147,7 @@
 
         function ExportPlaylist() {
             var name = $('#txtPlaylistName').val();
-            
+
             DoModalDialog({
                 id: "ExportPlaylistDialog",
                 title: "Export Playlist",
@@ -158,7 +158,7 @@
                 buttons: {
                     "Export": function () {
                         var format = $("#exportFormat").val();
-                        
+
                         $.ajax({
                             dataType: "json",
                             url: "api/playlist/" + name,
@@ -167,7 +167,7 @@
                                 var content = "";
                                 var filename = name;
                                 var mimeType = "";
-                                
+
                                 if (format === "json") {
                                     content = JSON.stringify(data, null, 2);
                                     filename += ".json";
@@ -178,9 +178,9 @@
                                     content += "Random: " + (data.random || "0") + "\n";
                                     content += "\nEntries:\n";
                                     content += "==========\n\n";
-                                    
+
                                     if (data.mainPlaylist && data.mainPlaylist.length > 0) {
-                                        data.mainPlaylist.forEach(function(entry, index) {
+                                        data.mainPlaylist.forEach(function (entry, index) {
                                             content += (index + 1) + ". ";
                                             if (entry.type === "both" || entry.type === "media") {
                                                 content += "Media: " + (entry.mediaName || entry.mediaFilename || "");
@@ -202,18 +202,18 @@
                                     } else {
                                         content += "(No entries)\n";
                                     }
-                                    
+
                                     filename += ".txt";
                                     mimeType = "text/plain";
                                 } else if (format === "xls") {
                                     // CSV format
                                     content = "#,Type,Name/Details,Duration\n";
-                                    
+
                                     if (data.mainPlaylist && data.mainPlaylist.length > 0) {
-                                        data.mainPlaylist.forEach(function(entry, index) {
+                                        data.mainPlaylist.forEach(function (entry, index) {
                                             var row = (index + 1) + ",";
                                             row += '"' + (entry.type || "") + '","';
-                                            
+
                                             if (entry.type === "both" || entry.type === "media") {
                                                 row += (entry.mediaName || entry.mediaFilename || "");
                                             } else if (entry.type === "sequence") {
@@ -227,27 +227,27 @@
                                             } else if (entry.type === "plugin") {
                                                 row += (entry.pluginHost || "");
                                             }
-                                            
+
                                             row += '","' + (entry.duration || "") + '"\n';
                                             content += row;
                                         });
                                     }
-                                    
+
                                     filename += ".csv";
                                     mimeType = "text/csv";
                                 }
-                                
+
                                 // Create download
                                 var blob = new Blob([content], { type: mimeType });
                                 var link = document.createElement('a');
                                 link.href = window.URL.createObjectURL(blob);
                                 link.download = filename;
                                 link.click();
-                                
+
                                 $.jGrowl("Playlist exported successfully", {
                                     themeState: 'success'
                                 });
-                                
+
                                 CloseModalDialog("ExportPlaylistDialog");
                             },
                             error: function (...args) {
