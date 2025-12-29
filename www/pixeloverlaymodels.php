@@ -536,8 +536,9 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                         checked />
                 </div>
                 <hr>
-                <div class='fppTableWrapper fppTableWrapperAsTable fppFThScrollContainer'>
-                    <div class='fppTableContents' role="region" aria-labelledby="channelMemMaps" tabindex="0">
+                <div class='fppTableWrapper fppTableWrapperAsTable'>
+                    <div class='fppTableContents fppFThScrollContainer' role="region" aria-labelledby="channelMemMaps"
+                        tabindex="0">
                         <table id="channelMemMaps" class="fppSelectableRowTable fppStickyTheadTable">
                             <thead>
                                 <tr>
@@ -569,8 +570,9 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                         <h2>Auto Created Pixel Overlay Models</h2>
                     </div>
                 </div>
-                <div class='fppTableWrapper fppTableWrapperAsTable fppFThScrollContainer'>
-                    <div class='fppTableContents' role="region" aria-labelledby="channelMemMapsAutoCreate" tabindex="0">
+                <div class='fppTableWrapper fppTableWrapperAsTable'>
+                    <div class='fppTableContents fppFThScrollContainer' role="region"
+                        aria-labelledby="channelMemMapsAutoCreate" tabindex="0">
                         <table id="channelMemMapsAutoCreate" class="fppSelectableRowTable fppStickyTheadTable">
                             <thead>
                                 <tr>
