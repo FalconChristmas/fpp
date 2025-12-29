@@ -30,6 +30,34 @@
             "day": 17
         },
         {
+            "name": "Mother's Day",
+            "shortName": "MothersDay",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "head",
+                "month": 5,
+                "week": 2,
+                "dow": 0,
+                "offset": 0
+            }
+        },
+        {
+            "name": "Father's Day",
+            "shortName": "FathersDay",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "head",
+                "month": 6,
+                "week": 3,
+                "dow": 0,
+                "offset": 0
+            }
+        },
+        {
             "name": "Canada Day",
             "shortName": "CanadaDay",
             "year": 0,
@@ -41,7 +69,7 @@
             "shortName": "LabourDayFri",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "head",
                 "month": 9,
@@ -55,7 +83,7 @@
             "shortName": "LabourDay",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "head",
                 "month": 9,
@@ -69,7 +97,7 @@
             "shortName": "Thanksgiving",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "head",
                 "month": 10,

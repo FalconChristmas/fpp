@@ -94,6 +94,140 @@ void ScheduleEntry::CalculateEaster(int year, int& month, int& day) {
     day = (int)((h + L - 7 * (int)m + 114) % 31) + 1;
 }
 
+void ScheduleEntry::CalculateChineseNewYear(int year, int& month, int& day) {
+    // Simplified Chinese New Year calculation
+    // Second new moon after winter solstice (approximately)
+    // This is an approximation - for exact dates, a full lunar calendar is needed
+    
+    // These are pre-calculated Chinese New Year dates for 2024-2035
+    // Format: {year, month, day}
+    int cnyDates[][3] = {
+        {2024, 2, 10}, {2025, 1, 29}, {2026, 2, 17}, {2027, 2, 6},
+        {2028, 1, 26}, {2029, 2, 13}, {2030, 2, 3}, {2031, 1, 23},
+        {2032, 2, 11}, {2033, 1, 31}, {2034, 2, 19}, {2035, 2, 8}
+    };
+    
+    for (int i = 0; i < 12; i++) {
+        if (cnyDates[i][0] == year) {
+            month = cnyDates[i][1];
+            day = cnyDates[i][2];
+            return;
+        }
+    }
+    
+    // Default fallback if year not in table
+    month = 2;
+    day = 1;
+}
+
+void ScheduleEntry::CalculateHebrewDate(int year, const std::string& hebrewMonth, int hebrewDay, int& month, int& day) {
+    // Simplified Hebrew calendar conversion
+    // For precise dates, a full Hebrew calendar library would be needed
+    
+    // Approximate Rosh Hashanah (1 Tishrei) dates for 2024-2035
+    // Passover is typically ~6 months earlier
+    int roshHashanahDates[][3] = {
+        {2024, 10, 3}, {2025, 9, 23}, {2026, 9, 12}, {2027, 10, 2},
+        {2028, 9, 21}, {2029, 9, 10}, {2030, 9, 28}, {2031, 9, 18},
+        {2032, 9, 6}, {2033, 9, 24}, {2034, 9, 14}, {2035, 10, 4}
+    };
+    
+    if (hebrewMonth == "Tishrei" && hebrewDay == 1) {
+        // Rosh Hashanah
+        for (int i = 0; i < 12; i++) {
+            if (roshHashanahDates[i][0] == year) {
+                month = roshHashanahDates[i][1];
+                day = roshHashanahDates[i][2];
+                return;
+            }
+        }
+    } else if (hebrewMonth == "Nisan" && hebrewDay == 14) {
+        // Passover - approximately 6 months before Rosh Hashanah
+        int passoverDates[][3] = {
+            {2024, 4, 23}, {2025, 4, 13}, {2026, 4, 2}, {2027, 4, 22},
+            {2028, 4, 11}, {2029, 3, 31}, {2030, 4, 18}, {2031, 4, 8},
+            {2032, 3, 27}, {2033, 4, 14}, {2034, 4, 4}, {2035, 4, 24}
+        };
+        
+        for (int i = 0; i < 12; i++) {
+            if (passoverDates[i][0] == year) {
+                month = passoverDates[i][1];
+                day = passoverDates[i][2];
+                return;
+            }
+        }
+    }
+    
+    // Default fallback
+    month = 1;
+    day = 1;
+}
+
+void ScheduleEntry::CalculateIslamicDate(int year, int islamicMonth, int islamicDay, int& month, int& day) {
+    // Simplified Islamic calendar conversion
+    // Islamic calendar moves ~11 days earlier each year
+    
+    // Ramadan (month 9) approximate start dates for 2024-2035
+    int ramadanDates[][3] = {
+        {2024, 3, 11}, {2025, 3, 1}, {2026, 2, 18}, {2027, 2, 8},
+        {2028, 1, 28}, {2029, 1, 17}, {2030, 1, 6}, {2031, 12, 26},
+        {2032, 12, 15}, {2033, 12, 5}, {2034, 11, 24}, {2035, 11, 14}
+    };
+    
+    // Eid al-Fitr (month 10, day 1) - approximately 30 days after Ramadan
+    int eidFitrDates[][3] = {
+        {2024, 4, 10}, {2025, 3, 31}, {2026, 3, 20}, {2027, 3, 10},
+        {2028, 2, 27}, {2029, 2, 16}, {2030, 2, 5}, {2031, 1, 25},
+        {2032, 1, 14}, {2033, 1, 3}, {2034, 12, 24}, {2035, 12, 13}
+    };
+    
+    if (islamicMonth == 9 && islamicDay == 1) {
+        // Ramadan start
+        for (int i = 0; i < 12; i++) {
+            if (ramadanDates[i][0] == year) {
+                month = ramadanDates[i][1];
+                day = ramadanDates[i][2];
+                return;
+            }
+        }
+    } else if (islamicMonth == 10 && islamicDay == 1) {
+        // Eid al-Fitr
+        for (int i = 0; i < 12; i++) {
+            if (eidFitrDates[i][0] == year) {
+                month = eidFitrDates[i][1];
+                day = eidFitrDates[i][2];
+                return;
+            }
+        }
+    }
+    
+    // Default fallback
+    month = 1;
+    day = 1;
+}
+
+void ScheduleEntry::CalculateHinduDiwali(int year, int& month, int& day) {
+    // Diwali falls on the new moon of Kartika (October/November)
+    // Pre-calculated dates for 2024-2035
+    int diwaliDates[][3] = {
+        {2024, 11, 1}, {2025, 10, 21}, {2026, 11, 9}, {2027, 10, 29},
+        {2028, 10, 17}, {2029, 11, 5}, {2030, 10, 26}, {2031, 11, 14},
+        {2032, 11, 2}, {2033, 10, 23}, {2034, 11, 12}, {2035, 11, 1}
+    };
+    
+    for (int i = 0; i < 12; i++) {
+        if (diwaliDates[i][0] == year) {
+            month = diwaliDates[i][1];
+            day = diwaliDates[i][2];
+            return;
+        }
+    }
+    
+    // Default fallback
+    month = 11;
+    day = 1;
+}
+
 std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday) {
     int year = 0;
     int month = 0;
@@ -175,6 +309,46 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday) {
             int ldow = wday + ((mdays[month - 1] - 1) % 7);
             day = mdays[month - 1] - ((ldow + 7 - dow) % 7) - ((week - 1) * 7);
             day += offset;
+        } else if (type == "lunar") {
+            // Handle lunar calendar calculations
+            std::string calendar = c.isMember("calendar") ? c["calendar"].asString() : "";
+            
+            if (calendar == "chinese") {
+                CalculateChineseNewYear(year, month, day);
+            } else if (calendar == "hebrew") {
+                std::string hebrewMonth = c.isMember("hebrewMonth") ? c["hebrewMonth"].asString() : "";
+                int hebrewDay = c.isMember("hebrewDay") ? c["hebrewDay"].asInt() : 1;
+                CalculateHebrewDate(year, hebrewMonth, hebrewDay, month, day);
+            } else if (calendar == "islamic") {
+                int islamicMonth = c.isMember("islamicMonth") ? c["islamicMonth"].asInt() : 1;
+                int islamicDay = c.isMember("islamicDay") ? c["islamicDay"].asInt() : 1;
+                CalculateIslamicDate(year, islamicMonth, islamicDay, month, day);
+            } else if (calendar == "hindu") {
+                CalculateHinduDiwali(year, month, day);
+            } else {
+                LogErr(VB_SCHEDULE, "Unknown lunar calendar type %s\n", calendar.c_str());
+                return "0000-00-00";
+            }
+            
+            // Check if the calculated date has passed this year
+            if ((month < (now.tm_mon + 1)) || 
+                (month == (now.tm_mon + 1) && day < now.tm_mday)) {
+                year++;
+                // Recalculate for next year
+                if (calendar == "chinese") {
+                    CalculateChineseNewYear(year, month, day);
+                } else if (calendar == "hebrew") {
+                    std::string hebrewMonth = c.isMember("hebrewMonth") ? c["hebrewMonth"].asString() : "";
+                    int hebrewDay = c.isMember("hebrewDay") ? c["hebrewDay"].asInt() : 1;
+                    CalculateHebrewDate(year, hebrewMonth, hebrewDay, month, day);
+                } else if (calendar == "islamic") {
+                    int islamicMonth = c.isMember("islamicMonth") ? c["islamicMonth"].asInt() : 1;
+                    int islamicDay = c.isMember("islamicDay") ? c["islamicDay"].asInt() : 1;
+                    CalculateIslamicDate(year, islamicMonth, islamicDay, month, day);
+                } else if (calendar == "hindu") {
+                    CalculateHinduDiwali(year, month, day);
+                }
+            }
         } else {
             LogErr(VB_SCHEDULE, "Unknown holiday calculation type %s\n", type.c_str());
             return "0000-00-00";

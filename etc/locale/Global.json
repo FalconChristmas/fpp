@@ -2,6 +2,99 @@
     "name": "Global",
     "holidays": [
         {
+            "name": "New Year's Day",
+            "shortName": "NewYearsDay",
+            "year": 0,
+            "month": 1,
+            "day": 1
+        },
+        {
+            "name": "Chinese New Year",
+            "shortName": "ChineseNewYear",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "lunar",
+                "calendar": "chinese"
+            }
+        },
+        {
+            "name": "Passover",
+            "shortName": "Passover",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "lunar",
+                "calendar": "hebrew",
+                "hebrewMonth": "Nisan",
+                "hebrewDay": 14
+            }
+        },
+        {
+            "name": "Easter",
+            "shortName": "Easter",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": 0
+            }
+        },
+        {
+            "name": "Ramadan",
+            "shortName": "Ramadan",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "lunar",
+                "calendar": "islamic",
+                "islamicMonth": 9,
+                "islamicDay": 1
+            }
+        },
+        {
+            "name": "Eid al-Fitr",
+            "shortName": "EidAlFitr",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "lunar",
+                "calendar": "islamic",
+                "islamicMonth": 10,
+                "islamicDay": 1
+            }
+        },
+        {
+            "name": "Rosh Hashanah",
+            "shortName": "RoshHashanah",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "lunar",
+                "calendar": "hebrew",
+                "hebrewMonth": "Tishrei",
+                "hebrewDay": 1
+            }
+        },
+        {
+            "name": "Diwali",
+            "shortName": "Diwali",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "lunar",
+                "calendar": "hindu",
+                "hinduMonth": "Kartika"
+            }
+        },
+        {
             "name": "Christmas Eve",
             "shortName": "ChristmasEve",
             "year": 0,
@@ -21,13 +114,6 @@
             "year": 0,
             "month": 12,
             "day": 31
-        },
-        {
-            "name": "New Year's Day",
-            "shortName": "NewYearsDay",
-            "year": 0,
-            "month": 1,
-            "day": 1
         }
     ]
 }

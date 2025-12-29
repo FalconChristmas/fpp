@@ -111,6 +111,12 @@ function LoadLocale()
         if (file_exists($localeFile)) {
             $localeStr = file_get_contents($localeFile);
             $tmpLocale = json_decode($localeStr, true);
+
+            // Merge holidays arrays properly instead of replacing
+            if (isset($locale['holidays']) && isset($tmpLocale['holidays'])) {
+                $tmpLocale['holidays'] = array_merge($locale['holidays'], $tmpLocale['holidays']);
+            }
+
             $locale = array_merge($locale, $tmpLocale);
         }
     }

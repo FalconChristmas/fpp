@@ -27,6 +27,10 @@ public:
     ~ScheduleEntry();
 
     void CalculateEaster(int year, int& month, int& day);
+    void CalculateChineseNewYear(int year, int& month, int& day);
+    void CalculateHebrewDate(int year, const std::string& hebrewMonth, int hebrewDay, int& month, int& day);
+    void CalculateIslamicDate(int year, int islamicMonth, int islamicDay, int& month, int& day);
+    void CalculateHinduDiwali(int year, int& month, int& day);
     std::string DateFromLocaleHoliday(Json::Value& holiday);
     std::string CheckHoliday(std::string date);
 

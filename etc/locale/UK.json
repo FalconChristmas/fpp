@@ -1,0 +1,30 @@
+{
+    "name": "UK",
+    "holidays": [
+        {
+            "name": "Mothering Sunday",
+            "shortName": "MotheringSunday",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": -21
+            }
+        },
+        {
+            "name": "Father's Day",
+            "shortName": "FathersDay",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "head",
+                "month": 6,
+                "week": 3,
+                "dow": 0,
+                "offset": 0
+            }
+        }
+    ]
+}

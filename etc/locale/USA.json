@@ -20,7 +20,7 @@
             "shortName": "MLKDay",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "head",
                 "month": 1,
@@ -41,7 +41,7 @@
             "shortName": "PresidentsDay",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "head",
                 "month": 2,
@@ -58,11 +58,25 @@
             "day": 17
         },
         {
+            "name": "Mother's Day",
+            "shortName": "MothersDay",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "head",
+                "month": 5,
+                "week": 2,
+                "dow": 0,
+                "offset": 0
+            }
+        },
+        {
             "name": "Memorial Day Friday",
             "shortName": "MemorialDayFri",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "tail",
                 "month": 5,
@@ -76,7 +90,7 @@
             "shortName": "MemorialDay",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "tail",
                 "month": 5,
@@ -93,11 +107,25 @@
             "day": 4
         },
         {
+            "name": "Father's Day",
+            "shortName": "FathersDay",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "head",
+                "month": 6,
+                "week": 3,
+                "dow": 0,
+                "offset": 0
+            }
+        },
+        {
             "name": "Labor Day Friday",
             "shortName": "LaborDayFri",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "head",
                 "month": 9,
@@ -111,7 +139,7 @@
             "shortName": "LaborDay",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "head",
                 "month": 9,
@@ -139,7 +167,7 @@
             "shortName": "Thanksgiving",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "head",
                 "month": 11,
@@ -153,7 +181,7 @@
             "shortName": "BlackFriday",
             "year": 0,
             "month": 0,
-            "day": 0 ,
+            "day": 0,
             "calc": {
                 "type": "head",
                 "month": 11,
