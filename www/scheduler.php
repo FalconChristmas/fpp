@@ -697,7 +697,7 @@ error_reporting(E_ALL);
         function SaveUserHolidays() {
             // Validate all fields first
             if (!ValidateUserHolidays()) {
-                $.jGrowl('Please correct the highlighted fields. Each holiday must have both a Display name and Config name.', { themeState: 'danager' });
+                $.jGrowl('Please correct the highlighted fields. Each holiday must have both a Display name and Config name.', { themeState: 'danger' });
                 return;
             }
 

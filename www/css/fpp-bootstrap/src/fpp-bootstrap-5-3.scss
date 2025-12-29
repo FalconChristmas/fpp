@@ -419,7 +419,7 @@ input[type=checkbox][disabled=""]:checked {
         background-color: $success;
         color:#fff;
     }
-    &.ui-state-danger{
+    &.ui-state-danger, &.ui-state-error{
         background-color: $danger;
         color:#fff;
     }
