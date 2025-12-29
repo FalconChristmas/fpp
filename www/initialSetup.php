@@ -13,6 +13,28 @@
         $showOSSecurity = 1;
     ?>
     <script>
+        // Store all pending setting changes
+        var pendingSettings = {};
+
+        // Generic function to track setting changes without saving
+        function trackSettingChange(settingName) {
+            var value = $('#' + settingName.replace(/\./g, '\\.')).val();
+            pendingSettings[settingName] = value;
+
+            // Update the settings object locally for UI consistency
+            settings[settingName] = value;
+        }
+
+        // Track checkbox changes
+        function trackCheckboxChange(settingName, checkedValue, uncheckedValue) {
+            var value = uncheckedValue;
+            if ($('#' + settingName.replace(/\./g, '\\.')).is(':checked')) {
+                value = checkedValue;
+            }
+            pendingSettings[settingName] = value;
+            settings[settingName] = value;
+        }
+
         function finishSetup() {
             var passwordEnable = $('#passwordEnable').val();
             if (passwordEnable == '') {
@@ -32,11 +54,28 @@
                 }
             <? } ?>
 
-            // Must match the -XX setting name in common/menuHead.inc
-            Put('api/settings/initialSetup-02', false, '1');
+            // Save all pending settings
+            var settingsToSave = Object.keys(pendingSettings).length;
+            var settingsSaved = 0;
 
-            var redirectURL = '<?= $_GET['redirect'] ?>';
-            location.href = (redirectURL == '') ? 'index.php' : redirectURL;
+            if (settingsToSave > 0) {
+                $.each(pendingSettings, function (key, value) {
+                    SetSetting(key, value, 0, 0, false, null, function () {
+                        settingsSaved++;
+                        if (settingsSaved == settingsToSave) {
+                            // All settings saved, now set completion flag
+                            Put('api/settings/initialSetup-02', false, '1');
+                            var redirectURL = '<?= $_GET['redirect'] ?>';
+                            location.href = (redirectURL == '') ? 'index.php' : redirectURL;
+                        }
+                    });
+                });
+            } else {
+                // No settings changed, just set completion flag
+                Put('api/settings/initialSetup-02', false, '1');
+                var redirectURL = '<?= $_GET['redirect'] ?>';
+                location.href = (redirectURL == '') ? 'index.php' : redirectURL;
+            }
         }
 
         var hiddenChildren = {};
@@ -72,6 +111,47 @@
             <? } ?>
 
             UpdateChildSettingsVisibility();
+
+            // Override all auto-generated onChange handlers to track changes instead of saving immediately
+            // List of all settings on this page
+            var settingsToOverride = [
+                'passwordEnable', 'password', 'passwordVerify',
+                'osPasswordEnable', 'osPassword', 'osPasswordVerify',
+                'fppMode', 'HostName', 'InstalledCape',
+                'ShareCrashData', 'emailAddress', 'FetchVendorLogos', 'SendVendorSerial', 'statsPublish',
+                'Locale', 'TimeZone', 'Latitude', 'Longitude'
+            ];
+
+            // Replace onChange handlers for each setting
+            $.each(settingsToOverride, function (index, settingName) {
+                var $elem = $('#' + settingName.replace(/\./g, '\\.'));
+                if ($elem.length > 0) {
+                    // Store the original onChange function if we need child visibility updates
+                    var originalOnChange = window[settingName + 'Changed'];
+
+                    // Create new onChange that tracks but doesn't save
+                    window[settingName + 'Changed'] = function () {
+                        var $input = $('#' + settingName.replace(/\./g, '\\.'));
+
+                        if ($input.attr('type') === 'checkbox') {
+                            var checkedValue = $input.data('checked-value') || '1';
+                            var uncheckedValue = $input.data('unchecked-value') || '0';
+                            var value = $input.is(':checked') ? checkedValue : uncheckedValue;
+                            pendingSettings[settingName] = value;
+                            settings[settingName] = value;
+                        } else {
+                            var value = $input.val();
+                            pendingSettings[settingName] = value;
+                            settings[settingName] = value;
+                        }
+
+                        // Handle child visibility updates if the setting has children
+                        if (typeof window['Update' + settingName + 'Children'] === 'function') {
+                            window['Update' + settingName + 'Children'](0);
+                        }
+                    };
+                }
+            });
         });
     </script>
 
