@@ -618,7 +618,8 @@ require_once "common.php";
                     <hr>
 
                     <div class='fppTableWrapper fppTableWrapperAsTablefpp'>
-                        <div class='fppTableContents' role="region" aria-labelledby="outputProcessors" tabindex="0">
+                        <div class='fppTableContents fppFThScrollContainer' role="region"
+                            aria-labelledby="outputProcessors" tabindex="0">
                             <table id="outputProcessors" class="fppSelectableRowTable fppStickyTheadTable">
                                 <thead>
                                     <tr>

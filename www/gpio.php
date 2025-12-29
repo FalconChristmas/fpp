@@ -241,7 +241,7 @@ include 'menu.inc';?>
             </div>
             <hr>
             <div class='fppTableWrapper'>
-            <div class='fppTableContents fullWidth' role="region" aria-labelledby="GPIOInputs" tabindex="0">
+            <div class='fppTableContents fppFThScrollContainer fullWidth' role="region" aria-labelledby="GPIOInputs" tabindex="0">
             <table id='GPIOInputs' class="fppSelectableRowTable fppStickyTheadTable">
                 <thead>
                     <tr>
