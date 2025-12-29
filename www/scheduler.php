@@ -629,19 +629,85 @@ error_reporting(E_ALL);
                 '<td><button type="button" class="btn btn-sm btn-danger" onclick="DeleteHolidayRow(this);"><i class="fas fa-trash"></i></button></td>' +
                 '</tr>';
 
-            $('#tblUserHolidaysBody').append(row);
+            var $row = $(row);
+            $('#tblUserHolidaysBody').append($row);
+
+            // Store original shortName to track changes
+            $row.data('originalShortName', shortName);
+            // Track if shortName was initially blank
+            $row.data('shortNameWasBlank', !shortName);
+
+            // Auto-generate shortName on blur when name loses focus
+            $row.find('.holName').on('blur', function () {
+                var $shortNameField = $(this).closest('tr').find('.holShortName');
+                var wasBlank = $(this).closest('tr').data('shortNameWasBlank');
+                // Only auto-generate if shortName was originally blank
+                if (wasBlank && !$shortNameField.val().trim()) {
+                    var generatedShortName = GenerateShortName($(this).val());
+                    $shortNameField.val(generatedShortName);
+                }
+            });
+
+            // Clear validation styling when user types in name field
+            $row.find('.holName').on('input', function () {
+                $(this).removeClass('is-invalid');
+            });
+
+            // Clear validation styling when user edits shortName
+            $row.find('.holShortName').on('input', function () {
+                $(this).removeClass('is-invalid');
+            });
         }
 
         function DeleteHolidayRow(btn) {
             $(btn).closest('tr').remove();
         }
 
+        function GenerateShortName(name) {
+            // Remove special characters and spaces, keep only alphanumeric
+            return name.replace(/[^a-zA-Z0-9]/g, '');
+        }
+
+        function ValidateUserHolidays() {
+            var isValid = true;
+
+            $('#tblUserHolidaysBody tr').each(function () {
+                var $nameField = $(this).find('.holName');
+                var $shortNameField = $(this).find('.holShortName');
+                var name = $nameField.val().trim();
+                var shortName = $shortNameField.val().trim();
+
+                // Remove previous validation classes
+                $nameField.removeClass('is-invalid');
+                $shortNameField.removeClass('is-invalid');
+
+                // Validate: if name is provided, shortName must also be provided
+                if (name && !shortName) {
+                    $shortNameField.addClass('is-invalid');
+                    isValid = false;
+                } else if (!name && shortName) {
+                    $nameField.addClass('is-invalid');
+                    isValid = false;
+                }
+            });
+
+            return isValid;
+        }
+
         function SaveUserHolidays() {
+            // Validate all fields first
+            if (!ValidateUserHolidays()) {
+                $.jGrowl('Please correct the highlighted fields. Each holiday must have both a Display name and Config name.', { themeState: 'danager' });
+                return;
+            }
+
             var holidays = [];
+            var shortNameChanges = {}; // Track old -> new shortName mappings
 
             $('#tblUserHolidaysBody tr').each(function () {
                 var name = $(this).find('.holName').val().trim();
                 var shortName = $(this).find('.holShortName').val().trim();
+                var originalShortName = $(this).data('originalShortName') || '';
                 var month = parseInt($(this).find('.holMonth').val());
                 var day = parseInt($(this).find('.holDay').val());
 
@@ -652,8 +718,67 @@ error_reporting(E_ALL);
                         month: month,
                         day: day
                     });
+
+                    // Track if shortName was changed
+                    if (originalShortName && originalShortName !== shortName) {
+                        shortNameChanges[originalShortName] = shortName;
+                    }
                 }
             });
+
+            // Function to update schedule entries with renamed holidays
+            function updateScheduleWithRenamedHolidays(callback) {
+                if (Object.keys(shortNameChanges).length === 0) {
+                    // No changes to process
+                    if (callback) callback();
+                    return;
+                }
+
+                // Load current schedule
+                $.get('api/schedule', function (scheduleData) {
+                    var scheduleUpdated = false;
+
+                    // Update each schedule entry
+                    for (var i = 0; i < scheduleData.length; i++) {
+                        var entry = scheduleData[i];
+
+                        // Check startDate
+                        if (entry.startDate && shortNameChanges.hasOwnProperty(entry.startDate)) {
+                            entry.startDate = shortNameChanges[entry.startDate];
+                            scheduleUpdated = true;
+                        }
+
+                        // Check endDate
+                        if (entry.endDate && shortNameChanges.hasOwnProperty(entry.endDate)) {
+                            entry.endDate = shortNameChanges[entry.endDate];
+                            scheduleUpdated = true;
+                        }
+                    }
+
+                    if (scheduleUpdated) {
+                        // Save updated schedule
+                        $.ajax({
+                            url: 'api/schedule',
+                            type: 'POST',
+                            dataType: 'json',
+                            contentType: 'application/json',
+                            data: JSON.stringify(scheduleData),
+                            success: function () {
+                                $.jGrowl('Schedule updated with renamed holidays', { themeState: 'success' });
+                                if (callback) callback();
+                            },
+                            error: function () {
+                                $.jGrowl('Warning: Could not update schedule entries', { themeState: 'error' });
+                                if (callback) callback();
+                            }
+                        });
+                    } else {
+                        if (callback) callback();
+                    }
+                }).fail(function () {
+                    if (callback) callback();
+                });
+            }
 
             $.ajax({
                 url: 'api/configfile/user-holidays.json',
@@ -663,15 +788,19 @@ error_reporting(E_ALL);
                 data: JSON.stringify(holidays),
                 success: function (response) {
                     userHolidays = holidays;
-                    $.jGrowl('User holidays saved', { themeState: 'success' });
 
-                    var modal = bootstrap.Modal.getInstance(document.getElementById('holidayEditorModal'));
-                    if (modal) {
-                        modal.hide();
-                    }
+                    // Update schedule entries with renamed holidays
+                    updateScheduleWithRenamedHolidays(function () {
+                        $.jGrowl('User holidays saved', { themeState: 'success' });
 
-                    // Refresh schedule display to show new holidays
-                    ReloadSchedule();
+                        var modal = bootstrap.Modal.getInstance(document.getElementById('holidayEditorModal'));
+                        if (modal) {
+                            modal.hide();
+                        }
+
+                        // Refresh schedule display to show new holidays
+                        ReloadSchedule();
+                    });
                 },
                 error: function () {
                     DialogError('Error saving', 'Error saving user holidays');
@@ -1186,8 +1315,8 @@ error_reporting(E_ALL);
                             <table id="tblUserHolidays" class="table table-sm table-bordered">
                                 <thead>
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Short Name</th>
+                                        <th>Display Name</th>
+                                        <th>Config Name</th>
                                         <th>Month</th>
                                         <th>Day</th>
                                         <th>Actions</th>
