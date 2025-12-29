@@ -477,6 +477,9 @@
                         onPlaylistArrayLoaded();
                     }
                 });
+                
+                // Update history state when clicking back button
+                history.pushState({ view: 'list' }, '', window.location.href);
             })
 
             PopulateLists({
@@ -488,6 +491,29 @@
             } else {
                 $('#playlistSelect').prepend('<option value="" disabled selected>Select a Playlist</option>');
             }
+
+            // Handle browser back/forward button
+            window.addEventListener('popstate', function(e) {
+                if (e.state) {
+                    if (e.state.view === 'list') {
+                        // Go back to list view
+                        if ($('#playlistEditor').hasClass('hasPlaylistDetailsLoaded')) {
+                            $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
+                            PopulateLists({
+                                onPlaylistArrayLoaded: onPlaylistArrayLoaded
+                            });
+                        }
+                    } else if (e.state.view === 'editor' && e.state.playlist) {
+                        // Go forward to editor view
+                        if (!$('#playlistEditor').hasClass('hasPlaylistDetailsLoaded')) {
+                            $('#playlistSelect').val(e.state.playlist).trigger('change');
+                        }
+                    }
+                }
+            });
+
+            // Set initial history state
+            history.replaceState({ view: 'list' }, '', location.href);
 
         })
     </script>
