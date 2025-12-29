@@ -742,7 +742,9 @@ int main(int argc, char* argv[]) {
     // incomplete and cause problems with summary
     // PublishStatsForce("Shutdown"); // not background
 
-    CommandManager::INSTANCE.TriggerPreset("FPPD_STOPPED");
+    if (CommandManager::INSTANCE.HasPreset("FPPD_STOPPED")) {
+        CommandManager::INSTANCE.TriggerPreset("FPPD_STOPPED");
+    }
 
     // turn off processing of events so we don't get
     // events while we are shutting down
@@ -852,7 +854,9 @@ void MainLoop(void) {
     if (getFPPmode() & PLAYER_MODE) {
         scheduler->CheckIfShouldBePlayingNow();
     }
-    CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
+    if (CommandManager::INSTANCE.HasPreset("FPPD_STARTED")) {
+        CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
+    }
 
     for (auto& a : callbacks) {
         EPollManager::INSTANCE.addFileDescriptor(a.first, a.second);

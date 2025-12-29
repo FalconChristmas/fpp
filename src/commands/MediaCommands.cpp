@@ -249,7 +249,9 @@ void VLCPlayData::Stopped() {
     // Trigger MEDIA_STOPPED event
     std::map<std::string, std::string> keywords;
     keywords["MEDIA_NAME"] = dt->filename;
-    CommandManager::INSTANCE.TriggerPreset("MEDIA_STOPPED", keywords);
+    if (CommandManager::INSTANCE.HasPreset("MEDIA_STOPPED")) {
+        CommandManager::INSTANCE.TriggerPreset("MEDIA_STOPPED", keywords);
+    }
     
     Timers::INSTANCE.addTimer(std::to_string(i), GetTimeMS() + 1, [dt]() {
         runningMediaLock.lock();
@@ -281,7 +283,9 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     if (out->Start()) {
         std::map<std::string, std::string> keywords;
         keywords["MEDIA_NAME"] = args[0];
-        CommandManager::INSTANCE.TriggerPreset("MEDIA_STARTED", keywords);
+        if (CommandManager::INSTANCE.HasPreset("MEDIA_STARTED")) {
+            CommandManager::INSTANCE.TriggerPreset("MEDIA_STARTED", keywords);
+        }
     }
 
     return std::make_unique<Command::Result>("Playing");

@@ -398,7 +398,9 @@ int StartMediaOutput(const std::string& filename) {
     }
     std::map<std::string, std::string> keywords;
     keywords["MEDIA_NAME"] = filename;
-    CommandManager::INSTANCE.TriggerPreset("MEDIA_STARTED", keywords);
+    if (CommandManager::INSTANCE.HasPreset("MEDIA_STARTED")) {
+        CommandManager::INSTANCE.TriggerPreset("MEDIA_STARTED", keywords);
+    }
 
     return 1;
 }
@@ -424,7 +426,9 @@ void CloseMediaOutput() {
 
     std::map<std::string, std::string> keywords;
     keywords["MEDIA_NAME"] = mediaOutput->m_mediaFilename;
-    CommandManager::INSTANCE.TriggerPreset("MEDIA_STOPPED", keywords);
+    if (CommandManager::INSTANCE.HasPreset("MEDIA_STOPPED")) {
+        CommandManager::INSTANCE.TriggerPreset("MEDIA_STOPPED", keywords);
+    }
 
     delete mediaOutput;
     mediaOutput = 0;

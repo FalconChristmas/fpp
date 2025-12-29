@@ -659,7 +659,9 @@ int Playlist::StopNow(int forceStop) {
 
     std::map<std::string, std::string> keywords;
     keywords["PLAYLIST_NAME"] = m_name;
-    CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_NOW", keywords);
+    if (CommandManager::INSTANCE.HasPreset("PLAYLIST_STOPPING_NOW")) {
+        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_NOW", keywords);
+    }
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     m_status = FPP_STATUS_STOPPING_NOW;
@@ -688,11 +690,15 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
     keywords["PLAYLIST_NAME"] = m_name;
 
     if (afterCurrentLoop) {
-        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_AFTER_LOOP", keywords);
+        if (CommandManager::INSTANCE.HasPreset("PLAYLIST_STOPPING_AFTER_LOOP")) {
+            CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_AFTER_LOOP", keywords);
+        }
         m_status = FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP;
         m_currentState = "stoppingAfterLoop";
     } else {
-        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_GRACEFULLY", keywords);
+        if (CommandManager::INSTANCE.HasPreset("PLAYLIST_STOPPING_GRACEFULLY")) {
+            CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_GRACEFULLY", keywords);
+        }
         m_status = FPP_STATUS_STOPPING_GRACEFULLY;
         m_currentState = "stoppingGracefully";
     }
@@ -1038,7 +1044,9 @@ void Playlist::SetIdle(bool exit) {
     }
     Cleanup();
     if (!keywords.empty()) {
-        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPED", keywords);
+        if (CommandManager::INSTANCE.HasPreset("PLAYLIST_STOPPED")) {
+            CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPED", keywords);
+        }
     }
 
     PluginManager::INSTANCE.playlistCallback(GetInfo(), "stop", m_currentSectionStr, m_sectionPosition);
@@ -1222,7 +1230,9 @@ int Playlist::Play(const std::string& filename, const int position, const int re
     if (result == 1) {
         std::map<std::string, std::string> keywords;
         keywords["PLAYLIST_NAME"] = m_name;
-        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STARTED", keywords);
+        if (CommandManager::INSTANCE.HasPreset("PLAYLIST_STARTED")) {
+            CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STARTED", keywords);
+        }
     }
 
     return result;

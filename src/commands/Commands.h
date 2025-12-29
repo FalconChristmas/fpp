@@ -137,6 +137,7 @@ public:
     void removeCommand(const std::string& cmdName);
 
     Json::Value getDescriptions();
+    bool HasPreset(const std::string& name);
 
     virtual std::unique_ptr<Command::Result> run(const std::string& command, const std::vector<std::string>& args);
     virtual std::unique_ptr<Command::Result> run(const std::string& command, const Json::Value& argsArray);

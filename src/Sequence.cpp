@@ -454,7 +454,9 @@ void Sequence::StartSequence() {
 
     std::map<std::string, std::string> keywords;
     keywords["SEQUENCE_NAME"] = m_seqFilename;
-    CommandManager::INSTANCE.TriggerPreset("SEQUENCE_STARTED", keywords);
+    if (CommandManager::INSTANCE.HasPreset("SEQUENCE_STARTED")) {
+        CommandManager::INSTANCE.TriggerPreset("SEQUENCE_STARTED", keywords);
+    }
 }
 
 void Sequence::StartSequence(const std::string& filename, int frameNumber) {
@@ -824,7 +826,9 @@ void Sequence::CloseSequenceFile(void) {
 
         std::map<std::string, std::string> keywords;
         keywords["SEQUENCE_NAME"] = m_seqFilename;
-        CommandManager::INSTANCE.TriggerPreset("SEQUENCE_STOPPED", keywords);
+        if (CommandManager::INSTANCE.HasPreset("SEQUENCE_STOPPED")) {
+            CommandManager::INSTANCE.TriggerPreset("SEQUENCE_STOPPED", keywords);
+        }
         commandPresets.clear();
         effectsOn.clear();
         effectsOff.clear();

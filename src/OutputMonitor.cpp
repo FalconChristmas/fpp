@@ -461,7 +461,9 @@ void OutputMonitor::EnableOutputs() {
         }
     }
     lock.unlock();
-    CommandManager::INSTANCE.TriggerPreset("OUTPUTS_ENABLED");
+    if (CommandManager::INSTANCE.HasPreset("OUTPUTS_ENABLED")) {
+        CommandManager::INSTANCE.TriggerPreset("OUTPUTS_ENABLED");
+    }
 }
 void OutputMonitor::DisableOutputs() {
     if (!pullHighOutputPins.empty() || !pullLowOutputPins.empty()) {
@@ -481,7 +483,9 @@ void OutputMonitor::DisableOutputs() {
     PinCapabilities::SetMultiPinValue(pullHighOutputPins, 0);
     PinCapabilities::SetMultiPinValue(pullLowOutputPins, 1);
     lock.unlock();
-    CommandManager::INSTANCE.TriggerPreset("OUTPUTS_DISABLED");
+    if (CommandManager::INSTANCE.HasPreset("OUTPUTS_DISABLED")) {
+        CommandManager::INSTANCE.TriggerPreset("OUTPUTS_DISABLED");
+    }
 }
 
 void OutputMonitor::SetOutput(const std::string& port, bool on) {
@@ -844,7 +848,9 @@ void OutputMonitor::addEFuseWarning(PortPinInfo* pi, int rec) {
 
             std::map<std::string, std::string> keywords;
             keywords["PORT"] = name;
-            CommandManager::INSTANCE.TriggerPreset("EFUSE_TRIGGERED", keywords);
+            if (CommandManager::INSTANCE.HasPreset("EFUSE_TRIGGERED")) {
+                CommandManager::INSTANCE.TriggerPreset("EFUSE_TRIGGERED", keywords);
+            }
         }
     }
 }
