@@ -272,12 +272,29 @@
             if (name == "") {
                 name = $('#txtPlaylistName').val();
             }
-            DeleteNamedPlaylist(name, {
-                onPlaylistArrayLoaded: function () {
-                    $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
-                    onPlaylistArrayLoaded();
+            DoModalDialog({
+                id: "DeletePlaylistDialog",
+                title: "Delete Playlist?",
+                body: 'Are you sure you want to delete the playlist `' + name + '`?',
+                class: "modal-sm",
+                backdrop: true,
+                keyboard: false,
+                buttons: {
+                    "Delete": function () {
+                        DeleteNamedPlaylist(name, {
+                            onPlaylistArrayLoaded: function () {
+                                $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
+                                onPlaylistArrayLoaded();
+                            }
+                        });
+                        location.reload();
+                        CloseModalDialog("DeletePlaylistDialog");
+                    },
+                    "Cancel": function () {
+                        CloseModalDialog("DeletePlaylistDialog");
+                    }
                 }
-            });
+            })
         }
 
         function onPlaylistArrayLoaded() {
@@ -307,8 +324,9 @@
                     $('#playlistSelect').val($playlistName).trigger('change');
                     e.stopPropagation();
                 })
-                $playlistDelete.on("click", function () {
+                $playlistDelete.on("click", function (e) {
                     handleDeleteButtonClick($playlistName);
+                    e.stopPropagation();
                 });
                 $playlistActions.append($playlistEditButton);
                 $playlistActions.append($playlistDelete);
