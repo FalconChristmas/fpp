@@ -558,6 +558,11 @@
                     }
                 }
 
+                // Clear playlist DOM tables to prevent data being put in new playlists
+                $('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+                $('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+                $('#tblPlaylistLeadOut').html("<tr id='tblPlaylistLeadOutPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+
                 //logic to reload window playlist details to pick up changes
                 PopulateLists({
                     onPlaylistArrayLoaded: function () {
@@ -586,6 +591,10 @@
                     if (e.state.view === 'list') {
                         // Go back to list view
                         if ($('#playlistEditor').hasClass('hasPlaylistDetailsLoaded')) {
+                            // Clear playlist tables to prevent stale data
+                            $('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+                            $('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+                            $('#tblPlaylistLeadOut').html("<tr id='tblPlaylistLeadOutPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
                             $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
                             PopulateLists({
                                 onPlaylistArrayLoaded: onPlaylistArrayLoaded
