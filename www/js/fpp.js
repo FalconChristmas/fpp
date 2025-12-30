@@ -6487,23 +6487,17 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 
 				let batchIndex = 0;
 				let startingEntryCount = entries; // Capture entry count before async processing
+				let accumulatedHTML = ''; // Accumulate all HTML and insert once at the end to reduce visual shifting
 				let processBatch = function () {
 					var start = batchIndex * batchSize;
 					var end = Math.min(start + batchSize, sectionData.length);
-					var batchHTML = '';
 
 					for (var i = start; i < end; i++) {
-						batchHTML += GetPlaylistRowHTML(
+						accumulatedHTML += GetPlaylistRowHTML(
 							startingEntryCount + i,
 							sectionData[i],
 							editMode
 						);
-					}
-
-					if (batchIndex === 0) {
-						$('#tblPlaylist' + idPart).html(batchHTML);
-					} else {
-						$('#tblPlaylist' + idPart).append(batchHTML);
 					}
 
 					batchIndex++;
@@ -6511,6 +6505,8 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 					if (end < sectionData.length) {
 						setTimeout(processBatch, 0);
 					} else {
+						// Single DOM insertion to avoid visual shifting
+						$('#tblPlaylist' + idPart).html(accumulatedHTML);
 						// Finished this section, update durations if last section
 						$('#tblPlaylist' + idPart + ' > tr').each(function () {
 							PopulatePlaylistItemDuration($(this), editMode);
