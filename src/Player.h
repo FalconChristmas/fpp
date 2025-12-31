@@ -24,9 +24,10 @@ public:
 
     void Init();
 
+    // manualPriority: Lower = higher importance. Default allows scheduled playlists to take priority.
     int StartPlaylist(const std::string& name, const int repeat = -1,
                       const int startPosition = -1, const int endPosition = -1,
-                      const int manualPriority = -1);
+                      const int manualPriority = 10000);
     int StartScheduledPlaylist(const std::string& name, const int position,
                                const int repeat, const int scheduleEntry, const int scheduledPriority,
                                const time_t sTime, const time_t eTime, const int method);
