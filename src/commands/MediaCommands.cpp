@@ -245,14 +245,14 @@ void VLCPlayData::Stopped() {
     VLCOutput::Stopped();
     VLCPlayData* dt = this;
     intptr_t i = (intptr_t)this;
-    
+
     // Trigger MEDIA_STOPPED event
     std::map<std::string, std::string> keywords;
     keywords["MEDIA_NAME"] = dt->filename;
     if (CommandManager::INSTANCE.HasPreset("MEDIA_STOPPED")) {
         CommandManager::INSTANCE.TriggerPreset("MEDIA_STOPPED", keywords);
     }
-    
+
     Timers::INSTANCE.addTimer(std::to_string(i), GetTimeMS() + 1, [dt]() {
         runningMediaLock.lock();
         if (runningCommandMedia[dt->filename] == dt) {
@@ -267,8 +267,8 @@ void VLCPlayData::Stopped() {
 PlayMediaCommand::PlayMediaCommand() :
     Command("Play Media", "Plays the media in the background") {
     args.push_back(CommandArg("media", "string", "Media").setContentListUrl("api/media"));
-    args.push_back(CommandArg("loop", "int", "Loop Count").setRange(1, 100).setDefaultValue("1"));
-    args.push_back(CommandArg("volume", "int", "Volume Adjust").setRange(-100, 100).setDefaultValue("0"));
+    args.push_back(CommandArg("loop", "int", "Loop Count").setDefaultValue(std::string("1")).setRange(1, 100));
+    args.push_back(CommandArg("volume", "int", "Volume Adjust").setDefaultValue(std::string("0")).setRange(-100, 100));
 }
 std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::string>& args) {
     int loop = std::atoi(args[1].c_str());

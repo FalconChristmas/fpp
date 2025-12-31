@@ -168,4 +168,5 @@ private:
     uint64_t lastPresetTimeStamp = 0;
 
     std::map<std::string, Command*> commands;
+    std::set<std::string> missingPresets;
 };

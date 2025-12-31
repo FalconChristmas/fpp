@@ -534,7 +534,10 @@ int CommandManager::TriggerPreset(int slot) {
 int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::string>& keywords) {
     std::unique_lock<std::mutex> lock(presetsMutex);
     if (!presets.isMember(name)) {
-        LogWarn(VB_COMMAND, "No preset found for name \"%s\"\n", name.c_str());
+        if (missingPresets.find(name) == missingPresets.end()) {
+            LogWarn(VB_COMMAND, "No preset found for name \"%s\"\n", name.c_str());
+            missingPresets.insert(name);
+        }
         return 0;
     }
 
@@ -571,6 +574,7 @@ void CommandManager::MaybeReloadPresets() {
     std::string commandsFile = FPP_DIR_CONFIG("/commandPresets.json");
     if (lastPresetTimeStamp < FileTimestamp(commandsFile)) {
         presets.clear();
+        missingPresets.clear();
         LoadPresets();
     }
 }
@@ -635,4 +639,3 @@ bool CommandManager::HasPreset(const std::string& name) {
     std::unique_lock<std::mutex> lock(presetsMutex);
     return presets.isMember(name);
 }
-
