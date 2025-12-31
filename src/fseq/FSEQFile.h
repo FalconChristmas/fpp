@@ -60,6 +60,8 @@ public:
             return data;
         }
 
+        uint64_t getExtDataOffset() const { return extendedData ? offset : 0; }
+
     private:
         void loadData() const;
         mutable std::vector<uint8_t> data;
