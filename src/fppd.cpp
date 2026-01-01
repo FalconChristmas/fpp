@@ -586,9 +586,65 @@ int parseArguments(int argc, char** argv) {
     return 0;
 }
 
+// Workaround ASan bug 27790 (https://bugs.llvm.org//show_bug.cgi?id=27790)
+// by logging if LD_LIBRARY_PATH doesn't include the path to argv[0] (our binary).
+// This is because ASan intercepts dlopen and causes calls to dlopen to use ASan's
+// rpath instead of the rpath of the calling DSO. We cannot change the
+// LD_LIBRARY_PATH env var because the loader has already processed it by the time
+// that main() is called. We could fork()/execvpe(), but this has implications for
+// things like debugging that may be monitoring our pid.
+bool checkASan(int argc, char** argv) {
+#if __SANITIZE_ADDRESS__
+    {
+        struct FreeString {
+            void operator()(char* p) {
+                free(p);
+            }
+        };
+        if (argc < 1 || !argv[0])
+            abort(); // shouldn't happen
+        std::unique_ptr<char[], FreeString> self(realpath(argv[0], NULL));
+        if (!self)
+            abort(); // shouldn't happen
+        size_t sep = std::string_view(self.get()).rfind('/');
+        if (sep == std::string_view::npos)
+            abort(); // shouldn't happen
+        self[sep] = '\0';
+
+        auto libraryPath = getenv("LD_LIBRARY_PATH");
+        std::string_view libraryPathSv(libraryPath ? libraryPath : "");
+        bool found = false;
+        for (size_t start = 0, index = libraryPathSv.find(':');; start = index + 1, index = libraryPathSv.find(':', index + 1)) {
+            if (auto pathSV = libraryPathSv.substr(start, index - start); !pathSV.empty()) {
+                std::unique_ptr<char[], FreeString> resolved(realpath(std::string(pathSV).c_str(), NULL));
+                if (resolved && strcmp(self.get(), resolved.get()) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+            if (index == libraryPathSv.npos)
+                break;
+        }
+
+        if (!found) {
+            constexpr static char str[] = "When built with ASan, LD_LIBRARY_PATH must be set to include the path to fppd. Exiting.\n";
+            LogErr(VB_GENERAL, str);
+            fprintf(stderr, str);
+            return false;
+        }
+    }
+#endif
+
+    return true;
+}
+
 int main(int argc, char* argv[]) {
     setupExceptionHandlers();
     FPPLogger::INSTANCE.Init();
+
+    if (!checkASan(argc, argv))
+        return 1;
+
     LoadSettings(argv[0]);
 
     curl_global_init(CURL_GLOBAL_ALL);

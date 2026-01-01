@@ -1,3 +1,19 @@
+# ASan (Address Sanitizer) and TSan (Thread Sanitizer)
+
+FPP can be built with [ASan](https://github.com/google/sanitizers/wiki/addresssanitizer)/[TSan](https://github.com/google/sanitizers/wiki/threadsanitizercppmanual)
+support, but as these are sanitizer modes, they are **not recommended** for production. Building in
+this manner will consume significantly more memory and is only recommended for 64-bit platforms with
+significant RAM access, such as Docker on Linux.
+
+To build with these modes:
+`make asan`
+
+or
+
+`make tsan`
+
+Highly recommended to perform a `make clean` before building the first time.
+
 # Valgrind
 
 The version of Valgrind that is installable via apt-get is way too old (over 8 years old)
