@@ -929,15 +929,13 @@ static void handleBootDelay() {
 
         struct stat attr;
         stat("/etc/fpp/rfs_version", &attr);
-        struct tm tmFile, tmNow;
-        localtime_r(&(attr.st_ctime), &tmFile);
-        time_t t = time(nullptr);
-        localtime_r(&t, &tmNow);
-
-        time_t t1 = mktime(&tmFile);
-        time_t t2 = mktime(&tmNow);
-        double diffSecs = difftime(t1, t2);
+        time_t fileTime = attr.st_ctime;
+        time_t currentTime = time(nullptr);
+        
+        double diffSecs = difftime(fileTime, currentTime);
         if (diffSecs > 0) {
+            struct tm tmFile;
+            localtime_r(&fileTime, &tmFile);
             char buffer[26];
             strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tmFile);
             printf("FPP - FPP - Waiting until system date is at least %s or 5 minutes\n", buffer);
@@ -951,10 +949,8 @@ static void handleBootDelay() {
         int count = 0;
         while (diffSecs > 0 && count < 3000) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            t = time(nullptr);
-            localtime_r(&t, &tmNow);
-            t2 = mktime(&tmNow);
-            diffSecs = difftime(t1, t2);
+            currentTime = time(nullptr);
+            diffSecs = difftime(fileTime, currentTime);
             count++;
             
             // Notify systemd every 10 seconds (100 iterations)
