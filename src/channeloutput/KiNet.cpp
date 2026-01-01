@@ -68,11 +68,12 @@ KiNetOutputData::KiNetOutputData(const Json::Value& config) :
     memset((char*)&kinetAddress, 0, sizeof(sockaddr_in));
     kinetAddress.sin_family = AF_INET;
     kinetAddress.sin_port = htons(KINET_PORT);
-    kinetAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
-
-    if (!valid && active) {
-        WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
-        active = false;
+    if (active) {
+        kinetAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
+        if (!valid) {
+            WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
+            active = false;
+        }
     }
 
     port = config["id"].asInt();

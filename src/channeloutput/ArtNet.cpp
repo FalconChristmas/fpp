@@ -117,9 +117,9 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value& config) :
 
     if (type == ARTNET_TYPE_BROADCAST) {
         anAddress.sin_addr.s_addr = inet_addr("255.255.255.255");
-    } else {
+    } else if (active) {
         anAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
-        if (!valid && active) {
+        if (!valid) {
             WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
             active = false;
         }

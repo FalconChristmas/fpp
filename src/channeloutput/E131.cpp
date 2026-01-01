@@ -88,9 +88,9 @@ E131OutputData::E131OutputData(const Json::Value& config) :
         UniverseOctet[1] = universe % 256;
         snprintf(sAddress, sizeof(sAddress), "239.255.%d.%d", UniverseOctet[0], UniverseOctet[1]);
         e131Address.sin_addr.s_addr = inet_addr(sAddress);
-    } else {
+    } else if (active) {
         e131Address.sin_addr.s_addr = toInetAddr(ipAddress, valid);
-        if (!valid && active) {
+        if (!valid) {
             WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
             active = false;
         }

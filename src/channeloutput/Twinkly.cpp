@@ -50,11 +50,12 @@ TwinklyOutputData::TwinklyOutputData(const Json::Value& config) :
     memset((char*)&twinklyAddress, 0, sizeof(sockaddr_in));
     twinklyAddress.sin_family = AF_INET;
     twinklyAddress.sin_port = htons(TWINKLY_PORT);
-    twinklyAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
-
-    if (!valid && active) {
-        WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
-        active = false;
+    if (active) {
+        twinklyAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
+        if (!valid) {
+            WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
+            active = false;
+        }
     }
 
     portCount = (channelCount + 899) / 900;

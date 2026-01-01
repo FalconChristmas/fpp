@@ -37,10 +37,12 @@ public:
 
         udpAddress.sin_family = AF_INET;
         udpAddress.sin_port = htons(port);
-        udpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
-        if (!valid) {
-            WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
-            active = false;
+        if (active) {
+            udpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
+            if (!valid) {
+                WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
+                active = false;
+            }
         }
 
         int fp = (udpAddress.sin_addr.s_addr >> 24) & 0xFF;

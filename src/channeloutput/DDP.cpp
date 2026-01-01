@@ -126,11 +126,12 @@ DDPOutputData::DDPOutputData(const Json::Value& config) :
     memset((char*)&ddpAddress, 0, sizeof(sockaddr_in));
     ddpAddress.sin_family = AF_INET;
     ddpAddress.sin_port = htons(DDP_PORT);
-    ddpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
-
-    if (!valid && active) {
-        WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
-        active = false;
+    if (active) {
+        ddpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
+        if (!valid) {
+            WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
+            active = false;
+        }
     }
 
     pktCount = channelCount / DDP_CHANNELS_PER_PACKET;
