@@ -537,13 +537,17 @@ bool Scheduler::doScheduledPlaylist(const std::time_t& now, const std::time_t& i
             // running playlist to false so it shows as 'next' again
             std::time_t oldStartTime = Player::INSTANCE.GetOrigStartTime();
             std::string playlistName = Player::INSTANCE.GetPlaylistName();
-            std::vector<ScheduledItem*>* oldItems = m_scheduledItems[oldStartTime];
-            if (oldItems) {
-                for (auto& oldItem : *oldItems) {
-                    if ((oldItem->command == "Start Playlist") &&
-                        (oldItem->entry->playlist == playlistName)) {
-                        oldItem->ran = false;
-                        m_forcedNextPlaylist = oldItem->entryIndex;
+
+            auto sVec = m_scheduledItems.find(oldStartTime);
+            if (sVec != m_scheduledItems.end() && sVec->second) {
+                std::vector<ScheduledItem*>* oldItems = sVec->second;
+                if (oldItems) {
+                    for (auto& oldItem : *oldItems) {
+                        if ((oldItem->command == "Start Playlist") &&
+                            (oldItem->entry->playlist == playlistName)) {
+                            oldItem->ran = false;
+                            m_forcedNextPlaylist = oldItem->entryIndex;
+                        }
                     }
                 }
             }
