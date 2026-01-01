@@ -13,11 +13,13 @@
 #include "fpp-pch.h"
 
 #include <algorithm>
+#include <chrono>
 #include <climits>
 #include <ctime>
 #include <fstream>
 #include <list>
 #include <map>
+#include <semaphore>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -34,11 +36,14 @@
 
 #include "Events.h"
 
+using namespace std::chrono;
+using namespace std::chrono_literals;
+
 static std::list<EventHandler*> EVENT_HANDLERS;
 static std::map<std::string, std::function<void(const std::string& topic, const std::string& payload)>> EVENT_CALLBACKS;
-static std::thread* EVENT_PUBLISH_THREAD = nullptr;
-static volatile bool EVENT_PUBLISH_THREAD_RUN = true;
-static std::vector<EventNotifier*> eventNotifiers;
+static std::thread EVENT_PUBLISH_THREAD;
+static std::binary_semaphore EVENT_PUBLISH_THREAD_STOP{ 0 };
+static std::vector<std::unique_ptr<EventNotifier>> eventNotifiers;
 
 class PublishPlaylistStatus : public EventNotifier {
 public:
@@ -98,7 +103,7 @@ public:
     virtual void handleWarnings(const std::list<FPPWarning>& warnings) {
         if (Events::HasEventHandlers()) {
             Json::Value rc = Json::Value(Json::arrayValue);
-            for (auto &w: warnings) {
+            for (auto& w : warnings) {
                 rc.append(w);
             }
             std::string msg = SaveJsonToString(rc);
@@ -107,15 +112,15 @@ public:
         }
     }
 };
-static EventWarningListener* EVENT_WARNING_LISTENER = nullptr;
+static std::unique_ptr<EventWarningListener> EVENT_WARNING_LISTENER;
 
 EventHandler::EventHandler() {}
 EventHandler::~EventHandler() {}
 
 void Events::Ready() {
-    if (EVENT_WARNING_LISTENER == nullptr) {
-        EVENT_WARNING_LISTENER = new EventWarningListener();
-        WarningHolder::AddWarningListener(EVENT_WARNING_LISTENER);
+    if (!EVENT_WARNING_LISTENER) {
+        EVENT_WARNING_LISTENER = std::make_unique<EventWarningListener>();
+        WarningHolder::AddWarningListener(EVENT_WARNING_LISTENER.get());
     }
 
     Events::Publish(MQTT_READY_TOPIC_NAME, 1);
@@ -126,22 +131,23 @@ void Events::Ready() {
     int statusFrequency = getSettingInt("MQTTStatusFrequency");
     int portFrequency = getSettingInt("MQTTPortStatusFrequency");
 
+    eventNotifiers.reserve((playlistFrequency > 0) + (statusFrequency > 0) + (portFrequency > 0));
+
     if (playlistFrequency > 0) {
-        eventNotifiers.push_back(new PublishPlaylistStatus(playlistFrequency));
+        eventNotifiers.push_back(std::make_unique<PublishPlaylistStatus>(playlistFrequency));
     }
 
     if (statusFrequency > 0) {
-        eventNotifiers.push_back(new PublishFPPDStatus(statusFrequency));
+        eventNotifiers.push_back(std::make_unique<PublishFPPDStatus>(statusFrequency));
     }
 
     if (portFrequency > 0) {
-        eventNotifiers.push_back(new PublishPortStatus(portFrequency));
+        eventNotifiers.push_back(std::make_unique<PublishPortStatus>(portFrequency));
     }
 
-    if (EVENT_PUBLISH_THREAD == nullptr && eventNotifiers.size() > 0) {
-        EVENT_PUBLISH_THREAD = new std::thread();
+    if (!EVENT_PUBLISH_THREAD.joinable() && !eventNotifiers.empty()) {
         // create  background Publish Thread
-        EVENT_PUBLISH_THREAD = new std::thread(Events::RunPublishThread);
+        EVENT_PUBLISH_THREAD = std::thread(Events::RunPublishThread);
     }
 }
 
@@ -196,13 +202,13 @@ void Events::InvokeCallback(const std::string& topic, const std::string& topic_i
 }
 
 void Events::PrepareForShutdown() {
-    if (EVENT_PUBLISH_THREAD) {
-        EVENT_PUBLISH_THREAD_RUN = false;
+    if (EVENT_PUBLISH_THREAD.joinable()) {
+        EVENT_PUBLISH_THREAD_STOP.release();
+        EVENT_PUBLISH_THREAD.join();
     }
-    if (EVENT_WARNING_LISTENER != nullptr) {
-        WarningHolder::RemoveWarningListener(EVENT_WARNING_LISTENER);
-        delete EVENT_WARNING_LISTENER;
-        EVENT_WARNING_LISTENER = nullptr;
+    if (EVENT_WARNING_LISTENER) {
+        WarningHolder::RemoveWarningListener(EVENT_WARNING_LISTENER.get());
+        EVENT_WARNING_LISTENER.reset();
     }
 
     Publish(MQTT_READY_TOPIC_NAME, 0);
@@ -213,30 +219,29 @@ void Events::PrepareForShutdown() {
 
 void Events::RunPublishThread() {
     SetThreadName("FPP-Events");
-    sleep(3); // Give everything time to start up
+    std::this_thread::sleep_for(3s); // Give everything time to start up
 
     LogInfo(VB_CONTROL, "Starting Publish Thread\n");
-    if (eventNotifiers.size() == 0) {
+    if (eventNotifiers.empty()) {
         // kill thread
         LogInfo(VB_CONTROL, "Stopping Publish Thread as frequency is zero.\n");
         return;
     }
 
-    // Loop for ever  We are running both publishes in one thread
+    // Loop forever. We are running both publishes in one thread
     // just to minimize the number of threads
-    time_t lastStatus = std::time(0);
-    time_t lastPlaylist = std::time(0);
-    while (EVENT_PUBLISH_THREAD_RUN) {
-        time_t now = std::time(0);
-        int sleep_dur = INT_MAX;
+    seconds sleepDuration(0);
+    // Thread will exit when the semaphore can be acquired
+    while (!EVENT_PUBLISH_THREAD_STOP.try_acquire_for(sleepDuration)) {
+        auto now = system_clock::now();
 
-        for (auto it = eventNotifiers.begin(); it != eventNotifiers.end(); it++) {
-            if ((*it)->next_time <= now) {
-                (*it)->notify();
-                (*it)->next_time = (now + (*it)->frequency);
+        sleepDuration = seconds::max();
+        for (auto& pNotifier : eventNotifiers) {
+            if (system_clock::from_time_t(pNotifier->next_time) <= now) {
+                pNotifier->notify();
+                pNotifier->next_time = system_clock::to_time_t(now + seconds(pNotifier->frequency));
             }
-            sleep_dur = std::min(sleep_dur, (int)((*it)->next_time - now));
+            sleepDuration = std::min(sleepDuration, seconds(pNotifier->frequency));
         }
-        sleep(sleep_dur);
     }
 }

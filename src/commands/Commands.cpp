@@ -189,9 +189,7 @@ void CommandManager::Cleanup() {
         Command* cmd = commands.begin()->second;
         commands.erase(commands.begin());
 
-        if (cmd->name != "GPIO") { // No idea why deleteing the GPIO command causes a crash on exit
-            delete cmd;
-        }
+        delete cmd;
     }
     commands.clear();
 }

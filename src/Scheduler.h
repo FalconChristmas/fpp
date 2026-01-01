@@ -59,15 +59,11 @@
 
 class ScheduledItem {
 public:
-    ScheduledItem();
-    ScheduledItem(ScheduledItem* item);
-    ~ScheduledItem() {}
-
-    int priority;
-    ScheduleEntry* entry;
-    int entryIndex;
+    ScheduleEntry* const entry;
+    int const priority;
+    int const entryIndex;
     bool ran;
-    time_t startTime;
+    time_t const startTime;
     time_t endTime;
     std::string command;
     Json::Value args;
@@ -92,12 +88,14 @@ public:
     Json::Value GetSchedule(void);
 
 private:
+    using ScheduledItemVec = std::vector<ScheduledItem>;
+
     void AddScheduledItems(ScheduleEntry* entry, int index);
-    void DumpScheduledItem(std::time_t itemTime, ScheduledItem* item);
+    void DumpScheduledItem(const std::time_t itemTime, const ScheduledItem& item);
     void DumpScheduledItems();
     void CheckScheduledItems(bool restarted = false);
     void ClearScheduledItems();
-    void SetItemRan(ScheduledItem* item, bool ran);
+    void SetItemRan(ScheduledItem& item, bool ran);
 
     ScheduledItem* GetNextScheduledPlaylist();
     void LoadScheduleFromFile(void);
@@ -106,9 +104,9 @@ private:
 
     void RegisterCommands();
 
-    void doCountdown(const std::time_t& now, const std::time_t& itemTime, std::vector<ScheduledItem*>* items);
-    void doScheduledCommand(const std::time_t& itemTime, ScheduledItem* item);
-    bool doScheduledPlaylist(const std::time_t& now, const std::time_t& itemTime, ScheduledItem* item, bool restarted);
+    void doCountdown(const std::time_t now, const std::time_t itemTime, const ScheduledItemVec& items);
+    void doScheduledCommand(const std::time_t itemTime, const ScheduledItem& item);
+    bool doScheduledPlaylist(const std::time_t now, const std::time_t itemTime, ScheduledItem& item, bool restarted);
 
     bool m_schedulerDisabled;
     bool m_loadSchedule;
@@ -120,9 +118,9 @@ private:
 
     std::recursive_mutex m_scheduleLock;
     std::vector<ScheduleEntry> m_Schedule;
-    std::map<std::time_t, std::vector<ScheduledItem*>*> m_scheduledItems;
-    std::map<std::time_t, std::vector<ScheduledItem*>*> m_oldItems;
-    std::map<std::time_t, std::vector<ScheduledItem*>*> m_ranItems;
+    std::map<std::time_t, ScheduledItemVec> m_scheduledItems;
+    std::map<std::time_t, ScheduledItemVec> m_oldItems;
+    std::map<std::time_t, ScheduledItemVec> m_ranItems;
 
     int m_forcedNextPlaylist;
 };
