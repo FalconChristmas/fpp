@@ -2295,10 +2295,14 @@ function EditPlaylist () {
 
 	LoadPlaylistDetails(name);
 	$('#playlistEditor').addClass('hasPlaylistDetailsLoaded');
-	
+
 	// Push history state so browser back button works
 	if (window.location.pathname.includes('playlists.php')) {
-		history.pushState({ view: 'editor', playlist: name }, '', window.location.href);
+		history.pushState(
+			{ view: 'editor', playlist: name },
+			'',
+			window.location.href
+		);
 	}
 }
 function SetButtonState (button, state) {
