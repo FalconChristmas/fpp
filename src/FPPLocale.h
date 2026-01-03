@@ -16,8 +16,11 @@
 class LocaleHolder {
 public:
     static Json::Value GetLocale();
+    static void ClearCache();
+    static void RegisterCommands();
 
 private:
     static std::mutex localeLock;
     static Json::Value locale;
 };
+

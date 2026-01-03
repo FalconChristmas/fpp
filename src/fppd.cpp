@@ -57,6 +57,7 @@
 #include "EPollManager.h"
 #include "Events.h"
 #include "FileMonitor.h"
+#include "FPPLocale.h"
 #include "MultiSync.h"
 #include "NetworkMonitor.h"
 #include "OutputMonitor.h"
@@ -734,6 +735,7 @@ int main(int argc, char* argv[]) {
 
     InitEffects();
     ChannelTester::INSTANCE.RegisterCommands();
+    LocaleHolder::RegisterCommands();
 
     multiSync->WriteRuntimeInfoFile();
 

@@ -14,6 +14,7 @@
 
 #include "common.h"
 #include "settings.h"
+#include "commands/Commands.h"
 
 #include "FPPLocale.h"
 
@@ -40,10 +41,52 @@ Json::Value LocaleHolder::GetLocale() {
 
     bool result = LoadJsonFromFile(localeFile, locale);
 
-    if (result)
+    if (result) {
+        // Load user-defined holidays and merge them with locale holidays
+        std::string userHolidaysFile = FPP_DIR_CONFIG("/user-holidays.json");
+        if (FileExists(userHolidaysFile)) {
+            Json::Value userHolidays;
+            if (LoadJsonFromFile(userHolidaysFile, userHolidays)) {
+                if (userHolidays.isArray() && userHolidays.size() > 0) {
+                    // Ensure the locale has a holidays array
+                    if (!locale.isMember("holidays")) {
+                        locale["holidays"] = Json::Value(Json::arrayValue);
+                    }
+                    
+                    // Append user-defined holidays to the locale holidays
+                    for (Json::ArrayIndex i = 0; i < userHolidays.size(); i++) {
+                        locale["holidays"].append(userHolidays[i]);
+                    }
+                }
+            }
+        }
         return locale;
+    }
 
     Json::Value empty;
 
     return empty;
+}
+
+void LocaleHolder::ClearCache() {
+    std::unique_lock<std::mutex> lock(localeLock);
+    locale.clear();
+}
+
+/**********************************************************************/
+// Command to clear the locale cache
+class ClearLocaleCacheCommand : public Command {
+public:
+    ClearLocaleCacheCommand() : Command("Clear Locale Cache") {
+        args.push_back(CommandArg("force", "bool", "Force Clear").setDefaultValue("true"));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override {
+        LocaleHolder::ClearCache();
+        return std::make_unique<Command::Result>("Locale cache cleared");
+    }
+};
+
+void LocaleHolder::RegisterCommands() {
+    CommandManager::INSTANCE.addCommand(new ClearLocaleCacheCommand());
 }

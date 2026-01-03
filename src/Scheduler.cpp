@@ -234,6 +234,43 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
     struct tm now;
     localtime_r(&currTime, &now);
     int scheduleDistance = getSettingInt("ScheduleDistance");
+    
+    // If the schedule has an end date that extends beyond the schedule distance,
+    // extend the distance to cover the entire date range for this entry
+    if (entry->endDate > 0 && entry->endDate < 10000000) {
+        // This is a yearless date (< 10000000), calculate actual end date
+        int currentDate = (now.tm_year + 1900) * 10000 + (now.tm_mon + 1) * 100 + now.tm_mday;
+        int endMD = entry->endDate;
+        int startMD = entry->startDate;
+        
+        // Reconstruct the full end date for the current or next year
+        int endYear = now.tm_year + 1900;
+        int calculatedEndDate = endYear * 10000 + endMD;
+        
+        // If calculated end date is before today, use next year
+        if (calculatedEndDate < currentDate) {
+            calculatedEndDate = (endYear + 1) * 10000 + endMD;
+        }
+        
+        // Calculate days from now to end date
+        int daysToEnd = (calculatedEndDate / 10000 - currentDate / 10000) * 365 +
+                       ((calculatedEndDate / 100 % 100) - (currentDate / 100 % 100)) * 30 +
+                       (calculatedEndDate % 100 - currentDate % 100);
+        
+        if (daysToEnd > scheduleDistance) {
+            scheduleDistance = daysToEnd + 7; // Add a week buffer
+        }
+    } else if (entry->endDate >= 10000000) {
+        // Full date specified
+        int currentDate = (now.tm_year + 1900) * 10000 + (now.tm_mon + 1) * 100 + now.tm_mday;
+        int daysDiff = ((entry->endDate / 10000) - (currentDate / 10000)) * 365 +
+                      ((entry->endDate / 100 % 100) - (currentDate / 100 % 100)) * 30 +
+                      (entry->endDate % 100 - currentDate % 100);
+        
+        if (daysDiff > scheduleDistance) {
+            scheduleDistance = daysDiff + 7;
+        }
+    }
 
     // Convert everything to a day mask to simplify code below
     switch (dayIndex) {

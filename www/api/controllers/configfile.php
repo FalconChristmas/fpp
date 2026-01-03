@@ -109,6 +109,11 @@ function UploadConfigFile()
 		system("sudo /opt/fpp/scripts/installSSHKeys");
 	}
 
+	// Clear locale cache when user-holidays.json is updated
+	if ($baseFile == 'user-holidays.json') {
+		SendCommand('Clear Locale Cache,true');
+	}
+
 	return json($result);
 }
 
