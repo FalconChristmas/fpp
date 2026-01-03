@@ -25,7 +25,7 @@ sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/
 
 # Rotate screen only if rotatescreen = "1"
 # Guard: Check to see if rotate screen disabled
-if ! grep -qE '^[[:space:]]*rotatescreen[[:space:]]*=[[:space:]]*"1"' "$SETTINGS_FILE"; then
+if ! grep -qE '^[[:space:]]*KioskRotate[[:space:]]*=[[:space:]]*"1"' "$SETTINGS_FILE"; then
     echo "$(date) Rotate screen disabled – leaving display normal" >> "$LOGFILE"
     chromium-browser --disable-infobars --kiosk
     exit 0
