@@ -118,6 +118,7 @@
 				"temperatureInF",
 				"Latitude",
 				"Longitude"
+
 			]
 		},
 		"generalAudio": {
@@ -265,7 +266,8 @@
 			"description": "Kiosk Mode",
 			"settings": [
 				"KioskUrl",
-				"KioskTimeout"
+				"KioskTimeout",
+				"KioskRotate"
 			]
 		},
 		"system": {
@@ -2322,6 +2324,22 @@
 				"!MacOS"
 			]
 		},
+                "KioskRotate": {
+                        "name": "KioskRotate",
+                        "description": "Rotate Kiosk if using Raspberry Pi Touch Display 2 7inch",
+                        "tip": "Click here if you have Raspberry Pi Touch Display 2",
+                        "level": 1,
+                        "gatherStats": true,
+                        "restart": 0,
+                        "reboot": 0,
+                        "checkedValue": "1",
+                        "uncheckedValue": "0",
+                        "default": "0",
+                        "type": "checkbox",
+                        "platforms": [
+                                "!MacOS"
+                        ]
+                },
 		"Service_rsync": {
 			"name": "Service_rsync",
 			"description": "Enable rsync",
