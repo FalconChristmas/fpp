@@ -8682,7 +8682,7 @@ function PreviewSchedule () {
 		id: 'schedulePreview',
 		title: 'Schedule Preview',
 		body: "<div id='schedulePreviewDiv'> " + response + '</div>',
-		class: 'modal-dialog-scrollable',
+		class: 'modal-xl',
 		keyboard: true,
 		backdrop: true
 	};
