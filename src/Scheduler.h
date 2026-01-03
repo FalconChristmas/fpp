@@ -125,6 +125,11 @@ private:
     std::map<std::time_t, std::vector<ScheduledItem*>*> m_ranItems;
 
     int m_forcedNextPlaylist;
+    
+    std::string m_lastBlockedPlaylist;
+    std::time_t m_lastBlockedTime;
+    
+    bool m_schedulesExtendBeyondDistance;
 };
 
 extern Scheduler* scheduler;

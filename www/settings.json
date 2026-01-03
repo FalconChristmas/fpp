@@ -167,6 +167,7 @@
 			"description": "Scheduler",
 			"settings": [
 				"DisableScheduler",
+				"UIStartedPlaylistsProtected",
 				"ScheduleDistance",
 				"ScheduleSeconds"
 			]
@@ -1039,6 +1040,19 @@
 			"type": "checkbox",
 			"level": 1,
 			"restart": 1,
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
+		"UIStartedPlaylistsProtected": {
+			"name": "UIStartedPlaylistsProtected",
+			"gatherStats": true,
+			"description": "Protect UI-Started Playlists from Schedule Override",
+			"tip": "When enabled, playlists/sequences/media started from the UI will be protected from being stopped by scheduled playlists. This is useful when manually testing shows. Note: Playlists started via API/MQTT can still specify their own protection level.",
+			"type": "checkbox",
+			"level": 1,
+			"restart": 0,
+			"default": 0,
 			"exposedAsJSToPages": [
 				"all"
 			]

@@ -70,10 +70,12 @@ StartPlaylistCommand::StartPlaylistCommand() :
                        .setContentListUrl("api/playlists/playable"));
     args.push_back(CommandArg("repeat", "bool", "Repeat", true).setDefaultValue("false"));
     args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
+    args.push_back(CommandArg("scheduleProtected", "bool", "Protected from Schedule Override", true).setDefaultValue("false"));
 }
 std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std::string>& args) {
     bool r = false;
     bool iNR = false;
+    bool scheduleProtected = false;
     if (args.empty()) {
         LogWarn(VB_COMMAND, "Ignoring StartPlaylistCommand as no Playlist was supplied\n");
         return std::make_unique<Command::Result>("Playlist is a requirement argument");
@@ -83,6 +85,9 @@ std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std
     }
     if (args.size() > 2) {
         iNR = args[2] == "true" || args[2] == "1";
+    }
+    if (args.size() > 3) {
+        scheduleProtected = args[3] == "true" || args[3] == "1";
     }
     if (!iNR || args[0] != Player::INSTANCE.GetPlaylistName()) {
         LogInfo(VB_COMMAND, "StartPlaylistCommand: Requesting playlist '%s', current='%s', status=%d\n",
@@ -98,7 +103,7 @@ std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std
             std::this_thread::sleep_for(std::chrono::milliseconds(150));
             LogInfo(VB_COMMAND, "StartPlaylistCommand: After stop wait, status=%d\n", Player::INSTANCE.GetStatus());
         }
-        Player::INSTANCE.StartPlaylist(args[0], r);
+        Player::INSTANCE.StartPlaylist(args[0], r, -1, -1, -1, !scheduleProtected);
     }
     return std::make_unique<Command::Result>("Playlist Starting");
 }
@@ -155,9 +160,11 @@ StartPlaylistAtCommand::StartPlaylistAtCommand() :
     args.push_back(CommandArg("item", "int", "Item Index").setRange(1, 100));
     args.push_back(CommandArg("repeat", "bool", "Repeat", true).setDefaultValue("false"));
     args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
+    args.push_back(CommandArg("scheduleProtected", "bool", "Protected from Schedule Override", true).setDefaultValue("false"));
 }
 std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<std::string>& args) {
     bool r = false;
+    bool scheduleProtected = false;
 
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Playlist is a requirement argument");
@@ -172,6 +179,9 @@ std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<s
     }
     if (args.size() > 3) {
         iNR = args[3] == "true" || args[3] == "1";
+    }
+    if (args.size() > 4) {
+        scheduleProtected = args[4] == "true" || args[4] == "1";
     }
     if (!iNR || args[0] != Player::INSTANCE.GetPlaylistName()) {
         int scheduledRepeat = 0;
@@ -207,7 +217,7 @@ std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<s
             }
             
             LogInfo(VB_COMMAND, "StartPlaylistAtCommand: Starting playlist '%s'\n", args[0].c_str());
-            Player::INSTANCE.StartPlaylist(args[0], r, idx - 1);
+            Player::INSTANCE.StartPlaylist(args[0], r, idx - 1, -1, -1, !scheduleProtected);
         }
     }
     return std::make_unique<Command::Result>("Playlist Starting");

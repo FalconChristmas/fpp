@@ -66,7 +66,9 @@ Scheduler::Scheduler() :
     m_lastProcTime(0),
     m_timeDelta(0),
     m_timeDeltaThreshold(0),
-    m_forcedNextPlaylist(SCHEDULE_INDEX_INVALID) {
+    m_forcedNextPlaylist(SCHEDULE_INDEX_INVALID),
+    m_lastBlockedTime(0),
+    m_schedulesExtendBeyondDistance(false) {
     RegisterCommands();
 
     m_schedulerDisabled = getSettingInt("DisableScheduler") == 1;
@@ -235,13 +237,12 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
     localtime_r(&currTime, &now);
     int scheduleDistance = getSettingInt("ScheduleDistance");
     
-    // If the schedule has an end date that extends beyond the schedule distance,
-    // extend the distance to cover the entire date range for this entry
+    // Check if this schedule's end date extends beyond the schedule distance
+    // Track this for warning display but respect the user's ScheduleDistance setting
     if (entry->endDate > 0 && entry->endDate < 10000000) {
         // This is a yearless date (< 10000000), calculate actual end date
         int currentDate = (now.tm_year + 1900) * 10000 + (now.tm_mon + 1) * 100 + now.tm_mday;
         int endMD = entry->endDate;
-        int startMD = entry->startDate;
         
         // Reconstruct the full end date for the current or next year
         int endYear = now.tm_year + 1900;
@@ -258,7 +259,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
                        (calculatedEndDate % 100 - currentDate % 100);
         
         if (daysToEnd > scheduleDistance) {
-            scheduleDistance = daysToEnd + 7; // Add a week buffer
+            m_schedulesExtendBeyondDistance = true;
         }
     } else if (entry->endDate >= 10000000) {
         // Full date specified
@@ -268,7 +269,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
                       (entry->endDate % 100 - currentDate % 100);
         
         if (daysDiff > scheduleDistance) {
-            scheduleDistance = daysDiff + 7;
+            m_schedulesExtendBeyondDistance = true;
         }
     }
 
@@ -558,14 +559,32 @@ bool Scheduler::doScheduledPlaylist(const std::time_t& now, const std::time_t& i
         }
 
         if (!Player::INSTANCE.WasScheduled()) {
-            // Manually started playlist is running, check priority
+            // Manually started playlist is running
+            
+            // Check if playlist is protected from schedule override
+            if (!Player::INSTANCE.GetAllowScheduleOverride()) {
+                LogInfo(VB_SCHEDULE, "Manual playlist '%s' is protected from schedule override, not starting scheduled playlist '%s'\n",
+                        Player::INSTANCE.GetPlaylistName().c_str(), item->entry->playlist.c_str());
+                // Track this blocked scheduled item
+                m_lastBlockedPlaylist = item->entry->playlist;
+                m_lastBlockedTime = now;
+                return false;
+            }
+            
+            // Check priority
             if (Player::INSTANCE.GetPriority() > item->priority) {
                 // Scheduled playlist has higher priority, stop the manual one
+                LogInfo(VB_SCHEDULE, "Stopping manual playlist '%s' (priority %d) for scheduled playlist '%s' (priority %d)\n",
+                        Player::INSTANCE.GetPlaylistName().c_str(), Player::INSTANCE.GetPriority(),
+                        item->entry->playlist.c_str(), item->priority);
                 while (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
                     Player::INSTANCE.StopNow(1);
                 }
             } else {
                 // Manual playlist has higher or equal priority, let it continue
+                LogDebug(VB_SCHEDULE, "Manual playlist '%s' (priority %d) has higher priority than scheduled playlist '%s' (priority %d), not overriding\n",
+                         Player::INSTANCE.GetPlaylistName().c_str(), Player::INSTANCE.GetPriority(),
+                         item->entry->playlist.c_str(), item->priority);
                 return false;
             }
         } else if (Player::INSTANCE.GetPriority() > item->priority) {
@@ -712,6 +731,7 @@ void Scheduler::LoadScheduleFromFile(void) {
 
     m_loadSchedule = false;
     m_lastLoadDate = GetCurrentDateInt();
+    m_schedulesExtendBeyondDistance = false;
 
     std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
     m_Schedule.clear();
@@ -995,6 +1015,16 @@ Json::Value Scheduler::GetInfo(void) {
     } else {
         result["status"] = "idle";
     }
+    
+    // Add blocked schedule information
+    if (m_lastBlockedTime > 0) {
+        time_t now = time(NULL);
+        // Only report if blocked within last 5 minutes
+        if ((now - m_lastBlockedTime) < 300) {
+            result["blockedSchedule"]["playlistName"] = m_lastBlockedPlaylist;
+            result["blockedSchedule"]["blockedTime"] = (Json::UInt64)m_lastBlockedTime;
+        }
+    }
 
     return result;
 }
@@ -1106,6 +1136,8 @@ Json::Value Scheduler::GetSchedule() {
         }
     }
     result["items"] = items;
+    result["schedulesExtendBeyondDistance"] = m_schedulesExtendBeyondDistance;
+    result["scheduleDistance"] = getSettingInt("ScheduleDistance");
 
     return result;
 }

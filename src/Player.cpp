@@ -35,6 +35,8 @@ Player::Player() :
     startTime(0),
     stopTime(0),
     stopMethod(0),
+    priority(1000),
+    allowScheduleOverride(true),
     forceStopped(false) {
 }
 
@@ -86,7 +88,8 @@ void Player::Init() {
 }
 
 int Player::StartPlaylist(const std::string& name, const int repeat,
-                          const int startPosition, const int endPosition, const int manualPriority) {
+                          const int startPosition, const int endPosition, const int manualPriority,
+                          const bool allowScheduleOverride) {
     if ((GetStatus() == FPP_STATUS_IDLE) ||
         (name != playlistName)) {
         playlistName = name;
@@ -95,6 +98,7 @@ int Player::StartPlaylist(const std::string& name, const int repeat,
         origStopTime = 0;
         stopMethod = 0;
         priority = manualPriority;
+        this->allowScheduleOverride = allowScheduleOverride;
     }
 
     forceStopped = false;

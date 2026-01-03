@@ -111,6 +111,7 @@ dispatch_get('/playlists/stopgracefullyafterloop', 'playlist_stopgracefullyafter
 dispatch_get('/playlist/:PlaylistName', 'playlist_get');
 dispatch_get('/playlist/:PlaylistName/start', 'playlist_start');
 dispatch_get('/playlist/:PlaylistName/start/:Repeat', 'playlist_start_repeat');
+dispatch_get('/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'playlist_start_repeat_protected');
 dispatch_post('/playlist/:PlaylistName', 'playlist_update');
 dispatch_delete('/playlist/:PlaylistName', 'playlist_delete');
 dispatch_post('/playlist/:PlaylistName/:SectionName/item', 'PlaylistSectionInsertItem');

@@ -2096,7 +2096,35 @@
             "endpoint": "playlist/:PlaylistName/start",
             "methods": {
                 "GET": {
-                    "desc": "Start the playlist named :PlaylistName."
+                    "desc": "Start the playlist named :PlaylistName. Optional query parameter 'scheduleProtected' (true/false) prevents the scheduler from stopping this playlist.",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "playlist/:PlaylistName/start/:Repeat",
+            "methods": {
+                "GET": {
+                    "desc": "Start the playlist named :PlaylistName with repeat mode (:Repeat = true/false). Optional query parameter 'scheduleProtected' (true/false) prevents the scheduler from stopping this playlist.",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "playlist/:PlaylistName/start/:Repeat/:ScheduleProtected",
+            "methods": {
+                "GET": {
+                    "desc": "Start the playlist named :PlaylistName with repeat mode (:Repeat = true/false) and schedule protection (:ScheduleProtected = true/false). When scheduleProtected is true, the scheduler cannot stop this playlist.",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
                 }
             }
         },

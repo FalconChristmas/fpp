@@ -26,7 +26,7 @@ public:
 
     int StartPlaylist(const std::string& name, const int repeat = -1,
                       const int startPosition = -1, const int endPosition = -1,
-                      const int manualPriority = -1);
+                      const int manualPriority = 1000, const bool allowScheduleOverride = true);
     int StartScheduledPlaylist(const std::string& name, const int position,
                                const int repeat, const int scheduleEntry, const int scheduledPriority,
                                const time_t sTime, const time_t eTime, const int method);
@@ -58,6 +58,7 @@ public:
     bool GetForceStopped() { return forceStopped; }
     std::string GetForceStoppedPlaylist() { return forceStoppedPlaylist; }
     int GetPriority() { return priority; }
+    bool GetAllowScheduleOverride() { return allowScheduleOverride; }
     int GetScheduleEntry();
     uint64_t GetFileTime();
     Json::Value GetConfig();
@@ -98,6 +99,7 @@ private:
     std::time_t stopTime;
     int stopMethod;
     int priority;
+    bool allowScheduleOverride;
 
     volatile bool forceStopped;
     std::string forceStoppedPlaylist;

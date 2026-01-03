@@ -4716,6 +4716,21 @@ function updateWarnings (jsonStatus) {
 				}
 			});
 		}
+
+		// Add blocked schedule warning if present
+		if (jsonStatus.scheduler && jsonStatus.scheduler.blockedSchedule) {
+			var blockedWarning = {
+				id: 0,
+				message:
+					"Scheduled playlist '" +
+					jsonStatus.scheduler.blockedSchedule.playlistName +
+					"' was blocked from starting due to schedule protection on manually started playlist.",
+				icon: 'fas fa-exclamation-triangle'
+			};
+			// Add at the beginning of the warnings array
+			currentWarnings = [blockedWarning].concat(currentWarnings);
+		}
+
 		var txt =
 			'<b>Abnormal Conditions - May cause poor performance or other issues';
 		var hasID = false;
@@ -6009,7 +6024,17 @@ function PopulatePlaylists (sequencesAlso, options) {
 } */
 
 function PlayPlaylist (Playlist, goToStatus = 0) {
-	$.get('api/command/Start Playlist/' + Playlist + '/0', function () {
+	// Check if UI-started playlists should be protected from schedule override
+	var scheduleProtected =
+		settings.hasOwnProperty('UIStartedPlaylistsProtected') &&
+		settings['UIStartedPlaylistsProtected'] == '1';
+
+	var url =
+		'api/command/Start Playlist/' +
+		Playlist +
+		'/0/false/' +
+		(scheduleProtected ? 'true' : 'false');
+	$.get(url, function () {
 		if (goToStatus) location.href = 'index.php';
 		else $.jGrowl('Playlist Started', { themeState: 'success' });
 	});
@@ -6018,9 +6043,14 @@ function PlayPlaylist (Playlist, goToStatus = 0) {
 function StartPlaylistNow () {
 	var Playlist = $('#playlistSelect').val();
 	var repeat = $('#chkRepeat').is(':checked') ? true : false;
+	// Check if UI-started playlists should be protected from schedule override
+	var scheduleProtected =
+		settings.hasOwnProperty('UIStartedPlaylistsProtected') &&
+		settings['UIStartedPlaylistsProtected'] == '1';
+
 	var obj = {
 		command: 'Start Playlist At Item',
-		args: [Playlist, PlayEntrySelected, repeat, false]
+		args: [Playlist, PlayEntrySelected, repeat, false, scheduleProtected]
 	};
 	$.post('api/command', JSON.stringify(obj))
 		.done(function () {

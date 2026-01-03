@@ -264,6 +264,21 @@ if ($data["schedule"]["enabled"] == 0) {
     echo "<center><font color='red'><b>Scheduler is currently disabled.</b></font></center>\n";
 }
 
+// Check if schedules extend beyond the configured distance
+if (
+    isset($data["schedule"]["schedulesExtendBeyondDistance"]) &&
+    $data["schedule"]["schedulesExtendBeyondDistance"] === true
+) {
+    $scheduleDistance = isset($data["schedule"]["scheduleDistance"]) ? $data["schedule"]["scheduleDistance"] : 28;
+    $distanceText = $scheduleDistance . " day" . ($scheduleDistance != 1 ? "s" : "");
+    echo "<center><div class='alert alert-warning' style='max-width: 95%; margin: 10px auto; color: #000; background-color: #fff3cd; border-color: #ffc107;'>";
+    echo "<i class='fas fa-exclamation-triangle'></i> <b>Note:</b> Some schedule entries have end dates that extend beyond the current ";
+    echo "<b>Scheduler max timeframe to schedule out</b> setting (<b>" . $distanceText . "</b>). ";
+    echo "These future dates will not show in the preview below but will be automatically scheduled as time progresses. ";
+    echo "You can increase the timeframe setting in <a href='settings.php' style='color: #000; text-decoration: underline;'>Settings</a> if you want to preview further into the future.";
+    echo "</div></center>\n";
+}
+
 if (count($data["schedule"]["items"]) == 0) {
     echo "<center><font color='red'><b>Nothing Scheduled.</b></font></center>\n";
     exit;

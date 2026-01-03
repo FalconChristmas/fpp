@@ -486,8 +486,9 @@ function playlist_start()
     global $settings;
 
     $playlistName = rawurldecode(params('PlaylistName'));
+    $scheduleProtected = isset($_GET['scheduleProtected']) ? $_GET['scheduleProtected'] : 'false';
 
-    $curl = curl_init('http://localhost:32322/command/Start%20Playlist/' . $playlistName);
+    $curl = curl_init('http://localhost:32322/command/Start%20Playlist/' . $playlistName . '/false/false/' . $scheduleProtected);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -501,8 +502,25 @@ function playlist_start_repeat()
 
     $playlistName = rawurldecode(params('PlaylistName'));
     $repeat = urldecode(params('Repeat'));
+    $scheduleProtected = isset($_GET['scheduleProtected']) ? $_GET['scheduleProtected'] : 'false';
 
-    $curl = curl_init('http://localhost:32322/command/Start%20Playlist/' . $playlistName . '/' . $repeat);
+    $curl = curl_init('http://localhost:32322/command/Start%20Playlist/' . $playlistName . '/' . $repeat . '/false/' . $scheduleProtected);
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+    $request_content = curl_exec($curl);
+    return $request_content;
+}
+function playlist_start_repeat_protected()
+{
+    global $settings;
+
+    $playlistName = rawurldecode(params('PlaylistName'));
+    $repeat = urldecode(params('Repeat'));
+    $scheduleProtected = urldecode(params('ScheduleProtected'));
+
+    $curl = curl_init('http://localhost:32322/command/Start%20Playlist/' . $playlistName . '/' . $repeat . '/false/' . $scheduleProtected);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
