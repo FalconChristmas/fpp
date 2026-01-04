@@ -309,7 +309,7 @@ if ($addflashbutton) {
         }
     } else if ($settings['Platform'] == "Raspberry Pi") {
         ?>
-        <? if (($rootDevice == 'mmcblk0p2') && file_exists("/dev/sda")) { ?>
+        <? if (($rootDevice == 'mmcblk0p2') && !($storageDevice == 'sda2') && file_exists("/dev/sda")) { ?>
                 <h3>USB Actions:</h3>
                 <div class="row">
                     <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Create new FPP on USB'
@@ -321,7 +321,7 @@ if ($addflashbutton) {
                             onClick='cloneUSB("sda");'></div>
                     <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the USB device.</div>
                 </div>
-        <? } else if (($rootDevice == 'mmcblk0p2') && file_exists("/dev/nvme0n1")) { ?>
+        <? } else if (($rootDevice == 'mmcblk0p2') && !($storageDevice == 'nvme0n1p2') && file_exists("/dev/nvme0n1")) { ?>
                     <h3>NVMe Actions:</h3>
                     <div class="row">
                         <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Create new FPP on NVMe'
