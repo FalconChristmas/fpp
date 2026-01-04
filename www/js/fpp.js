@@ -2234,9 +2234,6 @@ function LoadPlaylistDetails (name) {
 			// Use setTimeout to allow UI to update before heavy DOM manipulation
 			setTimeout(function () {
 				PopulatePlaylistDetails(data, 1, name);
-				RenumberPlaylistEditorEntries();
-				UpdatePlaylistDurations();
-				VerbosePlaylistItemDetailsToggled();
 				//$("#tblPlaylistLeadInHeader").get(0).scrollIntoView();
 			}, 0);
 		})
@@ -2903,7 +2900,7 @@ function SavePlaylistAs (name, options, callback) {
 		playlistInfo.total_items = 0;
 	} else {
 		playlistInfo.total_duration = parseFloat($('#playlistDuration').html());
-		playlistInfo.total_items = mainPlaylist.length;
+		playlistInfo.total_items = leadIn.length + mainPlaylist.length + leadOut.length;
 	}
 	pl.leadIn = leadIn;
 	pl.mainPlaylist = mainPlaylist;
@@ -6488,20 +6485,29 @@ function UpgradePlaylist (data, editMode) {
 function PopulatePlaylistDetails (data, editMode, name = '') {
 	var innerHTML = '';
 	var entries = 0;
+	var pendingBatchSections = 0;
 	data = UpgradePlaylist(data, editMode);
+
+	// Called when all entries (including batched) are loaded
+	var finishPlaylistLoad = function () {
+		RenumberPlaylistEditorEntries();
+		UpdatePlaylistDurations();
+		VerbosePlaylistItemDetailsToggled();
+	};
 
 	if (!editMode) $('#deprecationWarning').hide(); // will re-show if we find any
 
 	var sections = ['leadIn', 'mainPlaylist', 'leadOut'];
-	for (var s = 0; s < sections.length; s++) {
-		var idPart = sections[s].charAt(0).toUpperCase() + sections[s].slice(1);
+	for (let s = 0; s < sections.length; s++) {
+		let idPart = sections[s].charAt(0).toUpperCase() + sections[s].slice(1);
 
 		if (data.hasOwnProperty(sections[s]) && data[sections[s]].length > 0) {
 			// Process entries in batches for better UI responsiveness
-			var sectionData = data[sections[s]];
+			let sectionData = data[sections[s]];
 			var batchSize = 50; // Process 50 entries at a time
 
 			if (sectionData.length > batchSize) {
+				pendingBatchSections++;
 				// For large playlists, show placeholder and process in batches
 				$('#tblPlaylist' + idPart).html(
 					"<tr class='unselectable'><td colspan='3'>Loading " +
@@ -6513,24 +6519,19 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 					.parent()
 					.addClass('tblPlaylistActive');
 
-				var batchIndex = 0;
-				var processBatch = function () {
+				let batchIndex = 0;
+				let startingEntryCount = entries; // Capture entry count before async processing
+				let accumulatedHTML = ''; // Accumulate all HTML and insert once at the end to reduce visual shifting
+				let processBatch = function () {
 					var start = batchIndex * batchSize;
 					var end = Math.min(start + batchSize, sectionData.length);
-					var batchHTML = '';
 
 					for (var i = start; i < end; i++) {
-						batchHTML += GetPlaylistRowHTML(
-							entries + i,
+						accumulatedHTML += GetPlaylistRowHTML(
+							startingEntryCount + i,
 							sectionData[i],
 							editMode
 						);
-					}
-
-					if (batchIndex === 0) {
-						$('#tblPlaylist' + idPart).html(batchHTML);
-					} else {
-						$('#tblPlaylist' + idPart).append(batchHTML);
 					}
 
 					batchIndex++;
@@ -6538,11 +6539,15 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 					if (end < sectionData.length) {
 						setTimeout(processBatch, 0);
 					} else {
+						// Single DOM insertion to avoid visual shifting
+						$('#tblPlaylist' + idPart).html(accumulatedHTML);
 						// Finished this section, update durations if last section
-						if (s === sections.length - 1) {
-							$('#tblPlaylist' + idPart + ' > tr').each(function () {
-								PopulatePlaylistItemDuration($(this), editMode);
-							});
+						$('#tblPlaylist' + idPart + ' > tr').each(function () {
+							PopulatePlaylistItemDuration($(this), editMode);
+						});
+						pendingBatchSections--;
+						if (pendingBatchSections === 0) {
+							finishPlaylistLoad();
 						}
 					}
 				};
@@ -6620,6 +6625,11 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 	} else if (data.random == 1) $('#txtRandomize').html('Once at load time');
 	else if (data.random == 2) $('#txtRandomize').html('Once per iteration');
 	else $('#txtRandomize').html('Invalid value');
+
+	// If no batch processing was needed, finish immediately
+	if (pendingBatchSections === 0) {
+		finishPlaylistLoad();
+	}
 }
 
 function PopulatePlaylistDetailsEntries (playselected, playList) {
@@ -6642,7 +6652,6 @@ function PopulatePlaylistDetailsEntries (playselected, playList) {
 		dataType: 'json',
 		success: function (data, reqStatus, xhr) {
 			PopulatePlaylistDetails(data, 0, pl);
-			VerbosePlaylistItemDetailsToggled();
 		}
 	});
 }
