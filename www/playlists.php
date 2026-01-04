@@ -370,6 +370,18 @@
                 var $playlistDescription = String(playList.description);
                 var $playlistDuration = String(SecondsToHuman(playList.total_duration));
                 var $playlistItems = String(playList.total_items);
+
+                // v4 playlist format: add section counts in brackets after total items
+                if (playList.version >= 4 && (playList.leadIn_items || playList.mainPlaylist_items || playList.leadOut_items)) {
+                    var sectionParts = [];
+                    if (playList.leadIn_items > 0) sectionParts.push('Lead In: ' + playList.leadIn_items);
+                    if (playList.mainPlaylist_items > 0) sectionParts.push('Main: ' + playList.mainPlaylist_items);
+                    if (playList.leadOut_items > 0) sectionParts.push('Lead Out: ' + playList.leadOut_items);
+                    if (sectionParts.length > 0) {
+                        $playlistItems += ' (' + sectionParts.join(', ') + ')';
+                    }
+                }
+
                 var $playlistClass = playList.valid ? 'class="card-title"' :
                     'class="card-title playlist-warning" title="' + playList.messages.join(' ') + '"';
                 var $playlistCardHeading = $('<h3 ' + $playlistClass + '>' + $playlistName + '</h3>');
@@ -558,6 +570,11 @@
                     }
                 }
 
+                // Clear playlist DOM tables to prevent data being put in new playlists
+                $('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+                $('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+                $('#tblPlaylistLeadOut').html("<tr id='tblPlaylistLeadOutPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+
                 //logic to reload window playlist details to pick up changes
                 PopulateLists({
                     onPlaylistArrayLoaded: function () {
@@ -584,6 +601,11 @@
             window.addEventListener('popstate', function (e) {
                 if (e.state) {
                     if (e.state.view === 'list') {
+                        // Clear playlist tables to prevent stale data
+                        $('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+                        $('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+                        $('#tblPlaylistLeadOut').html("<tr id='tblPlaylistLeadOutPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+
                         // Go back to list view
                         if ($('#playlistEditor').hasClass('hasPlaylistDetailsLoaded')) {
                             $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');

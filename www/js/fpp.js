@@ -2234,9 +2234,6 @@ function LoadPlaylistDetails (name) {
 			// Use setTimeout to allow UI to update before heavy DOM manipulation
 			setTimeout(function () {
 				PopulatePlaylistDetails(data, 1, name);
-				RenumberPlaylistEditorEntries();
-				UpdatePlaylistDurations();
-				VerbosePlaylistItemDetailsToggled();
 				//$("#tblPlaylistLeadInHeader").get(0).scrollIntoView();
 			}, 0);
 		})
@@ -2388,7 +2385,10 @@ function UpdatePlaylistDurations () {
 
 		$('.playlistDuration' + sections[s]).html(SecondsToHuman(duration));
 
+		// Store raw duration values for v4 playlist format
 		if (sections[s] == 'MainPlaylist') $('#playlistDuration').html(duration);
+		if (sections[s] == 'LeadIn') $('#playlistDurationLeadIn').html(duration);
+		if (sections[s] == 'LeadOut') $('#playlistDurationLeadOut').html(duration);
 	}
 }
 
@@ -2867,7 +2867,7 @@ function SavePlaylistAs (name, options, callback) {
 	var itemCount = 0;
 	var pl = {};
 	pl.name = name;
-	pl.version = 3; // v1 == CSV, v2 == JSON, v3 == deprecated some things
+	pl.version = 4; // v1 == CSV, v2 == JSON, v3 == deprecated some things, v4 == per-section stats in playlistInfo
 	pl.repeat = 0; // currently unused by player
 	pl.loopCount = 0; // currently unused by player
 	pl.desc = $('#txtPlaylistDesc').val();
@@ -2899,11 +2899,52 @@ function SavePlaylistAs (name, options, callback) {
 		leadIn.length === 0 && mainPlaylist.length === 0 && leadOut.length === 0;
 
 	if (pl.empty) {
+		// v4 format: per-section stats
 		playlistInfo.total_duration = parseFloat(0);
 		playlistInfo.total_items = 0;
+		playlistInfo.leadIn_duration = parseFloat(0);
+		playlistInfo.leadIn_items = 0;
+		playlistInfo.mainPlaylist_duration = parseFloat(0);
+		playlistInfo.mainPlaylist_items = 0;
+		playlistInfo.leadOut_duration = parseFloat(0);
+		playlistInfo.leadOut_items = 0;
 	} else {
-		playlistInfo.total_duration = parseFloat($('#playlistDuration').html());
-		playlistInfo.total_items = mainPlaylist.length;
+		// Calculate durations from collected entries
+		var leadInDuration = 0;
+		for (var i = 0; i < leadIn.length; i++) {
+			if (leadIn[i].hasOwnProperty('duration') && leadIn[i].duration > 0) {
+				leadInDuration += leadIn[i].duration;
+			}
+		}
+
+		var mainDuration = 0;
+		for (var i = 0; i < mainPlaylist.length; i++) {
+			if (
+				mainPlaylist[i].hasOwnProperty('duration') &&
+				mainPlaylist[i].duration > 0
+			) {
+				mainDuration += mainPlaylist[i].duration;
+			}
+		}
+
+		var leadOutDuration = 0;
+		for (var i = 0; i < leadOut.length; i++) {
+			if (leadOut[i].hasOwnProperty('duration') && leadOut[i].duration > 0) {
+				leadOutDuration += leadOut[i].duration;
+			}
+		}
+
+		// v4 format: per-section stats
+		playlistInfo.leadIn_duration = leadInDuration;
+		playlistInfo.leadIn_items = leadIn.length;
+		playlistInfo.mainPlaylist_duration = mainDuration;
+		playlistInfo.mainPlaylist_items = mainPlaylist.length;
+		playlistInfo.leadOut_duration = leadOutDuration;
+		playlistInfo.leadOut_items = leadOut.length;
+		playlistInfo.total_duration =
+			leadInDuration + mainDuration + leadOutDuration;
+		playlistInfo.total_items =
+			leadIn.length + mainPlaylist.length + leadOut.length;
 	}
 	pl.leadIn = leadIn;
 	pl.mainPlaylist = mainPlaylist;
@@ -6493,75 +6534,23 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 	if (!editMode) $('#deprecationWarning').hide(); // will re-show if we find any
 
 	var sections = ['leadIn', 'mainPlaylist', 'leadOut'];
-	for (var s = 0; s < sections.length; s++) {
-		var idPart = sections[s].charAt(0).toUpperCase() + sections[s].slice(1);
+
+	// Build all HTML first (fast, synchronous)
+	for (let s = 0; s < sections.length; s++) {
+		let idPart = sections[s].charAt(0).toUpperCase() + sections[s].slice(1);
 
 		if (data.hasOwnProperty(sections[s]) && data[sections[s]].length > 0) {
-			// Process entries in batches for better UI responsiveness
-			var sectionData = data[sections[s]];
-			var batchSize = 50; // Process 50 entries at a time
-
-			if (sectionData.length > batchSize) {
-				// For large playlists, show placeholder and process in batches
-				$('#tblPlaylist' + idPart).html(
-					"<tr class='unselectable'><td colspan='3'>Loading " +
-						sectionData.length +
-						' entries...</td></tr>'
-				);
-				$('#tblPlaylist' + idPart + 'Header')
-					.show()
-					.parent()
-					.addClass('tblPlaylistActive');
-
-				var batchIndex = 0;
-				var processBatch = function () {
-					var start = batchIndex * batchSize;
-					var end = Math.min(start + batchSize, sectionData.length);
-					var batchHTML = '';
-
-					for (var i = start; i < end; i++) {
-						batchHTML += GetPlaylistRowHTML(
-							entries + i,
-							sectionData[i],
-							editMode
-						);
-					}
-
-					if (batchIndex === 0) {
-						$('#tblPlaylist' + idPart).html(batchHTML);
-					} else {
-						$('#tblPlaylist' + idPart).append(batchHTML);
-					}
-
-					batchIndex++;
-
-					if (end < sectionData.length) {
-						setTimeout(processBatch, 0);
-					} else {
-						// Finished this section, update durations if last section
-						if (s === sections.length - 1) {
-							$('#tblPlaylist' + idPart + ' > tr').each(function () {
-								PopulatePlaylistItemDuration($(this), editMode);
-							});
-						}
-					}
-				};
-
-				setTimeout(processBatch, 0);
-				entries += sectionData.length;
-			} else {
-				// For small playlists, process normally
-				innerHTML = '';
-				for (i = 0; i < sectionData.length; i++) {
-					innerHTML += GetPlaylistRowHTML(entries, sectionData[i], editMode);
-					entries++;
-				}
-				$('#tblPlaylist' + idPart).html(innerHTML);
-				$('#tblPlaylist' + idPart + 'Header')
-					.show()
-					.parent()
-					.addClass('tblPlaylistActive');
+			let sectionData = data[sections[s]];
+			innerHTML = '';
+			for (var i = 0; i < sectionData.length; i++) {
+				innerHTML += GetPlaylistRowHTML(entries, sectionData[i], editMode);
+				entries++;
 			}
+			$('#tblPlaylist' + idPart).html(innerHTML);
+			$('#tblPlaylist' + idPart + 'Header')
+				.show()
+				.parent()
+				.addClass('tblPlaylistActive');
 
 			if (!data[sections[s]].length)
 				$('#tblPlaylist' + idPart).html(
@@ -6569,10 +6558,6 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 						idPart +
 						"PlaceHolder' class='unselectable'><td>&nbsp;</td></tr>"
 				);
-
-			$('#tblPlaylist' + idPart + ' > tr').each(function () {
-				PopulatePlaylistItemDuration($(this), editMode);
-			});
 		} else {
 			$('#tblPlaylist' + idPart).html('');
 			if (editMode) {
@@ -6593,6 +6578,13 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 			}
 		}
 	}
+
+	RenumberPlaylistEditorEntries();
+	UpdatePlaylistDurations();
+	VerbosePlaylistItemDetailsToggled();
+
+	// Don't fetch durations on load - they're already in the JSON data
+	// Only fetch when explicitly needed (like when adding new items)
 
 	if (!editMode) {
 		gblCurrentLoadedPlaylist = data.name;

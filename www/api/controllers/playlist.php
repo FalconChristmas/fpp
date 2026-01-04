@@ -34,6 +34,65 @@ function loadValidateFiles()
     return $files;
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// Helper function to update playlistInfo with section-level stats (v4 format)
+// Handles both v3 (backwards compatible) and v4 formats
+function updatePlaylistInfo(&$playlist)
+{
+    // Initialize playlistInfo if not present
+    if (!isset($playlist['playlistInfo'])) {
+        $playlist['playlistInfo'] = array();
+    }
+
+    // Set version to 4 if not set or if upgrading
+    if (!isset($playlist['version']) || $playlist['version'] < 4) {
+        $playlist['version'] = 4;
+    }
+
+    // Calculate section stats
+    $leadInCount = isset($playlist['leadIn']) ? count($playlist['leadIn']) : 0;
+    $mainCount = isset($playlist['mainPlaylist']) ? count($playlist['mainPlaylist']) : 0;
+    $leadOutCount = isset($playlist['leadOut']) ? count($playlist['leadOut']) : 0;
+
+    // Calculate durations from entries if they have duration field
+    $leadInDuration = 0;
+    if (isset($playlist['leadIn'])) {
+        foreach ($playlist['leadIn'] as $entry) {
+            if (isset($entry['duration']) && is_numeric($entry['duration'])) {
+                $leadInDuration += floatval($entry['duration']);
+            }
+        }
+    }
+
+    $mainDuration = 0;
+    if (isset($playlist['mainPlaylist'])) {
+        foreach ($playlist['mainPlaylist'] as $entry) {
+            if (isset($entry['duration']) && is_numeric($entry['duration'])) {
+                $mainDuration += floatval($entry['duration']);
+            }
+        }
+    }
+
+    $leadOutDuration = 0;
+    if (isset($playlist['leadOut'])) {
+        foreach ($playlist['leadOut'] as $entry) {
+            if (isset($entry['duration']) && is_numeric($entry['duration'])) {
+                $leadOutDuration += floatval($entry['duration']);
+            }
+        }
+    }
+
+    // Update playlistInfo with v4 format
+    $playlist['playlistInfo']['leadIn_items'] = $leadInCount;
+    $playlist['playlistInfo']['leadIn_duration'] = $leadInDuration;
+    $playlist['playlistInfo']['mainPlaylist_items'] = $mainCount;
+    $playlist['playlistInfo']['mainPlaylist_duration'] = $mainDuration;
+    $playlist['playlistInfo']['leadOut_items'] = $leadOutCount;
+    $playlist['playlistInfo']['leadOut_duration'] = $leadOutDuration;
+    $playlist['playlistInfo']['total_items'] = $leadInCount + $mainCount + $leadOutCount;
+    $playlist['playlistInfo']['total_duration'] = $leadInDuration + $mainDuration + $leadOutDuration;
+}
+
 function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
 {
     foreach ($entries as $e) {
@@ -123,6 +182,12 @@ function playlist_list_validate()
             $plItems = "";
         }
 
+        // v4 format: include per-section stats
+        $version = isset($pl->version) ? $pl->version : 3;
+        $leadInItems = isset($pl->playlistInfo->leadIn_items) ? $pl->playlistInfo->leadIn_items : 0;
+        $mainItems = isset($pl->playlistInfo->mainPlaylist_items) ? $pl->playlistInfo->mainPlaylist_items : 0;
+        $leadOutItems = isset($pl->playlistInfo->leadOut_items) ? $pl->playlistInfo->leadOut_items : 0;
+
         array_push(
             $rc,
             array(
@@ -131,7 +196,11 @@ function playlist_list_validate()
                 "valid" => $valid,
                 "messages" => $msg,
                 "total_duration" => $plDuration,
-                "total_items" => $plItems
+                "total_items" => $plItems,
+                "version" => $version,
+                "leadIn_items" => $leadInItems,
+                "mainPlaylist_items" => $mainItems,
+                "leadOut_items" => $leadOutItems
             )
         );
     }
@@ -358,6 +427,41 @@ function playlist_update()
 
     $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
 
+    // Preserve duration values from existing playlist file ONLY if not provided by frontend
+    if (file_exists($filename)) {
+        $existingJson = file_get_contents($filename, LOCK_SH);
+        $existingPlaylist = json_decode($existingJson, true);
+        if (isset($existingPlaylist['playlistInfo'])) {
+            if (!isset($playlist['playlistInfo'])) {
+                $playlist['playlistInfo'] = array();
+            }
+            // Only preserve if frontend didn't send a value or sent 0
+            if (
+                (!isset($playlist['playlistInfo']['leadIn_duration']) || $playlist['playlistInfo']['leadIn_duration'] == 0)
+                && isset($existingPlaylist['playlistInfo']['leadIn_duration'])
+            ) {
+                $playlist['playlistInfo']['leadIn_duration'] = $existingPlaylist['playlistInfo']['leadIn_duration'];
+            }
+            if (
+                (!isset($playlist['playlistInfo']['mainPlaylist_duration']) || $playlist['playlistInfo']['mainPlaylist_duration'] == 0)
+                && isset($existingPlaylist['playlistInfo']['mainPlaylist_duration'])
+            ) {
+                $playlist['playlistInfo']['mainPlaylist_duration'] = $existingPlaylist['playlistInfo']['mainPlaylist_duration'];
+            }
+            if (
+                (!isset($playlist['playlistInfo']['leadOut_duration']) || $playlist['playlistInfo']['leadOut_duration'] == 0)
+                && isset($existingPlaylist['playlistInfo']['leadOut_duration'])
+            ) {
+                $playlist['playlistInfo']['leadOut_duration'] = $existingPlaylist['playlistInfo']['leadOut_duration'];
+            }
+        }
+    }
+
+    // Update playlistInfo to maintain v4 format with section-level stats
+    updatePlaylistInfo($playlist);
+
+    $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
+
     $json = json_encode($playlist, JSON_PRETTY_PRINT);
     $f = file_put_contents($filename, $json, LOCK_EX);
     if ($f != false) {
@@ -421,6 +525,9 @@ function PlaylistSectionInsertItem()
         }
 
         array_push($playlist[$sectionName], $entry);
+
+        // Update playlistInfo for v4 format
+        updatePlaylistInfo($playlist);
 
         $json = json_encode($playlist, JSON_PRETTY_PRINT);
 

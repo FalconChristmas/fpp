@@ -127,7 +127,7 @@ if (!isset($simplifiedPlaylist)) {
 
         $('.time').timepicker({ 'timeFormat': 'H:i:s', 'typeaheadHighlight': false });
 
-        $('#filterUsedSequences').on('change', function() {
+        $('#filterUsedSequences').on('change', function () {
             PlaylistTypeChanged();
         });
 
@@ -247,6 +247,8 @@ if (!isset($simplifiedPlaylist)) {
     simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
 </script>
 <span style='display: none;' id='playlistDuration'>0</span>
+<span style='display: none;' id='playlistDurationLeadIn'>0</span>
+<span style='display: none;' id='playlistDurationLeadOut'>0</span>
 <div class="playlistEditContainer">
     <div class="playlistEditForm ">
 
