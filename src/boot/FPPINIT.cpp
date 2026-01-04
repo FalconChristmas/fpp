@@ -752,6 +752,35 @@ static void setupNetwork(bool fullReload = false) {
         PutFileContents(dhcpProxyFile, dhcpProxies);
         reloadApache = true;
     }
+    
+    // Configure ntpsec to ignore DHCP NTP servers unless explicitly enabled
+    std::string ntpsecDefaults = "/etc/default/ntpsec";
+    std::string useNTPFromDHCP;
+    getRawSetting("UseNTPFromDHCP", useNTPFromDHCP);
+    std::string ignoreDHCP = (useNTPFromDHCP == "1") ? "" : "yes";
+    
+    std::string ntpsecConfig = GetFileContents(ntpsecDefaults);
+    if (!ntpsecConfig.empty()) {
+        // Update the IGNORE_DHCP setting in /etc/default/ntpsec
+        std::string newConfig = ntpsecConfig;
+        size_t pos = newConfig.find("IGNORE_DHCP=");
+        if (pos != std::string::npos) {
+            size_t lineEnd = newConfig.find('\n', pos);
+            std::string oldLine = newConfig.substr(pos, lineEnd - pos);
+            std::string newLine = "IGNORE_DHCP=\"" + ignoreDHCP + "\"";
+            newConfig.replace(pos, oldLine.length(), newLine);
+            
+            if (newConfig != ntpsecConfig) {
+                PutFileContents(ntpsecDefaults, newConfig);
+                // Remove any DHCP-generated NTP config to force reload
+                if (ignoreDHCP == "yes" && FileExists("/run/ntpsec/ntp.conf.dhcp")) {
+                    unlink("/run/ntpsec/ntp.conf.dhcp");
+                }
+                execbg("/usr/bin/systemctl reload-or-restart ntpsec.service &");
+            }
+        }
+    }
+    
     bool changed = false;
     for (auto& ftc : filesToConsider) {
         if (filesNeeded.find(ftc) == filesNeeded.end()) {
