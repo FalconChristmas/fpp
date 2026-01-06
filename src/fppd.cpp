@@ -270,7 +270,13 @@ static void handleCrash(int s) {
     }
     inCrashHandler = true;
     int crashLog = getSettingInt("ShareCrashData", 3);
+#ifndef PLATFORM_OSX
     LogErr(VB_ALL, "Crash handler called in thread %u:  signal=%d (SIG%s: %s)\n", gettid(), s, safe(sigabbrev_np(s)), safe(sigdescr_np(s)));
+#else
+    uint64_t tid;
+    pthread_threadid_np(NULL, &tid);
+    LogErr(VB_ALL, "Crash handler called in thread %u:  signal=%d\n", tid, s);
+#endif
 
     if (!sequence->m_seqFilename.empty()) {
         LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", sequence->m_seqFilename.c_str(), sequence->m_seqMSElapsed);
