@@ -1,2 +1,9 @@
 #!/bin/sh
-/usr/bin/systemctl restart ntp
+# Wait a moment for DNS to be fully available
+sleep 2
+
+# Stop ntpd, force a one-time sync with -g flag, then restart
+# This ensures the clock is set even with large offsets on systems without RTC
+/usr/bin/systemctl stop ntp 2>/dev/null
+/usr/sbin/ntpd -gq -c /etc/ntpsec/ntp.conf 2>/dev/null || true
+/usr/bin/systemctl start ntp 2>/dev/null

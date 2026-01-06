@@ -763,21 +763,42 @@ static void setupNetwork(bool fullReload = false) {
     if (!ntpsecConfig.empty()) {
         // Update the IGNORE_DHCP setting in /etc/default/ntpsec
         std::string newConfig = ntpsecConfig;
+        bool needsRestart = false;
+        
         size_t pos = newConfig.find("IGNORE_DHCP=");
         if (pos != std::string::npos) {
             size_t lineEnd = newConfig.find('\n', pos);
             std::string oldLine = newConfig.substr(pos, lineEnd - pos);
             std::string newLine = "IGNORE_DHCP=\"" + ignoreDHCP + "\"";
             newConfig.replace(pos, oldLine.length(), newLine);
-            
-            if (newConfig != ntpsecConfig) {
-                PutFileContents(ntpsecDefaults, newConfig);
-                // Remove any DHCP-generated NTP config to force reload
-                if (ignoreDHCP == "yes" && FileExists("/run/ntpsec/ntp.conf.dhcp")) {
-                    unlink("/run/ntpsec/ntp.conf.dhcp");
+            needsRestart = (newConfig != ntpsecConfig);
+        }
+        
+        // Ensure -g flag is set in NTPD_OPTS to allow large time corrections on boot
+        // This is critical for systems without RTC that may boot with wildly incorrect times
+        pos = newConfig.find("NTPD_OPTS=");
+        if (pos != std::string::npos) {
+            size_t lineEnd = newConfig.find('\n', pos);
+            std::string optsLine = newConfig.substr(pos, lineEnd - pos);
+            // Check if -g flag is already present
+            if (optsLine.find("-g") == std::string::npos) {
+                // Add -g flag after NTPD_OPTS="
+                size_t quotePos = optsLine.find('"');
+                if (quotePos != std::string::npos) {
+                    std::string newOptsLine = optsLine.substr(0, quotePos + 1) + "-g " + optsLine.substr(quotePos + 1);
+                    newConfig.replace(pos, optsLine.length(), newOptsLine);
+                    needsRestart = true;
                 }
-                execbg("/usr/bin/systemctl reload-or-restart ntpsec.service &");
             }
+        }
+        
+        if (needsRestart) {
+            PutFileContents(ntpsecDefaults, newConfig);
+            // Remove any DHCP-generated NTP config to force reload
+            if (ignoreDHCP == "yes" && FileExists("/run/ntpsec/ntp.conf.dhcp")) {
+                unlink("/run/ntpsec/ntp.conf.dhcp");
+            }
+            execbg("/usr/bin/systemctl reload-or-restart ntpsec.service &");
         }
     }
     
