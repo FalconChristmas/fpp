@@ -910,12 +910,38 @@ void MainLoop(void) {
     Sensors::INSTANCE.Init(callbacks);
     FileMonitor::INSTANCE.Initialize(callbacks);
 
-    // Extract build year from __DATE__ macro (format: "Mmm DD YYYY")
-    // Used to validate clock before running scheduler
-    const char* buildDate = __DATE__;
-    const int buildYear = (buildDate[7] - '0') * 1000 + (buildDate[8] - '0') * 100 + 
-                          (buildDate[9] - '0') * 10 + (buildDate[10] - '0');
-    const int minValidYear = buildYear - 6;  // Allow for clocks 6 years behind build
+    // Get the last release date from rpi-imager file to use as minimum valid date
+    // Systems without RTC boot with filesystem timestamps, which will be older than the release
+    // If clock shows a date before the last OS release, it's definitely wrong
+    std::tm minValidDate = {};
+    minValidDate.tm_year = 125;  // 2025 fallback
+    minValidDate.tm_mon = 0;
+    minValidDate.tm_mday = 1;
+    Json::Value imagerRoot;
+    if (LoadJsonFromFile(getFPPDDir("/rpi-imager/rpi-imager_falcon_player.json"), imagerRoot)) {
+        if (imagerRoot.isMember("os_list") && imagerRoot["os_list"].isArray()) {
+            std::time_t latestRelease = 0;
+            // Find the latest release date across all OS images
+            for (const auto& osEntry : imagerRoot["os_list"]) {
+                if (osEntry.isMember("release_date")) {
+                    std::string releaseDate = osEntry["release_date"].asString();
+                    if (releaseDate.length() >= 10) {
+                        // Parse "YYYY-MM-DD" format
+                        std::tm releaseTime = {};
+                        releaseTime.tm_year = std::stoi(releaseDate.substr(0, 4)) - 1900;
+                        releaseTime.tm_mon = std::stoi(releaseDate.substr(5, 2)) - 1;
+                        releaseTime.tm_mday = std::stoi(releaseDate.substr(8, 2));
+                        std::time_t releaseTimestamp = std::mktime(&releaseTime);
+                        if (releaseTimestamp > latestRelease) {
+                            latestRelease = releaseTimestamp;
+                            minValidDate = releaseTime;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::time_t minValidTime = std::mktime(&minValidDate);
 
     StartChannelOutputThread();
     if (!getSettingInt("restarted")) {
@@ -923,17 +949,17 @@ void MainLoop(void) {
     }
     bool alwaysTransmit = (bool)getSettingInt("alwaysTransmit");
     if (getFPPmode() & PLAYER_MODE) {
-        // Don't start scheduler if clock is obviously wrong (year too old)
+        // Don't start scheduler if clock is obviously wrong (date before last release)
         // This prevents scheduling issues on systems without RTC that boot with incorrect time
         // The scheduler will start when time is corrected via time jump detection
         std::time_t now = time(nullptr);
-        struct tm* timeinfo = localtime(&now);
         
-        if (timeinfo->tm_year + 1900 >= minValidYear) {
+        if (now >= minValidTime) {
             scheduler->CheckIfShouldBePlayingNow();
         } else {
-            LogWarn(VB_SCHEDULE, "Clock appears incorrect (year %d < %d), delaying scheduler start until time sync\n", 
-                    timeinfo->tm_year + 1900, minValidYear);
+            struct tm* timeinfo = localtime(&now);
+            LogWarn(VB_SCHEDULE, "Clock appears incorrect (date %04d-%02d-%02d before release), delaying scheduler start until time sync\n", 
+                    timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday);
         }
     }
     if (CommandManager::INSTANCE.HasPreset("FPPD_STARTED")) {
@@ -1024,8 +1050,7 @@ void MainLoop(void) {
         
         // Only run scheduler if clock appears valid (same check as initial scheduler start)
         std::time_t now = time(nullptr);
-        struct tm* currentTime = localtime(&now);
-        if (currentTime->tm_year + 1900 >= minValidYear) {
+        if (now >= minValidTime) {
             scheduler->ScheduleProc();
         }
 
