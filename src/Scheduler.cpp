@@ -93,13 +93,6 @@ void Scheduler::ScheduleProc(void) {
                 break;
             it = m_ranItems.erase(it);
         }
-        
-        // If time jumped forward significantly (e.g., NTP sync after boot with wrong time),
-        // check if we should be playing now
-        if (timeDelta > 60) {
-            LogInfo(VB_SCHEDULE, "Detected significant time jump forward (%d seconds), checking scheduled items\n", timeDelta);
-            CheckIfShouldBePlayingNow();
-        }
     }
 
     std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
