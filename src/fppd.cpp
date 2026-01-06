@@ -910,22 +910,30 @@ void MainLoop(void) {
     Sensors::INSTANCE.Init(callbacks);
     FileMonitor::INSTANCE.Initialize(callbacks);
 
+    // Extract build year from __DATE__ macro (format: "Mmm DD YYYY")
+    // Used to validate clock before running scheduler
+    const char* buildDate = __DATE__;
+    const int buildYear = (buildDate[7] - '0') * 1000 + (buildDate[8] - '0') * 100 + 
+                          (buildDate[9] - '0') * 10 + (buildDate[10] - '0');
+    const int minValidYear = buildYear - 6;  // Allow for clocks 6 years behind build
+
     StartChannelOutputThread();
     if (!getSettingInt("restarted")) {
         sequence->SendBlankingData();
     }
     bool alwaysTransmit = (bool)getSettingInt("alwaysTransmit");
     if (getFPPmode() & PLAYER_MODE) {
-        // Don't start scheduler if clock is obviously wrong (year < 2026)
+        // Don't start scheduler if clock is obviously wrong (year too old)
         // This prevents scheduling issues on systems without RTC that boot with incorrect time
         // The scheduler will start when time is corrected via time jump detection
         std::time_t now = time(nullptr);
         struct tm* timeinfo = localtime(&now);
-        if (timeinfo->tm_year + 1900 >= 2026) {
+        
+        if (timeinfo->tm_year + 1900 >= minValidYear) {
             scheduler->CheckIfShouldBePlayingNow();
         } else {
-            LogWarn(VB_SCHEDULE, "Clock appears incorrect (year %d < 2026), delaying scheduler start until time sync\n", 
-                    timeinfo->tm_year + 1900);
+            LogWarn(VB_SCHEDULE, "Clock appears incorrect (year %d < %d), delaying scheduler start until time sync\n", 
+                    timeinfo->tm_year + 1900, minValidYear);
         }
     }
     if (CommandManager::INSTANCE.HasPreset("FPPD_STARTED")) {
@@ -1013,7 +1021,13 @@ void MainLoop(void) {
                 Player::INSTANCE.ProcessMedia();
             }
         }
-        scheduler->ScheduleProc();
+        
+        // Only run scheduler if clock appears valid (same check as initial scheduler start)
+        std::time_t now = time(nullptr);
+        struct tm* currentTime = localtime(&now);
+        if (currentTime->tm_year + 1900 >= minValidYear) {
+            scheduler->ScheduleProc();
+        }
 
         if (pushBridgeData) {
             ForceChannelOutputNow();
