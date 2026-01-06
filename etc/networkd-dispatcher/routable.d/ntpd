@@ -7,3 +7,6 @@ sleep 2
 /usr/bin/systemctl stop ntp 2>/dev/null
 /usr/sbin/ntpd -gq -c /etc/ntpsec/ntp.conf 2>/dev/null || true
 /usr/bin/systemctl start ntp 2>/dev/null
+
+# Notify systemd that time is now synchronized
+/usr/bin/timedatectl set-ntp true 2>/dev/null || true

@@ -1,6 +1,6 @@
 [Unit]
 Description=FPPd
-After=fpp_postnetwork.service
+After=fpp_postnetwork.service time-sync.target
 Requires=fpp_postnetwork.service
 DefaultDependencies=no
 StartLimitIntervalSec=200
