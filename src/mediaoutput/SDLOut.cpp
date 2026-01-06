@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include <memory>
+
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <cmath>
@@ -525,7 +527,7 @@ public:
             decodeThread = new std::thread(decodeThreadEntry, this);
         }
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
-            internalData.store(d);
+            atomic_store(&internalData, d);
             d->audioDev = audioDev;
             if (audioDev) {
                 d->curPosLock.lock();
@@ -558,7 +560,7 @@ public:
                 SDL_PauseAudioDevice(audioDev, 1);
                 SDL_ClearQueuedAudio(audioDev);
             }
-            auto d = internalData.exchange({});
+            auto d = atomic_exchange(&internalData, {});
             _state = SDLSTATE::SDLNOTPLAYING;
             while (decoding) {
                 // wait for decoding thread to be done with it
@@ -580,7 +582,7 @@ public:
     bool openAudio();
     void runDecode();
 
-    std::atomic<std::shared_ptr<SDLInternalData>> internalData{};
+    std::shared_ptr<SDLInternalData> internalData{};
     std::thread* decodeThread;
     std::set<std::string> blacklisted;
 };
@@ -602,7 +604,7 @@ bool SDL::initSDL() {
 void SDL::runDecode() {
     while (_state != SDLSTATE::SDLUNINITIALISED) {
         decoding = true;
-        auto data = internalData.load();
+        auto data = atomic_load(&internalData);
         if (!data) {
             decoding = false;
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
@@ -878,11 +880,11 @@ SDL::~SDL() {
 }
 
 bool SDLOutput::IsOverlayingVideo() {
-    auto data = sdlManager.internalData.load();
+    auto data = atomic_load(&sdlManager.internalData);
     return data && data->video_stream_idx != -1 && !data->stopped;
 }
 bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
-    auto data = sdlManager.internalData.load();
+    auto data = atomic_load(&sdlManager.internalData);
     if (data && !data->stopped && data->video_stream_idx != -1 && data->curVideoFrame) {
         while (data->curVideoFrame->next && data->curVideoFrame->next->timestamp <= msTimestamp) {
             data->curVideoFrame = data->curVideoFrame->next;
@@ -907,7 +909,7 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
     return false;
 }
 bool SDLOutput::GetAudioSamples(float* samples, int numSamples, int& sampleRate) {
-    auto data = sdlManager.internalData.load();
+    auto data = atomic_load(&sdlManager.internalData);
     if (data && !data->stopped) {
         // printf("In Samples:  %d\n", data->outBufferPos);
         data->curPosLock.lock();
