@@ -916,7 +916,17 @@ void MainLoop(void) {
     }
     bool alwaysTransmit = (bool)getSettingInt("alwaysTransmit");
     if (getFPPmode() & PLAYER_MODE) {
-        scheduler->CheckIfShouldBePlayingNow();
+        // Don't start scheduler if clock is obviously wrong (year < 2026)
+        // This prevents scheduling issues on systems without RTC that boot with incorrect time
+        // The scheduler will start when time is corrected via time jump detection
+        std::time_t now = time(nullptr);
+        struct tm* timeinfo = localtime(&now);
+        if (timeinfo->tm_year + 1900 >= 2026) {
+            scheduler->CheckIfShouldBePlayingNow();
+        } else {
+            LogWarn(VB_SCHEDULE, "Clock appears incorrect (year %d < 2026), delaying scheduler start until time sync\n", 
+                    timeinfo->tm_year + 1900);
+        }
     }
     if (CommandManager::INSTANCE.HasPreset("FPPD_STARTED")) {
         CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");

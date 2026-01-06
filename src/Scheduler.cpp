@@ -77,12 +77,13 @@ void Scheduler::ScheduleProc(void) {
     if (m_lastProcTime == procTime)
         return;
 
+    int timeDelta = (int)(procTime - m_lastProcTime);
     m_lastProcTime = procTime;
 
     // reload the schedule file once per day or if 5 seconds has elapsed
     // since the last process time in case the time jumps
     if ((m_lastLoadDate != GetCurrentDateInt()) ||
-        (abs((int)(procTime - m_lastProcTime)) > 5)) {
+        (abs(timeDelta) > 5)) {
         m_loadSchedule = true;
 
         // Cleanup any ran items older than 2 days
@@ -91,6 +92,13 @@ void Scheduler::ScheduleProc(void) {
             if (it->first >= twoDaysAgo)
                 break;
             it = m_ranItems.erase(it);
+        }
+        
+        // If time jumped forward significantly (e.g., NTP sync after boot with wrong time),
+        // check if we should be playing now
+        if (timeDelta > 60) {
+            LogInfo(VB_SCHEDULE, "Detected significant time jump forward (%d seconds), checking scheduled items\n", timeDelta);
+            CheckIfShouldBePlayingNow();
         }
     }
 

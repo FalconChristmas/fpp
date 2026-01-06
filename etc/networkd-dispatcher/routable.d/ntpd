@@ -4,8 +4,9 @@ sleep 2
 
 # Stop ntpd, force a one-time sync with -g flag, then restart
 # This ensures the clock is set even with large offsets on systems without RTC
+# Use timeout to prevent hanging if internet is not available (30 second max)
 /usr/bin/systemctl stop ntp 2>/dev/null
-/usr/sbin/ntpd -gq -c /etc/ntpsec/ntp.conf 2>/dev/null || true
+timeout 30 /usr/sbin/ntpd -gq -c /etc/ntpsec/ntp.conf 2>/dev/null || true
 /usr/bin/systemctl start ntp 2>/dev/null
 
 # Notify systemd that time is now synchronized
