@@ -1,6 +1,5 @@
 import {
 	Color,
-	ColorManagement,
 	DefaultLoadingManager,
 	FileLoader,
 	FrontSide,
@@ -14,23 +13,9 @@ import {
 } from 'three';
 
 /**
- * A loader for the MTL format.
- *
- * The Material Template Library format (MTL) or .MTL File Format is a companion file format
- * to OBJ that describes surface shading (material) properties of objects within one or more
- * OBJ files.
- *
- * ```js
- * const loader = new MTLLoader();
- * const materials = await loader.loadAsync( 'models/obj/male02/male02.mtl' );
- *
- * const objLoader = new OBJLoader();
- * objLoader.setMaterials( materials );
- * ```
- *
- * @augments Loader
- * @three_import import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+ * Loads a Wavefront .mtl file specifying materials
  */
+
 class MTLLoader extends Loader {
 
 	constructor( manager ) {
@@ -40,13 +25,17 @@ class MTLLoader extends Loader {
 	}
 
 	/**
-	 * Starts loading from the given URL and passes the loaded MTL asset
-	 * to the `onLoad()` callback.
+	 * Loads and parses a MTL asset from a URL.
 	 *
-	 * @param {string} url - The path/URL of the file to be loaded. This can also be a data URI.
-	 * @param {function(MaterialCreator)} onLoad - Executed when the loading process has been finished.
-	 * @param {onProgressCallback} onProgress - Executed while the loading is in progress.
-	 * @param {onErrorCallback} onError - Executed when errors occur.
+	 * @param {String} url - URL to the MTL file.
+	 * @param {Function} [onLoad] - Callback invoked with the loaded object.
+	 * @param {Function} [onProgress] - Callback for download progress.
+	 * @param {Function} [onError] - Callback for download errors.
+	 *
+	 * @see setPath setResourcePath
+	 *
+	 * @note In order for relative texture references to resolve correctly
+	 * you must call setResourcePath() explicitly prior to load.
 	 */
 	load( url, onLoad, onProgress, onError ) {
 
@@ -84,12 +73,6 @@ class MTLLoader extends Loader {
 
 	}
 
-	/**
-	 * Sets the material options.
-	 *
-	 * @param {MTLLoader~MaterialOptions} value - The material options.
-	 * @return {MTLLoader} A reference to this loader.
-	 */
 	setMaterialOptions( value ) {
 
 		this.materialOptions = value;
@@ -98,11 +81,15 @@ class MTLLoader extends Loader {
 	}
 
 	/**
-	 * Parses the given MTL data and returns the resulting material creator.
+	 * Parses a MTL file.
 	 *
-	 * @param {string} text - The raw MTL data as a string.
-	 * @param {string} path - The URL base path.
-	 * @return {MaterialCreator} The material creator.
+	 * @param {String} text - Content of MTL file
+	 * @return {MaterialCreator}
+	 *
+	 * @see setPath setResourcePath
+	 *
+	 * @note In order for relative texture references to resolve correctly
+	 * you must call setResourcePath() explicitly prior to parse.
 	 */
 	parse( text, path ) {
 
@@ -166,13 +153,18 @@ class MTLLoader extends Loader {
 }
 
 /**
- * Material options of `MTLLoader`.
- *
- * @typedef {Object} MTLLoader~MaterialOptions
- * @property {(FrontSide|BackSide|DoubleSide)} [side=FrontSide] - Which side to apply the material.
- * @property {(RepeatWrapping|ClampToEdgeWrapping|MirroredRepeatWrapping)} [wrap=RepeatWrapping] - What type of wrapping to apply for textures.
- * @property {boolean} [normalizeRGB=false] - Whether RGB colors should be normalized to `0-1` from `0-255`.
- * @property {boolean} [ignoreZeroRGBs=false] - Ignore values of RGBs (Ka,Kd,Ks) that are all 0's.
+ * Create a new MTLLoader.MaterialCreator
+ * @param baseUrl - Url relative to which textures are loaded
+ * @param options - Set of options on how to construct the materials
+ *                  side: Which side to apply the material
+ *                        FrontSide (default), THREE.BackSide, THREE.DoubleSide
+ *                  wrap: What type of wrapping to apply for textures
+ *                        RepeatWrapping (default), THREE.ClampToEdgeWrapping, THREE.MirroredRepeatWrapping
+ *                  normalizeRGB: RGBs need to be normalized to 0-1 from 0-255
+ *                                Default: false, assumed to be already normalized
+ *                  ignoreZeroRGBs: Ignore values of RGBs (Ka,Kd,Ks) that are all 0's
+ *                                  Default: false
+ * @constructor
  */
 
 class MaterialCreator {
@@ -392,21 +384,21 @@ class MaterialCreator {
 
 					// Diffuse color (color under white light) using RGB values
 
-					params.color = ColorManagement.colorSpaceToWorking( new Color().fromArray( value ), SRGBColorSpace );
+					params.color = new Color().fromArray( value ).convertSRGBToLinear();
 
 					break;
 
 				case 'ks':
 
 					// Specular color (color when light is reflected from shiny surface) using RGB values
-					params.specular = ColorManagement.colorSpaceToWorking( new Color().fromArray( value ), SRGBColorSpace );
+					params.specular = new Color().fromArray( value ).convertSRGBToLinear();
 
 					break;
 
 				case 'ke':
 
 					// Emissive using RGB values
-					params.emissive = ColorManagement.colorSpaceToWorking( new Color().fromArray( value ), SRGBColorSpace );
+					params.emissive = new Color().fromArray( value ).convertSRGBToLinear();
 
 					break;
 
@@ -446,14 +438,6 @@ class MaterialCreator {
 					// Bump texture map
 
 					setMapForType( 'bumpMap', value );
-
-					break;
-
-				case 'disp':
-
-					// Displacement texture map
-
-					setMapForType( 'displacementMap', value );
 
 					break;
 
@@ -531,16 +515,6 @@ class MaterialCreator {
 
 			matParams.bumpScale = parseFloat( items[ pos + 1 ] );
 			items.splice( pos, 2 );
-
-		}
-
-		pos = items.indexOf( '-mm' );
-
-		if ( pos >= 0 ) {
-
-			matParams.displacementBias = parseFloat( items[ pos + 1 ] );
-			matParams.displacementScale = parseFloat( items[ pos + 2 ] );
-			items.splice( pos, 3 );
 
 		}
 
