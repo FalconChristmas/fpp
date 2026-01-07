@@ -104,11 +104,11 @@ function PrintGitBranchOptions()
             url: 'api/git/branches?remote=' + remote,
             type: 'GET',
             success: function (branches) {
-                var currentBranch = $('#gitBranch').val();
                 $('#gitBranch').empty();
+                // Add a placeholder option to force user selection
+                $('#gitBranch').append('<option value="" selected>-- Select Branch --</option>');
                 branches.forEach(function (branch) {
-                    var selected = (branch === currentBranch) ? ' selected' : '';
-                    $('#gitBranch').append('<option value="' + branch + '"' + selected + '>' + branch + '</option>');
+                    $('#gitBranch').append('<option value="' + branch + '">' + branch + '</option>');
                 });
             },
             error: function (data) {

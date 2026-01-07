@@ -19,7 +19,7 @@ DisableOutputBuffering();
 
 <body>
 	<h2>Changing Branch</h2>
-	<pre>
+	<pre id="output">
 <?php
 echo "==================================================================================\n";
 
@@ -35,13 +35,31 @@ $command = "$SUDO " . $fppDir . "/scripts/git_branch " . $branch . " " . $remote
 
 echo "Command: $command\n";
 echo "----------------------------------------------------------------------------------\n";
-system($command);
+flush();
+ob_flush();
+
+// Stream output and auto-scroll
+$handle = popen($command, 'r');
+while (!feof($handle)) {
+	$buffer = fgets($handle);
+	echo $buffer;
+	flush();
+	ob_flush();
+	echo '<script>window.scrollTo(0, document.body.scrollHeight);</script>';
+	flush();
+	ob_flush();
+}
+pclose($handle);
 echo "\n";
 ?>
 
 ==========================================================================
 </pre>
 	<a href='index.php'>Go to FPP Main Status Page</a><br>
+	<script>
+		// Ensure we scroll to bottom on page load
+		window.scrollTo(0, document.body.scrollHeight);
+	</script>
 </body>
 
 </html>
