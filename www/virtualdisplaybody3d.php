@@ -77,10 +77,10 @@ if (!isset($standalone)) {
 
     if (!isset($canvasHeight))
         $canvasHeight = 768;
-    
+
     echo "var canvasWidth = " . $canvasWidth . ";\n";
     echo "var canvasHeight = " . $canvasHeight . ";\n";
-    
+
     // Override with window size if available (standalone mode)
     echo "if (typeof window.canvasWidth !== 'undefined') canvasWidth = window.canvasWidth;\n";
     echo "if (typeof window.canvasHeight !== 'undefined') canvasHeight = window.canvasHeight;\n";
@@ -360,13 +360,23 @@ if (!isset($standalone)) {
         var targetZ = getURLParam('targetZ', 0);
         camera.lookAt(targetX, targetY, targetZ);
         console.log('Camera looking at:', targetX, targetY, targetZ);
-        
+
         // Initialize lookAtTarget for orbit controls
         lookAtTarget = new THREE.Vector3(targetX, targetY, targetZ);
 
-        // Create renderer
+        // Create renderer with modern settings (r182 improvements)
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(canvasWidth, canvasHeight);
+
+        // Enable accurate color space management
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        // Enable physically accurate tone mapping for better color reproduction
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+
+        // Use physical light units (more realistic)
+        renderer.useLegacyLights = false;
 
         var container = document.getElementById('canvas-container');
         if (!container) {
@@ -376,37 +386,33 @@ if (!isset($standalone)) {
         container.appendChild(renderer.domElement);
         console.log('Renderer attached to DOM');
 
-        // Add lights
-        var ambientLight = new THREE.AmbientLight(0x404040, 1.0);
+        // Add lights with physical units (lumens) for realistic lighting
+        var ambientLight = new THREE.AmbientLight(0x404040, Math.PI * 0.5);
         scene.add(ambientLight);
-        
-        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+
+        var directionalLight = new THREE.DirectionalLight(0xffffff, Math.PI * 0.3);
         directionalLight.position.set(1, 1, 1);
         scene.add(directionalLight);
 
         // Add additional lights for better 3D object visibility
-        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, Math.PI * 0.3);
         directionalLight2.position.set(-1, -1, -1);
         scene.add(directionalLight2);
 
-        var hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        var hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, Math.PI * 0.4);
         hemisphereLight.position.set(0, 1, 0);
         scene.add(hemisphereLight);
-        
-        // Store references for ambient light control (store base intensities)
+
+        // Store references for ambient light control (store base intensities in physical units)
         window.sceneLights = {
-            ambient: { light: ambientLight, baseIntensity: 1.0 },
-            directional1: { light: directionalLight, baseIntensity: 0.5 },
-            directional2: { light: directionalLight2, baseIntensity: 0.5 },
-            hemisphere: { light: hemisphereLight, baseIntensity: 0.6 }
+            ambient: { light: ambientLight, baseIntensity: Math.PI * 0.5 },
+            directional1: { light: directionalLight, baseIntensity: Math.PI * 0.3 },
+            directional2: { light: directionalLight2, baseIntensity: Math.PI * 0.3 },
+            hemisphere: { light: hemisphereLight, baseIntensity: Math.PI * 0.4 }
         };
 
-        // Use Points (point cloud) for efficient rendering of many pixels
-        console.log('Creating point cloud with', pixelData.length, 'pixels');
-
-        var geometry = new THREE.BufferGeometry();
-        var positions = new Float32Array(pixelData.length * 3);
-        var colors = new Float32Array(pixelData.length * 3);
+        // Use InstancedMesh for realistic 3D LED bulbs (r182 improvement)
+        console.log('Creating instanced LED bulbs with', pixelData.length, 'pixels');
 
         // Debug: log first few pixel positions
         console.log('First 3 pixels - RAW coordinates:');
@@ -415,6 +421,27 @@ if (!isset($standalone)) {
         }
         console.log('Model center:', modelCenter);
         console.log('Center at 0:', view2DSettings.centerAt0);
+
+        // Create a small sphere geometry for each LED (reused for all instances)
+        var ledGeometry = new THREE.SphereGeometry(1.5, 8, 6);
+
+        // Create material with emissive property for self-illumination
+        var ledMaterial = new THREE.MeshStandardMaterial({
+            emissive: 0x000000,
+            emissiveIntensity: 1.5,
+            roughness: 0.3,
+            metalness: 0.1,
+            transparent: true,
+            opacity: 0.95
+        });
+
+        // Create instanced mesh
+        var instancedMesh = new THREE.InstancedMesh(ledGeometry, ledMaterial, pixelData.length);
+
+        // Set up position and color for each instance
+        var matrix = new THREE.Matrix4();
+        var color = new THREE.Color();
+        var pixelPositions = [];
 
         for (var i = 0; i < pixelData.length; i++) {
             // Pixels come from virtualdisplaymap which may have Display2DCenter0 applied
@@ -434,42 +461,36 @@ if (!isset($standalone)) {
             }
 
             // Now apply the same gridlines offset as objects
-            positions[i * 3] = pixelX - gridlinesOffset.x;
-            positions[i * 3 + 1] = pixelY - gridlinesOffset.y;
-            positions[i * 3 + 2] = pixelZ - gridlinesOffset.z;
+            var finalX = pixelX - gridlinesOffset.x;
+            var finalY = pixelY - gridlinesOffset.y;
+            var finalZ = pixelZ - gridlinesOffset.z;
 
-            // Start all black
-            colors[i * 3] = 0;
-            colors[i * 3 + 1] = 0;
-            colors[i * 3 + 2] = 0;
+            pixelPositions.push({ x: finalX, y: finalY, z: finalZ });
+
+            // Set position matrix for this instance
+            matrix.setPosition(finalX, finalY, finalZ);
+            instancedMesh.setMatrixAt(i, matrix);
+
+            // Start all LEDs black
+            color.setRGB(0, 0, 0);
+            instancedMesh.setColorAt(i, color);
         }
 
         // Debug: log first few pixel positions after centering
         console.log('First 3 pixels - CENTERED coordinates:');
-        for (var i = 0; i < Math.min(3, pixelData.length); i++) {
-            console.log('  Pixel', i, '- x:', positions[i * 3], 'y:', positions[i * 3 + 1], 'z:', positions[i * 3 + 2]);
+        for (var i = 0; i < Math.min(3, pixelPositions.length); i++) {
+            console.log('  Pixel', i, '- x:', pixelPositions[i].x, 'y:', pixelPositions[i].y, 'z:', pixelPositions[i].z);
         }
 
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        scene.add(instancedMesh);
 
-        var material = new THREE.PointsMaterial({
-            size: 3,  // Default pixel size
-            vertexColors: true,
-            sizeAttenuation: true
-        });
+        // Store references for updates
+        window.pixelMesh = instancedMesh;
+        window.pixelMaterial = ledMaterial;
+        window.pixelColors = new Float32Array(pixelData.length * 3);
+        window.pixelPositions = pixelPositions;
 
-        // Store reference for updating size
-        window.pixelMaterial = material;
-
-        var points = new THREE.Points(geometry, material);
-        scene.add(points);
-
-        // Store reference for updates
-        window.pixelGeometry = geometry;
-        window.pixelColors = colors;
-
-        console.log('Point cloud created');
+        console.log('Instanced LED mesh created with realistic 3D bulbs');
 
 
         // Add axis helper for reference (default off, can be overridden by URL)
@@ -636,14 +657,18 @@ if (!isset($standalone)) {
                 if (hasMaterials) {
                     console.log('Using loaded MTL materials for', objConfig.name);
 
-                    // Log material details for debugging
+                    // Log material details and enable anisotropic filtering for textures
                     var materialCount = 0;
                     var textureCount = 0;
+                    var maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
                     object.traverse((child) => {
                         if (child instanceof THREE.Mesh) {
                             materialCount++;
                             if (child.material.map) {
                                 textureCount++;
+                                // Enable anisotropic filtering for better texture quality at oblique angles
+                                child.material.map.anisotropy = maxAnisotropy;
+                                child.material.map.needsUpdate = true;
                                 console.log('  Mesh has texture:', child.material.map.image?.src || 'loading...');
                             }
                         }
@@ -708,14 +733,18 @@ if (!isset($standalone)) {
                 } else {
                     console.log('Using loaded MTL materials for', objConfig.name);
 
-                    // Log material details for debugging
+                    // Log material details and enable anisotropic filtering for textures
                     var materialCount = 0;
                     var textureCount = 0;
+                    var maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
                     object.traverse((child) => {
                         if (child instanceof THREE.Mesh) {
                             materialCount++;
                             if (child.material.map) {
                                 textureCount++;
+                                // Enable anisotropic filtering for better texture quality at oblique angles
+                                child.material.map.anisotropy = maxAnisotropy;
+                                child.material.map.needsUpdate = true;
                                 console.log('  Mesh has texture:', child.material.map.image?.src || 'loading...');
                             }
                         }
@@ -913,7 +942,7 @@ if (!isset($standalone)) {
         var previousMousePosition = { x: 0, y: 0 };
         var rotationSpeed = 0.005;
         var panSpeed = 0.5;
-        
+
         // Initialize lookAtTarget now that THREE.js is loaded
         if (!lookAtTarget) {
             lookAtTarget = new THREE.Vector3(0, 0, 0);
@@ -1529,7 +1558,7 @@ if (!isset($standalone)) {
         if (window.brightnessMultiplier !== 2.0) {
             params.push('brightness=' + window.brightnessMultiplier.toFixed(1));
         }
-        
+
         // Ambient light
         var ambientLightSlider = document.getElementById('ambientLightSlider');
         if (ambientLightSlider) {
@@ -1740,6 +1769,7 @@ if (!isset($standalone)) {
     function updatePixelColors(pixels) {
         var updated = false;
         var colorCount = 0;
+        var color = new THREE.Color();
 
         for (var i = 0; i < pixels.length; i++) {
             var data = pixels[i].split(':');
@@ -1764,18 +1794,24 @@ if (!isset($standalone)) {
                 // Fast lookup by key
                 var pixelIndex = pixelLookup[locs[j]];
                 if (pixelIndex !== undefined) {
-                    // Update color in buffer
+                    // Update color in buffer and InstancedMesh
                     window.pixelColors[pixelIndex * 3] = r;
                     window.pixelColors[pixelIndex * 3 + 1] = g;
                     window.pixelColors[pixelIndex * 3 + 2] = b;
+
+                    // Update instanced mesh color and emissive for glow
+                    if (window.pixelMesh) {
+                        color.setRGB(r, g, b);
+                        window.pixelMesh.setColorAt(pixelIndex, color);
+                    }
                     updated = true;
                 }
             }
         }
 
-        // Mark colors as needing update
-        if (updated && window.pixelGeometry) {
-            window.pixelGeometry.attributes.color.needsUpdate = true;
+        // Mark colors as needing update for InstancedMesh
+        if (updated && window.pixelMesh) {
+            window.pixelMesh.instanceColor.needsUpdate = true;
         }
     }
 
@@ -1797,14 +1833,20 @@ if (!isset($standalone)) {
 
         // Clear the display after 6 seconds if no more events
         clearTimer = setTimeout(function () {
+            var color = new THREE.Color(0, 0, 0);
             // Set all pixels to black
             for (var i = 0; i < pixelData.length; i++) {
                 window.pixelColors[i * 3] = 0;
                 window.pixelColors[i * 3 + 1] = 0;
                 window.pixelColors[i * 3 + 2] = 0;
+
+                // Update instanced mesh
+                if (window.pixelMesh) {
+                    window.pixelMesh.setColorAt(i, color);
+                }
             }
-            if (window.pixelGeometry) {
-                window.pixelGeometry.attributes.color.needsUpdate = true;
+            if (window.pixelMesh) {
+                window.pixelMesh.instanceColor.needsUpdate = true;
             }
         }, 6000);
     }
@@ -1849,8 +1891,21 @@ if (!isset($standalone)) {
 
     function updatePixelSize() {
         var size = parseFloat(document.getElementById('pixelSizeSlider').value);
-        if (window.pixelMaterial) {
-            window.pixelMaterial.size = size;
+        if (window.pixelMesh) {
+            var matrix = new THREE.Matrix4();
+            var scale = size / 3.0; // Base size is 3 (diameter 3 units)
+
+            // Update scale for all instances
+            for (var i = 0; i < pixelData.length; i++) {
+                var pos = window.pixelPositions[i];
+                matrix.compose(
+                    new THREE.Vector3(pos.x, pos.y, pos.z),
+                    new THREE.Quaternion(),
+                    new THREE.Vector3(scale, scale, scale)
+                );
+                window.pixelMesh.setMatrixAt(i, matrix);
+            }
+            window.pixelMesh.instanceMatrix.needsUpdate = true;
         }
         document.getElementById('pixelSizeValue').textContent = size.toFixed(1);
     }
@@ -1867,7 +1922,7 @@ if (!isset($standalone)) {
     function updateAmbientLight() {
         var multiplier = parseFloat(document.getElementById('ambientLightSlider').value);
         document.getElementById('ambientLightValue').textContent = multiplier.toFixed(2) + 'x';
-        
+
         // Apply multiplier to all scene lights proportionally
         if (window.sceneLights) {
             window.sceneLights.ambient.light.intensity = window.sceneLights.ambient.baseIntensity * multiplier;
@@ -1892,7 +1947,7 @@ if (!isset($standalone)) {
     }
 
     function applyTestColorToPixels() {
-        if (!window.pixelColors || !window.pixelGeometry) {
+        if (!window.pixelColors || !window.pixelMesh) {
             return;
         }
         var brightness = window.brightnessMultiplier || 1.0;
@@ -1900,13 +1955,16 @@ if (!isset($standalone)) {
         var g = Math.min(1.0, testMode.rgb[1] * brightness);
         var b = Math.min(1.0, testMode.rgb[2] * brightness);
 
+        var color = new THREE.Color(r, g, b);
+
         for (var i = 0; i < pixelData.length; i++) {
             window.pixelColors[i * 3] = r;
             window.pixelColors[i * 3 + 1] = g;
             window.pixelColors[i * 3 + 2] = b;
+            window.pixelMesh.setColorAt(i, color);
         }
 
-        window.pixelGeometry.attributes.color.needsUpdate = true;
+        window.pixelMesh.instanceColor.needsUpdate = true;
     }
 
     function setTestModeEnabled(enabled) {
@@ -1920,16 +1978,18 @@ if (!isset($standalone)) {
                 status.textContent = 'Static color active';
             }
         } else {
-            if (window.pixelColors && window.pixelGeometry) {
+            if (window.pixelColors && window.pixelMesh) {
+                var color = new THREE.Color(0, 0, 0);
                 for (var i = 0; i < pixelData.length; i++) {
                     window.pixelColors[i * 3] = 0;
                     window.pixelColors[i * 3 + 1] = 0;
                     window.pixelColors[i * 3 + 2] = 0;
+                    window.pixelMesh.setColorAt(i, color);
                 }
-                window.pixelGeometry.attributes.color.needsUpdate = true;
+                window.pixelMesh.instanceColor.needsUpdate = true;
             }
             if (status) {
-                status.textContent = 'Live data';
+                status.textContent = 'Live mode';
             }
         }
     }
@@ -1967,9 +2027,11 @@ if (!isset($standalone)) {
         document.getElementById('pixelYValue').textContent = yOffset.toFixed(0);
         document.getElementById('pixelZValue').textContent = zOffset.toFixed(0);
 
-        // Update pixel positions in the geometry
-        if (window.pixelGeometry && pixelData) {
-            var positions = window.pixelGeometry.attributes.position.array;
+        // Update pixel positions in the InstancedMesh
+        if (window.pixelMesh && pixelData && window.pixelPositions) {
+            var matrix = new THREE.Matrix4();
+            var size = parseFloat(document.getElementById('pixelSizeSlider').value);
+            var scale = size / 3.0; // Base size is 3 (diameter 3 units)
 
             for (var i = 0; i < pixelData.length; i++) {
                 var pixelX = pixelData[i].x;
@@ -1983,10 +2045,23 @@ if (!isset($standalone)) {
                 }
 
                 // Apply gridlines offset and manual adjustment
-                positions[i * 3] = (pixelX - gridlinesOffset.x) + xOffset;
-                positions[i * 3 + 1] = (pixelY - gridlinesOffset.y) + yOffset;
-                positions[i * 3 + 2] = (pixelZ - gridlinesOffset.z) + zOffset;
-            } window.pixelGeometry.attributes.position.needsUpdate = true;
+                var finalX = (pixelX - gridlinesOffset.x) + xOffset;
+                var finalY = (pixelY - gridlinesOffset.y) + yOffset;
+                var finalZ = (pixelZ - gridlinesOffset.z) + zOffset;
+
+                // Update stored positions for reference
+                window.pixelPositions[i] = { x: finalX, y: finalY, z: finalZ };
+
+                // Update instance matrix with new position and current scale
+                matrix.compose(
+                    new THREE.Vector3(finalX, finalY, finalZ),
+                    new THREE.Quaternion(),
+                    new THREE.Vector3(scale, scale, scale)
+                );
+                window.pixelMesh.setMatrixAt(i, matrix);
+            }
+
+            window.pixelMesh.instanceMatrix.needsUpdate = true;
             console.log('Pixel offset adjusted to: X=' + xOffset + ', Y=' + yOffset + ', Z=' + zOffset);
         }
     }
@@ -2062,7 +2137,7 @@ if (!isset($standalone)) {
         if (urlPixelSize !== null) {
             pixelSize = urlPixelSize;
         }
-        
+
         // Apply URL parameter for ambient light
         var urlAmbientLight = getURLParam('ambientLight', null);
         if (urlAmbientLight !== null) {
@@ -2099,7 +2174,7 @@ if (!isset($standalone)) {
                 window.pixelMaterial.size = pixelSize;
             }
         }
-        
+
         // Apply ambient light slider if it exists and was set via URL
         if (window.urlAmbientLightValue !== undefined) {
             var ambientLightSlider = document.getElementById('ambientLightSlider');
@@ -2166,7 +2241,7 @@ if (!isset($standalone)) {
         }
         waitForThree();
     }
-    
+
     // Use native DOMContentLoaded (works with or without jQuery)
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initializeWhenReady);
@@ -2268,124 +2343,124 @@ if (!isset($standalone)) {
 </style>
 
 <?php if (!isset($standalone) || !$standalone): ?>
-<div id="controls">
-    <div style="margin-bottom: 8px;">
-        <input type='button' id='stopButton' onClick='stopSSE();' value='Stop 3D Virtual Display'>
-        <input type='button' onClick='toggleAxes();' value='Toggle Axes'>
-        <input type='button' onClick='toggleGrid();' value='Toggle Grid'>
-        <input type='button' onClick='toggle3DObjects();' value='Toggle 3D Objects'>
-        <input type='button' onClick='toggleHolidayAnimations();' value='Toggle Holiday Fun!'
-            style='background-color: #ff6b6b; color: white; font-weight: bold;'>
-        <input type='button' onClick='toggleFullscreen();' value='Fullscreen'
-            style='background-color: #4a90e2; color: white; font-weight: bold;'>
-        <input type='button' onClick='copyCurrentViewURL();' value='📋 Copy View URL'
-            style='background-color: #2ecc71; color: white; font-weight: bold;'
-            title='Copy URL with current camera position and settings'>
-    </div>
-    <div>
-        <span class="control-group">
-            Pixel Size: <input type='range' id='pixelSizeSlider' min='1' max='50' value='3' step='1'
-                oninput='updatePixelSize();'>
-            <span id='pixelSizeValue'>3.0</span>
-        </span>
-        <span class="control-group">
-            Pixel Brightness: <input type='range' id='brightnessSlider' min='0.1' max='5.0' value='2.0' step='0.1'
-                oninput='updateBrightness();'>
-            <span id='brightnessValue'>2.00x</span>
-        </span>
-        <span class="control-group">
-            Ambient Light: <input type='range' id='ambientLightSlider' min='0.0' max='3.0' value='1.0' step='0.1'
-                oninput='updateAmbientLight();'>
-            <span id='ambientLightValue'>1.00x</span>
-        </span>
-    </div>
-    <div class="control-section">
-        <span class="control-group">
-            Camera Yaw: <input type='range' id='cameraYawSlider' min='0' max='360' value='20' step='1'
-                oninput='handleCameraControlInput();'>
-            <span id='cameraYawValue'>20°</span>
-        </span>
-        <span class="control-group">
-            Camera Pitch: <input type='range' id='cameraPitchSlider' min='-89' max='89' value='10' step='1'
-                oninput='handleCameraControlInput();'>
-            <span id='cameraPitchValue'>10°</span>
-        </span>
-        <span class="control-group">
-            Camera Distance: <input type='range' id='cameraDistanceSlider' min='100' max='5000' value='1000' step='10'
-                oninput='handleCameraControlInput();'>
-            <span id='cameraDistanceValue'>1000 units</span>
-        </span>
-    </div>
-    <div class="control-section">
-        <span class="control-group">
-            Pan X: <input type='range' id='panXSlider' min='-3000' max='3000' value='0' step='5'
-                oninput='handleCameraControlInput();'>
-            <span id='panXValue'>0</span>
-        </span>
-        <span class="control-group">
-            Pan Y: <input type='range' id='panYSlider' min='-3000' max='3000' value='0' step='5'
-                oninput='handleCameraControlInput();'>
-            <span id='panYValue'>0</span>
-        </span>
-        <span class="control-group">
-            Pan Z: <input type='range' id='panZSlider' min='-3000' max='3000' value='0' step='5'
-                oninput='handleCameraControlInput();'>
-            <span id='panZValue'>0</span>
-        </span>
-        <span style="margin-left: 15px; color: #666; font-style: italic;">
-            Left-click: rotate | Middle-click: pan | Scroll: zoom
-        </span>
-    </div>
-    <div class="advanced-toggle">
-        <input type='button' id='pixelOffsetToggle' value='Show Visualizer Advanced Settings'
-            onclick='togglePixelOffsetAdvanced();'>
-    </div>
-    <div id='pixelOffsetSection' class='advanced-section'>
-        <div style="margin-bottom: 8px; color: #555;">
-            Advanced visualizer controls for precise pixel offsets and static color testing. Adjust sparingly when
-            aligning pixels to imported objects or when you need a solid color reference inside the 3D view.
+    <div id="controls">
+        <div style="margin-bottom: 8px;">
+            <input type='button' id='stopButton' onClick='stopSSE();' value='Stop 3D Virtual Display'>
+            <input type='button' onClick='toggleAxes();' value='Toggle Axes'>
+            <input type='button' onClick='toggleGrid();' value='Toggle Grid'>
+            <input type='button' onClick='toggle3DObjects();' value='Toggle 3D Objects'>
+            <input type='button' onClick='toggleHolidayAnimations();' value='Toggle Holiday Fun!'
+                style='background-color: #ff6b6b; color: white; font-weight: bold;'>
+            <input type='button' onClick='toggleFullscreen();' value='Fullscreen'
+                style='background-color: #4a90e2; color: white; font-weight: bold;'>
+            <input type='button' onClick='copyCurrentViewURL();' value='📋 Copy View URL'
+                style='background-color: #2ecc71; color: white; font-weight: bold;'
+                title='Copy URL with current camera position and settings'>
         </div>
-        <span class="control-group">
-            <strong>Pixel X Offset:</strong> <input type='range' id='pixelXSlider' min='-2000' max='2000' value='0'
-                step='1' oninput='updatePixelOffset();'>
-            <span id='pixelXValue' style="font-weight: bold; color: #e74c3c;">0</span>
-        </span>
-        <span class="control-group">
-            <strong>Pixel Y Offset:</strong> <input type='range' id='pixelYSlider' min='-2000' max='2000' value='0'
-                step='1' oninput='updatePixelOffset();'>
-            <span id='pixelYValue' style="font-weight: bold; color: #e74c3c;">0</span>
-        </span>
-        <span class="control-group">
-            <strong>Pixel Z Offset:</strong> <input type='range' id='pixelZSlider' min='-2000' max='2000' value='0'
-                step='1' oninput='updatePixelOffset();'>
-            <span id='pixelZValue' style="font-weight: bold; color: #e74c3c;">0</span>
-        </span>
-        <div class="control-section" style="margin-top:15px;">
-            <span class="control-group" style="margin-bottom:6px; display:inline-block;">
-                <label style="font-weight:bold;">
-                    <input type="checkbox" id="testModeToggle" onchange="handleTestModeToggle();">
-                    Static Color Test Mode
-                </label>
+        <div>
+            <span class="control-group">
+                Pixel Size: <input type='range' id='pixelSizeSlider' min='1' max='50' value='3' step='1'
+                    oninput='updatePixelSize();'>
+                <span id='pixelSizeValue'>3.0</span>
             </span>
             <span class="control-group">
-                Color: <input type="color" id="testModeColor" value="#ff0000"
-                    onchange="handleTestColorChange(this.value);">
-                <span id="testModeColorValue">#FF0000</span>
+                Pixel Brightness: <input type='range' id='brightnessSlider' min='0.1' max='5.0' value='2.0' step='0.1'
+                    oninput='updateBrightness();'>
+                <span id='brightnessValue'>2.00x</span>
             </span>
-            <span class="control-group" id="testModeStatus">Live data</span>
-            <div style="margin-top: 5px; color: #666; font-style: italic;">
-                When enabled, incoming data is ignored and every pixel renders the selected color so you can inspect
-                spatial placement.
+            <span class="control-group">
+                Ambient Light: <input type='range' id='ambientLightSlider' min='0.0' max='3.0' value='1.0' step='0.1'
+                    oninput='updateAmbientLight();'>
+                <span id='ambientLightValue'>1.00x</span>
+            </span>
+        </div>
+        <div class="control-section">
+            <span class="control-group">
+                Camera Yaw: <input type='range' id='cameraYawSlider' min='0' max='360' value='20' step='1'
+                    oninput='handleCameraControlInput();'>
+                <span id='cameraYawValue'>20°</span>
+            </span>
+            <span class="control-group">
+                Camera Pitch: <input type='range' id='cameraPitchSlider' min='-89' max='89' value='10' step='1'
+                    oninput='handleCameraControlInput();'>
+                <span id='cameraPitchValue'>10°</span>
+            </span>
+            <span class="control-group">
+                Camera Distance: <input type='range' id='cameraDistanceSlider' min='100' max='5000' value='1000' step='10'
+                    oninput='handleCameraControlInput();'>
+                <span id='cameraDistanceValue'>1000 units</span>
+            </span>
+        </div>
+        <div class="control-section">
+            <span class="control-group">
+                Pan X: <input type='range' id='panXSlider' min='-3000' max='3000' value='0' step='5'
+                    oninput='handleCameraControlInput();'>
+                <span id='panXValue'>0</span>
+            </span>
+            <span class="control-group">
+                Pan Y: <input type='range' id='panYSlider' min='-3000' max='3000' value='0' step='5'
+                    oninput='handleCameraControlInput();'>
+                <span id='panYValue'>0</span>
+            </span>
+            <span class="control-group">
+                Pan Z: <input type='range' id='panZSlider' min='-3000' max='3000' value='0' step='5'
+                    oninput='handleCameraControlInput();'>
+                <span id='panZValue'>0</span>
+            </span>
+            <span style="margin-left: 15px; color: #666; font-style: italic;">
+                Left-click: rotate | Middle-click: pan | Scroll: zoom
+            </span>
+        </div>
+        <div class="advanced-toggle">
+            <input type='button' id='pixelOffsetToggle' value='Show Visualizer Advanced Settings'
+                onclick='togglePixelOffsetAdvanced();'>
+        </div>
+        <div id='pixelOffsetSection' class='advanced-section'>
+            <div style="margin-bottom: 8px; color: #555;">
+                Advanced visualizer controls for precise pixel offsets and static color testing. Adjust sparingly when
+                aligning pixels to imported objects or when you need a solid color reference inside the 3D view.
+            </div>
+            <span class="control-group">
+                <strong>Pixel X Offset:</strong> <input type='range' id='pixelXSlider' min='-2000' max='2000' value='0'
+                    step='1' oninput='updatePixelOffset();'>
+                <span id='pixelXValue' style="font-weight: bold; color: #e74c3c;">0</span>
+            </span>
+            <span class="control-group">
+                <strong>Pixel Y Offset:</strong> <input type='range' id='pixelYSlider' min='-2000' max='2000' value='0'
+                    step='1' oninput='updatePixelOffset();'>
+                <span id='pixelYValue' style="font-weight: bold; color: #e74c3c;">0</span>
+            </span>
+            <span class="control-group">
+                <strong>Pixel Z Offset:</strong> <input type='range' id='pixelZSlider' min='-2000' max='2000' value='0'
+                    step='1' oninput='updatePixelOffset();'>
+                <span id='pixelZValue' style="font-weight: bold; color: #e74c3c;">0</span>
+            </span>
+            <div class="control-section" style="margin-top:15px;">
+                <span class="control-group" style="margin-bottom:6px; display:inline-block;">
+                    <label style="font-weight:bold;">
+                        <input type="checkbox" id="testModeToggle" onchange="handleTestModeToggle();">
+                        Static Color Test Mode
+                    </label>
+                </span>
+                <span class="control-group">
+                    Color: <input type="color" id="testModeColor" value="#ff0000"
+                        onchange="handleTestColorChange(this.value);">
+                    <span id="testModeColorValue">#FF0000</span>
+                </span>
+                <span class="control-group" id="testModeStatus">Live data</span>
+                <div style="margin-top: 5px; color: #666; font-style: italic;">
+                    When enabled, incoming data is ignored and every pixel renders the selected color so you can inspect
+                    spatial placement.
+                </div>
             </div>
         </div>
     </div>
-</div>
 <?php endif; ?>
 <div id='canvas-container'></div>
 <?php if (!isset($standalone) || !$standalone): ?>
-<div id='objectsList'
-    style="margin-top: 10px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
-    <em>3D Objects will appear here once loaded...</em>
-</div>
+    <div id='objectsList'
+        style="margin-top: 10px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+        <em>3D Objects will appear here once loaded...</em>
+    </div>
 <?php endif; ?>
 <div id='data'></div>
