@@ -233,24 +233,57 @@ if (!isset($standalone)) {
             $gridlinesOffsetX = 0;
             $gridlinesOffsetY = 0;
             $gridlinesOffsetZ = 0;
+
+            // Calculate min/max object positions to determine the offset xLights applied to virtualmap
+            // xLights subtracts minX and minY from all pixel coordinates when creating the map
+            $objectMinX = 0;
+            $objectMinY = 0;
+            $objectMinZ = 0;
+            $hasActiveObjects = false;
+
             foreach ($viewObjects as $obj) {
                 if (isset($obj['DisplayAs']) && $obj['DisplayAs'] === 'Gridlines') {
                     $gridlinesOffsetX = (float) $obj['WorldPosX'];
                     $gridlinesOffsetY = (float) $obj['WorldPosY'];
                     $gridlinesOffsetZ = (float) $obj['WorldPosZ'];
-                    echo "console.log('Found gridlines at X=$gridlinesOffsetX, Y=$gridlinesOffsetY, Z=$gridlinesOffsetZ');\n";
-                    echo "console.log('Pixel center is X=$centerX, Y=$centerY, Z=$centerZ');\n";
-                    break;
+                }
+
+                // Track minimum object positions (active mesh objects only)
+                if (
+                    isset($obj['Active']) && $obj['Active'] === '1' &&
+                    isset($obj['DisplayAs']) && $obj['DisplayAs'] === 'Mesh'
+                ) {
+                    $objX = (float) ($obj['WorldPosX'] ?? 0);
+                    $objY = (float) ($obj['WorldPosY'] ?? 0);
+                    $objZ = (float) ($obj['WorldPosZ'] ?? 0);
+
+                    if (!$hasActiveObjects) {
+                        $objectMinX = $objX;
+                        $objectMinY = $objY;
+                        $objectMinZ = $objZ;
+                        $hasActiveObjects = true;
+                    } else {
+                        $objectMinX = min($objectMinX, $objX);
+                        $objectMinY = min($objectMinY, $objY);
+                        $objectMinZ = min($objectMinZ, $objZ);
+                    }
                 }
             }
+
+            echo "console.log('Found gridlines at X=$gridlinesOffsetX, Y=$gridlinesOffsetY, Z=$gridlinesOffsetZ');\n";
+            echo "console.log('Pixel center is X=$centerX, Y=$centerY, Z=$centerZ');\n";
+            echo "console.log('Object min positions: X=$objectMinX, Y=$objectMinY, Z=$objectMinZ');\n";
             echo "var gridlinesOffset = { x: $gridlinesOffsetX, y: $gridlinesOffsetY, z: $gridlinesOffsetZ };\n";
+            echo "var objectMinPosition = { x: $objectMinX, y: $objectMinY, z: $objectMinZ };\n";
         } else {
             echo "console.warn('No view_objects found in virtdisplay.json');\n";
             echo "var gridlinesOffset = { x: 0, y: 0, z: 0 };\n";
+            echo "var objectMinPosition = { x: 0, y: 0, z: 0 };\n";
         }
     } else {
         echo "console.warn('virtdisplay.json not found at: " . $assetsConfigFile . "');\n";
         echo "var gridlinesOffset = { x: 0, y: 0, z: 0 };\n";
+        echo "var objectMinPosition = { x: 0, y: 0, z: 0 };\n";
     }
 
     // Output the view objects configuration to JavaScript
@@ -277,18 +310,15 @@ if (!isset($standalone)) {
     var objectCenterOffset = { x: 0, y: 0, z: 0 };  // Will be calculated from gridlines
 
     function calculateObjectCenterOffset() {
-        // Objects and pixels are both in xLights 3D coordinate system
-        // Gridlines define where (0,0,0) is in xLights coordinates
-        // Both should be centered relative to the gridlines position to maintain their relationship
+        // Objects are positioned relative to the gridlines (0,0,0 in xLights)
+        // They should NOT be offset - they use their original world coordinates
+        // Only pixels need centering to bring them into this same coordinate space
+        objectCenterOffset.x = 0;
+        objectCenterOffset.y = 0;
+        objectCenterOffset.z = 0;
 
-        // Use gridlines offset as the center point for both pixels and objects
-        objectCenterOffset.x = gridlinesOffset.x;
-        objectCenterOffset.y = gridlinesOffset.y;
-        objectCenterOffset.z = gridlinesOffset.z;
-
-        console.log('Object center offset (using gridlines):', objectCenterOffset);
-        console.log('Pixel model center:', modelCenter);
-        console.log('Gridlines offset:', gridlinesOffset);
+        console.log('Object center offset (no offset - objects use world coords):', objectCenterOffset);
+        console.log('Pixel model center (pixels will be centered by this):', modelCenter);
     }
 
     function init3D() {
@@ -421,6 +451,8 @@ if (!isset($standalone)) {
         }
         console.log('Model center:', modelCenter);
         console.log('Center at 0:', view2DSettings.centerAt0);
+        console.log('Preview width:', view2DSettings.previewWidth);
+        console.log('Gridlines offset:', gridlinesOffset);
 
         // Create a small sphere geometry for each LED (reused for all instances)
         var ledGeometry = new THREE.SphereGeometry(1.5, 8, 6);
@@ -444,26 +476,32 @@ if (!isset($standalone)) {
         var pixelPositions = [];
 
         for (var i = 0; i < pixelData.length; i++) {
-            // Pixels come from virtualdisplaymap which may have Display2DCenter0 applied
-            // When Display2DCenter0 is enabled, pixel X coordinates are offset by preview center X
-            // Objects (from view_objects) are in pure 3D space, not affected by Display2DCenter0
-            // So we need to convert pixel X coordinates back to match object space
-
+            // Pixels may have Display2DCenter0 offset applied in the virtualmap file
+            // If Display2DCenter0 is enabled, pixel X coordinates have previewWidth/2 subtracted
+            // We need to add it back to get true xLights coordinates
             var pixelX = pixelData[i].x;
             var pixelY = pixelData[i].y;
             var pixelZ = pixelData[i].z;
 
             if (view2DSettings.centerAt0) {
-                // When Display2DCenter0 is enabled, pixels need to align with object coordinate system
-                // Subtract modelCenter.x and apply additional correction factor
-                pixelX = pixelX - modelCenter.x - 274;
-                // Y and Z are fine as-is
+                // Add back the 2D preview center to get true xLights X coordinate
+                var offsetAmount = view2DSettings.previewWidth / 2;
+                if (i === 0) {
+                    console.log('Applying Display2DCenter0 correction: adding', offsetAmount, 'to X coordinates');
+                }
+                pixelX = pixelX + offsetAmount;
             }
 
-            // Now apply the same gridlines offset as objects
-            var finalX = pixelX - gridlinesOffset.x;
-            var finalY = pixelY - gridlinesOffset.y;
-            var finalZ = pixelZ - gridlinesOffset.z;
+            // Use raw pixel coordinates - the offset sliders can be used to align with objects
+            // xLights virtualmap export subtracts minX/minY which we can't reliably recover
+            // The user can adjust alignment using the offset sliders in the UI
+            var finalX = pixelX;
+            var finalY = pixelY;
+            var finalZ = pixelZ;
+
+            if (i < 3) {
+                console.log('Pixel', i, 'coords: x=', finalX, 'y=', finalY, 'z=', finalZ);
+            }
 
             pixelPositions.push({ x: finalX, y: finalY, z: finalZ });
 
@@ -475,6 +513,9 @@ if (!isset($standalone)) {
             color.setRGB(0, 0, 0);
             instancedMesh.setColorAt(i, color);
         }
+
+        // Mark instance color as needing GPU update
+        instancedMesh.instanceColor.needsUpdate = true;
 
         // Debug: log first few pixel positions after centering
         console.log('First 3 pixels - CENTERED coordinates:');
@@ -516,6 +557,14 @@ if (!isset($standalone)) {
             load3DObjects();
         } else {
             console.warn('3D object loaders failed to initialize, skipping 3D object loading');
+        }
+
+        // Load any saved pixel offset settings and apply them
+        if (loadPixelOffsets()) {
+            // Apply the loaded offsets to pixel positions
+            setTimeout(function () {
+                updatePixelOffset();
+            }, 100);
         }
 
         console.log('3D initialization complete');
@@ -2034,20 +2083,20 @@ if (!isset($standalone)) {
             var scale = size / 3.0; // Base size is 3 (diameter 3 units)
 
             for (var i = 0; i < pixelData.length; i++) {
+                // Pixels may have Display2DCenter0 offset applied
                 var pixelX = pixelData[i].x;
                 var pixelY = pixelData[i].y;
                 var pixelZ = pixelData[i].z;
 
                 if (view2DSettings.centerAt0) {
-                    // Convert X from Display2DCenter0 coordinate space to object space
-                    pixelX = pixelX - modelCenter.x - 274;
-                    // Y and Z are fine as-is
+                    // Add back the 2D preview center to get true xLights X coordinate
+                    pixelX = pixelX + (view2DSettings.previewWidth / 2);
                 }
 
-                // Apply gridlines offset and manual adjustment
-                var finalX = (pixelX - gridlinesOffset.x) + xOffset;
-                var finalY = (pixelY - gridlinesOffset.y) + yOffset;
-                var finalZ = (pixelZ - gridlinesOffset.z) + zOffset;
+                // Use raw coordinates with manual offset for alignment
+                var finalX = pixelX + xOffset;
+                var finalY = pixelY + yOffset;
+                var finalZ = pixelZ + zOffset;
 
                 // Update stored positions for reference
                 window.pixelPositions[i] = { x: finalX, y: finalY, z: finalZ };
@@ -2064,6 +2113,74 @@ if (!isset($standalone)) {
             window.pixelMesh.instanceMatrix.needsUpdate = true;
             console.log('Pixel offset adjusted to: X=' + xOffset + ', Y=' + yOffset + ', Z=' + zOffset);
         }
+    }
+
+    function savePixelOffsets() {
+        var xOffset = parseFloat(document.getElementById('pixelXSlider').value) || 0;
+        var yOffset = parseFloat(document.getElementById('pixelYSlider').value) || 0;
+        var zOffset = parseFloat(document.getElementById('pixelZSlider').value) || 0;
+
+        var offsets = {
+            x: xOffset,
+            y: yOffset,
+            z: zOffset
+        };
+
+        // Save to browser's localStorage
+        try {
+            localStorage.setItem('fpp_3d_pixel_offsets', JSON.stringify(offsets));
+            console.log('Pixel offsets saved:', offsets);
+            alert('Pixel offsets saved successfully!\nX: ' + xOffset + '\nY: ' + yOffset + '\nZ: ' + zOffset);
+        } catch (e) {
+            console.error('Error saving pixel offsets:', e);
+            alert('Error saving pixel offsets: ' + e.message);
+        }
+    }
+
+    function resetPixelOffsets() {
+        // Reset sliders to 0
+        document.getElementById('pixelXSlider').value = 0;
+        document.getElementById('pixelYSlider').value = 0;
+        document.getElementById('pixelZSlider').value = 0;
+
+        // Update display labels using correct IDs
+        document.getElementById('pixelXValue').textContent = '0';
+        document.getElementById('pixelYValue').textContent = '0';
+        document.getElementById('pixelZValue').textContent = '0';
+
+        // Apply the reset
+        updatePixelOffset();
+
+        console.log('Pixel offsets reset to 0');
+    }
+
+    function loadPixelOffsets() {
+        try {
+            var saved = localStorage.getItem('fpp_3d_pixel_offsets');
+            if (saved) {
+                var offsets = JSON.parse(saved);
+
+                // Apply saved values to sliders using correct IDs
+                if (offsets.x !== undefined) {
+                    document.getElementById('pixelXSlider').value = offsets.x;
+                    document.getElementById('pixelXValue').textContent = offsets.x.toString();
+                }
+                if (offsets.y !== undefined) {
+                    document.getElementById('pixelYSlider').value = offsets.y;
+                    document.getElementById('pixelYValue').textContent = offsets.y.toString();
+                }
+                if (offsets.z !== undefined) {
+                    document.getElementById('pixelZSlider').value = offsets.z;
+                    document.getElementById('pixelZValue').textContent = offsets.z.toString();
+                }
+
+                console.log('Pixel offsets loaded from saved settings:', offsets);
+                return true;
+            }
+        } catch (e) {
+            console.warn('Error loading saved pixel offsets:', e);
+        }
+        return false;
     }
 
     function toggle3DObjects() {
@@ -2417,8 +2534,7 @@ if (!isset($standalone)) {
         </div>
         <div id='pixelOffsetSection' class='advanced-section'>
             <div style="margin-bottom: 8px; color: #555;">
-                Advanced visualizer controls for precise pixel offsets and static color testing. Adjust sparingly when
-                aligning pixels to imported objects or when you need a solid color reference inside the 3D view.
+                Adjust pixel position offsets to align with 3D objects. Click "Save Offsets" to remember your settings.
             </div>
             <span class="control-group">
                 <strong>Pixel X Offset:</strong> <input type='range' id='pixelXSlider' min='-2000' max='2000' value='0'
@@ -2434,6 +2550,13 @@ if (!isset($standalone)) {
                 <strong>Pixel Z Offset:</strong> <input type='range' id='pixelZSlider' min='-2000' max='2000' value='0'
                     step='1' oninput='updatePixelOffset();'>
                 <span id='pixelZValue' style="font-weight: bold; color: #e74c3c;">0</span>
+            </span>
+            <span class="control-group">
+                <button onclick='savePixelOffsets()'
+                    style="padding: 5px 15px; margin-left: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">Save
+                    Offsets</button>
+                <button onclick='resetPixelOffsets()'
+                    style="padding: 5px 15px; margin-left: 5px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">Reset</button>
             </span>
             <div class="control-section" style="margin-top:15px;">
                 <span class="control-group" style="margin-bottom:6px; display:inline-block;">
