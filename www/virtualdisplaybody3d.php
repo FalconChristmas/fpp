@@ -6,7 +6,7 @@ if (!isset($standalone)) {
 ?>
 <script>
     var pixelData = [];
-    var pixelLookup = {};  // Fast lookup by key
+    var pixelLookup = {};  // Fast lookup by pixel index for 3D mode
     var base64 = [];
     var scene, camera, renderer, controls;
     var pixelMeshes = [];
@@ -207,7 +207,7 @@ if (!isset($standalone)) {
                         substr($base64, $oy & 0x3f, 1);
 
                 echo "pixelData.push({ key: '" . $key . "', x: $x, y: $y, z: $z, ox: $ox, oy: $oy, oz: $oz, size: $ps });\n";
-                echo "pixelLookup['" . $key . "'] = " . $pixelIndex . ";\n";
+                echo "pixelLookup[" . $pixelIndex . "] = " . $pixelIndex . ";\n";
                 $pixelIndex++;
             }
 
@@ -457,14 +457,12 @@ if (!isset($standalone)) {
         // Create a small sphere geometry for each LED (reused for all instances)
         var ledGeometry = new THREE.SphereGeometry(1.5, 8, 6);
 
-        // Create material with emissive property for self-illumination
-        var ledMaterial = new THREE.MeshStandardMaterial({
-            emissive: 0x000000,
-            emissiveIntensity: 1.5,
-            roughness: 0.3,
-            metalness: 0.1,
-            transparent: true,
-            opacity: 0.95
+        // Use MeshBasicMaterial for LEDs - unaffected by lighting, perfect for self-illuminating pixels
+        var ledMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,  // Base white for instance color multiplication
+            transparent: false,
+            depthWrite: false,   // Allow pixels behind each other to be visible
+            depthTest: true
         });
 
         // Create instanced mesh
@@ -516,6 +514,9 @@ if (!isset($standalone)) {
 
         // Mark instance color as needing GPU update
         instancedMesh.instanceColor.needsUpdate = true;
+
+        // Set render order high so pixels render on top of 3D objects
+        instancedMesh.renderOrder = 999;
 
         // Debug: log first few pixel positions after centering
         console.log('First 3 pixels - CENTERED coordinates:');
@@ -1816,9 +1817,26 @@ if (!isset($standalone)) {
     }
 
     function updatePixelColors(pixels) {
+        // First, set ALL pixels to black (SSE only sends non-black pixels)
+        var color = new THREE.Color(0, 0, 0);
+        if (window.pixelMesh) {
+            if (!window.clearDebugDone) {
+                console.log('Clearing all', pixelData.length, 'pixels to black');
+                window.clearDebugDone = true;
+            }
+            for (var i = 0; i < pixelData.length; i++) {
+                window.pixelColors[i * 3] = 0;
+                window.pixelColors[i * 3 + 1] = 0;
+                window.pixelColors[i * 3 + 2] = 0;
+                window.pixelMesh.setColorAt(i, color);
+            }
+            // Mark that we need to upload the black colors to GPU
+            window.pixelMesh.instanceColor.needsUpdate = true;
+        }
+
         var updated = false;
         var colorCount = 0;
-        var color = new THREE.Color();
+        var debugCount = 0;
 
         for (var i = 0; i < pixels.length; i++) {
             var data = pixels[i].split(':');
@@ -1833,6 +1851,16 @@ if (!isset($standalone)) {
             var gHex = base64[rgb.charAt(1)];
             var bHex = base64[rgb.charAt(2)];
 
+            // Debug first few color values
+            if (debugCount < 3 && !window.colorDebugDone) {
+                console.log('RGB string:', rgb, '-> R:', rHex, 'G:', gHex, 'B:', bHex, '-> Final:',
+                    (parseInt(rHex, 16) / 255.0).toFixed(3),
+                    (parseInt(gHex, 16) / 255.0).toFixed(3),
+                    (parseInt(bHex, 16) / 255.0).toFixed(3));
+                debugCount++;
+                if (debugCount >= 3) window.colorDebugDone = true;
+            }
+
             // Parse hex strings and normalize to 0.0-1.0, then apply brightness
             var r = Math.min(1.0, (parseInt(rHex, 16) / 255.0) * window.brightnessMultiplier);
             var g = Math.min(1.0, (parseInt(gHex, 16) / 255.0) * window.brightnessMultiplier);
@@ -1840,18 +1868,19 @@ if (!isset($standalone)) {
 
             var locs = data[1].split(';');
             for (var j = 0; j < locs.length; j++) {
-                // Fast lookup by key
-                var pixelIndex = pixelLookup[locs[j]];
-                if (pixelIndex !== undefined) {
+                // 3D mode: location is pixel index, not 2D coordinate
+                var pixelIndex = parseInt(locs[j], 10);
+                if (pixelIndex !== undefined && pixelIndex < pixelData.length) {
                     // Update color in buffer and InstancedMesh
                     window.pixelColors[pixelIndex * 3] = r;
                     window.pixelColors[pixelIndex * 3 + 1] = g;
                     window.pixelColors[pixelIndex * 3 + 2] = b;
 
-                    // Update instanced mesh color and emissive for glow
+                    // Update instanced mesh color
                     if (window.pixelMesh) {
-                        color.setRGB(r, g, b);
-                        window.pixelMesh.setColorAt(pixelIndex, color);
+                        var pixelColor = new THREE.Color();
+                        pixelColor.setRGB(r, g, b);
+                        window.pixelMesh.setColorAt(pixelIndex, pixelColor);
                     }
                     updated = true;
                 }
@@ -1901,8 +1930,8 @@ if (!isset($standalone)) {
     }
 
     function startSSE() {
-        console.log('Starting SSE connection to api/http-virtual-display/');
-        evtSource = new EventSource('api/http-virtual-display/');
+        console.log('Starting SSE connection to api/http-virtual-display-3d/');
+        evtSource = new EventSource('api/http-virtual-display-3d/');
 
         evtSource.onmessage = function (event) {
             processEvent(event);

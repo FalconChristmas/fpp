@@ -51,6 +51,7 @@ ServerTokens Prod
     RewriteRule ^gpio(.*)$ http://localhost:32322/gpio$1 [P]
     RewriteRule ^plugin-apis/(.*)$ http://localhost:32322/$1 [P]
     RewriteRule ^http-virtual-display/(.*)$ http://localhost:32328/$1 [P]
+    RewriteRule ^http-virtual-display-3d/(.*)$ http://localhost:32329/$1 [P]
 
     # Static and redirect rules
     RewriteRule ^index.php - [L,NC]
