@@ -33,6 +33,7 @@
 #include "common_mini.h"
 #include <arpa/inet.h>
 #include <ifaddrs.h>
+#include <net/if.h>
 #include <systemd/sd-daemon.h>
 
 #if __has_include(<jsoncpp/json/json.h>)
@@ -1004,10 +1005,10 @@ static bool hasNetworkInterfaceForNTP() {
         freeifaddrs(ifAddrStruct);
     }
     
-    // If no valid IP found, also check if any "real" interfaces exist at all
-    // (they might get an IP later via DHCP)
+    // If no valid IP found, check if any "real" interfaces exist with link up
+    // An interface must have carrier (link) to potentially get DHCP
     if (!hasValidIP) {
-        // Re-scan to check if interfaces exist (even without IP yet)
+        // Re-scan to check if interfaces exist with carrier
         if (getifaddrs(&ifAddrStruct) == 0) {
             std::string tetherInterface = FindTetherWIFIAdapater();
             for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
@@ -1024,14 +1025,26 @@ static bool hasNetworkInterfaceForNTP() {
                 if (startsWith(nm, "eth") || startsWith(nm, "wlan") || 
                     startsWith(nm, "en") || startsWith(nm, "wl") ||
                     startsWith(nm, "br") || startsWith(nm, "bond")) {
-                    hasValidIP = true;
-                    break;
+                    // Check carrier state via sysfs - most reliable across all drivers
+                    // /sys/class/net/<iface>/carrier returns 1 if link, 0 if no link
+                    std::string carrierPath = "/sys/class/net/" + nm + "/carrier";
+                    std::string carrier = GetFileContents(carrierPath);
+                    TrimWhiteSpace(carrier);
+                    if (carrier == "1") {
+                        printf("FPP - Interface %s has carrier, will wait for NTP\n", nm.c_str());
+                        hasValidIP = true;
+                        break;
+                    }
                 }
             }
             if (ifAddrStruct != NULL) {
                 freeifaddrs(ifAddrStruct);
             }
         }
+    }
+    
+    if (!hasValidIP) {
+        printf("FPP - No network interfaces with link detected, skipping NTP time wait\n");
     }
     
     return hasValidIP;
