@@ -1103,12 +1103,16 @@ static void handleTimeSyncWait() {
         return;
     }
     
+    const std::string delayFile = FPP_MEDIA_DIR + "/tmp/boot_delay";
     const std::string skipFile = FPP_MEDIA_DIR + "/tmp/boot_delay_skip";
 
     // Check if there are any network interfaces that could get NTP time
     // If not, skip the time wait - no point waiting for NTP on a device with no network
     if (!hasNetworkInterfaceForNTP()) {
         printf("FPP - No network interface found, skipping NTP time wait\n");
+        // Clean up flag files since we're skipping
+        unlink(delayFile.c_str());
+        unlink(skipFile.c_str());
         return;
     }
 
@@ -1127,7 +1131,7 @@ static void handleTimeSyncWait() {
         // Create flag file for UI to show warning with timestamp
         time_t startTime = time(nullptr);
         std::string flagContent = std::to_string(startTime) + ",auto";
-        PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
+        PutFileContents(delayFile, flagContent);
         sd_notify(0, "STATUS=Waiting for valid system time (NTP/RTC)");
     }
 
@@ -1152,7 +1156,7 @@ static void handleTimeSyncWait() {
         }
     }
     // Remove flag files when delay completes
-    unlink((FPP_MEDIA_DIR + "/tmp/boot_delay").c_str());
+    unlink(delayFile.c_str());
     unlink(skipFile.c_str());
 }
 
