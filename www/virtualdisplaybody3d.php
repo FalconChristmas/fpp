@@ -8,6 +8,7 @@ if (!isset($standalone)) {
     var pixelData = [];
     var pixelLookup = {};  // Fast lookup by pixel index for 3D mode
     var base64 = [];
+    var base64ToDecimal = {};  // Pre-computed hex-to-decimal lookup for performance
     var scene, camera, renderer, controls;
     var pixelMeshes = [];
     var evtSource;
@@ -88,6 +89,8 @@ if (!isset($standalone)) {
     $base64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/"; // Base64 index table
     for ($i = 0; $i < 64; $i++) {
         printf("base64['%s'] = '%02X';\n", substr($base64, $i, 1), $i << 2);
+        // Pre-compute decimal values for performance (avoid parseInt in hot loop)
+        printf("base64ToDecimal['%s'] = %d;\n", substr($base64, $i, 1), $i << 2);
     }
 
     $pixelSize = 1;
@@ -97,8 +100,8 @@ if (!isset($standalone)) {
         $json = json_decode($content, true);
         if ($json && isset($json['channelOutputs'])) {
             foreach ($json['channelOutputs'] as $output) {
-                if ($output['type'] == 'HTTPVirtualDisplay') {
-                    $pixelSize = $output['pixelSize'];
+                if ($output['type'] == 'HTTPVirtualDisplay' || $output['type'] == 'HTTPVirtualDisplay3D') {
+                    $pixelSize = isset($output['pixelSize']) ? $output['pixelSize'] : 2;
                     break;
                 }
             }
@@ -461,7 +464,7 @@ if (!isset($standalone)) {
         var ledMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,  // Base white for instance color multiplication
             transparent: false,
-            depthWrite: false,   // Allow pixels behind each other to be visible
+            depthWrite: true,
             depthTest: true
         });
 
@@ -514,6 +517,11 @@ if (!isset($standalone)) {
 
         // Mark instance color as needing GPU update
         instancedMesh.instanceColor.needsUpdate = true;
+
+        // Set color space for instance colors to match renderer output
+        if (instancedMesh.instanceColor) {
+            instancedMesh.instanceColor.colorSpace = THREE.SRGBColorSpace;
+        }
 
         // Set render order high so pixels render on top of 3D objects
         instancedMesh.renderOrder = 999;
@@ -1816,27 +1824,48 @@ if (!isset($standalone)) {
         renderer.render(scene, camera);
     }
 
+    // Reusable Color object to avoid allocations in hot loop
+    var tempColor = null;
+    var blackColor = null;
+
     function updatePixelColors(pixels) {
-        // First, set ALL pixels to black (SSE only sends non-black pixels)
-        var color = new THREE.Color(0, 0, 0);
-        if (window.pixelMesh) {
-            if (!window.clearDebugDone) {
-                console.log('Clearing all', pixelData.length, 'pixels to black');
-                window.clearDebugDone = true;
-            }
+        // Initialize reusable objects on first call
+        if (!tempColor) {
+            tempColor = new THREE.Color();
+            blackColor = new THREE.Color(0, 0, 0);
+        }
+
+        // On first frame, clear all pixels to black
+        if (!window.hasInitializedPixelState && window.pixelMesh) {
             for (var i = 0; i < pixelData.length; i++) {
                 window.pixelColors[i * 3] = 0;
                 window.pixelColors[i * 3 + 1] = 0;
                 window.pixelColors[i * 3 + 2] = 0;
-                window.pixelMesh.setColorAt(i, color);
+                window.pixelMesh.setColorAt(i, blackColor);
             }
-            // Mark that we need to upload the black colors to GPU
             window.pixelMesh.instanceColor.needsUpdate = true;
+            window.hasInitializedPixelState = true;
+            window.lastUpdatePixels = new Set();
+            console.log('Initialized all pixels to black');
         }
+
+        // Reuse Set by clearing instead of creating new one
+        if (!window.currentFramePixels) {
+            window.currentFramePixels = new Set();
+        } else {
+            window.currentFramePixels.clear();
+        }
+        var currentFramePixels = window.currentFramePixels;
 
         var updated = false;
         var colorCount = 0;
         var debugCount = 0;
+
+        // Debug: log number of pixel groups in this update
+        if (!window.updateDebugCount) {
+            console.log('Processing', pixels.length, 'color groups in this frame');
+            window.updateDebugCount = 1;
+        }
 
         for (var i = 0; i < pixels.length; i++) {
             var data = pixels[i].split(':');
@@ -1844,48 +1873,87 @@ if (!isset($standalone)) {
 
             var rgb = data[0];
 
-            // Convert from RGB666 (6-bit per channel) to 0.0-1.0 range
-            // base64 array contains hex STRING values like '00', '04', '08', 'FC'
-            // Same as 2D version - base64[char] returns a 2-character hex string
-            var rHex = base64[rgb.charAt(0)];
-            var gHex = base64[rgb.charAt(1)];
-            var bHex = base64[rgb.charAt(2)];
+            // Use pre-computed decimal lookup for performance (avoid parseInt in hot loop)
+            var rDec = base64ToDecimal[rgb.charAt(0)];
+            var gDec = base64ToDecimal[rgb.charAt(1)];
+            var bDec = base64ToDecimal[rgb.charAt(2)];
 
             // Debug first few color values
             if (debugCount < 3 && !window.colorDebugDone) {
-                console.log('RGB string:', rgb, '-> R:', rHex, 'G:', gHex, 'B:', bHex, '-> Final:',
-                    (parseInt(rHex, 16) / 255.0).toFixed(3),
-                    (parseInt(gHex, 16) / 255.0).toFixed(3),
-                    (parseInt(bHex, 16) / 255.0).toFixed(3));
+                console.log('RGB chars:', rgb.charAt(0), rgb.charAt(1), rgb.charAt(2),
+                    '-> Decimal:', rDec, gDec, bDec,
+                    '-> Float (÷252):', (rDec / 252.0).toFixed(3),
+                    (gDec / 252.0).toFixed(3),
+                    (bDec / 252.0).toFixed(3));
                 debugCount++;
                 if (debugCount >= 3) window.colorDebugDone = true;
             }
 
-            // Parse hex strings and normalize to 0.0-1.0, then apply brightness
-            var r = Math.min(1.0, (parseInt(rHex, 16) / 255.0) * window.brightnessMultiplier);
-            var g = Math.min(1.0, (parseInt(gHex, 16) / 255.0) * window.brightnessMultiplier);
-            var b = Math.min(1.0, (parseInt(bHex, 16) / 255.0) * window.brightnessMultiplier);
+            // Normalize to 0.0-1.0 and apply brightness
+            // RGB666 encoding: 6-bit (0-63) shifted left 2 = 8-bit (0-252), so divide by 252 for proper normalization
+            var r = Math.min(1.0, (rDec / 252.0) * window.brightnessMultiplier);
+            var g = Math.min(1.0, (gDec / 252.0) * window.brightnessMultiplier);
+            var b = Math.min(1.0, (bDec / 252.0) * window.brightnessMultiplier);
+
+            // Apply minimum threshold - values below 0.02 are treated as black to avoid dim "white" pixels
+            var minThreshold = 0.02;
+            if (r < minThreshold && g < minThreshold && b < minThreshold) {
+                r = g = b = 0;
+            }
 
             var locs = data[1].split(';');
             for (var j = 0; j < locs.length; j++) {
                 // 3D mode: location is pixel index, not 2D coordinate
                 var pixelIndex = parseInt(locs[j], 10);
                 if (pixelIndex !== undefined && pixelIndex < pixelData.length) {
-                    // Update color in buffer and InstancedMesh
+                    currentFramePixels.add(pixelIndex);
+
+                    // Update color in buffer and mesh
                     window.pixelColors[pixelIndex * 3] = r;
                     window.pixelColors[pixelIndex * 3 + 1] = g;
                     window.pixelColors[pixelIndex * 3 + 2] = b;
 
-                    // Update instanced mesh color
+                    // Update instanced mesh color (reuse tempColor to avoid allocations)
                     if (window.pixelMesh) {
-                        var pixelColor = new THREE.Color();
-                        pixelColor.setRGB(r, g, b);
-                        window.pixelMesh.setColorAt(pixelIndex, pixelColor);
+                        tempColor.setRGB(r, g, b);
+                        window.pixelMesh.setColorAt(pixelIndex, tempColor);
+                        updated = true;
                     }
-                    updated = true;
+                    colorCount++;
                 }
             }
         }
+
+        // Debug: log pixel update stats occasionally
+        if (window.updateDebugCount === 1) {
+            console.log('Updated', colorCount, 'pixels in this frame,', currentFramePixels.size, 'unique pixels lit');
+            window.updateDebugCount = 2;
+        }
+
+        // Turn off pixels that were lit last frame but aren't in this frame
+        // SSE only sends non-black pixels, so pixels not in the message should be black
+        var clearedCount = 0;
+        if (window.pixelMesh && window.lastUpdatePixels && window.lastUpdatePixels.size > 0) {
+            window.lastUpdatePixels.forEach(function (pixelIndex) {
+                if (!currentFramePixels.has(pixelIndex)) {
+                    // This pixel was lit last frame but not this frame - turn it off
+                    window.pixelColors[pixelIndex * 3] = 0;
+                    window.pixelColors[pixelIndex * 3 + 1] = 0;
+                    window.pixelColors[pixelIndex * 3 + 2] = 0;
+                    window.pixelMesh.setColorAt(pixelIndex, blackColor);
+                    updated = true;
+                    clearedCount++;
+                }
+            });
+        }
+
+        if (window.updateDebugCount === 2) {
+            console.log('Cleared', clearedCount, 'pixels that were lit last frame');
+            window.updateDebugCount = 3;
+        }
+
+        // Remember which pixels are lit for next frame
+        window.lastUpdatePixels = currentFramePixels;
 
         // Mark colors as needing update for InstancedMesh
         if (updated && window.pixelMesh) {

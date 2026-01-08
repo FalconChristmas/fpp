@@ -258,7 +258,7 @@ function list_plugin_entries($menu)
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-                                                                                                                                                                                        </textarea>
+                                                                                                                                                                                            </textarea>
                 </div>
                 <script>
                     function RebuildFPPDDone() {
@@ -333,13 +333,24 @@ function list_plugin_entries($menu)
                                 <?
                                 if (file_exists($settings['co-other'])) {
                                     $js = json_decode(file_get_contents($settings['co-other']), true);
+                                    $has2D = false;
+                                    $has3D = false;
                                     if (isset($js["channelOutputs"])) {
                                         foreach ($js["channelOutputs"] as $key => $val) {
-                                            if (($val["enabled"] == 1) && ($val["type"] == "HTTPVirtualDisplay")) {
-                                                echo "<a class='dropdown-item' href='virtualdisplaywrapper.php'><i class='fas fa-tv'></i> 2D Virtual Display</a>";
-                                                echo "<a class='dropdown-item' href='virtualdisplaywrapper3d.php'><i class='fas fa-object-group'></i> 3D Virtual Display</a>";
+                                            if ($val["enabled"] == 1) {
+                                                if ($val["type"] == "HTTPVirtualDisplay") {
+                                                    $has2D = true;
+                                                } elseif ($val["type"] == "HTTPVirtualDisplay3D") {
+                                                    $has3D = true;
+                                                }
                                             }
                                         }
+                                    }
+                                    if ($has2D) {
+                                        echo "<a class='dropdown-item' href='virtualdisplaywrapper.php'><i class='fas fa-tv'></i> 2D Virtual Display</a>";
+                                    }
+                                    if ($has3D) {
+                                        echo "<a class='dropdown-item' href='virtualdisplaywrapper3d.php'><i class='fas fa-object-group'></i> 3D Virtual Display</a>";
                                     }
                                 }
                                 ?>

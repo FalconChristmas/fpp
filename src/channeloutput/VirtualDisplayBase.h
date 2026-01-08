@@ -88,6 +88,9 @@ public:
     uint16_t*** m_rgb565map;
 
     std::vector<VirtualDisplayPixel> m_pixels;
+    
+protected:
+    bool m_allowDuplicatePixels;  // Set to true for 3D mode where multiple pixels can be at same coords
 };
 
 inline void VirtualDisplayBaseOutput::GetPixelRGB(VirtualDisplayPixel& pixel,

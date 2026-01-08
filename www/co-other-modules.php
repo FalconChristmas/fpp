@@ -849,21 +849,21 @@
 
     class HTTPVirtualDisplay3D extends OtherBase {
         constructor(name = "HTTPVirtualDisplay3D", friendlyName = "HTTP Virtual Display 3D", maxChannels = FPPD_MAX_CHANNELS,
-            fixedStart = false, fixedChans = false,
-            config = { port: 32329, updateInterval: 1 }) {
+            fixedStart = true, fixedChans = true,
+            config = { updateInterval: 25 }) {
             super(name, friendlyName, maxChannels, fixedStart, fixedChans);
             this._config = config;
         }
 
         PopulateHTMLRow(config) {
             var results = "";
-            results += "Port: <input class='port' type='number' min='1' max='65535' value='" + (config.port || 32329) + "' size='5'/>&nbsp;";
-            results += "Update Interval (ms): <input class='updateInterval' type='number' min='1' max='1000' value='" + (config.updateInterval || 1) + "' size='4'/>";
+            results += "Update Interval (ms): <input class='updateInterval' type='number' min='1' max='1000' value='" + (config.updateInterval || 25) + "' size='4'/>";
+            results += " <span class='text-muted'>(Port 32329 - fixed)</span>";
             return results;
         }
 
         GetOutputConfig(result, cell) {
-            result["port"] = parseInt(cell.find("input.port").val());
+            result["port"] = 32329; // Fixed port
             result["updateInterval"] = parseInt(cell.find("input.updateInterval").val());
             return result;
         }

@@ -16,6 +16,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <unordered_map>
 
 #include <ctime>
 #include <iomanip>
@@ -128,6 +129,9 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
     if (m_updateInterval < 1) m_updateInterval = 1;
     if (m_updateInterval > 10) m_updateInterval = 10;
 
+    // Enable duplicate pixels for 3D mode - we can have multiple physical lights at same coordinates
+    m_allowDuplicatePixels = true;
+
     // Signal base class to allocate m_virtualDisplay buffer
     m_width = -1;
     m_height = -1;
@@ -135,6 +139,31 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
     if (!InitializePixelMap()) {
         LogErr(VB_CHANNELOUT, "Error, unable to initialize pixel map\n");
         return 0;
+    }
+
+    // Auto-calculate channel range from virtualdisplaymap
+    if (!m_pixels.empty()) {
+        unsigned int minChannel = m_pixels[0].ch;
+        unsigned int maxChannel = m_pixels[0].ch;
+        
+        for (const auto& pixel : m_pixels) {
+            if (pixel.ch < minChannel) minChannel = pixel.ch;
+            // Each pixel uses cpp channels (typically 3 for RGB)
+            unsigned int pixelMaxCh = pixel.ch + pixel.cpp - 1;
+            if (pixelMaxCh > maxChannel) maxChannel = pixelMaxCh;
+        }
+        
+        // Update our channel range to match what's in the map
+        m_startChannel = minChannel;
+        m_channelCount = (maxChannel - minChannel) + 1;
+        
+        LogInfo(VB_CHANNELOUT, "HTTPVirtualDisplay3D auto-detected channel range: %u - %u (%u channels, %zu pixels)\n",
+                m_startChannel, maxChannel, m_channelCount, m_pixels.size());
+        
+        // Adjust pixel.ch to be relative to m_startChannel since channelData is passed with offset
+        for (auto& pixel : m_pixels) {
+            pixel.ch -= m_startChannel;
+        }
     }
 
     m_screenSize = m_width * m_height * 3;
@@ -371,46 +400,80 @@ void HTTPVirtualDisplay3DOutput::PrepData(unsigned char* channelData) {
         lastFrameWasBlack = allBlack;
     }
 
-    std::string data;
     int pixelsChanged = 0;
     unsigned char r, g, b;
-    std::map<std::string, std::string> colors;
-    std::map<std::string, std::string>::iterator colorIt;
-    char color[4];
-    std::string colorStr;
+    
+    // Use unordered_map for O(1) lookup instead of std::map O(log n)
+    // Key is 24-bit color packed into uint32_t for fast hashing
+    static std::unordered_map<uint32_t, std::string> colors;
+    colors.clear();
+    
     char pixelIdx[16];
-    VirtualDisplayPixel pixel;
     static const char* const base64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
+    
+    // Pre-build color string lookup for all 64x64x64 = 262144 possible RGB666 values
+    // This avoids snprintf in the hot loop
+    static bool colorLookupInitialized = false;
+    static char colorLookup[64][64][64][4];
+    if (!colorLookupInitialized) {
+        for (int ri = 0; ri < 64; ri++) {
+            for (int gi = 0; gi < 64; gi++) {
+                for (int bi = 0; bi < 64; bi++) {
+                    colorLookup[ri][gi][bi][0] = base64[ri];
+                    colorLookup[ri][gi][bi][1] = base64[gi];
+                    colorLookup[ri][gi][bi][2] = base64[bi];
+                    colorLookup[ri][gi][bi][3] = '\0';
+                }
+            }
+        }
+        colorLookupInitialized = true;
+    }
 
     for (int i = 0; i < m_pixels.size(); i++) {
         GetPixelRGB(m_pixels[i], channelData, r, g, b);
 
         // 18-bit RGB666 pixel data passed over Event Stream in 3 bytes
-        // using Base64 allowed characters since SSE is non-binary
         r = r >> 2;
         g = g >> 2;
         b = b >> 2;
 
-        // Send pixels that changed OR when forcing black update (sequence ended)
-        if (forceBlackUpdate ||
-            (m_virtualDisplay[m_pixels[i].r] != r) ||
-            (m_virtualDisplay[m_pixels[i].g] != g) ||
-            (m_virtualDisplay[m_pixels[i].b] != b)) {
+        // For 3D mode: Send ALL non-black pixels every frame
+        if (r != 0 || g != 0 || b != 0 || forceBlackUpdate) {
             m_virtualDisplay[m_pixels[i].r] = r;
             m_virtualDisplay[m_pixels[i].g] = g;
             m_virtualDisplay[m_pixels[i].b] = b;
 
-            snprintf(color, sizeof(color), "%c%c%c", base64[r], base64[g], base64[b]);
-            colorStr = color;
+            // Pack RGB into 32-bit key for fast hash lookup
+            uint32_t colorKey = (r << 16) | (g << 8) | b;
+            
+            // Use integer to string conversion (faster than snprintf)
+            int len = 0;
+            int temp = i;
+            do {
+                pixelIdx[len++] = '0' + (temp % 10);
+                temp /= 10;
+            } while (temp > 0);
+            // Reverse the digits
+            for (int j = 0; j < len / 2; j++) {
+                char t = pixelIdx[j];
+                pixelIdx[j] = pixelIdx[len - 1 - j];
+                pixelIdx[len - 1 - j] = t;
+            }
+            pixelIdx[len] = '\0';
 
-            // KEY DIFFERENCE: Use pixel index instead of x,y coordinates
-            snprintf(pixelIdx, sizeof(pixelIdx), "%d", i);
-
-            colorIt = colors.find(colorStr);
-            if (colorIt != colors.end())
-                colorIt->second += std::string(";") + pixelIdx;
-            else
-                colors[colorStr] = colorStr + ":" + pixelIdx;
+            auto colorIt = colors.find(colorKey);
+            if (colorIt != colors.end()) {
+                colorIt->second += ';';
+                colorIt->second += pixelIdx;
+            } else {
+                // First pixel with this color - create entry with "RGB:index"
+                std::string entry;
+                entry.reserve(24);
+                entry = colorLookup[r][g][b];
+                entry += ':';
+                entry += pixelIdx;
+                colors[colorKey] = std::move(entry);
+            }
 
             pixelsChanged++;
         }

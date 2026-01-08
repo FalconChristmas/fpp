@@ -621,6 +621,9 @@
                 var typeFriendlyName = type;
                 if (output_module != undefined) {
                     typeFriendlyName = output_module.typeFriendlyName;
+                    if (output_module._fixedStart) {
+                        startDisabled = " disabled='disabled'";
+                    }
                     if (output_module._fixedChans) {
                         countDisabled = " disabled='disabled'";
                     }
