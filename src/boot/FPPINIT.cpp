@@ -1078,58 +1078,71 @@ static void handleBootDelay() {
             // super fast Pi, we need a minimal delay for devices to be found
             std::this_thread::sleep_for(std::chrono::seconds(5));
         }
-
-        // Check if there are any network interfaces that could get NTP time
-        // If not, skip the time wait - no point waiting for NTP on a device with no network
-        if (!hasNetworkInterfaceForNTP()) {
-            printf("FPP - No network interface found, skipping NTP time wait\n");
-            return;
-        }
-
-        struct stat attr;
-        stat("/etc/fpp/rfs_version", &attr);
-        time_t fileTime = attr.st_ctime;
-        time_t currentTime = time(nullptr);
-        
-        double diffSecs = difftime(fileTime, currentTime);
-        if (diffSecs > 0) {
-            struct tm tmFile;
-            localtime_r(&fileTime, &tmFile);
-            char buffer[26];
-            strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tmFile);
-            printf("FPP - FPP - Waiting until system date is at least %s or 5 minutes\n", buffer);
-            // Create flag file for UI to show warning with timestamp
-            time_t startTime = time(nullptr);
-            std::string flagContent = std::to_string(startTime) + ",auto";
-            PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
-            sd_notify(0, "STATUS=Waiting for valid system time (NTP/RTC)");
-        }
-
-        int count = 0;
-        while (diffSecs > 0 && count < 3000) {
-            // Check for skip request from UI every 500ms (5 iterations)
-            if (count % 5 == 0 && FileExists(skipFile)) {
-                printf("FPP - Boot delay skip requested by user\n");
-                unlink(skipFile.c_str());
-                break;
-            }
-            
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            currentTime = time(nullptr);
-            diffSecs = difftime(fileTime, currentTime);
-            count++;
-            
-            // Notify systemd every 10 seconds (100 iterations)
-            if (count % 100 == 0) {
-                // Extend timeout by 30 seconds and send watchdog ping
-                sd_notifyf(0, "EXTEND_TIMEOUT_USEC=%llu\nWATCHDOG=1", (unsigned long long)30000000);
-            }
-        }
-        // Remove flag files when delay completes
-        unlink((FPP_MEDIA_DIR + "/tmp/boot_delay").c_str());
-        unlink(skipFile.c_str());
     }
 }
+
+// Wait for time to sync via NTP/RTC - called AFTER waitForInterfacesUp
+// so we know if network is available
+static void handleTimeSyncWait() {
+    int i = getRawSettingInt("bootDelay", -1);
+    if (i != -1) {
+        // Only do time sync wait in auto mode
+        return;
+    }
+    
+    const std::string skipFile = FPP_MEDIA_DIR + "/tmp/boot_delay_skip";
+
+    // Check if there are any network interfaces that could get NTP time
+    // If not, skip the time wait - no point waiting for NTP on a device with no network
+    if (!hasNetworkInterfaceForNTP()) {
+        printf("FPP - No network interface found, skipping NTP time wait\n");
+        return;
+    }
+
+    struct stat attr;
+    stat("/etc/fpp/rfs_version", &attr);
+    time_t fileTime = attr.st_ctime;
+    time_t currentTime = time(nullptr);
+    
+    double diffSecs = difftime(fileTime, currentTime);
+    if (diffSecs > 0) {
+        struct tm tmFile;
+        localtime_r(&fileTime, &tmFile);
+        char buffer[26];
+        strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tmFile);
+        printf("FPP - Waiting until system date is at least %s or 5 minutes\n", buffer);
+        // Create flag file for UI to show warning with timestamp
+        time_t startTime = time(nullptr);
+        std::string flagContent = std::to_string(startTime) + ",auto";
+        PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
+        sd_notify(0, "STATUS=Waiting for valid system time (NTP/RTC)");
+    }
+
+    int count = 0;
+    while (diffSecs > 0 && count < 3000) {
+        // Check for skip request from UI every 500ms (5 iterations)
+        if (count % 5 == 0 && FileExists(skipFile)) {
+            printf("FPP - Boot delay skip requested by user\n");
+            unlink(skipFile.c_str());
+            break;
+        }
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        currentTime = time(nullptr);
+        diffSecs = difftime(fileTime, currentTime);
+        count++;
+        
+        // Notify systemd every 10 seconds (100 iterations)
+        if (count % 100 == 0) {
+            // Extend timeout by 30 seconds and send watchdog ping
+            sd_notifyf(0, "EXTEND_TIMEOUT_USEC=%llu\nWATCHDOG=1", (unsigned long long)30000000);
+        }
+    }
+    // Remove flag files when delay completes
+    unlink((FPP_MEDIA_DIR + "/tmp/boot_delay").c_str());
+    unlink(skipFile.c_str());
+}
+
 void cleanupChromiumFiles() {
     exec("/usr/bin/rm -rf /home/fpp/.config/chromium/Singleton* 2>/dev/null > /dev/null");
 }
@@ -1822,6 +1835,8 @@ int main(int argc, char* argv[]) {
         setupAudio();
         removeDummyInterface();
         waitForInterfacesUp(true, 100); // call to flite requires audio, so do audio before this
+        // Time sync wait happens AFTER interfaces are up so NTP has a chance to sync
+        handleTimeSyncWait();
         if (!FileExists("/etc/fpp/desktop")) {
             maybeEnableTethering();
             detectNetworkModules();
