@@ -1052,40 +1052,60 @@ static bool hasNetworkInterfaceForNTP() {
 
 static void handleBootDelay() {
     int i = getRawSettingInt("bootDelay", -1);
+    const std::string delayFile = FPP_MEDIA_DIR + "/tmp/boot_delay";
     const std::string skipFile = FPP_MEDIA_DIR + "/tmp/boot_delay_skip";
+    
+    // bootDelay=0 means no delay at all - clean up any flag file and return immediately
+    if (i == 0) {
+        unlink(delayFile.c_str());
+        unlink(skipFile.c_str());
+        return;
+    }
     
     if (i > 0) {
         printf("FPP - Sleeping for %d seconds\n", i);
         // Create flag file with start time and duration for UI countdown
         time_t startTime = time(nullptr);
         std::string flagContent = std::to_string(startTime) + "," + std::to_string(i);
-        PutFileContents(FPP_MEDIA_DIR + "/tmp/boot_delay", flagContent);
+        PutFileContents(delayFile, flagContent);
         // Notify systemd we're starting the delay and extend timeout
         sd_notify(0, "STATUS=Boot delay in progress");
+        sd_notifyf(0, "EXTEND_TIMEOUT_USEC=%llu", (unsigned long long)(i + 30) * 1000000);
         
-        // Sleep with periodic watchdog notifications and timeout extensions
-        int remaining = i;
-        while (remaining > 0) {
-            // Check for skip request from UI
+        // Sleep in 100ms increments to allow UI to show countdown and respond to skip
+        int remainingMs = i * 1000;
+        int watchdogCounter = 0;
+        while (remainingMs > 0) {
+            // Check for skip request from UI every iteration
             if (FileExists(skipFile)) {
                 printf("FPP - Boot delay skip requested by user\n");
                 unlink(skipFile.c_str());
                 break;
             }
             
-            int sleepTime = (remaining > 30) ? 30 : remaining;
-            // Extend timeout by 60 seconds before each sleep
-            sd_notifyf(0, "EXTEND_TIMEOUT_USEC=%llu", (unsigned long long)60000000);
-            std::this_thread::sleep_for(std::chrono::seconds(sleepTime));
-            remaining -= sleepTime;
-            if (remaining > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            remainingMs -= 100;
+            watchdogCounter++;
+            
+            // Notify systemd watchdog every 10 seconds (100 iterations)
+            if (watchdogCounter >= 100) {
                 sd_notify(0, "WATCHDOG=1");
+                watchdogCounter = 0;
             }
         }
         // Remove flag files when delay completes
-        unlink((FPP_MEDIA_DIR + "/tmp/boot_delay").c_str());
+        unlink(delayFile.c_str());
         unlink(skipFile.c_str());
     } else if (i == -1) {
+        // Auto mode: check if we have any network interfaces that could get NTP
+        // If not, skip the time wait entirely and clean up flag file now
+        if (!hasNetworkInterfaceForNTP()) {
+            printf("FPP - No network interface found, skipping boot delay\n");
+            unlink(delayFile.c_str());
+            unlink(skipFile.c_str());
+            return;
+        }
+        
         const auto processor_count = std::thread::hardware_concurrency();
         if (processor_count > 2) {
             // super fast Pi, we need a minimal delay for devices to be found
@@ -1172,6 +1192,12 @@ static void checkWLANInterface() {
 }
 
 static bool waitForInterfacesUp(bool flite, int timeOut) {
+    // If no network interfaces have carrier/link, don't wait at all
+    if (!hasNetworkInterfaceForNTP()) {
+        printf("FPP - No network interfaces with link, skipping IP wait\n");
+        return false;
+    }
+    
     bool found = false;
     int count = 0;
     std::string announce;
