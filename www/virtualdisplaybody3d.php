@@ -458,18 +458,30 @@ if (!isset($standalone)) {
         console.log('Gridlines offset:', gridlinesOffset);
 
         // Create a small sphere geometry for each LED (reused for all instances)
-        var ledGeometry = new THREE.SphereGeometry(1.5, 8, 6);
+        // Default radius 1.0 (pixel size 2) - can be overridden by URL parameter
+        var ledGeometry = new THREE.SphereGeometry(1.0, 8, 6);
 
         // Use MeshBasicMaterial for LEDs - unaffected by lighting, perfect for self-illuminating pixels
+        // Note: Instance colors are MULTIPLIED by material color, so we need white base
+        // But we initialize all instances to black (0,0,0) explicitly
         var ledMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,  // Base white for instance color multiplication
+            color: 0xffffff,  // Base white - instance colors multiply this
             transparent: false,
             depthWrite: true,
-            depthTest: true
+            depthTest: true,
+            toneMapped: false  // Prevent tone mapping from affecting colors
         });
 
         // Create instanced mesh
         var instancedMesh = new THREE.InstancedMesh(ledGeometry, ledMaterial, pixelData.length);
+
+        // IMPORTANT: Set all instances to black BEFORE anything else
+        // This ensures no pixels start as white
+        var blackColor = new THREE.Color(0, 0, 0);
+        for (var idx = 0; idx < pixelData.length; idx++) {
+            instancedMesh.setColorAt(idx, blackColor);
+        }
+        instancedMesh.instanceColor.needsUpdate = true;
 
         // Set up position and color for each instance
         var matrix = new THREE.Matrix4();
@@ -509,13 +521,11 @@ if (!isset($standalone)) {
             // Set position matrix for this instance
             matrix.setPosition(finalX, finalY, finalZ);
             instancedMesh.setMatrixAt(i, matrix);
-
-            // Start all LEDs black
-            color.setRGB(0, 0, 0);
-            instancedMesh.setColorAt(i, color);
+            // Note: colors already initialized to black in the pre-loop above
         }
 
-        // Mark instance color as needing GPU update
+        // Mark instance matrices and colors as needing GPU update
+        instancedMesh.instanceMatrix.needsUpdate = true;
         instancedMesh.instanceColor.needsUpdate = true;
 
         // Set color space for instance colors to match renderer output
@@ -1849,12 +1859,18 @@ if (!isset($standalone)) {
             console.log('Initialized all pixels to black');
         }
 
-        // Reuse Set by clearing instead of creating new one
+        // Reuse Sets by swapping instead of creating new ones
+        // lastUpdatePixels becomes the new currentFramePixels (after clearing)
+        // currentFramePixels becomes the new lastUpdatePixels
         if (!window.currentFramePixels) {
             window.currentFramePixels = new Set();
-        } else {
-            window.currentFramePixels.clear();
+            window.lastUpdatePixels = new Set();
         }
+        // Swap the sets - old current becomes last, old last (cleared) becomes current
+        var temp = window.lastUpdatePixels;
+        window.lastUpdatePixels = window.currentFramePixels;
+        window.currentFramePixels = temp;
+        window.currentFramePixels.clear();
         var currentFramePixels = window.currentFramePixels;
 
         var updated = false;
@@ -1894,12 +1910,6 @@ if (!isset($standalone)) {
             var r = Math.min(1.0, (rDec / 252.0) * window.brightnessMultiplier);
             var g = Math.min(1.0, (gDec / 252.0) * window.brightnessMultiplier);
             var b = Math.min(1.0, (bDec / 252.0) * window.brightnessMultiplier);
-
-            // Apply minimum threshold - values below 0.02 are treated as black to avoid dim "white" pixels
-            var minThreshold = 0.02;
-            if (r < minThreshold && g < minThreshold && b < minThreshold) {
-                r = g = b = 0;
-            }
 
             var locs = data[1].split(';');
             for (var j = 0; j < locs.length; j++) {
@@ -1951,9 +1961,6 @@ if (!isset($standalone)) {
             console.log('Cleared', clearedCount, 'pixels that were lit last frame');
             window.updateDebugCount = 3;
         }
-
-        // Remember which pixels are lit for next frame
-        window.lastUpdatePixels = currentFramePixels;
 
         // Mark colors as needing update for InstancedMesh
         if (updated && window.pixelMesh) {
@@ -2573,9 +2580,9 @@ if (!isset($standalone)) {
         </div>
         <div>
             <span class="control-group">
-                Pixel Size: <input type='range' id='pixelSizeSlider' min='1' max='50' value='3' step='1'
+                Pixel Size: <input type='range' id='pixelSizeSlider' min='1' max='50' value='2' step='1'
                     oninput='updatePixelSize();'>
-                <span id='pixelSizeValue'>3.0</span>
+                <span id='pixelSizeValue'>2.0</span>
             </span>
             <span class="control-group">
                 Pixel Brightness: <input type='range' id='brightnessSlider' min='0.1' max='5.0' value='2.0' step='0.1'
