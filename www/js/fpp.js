@@ -4666,6 +4666,10 @@ function GetFPPStatus () {
 					}
 				}
 
+				// Add Boot Now button to the message
+				message +=
+					' <button class="btn btn-success btn-xs ml-2" onclick="SkipBootDelay()"><i class="fas fa-play"></i> Boot Now</button>';
+
 				response.warnings.push(message);
 				response.warningInfo.push({
 					message: message,
@@ -5845,6 +5849,18 @@ function CheckRestartRebootFlags () {
 		// Adjust the scroll up text to match state.
 		setTopScrollText();
 	}
+}
+
+function SkipBootDelay () {
+	$.post('api/system/fppd/skipBootDelay')
+		.done(function (data) {
+			$.jGrowl('Boot delay skip requested - FPPD will start shortly', {
+				themeState: 'success'
+			});
+		})
+		.fail(function () {
+			DialogError('Skip Boot Delay', 'Failed to skip boot delay');
+		});
 }
 
 function RestartFPPD () {
