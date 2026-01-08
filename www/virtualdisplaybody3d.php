@@ -564,6 +564,9 @@ if (!isset($standalone)) {
         scene.add(window.gridHelper);		// Simple orbit controls (mouse drag to rotate)
         setupOrbitControls();
 
+        // Create exit fullscreen button for touch devices
+        createExitFullscreenButton();
+
         // Start render loop
         animate3D();
 
@@ -1095,6 +1098,138 @@ if (!isset($standalone)) {
             camera.position.copy(lookAtTarget).add(relative);
             camera.lookAt(lookAtTarget);
             syncCameraControlSliders();
+        });
+
+        // Touch controls for mobile/tablet devices
+        var touchState = {
+            isTouching: false,
+            touchStartDistance: 0,
+            previousTouchPosition: { x: 0, y: 0 },
+            twoFingerMode: false
+        };
+
+        renderer.domElement.addEventListener('touchstart', function (e) {
+            if (e.touches.length === 1) {
+                // Single touch - rotate
+                touchState.isTouching = true;
+                touchState.twoFingerMode = false;
+                touchState.previousTouchPosition = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+            } else if (e.touches.length === 2) {
+                // Two fingers - pan or pinch-to-zoom
+                touchState.isTouching = true;
+                touchState.twoFingerMode = true;
+                
+                // Calculate initial distance for pinch-to-zoom
+                var dx = e.touches[0].clientX - e.touches[1].clientX;
+                var dy = e.touches[0].clientY - e.touches[1].clientY;
+                touchState.touchStartDistance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Store midpoint for panning
+                touchState.previousTouchPosition = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
+            }
+            e.preventDefault();
+        });
+
+        renderer.domElement.addEventListener('touchmove', function (e) {
+            if (!touchState.isTouching) return;
+
+            if (e.touches.length === 1 && !touchState.twoFingerMode) {
+                // Single touch - rotate camera
+                var deltaX = e.touches[0].clientX - touchState.previousTouchPosition.x;
+                var deltaY = e.touches[0].clientY - touchState.previousTouchPosition.y;
+
+                // Rotate around the look-at target
+                var offset = new THREE.Vector3().subVectors(camera.position, lookAtTarget);
+
+                // Rotate around Y axis (horizontal rotation)
+                var angle = deltaX * rotationSpeed;
+                offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -angle);
+
+                // Rotate around camera's right axis (vertical rotation)
+                var right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                angle = deltaY * rotationSpeed;
+                offset.applyAxisAngle(right, -angle);
+
+                camera.position.copy(lookAtTarget).add(offset);
+                camera.lookAt(lookAtTarget);
+
+                touchState.previousTouchPosition = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+                syncCameraControlSliders();
+            } else if (e.touches.length === 2) {
+                // Two fingers - handle both pinch-to-zoom and panning
+                var currentMidpoint = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
+
+                // Calculate current distance for pinch-to-zoom
+                var dx = e.touches[0].clientX - e.touches[1].clientX;
+                var dy = e.touches[0].clientY - e.touches[1].clientY;
+                var currentDistance = Math.sqrt(dx * dx + dy * dy);
+
+                // Pinch-to-zoom
+                if (touchState.touchStartDistance > 0) {
+                    var zoomRatio = currentDistance / touchState.touchStartDistance;
+                    var relative = new THREE.Vector3().subVectors(camera.position, lookAtTarget);
+                    relative.divideScalar(zoomRatio);
+                    camera.position.copy(lookAtTarget).add(relative);
+                    camera.lookAt(lookAtTarget);
+                    touchState.touchStartDistance = currentDistance;
+                }
+
+                // Two-finger pan
+                var deltaX = currentMidpoint.x - touchState.previousTouchPosition.x;
+                var deltaY = currentMidpoint.y - touchState.previousTouchPosition.y;
+
+                var right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                var up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+
+                var distance = camera.position.distanceTo(lookAtTarget);
+                var panAmount = distance * 0.001;
+
+                right.multiplyScalar(-deltaX * panAmount * panSpeed);
+                up.multiplyScalar(deltaY * panAmount * panSpeed);
+
+                camera.position.add(right).add(up);
+                lookAtTarget.add(right).add(up);
+                camera.lookAt(lookAtTarget);
+
+                touchState.previousTouchPosition = currentMidpoint;
+                syncCameraControlSliders();
+            }
+            e.preventDefault();
+        });
+
+        renderer.domElement.addEventListener('touchend', function (e) {
+            if (e.touches.length === 0) {
+                touchState.isTouching = false;
+                touchState.twoFingerMode = false;
+                touchState.touchStartDistance = 0;
+            } else if (e.touches.length === 1 && touchState.twoFingerMode) {
+                // Went from two fingers to one - reset to single touch mode
+                touchState.twoFingerMode = false;
+                touchState.previousTouchPosition = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+            }
+            e.preventDefault();
+        });
+
+        renderer.domElement.addEventListener('touchcancel', function (e) {
+            touchState.isTouching = false;
+            touchState.twoFingerMode = false;
+            touchState.touchStartDistance = 0;
+            e.preventDefault();
         });
     }
 
@@ -1782,22 +1917,38 @@ if (!isset($standalone)) {
         console.log('Exiting fullscreen mode');
     }
 
+    function createExitFullscreenButton() {
+        var container = document.getElementById('canvas-container');
+        if (!container) return;
+
+        var exitButton = document.createElement('button');
+        exitButton.id = 'exit-fullscreen-btn';
+        exitButton.innerHTML = '✕ Exit Fullscreen';
+        exitButton.onclick = exitFullscreen;
+        exitButton.style.display = 'none'; // Hidden by default
+        container.appendChild(exitButton);
+    }
+
     // Handle fullscreen change events
     function handleFullscreenChange() {
+        var exitButton = document.getElementById('exit-fullscreen-btn');
+        
         if (!document.fullscreenElement &&
             !document.webkitFullscreenElement &&
             !document.mozFullScreenElement) {
-            // Exited fullscreen - resize renderer
+            // Exited fullscreen - resize renderer and hide exit button
             var container = document.getElementById('canvas-container');
             renderer.setSize(canvasWidth, canvasHeight);
             camera.aspect = canvasWidth / canvasHeight;
             camera.updateProjectionMatrix();
+            if (exitButton) exitButton.style.display = 'none';
             console.log('Exited fullscreen, resized to:', canvasWidth, 'x', canvasHeight);
         } else {
-            // Entered fullscreen - resize to screen
+            // Entered fullscreen - resize to screen and show exit button
             renderer.setSize(window.innerWidth, window.innerHeight);
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
+            if (exitButton) exitButton.style.display = 'block';
             console.log('Entered fullscreen, resized to:', window.innerWidth, 'x', window.innerHeight);
         }
     }
@@ -2506,6 +2657,36 @@ if (!isset($standalone)) {
         height: 100vh !important;
         background-color: #000;
         border: none;
+    }
+
+    /* Exit fullscreen button - only visible in fullscreen mode */
+    #exit-fullscreen-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        padding: 12px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        color: #fff;
+        background-color: rgba(0, 0, 0, 0.7);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    #exit-fullscreen-btn:hover,
+    #exit-fullscreen-btn:active {
+        background-color: rgba(255, 0, 0, 0.8);
+        border-color: rgba(255, 255, 255, 0.8);
+        transform: scale(1.05);
+    }
+
+    #exit-fullscreen-btn:active {
+        transform: scale(0.95);
     }
 
     #controls {
