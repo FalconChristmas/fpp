@@ -945,8 +945,102 @@ static void setupTimezone() {
     }
 }
 
+// Check if there are any network interfaces that could potentially receive NTP time
+// Returns true if there's at least one interface with a "real" IP address that could reach NTP servers
+// Excludes loopback, USB gadget, and tethering interfaces
+static bool hasNetworkInterfaceForNTP() {
+    // If EnableTethering is explicitly set to 1, user expects to use tethering
+    // which means no external network - skip NTP wait
+    int tetheringEnabled = getRawSettingInt("EnableTethering", 0);
+    if (tetheringEnabled == 1) {
+        printf("FPP - Tethering is enabled, skipping NTP time wait\n");
+        return false;
+    }
+    
+    struct ifaddrs* ifAddrStruct = NULL;
+    struct ifaddrs* ifa = NULL;
+    void* tmpAddrPtr = NULL;
+    bool hasValidIP = false;
+    
+    if (getifaddrs(&ifAddrStruct) != 0) {
+        // If we can't get interface info, assume we might have network
+        return true;
+    }
+    
+    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) {
+            continue;
+        }
+        
+        std::string nm = ifa->ifa_name;
+        // Skip loopback and USB gadget interfaces (usb0, usb1, etc.)
+        if (nm == "lo" || startsWith(nm, "usb")) {
+            continue;
+        }
+        
+        // Only check IPv4 addresses
+        if (ifa->ifa_addr->sa_family == AF_INET) {
+            tmpAddrPtr = &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
+            char addressBuffer[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+            std::string addr = addressBuffer;
+            
+            // Skip tethering/USB gadget IP addresses
+            // 192.168.6.2/192.168.7.2 = BeagleBone USB gadget
+            // 192.168.8.1 = FPP tethering hotspot
+            if (contains(addr, "192.168.6.2") || 
+                contains(addr, "192.168.7.2") || 
+                contains(addr, "192.168.8.1")) {
+                continue;
+            }
+            
+            // Found a valid IP that could potentially reach NTP
+            hasValidIP = true;
+            break;
+        }
+    }
+    
+    if (ifAddrStruct != NULL) {
+        freeifaddrs(ifAddrStruct);
+    }
+    
+    // If no valid IP found, also check if any "real" interfaces exist at all
+    // (they might get an IP later via DHCP)
+    if (!hasValidIP) {
+        // Re-scan to check if interfaces exist (even without IP yet)
+        if (getifaddrs(&ifAddrStruct) == 0) {
+            std::string tetherInterface = FindTetherWIFIAdapater();
+            for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+                std::string nm = ifa->ifa_name;
+                // Skip loopback and USB gadget interfaces
+                if (nm == "lo" || startsWith(nm, "usb")) {
+                    continue;
+                }
+                // Skip the interface designated for tethering
+                if (nm == tetherInterface) {
+                    continue;
+                }
+                // Check for "real" network interface names
+                if (startsWith(nm, "eth") || startsWith(nm, "wlan") || 
+                    startsWith(nm, "en") || startsWith(nm, "wl") ||
+                    startsWith(nm, "br") || startsWith(nm, "bond")) {
+                    hasValidIP = true;
+                    break;
+                }
+            }
+            if (ifAddrStruct != NULL) {
+                freeifaddrs(ifAddrStruct);
+            }
+        }
+    }
+    
+    return hasValidIP;
+}
+
 static void handleBootDelay() {
     int i = getRawSettingInt("bootDelay", -1);
+    const std::string skipFile = FPP_MEDIA_DIR + "/tmp/boot_delay_skip";
+    
     if (i > 0) {
         printf("FPP - Sleeping for %d seconds\n", i);
         // Create flag file with start time and duration for UI countdown
@@ -959,6 +1053,13 @@ static void handleBootDelay() {
         // Sleep with periodic watchdog notifications and timeout extensions
         int remaining = i;
         while (remaining > 0) {
+            // Check for skip request from UI
+            if (FileExists(skipFile)) {
+                printf("FPP - Boot delay skip requested by user\n");
+                unlink(skipFile.c_str());
+                break;
+            }
+            
             int sleepTime = (remaining > 30) ? 30 : remaining;
             // Extend timeout by 60 seconds before each sleep
             sd_notifyf(0, "EXTEND_TIMEOUT_USEC=%llu", (unsigned long long)60000000);
@@ -968,13 +1069,21 @@ static void handleBootDelay() {
                 sd_notify(0, "WATCHDOG=1");
             }
         }
-        // Remove flag file when delay completes
+        // Remove flag files when delay completes
         unlink((FPP_MEDIA_DIR + "/tmp/boot_delay").c_str());
+        unlink(skipFile.c_str());
     } else if (i == -1) {
         const auto processor_count = std::thread::hardware_concurrency();
         if (processor_count > 2) {
             // super fast Pi, we need a minimal delay for devices to be found
             std::this_thread::sleep_for(std::chrono::seconds(5));
+        }
+
+        // Check if there are any network interfaces that could get NTP time
+        // If not, skip the time wait - no point waiting for NTP on a device with no network
+        if (!hasNetworkInterfaceForNTP()) {
+            printf("FPP - No network interface found, skipping NTP time wait\n");
+            return;
         }
 
         struct stat attr;
@@ -998,6 +1107,13 @@ static void handleBootDelay() {
 
         int count = 0;
         while (diffSecs > 0 && count < 3000) {
+            // Check for skip request from UI every 500ms (5 iterations)
+            if (count % 5 == 0 && FileExists(skipFile)) {
+                printf("FPP - Boot delay skip requested by user\n");
+                unlink(skipFile.c_str());
+                break;
+            }
+            
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             currentTime = time(nullptr);
             diffSecs = difftime(fileTime, currentTime);
@@ -1009,8 +1125,9 @@ static void handleBootDelay() {
                 sd_notifyf(0, "EXTEND_TIMEOUT_USEC=%llu\nWATCHDOG=1", (unsigned long long)30000000);
             }
         }
-        // Remove flag file when delay completes
+        // Remove flag files when delay completes
         unlink((FPP_MEDIA_DIR + "/tmp/boot_delay").c_str());
+        unlink(skipFile.c_str());
     }
 }
 void cleanupChromiumFiles() {

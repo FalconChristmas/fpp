@@ -509,5 +509,22 @@ function GetOSPackageInfo()
     ]);
 }
 
+// Skip boot delay and start FPPD immediately
+function SkipBootDelay()
+{
+    global $settings;
+
+    $bootDelayFile = $settings['mediaDirectory'] . '/tmp/boot_delay';
+    $skipFile = $settings['mediaDirectory'] . '/tmp/boot_delay_skip';
+
+    if (!file_exists($bootDelayFile)) {
+        return json_encode(['status' => 'error', 'message' => 'No boot delay in progress']);
+    }
+
+    // Create skip flag file that FPPINIT will check for
+    file_put_contents($skipFile, '1');
+
+    return json_encode(['status' => 'OK', 'message' => 'Boot delay skip requested']);
+}
 
 
