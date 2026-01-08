@@ -4671,9 +4671,10 @@ function GetFPPStatus () {
 					' <button class="btn btn-success btn-xs ml-2" onclick="SkipBootDelay()"><i class="fas fa-play"></i> Boot Now</button>';
 
 				response.warnings.push(message);
+				// Use id 0 to avoid the click-through handler which mangles HTML in the message
 				response.warningInfo.push({
 					message: message,
-					id: 12
+					id: 0
 				});
 			} else {
 				response.warnings.push('FPPD Daemon is not running');
