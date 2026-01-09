@@ -4331,7 +4331,13 @@ function RestorePipeWireGroupVolumes($groups = null)
         $groupVol = isset($group['volume']) ? intval($group['volume']) : 100;
         exec($SUDO . " " . $env . " pactl set-sink-volume " . escapeshellarg($groupNodeName) . " {$groupVol}% 2>/dev/null");
 
-        // Set per-member volumes on the filter-chain sink nodes
+        // Set per-member volumes on the filter-chain sink nodes.
+        // Also set the underlying WirePlumber-managed node to 100% when the
+        // member targets one (e.g. HDMI outputs like
+        // alsa_output.platform-*.hdmi.*).  WirePlumber initialises these at
+        // ~40% which would silently attenuate HDMI audio.  FPP-owned nodes
+        // (fpp_alsa_*, aes67_*) are already created at full volume and are
+        // not touched.
         foreach ($group['members'] as $member) {
             $cardId = isset($member['cardId']) ? $member['cardId'] : '';
             if (empty($cardId))
@@ -4340,6 +4346,15 @@ function RestorePipeWireGroupVolumes($groups = null)
             $cardIdNorm = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cardId));
             $fxNodeName = 'fpp_fx_g' . $groupId . '_' . $cardIdNorm;
             exec($SUDO . " " . $env . " pactl set-sink-volume " . escapeshellarg($fxNodeName) . " {$memberVol}% 2>/dev/null");
+
+            // Restore underlying WirePlumber-managed sink to 100% so it does
+            // not silently attenuate the audio delivered by the filter chain.
+            $nodeTarget = isset($member['nodeTarget']) ? $member['nodeTarget'] : '';
+            if (!empty($nodeTarget)
+                && strpos($nodeTarget, 'fpp_') !== 0
+                && strpos($nodeTarget, 'aes67_') !== 0) {
+                exec($SUDO . " " . $env . " pactl set-sink-volume " . escapeshellarg($nodeTarget) . " 100% 2>/dev/null");
+            }
         }
     }
 }
