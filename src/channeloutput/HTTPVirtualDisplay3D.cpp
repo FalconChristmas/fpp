@@ -198,7 +198,8 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
         return 0;
     }
 
-    rc = listen(m_socket, 5);
+    // Increase listen backlog to handle rapid reconnections (hard refresh)
+    rc = listen(m_socket, 32);
     if (rc < 0) {
         LogErr(VB_CHANNELOUT, "Could not listen on socket: %s\n", strerror(errno));
         return 0;
@@ -231,6 +232,13 @@ void HTTPVirtualDisplay3DOutput::ConnectionThread(void) {
         client = accept(m_socket, NULL, NULL);
 
         if (client >= 0) {
+            // Enable TCP keepalive to detect dead connections
+            int keepalive = 1;
+            setsockopt(client, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive));
+            
+            // Set socket to non-blocking to avoid write() blocking on dead connections
+            fcntl(client, F_SETFL, O_NONBLOCK);
+            
             auto t = std::time(nullptr);
             auto tm = *std::localtime(&t);
             std::stringstream sstr;
@@ -358,7 +366,17 @@ int HTTPVirtualDisplay3DOutput::WriteSSEPacket(int fd, std::string data) {
     sendData += data;
     sendData += "\r\n";
 
-    write(fd, sendData.c_str(), sendData.size());
+    ssize_t written = write(fd, sendData.c_str(), sendData.size());
+    
+    // Check for write errors (broken connection)
+    if (written < 0) {
+        if (errno == EPIPE || errno == ECONNRESET || errno == ENOTCONN) {
+            LogDebug(VB_CHANNELOUT, "3D SSE write failed (connection closed): %s\n", strerror(errno));
+            return -1;  // Signal caller to remove this connection
+        }
+        LogDebug(VB_CHANNELOUT, "3D SSE write error: %s\n", strerror(errno));
+        return -1;
+    }
 
     return 1;
 }
@@ -523,8 +541,17 @@ void HTTPVirtualDisplay3DOutput::PrepData(unsigned char* channelData) {
 int HTTPVirtualDisplay3DOutput::SendData(unsigned char* channelData) {
     if (m_sseData != "") {
         std::unique_lock<std::mutex> lock(m_connListLock);
-        for (int i = 0; i < m_connList.size(); i++)
-            WriteSSEPacket(m_connList[i], m_sseData);
+        // Iterate backwards so we can safely remove elements
+        for (int i = m_connList.size() - 1; i >= 0; i--) {
+            int result = WriteSSEPacket(m_connList[i], m_sseData);
+            if (result < 0) {
+                // Connection is dead, remove it
+                LogDebug(VB_CHANNELOUT, "Removing dead 3D SSE connection %d\n", m_connList[i]);
+                close(m_connList[i]);
+                m_connList.erase(m_connList.begin() + i);
+                m_connListChanged = true;
+            }
+        }
     }
 
     return m_channelCount;

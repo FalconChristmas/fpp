@@ -19,11 +19,33 @@ if (!isset($standalone)) {
     var cameraControlState = { distanceMin: 100, distanceMax: 5000, initialized: false };
     var pixelOffsetAdvancedVisible = false;
     window.brightnessMultiplier = 2.0;  // Default brightness (can be overridden by URL param)
+    window.sceneInitialized = false;  // Track if scene is fully ready
     var testMode = {
         enabled: false,
         color: '#ff0000',
         rgb: [1.0, 0.0, 0.0]
     };
+
+    // Clean up SSE connection on page unload/refresh to prevent stale connections
+    window.addEventListener('beforeunload', function () {
+        if (evtSource) {
+            console.log('Page unloading, closing SSE connection');
+            evtSource.close();
+            evtSource = null;
+        }
+    });
+
+    // Also clean up on visibility change (tab hidden)
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden && evtSource) {
+            console.log('Page hidden, closing SSE connection');
+            evtSource.close();
+            evtSource = null;
+        } else if (!document.hidden && window.sceneInitialized && !evtSource) {
+            console.log('Page visible again, reconnecting SSE');
+            startSSE();
+        }
+    });
 
     // 3D Objects variables
     var loadedObjects = [];
@@ -551,6 +573,10 @@ if (!isset($standalone)) {
         window.pixelPositions = pixelPositions;
 
         console.log('Instanced LED mesh created with realistic 3D bulbs');
+
+        // Mark scene as initialized
+        window.sceneInitialized = true;
+        console.log('Scene initialization complete, ready for SSE connection');
 
 
         // Add axis helper for reference (default off, can be overridden by URL)
@@ -2494,6 +2520,14 @@ if (!isset($standalone)) {
         if (testMode.enabled) {
             return;
         }
+
+        // Debug log to track when data arrives
+        if (!window.processEventCount) window.processEventCount = 0;
+        window.processEventCount++;
+        if (window.processEventCount <= 3) {
+            console.log('processEvent called (count:', window.processEventCount, '), data length:', e.data ? e.data.length : 0);
+        }
+
         var pixels = e.data.split('|');
         clearTimeout(clearTimer);
 
@@ -2526,21 +2560,208 @@ if (!isset($standalone)) {
         }, 6000);
     }
 
+    // Track SSE connection state to prevent race conditions
+    var sseReconnectTimer = null;
+    var sseConnectionAttempt = 0;
+
     function startSSE() {
-        console.log('Starting SSE connection to api/http-virtual-display-3d/');
-        evtSource = new EventSource('api/http-virtual-display-3d/');
+        // Only allow SSE connection if scene is fully initialized
+        if (!window.sceneInitialized) {
+            console.log('Scene not initialized yet, deferring SSE connection');
+            return;
+        }
 
-        evtSource.onmessage = function (event) {
-            processEvent(event);
-        };
+        // Cancel any pending reconnection attempts
+        if (sseReconnectTimer) {
+            clearTimeout(sseReconnectTimer);
+            sseReconnectTimer = null;
+        }
 
-        evtSource.onerror = function (error) {
-            console.error('SSE connection error:', error);
-        };
+        // Close existing connection if any
+        if (evtSource) {
+            console.log('Closing existing SSE connection');
+            try {
+                evtSource.close();
+            } catch (e) {
+                console.log('Error closing SSE:', e);
+            }
+            evtSource = null;
+        }
 
-        evtSource.onopen = function () {
-            console.log('SSE connection opened successfully');
-        };
+        sseConnectionAttempt++;
+        var currentAttempt = sseConnectionAttempt;
+
+        // Add cache-busting parameter to prevent cached responses on hard refresh
+        var sseUrl = 'api/http-virtual-display-3d/?t=' + Date.now();
+        console.log('Starting SSE connection (attempt', currentAttempt, ') to', sseUrl);
+        updateSSEStatus('connecting');
+
+        try {
+            evtSource = new EventSource(sseUrl);
+
+            evtSource.onmessage = function (event) {
+                // Verify this is still the current connection
+                if (currentAttempt !== sseConnectionAttempt) {
+                    console.log('Ignoring message from stale connection');
+                    return;
+                }
+                // Verify scene is still ready before processing
+                if (window.pixelMesh && window.pixelColors) {
+                    processEvent(event);
+                } else {
+                    console.warn('Received SSE data but scene not ready, buffering...');
+                    if (!window.bufferedSSEEvents) {
+                        window.bufferedSSEEvents = [];
+                    }
+                    window.bufferedSSEEvents.push(event);
+                }
+            };
+
+            evtSource.onerror = function (error) {
+                // Verify this is still the current connection
+                if (currentAttempt !== sseConnectionAttempt) {
+                    console.log('Ignoring error from stale connection');
+                    return;
+                }
+
+                console.error('SSE connection error (attempt', currentAttempt, '):',
+                    'readyState:', evtSource ? evtSource.readyState : 'null');
+                updateSSEStatus('error');
+
+                // Only attempt reconnection if scene is still ready and no reconnect pending
+                if (window.sceneInitialized && !sseReconnectTimer) {
+                    sseReconnectTimer = setTimeout(function () {
+                        sseReconnectTimer = null;
+                        if (window.sceneInitialized) {
+                            console.log('Attempting SSE reconnection...');
+                            startSSE();
+                        }
+                    }, 2000);
+                }
+            };
+
+            evtSource.onopen = function () {
+                // Verify this is still the current connection
+                if (currentAttempt !== sseConnectionAttempt) {
+                    console.log('Ignoring open from stale connection');
+                    return;
+                }
+
+                console.log('SSE connection opened successfully (attempt', currentAttempt, '), state:', evtSource.readyState);
+                updateSSEStatus('connected');
+
+                // Process any buffered events
+                if (window.bufferedSSEEvents && window.bufferedSSEEvents.length > 0) {
+                    console.log('Processing', window.bufferedSSEEvents.length, 'buffered SSE events');
+                    window.bufferedSSEEvents.forEach(function (event) {
+                        processEvent(event);
+                    });
+                    window.bufferedSSEEvents = [];
+                }
+            };
+        } catch (error) {
+            console.error('Failed to create SSE connection:', error);
+            updateSSEStatus('error');
+            // Retry after a delay if scene is ready
+            if (window.sceneInitialized && !sseReconnectTimer) {
+                sseReconnectTimer = setTimeout(function () {
+                    sseReconnectTimer = null;
+                    if (window.sceneInitialized) {
+                        console.log('Retrying SSE connection after error...');
+                        startSSE();
+                    }
+                }, 2000);
+            }
+        }
+    }
+
+    // Watchdog timer to periodically check SSE connection health
+    setInterval(function () {
+        if (!window.sceneInitialized) return;
+
+        if (!evtSource) {
+            console.log('Watchdog: SSE connection is null, attempting to connect...');
+            startSSE();
+        } else if (evtSource.readyState === EventSource.CLOSED) {
+            console.log('Watchdog: SSE connection is closed, reconnecting...');
+            startSSE();
+        } else if (evtSource.readyState === EventSource.CONNECTING) {
+            // Still connecting, check how long we've been in this state
+            if (!window.sseConnectingStart) {
+                window.sseConnectingStart = Date.now();
+            } else if (Date.now() - window.sseConnectingStart > 5000) {
+                console.log('Watchdog: SSE connection stuck in CONNECTING state for 5s, forcing reconnect...');
+                window.sseConnectingStart = null;
+                try {
+                    evtSource.close();
+                } catch (e) { }
+                evtSource = null;
+                startSSE();
+            }
+        } else {
+            // Connected
+            window.sseConnectingStart = null;
+        }
+    }, 3000);
+
+    // Helper function to start SSE with immediate retry on failure
+    function startSSEWithRetry() {
+        startSSE();
+
+        // Check if connection opened within 2 seconds, retry if not
+        setTimeout(function () {
+            if (evtSource && evtSource.readyState === EventSource.CONNECTING) {
+                console.log('SSE still connecting after 2s, retrying...');
+                try { evtSource.close(); } catch (e) { }
+                evtSource = null;
+                startSSE();
+
+                // Second retry after another 2 seconds
+                setTimeout(function () {
+                    if (evtSource && evtSource.readyState === EventSource.CONNECTING) {
+                        console.log('SSE still connecting after 4s, second retry...');
+                        try { evtSource.close(); } catch (e) { }
+                        evtSource = null;
+                        startSSE();
+                    }
+                }, 2000);
+            }
+        }, 2000);
+    }
+
+    function updateSSEStatus(status) {
+        var indicator = document.getElementById('sseStatusIndicator');
+        if (!indicator) {
+            // Create status indicator if it doesn't exist
+            var container = document.getElementById('canvas-container');
+            if (container) {
+                indicator = document.createElement('div');
+                indicator.id = 'sseStatusIndicator';
+                indicator.style.cssText = 'position:absolute;top:5px;left:5px;padding:3px 8px;border-radius:3px;font-size:11px;z-index:1000;opacity:0.8;';
+                container.appendChild(indicator);
+            }
+        }
+        if (indicator) {
+            if (status === 'connected') {
+                indicator.style.backgroundColor = '#28a745';
+                indicator.style.color = '#fff';
+                indicator.textContent = 'SSE Connected';
+                // Hide after 3 seconds when connected
+                setTimeout(function () {
+                    indicator.style.opacity = '0.3';
+                }, 3000);
+            } else if (status === 'error') {
+                indicator.style.backgroundColor = '#dc3545';
+                indicator.style.color = '#fff';
+                indicator.textContent = 'SSE Error - Reconnecting...';
+                indicator.style.opacity = '0.9';
+            } else if (status === 'connecting') {
+                indicator.style.backgroundColor = '#ffc107';
+                indicator.style.color = '#000';
+                indicator.textContent = 'SSE Connecting...';
+                indicator.style.opacity = '0.9';
+            }
+        }
     }
 
     function stopSSE() {
@@ -2549,6 +2770,7 @@ if (!isset($standalone)) {
         }
         if (evtSource) {
             evtSource.close();
+            evtSource = null;
         }
     }
 
@@ -2863,9 +3085,17 @@ if (!isset($standalone)) {
     }
 
     function setupClient() {
+        // Prevent multiple initializations
+        if (window.setupClientCalled) {
+            console.log('setupClient already called, skipping');
+            return;
+        }
+        window.setupClientCalled = true;
+
         // Verify THREE.js is available
         if (typeof window.THREE === 'undefined') {
             console.error('THREE.js not loaded! Cannot initialize 3D view.');
+            window.setupClientCalled = false; // Allow retry
             return;
         }
 
@@ -2890,8 +3120,33 @@ if (!isset($standalone)) {
         try {
             init3D();
             initializeCameraControlUI();
-            startSSE();
-            console.log('3D view initialized, SSE started');
+
+            // Wait for scene to be fully initialized AND page load complete before starting SSE
+            // This prevents race condition where data arrives before mesh is ready
+            // and avoids browser connection limits during asset loading
+            console.log('Waiting for scene initialization...');
+            waitForSceneReady(function () {
+                console.log('Scene ready, waiting for page load to complete');
+
+                // Wait for window.onload if not yet fired, otherwise proceed
+                if (document.readyState === 'complete') {
+                    console.log('Page already fully loaded, starting SSE');
+                    startSSEWithRetry();
+                } else {
+                    window.addEventListener('load', function () {
+                        console.log('Page load complete, starting SSE');
+                        startSSEWithRetry();
+                    });
+                    // Fallback: if load doesn't fire within 3 seconds, start anyway
+                    setTimeout(function () {
+                        if (!evtSource) {
+                            console.log('Load event timeout, starting SSE anyway');
+                            startSSEWithRetry();
+                        }
+                    }, 3000);
+                }
+            });
+
         } catch (error) {
             console.error('Error initializing 3D view:', error);
         }
@@ -2900,6 +3155,23 @@ if (!isset($standalone)) {
         setTimeout(function () {
             applyURLParameters();
         }, 100);
+    }
+
+    function waitForSceneReady(callback) {
+        // Check if all critical components are initialized
+        if (window.pixelMesh &&
+            window.pixelColors &&
+            renderer &&
+            scene &&
+            camera) {
+            console.log('Scene fully initialized');
+            callback();
+        } else {
+            // Check again in 50ms
+            setTimeout(function () {
+                waitForSceneReady(callback);
+            }, 50);
+        }
     }
 
     function applyURLParameters() {
@@ -2970,19 +3242,49 @@ if (!isset($standalone)) {
 
     // Wait for DOM and THREE.js to be ready
     function initializeWhenReady() {
+        var initAttempts = 0;
+        var maxAttempts = 200; // 10 seconds max wait
+
         function waitForThree() {
+            initAttempts++;
+
             if (typeof window.THREE !== 'undefined' &&
                 typeof window.OBJLoader !== 'undefined' &&
                 typeof window.MTLLoader !== 'undefined' &&
                 typeof window.OrbitControls !== 'undefined') {
-                console.log('Three.js modules loaded, initializing 3D view');
+                console.log('Three.js modules loaded after', initAttempts, 'attempts, initializing 3D view');
                 setupClient();
-            } else {
-                console.log('Waiting for Three.js modules to load...');
+            } else if (initAttempts < maxAttempts) {
+                if (initAttempts === 1 || initAttempts % 20 === 0) {
+                    console.log('Waiting for Three.js modules to load... (attempt', initAttempts + ')');
+                }
                 setTimeout(waitForThree, 50);
+            } else {
+                console.error('Three.js modules failed to load after', maxAttempts, 'attempts');
+                // Show error to user
+                var container = document.getElementById('canvas-container');
+                if (container) {
+                    container.innerHTML = '<div style="color:red;padding:20px;text-align:center;">Error: Three.js failed to load. Please refresh the page.</div>';
+                }
             }
         }
-        waitForThree();
+
+        // Check if Three.js is already loaded
+        if (window.threeJsLoaded) {
+            console.log('Three.js already loaded, initializing immediately');
+            setupClient();
+        } else {
+            // Listen for the threejs-loaded event as backup
+            window.addEventListener('threejs-loaded', function () {
+                if (!window.sceneInitialized) {
+                    console.log('Received threejs-loaded event, initializing');
+                    setupClient();
+                }
+            }, { once: true });
+
+            // Also poll in case the event fires before we set up the listener
+            waitForThree();
+        }
     }
 
     // Use native DOMContentLoaded (works with or without jQuery)

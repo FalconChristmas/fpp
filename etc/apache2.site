@@ -50,8 +50,12 @@ ServerTokens Prod
     RewriteRule ^player(.*)$ http://localhost:32322/player$1 [P]
     RewriteRule ^gpio(.*)$ http://localhost:32322/gpio$1 [P]
     RewriteRule ^plugin-apis/(.*)$ http://localhost:32322/$1 [P]
-    RewriteRule ^http-virtual-display/(.*)$ http://localhost:32328/$1 [P]
-    RewriteRule ^http-virtual-display-3d/(.*)$ http://localhost:32329/$1 [P]
+    
+    # SSE endpoints - use dedicated proxy rules with immediate flushing
+    # Do NOT use RewriteRule [P] for SSE - it causes buffering issues
+    # These are handled by ProxyPass below
+    RewriteRule ^http-virtual-display/(.*)$ - [L]
+    RewriteRule ^http-virtual-display-3d/(.*)$ - [L]
 
     # Static and redirect rules
     RewriteRule ^index.php - [L,NC]
@@ -66,6 +70,14 @@ ServerTokens Prod
     Header always set Access-Control-Allow-Origin "*"
     Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
 </Directory>
+
+# SSE (Server-Sent Events) ProxyPass with flushpackets for immediate streaming
+# These MUST be outside Directory block and use ProxyPass instead of RewriteRule [P]
+ProxyPass /api/http-virtual-display-3d/ http://localhost:32329/ flushpackets=on
+ProxyPassReverse /api/http-virtual-display-3d/ http://localhost:32329/
+
+ProxyPass /api/http-virtual-display/ http://localhost:32328/ flushpackets=on
+ProxyPassReverse /api/http-virtual-display/ http://localhost:32328/
 
 <Directory "/opt/fpp/www/js/plugin">
     Options FollowSymLinks
