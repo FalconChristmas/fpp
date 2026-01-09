@@ -857,14 +857,27 @@
 
         PopulateHTMLRow(config) {
             var results = "";
-            results += "Update Interval (ms): <input class='updateInterval' type='number' min='1' max='1000' value='" + (config.updateInterval || 25) + "' size='4'/>";
-            results += " <span class='text-muted'>(Port 32329 - fixed)</span>";
+            results += "Update Interval (ms): <input class='updateInterval' type='number' min='10' max='100' value='" + (config.updateInterval || 25) + "' size='4'/>";
+            results += " <span class='text-muted'>(25ms = 40fps)</span>";
             return results;
         }
 
+        SetDefaults(row) {
+            super.SetDefaults(row);
+            // Hide channel count - it's auto-detected from virtualdisplaymap
+            row.find("td input.count").hide().after("<span class='text-muted'>Auto</span>");
+        }
+
+        RowAdded(row) {
+            super.RowAdded(row);
+            // Hide channel count - it's auto-detected from virtualdisplaymap
+            row.find("td input.count").hide().after("<span class='text-muted'>Auto</span>");
+        }
+
         GetOutputConfig(result, cell) {
+            result = super.GetOutputConfig(result, cell);
             result["port"] = 32329; // Fixed port
-            result["updateInterval"] = parseInt(cell.find("input.updateInterval").val());
+            result["updateInterval"] = parseInt(cell.find("input.updateInterval").val()) || 25;
             return result;
         }
     }

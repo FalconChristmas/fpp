@@ -1121,12 +1121,12 @@ if (!isset($standalone)) {
                 // Two fingers - pan or pinch-to-zoom
                 touchState.isTouching = true;
                 touchState.twoFingerMode = true;
-                
+
                 // Calculate initial distance for pinch-to-zoom
                 var dx = e.touches[0].clientX - e.touches[1].clientX;
                 var dy = e.touches[0].clientY - e.touches[1].clientY;
                 touchState.touchStartDistance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 // Store midpoint for panning
                 touchState.previousTouchPosition = {
                     x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
@@ -1480,165 +1480,536 @@ if (!isset($standalone)) {
         // Create Santa and Sleigh
         var santaGroup = new THREE.Group();
 
-        // Santa's body - more detailed
-        var bodyGeometry = new THREE.SphereGeometry(25, 32, 32);
-        bodyGeometry.scale(1, 1.2, 0.8); // Make it more oval
+        // Santa's body - layered for better shape
+        var bodyLowerGeometry = new THREE.SphereGeometry(22, 32, 32);
+        bodyLowerGeometry.scale(1, 0.8, 0.9);
         var bodyMaterial = new THREE.MeshPhongMaterial({
             color: 0xcc0000,
-            shininess: 10
+            shininess: 30
         });
-        var body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = 10;
-        santaGroup.add(body);
+        var bodyLower = new THREE.Mesh(bodyLowerGeometry, bodyMaterial);
+        bodyLower.position.y = 5;
+        santaGroup.add(bodyLower);
+
+        var bodyUpperGeometry = new THREE.SphereGeometry(20, 32, 32);
+        bodyUpperGeometry.scale(1, 0.9, 0.85);
+        var bodyUpper = new THREE.Mesh(bodyUpperGeometry, bodyMaterial);
+        bodyUpper.position.y = 22;
+        santaGroup.add(bodyUpper);
+
+        // White fur trim on coat
+        var furTrimGeometry = new THREE.TorusGeometry(20, 3, 8, 32);
+        var furMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 10 });
+        var furTrimBottom = new THREE.Mesh(furTrimGeometry, furMaterial);
+        furTrimBottom.rotation.x = Math.PI / 2;
+        furTrimBottom.position.y = -8;
+        santaGroup.add(furTrimBottom);
 
         // Santa's head
-        var headGeometry = new THREE.SphereGeometry(15, 32, 32);
+        var headGeometry = new THREE.SphereGeometry(14, 32, 32);
         var headMaterial = new THREE.MeshPhongMaterial({
             color: 0xffdbac,
             shininess: 30
         });
         var head = new THREE.Mesh(headGeometry, headMaterial);
-        head.position.y = 35;
+        head.position.y = 42;
         santaGroup.add(head);
 
-        // White beard
-        var beardGeometry = new THREE.SphereGeometry(12, 16, 16);
-        beardGeometry.scale(1, 0.8, 0.8);
-        var beardMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-        var beard = new THREE.Mesh(beardGeometry, beardMaterial);
-        beard.position.set(0, 30, 8);
-        santaGroup.add(beard);
+        // Rosy cheeks
+        var cheekGeometry = new THREE.SphereGeometry(3, 16, 16);
+        var cheekMaterial = new THREE.MeshPhongMaterial({ color: 0xffaaaa });
+        var leftCheek = new THREE.Mesh(cheekGeometry, cheekMaterial);
+        leftCheek.position.set(-8, 40, 10);
+        santaGroup.add(leftCheek);
+        var rightCheek = new THREE.Mesh(cheekGeometry, cheekMaterial);
+        rightCheek.position.set(8, 40, 10);
+        santaGroup.add(rightCheek);
 
-        // Santa's hat
-        var hatGeometry = new THREE.ConeGeometry(16, 35, 32);
+        // Eyes
+        var eyeGeometry = new THREE.SphereGeometry(2, 16, 16);
+        var eyeMaterial = new THREE.MeshPhongMaterial({ color: 0x222222 });
+        var leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        leftEye.position.set(-5, 45, 11);
+        santaGroup.add(leftEye);
+        var rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        rightEye.position.set(5, 45, 11);
+        santaGroup.add(rightEye);
+
+        // White eyebrows
+        var eyebrowGeometry = new THREE.BoxGeometry(5, 2, 2);
+        var leftEyebrow = new THREE.Mesh(eyebrowGeometry, furMaterial);
+        leftEyebrow.position.set(-5, 48, 11);
+        leftEyebrow.rotation.z = -0.2;
+        santaGroup.add(leftEyebrow);
+        var rightEyebrow = new THREE.Mesh(eyebrowGeometry, furMaterial);
+        rightEyebrow.position.set(5, 48, 11);
+        rightEyebrow.rotation.z = 0.2;
+        santaGroup.add(rightEyebrow);
+
+        // White mustache
+        var mustacheGeometry = new THREE.TorusGeometry(5, 2, 8, 16, Math.PI);
+        var mustache = new THREE.Mesh(mustacheGeometry, furMaterial);
+        mustache.position.set(0, 38, 12);
+        mustache.rotation.x = Math.PI;
+        santaGroup.add(mustache);
+
+        // White beard - layered for fullness
+        var beardMainGeometry = new THREE.SphereGeometry(14, 16, 16);
+        beardMainGeometry.scale(1, 1.3, 0.6);
+        var beardMain = new THREE.Mesh(beardMainGeometry, furMaterial);
+        beardMain.position.set(0, 28, 10);
+        santaGroup.add(beardMain);
+
+        var beardTipGeometry = new THREE.ConeGeometry(8, 12, 16);
+        var beardTip = new THREE.Mesh(beardTipGeometry, furMaterial);
+        beardTip.position.set(0, 18, 12);
+        beardTip.rotation.x = 0.3;
+        santaGroup.add(beardTip);
+
+        // Santa's hat - curved
+        var hatBaseGeometry = new THREE.CylinderGeometry(15, 16, 8, 32);
         var hatMaterial = new THREE.MeshPhongMaterial({ color: 0xcc0000 });
-        var hat = new THREE.Mesh(hatGeometry, hatMaterial);
-        hat.position.y = 55;
-        santaGroup.add(hat);
+        var hatBase = new THREE.Mesh(hatBaseGeometry, hatMaterial);
+        hatBase.position.y = 54;
+        santaGroup.add(hatBase);
+
+        var hatConeGeometry = new THREE.ConeGeometry(14, 30, 32);
+        var hatCone = new THREE.Mesh(hatConeGeometry, hatMaterial);
+        hatCone.position.y = 70;
+        hatCone.rotation.z = 0.2;  // Slight tilt
+        santaGroup.add(hatCone);
+
+        // White fur trim on hat
+        var hatFurGeometry = new THREE.TorusGeometry(15, 3, 8, 32);
+        var hatFur = new THREE.Mesh(hatFurGeometry, furMaterial);
+        hatFur.rotation.x = Math.PI / 2;
+        hatFur.position.y = 52;
+        santaGroup.add(hatFur);
 
         // Hat pom-pom
-        var pomGeometry = new THREE.SphereGeometry(8, 16, 16);
-        var pomMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-        var pom = new THREE.Mesh(pomGeometry, pomMaterial);
-        pom.position.y = 72;
+        var pomGeometry = new THREE.SphereGeometry(6, 16, 16);
+        var pom = new THREE.Mesh(pomGeometry, furMaterial);
+        pom.position.set(8, 85, 0);
         santaGroup.add(pom);
 
-        // White belt
-        var beltGeometry = new THREE.TorusGeometry(25, 3, 8, 32);
-        var beltMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        // Arms
+        var armGeometry = new THREE.CapsuleGeometry(5, 20, 8, 16);
+        var leftArm = new THREE.Mesh(armGeometry, bodyMaterial);
+        leftArm.position.set(-25, 20, 0);
+        leftArm.rotation.z = 0.8;
+        santaGroup.add(leftArm);
+        var rightArm = new THREE.Mesh(armGeometry, bodyMaterial);
+        rightArm.position.set(25, 20, 0);
+        rightArm.rotation.z = -0.8;
+        santaGroup.add(rightArm);
+
+        // Gloves (mittens)
+        var gloveGeometry = new THREE.SphereGeometry(5, 16, 16);
+        var gloveMaterial = new THREE.MeshPhongMaterial({ color: 0x111111 });
+        var leftGlove = new THREE.Mesh(gloveGeometry, gloveMaterial);
+        leftGlove.position.set(-35, 8, 0);
+        santaGroup.add(leftGlove);
+        var rightGlove = new THREE.Mesh(gloveGeometry, gloveMaterial);
+        rightGlove.position.set(35, 8, 0);
+        santaGroup.add(rightGlove);
+
+        // Black belt with gold buckle
+        var beltGeometry = new THREE.TorusGeometry(22, 2.5, 8, 32);
+        var beltMaterial = new THREE.MeshPhongMaterial({ color: 0x111111 });
         var belt = new THREE.Mesh(beltGeometry, beltMaterial);
         belt.rotation.x = Math.PI / 2;
-        belt.position.y = 10;
+        belt.position.y = 5;
         santaGroup.add(belt);
 
         // Gold buckle
-        var buckleGeometry = new THREE.BoxGeometry(8, 8, 4);
+        var buckleGeometry = new THREE.BoxGeometry(10, 10, 3);
         var buckleMaterial = new THREE.MeshPhongMaterial({
             color: 0xffd700,
             shininess: 100
         });
         var buckle = new THREE.Mesh(buckleGeometry, buckleMaterial);
-        buckle.position.set(0, 10, 26);
+        buckle.position.set(0, 5, 22);
         santaGroup.add(buckle);
+
+        // Buckle inner rectangle
+        var buckleInnerGeometry = new THREE.BoxGeometry(6, 6, 4);
+        var buckleInnerMaterial = new THREE.MeshPhongMaterial({ color: 0x111111 });
+        var buckleInner = new THREE.Mesh(buckleInnerGeometry, buckleInnerMaterial);
+        buckleInner.position.set(0, 5, 23);
+        santaGroup.add(buckleInner);
+
+        // Boots
+        var bootGeometry = new THREE.CapsuleGeometry(6, 10, 8, 16);
+        var bootMaterial = new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 50 });
+        var leftBoot = new THREE.Mesh(bootGeometry, bootMaterial);
+        leftBoot.position.set(-10, -15, 0);
+        santaGroup.add(leftBoot);
+        var rightBoot = new THREE.Mesh(bootGeometry, bootMaterial);
+        rightBoot.position.set(10, -15, 0);
+        santaGroup.add(rightBoot);
 
         // Sleigh
         var sleighGroup = new THREE.Group();
-
-        // Sleigh body - curved
-        var sleighBodyGeometry = new THREE.BoxGeometry(60, 20, 40);
-        var sleighBodyMaterial = new THREE.MeshPhongMaterial({
-            color: 0x8B4513,
-            shininess: 50
+        var sleighWoodMat = new THREE.MeshPhongMaterial({
+            color: 0xB22222, // Festive red
+            shininess: 60
         });
-        var sleighBody = new THREE.Mesh(sleighBodyGeometry, sleighBodyMaterial);
-        sleighBody.position.y = -15;
-        sleighGroup.add(sleighBody);
-
-        // Sleigh front curved part
-        var sleighFrontGeometry = new THREE.CylinderGeometry(20, 20, 40, 32, 1, false, 0, Math.PI);
-        var sleighFrontMaterial = new THREE.MeshPhongMaterial({
-            color: 0x8B4513,
-            side: THREE.DoubleSide
-        });
-        var sleighFront = new THREE.Mesh(sleighFrontGeometry, sleighFrontMaterial);
-        sleighFront.rotation.z = Math.PI / 2;
-        sleighFront.rotation.y = Math.PI / 2;
-        sleighFront.position.set(40, -5, 0);
-        sleighGroup.add(sleighFront);
-
-        // Sleigh runners (skis)
-        var runnerGeometry = new THREE.BoxGeometry(80, 3, 8);
-        var runnerMaterial = new THREE.MeshPhongMaterial({
-            color: 0xcccccc,
-            metalness: 0.8,
+        var goldTrimMat = new THREE.MeshPhongMaterial({
+            color: 0xffd700,
             shininess: 100
         });
+
+        // Sleigh base/floor
+        var sleighBaseGeometry = new THREE.BoxGeometry(70, 5, 45);
+        var sleighBase = new THREE.Mesh(sleighBaseGeometry, sleighWoodMat);
+        sleighBase.position.y = -20;
+        sleighGroup.add(sleighBase);
+
+        // Sleigh back panel
+        var sleighBackGeometry = new THREE.BoxGeometry(5, 35, 45);
+        var sleighBack = new THREE.Mesh(sleighBackGeometry, sleighWoodMat);
+        sleighBack.position.set(-32, -5, 0);
+        sleighGroup.add(sleighBack);
+
+        // Sleigh side panels (curved top)
+        var sideShape = new THREE.Shape();
+        sideShape.moveTo(0, 0);
+        sideShape.lineTo(65, 0);
+        sideShape.quadraticCurveTo(75, 15, 70, 30);
+        sideShape.lineTo(60, 25);
+        sideShape.lineTo(0, 20);
+        sideShape.lineTo(0, 0);
+
+        var extrudeSettings = { depth: 3, bevelEnabled: false };
+        var sideGeometry = new THREE.ExtrudeGeometry(sideShape, extrudeSettings);
+
+        var leftSide = new THREE.Mesh(sideGeometry, sleighWoodMat);
+        leftSide.position.set(-35, -20, -24);
+        sleighGroup.add(leftSide);
+
+        var rightSide = new THREE.Mesh(sideGeometry, sleighWoodMat);
+        rightSide.position.set(-35, -20, 21);
+        sleighGroup.add(rightSide);
+
+        // Sleigh front curved part (dashboard)
+        var sleighFrontGeometry = new THREE.CylinderGeometry(22, 22, 45, 32, 1, false, 0, Math.PI);
+        var sleighFront = new THREE.Mesh(sleighFrontGeometry, sleighWoodMat);
+        sleighFront.rotation.z = Math.PI / 2;
+        sleighFront.rotation.y = Math.PI / 2;
+        sleighFront.position.set(38, -5, 0);
+        sleighGroup.add(sleighFront);
+
+        // Gold trim on top edges
+        var trimTopGeo = new THREE.TorusGeometry(22, 1.5, 8, 32, Math.PI);
+        var trimTop = new THREE.Mesh(trimTopGeo, goldTrimMat);
+        trimTop.rotation.y = Math.PI / 2;
+        trimTop.rotation.x = Math.PI / 2;
+        trimTop.position.set(38, 8, 0);
+        sleighGroup.add(trimTop);
+
+        // Gold trim on back
+        var trimBackGeo = new THREE.BoxGeometry(3, 3, 48);
+        var trimBack = new THREE.Mesh(trimBackGeo, goldTrimMat);
+        trimBack.position.set(-32, 12, 0);
+        sleighGroup.add(trimBack);
+
+        // Decorative scrollwork on sides
+        var scrollGeo = new THREE.TorusGeometry(8, 1, 8, 16, Math.PI * 1.5);
+        var leftScroll = new THREE.Mesh(scrollGeo, goldTrimMat);
+        leftScroll.position.set(10, -5, -22);
+        leftScroll.rotation.y = Math.PI / 2;
+        sleighGroup.add(leftScroll);
+        var rightScroll = new THREE.Mesh(scrollGeo, goldTrimMat);
+        rightScroll.position.set(10, -5, 22);
+        rightScroll.rotation.y = -Math.PI / 2;
+        sleighGroup.add(rightScroll);
+
+        // Sleigh runners (elegant curved)
+        var runnerMaterial = new THREE.MeshPhongMaterial({
+            color: 0xc0c0c0,
+            shininess: 100
+        });
+
+        // Create curved runner shape
+        var runnerShape = new THREE.Shape();
+        runnerShape.moveTo(0, 0);
+        runnerShape.lineTo(70, 0);
+        runnerShape.quadraticCurveTo(85, 0, 90, 15);
+        runnerShape.quadraticCurveTo(92, 25, 85, 30);
+        runnerShape.lineTo(80, 28);
+        runnerShape.quadraticCurveTo(85, 20, 82, 12);
+        runnerShape.quadraticCurveTo(78, 5, 68, 5);
+        runnerShape.lineTo(0, 5);
+        runnerShape.lineTo(0, 0);
+
+        var runnerExtrudeSettings = { depth: 4, bevelEnabled: true, bevelThickness: 1, bevelSize: 0.5 };
+        var runnerGeometry = new THREE.ExtrudeGeometry(runnerShape, runnerExtrudeSettings);
+
         var runner1 = new THREE.Mesh(runnerGeometry, runnerMaterial);
-        runner1.position.set(0, -28, -15);
+        runner1.position.set(-45, -40, -20);
         sleighGroup.add(runner1);
 
         var runner2 = new THREE.Mesh(runnerGeometry, runnerMaterial);
-        runner2.position.set(0, -28, 15);
+        runner2.position.set(-45, -40, 16);
         sleighGroup.add(runner2);
 
-        // Gift bags in sleigh
-        var giftColors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
-        for (var i = 0; i < 4; i++) {
-            var giftGeo = new THREE.BoxGeometry(12, 12, 12);
+        // Runner supports
+        var supportGeo = new THREE.BoxGeometry(4, 15, 4);
+        var supportMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+        for (var s = 0; s < 3; s++) {
+            var leftSupport = new THREE.Mesh(supportGeo, supportMat);
+            leftSupport.position.set(-25 + s * 25, -30, -18);
+            sleighGroup.add(leftSupport);
+            var rightSupport = new THREE.Mesh(supportGeo, supportMat);
+            rightSupport.position.set(-25 + s * 25, -30, 18);
+            sleighGroup.add(rightSupport);
+        }
+
+        // Gift bags in sleigh - with ribbons
+        var giftColors = [0xff0000, 0x00aa00, 0x0066cc, 0xff6600, 0x9900cc];
+        for (var i = 0; i < 5; i++) {
+            var giftSize = 10 + Math.random() * 6;
+            var giftGeo = new THREE.BoxGeometry(giftSize, giftSize, giftSize);
             var giftMat = new THREE.MeshPhongMaterial({
                 color: giftColors[i],
                 shininess: 30
             });
             var gift = new THREE.Mesh(giftGeo, giftMat);
-            gift.position.set(-10 + (i * 8), -8, -5 + Math.random() * 10);
+            gift.position.set(-15 + (i * 10), -12 + giftSize / 2, -10 + Math.random() * 20);
             gift.rotation.y = Math.random() * 0.5;
             sleighGroup.add(gift);
+
+            // Gift ribbon (cross on top)
+            var ribbonMat = new THREE.MeshPhongMaterial({ color: 0xffd700 });
+            var ribbonGeo1 = new THREE.BoxGeometry(giftSize + 1, 2, 2);
+            var ribbon1 = new THREE.Mesh(ribbonGeo1, ribbonMat);
+            ribbon1.position.copy(gift.position);
+            ribbon1.position.y += giftSize / 2;
+            sleighGroup.add(ribbon1);
+            var ribbonGeo2 = new THREE.BoxGeometry(2, 2, giftSize + 1);
+            var ribbon2 = new THREE.Mesh(ribbonGeo2, ribbonMat);
+            ribbon2.position.copy(gift.position);
+            ribbon2.position.y += giftSize / 2;
+            sleighGroup.add(ribbon2);
+
+            // Bow on top
+            var bowGeo = new THREE.TorusGeometry(3, 1, 8, 16, Math.PI);
+            var bow1 = new THREE.Mesh(bowGeo, ribbonMat);
+            bow1.position.copy(gift.position);
+            bow1.position.y += giftSize / 2 + 2;
+            bow1.rotation.x = Math.PI / 2;
+            bow1.rotation.z = 0.5;
+            sleighGroup.add(bow1);
+            var bow2 = new THREE.Mesh(bowGeo, ribbonMat);
+            bow2.position.copy(gift.position);
+            bow2.position.y += giftSize / 2 + 2;
+            bow2.rotation.x = Math.PI / 2;
+            bow2.rotation.z = -0.5 + Math.PI;
+            sleighGroup.add(bow2);
         }
 
-        // Reindeer (lead reindeer)
-        var reindeerGroup = new THREE.Group();
+        // Harness/reins connecting to reindeer
+        var reinsMat = new THREE.MeshPhongMaterial({ color: 0x8B0000 });
+        var reinsGeo = new THREE.CylinderGeometry(0.5, 0.5, 60, 8);
+        var leftRein = new THREE.Mesh(reinsGeo, reinsMat);
+        leftRein.position.set(70, -5, -10);
+        leftRein.rotation.z = Math.PI / 2;
+        sleighGroup.add(leftRein);
+        var rightRein = new THREE.Mesh(reinsGeo, reinsMat);
+        rightRein.position.set(70, -5, 10);
+        rightRein.rotation.z = Math.PI / 2;
+        sleighGroup.add(rightRein);
 
-        // Reindeer body
-        var reindeerBodyGeo = new THREE.CylinderGeometry(8, 10, 30, 16);
-        var reindeerBodyMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+        // Reindeer (lead reindeer - Rudolph!)
+        var reindeerGroup = new THREE.Group();
+        var reindeerBodyMat = new THREE.MeshPhongMaterial({ color: 0x8B4513, shininess: 20 });
+
+        // Reindeer body - more natural shape
+        var reindeerBodyGeo = new THREE.CapsuleGeometry(10, 25, 16, 16);
         var reindeerBody = new THREE.Mesh(reindeerBodyGeo, reindeerBodyMat);
         reindeerBody.rotation.z = Math.PI / 2;
+        reindeerBody.position.y = 5;
         reindeerGroup.add(reindeerBody);
 
+        // Chest (front of body, slightly larger)
+        var chestGeo = new THREE.SphereGeometry(11, 16, 16);
+        chestGeo.scale(0.9, 1, 0.9);
+        var chest = new THREE.Mesh(chestGeo, reindeerBodyMat);
+        chest.position.set(12, 5, 0);
+        reindeerGroup.add(chest);
+
+        // Neck
+        var neckGeo = new THREE.CapsuleGeometry(5, 15, 8, 16);
+        var neck = new THREE.Mesh(neckGeo, reindeerBodyMat);
+        neck.position.set(18, 15, 0);
+        neck.rotation.z = -0.5;
+        reindeerGroup.add(neck);
+
         // Reindeer head
-        var reindeerHeadGeo = new THREE.ConeGeometry(6, 15, 16);
+        var reindeerHeadGeo = new THREE.SphereGeometry(8, 16, 16);
+        reindeerHeadGeo.scale(1.2, 1, 1);
         var reindeerHead = new THREE.Mesh(reindeerHeadGeo, reindeerBodyMat);
-        reindeerHead.rotation.z = Math.PI / 2;
-        reindeerHead.position.set(20, 0, 0);
+        reindeerHead.position.set(28, 22, 0);
         reindeerGroup.add(reindeerHead);
+
+        // Snout/muzzle
+        var snoutGeo = new THREE.CapsuleGeometry(4, 8, 8, 16);
+        var snout = new THREE.Mesh(snoutGeo, reindeerBodyMat);
+        snout.rotation.z = Math.PI / 2;
+        snout.position.set(38, 20, 0);
+        reindeerGroup.add(snout);
 
         // Red nose (Rudolph!)
         var noseGeo = new THREE.SphereGeometry(4, 16, 16);
         var noseMat = new THREE.MeshPhongMaterial({
             color: 0xff0000,
             emissive: 0xff0000,
-            emissiveIntensity: 0.5
+            emissiveIntensity: 0.8
         });
         var nose = new THREE.Mesh(noseGeo, noseMat);
-        nose.position.set(27, 0, 0);
+        nose.position.set(44, 20, 0);
         reindeerGroup.add(nose);
 
-        // Antlers
-        var antlerGeo = new THREE.CylinderGeometry(0.5, 1, 15, 8);
-        var antlerMat = new THREE.MeshPhongMaterial({ color: 0xD2691E });
+        // Eyes
+        var reindeerEyeGeo = new THREE.SphereGeometry(2, 16, 16);
+        var reindeerEyeMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+        var reindeerLeftEye = new THREE.Mesh(reindeerEyeGeo, reindeerEyeMat);
+        reindeerLeftEye.position.set(32, 25, -5);
+        reindeerGroup.add(reindeerLeftEye);
+        var reindeerRightEye = new THREE.Mesh(reindeerEyeGeo, reindeerEyeMat);
+        reindeerRightEye.position.set(32, 25, 5);
+        reindeerGroup.add(reindeerRightEye);
 
-        var antler1 = new THREE.Mesh(antlerGeo, antlerMat);
-        antler1.position.set(15, 10, -5);
-        antler1.rotation.z = -0.3;
-        reindeerGroup.add(antler1);
+        // Ears
+        var earGeo = new THREE.ConeGeometry(3, 8, 8);
+        var earMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+        var leftEar = new THREE.Mesh(earGeo, earMat);
+        leftEar.position.set(25, 30, -6);
+        leftEar.rotation.z = 0.3;
+        leftEar.rotation.x = -0.3;
+        reindeerGroup.add(leftEar);
+        var rightEar = new THREE.Mesh(earGeo, earMat);
+        rightEar.position.set(25, 30, 6);
+        rightEar.rotation.z = 0.3;
+        rightEar.rotation.x = 0.3;
+        reindeerGroup.add(rightEar);
 
-        var antler2 = new THREE.Mesh(antlerGeo, antlerMat);
-        antler2.position.set(15, 10, 5);
-        antler2.rotation.z = -0.3;
-        reindeerGroup.add(antler2);
+        // Inner ear (pink)
+        var innerEarGeo = new THREE.ConeGeometry(1.5, 5, 8);
+        var innerEarMat = new THREE.MeshPhongMaterial({ color: 0xffcccc });
+        var leftInnerEar = new THREE.Mesh(innerEarGeo, innerEarMat);
+        leftInnerEar.position.set(25, 29, -5);
+        leftInnerEar.rotation.z = 0.3;
+        leftInnerEar.rotation.x = -0.3;
+        reindeerGroup.add(leftInnerEar);
+        var rightInnerEar = new THREE.Mesh(innerEarGeo, innerEarMat);
+        rightInnerEar.position.set(25, 29, 5);
+        rightInnerEar.rotation.z = 0.3;
+        rightInnerEar.rotation.x = 0.3;
+        reindeerGroup.add(rightInnerEar);
+
+        // Antlers - more detailed branching
+        var antlerMat = new THREE.MeshPhongMaterial({ color: 0xD2691E, shininess: 30 });
+
+        // Left antler main beam
+        var leftAntlerMain = new THREE.CapsuleGeometry(1.5, 18, 8, 8);
+        var leftAntler1 = new THREE.Mesh(leftAntlerMain, antlerMat);
+        leftAntler1.position.set(22, 35, -6);
+        leftAntler1.rotation.z = -0.4;
+        leftAntler1.rotation.x = -0.2;
+        reindeerGroup.add(leftAntler1);
+
+        // Left antler branches
+        var branchGeo = new THREE.CapsuleGeometry(1, 8, 8, 8);
+        var leftBranch1 = new THREE.Mesh(branchGeo, antlerMat);
+        leftBranch1.position.set(20, 42, -8);
+        leftBranch1.rotation.z = -0.8;
+        reindeerGroup.add(leftBranch1);
+        var leftBranch2 = new THREE.Mesh(branchGeo, antlerMat);
+        leftBranch2.position.set(18, 48, -7);
+        leftBranch2.rotation.z = -1.2;
+        reindeerGroup.add(leftBranch2);
+
+        // Right antler main beam
+        var rightAntler1 = new THREE.Mesh(leftAntlerMain, antlerMat);
+        rightAntler1.position.set(22, 35, 6);
+        rightAntler1.rotation.z = -0.4;
+        rightAntler1.rotation.x = 0.2;
+        reindeerGroup.add(rightAntler1);
+
+        // Right antler branches
+        var rightBranch1 = new THREE.Mesh(branchGeo, antlerMat);
+        rightBranch1.position.set(20, 42, 8);
+        rightBranch1.rotation.z = -0.8;
+        reindeerGroup.add(rightBranch1);
+        var rightBranch2 = new THREE.Mesh(branchGeo, antlerMat);
+        rightBranch2.position.set(18, 48, 7);
+        rightBranch2.rotation.z = -1.2;
+        reindeerGroup.add(rightBranch2);
+
+        // Legs (4 legs)
+        var legGeo = new THREE.CapsuleGeometry(2.5, 18, 8, 8);
+        var hoofGeo = new THREE.CylinderGeometry(3, 2.5, 4, 8);
+        var hoofMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+
+        // Front left leg
+        var frontLeftLeg = new THREE.Mesh(legGeo, reindeerBodyMat);
+        frontLeftLeg.position.set(10, -12, -6);
+        reindeerGroup.add(frontLeftLeg);
+        var frontLeftHoof = new THREE.Mesh(hoofGeo, hoofMat);
+        frontLeftHoof.position.set(10, -24, -6);
+        reindeerGroup.add(frontLeftHoof);
+
+        // Front right leg
+        var frontRightLeg = new THREE.Mesh(legGeo, reindeerBodyMat);
+        frontRightLeg.position.set(10, -12, 6);
+        reindeerGroup.add(frontRightLeg);
+        var frontRightHoof = new THREE.Mesh(hoofGeo, hoofMat);
+        frontRightHoof.position.set(10, -24, 6);
+        reindeerGroup.add(frontRightHoof);
+
+        // Back left leg
+        var backLeftLeg = new THREE.Mesh(legGeo, reindeerBodyMat);
+        backLeftLeg.position.set(-12, -12, -6);
+        reindeerGroup.add(backLeftLeg);
+        var backLeftHoof = new THREE.Mesh(hoofGeo, hoofMat);
+        backLeftHoof.position.set(-12, -24, -6);
+        reindeerGroup.add(backLeftHoof);
+
+        // Back right leg
+        var backRightLeg = new THREE.Mesh(legGeo, reindeerBodyMat);
+        backRightLeg.position.set(-12, -12, 6);
+        reindeerGroup.add(backRightLeg);
+        var backRightHoof = new THREE.Mesh(hoofGeo, hoofMat);
+        backRightHoof.position.set(-12, -24, 6);
+        reindeerGroup.add(backRightHoof);
+
+        // Tail
+        var tailGeo = new THREE.SphereGeometry(4, 8, 8);
+        var tailMat = new THREE.MeshPhongMaterial({ color: 0xf5deb3 }); // Light tan
+        var tail = new THREE.Mesh(tailGeo, tailMat);
+        tail.position.set(-20, 5, 0);
+        reindeerGroup.add(tail);
+
+        // Collar with bells
+        var collarGeo = new THREE.TorusGeometry(6, 1.5, 8, 16);
+        var collarMat = new THREE.MeshPhongMaterial({ color: 0x006400 }); // Dark green
+        var collar = new THREE.Mesh(collarGeo, collarMat);
+        collar.position.set(18, 8, 0);
+        collar.rotation.y = Math.PI / 2;
+        reindeerGroup.add(collar);
+
+        // Bells on collar
+        var bellGeo = new THREE.SphereGeometry(2, 8, 8);
+        var bellMat = new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 100 });
+        for (var b = 0; b < 3; b++) {
+            var bell = new THREE.Mesh(bellGeo, bellMat);
+            bell.position.set(18, 3, -4 + b * 4);
+            reindeerGroup.add(bell);
+        }
 
         // Position reindeer in front of sleigh
-        reindeerGroup.position.set(80, -10, 0);
+        reindeerGroup.position.set(100, 0, 0);
 
         // Add Santa to sleigh
         santaGroup.position.set(-10, 15, 0);
@@ -1932,7 +2303,7 @@ if (!isset($standalone)) {
     // Handle fullscreen change events
     function handleFullscreenChange() {
         var exitButton = document.getElementById('exit-fullscreen-btn');
-        
+
         if (!document.fullscreenElement &&
             !document.webkitFullscreenElement &&
             !document.mozFullScreenElement) {

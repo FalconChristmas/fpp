@@ -58,7 +58,7 @@ You should see fppd listening on port 32329.
    - **Start Channel**: 1 (or your starting channel)
    - **Channel Count**: Total number of RGB channels (pixels × 3)
    - **Port**: 32329 (default)
-   - **Update Interval**: 1ms (default)
+   - **Update Interval**: 25ms (default = 40fps)
 5. Click "Set Channel Outputs"
 
 ### Manual Configuration (co-other.json)
@@ -71,7 +71,7 @@ If needed, you can manually edit `/home/fpp/media/config/co-other.json`:
     "startChannel": 1,
     "channelCount": 547683,
     "port": 32329,
-    "updateInterval": 1
+    "updateInterval": 25
 }
 ```
 

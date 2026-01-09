@@ -53,7 +53,7 @@ HTTPVirtualDisplay3DOutput::HTTPVirtualDisplay3DOutput(unsigned int startChannel
     VirtualDisplayBaseOutput(startChannel, channelCount),
     m_port(HTTPVIRTUALDISPLAY3DPORT),
     m_screenSize(0),
-    m_updateInterval(1),  // Default: send every frame for smooth playback
+    m_updateInterval(25),  // Default: 25ms (40fps) to match typical sequence frame rate
     m_socket(-1),
     m_running(true),
     m_connListChanged(true),
@@ -125,9 +125,10 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
     if (config.isMember("updateInterval"))
         m_updateInterval = config["updateInterval"].asInt();
     
-    // Clamp to reasonable values (1-10 frames)
-    if (m_updateInterval < 1) m_updateInterval = 1;
-    if (m_updateInterval > 10) m_updateInterval = 10;
+    // Clamp to reasonable values (10-100ms between updates)
+    // Typical: 25ms for 40fps, 16ms for 60fps, 50ms for 20fps
+    if (m_updateInterval < 10) m_updateInterval = 10;
+    if (m_updateInterval > 100) m_updateInterval = 100;
 
     // Enable duplicate pixels for 3D mode - we can have multiple physical lights at same coordinates
     m_allowDuplicatePixels = true;
