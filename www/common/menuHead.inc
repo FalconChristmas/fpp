@@ -118,6 +118,14 @@ if (isset($settings['backgroundColor']) && $settings['backgroundColor'] != "") {
     .header {
         background-color: #<? echo $settings['backgroundColor'] ?>;
     }
+    /* DarkOrange and Orange header colors make the upgrade icon hard to see - change the color to the text color*/
+    <?php if (in_array($settings['backgroundColor'], ['FF8C00', 'FFA500'], true)) { ?>
+    #navbarUpdateAvail a {
+        color: rgb(152, 152, 152);
+        font-size: 1.5em;
+    }
+   <?php } ?>
+
 </style>
 <?
 }
