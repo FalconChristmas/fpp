@@ -39,6 +39,11 @@ services:
     image: falconchristmas/fpp:latest
     restart: always
 
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 1024
+
     # If you have an issue starting the container on older versions of docker, you may need to bypass or update
     # seccomp.  Either set seccomp to unconfined or download/create a seccomp.json file with the defaultAction
     # set to SCMP_ACT_TRACE.  Uncomment the security_opt line and one of the seccomp lines below.  This issue
