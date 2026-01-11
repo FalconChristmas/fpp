@@ -2351,7 +2351,7 @@
                         "default": "0",
                         "type": "checkbox",
                         "platforms": [
-                                "!MacOS"
+                            "Raspberry Pi"
                         ]
                 },
 		"Service_rsync": {
