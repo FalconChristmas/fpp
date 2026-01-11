@@ -56,7 +56,7 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 
     if (pid == 0) // Event Script process
     {
-        CloseOpenFiles();
+        CloseOpenFiles(getSettingInt("daemonize"));
 
         char* args[128];
         char* token = strtok(userScript, " ");

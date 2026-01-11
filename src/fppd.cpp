@@ -842,7 +842,7 @@ int main(int argc, char* argv[]) {
     std::string logLevelString = FPPLogger::INSTANCE.GetLogLevelString();
 
     CloseCommand();
-    CloseOpenFiles();
+    CloseOpenFiles(getSettingInt("daemonize"));
 
     WarningHolder::ClearWarningsFile();
 

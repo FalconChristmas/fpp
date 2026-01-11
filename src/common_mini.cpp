@@ -313,10 +313,10 @@ std::string secondsToTime(int i) {
 /*
  * Close all open file descriptors (used after fork())
  */
-void CloseOpenFiles(void) {
+void CloseOpenFiles(int daemonMode) {
     int maxfd = sysconf(_SC_OPEN_MAX);
-
-    for (int fd = 3; fd < maxfd; fd++) {
+    // daemon mode closes stdin/stdout/stderr so start at 0
+    for (int fd = daemonMode ? 0 : 3; fd < maxfd; fd++) {
         if (fcntl(fd, F_GETFD) != -1) {
             bool doClose = false;
             struct stat statBuf;

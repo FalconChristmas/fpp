@@ -43,7 +43,7 @@ int GetCurrentDateInt(int daysOffset = 0);
 int CurrentDateInRange(int startDate, int endDate);
 int DateInRange(time_t when, int startDate, int endDate);
 int DateInRange(int currentDate, int startDate, int endDate);
-void CloseOpenFiles(void);
+void CloseOpenFiles(int daemonMode = 0);
 std::string secondsToTime(int i);
 
 std::string GetFileContents(const std::string& filename);
@@ -83,3 +83,4 @@ bool getRawSetting(const std::string& str, std::string& value);
 int getRawSettingInt(const std::string& str, int def);
 void setRawSetting(const std::string& str, const std::string& value);
 std::map<std::string, std::string> loadSettingsFile(const std::string& filename);
+
