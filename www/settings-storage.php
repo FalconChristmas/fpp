@@ -1,6 +1,24 @@
 <?
 $skipJSsettings = 1;
 require_once('common.php');
+
+if (isset($_GET['action']) && $_GET['action'] == 'mount_usb') {
+    $device = isset($_GET['device']) ? $_GET['device'] : '';
+    if ($device == '') {
+        echo 'No device specified';
+        exit;
+    }
+    shell_exec('sudo mkdir -p /mnt/usb');
+    $fsType = trim(shell_exec('blkid -o value -s TYPE /dev/' . $device)); // Detect filesystem
+    $mountCmd = 'sudo mount ';
+    if ($fsType == 'exfat') {
+        $mountCmd .= '-t exfat ';
+    }
+    $mountCmd .= '/dev/' . $device . ' /mnt/usb';
+    shell_exec($mountCmd);
+    echo 'Mounted successfully'; 
+    exit;
+}
 ?>
 
 <script type="text/javascript" src="jquery/jQuery.msgBox/scripts/jquery.msgBox.js"></script>
@@ -120,8 +138,28 @@ require_once('common.php');
 
     function unmountUSBDevice(usbDevice, mountLocation) {
         $.post("api/backups/devices/unmount/" + usbDevice + "/" + mountLocation).done(function (data) {
-            $('#unmount_' + usbDevice).remove();
+            if (data.Status == "OK") {
+                alert("Unmount successful");
+                $('#unmount_' + usbDevice).remove();
+                location.reload(); // Reload the page to reflect changes
+            } else {
+                alert("Unmount failed: " + (data.Message || "Unknown error"));
+            }
+        }).fail(function() {
+            alert("Unmount failed—check network or logs for errors.");
         });
+    }
+
+    function ManualMountUSB() {
+        var device = $('#usbDeviceToMount').val();
+        if (confirm("Create /mnt/usb if needed and mount the selected USB device (" + device + ") to it?")) {
+            $.get("settings-storage.php?action=mount_usb&device=" + device).done(function(data) {
+                alert(data || "Mount attempted—check lsblk to verify.");
+                location.reload();
+            }).fail(function() {
+                alert("Mount failed—check logs for errors.");
+            });
+        }
     }
 </script>
 
@@ -395,23 +433,67 @@ if ($settings['Platform'] != "Docker") { ?>
 ?>
 
 <div id="dialog-confirm" class="hidden">
-    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Growing the filesystem will
+    <p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>Growing the filesystem will
         require a reboot to take effect. Do you wish to proceed?</p>
 </div>
 <div id="dialog-confirm-emmc" class="hidden">
-    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the eMMC can take a
+    <p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>Flashing the eMMC can take a
         long time. Do you wish to proceed?</p>
 </div>
 <div id="dialog-confirm-usb" class="hidden">
-    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing to NVMe/USB/SD can
+    <p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>Flashing to NVMe/USB/SD can
         take a long time and will destroy all content on the target device. Do you wish to proceed?</p>
 </div>
 <div id="dialog-confirm-newpartition" class="hidden">
-    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating a new partition in
+    <p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>Creating a new partition in
         the unused space will require a reboot to take effect. Do you wish to proceed?</p>
 </div>
 
 <hr>
+<h3>Manual USB Mount Actions:</h3>
+
+<?php
+$unmountedDevices = GetAvailableBackupsDevices(true);
+$unmountedList = array();
+foreach ($unmountedDevices as $usbInfo) {
+    $usbName = trim($usbInfo['name']);
+    $deviceIsUsable = CheckIfDeviceIsUsable($usbName);
+    if ($deviceIsUsable == '') {
+        $unmountedList[] = $usbInfo;
+    }
+}
+
+if (!empty($unmountedList)) {
+?>
+    <div class="row">
+        <div class="col-auto">
+            <input style='width:20em;' type='button' class='buttons' value='Mount USB'
+                onClick='ManualMountUSB();'>
+            <select id="usbDeviceToMount">
+                <?php
+                foreach ($unmountedList as $usbInfo) {
+                    $usbName = trim($usbInfo['name']);
+                    $usbVendor = $usbInfo['vendor'];
+                    $usbModel = $usbInfo['model'];
+                    $usbSize = $usbInfo['size'] . " GB";
+                    $selected = (count($unmountedList) == 1) ? ' selected' : '';
+                    echo "<option value=\"$usbName\"$selected>$usbName - $usbVendor - $usbModel - $usbSize</option>";
+                }
+                ?>
+            </select>
+        </div>
+        <div class="col-auto">&nbsp;This will create /mnt/usb if needed and mount the detected USB device to it (for backups/file viewing without changing main storage).</div>
+    </div>
+<?php
+} else {
+?>
+    <div class="col-md-3">No Unmounted USB Detected.</div>
+<?php
+}
+?>
+
+<br><br>
+
 <h3>Mounted USB Device Actions:</h3>
 
 <?php
