@@ -230,9 +230,9 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                     const PinCapabilities& pin = PinCapabilities::getPinByName(action->pin);
 
                     action->gpiodPin = pin.ptr();
-                    std::string nameDesc = "FPPOLED";
-                    if (type != "gpiod") {
-                        nameDesc += "-" + type;
+                    std::string nameDesc = type;
+                    if (type == "gpiod") {
+                        nameDesc += "Interrupt";
                     }
 
                     pin.configPin(action->mode, false, nameDesc);
@@ -252,14 +252,10 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                             std::string pinName = label + "-" + std::to_string(gpioline);
                             auto& pinCap = PinCapabilities::getPinByName(pinName);
 
-                            if (pinCap.configPin()) {
-                                std::string nameDesc = "FPPOLED";
-                                if (!buttonaction.empty()) {
-                                    nameDesc += "-" + buttonaction;
-                                }
-                                pinCap.configPin("gpio", false, nameDesc);
+                            if (pinCap.ptr()) {
+                                pinCap.configPin("gpio", false, buttonaction);
 
-                                action->actions.push_back(new FPPOLEDUtils::InputAction::Action(type, actionValue, actionValue, 100000, pinCap.ptr()));
+                                action->actions.push_back(new FPPOLEDUtils::InputAction::Action(buttonaction, actionValue, actionValue, 100000, pinCap.ptr()));
                             }
                         }
                     } else if (action->file == -1) {
