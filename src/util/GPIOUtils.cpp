@@ -182,6 +182,16 @@ void GPIODCapabilities::releaseGPIOD() const {
     }
 #endif
 }
+int GPIODCapabilities::readEventFromFile() const {
+    int value = -1;
+#ifdef HASGPIOD
+    struct gpiod_line_event event;
+    gpiod_line_event_read_fd(line.event_get_fd(), &event);
+    value = event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
+#endif
+    return value;
+}
+
 int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const {
     int fd = -1;
 #ifdef HASGPIOD

@@ -155,7 +155,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::rend
             // Handle reading individual GPIO pin value: /gpio/{pin_name}
             std::string pinName = req.get_path_pieces()[1];
             Json::Value result;
-            
+
             // Check if we have a tracked value for this pin FIRST (from previous SET operations)
             // This avoids touching the pin hardware which could interfere with output pins
             auto it = GPIOManager::INSTANCE.fppCommandLastValue.find(pinName);
@@ -166,20 +166,20 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::rend
                 result["value"] = it->second ? 1 : 0;
                 result["Status"] = "OK";
                 result["respCode"] = 200;
-                
+
                 std::string resultStr = SaveJsonToString(result);
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
             }
-            
+
             // No tracked value - pin hasn't been set via API/commands yet
             // Return error rather than trying to read it which could interfere with output pins
             LogWarn(VB_HTTP, "GPIO GET: No cached value for pin %s - cannot read output pins safely\n", pinName.c_str());
-            
+
             result["pin"] = pinName;
             result["Status"] = "ERROR";
             result["respCode"] = 400;
             result["Message"] = "Pin has no cached value. For output pins, you must SET a value before you can GET it. For input pins, configure them via the GPIO Input configuration page.";
-            
+
             std::string resultStr = SaveJsonToString(result);
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 400, "application/json"));
         }
@@ -190,16 +190,16 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::rend
 HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::render_POST(const httpserver::http_request& req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
-    
+
     if (p1 == "gpio" && plen == 2) {
         // Handle setting individual GPIO pin value: POST /gpio/{pin_name}
         std::string pinName = req.get_path_pieces()[1];
         const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
-        
+
         if (pin.ptr()) {
             Json::Value data;
             Json::Value result;
-            
+
             // Parse POST data
             if (req.get_content() != "") {
                 if (!LoadJsonFromString(std::string(req.get_content()), data)) {
@@ -208,12 +208,12 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::rend
                     errorResult["Status"] = "ERROR";
                     errorResult["respCode"] = 400;
                     errorResult["Message"] = "Error parsing POST content";
-                    
+
                     std::string errorStr = SaveJsonToString(errorResult);
                     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(errorStr, 400, "application/json"));
                 }
             }
-            
+
             // Check for required 'value' field
             if (!data.isMember("value")) {
                 Json::Value errorResult;
@@ -221,29 +221,29 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::rend
                 errorResult["Status"] = "ERROR";
                 errorResult["respCode"] = 400;
                 errorResult["Message"] = "'value' field not specified. Use {\"value\": 0} or {\"value\": 1}";
-                
+
                 std::string errorStr = SaveJsonToString(errorResult);
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(errorStr, 400, "application/json"));
             }
-            
+
             try {
                 // Configure the pin for output
                 pin.configPin("gpio", true, "GPIO Output");
-                
+
                 // Set the value (convert to boolean)
                 bool value = data["value"].asBool() || (data["value"].isInt() && data["value"].asInt() != 0);
                 pin.setValue(value);
-                
+
                 // Update the last value tracking (for Opposite command functionality and GET requests)
                 GPIOManager::INSTANCE.fppCommandLastValue[pinName] = value;
                 LogDebug(VB_HTTP, "GPIO POST: Set pin %s to %d, cached value\n", pinName.c_str(), value ? 1 : 0);
-                
+
                 result["pin"] = pinName;
                 result["value"] = value ? 1 : 0;
                 result["Status"] = "OK";
                 result["respCode"] = 200;
                 result["Message"] = "GPIO pin value set successfully";
-                
+
                 std::string resultStr = SaveJsonToString(result);
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
             } catch (const std::exception& e) {
@@ -252,7 +252,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::rend
                 errorResult["Status"] = "ERROR";
                 errorResult["respCode"] = 500;
                 errorResult["Message"] = std::string("Error setting GPIO pin: ") + e.what();
-                
+
                 std::string errorStr = SaveJsonToString(errorResult);
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(errorStr, 500, "application/json"));
             }
@@ -262,12 +262,12 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> GPIOManager::rend
             errorResult["Status"] = "ERROR";
             errorResult["respCode"] = 404;
             errorResult["Message"] = "GPIO pin not found: " + pinName;
-            
+
             std::string errorStr = SaveJsonToString(errorResult);
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(errorStr, 404, "application/json"));
         }
     }
-    
+
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
 
@@ -325,13 +325,9 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
 }
 
 void GPIOManager::addGPIOCallback(GPIOState* a) {
-#ifdef HAS_GPIOD
     std::function<bool(int)> f = [a, this](int i) {
-        struct gpiod_line_event event;
-        int rc = gpiod_line_event_read_fd(i, &event);
-
-        int v = event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
-        if (v != a->lastValue) {
+        int v = a->pin->readEventFromFile();
+        if (v >= 0 && v != a->lastValue) {
             long long lastAllowedTime = GetTime() - a->debounceTime; // usec's ago
             if (a->lastTriggerTime < lastAllowedTime) {
                 a->doAction(v);
@@ -346,7 +342,6 @@ void GPIOManager::addGPIOCallback(GPIOState* a) {
         return false;
     };
     EPollManager::INSTANCE.addFileDescriptor(a->file, f);
-#endif
 }
 
 void GPIOManager::AddGPIOCallback(const PinCapabilities* pin, const std::function<bool(int)>& cb) {
@@ -402,7 +397,7 @@ void GPIOManager::addState(GPIOState* state) {
 
 void GPIOManager::GPIOState::doAction(int v) {
     LogDebug(VB_GPIO, "GPIO %s triggered.  Value:  %d\n", pin->name.c_str(), v);
-    
+
     // Publish GPIO edge events to MQTT
     if (v == 1) {
         std::string risingTopic = "gpio/" + pin->name + "/rising";
@@ -411,7 +406,7 @@ void GPIOManager::GPIOState::doAction(int v) {
         std::string fallingTopic = "gpio/" + pin->name + "/falling";
         Events::Publish(fallingTopic, 0);
     }
-    
+
     if (hasCallback) {
         callback(v);
     } else {

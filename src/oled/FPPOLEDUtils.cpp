@@ -33,8 +33,7 @@ static std::string controlPin;
 extern I2C_DeviceT I2C_DEV_2;
 
 FPPOLEDUtils::FPPOLEDUtils(int ledType) :
-    _ledType(ledType),
-    gpiodChips(10) {
+    _ledType(ledType) {
     int smfd = shm_open("fppoled", O_CREAT | O_RDWR, 0);
     ftruncate(smfd, 1024);
     currentStatus = (DisplayStatus*)mmap(0, 1024, PROT_WRITE | PROT_READ, MAP_SHARED, smfd, 0);
@@ -43,10 +42,6 @@ FPPOLEDUtils::FPPOLEDUtils(int ledType) :
     currentStatus->i2cBus = i2cb;
     currentStatus->displayOn = true;
     currentStatus->forceOff = false;
-
-    for (auto& a : gpiodChips) {
-        a = nullptr;
-    }
     statusPage = nullptr;
 }
 FPPOLEDUtils::~FPPOLEDUtils() {
@@ -58,11 +53,6 @@ void FPPOLEDUtils::cleanup() {
         delete a;
     }
     actions.clear();
-    for (auto a : gpiodChips) {
-        if (a) {
-            gpiod_chip_close(a);
-        }
-    }
 }
 
 static const std::string EMPTY_STRING = "";
@@ -72,31 +62,7 @@ FPPOLEDUtils::InputAction::~InputAction() {
         delete a;
     }
     actions.clear();
-
-    if (gpiodLine) {
-        gpiod_line_release(gpiodLine);
-    }
 }
-
-class GPIODExtenderAction : public FPPOLEDUtils::InputAction::Action {
-public:
-    GPIODExtenderAction(const std::string& a, int min, int max, long long mai, struct gpiod_line* line) :
-        FPPOLEDUtils::InputAction::Action(a, min, max, mai),
-        gpiodLine(line) {}
-    virtual ~GPIODExtenderAction() {
-        if (gpiodLine) {
-            printf("Release %s\n", action.c_str());
-            gpiod_line_release(gpiodLine);
-        }
-    }
-
-    virtual bool checkAction(int i, long long ntimeus) override {
-        int v = gpiod_line_get_value(gpiodLine);
-        return FPPOLEDUtils::InputAction::Action::checkAction(v, ntimeus);
-    }
-
-    struct gpiod_line* gpiodLine = nullptr;
-};
 
 bool FPPOLEDUtils::InputAction::Action::checkAction(int i, long long ntimeus) {
     if (i <= actionValueMax && i >= actionValueMin && (ntimeus > nextActionTime)) {
@@ -138,45 +104,27 @@ FPPOLEDUtils::InputAction* FPPOLEDUtils::configureGPIOPin(const std::string& pin
                                                           const std::string& edge,
                                                           const std::string& name) {
     const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
-    pin.configPin(mode, false);
-    pin.releaseGPIOD();
 
-    InputAction* action = new InputAction();
-    action->pin = pinName;
-    action->mode = mode;
-
-    action->gpiodLine = nullptr;
-    if (!gpiodChips[pin.gpioIdx]) {
-        gpiodChips[pin.gpioIdx] = gpiod_chip_open_by_number(pin.gpioIdx);
-    }
-    action->gpiodLine = gpiod_chip_get_line(gpiodChips[pin.gpioIdx], pin.gpio);
-    struct gpiod_line_request_config lineConfig;
     std::string nameDesc = "FPPOLED";
     if (!name.empty()) {
         nameDesc += "-" + name;
     }
-    lineConfig.consumer = nameDesc.c_str();
 
-    lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
-    lineConfig.flags = 0;
-    if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
-        printf("Could not config line as input.  Line %d    Offset: %d   Value:%d\n", action->gpiodLine, gpiod_line_offset(action->gpiodLine), pin.getValue());
-    }
-    gpiod_line_release(action->gpiodLine);
+    pin.configPin(mode, false, nameDesc);
+
+    InputAction* action = new InputAction();
+    action->pin = pinName;
+    action->mode = mode;
+    action->gpiodPin = pin.ptr();
+
+    bool rising = true;
+    bool falling = true;
     if (edge == "falling") {
-        lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE;
+        rising = false;
     } else if (edge == "rising") {
-        lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
-    } else {
-        lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
+        falling = false;
     }
-    lineConfig.flags = 0;
-    if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
-        printf("Could not config line edge for line %d\n", action->gpiodLine);
-    }
-    action->file = gpiod_line_event_get_fd(action->gpiodLine);
-    action->gpioChipIdx = pin.gpioIdx;
-    action->gpioChipLine = pin.gpio;
+    action->file = pin.requestEventFile(rising, falling);
     return action;
 }
 void FPPOLEDUtils::setInputFlag(const std::string& action) {
@@ -275,90 +223,48 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                 }
                 action->pin = pin;
                 action->mode = root["inputs"][x]["mode"].asString();
-                action->gpiodLine = nullptr;
                 if (action->mode.find("gpio") != std::string::npos) {
                     std::string edge = root["inputs"][x]["edge"].asString();
                     std::string type = root["inputs"][x]["type"].asString();
                     int actionValue = (edge == "falling" ? 0 : 1);
                     const PinCapabilities& pin = PinCapabilities::getPinByName(action->pin);
 
-                    pin.configPin(action->mode, false);
-                    pin.releaseGPIOD();
-                    if (!gpiodChips[pin.gpioIdx]) {
-                        gpiodChips[pin.gpioIdx] = gpiod_chip_open_by_number(pin.gpioIdx);
-                    }
-                    action->gpiodLine = gpiod_chip_get_line(gpiodChips[pin.gpioIdx], pin.gpio);
-
-                    struct gpiod_line_request_config lineConfig;
+                    action->gpiodPin = pin.ptr();
                     std::string nameDesc = "FPPOLED";
                     if (type != "gpiod") {
                         nameDesc += "-" + type;
                     }
-                    lineConfig.consumer = nameDesc.c_str();
-                    lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
-                    lineConfig.flags = 0;
-                    if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
-                        printf("Could not config line as input.  idx: %d    pin: %d\n", pin.gpioIdx, pin.gpio);
-                    }
-                    gpiod_line_release(action->gpiodLine);
-                    if (edge == "falling") {
-                        lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE;
-                    } else {
-                        lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
-                    }
-                    lineConfig.flags = 0;
-                    bool edgeOK = true;
-                    if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
-                        printf("Could not config line edge, switch to polling\n");
-                        edgeOK = false;
-                        lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
-                        if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
-                            printf("Could not config line as input\n");
-                        }
-                    }
-                    action->file = gpiod_line_event_get_fd(action->gpiodLine);
+
+                    pin.configPin(action->mode, false, nameDesc);
+                    action->file = pin.requestEventFile(edge != "falling", edge == "falling");
 
                     if (type == "gpiod") {
                         // this is the mode for various gpio extenders like the pca9675 chip that
-                        // use a single interrupt line (configured above) fall all the buttons.
-                        // The above will trigger an interupt after which we will need to
+                        // use a single interrupt line (configured above) for all the buttons.
+                        // The above will trigger an interrupt after which we will need to
                         // use libgpiod to get the value of each button to figure out
                         // which triggered the action.  Thus, there are multiple actions
 
                         std::string label = root["inputs"][x]["chip"].asString();
-                        gpiod_chip* chip = getChip(label);
-                        if (chip) {
-                            int lines = gpiod_chip_num_lines(chip);
-                            for (int a = 0; a < root["inputs"][x]["actions"].size(); a++) {
-                                std::string buttonaction = root["inputs"][x]["actions"][a]["action"].asString();
-                                int gpioline = root["inputs"][x]["actions"][a]["line"].asInt();
-                                if (gpioline < lines) {
-                                    gpiod_line* l = gpiod_chip_get_line(chip, gpioline);
-                                    struct gpiod_line_request_config lineConfig;
-                                    std::string nameDesc = "FPPOLED";
-                                    if (!buttonaction.empty()) {
-                                        nameDesc += "-" + buttonaction;
-                                    }
-                                    lineConfig.consumer = nameDesc.c_str();
-                                    lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
-                                    lineConfig.flags = 0;
-                                    if (gpiod_line_request(l, &lineConfig, 0) == -1) {
-                                        printf("Could not config line as input\n");
-                                    }
+                        for (int a = 0; a < root["inputs"][x]["actions"].size(); a++) {
+                            std::string buttonaction = root["inputs"][x]["actions"][a]["action"].asString();
+                            int gpioline = root["inputs"][x]["actions"][a]["line"].asInt();
+                            std::string pinName = label + "-" + std::to_string(gpioline);
+                            auto& pinCap = PinCapabilities::getPinByName(pinName);
 
-                                    printf("Configuring pin %s as input of type %s   (chip: %s, gpio: %d)\n", action->pin.c_str(), buttonaction.c_str(), label.c_str(), gpioline);
-                                    int v = gpiod_line_get_value(l);
-                                    setInputFlag(buttonaction);
-                                    action->actions.push_back(new GPIODExtenderAction(buttonaction, 0, 0, 100000, l));
+                            if (pinCap.configPin()) {
+                                std::string nameDesc = "FPPOLED";
+                                if (!buttonaction.empty()) {
+                                    nameDesc += "-" + buttonaction;
                                 }
+                                pinCap.configPin("gpio", false, nameDesc);
+
+                                action->actions.push_back(new FPPOLEDUtils::InputAction::Action(type, actionValue, actionValue, 100000, pinCap.ptr()));
                             }
-                        } else {
-                            printf("Could not find gpio chip for %s\n", label.c_str());
                         }
-                    } else if (!edgeOK || action->file == -1) {
-                        printf("Configuring pin %s as input of type %s   (mode: %s)\n", action->pin.c_str(), type.c_str(), action->mode.c_str());
-                        action->actions.push_back(new GPIODExtenderAction(type, actionValue, actionValue, 100000, action->gpiodLine));
+                    } else if (action->file == -1) {
                         needsPolling = true;
+                        action->actions.push_back(new FPPOLEDUtils::InputAction::Action(type, actionValue, actionValue, 100000, pin.ptr()));
                     } else {
                         printf("Configuring pin %s as input of type %s   (mode: %s)\n", action->pin.c_str(), type.c_str(), action->mode.c_str());
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(type, actionValue, actionValue, 100000));
@@ -388,22 +294,6 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
     }
     fflush(stdout);
     return needsPolling;
-}
-
-gpiod_chip* FPPOLEDUtils::getChip(const std::string& n) {
-    for (auto& a : gpiodChips) {
-        if (a) {
-            if (n == gpiod_chip_label(a) || n == gpiod_chip_name(a)) {
-                return a;
-            }
-        }
-    }
-    // did not find
-    gpiod_chip* chip = gpiod_chip_open_lookup(n.c_str());
-    if (chip) {
-        gpiodChips.push_back(chip);
-    }
-    return chip;
 }
 
 void FPPOLEDUtils::run() {
@@ -497,11 +387,8 @@ void FPPOLEDUtils::run() {
                 } else if (actions[x]->file == -1) {
                     action = actions[x]->checkAction(0, ntime);
                 } else if (fdset[actions[x]->pollIndex].revents) {
-                    struct gpiod_line_event event;
-                    if (gpiod_line_event_read_fd(fdset[actions[x]->pollIndex].fd, &event) >= 0) {
-                        int v = gpiod_line_get_value(actions[x]->gpiodLine);
-                        action = actions[x]->checkAction(v, ntime);
-                    }
+                    int v = actions[x]->gpiodPin->readEventFromFile();
+                    action = actions[x]->checkAction(v, ntime);
                 }
                 if (action != "" && !currentStatus->displayOn) {
                     // just turn the display on if button is hit

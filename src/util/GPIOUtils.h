@@ -81,6 +81,9 @@ public:
     virtual int requestEventFile(bool risingEdge, bool fallingEdge) const {
         return -1;
     }
+    virtual int readEventFromFile() const {
+        return -1;
+    }
 
     static const PinCapabilities& getPinByName(const std::string& n);
     static const PinCapabilities& getPinByUART(const std::string& n);
@@ -150,6 +153,7 @@ public:
     virtual void releaseGPIOD() const override;
 
     virtual int requestEventFile(bool risingEdge, bool fallingEdge) const override;
+    virtual int readEventFromFile() const;
 
     std::string gpioName;
 #ifdef HASGPIOD
