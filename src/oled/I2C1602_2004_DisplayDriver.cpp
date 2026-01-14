@@ -7,6 +7,17 @@
 #include "DisplayDriver.h"
 #include "util/GPIOUtils.h"
 
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
+#include "util/BBBUtils.h"
+#define PLAT_GPIO_CLASS BBBPinProvider
+#elif defined(PLATFORM_PI)
+#include "util/PiGPIOUtils.h"
+#define PLAT_GPIO_CLASS PiGPIOPinProvider
+#else
+#include "util/TmpFileGPIO.h"
+#define PLAT_GPIO_CLASS TmpFilePinProvider
+#endif
+
 static constexpr int LED_TYPE_0x20_1602 = 11;
 static constexpr int LED_TYPE_0x3f_1602 = 12;
 static constexpr int LED_TYPE_0x3f_2004 = 13;
@@ -116,15 +127,21 @@ static constexpr int LCD_CURSORMOVE = 0x00;
 static constexpr int LCD_MOVERIGHT = 0x04;
 static constexpr int LCD_MOVELEFT = 0x00;
 
-static gpiod::chip CHIP;
-static gpiod::line_bulk BACKLIGHT;
-static gpiod::line_bulk LINES;
+static std::vector<const PinCapabilities*> LINES;
+static std::vector<const PinCapabilities*> BACKLIGHT;
+
 static std::vector<int> VALUES = { 0, 0, 0, 0, 0, 0, 0 };
 static std::vector<int> BACKLIGHTVALUES;
 static int BACKLIGHTONVALUE = 1;
 static int displayshift = 0;
 static int displaymode = 0;
 static int displaycontrol = 0;
+
+inline void setValues(std::vector<const PinCapabilities*>& p, std::vector<int>& v) {
+    for (size_t i = 0; i < p.size(); i++) {
+        p[i]->setValue(v[i]);
+    }
+}
 
 bool I2C1602_2004_DisplayDriver::initialize(int& i2cBus) {
     std::vector<unsigned int> lineOffsets = lineOffsets0x3f;
@@ -156,22 +173,26 @@ bool I2C1602_2004_DisplayDriver::initialize(int& i2cBus) {
     close(f);
     sleep(1);
 
-    CHIP.open(deviceType);
-    LINES = CHIP.get_lines(lineOffsets);
-    LINES.request({ "FPPOLED",
-                    ::gpiod::line_request::DIRECTION_OUTPUT,
-                    0 },
-                  VALUES);
+    PinCapabilities::InitGPIO("FPPOLED", new PLAT_GPIO_CLASS());
 
-    BACKLIGHTVALUES.resize(blOffset.size());
-    for (auto& a : BACKLIGHTVALUES) {
-        a = BACKLIGHTONVALUE ? 0 : 1;
+    for (auto a : lineOffsets) {
+        std::string pn = deviceType + "-" + std::to_string(a);
+        const PinCapabilities& p = PinCapabilities::getPinByName(pn);
+        if (p.ptr()) {
+            LINES.push_back(p.ptr());
+            p.configPin("gpio", true, "FPPOLED - LCD Data");
+            p.setValue(0);
+        }
     }
-    BACKLIGHT = CHIP.get_lines(blOffset);
-    BACKLIGHT.request({ "FPPOLED",
-                        ::gpiod::line_request::DIRECTION_OUTPUT,
-                        0 },
-                      BACKLIGHTVALUES);
+    for (auto& a : blOffset) {
+        std::string pn = deviceType + "-" + std::to_string(a);
+        const PinCapabilities& p = PinCapabilities::getPinByName(pn);
+        if (p.ptr()) {
+            p.configPin("gpio", true, "FPPOLED - LCD Backlight");
+            p.setValue(BACKLIGHTONVALUE ? 0 : 1);
+            BACKLIGHT.push_back(p.ptr());
+        }
+    }
 
     displayshift = (LCD_CURSORMOVE | LCD_MOVERIGHT);
     displaymode = (LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT);
@@ -187,11 +208,11 @@ bool I2C1602_2004_DisplayDriver::initialize(int& i2cBus) {
 
     command(LCD_ENTRYMODESET | displaymode);
 
-    for (auto& a : BACKLIGHTVALUES) {
-        a = BACKLIGHTONVALUE;
+    for (int x = 0; x < BACKLIGHT.size(); x++) {
+        BACKLIGHTVALUES.push_back(BACKLIGHTONVALUE ? 1 : 0);
     }
-    BACKLIGHT.set_values(BACKLIGHTVALUES);
-    LINES.set_values(VALUES);
+    setValues(BACKLIGHT, BACKLIGHTVALUES);
+    setValues(LINES, VALUES);
     return true;
 }
 
@@ -236,10 +257,10 @@ void I2C1602_2004_DisplayDriver::write4Bits(uint8_t bits, bool cmd) {
     VALUES[D6_PIN] = (bits & 0x4) ? 1 : 0;
     VALUES[D7_PIN] = (bits & 0x8) ? 1 : 0;
     VALUES[E_PIN] = 1;
-    LINES.set_values(VALUES);
+    setValues(LINES, VALUES);
     std::this_thread::sleep_for(std::chrono::microseconds(50)); // need > 37us to settle
     VALUES[E_PIN] = 0;
-    LINES.set_values(VALUES);
+    setValues(LINES, VALUES);
     std::this_thread::sleep_for(std::chrono::nanoseconds(500)); // enable pulse must be >450ns
     // putchar('\n');
 }
@@ -293,7 +314,7 @@ void I2C1602_2004_DisplayDriver::clearDisplay() {
         for (auto& a : BACKLIGHTVALUES) {
             a = BACKLIGHTONVALUE;
         }
-        BACKLIGHT.set_values(BACKLIGHTVALUES);
+        setValues(BACKLIGHT, BACKLIGHTVALUES);
         displaycontrol |= LCD_DISPLAYON;
         command(LCD_DISPLAYCONTROL | displaycontrol);
     }
@@ -303,7 +324,7 @@ void I2C1602_2004_DisplayDriver::displayOff() {
         for (auto& a : BACKLIGHTVALUES) {
             a = BACKLIGHTONVALUE ? 0 : 1;
         }
-        BACKLIGHT.set_values(BACKLIGHTVALUES);
+        setValues(BACKLIGHT, BACKLIGHTVALUES);
         displaycontrol &= ~LCD_DISPLAYON;
         command(LCD_DISPLAYCONTROL | displaycontrol);
     }

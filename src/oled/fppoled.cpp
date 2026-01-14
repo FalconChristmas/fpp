@@ -86,7 +86,10 @@ int main(int argc, char* argv[]) {
     }
 
     // wait until after cape detection so gpio expanders are registered and available
-    PinCapabilities::InitGPIO("FPPOLED", new PLAT_GPIO_CLASS());
+    if (lt < 10 || lt > 15) {
+        // The i2c1602 displays will already initialize GPIO internally
+        PinCapabilities::InitGPIO("FPPOLED", new PLAT_GPIO_CLASS());
+    }
     LoadSettings(argv[0]);
     int ledType = getRawSettingInt("LEDDisplayType", 99);
     printf("    Led Type: %d\n", ledType);
