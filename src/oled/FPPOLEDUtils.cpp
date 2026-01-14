@@ -65,6 +65,9 @@ FPPOLEDUtils::InputAction::~InputAction() {
 }
 
 bool FPPOLEDUtils::InputAction::Action::checkAction(int i, long long ntimeus) {
+    if (gpiodPin) {
+        i = gpiodPin->getValue();
+    }
     if (i <= actionValueMax && i >= actionValueMin && (ntimeus > nextActionTime)) {
         // at least 10ms since last action.  Should cover any debounce time
         nextActionTime = ntimeus + minActionInterval;
@@ -232,7 +235,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                     action->gpiodPin = pin.ptr();
                     std::string nameDesc = type;
                     if (type == "gpiod") {
-                        nameDesc += "Interrupt";
+                        nameDesc = "Interrupt";
                     }
 
                     pin.configPin(action->mode, false, nameDesc);
@@ -255,7 +258,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                             if (pinCap.ptr()) {
                                 pinCap.configPin("gpio", false, buttonaction);
 
-                                action->actions.push_back(new FPPOLEDUtils::InputAction::Action(buttonaction, actionValue, actionValue, 100000, pinCap.ptr()));
+                                action->actions.push_back(new FPPOLEDUtils::InputAction::Action(buttonaction, 0, 0, 100000, pinCap.ptr()));
                             }
                         }
                     } else if (action->file == -1) {
