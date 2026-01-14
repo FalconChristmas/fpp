@@ -581,9 +581,10 @@ static void setupNetwork(bool fullReload = false) {
     if (FileExists("/etc/hostapd/hostapd.conf")) {
         filesToConsider.emplace_back("/etc/hostapd/hostapd.conf");
     }
-    for (const auto& entry : std::filesystem::directory_iterator(FPP_MEDIA_DIR + "/config")) {
-        std::string dev = entry.path().filename();
-        if (startsWith(dev, "interface.")) {
+    if (std::filesystem::exists(FPP_MEDIA_DIR + "/config")) {
+        for (const auto& entry : std::filesystem::directory_iterator(FPP_MEDIA_DIR + "/config")) {
+            std::string dev = entry.path().filename();
+            if (startsWith(dev, "interface.")) {
             bool validConfig = true;
             auto interfaceSettings = loadSettingsFile(FPP_MEDIA_DIR + "/config/" + dev);
             std::string interface = dev.substr(10);
@@ -744,6 +745,7 @@ static void setupNetwork(bool fullReload = false) {
                 filesNeeded["/etc/systemd/network/10-" + interface + ".network"] = content;
             }
         }
+    }
     }
     bool reloadApache = false;
     if (dhcpProxies.empty() && FileExists(dhcpProxyFile)) {
