@@ -70,18 +70,23 @@ HTTPVirtualDisplayOutput::HTTPVirtualDisplayOutput(unsigned int startChannel,
 HTTPVirtualDisplayOutput::~HTTPVirtualDisplayOutput() {
     LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::~HTTPVirtualDisplayOutput()\n");
 
-    Close();
-
     m_running = false;
 
     if (m_connThread) {
         m_connThread->join();
         delete m_connThread;
+        m_connThread = nullptr;
     }
 
     if (m_selectThread) {
         m_selectThread->join();
         delete m_selectThread;
+        m_selectThread = nullptr;
+    }
+
+    if (m_socket >= 0) {
+        close(m_socket);
+        m_socket = -1;
     }
 
     if (m_connList.size()) {
