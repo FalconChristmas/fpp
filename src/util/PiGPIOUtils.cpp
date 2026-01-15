@@ -165,7 +165,34 @@ public:
 
     static int getPinctrlRpiChip() {
         if (pinctrlRpiChip == -1) {
-            pinctrlRpiChip = 0;
+            pinctrlRpiChip = 0; // Default fallback
+#ifdef IS_GPIOD_CXX_V2
+            int has54lineChip = -1;
+            std::string has54lineChipName;
+            for (const auto& entry : std::filesystem::directory_iterator("/dev/")) {
+                if (startsWith(entry.path().filename().string(), "gpiochip")) {
+                    try {
+                        auto chip = gpiod::chip(entry.path().string());
+                        auto info = chip.get_info();
+                        if (info.label() == "pinctrl-rpi1") {
+                            pinctrlRpiChip = std::stoi(entry.path().filename().string().substr(8));
+                            pinctrlRpiChipName = info.name();
+                            return pinctrlRpiChip;
+                        } else if (info.num_lines() == 54) {
+                            has54lineChip = std::stoi(entry.path().filename().string().substr(8));
+                            has54lineChipName = info.name();
+                        }
+                    } catch (...) {
+                        // Chip doesn't exist, continue
+                    }
+                }
+            }
+            if (has54lineChip != -1) {
+                pinctrlRpiChip = has54lineChip;
+                pinctrlRpiChipName = has54lineChipName;
+                return pinctrlRpiChip;
+            }
+#else
             for (auto& a : gpiod::make_chip_iter()) {
                 std::string label = a.label();
                 if (label == "pinctrl-rp1") {
@@ -183,6 +210,7 @@ public:
                 }
                 pinctrlRpiChip++;
             }
+#endif
         }
         return pinctrlRpiChip;
     }
