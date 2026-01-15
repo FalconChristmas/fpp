@@ -747,6 +747,25 @@ static void setupNetwork(bool fullReload = false) {
         }
     }
     }
+    
+    // If tethering is explicitly enabled (==1) but no interface configs set it up,
+    // configure it now (handles fresh installs with no /config directory)
+    if (tetherEnabled == 1 && !hostapd) {
+        filesNeeded["/etc/hostapd/hostapd.conf"] = CreateHostAPDConfig(tetherInterface);
+        std::string content = "[Match]\nName=";
+        content.append(tetherInterface).append("\nType=wlan\n\n"
+                                               "[Network]\n"
+                                               "DHCP=no\n"
+                                               "Address=192.168.8.1/24\n"
+                                               "DHCPServer=yes\n\n");
+        content.append("[DHCPServer]\n"
+                       "PoolOffset=10\n"
+                       "PoolSize=100\n"
+                       "EmitDNS=no\n\n");
+        filesNeeded["/etc/systemd/network/10-" + tetherInterface + ".network"] = content;
+        hostapd = true;
+    }
+    
     bool reloadApache = false;
     if (dhcpProxies.empty() && FileExists(dhcpProxyFile)) {
         unlink(dhcpProxyFile.c_str());
@@ -1297,8 +1316,63 @@ static void maybeEnableTethering() {
             freeifaddrs(ifAddrStruct);
         }
         if (!found) {
-            // did not find an ip address
-            te = 1;
+            // Check if the tether interface has a wifi client configuration
+            std::string tetherInterface = FindTetherWIFIAdapater();
+            std::string interfaceConfigFile = FPP_MEDIA_DIR + "/config/interface." + tetherInterface;
+            if (FileExists(interfaceConfigFile)) {
+                auto interfaceSettings = loadSettingsFile(interfaceConfigFile);
+                if (!interfaceSettings["SSID"].empty()) {
+                    // WiFi client config exists - give it time to connect and get DHCP
+                    printf("FPP - %s has WiFi SSID configured, waiting up to 12s for connection and DHCP...\n", tetherInterface.c_str());
+                    int waitCount = 0;
+                    bool gotIP = false;
+                    bool connected = false;
+                    while (waitCount < 24 && !gotIP && !connected) { // 24 * 500ms = 12 seconds
+                        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                        // Check for IP address
+                        struct ifaddrs* ifAddrCheck = NULL;
+                        if (getifaddrs(&ifAddrCheck) == 0) {
+                            for (struct ifaddrs* ifa = ifAddrCheck; ifa != NULL; ifa = ifa->ifa_next) {
+                                if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+                                    std::string ifname = ifa->ifa_name;
+                                    if (ifname == tetherInterface) {
+                                        void* tmpAddrPtr = &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
+                                        char addressBuffer[INET_ADDRSTRLEN];
+                                        inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+                                        std::string addr = addressBuffer;
+                                        if (!contains(addr, "169.254.")) { // Ignore link-local
+                                            printf("FPP - %s got IP address %s\n", tetherInterface.c_str(), addr.c_str());
+                                            gotIP = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            freeifaddrs(ifAddrCheck);
+                        }
+                        // Also check if connected to AP (even without IP yet)
+                        if (!gotIP && waitCount > 10) { // After 5 seconds, start checking connection status
+                            std::string iwOutput = execAndReturn("/usr/sbin/iw " + tetherInterface + " link");
+                            if (contains(iwOutput, "Connected to")) {
+                                printf("FPP - %s connected to WiFi, keeping WiFi config active\n", tetherInterface.c_str());
+                                connected = true;
+                            }
+                        }
+                        if (gotIP || connected) break;
+                        waitCount++;
+                    }
+                    if (!gotIP && !connected) {
+                        printf("FPP - %s no IP or connection after 12s, enabling tethering\n", tetherInterface.c_str());
+                        te = 1;
+                    }
+                } else {
+                    // Interface config exists but no SSID - enable tethering
+                    te = 1;
+                }
+            } else {
+                // did not find an ip address and no wifi client config exists
+                te = 1;
+            }
         }
     }
     std::string tetherInterface = FindTetherWIFIAdapater();
@@ -1311,6 +1385,16 @@ static void maybeEnableTethering() {
     if (te == 1) {
         std::string c = CreateHostAPDConfig(tetherInterface);
         PutFileContents("/etc/hostapd/hostapd.conf", c);
+        
+        // Remove wpa_supplicant config if it exists (switching from client to AP mode)
+        std::string wpaConfig = "/etc/wpa_supplicant/wpa_supplicant-" + tetherInterface + ".conf";
+        if (FileExists(wpaConfig)) {
+            printf("FPP - Removing wpa_supplicant config for %s to enable tethering\n", tetherInterface.c_str());
+            unlink(wpaConfig.c_str());
+            exec("/usr/bin/systemctl stop wpa_supplicant@" + tetherInterface + ".service");
+            exec("/usr/bin/systemctl disable wpa_supplicant@" + tetherInterface + ".service");
+        }
+        
         std::string content = "[Match]\nName=";
         content.append(tetherInterface).append("\nType=wlan\n\n"
                                                "[Network]\n"
@@ -1327,6 +1411,7 @@ static void maybeEnableTethering() {
         exec("/usr/bin/systemctl reload-or-restart systemd-networkd.service");
         unblockWifi();
         exec("/usr/bin/systemctl reload-or-restart hostapd.service");
+        exec("/usr/bin/systemctl enable hostapd.service");
     }
 }
 static void detectNetworkModules() {
