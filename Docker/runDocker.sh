@@ -9,5 +9,5 @@ fi
 /opt/fpp/scripts/fppd_start
 
 mkdir /run/php
-/usr/sbin/php-fpm8.2 --fpm-config /etc/php/8.2/fpm/php-fpm.conf
+/usr/sbin/php-fpm8.4 --fpm-config /etc/php/8.4/fpm/php-fpm.conf
 /usr/sbin/apache2ctl -D FOREGROUND

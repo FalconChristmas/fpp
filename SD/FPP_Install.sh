@@ -55,7 +55,7 @@
 #
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2025-11"
+FPPIMAGEVER="2026-01"
 FPPCFGVER="102"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -394,7 +394,7 @@ cd /opt 2> /dev/null || mkdir /opt
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_12 | ubuntu_24.* | linuxmint_21)
+	debian_12 | debian_13 | ubuntu_24.* | linuxmint_21)
 
         # Stop unattended-upgrades as it can hold a lock on the apt repository
         systemctl stop unattended-upgrades
@@ -481,6 +481,10 @@ case "${OSVER}" in
             ACTUAL_PHPVER="8.2"
             PHPVER="8.2"
         fi
+        if [ "${OSVER}" == "debian_13" ]; then
+            ACTUAL_PHPVER="8.4"
+            PHPVER="8.4"
+        fi
 
         #########################################
         # WARNING
@@ -488,14 +492,14 @@ case "${OSVER}" in
         # If you modify this file, be sure to update Docker/Dockerfile
         #########################################
 
-        PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
+        PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools distcc \
                       apache2 apache2-bin apache2-data apache2-utils libavahi-client-dev \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
                       fbi fbset file flite ca-certificates lshw gettext wget iproute2 fswatch \
                       build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
-                      git git-core hdparm i2c-tools ifplugd jq less sysstat tcpdump time usbutils usb-modeswitch \
-                      samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
-                      mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils libfmt9 \
+                      git hdparm i2c-tools jq less sysstat tcpdump time usbutils usb-modeswitch \
+                      samba rsync sudo shellinabox dnsmasq hostapd vsftpd sqlite3 at haveged samba samba-common-bin \
+                      mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils \
                       php${PHPVER} php${PHPVER}-cli php${PHPVER}-fpm php${PHPVER}-common php${PHPVER}-curl php-pear \
                       php${PHPVER}-bcmath php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml ccache \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
@@ -521,9 +525,17 @@ case "${OSVER}" in
         fi
         if ! $build_vlc; then
             PACKAGE_LIST="$PACKAGE_LIST vlc libvlc-dev"
+            if [ "${OSVER}" == "debian_13" ]; then
+                PACKAGE_LIST="$PACKAGE_LIST vlc-plugin-pipewire"
+            fi
         fi
         if [ "${OSVER}" == "debian_12" ]; then
             PACKAGE_LIST="$PACKAGE_LIST python3-distutils"
+        fi
+        if [ "${OSVER}" == "debian_13" ]; then
+            PACKAGE_LIST="$PACKAGE_LIST ntpsec pipewire"
+        else
+            PACKAGE_LIST="$PACKAGE_LIST ntp ifplugd libfmt9"
         fi
         if [ "$FPPPLATFORM" == "BeagleBone 64" ]; then
             PACKAGE_LIST="$PACKAGE_LIST cpufrequtils"
@@ -631,6 +643,9 @@ case "${OSVER}" in
 
                 BOOTDIR="/boot"
                 if [ "${OSVER}" == "debian_12" ]; then
+                    BOOTDIR="/boot/firmware"
+                fi
+                if [ "${OSVER}" == "debian_13" ]; then
                     BOOTDIR="/boot/firmware"
                 fi
 
@@ -771,6 +786,9 @@ case "${FPPPLATFORM}" in
         if $isimage; then
             BOOTDIR="/boot"
             if [ "${OSVER}" == "debian_12" ]; then
+                BOOTDIR="/boot/firmware"
+            fi
+            if [ "${OSVER}" == "debian_13" ]; then
                 BOOTDIR="/boot/firmware"
             fi
 
@@ -928,7 +946,7 @@ EOF
         fi
         
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
-		if [ "x${OSVER}" == "xdebian_11" ] || [ "x${OSVER}" == "xdebian_12" ]; then
+		if [ "x${OSVER}" == "xdebian_13" ] || [ "x${OSVER}" == "xdebian_12" ]; then
 			systemctl disable serial-getty@ttyAMA0.service
 			sed -i -e "s/console=serial0,115200 //" ${BOOTDIR}/cmdline.txt
 			sed -i -e "s/autologin pi/autologin ${FPPUSER}/" /etc/systemd/system/autologin@.service
@@ -1045,13 +1063,7 @@ bash scripts/upgrade_config -notee
 
 
 #######################################
-if [ -d /etc/php/8.3 ]; then
-    PHPDIR="/etc/php/8.3"
-elif [ -d /etc/php/8.2 ]; then
-    PHPDIR="/etc/php/8.2"
-elif [ -d /etc/php/8.1 ]; then
-    PHPDIR="/etc/php/8.1"
-fi
+PHPDIR="/etc/php/${ACTUAL_PHPVER}"
 
 echo "FPP - Configuring PHP"
 FILES="cli/php.ini apache2/php.ini fpm/php.ini"
@@ -1373,7 +1385,7 @@ sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
 rm /etc/apache2/conf-enabled/other-vhosts-access-log.conf
 
 case "${OSVER}" in
-	debian_11 |  debian_12 | ubuntu_22.04 | ubuntu_22.10 | linuxmint_21)
+	debian_13 |  debian_12 | ubuntu_22.04 | ubuntu_22.10 | linuxmint_21)
 		systemctl enable apache2.service
 		;;
 esac

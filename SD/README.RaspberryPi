@@ -75,7 +75,7 @@ Do a system upgrade to make sure everything is at the latest versions
 # For debian 12, we'd like to move to kernel 6.12+ and drop compiled wifi drivers, this still
 # needs some work to figure out and LOTS more testing
 # If the kernel version is NOT already 6.12.x (depends on the image used), then you need to update:
-PRUNE_MODULES=1 WANT_PI5=1 rpi-update
+PRUNE_MODULES=1 WANT_PI5=1 rpi-update next
 KV=$(uname -r)
 KV=${KV::-3}
 rm -f /boot/*-${KV}*
@@ -88,23 +88,6 @@ rm -rf /boot/firmware/kernel_2712.img
 rm -rf /lib/modules/*-16k*
 
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
-
-
-# Opional: build/install the wifi drivers
-KV=6.6.74
-apt-get install git bc
-# apt-get install linux-image-${KV}+rpt-rpi-v6 linux-image-${KV}+rpt-rpi-v7 linux-image-${KV}+rpt-rpi-v7l linux-image-${KV}+rpt-rpi-v8
-apt-get install linux-headers-${KV}+rpt-rpi-v7l linux-headers-${KV}+rpt-rpi-v7 linux-headers-${KV}+rpt-rpi-v6 linux-headers-${KV}+rpt-common-rpi linux-kbuild-${KV}+rpt
-
-cd ~
-wget -O ./FPP-Wifi-Drivers.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP-Wifi-Drivers.sh
-chmod +x ./FPP-Wifi-Drivers.sh
-./FPP-Wifi-Drivers.sh
-
-apt-get remove --purge linux-headers-${KV}+rpt-rpi-v7l linux-headers-${KV}+rpt-rpi-v7 linux-headers-${KV}+rpt-rpi-v6 linux-headers-${KV}+rpt-common-rpi linux-kbuild-${KV}+rpt
-rm ./FPP-Wifi-Drivers.sh
-
-
 
 
 On the Pi, run the FPP installer:

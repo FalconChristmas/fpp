@@ -7,14 +7,14 @@
 #
 # Please do not log github issues related to docker.
 #
-FROM debian:bookworm
+FROM debian:trixie
 
 # if we get a bunch of these installed up front in one shot (assume a desktop so plenty of memory to do all at once)
 # then the FPP_Install step is faster.   In addition, docker will cache this result
 # so building docker containers will be faster
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
 
-ARG PHPVER="8.2"
+ARG PHPVER="8.4"
 
 #
 # This should exact match SD/FPP_Install.sh
@@ -26,9 +26,9 @@ ARG PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-to
     bc bash-completion btrfs-progs exfatprogs lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
     fbi fbset file flite ca-certificates lshw gettext wget iproute2 \
     build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
-    git hdparm i2c-tools ifplugd jq less sysstat tcpdump time usbutils usb-modeswitch \
-    samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
-    mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils libfmt9 \
+    git hdparm i2c-tools jq less sysstat tcpdump time usbutils usb-modeswitch \
+    samba rsync sudo shellinabox dnsmasq hostapd vsftpd ntpsec sqlite3 at haveged samba samba-common-bin \
+    mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils \
     php${PHPVER} php${PHPVER}-cli php${PHPVER}-fpm php${PHPVER}-common php${PHPVER}-curl php-pear \
     php${PHPVER}-bcmath php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml \
     libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
