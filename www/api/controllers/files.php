@@ -14,7 +14,7 @@ function MapExtention($filename)
         return GetDirSetting("images");
     } else if (preg_match("/\.(eseq)$/i", $filename)) {
         return GetDirSetting("effects");
-    } else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $filename)) {
+    } else if (preg_match("/\.(sh|pl|pm|php|py|js)$/i", $filename)) {
         return GetDirSetting("scripts");
     } else {
         $pluginDirectory = GetDirSetting("plugins");
@@ -40,9 +40,17 @@ function MapExtention($filename)
 }
 function MapDirectoryKey($dirName)
 {
+    $dirName = str_replace('%2F', '/', $dirName);
+    global $mediaDirectory;
     $dir = GetDirSetting($dirName);
     if ($dir == "") {
         $dir = MapExtention($dirName);
+    }
+    if (strpos($dirName, 'mnt/') === 0) {
+        $dir = $mediaDirectory . '/' . $dirName;
+    }
+    if ($dirName == 'mnt') {
+        $dir = $mediaDirectory . '/mnt';
     }
     return $dir;
 }
@@ -148,7 +156,7 @@ function GetFilesHelper($dirName, $prefix = '')
             if ($fileName != "") {
                 $current = array();
                 $current["name"] = $prefix . $fileName;
-                $current["mtime"] = date('m/d/y  h:i A', $mTime);
+                $current["mtime"] = date('m/d/y h:i A', $mTime);
                 $current["sizeBytes"] = 0;
                 $current["sizeHuman"] = 'Directory';
 
@@ -171,7 +179,7 @@ function GetFilesHelper($dirName, $prefix = '')
             }
             $current = array();
             $current["name"] = $prefix . $fileName;
-            $current["mtime"] = date('m/d/y  h:i A', $mTime);
+            $current["mtime"] = date('m/d/y h:i A', $mTime);
             $sizeInt = intval($Size);
             if (PHP_INT_SIZE === 4 && $sizeInt < PHP_INT_MAX) {
                 $current["sizeBytes"] = $sizeInt;
@@ -304,6 +312,7 @@ function CallPluginFileUploaded($dir, $filename)
     }
     return "Could not find plugin to handle " . $filename;
 }
+
 function PluginFileOnUpload()
 {
     global $mediaDirectory;
@@ -344,7 +353,13 @@ function MovePluginFile($uploadDir, $filename)
 function GetFile()
 {
     $dirName = params("DirName");
-    $fileName = params(0);
+    $fileName = '';
+    for ($i = 0; ; $i++) {
+        $p = params($i);
+        if ($p === null) break;
+        $fileName .= '/' . $p;
+    }
+    $fileName = ltrim($fileName, '/');
     $lines = -1;
     $play = 0;
     $attach = 0;
@@ -367,8 +382,11 @@ function GetFile()
 function GetFileImpl($dir, $filename, $lines, $play, $attach)
 {
     $isImage = 0;
+    $isText = 0;
     $isLog = 0;
-    if ($dir == 'Images') {
+    if (preg_match('/\.(txt|log|json|cfg|ini|sh|pl|pm|php|py|js)$/i', $filename)) {
+        $isText = 1;
+    } else if ($dir == 'Images' || preg_match('/\.(gif|jpg|jpeg|png)$/i', $filename)) {
         $isImage = 1;
     } else if ($dir == "Logs") {
         $isLog = 1;
@@ -391,7 +409,10 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         return;
     }
 
-    if ($play) {
+    $mimeType = mime_content_type($dir . '/' . $filename);
+    if ($isText) {
+        header('Content-type: text/plain');
+    } else if ($play) {
         if (preg_match('/mp3$/i', $filename)) {
             header('Content-type: audio/mp3');
         } else if (preg_match('/ogg$/i', $filename)) {
@@ -418,15 +439,11 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
             header('Content-type: video/avi');
         }
 
-    } else if ($isImage) {
-        header('Content-type: ' . mime_content_type($dir . '/' . $filename));
-
-        if ($attach == 1) {
-            header('Content-disposition: attachment;filename="' . $filename . '"');
-        }
-
     } else {
-        header('Content-type: application/binary');
+        header('Content-type: ' . $mimeType);
+    }
+
+    if ($attach) {
         header('Content-disposition: attachment;filename="' . $filename . '"');
     }
 
@@ -518,7 +535,7 @@ function MoveFile()
                 $status = "ERROR: Couldn't move image file";
                 return json(array("status" => $status));
             }
-        } else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $file)) {
+        } else if (preg_match("/\.(sh|pl|pm|php|py|js)$/i", $file)) {
             // Get rid of any DOS newlines
             $contents = file_get_contents($uploadDirectory . "/" . $file);
             $contents = str_replace("\r", "", $contents);
@@ -752,28 +769,27 @@ function DeleteFile()
 
     $status = "File not found";
     $dirName = params("DirName");
-    $dir = MapDirectoryKey($dirName);
-    $fileName = params(0);
-
-    if ($fileName == "" && $dir == $uploadDirectory) {
-        // Hitting cancel on an upload will call delete with no filename
-        return json(array("status" => "Invalid parameters", "file" => $fileName, "dir" => $dirName));
+    $fileName = '';
+    for ($i = 0; ; $i++) {
+        $p = params($i);
+        if ($p === null) break;
+        $fileName .= '/' . $p;
     }
-
-    // Avoid too much saniziation so that we can delete files with unicode in them
-    $allowedDir = realpath($dir); // Allowed base directory
+    $fileName = ltrim($fileName, '/');
+    $dir = MapDirectoryKey($dirName);
     $constructedPath = "$dir/$fileName";
-    $fullPath = realpath($constructedPath); // Full resolved path of the target file
+    $realPath = realpath($constructedPath); // Full resolved path of the target file
+    $allowedDir = realpath($dir); // Allowed base directory
 
-    if (!$allowedDir || !$fullPath || strpos($fullPath, $allowedDir) !== 0) {
+    if (!$allowedDir || !$realPath || strpos($realPath, $allowedDir) !== 0) {
         $status = "Invalid path: directory traversal detected or file outside allowed directory";
-    } else if (!file_exists($fullPath)) {
+    } else if (!file_exists($realPath)) {
         $status = "File Not Found";
-    } else if (is_dir($fullPath)) {
-        removeDir($fullPath);
+    } else if (is_dir($realPath)) {
+        removeDir($realPath);
         $status = "OK";
     } else {
-        if (unlink($fullPath)) {
+        if (unlink($realPath)) {
             $status = "OK";
         } else {
             $errorDetails = error_get_last();
@@ -978,7 +994,7 @@ function GetFileInfo(&$list, $dirName, $fileName, $prefix = '')
     }
     $current = array();
     $current["name"] = $prefix . $fileName;
-    $current["mtime"] = date('m/d/y  h:i A', filemtime($fileFullName));
+    $current["mtime"] = date('m/d/y h:i A', filemtime($fileFullName));
     $current["sizeBytes"] = $filesize;
     $current["sizeHuman"] = human_filesize($fileFullName);
 
