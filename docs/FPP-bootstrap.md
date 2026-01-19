@@ -17,4 +17,4 @@ The extension auto creates the dist/fpp-bootstrap.css file when any of the src .
 
 the compiled css file is created and updated in the following folder:
 
-/www/css/fpp-bootstrap/dist-new
+/www/css/fpp-bootstrap/dist

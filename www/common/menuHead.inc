@@ -28,7 +28,6 @@ if ((!isset($settings['disableUIPopoverAlerts'])) || ($settings['disableUIPopove
 
 <link rel="stylesheet" href="css/jquery-ui.css">
 <link rel="stylesheet" href="css/jquery.jgrowl.min.css">
-<link rel="stylesheet" href="css/classicTheme/style.css" media="all">
 
 <link rel="icon" href="favicon.ico" type="image/x-icon">
 
@@ -78,7 +77,7 @@ if (isset($themeInfo["preFPPStyleSheet"])) {
 <!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
 
 <link rel="stylesheet"
-    href="css/fpp-bootstrap/dist-new/fpp-bootstrap-5-3.css?ref=<?php echo filemtime('css/fpp-bootstrap/dist-new/fpp-bootstrap-5-3.css'); ?>">
+    href="css/fpp-bootstrap/dist/fpp-bootstrap-5-3.css?ref=<?php echo filemtime('css/fpp-bootstrap/dist/fpp-bootstrap-5-3.css'); ?>">
 <link rel="stylesheet" href="css/fpp.css?ref=<?php echo filemtime('css/fpp.css'); ?>">
 
 <?
@@ -118,14 +117,15 @@ if (isset($settings['backgroundColor']) && $settings['backgroundColor'] != "") {
     .header {
         background-color: #<? echo $settings['backgroundColor'] ?>;
     }
+
     /* DarkOrange and Orange header colors make the upgrade icon hard to see - change the color to the text color*/
     <?php if (in_array($settings['backgroundColor'], ['FF8C00', 'FFA500'], true)) { ?>
     #navbarUpdateAvail a {
         color: rgb(152, 152, 152);
         font-size: 1.5em;
     }
-   <?php } ?>
 
+    <?php } ?>
 </style>
 <?
 }

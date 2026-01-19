@@ -160,7 +160,7 @@
 		{
 			"format": "expanded",
 			"extensionName": ".css",
-			"savePath": "~/../dist-new",
+			"savePath": "~/../dist",
 			"savePathReplacementPairs": null
 		}
 	],

@@ -23,7 +23,6 @@
 	<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
 	<link rel="stylesheet" href="css/jquery-ui.css" />
 	<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
-	<link rel="stylesheet" href="css/classicTheme/style.css" media="all" />
 	<link rel="stylesheet" href="css/minimal.css?ref=<?php echo filemtime('css/minimal.css'); ?>" />
 	<script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
 

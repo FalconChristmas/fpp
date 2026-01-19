@@ -1,163 +1,249 @@
-<!doctype html>
+<!DOCTYPE html>
 
 <html lang="en" data-theme="light" data-bs-theme="light">
+	<head>
+		<meta charset="utf-8" />
 
-<head>
-  <meta charset="utf-8">
+		<title>fpp theme</title>
+		<meta name="description" content="fpp theme" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link
+			rel="stylesheet"
+			href="css/fpp-bootstrap/dist/fpp-bootstrap-5-3.css"
+		/>
+		<link rel="stylesheet" href="css/fpp.css" />
+	</head>
 
-  <title>fpp theme</title>
-  <meta name="description" content="fpp theme">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="css/fpp-bootstrap/dist-new/fpp-bootstrap-5-3.css">
-  <link rel="stylesheet" href="css/fpp.css">
-</head>
+	<body>
+		<script>
+			function DoModal() {}
+		</script>
 
-<body>
-  <script>
-    function DoModal() {
+		<div class="mainContainer">
+			<div class="pageContent">
+				<div class="row">
+					<div class="col">
+						<div class="ajax-file-upload-container">
+							<div class="ajax-file-upload-statusbar" style="width: 400px">
+								<img
+									class="ajax-file-upload-preview"
+									style="width: 50%; height: auto; display: none"
+								/>
+								<div class="ajax-file-upload-filename">
+									1). file.png (2.71 KB)
+								</div>
+								<div class="ajax-file-upload-progress" style="">
+									<div class="ajax-file-upload-bar" style="width: 50%"></div>
+								</div>
+								<div
+									class="ajax-file-upload-red ajax-file-upload-1612753645893 ajax-file-upload-abort"
+									style="display: none"
+								>
+									Abort
+								</div>
+								<div class="ajax-file-upload-green" style="display: none">
+									Close
+								</div>
+								<div class="ajax-file-upload-green" style="display: none">
+									Download
+								</div>
+								<div class="ajax-file-upload-red" style="display: none">
+									Delete
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col">
+						<ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+							<li class="nav-item">
+								<a
+									class="nav-link active"
+									id="pills-home-tab"
+									href="#pills-home"
+									data-bs-toggle="pill"
+									type="button"
+									role="tab"
+									aria-controls="pills-home"
+									aria-selected="true"
+									>Home</a
+								>
+							</li>
+							<li class="nav-item">
+								<a
+									class="nav-link"
+									id="pills-profile-tab"
+									href="#pills-profile"
+									data-bs-toggle="pill"
+									type="button"
+									role="tab"
+									aria-controls="pills-profile"
+									aria-selected="false"
+									>Profile</a
+								>
+							</li>
+							<li class="nav-item">
+								<a
+									class="nav-link"
+									id="pills-contact-tab"
+									href="#pills-contact"
+									data-bs-toggle="pill"
+									type="button"
+									role="tab"
+									aria-controls="pills-contact"
+									aria-selected="false"
+									>Contact</a
+								>
+							</li>
+						</ul>
+						<div class="tab-content" id="pills-tabContent">
+							<div
+								class="tab-pane fade show active"
+								id="pills-home"
+								role="tabpanel"
+								aria-labelledby="pills-home-tab"
+							>
+								Tab 1
+							</div>
+							<div
+								class="tab-pane fade"
+								id="pills-profile"
+								role="tabpanel"
+								aria-labelledby="pills-profile-tab"
+							>
+								Tab 2
+							</div>
+							<div
+								class="tab-pane fade"
+								id="pills-contact"
+								role="tabpanel"
+								aria-labelledby="pills-contact-tab"
+							>
+								Tab 3
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col">
+						<div class="backdrop">
+							<h2>Backdrop</h2>
+							<p>Use a backdrop for different content sections</p>
+							<div class="backdrop-dark">
+								There is also a darker backdrop great for nesting
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col">
+						<div class="alert alert-danger">
+							Test Alert <a href="#">with link</a>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col">
+						<select
+							class="form-control form-control-lg form-control-rounded has-shadow"
+						>
+							<option value="">Large Rounded Select</option>
+						</select>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col">
+						<h1>Components</h1>
+						<button class="buttons">Test Button</button>
+						<button class="buttons btn-pleasant">Test Button</button>
+						<button class="buttons btn-detract">Test Button</button>
+						<button class="buttons btn-danger">Test Button</button>
+						<button class="buttons btn-success">Test Button</button>
+						<button
+							class="buttons btn-graceful"
+							data-bs-toggle="modal"
+							data-bs-target="#exampleModal"
+						>
+							Test Button
+						</button>
+					</div>
+				</div>
+				<hr />
+				<div class="row mt-5">
+					<div class="col">
+						<div class="form-group">
+							<label for="testInput1">Test Input 1</label>
+							<input
+								type="text"
+								class="form-control"
+								id="testInput1"
+								placeholder="Test Input"
+							/>
+						</div>
 
-    }
-  </script>
+						<div class="form-group">
+							<label for="testInput1">Test Input 2</label>
+							<input
+								type="text"
+								class="form-control"
+								id="testInput1"
+								placeholder="Test Input"
+							/>
+						</div>
+					</div>
+					<div class="col">
+						<select>
+							<option value="">Test</option>
+						</select>
+					</div>
+					<div class="col">
+						<input type="text" class="form-control" />
+					</div>
+					<div class="col">
+						<input type="text" class="form-control" />
+					</div>
+				</div>
+			</div>
+		</div>
 
+		<script src="js/jquery-latest.min.js"></script>
+		<script src="js/bootstrap.bundle.min.js"></script>
 
-
-  <div class="mainContainer">
-    <div class="pageContent">
-      <div class="row">
-        <div class="col">
-          <div class="ajax-file-upload-container">
-            <div class="ajax-file-upload-statusbar" style="width: 400px;"><img class="ajax-file-upload-preview"
-                style="width: 50%; height: auto; display: none;">
-              <div class="ajax-file-upload-filename">1). file.png (2.71 KB)</div>
-              <div class="ajax-file-upload-progress" style="">
-                <div class="ajax-file-upload-bar" style="width: 50%;"></div>
-              </div>
-              <div class="ajax-file-upload-red ajax-file-upload-1612753645893 ajax-file-upload-abort"
-                style="display: none;">Abort</div>
-              <div class="ajax-file-upload-green" style="display: none;">Close</div>
-              <div class="ajax-file-upload-green" style="display: none;">Download</div>
-              <div class="ajax-file-upload-red" style="display: none;">Delete</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="row">
-        <div class="col">
-
-          <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
-            <li class="nav-item">
-              <a class="nav-link active" id="pills-home-tab" href="#pills-home" data-bs-toggle="pill" type="button"
-                role="tab" aria-controls="pills-home" aria-selected="true">Home</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" id="pills-profile-tab" href="#pills-profile" data-bs-toggle="pill" type="button"
-                role="tab" aria-controls="pills-profile" aria-selected="false">Profile</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" id="pills-contact-tab" href="#pills-contact" data-bs-toggle="pill" type="button"
-                role="tab" aria-controls="pills-contact" aria-selected="false">Contact</a>
-            </li>
-          </ul>
-          <div class="tab-content" id="pills-tabContent">
-            <div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab">Tab
-              1</div>
-            <div class="tab-pane fade" id="pills-profile" role="tabpanel" aria-labelledby="pills-profile-tab">Tab 2
-            </div>
-            <div class="tab-pane fade" id="pills-contact" role="tabpanel" aria-labelledby="pills-contact-tab">Tab 3
-            </div>
-          </div>
-
-        </div>
-      </div>
-      <div class="row">
-        <div class="col">
-
-          <div class="backdrop">
-            <h2>Backdrop</h2>
-            <p>Use a backdrop for different content sections</p>
-            <div class="backdrop-dark">
-              There is also a darker backdrop great for nesting
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="row">
-        <div class="col">
-          <div class="alert alert-danger">Test Alert <a href="#">with link</a></div>
-        </div>
-      </div>
-      <div class="row">
-        <div class="col">
-          <select class="form-control form-control-lg form-control-rounded has-shadow">
-            <option value="">Large Rounded Select</option>
-          </select>
-        </div>
-      </div>
-      <div class="row">
-        <div class="col">
-          <h1>Components</h1>
-          <button class="buttons">Test Button</button>
-          <button class="buttons btn-pleasant">Test Button</button>
-          <button class="buttons btn-detract">Test Button</button>
-          <button class="buttons btn-danger">Test Button</button>
-          <button class="buttons btn-success">Test Button</button>
-          <button class="buttons btn-graceful" data-bs-toggle="modal" data-bs-target="#exampleModal">Test
-            Button</button>
-
-        </div>
-      </div>
-      <hr>
-      <div class="row mt-5">
-        <div class="col">
-          <div class="form-group">
-            <label for="testInput1">Test Input 1</label>
-            <input type="text" class="form-control" id="testInput1" placeholder="Test Input">
-          </div>
-
-          <div class="form-group">
-            <label for="testInput1">Test Input 2</label>
-            <input type="text" class="form-control" id="testInput1" placeholder="Test Input">
-          </div>
-        </div>
-        <div class="col">
-          <select>
-            <option value="">Test</option>
-          </select>
-        </div>
-        <div class="col">
-          <input type="text" class="form-control">
-        </div>
-        <div class="col">
-          <input type="text" class="form-control">
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-
-  <script src="js/jquery-latest.min.js"></script>
-  <script src="js/bootstrap.bundle.min.js"></script>
-
-  <!-- Modal -->
-  <div class="modal fade" id="exampleModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"
-    aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          This is the modal body
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary">Save changes</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</body>
-
+		<!-- Modal -->
+		<div
+			class="modal fade"
+			id="exampleModal"
+			tabindex="-1"
+			data-bs-backdrop="static"
+			data-bs-keyboard="false"
+			aria-labelledby="exampleModalLabel"
+			aria-hidden="true"
+		>
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+						<button
+							type="button"
+							class="btn-close"
+							data-bs-dismiss="modal"
+							aria-label="Close"
+						></button>
+					</div>
+					<div class="modal-body">This is the modal body</div>
+					<div class="modal-footer">
+						<button
+							type="button"
+							class="btn btn-secondary"
+							data-bs-dismiss="modal"
+						>
+							Close
+						</button>
+						<button type="button" class="btn btn-primary">Save changes</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
 </html>
