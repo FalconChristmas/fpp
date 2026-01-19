@@ -41,6 +41,26 @@
         }
         closedir($handle);
     }
+    function getAllFiles($dir, $prefix = '') {
+        $files = array();
+        if (is_dir($dir)) {
+            $items = scandir($dir);
+            foreach ($items as $item) {
+                if ($item !== '.' && $item !== '..') {
+                    $fullPath = $dir . '/' . $item;
+                    if (is_dir($fullPath)) {
+                        $files = array_merge($files, getAllFiles($fullPath, $prefix . $item . '/'));
+                    } else {
+                        $files[] = array(
+                            'name' => $prefix . $item,
+                            'fullPath' => $fullPath
+                        );
+                    }
+                }
+            }
+        }
+        return $files;
+    }
     ?>
 
     <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.min.js"></script>
@@ -56,6 +76,182 @@
     <script>
         const pluginFileExtensions = [ <? echo implode(", ", array_map(fn($arg) => "'$arg'", $fileExtensions)); ?>];
         GetAllFiles();
+        var tablesorterOptions_USB = {
+            theme: 'fpp',
+            widthFixed: true,
+            headerTemplate: '{content} {icon}',
+            widgets: ['zebra', 'filter'],
+            widgetOptions: {
+                zebra: ['even', 'odd'],
+                filter_reset: '.reset'
+            },
+            sortList: [[0,0]],
+            headers: {
+                0: { sorter: 'text' },
+                1: { sorter: 'metric' },
+                2: { sorter: 'sugar' }
+            }
+        };
+        $(document).ready(function() {
+            // Initialize tablesorter for USB tab when shown
+            $('a[data-bs-target="#tab-usb"]').on('shown.bs.tab', function(e) {
+                if (!$.tablesorter.hasWidget($('#tblUSB'), 'zebra')) { // Prevent re-init
+                    $('#tblUSB').tablesorter(tablesorterOptions_USB);
+                }
+                $('#fileCount_USB').text($('#tblUSB tbody tr').length);
+            });
+            // Handle selection for USB table with visual highlight (using stock FPP selected style if available, or fallback)
+            $('#tblUSB tbody').on('click', 'tr', function(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    $(this).toggleClass('selected');
+                } else if (e.shiftKey) {
+                    var last = $('#tblUSB tbody tr.lastSelected');
+                    var first = $(this).index();
+                    var lastIndex = last.index();
+                    if (first < lastIndex) {
+                        $('#tblUSB tbody tr').slice(first, lastIndex + 1).addClass('selected');
+                    } else {
+                        $('#tblUSB tbody tr').slice(lastIndex, first + 1).addClass('selected');
+                    }
+                } else {
+                    $('#tblUSB tbody tr.selected').removeClass('selected');
+                    $(this).addClass('selected');
+                }
+                $('#tblUSB tbody tr.lastSelected').removeClass('lastSelected');
+                $(this).addClass('lastSelected');
+                UpdateUSBButtons();
+            });
+        });
+        function UpdateUSBButtons() {
+            var selected = $('#tblUSB tbody tr.selected');
+            var count = selected.length;
+            $('#divUSB .form-actions input:not([value="Clear"])').addClass('disableButtons');
+            if (count > 0) {
+                $('#divUSB .form-actions input[value="Download"]').removeClass('disableButtons');
+                $('#divUSB .form-actions input[value="Delete"]').removeClass('disableButtons');
+                if (count === 1) {
+                    $('#divUSB .form-actions input[value="View"]').removeClass('disableButtons');
+                    $('#divUSB .form-actions input[value="Copy"]').removeClass('disableButtons');
+                    $('#divUSB .form-actions input[value="Rename"]').removeClass('disableButtons');
+                    $('#divUSB .singleUSBButton').removeClass('disableButtons');
+                } else {
+                    $('#divUSB .multiUSBButton').removeClass('disableButtons');
+                }
+            }
+        }
+        function ClearSelections(type) {
+            if (type === 'USB') {
+                $('#tblUSB tbody tr.selected').removeClass('selected');
+                UpdateUSBButtons();
+            }
+        }
+        // Extend the original ButtonHandler to handle USB without overriding other types
+        var originalButtonHandler = ButtonHandler; // Preserve original
+        ButtonHandler = function(type, action) {
+            if (type === 'USB') {
+                var selected = $('#tblUSB tbody tr.selected');
+                var files = [];
+                selected.each(function() {
+                    files.push($(this).data('file'));
+                });
+                var dir = selected.first().data('dir');
+                if (action === 'download') {
+                    files.forEach(function(file) {
+                        window.location = 'api/file/' + dir + '/' + file + '?attach=1';
+                    });
+                } else if (action === 'delete') {
+                    if (confirm('Delete selected files?')) {
+                        files.forEach(function(file) {
+                            $.ajax({
+                                url: 'api/files/' + dir + '/' + file,
+                                type: 'DELETE',
+                                success: function() {
+                                    location.reload();
+                                }
+                            });
+                        });
+                    }
+                } else if (action === 'copyFile') {
+                    if (files.length === 1) {
+                        var file = files[0];
+                        var newName = prompt('New file name:', file);
+                        if (newName != null && newName != '') {
+                            $.get('api/files/' + dir + '/copy/' + file + '/' + newName)
+                                .done(function(data) {
+                                    location.reload();
+                                }).fail(function() {
+                                    DialogError('Copy File', "Failed to copy file");
+                                });
+                        }
+                    }
+                } else if (action === 'rename') {
+                    if (files.length === 1) {
+                        var file = files[0];
+                        var newName = prompt('New file name:', file);
+                        if (newName != null && newName != '') {
+                            $.get('api/files/' + dir + '/rename/' + file + '/' + newName)
+                                .done(function(data) {
+                                    location.reload();
+                                }).fail(function() {
+                                    DialogError('Rename File', "Failed to rename file");
+                                });
+                        }
+                    }
+                } else if (action === 'viewFile') {
+                    if (files.length === 1) {
+                        var file = files[0];
+                        var ext = file.split('.').pop().toLowerCase();
+                        var fullPath = dir + '/' + file;
+                        if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
+                            DoModalDialog({
+                                id: 'usbImageViewer',
+                                title: 'Image Viewer - ' + file,
+                                body: '<img src="api/file/' + fullPath + '" style="max-width:100%; max-height:80vh;" onclick="ViewFullImage(\'api/file/' + fullPath + '\');">',
+                                class: 'modal-xl modal-dialog-centered',
+                                keyboard: true,
+                                backdrop: true,
+                                buttons: {
+                                    Close: function() { CloseModalDialog('usbImageViewer'); }
+                                }
+                            });
+                        } else if (['mp4', 'mkv', 'avi', 'mpg', 'mov'].includes(ext)) {
+                            DoModalDialog({
+                                id: 'usbVideoViewer',
+                                title: 'Video Viewer - ' + file,
+                                body: '<video controls style="max-width:100%; max-height:80vh;"><source src="api/file/' + fullPath + '" type="video/' + ext + '"></video>',
+                                class: 'modal-xl modal-dialog-centered',
+                                keyboard: true,
+                                backdrop: true,
+                                buttons: {
+                                    Close: function() { CloseModalDialog('usbVideoViewer'); }
+                                }
+                            });
+                        } else {
+                            $.get('api/file/' + fullPath).done(function(data) {
+                                var body = '<pre>' + $('<div/>').text(data).html() + '</pre>';
+                                DoModalDialog({
+                                    id: 'usbFileViewer',
+                                    title: 'File Viewer - ' + file,
+                                    body: body,
+                                    class: 'modal-lg modal-dialog-scrollable',
+                                    keyboard: true,
+                                    backdrop: true,
+                                    buttons: {
+                                        Close: function() { CloseModalDialog('usbFileViewer'); }
+                                    }
+                                });
+                            }).fail(function(jqXHR, textStatus, errorThrown) {
+                                console.error('View File Error:', textStatus, errorThrown);
+                                DialogError("View File", "Load Failed: " + textStatus);
+                            });
+                        }
+                    }
+                }
+                return; // Stop here for USB
+            }
+            // Call original for other types
+            originalButtonHandler(type, action);
+        };
     </script>
 
     <?php
@@ -90,6 +286,10 @@
 
         .filepond--panel-root {
             background-color: transparent;
+        }
+        /* Temporary style for selected rows, stock CSS is not applying */
+        #tblUSB tr.selected {
+            background-color: #d3d3d3 !important; /* Light gray highlight
         }
     </style>
 
@@ -156,6 +356,19 @@
                             echo $ts;
                         }
                         ?>
+                        <?php
+                        $mountPoint = '/home/fpp/media/mnt';
+                        $mountedSubdirs = glob($mountPoint . '/*', GLOB_ONLYDIR);
+                        $isMounted = !empty($mountedSubdirs);
+                        $usbSubdir = $isMounted ? basename($mountedSubdirs[0]) : '';
+                        if ($isMounted) {
+                        ?>
+                        <li class="nav-item">
+                            <a class="nav-link" id="tab-usb-tab" data-bs-toggle="pill" data-bs-target="#tab-usb" href="#tab-usb" role="tab" aria-controls="tab-usb">
+                                USB
+                            </a>
+                        </li>
+                        <?php } ?>
                         <li class="nav-item">
                             <a class="nav-link " id="tab-logs-tab" data-bs-toggle="pill" data-bs-target="#tab-logs"
                                 href="#tab-logs" role="tab" aria-controls="tab-logs">
@@ -345,9 +558,9 @@
                                         <table id="tblVideos" class="tablesorter">
                                             <thead>
                                                 <tr>
-                                                    <th class="tablesorter-header filenameColumn">File</th>
-                                                    <th class="tablesorter-header">Duration</th>
-                                                    <th class="sorter-sugar"">Date Modified</th>
+                                                    <th>File</th>
+                                                    <th>Duration</th>
+                                                    <th class="sorter-sugar">Date Modified</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -356,26 +569,23 @@
                                     </div>
 
                                     <div class='form-actions'>
-                                        <input onclick=" ClearSelections('Videos');" class="buttons" type="button"
-                                                        value="Clear" />
-                                                    <input onclick="ButtonHandler('Videos', 'playInBrowser');"
-                                                        class="disableButtons noDirButton singleVideosButton"
-                                                        type="button" value="View" />
-                                                    <input onclick="ButtonHandler('Videos', 'videoInfo');"
-                                                        class="disableButtons noDirButton singleVideosButton"
-                                                        type="button" value="Video Info" />
-                                                    <input onclick="ButtonHandler('Videos', 'addToPlaylist');"
-                                                        class="disableButtons noDirButton singleMusicButton multiMusicButton"
-                                                        type="button" value="Add To Playlist" />
-                                                    <input onclick="ButtonHandler('Videos', 'download');"
-                                                        class="disableButtons noDirButton singleVideosButton multiVideosButton"
-                                                        type="button" value="Download" />
-                                                    <input onclick="ButtonHandler('Videos', 'rename');"
-                                                        class="disableButtons singleVideosButton" type="button"
-                                                        value="Rename" />
-                                                    <input onclick="ButtonHandler('Videos', 'delete');"
-                                                        class="disableButtons singleVideosButton multiVideosButton"
-                                                        type="button" value="Delete" />
+                                        <input onclick="ClearSelections('Videos');" class="buttons" type="button"
+                                            value="Clear" />
+                                        <input onclick="ButtonHandler('Videos', 'playInBrowser');"
+                                            class="disableButtons noDirButton singleVideosButton"
+                                            type="button" value="Watch" />
+                                        <input onclick="ButtonHandler('Videos', 'addToPlaylist');"
+                                            class="disableButtons noDirButton singleVideosButton multiVideosButton"
+                                            type="button" value="Add To Playlist" />
+                                        <input onclick="ButtonHandler('Videos', 'download');"
+                                            class="disableButtons noDirButton singleVideosButton multiVideosButton"
+                                            type="button" value="Download" />
+                                        <input onclick="ButtonHandler('Videos', 'rename');"
+                                            class="disableButtons singleVideosButton" type="button"
+                                            value="Rename" />
+                                        <input onclick="ButtonHandler('Videos', 'delete');"
+                                            class="disableButtons singleVideosButton multiVideosButton"
+                                            type="button" value="Delete" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
                                 </div>
@@ -389,7 +599,7 @@
                                 <div class="backdrop">
                                     <div class="row justify-content-between fileDetailsHeader">
                                         <div class="col-auto">
-                                            <h2>Images</h2>
+                                            <h2>Image Files (.jpg/.jpeg/.png/.gif)</h2>
                                         </div>
                                         <div class="col-auto fileCountDetails">
                                             <div class="row">
@@ -424,6 +634,9 @@
                                         <input onclick="ButtonHandler('Images', 'viewImage');"
                                             class="disableButtons noDirButton singleImagesButton" type="button"
                                             value="View" />
+                                        <input onclick="ButtonHandler('Images', 'addToPlaylist');"
+                                            class="disableButtons noDirButton singleImagesButton multiImagesButton"
+                                            type="button" value="Add To Playlist" />
                                         <input onclick="ButtonHandler('Images', 'download');"
                                             class="disableButtons noDirButton singleImagesButton multiImagesButton"
                                             type="button" value="Download" />
@@ -475,9 +688,9 @@
                                     <div class='form-actions'>
                                         <input onclick="ClearSelections('Effects');" class="buttons" type="button"
                                             value="Clear" />
-                                        <input onclick="ButtonHandler('Effects', 'sequenceInfo');"
-                                            class="disableButtons noDirButton singleEffectsButton" type="button"
-                                            value="Sequence Info" />
+                                        <input onclick="ButtonHandler('Effects', 'addToPlaylist');"
+                                            class="disableButtons noDirButton singleEffectsButton multiEffectsButton"
+                                            type="button" value="Add To Playlist" />
                                         <input onclick="ButtonHandler('Effects', 'download');"
                                             class="disableButtons noDirButton singleEffectsButton multiEffectsButton"
                                             type="button" value="Download" />
@@ -498,7 +711,7 @@
                                 <div class="backdrop">
                                     <div class="row justify-content-between fileDetailsHeader">
                                         <div class="col-auto">
-                                            <h2>Scripts (.sh/.pl/.pm/.php/.py)</h2>
+                                            <h2>Scripts (.sh/.pl/.pm/.php/.py/.js)</h2>
                                         </div>
                                         <div class="col-auto fileCountDetails">
                                             <div class="row">
@@ -561,6 +774,85 @@
                             include($td);
                         }
                         ?>
+                        <?php if ($isMounted) { ?>
+                        <div class="tab-pane fade" id="tab-usb" role="tabpanel" aria-labelledby="tab-usb-tab">
+                            <div id="divUSB">
+                                <div class="backdrop">
+                                    <div class="row justify-content-between fileDetailsHeader">
+                                        <div class="col-auto">
+                                            <h2>USB Files (<?php echo $usbSubdir; ?>)</h2>
+                                        </div>
+                                        <div class="col-auto fileCountDetails">
+                                            <div class="row">
+                                                <div class="col-auto fileCountlabelHeading">Items</div>
+                                                <div class="col-auto fileCountlabelValue">
+                                                    <span id="fileCount_USB" class='badge text-bg-secondary'>
+                                                    <?php
+                                                    $usbPath = $mountPoint . '/' . $usbSubdir;
+                                                    $allFiles = getAllFiles($usbPath);
+                                                    $fileCount = count($allFiles);
+                                                    echo $fileCount;
+                                                    ?>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="divUSBData" class="fileManagerDivData">
+                                        <table id="tblUSB" class="tablesorter">
+                                            <thead>
+                                                <tr>
+                                                    <th>File</th>
+                                                    <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
+                                                        data-metric-name-abbr="b|B">Size</th>
+                                                    <th class="sorter-sugar">Date Modified</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php
+                                                if (!empty($allFiles)) {
+                                                    foreach ($allFiles as $file) {
+                                                        echo "<tr class='fppSelectableRow' data-file='" . htmlspecialchars($file['name']) . "' data-dir='mnt/" . htmlspecialchars($usbSubdir) . "'>";
+                                                        echo "<td>" . htmlspecialchars($file['name']) . "</td>";
+                                                        echo "<td>" . humanFileSize(filesize($file['fullPath'])) . "</td>";
+                                                        echo "<td>" . date('Y-m-d H:i:s', filemtime($file['fullPath'])) . "</td>";
+                                                        echo "</tr>";
+                                                    }
+                                                } else {
+                                                    echo "<tr class='unselectableRow'><td colspan='3' align='center'>No files found</td></tr>";
+                                                }
+                                                ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class='form-actions'>
+                                        <input onclick="ClearSelections('USB');" class="buttons" type="button" value="Clear" />
+                                        <input onclick="ButtonHandler('USB', 'viewFile');"
+                                            class="buttons disableButtons noDirButton singleUSBButton" type="button"
+                                            value="View" />
+                                        <input onclick="ButtonHandler('USB', 'download');"
+                                            class="buttons disableButtons noDirButton singleUSBButton multiUSBButton"
+                                            type="button" value="Download" />
+                                        <input onclick="ButtonHandler('USB', 'copyFile');"
+                                            class="buttons disableButtons noDirButton singleUSBButton" type="button"
+                                            value="Copy" />
+                                        <input onclick="ButtonHandler('USB', 'rename');"
+                                            class="buttons disableButtons singleUSBButton" type="button" value="Rename" />
+                                        <input onclick="ButtonHandler('USB', 'delete');"
+                                            class="buttons disableButtons singleUSBButton multiUSBButton" type="button"
+                                            value="Delete" />
+                                    </div>
+                                    <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php } ?>
+                        <li class="nav-item">
+                            <a class="nav-link " id="tab-logs-tab" data-bs-toggle="pill" data-bs-target="#tab-logs"
+                                href="#tab-logs" role="tab" aria-controls="tab-logs">
+                                Logs
+                            </a>
+                        </li>
                         <div class="tab-pane fade" id="tab-logs" role="tabpanel" aria-labelledby="tab-logs-tab">
                             <div id="divLogs">
                                 <div class="backdrop">
@@ -687,12 +979,12 @@
                                     <div id="divCrashesData" class="fileManagerDivData">
                                         <table id="tblCrashes" class="tablesorter">
                                             <thead>
-                                                <tr">
+                                                <tr>
                                                     <th>File</th>
                                                     <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
                                                         data-metric-name-abbr="b|B">Size</th>
                                                     <th class="sorter-sugar">Date Modified</th>
-                                                    </tr>
+                                                </tr>
                                             </thead>
                                             <tbody>
                                             </tbody>
@@ -734,13 +1026,13 @@
                                     <div id="divBackupsData" class="fileManagerDivData">
                                         <table id="tblBackups" class="tablesorter">
                                             <thead>
-                                                <tr">
+                                                <tr>
                                                     <th>File</th>
                                                     <th class="sorter-metric" data-metric-name-full="byte|Byte|BYTE"
                                                         data-metric-name-abbr="b|B">Size</th>
                                                     <th class="sorter-sugar">Date
                                                         Modified</th>
-                                                    </tr>
+                                                </tr>
                                             </thead>
                                             <tbody>
                                                 <tr class='unselectableRow'>

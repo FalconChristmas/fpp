@@ -2,22 +2,52 @@
 $skipJSsettings = 1;
 require_once('common.php');
 
-if (isset($_GET['action']) && $_GET['action'] == 'mount_usb') {
-    $device = isset($_GET['device']) ? $_GET['device'] : '';
-    if ($device == '') {
-        echo 'No device specified';
+if (isset($_GET['action'])) {
+    if ($_GET['action'] == 'mount_usb') {
+        $device = isset($_GET['device']) ? $_GET['device'] : '';
+        if ($device == '') {
+            echo 'No device specified';
+            exit;
+        }
+        $mountPoint = '/home/fpp/media/mnt/' . $device;
+        shell_exec('sudo mkdir -p ' . escapeshellarg($mountPoint));
+        $fsType = trim(shell_exec('blkid -o value -s TYPE ' . escapeshellarg('/dev/' . $device))); // Detect filesystem
+        $mountCmd = 'sudo mount ';
+        $mountCmd .= '-o uid=' . posix_getpwnam('fpp')['uid'] . ',gid=' . posix_getpwnam('fpp')['gid'] . ' ';
+        if ($fsType == 'exfat') {
+            $mountCmd .= '-t exfat ';
+        }
+        $mountCmd .= escapeshellarg('/dev/' . $device) . ' ' . escapeshellarg($mountPoint);
+        $output = array();
+        $return = 0;
+        exec($mountCmd, $output, $return);
+        if ($return == 0) {
+            shell_exec('sudo chown -R fpp:fpp ' . escapeshellarg($mountPoint));
+            echo 'Mounted successfully';
+        } else {
+            echo 'Mount failed: ' . implode("\n", $output);
+        }
         exit;
     }
-    shell_exec('sudo mkdir -p /mnt/usb');
-    $fsType = trim(shell_exec('blkid -o value -s TYPE /dev/' . $device)); // Detect filesystem
-    $mountCmd = 'sudo mount ';
-    if ($fsType == 'exfat') {
-        $mountCmd .= '-t exfat ';
+    if ($_GET['action'] == 'unmount_usb') {
+        $mountPoint = isset($_GET['mount_point']) ? $_GET['mount_point'] : '';
+        $force = isset($_GET['force']) && $_GET['force'] == '1';
+        if ($mountPoint == '') {
+            echo 'No mount point specified';
+            exit;
+        }
+        $umountCmd = 'sudo umount ' . ($force ? '-f ' : '') . escapeshellarg($mountPoint) . ' 2>&1';
+        $output = array();
+        $return = 0;
+        exec($umountCmd, $output, $return);
+        if ($return == 0) {
+            shell_exec('sudo rmdir ' . escapeshellarg($mountPoint));
+            echo 'Unmounted successfully';
+        } else {
+            echo 'Unmount failed: ' . implode("\n", $output);
+        }
+        exit;
     }
-    $mountCmd .= '/dev/' . $device . ' /mnt/usb';
-    shell_exec($mountCmd);
-    echo 'Mounted successfully'; 
-    exit;
 }
 ?>
 
@@ -136,30 +166,117 @@ if (isset($_GET['action']) && $_GET['action'] == 'mount_usb') {
         });
     }
 
-    function unmountUSBDevice(usbDevice, mountLocation) {
-        $.post("api/backups/devices/unmount/" + usbDevice + "/" + mountLocation).done(function (data) {
-            if (data.Status == "OK") {
-                alert("Unmount successful");
-                $('#unmount_' + usbDevice).remove();
-                location.reload(); // Reload the page to reflect changes
+    function unmountUSBDevice(usbDevice, mountLocation, force) {
+        $.get("settings-storage.php?action=unmount_usb&mount_point=/home/fpp/media/" + mountLocation + (force ? "&force=1" : "")).done(function (data) {
+            if (data.startsWith("Unmounted successfully")) {
+                $.msgBox({
+                    title: "Success",
+                    content: '<p><span class="ui-icon ui-icon-info" style="float:left; margin: 0 7px 20px 0;"></span>Unmount successful</p>',
+                    type: "info",
+                    buttons: [{ value: "OK" }],
+                    success: function () {
+                        $('#unmount_' + usbDevice).remove();
+                        location.reload();
+                    }
+                });
             } else {
-                alert("Unmount failed: " + (data.Message || "Unknown error"));
+                $.msgBox({
+                    title: "Error",
+                    content: '<p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>' + (data || "Unmount failed: Unknown error") + '</p>',
+                    type: "error"
+                });
             }
         }).fail(function() {
-            alert("Unmount failed—check network or logs for errors.");
+            $.msgBox({
+                title: "Error",
+                content: '<p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>Unmount failed—check network or logs for errors.</p>',
+                type: "error"
+            });
+        });
+    }
+    function forceUnmountConfirm(usbDevice, mountLocation) {
+        $.msgBox({
+            title: "Force Unmount?",
+            content: '<p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>Are you sure you want to force unmount? This may cause data loss.</p>',
+            type: "warning",
+            buttons: [{ value: "Yes" }, { value: "No" }],
+            success: function (result) {
+                if (result == "Yes") {
+                    unmountUSBDevice(usbDevice, mountLocation, true);
+                }
+            }
+        });
+    }
+    function promptUnmount(usbDevice, mountLocation) {
+        $.msgBox({
+            title: "Unmount?",
+            content: '<p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>You are about to unmount a disk.<br>Use caution when unmounting USB devices as they may be in use by the system processes.<br>Forcing an unmount may result in data loss.</p>',
+            type: "warning",
+            buttons: [{ value: "Unmount" }, { value: "Force" }, { value: "Cancel" }],
+            opacity: 0.5,
+            width: 500,
+            success: function (result) {
+                if (result == "Unmount") {
+                    unmountUSBDevice(usbDevice, mountLocation, false);
+                } else if (result == "Force") {
+                    forceUnmountConfirm(usbDevice, mountLocation);
+                }
+            },
+            afterShow: function() {
+                $('input[value="Force"]').css({
+                    'background-color': 'red',
+                    'color': 'white',
+                    'margin-right': '10px'
+                });
+            }
         });
     }
 
+    function mountUSBDevice(device) {
+        $.get("settings-storage.php?action=mount_usb&device=" + device).done(function (data) {
+            if (data.startsWith("Mounted successfully")) {
+                $.msgBox({
+                    title: "Success",
+                    content: '<p><span class="ui-icon ui-icon-info" style="float:left; margin: 0 7px 20px 0;"></span>Mount successful</p>',
+                    type: "info",
+                    buttons: [{ value: "OK" }],
+                    success: function () {
+                        location.reload();
+                    }
+                });
+            } else {
+                $.msgBox({
+                    title: "Error",
+                    content: '<p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>' + (data || "Mount failed: Unknown error") + '</p>',
+                    type: "error"
+                });
+            }
+        }).fail(function() {
+            $.msgBox({
+                title: "Error",
+                content: '<p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>Mount failed—check network or logs for errors.</p>',
+                type: "error"
+            });
+        });
+    }
+    function promptMount(device) {
+        $.msgBox({
+            title: "Mount?",
+            content: '<p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 20px 0;"></span>Create /home/fpp/media/mnt/' + device + ' if needed and mount the selected USB device (' + device + ') to it?</p>',
+            type: "info",
+            buttons: [{ value: "Mount" }, { value: "Cancel" }],
+            opacity: 0.5,
+            width: 500,
+            success: function (result) {
+                if (result == "Mount") {
+                    mountUSBDevice(device);
+                }
+            }
+        });
+    }
     function ManualMountUSB() {
         var device = $('#usbDeviceToMount').val();
-        if (confirm("Create /mnt/usb if needed and mount the selected USB device (" + device + ") to it?")) {
-            $.get("settings-storage.php?action=mount_usb&device=" + device).done(function(data) {
-                alert(data || "Mount attempted—check lsblk to verify.");
-                location.reload();
-            }).fail(function() {
-                alert("Mount failed—check logs for errors.");
-            });
-        }
+        promptMount(device);
     }
 </script>
 
@@ -513,11 +630,11 @@ if (!empty($systems_UsbDevices)) {
             $foundAMountedDevice = true;
             //find where mounted
             $usbMountLocation = shell_exec('findmnt -nr -o target -S /dev/' . $usbName);
-            $usbMountLocation_folder = trim(str_replace("/mnt/", "", $usbMountLocation));
-            $onClick_unmount = "unmountUSBDevice(\"$usbName\",\"$usbMountLocation_folder\");";
+            $usbMountLocation_folder = trim(str_replace("/home/fpp/media/", "", $usbMountLocation));
+            $onClick_unmount = "promptUnmount(\"$usbName\",\"$usbMountLocation_folder\");";
 
             //Find what files are open for the mount
-            $openFiles = trim(shell_exec("sudo lsof +f -- /dev/$usbName"));
+            $openFiles = trim(shell_exec("sudo lsof +D " . $usbMountLocation));
             ?>
             <div id="unmount_<?php echo $usbName; ?>" class="row">
                 <div id="mounted-usb-info" class="row">
@@ -527,7 +644,7 @@ if (!empty($systems_UsbDevices)) {
                     <div id="mounted-usb-location_<?php echo $usbName; ?>" class="col-md-2">Mounted
                         at: <?php echo $usbMountLocation; ?></div>
                     <div id="mounted-usb-action_<?php echo $usbName; ?>" class="col-md-2">
-                        <input style='width:13em;' type='button' class='buttons btn-danger' value='Force Unmount'
+                        <input style='width:13em;' type='button' class='buttons' value='Unmount'
                             onClick='<?php echo $onClick_unmount; ?>'>
                     </div>
                 </div>
