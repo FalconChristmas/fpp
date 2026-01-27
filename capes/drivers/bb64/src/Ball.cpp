@@ -67,12 +67,20 @@ std::string Ball::queryMode() {
 
 Ball& Ball::setMode(const std::string& m) {
     auto& c = modesetCommands[m];
-    uint8_t* d = DOMAINS[domain];
-    d += offset;
-    uint32_t* v = (uint32_t*)d;
-    for (auto& cmd : c) {
-        *v = cmd;
-        std::this_thread::yield();
+    if (!c.empty()) {
+        uint8_t* d = DOMAINS[domain];
+        d += offset;
+        uint32_t* v = (uint32_t*)d;
+
+        uint32_t curVal = *(volatile uint32_t*)v;
+        uint32_t set = 0;
+        for (auto& cmd : c) {
+            *(volatile uint32_t*)v = cmd;
+            set = cmd;
+            std::this_thread::yield();
+        }
+        uint32_t newVal = *(volatile uint32_t*)v;
+        printf("\t%s:  %X -> %X -> %X (%s)\n", name.c_str(), curVal, set, newVal, m.c_str());
     }
     return *this;
 }

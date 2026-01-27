@@ -87,6 +87,30 @@ static void setupBBBMemoryMap() {
     // newer kernels will number the chips differently so we'll use the
     // memory locations to figure out the mapping to the gpio0-3 that we use
     int x = 0;
+#ifdef IS_GPIOD_CXX_V2
+    // libgpiod v2: iterate through chips by path
+    for (int chipNum = 0; chipNum < 10; chipNum++) {
+        std::string chipPath = "/dev/gpiochip" + std::to_string(chipNum);
+        if (FileExists(chipPath)) {
+            try {
+                auto chip = gpiod::chip(chipPath);
+                std::string lab = chip.get_info().label();
+                if (lab.contains("tps65219-gpio")) {
+                    labelMapping[lab] = { 0, chipNum };
+                } else if (lab.contains("4201000.gpio")) {
+                    labelMapping[lab] = { 1, chipNum };
+                } else if (lab.contains("600000.gpio")) {
+                    labelMapping[lab] = { 2, chipNum };
+                } else if (lab.contains("601000.gpio")) {
+                    labelMapping[lab] = { 3, chipNum };
+                }
+            } catch (...) {
+                // Chip doesn't exist, continue
+                break;
+            }
+        }
+    }
+#else
     for (auto&& chip : gpiod::make_chip_iter()) {
         std::string lab = chip.label();
         if (lab.contains("tps65219-gpio")) {
@@ -100,7 +124,7 @@ static void setupBBBMemoryMap() {
         }
         x++;
     }
-
+#endif
     const std::string dirName("/sys/class/gpio");
     if (DirectoryExists(dirName)) {
         DIR* dir = opendir(dirName.c_str());
@@ -141,6 +165,47 @@ static void setupBBBMemoryMap() {
         }
         closedir(dir);
     }
+#ifdef IS_GPIOD_CXX_V2
+    // libgpiod v2: iterate through chips by path
+    int curChip = 0;
+    for (int chipNum = 0; chipNum < 10 && curChip < 4; chipNum++) {
+        std::string chipPath = "/dev/gpiochip" + std::to_string(chipNum);
+        if (!FileExists(chipPath)) {
+            break;
+        }
+        try {
+            auto chip = gpiod::chip(chipPath);
+            std::string clabel = chip.get_info().label();
+            TrimWhiteSpace(clabel);
+            if (labelMapping.contains(clabel)) {
+                bbGPIOMap[labelMapping[clabel].first] = curChip;
+            } else {
+#ifdef PLATFORM_BBB
+                // if mapping by base fails, try using specific line labels
+                auto info = chip.get_line_info(0);
+                std::string name = info.name();
+                if (name == "NC") {
+                    info = chip.get_line_info(13);
+                    name = info.name();
+                }
+                if (name == "[mdio_data]" || name == "P1.28 [I2C2_SCL]") {
+                    bbGPIOMap[0] = curChip;
+                } else if (name == "P8_25 [mmc1_dat0]" || name == "P2.33") {
+                    bbGPIOMap[1] = curChip;
+                } else if (name == "P9_15B" || name == "[SYSBOOT 7]" || name == "P2.20") {
+                    bbGPIOMap[2] = curChip;
+                } else if (name == "[mii col]" || name == "P1.03 [USB1]") {
+                    bbGPIOMap[3] = curChip;
+                }
+#endif
+            }
+            ++curChip;
+        } catch (...) {
+            // Chip doesn't exist, continue
+            break;
+        }
+    }
+#else
     int curChip = 0;
     for (auto& a : gpiod::make_chip_iter()) {
         // std::string cname = a.name();
@@ -174,7 +239,8 @@ static void setupBBBMemoryMap() {
             break;
         }
     }
-    // printf("Mapping %d %d %d %d\n", bbGPIOMap[0], bbGPIOMap[1], bbGPIOMap[2], bbGPIOMap[3]);
+#endif
+    printf("Mapping %d %d %d %d\n", bbGPIOMap[0], bbGPIOMap[1], bbGPIOMap[2], bbGPIOMap[3]);
     registersMemMapped = 1;
 }
 
@@ -258,11 +324,11 @@ Json::Value BBBPinCapabilities::toJSON() const {
     Json::Value ret = PinCapabilities::toJSON();
 #ifdef PLATFORM_BBB
     if (gpioIdx < 4) {
-        //somewhat for compatibility with the old kernel GPIO numbers on the BBB's
+        // somewhat for compatibility with the old kernel GPIO numbers on the BBB's
         int kgpio = mappedGPIOIdx() * 32 + gpio;
         ret["gpio"] = kgpio;
     }
-#endif    
+#endif
     if (_pruPin[0] != -1) {
         ret["pru"] = 0;
         ret["pruPin"] = _pruPin[0];
@@ -437,7 +503,7 @@ const PinCapabilities& BBBPinProvider::getPinByGPIO(int chip, int gpio) {
         chip = gpio / 32;
         gpio = gpio % 32;
     }
-#endif    
+#endif
     for (auto& a : BBB_PINS) {
         if (a.gpioIdx == chip && a.gpio == gpio) {
             return a;

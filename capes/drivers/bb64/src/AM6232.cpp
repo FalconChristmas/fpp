@@ -1,8 +1,9 @@
 
 
 #include "Ball.h"
-
-std::map<std::string, Ball> AM6232ALW;
+#include <sys/fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #define WKUP_LVL_EN_SHIFT (7)
 #define WKUP_LVL_POL_SHIFT (8)
@@ -75,6 +76,7 @@ constexpr uint32_t MAIN_DOMAIN = 1;
 static Ball& addBall(const std::string& n, uint32_t d, uint32_t o, bool addGPIO = true, uint32_t pru0Base = 0xFFFFFFFF, uint32_t pru1Base = 0xFFFFFFFF) {
     Ball& b = Ball::addBall(n, d, o);
     b.addMode("reset", { 0x8214007 });
+    b.modeMask = 0xFF;
     if (addGPIO) {
         b.addMode("gpio", { PIN_INPUT | 7 }).addMode("gpio_pu", { PIN_INPUT_PULLUP | 7 }).addMode("gpio_pd", { PIN_INPUT_PULLDOWN | 7 }).addMode("gpio_out", { PIN_OUTPUT | 7 });
     }
@@ -91,6 +93,24 @@ static Ball& addBall(const std::string& n, uint32_t d, uint32_t o, bool addGPIO 
 }
 
 void InitAM6232Balls() {
+    constexpr uint64_t MEMLOCATIONS[] = { 0x4084000, 0xf4000, 0x0 };
+    constexpr uint64_t MAX_OFFSET = 0x260;
+    int mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
+    int d = 0;
+    while (MEMLOCATIONS[d]) {
+        uint8_t* gpio_map = (uint8_t*)mmap(
+            NULL,                   /* Any address in our space will do */
+            MAX_OFFSET,             /* Map length */
+            PROT_READ | PROT_WRITE, /* Enable reading & writing */
+            MAP_SHARED,             /* Shared with other processes */
+            mem_fd,                 /* File to map */
+            MEMLOCATIONS[d]         /* Offset to GPIO peripheral */
+        );
+        Ball::setDomainAddress(d, gpio_map);
+        ++d;
+    }
+    close(mem_fd);
+
     addBall("A18", MAIN_DOMAIN, 0x1F0, true).addMode("ecap", { PIN_OUTPUT | 8 });
     addBall("L23", MAIN_DOMAIN, 0x084);
     addBall("P25", MAIN_DOMAIN, 0x07C);

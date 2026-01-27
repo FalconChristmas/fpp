@@ -1,11 +1,11 @@
 
 %.o: %.cpp 
-	ccache g++ -O3 -std=gnu++23 -c $< -o $@
+	ccache g++ -g -std=gnu++23 -c $< -o $@
 
 all: pinctrl fpp-base-overlay.dtb fpp-cape-overlay.dtb
 
-pinctrl: src/AM6232.o src/Ball.o src/PocketBeagle2.o src/ConfigPin.o src/Pin.o
-	g++  -o pinctrl src/AM6232.o src/Ball.o src/PocketBeagle2.o src/ConfigPin.o src/Pin.o
+pinctrl: src/AM6232.o src/Ball.o src/PocketBeagle2.o src/ConfigPin.o src/Pin.o src/PocketBeagle1.o src/BeagleBoneBlack.o src/AM335x.o
+	g++  -o pinctrl src/AM6232.o src/Ball.o src/PocketBeagle2.o src/ConfigPin.o src/Pin.o src/PocketBeagle1.o src/BeagleBoneBlack.o src/AM335x.o
 	chmod +s pinctrl
 
 fpp-base-overlay.dtb: fpp-base-overlay.dts

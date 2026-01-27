@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -32,6 +33,7 @@ public:
     std::string name;
     uint32_t domain = 0;
     uint32_t offset = 0;
+    uint32_t modeMask = 0x7;
 
     std::map<std::string, std::vector<uint32_t>> modesetCommands;
 

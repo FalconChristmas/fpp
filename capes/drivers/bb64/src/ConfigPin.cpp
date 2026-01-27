@@ -9,30 +9,29 @@
 #include "Ball.h"
 #include "Pin.h"
 
-constexpr uint64_t MEMLOCATIONS[] = { 0x4084000, 0xf4000, 0x0 };
-constexpr uint64_t MAX_OFFSET = 0x260;
-
+extern void InitPocketBeagle1();
 extern void InitPocketBeagle2();
+extern void InitBeagleBoneBlack();
 
 extern "C" {
 int main(int argc, char const* argv[]) {
-    InitPocketBeagle2();
-
-    int mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
-    int d = 0;
-    while (MEMLOCATIONS[d]) {
-        uint8_t* gpio_map = (uint8_t*)mmap(
-            NULL,                   /* Any address in our space will do */
-            MAX_OFFSET,             /* Map length */
-            PROT_READ | PROT_WRITE, /* Enable reading & writing */
-            MAP_SHARED,             /* Shared with other processes */
-            mem_fd,                 /* File to map */
-            MEMLOCATIONS[d]         /* Offset to GPIO peripheral */
-        );
-        Ball::setDomainAddress(d, gpio_map);
-        ++d;
+    FILE* file = fopen("/proc/device-tree/model", "r");
+    if (file) {
+        char buf[256];
+        fgets(buf, 256, file);
+        fclose(file);
+        if (strcmp(&buf[10], "PocketBeagle") == 0) {
+            InitPocketBeagle1();
+        } else if (strcmp(buf, "BeagleBoard.org PocketBeagle2") == 0) {
+            InitPocketBeagle2();
+        } else if (strcmp(buf, "BeagleBoard.org BeaglePlay") == 0) {
+            InitPocketBeagle2();
+        } else {
+            InitBeagleBoneBlack();
+        }
+    } else {
+        InitBeagleBoneBlack();
     }
-    close(mem_fd);
 
     std::string arg1;
     if (argc > 1) {

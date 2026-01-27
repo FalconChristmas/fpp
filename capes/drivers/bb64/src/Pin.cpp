@@ -42,8 +42,12 @@ const Pin& Pin::listModes() const {
     if (!found) {
         if (qm == "") {
             for (auto& b : balls) {
-                uint32_t bm = Ball::findBall(b).queryRawMode();
-                printf("     Cur Mode: %X", bm);
+                auto& ball = Ball::findBall(b);
+                uint32_t bm = ball.queryRawMode();
+
+                uint32_t mode = bm & ball.modeMask;
+                uint32_t flags = bm & ~ball.modeMask;
+                printf("     Cur Mux Mode: %d   Flags: %X", mode, flags);
             }
         } else {
             printf("[%s] ", qm.c_str());
