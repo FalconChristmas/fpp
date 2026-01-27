@@ -214,13 +214,23 @@ function network_get_interface()
     unset($output);
 
     if (substr($interface, 0, 2) == "wl") {
-        exec("/sbin/iwconfig $interface", $output);
+        exec("/sbin/iw dev $interface link 2>/dev/null", $output);
         foreach ($output as $line) {
-            if (preg_match('/ESSID:/', $line) && !preg_match('/ESSID:off/', $line)) {
-                $result['CurrentSSID'] = preg_replace('/.*ESSID:"([^"]+)".*/', '$1', $line);
+            if (preg_match('/SSID: (.+)/', $line, $m)) {
+                $result['CurrentSSID'] = $m[1];
             }
-            if (preg_match('/Rate=/', $line)) {
-                $result['CurrentRate'] = preg_replace('/.*Bit Rate=([0-9\.]+) .*/', '$1', $line);
+            // For Legacy Purpose (TX Bitrate)
+            if (preg_match('/^\s*tx bitrate:\s*([0-9\.]+)\s*MBit\/s/', $line, $m)) {
+                $result['CurrentRate'] = $m[1];
+            }
+            // TX bitrate
+            if (preg_match('/^\s*tx bitrate:\s*([0-9\.]+)\s*MBit\/s/', $line, $m)) {
+                $result['CurrentTXRate'] = $m[1];
+            }
+
+            // RX bitrate
+            if (preg_match('/^\s*rx bitrate:\s*([0-9\.]+)\s*MBit\/s/', $line, $m)) {
+                $result['CurrentRXRate'] = $m[1];
             }
         }
         unset($output);
