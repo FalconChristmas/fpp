@@ -6,7 +6,7 @@ FindTetherWIFIAdapater() {
         WLDEVICES=$(ls -d /sys/class/net/wl*)
         for d in $WLDEVICES; do
             DEV=$(basename $d)
-            HASLINKDEV=$(iwconfig $DEV | grep "Not-Associated")
+            HASLINKDEV=$(iw dev "$DEV" link 2>/dev/null | grep "Not connected")
             if [ "x${HASLINKDEV}" != "x" ]; then
                 TetherInterface=$DEV
             fi
@@ -368,7 +368,7 @@ WaitForInterfacesUp() {
     WLDEVICES=$(ls -d /sys/class/net/wl*)
     for d in $WLDEVICES; do
         DEV=$(basename $d)
-        iwconfig $DEV power off 2>/dev/null >/dev/null
+        iw dev "$DEV" set power_save off 2>/dev/null >/dev/null
     done
 }
 
