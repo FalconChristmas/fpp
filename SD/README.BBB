@@ -116,67 +116,6 @@ echo "blacklist hci_uart" >> /etc/modprobe.d/blacklist-bluetooth.conf
 echo "blacklist bnep" >> /etc/modprobe.d/blacklist-bluetooth.conf
 
 
-#if external wifi adapters are built for the kernel:
-wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/wireless-${BASE_NEW_KERNEL_VERSION}.tgz
-tar -xzf wireless-${BASE_NEW_KERNEL_VERSION}.tgz
-cp -a wireless/* /lib/modules/${BASE_NEW_KERNEL_VERSION}/kernel/drivers/net/wireless
-depmod -a ${BASE_NEW_KERNEL_VERSION}
-rm -rf wireless
-rm -f wireless-${BASE_NEW_KERNEL_VERSION}.tgz
-
-echo "options 8188eu.ko rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8192eu.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8723au.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8723bu.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8812au.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8814au.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8821au.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8821cu.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8852au.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8852bu.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 88x2bu.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8192cu.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options rtl8188fu.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options rtl8192cu.ko rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-
-rm -f /etc/modprobe.d/blacklist-native-wifi.conf
-touch /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl8192cu" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl8192c_common" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl8xxxu" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist r8188eu" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl8188fu" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl818x" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl8712" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl8188eu" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl8723bs" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl8187" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist r8188eu" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist r8723bs" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist r8712u" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtw88_8822bu" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtw88_8822b" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtw88_usb" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtw88_core" >> /etc/modprobe.d/blacklist-native-wifi.conf
-mkdir -p /etc/fpp/wifi
-cp -f /etc/modprobe.d/blacklist-native-wifi.conf /etc/fpp/wifi
-
-echo "blacklist 8188eu" > /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 8192eu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 8192cu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 8723au" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 8723bu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 8812au" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 8814au" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 8821au" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 8821cu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 8852au" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 8852bu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist 88x2bu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-echo "blacklist rtl8188fu" >> /etc/fpp/wifi/blacklist-external-wifi.conf
-
-
-
 
 # need to reboot so that the new kernel is picked up and used
 reboot
@@ -186,7 +125,7 @@ reboot
 cd /root
 wget -4 -O ./FPP_Install.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 chmod 700 ./FPP_Install.sh
-export FPPBRANCH=v9.3
+export FPPBRANCH=master
 ./FPP_Install.sh --img
 
 # once FPP_Install is done, the wifi drivers and such are installed so the linux-headers

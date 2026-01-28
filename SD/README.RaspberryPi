@@ -2,9 +2,9 @@
 Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
-Install the latest Raspbian Bullseye Lite image to the SD card.  The last
-version tested 2025-05-13-raspios-bookworm-armhf-lite.img.xz
-Resize the root partition to 3.5GB using fdisk (substitute the proper device
+Install the latest Raspbian Trixe Lite image to the SD card.  The last
+version tested 2025-12-04-raspios-trixie-armhf-lite.img
+Resize the root partition to 6GB using fdisk (substitute the proper device
 for your SD card).
 
     fdisk /dev/sdc
@@ -18,7 +18,7 @@ for your SD card).
 	(Replace 1056768 with the original start block of partition 2 noted earlier)
     1056768
 	(FIXME, downsize this value once install is tested)
-    +6000M
+    +7100M
     N
     p
     w
@@ -38,13 +38,7 @@ we have the partition mounted:
 	# Backup the cmdline.txt file
 	cp /mnt/tmp/cmdline.txt /mnt/tmp/cmdline.org
 	# Disable the auto-resize of the root partition
-	sed -i -e "s# init=/usr/lib/raspberrypi-sys-mods/firstboot##" /mnt/tmp/cmdline.txt
-    # Force 32bit kernel or VLC and libhttpserver will compile for 64bit and not be usable
-    echo "" >> /mnt/tmp/config.txt
-    echo "[all]" >> /mnt/tmp/config.txt
-    echo "# Use 32bit kernel instead of 64bit so external wifi drivers will load" >> /mnt/tmp/config.txt
-    echo "arm_64bit=0" >> /mnt/tmp/config.txt
-    echo "" >> /mnt/tmp/config.txt
+    sed -i -e "s# resize##" /mnt/tmp/cmdline.txt
  
 	# Enable ssh by default
 	touch /mnt/tmp/ssh
@@ -72,9 +66,8 @@ Do a system upgrade to make sure everything is at the latest versions
 
 
 
-# For debian 12, we'd like to move to kernel 6.12+ and drop compiled wifi drivers, this still
-# needs some work to figure out and LOTS more testing
-# If the kernel version is NOT already 6.12.x (depends on the image used), then you need to update:
+# For FPP10/Debian 13, we'd like to move to kernel 6.18+
+# If the kernel version is NOT already 6.18.x (depends on the image used), then you need to update:
 PRUNE_MODULES=1 WANT_PI5=1 rpi-update next
 KV=$(uname -r)
 KV=${KV::-3}
@@ -91,8 +84,8 @@ Reboot again to pick up the latest kernel that may have been installed with the 
 
 
 On the Pi, run the FPP installer:
+    export FPPBRANCH=master
 	wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
-    export FPPBRANCH=v9.3
 	chmod 700 ./FPP_Install.sh
 	sudo ./FPP_Install.sh --img
 
@@ -134,9 +127,9 @@ the proper device name for your SD card in place of '/dev/sdg'):
        apt-get install zerofree squashfs-tools
 
     DEVICE=/dev/sdc
-    VERSION=9.3
-    OSVERSION=2025-11
-    BLOCKS=6800
+    VERSION=10.0
+    OSVERSION=2026-01
+    BLOCKS=7900
     mount "${DEVICE}2" /mnt
     rm -rf /mnt/usr/src/linux-headers-*
     rm -rf /mnt/home/pi

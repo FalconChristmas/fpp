@@ -526,7 +526,7 @@ case "${OSVER}" in
         if ! $build_vlc; then
             PACKAGE_LIST="$PACKAGE_LIST vlc libvlc-dev"
             if [ "${OSVER}" == "debian_13" ]; then
-                PACKAGE_LIST="$PACKAGE_LIST vlc-plugin-pipewire"
+                PACKAGE_LIST="$PACKAGE_LIST vlc-plugin-pipewire vlc-plugin-base vlc-plugin-video-output"
             fi
         fi
         if [ "${OSVER}" == "debian_12" ]; then
@@ -537,10 +537,6 @@ case "${OSVER}" in
         else
             PACKAGE_LIST="$PACKAGE_LIST ntp ifplugd libfmt9"
         fi
-        if [ "$FPPPLATFORM" == "BeagleBone 64" ]; then
-            PACKAGE_LIST="$PACKAGE_LIST cpufrequtils"
-        fi
-
         
         if $skip_apt_install; then
             echo "skipping apt install because skpt_apt_install == $skip_apt_install"
@@ -592,6 +588,8 @@ case "${OSVER}" in
             echo "FPP - Disabling dhcp-helper and hostapd from automatically starting"
             systemctl disable dhcp-helper
             systemctl disable hostapd
+            
+            systemctl disable distcc
             
             echo "FPP - Disabling the auto-upgrade services"
             systemctl disable apt-daily.service || true
@@ -1109,8 +1107,8 @@ fi
 #######################################
 # Add the ${FPPUSER} user and group memberships
 echo "FPP - Adding ${FPPUSER} user"
-addgroup --gid 500 ${FPPUSER}
-adduser --uid 500 --home ${FPPHOME} --shell /bin/bash --ingroup ${FPPUSER} --gecos "Falcon Player" --disabled-password ${FPPUSER}
+addgroup --gid 1000 ${FPPUSER}
+adduser --uid 1000 --home ${FPPHOME} --shell /bin/bash --ingroup ${FPPUSER} --gecos "Falcon Player" --disabled-password ${FPPUSER}
 adduser ${FPPUSER} adm
 adduser ${FPPUSER} sudo
 if getent group gpio > /dev/null; then

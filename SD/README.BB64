@@ -1,7 +1,7 @@
 # FPP BB64 Image creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian pocketbeagle2 images:
-# https://rcn-ee.net/rootfs/debian-arm64-12-iot-v6.16-k3/2025-10-29/
+# https://rcn-ee.net/rootfs/debian-arm64-13-iot-v6.18-k3/2026-01-28/
 
 # Burn the above image onto an SD card and insert into a running Linux machine
 # We need to make changes to the filesystems and layout prior to booting
@@ -40,9 +40,6 @@ apt-get remove --autoremove --purge bb-node-red-installer bb-code-server ti-zeph
 apt-get remove --autoremove firmware-nvidia-graphics firmware-intel-graphics
 rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1-* /opt/source/dtb-6.6-* /opt/source/dtb-6.12-*  /opt/source/spi*
 
-#update to the latest 6.15 kernel to get the latest wifi drivers and other fixes
-apt-get remove bbb.io-kernel-6.16-k3 bbb.io-kernel-6.16-k3-am62 linux-image-$(uname -r)
-apt-get install bbb.io-kernel-6.17-k3
 
 # The "default" driver for the standard USB->Gigabit device we use has some reporting issues and
 # always report half duplex mode and sometimes only 100MB connection (despite actualy gigabit connection
@@ -63,14 +60,13 @@ reboot
 cd /root
 wget -4 -O ./FPP_Install.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 chmod 700 ./FPP_Install.sh
-export FPPBRANCH=v9.3
+export FPPBRANCH=master
 ./FPP_Install.sh --img
 
 # Reboot and make sure everything looks ok
 
 # Before shutting down, run:
 journalctl --flush --rotate --vacuum-time=1s
-touch /boot/firmware/fpp_expand_rootfs
 sync
 fstrim -v /
 
@@ -94,6 +90,10 @@ fstrim -v /
     rm -f /mnt/root/.bash_history
     echo "uninitialized" > /mnt/etc/machine-id
     umount /mnt
+    mount "${DEVICE}1" /mnt
+    touch /mnt/fpp_expand_rootfs
+    umount /mnt
+
     zerofree -v "${DEVICE}3"
     dd if=${DEVICE} of=FPP-v${VERSION}-BB64.img bs=1M count=${BLOCKS}
     zip -9 FPP-v$VERSION-BB64.img.zip FPP-v${VERSION}-BB64.img
