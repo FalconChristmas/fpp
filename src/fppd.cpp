@@ -359,20 +359,16 @@ static void handleCrash(int s) {
             std::string SystemUUID = getSetting("SystemUUID", "unknown");
             snprintf(zfName, sizeof(zfName), "crashes/fpp-%s-%s-%s-%s.zip", sysType, getFPPVersion(), SystemUUID.c_str(), tbuffer);
 
-            char zName[1224];
-            snprintf(zName, sizeof(zfName), "zip -r %s /tmp/fppd_crash.log fpp-info.json", zfName);
-            if (crashLog > 1) {
-                strcat(zName, " settings");
-                if (crashLog > 2) {
-                    system("dmesg -T > tmp/boot.log");
-                    system("journalctl -b -u fppinit -u fppoled -u fpp_postnetwork >> tmp/boot.log");
-                    strcat(zName, " config tmp logs/fppd.log logs/apache2-error.log playlists /etc/fpp");
-                }
-            }
-            system(zName);
+            // Use script to generate crash report with passwords redacted
+            char scriptCmd[512];
+            snprintf(scriptCmd, sizeof(scriptCmd), "/opt/fpp/scripts/generate_crash_report %d %s", crashLog, zfName);
+            system(scriptCmd);
             SetFilePerms(zfName);
-            snprintf(zName, sizeof(zfName), "curl https://dankulp.com/crashUpload/index.php -F userfile=@%s", zfName);
-            system(zName);
+            
+            // Upload crash report
+            char uploadCmd[512];
+            snprintf(uploadCmd, sizeof(uploadCmd), "curl https://dankulp.com/crashUpload/index.php -F userfile=@%s", zfName);
+            system(uploadCmd);
         } else {
             LogErr(VB_ALL, "Very recent crash report found, not uploading\n");
         }
