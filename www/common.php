@@ -2376,7 +2376,7 @@ function network_wifi_strength_obj()
                 $obj->noise = intval($parts[4]);
                 $obj->desc = '';
 
-                $output = exec("iwconfig " . $obj->interface . " | grep 'Link Quality' | cut -f2 -d: | cut -f2 -d= | awk '{print \$1}'");
+                $output = exec("iw dev " . $obj->interface . " link 2>/dev/null | grep signal | awk '{print \$2}'");
 
                 if ($output != '') {
                     $pparts = preg_split('/\//', trim($output));

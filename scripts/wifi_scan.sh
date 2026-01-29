@@ -20,7 +20,7 @@ WIFI scanning failed.
     continue
 fi
 
-connected_address=$(iwconfig $wifi_device | sed -n 's/.*Access Point: \([0-9\:A-F]\{17\}\).*/\1/p')
+connected_address=$(iw dev "$wifi_device" link 2>/dev/null | sed -n 's/.*Connected to \([0-9a-f:]\{17\}\).*/\1/p')
 
 if [ -f /tmp/ssids ]; then
     rm /tmp/ssids
