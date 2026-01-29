@@ -142,17 +142,17 @@ function PrintStorageDeviceSelect($platform)
 
     if ($platform == "BeagleBone Black") {
         exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
-        $rootDevice = $output[0];
+        $rootDevice = isset($output[0]) ? $output[0] : "";
         unset($output);
 
         if ($bootDevice == "") {
             exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
-            $bootDevice = $output[0];
+            $bootDevice = isset($output[0]) ? $output[0] : "";
             unset($output);
         }
     } else {
         exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
-        $rootDevice = $output[0];
+        $rootDevice = isset($output[0]) ? $output[0] : "";
         unset($output);
     }
 
