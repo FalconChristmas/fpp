@@ -202,40 +202,40 @@ if (!$settings['BeaglePlatform']) {
  */
 function CSP_AllowRemoteSystems()
 {
-	global $mediaDirectory, $fppDir;
-	$backupHosts = getKnownFPPSystems();
-	$http_backupHostsAdded = 0;
-	$csp_config_path = $mediaDirectory . "/config/csp_allowed_domains.json";
-	$apache_csp_update_script_path = $fppDir . "/scripts/ManageApacheContentPolicy.sh";
+    global $mediaDirectory, $fppDir;
+    $backupHosts = getKnownFPPSystems();
+    $http_backupHostsAdded = 0;
+    $csp_config_path = $mediaDirectory . "/config/csp_allowed_domains.json";
+    $apache_csp_update_script_path = $fppDir . "/scripts/ManageApacheContentPolicy.sh";
 
-	if (!file_exists($csp_config_path)) {
-		//Run the apache shell script and let it create a blank csp_allowed_domains.json file
-		shell_exec("sudo bash $apache_csp_update_script_path regenerate-norestart 2>&1");
-	}
+    if (!file_exists($csp_config_path)) {
+        //Run the apache shell script and let it create a blank csp_allowed_domains.json file
+        shell_exec("sudo bash $apache_csp_update_script_path regenerate-norestart 2>&1");
+    }
 
-	$csp_allowed_domains = json_decode(file_get_contents($csp_config_path), true);
+    $csp_allowed_domains = json_decode(file_get_contents($csp_config_path), true);
 
-	//Insert known FPP systems into csp_config
-	foreach ($backupHosts as $csp_backupHost) {
-		$csp_hostToAdd = "http://" . $csp_backupHost;
+    //Insert known FPP systems into csp_config
+    foreach ($backupHosts as $csp_backupHost) {
+        $csp_hostToAdd = "http://" . $csp_backupHost;
 
-		if (!in_array($csp_hostToAdd, $csp_allowed_domains['connect-src'])) {
-			$csp_allowed_domains['connect-src'][] = $csp_hostToAdd;
-			$http_backupHostsAdded++;
-		}
-	}
+        if (!in_array($csp_hostToAdd, $csp_allowed_domains['connect-src'])) {
+            $csp_allowed_domains['connect-src'][] = $csp_hostToAdd;
+            $http_backupHostsAdded++;
+        }
+    }
 
-	//If we have hosts to add
-	if ($http_backupHostsAdded > 0) {
-		if (file_put_contents($csp_config_path, json_encode($csp_allowed_domains, JSON_PRETTY_PRINT)) !== false) {
-			//Regenerate CSP
-			// Make sure the script has execute permissions
-			if (shell_exec("sudo bash $apache_csp_update_script_path regenerate 2>&1") !== NULL) {
-				//Cause page refresh to get new content policy
-				echo "<script>location.reload();</script>";
-			}
-		}
-	}
+    //If we have hosts to add
+    if ($http_backupHostsAdded > 0) {
+        if (file_put_contents($csp_config_path, json_encode($csp_allowed_domains, JSON_PRETTY_PRINT)) !== false) {
+            //Regenerate CSP
+            // Make sure the script has execute permissions
+            if (shell_exec("sudo bash $apache_csp_update_script_path regenerate 2>&1") !== NULL) {
+                //Cause page refresh to get new content policy
+                echo "<script>location.reload();</script>";
+            }
+        }
+    }
 }
 
 CSP_AllowRemoteSystems();
@@ -2282,8 +2282,10 @@ function pruneOrRemoveAgedBackupFiles()
 
     //If the number of backup files that exist IS LESS than what the minimum we want to keep, return and stop processing
     if (count($config_dir_files) < $fpp_backup_min_number_kept) {
-        $aged_backup_removal_message = "SETTINGS BACKUP: NOT removing JSON Settings backup files. Since there are (" . count($config_dir_files) . ") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept) \r\n";
-        error_log($aged_backup_removal_message);
+        if ($backups_verbose_logging) {
+            $aged_backup_removal_message = "SETTINGS BACKUP: NOT removing JSON Settings backup files. Since there are (" . count($config_dir_files) . ") backups available and this is less than the minimum backups we want to keep ($fpp_backup_min_number_kept) \r\n";
+            error_log($aged_backup_removal_message);
+        }
         return;
     }
 
