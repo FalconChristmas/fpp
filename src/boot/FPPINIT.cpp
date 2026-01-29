@@ -1536,10 +1536,10 @@ static void setupAudio() {
     std::string audioCardType = "unknown";
     std::string aplayl = execAndReturn("/usr/bin/aplay -l | grep 'card " + std::to_string(card) + "'");
 #ifdef PLATFORM_PI
-    // Pi needs a volume adjustment, in reality a lot of sound cards do, but we
+    // Pi headphone jack needs a volume adjustment, in reality a lot of sound cards do, but we
     // don't want to put in a lot of special cases here so only handle the Pi
     if (card == 0) {
-        if (contains(aplayl, "[bcm2")) {
+        if (contains(aplayl, "[bcm2") && !contains(aplayl, "-i2s")) {
             v = (v / 2) + 50;
             audioCardType = "bcm2";
         }
