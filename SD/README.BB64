@@ -53,7 +53,6 @@ EOF
 rm -rf /opt/bb-code-server
 rm -rf /opt/vsx-examples
 
-
 reboot
 
 
@@ -73,8 +72,8 @@ fstrim -v /
 
 
     DEVICE=/dev/sdc
-    VERSION=9.3
-    OSVERSION=2025-11
+    VERSION=10.0
+    OSVERSION=2026-01
     BLOCKS=7800
     mount "${DEVICE}3" /mnt
     rm -f /mnt/home/fpp/.bash_history

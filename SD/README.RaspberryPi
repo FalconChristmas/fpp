@@ -15,8 +15,8 @@ for your SD card).
     n
     p
     2
-	(Replace 1056768 with the original start block of partition 2 noted earlier)
-    1056768
+	(Replace 1064960 with the original start block of partition 2 noted earlier)
+    1064960
 	(FIXME, downsize this value once install is tested)
     +7100M
     N
@@ -42,11 +42,8 @@ we have the partition mounted:
  
 	# Enable ssh by default
 	touch /mnt/tmp/ssh
-    # Add pi user, will be replaced with FPP user as part of FPP_Install.sh
-    # Issue is parts of FPP expect fpp user to be uid/gid 500/500 but
-    # raspian creates the user with 1000/1000 so letting FPP_Install create the FPP user
-    # makes sure the ids are correct
-    echo 'pi:$6$dRNoTVXaaNzLaRIx$3179MQCluSIlnJB/MvBsqLPKjj8nyZgk6F/eDCO4dhadHemapoawGN6uV2/p5JTb7jfo/Jq7yppJs1x3veUj5.' > /mnt/tmp/userconf
+    # Add fpp user
+    echo 'fpp:$y$j9T$CIOM3ox8ZbSTECBR.95/0.$2EtpvwnCAMnPfB0d.uzzl7SbZXiRQw80yrG4DbK8Ux0:20473' > /mnt/tmp/userconf
 	# Unmount the file system
 	umount /mnt/tmp
     # make sure the labels are set
@@ -59,10 +56,10 @@ Remove the SD card and boot it up in a Pi4 (preferred) or 3B+ (not Pi5).
 
 
 Do a system upgrade to make sure everything is at the latest versions
-    sudo apt-get update
-    sudo apt-get upgrade
-    sudo apt-get clean
-    sudo localectl set-locale LANG="en_US.UTF-8"
+    apt-get update
+    apt-get upgrade
+    apt-get clean
+    localectl set-locale LANG="en_US.UTF-8"
 
 
 
@@ -74,11 +71,10 @@ KV=${KV::-3}
 rm -f /boot/*-${KV}*
 rm -rf /lib/modules/${KV}*
 rm -rf /usr/lib/linux-image-${KV}*
-
-
 # remove the 16K page kernel as some of the libraries are incompatible with it
 rm -rf /boot/firmware/kernel_2712.img
 rm -rf /lib/modules/*-16k*
+
 
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
 
@@ -87,7 +83,7 @@ On the Pi, run the FPP installer:
     export FPPBRANCH=master
 	wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 	chmod 700 ./FPP_Install.sh
-	sudo ./FPP_Install.sh --img
+	./FPP_Install.sh --img
 
 This will install FPP and perform all required changes to the root filesystem
 and add the FPP user, install required packages, etc.
@@ -121,7 +117,7 @@ If you are installing to create a SD image zip, do the following:
 Put the SD card back in a Linux system and run the following (substitute
 the proper device name for your SD card in place of '/dev/sdg'):
 
-	NOTE: The 6800 on the "BLOCK=" line below must be at least the new size of the
+	NOTE: The 7900 on the "BLOCK=" line below must be at least the new size of the
 	      second partition created at the top of this document using fdisk.
     NOTE: the linux system needs to have zerofree and squashfs-tools installed
        apt-get install zerofree squashfs-tools
@@ -140,6 +136,7 @@ the proper device name for your SD card in place of '/dev/sdg'):
     rm -f /mnt/home/fpp/media/logs/*
     rm -f /mnt/home/fpp/media/tmp/*
     rm -f /mnt/var/log/*
+    rm -f /mnt/var/swap
     rm -f /mnt/etc/ssh/*key*
     rm -f /mnt/root/.bash_history
     echo "uninitialized" > /mnt/etc/machine-id
