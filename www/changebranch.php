@@ -39,15 +39,20 @@ flush();
 ob_flush();
 
 // Stream output and auto-scroll
+// Only output script tags if being viewed directly in a browser (not via curl/proxy)
+$isDirectView = !empty($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USER_AGENT'], 'curl') === false;
+
 $handle = popen($command, 'r');
 while (!feof($handle)) {
 	$buffer = fgets($handle);
 	echo $buffer;
 	flush();
 	ob_flush();
-	echo '<script>window.scrollTo(0, document.body.scrollHeight);</script>';
-	flush();
-	ob_flush();
+	if ($isDirectView) {
+		echo '<script>window.scrollTo(0, document.body.scrollHeight);</script>';
+		flush();
+		ob_flush();
+	}
 }
 pclose($handle);
 echo "\n";
@@ -55,11 +60,13 @@ echo "\n";
 
 ==========================================================================
 </pre>
-	<a href='index.php'>Go to FPP Main Status Page</a><br>
-	<script>
-		// Ensure we scroll to bottom on page load
-		window.scrollTo(0, document.body.scrollHeight);
-	</script>
+	<?php if ($isDirectView): ?>
+		<a href='index.php'>Go to FPP Main Status Page</a><br>
+		<script>
+			// Ensure we scroll to bottom on page load
+			window.scrollTo(0, document.body.scrollHeight);
+		</script>
+	<?php endif; ?>
 </body>
 
 </html>
