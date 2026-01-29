@@ -31,6 +31,43 @@
         include 'common/htmlMeta.inc';
         include_once 'common/menuHead.inc';
     }
+    ?>
+
+    <?php if (!$standalone): ?>
+        <!-- FilePond CSS and JS for file uploads -->
+        <link rel="stylesheet" href="css/filepond.min.css" />
+        <script src="js/filepond.min.js"></script>
+        <style>
+            .fileponduploader {
+                background: #fff;
+                border: 2px dashed #ced4da;
+                border-radius: 10px;
+                transition: 0.3s all cubic-bezier(0.02, 0.72, 0.32, 0.99);
+            }
+
+            .filepond--root .filepond--drop-label {
+                min-height: 100px;
+                background: transparent;
+            }
+
+            .filepond--drop-label label {
+                min-height: 100px;
+            }
+
+            .filepond--panel-root {
+                background-color: transparent;
+            }
+
+            #asset-uploader-section {
+                margin-top: 30px;
+                padding: 20px;
+                background: #f5f5f5;
+                border-radius: 8px;
+            }
+        </style>
+    <?php endif; ?>
+
+    <?php
 
     if (isset($_GET['width'])) {
         $canvasWidth = (int) ($_GET['width']);
@@ -222,11 +259,79 @@
                     trees in the current version of xLights. Older xLights releases generated tree model data with
                     alignment inaccuracies, and only a fresh tree generation and export will correct the geometry FPP
                     receives.
+
+                    <div id="asset-uploader-section">
+                        <h3>Upload 3D Object Files</h3>
+                        <p>Until xLights supports automatic upload of 3D object files (.obj, .mtl, .png, .jpg), you can
+                            manually upload them here. Files will be saved to
+                            <code>/home/fpp/media/virtualdisplay_assets</code>.</p>
+                        <div id="fileponduploader" class="fileponduploader">
+                            <input type="file" class="filepond" id="filepondInput" multiple>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <?php include 'common/footer.inc'; ?>
         </div>
+    <?php endif; ?>
+
+    <?php if (!$standalone): ?>
+        <!-- FilePond initialization script -->
+        <script>
+            $(document).ready(function () {
+                var isSafari = window.safari !== undefined;
+                var maxChunkSize = isSafari ? 1024 * 1024 * 512 : 1024 * 1024 * 64;
+
+                const pond = FilePond.create(document.querySelector('#filepondInput'), {
+                    labelIdle: `<b style="font-size: 1.3em;">Drag & Drop 3D Asset Files or Click to Select</b><br><br><span class="btn btn-dark filepond--label-action" style="text-decoration:none;">Select Files</span><br><br><small>Supported: .obj, .mtl, .png, .jpg, .jpeg</small>`,
+                    server: {
+                        url: 'api/file/virtualdisplay_assets',
+                        process: {
+                            method: 'POST',
+                            withCredentials: false,
+                            onload: (response) => {
+                                console.log('File uploaded successfully');
+                                return response;
+                            },
+                            onerror: (response) => {
+                                console.error('Upload error:', response);
+                                return response;
+                            }
+                        }
+                    },
+                    credits: false,
+                    chunkUploads: true,
+                    chunkSize: maxChunkSize,
+                    chunkForce: true,
+                    maxParallelUploads: 3,
+                    labelTapToUndo: 'Tap to Close',
+                    acceptedFileTypes: ['.obj', '.mtl', '.png', '.jpg', '.jpeg', 'image/png', 'image/jpeg', 'model/obj', 'model/mtl'],
+                    fileValidateTypeDetectType: (source, type) => new Promise((resolve, reject) => {
+                        // Allow .obj and .mtl files even if browser doesn't recognize MIME type
+                        const ext = source.name.toLowerCase().split('.').pop();
+                        if (['obj', 'mtl', 'png', 'jpg', 'jpeg'].includes(ext)) {
+                            resolve(type);
+                        } else {
+                            reject();
+                        }
+                    })
+                });
+
+                pond.on('processfile', (error, file) => {
+                    if (!error) {
+                        console.log('File processed: ' + file.filename);
+                        // Show success message
+                        $.jGrowl('File uploaded successfully: ' + file.filename);
+                    }
+                });
+
+                pond.on('error', (error, file) => {
+                    console.error('FilePond error:', error);
+                    $.jGrowl('Upload error: ' + error.main, { theme: 'error' });
+                });
+            });
+        </script>
     <?php endif; ?>
     </body>
 
