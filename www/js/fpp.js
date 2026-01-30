@@ -9033,9 +9033,18 @@ function RefreshHeaderBar () {
 	if (data.status_name != undefined) {
 		var row = '';
 		if (data.status_name == 'playing') {
-			var title = 'Playing';
-			if (data.current_sequence != undefined) {
-				title += ': ' + data.current_sequence;
+			var title = 'Playing:\n';
+			if (data.current_song != undefined && data.current_song != '') {
+				title += data.current_song;
+				if (data.current_sequence != undefined && data.current_sequence != '') {
+					title += '\n';
+				}
+			}
+			if (data.current_sequence != undefined && data.current_sequence != '') {
+				if (data.current_song == undefined || data.current_song == '') {
+					title += ': ';
+				}
+				title += data.current_sequence;
 			}
 			row =
 				'<span title="' +
