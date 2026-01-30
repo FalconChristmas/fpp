@@ -680,3 +680,143 @@ std::string getPlatform() {
     TrimWhiteSpace(platform);
     return platform;
 }
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Unrolled 32x32 bitwise transform from Hacker's Delight
+//
+// Bit flips an array along the diagonal from MSbit on LS uint32_t to LS bit on MS uint32_t
+//
+// src[00] = 0b00000000000000000000000000000001
+// src[01] = 0b00000000000000000000000000000010
+// ...
+// src[30] = 0b00000000000000000000000000000000
+// src[31] = 0b00000000000000000000000000000000
+// becomes
+// dst[00] = 0b00000000000000000000000000000000
+// dst[01] = 0b00000000000000000000000000000000
+// ...
+// dst[30] = 0b01000000000000000000000000000000
+// dst[31] = 0b10000000000000000000000000000000
+
+#define tr32swap(a0, a1, j, m) t = (a0 ^ (a1 >> j)) & m; \
+                           a0 = a0 ^ t; \
+                           a1 = a1 ^ (t << j);
+
+void TransposeBits32x32(uint32_t *dst, uint32_t *src) {
+   uint32_t m, t;
+   uint32_t a0, a1, a2, a3, a4, a5, a6, a7,
+            a8, a9, a10, a11, a12, a13, a14, a15,
+            a16, a17, a18, a19, a20, a21, a22, a23,
+            a24, a25, a26, a27, a28, a29, a30, a31;
+
+   a0  = src[ 0];  a1  = src[ 1];  a2  = src[ 2];  a3  = src[ 3];
+   a4  = src[ 4];  a5  = src[ 5];  a6  = src[ 6];  a7  = src[ 7];
+   a8  = src[ 8];  a9  = src[ 9];  a10 = src[10];  a11 = src[11];
+   a12 = src[12];  a13 = src[13];  a14 = src[14];  a15 = src[15];
+   a16 = src[16];  a17 = src[17];  a18 = src[18];  a19 = src[19];
+   a20 = src[20];  a21 = src[21];  a22 = src[22];  a23 = src[23];
+   a24 = src[24];  a25 = src[25];  a26 = src[26];  a27 = src[27];
+   a28 = src[28];  a29 = src[29];  a30 = src[30];  a31 = src[31];
+
+   m = 0x0000FFFF;
+   tr32swap(a0,  a16, 16, m)
+   tr32swap(a1,  a17, 16, m)
+   tr32swap(a2,  a18, 16, m)
+   tr32swap(a3,  a19, 16, m)
+   tr32swap(a4,  a20, 16, m)
+   tr32swap(a5,  a21, 16, m)
+   tr32swap(a6,  a22, 16, m)
+   tr32swap(a7,  a23, 16, m)
+   tr32swap(a8,  a24, 16, m)
+   tr32swap(a9,  a25, 16, m)
+   tr32swap(a10, a26, 16, m)
+   tr32swap(a11, a27, 16, m)
+   tr32swap(a12, a28, 16, m)
+   tr32swap(a13, a29, 16, m)
+   tr32swap(a14, a30, 16, m)
+   tr32swap(a15, a31, 16, m)
+
+   m = 0x00FF00FF;
+   tr32swap(a0,  a8,   8, m)
+   tr32swap(a1,  a9,   8, m)
+   tr32swap(a2,  a10,  8, m)
+   tr32swap(a3,  a11,  8, m)
+   tr32swap(a4,  a12,  8, m)
+   tr32swap(a5,  a13,  8, m)
+   tr32swap(a6,  a14,  8, m)
+   tr32swap(a7,  a15,  8, m)
+   tr32swap(a16, a24,  8, m)
+   tr32swap(a17, a25,  8, m)
+   tr32swap(a18, a26,  8, m)
+   tr32swap(a19, a27,  8, m)
+   tr32swap(a20, a28,  8, m)
+   tr32swap(a21, a29,  8, m)
+   tr32swap(a22, a30,  8, m)
+   tr32swap(a23, a31,  8, m)
+
+   m = 0x0F0F0F0F;
+   tr32swap(a0,  a4,   4, m)
+   tr32swap(a1,  a5,   4, m)
+   tr32swap(a2,  a6,   4, m)
+   tr32swap(a3,  a7,   4, m)
+   tr32swap(a8,  a12,  4, m)
+   tr32swap(a9,  a13,  4, m)
+   tr32swap(a10, a14,  4, m)
+   tr32swap(a11, a15,  4, m)
+   tr32swap(a16, a20,  4, m)
+   tr32swap(a17, a21,  4, m)
+   tr32swap(a18, a22,  4, m)
+   tr32swap(a19, a23,  4, m)
+   tr32swap(a24, a28,  4, m)
+   tr32swap(a25, a29,  4, m)
+   tr32swap(a26, a30,  4, m)
+   tr32swap(a27, a31,  4, m)
+
+   m = 0x33333333;
+   tr32swap(a0,  a2,   2, m)
+   tr32swap(a1,  a3,   2, m)
+   tr32swap(a4,  a6,   2, m)
+   tr32swap(a5,  a7,   2, m)
+   tr32swap(a8,  a10,  2, m)
+   tr32swap(a9,  a11,  2, m)
+   tr32swap(a12, a14,  2, m)
+   tr32swap(a13, a15,  2, m)
+   tr32swap(a16, a18,  2, m)
+   tr32swap(a17, a19,  2, m)
+   tr32swap(a20, a22,  2, m)
+   tr32swap(a21, a23,  2, m)
+   tr32swap(a24, a26,  2, m)
+   tr32swap(a25, a27,  2, m)
+   tr32swap(a28, a30,  2, m)
+   tr32swap(a29, a31,  2, m)
+
+   m = 0x55555555;
+   tr32swap(a0,  a1,   1, m)
+   tr32swap(a2,  a3,   1, m)
+   tr32swap(a4,  a5,   1, m)
+   tr32swap(a6,  a7,   1, m)
+   tr32swap(a8,  a9,   1, m)
+   tr32swap(a10, a11,  1, m)
+   tr32swap(a12, a13,  1, m)
+   tr32swap(a14, a15,  1, m)
+   tr32swap(a16, a17,  1, m)
+   tr32swap(a18, a19,  1, m)
+   tr32swap(a20, a21,  1, m)
+   tr32swap(a22, a23,  1, m)
+   tr32swap(a24, a25,  1, m)
+   tr32swap(a26, a27,  1, m)
+   tr32swap(a28, a29,  1, m)
+   tr32swap(a30, a31,  1, m)
+
+   dst[ 0] = a0;   dst[ 1] = a1;   dst[ 2] = a2;   dst[ 3] = a3;
+   dst[ 4] = a4;   dst[ 5] = a5;   dst[ 6] = a6;   dst[ 7] = a7;
+   dst[ 8] = a8;   dst[ 9] = a9;   dst[10] = a10;  dst[11] = a11;
+   dst[12] = a12;  dst[13] = a13;  dst[14] = a14;  dst[15] = a15;
+   dst[16] = a16;  dst[17] = a17;  dst[18] = a18;  dst[19] = a19;
+   dst[20] = a20;  dst[21] = a21;  dst[22] = a22;  dst[23] = a23;
+   dst[24] = a24;  dst[25] = a25;  dst[26] = a26;  dst[27] = a27;
+   dst[28] = a28;  dst[29] = a29;  dst[30] = a30;  dst[31] = a31;
+}
+/////////////////////////////////////////////////////////////////////////////
+

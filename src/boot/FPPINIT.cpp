@@ -1794,7 +1794,7 @@ static void setupChannelOutputs() {
         exec("modprobe snd_usb_audio");
     }
     std::string content = GetFileContents("/boot/firmware/config.txt");
-    size_t idx = content.find("dtoverlay=vc4-kms-dpi-fpp-");
+    size_t idx = content.find("dtoverlay=vc4-kms-dpi-fpp");
     std::string origLine = "";
     if (idx != std::string::npos) {
         size_t idx2 = content.find("\n", idx);
@@ -1803,14 +1803,9 @@ static void setupChannelOutputs() {
     if (hasDPI) {
         int fps = getRawSettingInt("DPI_FPS", 40);
         std::string model = GetFileContents("/sys/firmware/devicetree/base/model");
-        std::string type = "pi3";
-        std::string width = "362";
-        std::string height = fps == 40 ? "162" : "324";
-        if (contains(model, "Pi 4") || contains(model, "Pi 5")) {
-            type = "pi4";
-            width = "1084";
-        }
-        std::string line = "dtoverlay=vc4-kms-dpi-fpp-" + type + ",rgb888,hactive=" + width + ",hfp=0,hsync=1,hbp=0,vactive=" + height + ",vfp=1,vsync=1,vbp=1";
+        std::string width = "1920";
+        std::string height = fps == 40 ? "497" : "997";
+        std::string line = "dtoverlay=vc4-kms-dpi-fpp,rgb888,hactive=" + width + ",hfp=0,hsync=1,hbp=0,vactive=" + height + ",vfp=1,vsync=1,vbp=1";
         if (line != origLine) {
             if (origLine != "") {
                 content.replace(idx, origLine.size(), line);
