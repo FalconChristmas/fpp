@@ -103,7 +103,8 @@ int remove_recursive(const char* const path, bool removeThis = true) {
 
 static void exec(const std::string& cmd) {
     std::array<char, 128> buffer;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+    struct PipeCloser { void operator()(FILE* f) const { if (f) pclose(f); } };
+    std::unique_ptr<FILE, PipeCloser> pipe(popen(cmd.c_str(), "r"));
     if (!pipe) {
         throw std::runtime_error("popen() failed!");
     }
@@ -116,7 +117,8 @@ static int execbg(const std::string& cmd) {
 }
 static std::string execAndReturn(const std::string& cmd) {
     std::array<char, 128> buffer;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+    struct PipeCloser { void operator()(FILE* f) const { if (f) pclose(f); } };
+    std::unique_ptr<FILE, PipeCloser> pipe(popen(cmd.c_str(), "r"));
     if (!pipe) {
         throw std::runtime_error("popen() failed!");
     }
