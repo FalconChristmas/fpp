@@ -13,6 +13,7 @@
 
 #include "fpp-pch.h"
 
+#include <algorithm>
 #include <vector>
 
 #include <sys/ioctl.h>
@@ -136,6 +137,16 @@ DPIPixelsOutput::DPIPixelsOutput(unsigned int startChannel, unsigned int channel
 DPIPixelsOutput::~DPIPixelsOutput() {
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::~DPIPixelsOutput()\n");
 
+    if (!m_configuredDPIPins.empty()) {
+        for (const auto& pinName : m_configuredDPIPins) {
+            try {
+                const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+                pin.configPin("gpio", true);
+            } catch (...) {
+            }
+        }
+    }
+
     for (auto a : pixelStrings) {
         delete a;
     }
@@ -217,16 +228,18 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 stringToOutputMap[i] = bitPos[i];
                 stringLengths[bitPos[i]] = newString->m_outputChannels;
 
+                LogExcess(VB_CHANNELOUT, "   Will enable Pin %s for DPI output\n", pinName.c_str());
                 outputPinMap.push_back(pinName);
+                m_configuredDPIPins.push_back(pinName);
             } else {
                 outputPinMap.push_back("");
             }
         } else if (root["outputs"][i].isMember("sharedOutput")) {
-            std::string oPin = outputPinMap[root["outputs"][i]["sharedOutput"].asInt()];
-            bitPos[i] = GetDPIPinBitPosition(oPin);
+            std::string pinName = outputPinMap[root["outputs"][i]["sharedOutput"].asInt()];
+            bitPos[i] = GetDPIPinBitPosition(pinName);
             for (int latch = 1; latch < MAX_DPI_PIXEL_LATCHES; latch++) {
                 if ((firstStringInBank[latch] == 0) &&
-                    (std::count(outputPinMap.begin(), outputPinMap.end(), oPin) == latch)) {
+                    (std::count(outputPinMap.begin(), outputPinMap.end(), pinName) == latch)) {
                     firstStringInBank[latch] = i;
                     latchCount = latch + 1;
                 }
@@ -241,7 +254,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 }
             }
 
-            outputPinMap.push_back(oPin);
+            outputPinMap.push_back(pinName);
         } else {
             outputPinMap.push_back("");
         }
@@ -286,11 +299,8 @@ int DPIPixelsOutput::Init(Json::Value config) {
         for (int l = 0; l < root["latches"].size(); l++) {
             std::string pinName = root["latches"][l].asString();
             if (pinName[0] == 'P') {
-                LogExcess(VB_CHANNELOUT, "   Enabling Pin %s for DPI output since it is a latch pin\n", pinName.c_str());
-                const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
-
-                pin.configPin("dpi");
-
+                LogExcess(VB_CHANNELOUT, "Will enable Pin %s for latch\n", pinName.c_str());
+                m_configuredDPIPins.push_back(pinName);
                 latchPinMasks[l] = POSITION_TO_BITMASK(GetDPIPinBitPosition(pinName));
             }
         }
@@ -305,14 +315,6 @@ int DPIPixelsOutput::Init(Json::Value config) {
         pixelStrings.pop_back();
     }
 
-#ifdef LOGIC_ANALYZING
-    // Turn on the HSync and VSync pins for logic analyzing
-    const PinCapabilities& hs_pin = PinCapabilities::getPinByName("P1-5");
-    hs_pin.configPin("dpi");
-    const PinCapabilities& vs_pin = PinCapabilities::getPinByName("P1-3");
-    vs_pin.configPin("dpi");
-#endif
-
     int nonZeroStrings = 0;
     for (int s = 0; s < pixelStrings.size(); s++) {
         int pixelCount = 0;
@@ -321,12 +323,6 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 pixelCount += a.pixelCount;
         }
         if (pixelCount) {
-            LogExcess(VB_CHANNELOUT, "   Enabling Pin %s for DPI output since it has %d pixels configured\n",
-                      outputPinMap[s].c_str(), pixelCount);
-
-            const PinCapabilities& pin = PinCapabilities::getPinByName(outputPinMap[s]);
-            pin.configPin("dpi");
-
             nonZeroStrings++;
         }
     }
@@ -446,11 +442,68 @@ int DPIPixelsOutput::Init(Json::Value config) {
     }
 
     PixelString::AutoCreateOverlayModels(pixelStrings, m_autoCreatedModelNames);
+
+    // Write blank WS281x data to framebuffer BEFORE configuring pins as DPI
+    // This prevents garbage/flash when pins start outputting
+    if (protocol == "ws2811") {
+        std::vector<unsigned char> blankData(FPPD_MAX_CHANNELS, 0);
+
+        for (int page = 0; page < fb->PageCount(); page++) {
+            fbPage = page;
+            PrepData(blankData.data());
+        }
+        fbPage = 0;
+    }
+
+    // Configure DPI pins - they will output blank data from framebuffer
+    for (const auto& pinName : m_configuredDPIPins) {
+        try {
+            LogDebug(VB_CHANNELOUT, "Enabling pin %s for DPI\n", pinName.c_str());
+            const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+            pin.configPin("dpi", true, "DPIPixels-" + pinName);
+        } catch (const std::exception& ex) {
+            LogErr(VB_CHANNELOUT, "Failed to configure %s as DPI: %s\n", pinName.c_str(), ex.what());
+        }
+    }
+
+#ifdef LOGIC_ANALYZING
+    // Turn on the HSync and VSync pins for logic analyzing
+    const PinCapabilities& hs_pin = PinCapabilities::getPinByName("P1-5");
+    hs_pin.configPin("dpi");
+    const PinCapabilities& vs_pin = PinCapabilities::getPinByName("P1-3");
+    vs_pin.configPin("dpi");
+#endif
+
     return ChannelOutput::Init(config);
 }
 
 int DPIPixelsOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::Close()\n");
+
+    // Send blank WS281x data to clear latched pixels before shutdown
+    if (fb && pixelStrings.size() > 0 && protocol == "ws2811") {
+        std::vector<unsigned char> blankData(FPPD_MAX_CHANNELS, 0);
+
+        for (int page = 0; page < fb->PageCount(); page++) {
+            fbPage = page;
+            PrepData(blankData.data());
+        }
+        fbPage = 0;
+
+        fb->SyncDisplay(false);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    // Reconfigure DPI pins back to GPIO input
+    for (const auto& pinName : m_configuredDPIPins) {
+        try {
+            const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+            pin.configPin("gpio", true);
+        } catch (...) {
+        }
+    }
+    m_configuredDPIPins.clear();
+
     for (auto& n : m_autoCreatedModelNames) {
         PixelOverlayManager::INSTANCE.removeAutoOverlayModel(n);
     }

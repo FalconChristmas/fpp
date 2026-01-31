@@ -81,6 +81,9 @@ private:
 
     int fbPixelMult = 1;
 
+    // Track which pins we configured as DPI so we can reset them on close
+    std::vector<std::string> m_configuredDPIPins;
+
     // output testing data
     int m_testCycle = -1;
     int m_testType = 0;
