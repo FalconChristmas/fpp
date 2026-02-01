@@ -25,21 +25,9 @@ public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
-class TriggerRemotePresetCommand : public Command {
-public:
-    TriggerRemotePresetCommand();
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
-};
-
 class TriggerPresetSlotCommand : public Command {
 public:
     TriggerPresetSlotCommand();
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
-};
-
-class TriggerRemotePresetSlotCommand : public Command {
-public:
-    TriggerRemotePresetSlotCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
@@ -58,11 +46,6 @@ public:
 class RunScriptEvent : public Command {
 public:
     RunScriptEvent();
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
-};
-class RunRemoteScriptEvent : public Command {
-public:
-    RunRemoteScriptEvent();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
@@ -93,30 +76,6 @@ public:
 class StopFSEQAsEffectCommand : public Command {
 public:
     StopFSEQAsEffectCommand();
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
-};
-
-class StartRemoteEffectCommand : public Command {
-public:
-    StartRemoteEffectCommand();
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
-};
-
-class StartRemoteFSEQEffectCommand : public Command {
-public:
-    StartRemoteFSEQEffectCommand();
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
-};
-
-class StopRemoteEffectCommand : public Command {
-public:
-    StopRemoteEffectCommand();
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
-};
-
-class StartRemotePlaylistCommand : public Command {
-public:
-    StartRemotePlaylistCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 

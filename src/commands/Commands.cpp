@@ -128,14 +128,6 @@ void CommandManager::Init() {
     addCommand(new SwitchToPlayerModeCommand());
     addCommand(new SwitchToRemoteModeCommand());
 
-    addCommand(new TriggerRemotePresetCommand());
-    addCommand(new TriggerRemotePresetSlotCommand());
-    addCommand(new StartRemoteEffectCommand());
-    addCommand(new StopRemoteEffectCommand());
-    addCommand(new RunRemoteScriptEvent());
-    addCommand(new StartRemoteFSEQEffectCommand());
-    addCommand(new StartRemotePlaylistCommand());
-
     std::function<void(const std::string&, const std::string&)> f =
         [](const std::string& topic, const std::string& payload) {
             if (topic.size() <= 13) {
@@ -238,26 +230,6 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
-}
-std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::string& remote, const std::string& cmd, const std::vector<std::string>& args) {
-    std::string url = "http://" + remote + "/api/command";
-    Json::Value j;
-    j["command"] = cmd;
-    j["args"] = Json::arrayValue;
-    j["multisyncCommand"] = false;
-    j["multisyncHosts"] = "";
-    j["args"] = Json::arrayValue;
-    for (auto& a : args) {
-        j["args"].append(a);
-    }
-    std::vector<std::string> uargs;
-    uargs.push_back(url);
-    uargs.push_back("POST");
-
-    std::string config = SaveJsonToString(j);
-
-    uargs.push_back(config);
-    return run("URL", uargs);
 }
 
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const Json::Value& argsArray) {
