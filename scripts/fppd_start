@@ -12,7 +12,7 @@ logOutput
 # Clear any restart flag
 sed -i -e "s/^restartFlag .*/restartFlag = \"0\"/" ${FPPHOME}/media/settings
 
-if [ -f "/.dockerenv" ]
+if [ -f "/etc/fpp/container" ]
 then
     echo "Running pre-start scripts"
     runPreStartScripts

@@ -3,7 +3,7 @@ $skipJSsettings = 1;
 require_once 'common.php';
 
 $showOSSecurity = 0;
-if (file_exists('/etc/fpp/platform') && !file_exists('/.dockerenv')) {
+if (file_exists('/etc/fpp/platform') && !file_exists('/etc/fpp/container')) {
     $showOSSecurity = 1;
 }
 

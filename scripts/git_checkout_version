@@ -98,7 +98,7 @@ echo "Restarting fppd"
 # Clear any restart flag
 sed -i -e "s/^restartFlag .*/restartFlag = \"0\"/" ${FPPHOME}/media/settings
 
-if [ -f "/.dockerenv" ]
+if [ -f "/etc/fpp/container" ]
 then
     /opt/fpp/scripts/fppd_stop
     /opt/fpp/scripts/fppd_start

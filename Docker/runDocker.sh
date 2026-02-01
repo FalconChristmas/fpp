@@ -5,6 +5,18 @@ if [ ! -f /opt/fpp/src/fppinit ]; then
     make -j ${CPUS}
 fi
 
+# Detect if running in a container and flag accordingly
+if [ -f "/.dockerenv" ]
+then
+	echo "docker" > /etc/fpp/container
+elif [ -f "/run/.containerenv" -o -f "/var/run/.containerenv" ]
+then
+	echo "podman" > /etc/fpp/container
+elif [ -f "/etc/fpp/container" ]
+then
+	rm /etc/fpp/container
+fi
+
 /opt/fpp/src/fppinit start
 /opt/fpp/scripts/fppd_start
 

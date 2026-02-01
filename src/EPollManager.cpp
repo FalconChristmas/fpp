@@ -27,7 +27,7 @@ EPollManager::EPollManager() {
     epollf = kqueue();
 #else
 
-    if (FileExists("/.dockerenv")) {
+    if (FileExists("/etc/fpp/container")) {
         // FIXME - On Docker, when running as a daemon, the epol_ctl() in
         // addFileDescriptor() fails when epollf is < 3.  This is a similar
         // issue to what was seen in Bridge_Initialize_Internal() in

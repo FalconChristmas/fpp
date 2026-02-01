@@ -406,7 +406,7 @@ bool MultiSync::FillLocalSystemInfo(void) {
     std::list<std::string> addresses;
 
     std::string dockerAddress;
-    if (FileExists("/.dockerenv")) {
+    if (FileExists("/etc/fpp/container")) {
         if (getenv("FPP_DOCKER_IP")) {
             dockerAddress = getenv("FPP_DOCKER_IP");
             addresses.push_back(dockerAddress);

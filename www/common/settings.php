@@ -2,7 +2,7 @@
 
 function SetTimeZone($timezone)
 {
-    if (file_exists("/.dockerenv")) {
+    if (file_exists("/etc/fpp/container")) {
         exec("sudo ln -s -f /usr/share/zoneinfo/$timezone /etc/localtime");
         exec("sudo bash -c \"echo $timezone > /etc/timezone\"");
     } else if (file_exists('/usr/bin/timedatectl')) {

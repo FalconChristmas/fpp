@@ -10,7 +10,7 @@ function RebootDevice()
     global $settings;
     global $SUDO;
 
-    if (file_exists("/.dockerenv")) {
+    if (file_exists("/etc/fpp/container")) {
         // apache is container's long-running process, send it a SIGTERM
         $status = exec($SUDO . " killall -15 apache2");
     } else {
@@ -26,7 +26,7 @@ function SystemShutdownOS()
 {
     global $SUDO;
 
-    if (file_exists("/.dockerenv")) {
+    if (file_exists("/etc/fpp/container")) {
         // apache is container's long-running process, send it a SIGTERM
         $status = exec($SUDO . " killall -15 apache2");
     } else {
@@ -66,7 +66,7 @@ function StopFPPDNoStatus()
     SendCommand('q'); // Ignore return and just kill if 'q' doesn't work...
     // wait half a second for shutdown and outputs to close
 
-    if (file_exists("/.dockerenv")) {
+    if (file_exists("/etc/fpp/container")) {
         usleep(500000);
         // kill it if it's still running
         exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");

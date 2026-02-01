@@ -2179,7 +2179,7 @@ function ApplyEmailConfig()
     $cmd = "sudo chfn -f \"" . $emailfromtext . "\" fpp";
     exec($cmd);
 
-    if (file_exists("/.dockerenv")) {
+    if (file_exists("/etc/fpp/container")) {
         exec("sudo /etc/init.d/exim4 restart");
     } else {
         exec("sudo systemctl restart exim4.service");

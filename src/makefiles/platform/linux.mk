@@ -38,7 +38,7 @@ ifeq ($(wildcard /usr/include/Magick++.h),)
 CFLAGS += $(shell GraphicsMagick++-config --cppflags)
 endif
 
-ifneq ($(wildcard /.dockerenv),)
+ifneq ($(wildcard /etc/fpp/container),)
 #don't build the oled/cape stuff for docker
 CFLAGS += -DPLATFORM_DOCKER
 else

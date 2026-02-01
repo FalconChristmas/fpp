@@ -328,7 +328,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $settings['Logo'] = "beagle_logo.png";
     }
 } else if ($settings['Platform'] == "Debian" || $settings['Platform'] == "Ubuntu" || $settings['Platform'] == "Mint" || $settings['Platform'] == "Armbian" || $settings['Platform'] == "OrangePi") {
-    if (file_exists("/.dockerenv")) {
+    if (file_exists("/etc/fpp/container")) {
         $settings['SubPlatform'] = "Docker";
     } else {
         if (file_exists("/proc/device-tree/model")) {
@@ -373,7 +373,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 } else if ($settings['Platform'] == "CHIP") {
     $settings['Logo'] = "chip_logo.png";
     $settings['LogoLink'] = "http://www.getchip.com/";
-} else if (file_exists("/.dockerenv")) {
+} else if (file_exists("/etc/fpp/container")) {
     $settings['SubPlatform'] = $settings['Platform'];
     $settings['Variant'] = $settings['Platform'];
     $settings['Platform'] = "Docker";

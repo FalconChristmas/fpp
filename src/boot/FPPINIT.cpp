@@ -167,7 +167,7 @@ static void modprobe(const char* mod) {
 }
 
 static void DetectCape() {
-    if (!FileExists("/.dockerenv")) {
+    if (!FileExists("/etc/fpp/container")) {
 #ifdef CAPEDETECT
         int count = 0;
 #ifdef PLATFORM_PI
@@ -230,7 +230,7 @@ static void handleBootPartition() {
 
 static void checkHostName() {
     std::string hn;
-    if (FileExists("/.dockerenv")) {
+    if (FileExists("/etc/fpp/container")) {
         std::string CID = execAndReturn("/usr/bin/head -1 /proc/1/cgroup | sed -e \"s/.*docker-//\" | cut -c1-12");
         hn = execAndReturn("/usr/bin/hostname");
         TrimWhiteSpace(hn);
@@ -1895,7 +1895,7 @@ int main(int argc, char* argv[]) {
     }
     printf("\n");
     if (action == "start") {
-        if (!FileExists("/.dockerenv")) {
+        if (!FileExists("/etc/fpp/container")) {
 #ifdef CAPEDETECT
             printf("FPP - Cleaning tmp\n");
             remove_recursive("/home/fpp/media/tmp/", false);
@@ -1931,7 +1931,7 @@ int main(int argc, char* argv[]) {
         PutFileContents(FPP_MEDIA_DIR + "/tmp/cape_detect_done", "1");
         checkInstallKiosk();
 
-        if (!FileExists("/.dockerenv")) {
+        if (!FileExists("/etc/fpp/container")) {
             // Create boot delay flag file early if boot delay is configured
             // so UI can show warning immediately when Apache starts
             int bootDelaySetting = getRawSettingInt("bootDelay", -1);

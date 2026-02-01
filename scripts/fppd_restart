@@ -12,7 +12,7 @@ logOutput
 # Clear any restart flag
 sed -i -e "s/^restartFlag .*/restartFlag = \"0\"/" ${MEDIADIR}/settings
 
-if [ -f "/.dockerenv" ]; then
+if [ -f "/etc/fpp/container" ]; then
     /opt/fpp/scripts/fppd_stop
     /opt/fpp/scripts/fppd_start
 elif [ "${FPPPLATFORM}" == "MacOS" ]; then

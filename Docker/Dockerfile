@@ -52,6 +52,7 @@ RUN echo '\
     APT::Install-Suggests "false";\
     Debug::Acquire::https "true";\
     ' > /etc/apt/apt.conf.d/99custom
+RUN echo "docker" > /etc/fpp/container
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" $PACKAGE_LIST
 

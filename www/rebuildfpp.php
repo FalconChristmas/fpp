@@ -34,7 +34,7 @@ $isDirectView = !empty($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USE
 ?>
 Stopping fppd...
 <?php
-if (file_exists("/.dockerenv")) {
+if (file_exists("/etc/fpp/container")) {
     system($SUDO . " " . $settings['fppDir'] . "/scripts/fppd_stop");
 } else if ($settings["Platform"] == "MacOS") {
     exec("launchctl stop falconchristmas.fppd");
