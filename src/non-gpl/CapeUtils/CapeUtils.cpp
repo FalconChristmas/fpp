@@ -214,7 +214,8 @@ std::string string_sprintf(const char* format, Args... args) {
 static std::string exec(const std::string& cmd) {
     std::array<char, 128> buffer;
     std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+    struct PipeCloser { void operator()(FILE* f) const { if (f) pclose(f); } };
+    std::unique_ptr<FILE, PipeCloser> pipe(popen(cmd.c_str(), "r"));
     if (!pipe) {
         throw std::runtime_error("popen() failed!");
     }
