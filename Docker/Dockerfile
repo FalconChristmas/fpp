@@ -52,7 +52,6 @@ RUN echo '\
     APT::Install-Suggests "false";\
     Debug::Acquire::https "true";\
     ' > /etc/apt/apt.conf.d/99custom
-RUN echo "docker" > /etc/fpp/container
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" $PACKAGE_LIST
 
@@ -81,6 +80,7 @@ COPY SD/FPP_Install.sh /root/FPP_Install.sh
 RUN ( yes | bash /root/FPP_Install.sh $EXTRA_INSTALL_FLAG --branch ${FPPBRANCH:-master} --skip-apt-install --skip-vlc )
 RUN rm -rf /tmp/*
 RUN cp /opt/fpp/etc/asoundrc.plain /root/.asoundrc
+RUN echo "docker" > /etc/fpp/container
 
 # this will do additional updates and create the required directories
 # and set permissions
