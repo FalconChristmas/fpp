@@ -42,6 +42,27 @@ KMSFrameBuffer::KMSFrameBuffer() {
 }
 
 KMSFrameBuffer::~KMSFrameBuffer() {
+    // Ensure display is disabled before destroying framebuffer
+    if (m_displayEnabled && m_crtc && m_plane) {
+        LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::~KMSFrameBuffer() disabling display before destruction\n");
+        std::unique_lock<std::mutex> lock(mediaOutputLock);
+        int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
+        if (im == 0) {
+            try {
+                // Clear the plane - this is sufficient to stop output
+                // NOTE: Do NOT call disable_mode() here as it can cause resource cleanup issues.
+                // The set_plane call with zeros already disables the plane, and DestroyFrameBuffer()
+                // will be called immediately after by the base class destructor to properly release
+                // resources via the ResourceManager.
+                m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, 0, 0, 0, 0, 0, 0);
+                m_displayEnabled = false;
+            } catch (const std::exception& ex) {
+                LogErr(VB_CHANNELOUT, "KMSFrameBuffer::~KMSFrameBuffer() exception during disable: %s\n", ex.what());
+            }
+            ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
+        }
+    }
+    
     --FRAMEBUFFER_COUNT;
     if (FRAMEBUFFER_COUNT == 0) {
         for (auto& i : CARDS) {
