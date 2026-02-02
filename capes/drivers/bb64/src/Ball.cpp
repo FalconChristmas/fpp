@@ -1,3 +1,4 @@
+#include <sys/stat.h>
 #include <thread>
 
 #include "Ball.h"
@@ -65,9 +66,32 @@ std::string Ball::queryMode() {
     return "";
 }
 
+inline int FileExists(const char* File) {
+    struct stat sts;
+    if (stat(File, &sts) == -1) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
 Ball& Ball::setMode(const std::string& m) {
     auto& c = modesetCommands[m];
     if (!c.empty()) {
+        std::string pinMuxFile = "/sys/devices/platform/ocp/ocp:" + name + "_pinmux/state";
+        if (FileExists(pinMuxFile.c_str())) {
+            FILE* fd = fopen(pinMuxFile.c_str(), "w");
+            if (fd != nullptr) {
+                if (mappedModes.contains(m)) {
+                    std::string m2 = mappedModes[m];
+                    fwrite(m2.c_str(), m2.size(), 1, fd);
+                } else {
+                    fwrite(m.c_str(), m.size(), 1, fd);
+                }
+                fclose(fd);
+            }
+        }
+
         uint8_t* d = DOMAINS[domain];
         d += offset;
         uint32_t* v = (uint32_t*)d;
@@ -80,7 +104,7 @@ Ball& Ball::setMode(const std::string& m) {
             std::this_thread::yield();
         }
         uint32_t newVal = *(volatile uint32_t*)v;
-        printf("\t%s:  %X -> %X -> %X (%s)\n", name.c_str(), curVal, set, newVal, m.c_str());
+        // printf("\t%s:  %X -> %X -> %X (%s)\n", name.c_str(), curVal, set, newVal, m.c_str());
     }
     return *this;
 }

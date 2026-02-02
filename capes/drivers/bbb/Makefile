@@ -23,7 +23,9 @@ BBB-P8-AUDIO-PCM5012A-00A0.dtbo: BBB-P8-AUDIO-PCM5012A-00A0.dts
 	cp /opt/source/bb.org-overlays/src/arm/BBB-P8-AUDIO-PCM5012A-00A0.dtbo .
 
 fpp-base-overlay.dtb: fpp-base-overlay.dts
-	dtc -@ -O dtb -o fpp-base-overlay.dtb fpp-base-overlay.dts
+	cpp -I/opt/source/dtb-6.18.x/include/ -I/opt/source/dtb-6.18.x/src/arm/ti/omap -nostdinc -undef -x assembler-with-cpp fpp-base-overlay.dts > .fpp-base-overlay.dts
+	dtc --include /opt/source/dtb-6.18.x/include/ --include /opt/source/dtb-6.18.x/src/arm/ti/omap -O dtb -o fpp-base-overlay.dtb .fpp-base-overlay.dts
+	rm .fpp-base-overlay.dts
 
 fpp-cape-overlay.dtb: fpp-cape-overlay.dts
 	dtc -O dtb -o fpp-cape-overlay.dtb fpp-cape-overlay.dts

@@ -47,7 +47,7 @@ const Pin& Pin::listModes() const {
 
                 uint32_t mode = bm & ball.modeMask;
                 uint32_t flags = bm & ~ball.modeMask;
-                printf("     Cur Mux Mode: %d   Flags: %X", mode, flags);
+                printf("     Cur Mux Mode: %d   Flags: %X    Raw: %X", mode, flags, bm);
             }
         } else {
             printf("[%s] ", qm.c_str());

@@ -25,17 +25,14 @@ constexpr uint32_t MAIN_DOMAIN = 0;
 static Ball& addBall(const std::string& n, uint32_t d, uint32_t o, int32_t pruOut = -1, int32_t pruIn = -1, bool addGPIO = true) {
     Ball& b = Ball::addBall(n, d, o);
     if (addGPIO) {
-        b.addMode("gpio", { PIN_INPUT | 7 }).addMode("gpio_pu", { PIN_INPUT_PULLUP | 7 }).addMode("gpio_pd", { PIN_INPUT_PULLDOWN | 7 }).addMode("gpio_out", { PIN_OUTPUT | 7 });
+        b.addMode("gpio", { PIN_INPUT | 7 }).addMode("gpio_pu", { PIN_INPUT_PULLUP | 7 }).addMode("gpio_pd", { PIN_INPUT_PULLDOWN | 7 }).addMode("gpio_out", "gpio", { PIN_OUTPUT | 7 });
     }
     if (pruIn >= 0) {
         b.addMode("pruin", { PIN_INPUT | static_cast<uint32_t>(pruIn) });
-        b.addMode("pruin_pu", { PIN_INPUT_PULLUP | static_cast<uint32_t>(pruIn) });
-        b.addMode("pruin_pd", { PIN_INPUT_PULLDOWN | static_cast<uint32_t>(pruIn) });
     }
     if (pruOut >= 0) {
-        b.addMode("pruout", { PIN_OUTPUT | static_cast<uint32_t>(pruOut) });
-        b.addMode("pruout_pu", { PIN_OUTPUT_PULLUP | static_cast<uint32_t>(pruOut) });
-        b.addMode("pruout_pd", { PIN_OUTPUT_PULLDOWN | static_cast<uint32_t>(pruOut) });
+        // strange that it's configured as INPUT_EN, but that's how the device tree does it
+        b.addMode("pruout", { INPUT_EN | static_cast<uint32_t>(pruOut) });
     }
     return b;
 }
@@ -47,9 +44,8 @@ void InitAM335xBalls() {
     int d = 0;
 
     while (MEMLOCATIONS[d]) {
-        void* v = (void*)MEMLOCATIONS[d];
         uint8_t* gpio_map = (uint8_t*)mmap(
-            v,                      /* Any address in our space will do */
+            nullptr,                /* Any address in our space will do */
             MAX_OFFSET,             /* Map length */
             PROT_READ | PROT_WRITE, /* Enable reading & writing */
             MAP_SHARED,             /* Shared with other processes */
@@ -58,7 +54,6 @@ void InitAM335xBalls() {
         );
         Ball::setDomainAddress(d, gpio_map);
         ++d;
-        printf(" Mapped domain %d at %p\n", d - 1, gpio_map);
     }
     close(mem_fd);
 
@@ -90,8 +85,8 @@ void InitAM335xBalls() {
     addBall("GPMC_A9", MAIN_DOMAIN, 0x864);
     addBall("GPMC_A10", MAIN_DOMAIN, 0x868);
     addBall("GPMC_A11", MAIN_DOMAIN, 0x86c);
-    addBall("GPMC_WAIT0", MAIN_DOMAIN, 0x870).addMode("uart", { PIN_INPUT_PULLUP | 6 }).addMode("uart_rx", { PIN_INPUT_PULLUP | 6 }).addMode("ttyS4-rx", { PIN_INPUT_PULLUP | 6 });
-    addBall("GPMC_WPN", MAIN_DOMAIN, 0x874).addMode("uart", { PIN_OUTPUT_PULLDOWN | 6 }).addMode("uart_tx", { PIN_OUTPUT_PULLDOWN | 6 }).addMode("ttyS4-tx", { PIN_OUTPUT_PULLDOWN | 6 });
+    addBall("GPMC_WAIT0", MAIN_DOMAIN, 0x870).addMode("uart", { PIN_INPUT_PULLUP | INPUT_EN | 6 }).addMode("uart_rx", "uart").addMode("ttyS4-rx", "uart");
+    addBall("GPMC_WPN", MAIN_DOMAIN, 0x874).addMode("uart", { PIN_OUTPUT_PULLDOWN | INPUT_EN | 6 }).addMode("uart_tx", "uart").addMode("ttyS4-tx", "uart");
     addBall("GPMC_BEN1", MAIN_DOMAIN, 0x878);
     addBall("GPMC_CSN0", MAIN_DOMAIN, 0x87c);
     addBall("GPMC_CSN1", MAIN_DOMAIN, 0x880);
@@ -110,17 +105,17 @@ void InitAM335xBalls() {
     addBall("LCD_DATA5", MAIN_DOMAIN, 0x8b4, 5, 6);
     addBall("LCD_DATA6", MAIN_DOMAIN, 0x8b8, 5, 6);
     addBall("LCD_DATA7", MAIN_DOMAIN, 0x8bc, 5, 6);
-    addBall("LCD_DATA8", MAIN_DOMAIN, 0x8c0).addMode("uart", { PIN_OUTPUT_PULLDOWN | 4 }).addMode("uart_tx", { PIN_OUTPUT_PULLDOWN | 4 }).addMode("ttyS5-tx", { PIN_OUTPUT_PULLDOWN | 4 });
-    addBall("LCD_DATA9", MAIN_DOMAIN, 0x8c4).addMode("uart", { PIN_INPUT_PULLUP | 4 }).addMode("uart_rx", { PIN_INPUT_PULLUP | 4 }).addMode("ttyS5-rx", { PIN_INPUT_PULLUP | 4 });
+    addBall("LCD_DATA8", MAIN_DOMAIN, 0x8c0).addMode("uart", { PIN_OUTPUT_PULLDOWN | INPUT_EN | 4 }).addMode("uart_tx", "uart").addMode("ttyS5-tx", "uart");
+    addBall("LCD_DATA9", MAIN_DOMAIN, 0x8c4).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 4 }).addMode("uart_rx", "uart").addMode("ttyS5-rx", "uart");
     addBall("LCD_DATA10", MAIN_DOMAIN, 0x8c8).addMode("pwm", { PIN_OUTPUT_PULLDOWN | 2 });
     addBall("LCD_DATA11", MAIN_DOMAIN, 0x8cc).addMode("pwm", { PIN_OUTPUT_PULLDOWN | 2 });
     addBall("LCD_DATA12", MAIN_DOMAIN, 0x8d0);
     addBall("LCD_DATA13", MAIN_DOMAIN, 0x8d4);
-    addBall("LCD_DATA14", MAIN_DOMAIN, 0x8d8).addMode("uart", { PIN_OUTPUT_PULLDOWN | 4 }).addMode("uart_tx", { PIN_OUTPUT_PULLDOWN | 4 }).addMode("ttyS5-rx", { PIN_OUTPUT_PULLDOWN | 4 });
+    addBall("LCD_DATA14", MAIN_DOMAIN, 0x8d8).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 4 }).addMode("uart_tx", "uart").addMode("ttyS5-rx", "uart");
     addBall("LCD_DATA15", MAIN_DOMAIN, 0x8dc);
     addBall("LCD_VSYNC", MAIN_DOMAIN, 0x8e0, 5, 6);
     addBall("LCD_HSYNC", MAIN_DOMAIN, 0x8e4, 5, 6);
-    addBall("LCD_PCLK", MAIN_DOMAIN, 0x8e8, 5, 6);
+    addBall("LCD_PLCK", MAIN_DOMAIN, 0x8e8, 5, 6);
     addBall("LCD_AC_BIAS_EN", MAIN_DOMAIN, 0x8ec, 5, 6);
     addBall("MMC0_DAT3", MAIN_DOMAIN, 0x8f0);
     addBall("MMC0_DAT2", MAIN_DOMAIN, 0x8f4);
@@ -146,20 +141,20 @@ void InitAM335xBalls() {
     addBall("RMII1_REF_CLK", MAIN_DOMAIN, 0x944);
     addBall("MDIO", MAIN_DOMAIN, 0x948);
     addBall("MDC", MAIN_DOMAIN, 0x94c);
-    addBall("SPI0_SCLK", MAIN_DOMAIN, 0x950).addMode("uart", { PIN_INPUT_PULLUP | 1 }).addMode("uart_rx", { PIN_INPUT_PULLUP | 1 }).addMode("ttyS2-rx", { PIN_INPUT_PULLUP | 1 }).addMode("spi", { PIN_INPUT_PULLDOWN | 0 }).addMode("spi_clk", { PIN_INPUT_PULLDOWN | 0 });
-    addBall("SPI0_D0", MAIN_DOMAIN, 0x954).addMode("uart", { PIN_OUTPUT_PULLDOWN | 1 }).addMode("uart_tx", { PIN_OUTPUT_PULLDOWN | 1 }).addMode("ttyS2-tx", { PIN_OUTPUT_PULLDOWN | 1 }).addMode("spi", { PIN_INPUT_PULLDOWN | 0 }).addMode("spi_miso", { PIN_INPUT_PULLDOWN | 0 });
-    addBall("SPI0_D1", MAIN_DOMAIN, 0x958).addMode("i2c", { PIN_INPUT_PULLUP | 2 }).addMode("i2c_sda", { PIN_INPUT_PULLUP | 2 }).addMode("spi", { PIN_INPUT_PULLUP | 0 }).addMode("spi_mosi", { PIN_INPUT_PULLUP | 0 });
-    addBall("SPI0_CS0", MAIN_DOMAIN, 0x95c).addMode("i2c", { PIN_INPUT_PULLUP | 2 }).addMode("i2c_scl", { PIN_INPUT_PULLUP | 2 }).addMode("spi", { PIN_INPUT_PULLUP | 0 }).addMode("spi_cs0", { PIN_INPUT_PULLUP | 0 });
+    addBall("SPI0_SCLK", MAIN_DOMAIN, 0x950).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 1 }).addMode("uart_rx", "uart").addMode("ttyS2-rx", "uart").addMode("spi", { PIN_INPUT_PULLDOWN | 0 }).addMode("spi_clk", "spi");
+    addBall("SPI0_D0", MAIN_DOMAIN, 0x954).addMode("uart", { PIN_INPUT_PULLUP | INPUT_EN | 1 }).addMode("uart_tx", "uart").addMode("ttyS2-tx", "uart").addMode("spi", { PIN_INPUT_PULLUP | 0 }).addMode("spi_miso", "spi");
+    addBall("SPI0_D1", MAIN_DOMAIN, 0x958).addMode("i2c", { PIN_INPUT_PULLUP | 2 }).addMode("i2c_sda", "i2c").addMode("spi", { PIN_INPUT_PULLUP | 0 }).addMode("spi_g", "spi");
+    addBall("SPI0_CS0", MAIN_DOMAIN, 0x95c).addMode("i2c", { PIN_INPUT_PULLUP | 2 }).addMode("i2c_scl", "i2c").addMode("spi", { PIN_INPUT_PULLUP | 0 }).addMode("spi_cs0", "spi");
     addBall("SPI0_CS1", MAIN_DOMAIN, 0x960);
-    addBall("ECAP0_IN_PWM0_OUT", MAIN_DOMAIN, 0x964).addMode("uart", { PIN_OUTPUT_PULLDOWN | 0 }).addMode("uart_tx", { PIN_OUTPUT_PULLDOWN | 0 }).addMode("ttyS3-tx", { PIN_OUTPUT_PULLDOWN | 0 });
-    addBall("UART0_CTSN", MAIN_DOMAIN, 0x968).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_sda", { PIN_INPUT_PULLUP | 3 }).addMode("uart", { PIN_INPUT_PULLUP | 0 }).addMode("uart_rx", { PIN_INPUT_PULLUP | 0 }).addMode("ttyS4-rx", { PIN_INPUT_PULLUP | 0 });
-    addBall("UART0_RTSN", MAIN_DOMAIN, 0x96c).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_sda", { PIN_INPUT_PULLUP | 3 }).addMode("uart", { PIN_OUTPUT | 0 }).addMode("uart_tx", { PIN_OUTPUT | 0 }).addMode("ttyS4-tx", { PIN_OUTPUT | 0 });
-    addBall("UART0_RXD", MAIN_DOMAIN, 0x970, 5, 6).addMode("uart", { PIN_INPUT_PULLUP | 0 }).addMode("uart_rx", { PIN_INPUT_PULLUP | 0 }).addMode("ttyS0-rx", { PIN_INPUT_PULLUP | 0 }).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_sda", { PIN_INPUT_PULLUP | 3 });
-    addBall("UART0_TXD", MAIN_DOMAIN, 0x974, 5, 6).addMode("uart", { PIN_OUTPUT_PULLDOWN | 0 }).addMode("uart_tx", { PIN_OUTPUT_PULLDOWN | 0 }).addMode("ttyS0-tx", { PIN_OUTPUT_PULLDOWN | 0 }).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_scl", { PIN_INPUT_PULLUP | 3 });
-    addBall("UART1_CTSN", MAIN_DOMAIN, 0x978).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_sda", { PIN_INPUT_PULLUP | 3 });
-    addBall("UART1_RTSN", MAIN_DOMAIN, 0x97c).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_scl", { PIN_INPUT_PULLUP | 3 });
-    addBall("UART1_RXD", MAIN_DOMAIN, 0x980, -1, 6).addMode("uart", { PIN_INPUT_PULLUP | 0 }).addMode("uart_rx", { PIN_INPUT_PULLUP | 0 }).addMode("ttyS1-rx", { PIN_INPUT_PULLUP | 0 });
-    addBall("UART1_TXD", MAIN_DOMAIN, 0x984, -1, 6).addMode("uart", { PIN_OUTPUT_PULLDOWN | 0 }).addMode("uart_tx", { PIN_OUTPUT_PULLDOWN | 0 }).addMode("ttyS1-tx", { PIN_OUTPUT_PULLDOWN | 0 });
+    addBall("ECAP0_IN_PWM0_OUT", MAIN_DOMAIN, 0x964).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 0 }).addMode("uart_tx", "uart").addMode("ttyS3-tx", "uart");
+    addBall("UART0_CTSN", MAIN_DOMAIN, 0x968).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_sda", "i2c").addMode("uart", { PIN_INPUT_PULLUP | 0 }).addMode("uart_rx", "uart").addMode("ttyS4-rx", "uart");
+    addBall("UART0_RTSN", MAIN_DOMAIN, 0x96c).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_sda", "i2c").addMode("uart", { PIN_OUTPUT | 0 }).addMode("uart_tx", "uart").addMode("ttyS4-tx", "uart");
+    addBall("UART0_RXD", MAIN_DOMAIN, 0x970, 5, 6).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 0 }).addMode("uart_rx", "uart").addMode("ttyS0-rx", "uart").addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_sda", "i2c");
+    addBall("UART0_TXD", MAIN_DOMAIN, 0x974, 5, 6).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 0 }).addMode("uart_tx", "uart").addMode("ttyS0-tx", "uart").addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_scl", "i2c");
+    addBall("UART1_CTSN", MAIN_DOMAIN, 0x978).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_sda", "i2c");
+    addBall("UART1_RTSN", MAIN_DOMAIN, 0x97c).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_scl", "i2c");
+    addBall("UART1_RXD", MAIN_DOMAIN, 0x980, -1, 6).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 0 }).addMode("uart_rx", "uart").addMode("ttyS1-rx", "uart");
+    addBall("UART1_TXD", MAIN_DOMAIN, 0x984, -1, 6).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 0 }).addMode("uart_tx", "uart").addMode("ttyS1-tx", "uart");
     addBall("I2C0_SDA", MAIN_DOMAIN, 0x988);
     addBall("I2C0_SCL", MAIN_DOMAIN, 0x98c);
     addBall("MCASP0_ACLKX", MAIN_DOMAIN, 0x990, 5, 6).addMode("pwm", { PIN_OUTPUT_PULLDOWN | 1 });

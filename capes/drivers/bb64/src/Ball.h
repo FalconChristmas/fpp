@@ -20,8 +20,28 @@ public:
         return *this;
     }
 
+    Ball& addMode(const std::string& n, uint32_t c) {
+        modesetCommands.emplace(n, std::vector<uint32_t>{ c });
+        return *this;
+    }
     Ball& addMode(const std::string& n, const std::vector<uint32_t>& c) {
         modesetCommands.emplace(n, c);
+        return *this;
+    }
+    Ball& addMode(const std::string& n, const std::string& mn, const std::vector<uint32_t>& c) {
+        modesetCommands.emplace(n, c);
+        mappedModes.emplace(n, mn);
+        return *this;
+    }
+    Ball& addMode(const std::string& n, const std::string& mn, uint32_t c) {
+        modesetCommands.emplace(n, std::vector<uint32_t>{ c });
+        mappedModes.emplace(n, mn);
+        return *this;
+    }
+    Ball& addMode(const std::string& n, const std::string& mn) {
+        std::vector<uint32_t> c = modesetCommands[mn];
+        modesetCommands.emplace(n, c);
+        mappedModes.emplace(n, mn);
         return *this;
     }
 
@@ -36,6 +56,7 @@ public:
     uint32_t modeMask = 0x7;
 
     std::map<std::string, std::vector<uint32_t>> modesetCommands;
+    std::map<std::string, std::string> mappedModes;
 
     static Ball& addBall(const std::string& n, uint32_t d, uint32_t o);
     static Ball& findBall(const std::string& n);
