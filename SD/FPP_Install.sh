@@ -1430,12 +1430,16 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     make -j ${CPUS}
     make install
     make clean
-        
+
+    cd /opt/fpp/capes/drivers/pinctrl
+    make -j ${CPUS}
+    make install
+    make clean
+
     #Set colored prompt
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
     
     #adjust a bunch of settings in /boot/uEnv.txt
-    sed -i -e "s+^#enable_uboot_cape_universal=\(.*\)+enable_uboot_cape_universal=1+g"  /boot/uEnv.txt
     sed -i -e "s+^#disable_uboot_overlay_video=\(.*\)+disable_uboot_overlay_video=1+g"  /boot/uEnv.txt
     sed -i -e "s+#uboot_overlay_addr0=\(.*\)+uboot_overlay_addr0=/lib/firmware/fpp-base-overlay.dtb+g"  /boot/uEnv.txt
     sed -i -e "s+#uboot_overlay_addr1=\(.*\)+uboot_overlay_addr1=/lib/firmware/fpp-cape-overlay.dtb+g"  /boot/uEnv.txt
@@ -1484,6 +1488,11 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     rm -rf /usr/lib/arm-linux-gnueabihf/dri/vmw*
 fi
 if [ "x${FPPPLATFORM}" = "xBeagleBone 64" ]; then    
+    cd /opt/fpp/capes/drivers/pinctrl
+    make -j ${CPUS}
+    make install
+    make clean
+
     cd /opt/fpp/capes/drivers/bb64
     make -j ${CPUS}
     make install

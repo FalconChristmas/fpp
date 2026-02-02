@@ -10,8 +10,11 @@
 /plugin/;
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/soc/ti,sci_pm_domain.h>
 #include <dt-bindings/pinctrl/am33xx.h>
-#include <dt-bindings/board/am335x-bbw-bbb-base.h>
+#include "am335x-bone-pins.h"
 
 / {
 	compatible = "ti,beaglebone", "ti,beaglebone-black", "ti,beaglebone-green";
@@ -34,9 +37,9 @@
 	fragment@0 {
 		target = <&ocp>;
 		__overlay__ {
-			P8_36_pinmux { status = "disabled"; };	/* mcasp0_axr0 */
-			P8_38_pinmux { status = "disabled"; };	/* mcasp0_fsx */
-			P8_37_pinmux { status = "disabled"; };	/* mcasp0_aclkx */
+			LCD_DATA10_pinmux { status = "disabled"; };	/* mcasp0_axr0 */
+			LCD_DATA9_pinmux { status = "disabled"; };	/* mcasp0_fsx */
+			LCD_DATA8_pinmux { status = "disabled"; };	/* mcasp0_aclkx */
 		};
 	};
 
@@ -45,9 +48,9 @@
 		__overlay__ {
 			bone_audio_cape_audio_pins: pinmux_bone_audio_cape_audio_pins {
 				pinctrl-single,pins = <
-					BONE_P8_37(PIN_INPUT_PULLDOWN | MUX_MODE3) 0x0	/* mcasp0_aclkx */
-					BONE_P8_38(PIN_INPUT_PULLDOWN | MUX_MODE3) 0x0	/* mcasp0_fsx */
-					BONE_P8_36(PIN_INPUT_PULLDOWN | MUX_MODE3) 0x0  /* mcasp0_axr0 */
+					LCD_DATA8(PIN_INPUT_PULLDOWN | MUX_MODE3) 	/* mcasp0_aclkx */
+					LCD_DATA9(PIN_INPUT_PULLDOWN | MUX_MODE3) 	/* mcasp0_fsx */
+					LCD_DATA10(PIN_INPUT_PULLDOWN | MUX_MODE3)   /* mcasp0_axr0 */
 				>;
 			};
 		};

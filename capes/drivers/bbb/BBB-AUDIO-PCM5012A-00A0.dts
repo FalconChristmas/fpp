@@ -10,8 +10,11 @@
 /plugin/;
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/soc/ti,sci_pm_domain.h>
 #include <dt-bindings/pinctrl/am33xx.h>
-
+#include "am335x-bone-pins.h"
 
 / {
 	compatible = "ti,beaglebone", "ti,beaglebone-black", "ti,beaglebone-green";
@@ -34,9 +37,9 @@
 	fragment@0 {
 		target = <&ocp>;
 		__overlay__ {
-			P9_30_pinmux { status = "disabled"; };	/* mcasp0_axr0 */
-			P9_29_pinmux { status = "disabled"; };	/* mcasp0_fsx */
-			P9_31_pinmux { status = "disabled"; };	/* mcasp0_aclkx */
+			MCASP0_AXR0_pinmux { status = "disabled"; };	/* mcasp0_axr0 */
+			MCASP0_FSX_pinmux { status = "disabled"; };	/* mcasp0_fsx */
+			MCASP0_ACLKX_pinmux { status = "disabled"; };	/* mcasp0_aclkx */
 		};
 	};
 
@@ -45,9 +48,9 @@
 		__overlay__ {
 			bone_audio_cape_audio_pins: pinmux_bone_audio_cape_audio_pins {
 				pinctrl-single,pins = <
-					AM33XX_IOPAD(0x990, PIN_INPUT_PULLDOWN | MUX_MODE0) 0x00	/* mcasp0_aclkx.mcasp0_aclkx */
-					AM33XX_IOPAD(0x994, PIN_INPUT_PULLDOWN | MUX_MODE0)	0x00 /* mcasp0_fsx.mcasp0_fsx, INPUT */
-					AM33XX_IOPAD(0x998, PIN_INPUT_PULLDOWN | MUX_MODE0)	0x00 /* mcasp0_ahclkr.mcasp0_axr0 */
+					MCASP0_ACLKX(PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp0_aclkx.mcasp0_aclkx */
+					MCASP0_FSX(PIN_INPUT_PULLDOWN | MUX_MODE0) 		/* mcasp0_fsx.mcasp0_fsx, INPUT */
+					MCASP0_AXR0(PIN_INPUT_PULLDOWN | MUX_MODE0) 	/* mcasp0_ahclkr.mcasp0_axr0 */
 				>;
 			};
 		};
