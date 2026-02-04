@@ -7,6 +7,46 @@
     });
 
     /////////////////////////////////////////////////////////////////////////////
+    // Update menu to show/hide Virtual Display links
+    function UpdateVirtualDisplayMenu(data) {
+        var has2D = false;
+        var has3D = false;
+
+        // Check if any HTTPVirtualDisplay outputs are enabled
+        if (data && data.channelOutputs) {
+            for (var i = 0; i < data.channelOutputs.length; i++) {
+                var output = data.channelOutputs[i];
+                if (output.enabled && output.type === 'HTTPVirtualDisplay') {
+                    has2D = true;
+                } else if (output.enabled && output.type === 'HTTPVirtualDisplay3D') {
+                    has3D = true;
+                }
+            }
+        }
+
+        // Get the Status dropdown menu (the div.dropdown-menu under the Status/Control nav item)
+        var statusMenu = $('#navbarDropdownMenuLinkStatus').next('.dropdown-menu');
+
+        // Remove existing Virtual Display menu items
+        statusMenu.find('a[href="virtualdisplaywrapper.php"]').remove();
+        statusMenu.find('a[href="virtualdisplaywrapper3d.php"]').remove();
+
+        // Find the Display Testing link to insert after it
+        var displayTestingLink = statusMenu.find('a[href="testing.php"]');
+
+        // Add 2D Virtual Display link if enabled
+        if (has2D) {
+            displayTestingLink.after('<a class="dropdown-item" href="virtualdisplaywrapper.php"><i class="fas fa-tv"></i> 2D Virtual Display</a>');
+        }
+
+        // Add 3D Virtual Display link if enabled
+        if (has3D) {
+            var insertAfter = has2D ? statusMenu.find('a[href="virtualdisplaywrapper.php"]') : displayTestingLink;
+            insertAfter.after('<a class="dropdown-item" href="virtualdisplaywrapper3d.php"><i class="fas fa-object-group"></i> 3D Virtual Display</a>');
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////////////
     // nRF Support functions
     function nRFSpeedSelect(speedArray, currentValue) {
         var result = "Speed: <select class='speed'>";
@@ -842,6 +882,9 @@
             PopulateChannelOutputTable(data);
             $.jGrowl("Channel Output Configuration Saved", { themeState: 'success' });
             common_ViewPortChange();
+
+            // Update menu to show/hide Virtual Display links
+            UpdateVirtualDisplayMenu(data);
         }).fail(function () {
             DialogError("Save Channel Outputs", "Save Failed");
         });
