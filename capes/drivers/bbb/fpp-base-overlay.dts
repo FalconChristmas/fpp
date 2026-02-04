@@ -26,6 +26,19 @@
     };
 };
 
+&cape_eeprom0 {
+    status = "disabled";
+};
+&cape_eeprom1 {
+    status = "disabled";
+};
+&cape_eeprom2 {
+    status = "disabled";
+};
+&cape_eeprom3 {
+    status = "disabled";
+};
+
 &rtc {
     status = "disabled";
 };

@@ -387,7 +387,8 @@ void configureBBB() {
         close(fd);
         buf[23] = 0;
         std::string uboot = (const char*)buf;
-        if (uboot != "U-Boot 2022.04-gc6f4cf7") {
+        if (uboot != "U-Boot 2022.04-g5509547") {
+            printf("Installing new bootloader\n");
             exec("/opt/fpp/bin.bbb/bootloader/install.sh");
             setRawSetting("rebootFlag", "1");
         }
