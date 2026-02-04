@@ -74,6 +74,9 @@ public:
     virtual void SyncDisplay(bool pageChanged = false) = 0;
     virtual void FBCopyData(const uint8_t* buffer, int draw = 0);
 
+    virtual void EnableDisplay() {}
+    virtual void DisableDisplay() {}
+
     void FBStartDraw(ImageTransitionType transitionType = IT_Default);
 
     virtual void Dump(void);
