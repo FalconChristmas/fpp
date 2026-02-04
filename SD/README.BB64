@@ -107,7 +107,7 @@ mount ${DEVICE}3 /mnt
 mount ${DEVICE}1 /mnt/boot/firmware
 mksquashfs /mnt BB64-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
 cd /mnt/root
-tar -czf ~/ccache-BB64-2025.x-v${VERSION}.tar.gz .ccache
+tar -czf ~/ccache-BB64-2026.x-v${VERSION}.tar.gz .ccache
 cd ~
 umount /mnt/boot/firmware
 umount /mnt

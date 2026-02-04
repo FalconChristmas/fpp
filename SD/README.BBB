@@ -1,78 +1,88 @@
-# FPP BBB Images creation notes (work in progress)
+
+# FPP BBB Image creation notes (work in progress)
 #
-# FPP images are currently based on the following Debian BeagleBone images:
-# am335x-debian-12.11-minimal-armhf-2025-07-02-2gb.img.xz
-# from https://rcn-ee.net/rootfs/debian-armhf-12-bookworm-minimal-mainline/2025-07-02/
-#
-# The below steps (much can be run via copy/paste into a terminal) will
-# prepare the "clean image" from above to have the appropriate 
-# dependencies installed, kernel updated, bootloaders, etc... ready
-# to run the FPP_Install script.    At this point, parts of it
-# require editing of text files with nano.  In particular the
-# /boot/uEnv.txt file and the various files in /lib/systemd/system
-#
-# Make sure you read all the comment in this file and follow 
-# any instructions they may specify.
-#
-# This NEEDS to be done on a Beaglebone Black variant that
-# contains an eMMC (so not a PocketBeagle) and it will wipe out
-# the contents of the eMMC.   We setup the system on the eMMC
-# and then copy the system to the SD card
+# FPP images are currently based on the following Debian am335x images:
+# https://rcn-ee.net/rootfs/debian-armhf-13-base-v6.18/2026-02-04/
 
-# Burn the above image onto an SD card and insert into the BBB and boot
-# Login with default debian:temppwd then "sudo bash" to become root
-cd /tmp
-wget -4 https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/BBB-FlashMMC.sh
-chmod +x BBB-FlashMMC.sh
-./BBB-FlashMMC.sh -noreboot ext4 /dev/mmcblk1
+# Burn the above image onto an SD card and insert into a running Linux machine
+# We need to make changes to the filesystems and layout prior to booting
+# on a BBB device
 
-#copy the ssh keys to allow it to boot and avoid
-#having to reset known_hosts while building image
-mount -t ext4 /dev/mmcblk1p1 /mnt
-cp -a /etc/ssh/* /mnt/etc/ssh
-shutdown -h now
+# Need to resize the root to be at least 6G
+# Using gparted on Linux/gui is easiest option.
+# In general, if using the above image, it will default to about 3G which is
+# not enough
+    fdisk /dev/sdc
+    p
+    (Note the original start block of partition 3, you will need this later)
+    d
+    3
+    n
+    p
+    3
+    (Replace 1130496 with the original start block of partition 3 noted earlier)
+    1130496
+    (FIXME, downsize this value once install is tested)
+    +6000M
+    N
+    p
+    w
+    
+
+FSCK and resize the root partition (again, use your device name.
+
+    e2fsck -f /dev/sdc3
+    resize2fs /dev/sdc3
 
 
-#That will flash the buster-console image to the internal eMMC and then shutdown
-#Remove the SD card and restart the BBB, re-login with default debian:temppwd
-#then "sudo bash" to become root
 
+# First, mount the rootfs on a Linux machine.   We need to disable the growfs on
+# first boot:
+mkdir -p /mnt/tmp
+mount /dev/sdc3 /mnt/tmp
+mount /dev/sdc1 /mnt/tmp/boot/firmware
+cd /mnt/tmp
+rm -f ./etc/bbb.io/growpart
+wget -4 -O ./etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+rm ./etc/systemd/network/eth0* ./etc/systemd/network/mlan* ./etc/systemd/network/wlan*
+cd /mnt/tmp/boot/firmware
+echo  "user_name=fpp" >> sysconf.txt
+echo  "user_password=falcon" >> sysconf.txt
+cd ~
+umount /mnt/tmp/boot/firmware
+umount /mnt/tmp
+
+
+# Insert into PB2 and power up
+sudo bash
 apt-get update
-apt-get -y upgrade
+apt-get upgrade
 localectl set-locale LANG="en_US.UTF-8"
 
 
-#install resolved service
-apt-get install systemd-resolved
+# Free up some space by removing stuff we know won't be needed
+apt-get remove --autoremove --purge bb-code-server libstd-rust-dev rustc docker.io containerd nginx nginx-full nginx-common bb-u-boot-am57xx-evm firmware-nvidia-graphics firmware-intel-graphics
+rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1.x* /opt/source/dtb-6.6.x* /opt/source/dtb-6.12.x /opt/source/dtb-6.16.x /opt/source/dtb-6.17.x   /opt/source/spi* /opt/source/py*
 
-# This MAY cause the beagle to change IP addresses, reboot to get things to settle and continue
-rm -f /etc/systemd/network/50-default.network
-wget -4 -O /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
-
-#this may "hang" as it may grab a different IP address.  You may need to log back in
-systemctl reload systemd-networkd
-
-systemctl unmask systemd-networkd
-systemctl unmask systemd-resolved
-
-systemctl restart systemd-networkd
-systemctl restart systemd-resolved
-
-systemctl enable systemd-networkd
-systemctl enable systemd-resolved
+# The "default" driver for the standard USB->Gigabit device we use has some reporting issues and
+# always report half duplex mode and sometimes only 100MB connection (despite actualy gigabit connection
+# as verified by unifi and speed tests) and other issues which can cause warnings to pop up (for
+# colorlights that need gigabit).  Setup to use the specific module for it.
+cat > /etc/udev/rules.d/99-asix.rules << EOF
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0b95", ATTR{idProduct}=="1790", ATTR{bConfigurationValue}!="1", ATTR{bConfigurationValue}="1"
+EOF
 
 
 
-#check
+#update kernel to version needed for FPP
 cd /root
-export BASE_NEW_KERNEL_VERSION=6.15.0-fpp14
-export NEW_KERNEL_VERSION=6.15.0-fpp14_1
+export BASE_NEW_KERNEL_VERSION=6.18.8-fpp18
+export NEW_KERNEL_VERSION=6.18.8-fpp18_1
 wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${NEW_KERNEL_VERSION}_armhf.deb
 # wget -4 https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-${NEW_KERNEL_VERSION}_armhf.deb
 dpkg -i *.deb
 rm -f *.deb
 apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r) bbb.io-kernel-tasks
-
 
 
 # delete old kernels and modules in /boot and /lib/modules
@@ -81,34 +91,6 @@ rm -rf /lib/modules/$(uname -r)
 rm -rf /boot/dtbs/$(uname -r)
 rm -rf /boot/initrd.img*
 
-# remove a bunch of source that is not needed, free's up space
-rm -f /etc/modules-load.d/roboticscape_modules.conf
-rm -rf /usr/local/lib/node_modules
-rm -rf /var/lib/cloud9
-rm -rf /opt/source/Robotics_Cape_Installer
-rm -rf /opt/source/dtb*
-rm -rf /opt/source/u-boot*
-rm -rf /opt/source/rcpy
-rm -rf /opt/source/pyctrl
-rm -rf /opt/source/fb-test-app*
-rm -rf /opt/source/beagle-tester*
-rm -rf /opt/source/dtb*
-rm -rf /opt/source/BB*
-rm -rf /opt/source/adafruit*
-rm -rf /opt/source/Userspace*
-rm -rf /opt/source/py-uio
-rm -rf /opt/source/librobotcontrol
-rm -rf /usr/local/bin/node-red*
-rm -rf /var/cache/doc-beaglebone-getting-started
-rm -rf /usr/share/beagle-tester
-rm -rf /usr/sbin/beagle-tester*
-rm -rf /lib/systemd/system/beagle-tester.service
-rm -rf /etc/udev/rules.d/beagle-tester.rules
-rm -rf /opt/cloud9
-rm -rf /etc/avahi/services/cloud9.service
-rm -f /var/local/bb_usb_mass_storage.img
-rm -f /etc/bbb.io/templates/beaglebone-getting-started-2022-01-12.img
-rm -rf /opt/u-boot/bb-u-boot-am57xx-evm
 
 # blacklist  bluetooth (needed if making image on BBGG or BBBW)
 echo "blacklist bluetooth" > /etc/modprobe.d/blacklist-bluetooth.conf
@@ -117,9 +99,9 @@ echo "blacklist bnep" >> /etc/modprobe.d/blacklist-bluetooth.conf
 
 
 
-# need to reboot so that the new kernel is picked up and used
+#reboot to pick up new kernel
 reboot
-#re-login in and make sure "df -k" reports 2.5G+ of space for /
+
 
 
 cd /root
@@ -128,13 +110,11 @@ chmod 700 ./FPP_Install.sh
 export FPPBRANCH=master
 ./FPP_Install.sh --img
 
-# once FPP_Install is done, the wifi drivers and such are installed so the linux-headers
-# are no longer needed, remove them to save 150MB of space
-apt-get remove -y --purge --autoremove linux-headers-$(uname -r)
-apt-get clean
+# Reboot and make sure everything looks ok
 
-# edit /etc/fstab and make sure it looks OK for tmpfs
-reboot
+
+
+
 
 
 #place 4G SD card in sd slot

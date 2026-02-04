@@ -159,7 +159,7 @@ mount ${DEVICE}2 /mnt
 mount ${DEVICE}1 /mnt/boot/firmware
 mksquashfs /mnt Pi-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
 cd /mnt/root
-tar -czf ~/ccache-Pi-2025.x-v${VERSION}.tar.gz .ccache
+tar -czf ~/ccache-Pi-2026.x-v${VERSION}.tar.gz .ccache
 cd ~
 umount /mnt/boot/firmware
 umount /mnt

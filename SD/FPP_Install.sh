@@ -404,7 +404,11 @@ case "${OSVER}" in
             gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv \
             unattended-upgrades packagekit iwd"
         if [ "$FPPPLATFORM" == "BeagleBone 64" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
-            PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs bb-node-red-installer mender-client bb-code-server"
+            PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs mender-client bb-code-server"
+            
+            if [ "${OSVER}" != "debian_13" ]; then
+                PACKAGE_REMOVE="$PACKAGE_REMOVE bb-node-red-installer"
+            fi
         fi
         if $desktop; then
             #don't remove anything from a desktop
@@ -1440,6 +1444,7 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
     
     #adjust a bunch of settings in /boot/uEnv.txt
+    sed -i -e "s+^#enable_uboot_overlays=\(.*\)+enable_uboot_overlays=1+g"  /boot/uEnv.txt
     sed -i -e "s+^#disable_uboot_overlay_video=\(.*\)+disable_uboot_overlay_video=1+g"  /boot/uEnv.txt
     sed -i -e "s+#uboot_overlay_addr0=\(.*\)+uboot_overlay_addr0=/lib/firmware/fpp-base-overlay.dtb+g"  /boot/uEnv.txt
     sed -i -e "s+#uboot_overlay_addr1=\(.*\)+uboot_overlay_addr1=/lib/firmware/fpp-cape-overlay.dtb+g"  /boot/uEnv.txt
