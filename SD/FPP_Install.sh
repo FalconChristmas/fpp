@@ -720,6 +720,8 @@ if [ ! -f "/usr/include/SDL2/SDL.h" ]; then
     apt -y install ./libsdl2-dev.deb
     apt-mark hold libsdl2-dev
     apt-get clean
+    rm -rf deb
+    rm ./libsdl2-dev*
 fi
  
 #######################################

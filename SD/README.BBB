@@ -154,9 +154,11 @@ dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=7000
 # mksquashfs is multithreaded so its recommended to use a multicore
 # box for this and not an actual BBB
 # apt-get install squashfs-tools
-mount ${DEVICE}1 /mnt
+mount ${DEVICE}3 /mnt
+mount ${DEVICE}1 /mnt/boot/firmware
 mksquashfs /mnt BBB-${VERSION}_${OSVERSION}.fppos -b 512K -comp xz
 cd /mnt/root
-tar -czf ~/ccache-BBB-2025.x-v${VERSION}.tar.gz .ccache
+tar -czf ~/ccache-BBB-2026.x-v${VERSION}.tar.gz .ccache
 cd ~
+umount /mnt/boot/firmware
 umount /mnt
