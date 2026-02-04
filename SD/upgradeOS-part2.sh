@@ -108,7 +108,8 @@ if [ -f tmp/kiosk ]; then
 fi
 
 # make sure the stuff in fpp's home directory has correct owner/group
-chown -R fpp:fpp /home/fpp
+echo "Resetting ownership of files in /home/fpp"
+chown -R fpp:fpp mnt/home/fpp
 
 # create a file in root to detect that we just did an FPPOS Upgrade
 touch mnt/fppos_upgraded
