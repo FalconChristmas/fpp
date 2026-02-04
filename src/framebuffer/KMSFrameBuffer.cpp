@@ -200,13 +200,16 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
         // if there isn't media being output on this connector, we can display the page
         int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
         if (im == 0) {
-            // was able to get master so we cana page flip
+            // was able to get master so we can page flip
             int i = m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
             if (i) {
-                if (m_displayEnabled) {
-                    m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
-                    m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
+                // Enable display on first use if not already enabled
+                if (!m_displayEnabled) {
+                    m_crtc->set_mode(m_connector, m_mode);
+                    m_displayEnabled = true;
                 }
+                m_crtc->set_plane(m_plane, *m_fb[m_cPage], 0, 0, m_mode.hdisplay, m_mode.vdisplay, 0, 0, m_width, m_height);
+                m_crtc->page_flip(*m_fb[m_cPage], m_pageBuffers[m_cPage]);
             }
             ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
         }
