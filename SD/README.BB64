@@ -67,7 +67,6 @@ export FPPBRANCH=master
 # Before shutting down, run:
 journalctl --flush --rotate --vacuum-time=1s
 sync
-fstrim -v /
 
 
 

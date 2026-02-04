@@ -1595,15 +1595,20 @@ if $isimage; then
     systemctl disable dnsmasq
     systemctl unmask hostapd
     systemctl disable hostapd
+
+    rm -f /etc/resolv.conf
+    ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+
+    pam-auth-update --disable winbind
+    systemctl disable winbind
+    systemctl mask winbind
+    sed -i -e "s/winbind//" /etc/nsswitch.conf
+
 fi
 if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
     # Bootloader on recent bullseye images does NOT boot on Beagles, use a version we
     # know works
     /opt/fpp/bin.bbb/bootloader/install.sh
-fi
-if $isimage; then
-    rm -f /etc/resolv.conf
-    ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
 fi
 
 # generate apache csp file

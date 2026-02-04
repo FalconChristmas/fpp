@@ -115,27 +115,38 @@ export FPPBRANCH=master
 
 
 
-
-
-#place 4G SD card in sd slot
-# zero out everything unused so compressing the image will work better
-dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=4000
+# Before shutting down, run:
 journalctl --flush --rotate --vacuum-time=1s
-/opt/fpp/SD/BBB-FlashMMC.sh -s 3500M -noreboot -clear ext4 /dev/mmcblk0
-mount  /dev/mmcblk0p1 /mnt
-echo "uninitialized" > /mnt/etc/machine-id
-touch /mnt/boot/fpp_expand_rootfs
-fstrim -v /mnt
-umount /mnt
-rmdir /tmp/rootfs
+sync
+
+
+
+
+
 
 # Put the SD card back in a Linux system and run the following (substitute
 # the proper device name for your SD card in place of '/dev/sdc'):
-VERSION=9.3
-OSVERSION=2025-11
+VERSION=10.0
+OSVERSION=2026-02
 DEVICE=/dev/sdc
-zerofree -v ${DEVICE}1
-dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=3572
+mount "${DEVICE}3" /mnt
+rm -f /mnt/home/fpp/.bash_history
+rm -f /mnt/home/fpp/media/settings
+rm -rf /mnt/home/fpp/media/config/backups/*
+rm -f /mnt/home/fpp/media/config/*
+rm -f /mnt/home/fpp/media/logs/*
+rm -rf /mnt/home/fpp/media/tmp/*
+rm -rf /mnt/home/fpp/media/crashes/*
+rm -rf /mnt/home/fpp/media/upload/*
+rm -f /mnt/var/log/*
+rm -f /mnt/etc/ssh/*key*
+rm -f /mnt/root/.bash_history
+echo "uninitialized" > /mnt/etc/machine-id
+touch /mnt/boot/fpp_expand_rootfs
+umount /mnt
+
+zerofree -v "${DEVICE}3"
+dd if=${DEVICE} of=FPP-v${VERSION}-BBB.img bs=1M count=7000
 
 
 # To create the squashfs image needed for OS updates
