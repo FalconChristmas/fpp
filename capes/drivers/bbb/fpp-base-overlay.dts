@@ -949,6 +949,17 @@
 	};
 
 	/* GPMC_AD11 (ZCZ ball U12) wl1835: wl_irq */
+	/* GPMC_AD11 (ZCZ ball U12) wl1835: wl_irq */
+	GPMC_AD11_pinmux {
+		compatible = "bone-pinmux-helper";
+		status = "okay";
+		pinctrl-names = "default", "gpio", "gpio_pu", "gpio_pd", "pwm";
+		pinctrl-0 = <&GPMC_AD11_default_pin>;
+		pinctrl-1 = <&GPMC_AD11_gpio_pin>;
+		pinctrl-2 = <&GPMC_AD11_gpio_pu_pin>;
+		pinctrl-3 = <&GPMC_AD11_gpio_pd_pin>;
+		pinctrl-4 = <&GPMC_AD11_pwm_pin>;
+	};
 
 	/* GPMC_CLK (ZCZ ball V12) */
 	GPMC_CLK_pinmux {

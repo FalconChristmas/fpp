@@ -8,6 +8,9 @@ Pin& Pin::addPin(const std::string& n) {
     return PINS[n];
 }
 Pin& Pin::getPin(const std::string& n) {
+    if (PINS.find(n) == PINS.end()) {
+        printf("Unknown pin: %s\n", n.c_str());
+    }
     return PINS[n];
 }
 
