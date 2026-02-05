@@ -63,19 +63,6 @@ inline std::string FourCCFromPixelFormat(PixelFormat f) {
 #endif
 
 void GetFrameBufferDevices(Json::Value& v, bool debug) {
-    std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/";
-    for (int x = 0; x < 10; x++) {
-        std::string fb = "fb";
-        fb += std::to_string(x);
-        if (FileExists(devString + fb)) {
-            if (debug) {
-                Json::Value v2(Json::objectValue);
-                v[fb] = v2;
-            } else {
-                v.append(fb);
-            }
-        }
-    }
 #ifdef HAS_KMS_FB
     for (int cn = 0; cn < 10; cn++) {
         if (FileExists("/dev/dri/card" + std::to_string(cn))) {
@@ -104,8 +91,9 @@ void GetFrameBufferDevices(Json::Value& v, bool debug) {
         }
     }
 #endif
-#ifdef PLATFORM_OSX
+
     if (v.size() == 0) {
+#ifdef PLATFORM_OSX
         if (debug) {
             v["fb0"] = Json::Value(Json::objectValue);
             v["fb1"] = Json::Value(Json::objectValue);
@@ -115,8 +103,22 @@ void GetFrameBufferDevices(Json::Value& v, bool debug) {
             v.append("fb1");
             v.append("fb2");
         }
-    }
+#else
+        std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/";
+        for (int x = 0; x < 10; x++) {
+            std::string fb = "fb";
+            fb += std::to_string(x);
+            if (FileExists(devString + fb)) {
+                if (debug) {
+                    Json::Value v2(Json::objectValue);
+                    v[fb] = v2;
+                } else {
+                    v.append(fb);
+                }
+            }
+        }
 #endif
+    }
 }
 
 int main(int argc, char* argv[]) {
