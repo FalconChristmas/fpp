@@ -1326,13 +1326,12 @@ EOF
     ARCH=$(uname -m)
     if [ "$ARCH" != "x86_64" ]; then
         echo "FPP - Configuring tmpfs filesystems"
+        cp -f /opt/fpp/etc/systemd/tmp.mount /lib/systemd/system
+        systemctrl unmask tmp.mount
+        systemctrl enable tmp.mount
+
         sed -i 's|tmpfs\s*/tmp\s*tmpfs.*||g' /etc/fstab
-        echo "#####################################" >> /etc/fstab
-        echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=75M 0 0" >> /etc/fstab
-        if [ "$FPPPLATFORM" != "BeagleBone 64" ]; then
-            echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
-        fi
-        echo "#####################################" >> /etc/fstab
+        sed -i 's|tmpfs\s*/var/tmp\s*tmpfs.*||g' /etc/fstab
     fi
 
     COMMENTED=""
@@ -1341,6 +1340,7 @@ EOF
     then
         COMMENTED="#"
     fi
+    echo "#####################################" >> /etc/fstab
     echo "${COMMENTED}/dev/sda1     ${FPPHOME}/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
     echo "#####################################" >> /etc/fstab
 

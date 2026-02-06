@@ -86,6 +86,10 @@ cp -af usr/lib/arm-linux-gnueabihf/libzip.so.4.0 mnt/usr/lib/arm-linux-gnueabihf
 cp -af usr/lib/arm-linux-gnueabihf/libfribidi.so.0.4.0 mnt/usr/lib/arm-linux-gnueabihf/libfribidi.so.0.4.0
 cp -af usr/lib/arm-linux-gnueabihf/libbrotlicommon.so.1.0.9 mnt/usr/lib/arm-linux-gnueabihf/libbrotlicommon.so.1.0.9
 
+echo "Adjusting fstab"
+sed -i 's|tmpfs\s*/tmp\s*tmpfs.*||g' mnt/etc/fstab
+sed -i 's|tmpfs\s*/var/tmp\s*tmpfs.*||g' mnt/etc/fstab
+
 #restore the ssh keys
 echo "Restoring system ssh keys"
 cp -a tmp/ssh/* mnt/etc/ssh
