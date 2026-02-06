@@ -1601,11 +1601,20 @@ if $isimage; then
     rm -f /etc/resolv.conf
     ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
 
+    # Disable winbind as we don't use it and it causes long delays at login
     pam-auth-update --disable winbind
     systemctl disable winbind
     systemctl mask winbind
     sed -i -e "s/winbind//" /etc/nsswitch.conf
-
+    
+    # Setup the fpp user so all the pipewire daemons don't startup when user fpp logs in
+    mkdir -p /home/fpp/.config/systemd/user
+    ln -s /dev/mull  /home/fpp/.config/systemd/user/pipewire.socket
+    ln -s /dev/mull  /home/fpp/.config/systemd/user/pipewire.service
+    ln -s /dev/mull  /home/fpp/.config/systemd/user/pipewire-pulse.service
+    ln -s /dev/mull  /home/fpp/.config/systemd/user/pipewire-pulse.socket
+    ln -s /dev/mull  /home/fpp/.config/systemd/user/wireplumber.service
+    chown -R fpp:fpp /home/fpp/.config
 fi
 if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
     # Bootloader on recent bullseye images does NOT boot on Beagles, use a version we

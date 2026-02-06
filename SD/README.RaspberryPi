@@ -63,6 +63,19 @@ Do a system upgrade to make sure everything is at the latest versions
 
 
 
+On the Pi, run the FPP installer:
+    cd /root
+    export FPPBRANCH=master
+	wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+	chmod 700 ./FPP_Install.sh
+	./FPP_Install.sh --img
+
+This will install FPP and perform all required changes to the root filesystem
+and add the FPP user, install required packages, etc.
+
+
+# Need to update the kernel AFTER the above as the package installs in the above may trigger kernel "updates"
+
 # For FPP10/Debian 13, we'd like to move to kernel 6.18+
 # If the kernel version is NOT already 6.18.x (depends on the image used), then you need to update:
 PRUNE_MODULES=1 WANT_PI5=1 rpi-update next
@@ -76,43 +89,24 @@ rm -rf /boot/firmware/kernel_2712.img
 rm -rf /lib/modules/*-16k*
 
 
+apt-get remove -y --purge --autoremove linux-headers-rpi-v7 linux-headers-rpi-v6
+apt-get remove -y --purge --autoremove linux-headers-${KV}-v8 linux-headers-${KV}-v7 linux-headers-${KV}-v6
+rm -rf /usr/src/linux-*
+
+
+
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
 
 
-On the Pi, run the FPP installer:
-    export FPPBRANCH=master
-	wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
-	chmod 700 ./FPP_Install.sh
-	./FPP_Install.sh --img
 
-This will install FPP and perform all required changes to the root filesystem
-and add the FPP user, install required packages, etc.
+Once the Pi reboots, login as the new fpp user and check to make sure everything
+is up and running and working properly
 
-If you are installing for your own use, you can reboot the Pi and FPP should start
-up.
+# Trim the fs
+sudo journalctl --flush --rotate --vacuum-time=1s
 
-	su - fpp
-	sudo shutdown -r now
-
-If you are installing to create a SD image zip, do the following:
-    apt-get remove -y --purge --autoremove raspberrypi-kernel-headers
-    KV=$(uname -r)
-    KV=${KV::-3}
-    apt-get remove -y --purge --autoremove linux-headers-${KV}+rpt-rpi-v8 linux-headers-${KV}+rpt-rpi-v7l linux-headers-${KV}+rpt-rpi-v7 linux-headers-${KV}+rpt-rpi-v6
-    apt-get clean
-
-	# Reboot to make sure things take
-	sudo shutdown -r now
-
-	Once the Pi reboots, login as the new fpp user and check to make sure everything
-    is up and running and working properly
-
-    # Trim the fs
-    sudo fstrim -v /
-    journalctl --flush --rotate --vacuum-time=1s
-
-	# Shutdown the Pi
-	sudo shutdown -h now
+# Shutdown the Pi
+sudo shutdown -h now
 
 Put the SD card back in a Linux system and run the following (substitute
 the proper device name for your SD card in place of '/dev/sdg'):
