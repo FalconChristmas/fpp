@@ -134,7 +134,7 @@ int GPIODCapabilities::configPin(const std::string& mode,
     if (chip == nullptr) {
         if (!GPIOChipHolder::INSTANCE.chips[gpioIdx]) {
             try {
-                GPIOChipHolder::INSTANCE.chips[gpioIdx] = std::make_shared<gpiod::chip>("/dev/gpiochip" + std::to_string(gpioIdx));
+                GPIOChipHolder::INSTANCE.chips[gpioIdx] = std::make_shared<gpiod::chip>("/dev/" + gpioName);
             } catch (const std::exception& ex) {
                 std::string w = "Could not open GPIO chip " + (gpioName.empty() ? std::to_string(gpioIdx) : gpioName) +
                                 " (" + ex.what() + ")";
@@ -284,8 +284,31 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
     int fd = -1;
 #ifdef HASGPIOD
 #ifdef IS_GPIOD_CXX_V2
+    LogDebug(VB_GPIO, "requestEventFile V2 for pin %s (chip:%d line:%d device:%s)\n", 
+             name.c_str(), gpioIdx, gpio, gpioName.c_str());
+    // Ensure chip is initialized
+    if (chip == nullptr) {
+        if (!GPIOChipHolder::INSTANCE.chips[gpioIdx]) {
+            try {
+                GPIOChipHolder::INSTANCE.chips[gpioIdx] = std::make_shared<gpiod::chip>("/dev/" + gpioName);
+            } catch (const std::exception& ex) {
+                std::string w = "Could not open GPIO chip " + (gpioName.empty() ? std::to_string(gpioIdx) : gpioName) +
+                                " for event request (" + ex.what() + ")";
+                WarningHolder::AddWarning(w);
+                LogWarn(VB_GPIO, "%s\n", w.c_str());
+                return -1;
+            }
+        }
+        chip = GPIOChipHolder::INSTANCE.chips[gpioIdx];
+    }
+    
     try {
         releaseGPIOD();
+
+        if (!chip) {
+            WarningHolder::AddWarning("Could not configure pin " + name + " for events: chip pointer is null");
+            return -1;
+        }
 
         gpiod::line_settings settings;
         settings.set_direction(gpiod::line::direction::INPUT);
@@ -300,10 +323,14 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
 
         std::string consumer = lastDesc.empty() ? PROCESS_NAME : lastDesc;
 
+        LogDebug(VB_GPIO, "Building request for pin %s: chip device=%s, line=%d\n",
+                 name.c_str(), gpioName.c_str(), gpio);
+
         gpiod::request_builder builder = chip->prepare_request();
         builder.add_line_settings(gpio, settings);
         builder.set_consumer(consumer);
 
+        LogDebug(VB_GPIO, "Executing do_request() for pin %s\n", name.c_str());
         request = std::make_shared<gpiod::line_request>(builder.do_request());
 
         fd = request->fd();
@@ -312,8 +339,23 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
             request = nullptr;
         }
     } catch (const std::exception& ex) {
-        WarningHolder::AddWarning("Could not configure pin " + name + " for events (" + ex.what() + ") for edges Rising:" +
-                                  std::to_string(risingEdge) + "   Falling:" + std::to_string(fallingEdge));
+        LogDebug(VB_GPIO, "Pin %s (chip:%d line:%d device:%s) does not support edge detection - will use polling instead. (%s)\n",
+                 name.c_str(), gpioIdx, gpio, gpioName.c_str(), ex.what());
+        // Re-configure the pin for plain input so getValue() works for polling
+        try {
+            gpiod::line_settings settings;
+            settings.set_direction(gpiod::line::direction::INPUT);
+            std::string consumer = lastDesc.empty() ? PROCESS_NAME : lastDesc;
+            gpiod::request_builder builder = chip->prepare_request();
+            builder.add_line_settings(gpio, settings);
+            builder.set_consumer(consumer);
+            request = std::make_shared<gpiod::line_request>(builder.do_request());
+            lastRequestType = 2; // Use 2 to indicate input-for-polling (not 0 which means unconfigured)
+            LogInfo(VB_GPIO, "Pin %s re-configured for polling input\n", name.c_str());
+        } catch (const std::exception& ex2) {
+            LogWarn(VB_GPIO, "Could not re-configure pin %s for polling: %s\n", name.c_str(), ex2.what());
+        }
+        return -1; // Return -1 to trigger polling fallback
     }
 #else
     gpiod::line_request req;
@@ -363,7 +405,7 @@ bool GPIODCapabilities::getValue() const {
         return lastValue;
     }
 #ifdef IS_GPIOD_CXX_V2
-    if (lastRequestType == 0 || !request) {
+    if (!request) {
         return 0;
     }
     try {
@@ -414,6 +456,11 @@ void PinCapabilities::InitGPIO(const std::string& process, PinCapabilitiesProvid
 #ifdef HASGPIOD
     int chipCount = 0;
     int pinCount = 0;
+#ifdef IS_GPIOD_CXX_V2
+    LogDebug(VB_GPIO, "Using libgpiod C++ API v2\n");
+#else
+    LogDebug(VB_GPIO, "Using libgpiod C++ API v1\n");
+#endif
     try {
         if (GPIOD_PINS.empty()) {
             // has at least one chip
@@ -423,9 +470,9 @@ void PinCapabilities::InitGPIO(const std::string& process, PinCapabilitiesProvid
                 if (startsWith(entry.path().filename().string(), "gpiochip")) {
                     auto chip = gpiod::chip(entry.path().string());
                     auto info = chip.get_info();
-                    std::string name = info.name();
+                    std::string chipDevice = entry.path().filename().string();
                     std::string label = info.label();
-                    int chipNum = std::stoi(entry.path().filename().string().substr(8));
+                    int chipNum = std::stoi(chipDevice.substr(8));
 
                     if (PLATFORM_IGNORES.find(label) == PLATFORM_IGNORES.end()) {
                         char ci = 'b';
@@ -435,6 +482,8 @@ void PinCapabilities::InitGPIO(const std::string& process, PinCapabilitiesProvid
                         }
                         found.insert(label);
                         int num_lines = chip.get_info().num_lines();
+                        LogDebug(VB_GPIO, "Registering chip %s (/dev/%s) as chipIdx=%d with %d lines\n",
+                                 label.c_str(), chipDevice.c_str(), chipCount, num_lines);
                         for (int x = 0; x < num_lines; x++) {
                             std::string n = label + "-" + std::to_string(x);
                             auto line = chip.get_line_info(x);
@@ -442,7 +491,7 @@ void PinCapabilities::InitGPIO(const std::string& process, PinCapabilitiesProvid
                             if (plabel.empty()) {
                                 plabel = n;
                             }
-                            GPIOD_PINS.push_back(GPIODCapabilities(plabel, pinCount + x, name).setGPIO(chipNum, x));
+                            GPIOD_PINS.push_back(GPIODCapabilities(plabel, pinCount + x, chipDevice).setGPIO(chipCount, x));
                         }
                     }
                     pinCount += chip.get_info().num_lines();

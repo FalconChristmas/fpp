@@ -184,11 +184,11 @@ bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string& file) {
                     InputAction* action = configureGPIOPin(pinName, mode, edge, risingAction.empty() ? fallingAction : risingAction);
                     if (risingAction != "") {
                         printf("Configuring pin %s as input of type %s   (mode: %s,  file: %d)\n", action->pin.c_str(), risingAction.c_str(), action->mode.c_str(), action->file);
-                        action->actions.push_back(new FPPOLEDUtils::InputAction::Action(risingAction, 1, 1, 100000));
+                        action->actions.push_back(new FPPOLEDUtils::InputAction::Action(risingAction, 1, 1, 100000, action->file == -1 ? action->gpiodPin : nullptr));
                     }
                     if (fallingAction != "") {
                         printf("Configuring pin %s as input of type %s   (mode: %s,  file: %d)\n", action->pin.c_str(), fallingAction.c_str(), action->mode.c_str(), action->file);
-                        action->actions.push_back(new FPPOLEDUtils::InputAction::Action(fallingAction, 0, 0, 100000));
+                        action->actions.push_back(new FPPOLEDUtils::InputAction::Action(fallingAction, 0, 0, 100000, action->file == -1 ? action->gpiodPin : nullptr));
                     }
                     actions.push_back(action);
                     if (action->file == -1) {
