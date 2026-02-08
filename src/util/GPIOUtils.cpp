@@ -134,7 +134,11 @@ int GPIODCapabilities::configPin(const std::string& mode,
     if (chip == nullptr) {
         if (!GPIOChipHolder::INSTANCE.chips[gpioIdx]) {
             try {
-                GPIOChipHolder::INSTANCE.chips[gpioIdx] = std::make_shared<gpiod::chip>("/dev/" + gpioName);
+                std::string gn = gpioName;
+                if (gn.empty()) {
+                    gn = "gpiochip" + std::to_string(gpioIdx);
+                }
+                GPIOChipHolder::INSTANCE.chips[gpioIdx] = std::make_shared<gpiod::chip>("/dev/" + gn);
             } catch (const std::exception& ex) {
                 std::string w = "Could not open GPIO chip " + (gpioName.empty() ? std::to_string(gpioIdx) : gpioName) +
                                 " (" + ex.what() + ")";
@@ -284,13 +288,17 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
     int fd = -1;
 #ifdef HASGPIOD
 #ifdef IS_GPIOD_CXX_V2
-    LogDebug(VB_GPIO, "requestEventFile V2 for pin %s (chip:%d line:%d device:%s)\n", 
+    LogDebug(VB_GPIO, "requestEventFile V2 for pin %s (chip:%d line:%d device:%s)\n",
              name.c_str(), gpioIdx, gpio, gpioName.c_str());
     // Ensure chip is initialized
     if (chip == nullptr) {
         if (!GPIOChipHolder::INSTANCE.chips[gpioIdx]) {
             try {
-                GPIOChipHolder::INSTANCE.chips[gpioIdx] = std::make_shared<gpiod::chip>("/dev/" + gpioName);
+                std::string gn = gpioName;
+                if (gn.empty()) {
+                    gn = "gpiochip" + std::to_string(gpioIdx);
+                }
+                GPIOChipHolder::INSTANCE.chips[gpioIdx] = std::make_shared<gpiod::chip>("/dev/" + gn);
             } catch (const std::exception& ex) {
                 std::string w = "Could not open GPIO chip " + (gpioName.empty() ? std::to_string(gpioIdx) : gpioName) +
                                 " for event request (" + ex.what() + ")";
@@ -301,7 +309,7 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
         }
         chip = GPIOChipHolder::INSTANCE.chips[gpioIdx];
     }
-    
+
     try {
         releaseGPIOD();
 
