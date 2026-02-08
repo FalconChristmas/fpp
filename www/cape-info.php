@@ -841,7 +841,7 @@ if (isset($settings["cape-info"])) {
                                                             </tr>
                                                             <?php
                                                             if (isset($currentCapeInfo['version'])) {
-                                                                echo "<tr><td><b>Version:</b></td><td>" . $currentCapeInfo['version'] . "</td></tr>";
+                                                                echo "<tr><td><b>Hardware Version:</b></td><td>" . $currentCapeInfo['version'] . "</td></tr>";
                                                             }
                                                             if (isset($currentCapeInfo['eepromVersion'])) {
                                                                 echo "<tr><td><b>EEPROM Version:</b></td><td>" . $currentCapeInfo['eepromVersion'] . "</td></tr>";
