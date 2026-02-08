@@ -42,14 +42,14 @@
 
     static public function getJobs()
     {
-      $output = shell_exec('crontab -l');
-      return self::stringToArray($output);
+      $result = fpp()->shell->run('crontab -l');
+      return self::stringToArray((string) $result);
     }
 
     static public function saveJobs($jobs = array())
     {
-      $output = shell_exec('echo "' . self::arrayToString($jobs) . '" | crontab -');
-      return $output;
+      return (string) fpp()->shell
+        ->run('echo "' . self::arrayToString($jobs) . '" | crontab -');
     }
 
     static public function doesJobExist($job = '')
