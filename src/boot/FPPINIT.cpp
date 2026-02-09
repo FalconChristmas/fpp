@@ -103,7 +103,12 @@ int remove_recursive(const char* const path, bool removeThis = true) {
 
 static void exec(const std::string& cmd) {
     std::array<char, 128> buffer;
-    struct PipeCloser { void operator()(FILE* f) const { if (f) pclose(f); } };
+    struct PipeCloser {
+        void operator()(FILE* f) const {
+            if (f)
+                pclose(f);
+        }
+    };
     std::unique_ptr<FILE, PipeCloser> pipe(popen(cmd.c_str(), "r"));
     if (!pipe) {
         throw std::runtime_error("popen() failed!");
@@ -117,7 +122,12 @@ static int execbg(const std::string& cmd) {
 }
 static std::string execAndReturn(const std::string& cmd) {
     std::array<char, 128> buffer;
-    struct PipeCloser { void operator()(FILE* f) const { if (f) pclose(f); } };
+    struct PipeCloser {
+        void operator()(FILE* f) const {
+            if (f)
+                pclose(f);
+        }
+    };
     std::unique_ptr<FILE, PipeCloser> pipe(popen(cmd.c_str(), "r"));
     if (!pipe) {
         throw std::runtime_error("popen() failed!");
@@ -188,13 +198,23 @@ static void DetectCape() {
 }
 
 static void checkSSHKeys() {
+    int keyCount = 0;
+    int pubCount = 0;
     for (const auto& entry : std::filesystem::directory_iterator("/etc/ssh")) {
         if (entry.is_regular_file()) {
             const auto filename = entry.path().filename();
             if (contains(filename, "ssh_host")) {
-                return;
+                if (filename.extension() == ".pub") {
+                    pubCount++;
+                } else {
+                    keyCount++;
+                }
             }
         }
+    }
+    // make sure we have at least two private and public keys (really should be three, but some platforms don't support ed25519, so we'll just check for two)
+    if (keyCount >= 2 && pubCount >= 2) {
+        return;
     }
     printf("      - Regenerating SSH keys\n");
     if (FileExists("/dev/hwrng")) {
