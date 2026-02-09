@@ -6,6 +6,7 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 	@cd ../ && \
 		git submodule init && \
 		git submodule update
+	@cp ../external/RF24/arch/RPi/includes.h ../external/RF24/arch/includes.h
 
 ../external/RF24/librf24-bcm.so: ../external/RF24/.git $(PCH_FILE)
 	@echo "Building RF24 library"
