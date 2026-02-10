@@ -1651,19 +1651,20 @@
             <div class="pageContent">
                 <ul class="nav nav-pills pageContent-tabs" role="tablist">
                     <li class="nav-item">
-                        <a class="nav-link active" id="interface-settings-tab" data-bs-toggle="tab"
-                            data-bs-target="#tab-interface-settings" href="#tab-interface-settings" role="tab"
-                            aria-controls="interface-settings" aria-selected="true">
-                            Interface Settings
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link" id="tab-global-network-tab" data-bs-toggle="tab"
                             data-bs-target="#tab-global-network" href="#tab-global-network" role="tab"
                             aria-controls="tab-global-network" aria-selected="false">
                             Global Network Settings
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" id="interface-settings-tab" data-bs-toggle="tab"
+                            data-bs-target="#tab-interface-settings" href="#tab-interface-settings" role="tab"
+                            aria-controls="interface-settings" aria-selected="true">
+                            Interface Settings
+                        </a>
+                    </li>
+
                     <li class="nav-item">
                         <a class="nav-link" id="tab-tethering-tab" data-bs-toggle="tab" data-bs-target="#tab-tethering"
                             href="#tab-tethering" role="tab" aria-controls="tab-tethering" aria-selected="false">
@@ -1903,7 +1904,7 @@
                                             <i class="fas fa-cogs"></i> Advanced Configuration
                                         </h3>
                                         <div class="container-fluid settingsTable settingsGroupTable">
-                                            <?php PrintSettingGroup("advNetworkSettingsGroup", "", "", 1, "", "", true); ?>
+                                            <?php PrintSettingGroup("advNetworkSettingsGroup", "", "", 1, "", "", false); ?>
 
                                             <div class="row">
                                                 <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
@@ -2054,7 +2055,8 @@
                                             value='Update DNS'>
                                         <div class="description-text"
                                             style="font-size: 0.9em; color: #666; margin-top: 5px;">
-                                            Global DNS configuration for all interfaces.
+                                            Global DNS configuration for all interfaces. This is how FPP resolves
+                                            hostnames back to IP addresses
                                         </div>
                                     </div>
                                 </div>
@@ -2093,32 +2095,43 @@
                     </div>
                     <div class="tab-pane fade" id="tab-tethering" role="tabpanel" aria-labelledby="tab-tethering-tab">
 
-                        <?
-                        PrintSettingGroup('tethering');
-                        ?>
-                        <br>
-                        <div class="callout callout-warning">
-                            <h4>Warning:</h4> Turning on tethering may make FPP unavailable. The WIFI adapter will be
-                            used for tethering and will thus not be usable for normal network operations. The WIFI
-                            tether IP
-                            address will be 192.168.8.1.
-                            </p>
+                        <!-- Tethering Settings -->
+                        <div class="tethering-section">
+                            <h2>Tethering Settings</h2>
 
-                            <p>
-                                <? if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "BeagleBone 64") { ?>
-                                    On BeagleBones, USB tethering is available. The IP address for USB tethering would be
-                                    192.168.6.2 (OSX/Linux) or 192.168.7.2 (Windows).
-                                <? } ?>
-                                <? if ($settings['Platform'] == "Raspberry Pi") { ?>
-                                    On the Pi Zero and Pi Zero W devices, USB tethering is available if using an appropriate
-                                    USB cable plugged into the USB port, not the power-only port. Don't plug anything into
-                                    the power port for this. The IP address for USB tethering would be 192.168.7.2.
-                                <? } ?>
+                            <!-- Tethering Configuration Subsection -->
+                            <h3 class="network-subsection">
+                                <i class="fas fa-mobile-alt"></i> Tethering Configuration
+                            </h3>
+                            <div class="container-fluid settingsTable settingsGroupTable">
+                                <?
+                                PrintSettingGroup('tethering', '', '', '', '', '', false);
+                                ?>
+                            </div>
 
+                            <div class="callout callout-warning" style="margin-top: 15px;">
+                                <h4>Warning:</h4>
+                                <p>Turning on tethering may make FPP unavailable. The WIFI adapter will be
+                                    used for tethering and will thus not be usable for normal network operations. The
+                                    WIFI
+                                    tether IP address will be 192.168.8.1.</p>
+
+                                <p>
+                                    <? if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "BeagleBone 64") { ?>
+                                        On BeagleBones, USB tethering is available. The IP address for USB tethering would
+                                        be
+                                        192.168.6.2 (OSX/Linux) or 192.168.7.2 (Windows).
+                                    <? } ?>
+                                    <? if ($settings['Platform'] == "Raspberry Pi") { ?>
+                                        On the Pi Zero and Pi Zero W devices, USB tethering is available if using an
+                                        appropriate
+                                        USB cable plugged into the USB port, not the power-only port. Don't plug anything
+                                        into
+                                        the power port for this. The IP address for USB tethering would be 192.168.7.2.
+                                    <? } ?>
+                                </p>
+                            </div>
                         </div>
-                        <p>
-
-
 
                     </div>
                 </div>
