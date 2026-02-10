@@ -83,6 +83,8 @@ dispatch_get('/media/:MediaName/meta', 'GetMediaMetaData');
 
 dispatch_get('/network/dns', 'network_get_dns');
 dispatch_post('/network/dns', 'network_save_dns');
+dispatch_get('/network/gateway', 'network_get_gateway');
+dispatch_post('/network/gateway', 'network_save_gateway');
 dispatch_get('/network/interface', 'network_list_interfaces');
 dispatch_get('/network/interface/:interface', 'network_get_interface');
 dispatch_get('/network/interface/add/:interface', 'network_add_interface');

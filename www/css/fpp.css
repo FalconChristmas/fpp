@@ -10,6 +10,49 @@ input {
 	background: white;
 }
 
+/* Fix dark border on datalist inputs (SSID fields) */
+input[list] {
+	background: white !important;
+	border: 1px solid #ccc !important;
+	border-radius: 3px !important;
+	-webkit-appearance: none !important;
+	-moz-appearance: none !important;
+	appearance: none !important;
+}
+
+input[list]:focus {
+	border-color: #007cba !important;
+	outline: none !important;
+	box-shadow: 0 0 3px rgba(0, 124, 186, 0.3) !important;
+}
+
+/* Remove datalist dropdown arrow styling inconsistencies */
+input[list]::-webkit-calendar-picker-indicator {
+	opacity: 0.6;
+}
+
+input[list]::-webkit-list-button {
+	display: none;
+}
+
+/* Specific styling for SSID input fields to match other inputs */
+#eth_ssid,
+#backupeth_ssid {
+	background: white !important;
+	border: 1px solid #ccc !important;
+	border-radius: 3px !important;
+	padding: 4px 6px !important;
+	font-family: inherit !important;
+	font-size: inherit !important;
+}
+
+#eth_ssid:focus,
+#backupeth_ssid:focus {
+	border-color: #007cba !important;
+	outline: none !important;
+	box-shadow: 0 0 3px rgba(0, 124, 186, 0.3) !important;
+}
+
 #restartFlag,
 #rebootFlag,
 #unsupportedBrowser,
@@ -3735,46 +3778,296 @@ a.api-anchor {
 
 /* Plugin Header Indicators */
 .pluginIndicator {
-    display: inline-block;
-    margin-left: 5px;
-    transition: color 0.3s ease, transform 0.2s ease;
+	display: inline-block;
+	margin-left: 5px;
+	transition: color 0.3s ease, transform 0.2s ease;
 }
 
 .pluginIndicator:hover {
-    transform: scale(1.1);
-    opacity: 0.8;
+	transform: scale(1.1);
+	opacity: 0.8;
 }
 
 @keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.15);
-        opacity: 0.85;
-    }
+	0%,
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	50% {
+		transform: scale(1.15);
+		opacity: 0.85;
+	}
 }
 
 /* Command Preset Invalid Command Styling */
 .commandPresetInvalidCommand {
-    background-color: #fff3cd !important;
-    border-left: 3px solid #ff9800 !important;
+	background-color: #fff3cd !important;
+	border-left: 3px solid #ff9800 !important;
 }
 
 .commandPresetInvalidCommand .cmdTmplCommand {
-    background-color: #ffcccc !important;
+	background-color: #ffcccc !important;
 }
 
 .commandPresetInvalidWarning {
-    background-color: #fff3cd;
-    border: 1px solid #ffc107;
-    border-radius: 4px;
-    padding: 10px;
-    margin-bottom: 15px;
-    color: #856404;
+	background-color: #fff3cd;
+	border: 1px solid #ffc107;
+	border-radius: 4px;
+	padding: 10px;
+	margin-bottom: 15px;
+	color: #856404;
 }
 
 .commandPresetInvalidWarning strong {
-    color: #dc3545;
+	color: #dc3545;
+}
+
+/* Network Configuration Styles */
+.network-subsection {
+	margin-top: 20px;
+	margin-bottom: 15px;
+	color: #4a90e2;
+	border-bottom: 2px solid #e1e1e1;
+	padding-bottom: 8px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+}
+
+.network-subsection i {
+	margin-right: 8px;
+	width: 18px;
+	text-align: center;
+}
+
+.global-network-section {
+	background-color: #f8f9fa;
+	border-radius: 8px;
+	padding: 20px;
+	margin-bottom: 20px;
+	border: 1px solid #e9ecef;
+}
+
+.global-network-section h2 {
+	margin-top: 0;
+	color: #2c3e50;
+	border-bottom: 2px solid #3498db;
+	padding-bottom: 10px;
+}
+
+/* Interface Configuration Styles */
+.interface-config-section {
+	background-color: #f8f9fa;
+	border-radius: 8px;
+	padding: 20px;
+	margin-bottom: 20px;
+	border: 1px solid #e9ecef;
+}
+
+.interface-config-section h2 {
+	margin-top: 0;
+	color: #2c3e50;
+	border-bottom: 2px solid #e67e22;
+	padding-bottom: 10px;
+}
+
+.interface-subsection {
+	margin-top: 20px;
+	margin-bottom: 15px;
+	color: #e67e22;
+	border-bottom: 2px solid #e1e1e1;
+	padding-bottom: 8px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+}
+
+.interface-subsection i {
+	margin-right: 8px;
+	width: 18px;
+	text-align: center;
+}
+
+/* Interface Selection Styles */
+.interface-selection {
+	background: #ffffff !important;
+	border: 1px solid #ddd !important;
+	border-radius: 6px !important;
+	padding: 15px !important;
+	margin-bottom: 20px !important;
+}
+
+.interface-selection h3 {
+	margin-top: 0 !important;
+	color: #444 !important;
+	font-size: 18px !important;
+	padding-bottom: 8px !important;
+	border-bottom: 1px solid #ddd !important;
+	display: flex;
+	align-items: center;
+}
+
+.interface-selection h3 i {
+	margin-right: 8px;
+	width: 18px;
+	text-align: center;
+}
+
+/* Network Utilities Section Styles */
+.network-utilities-section {
+	background-color: #f8f9fa;
+	border-radius: 8px;
+	padding: 20px;
+	margin-bottom: 20px;
+	border: 1px solid #e9ecef;
+}
+
+.network-utilities-section h2 {
+	margin-top: 0;
+	color: #2c3e50;
+	border-bottom: 2px solid #27ae60;
+	padding-bottom: 10px;
+}
+
+/* Tethering Section Styles */
+.tethering-section {
+	background-color: #f8f9fa;
+	border-radius: 8px;
+	padding: 20px;
+	margin-bottom: 20px;
+	border: 1px solid #e9ecef;
+}
+
+.tethering-section h2 {
+	margin-top: 0;
+	color: #2c3e50;
+	border-bottom: 2px solid #9b59b6;
+	padding-bottom: 10px;
+}
+
+/* WiFi Networks Table Styling */
+#wifiNetworksTable {
+	max-height: 200px;
+	overflow-y: auto;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	margin-bottom: 10px;
+}
+
+#wifiNetworksTable table {
+	margin: 0;
+}
+
+#wifiNetworksTable {
+	position: relative;
+	z-index: auto;
+}
+
+#wifiNetworksTable thead {
+	background-color: #f8f9fa;
+	position: relative;
+	z-index: auto;
+}
+
+#wifiNetworksTable th {
+	padding: 8px;
+	font-size: 12px;
+	font-weight: 600;
+	border-bottom: 1px solid #dee2e6;
+}
+
+#wifiNetworksTable td {
+	padding: 8px;
+	font-size: 13px;
+	border-bottom: 1px solid #f1f3f4;
+}
+
+.wifi-network-row {
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+}
+
+.wifi-network-row:hover {
+	background-color: #f8f9fa !important;
+}
+
+.wifi-network-row.table-primary {
+	background-color: #d1ecf1 !important;
+}
+
+.wifi-network-row.table-primary:hover {
+	background-color: #bee5eb !important;
+}
+
+/* Signal strength styling */
+.text-success {
+	color: #28a745 !important;
+}
+
+.text-warning {
+	color: #ffc107 !important;
+}
+
+.text-danger {
+	color: #dc3545 !important;
+}
+
+/* Security badge styling */
+.badge {
+	display: inline-block;
+	padding: 0.25em 0.4em;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1;
+	text-align: center;
+	white-space: nowrap;
+	vertical-align: baseline;
+	border-radius: 0.25rem;
+}
+
+.badge-secondary {
+	color: #fff;
+	background-color: #6c757d;
+}
+
+/* Utilities Subsection Styles - matching green theme */
+.utilities-subsection {
+	margin-top: 20px;
+	margin-bottom: 15px;
+	color: #27ae60;
+	border-bottom: 2px solid #e1e1e1;
+	padding-bottom: 8px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+}
+
+.utilities-subsection i {
+	margin-right: 8px;
+	width: 18px;
+	text-align: center;
+}
+
+/* WiFi Configuration Subsection Specific Styling */
+.network-subsection + .settingsGroupTable h2 {
+	font-size: 16px !important;
+	color: #666 !important;
+	margin: 10px 0 15px 0 !important;
+	padding: 8px 0 8px 0 !important;
+	border-bottom: 1px solid #ddd !important;
+	font-weight: 600 !important;
+	background: none !important;
+}
+
+/* Style headings within settings group tables to be more subdued */
+.settingsGroupTable h2,
+.settingsTable h2 {
+	font-size: 16px !important;
+	color: #666 !important;
+	margin: 10px 0 15px 0 !important;
+	padding: 8px 0 8px 0 !important;
+	border-bottom: 1px solid #ddd !important;
+	font-weight: 600 !important;
+	background: none !important;
 }
