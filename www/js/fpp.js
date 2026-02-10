@@ -215,7 +215,7 @@ function SetTablePageHeader_ZebraPin () {
 	//if Zebra pin already exists destroy it
 	if (window.hasOwnProperty('zp_tablePageHeader')) {
 		zp_tablePageHeader.destroy(); //needs Zebra Pin v3 to work
-		delete zp_tablePageHeader;
+		zp_tablePageHeader = null;
 	}
 
 	//check if a normal or tabbed page layout
