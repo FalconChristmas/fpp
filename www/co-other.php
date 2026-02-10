@@ -885,6 +885,11 @@
 
             // Update menu to show/hide Virtual Display links
             UpdateVirtualDisplayMenu(data);
+
+            // Auto-disable testing mode when output configs change
+            if (typeof disableTestModeIfActive === 'function') {
+                disableTestModeIfActive();
+            }
         }).fail(function () {
             DialogError("Save Channel Outputs", "Save Failed");
         });

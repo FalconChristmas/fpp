@@ -4174,10 +4174,51 @@ function postUniverseJSON (input) {
 	$.post('api/channel/output/' + fileName, postDataString)
 		.done(function (data) {
 			$.jGrowl('E1.31 Universes Saved', { themeState: 'success' });
+
+			// Auto-disable testing mode when output configs change
+			if (typeof disableTestModeIfActive === 'function') {
+				disableTestModeIfActive();
+			}
 		})
 		.fail(function () {
 			DialogError('Save Universes', 'Error: Unable to save E1.31 Universes.');
 		});
+}
+
+/**
+ * Disables testing mode if it is currently enabled.
+ * This function is called automatically when channel output configurations are changed.
+ */
+function disableTestModeIfActive () {
+	$.get('api/testmode', function (data) {
+		if (data && data.enabled) {
+			// Testing mode is active, disable it
+			var disableData = {
+				enabled: 0,
+				mode: data.mode || 'RGBChase',
+				subMode: data.subMode || 'RGBChase-RGB',
+				cycleMS: data.cycleMS || 1000,
+				channelSet: data.channelSet || '1-1024',
+				channelSetType: data.channelSetType || 'channelRange',
+				colorPattern: data.colorPattern || 'FF000000FF000000FF'
+			};
+
+			$.ajax({
+				url: 'api/testmode',
+				type: 'POST',
+				contentType: 'application/json',
+				data: JSON.stringify(disableData),
+				success: function () {
+					console.log(
+						'Testing mode automatically disabled due to output configuration change'
+					);
+				},
+				error: function () {
+					console.log('Failed to disable testing mode');
+				}
+			});
+		}
+	});
 }
 
 function validateEmail (email) {

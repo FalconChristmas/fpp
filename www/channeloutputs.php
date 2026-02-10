@@ -253,6 +253,11 @@
                 HandleChangesInUIValues();
                 //PopulateChannelOutputLookup();
                 //DisplaySaveWarningIfRequired();
+
+                // Auto-disable testing mode when output configs change
+                if (typeof disableTestModeIfActive === 'function') {
+                    disableTestModeIfActive();
+                }
             }).fail(function () {
                 DialogError("Save Channel Output Config", "Save Failed");
             });
