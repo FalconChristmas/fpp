@@ -9,7 +9,8 @@ if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
     apt-get install -y gldriver-test
 fi
 apt-get install -y --no-install-recommends xserver-xorg x11-xserver-utils xinit openbox
-apt-get install -y --no-install-recommends chromium-browser
+# Try chromium first (Debian Trixie+), fall back to chromium-browser (older versions)
+apt-get install -y --no-install-recommends chromium || apt-get install -y --no-install-recommends chromium-browser
 apt-get clean
 
 cat > /etc/xdg/openbox/autostart <<EOF

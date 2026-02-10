@@ -27,7 +27,7 @@ sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/
 # Guard: Check to see if rotate screen disabled
 if ! grep -qE '^[[:space:]]*KioskRotate[[:space:]]*=[[:space:]]*"1"' "$SETTINGS_FILE"; then
     echo "$(date) Rotate screen disabled – leaving display normal" >> "$LOGFILE"
-    chromium-browser --disable-infobars --kiosk
+    chromium --disable-infobars --kiosk 'http://localhost/'
     exit 0
 fi
 
@@ -39,7 +39,7 @@ if sed -n "/$IDENTIFIER/,/EndSection/ {
     }" "$XORG_FILE" | grep -q .; then
     echo "$(date) TransformationMatrix already present – no changes to file made" >> "$LOGFILE"
     xrandr --output DSI-1 --mode 720x1280 --rate 60 --rotate right
-    chromium-browser --disable-infobars --kiosk
+    chromium --disable-infobars --kiosk 'http://localhost/'
     exit 0
 else
 
@@ -57,4 +57,4 @@ fi
 # Rotate display then launch Chromium
 xrandr --output DSI-1 --mode 720x1280 --rate 60 --rotate right
 echo "$(date) Last Launch Chromium Section after ediing touchscreen file" >> "$LOGFILE"
-chromium-browser --disable-infobars --kiosk
+chromium --disable-infobars --kiosk 'http://localhost/'
