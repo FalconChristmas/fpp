@@ -1,9 +1,15 @@
+// Global storage for file data to calculate total sizes
+var fileData = {};
+
 function GetFiles (dir) {
 	$.ajax({
 		dataType: 'json',
 		url: 'api/files/' + dir,
 		success: function (data) {
 			let i = 0;
+
+			// Store file data globally
+			fileData[dir] = data.files;
 
 			if (data.files.length > 0) {
 				$('#tbl' + dir)
@@ -149,10 +155,44 @@ function GetSequenceInfo (file) {
 	});
 }
 
+function formatBytes (bytes) {
+	if (bytes === 0) return '0 B';
+	const k = 1024;
+	const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 function UpdateFileCount ($dir) {
-	$('#fileCount_' + $dir)[0].innerText = $('#tbl' + $dir + ' tbody tr')
+	const visibleRows = $('#tbl' + $dir + ' tbody tr')
 		.not('.unselectableRow')
-		.not('.filtered').length;
+		.not('.filtered');
+
+	$('#fileCount_' + $dir)[0].innerText = visibleRows.length;
+
+	// Calculate total file size
+	let totalSize = 0;
+	if (fileData[$dir]) {
+		// Get visible file names from the table
+		const visibleFileNames = new Set();
+		visibleRows.each(function () {
+			const fileName = $(this).find('.fileName').text();
+			visibleFileNames.add(fileName);
+		});
+
+		// Sum up sizes for visible files only
+		fileData[$dir].forEach(function (f) {
+			if (visibleFileNames.has(f.name)) {
+				totalSize += parseInt(f.sizeBytes) || 0;
+			}
+		});
+	}
+
+	// Update the file size badge
+	if ($('#fileSize_' + $dir).length > 0) {
+		$('#fileSize_' + $dir)[0].innerText = formatBytes(totalSize);
+	}
+
 	if ($('#tbl' + $dir + ' tbody tr.filtered').length > 0) {
 		//is filtered
 		$('#div' + $dir + ' .fileCountlabelHeading')[0].innerHTML =
@@ -160,11 +200,17 @@ function UpdateFileCount ($dir) {
 		$('#fileCount_' + $dir)
 			.removeClass('text-bg-secondary')
 			.addClass('text-bg-success');
+		$('#fileSize_' + $dir)
+			.removeClass('text-bg-secondary')
+			.addClass('text-bg-success');
 	} else {
 		//not filtered
 		$('#div' + $dir + ' .fileCountlabelHeading')[0].innerHTML =
 			'<span class="">Items:<span>';
 		$('#fileCount_' + $dir)
+			.removeClass('text-bg-success')
+			.addClass('text-bg-secondary');
+		$('#fileSize_' + $dir)
 			.removeClass('text-bg-success')
 			.addClass('text-bg-secondary');
 	}

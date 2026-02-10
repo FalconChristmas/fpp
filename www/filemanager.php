@@ -208,6 +208,9 @@
                                                 <div class="col-auto fileCountlabelHeading">Items</div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Sequences"
                                                         class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_Sequences"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
                                             </div>
                                         </div>
                                     </div>
@@ -273,6 +276,9 @@
                                                 <div class="col-auto fileCountlabelHeading">Items</div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Music"
                                                         class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_Music"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
                                             </div>
                                         </div>
 
@@ -336,6 +342,9 @@
                                                 <div class="col-auto fileCountlabelHeading">Items</div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Videos"
                                                         class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_Videos"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
                                             </div>
                                         </div>
 
@@ -397,6 +406,9 @@
                                                 </div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Images"
                                                         class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_Images"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
                                             </div>
                                         </div>
 
@@ -452,6 +464,9 @@
                                                 <div class="col-auto fileCountlabelHeading">Items</div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Effects"
                                                         class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_Effects"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
                                             </div>
                                         </div>
 
@@ -505,6 +520,9 @@
                                                 <div class="col-auto fileCountlabelHeading">Items</div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Scripts"
                                                         class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_Scripts"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
                                             </div>
                                         </div>
 
@@ -573,6 +591,9 @@
                                                 <div class="col-auto fileCountlabelHeading">Items</div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Logs"
                                                         class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_Logs"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
                                             </div>
                                         </div>
 
@@ -630,6 +651,9 @@
                                                 <div class="col-auto fileCountlabelHeading">Items</div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Uploads"
                                                         class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_Uploads"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
                                             </div>
                                         </div>
 
@@ -680,6 +704,9 @@
                                                 <div class="col-auto fileCountlabelHeading">Items</div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Crashes"
                                                         class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_Crashes"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
                                             </div>
                                         </div>
 
@@ -727,6 +754,9 @@
                                                 <div class="col-auto fileCountlabelHeading">Items</div>
                                                 <div class="col-auto fileCountlabelValue"><span id="fileCount_Backups"
                                                         class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_Backups"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
                                             </div>
                                         </div>
 
