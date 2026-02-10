@@ -9055,6 +9055,9 @@ function RefreshHeaderBar () {
 				'<span title="' +
 				title +
 				'"><i class="fas fa-play text-success"></i><small>Playing</small></span>';
+		} else if (data.status_name == 'testing') {
+			row =
+				'<span title="Display Testing Active"><i class="fas fa-heart-pulse text-info"></i><small>Testing</small></span>';
 		} else if (data.status_name == 'idle') {
 			row =
 				'<span title="Idle"><i class="fas fa-pause"></i><small>Idle</small></span>';
