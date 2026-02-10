@@ -63,6 +63,9 @@ int FBMatrixOutput::Init(Json::Value config) {
     if (config.isMember("modelName"))
         modelName = config["modelName"].asString();
 
+    printf("FBMatrix::Init: modelName='%s', empty=%d\n", modelName.c_str(), modelName == "");
+    fflush(stdout);
+
     if (modelName == "") {
         int width = 0;
         int height = 0;
@@ -79,7 +82,18 @@ int FBMatrixOutput::Init(Json::Value config) {
             modelName = "FB - ";
             modelName += device;
 
-            if (width && height && (device != "") && !PixelOverlayManager::INSTANCE.getModel(modelName)) {
+            printf("FBMatrix: Checking for existing model '%s', hasModel=%d\n", 
+                   modelName.c_str(), PixelOverlayManager::INSTANCE.getModel(modelName) != nullptr);
+            fflush(stdout);
+
+            // Delete existing model if it exists, so we can recreate with PixelSize
+            if (PixelOverlayManager::INSTANCE.getModel(modelName)) {
+                printf("FBMatrix: Removing existing model '%s' to recreate with PixelSize\n", modelName.c_str());
+                fflush(stdout);
+                PixelOverlayManager::INSTANCE.removeAutoOverlayModel(modelName);
+            }
+
+            if (width && height && (device != "")) {
                 Json::Value val;
                 val["Name"] = modelName;
                 val["Type"] = "FB";
@@ -87,6 +101,17 @@ int FBMatrixOutput::Init(Json::Value config) {
                 val["Height"] = height;
                 val["Device"] = device;
                 val["autoCreated"] = true;
+                
+                // Pass through pixelSize if specified in config
+                if (config.isMember("pixelSize")) {
+                    int ps = config["pixelSize"].asInt();
+                    val["PixelSize"] = ps;
+                    printf("FBMatrix: Setting PixelSize=%d for model '%s'\n", ps, modelName.c_str());
+                    fflush(stdout);
+                } else {
+                    printf("FBMatrix: No pixelSize in config for model '%s'\n", modelName.c_str());
+                    fflush(stdout);
+                }
 
                 PixelOverlayManager::INSTANCE.addModel(val);
                 m_autoCreatedFBModelName = modelName;

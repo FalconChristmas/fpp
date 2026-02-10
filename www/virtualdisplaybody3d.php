@@ -1,0 +1,3547 @@
+<?php
+// Ensure $standalone is defined (default to false if not set)
+if (!isset($standalone)) {
+    $standalone = false;
+}
+?>
+<script>
+    var pixelData = [];
+    var pixelLookup = {};  // Fast lookup by pixel index for 3D mode
+    var base64 = [];
+    var base64ToDecimal = {};  // Pre-computed hex-to-decimal lookup for performance
+    var scene, camera, renderer, controls;
+    var pixelMeshes = [];
+    var evtSource;
+    var clearTimer;
+    var pendingUpdates = [];
+    var animationFrameId = null;
+    var lookAtTarget = null;  // Global camera target for orbit controls (initialized when THREE.js loads)
+    var cameraControlState = { distanceMin: 100, distanceMax: 5000, initialized: false };
+    var pixelOffsetAdvancedVisible = false;
+    window.brightnessMultiplier = 2.0;  // Default brightness (can be overridden by URL param)
+    window.sceneInitialized = false;  // Track if scene is fully ready
+    var testMode = {
+        enabled: false,
+        color: '#ff0000',
+        rgb: [1.0, 0.0, 0.0]
+    };
+
+    // Clean up SSE connection on page unload/refresh to prevent stale connections
+    window.addEventListener('beforeunload', function () {
+        if (evtSource) {
+            console.log('Page unloading, closing SSE connection');
+            evtSource.close();
+            evtSource = null;
+        }
+    });
+
+    // Also clean up on visibility change (tab hidden)
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden && evtSource) {
+            console.log('Page hidden, closing SSE connection');
+            evtSource.close();
+            evtSource = null;
+        } else if (!document.hidden && window.sceneInitialized && !evtSource) {
+            console.log('Page visible again, reconnecting SSE');
+            startSSE();
+        }
+    });
+
+    // 3D Objects variables
+    var loadedObjects = [];
+    var objLoader = null;
+    var mtlLoader = null;
+
+    // URL parameter configuration
+    var urlParams = {};
+
+    // Parse URL parameters
+    function parseURLParams() {
+        var params = {};
+        var queryString = window.location.search.substring(1);
+        if (queryString) {
+            var pairs = queryString.split('&');
+            for (var i = 0; i < pairs.length; i++) {
+                var pair = pairs[i].split('=');
+                var key = decodeURIComponent(pair[0]);
+                var value = decodeURIComponent(pair[1] || '');
+                params[key] = value;
+            }
+        }
+        return params;
+    }
+
+    // Get URL parameter with default value
+    function getURLParam(name, defaultValue) {
+        if (urlParams.hasOwnProperty(name)) {
+            var value = urlParams[name];
+
+            // Handle boolean values
+            if (value === 'true') return true;
+            if (value === 'false') return false;
+
+            // Handle numeric values
+            if (!isNaN(value) && value !== '') {
+                return parseFloat(value);
+            }
+
+            return value;
+        }
+        return defaultValue;
+    }
+
+    // Initialize URL parameters
+    urlParams = parseURLParams();
+
+    <?php
+    // Canvas size for the 3D viewport
+    if (!isset($canvasWidth))
+        $canvasWidth = 1024;
+
+    if (!isset($canvasHeight))
+        $canvasHeight = 768;
+
+    echo "var canvasWidth = " . $canvasWidth . ";\n";
+    echo "var canvasHeight = " . $canvasHeight . ";\n";
+
+    // Override with window size if available (standalone mode)
+    echo "if (typeof window.canvasWidth !== 'undefined') canvasWidth = window.canvasWidth;\n";
+    echo "if (typeof window.canvasHeight !== 'undefined') canvasHeight = window.canvasHeight;\n";
+
+    $base64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/"; // Base64 index table
+    for ($i = 0; $i < 64; $i++) {
+        printf("base64['%s'] = '%02X';\n", substr($base64, $i, 1), $i << 2);
+        // Pre-compute decimal values for performance (avoid parseInt in hot loop)
+        printf("base64ToDecimal['%s'] = %d;\n", substr($base64, $i, 1), $i << 2);
+    }
+
+    $pixelSize = 1;
+    $configFile = $settings['configDirectory'] . "/co-other.json";
+    if (file_exists($configFile)) {
+        $content = file_get_contents($configFile);
+        $json = json_decode($content, true);
+        if ($json && isset($json['channelOutputs'])) {
+            foreach ($json['channelOutputs'] as $output) {
+                if ($output['type'] == 'HTTPVirtualDisplay' || $output['type'] == 'HTTPVirtualDisplay3D') {
+                    $pixelSize = isset($output['pixelSize']) ? $output['pixelSize'] : 2;
+                    break;
+                }
+            }
+        }
+    }
+    echo "var pixelSize = " . $pixelSize . ";\n";
+
+    $mapFile = $settings['configDirectory'] . '/virtualdisplaymap';
+    if (!file_exists($mapFile)) {
+        echo "console.error('virtualdisplaymap file not found at: " . $mapFile . "');\n";
+        echo "var previewWidth = 1920;\n";
+        echo "var previewHeight = 1080;\n";
+        echo "var modelBounds = { minX: 0, maxX: 100, minY: 0, maxY: 100, minZ: 0, maxZ: 100 };\n";
+        echo "var modelCenter = { x: 50, y: 50, z: 50 };\n";
+    } else {
+        $f = fopen($mapFile, "r");
+        if ($f) {
+            $line = fgets($f);
+            if (preg_match('/^#/', $line))
+                $line = fgets($f);
+            $line = trim($line);
+            $parts = explode(',', $line);
+            $previewWidth = $parts[0];
+            $previewHeight = $parts[1];
+
+            echo "var previewWidth = " . $previewWidth . ";\n";
+            echo "var previewHeight = " . $previewHeight . ";\n";
+
+            // Find min/max for Z axis to center the model
+            $minZ = PHP_INT_MAX;
+            $maxZ = PHP_INT_MIN;
+            $minX = PHP_INT_MAX;
+            $maxX = PHP_INT_MIN;
+            $minY = PHP_INT_MAX;
+            $maxY = PHP_INT_MIN;
+            $tempData = array();
+
+            while (!feof($f)) {
+                $line = fgets($f);
+                if (($line == "") || (preg_match('/^#/', $line)))
+                    continue;
+
+                $line = trim($line);
+                $entry = explode(",", $line);
+
+                if (count($entry) < 3)
+                    continue;
+
+                $ox = (int) $entry[0];
+                $oy = (int) $entry[1];
+                $oz = (int) $entry[2];
+
+                $minX = min($minX, $ox);
+                $maxX = max($maxX, $ox);
+                $minY = min($minY, $oy);
+                $maxY = max($maxY, $oy);
+                $minZ = min($minZ, $oz);
+                $maxZ = max($maxZ, $oz);
+
+                $tempData[] = $entry;
+            }
+
+            // Center coordinates horizontally, but align bottom to ground
+            $centerX = ($minX + $maxX) / 2;
+            $centerY = $minY;  // Align bottom to ground (Y=0)
+            $centerZ = ($minZ + $maxZ) / 2;
+
+            echo "var modelBounds = { minX: $minX, maxX: $maxX, minY: $minY, maxY: $maxY, minZ: $minZ, maxZ: $maxZ };\n";
+            echo "var modelCenter = { x: $centerX, y: $centerY, z: $centerZ };\n";
+            echo "console.log('Loaded " . count($tempData) . " pixels from virtualdisplaymap');\n";
+
+            // Now output pixel data with centered coordinates
+            $pixelIndex = 0;
+            foreach ($tempData as $entry) {
+                $ox = (int) $entry[0];
+                $rawY = (int) $entry[1];
+                // IMPORTANT: Must invert Y for key generation to match 2D version and SSE data
+                $oy = $previewHeight - $rawY;
+                $oz = (int) $entry[2];
+                $ch = isset($entry[3]) ? $entry[3] : 0;
+                $colors = isset($entry[4]) ? $entry[4] : '';
+
+                // Store raw coordinates - we'll center them in JavaScript using gridlines offset
+                $x = $ox;
+                $y = $rawY;
+                $z = $oz;
+
+                $ps = 1;
+                if (sizeof($entry) >= 7) {
+                    $ps = (int) $entry[6];
+                }
+                $ps *= $pixelSize;
+
+                // Generate key for SSE lookup (same as 2D version - must use inverted oy)
+                if (($ox >= 4096) || ($oy >= 4096))
+                    $key = substr($base64, ($ox >> 12) & 0x3f, 1) .
+                        substr($base64, ($ox >> 6) & 0x3f, 1) .
+                        substr($base64, $ox & 0x3f, 1) .
+                        substr($base64, ($oy >> 12) & 0x3f, 1) .
+                        substr($base64, ($oy >> 6) & 0x3f, 1) .
+                        substr($base64, $oy & 0x3f, 1);
+                else
+                    $key = substr($base64, ($ox >> 6) & 0x3f, 1) .
+                        substr($base64, $ox & 0x3f, 1) .
+                        substr($base64, ($oy >> 6) & 0x3f, 1) .
+                        substr($base64, $oy & 0x3f, 1);
+
+                echo "pixelData.push({ key: '" . $key . "', x: $x, y: $y, z: $z, ox: $ox, oy: $oy, oz: $oz, size: $ps });\n";
+                echo "pixelLookup[" . $pixelIndex . "] = " . $pixelIndex . ";\n";
+                $pixelIndex++;
+            }
+
+            fclose($f);
+        }
+    }
+
+    // Load 3D asset configuration
+    $assetsConfigFile = $settings['configDirectory'] . '/virtdisplay.json';
+    $assetsConfig = null;
+    $viewObjects = array();
+
+    if (file_exists($assetsConfigFile)) {
+        $assetsContent = file_get_contents($assetsConfigFile);
+        $assetsConfig = json_decode($assetsContent, true);
+
+        if ($assetsConfig && isset($assetsConfig['view_objects'])) {
+            $viewObjects = $assetsConfig['view_objects'];
+            echo "console.log('Loaded " . count($viewObjects) . " view objects from virtdisplay.json');\n";
+
+            // Find gridlines to determine the coordinate system offset
+            // Gridlines position tells us where (0,0,0) is in the xLights coordinate system
+            $gridlinesOffsetX = 0;
+            $gridlinesOffsetY = 0;
+            $gridlinesOffsetZ = 0;
+
+            // Calculate min/max object positions to determine the offset xLights applied to virtualmap
+            // xLights subtracts minX and minY from all pixel coordinates when creating the map
+            $objectMinX = 0;
+            $objectMinY = 0;
+            $objectMinZ = 0;
+            $hasActiveObjects = false;
+
+            foreach ($viewObjects as $obj) {
+                if (isset($obj['DisplayAs']) && $obj['DisplayAs'] === 'Gridlines') {
+                    $gridlinesOffsetX = (float) $obj['WorldPosX'];
+                    $gridlinesOffsetY = (float) $obj['WorldPosY'];
+                    $gridlinesOffsetZ = (float) $obj['WorldPosZ'];
+                }
+
+                // Track minimum object positions (active mesh objects only)
+                if (
+                    isset($obj['Active']) && $obj['Active'] === '1' &&
+                    isset($obj['DisplayAs']) && $obj['DisplayAs'] === 'Mesh'
+                ) {
+                    $objX = (float) ($obj['WorldPosX'] ?? 0);
+                    $objY = (float) ($obj['WorldPosY'] ?? 0);
+                    $objZ = (float) ($obj['WorldPosZ'] ?? 0);
+
+                    if (!$hasActiveObjects) {
+                        $objectMinX = $objX;
+                        $objectMinY = $objY;
+                        $objectMinZ = $objZ;
+                        $hasActiveObjects = true;
+                    } else {
+                        $objectMinX = min($objectMinX, $objX);
+                        $objectMinY = min($objectMinY, $objY);
+                        $objectMinZ = min($objectMinZ, $objZ);
+                    }
+                }
+            }
+
+            echo "console.log('Found gridlines at X=$gridlinesOffsetX, Y=$gridlinesOffsetY, Z=$gridlinesOffsetZ');\n";
+            echo "console.log('Pixel center is X=$centerX, Y=$centerY, Z=$centerZ');\n";
+            echo "console.log('Object min positions: X=$objectMinX, Y=$objectMinY, Z=$objectMinZ');\n";
+            echo "var gridlinesOffset = { x: $gridlinesOffsetX, y: $gridlinesOffsetY, z: $gridlinesOffsetZ };\n";
+            echo "var objectMinPosition = { x: $objectMinX, y: $objectMinY, z: $objectMinZ };\n";
+        } else {
+            echo "console.warn('No view_objects found in virtdisplay.json');\n";
+            echo "var gridlinesOffset = { x: 0, y: 0, z: 0 };\n";
+            echo "var objectMinPosition = { x: 0, y: 0, z: 0 };\n";
+        }
+    } else {
+        echo "console.warn('virtdisplay.json not found at: " . $assetsConfigFile . "');\n";
+        echo "var gridlinesOffset = { x: 0, y: 0, z: 0 };\n";
+        echo "var objectMinPosition = { x: 0, y: 0, z: 0 };\n";
+    }
+
+    // Output the view objects configuration to JavaScript
+    echo "var viewObjects = " . json_encode($viewObjects) . ";\n";
+    echo "var assetsDirectory = '" . $settings['virtualDisplayAssetsDirectory'] . "';\n";
+
+    // Get the 2D settings for coordinate system info
+    $previewWidth2D = isset($assetsConfig['2D-settings']['previewWidth']) ? $assetsConfig['2D-settings']['previewWidth'] : $previewWidth;
+    $previewHeight2D = isset($assetsConfig['2D-settings']['previewHeight']) ? $assetsConfig['2D-settings']['previewHeight'] : $previewHeight;
+    $centerAt0 = isset($assetsConfig['2D-settings']['Display2DCenter0']) ? $assetsConfig['2D-settings']['Display2DCenter0'] == '1' : false;
+
+    echo "var view2DSettings = { previewWidth: $previewWidth2D, previewHeight: $previewHeight2D, centerAt0: " . ($centerAt0 ? 'true' : 'false') . " };\n";
+    echo "console.log('2D View settings:', view2DSettings);\n";
+
+    // Also pass the 2D settings if available for coordinate system reference
+    if ($assetsConfig && isset($assetsConfig['2D-settings'])) {
+        $settings2D = $assetsConfig['2D-settings'];
+        echo "var display2DSettings = " . json_encode($settings2D) . ";\n";
+        echo "console.log('2D display settings:', display2DSettings);\n";
+    }
+
+    ?>
+
+    var objectCenterOffset = { x: 0, y: 0, z: 0 };  // Will be calculated from gridlines
+
+    function calculateObjectCenterOffset() {
+        // Objects are positioned relative to the gridlines (0,0,0 in xLights)
+        // They should NOT be offset - they use their original world coordinates
+        // Only pixels need centering to bring them into this same coordinate space
+        objectCenterOffset.x = 0;
+        objectCenterOffset.y = 0;
+        objectCenterOffset.z = 0;
+
+        console.log('Object center offset (no offset - objects use world coords):', objectCenterOffset);
+        console.log('Pixel model center (pixels will be centered by this):', modelCenter);
+    }
+
+    function init3D() {
+        console.log('Initializing 3D view with', pixelData.length, 'pixels');
+        console.log('Three.js version info:', THREE.REVISION || 'version unknown');
+
+        // Create scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+
+        // Create camera
+        var modelSize = Math.max(
+            modelBounds.maxX - modelBounds.minX,
+            modelBounds.maxY - modelBounds.minY,
+            modelBounds.maxZ - modelBounds.minZ
+        );
+
+        // Calculate tight zoom: find the bounding sphere radius
+        var maxRadius = Math.sqrt(
+            Math.pow(modelBounds.maxX - modelCenter.x, 2) +
+            Math.pow(modelBounds.maxY - modelCenter.y, 2) +
+            Math.pow(modelBounds.maxZ - modelCenter.z, 2)
+        );
+
+        // Position camera to fit all pixels with minimal padding
+        // Factor of 1.2 gives ~10% padding, adjust FOV consideration
+        var fov = getURLParam('fov', 75);
+        var fovRadians = fov * Math.PI / 180;
+        var cameraDistance = maxRadius / Math.tan(fovRadians / 2) * 1.2;
+
+        // Allow URL parameter to override camera distance (zoom level)
+        var zoomParam = getURLParam('zoom', null);
+        if (zoomParam !== null) {
+            // zoom parameter is a multiplier (1.0 = default, 0.5 = half distance, 2.0 = double distance)
+            cameraDistance = cameraDistance * zoomParam;
+        }
+
+        console.log('Model size:', modelSize, 'Camera distance:', cameraDistance);
+
+        camera = new THREE.PerspectiveCamera(fov, canvasWidth / canvasHeight, 0.1, 10000);
+
+        // Check if camera position is specified in URL parameters
+        var cameraX = getURLParam('cameraX', null);
+        var cameraY = getURLParam('cameraY', null);
+        var cameraZ = getURLParam('cameraZ', null);
+
+        if (cameraX !== null && cameraY !== null && cameraZ !== null) {
+            // Use explicit camera position from URL
+            camera.position.set(cameraX, cameraY, cameraZ);
+            console.log('Using camera position from URL:', cameraX, cameraY, cameraZ);
+        } else {
+            // Calculate default camera position: 20 degrees to the right, 10 degrees looking down
+            // Allow override via angles in URL
+            var horizontalAngle = getURLParam('cameraAngleH', 20) * Math.PI / 180;  // degrees right
+            var verticalAngle = getURLParam('cameraAngleV', 10) * Math.PI / 180;    // degrees up (positive = looking down from above)
+
+            // Calculate camera position using spherical coordinates
+            var x = cameraDistance * Math.cos(verticalAngle) * Math.sin(horizontalAngle);
+            var y = cameraDistance * Math.sin(verticalAngle);
+            var z = cameraDistance * Math.cos(verticalAngle) * Math.cos(horizontalAngle);
+
+            camera.position.set(x, y, z);
+            console.log('Using calculated camera position:', x, y, z);
+        }
+
+        // Check if camera target (lookAt) is specified in URL parameters
+        var targetX = getURLParam('targetX', 0);
+        var targetY = getURLParam('targetY', 0);
+        var targetZ = getURLParam('targetZ', 0);
+        camera.lookAt(targetX, targetY, targetZ);
+        console.log('Camera looking at:', targetX, targetY, targetZ);
+
+        // Initialize lookAtTarget for orbit controls
+        lookAtTarget = new THREE.Vector3(targetX, targetY, targetZ);
+
+        // Create renderer with modern settings (r182 improvements)
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(canvasWidth, canvasHeight);
+
+        // Enable accurate color space management
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        // Enable physically accurate tone mapping for better color reproduction
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+
+        // Use physical light units (more realistic)
+        renderer.useLegacyLights = false;
+
+        var container = document.getElementById('canvas-container');
+        if (!container) {
+            console.error('canvas-container element not found!');
+            return;
+        }
+        container.appendChild(renderer.domElement);
+        console.log('Renderer attached to DOM');
+
+        // Add lights with physical units (lumens) for realistic lighting
+        var ambientLight = new THREE.AmbientLight(0x404040, Math.PI * 0.5);
+        scene.add(ambientLight);
+
+        var directionalLight = new THREE.DirectionalLight(0xffffff, Math.PI * 0.3);
+        directionalLight.position.set(1, 1, 1);
+        scene.add(directionalLight);
+
+        // Add additional lights for better 3D object visibility
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, Math.PI * 0.3);
+        directionalLight2.position.set(-1, -1, -1);
+        scene.add(directionalLight2);
+
+        var hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, Math.PI * 0.4);
+        hemisphereLight.position.set(0, 1, 0);
+        scene.add(hemisphereLight);
+
+        // Store references for ambient light control (store base intensities in physical units)
+        window.sceneLights = {
+            ambient: { light: ambientLight, baseIntensity: Math.PI * 0.5 },
+            directional1: { light: directionalLight, baseIntensity: Math.PI * 0.3 },
+            directional2: { light: directionalLight2, baseIntensity: Math.PI * 0.3 },
+            hemisphere: { light: hemisphereLight, baseIntensity: Math.PI * 0.4 }
+        };
+
+        // Use InstancedMesh for realistic 3D LED bulbs (r182 improvement)
+        console.log('Creating instanced LED bulbs with', pixelData.length, 'pixels');
+
+        // Debug: log first few pixel positions
+        console.log('First 3 pixels - RAW coordinates:');
+        for (var i = 0; i < Math.min(3, pixelData.length); i++) {
+            console.log('  Pixel', i, '- x:', pixelData[i].x, 'y:', pixelData[i].y, 'z:', pixelData[i].z);
+        }
+        console.log('Model center:', modelCenter);
+        console.log('Center at 0:', view2DSettings.centerAt0);
+        console.log('Preview width:', view2DSettings.previewWidth);
+        console.log('Gridlines offset:', gridlinesOffset);
+
+        // Create a small sphere geometry for each LED (reused for all instances)
+        // Default radius 1.0 (pixel size 2) - can be overridden by URL parameter
+        var ledGeometry = new THREE.SphereGeometry(1.0, 8, 6);
+
+        // Use MeshBasicMaterial for LEDs - unaffected by lighting, perfect for self-illuminating pixels
+        // Note: Instance colors are MULTIPLIED by material color, so we need white base
+        // But we initialize all instances to black (0,0,0) explicitly
+        var ledMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,  // Base white - instance colors multiply this
+            transparent: false,
+            depthWrite: true,
+            depthTest: true,
+            toneMapped: false  // Prevent tone mapping from affecting colors
+        });
+
+        // Create instanced mesh
+        var instancedMesh = new THREE.InstancedMesh(ledGeometry, ledMaterial, pixelData.length);
+
+        // IMPORTANT: Set all instances to black BEFORE anything else
+        // This ensures no pixels start as white
+        var blackColor = new THREE.Color(0, 0, 0);
+        for (var idx = 0; idx < pixelData.length; idx++) {
+            instancedMesh.setColorAt(idx, blackColor);
+        }
+        instancedMesh.instanceColor.needsUpdate = true;
+
+        // Set up position and color for each instance
+        var matrix = new THREE.Matrix4();
+        var color = new THREE.Color();
+        var pixelPositions = [];
+
+        for (var i = 0; i < pixelData.length; i++) {
+            // Pixels may have Display2DCenter0 offset applied in the virtualmap file
+            // If Display2DCenter0 is enabled, pixel X coordinates have previewWidth/2 subtracted
+            // We need to add it back to get true xLights coordinates
+            var pixelX = pixelData[i].x;
+            var pixelY = pixelData[i].y;
+            var pixelZ = pixelData[i].z;
+
+            if (view2DSettings.centerAt0) {
+                // Add back the 2D preview center to get true xLights X coordinate
+                var offsetAmount = view2DSettings.previewWidth / 2;
+                if (i === 0) {
+                    console.log('Applying Display2DCenter0 correction: adding', offsetAmount, 'to X coordinates');
+                }
+                pixelX = pixelX + offsetAmount;
+            }
+
+            // Use raw pixel coordinates - the offset sliders can be used to align with objects
+            // xLights virtualmap export subtracts minX/minY which we can't reliably recover
+            // The user can adjust alignment using the offset sliders in the UI
+            var finalX = pixelX;
+            var finalY = pixelY;
+            var finalZ = pixelZ;
+
+            if (i < 3) {
+                console.log('Pixel', i, 'coords: x=', finalX, 'y=', finalY, 'z=', finalZ);
+            }
+
+            pixelPositions.push({ x: finalX, y: finalY, z: finalZ });
+
+            // Set position matrix for this instance
+            matrix.setPosition(finalX, finalY, finalZ);
+            instancedMesh.setMatrixAt(i, matrix);
+            // Note: colors already initialized to black in the pre-loop above
+        }
+
+        // Mark instance matrices and colors as needing GPU update
+        instancedMesh.instanceMatrix.needsUpdate = true;
+        instancedMesh.instanceColor.needsUpdate = true;
+
+        // Set color space for instance colors to match renderer output
+        if (instancedMesh.instanceColor) {
+            instancedMesh.instanceColor.colorSpace = THREE.SRGBColorSpace;
+        }
+
+        // Set render order high so pixels render on top of 3D objects
+        instancedMesh.renderOrder = 999;
+
+        // Debug: log first few pixel positions after centering
+        console.log('First 3 pixels - CENTERED coordinates:');
+        for (var i = 0; i < Math.min(3, pixelPositions.length); i++) {
+            console.log('  Pixel', i, '- x:', pixelPositions[i].x, 'y:', pixelPositions[i].y, 'z:', pixelPositions[i].z);
+        }
+
+        scene.add(instancedMesh);
+
+        // Store references for updates
+        window.pixelMesh = instancedMesh;
+        window.pixelMaterial = ledMaterial;
+        window.pixelColors = new Float32Array(pixelData.length * 3);
+        window.pixelPositions = pixelPositions;
+
+        console.log('Instanced LED mesh created with realistic 3D bulbs');
+
+        // Mark scene as initialized
+        window.sceneInitialized = true;
+        console.log('Scene initialization complete, ready for SSE connection');
+
+
+        // Add axis helper for reference (default off, can be overridden by URL)
+        window.axesHelper = new THREE.AxesHelper(modelSize / 2);
+        window.axesHelper.visible = getURLParam('showAxes', false);
+        scene.add(window.axesHelper);
+
+        // Add grid helper (can be hidden via URL)
+        window.gridHelper = new THREE.GridHelper(modelSize * 2, 20);
+        window.gridHelper.visible = getURLParam('showGrid', true);
+        scene.add(window.gridHelper);		// Simple orbit controls (mouse drag to rotate)
+        setupOrbitControls();
+
+        // Create exit fullscreen button for touch devices
+        createExitFullscreenButton();
+
+        // Start render loop
+        animate3D();
+
+        // Initialize 3D object loaders
+        if (initObjectLoaders()) {
+            // Calculate the coordinate offset from gridlines
+            calculateObjectCenterOffset();
+
+            // Load 3D objects from configuration
+            load3DObjects();
+        } else {
+            console.warn('3D object loaders failed to initialize, skipping 3D object loading');
+        }
+
+        // Load any saved pixel offset settings and apply them
+        if (loadPixelOffsets()) {
+            // Apply the loaded offsets to pixel positions
+            setTimeout(function () {
+                updatePixelOffset();
+            }, 100);
+        }
+
+        console.log('3D initialization complete');
+    }
+
+    function initObjectLoaders() {
+        // Initialize the OBJ and MTL loaders with new ES6 modules
+        try {
+            if (typeof window.OBJLoader === 'undefined') {
+                console.error('OBJLoader is not available. Make sure Three.js modules are loaded.');
+                return false;
+            }
+            if (typeof window.MTLLoader === 'undefined') {
+                console.error('MTLLoader is not available. Make sure Three.js modules are loaded.');
+                return false;
+            }
+
+            objLoader = new window.OBJLoader();
+            mtlLoader = new window.MTLLoader();
+            console.log('Successfully initialized 3D object loaders');
+        } catch (error) {
+            console.error('Failed to initialize 3D object loaders:', error);
+            return false;
+        }
+
+        // Set the path for loading assets via web server
+        if (typeof assetsDirectory !== 'undefined' && objLoader && mtlLoader) {
+            var assetPath = '/virtualdisplay_assets/';
+            console.log('Setting asset path to:', assetPath);
+            mtlLoader.setPath(assetPath);
+            objLoader.setPath(assetPath);
+            return true;
+        }
+        return false;
+    }
+
+    function load3DObjects() {
+        if (!viewObjects || viewObjects.length === 0) {
+            console.log('No 3D objects to load');
+            return;
+        }
+
+        console.log('Loading', viewObjects.length, '3D objects');
+
+        // Check if loaders are available, otherwise use fallback
+        var useLoaders = (objLoader && mtlLoader);
+
+        viewObjects.forEach((objConfig, index) => {
+            // Skip if not active
+            if (objConfig.Active === "0") {
+                console.log('Skipping inactive object:', objConfig.name);
+                return;
+            }
+
+            // Handle different display types
+            if (objConfig.DisplayAs === "Mesh" && objConfig.ObjFile) {
+                if (useLoaders) {
+                    loadMeshObject(objConfig, index);
+                } else {
+                    loadFallbackMesh(objConfig, index);
+                }
+            } else if (objConfig.DisplayAs === "Gridlines") {
+                loadGridlines(objConfig, index);
+            } else if (objConfig.DisplayAs === "Ruler") {
+                loadRuler(objConfig, index);
+            }
+        });
+    }
+
+    function loadMeshObject(objConfig, index) {
+        console.log('Loading mesh object:', objConfig.name, 'from', objConfig.ObjFile);
+
+        // Check if there's a corresponding MTL file
+        var mtlFile = objConfig.ObjFile.replace('.obj', '.mtl');
+
+        // Try to load with MTL first
+        console.log('Attempting to load materials from:', mtlFile);
+        loadObjWithMaterial(objConfig.ObjFile, mtlFile, objConfig, index);
+    }
+
+    function loadObjWithMaterial(objPath, mtlPath, objConfig, index) {
+        // Create a custom loading manager to intercept and fix texture paths
+        var textureManager = new THREE.LoadingManager();
+
+        // Intercept texture loading to fix paths
+        textureManager.setURLModifier((url) => {
+            // If URL contains a subdirectory path, strip it and use just the filename
+            var filename = url.split('/').pop();
+            var fixedUrl = '/virtualdisplay_assets/' + filename;
+
+            if (url !== fixedUrl) {
+                console.log('Fixed texture URL:', url, '->', fixedUrl);
+            }
+
+            return fixedUrl;
+        });
+
+        // Create a new MTL loader with the custom manager for texture path fixing
+        var customMtlLoader = new window.MTLLoader(textureManager);
+        customMtlLoader.setPath('/virtualdisplay_assets/');
+
+        // Load MTL file with the custom loader
+        customMtlLoader.load(
+            mtlPath,
+            (materials) => {
+                console.log('Successfully loaded materials for:', objConfig.name);
+
+                // Preload materials and textures
+                materials.preload();
+
+                console.log('Materials and textures preloaded for:', objConfig.name);
+
+                // Create a new OBJ loader with the same texture manager
+                var customObjLoader = new window.OBJLoader(textureManager);
+                customObjLoader.setPath('/virtualdisplay_assets/');
+                customObjLoader.setMaterials(materials);
+
+                // Now load the OBJ with materials
+                loadObjFileWithLoader(customObjLoader, objPath, objConfig, index, true);
+            },
+            (progress) => {
+                // Progress callback
+            },
+            (error) => {
+                console.warn('Could not load MTL file for', objConfig.name, '- using default materials');
+                console.error('MTL load error:', error);
+                // Fall back to loading without materials using the standard loader
+                loadObjFile(objPath, objConfig, index, false);
+            }
+        );
+    }
+
+    function loadObjFileWithLoader(loader, objPath, objConfig, index, hasMaterials) {
+        loader.load(
+            objPath,
+            (object) => {
+                console.log('Successfully loaded 3D object:', objConfig.name);
+
+                if (hasMaterials) {
+                    console.log('Using loaded MTL materials for', objConfig.name);
+
+                    // Log material details and enable anisotropic filtering for textures
+                    var materialCount = 0;
+                    var textureCount = 0;
+                    var maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+                    object.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            materialCount++;
+                            if (child.material.map) {
+                                textureCount++;
+                                // Enable anisotropic filtering for better texture quality at oblique angles
+                                child.material.map.anisotropy = maxAnisotropy;
+                                child.material.map.needsUpdate = true;
+                                console.log('  Mesh has texture:', child.material.map.image?.src || 'loading...');
+                            }
+                        }
+                    });
+                    console.log('Applied', materialCount, 'materials with', textureCount, 'textures to', objConfig.name);
+                }
+
+                // Calculate and log bounding box for debugging
+                var bbox = new THREE.Box3().setFromObject(object);
+                console.log('Object bounding box:', objConfig.name, '- min:', bbox.min, 'max:', bbox.max);
+
+                // Apply transformations
+                applyObjectTransform(object, objConfig);
+
+                // Add to scene
+                scene.add(object);
+
+                // Store reference
+                loadedObjects[index] = {
+                    object: object,
+                    config: objConfig
+                };
+
+                console.log('Added 3D object to scene:', objConfig.name);
+
+                // Update UI list
+                updateObjectsList();
+            },
+            (progress) => {
+                if (progress.lengthComputable) {
+                    console.log('Loading progress for', objConfig.name, ':', (progress.loaded / progress.total * 100).toFixed(1) + '%');
+                }
+            },
+            (error) => {
+                console.error('Error loading 3D object', objConfig.name, ':', error);
+            }
+        );
+    }
+
+    function loadObjFile(objPath, objConfig, index, hasMaterials) {
+        objLoader.load(
+            objPath,
+            (object) => {
+                console.log('Successfully loaded 3D object:', objConfig.name);
+
+                // If no materials were loaded, apply default materials
+                if (!hasMaterials) {
+                    var meshCount = 0;
+                    object.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            meshCount++;
+                            // Apply a default material with reasonable properties
+                            child.material = new THREE.MeshPhongMaterial({
+                                color: 0xcccccc,  // Light gray default
+                                flatShading: false,
+                                side: THREE.DoubleSide,
+                                shininess: 30
+                            });
+                        }
+                    });
+                    console.log('Applied default materials to', meshCount, 'meshes in', objConfig.name);
+                } else {
+                    console.log('Using loaded MTL materials for', objConfig.name);
+
+                    // Log material details and enable anisotropic filtering for textures
+                    var materialCount = 0;
+                    var textureCount = 0;
+                    var maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+                    object.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            materialCount++;
+                            if (child.material.map) {
+                                textureCount++;
+                                // Enable anisotropic filtering for better texture quality at oblique angles
+                                child.material.map.anisotropy = maxAnisotropy;
+                                child.material.map.needsUpdate = true;
+                                console.log('  Mesh has texture:', child.material.map.image?.src || 'loading...');
+                            }
+                        }
+                    });
+                    console.log('Applied', materialCount, 'materials with', textureCount, 'textures to', objConfig.name);
+
+                    // Reset the materials on the loader for next object
+                    objLoader.setMaterials(null);
+                }
+
+                // Calculate and log bounding box for debugging
+                var bbox = new THREE.Box3().setFromObject(object);
+                console.log('Object bounding box:', objConfig.name, '- min:', bbox.min, 'max:', bbox.max);
+
+                // Apply transformations
+                applyObjectTransform(object, objConfig);
+
+                // Add to scene
+                scene.add(object);
+
+                // Store reference
+                loadedObjects[index] = {
+                    object: object,
+                    config: objConfig
+                };
+
+                console.log('Added 3D object to scene:', objConfig.name);
+
+                // Update UI list
+                updateObjectsList();
+            },
+            (progress) => {
+                if (progress.lengthComputable) {
+                    console.log('Loading progress for', objConfig.name, ':', (progress.loaded / progress.total * 100).toFixed(1) + '%');
+                }
+            },
+            (error) => {
+                console.error('Error loading 3D object', objConfig.name, ':', error);
+                // Fall back to simple mesh
+                console.log('Falling back to placeholder mesh for', objConfig.name);
+                loadFallbackMesh(objConfig, index);
+            }
+        );
+    }
+
+    function applyObjectTransform(object, config) {
+        // Apply position
+        // Objects from virtdisplay.json are in xLights coordinate system
+        // Use the objectCenterOffset calculated from gridlines to align with pixel coordinates
+        let x = parseFloat(config.WorldPosX || 0);
+        let y = parseFloat(config.WorldPosY || 0);
+        let z = parseFloat(config.WorldPosZ || 0);
+
+        console.log('Original object position:', config.name, '- x:', x, 'y:', y, 'z:', z);
+        console.log('Object center offset:', objectCenterOffset);
+
+        // Subtract the offset to align with pixel coordinate system
+        x = x - objectCenterOffset.x;
+        y = y - objectCenterOffset.y;
+        z = z - objectCenterOffset.z;
+
+        console.log('Final object position:', config.name, '- x:', x, 'y:', y, 'z:', z);
+
+        object.position.set(x, y, z);
+
+        // Apply rotation (convert degrees to radians)
+        const rotX = (parseFloat(config.RotateX || 0) * Math.PI) / 180;
+        const rotY = (parseFloat(config.RotateY || 0) * Math.PI) / 180;
+        const rotZ = (parseFloat(config.RotateZ || 0) * Math.PI) / 180;
+
+        object.rotation.set(rotX, rotY, rotZ);
+
+        // Apply scale - multiply by a large factor to match the pixel coordinate system
+        // The pixel coordinates are in the range of hundreds/thousands, so we need to scale up significantly
+        const scaleFactor = 100; // Objects are in model units (typically cm or inches), pixels are in virtual units
+        const scaleX = (parseFloat(config.ScaleX || 100) / 100) * scaleFactor;
+        const scaleY = (parseFloat(config.ScaleY || 100) / 100) * scaleFactor;
+        const scaleZ = (parseFloat(config.ScaleZ || 100) / 100) * scaleFactor;
+
+        object.scale.set(scaleX, scaleY, scaleZ);
+
+        console.log('Applied transform to', config.name, '- Position:', { x, y, z }, 'Rotation:', { rotX, rotY, rotZ }, 'Scale:', { scaleX, scaleY, scaleZ });
+    }
+
+    function loadGridlines(config, index) {
+        console.log('Creating gridlines:', config.name);
+
+        const gridWidth = parseFloat(config.GridWidth || 1000);
+        const gridHeight = parseFloat(config.GridHeight || 1000);
+        const spacing = parseFloat(config.GridLineSpacing || 50);
+        const color = new THREE.Color(config.GridColor || '#004a00');
+
+        // Create grid - THREE.GridHelper is already horizontal (XZ plane)
+        const grid = new THREE.GridHelper(Math.max(gridWidth, gridHeight), Math.max(gridWidth, gridHeight) / spacing, color, color);
+
+        // Apply position and scale, but NOT rotation since GridHelper is already in the correct orientation
+        // In xLights, gridlines are rotated -90 degrees to be horizontal
+        // But THREE.GridHelper is already horizontal by default
+        const x = parseFloat(config.WorldPosX || 0) - objectCenterOffset.x;
+        const y = parseFloat(config.WorldPosY || 0) - objectCenterOffset.y;
+        const z = parseFloat(config.WorldPosZ || 0) - objectCenterOffset.z;
+
+        grid.position.set(x, y, z);
+
+        // Apply scale if needed
+        const scaleFactor = 100;
+        const scaleX = (parseFloat(config.ScaleX || 100) / 100) * scaleFactor;
+        const scaleY = (parseFloat(config.ScaleY || 100) / 100) * scaleFactor;
+        const scaleZ = (parseFloat(config.ScaleZ || 100) / 100) * scaleFactor;
+        grid.scale.set(scaleX, scaleY, scaleZ);
+
+        console.log('Gridlines positioned at:', { x, y, z }, 'scale:', { scaleX, scaleY, scaleZ });
+
+        scene.add(grid);
+
+        loadedObjects[index] = {
+            object: grid,
+            config: config
+        };
+
+        console.log('Added gridlines to scene:', config.name);
+
+        // Update UI list
+        updateObjectsList();
+    }
+
+    function loadRuler(config, index) {
+        console.log('Creating ruler:', config.name);
+
+        // Create a simple line for the ruler
+        const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+        const points = [];
+
+        const startX = parseFloat(config.WorldPosX || 0) - modelCenter.x;
+        const startY = parseFloat(config.WorldPosY || 0) - modelCenter.y;
+        const startZ = parseFloat(config.WorldPosZ || 0) - modelCenter.z;
+
+        const endX = parseFloat(config.X2 || 0) - modelCenter.x;
+        const endY = parseFloat(config.Y2 || 0) - modelCenter.y;
+        const endZ = parseFloat(config.Z2 || 0) - modelCenter.z;
+
+        points.push(new THREE.Vector3(startX, startY, startZ));
+        points.push(new THREE.Vector3(endX, endY, endZ));
+
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const line = new THREE.Line(geometry, material);
+
+        scene.add(line);
+
+        loadedObjects[index] = {
+            object: line,
+            config: config
+        };
+
+        console.log('Added ruler to scene:', config.name);
+
+        // Update UI list
+        updateObjectsList();
+    }
+
+    function loadFallbackMesh(config, index) {
+        console.log('Creating fallback mesh for:', config.name);
+
+        // Create a simple box as a placeholder for the 3D object
+        var geometry = new THREE.BoxGeometry(50, 50, 50);
+        var material = new THREE.MeshBasicMaterial({
+            color: 0x888888,
+            wireframe: true,
+            opacity: 0.7,
+            transparent: true
+        });
+
+        var mesh = new THREE.Mesh(geometry, material);
+
+        // Apply transformations
+        applyObjectTransform(mesh, config);
+
+        scene.add(mesh);
+
+        loadedObjects[index] = {
+            object: mesh,
+            config: config
+        };
+
+        console.log('Added fallback mesh to scene:', config.name);
+
+        // Update UI list
+        updateObjectsList();
+    }
+
+    function setupOrbitControls() {
+        // Simple manual orbit controls
+        var isDragging = false;
+        var isPanning = false;
+        var previousMousePosition = { x: 0, y: 0 };
+        var rotationSpeed = 0.005;
+        var panSpeed = 0.5;
+
+        // Initialize lookAtTarget now that THREE.js is loaded
+        if (!lookAtTarget) {
+            lookAtTarget = new THREE.Vector3(0, 0, 0);
+        }
+
+        renderer.domElement.addEventListener('mousedown', function (e) {
+            if (e.button === 0) {  // Left mouse button - rotate
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            } else if (e.button === 1) {  // Middle mouse button - pan
+                e.preventDefault();
+                isPanning = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        renderer.domElement.addEventListener('mousemove', function (e) {
+            if (isDragging) {
+                var deltaX = e.clientX - previousMousePosition.x;
+                var deltaY = e.clientY - previousMousePosition.y;
+
+                // Rotate around the look-at target
+                var offset = new THREE.Vector3().subVectors(camera.position, lookAtTarget);
+
+                // Rotate around Y axis (horizontal rotation)
+                var angle = deltaX * rotationSpeed;
+                offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -angle);
+
+                // Rotate around camera's right axis (vertical rotation)
+                var right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                angle = deltaY * rotationSpeed;
+                offset.applyAxisAngle(right, -angle);
+
+                camera.position.copy(lookAtTarget).add(offset);
+                camera.lookAt(lookAtTarget);
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+                syncCameraControlSliders();
+            } else if (isPanning) {
+                var deltaX = e.clientX - previousMousePosition.x;
+                var deltaY = e.clientY - previousMousePosition.y;
+
+                // Pan the camera and look-at target
+                var right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                var up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+
+                var distance = camera.position.distanceTo(lookAtTarget);
+                var panAmount = distance * 0.001;
+
+                right.multiplyScalar(-deltaX * panAmount * panSpeed);
+                up.multiplyScalar(deltaY * panAmount * panSpeed);
+
+                camera.position.add(right).add(up);
+                lookAtTarget.add(right).add(up);
+                camera.lookAt(lookAtTarget);
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+                syncCameraControlSliders();
+            }
+        });
+
+        renderer.domElement.addEventListener('mouseup', function (e) {
+            if (e.button === 0) {
+                isDragging = false;
+            } else if (e.button === 1) {
+                isPanning = false;
+            }
+        });
+
+        // Prevent context menu on middle click
+        renderer.domElement.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+        });
+
+        // Zoom with mouse wheel
+        renderer.domElement.addEventListener('wheel', function (e) {
+            e.preventDefault();
+            var zoomSpeed = 0.1;
+            var delta = e.deltaY > 0 ? 1 + zoomSpeed : 1 - zoomSpeed;
+            var relative = new THREE.Vector3().subVectors(camera.position, lookAtTarget);
+            relative.multiplyScalar(delta);
+            camera.position.copy(lookAtTarget).add(relative);
+            camera.lookAt(lookAtTarget);
+            syncCameraControlSliders();
+        });
+
+        // Touch controls for mobile/tablet devices
+        var touchState = {
+            isTouching: false,
+            touchStartDistance: 0,
+            previousTouchPosition: { x: 0, y: 0 },
+            twoFingerMode: false
+        };
+
+        renderer.domElement.addEventListener('touchstart', function (e) {
+            if (e.touches.length === 1) {
+                // Single touch - rotate
+                touchState.isTouching = true;
+                touchState.twoFingerMode = false;
+                touchState.previousTouchPosition = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+            } else if (e.touches.length === 2) {
+                // Two fingers - pan or pinch-to-zoom
+                touchState.isTouching = true;
+                touchState.twoFingerMode = true;
+
+                // Calculate initial distance for pinch-to-zoom
+                var dx = e.touches[0].clientX - e.touches[1].clientX;
+                var dy = e.touches[0].clientY - e.touches[1].clientY;
+                touchState.touchStartDistance = Math.sqrt(dx * dx + dy * dy);
+
+                // Store midpoint for panning
+                touchState.previousTouchPosition = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
+            }
+            e.preventDefault();
+        });
+
+        renderer.domElement.addEventListener('touchmove', function (e) {
+            if (!touchState.isTouching) return;
+
+            if (e.touches.length === 1 && !touchState.twoFingerMode) {
+                // Single touch - rotate camera
+                var deltaX = e.touches[0].clientX - touchState.previousTouchPosition.x;
+                var deltaY = e.touches[0].clientY - touchState.previousTouchPosition.y;
+
+                // Rotate around the look-at target
+                var offset = new THREE.Vector3().subVectors(camera.position, lookAtTarget);
+
+                // Rotate around Y axis (horizontal rotation)
+                var angle = deltaX * rotationSpeed;
+                offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -angle);
+
+                // Rotate around camera's right axis (vertical rotation)
+                var right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                angle = deltaY * rotationSpeed;
+                offset.applyAxisAngle(right, -angle);
+
+                camera.position.copy(lookAtTarget).add(offset);
+                camera.lookAt(lookAtTarget);
+
+                touchState.previousTouchPosition = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+                syncCameraControlSliders();
+            } else if (e.touches.length === 2) {
+                // Two fingers - handle both pinch-to-zoom and panning
+                var currentMidpoint = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
+
+                // Calculate current distance for pinch-to-zoom
+                var dx = e.touches[0].clientX - e.touches[1].clientX;
+                var dy = e.touches[0].clientY - e.touches[1].clientY;
+                var currentDistance = Math.sqrt(dx * dx + dy * dy);
+
+                // Pinch-to-zoom
+                if (touchState.touchStartDistance > 0) {
+                    var zoomRatio = currentDistance / touchState.touchStartDistance;
+                    var relative = new THREE.Vector3().subVectors(camera.position, lookAtTarget);
+                    relative.divideScalar(zoomRatio);
+                    camera.position.copy(lookAtTarget).add(relative);
+                    camera.lookAt(lookAtTarget);
+                    touchState.touchStartDistance = currentDistance;
+                }
+
+                // Two-finger pan
+                var deltaX = currentMidpoint.x - touchState.previousTouchPosition.x;
+                var deltaY = currentMidpoint.y - touchState.previousTouchPosition.y;
+
+                var right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                var up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+
+                var distance = camera.position.distanceTo(lookAtTarget);
+                var panAmount = distance * 0.001;
+
+                right.multiplyScalar(-deltaX * panAmount * panSpeed);
+                up.multiplyScalar(deltaY * panAmount * panSpeed);
+
+                camera.position.add(right).add(up);
+                lookAtTarget.add(right).add(up);
+                camera.lookAt(lookAtTarget);
+
+                touchState.previousTouchPosition = currentMidpoint;
+                syncCameraControlSliders();
+            }
+            e.preventDefault();
+        });
+
+        renderer.domElement.addEventListener('touchend', function (e) {
+            if (e.touches.length === 0) {
+                touchState.isTouching = false;
+                touchState.twoFingerMode = false;
+                touchState.touchStartDistance = 0;
+            } else if (e.touches.length === 1 && touchState.twoFingerMode) {
+                // Went from two fingers to one - reset to single touch mode
+                touchState.twoFingerMode = false;
+                touchState.previousTouchPosition = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+            }
+            e.preventDefault();
+        });
+
+        renderer.domElement.addEventListener('touchcancel', function (e) {
+            touchState.isTouching = false;
+            touchState.twoFingerMode = false;
+            touchState.touchStartDistance = 0;
+            e.preventDefault();
+        });
+    }
+
+    function computeCameraState() {
+        if (!camera || !lookAtTarget) {
+            return null;
+        }
+
+        var offset = new THREE.Vector3().subVectors(camera.position, lookAtTarget);
+        var distance = offset.length();
+        if (distance < 0.0001) {
+            distance = 0.0001;
+        }
+
+        var yaw = Math.atan2(offset.x, offset.z) * (180 / Math.PI);
+        if (yaw < 0) {
+            yaw += 360;
+        }
+
+        var verticalRatio = offset.y / distance;
+        verticalRatio = Math.min(1, Math.max(-1, verticalRatio));
+        var pitch = Math.asin(verticalRatio) * (180 / Math.PI);
+
+        return {
+            yaw: yaw,
+            pitch: pitch,
+            distance: distance,
+            target: {
+                x: lookAtTarget.x,
+                y: lookAtTarget.y,
+                z: lookAtTarget.z
+            }
+        };
+    }
+
+    function updateCameraValueLabels(state) {
+        if (!state) {
+            return;
+        }
+
+        var yawLabel = document.getElementById('cameraYawValue');
+        if (yawLabel) {
+            yawLabel.textContent = state.yaw.toFixed(0) + '\u00B0';
+        }
+
+        var pitchLabel = document.getElementById('cameraPitchValue');
+        if (pitchLabel) {
+            pitchLabel.textContent = state.pitch.toFixed(0) + '\u00B0';
+        }
+
+        var zoomLabel = document.getElementById('cameraDistanceValue');
+        if (zoomLabel) {
+            zoomLabel.textContent = state.distance.toFixed(0) + ' units';
+        }
+
+        var panXLabel = document.getElementById('panXValue');
+        if (panXLabel) {
+            panXLabel.textContent = state.target.x.toFixed(0);
+        }
+
+        var panYLabel = document.getElementById('panYValue');
+        if (panYLabel) {
+            panYLabel.textContent = state.target.y.toFixed(0);
+        }
+
+        var panZLabel = document.getElementById('panZValue');
+        if (panZLabel) {
+            panZLabel.textContent = state.target.z.toFixed(0);
+        }
+    }
+
+    function syncCameraControlSliders() {
+        if (!camera || !lookAtTarget) {
+            return;
+        }
+
+        var state = computeCameraState();
+        if (!state) {
+            return;
+        }
+
+        var yawSlider = document.getElementById('cameraYawSlider');
+        if (yawSlider) {
+            var normalizedYaw = ((state.yaw % 360) + 360) % 360;
+            yawSlider.value = Math.round(normalizedYaw);
+        }
+
+        var pitchSlider = document.getElementById('cameraPitchSlider');
+        if (pitchSlider) {
+            pitchSlider.value = Math.round(state.pitch);
+        }
+
+        var distanceSlider = document.getElementById('cameraDistanceSlider');
+        if (distanceSlider) {
+            distanceSlider.value = Math.round(state.distance);
+        }
+
+        var panXSlider = document.getElementById('panXSlider');
+        if (panXSlider) {
+            panXSlider.value = Math.round(state.target.x);
+        }
+
+        var panYSlider = document.getElementById('panYSlider');
+        if (panYSlider) {
+            panYSlider.value = Math.round(state.target.y);
+        }
+
+        var panZSlider = document.getElementById('panZSlider');
+        if (panZSlider) {
+            panZSlider.value = Math.round(state.target.z);
+        }
+
+        updateCameraValueLabels(state);
+    }
+
+    function handleCameraControlInput() {
+        if (!camera || !lookAtTarget) {
+            return;
+        }
+
+        var yawSlider = document.getElementById('cameraYawSlider');
+        var pitchSlider = document.getElementById('cameraPitchSlider');
+        var distanceSlider = document.getElementById('cameraDistanceSlider');
+        var panXSlider = document.getElementById('panXSlider');
+        var panYSlider = document.getElementById('panYSlider');
+        var panZSlider = document.getElementById('panZSlider');
+
+        if (!yawSlider || !pitchSlider || !distanceSlider) {
+            return;
+        }
+
+        var yaw = parseFloat(yawSlider.value) || 0;
+        var pitch = parseFloat(pitchSlider.value) || 0;
+        var distance = Math.max(cameraControlState.distanceMin, Math.min(cameraControlState.distanceMax, parseFloat(distanceSlider.value) || 0));
+
+        var targetX = panXSlider ? parseFloat(panXSlider.value) || 0 : lookAtTarget.x;
+        var targetY = panYSlider ? parseFloat(panYSlider.value) || 0 : lookAtTarget.y;
+        var targetZ = panZSlider ? parseFloat(panZSlider.value) || 0 : lookAtTarget.z;
+
+        lookAtTarget.set(targetX, targetY, targetZ);
+
+        var yawRad = yaw * (Math.PI / 180);
+        var pitchRad = pitch * (Math.PI / 180);
+        var cosPitch = Math.cos(pitchRad);
+
+        var offsetX = distance * cosPitch * Math.sin(yawRad);
+        var offsetY = distance * Math.sin(pitchRad);
+        var offsetZ = distance * cosPitch * Math.cos(yawRad);
+
+        camera.position.set(
+            lookAtTarget.x + offsetX,
+            lookAtTarget.y + offsetY,
+            lookAtTarget.z + offsetZ
+        );
+        camera.lookAt(lookAtTarget);
+
+        syncCameraControlSliders();
+    }
+
+    function initializeCameraControlUI() {
+        var distanceSlider = document.getElementById('cameraDistanceSlider');
+        if (!distanceSlider || !camera) {
+            return;
+        }
+
+        var maxDimension = Math.max(
+            modelBounds.maxX - modelBounds.minX,
+            modelBounds.maxY - modelBounds.minY,
+            modelBounds.maxZ - modelBounds.minZ
+        );
+
+        cameraControlState.distanceMin = 100;
+        cameraControlState.distanceMax = Math.max(1000, maxDimension * 4);
+
+        distanceSlider.min = cameraControlState.distanceMin;
+        distanceSlider.max = cameraControlState.distanceMax;
+
+        cameraControlState.initialized = true;
+        syncCameraControlSliders();
+    }
+
+    function togglePixelOffsetAdvanced() {
+        var section = document.getElementById('pixelOffsetSection');
+        var button = document.getElementById('pixelOffsetToggle');
+        if (!section || !button) {
+            return;
+        }
+
+        pixelOffsetAdvancedVisible = !pixelOffsetAdvancedVisible;
+        section.style.display = pixelOffsetAdvancedVisible ? 'block' : 'none';
+        button.value = pixelOffsetAdvancedVisible ? 'Hide Advanced Virtual Display Controls' : 'Show Advanced Virtual Display Controls';
+    }
+
+    // Holiday Animations
+    var holidayAnimations = {
+        enabled: false,
+        snowParticles: null,
+        groundSnow: null,
+        santa: null,
+        animationTime: 0,
+        frameCounter: 0  // For optimizing particle updates
+    };
+
+    function initHolidayAnimations() {
+        if (holidayAnimations.enabled) return;
+
+        console.log('Initializing holiday animations...');
+
+        // Create falling snow particles (reduced count for better performance)
+        var snowCount = 500;
+        var snowGeometry = new THREE.BufferGeometry();
+        var snowPositions = new Float32Array(snowCount * 3);
+        var snowVelocities = [];
+
+        for (var i = 0; i < snowCount; i++) {
+            snowPositions[i * 3] = (Math.random() - 0.5) * 2000;     // X
+            snowPositions[i * 3 + 1] = Math.random() * 1000;         // Y
+            snowPositions[i * 3 + 2] = (Math.random() - 0.5) * 2000; // Z
+            snowVelocities.push(Math.random() * 0.5 + 0.5); // Fall speed
+        }
+
+        snowGeometry.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
+
+        var snowMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 3,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        holidayAnimations.snowParticles = new THREE.Points(snowGeometry, snowMaterial);
+        holidayAnimations.snowParticles.velocities = snowVelocities;
+        scene.add(holidayAnimations.snowParticles);
+
+        // Create snow on ground
+        var groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+        var groundMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.DoubleSide
+        });
+        holidayAnimations.groundSnow = new THREE.Mesh(groundGeometry, groundMaterial);
+        holidayAnimations.groundSnow.rotation.x = -Math.PI / 2;
+        holidayAnimations.groundSnow.position.y = -50;
+        scene.add(holidayAnimations.groundSnow);
+
+        // Create Santa and Sleigh
+        var santaGroup = new THREE.Group();
+
+        // Santa's body - layered for better shape
+        var bodyLowerGeometry = new THREE.SphereGeometry(22, 32, 32);
+        bodyLowerGeometry.scale(1, 0.8, 0.9);
+        var bodyMaterial = new THREE.MeshPhongMaterial({
+            color: 0xcc0000,
+            shininess: 30
+        });
+        var bodyLower = new THREE.Mesh(bodyLowerGeometry, bodyMaterial);
+        bodyLower.position.y = 5;
+        santaGroup.add(bodyLower);
+
+        var bodyUpperGeometry = new THREE.SphereGeometry(20, 32, 32);
+        bodyUpperGeometry.scale(1, 0.9, 0.85);
+        var bodyUpper = new THREE.Mesh(bodyUpperGeometry, bodyMaterial);
+        bodyUpper.position.y = 22;
+        santaGroup.add(bodyUpper);
+
+        // White fur trim on coat
+        var furTrimGeometry = new THREE.TorusGeometry(20, 3, 8, 32);
+        var furMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 10 });
+        var furTrimBottom = new THREE.Mesh(furTrimGeometry, furMaterial);
+        furTrimBottom.rotation.x = Math.PI / 2;
+        furTrimBottom.position.y = -8;
+        santaGroup.add(furTrimBottom);
+
+        // Santa's head
+        var headGeometry = new THREE.SphereGeometry(14, 32, 32);
+        var headMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffdbac,
+            shininess: 30
+        });
+        var head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.y = 42;
+        santaGroup.add(head);
+
+        // Rosy cheeks
+        var cheekGeometry = new THREE.SphereGeometry(3, 16, 16);
+        var cheekMaterial = new THREE.MeshPhongMaterial({ color: 0xffaaaa });
+        var leftCheek = new THREE.Mesh(cheekGeometry, cheekMaterial);
+        leftCheek.position.set(-8, 40, 10);
+        santaGroup.add(leftCheek);
+        var rightCheek = new THREE.Mesh(cheekGeometry, cheekMaterial);
+        rightCheek.position.set(8, 40, 10);
+        santaGroup.add(rightCheek);
+
+        // Eyes
+        var eyeGeometry = new THREE.SphereGeometry(2, 16, 16);
+        var eyeMaterial = new THREE.MeshPhongMaterial({ color: 0x222222 });
+        var leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        leftEye.position.set(-5, 45, 11);
+        santaGroup.add(leftEye);
+        var rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        rightEye.position.set(5, 45, 11);
+        santaGroup.add(rightEye);
+
+        // White eyebrows
+        var eyebrowGeometry = new THREE.BoxGeometry(5, 2, 2);
+        var leftEyebrow = new THREE.Mesh(eyebrowGeometry, furMaterial);
+        leftEyebrow.position.set(-5, 48, 11);
+        leftEyebrow.rotation.z = -0.2;
+        santaGroup.add(leftEyebrow);
+        var rightEyebrow = new THREE.Mesh(eyebrowGeometry, furMaterial);
+        rightEyebrow.position.set(5, 48, 11);
+        rightEyebrow.rotation.z = 0.2;
+        santaGroup.add(rightEyebrow);
+
+        // White mustache
+        var mustacheGeometry = new THREE.TorusGeometry(5, 2, 8, 16, Math.PI);
+        var mustache = new THREE.Mesh(mustacheGeometry, furMaterial);
+        mustache.position.set(0, 38, 12);
+        mustache.rotation.x = Math.PI;
+        santaGroup.add(mustache);
+
+        // White beard - layered for fullness
+        var beardMainGeometry = new THREE.SphereGeometry(14, 16, 16);
+        beardMainGeometry.scale(1, 1.3, 0.6);
+        var beardMain = new THREE.Mesh(beardMainGeometry, furMaterial);
+        beardMain.position.set(0, 28, 10);
+        santaGroup.add(beardMain);
+
+        var beardTipGeometry = new THREE.ConeGeometry(8, 12, 16);
+        var beardTip = new THREE.Mesh(beardTipGeometry, furMaterial);
+        beardTip.position.set(0, 18, 12);
+        beardTip.rotation.x = 0.3;
+        santaGroup.add(beardTip);
+
+        // Santa's hat - curved
+        var hatBaseGeometry = new THREE.CylinderGeometry(15, 16, 8, 32);
+        var hatMaterial = new THREE.MeshPhongMaterial({ color: 0xcc0000 });
+        var hatBase = new THREE.Mesh(hatBaseGeometry, hatMaterial);
+        hatBase.position.y = 54;
+        santaGroup.add(hatBase);
+
+        var hatConeGeometry = new THREE.ConeGeometry(14, 30, 32);
+        var hatCone = new THREE.Mesh(hatConeGeometry, hatMaterial);
+        hatCone.position.y = 70;
+        hatCone.rotation.z = 0.2;  // Slight tilt
+        santaGroup.add(hatCone);
+
+        // White fur trim on hat
+        var hatFurGeometry = new THREE.TorusGeometry(15, 3, 8, 32);
+        var hatFur = new THREE.Mesh(hatFurGeometry, furMaterial);
+        hatFur.rotation.x = Math.PI / 2;
+        hatFur.position.y = 52;
+        santaGroup.add(hatFur);
+
+        // Hat pom-pom
+        var pomGeometry = new THREE.SphereGeometry(6, 16, 16);
+        var pom = new THREE.Mesh(pomGeometry, furMaterial);
+        pom.position.set(8, 85, 0);
+        santaGroup.add(pom);
+
+        // Arms
+        var armGeometry = new THREE.CapsuleGeometry(5, 20, 8, 16);
+        var leftArm = new THREE.Mesh(armGeometry, bodyMaterial);
+        leftArm.position.set(-25, 20, 0);
+        leftArm.rotation.z = 0.8;
+        santaGroup.add(leftArm);
+        var rightArm = new THREE.Mesh(armGeometry, bodyMaterial);
+        rightArm.position.set(25, 20, 0);
+        rightArm.rotation.z = -0.8;
+        santaGroup.add(rightArm);
+
+        // Gloves (mittens)
+        var gloveGeometry = new THREE.SphereGeometry(5, 16, 16);
+        var gloveMaterial = new THREE.MeshPhongMaterial({ color: 0x111111 });
+        var leftGlove = new THREE.Mesh(gloveGeometry, gloveMaterial);
+        leftGlove.position.set(-35, 8, 0);
+        santaGroup.add(leftGlove);
+        var rightGlove = new THREE.Mesh(gloveGeometry, gloveMaterial);
+        rightGlove.position.set(35, 8, 0);
+        santaGroup.add(rightGlove);
+
+        // Black belt with gold buckle
+        var beltGeometry = new THREE.TorusGeometry(22, 2.5, 8, 32);
+        var beltMaterial = new THREE.MeshPhongMaterial({ color: 0x111111 });
+        var belt = new THREE.Mesh(beltGeometry, beltMaterial);
+        belt.rotation.x = Math.PI / 2;
+        belt.position.y = 5;
+        santaGroup.add(belt);
+
+        // Gold buckle
+        var buckleGeometry = new THREE.BoxGeometry(10, 10, 3);
+        var buckleMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffd700,
+            shininess: 100
+        });
+        var buckle = new THREE.Mesh(buckleGeometry, buckleMaterial);
+        buckle.position.set(0, 5, 22);
+        santaGroup.add(buckle);
+
+        // Buckle inner rectangle
+        var buckleInnerGeometry = new THREE.BoxGeometry(6, 6, 4);
+        var buckleInnerMaterial = new THREE.MeshPhongMaterial({ color: 0x111111 });
+        var buckleInner = new THREE.Mesh(buckleInnerGeometry, buckleInnerMaterial);
+        buckleInner.position.set(0, 5, 23);
+        santaGroup.add(buckleInner);
+
+        // Boots
+        var bootGeometry = new THREE.CapsuleGeometry(6, 10, 8, 16);
+        var bootMaterial = new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 50 });
+        var leftBoot = new THREE.Mesh(bootGeometry, bootMaterial);
+        leftBoot.position.set(-10, -15, 0);
+        santaGroup.add(leftBoot);
+        var rightBoot = new THREE.Mesh(bootGeometry, bootMaterial);
+        rightBoot.position.set(10, -15, 0);
+        santaGroup.add(rightBoot);
+
+        // Sleigh
+        var sleighGroup = new THREE.Group();
+        var sleighWoodMat = new THREE.MeshPhongMaterial({
+            color: 0xB22222, // Festive red
+            shininess: 60
+        });
+        var goldTrimMat = new THREE.MeshPhongMaterial({
+            color: 0xffd700,
+            shininess: 100
+        });
+
+        // Sleigh base/floor
+        var sleighBaseGeometry = new THREE.BoxGeometry(70, 5, 45);
+        var sleighBase = new THREE.Mesh(sleighBaseGeometry, sleighWoodMat);
+        sleighBase.position.y = -20;
+        sleighGroup.add(sleighBase);
+
+        // Sleigh back panel
+        var sleighBackGeometry = new THREE.BoxGeometry(5, 35, 45);
+        var sleighBack = new THREE.Mesh(sleighBackGeometry, sleighWoodMat);
+        sleighBack.position.set(-32, -5, 0);
+        sleighGroup.add(sleighBack);
+
+        // Sleigh side panels (curved top)
+        var sideShape = new THREE.Shape();
+        sideShape.moveTo(0, 0);
+        sideShape.lineTo(65, 0);
+        sideShape.quadraticCurveTo(75, 15, 70, 30);
+        sideShape.lineTo(60, 25);
+        sideShape.lineTo(0, 20);
+        sideShape.lineTo(0, 0);
+
+        var extrudeSettings = { depth: 3, bevelEnabled: false };
+        var sideGeometry = new THREE.ExtrudeGeometry(sideShape, extrudeSettings);
+
+        var leftSide = new THREE.Mesh(sideGeometry, sleighWoodMat);
+        leftSide.position.set(-35, -20, -24);
+        sleighGroup.add(leftSide);
+
+        var rightSide = new THREE.Mesh(sideGeometry, sleighWoodMat);
+        rightSide.position.set(-35, -20, 21);
+        sleighGroup.add(rightSide);
+
+        // Sleigh front curved part (dashboard)
+        var sleighFrontGeometry = new THREE.CylinderGeometry(22, 22, 45, 32, 1, false, 0, Math.PI);
+        var sleighFront = new THREE.Mesh(sleighFrontGeometry, sleighWoodMat);
+        sleighFront.rotation.z = Math.PI / 2;
+        sleighFront.rotation.y = Math.PI / 2;
+        sleighFront.position.set(38, -5, 0);
+        sleighGroup.add(sleighFront);
+
+        // Gold trim on top edges
+        var trimTopGeo = new THREE.TorusGeometry(22, 1.5, 8, 32, Math.PI);
+        var trimTop = new THREE.Mesh(trimTopGeo, goldTrimMat);
+        trimTop.rotation.y = Math.PI / 2;
+        trimTop.rotation.x = Math.PI / 2;
+        trimTop.position.set(38, 8, 0);
+        sleighGroup.add(trimTop);
+
+        // Gold trim on back
+        var trimBackGeo = new THREE.BoxGeometry(3, 3, 48);
+        var trimBack = new THREE.Mesh(trimBackGeo, goldTrimMat);
+        trimBack.position.set(-32, 12, 0);
+        sleighGroup.add(trimBack);
+
+        // Decorative scrollwork on sides
+        var scrollGeo = new THREE.TorusGeometry(8, 1, 8, 16, Math.PI * 1.5);
+        var leftScroll = new THREE.Mesh(scrollGeo, goldTrimMat);
+        leftScroll.position.set(10, -5, -22);
+        leftScroll.rotation.y = Math.PI / 2;
+        sleighGroup.add(leftScroll);
+        var rightScroll = new THREE.Mesh(scrollGeo, goldTrimMat);
+        rightScroll.position.set(10, -5, 22);
+        rightScroll.rotation.y = -Math.PI / 2;
+        sleighGroup.add(rightScroll);
+
+        // Sleigh runners (elegant curved)
+        var runnerMaterial = new THREE.MeshPhongMaterial({
+            color: 0xc0c0c0,
+            shininess: 100
+        });
+
+        // Create curved runner shape
+        var runnerShape = new THREE.Shape();
+        runnerShape.moveTo(0, 0);
+        runnerShape.lineTo(70, 0);
+        runnerShape.quadraticCurveTo(85, 0, 90, 15);
+        runnerShape.quadraticCurveTo(92, 25, 85, 30);
+        runnerShape.lineTo(80, 28);
+        runnerShape.quadraticCurveTo(85, 20, 82, 12);
+        runnerShape.quadraticCurveTo(78, 5, 68, 5);
+        runnerShape.lineTo(0, 5);
+        runnerShape.lineTo(0, 0);
+
+        var runnerExtrudeSettings = { depth: 4, bevelEnabled: true, bevelThickness: 1, bevelSize: 0.5 };
+        var runnerGeometry = new THREE.ExtrudeGeometry(runnerShape, runnerExtrudeSettings);
+
+        var runner1 = new THREE.Mesh(runnerGeometry, runnerMaterial);
+        runner1.position.set(-45, -40, -20);
+        sleighGroup.add(runner1);
+
+        var runner2 = new THREE.Mesh(runnerGeometry, runnerMaterial);
+        runner2.position.set(-45, -40, 16);
+        sleighGroup.add(runner2);
+
+        // Runner supports
+        var supportGeo = new THREE.BoxGeometry(4, 15, 4);
+        var supportMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+        for (var s = 0; s < 3; s++) {
+            var leftSupport = new THREE.Mesh(supportGeo, supportMat);
+            leftSupport.position.set(-25 + s * 25, -30, -18);
+            sleighGroup.add(leftSupport);
+            var rightSupport = new THREE.Mesh(supportGeo, supportMat);
+            rightSupport.position.set(-25 + s * 25, -30, 18);
+            sleighGroup.add(rightSupport);
+        }
+
+        // Gift bags in sleigh - with ribbons
+        var giftColors = [0xff0000, 0x00aa00, 0x0066cc, 0xff6600, 0x9900cc];
+        for (var i = 0; i < 5; i++) {
+            var giftSize = 10 + Math.random() * 6;
+            var giftGeo = new THREE.BoxGeometry(giftSize, giftSize, giftSize);
+            var giftMat = new THREE.MeshPhongMaterial({
+                color: giftColors[i],
+                shininess: 30
+            });
+            var gift = new THREE.Mesh(giftGeo, giftMat);
+            gift.position.set(-15 + (i * 10), -12 + giftSize / 2, -10 + Math.random() * 20);
+            gift.rotation.y = Math.random() * 0.5;
+            sleighGroup.add(gift);
+
+            // Gift ribbon (cross on top)
+            var ribbonMat = new THREE.MeshPhongMaterial({ color: 0xffd700 });
+            var ribbonGeo1 = new THREE.BoxGeometry(giftSize + 1, 2, 2);
+            var ribbon1 = new THREE.Mesh(ribbonGeo1, ribbonMat);
+            ribbon1.position.copy(gift.position);
+            ribbon1.position.y += giftSize / 2;
+            sleighGroup.add(ribbon1);
+            var ribbonGeo2 = new THREE.BoxGeometry(2, 2, giftSize + 1);
+            var ribbon2 = new THREE.Mesh(ribbonGeo2, ribbonMat);
+            ribbon2.position.copy(gift.position);
+            ribbon2.position.y += giftSize / 2;
+            sleighGroup.add(ribbon2);
+
+            // Bow on top
+            var bowGeo = new THREE.TorusGeometry(3, 1, 8, 16, Math.PI);
+            var bow1 = new THREE.Mesh(bowGeo, ribbonMat);
+            bow1.position.copy(gift.position);
+            bow1.position.y += giftSize / 2 + 2;
+            bow1.rotation.x = Math.PI / 2;
+            bow1.rotation.z = 0.5;
+            sleighGroup.add(bow1);
+            var bow2 = new THREE.Mesh(bowGeo, ribbonMat);
+            bow2.position.copy(gift.position);
+            bow2.position.y += giftSize / 2 + 2;
+            bow2.rotation.x = Math.PI / 2;
+            bow2.rotation.z = -0.5 + Math.PI;
+            sleighGroup.add(bow2);
+        }
+
+        // Harness/reins connecting to reindeer
+        var reinsMat = new THREE.MeshPhongMaterial({ color: 0x8B0000 });
+        var reinsGeo = new THREE.CylinderGeometry(0.5, 0.5, 60, 8);
+        var leftRein = new THREE.Mesh(reinsGeo, reinsMat);
+        leftRein.position.set(70, -5, -10);
+        leftRein.rotation.z = Math.PI / 2;
+        sleighGroup.add(leftRein);
+        var rightRein = new THREE.Mesh(reinsGeo, reinsMat);
+        rightRein.position.set(70, -5, 10);
+        rightRein.rotation.z = Math.PI / 2;
+        sleighGroup.add(rightRein);
+
+        // Reindeer (lead reindeer - Rudolph!)
+        var reindeerGroup = new THREE.Group();
+        var reindeerBodyMat = new THREE.MeshPhongMaterial({ color: 0x8B4513, shininess: 20 });
+
+        // Reindeer body - more natural shape
+        var reindeerBodyGeo = new THREE.CapsuleGeometry(10, 25, 16, 16);
+        var reindeerBody = new THREE.Mesh(reindeerBodyGeo, reindeerBodyMat);
+        reindeerBody.rotation.z = Math.PI / 2;
+        reindeerBody.position.y = 5;
+        reindeerGroup.add(reindeerBody);
+
+        // Chest (front of body, slightly larger)
+        var chestGeo = new THREE.SphereGeometry(11, 16, 16);
+        chestGeo.scale(0.9, 1, 0.9);
+        var chest = new THREE.Mesh(chestGeo, reindeerBodyMat);
+        chest.position.set(12, 5, 0);
+        reindeerGroup.add(chest);
+
+        // Neck
+        var neckGeo = new THREE.CapsuleGeometry(5, 15, 8, 16);
+        var neck = new THREE.Mesh(neckGeo, reindeerBodyMat);
+        neck.position.set(18, 15, 0);
+        neck.rotation.z = -0.5;
+        reindeerGroup.add(neck);
+
+        // Reindeer head
+        var reindeerHeadGeo = new THREE.SphereGeometry(8, 16, 16);
+        reindeerHeadGeo.scale(1.2, 1, 1);
+        var reindeerHead = new THREE.Mesh(reindeerHeadGeo, reindeerBodyMat);
+        reindeerHead.position.set(28, 22, 0);
+        reindeerGroup.add(reindeerHead);
+
+        // Snout/muzzle
+        var snoutGeo = new THREE.CapsuleGeometry(4, 8, 8, 16);
+        var snout = new THREE.Mesh(snoutGeo, reindeerBodyMat);
+        snout.rotation.z = Math.PI / 2;
+        snout.position.set(38, 20, 0);
+        reindeerGroup.add(snout);
+
+        // Red nose (Rudolph!)
+        var noseGeo = new THREE.SphereGeometry(4, 16, 16);
+        var noseMat = new THREE.MeshPhongMaterial({
+            color: 0xff0000,
+            emissive: 0xff0000,
+            emissiveIntensity: 0.8
+        });
+        var nose = new THREE.Mesh(noseGeo, noseMat);
+        nose.position.set(44, 20, 0);
+        reindeerGroup.add(nose);
+
+        // Eyes
+        var reindeerEyeGeo = new THREE.SphereGeometry(2, 16, 16);
+        var reindeerEyeMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+        var reindeerLeftEye = new THREE.Mesh(reindeerEyeGeo, reindeerEyeMat);
+        reindeerLeftEye.position.set(32, 25, -5);
+        reindeerGroup.add(reindeerLeftEye);
+        var reindeerRightEye = new THREE.Mesh(reindeerEyeGeo, reindeerEyeMat);
+        reindeerRightEye.position.set(32, 25, 5);
+        reindeerGroup.add(reindeerRightEye);
+
+        // Ears
+        var earGeo = new THREE.ConeGeometry(3, 8, 8);
+        var earMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+        var leftEar = new THREE.Mesh(earGeo, earMat);
+        leftEar.position.set(25, 30, -6);
+        leftEar.rotation.z = 0.3;
+        leftEar.rotation.x = -0.3;
+        reindeerGroup.add(leftEar);
+        var rightEar = new THREE.Mesh(earGeo, earMat);
+        rightEar.position.set(25, 30, 6);
+        rightEar.rotation.z = 0.3;
+        rightEar.rotation.x = 0.3;
+        reindeerGroup.add(rightEar);
+
+        // Inner ear (pink)
+        var innerEarGeo = new THREE.ConeGeometry(1.5, 5, 8);
+        var innerEarMat = new THREE.MeshPhongMaterial({ color: 0xffcccc });
+        var leftInnerEar = new THREE.Mesh(innerEarGeo, innerEarMat);
+        leftInnerEar.position.set(25, 29, -5);
+        leftInnerEar.rotation.z = 0.3;
+        leftInnerEar.rotation.x = -0.3;
+        reindeerGroup.add(leftInnerEar);
+        var rightInnerEar = new THREE.Mesh(innerEarGeo, innerEarMat);
+        rightInnerEar.position.set(25, 29, 5);
+        rightInnerEar.rotation.z = 0.3;
+        rightInnerEar.rotation.x = 0.3;
+        reindeerGroup.add(rightInnerEar);
+
+        // Antlers - more detailed branching
+        var antlerMat = new THREE.MeshPhongMaterial({ color: 0xD2691E, shininess: 30 });
+
+        // Left antler main beam
+        var leftAntlerMain = new THREE.CapsuleGeometry(1.5, 18, 8, 8);
+        var leftAntler1 = new THREE.Mesh(leftAntlerMain, antlerMat);
+        leftAntler1.position.set(22, 35, -6);
+        leftAntler1.rotation.z = -0.4;
+        leftAntler1.rotation.x = -0.2;
+        reindeerGroup.add(leftAntler1);
+
+        // Left antler branches
+        var branchGeo = new THREE.CapsuleGeometry(1, 8, 8, 8);
+        var leftBranch1 = new THREE.Mesh(branchGeo, antlerMat);
+        leftBranch1.position.set(20, 42, -8);
+        leftBranch1.rotation.z = -0.8;
+        reindeerGroup.add(leftBranch1);
+        var leftBranch2 = new THREE.Mesh(branchGeo, antlerMat);
+        leftBranch2.position.set(18, 48, -7);
+        leftBranch2.rotation.z = -1.2;
+        reindeerGroup.add(leftBranch2);
+
+        // Right antler main beam
+        var rightAntler1 = new THREE.Mesh(leftAntlerMain, antlerMat);
+        rightAntler1.position.set(22, 35, 6);
+        rightAntler1.rotation.z = -0.4;
+        rightAntler1.rotation.x = 0.2;
+        reindeerGroup.add(rightAntler1);
+
+        // Right antler branches
+        var rightBranch1 = new THREE.Mesh(branchGeo, antlerMat);
+        rightBranch1.position.set(20, 42, 8);
+        rightBranch1.rotation.z = -0.8;
+        reindeerGroup.add(rightBranch1);
+        var rightBranch2 = new THREE.Mesh(branchGeo, antlerMat);
+        rightBranch2.position.set(18, 48, 7);
+        rightBranch2.rotation.z = -1.2;
+        reindeerGroup.add(rightBranch2);
+
+        // Legs (4 legs)
+        var legGeo = new THREE.CapsuleGeometry(2.5, 18, 8, 8);
+        var hoofGeo = new THREE.CylinderGeometry(3, 2.5, 4, 8);
+        var hoofMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+
+        // Front left leg
+        var frontLeftLeg = new THREE.Mesh(legGeo, reindeerBodyMat);
+        frontLeftLeg.position.set(10, -12, -6);
+        reindeerGroup.add(frontLeftLeg);
+        var frontLeftHoof = new THREE.Mesh(hoofGeo, hoofMat);
+        frontLeftHoof.position.set(10, -24, -6);
+        reindeerGroup.add(frontLeftHoof);
+
+        // Front right leg
+        var frontRightLeg = new THREE.Mesh(legGeo, reindeerBodyMat);
+        frontRightLeg.position.set(10, -12, 6);
+        reindeerGroup.add(frontRightLeg);
+        var frontRightHoof = new THREE.Mesh(hoofGeo, hoofMat);
+        frontRightHoof.position.set(10, -24, 6);
+        reindeerGroup.add(frontRightHoof);
+
+        // Back left leg
+        var backLeftLeg = new THREE.Mesh(legGeo, reindeerBodyMat);
+        backLeftLeg.position.set(-12, -12, -6);
+        reindeerGroup.add(backLeftLeg);
+        var backLeftHoof = new THREE.Mesh(hoofGeo, hoofMat);
+        backLeftHoof.position.set(-12, -24, -6);
+        reindeerGroup.add(backLeftHoof);
+
+        // Back right leg
+        var backRightLeg = new THREE.Mesh(legGeo, reindeerBodyMat);
+        backRightLeg.position.set(-12, -12, 6);
+        reindeerGroup.add(backRightLeg);
+        var backRightHoof = new THREE.Mesh(hoofGeo, hoofMat);
+        backRightHoof.position.set(-12, -24, 6);
+        reindeerGroup.add(backRightHoof);
+
+        // Tail
+        var tailGeo = new THREE.SphereGeometry(4, 8, 8);
+        var tailMat = new THREE.MeshPhongMaterial({ color: 0xf5deb3 }); // Light tan
+        var tail = new THREE.Mesh(tailGeo, tailMat);
+        tail.position.set(-20, 5, 0);
+        reindeerGroup.add(tail);
+
+        // Collar with bells
+        var collarGeo = new THREE.TorusGeometry(6, 1.5, 8, 16);
+        var collarMat = new THREE.MeshPhongMaterial({ color: 0x006400 }); // Dark green
+        var collar = new THREE.Mesh(collarGeo, collarMat);
+        collar.position.set(18, 8, 0);
+        collar.rotation.y = Math.PI / 2;
+        reindeerGroup.add(collar);
+
+        // Bells on collar
+        var bellGeo = new THREE.SphereGeometry(2, 8, 8);
+        var bellMat = new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 100 });
+        for (var b = 0; b < 3; b++) {
+            var bell = new THREE.Mesh(bellGeo, bellMat);
+            bell.position.set(18, 3, -4 + b * 4);
+            reindeerGroup.add(bell);
+        }
+
+        // Position reindeer in front of sleigh
+        reindeerGroup.position.set(100, 0, 0);
+
+        // Add Santa to sleigh
+        santaGroup.position.set(-10, 15, 0);
+        sleighGroup.add(santaGroup);
+        sleighGroup.add(reindeerGroup);
+
+        holidayAnimations.santa = sleighGroup;
+        holidayAnimations.santa.position.set(0, 400, 0);
+        scene.add(holidayAnimations.santa);
+
+        holidayAnimations.enabled = true;
+        console.log('Holiday animations initialized!');
+    }
+
+    function removeHolidayAnimations() {
+        if (!holidayAnimations.enabled) return;
+
+        if (holidayAnimations.snowParticles) {
+            scene.remove(holidayAnimations.snowParticles);
+            holidayAnimations.snowParticles = null;
+        }
+        if (holidayAnimations.groundSnow) {
+            scene.remove(holidayAnimations.groundSnow);
+            holidayAnimations.groundSnow = null;
+        }
+        if (holidayAnimations.santa) {
+            scene.remove(holidayAnimations.santa);
+            holidayAnimations.santa = null;
+        }
+
+        holidayAnimations.enabled = false;
+        holidayAnimations.animationTime = 0;
+        console.log('Holiday animations removed');
+    }
+
+    function updateHolidayAnimations() {
+        if (!holidayAnimations.enabled) return;
+
+        holidayAnimations.animationTime += 0.016; // Assume ~60fps
+        holidayAnimations.frameCounter++;
+
+        // Update falling snow (every other frame for better performance)
+        if (holidayAnimations.snowParticles && holidayAnimations.frameCounter % 2 === 0) {
+            var positions = holidayAnimations.snowParticles.geometry.attributes.position.array;
+            var velocities = holidayAnimations.snowParticles.velocities;
+
+            for (var i = 0; i < positions.length / 3; i++) {
+                positions[i * 3 + 1] -= velocities[i]; // Fall down
+
+                // Reset to top when it falls below ground
+                if (positions[i * 3 + 1] < -50) {
+                    positions[i * 3 + 1] = 1000;
+                    positions[i * 3] = (Math.random() - 0.5) * 2000;
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 2000;
+                }
+            }
+
+            holidayAnimations.snowParticles.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // Animate Santa and Sleigh flying in a circle
+        if (holidayAnimations.santa) {
+            var santaRadius = 700;
+            var santaSpeed = 0.25;
+            var angle = holidayAnimations.animationTime * santaSpeed;
+
+            holidayAnimations.santa.position.x = Math.cos(angle) * santaRadius;
+            holidayAnimations.santa.position.z = Math.sin(angle) * santaRadius;
+            holidayAnimations.santa.position.y = 400 + Math.sin(angle * 2) * 40;
+
+            // Point Santa in the direction of travel
+            holidayAnimations.santa.rotation.y = angle + Math.PI / 2;
+
+            // Add gentle bobbing motion
+            holidayAnimations.santa.rotation.x = Math.sin(angle * 4) * 0.05;
+            holidayAnimations.santa.rotation.z = Math.sin(angle * 3) * 0.03;
+        }
+    }
+
+    function toggleHolidayAnimations() {
+        if (holidayAnimations.enabled) {
+            removeHolidayAnimations();
+        } else {
+            initHolidayAnimations();
+        }
+    }
+
+    function getCurrentViewURL() {
+        // Get base URL without query parameters
+        var baseUrl = window.location.origin + window.location.pathname;
+
+        // Build query parameters from current state
+        var params = [];
+
+        // Standalone mode (preserve if present)
+        if (window.standaloneMode) {
+            params.push('standalone=true');
+        }
+
+        // Camera position
+        if (camera) {
+            params.push('cameraX=' + camera.position.x.toFixed(2));
+            params.push('cameraY=' + camera.position.y.toFixed(2));
+            params.push('cameraZ=' + camera.position.z.toFixed(2));
+        }
+
+        // Camera target (what it's looking at)
+        if (lookAtTarget) {
+            params.push('targetX=' + lookAtTarget.x.toFixed(2));
+            params.push('targetY=' + lookAtTarget.y.toFixed(2));
+            params.push('targetZ=' + lookAtTarget.z.toFixed(2));
+        }
+
+        // FOV (if not default)
+        if (camera && camera.fov && camera.fov !== 75) {
+            params.push('fov=' + camera.fov.toFixed(0));
+        }
+
+        // Brightness
+        if (window.brightnessMultiplier !== 2.0) {
+            params.push('brightness=' + window.brightnessMultiplier.toFixed(1));
+        }
+
+        // Ambient light
+        var ambientLightSlider = document.getElementById('ambientLightSlider');
+        if (ambientLightSlider) {
+            var ambientValue = parseFloat(ambientLightSlider.value);
+            if (ambientValue !== 1.0) {
+                params.push('ambientLight=' + ambientValue.toFixed(1));
+            }
+        }
+
+        // Pixel size
+        if (window.pixelMaterial && window.pixelMaterial.size !== 3) {
+            params.push('pixelSize=' + window.pixelMaterial.size.toFixed(1));
+        }
+
+        // Grid visibility
+        if (window.gridHelper && !window.gridHelper.visible) {
+            params.push('showGrid=false');
+        }
+
+        // Axes visibility
+        if (window.axesHelper && window.axesHelper.visible) {
+            params.push('showAxes=true');
+        }
+
+        // Holiday animations
+        if (holidayAnimations.enabled) {
+            params.push('holidayMode=true');
+        }
+
+        // Fullscreen state (note: can't be auto-applied due to browser restrictions)
+        var isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+        if (isFullscreen) {
+            params.push('fullscreen=true');
+        }
+
+        // Combine into full URL
+        var fullUrl = baseUrl;
+        if (params.length > 0) {
+            fullUrl += '?' + params.join('&');
+        }
+
+        return fullUrl;
+    }
+
+    function copyCurrentViewURL() {
+        var url = getCurrentViewURL();
+
+        // Copy to clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function () {
+                showCopyFeedback('URL copied to clipboard!');
+                console.log('Copied URL:', url);
+            }).catch(function (err) {
+                // Fallback for clipboard API failure
+                fallbackCopyToClipboard(url);
+            });
+        } else {
+            // Fallback for older browsers
+            fallbackCopyToClipboard(url);
+        }
+    }
+
+    function fallbackCopyToClipboard(text) {
+        var textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            showCopyFeedback('URL copied to clipboard!');
+            console.log('Copied URL:', text);
+        } catch (err) {
+            showCopyFeedback('Failed to copy. URL logged to console.');
+            console.log('Copy this URL:', text);
+        }
+
+        document.body.removeChild(textArea);
+    }
+
+    function showCopyFeedback(message) {
+        // Create or update feedback element
+        var feedback = document.getElementById('copyFeedback');
+        if (!feedback) {
+            feedback = document.createElement('div');
+            feedback.id = 'copyFeedback';
+            feedback.style.position = 'fixed';
+            feedback.style.top = '20px';
+            feedback.style.right = '20px';
+            feedback.style.backgroundColor = '#4CAF50';
+            feedback.style.color = 'white';
+            feedback.style.padding = '12px 24px';
+            feedback.style.borderRadius = '4px';
+            feedback.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+            feedback.style.zIndex = '10000';
+            feedback.style.fontSize = '14px';
+            feedback.style.fontWeight = 'bold';
+            feedback.style.transition = 'opacity 0.3s';
+            document.body.appendChild(feedback);
+        }
+
+        feedback.textContent = message;
+        feedback.style.opacity = '1';
+        feedback.style.display = 'block';
+
+        // Auto-hide after 3 seconds
+        setTimeout(function () {
+            feedback.style.opacity = '0';
+            setTimeout(function () {
+                feedback.style.display = 'none';
+            }, 300);
+        }, 3000);
+    }
+
+    function toggleFullscreen() {
+        var container = document.getElementById('canvas-container');
+
+        if (!document.fullscreenElement &&
+            !document.webkitFullscreenElement &&
+            !document.mozFullScreenElement) {
+            // Enter fullscreen
+            if (container.requestFullscreen) {
+                container.requestFullscreen();
+            } else if (container.webkitRequestFullscreen) {
+                container.webkitRequestFullscreen();
+            } else if (container.mozRequestFullScreen) {
+                container.mozRequestFullScreen();
+            } else if (container.msRequestFullscreen) {
+                container.msRequestFullscreen();
+            }
+
+            console.log('Entering fullscreen mode');
+        } else {
+            // Exit fullscreen
+            exitFullscreen();
+        }
+    }
+
+    function exitFullscreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+
+        console.log('Exiting fullscreen mode');
+    }
+
+    function createExitFullscreenButton() {
+        var container = document.getElementById('canvas-container');
+        if (!container) return;
+
+        var exitButton = document.createElement('button');
+        exitButton.id = 'exit-fullscreen-btn';
+        exitButton.innerHTML = '✕ Exit Fullscreen';
+        exitButton.onclick = exitFullscreen;
+        exitButton.style.display = 'none'; // Hidden by default
+        container.appendChild(exitButton);
+    }
+
+    // Handle fullscreen change events
+    function handleFullscreenChange() {
+        var exitButton = document.getElementById('exit-fullscreen-btn');
+
+        if (!document.fullscreenElement &&
+            !document.webkitFullscreenElement &&
+            !document.mozFullScreenElement) {
+            // Exited fullscreen - resize renderer and hide exit button
+            var container = document.getElementById('canvas-container');
+            renderer.setSize(canvasWidth, canvasHeight);
+            camera.aspect = canvasWidth / canvasHeight;
+            camera.updateProjectionMatrix();
+            if (exitButton) exitButton.style.display = 'none';
+            console.log('Exited fullscreen, resized to:', canvasWidth, 'x', canvasHeight);
+        } else {
+            // Entered fullscreen - resize to screen and show exit button
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            if (exitButton) exitButton.style.display = 'block';
+            console.log('Entered fullscreen, resized to:', window.innerWidth, 'x', window.innerHeight);
+        }
+    }
+
+    // Listen for fullscreen change events
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    // ESC key handler
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' || event.keyCode === 27) {
+            if (document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement) {
+                exitFullscreen();
+            }
+        }
+    });
+
+    function animate3D() {
+        requestAnimationFrame(animate3D);
+
+        // Update holiday animations if enabled
+        updateHolidayAnimations();
+
+        // Process pending color updates
+        if (pendingUpdates.length > 0) {
+            var pixels = pendingUpdates.shift();
+            updatePixelColors(pixels);
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    // Reusable Color object to avoid allocations in hot loop
+    var tempColor = null;
+    var blackColor = null;
+
+    function updatePixelColors(pixels) {
+        // Initialize reusable objects on first call
+        if (!tempColor) {
+            tempColor = new THREE.Color();
+            blackColor = new THREE.Color(0, 0, 0);
+        }
+
+        // On first frame, clear all pixels to black
+        if (!window.hasInitializedPixelState && window.pixelMesh) {
+            for (var i = 0; i < pixelData.length; i++) {
+                window.pixelColors[i * 3] = 0;
+                window.pixelColors[i * 3 + 1] = 0;
+                window.pixelColors[i * 3 + 2] = 0;
+                window.pixelMesh.setColorAt(i, blackColor);
+            }
+            window.pixelMesh.instanceColor.needsUpdate = true;
+            window.hasInitializedPixelState = true;
+            window.lastUpdatePixels = new Set();
+            console.log('Initialized all pixels to black');
+        }
+
+        // Reuse Sets by swapping instead of creating new ones
+        // lastUpdatePixels becomes the new currentFramePixels (after clearing)
+        // currentFramePixels becomes the new lastUpdatePixels
+        if (!window.currentFramePixels) {
+            window.currentFramePixels = new Set();
+            window.lastUpdatePixels = new Set();
+        }
+        // Swap the sets - old current becomes last, old last (cleared) becomes current
+        var temp = window.lastUpdatePixels;
+        window.lastUpdatePixels = window.currentFramePixels;
+        window.currentFramePixels = temp;
+        window.currentFramePixels.clear();
+        var currentFramePixels = window.currentFramePixels;
+
+        var updated = false;
+        var colorCount = 0;
+        var debugCount = 0;
+
+        // Debug: log number of pixel groups in this update
+        if (!window.updateDebugCount) {
+            console.log('Processing', pixels.length, 'color groups in this frame');
+            window.updateDebugCount = 1;
+        }
+
+        for (var i = 0; i < pixels.length; i++) {
+            var data = pixels[i].split(':');
+            if (!data[1]) continue; // Skip if no location data
+
+            var rgb = data[0];
+
+            // Use pre-computed decimal lookup for performance (avoid parseInt in hot loop)
+            var rDec = base64ToDecimal[rgb.charAt(0)];
+            var gDec = base64ToDecimal[rgb.charAt(1)];
+            var bDec = base64ToDecimal[rgb.charAt(2)];
+
+            // Debug first few color values
+            if (debugCount < 3 && !window.colorDebugDone) {
+                console.log('RGB chars:', rgb.charAt(0), rgb.charAt(1), rgb.charAt(2),
+                    '-> Decimal:', rDec, gDec, bDec,
+                    '-> Float (÷252):', (rDec / 252.0).toFixed(3),
+                    (gDec / 252.0).toFixed(3),
+                    (bDec / 252.0).toFixed(3));
+                debugCount++;
+                if (debugCount >= 3) window.colorDebugDone = true;
+            }
+
+            // Normalize to 0.0-1.0 and apply brightness
+            // RGB666 encoding: 6-bit (0-63) shifted left 2 = 8-bit (0-252), so divide by 252 for proper normalization
+            var r = Math.min(1.0, (rDec / 252.0) * window.brightnessMultiplier);
+            var g = Math.min(1.0, (gDec / 252.0) * window.brightnessMultiplier);
+            var b = Math.min(1.0, (bDec / 252.0) * window.brightnessMultiplier);
+
+            var locs = data[1].split(';');
+            for (var j = 0; j < locs.length; j++) {
+                // 3D mode: location is pixel index, not 2D coordinate
+                var pixelIndex = parseInt(locs[j], 10);
+                if (pixelIndex !== undefined && pixelIndex < pixelData.length) {
+                    currentFramePixels.add(pixelIndex);
+
+                    // Update color in buffer and mesh
+                    window.pixelColors[pixelIndex * 3] = r;
+                    window.pixelColors[pixelIndex * 3 + 1] = g;
+                    window.pixelColors[pixelIndex * 3 + 2] = b;
+
+                    // Update instanced mesh color (reuse tempColor to avoid allocations)
+                    if (window.pixelMesh) {
+                        tempColor.setRGB(r, g, b);
+                        window.pixelMesh.setColorAt(pixelIndex, tempColor);
+                        updated = true;
+                    }
+                    colorCount++;
+                }
+            }
+        }
+
+        // Debug: log pixel update stats occasionally
+        if (window.updateDebugCount === 1) {
+            console.log('Updated', colorCount, 'pixels in this frame,', currentFramePixels.size, 'unique pixels lit');
+            window.updateDebugCount = 2;
+        }
+
+        // Turn off pixels that were lit last frame but aren't in this frame
+        // SSE only sends non-black pixels, so pixels not in the message should be black
+        var clearedCount = 0;
+        if (window.pixelMesh && window.lastUpdatePixels && window.lastUpdatePixels.size > 0) {
+            window.lastUpdatePixels.forEach(function (pixelIndex) {
+                if (!currentFramePixels.has(pixelIndex)) {
+                    // This pixel was lit last frame but not this frame - turn it off
+                    window.pixelColors[pixelIndex * 3] = 0;
+                    window.pixelColors[pixelIndex * 3 + 1] = 0;
+                    window.pixelColors[pixelIndex * 3 + 2] = 0;
+                    window.pixelMesh.setColorAt(pixelIndex, blackColor);
+                    updated = true;
+                    clearedCount++;
+                }
+            });
+        }
+
+        if (window.updateDebugCount === 2) {
+            console.log('Cleared', clearedCount, 'pixels that were lit last frame');
+            window.updateDebugCount = 3;
+        }
+
+        // Mark colors as needing update for InstancedMesh
+        if (updated && window.pixelMesh) {
+            window.pixelMesh.instanceColor.needsUpdate = true;
+        }
+    }
+
+    function processEvent(e) {
+        if (testMode.enabled) {
+            return;
+        }
+
+        // Debug log to track when data arrives
+        if (!window.processEventCount) window.processEventCount = 0;
+        window.processEventCount++;
+        if (window.processEventCount <= 3) {
+            console.log('processEvent called (count:', window.processEventCount, '), data length:', e.data ? e.data.length : 0);
+        }
+
+        var pixels = e.data.split('|');
+        clearTimeout(clearTimer);
+
+        // Log first time we receive data
+        if (!window.hasReceivedPixelData) {
+            console.log('First pixel data received:', pixels.length, 'pixel updates');
+            window.hasReceivedPixelData = true;
+        }
+
+        // Replace pending update with latest
+        pendingUpdates = [pixels];
+
+        // Clear the display after 6 seconds if no more events
+        clearTimer = setTimeout(function () {
+            var color = new THREE.Color(0, 0, 0);
+            // Set all pixels to black
+            for (var i = 0; i < pixelData.length; i++) {
+                window.pixelColors[i * 3] = 0;
+                window.pixelColors[i * 3 + 1] = 0;
+                window.pixelColors[i * 3 + 2] = 0;
+
+                // Update instanced mesh
+                if (window.pixelMesh) {
+                    window.pixelMesh.setColorAt(i, color);
+                }
+            }
+            if (window.pixelMesh) {
+                window.pixelMesh.instanceColor.needsUpdate = true;
+            }
+        }, 6000);
+    }
+
+    // Track SSE connection state to prevent race conditions
+    var sseReconnectTimer = null;
+    var sseConnectionAttempt = 0;
+
+    function startSSE() {
+        // Only allow SSE connection if scene is fully initialized
+        if (!window.sceneInitialized) {
+            console.log('Scene not initialized yet, deferring SSE connection');
+            return;
+        }
+
+        // Cancel any pending reconnection attempts
+        if (sseReconnectTimer) {
+            clearTimeout(sseReconnectTimer);
+            sseReconnectTimer = null;
+        }
+
+        // Close existing connection if any
+        if (evtSource) {
+            console.log('Closing existing SSE connection');
+            try {
+                evtSource.close();
+            } catch (e) {
+                console.log('Error closing SSE:', e);
+            }
+            evtSource = null;
+        }
+
+        sseConnectionAttempt++;
+        var currentAttempt = sseConnectionAttempt;
+
+        // Add cache-busting parameter to prevent cached responses on hard refresh
+        var sseUrl = 'api/http-virtual-display-3d/?t=' + Date.now();
+        console.log('Starting SSE connection (attempt', currentAttempt, ') to', sseUrl);
+        updateSSEStatus('connecting');
+
+        try {
+            evtSource = new EventSource(sseUrl);
+
+            evtSource.onmessage = function (event) {
+                // Verify this is still the current connection
+                if (currentAttempt !== sseConnectionAttempt) {
+                    console.log('Ignoring message from stale connection');
+                    return;
+                }
+                // Verify scene is still ready before processing
+                if (window.pixelMesh && window.pixelColors) {
+                    processEvent(event);
+                } else {
+                    console.warn('Received SSE data but scene not ready, buffering...');
+                    if (!window.bufferedSSEEvents) {
+                        window.bufferedSSEEvents = [];
+                    }
+                    window.bufferedSSEEvents.push(event);
+                }
+            };
+
+            evtSource.onerror = function (error) {
+                // Verify this is still the current connection
+                if (currentAttempt !== sseConnectionAttempt) {
+                    console.log('Ignoring error from stale connection');
+                    return;
+                }
+
+                console.error('SSE connection error (attempt', currentAttempt, '):',
+                    'readyState:', evtSource ? evtSource.readyState : 'null');
+                updateSSEStatus('error');
+
+                // Only attempt reconnection if scene is still ready and no reconnect pending
+                if (window.sceneInitialized && !sseReconnectTimer) {
+                    sseReconnectTimer = setTimeout(function () {
+                        sseReconnectTimer = null;
+                        if (window.sceneInitialized) {
+                            console.log('Attempting SSE reconnection...');
+                            startSSE();
+                        }
+                    }, 2000);
+                }
+            };
+
+            evtSource.onopen = function () {
+                // Verify this is still the current connection
+                if (currentAttempt !== sseConnectionAttempt) {
+                    console.log('Ignoring open from stale connection');
+                    return;
+                }
+
+                console.log('SSE connection opened successfully (attempt', currentAttempt, '), state:', evtSource.readyState);
+                updateSSEStatus('connected');
+
+                // Process any buffered events
+                if (window.bufferedSSEEvents && window.bufferedSSEEvents.length > 0) {
+                    console.log('Processing', window.bufferedSSEEvents.length, 'buffered SSE events');
+                    window.bufferedSSEEvents.forEach(function (event) {
+                        processEvent(event);
+                    });
+                    window.bufferedSSEEvents = [];
+                }
+            };
+        } catch (error) {
+            console.error('Failed to create SSE connection:', error);
+            updateSSEStatus('error');
+            // Retry after a delay if scene is ready
+            if (window.sceneInitialized && !sseReconnectTimer) {
+                sseReconnectTimer = setTimeout(function () {
+                    sseReconnectTimer = null;
+                    if (window.sceneInitialized) {
+                        console.log('Retrying SSE connection after error...');
+                        startSSE();
+                    }
+                }, 2000);
+            }
+        }
+    }
+
+    // Watchdog timer to periodically check SSE connection health
+    setInterval(function () {
+        if (!window.sceneInitialized) return;
+
+        if (!evtSource) {
+            console.log('Watchdog: SSE connection is null, attempting to connect...');
+            startSSE();
+        } else if (evtSource.readyState === EventSource.CLOSED) {
+            console.log('Watchdog: SSE connection is closed, reconnecting...');
+            startSSE();
+        } else if (evtSource.readyState === EventSource.CONNECTING) {
+            // Still connecting, check how long we've been in this state
+            if (!window.sseConnectingStart) {
+                window.sseConnectingStart = Date.now();
+            } else if (Date.now() - window.sseConnectingStart > 5000) {
+                console.log('Watchdog: SSE connection stuck in CONNECTING state for 5s, forcing reconnect...');
+                window.sseConnectingStart = null;
+                try {
+                    evtSource.close();
+                } catch (e) { }
+                evtSource = null;
+                startSSE();
+            }
+        } else {
+            // Connected
+            window.sseConnectingStart = null;
+        }
+    }, 3000);
+
+    // Helper function to start SSE with immediate retry on failure
+    function startSSEWithRetry() {
+        startSSE();
+
+        // Check if connection opened within 2 seconds, retry if not
+        setTimeout(function () {
+            if (evtSource && evtSource.readyState === EventSource.CONNECTING) {
+                console.log('SSE still connecting after 2s, retrying...');
+                try { evtSource.close(); } catch (e) { }
+                evtSource = null;
+                startSSE();
+
+                // Second retry after another 2 seconds
+                setTimeout(function () {
+                    if (evtSource && evtSource.readyState === EventSource.CONNECTING) {
+                        console.log('SSE still connecting after 4s, second retry...');
+                        try { evtSource.close(); } catch (e) { }
+                        evtSource = null;
+                        startSSE();
+                    }
+                }, 2000);
+            }
+        }, 2000);
+    }
+
+    function updateSSEStatus(status) {
+        var indicator = document.getElementById('sseStatusIndicator');
+        if (!indicator) {
+            // Create status indicator if it doesn't exist
+            var container = document.getElementById('canvas-container');
+            if (container) {
+                indicator = document.createElement('div');
+                indicator.id = 'sseStatusIndicator';
+                indicator.style.cssText = 'position:absolute;top:5px;left:5px;padding:3px 8px;border-radius:3px;font-size:11px;z-index:1000;opacity:0.8;';
+                container.appendChild(indicator);
+            }
+        }
+        if (indicator) {
+            if (status === 'connected') {
+                indicator.style.backgroundColor = '#28a745';
+                indicator.style.color = '#fff';
+                indicator.textContent = 'SSE Connected';
+                // Hide after 3 seconds when connected
+                setTimeout(function () {
+                    indicator.style.opacity = '0.3';
+                }, 3000);
+            } else if (status === 'error') {
+                indicator.style.backgroundColor = '#dc3545';
+                indicator.style.color = '#fff';
+                indicator.textContent = 'SSE Error - Reconnecting...';
+                indicator.style.opacity = '0.9';
+            } else if (status === 'connecting') {
+                indicator.style.backgroundColor = '#ffc107';
+                indicator.style.color = '#000';
+                indicator.textContent = 'SSE Connecting...';
+                indicator.style.opacity = '0.9';
+            }
+        }
+    }
+
+    function stopSSE() {
+        if (typeof $ !== 'undefined') {
+            $('#stopButton').hide();
+        }
+        if (evtSource) {
+            evtSource.close();
+            evtSource = null;
+        }
+    }
+
+    function toggleAxes() {
+        if (window.axesHelper) {
+            window.axesHelper.visible = !window.axesHelper.visible;
+        }
+    }
+
+    function toggleGrid() {
+        if (window.gridHelper) {
+            window.gridHelper.visible = !window.gridHelper.visible;
+        }
+    }
+
+    function updatePixelSize() {
+        var size = parseFloat(document.getElementById('pixelSizeSlider').value);
+        if (window.pixelMesh) {
+            var matrix = new THREE.Matrix4();
+            var scale = size / 3.0; // Base size is 3 (diameter 3 units)
+
+            // Update scale for all instances
+            for (var i = 0; i < pixelData.length; i++) {
+                var pos = window.pixelPositions[i];
+                matrix.compose(
+                    new THREE.Vector3(pos.x, pos.y, pos.z),
+                    new THREE.Quaternion(),
+                    new THREE.Vector3(scale, scale, scale)
+                );
+                window.pixelMesh.setMatrixAt(i, matrix);
+            }
+            window.pixelMesh.instanceMatrix.needsUpdate = true;
+        }
+        document.getElementById('pixelSizeValue').textContent = size.toFixed(1);
+    }
+
+    function updateBrightness() {
+        var brightness = parseFloat(document.getElementById('brightnessSlider').value);
+        window.brightnessMultiplier = brightness;
+        document.getElementById('brightnessValue').textContent = brightness.toFixed(2) + 'x';
+        if (testMode.enabled) {
+            applyTestColorToPixels();
+        }
+    }
+
+    function updateAmbientLight() {
+        var multiplier = parseFloat(document.getElementById('ambientLightSlider').value);
+        document.getElementById('ambientLightValue').textContent = multiplier.toFixed(2) + 'x';
+
+        // Apply multiplier to all scene lights proportionally
+        if (window.sceneLights) {
+            window.sceneLights.ambient.light.intensity = window.sceneLights.ambient.baseIntensity * multiplier;
+            window.sceneLights.directional1.light.intensity = window.sceneLights.directional1.baseIntensity * multiplier;
+            window.sceneLights.directional2.light.intensity = window.sceneLights.directional2.baseIntensity * multiplier;
+            window.sceneLights.hemisphere.light.intensity = window.sceneLights.hemisphere.baseIntensity * multiplier;
+        }
+    }
+
+    function hexToRgbFloats(hexColor) {
+        if (!hexColor) {
+            return [1.0, 0.0, 0.0];
+        }
+        var hex = hexColor.replace('#', '');
+        if (hex.length === 3) {
+            hex = hex.split('').map(function (c) { return c + c; }).join('');
+        }
+        var r = parseInt(hex.substring(0, 2), 16) / 255.0;
+        var g = parseInt(hex.substring(2, 4), 16) / 255.0;
+        var b = parseInt(hex.substring(4, 6), 16) / 255.0;
+        return [r, g, b];
+    }
+
+    function applyTestColorToPixels() {
+        if (!window.pixelColors || !window.pixelMesh) {
+            return;
+        }
+        var brightness = window.brightnessMultiplier || 1.0;
+        var r = Math.min(1.0, testMode.rgb[0] * brightness);
+        var g = Math.min(1.0, testMode.rgb[1] * brightness);
+        var b = Math.min(1.0, testMode.rgb[2] * brightness);
+
+        var color = new THREE.Color(r, g, b);
+
+        for (var i = 0; i < pixelData.length; i++) {
+            window.pixelColors[i * 3] = r;
+            window.pixelColors[i * 3 + 1] = g;
+            window.pixelColors[i * 3 + 2] = b;
+            window.pixelMesh.setColorAt(i, color);
+        }
+
+        window.pixelMesh.instanceColor.needsUpdate = true;
+    }
+
+    function setTestModeEnabled(enabled) {
+        testMode.enabled = enabled;
+        var status = document.getElementById('testModeStatus');
+        if (enabled) {
+            pendingUpdates = [];
+            clearTimeout(clearTimer);
+            applyTestColorToPixels();
+            if (status) {
+                status.textContent = 'Static color active';
+            }
+        } else {
+            if (window.pixelColors && window.pixelMesh) {
+                var color = new THREE.Color(0, 0, 0);
+                for (var i = 0; i < pixelData.length; i++) {
+                    window.pixelColors[i * 3] = 0;
+                    window.pixelColors[i * 3 + 1] = 0;
+                    window.pixelColors[i * 3 + 2] = 0;
+                    window.pixelMesh.setColorAt(i, color);
+                }
+                window.pixelMesh.instanceColor.needsUpdate = true;
+            }
+            if (status) {
+                status.textContent = 'Live mode';
+            }
+        }
+    }
+
+    function handleTestModeToggle() {
+        var checkbox = document.getElementById('testModeToggle');
+        if (!checkbox) {
+            return;
+        }
+        setTestModeEnabled(checkbox.checked);
+    }
+
+    function handleTestColorChange(value) {
+        if (!value) {
+            return;
+        }
+        testMode.color = value;
+        testMode.rgb = hexToRgbFloats(value);
+        var label = document.getElementById('testModeColorValue');
+        if (label) {
+            label.textContent = value.toUpperCase();
+        }
+        if (testMode.enabled) {
+            applyTestColorToPixels();
+        }
+    }
+
+    function updatePixelOffset() {
+        var xOffset = parseFloat(document.getElementById('pixelXSlider').value);
+        var yOffset = parseFloat(document.getElementById('pixelYSlider').value);
+        var zOffset = parseFloat(document.getElementById('pixelZSlider').value);
+
+        // Update display values
+        document.getElementById('pixelXValue').textContent = xOffset.toFixed(0);
+        document.getElementById('pixelYValue').textContent = yOffset.toFixed(0);
+        document.getElementById('pixelZValue').textContent = zOffset.toFixed(0);
+
+        // Update pixel positions in the InstancedMesh
+        if (window.pixelMesh && pixelData && window.pixelPositions) {
+            var matrix = new THREE.Matrix4();
+            var size = parseFloat(document.getElementById('pixelSizeSlider').value);
+            var scale = size / 3.0; // Base size is 3 (diameter 3 units)
+
+            for (var i = 0; i < pixelData.length; i++) {
+                // Pixels may have Display2DCenter0 offset applied
+                var pixelX = pixelData[i].x;
+                var pixelY = pixelData[i].y;
+                var pixelZ = pixelData[i].z;
+
+                if (view2DSettings.centerAt0) {
+                    // Add back the 2D preview center to get true xLights X coordinate
+                    pixelX = pixelX + (view2DSettings.previewWidth / 2);
+                }
+
+                // Use raw coordinates with manual offset for alignment
+                var finalX = pixelX + xOffset;
+                var finalY = pixelY + yOffset;
+                var finalZ = pixelZ + zOffset;
+
+                // Update stored positions for reference
+                window.pixelPositions[i] = { x: finalX, y: finalY, z: finalZ };
+
+                // Update instance matrix with new position and current scale
+                matrix.compose(
+                    new THREE.Vector3(finalX, finalY, finalZ),
+                    new THREE.Quaternion(),
+                    new THREE.Vector3(scale, scale, scale)
+                );
+                window.pixelMesh.setMatrixAt(i, matrix);
+            }
+
+            window.pixelMesh.instanceMatrix.needsUpdate = true;
+            console.log('Pixel offset adjusted to: X=' + xOffset + ', Y=' + yOffset + ', Z=' + zOffset);
+        }
+    }
+
+    function savePixelOffsets() {
+        var xOffset = parseFloat(document.getElementById('pixelXSlider').value) || 0;
+        var yOffset = parseFloat(document.getElementById('pixelYSlider').value) || 0;
+        var zOffset = parseFloat(document.getElementById('pixelZSlider').value) || 0;
+
+        var offsets = {
+            x: xOffset,
+            y: yOffset,
+            z: zOffset
+        };
+
+        // Save to browser's localStorage
+        try {
+            localStorage.setItem('fpp_3d_pixel_offsets', JSON.stringify(offsets));
+            console.log('Pixel offsets saved:', offsets);
+            alert('Pixel offsets saved successfully!\nX: ' + xOffset + '\nY: ' + yOffset + '\nZ: ' + zOffset);
+        } catch (e) {
+            console.error('Error saving pixel offsets:', e);
+            alert('Error saving pixel offsets: ' + e.message);
+        }
+    }
+
+    function resetPixelOffsets() {
+        // Reset sliders to 0
+        document.getElementById('pixelXSlider').value = 0;
+        document.getElementById('pixelYSlider').value = 0;
+        document.getElementById('pixelZSlider').value = 0;
+
+        // Update display labels using correct IDs
+        document.getElementById('pixelXValue').textContent = '0';
+        document.getElementById('pixelYValue').textContent = '0';
+        document.getElementById('pixelZValue').textContent = '0';
+
+        // Apply the reset
+        updatePixelOffset();
+
+        console.log('Pixel offsets reset to 0');
+    }
+
+    function loadPixelOffsets() {
+        try {
+            var saved = localStorage.getItem('fpp_3d_pixel_offsets');
+            if (saved) {
+                var offsets = JSON.parse(saved);
+
+                // Apply saved values to sliders using correct IDs
+                if (offsets.x !== undefined) {
+                    document.getElementById('pixelXSlider').value = offsets.x;
+                    document.getElementById('pixelXValue').textContent = offsets.x.toString();
+                }
+                if (offsets.y !== undefined) {
+                    document.getElementById('pixelYSlider').value = offsets.y;
+                    document.getElementById('pixelYValue').textContent = offsets.y.toString();
+                }
+                if (offsets.z !== undefined) {
+                    document.getElementById('pixelZSlider').value = offsets.z;
+                    document.getElementById('pixelZValue').textContent = offsets.z.toString();
+                }
+
+                console.log('Pixel offsets loaded from saved settings:', offsets);
+                return true;
+            }
+        } catch (e) {
+            console.warn('Error loading saved pixel offsets:', e);
+        }
+        return false;
+    }
+
+    function toggle3DObjects() {
+        var allVisible = true;
+
+        // Check if all objects are currently visible
+        for (var i = 0; i < loadedObjects.length; i++) {
+            if (loadedObjects[i] && loadedObjects[i].object && !loadedObjects[i].object.visible) {
+                allVisible = false;
+                break;
+            }
+        }
+
+        // Toggle all objects to opposite state
+        for (var i = 0; i < loadedObjects.length; i++) {
+            if (loadedObjects[i] && loadedObjects[i].object) {
+                loadedObjects[i].object.visible = !allVisible;
+            }
+        }
+
+        console.log('3D objects visibility set to:', !allVisible);
+    }
+
+    function toggleObject(index) {
+        if (loadedObjects[index] && loadedObjects[index].object) {
+            loadedObjects[index].object.visible = !loadedObjects[index].object.visible;
+            console.log('Toggled', loadedObjects[index].config.name, 'visibility to:', loadedObjects[index].object.visible);
+            // Update the objects list to refresh the checkmark
+            updateObjectsList();
+        }
+    }
+
+    function get3DObjectsList() {
+        var list = '<div style="margin-top: 10px;"><strong>3D Objects from xLights:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+
+        for (var i = 0; i < loadedObjects.length; i++) {
+            if (loadedObjects[i] && loadedObjects[i].config) {
+                var config = loadedObjects[i].config;
+                var isVisible = loadedObjects[i].object ? loadedObjects[i].object.visible : false;
+                var status = isVisible ? '✓' : '✗';
+                list += '<li style="margin: 2px 0;"><button onclick="toggleObject(' + i + ')" style="margin-right: 5px; padding: 2px 6px;">' + status + '</button>' + config.name + ' (' + config.DisplayAs + ')</li>';
+            }
+        }
+
+        list += '</ul></div>';
+        return list;
+    }
+
+    function updateObjectsList() {
+        var container = document.getElementById('objectsList');
+        if (container) {
+            container.innerHTML = get3DObjectsList();
+        }
+    }
+
+    function setupClient() {
+        // Prevent multiple initializations
+        if (window.setupClientCalled) {
+            console.log('setupClient already called, skipping');
+            return;
+        }
+        window.setupClientCalled = true;
+
+        // Verify THREE.js is available
+        if (typeof window.THREE === 'undefined') {
+            console.error('THREE.js not loaded! Cannot initialize 3D view.');
+            window.setupClientCalled = false; // Allow retry
+            return;
+        }
+
+        console.log('Setting up 3D Virtual Display client...');
+
+        // Apply URL parameters for brightness
+        var brightness = getURLParam('brightness', window.brightnessMultiplier);
+        window.brightnessMultiplier = brightness;
+
+        // Apply URL parameter for pixel size
+        var urlPixelSize = getURLParam('pixelSize', null);
+        if (urlPixelSize !== null) {
+            pixelSize = urlPixelSize;
+        }
+
+        // Apply URL parameter for ambient light
+        var urlAmbientLight = getURLParam('ambientLight', null);
+        if (urlAmbientLight !== null) {
+            window.urlAmbientLightValue = urlAmbientLight;
+        }
+
+        try {
+            init3D();
+            initializeCameraControlUI();
+
+            // Wait for scene to be fully initialized AND page load complete before starting SSE
+            // This prevents race condition where data arrives before mesh is ready
+            // and avoids browser connection limits during asset loading
+            console.log('Waiting for scene initialization...');
+            waitForSceneReady(function () {
+                console.log('Scene ready, waiting for page load to complete');
+
+                // Wait for window.onload if not yet fired, otherwise proceed
+                if (document.readyState === 'complete') {
+                    console.log('Page already fully loaded, starting SSE');
+                    startSSEWithRetry();
+                } else {
+                    window.addEventListener('load', function () {
+                        console.log('Page load complete, starting SSE');
+                        startSSEWithRetry();
+                    });
+                    // Fallback: if load doesn't fire within 3 seconds, start anyway
+                    setTimeout(function () {
+                        if (!evtSource) {
+                            console.log('Load event timeout, starting SSE anyway');
+                            startSSEWithRetry();
+                        }
+                    }, 3000);
+                }
+            });
+
+        } catch (error) {
+            console.error('Error initializing 3D view:', error);
+        }
+
+        // Apply URL parameters after DOM is ready
+        setTimeout(function () {
+            applyURLParameters();
+        }, 100);
+    }
+
+    function waitForSceneReady(callback) {
+        // Check if all critical components are initialized
+        if (window.pixelMesh &&
+            window.pixelColors &&
+            renderer &&
+            scene &&
+            camera) {
+            console.log('Scene fully initialized');
+            callback();
+        } else {
+            // Check again in 50ms
+            setTimeout(function () {
+                waitForSceneReady(callback);
+            }, 50);
+        }
+    }
+
+    function applyURLParameters() {
+        // Apply brightness slider if it exists
+        var brightnessSlider = document.getElementById('brightnessSlider');
+        if (brightnessSlider) {
+            brightnessSlider.value = window.brightnessMultiplier;
+        }
+
+        // Apply pixel size slider if it exists
+        var pixelSizeSlider = document.getElementById('pixelSizeSlider');
+        if (pixelSizeSlider) {
+            pixelSizeSlider.value = pixelSize;
+            if (window.pixelMaterial) {
+                window.pixelMaterial.size = pixelSize;
+            }
+        }
+
+        // Apply ambient light slider if it exists and was set via URL
+        if (window.urlAmbientLightValue !== undefined) {
+            var ambientLightSlider = document.getElementById('ambientLightSlider');
+            if (ambientLightSlider) {
+                ambientLightSlider.value = window.urlAmbientLightValue;
+                updateAmbientLight();
+            }
+        }
+
+        var testColorInput = document.getElementById('testModeColor');
+        if (testColorInput) {
+            handleTestColorChange(testColorInput.value);
+        }
+
+        // Auto-enter fullscreen if requested
+        // Note: Most browsers block automatic fullscreen without user interaction
+        // We'll show a message and add a one-time click listener
+        var fullscreen = getURLParam('fullscreen', false);
+        if (fullscreen === true) {
+            console.log('Fullscreen requested via URL parameter');
+
+            // Try to enter fullscreen immediately (may be blocked by browser)
+            toggleFullscreen();
+
+            // Also add a fallback: show a message and enable click-anywhere to fullscreen
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
+                // If fullscreen didn't work, add a one-time click handler
+                var clickToFullscreen = function () {
+                    toggleFullscreen();
+                    document.removeEventListener('click', clickToFullscreen);
+                    document.removeEventListener('touchstart', clickToFullscreen);
+                };
+
+                document.addEventListener('click', clickToFullscreen, { once: true });
+                document.addEventListener('touchstart', clickToFullscreen, { once: true });
+
+                console.log('Fullscreen blocked by browser - click anywhere to enter fullscreen mode');
+            }
+        }
+
+        // Initialize holiday animations if requested
+        var holidayMode = getURLParam('holidayMode', false);
+        if (holidayMode === true && !holidayAnimations.enabled) {
+            initHolidayAnimations();
+        }
+
+        syncCameraControlSliders();
+        console.log('URL parameters applied');
+    }
+
+    // Wait for DOM and THREE.js to be ready
+    function initializeWhenReady() {
+        var initAttempts = 0;
+        var maxAttempts = 200; // 10 seconds max wait
+
+        function waitForThree() {
+            initAttempts++;
+
+            if (typeof window.THREE !== 'undefined' &&
+                typeof window.OBJLoader !== 'undefined' &&
+                typeof window.MTLLoader !== 'undefined' &&
+                typeof window.OrbitControls !== 'undefined') {
+                console.log('Three.js modules loaded after', initAttempts, 'attempts, initializing 3D view');
+                setupClient();
+            } else if (initAttempts < maxAttempts) {
+                if (initAttempts === 1 || initAttempts % 20 === 0) {
+                    console.log('Waiting for Three.js modules to load... (attempt', initAttempts + ')');
+                }
+                setTimeout(waitForThree, 50);
+            } else {
+                console.error('Three.js modules failed to load after', maxAttempts, 'attempts');
+                // Show error to user
+                var container = document.getElementById('canvas-container');
+                if (container) {
+                    container.innerHTML = '<div style="color:red;padding:20px;text-align:center;">Error: Three.js failed to load. Please refresh the page.</div>';
+                }
+            }
+        }
+
+        // Check if Three.js is already loaded
+        if (window.threeJsLoaded) {
+            console.log('Three.js already loaded, initializing immediately');
+            setupClient();
+        } else {
+            // Listen for the threejs-loaded event as backup
+            window.addEventListener('threejs-loaded', function () {
+                if (!window.sceneInitialized) {
+                    console.log('Received threejs-loaded event, initializing');
+                    setupClient();
+                }
+            }, { once: true });
+
+            // Also poll in case the event fires before we set up the listener
+            waitForThree();
+        }
+    }
+
+    // Use native DOMContentLoaded (works with or without jQuery)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeWhenReady);
+    } else {
+        initializeWhenReady();
+    }
+
+</script>
+
+<style>
+    #canvas-container {
+        border: 1px solid #333;
+        display: inline-block;
+        position: relative;
+    }
+
+    /* Fullscreen styles */
+    #canvas-container:fullscreen {
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: #000;
+        border: none;
+    }
+
+    #canvas-container:-webkit-full-screen {
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: #000;
+        border: none;
+    }
+
+    #canvas-container:-moz-full-screen {
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: #000;
+        border: none;
+    }
+
+    #canvas-container:-ms-fullscreen {
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: #000;
+        border: none;
+    }
+
+    /* Exit fullscreen button - only visible in fullscreen mode */
+    #exit-fullscreen-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        padding: 12px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        color: #fff;
+        background-color: rgba(0, 0, 0, 0.7);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    #exit-fullscreen-btn:hover,
+    #exit-fullscreen-btn:active {
+        background-color: rgba(255, 0, 0, 0.8);
+        border-color: rgba(255, 255, 255, 0.8);
+        transform: scale(1.05);
+    }
+
+    #exit-fullscreen-btn:active {
+        transform: scale(0.95);
+    }
+
+    #controls {
+        margin: 10px 0;
+        padding: 10px;
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    #controls input[type='button'] {
+        padding: 6px 12px;
+        margin-right: 8px;
+        background-color: #fff;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+
+    #controls input[type='button']:hover {
+        background-color: #e6e6e6;
+    }
+
+    #controls span {
+        margin-left: 15px;
+        white-space: nowrap;
+    }
+
+    #controls input[type='range'] {
+        width: 150px;
+        vertical-align: middle;
+    }
+
+    .control-group {
+        display: inline-block;
+        margin-right: 20px;
+    }
+
+    .control-section {
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .advanced-toggle {
+        margin-top: 12px;
+        display: inline-block;
+    }
+
+    .advanced-section {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed #ccc;
+        display: none;
+    }
+</style>
+
+<?php if (!isset($standalone) || !$standalone): ?>
+    <div id="controls">
+        <div style="margin-bottom: 8px;">
+            <input type='button' id='stopButton' onClick='stopSSE();' value='Stop 3D Virtual Display'>
+            <input type='button' onClick='toggleAxes();' value='Toggle Axes'>
+            <input type='button' onClick='toggleGrid();' value='Toggle Grid'>
+            <input type='button' onClick='toggle3DObjects();' value='Toggle 3D Objects'>
+            <input type='button' onClick='toggleHolidayAnimations();' value='Toggle Holiday Fun!'
+                style='background-color: #ff6b6b; color: white; font-weight: bold;'>
+            <input type='button' onClick='toggleFullscreen();' value='Fullscreen'
+                style='background-color: #4a90e2; color: white; font-weight: bold;'>
+            <input type='button' onClick='copyCurrentViewURL();' value='📋 Copy View URL'
+                style='background-color: #2ecc71; color: white; font-weight: bold;'
+                title='Copy URL with current camera position and settings'>
+        </div>
+        <div>
+            <span class="control-group">
+                Pixel Size: <input type='range' id='pixelSizeSlider' min='1' max='50' value='2' step='1'
+                    oninput='updatePixelSize();'>
+                <span id='pixelSizeValue'>2.0</span>
+            </span>
+            <span class="control-group">
+                Pixel Brightness: <input type='range' id='brightnessSlider' min='0.1' max='5.0' value='2.0' step='0.1'
+                    oninput='updateBrightness();'>
+                <span id='brightnessValue'>2.00x</span>
+            </span>
+            <span class="control-group">
+                Ambient Light: <input type='range' id='ambientLightSlider' min='0.0' max='3.0' value='1.0' step='0.1'
+                    oninput='updateAmbientLight();'>
+                <span id='ambientLightValue'>1.00x</span>
+            </span>
+        </div>
+        <div class="control-section">
+            <span class="control-group">
+                Camera Yaw: <input type='range' id='cameraYawSlider' min='0' max='360' value='20' step='1'
+                    oninput='handleCameraControlInput();'>
+                <span id='cameraYawValue'>20°</span>
+            </span>
+            <span class="control-group">
+                Camera Pitch: <input type='range' id='cameraPitchSlider' min='-89' max='89' value='10' step='1'
+                    oninput='handleCameraControlInput();'>
+                <span id='cameraPitchValue'>10°</span>
+            </span>
+            <span class="control-group">
+                Camera Distance: <input type='range' id='cameraDistanceSlider' min='100' max='5000' value='1000' step='10'
+                    oninput='handleCameraControlInput();'>
+                <span id='cameraDistanceValue'>1000 units</span>
+            </span>
+        </div>
+        <div class="control-section">
+            <span class="control-group">
+                Pan X: <input type='range' id='panXSlider' min='-3000' max='3000' value='0' step='5'
+                    oninput='handleCameraControlInput();'>
+                <span id='panXValue'>0</span>
+            </span>
+            <span class="control-group">
+                Pan Y: <input type='range' id='panYSlider' min='-3000' max='3000' value='0' step='5'
+                    oninput='handleCameraControlInput();'>
+                <span id='panYValue'>0</span>
+            </span>
+            <span class="control-group">
+                Pan Z: <input type='range' id='panZSlider' min='-3000' max='3000' value='0' step='5'
+                    oninput='handleCameraControlInput();'>
+                <span id='panZValue'>0</span>
+            </span>
+            <span style="margin-left: 15px; color: #666; font-style: italic;">
+                Left-click: rotate | Middle-click: pan | Scroll: zoom
+            </span>
+        </div>
+        <div class="advanced-toggle">
+            <input type='button' id='pixelOffsetToggle' value='Show Visualizer Advanced Settings'
+                onclick='togglePixelOffsetAdvanced();'>
+        </div>
+        <div id='pixelOffsetSection' class='advanced-section'>
+            <div style="margin-bottom: 8px; color: #555;">
+                Adjust pixel position offsets to align with 3D objects. Click "Save Offsets" to remember your settings.
+            </div>
+            <span class="control-group">
+                <strong>Pixel X Offset:</strong> <input type='range' id='pixelXSlider' min='-2000' max='2000' value='0'
+                    step='1' oninput='updatePixelOffset();'>
+                <span id='pixelXValue' style="font-weight: bold; color: #e74c3c;">0</span>
+            </span>
+            <span class="control-group">
+                <strong>Pixel Y Offset:</strong> <input type='range' id='pixelYSlider' min='-2000' max='2000' value='0'
+                    step='1' oninput='updatePixelOffset();'>
+                <span id='pixelYValue' style="font-weight: bold; color: #e74c3c;">0</span>
+            </span>
+            <span class="control-group">
+                <strong>Pixel Z Offset:</strong> <input type='range' id='pixelZSlider' min='-2000' max='2000' value='0'
+                    step='1' oninput='updatePixelOffset();'>
+                <span id='pixelZValue' style="font-weight: bold; color: #e74c3c;">0</span>
+            </span>
+            <span class="control-group">
+                <button onclick='savePixelOffsets()'
+                    style="padding: 5px 15px; margin-left: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">Save
+                    Offsets</button>
+                <button onclick='resetPixelOffsets()'
+                    style="padding: 5px 15px; margin-left: 5px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">Reset</button>
+            </span>
+            <div class="control-section" style="margin-top:15px;">
+                <span class="control-group" style="margin-bottom:6px; display:inline-block;">
+                    <label style="font-weight:bold;">
+                        <input type="checkbox" id="testModeToggle" onchange="handleTestModeToggle();">
+                        Static Color Test Mode
+                    </label>
+                </span>
+                <span class="control-group">
+                    Color: <input type="color" id="testModeColor" value="#ff0000"
+                        onchange="handleTestColorChange(this.value);">
+                    <span id="testModeColorValue">#FF0000</span>
+                </span>
+                <span class="control-group" id="testModeStatus">Live data</span>
+                <div style="margin-top: 5px; color: #666; font-style: italic;">
+                    When enabled, incoming data is ignored and every pixel renders the selected color so you can inspect
+                    spatial placement.
+                </div>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+<div id='canvas-container'></div>
+<?php if (!isset($standalone) || !$standalone): ?>
+    <div id='objectsList'
+        style="margin-top: 10px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+        <em>3D Objects will appear here once loaded...</em>
+    </div>
+<?php endif; ?>
+<div id='data'></div>

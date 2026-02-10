@@ -74,6 +74,9 @@ public:
     virtual void SyncDisplay(bool pageChanged = false) = 0;
     virtual void FBCopyData(const uint8_t* buffer, int draw = 0);
 
+    virtual void EnableDisplay() {}
+    virtual void DisableDisplay() {}
+
     void FBStartDraw(ImageTransitionType transitionType = IT_Default);
 
     virtual void Dump(void);
@@ -142,6 +145,7 @@ protected:
 
     volatile bool m_runLoop = false;
     volatile bool m_imageReady = false;
+    bool m_displayEnabledOnce = false;  // Track if EnableDisplay() has been called
 
     std::thread* m_drawThread = nullptr;
     bool m_autoSync = false;

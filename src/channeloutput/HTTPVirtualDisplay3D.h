@@ -17,12 +17,12 @@
 
 #include "VirtualDisplayBase.h"
 
-#define HTTPVIRTUALDISPLAYPORT 32328
+#define HTTPVIRTUALDISPLAY3DPORT 32329
 
-class HTTPVirtualDisplayOutput : public VirtualDisplayBaseOutput {
+class HTTPVirtualDisplay3DOutput : public VirtualDisplayBaseOutput {
 public:
-    HTTPVirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
-    virtual ~HTTPVirtualDisplayOutput();
+    HTTPVirtualDisplay3DOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~HTTPVirtualDisplay3DOutput();
 
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;

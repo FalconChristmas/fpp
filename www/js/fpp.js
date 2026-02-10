@@ -3554,6 +3554,11 @@ function populateUniverseData (data, reload, input) {
 		channelData = data.channelOutputs[0];
 	}
 
+	// Ensure universes array exists
+	if (!channelData || !channelData.universes) {
+		channelData = { universes: [] };
+	}
+
 	if (input) {
 		inputStr = 'Input';
 		inputStyle = "style='display: none;'";

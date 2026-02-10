@@ -51,7 +51,8 @@ VirtualDisplayBaseOutput::VirtualDisplayBaseOutput(unsigned int startChannel,
     m_colorOrder("RGB"),
     m_virtualDisplay(NULL),
     m_pixelSize(2),
-    m_rgb565map(nullptr) {
+    m_rgb565map(nullptr),
+    m_allowDuplicatePixels(false) {  // Default: filter duplicates for 2D mode
     LogDebug(VB_CHANNELOUT, "VirtualDisplayBaseOutput::VirtualDisplayBaseOutput(%u, %u)\n",
              startChannel, channelCount);
 }
@@ -161,6 +162,9 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
     VirtualPixelColor vpc = kVPC_RGB;
     std::string colorPart;
     int BPP = 3;
+    
+    // Use set for O(log n) duplicate checking instead of O(n) linear search
+    std::set<std::tuple<int, int, int>> seenPixels;
 
     while ((read = getline(&line, &len, file)) != -1) {
         if ((!line) || (!read) || (read == 1))
@@ -298,14 +302,15 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
                 customB = std::stoi(tmpColor, NULL, 16);
             }
 
-            found = 0;
-            for (i = 0; i < m_pixels.size() && !found; i++) {
-                if ((m_pixels[i].x == x) && (m_pixels[i].y == y) && (m_pixels[i].z == z))
-                    found = 1;
-            }
-
-            if (!found)
+            // Use set for O(log n) duplicate check instead of O(n) linear search
+            // But skip duplicate checking in 3D mode where multiple pixels can exist at same coords
+            auto pixelKey = std::make_tuple(x, y, z);
+            if (m_allowDuplicatePixels || seenPixels.find(pixelKey) == seenPixels.end()) {
+                if (!m_allowDuplicatePixels) {
+                    seenPixels.insert(pixelKey);
+                }
                 m_pixels.push_back({ x, y, z, xs, ys, zs, ch, r, g, b, BPP, customR, customG, customB, vpc });
+            }
         }
     }
 

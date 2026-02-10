@@ -16,6 +16,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <unordered_map>
 
 #include <ctime>
 #include <iomanip>
@@ -24,22 +25,22 @@
 #include "../log.h"
 #include "../common.h"
 
-#include "HTTPVirtualDisplay.h"
+#include "HTTPVirtualDisplay3D.h"
 
 #include "Plugin.h"
-class HTTPVirtualDisplayPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+class HTTPVirtualDisplay3DPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
-    HTTPVirtualDisplayPlugin() :
-        FPPPlugins::Plugin("HTTPVirtualDisplay") {
+    HTTPVirtualDisplay3DPlugin() :
+        FPPPlugins::Plugin("HTTPVirtualDisplay3D") {
     }
     virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
-        return new HTTPVirtualDisplayOutput(startChannel, channelCount);
+        return new HTTPVirtualDisplay3DOutput(startChannel, channelCount);
     }
 };
 
 extern "C" {
 FPPPlugins::Plugin* createPlugin() {
-    return new HTTPVirtualDisplayPlugin();
+    return new HTTPVirtualDisplay3DPlugin();
 }
 }
 /////////////////////////////////////////////////////////////////////////////
@@ -47,18 +48,18 @@ FPPPlugins::Plugin* createPlugin() {
 /*
  *
  */
-HTTPVirtualDisplayOutput::HTTPVirtualDisplayOutput(unsigned int startChannel,
-                                                   unsigned int channelCount) :
+HTTPVirtualDisplay3DOutput::HTTPVirtualDisplay3DOutput(unsigned int startChannel,
+                                                       unsigned int channelCount) :
     VirtualDisplayBaseOutput(startChannel, channelCount),
-    m_port(HTTPVIRTUALDISPLAYPORT),
+    m_port(HTTPVIRTUALDISPLAY3DPORT),
     m_screenSize(0),
-    m_updateInterval(1),  // Default: send every frame for smooth playback
+    m_updateInterval(25),  // Default: 25ms (40fps) to match typical sequence frame rate
     m_socket(-1),
     m_running(true),
     m_connListChanged(true),
     m_connThread(nullptr),
     m_selectThread(nullptr) {
-    LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::HTTPVirtualDisplayOutput(%u, %u)\n",
+    LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplay3DOutput::HTTPVirtualDisplay3DOutput(%u, %u)\n",
              startChannel, channelCount);
 
     m_bytesPerPixel = 3;
@@ -68,26 +69,21 @@ HTTPVirtualDisplayOutput::HTTPVirtualDisplayOutput(unsigned int startChannel,
 /*
  *
  */
-HTTPVirtualDisplayOutput::~HTTPVirtualDisplayOutput() {
-    LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::~HTTPVirtualDisplayOutput()\n");
+HTTPVirtualDisplay3DOutput::~HTTPVirtualDisplay3DOutput() {
+    LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplay3DOutput::~HTTPVirtualDisplay3DOutput()\n");
+
+    Close();
 
     m_running = false;
 
     if (m_connThread) {
         m_connThread->join();
         delete m_connThread;
-        m_connThread = nullptr;
     }
 
     if (m_selectThread) {
         m_selectThread->join();
         delete m_selectThread;
-        m_selectThread = nullptr;
-    }
-
-    if (m_socket >= 0) {
-        close(m_socket);
-        m_socket = -1;
     }
 
     if (m_connList.size()) {
@@ -101,24 +97,24 @@ HTTPVirtualDisplayOutput::~HTTPVirtualDisplayOutput() {
 /*
  *
  */
-void RunConnectionThread(HTTPVirtualDisplayOutput* VirtualDisplay) {
-    LogDebug(VB_CHANNELOUT, "Started ConnectionThread()\n");
+void RunConnectionThread3D(HTTPVirtualDisplay3DOutput* VirtualDisplay) {
+    LogDebug(VB_CHANNELOUT, "Started 3D ConnectionThread()\n");
     VirtualDisplay->ConnectionThread();
 }
 
 /*
  *
  */
-void RunSelectThread(HTTPVirtualDisplayOutput* VirtualDisplay) {
-    LogDebug(VB_CHANNELOUT, "Started SelectThread()\n");
+void RunSelectThread3D(HTTPVirtualDisplay3DOutput* VirtualDisplay) {
+    LogDebug(VB_CHANNELOUT, "Started 3D SelectThread()\n");
     VirtualDisplay->SelectThread();
 }
 
 /*
  *
  */
-int HTTPVirtualDisplayOutput::Init(Json::Value config) {
-    LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::Init()\n");
+int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplay3DOutput::Init()\n");
 
     if (!VirtualDisplayBaseOutput::Init(config))
         return 0;
@@ -129,9 +125,13 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
     if (config.isMember("updateInterval"))
         m_updateInterval = config["updateInterval"].asInt();
     
-    // Clamp to reasonable values (1-10 frames)
-    if (m_updateInterval < 1) m_updateInterval = 1;
-    if (m_updateInterval > 10) m_updateInterval = 10;
+    // Clamp to reasonable values (10-100ms between updates)
+    // Typical: 25ms for 40fps, 16ms for 60fps, 50ms for 20fps
+    if (m_updateInterval < 10) m_updateInterval = 10;
+    if (m_updateInterval > 100) m_updateInterval = 100;
+
+    // Enable duplicate pixels for 3D mode - we can have multiple physical lights at same coordinates
+    m_allowDuplicatePixels = true;
 
     // Signal base class to allocate m_virtualDisplay buffer
     m_width = -1;
@@ -140,6 +140,31 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
     if (!InitializePixelMap()) {
         LogErr(VB_CHANNELOUT, "Error, unable to initialize pixel map\n");
         return 0;
+    }
+
+    // Auto-calculate channel range from virtualdisplaymap
+    if (!m_pixels.empty()) {
+        unsigned int minChannel = m_pixels[0].ch;
+        unsigned int maxChannel = m_pixels[0].ch;
+        
+        for (const auto& pixel : m_pixels) {
+            if (pixel.ch < minChannel) minChannel = pixel.ch;
+            // Each pixel uses cpp channels (typically 3 for RGB)
+            unsigned int pixelMaxCh = pixel.ch + pixel.cpp - 1;
+            if (pixelMaxCh > maxChannel) maxChannel = pixelMaxCh;
+        }
+        
+        // Update our channel range to match what's in the map
+        m_startChannel = minChannel;
+        m_channelCount = (maxChannel - minChannel) + 1;
+        
+        LogInfo(VB_CHANNELOUT, "HTTPVirtualDisplay3D auto-detected channel range: %u - %u (%u channels, %zu pixels)\n",
+                m_startChannel, maxChannel, m_channelCount, m_pixels.size());
+        
+        // Adjust pixel.ch to be relative to m_startChannel since channelData is passed with offset
+        for (auto& pixel : m_pixels) {
+            pixel.ch -= m_startChannel;
+        }
     }
 
     m_screenSize = m_width * m_height * 3;
@@ -173,22 +198,25 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
         return 0;
     }
 
-    rc = listen(m_socket, 5);
+    // Increase listen backlog to handle rapid reconnections (hard refresh)
+    rc = listen(m_socket, 32);
     if (rc < 0) {
         LogErr(VB_CHANNELOUT, "Could not listen on socket: %s\n", strerror(errno));
         return 0;
     }
 
-    m_connThread = new std::thread(RunConnectionThread, this);
-    m_selectThread = new std::thread(RunSelectThread, this);
+    m_connThread = new std::thread(RunConnectionThread3D, this);
+    m_selectThread = new std::thread(RunSelectThread3D, this);
+    
+    LogInfo(VB_CHANNELOUT, "HTTPVirtualDisplay3D listening on port %d\n", m_port);
     return 1;
 }
 
 /*
  *
  */
-int HTTPVirtualDisplayOutput::Close(void) {
-    LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::Close()\n");
+int HTTPVirtualDisplay3DOutput::Close(void) {
+    LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplay3DOutput::Close()\n");
 
     return VirtualDisplayBaseOutput::Close();
 }
@@ -196,14 +224,21 @@ int HTTPVirtualDisplayOutput::Close(void) {
 /*
  *
  */
-void HTTPVirtualDisplayOutput::ConnectionThread(void) {
-    SetThreadName("FPP-HTTPVD-Con");
+void HTTPVirtualDisplay3DOutput::ConnectionThread(void) {
+    SetThreadName("FPP-HTTPVD3D-Con");
     int client;
 
     while (m_running) {
         client = accept(m_socket, NULL, NULL);
 
         if (client >= 0) {
+            // Enable TCP keepalive to detect dead connections
+            int keepalive = 1;
+            setsockopt(client, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive));
+            
+            // Set socket to non-blocking to avoid write() blocking on dead connections
+            fcntl(client, F_SETFL, O_NONBLOCK);
+            
             auto t = std::time(nullptr);
             auto tm = *std::localtime(&t);
             std::stringstream sstr;
@@ -237,6 +272,8 @@ void HTTPVirtualDisplayOutput::ConnectionThread(void) {
             write(client, sseResp.c_str(), sseResp.length());
 
             m_connListChanged = true;
+            
+            LogDebug(VB_CHANNELOUT, "3D Virtual Display client connected\n");
         }
 
         usleep(100000);
@@ -246,8 +283,8 @@ void HTTPVirtualDisplayOutput::ConnectionThread(void) {
 /*
  *
  */
-void HTTPVirtualDisplayOutput::SelectThread(void) {
-    SetThreadName("FPP-HTTPVD-Sel");
+void HTTPVirtualDisplay3DOutput::SelectThread(void) {
+    SetThreadName("FPP-HTTPVD3D-Sel");
     fd_set active_fd_set;
     fd_set read_fd_set;
     int selectResult;
@@ -259,7 +296,7 @@ void HTTPVirtualDisplayOutput::SelectThread(void) {
 
     while (m_running) {
         if (m_connListChanged) {
-            LogDebug(VB_CHANNELOUT, "Connection list changed, rebuilding active_fd-set\n");
+            LogDebug(VB_CHANNELOUT, "3D Connection list changed, rebuilding active_fd-set\n");
             FD_ZERO(&active_fd_set);
 
             std::unique_lock<std::mutex> lock(m_connListLock);
@@ -294,14 +331,14 @@ void HTTPVirtualDisplayOutput::SelectThread(void) {
                 bytesRead = recv(m_connList[i], buf, sizeof(buf), 0);
 
                 if (bytesRead > 0) {
-                    LogDebug(VB_CHANNELOUT, "Data read from socket %d, connection %d \n", m_connList[i], i);
+                    LogDebug(VB_CHANNELOUT, "Data read from 3D socket %d, connection %d \n", m_connList[i], i);
                 } else if (bytesRead == 0) {
-                    LogDebug(VB_CHANNELOUT, "Closing socket %d, connection %d\n", m_connList[i], i);
+                    LogDebug(VB_CHANNELOUT, "Closing 3D socket %d, connection %d\n", m_connList[i], i);
                     close(m_connList[i]);
                     m_connList.erase(m_connList.begin() + i);
                     m_connListChanged = true;
                 } else {
-                    LogErr(VB_CHANNELOUT, "Read failed for socket %d, connection %d.  Closing connection.\n", m_connList[i], i);
+                    LogErr(VB_CHANNELOUT, "Read failed for 3D socket %d, connection %d.  Closing connection.\n", m_connList[i], i);
                     m_connList.erase(m_connList.begin() + i);
                     m_connListChanged = true;
                 }
@@ -313,7 +350,7 @@ void HTTPVirtualDisplayOutput::SelectThread(void) {
 /*
  *
  */
-int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, std::string data) {
+int HTTPVirtualDisplay3DOutput::WriteSSEPacket(int fd, std::string data) {
     int len = data.size();
     std::string sendData;
     
@@ -329,19 +366,30 @@ int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, std::string data) {
     sendData += data;
     sendData += "\r\n";
 
-    write(fd, sendData.c_str(), sendData.size());
+    ssize_t written = write(fd, sendData.c_str(), sendData.size());
+    
+    // Check for write errors (broken connection)
+    if (written < 0) {
+        if (errno == EPIPE || errno == ECONNRESET || errno == ENOTCONN) {
+            LogDebug(VB_CHANNELOUT, "3D SSE write failed (connection closed): %s\n", strerror(errno));
+            return -1;  // Signal caller to remove this connection
+        }
+        LogDebug(VB_CHANNELOUT, "3D SSE write error: %s\n", strerror(errno));
+        return -1;
+    }
 
     return 1;
 }
 
 /*
- *
+ * PrepData for 3D - sends pixel index instead of 2D coordinates
+ * Format: RGB_COLOR:PIXEL_INDEX;PIXEL_INDEX;PIXEL_INDEX|...
  */
-void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
+void HTTPVirtualDisplay3DOutput::PrepData(unsigned char* channelData) {
     static int id = 0;
     static bool lastFrameWasBlack = false;
 
-    LogExcess(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::PrepData(%p)\n",
+    LogExcess(VB_CHANNELOUT, "HTTPVirtualDisplay3DOutput::PrepData(%p)\n",
               channelData);
 
     {
@@ -352,13 +400,10 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
     }
 
     // Fast black detection - check if all channel data is zero (sequence ended/stopped)
-    // Only do this check occasionally to reduce CPU overhead
     static int blackCheckCounter = 0;
     bool allBlack = false;
     bool forceBlackUpdate = false;
     
-    // Check for black every 10th frame to reduce CPU, but always check if last frame was black
-    // to catch the transition back to color quickly
     if (lastFrameWasBlack || (++blackCheckCounter >= 10)) {
         blackCheckCounter = 0;
         allBlack = true;
@@ -370,65 +415,84 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
             }
         }
         
-        // If transitioning to black, force update of all pixels
         forceBlackUpdate = (allBlack && !lastFrameWasBlack);
         lastFrameWasBlack = allBlack;
     }
 
-    std::string data;
     int pixelsChanged = 0;
     unsigned char r, g, b;
-    std::map<std::string, std::string> colors;
-    std::map<std::string, std::string>::iterator colorIt;
-    char color[4];
-    std::string colorStr;
-    char loc[7];
-    int y;
-    VirtualDisplayPixel pixel;
+    
+    // Use unordered_map for O(1) lookup instead of std::map O(log n)
+    // Key is 24-bit color packed into uint32_t for fast hashing
+    static std::unordered_map<uint32_t, std::string> colors;
+    colors.clear();
+    
+    char pixelIdx[16];
     static const char* const base64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
+    
+    // Pre-build color string lookup for all 64x64x64 = 262144 possible RGB666 values
+    // This avoids snprintf in the hot loop
+    static bool colorLookupInitialized = false;
+    static char colorLookup[64][64][64][4];
+    if (!colorLookupInitialized) {
+        for (int ri = 0; ri < 64; ri++) {
+            for (int gi = 0; gi < 64; gi++) {
+                for (int bi = 0; bi < 64; bi++) {
+                    colorLookup[ri][gi][bi][0] = base64[ri];
+                    colorLookup[ri][gi][bi][1] = base64[gi];
+                    colorLookup[ri][gi][bi][2] = base64[bi];
+                    colorLookup[ri][gi][bi][3] = '\0';
+                }
+            }
+        }
+        colorLookupInitialized = true;
+    }
 
     for (int i = 0; i < m_pixels.size(); i++) {
         GetPixelRGB(m_pixels[i], channelData, r, g, b);
 
         // 18-bit RGB666 pixel data passed over Event Stream in 3 bytes
-        // using Base64 allowed characters since SSE is non-binary
         r = r >> 2;
         g = g >> 2;
         b = b >> 2;
 
-        // Send pixels that changed OR when forcing black update (sequence ended)
-        if (forceBlackUpdate ||
-            (m_virtualDisplay[m_pixels[i].r] != r) ||
-            (m_virtualDisplay[m_pixels[i].g] != g) ||
-            (m_virtualDisplay[m_pixels[i].b] != b)) {
+        // For 3D mode: Send ALL non-black pixels every frame
+        if (r != 0 || g != 0 || b != 0 || forceBlackUpdate) {
             m_virtualDisplay[m_pixels[i].r] = r;
             m_virtualDisplay[m_pixels[i].g] = g;
             m_virtualDisplay[m_pixels[i].b] = b;
 
-            snprintf(color, sizeof(color), "%c%c%c", base64[r], base64[g], base64[b]);
-            colorStr = color;
+            // Pack RGB into 32-bit key for fast hash lookup
+            uint32_t colorKey = (r << 16) | (g << 8) | b;
+            
+            // Use integer to string conversion (faster than snprintf)
+            int len = 0;
+            int temp = i;
+            do {
+                pixelIdx[len++] = '0' + (temp % 10);
+                temp /= 10;
+            } while (temp > 0);
+            // Reverse the digits
+            for (int j = 0; j < len / 2; j++) {
+                char t = pixelIdx[j];
+                pixelIdx[j] = pixelIdx[len - 1 - j];
+                pixelIdx[len - 1 - j] = t;
+            }
+            pixelIdx[len] = '\0';
 
-            y = m_previewHeight - m_pixels[i].y;
-            if (m_pixels[i].x >= 4095)
-                snprintf(loc, sizeof(loc), "%c%c%c%c%c%c",
-                         base64[(m_pixels[i].x >> 12) & 0x3f],
-                         base64[(m_pixels[i].x >> 6) & 0x3f],
-                         base64[(m_pixels[i].x) & 0x3f],
-                         base64[(y >> 12) & 0x3f],
-                         base64[(y >> 6) & 0x3f],
-                         base64[(y)&0x3f]);
-            else
-                snprintf(loc, sizeof(loc), "%c%c%c%c",
-                         base64[(m_pixels[i].x >> 6) & 0x3f],
-                         base64[(m_pixels[i].x) & 0x3f],
-                         base64[(y >> 6) & 0x3f],
-                         base64[(y)&0x3f]);
-
-            colorIt = colors.find(colorStr);
-            if (colorIt != colors.end())
-                colorIt->second += std::string(";") + loc;
-            else
-                colors[colorStr] = colorStr + ":" + loc;
+            auto colorIt = colors.find(colorKey);
+            if (colorIt != colors.end()) {
+                colorIt->second += ';';
+                colorIt->second += pixelIdx;
+            } else {
+                // First pixel with this color - create entry with "RGB:index"
+                std::string entry;
+                entry.reserve(24);
+                entry = colorLookup[r][g][b];
+                entry += ':';
+                entry += pixelIdx;
+                colors[colorKey] = std::move(entry);
+            }
 
             pixelsChanged++;
         }
@@ -437,7 +501,7 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
     if (colors.size()) {
         // Pre-allocate to avoid reallocations during string building
         m_sseData.clear();
-        m_sseData.reserve(128 + colors.size() * 16); // Estimate: header + avg color data
+        m_sseData.reserve(128 + colors.size() * 16);
         
         m_sseData = "id: ";
         m_sseData += std::to_string(id) + "\r\n";
@@ -445,7 +509,7 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
         m_sseData += "data: ";
 
         std::string data2;
-        data2.reserve(colors.size() * 16); // Pre-allocate for color data
+        data2.reserve(colors.size() * 16);
         
         bool first = true;
         for (const auto& pair : colors) {
@@ -458,10 +522,10 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
         }
         m_sseData += data2 + "\r\n\r\n";
 
-        LogExcess(VB_CHANNELOUT, "PixelsChanged: %d, Colors: %d, Data Size: %d\n",
+        LogExcess(VB_CHANNELOUT, "3D PixelsChanged: %d, Colors: %d, Data Size: %d\n",
                   pixelsChanged, colors.size(), m_sseData.size());
     } else {
-        // Send empty update to keep connection alive and maintain frame timing
+        // Send empty update to keep connection alive
         m_sseData = "id: ";
         m_sseData += std::to_string(id) + "\r\n";
         m_sseData += "event: ping\r\n";
@@ -474,11 +538,20 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
 /*
  *
  */
-int HTTPVirtualDisplayOutput::SendData(unsigned char* channelData) {
+int HTTPVirtualDisplay3DOutput::SendData(unsigned char* channelData) {
     if (m_sseData != "") {
         std::unique_lock<std::mutex> lock(m_connListLock);
-        for (int i = 0; i < m_connList.size(); i++)
-            WriteSSEPacket(m_connList[i], m_sseData);
+        // Iterate backwards so we can safely remove elements
+        for (int i = m_connList.size() - 1; i >= 0; i--) {
+            int result = WriteSSEPacket(m_connList[i], m_sseData);
+            if (result < 0) {
+                // Connection is dead, remove it
+                LogDebug(VB_CHANNELOUT, "Removing dead 3D SSE connection %d\n", m_connList[i]);
+                close(m_connList[i]);
+                m_connList.erase(m_connList.begin() + i);
+                m_connListChanged = true;
+            }
+        }
     }
 
     return m_channelCount;

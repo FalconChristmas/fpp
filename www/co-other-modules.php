@@ -845,6 +845,44 @@
     }
 
     /////////////////////////////////////////////////////////////////////////////
+    // HTTP Virtual Display 3D Output (uses pixel indices instead of 2D coordinates)
+
+    class HTTPVirtualDisplay3D extends OtherBase {
+        constructor(name = "HTTPVirtualDisplay3D", friendlyName = "HTTP Virtual Display 3D", maxChannels = FPPD_MAX_CHANNELS,
+            fixedStart = true, fixedChans = true,
+            config = { updateInterval: 25 }) {
+            super(name, friendlyName, maxChannels, fixedStart, fixedChans);
+            this._config = config;
+        }
+
+        PopulateHTMLRow(config) {
+            var results = "";
+            results += "Update Interval (ms): <input class='updateInterval' type='number' min='10' max='100' value='" + (config.updateInterval || 25) + "' size='4'/>";
+            results += " <span class='text-muted'>(25ms = 40fps)</span>";
+            return results;
+        }
+
+        SetDefaults(row) {
+            super.SetDefaults(row);
+            // Hide channel count - it's auto-detected from virtualdisplaymap
+            row.find("td input.count").hide().after("<span class='text-muted'>Auto</span>");
+        }
+
+        RowAdded(row) {
+            super.RowAdded(row);
+            // Hide channel count - it's auto-detected from virtualdisplaymap
+            row.find("td input.count").hide().after("<span class='text-muted'>Auto</span>");
+        }
+
+        GetOutputConfig(result, cell) {
+            result = super.GetOutputConfig(result, cell);
+            result["port"] = 32329; // Fixed port
+            result["updateInterval"] = parseInt(cell.find("input.updateInterval").val()) || 25;
+            return result;
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////////////
     // Virtual Matrix Output
 
     class VirtualMatrixDevice extends OtherAutoFBBaseDevice {
@@ -1223,5 +1261,6 @@
     output_modules.push(new GenericUDPDevice());
     output_modules.push(new VirtualDisplayDevice());
     output_modules.push(new VirtualMatrixDevice());
+    output_modules.push(new HTTPVirtualDisplay3D());
 
 </script>
