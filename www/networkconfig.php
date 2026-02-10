@@ -334,45 +334,27 @@
         }
 
         function checkGatewayAvailability() {
-            // First check the current UI state for the selected interface
-            var currentIface = currentInterface;
-            if (!currentIface) return;
-
-            var safeName = currentIface.replace(/[^a-zA-Z0-9]/g, '_');
-            var currentIsStatic = $('#eth_static_' + safeName).is(':checked');
-
-            // Then check the saved state of other interfaces
+            // Check the saved state of all interfaces
             $.get("api/network/interface", function (interfaces) {
                 var hasStaticInterface = false;
-                var hasDHCPInterface = false;
 
                 interfaces.forEach(function (ifaceData) {
                     if (ifaceData.config && ifaceData.config.INTERFACE) {
-                        // Exclude WLAN interfaces without an SSID
+                        // Exclude WLAN interfaces without an SSID (they're not actually in use)
                         if (ifaceData.config.INTERFACE.startsWith('wl') && !ifaceData.config.SSID) {
                             return;
                         }
 
-                        // For the currently selected interface, use UI state instead of saved state
-                        if (ifaceData.config.INTERFACE === currentIface) {
-                            if (currentIsStatic) {
-                                hasStaticInterface = true;
-                            } else {
-                                hasDHCPInterface = true;
-                            }
-                        } else {
-                            // For other interfaces, use saved state
-                            if (ifaceData.config.PROTO === "static") {
-                                hasStaticInterface = true;
-                            } else if (ifaceData.config.PROTO === "dhcp") {
-                                hasDHCPInterface = true;
-                            }
+                        // Check if this interface is configured for static IP
+                        if (ifaceData.config.PROTO === "static") {
+                            hasStaticInterface = true;
                         }
                     }
                 });
 
-                // If all interfaces are DHCP and none are static, disable gateway
-                if (hasDHCPInterface && !hasStaticInterface) {
+                // If at least one interface uses static IP, enable the gateway field
+                // If all interfaces are DHCP, disable gateway (DHCP provides routing)
+                if (!hasStaticInterface) {
                     $('#global_gateway').prop('disabled', true);
                     $('#global_gateway').val('');
                     $('#global_gateway').attr('placeholder', 'Disabled - DHCP interfaces provide routing');
