@@ -17,6 +17,16 @@ else
     xset +dpms
     xset dpms "$TIMEOUT" "$TIMEOUT" "$TIMEOUT"
 fi
+# Determine which chromium binary is available (Trixie+ uses 'chromium', older uses 'chromium-browser')
+if command -v chromium > /dev/null 2>&1; then
+    CHROMIUM_BIN="chromium"
+elif command -v chromium-browser > /dev/null 2>&1; then
+    CHROMIUM_BIN="chromium-browser"
+else
+    echo "$(date) ERROR: Neither chromium nor chromium-browser found" >> "$LOGFILE"
+    exit 1
+fi
+
 # Allow quitting the X server with CTRL-ATL-Backspace
 setxkbmap -option terminate:ctrl_alt_bksp
 # Start Chromium in kiosk mode
@@ -27,7 +37,7 @@ sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/
 # Guard: Check to see if rotate screen disabled
 if ! grep -qE '^[[:space:]]*KioskRotate[[:space:]]*=[[:space:]]*"1"' "$SETTINGS_FILE"; then
     echo "$(date) Rotate screen disabled – leaving display normal" >> "$LOGFILE"
-    chromium --disable-infobars --kiosk 'http://localhost/'
+    $CHROMIUM_BIN --disable-infobars --kiosk 'http://localhost/'
     exit 0
 fi
 
@@ -39,7 +49,7 @@ if sed -n "/$IDENTIFIER/,/EndSection/ {
     }" "$XORG_FILE" | grep -q .; then
     echo "$(date) TransformationMatrix already present – no changes to file made" >> "$LOGFILE"
     xrandr --output DSI-1 --mode 720x1280 --rate 60 --rotate right
-    chromium --disable-infobars --kiosk 'http://localhost/'
+    $CHROMIUM_BIN --disable-infobars --kiosk 'http://localhost/'
     exit 0
 else
 
@@ -57,4 +67,4 @@ fi
 # Rotate display then launch Chromium
 xrandr --output DSI-1 --mode 720x1280 --rate 60 --rotate right
 echo "$(date) Last Launch Chromium Section after ediing touchscreen file" >> "$LOGFILE"
-chromium --disable-infobars --kiosk 'http://localhost/'
+$CHROMIUM_BIN --disable-infobars --kiosk 'http://localhost/'
