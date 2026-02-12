@@ -169,7 +169,7 @@ function UpdateFileCount ($dir) {
 		return; // Element doesn't exist, skip update
 	}
 
-	fileCountEl.innerText = $('#tbl' + $dir + ' tbody tr')
+	var visibleRows = $('#tbl' + $dir + ' tbody tr')
 		.not('.unselectableRow')
 		.not('.filtered');
 
