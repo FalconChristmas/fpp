@@ -22,6 +22,7 @@ public:
     const PinCapabilities& readPin;
     const PinCapabilities& writePin;
 
+    virtual void releasePin() const override {}
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true,
                           const std::string& desc = "") const override;

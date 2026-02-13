@@ -17,6 +17,7 @@ class MCP23x17PinCapabilities : public PinCapabilitiesFluent<MCP23x17PinCapabili
 public:
     MCP23x17PinCapabilities(const std::string& n, uint32_t kg, int base);
 
+    virtual void releasePin() const override {}
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true,
                           const std::string& desc = "") const override;

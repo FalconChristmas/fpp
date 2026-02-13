@@ -50,9 +50,9 @@ PiGPIOPinCapabilities::PiGPIOPinCapabilities(const std::string& n, uint32_t kg) 
     PinCapabilitiesFluent(n, kg) {
 }
 
-void PiGPIOPinCapabilities::releasePin() const override {
+void PiGPIOPinCapabilities::releasePin() const {
     configPin("default", false);
-    GPIODCapabilities::releasePin();
+    PiGPIOPinCapabilities::releasePin();
 }
 
 int PiGPIOPinCapabilities::configPin(const std::string& mode,
