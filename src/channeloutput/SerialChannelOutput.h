@@ -27,6 +27,7 @@ public:
     int getFD() const { return m_fd; }
 
 protected:
+    std::string pinName;
     std::string m_deviceName;
     int m_fd;
 };

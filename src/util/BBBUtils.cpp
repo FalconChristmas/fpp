@@ -240,7 +240,6 @@ static void setupBBBMemoryMap() {
         }
     }
 #endif
-    printf("Mapping %d %d %d %d\n", bbGPIOMap[0], bbGPIOMap[1], bbGPIOMap[2], bbGPIOMap[3]);
     registersMemMapped = 1;
 }
 
@@ -344,6 +343,20 @@ Json::Value BBBPinCapabilities::toJSON() const {
 
 bool BBBPinCapabilities::supportPWM() const {
     return pwm != -1;
+}
+void BBBPinCapabilities::releasePin() const {
+    GPIODCapabilities::releasePin();
+    if (FileExists("/usr/bin/pinctrl") && name[0] == 'P' && (name[2] == '_' || name[2] == '-')) {
+        char pinName[16];
+        strcpy(pinName, name.c_str());
+        if (pinName[2] == '-') {
+            pinName[2] = '_';
+        }
+
+        char buf[256];
+        snprintf(buf, sizeof(buf), "/usr/bin/pinctrl -s %s reset", pinName);
+        system(buf);
+    }
 }
 
 int BBBPinCapabilities::configPin(const std::string& m,

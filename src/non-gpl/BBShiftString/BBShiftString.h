@@ -153,6 +153,7 @@ private:
 
     FalconV5Support* falconV5Support = nullptr;
     std::list<std::string> m_autoCreatedModelNames;
+    bool supportsV5Listeners = false;
 
     void prepData(FrameData& d, unsigned char* channelData);
     void sendData(FrameData& d);

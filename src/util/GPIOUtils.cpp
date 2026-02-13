@@ -125,6 +125,20 @@ public:
 };
 GPIOChipHolder GPIOChipHolder::INSTANCE;
 #endif
+
+void GPIODCapabilities::releasePin() const {
+    releaseGPIOD();
+#ifdef HASGPIOD
+#ifdef IS_GPIOD_CXX_V2
+    request = nullptr;
+#else
+    if (line.is_requested()) {
+        line.release();
+    }
+#endif
+#endif
+}
+
 int GPIODCapabilities::configPin(const std::string& mode,
                                  bool directionOut,
                                  const std::string& desc) const {
@@ -175,15 +189,12 @@ int GPIODCapabilities::configPin(const std::string& mode,
         gpiod::request_builder builder = chip->prepare_request();
         builder.add_line_settings(gpio, settings);
         builder.set_consumer(consumer);
-
-        if (!request || lastRequestType != (directionOut ? 1 : 0)) {
-            request = std::make_shared<gpiod::line_request>(builder.do_request());
-            lastRequestType = directionOut ? 1 : 0;
-        } else {
-            // Update existing request with new settings
-            auto new_req = builder.do_request();
-            request = std::make_shared<gpiod::line_request>(std::move(new_req));
+        if (request) {
+            request->release();
+            request = nullptr;
         }
+        request = std::make_shared<gpiod::line_request>(builder.do_request());
+        lastRequestType = directionOut ? 1 : 0;
     } catch (const std::exception& ex) {
         std::string w = "Could not configure pin " + name + "(" + desc + ") as " + mode + " (" + ex.what() + ")";
         WarningHolder::AddWarning(w);
@@ -311,7 +322,9 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
     }
 
     try {
+        std::string desc = lastDesc;
         releaseGPIOD();
+        lastDesc = desc;
 
         if (!chip) {
             WarningHolder::AddWarning("Could not configure pin " + name + " for events: chip pointer is null");
@@ -328,7 +341,6 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
         } else if (fallingEdge) {
             settings.set_edge_detection(gpiod::line::edge::FALLING);
         }
-
         std::string consumer = lastDesc.empty() ? PROCESS_NAME : lastDesc;
 
         LogDebug(VB_GPIO, "Building request for pin %s: chip device=%s, line=%d\n",

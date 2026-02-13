@@ -19,6 +19,26 @@
 #include "bcm2835.h"
 #include "common_mini.h"
 
+class PiGPIOPinCapabilities : public PinCapabilitiesFluent<PiGPIOPinCapabilities> {
+public:
+    PiGPIOPinCapabilities(const std::string& n, uint32_t kg);
+    virtual void releasePin() const override;
+    virtual int configPin(const std::string& mode = "gpio",
+                          bool directionOut = true,
+                          const std::string& desc = "") const override;
+
+    virtual bool getValue() const override;
+    virtual void setValue(bool i) const override;
+
+    virtual bool setupPWM(int maxValueNS = 25500) const override;
+    virtual void setPWMValue(int valueNS) const override;
+
+    virtual int getPWMRegisterAddress() const override { return 0; };
+    virtual bool supportPWM() const {
+        return pwm != -1;
+    }
+};
+
 static bool isPi5() {
     std::string model = GetFileContents("/proc/device-tree/model");
     static bool pi5 = startsWith(model, "Raspberry Pi 5") ||
@@ -28,6 +48,11 @@ static bool isPi5() {
 
 PiGPIOPinCapabilities::PiGPIOPinCapabilities(const std::string& n, uint32_t kg) :
     PinCapabilitiesFluent(n, kg) {
+}
+
+void PiGPIOPinCapabilities::releasePin() const override {
+    configPin("default", false);
+    GPIODCapabilities::releasePin();
 }
 
 int PiGPIOPinCapabilities::configPin(const std::string& mode,
@@ -99,15 +124,27 @@ public:
         }
     }
 
+    Pi5GPIODCapabilities& setResetMode(const std::string& mode) {
+        resetMode = mode;
+        return *this;
+    }
     Pi5GPIODCapabilities& setPwm(int p, int sub) {
         GPIODCapabilities::setPwm(p, sub);
         return *this;
     }
 
+    virtual void releasePin() const override {
+        char buf[256];
+        snprintf(buf, 256, "/usr/bin/pinctrl set %d %s", gpio, resetMode.c_str());
+        system(buf);
+        GPIODCapabilities::releasePin();
+    }
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true,
                           const std::string& desc = "") const override {
         // see https://datasheets.raspberrypi.com/rp1/rp1-peripherals.pdf
+        // 1-3: https://elinux.org/RPi_BCM2835_GPIOs
+        // 4/5: https://elinux.org/RPi_BCM2711_GPIOs
         if (mode == "pwm" && pwm != -1) {
             // alt3 is pwm
             char buf[256];
@@ -217,6 +254,7 @@ public:
     mutable FILE* dutyFile = nullptr;
     static int pinctrlRpiChip;
     static std::string pinctrlRpiChipName;
+    std::string resetMode = "a0";
 };
 int Pi5GPIODCapabilities::pinctrlRpiChip = -1;
 std::string Pi5GPIODCapabilities::pinctrlRpiChipName;
@@ -225,34 +263,35 @@ static std::vector<Pi5GPIODCapabilities> PI5_PINS;
 
 void PiGPIOPinProvider::Init() {
     if (isPi5()) {
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-3", 2));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-5", 3));
+        std::string ipOrNo = isPi5() ? "no" : "ip";
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-3", 2).setResetMode("a3"));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-5", 3).setResetMode("a3"));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-7", 4));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-8", 14));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-10", 15));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-11", 17));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-12", 18).setPwm(0, 0));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-13", 27).setPwm(0, 1));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-15", 22));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-16", 23));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-18", 24));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-11", 17).setResetMode(ipOrNo));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-12", 18).setPwm(0, 0).setResetMode(ipOrNo));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-13", 27).setPwm(0, 1).setResetMode(ipOrNo));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-15", 22).setResetMode(ipOrNo));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-16", 23).setResetMode(ipOrNo));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-18", 24).setResetMode(ipOrNo));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-19", 10));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-21", 9));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-22", 25));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-22", 25).setResetMode(ipOrNo));
         PI5_PINS.push_back(Pi5GPIODCapabilities("P1-23", 11));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-24", 8));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-26", 7));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-27", 0));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-28", 1));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-29", 5));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-31", 6));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-32", 12).setPwm(0, 0));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-33", 13));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-35", 19).setPwm(0, 1));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-36", 16));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-37", 26));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-38", 20));
-        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-40", 21));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-24", 8).setResetMode("op"));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-26", 7).setResetMode("op"));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-27", 0).setResetMode("ip"));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-28", 1).setResetMode("ip"));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-29", 5).setResetMode("ip"));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-31", 6).setResetMode("ip"));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-32", 12).setResetMode("ip").setPwm(0, 0));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-33", 13).setResetMode("ip"));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-35", 19).setResetMode(ipOrNo).setPwm(0, 1));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-36", 16).setResetMode(ipOrNo));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-37", 26).setResetMode("ip"));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-38", 20).setResetMode(ipOrNo));
+        PI5_PINS.push_back(Pi5GPIODCapabilities("P1-40", 21).setResetMode(ipOrNo));
     } else if (bcm2835_init()) {
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-3", 2).setI2C(1));
         PI_PINS.push_back(PiGPIOPinCapabilities("P1-5", 3).setI2C(1));

@@ -45,6 +45,7 @@ int ChannelOutput::Init(Json::Value config) {
                 pinName = gpios[i]["pin"].asString();
 
                 if (gpios[i].isMember("mode")) {
+                    m_usedGPIOS.push_back(pinName);
                     const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
 
                     std::string pinMode = gpios[i]["mode"].asString();
@@ -86,6 +87,11 @@ int ChannelOutput::Init(Json::Value config) {
 
 int ChannelOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "ChannelOutput::Close()\n");
+    for (auto& gpio : m_usedGPIOS) {
+        const PinCapabilities& pin = PinCapabilities::getPinByName(gpio);
+        pin.releasePin();
+    }
+    m_usedGPIOS.clear();
     return 1;
 }
 

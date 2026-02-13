@@ -524,14 +524,17 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
             } else {
                 pullLowOutputPins.remove(pi->enablePin);
             }
+            pi->enablePin->releasePin();
         }
         if (pi->eFusePin) {
             fusePins.erase(pi->eFusePin->name);
         }
         if (pi->eFuseInterruptPin) {
             GPIOManager::INSTANCE.RemoveGPIOCallback(pi->eFuseInterruptPin);
+            pi->eFuseInterruptPin->releasePin();
         } else if (pi->eFusePin) {
             GPIOManager::INSTANCE.RemoveGPIOCallback(pi->eFusePin);
+            pi->eFusePin->releasePin();
         }
         pi->reset();
     }

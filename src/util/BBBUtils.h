@@ -34,6 +34,7 @@ public:
     BBBPinCapabilities(const std::string& n, uint32_t k);
     BBBPinCapabilities(const std::string& n, uint32_t g, uint32_t offset);
 
+    virtual void releasePin() const override;
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true,
                           const std::string& desc = "") const override;

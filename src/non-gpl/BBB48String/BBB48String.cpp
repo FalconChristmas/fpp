@@ -36,34 +36,32 @@
 #include "../../overlays/PixelOverlay.h"
 
 #include "Plugin.h"
-class BBB48StringPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
+class BBB48StringPlugin : public FPPPlugins::Plugin,
+                          public FPPPlugins::ChannelOutputPlugin {
 public:
-    BBB48StringPlugin() :
-        FPPPlugins::Plugin("BBB48String") {
-    }
-    virtual ChannelOutput* createChannelOutput(unsigned int startChannel, unsigned int channelCount) override {
+    BBB48StringPlugin() : FPPPlugins::Plugin("BBB48String") {}
+    virtual ChannelOutput*
+    createChannelOutput(unsigned int startChannel,
+                        unsigned int channelCount) override {
         return new BBB48StringOutput(startChannel, channelCount);
     }
 };
 
 extern "C" {
-FPPPlugins::Plugin* createPlugin() {
-    return new BBB48StringPlugin();
-}
+FPPPlugins::Plugin* createPlugin() { return new BBB48StringPlugin(); }
 }
 
 /*
  *
  */
 BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
-                                     unsigned int channelCount) :
-    ChannelOutput(startChannel, channelCount),
-    m_curFrame(0),
-    m_pru(NULL),
-    m_pruData(NULL),
-    m_pru0(NULL),
-    m_pru0Data(NULL),
-    m_stallCount(0) {
+                                     unsigned int channelCount) : ChannelOutput(startChannel, channelCount),
+                                                                  m_curFrame(0),
+                                                                  m_pru(NULL),
+                                                                  m_pruData(NULL),
+                                                                  m_pru0(NULL),
+                                                                  m_pru0Data(NULL),
+                                                                  m_stallCount(0) {
     LogDebug(VB_CHANNELOUT, "BBB48StringOutput::BBB48StringOutput(%u, %u)\n",
              startChannel, channelCount);
 }
@@ -83,7 +81,9 @@ BBB48StringOutput::~BBB48StringOutput() {
         delete m_pru0;
 }
 
-static void compilePRUCode(const char* program, const std::vector<std::string>& sargs, const std::vector<std::string>& args1) {
+static void compilePRUCode(const char* program,
+                           const std::vector<std::string>& sargs,
+                           const std::vector<std::string>& args1) {
     std::string log;
 
     char* args[sargs.size() + 3 + args1.size()];
@@ -100,7 +100,8 @@ static void compilePRUCode(const char* program, const std::vector<std::string>& 
         log += " " + args1[x];
     }
     args[idx] = NULL;
-    LogDebug(VB_CHANNELOUT, "BBB48StringOutput::compilePRUCode() args: %s\n", log.c_str());
+    LogDebug(VB_CHANNELOUT, "BBB48StringOutput::compilePRUCode() args: %s\n",
+             log.c_str());
 
     pid_t compilePid = fork();
     if (compilePid == 0) {
@@ -112,11 +113,12 @@ static void compilePRUCode(const char* program, const std::vector<std::string>& 
 
 static void compilePRUCode(const std::vector<std::string>& sargs,
                            const std::vector<std::string>& args0,
-                           const std::vector<std::string>& args1,
-                           bool split) {
-    compilePRUCode("/opt/fpp/src/non-gpl/BBB48String/compileWS2811x.sh", sargs, args1);
+                           const std::vector<std::string>& args1, bool split) {
+    compilePRUCode("/opt/fpp/src/non-gpl/BBB48String/compileWS2811x.sh", sargs,
+                   args1);
     if (split) {
-        compilePRUCode("/opt/fpp/src/non-gpl/BBB48String/compileWS2811x_gpio0.sh", sargs, args0);
+        compilePRUCode("/opt/fpp/src/non-gpl/BBB48String/compileWS2811x_gpio0.sh",
+                       sargs, args0);
     }
 }
 
@@ -156,12 +158,15 @@ inline int mapSize(int max, int maxString) {
     return newHeight;
 }
 
-void BBB48StringOutput::createOutputLengths(FrameData& d, const std::string& pfx, std::vector<std::string>& args) {
+void BBB48StringOutput::createOutputLengths(FrameData& d,
+                                            const std::string& pfx,
+                                            std::vector<std::string>& args) {
     if (d.gpioStringMap.empty()) {
         return;
     }
     std::ofstream outputFile;
-    outputFile.open("/tmp/OutputLengths" + pfx + ".hp", std::ofstream::out | std::ofstream::trunc);
+    outputFile.open("/tmp/OutputLengths" + pfx + ".hp",
+                    std::ofstream::out | std::ofstream::trunc);
 
     std::map<int, std::vector<GPIOCommand>> sizes;
     for (int x : d.gpioStringMap) {
@@ -181,20 +186,15 @@ void BBB48StringOutput::createOutputLengths(FrameData& d, const std::string& pfx
         outputFile << "\nCHECK_" << pfx << std::to_string(min) << ":\n";
         if (min != d.maxStringLen) {
             if (min <= 255) {
-                outputFile << "    QBNE skip_"
-                           << pfx
-                           << std::to_string(min)
-                           << ", cur_data, "
-                           << std::to_string(min)
-                           << "\n";
+                outputFile << "    QBNE skip_" << pfx << std::to_string(min)
+                           << ", cur_data, " << std::to_string(min) << "\n";
             } else {
                 if (min <= 0xFFFF) {
                     outputFile << "    LDI r8, " << std::to_string(min) << "\n";
                 } else {
                     outputFile << "    LDI32 r8, " << std::to_string(min) << "\n";
                 }
-                outputFile << "    QBNE skip_" << pfx
-                           << std::to_string(min)
+                outputFile << "    QBNE skip_" << pfx << std::to_string(min)
                            << ", cur_data, r8\n";
             }
 
@@ -209,14 +209,17 @@ void BBB48StringOutput::createOutputLengths(FrameData& d, const std::string& pfx
 
                 std::string o = std::to_string(y + 1);
                 if (cmd.type) {
-                    outputFile << "        SET GPIO_MASK(o" << o << "_gpio), GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
+                    outputFile << "        SET GPIO_MASK(o" << o << "_gpio), GPIO_MASK(o"
+                               << o << "_gpio), o" << o << "_pin\n";
                 } else {
-                    outputFile << "        CLR GPIO_MASK(o" << o << "_gpio), GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
+                    outputFile << "        CLR GPIO_MASK(o" << o << "_gpio), GPIO_MASK(o"
+                               << o << "_gpio), o" << o << "_pin\n";
                 }
             }
             i++;
             int next = i->first;
-            outputFile << "        LDI next_check, $CODE(CHECK_" << pfx << std::to_string(next) << ")\n";
+            outputFile << "        LDI next_check, $CODE(CHECK_" << pfx
+                       << std::to_string(next) << ")\n";
             outputFile << "skip_" << pfx << std::to_string(min) << ":\n        RET\n";
 
         } else {
@@ -257,8 +260,11 @@ int BBB48StringOutput::Init(Json::Value config) {
             verPostf = "-v3";
         }
         if (!CapeUtils::INSTANCE.getStringConfig(m_subType + verPostf, root)) {
-            LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
-            WarningHolder::AddWarning("BBB48String: Could not read pin configuration for " + m_subType + verPostf);
+            LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n",
+                   m_subType.c_str(), verPostf.c_str());
+            WarningHolder::AddWarning(
+                "BBB48String: Could not read pin configuration for " + m_subType +
+                verPostf);
             return 0;
         }
     }
@@ -310,7 +316,9 @@ int BBB48StringOutput::Init(Json::Value config) {
     for (int x = 0; x < m_strings.size(); x++) {
         if (m_strings[x]->m_outputChannels > 0) {
             // need to output this pin, configure it
-            const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][x]["pin"].asString());
+            std::string pinName = root["outputs"][x]["pin"].asString();
+            const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+            m_usedGPIOS.push_back(pinName);
             pin.configPin("gpio", true, "BBB48String-" + std::to_string(x + 1));
             allStringMap.push_back(x);
             if (x >= m_licensedOutputs && m_strings[x]->m_outputChannels > 0) {
@@ -340,10 +348,12 @@ int BBB48StringOutput::Init(Json::Value config) {
             allMax = std::max(allMax, m_strings[x]->m_outputChannels);
             if (pin.mappedGPIOIdx() == 0) {
                 m_gpio0Data.gpioStringMap.push_back(x);
-                m_gpio0Data.maxStringLen = std::max(m_gpio0Data.maxStringLen, m_strings[x]->m_outputChannels);
+                m_gpio0Data.maxStringLen =
+                    std::max(m_gpio0Data.maxStringLen, m_strings[x]->m_outputChannels);
             } else {
                 m_gpioData.gpioStringMap.push_back(x);
-                m_gpioData.maxStringLen = std::max(m_gpioData.maxStringLen, m_strings[x]->m_outputChannels);
+                m_gpioData.maxStringLen =
+                    std::max(m_gpioData.maxStringLen, m_strings[x]->m_outputChannels);
             }
         }
     }
@@ -351,7 +361,8 @@ int BBB48StringOutput::Init(Json::Value config) {
     if (outputList != "") {
         std::string warning = "BBB48String is licensed for ";
         warning += std::to_string(m_licensedOutputs);
-        warning += " outputs, but one or more outputs is configured for more than 50 pixels.  Output(s): ";
+        warning += " outputs, but one or more outputs is configured for more than "
+                   "50 pixels.  Output(s): ";
         warning += outputList;
         WarningHolder::AddWarning(warning);
         LogWarn(VB_CHANNELOUT, "WARNING: %s\n", warning.c_str());
@@ -373,18 +384,22 @@ int BBB48StringOutput::Init(Json::Value config) {
         hasSerial = true;
     }
     bool canSplit = !hasSerial;
-    if (hasSerial && m_gpio0Data.maxStringLen && ((m_gpio0Data.maxStringLen + m_gpioData.maxStringLen) < 2000)) {
+    if (hasSerial && m_gpio0Data.maxStringLen &&
+        ((m_gpio0Data.maxStringLen + m_gpioData.maxStringLen) < 2000)) {
         // if there is plenty of time to output the GPIO0 stuff
         // after the other GPIO's, let's do that
         args.push_back("-DSPLIT_GPIO0");
-        args.push_back("-DGPIO0OUTPUTS=" + std::to_string(mapSize(48, m_gpio0Data.gpioStringMap.size())));
+        args.push_back(
+            "-DGPIO0OUTPUTS=" +
+            std::to_string(mapSize(48, m_gpio0Data.gpioStringMap.size())));
 
         m_gpio0Data.gpioStringMap.insert(m_gpio0Data.gpioStringMap.end(),
                                          m_gpioData.gpioStringMap.begin(),
                                          m_gpioData.gpioStringMap.end());
         m_gpioData.gpioStringMap = m_gpio0Data.gpioStringMap;
         m_gpio0Data.gpioStringMap.clear();
-        m_gpioData.maxStringLen = std::max(m_gpioData.maxStringLen, m_gpio0Data.maxStringLen);
+        m_gpioData.maxStringLen =
+            std::max(m_gpioData.maxStringLen, m_gpio0Data.maxStringLen);
         m_gpio0Data.maxStringLen = 0;
         canSplit = false;
     }
@@ -408,13 +423,17 @@ int BBB48StringOutput::Init(Json::Value config) {
     split1args.push_back(v);
 
     std::ofstream outputFile;
-    outputFile.open("/tmp/PinConfiguration.hp", std::ofstream::out | std::ofstream::trunc);
+    outputFile.open("/tmp/PinConfiguration.hp",
+                    std::ofstream::out | std::ofstream::trunc);
     for (int x = 0; x < m_gpioData.gpioStringMap.size(); x++) {
         int idx = m_gpioData.gpioStringMap[x];
         if (idx >= 0) {
-            const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][idx]["pin"].asString());
-            outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.mappedGPIOIdx()) << "\n";
-            outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.mappedGPIO()) << "\n\n";
+            const PinCapabilities& pin =
+                PinCapabilities::getPinByName(root["outputs"][idx]["pin"].asString());
+            outputFile << "#define o" << std::to_string(x + 1) << "_gpio  "
+                       << std::to_string(pin.mappedGPIOIdx()) << "\n";
+            outputFile << "#define o" << std::to_string(x + 1) << "_pin  "
+                       << std::to_string(pin.mappedGPIO()) << "\n\n";
         } else {
             split1args.push_back("-DNOOUT" + std::to_string(x + 1));
         }
@@ -429,13 +448,17 @@ int BBB48StringOutput::Init(Json::Value config) {
         v += std::to_string(m_gpio0Data.gpioStringMap.size());
         split0args.push_back(v);
 
-        outputFile.open("/tmp/PinConfigurationGPIO0.hp", std::ofstream::out | std::ofstream::trunc);
+        outputFile.open("/tmp/PinConfigurationGPIO0.hp",
+                        std::ofstream::out | std::ofstream::trunc);
         for (int x = 0; x < m_gpio0Data.gpioStringMap.size(); x++) {
             int idx = m_gpio0Data.gpioStringMap[x];
             if (idx >= 0) {
-                const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][idx]["pin"].asString());
-                outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.mappedGPIOIdx()) << "\n";
-                outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.mappedGPIO()) << "\n\n";
+                const PinCapabilities& pin = PinCapabilities::getPinByName(
+                    root["outputs"][idx]["pin"].asString());
+                outputFile << "#define o" << std::to_string(x + 1) << "_gpio  "
+                           << std::to_string(pin.mappedGPIOIdx()) << "\n";
+                outputFile << "#define o" << std::to_string(x + 1) << "_pin  "
+                           << std::to_string(pin.mappedGPIO()) << "\n\n";
             } else {
                 split0args.push_back("-DNOOUT" + std::to_string(x + 1));
             }
@@ -457,13 +480,15 @@ int BBB48StringOutput::Init(Json::Value config) {
     }
 
     // give each area two chunks (frame flipping) of DDR memory
-    m_gpioData.frameSize = m_gpioData.gpioStringMap.size() * std::max(2400, m_gpioData.maxStringLen);
+    m_gpioData.frameSize =
+        m_gpioData.gpioStringMap.size() * std::max(2400, m_gpioData.maxStringLen);
     m_gpioData.curData = m_pru->ddr;
     // leave a full memory page between to avoid conflicts
     int offset = ((m_gpioData.frameSize / 4096) + 2) * 4096;
     m_gpioData.lastData = m_gpioData.curData + offset;
 
-    m_gpio0Data.frameSize = m_gpio0Data.gpioStringMap.size() * std::max(2400, m_gpio0Data.maxStringLen);
+    m_gpio0Data.frameSize = m_gpio0Data.gpioStringMap.size() *
+                            std::max(2400, m_gpio0Data.maxStringLen);
     m_gpio0Data.curData = m_gpioData.lastData + offset;
     offset = ((m_gpio0Data.frameSize / 4096) + 2) * 4096;
     m_gpio0Data.lastData = m_gpio0Data.curData + offset;
@@ -479,8 +504,10 @@ int BBB48StringOutput::StartPRU(bool both) {
     m_pru = new BBBPru(pruNumber, true, true);
     m_pruData = (BBB48StringData*)m_pru->data_ram;
     if (!m_pru->run("/tmp/FalconWS281x.out")) {
-        LogErr(VB_CHANNELOUT, "BBB48String: Unable to start PRU. May require a reboot.\n");
-        WarningHolder::AddWarning("BBB48String: Unable to start PRU. May require a reboot.");
+        LogErr(VB_CHANNELOUT,
+               "BBB48String: Unable to start PRU. May require a reboot.\n");
+        WarningHolder::AddWarning(
+            "BBB48String: Unable to start PRU. May require a reboot.");
         return 0;
     }
     m_pruData->command = 0;
@@ -490,8 +517,10 @@ int BBB48StringOutput::StartPRU(bool both) {
         m_pru0 = new BBBPru(!pruNumber, true, true);
         m_pru0Data = (BBB48StringData*)m_pru0->data_ram;
         if (!m_pru0->run("/tmp/FalconWS281x_gpio0.out")) {
-            LogErr(VB_CHANNELOUT, "BBB48String: Unable to start PRU0. May require a reboot.\n");
-            WarningHolder::AddWarning("BBB48String: Unable to start PRU0. May require a reboot.");
+            LogErr(VB_CHANNELOUT,
+                   "BBB48String: Unable to start PRU0. May require a reboot.\n");
+            WarningHolder::AddWarning(
+                "BBB48String: Unable to start PRU0. May require a reboot.");
             return 0;
         }
         m_pru0Data->command = 0;
@@ -508,15 +537,13 @@ void BBB48StringOutput::StopPRU(bool wait) {
         m_pru0Data->response = 0;
         m_pru0Data->command = 0xFFFF;
     }
-    __asm__ __volatile__("" ::
-                             : "memory");
+    __asm__ __volatile__("" ::: "memory");
 
     int cnt = 0;
     while (wait && cnt < 25 && m_pruData->response != 0xFFFF) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         cnt++;
-        __asm__ __volatile__("" ::
-                                 : "memory");
+        __asm__ __volatile__("" ::: "memory");
     }
     m_pru->stop();
     delete m_pru;
@@ -526,8 +553,7 @@ void BBB48StringOutput::StopPRU(bool wait) {
         while (wait && cnt < 25 && m_pru0Data->response != 0xFFFF) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             cnt++;
-            __asm__ __volatile__("" ::
-                                     : "memory");
+            __asm__ __volatile__("" ::: "memory");
         }
         m_pru0->stop();
         delete m_pru0;
@@ -549,7 +575,8 @@ int BBB48StringOutput::Close(void) {
     return ChannelOutput::Close();
 }
 
-void BBB48StringOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
+void BBB48StringOutput::GetRequiredChannelRanges(
+    const std::function<void(int, int)>& addRange) {
     PixelString* ps = NULL;
     for (int s = 0; s < m_strings.size(); s++) {
         ps = m_strings[s];
@@ -568,7 +595,10 @@ void BBB48StringOutput::GetRequiredChannelRanges(const std::function<void(int, i
         }
     }
 }
-void BBB48StringOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
+void BBB48StringOutput::OverlayTestData(unsigned char* channelData,
+                                        int cycleNum, float percentOfCycle,
+                                        int testType,
+                                        const Json::Value& config) {
     m_testCycle = cycleNum;
     m_testType = testType;
     m_testPercent = percentOfCycle;
@@ -601,7 +631,8 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
             c = out + s;
             uint32_t newLen = ps->m_outputChannels;
             uint8_t* d = tester
-                             ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
+                             ? tester->createTestData(ps, m_testCycle, m_testPercent,
+                                                      channelData, newLen)
                              : ps->prepareOutput(channelData);
             newMaxLen = std::max(newLen, newMaxLen);
             for (int p = 0; p < newLen; p++) {
@@ -650,7 +681,9 @@ void BBB48StringOutput::PrepData(unsigned char* channelData) {
 
 void BBB48StringOutput::sendData(FrameData& d, uint32_t* dptr) {
     bool doSwap = false;
-    if (d.copyToPru && (m_curFrame == 1 || memcmp(d.lastData, d.curData, std::min(d.frameSize, (uint32_t)24 * 1024)))) {
+    if (d.copyToPru &&
+        (m_curFrame == 1 || memcmp(d.lastData, d.curData,
+                                   std::min(d.frameSize, (uint32_t)24 * 1024)))) {
         // don't copy to PRU memory unless really needed to avoid bus contention
 
         // copy first 7.5K into PRU mem directly
@@ -669,7 +702,8 @@ void BBB48StringOutput::sendData(FrameData& d, uint32_t* dptr) {
                 outsize = 8 * 1024 - 512;
             }
             // second 7.5K to other PRU ram
-            m_pru->memcpyToPRU(m_pru->other_data_ram + 512, d.curData + 7624, outsize);
+            m_pru->memcpyToPRU(m_pru->other_data_ram + 512, d.curData + 7624,
+                               outsize);
             fullsize -= 7624;
         }
         if (fullsize > 0) {
@@ -699,8 +733,7 @@ int BBB48StringOutput::SendData(unsigned char* channelData) {
     }
 
     // make sure memory is flushed before command is set to 1
-    __asm__ __volatile__("" ::
-                             : "memory");
+    __asm__ __volatile__("" ::: "memory");
 
     // Send the start command
     uint32_t flag = 0;

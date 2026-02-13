@@ -12,6 +12,7 @@
  */
 
 #include <functional>
+#include <list>
 #include <string>
 #include <vector>
 
@@ -55,4 +56,5 @@ protected:
     std::string m_outputType;
     unsigned int m_startChannel;
     unsigned int m_channelCount;
+    std::list<std::string> m_usedGPIOS;
 };

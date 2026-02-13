@@ -24,6 +24,7 @@ constexpr uint32_t MAIN_DOMAIN = 0;
 
 static Ball& addBall(const std::string& n, uint32_t d, uint32_t o, int32_t pruOut = -1, int32_t pruIn = -1, bool addGPIO = true) {
     Ball& b = Ball::addBall(n, d, o);
+    b.addMode("reset", { PIN_INPUT | 7 });
     if (addGPIO) {
         b.addMode("gpio", { PIN_INPUT | 7 }).addMode("gpio_pu", { PIN_INPUT_PULLUP | 7 }).addMode("gpio_pd", { PIN_INPUT_PULLDOWN | 7 }).addMode("gpio_out", "gpio", { PIN_OUTPUT | 7 });
     }

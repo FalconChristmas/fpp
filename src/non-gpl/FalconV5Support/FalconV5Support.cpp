@@ -44,7 +44,7 @@ public:
     }
     ~FalconV5Listener() {
         const PinCapabilities& p = PinCapabilities::getPinByName(pin);
-        p.configPin("gpio_pu", false);
+        p.releasePin();
     }
     std::string pin;
     int offset = 0;
@@ -93,6 +93,9 @@ FalconV5Support::~FalconV5Support() {
     for (auto rc : receiverChains) {
         delete rc;
     }
+    for (auto& p : muxPins) {
+        p->releasePin();
+    }
     for (auto l : listeners) {
         delete l;
     }
@@ -102,7 +105,6 @@ FalconV5Support::~FalconV5Support() {
     listeners.clear();
     receiverChains.clear();
 }
-
 void FalconV5Support::addListeners(const Json::Value& config) {
     for (int x = 0; x < config["listenerPins"].size(); x++) {
         listeners.push_back(new FalconV5Listener(config["listenerPins"][x]));

@@ -102,6 +102,10 @@ int GPIO595Output::Init(Json::Value config) {
     m_dataPin->setValue(0);
     m_latchPin->setValue(1);
 
+    m_usedGPIOS.push_back(m_clockPin->name);
+    m_usedGPIOS.push_back(m_dataPin->name);
+    m_usedGPIOS.push_back(m_latchPin->name);
+
     return ThreadedChannelOutput::Init(config);
 }
 

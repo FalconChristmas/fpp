@@ -53,6 +53,7 @@ public:
 
     virtual Json::Value toJSON() const;
 
+    virtual void releasePin() const = 0;
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true,
                           const std::string& desc = "") const = 0;
@@ -137,6 +138,7 @@ public:
     GPIODCapabilities(const std::string& n, uint32_t kg, const std::string& gn = "") :
         PinCapabilitiesFluent(n, kg), gpioName(gn) {}
 
+    virtual void releasePin() const override;
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true,
                           const std::string& desc = "") const override;
@@ -191,7 +193,7 @@ class NoPinCapabilities : public PinCapabilitiesFluent<NoPinCapabilities> {
 public:
     NoPinCapabilities(const std::string& n, uint32_t kg) :
         PinCapabilitiesFluent(n, kg) {}
-
+    virtual void releasePin() const override {}
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true,
                           const std::string& desc = "") const override { return 0; }

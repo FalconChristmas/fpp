@@ -65,9 +65,11 @@ int GPIOOutput::Init(Json::Value config) {
 
     if (config.isMember("pin")) {
         m_GPIOPin = PinCapabilities::getPinByName(config["pin"].asString()).ptr();
+        m_usedGPIOS.push_back(config["pin"].asString());
     } else {
         int gpio = config["gpio"].asInt();
         m_GPIOPin = PinCapabilities::getPinByGPIO(0, gpio).ptr();
+        m_usedGPIOS.push_back(m_GPIOPin->name);
     }
     if (m_GPIOPin == nullptr) {
         LogErr(VB_CHANNELOUT, "GPIO Pin not configured\n");

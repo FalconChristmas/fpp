@@ -45,10 +45,10 @@
 #define POSITION_TO_BITMASK(x) (0x000001 << (x))
 
 // Uncomment to log elapsed time in PrepData()
-//#define LOG_ELAPSED_TIME
+// #define LOG_ELAPSED_TIME
 // Uncomment to enable the HSync (P1-5) and VSync (P1-3) pins for logic analyzing
 // WARNING: THIS WILL BREAK I2C ON THE DEVICE SINCE THE HSYNC/VSYNC PINS ARE SHARED WITH I2C
-//#define LOGIC_ANALYZING
+// #define LOGIC_ANALYZING
 
 /*
  * New DPI config as of 2026.  Rather than allowing a max of 800 or 1600
@@ -141,7 +141,7 @@ DPIPixelsOutput::~DPIPixelsOutput() {
         for (const auto& pinName : m_configuredDPIPins) {
             try {
                 const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
-                pin.configPin("gpio", true);
+                pin.releasePin();
             } catch (...) {
             }
         }
@@ -290,9 +290,9 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
         if (root["latches"].size() > 4) {
             LogErr(VB_CHANNELOUT, "Error, DPIPixels only supports 4 latch pins, %d configured by cape.\n",
-                root["latches"].size());
+                   root["latches"].size());
             WarningHolder::AddWarning("DPIPixels: Max of 4 latch pins supported, but " +
-                std::to_string(root["latches"].size()) + "configured by cape.");
+                                      std::to_string(root["latches"].size()) + "configured by cape.");
             return 0;
         }
 
@@ -306,7 +306,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
         }
     } else {
         // FIXME, shouldn't need this line, remove after testing without latch chips
-        //latchCount = 1;
+        // latchCount = 1;
     }
 
     while (!pixelStrings.empty() && pixelStrings.back()->m_outputChannels == 0) {
@@ -410,7 +410,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
 //    fbConfig["Pages"] = 3;
 
 // FIXME - Auto sync is currently consuming 100% of a core, need to figure this out.
-//#define USE_AUTO_SYNC
+// #define USE_AUTO_SYNC
 #ifdef USE_AUTO_SYNC
     fbConfig["AutoSync"] = true;
 #endif
@@ -498,7 +498,7 @@ int DPIPixelsOutput::Close(void) {
     for (const auto& pinName : m_configuredDPIPins) {
         try {
             const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
-            pin.configPin("gpio", true);
+            pin.releasePin();
         } catch (...) {
         }
     }
@@ -609,10 +609,10 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
                 int strNum = (lp * 24) + o;
                 output = outputToStringMap[strNum];
                 if ((output != -1) && (outputBuffers[output])) {
-                    dataIn[lp][31-o] =
+                    dataIn[lp][31 - o] =
                         (y0 >= stringLengths[strNum] ? 0 : ((uint32_t)outputBuffers[output][y0] << 24)) |
                         (y1 >= stringLengths[strNum] ? 0 : ((uint32_t)outputBuffers[output][y1] << 16)) |
-                        (y2 >= stringLengths[strNum] ? 0 : ((uint32_t)outputBuffers[output][y2] <<  8)) |
+                        (y2 >= stringLengths[strNum] ? 0 : ((uint32_t)outputBuffers[output][y2] << 8)) |
                         (y3 >= stringLengths[strNum] ? 0 : ((uint32_t)outputBuffers[output][y3]));
                 }
             }
@@ -961,5 +961,3 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
 
     return true;
 }
-
-

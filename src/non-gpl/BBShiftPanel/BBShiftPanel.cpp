@@ -406,9 +406,19 @@ int BBShiftPanelOutput::Close(void) {
     }
     for (auto& pinName : PRU_PINS) {
         const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
-        pin.configPin("default", false);
+        pin.releasePin();
     }
-
+    if (!singlePRU) {
+        // if not using a single PRU, then we need to change the OE pin to the other PRU
+        const PinCapabilities& pin = PinCapabilities::getPinByName("P1-36");
+        pin.releasePin();
+    }
+    if (isPWMPanel()) {
+        for (auto& pinName : PRU0_PWM_PINS) {
+            const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
+            pin.releasePin();
+        }
+    }
     return ChannelOutput::Close();
 }
 

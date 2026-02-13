@@ -106,6 +106,7 @@ int MAX7219MatrixOutput::Init(Json::Value config) {
     m_channelsPerPixel = config["channelsPerPixel"].asInt();
 
     m_csPin->configPin("gpio", true);
+    m_usedGPIOS.push_back(m_csPin->name);
 
     usleep(50000);
 

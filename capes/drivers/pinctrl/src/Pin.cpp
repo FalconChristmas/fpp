@@ -61,6 +61,12 @@ const Pin& Pin::listModes() const {
 }
 
 const Pin& Pin::setMode(const std::string& m) const {
+    if (m == "reset") {
+        for (auto& b : balls) {
+            Ball::findBall(b).setMode("reset");
+        }
+        return *this;
+    }
     const auto& md = modes.find(m);
     if (md != modes.end()) {
         // first, reset the "other" balls so they go into input mode

@@ -189,9 +189,11 @@ int BBBSerialOutput::Init(Json::Value config) {
 
     maxOut = root["serial"].size();
     for (int x = 0; x < root["serial"].size(); x++) {
-        const PinCapabilities& pin = PinCapabilities::getPinByName(root["serial"][x]["pin"].asString());
+        std::string pinName = root["serial"][x]["pin"].asString();
+        m_usedGPIOS.push_back(pinName);
+        const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
         if (m_startChannels[x] >= 0) {
-            pin.configPin(mode);
+            pin.configPin(mode, true, "BBBSerialOutput");
             countOut++;
         }
         outputFile << "#define ser" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.mappedGPIOIdx()) << "\n";

@@ -12,9 +12,9 @@
 
 #include "fpp-pch.h"
 
-#include "../log.h"
 #include "../Warnings.h"
 #include "../config.h"
+#include "../log.h"
 #include <unistd.h>
 
 #include "SerialChannelOutput.h"
@@ -31,6 +31,9 @@ SerialChannelOutput::SerialChannelOutput() :
 }
 
 SerialChannelOutput::~SerialChannelOutput() {
+    if (!pinName.empty()) {
+        PinCapabilities::getPinByName(pinName).releasePin();
+    }
 }
 
 bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const char* mode) {
@@ -61,12 +64,14 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
                 std::string nd = pin->uart.substr(0, pin->uart.find("-"));
                 LogDebug(VB_CHANNELOUT, "SerialChannelOutput::setupSerialPort:  Using cape mapping from %s to %s\n", m_deviceName.c_str(), nd.c_str());
                 m_deviceName = nd;
+                this->pinName = pinName;
             }
         }
     }
 #endif
     if (pin == nullptr) {
         pin = PinCapabilities::getPinByName(m_deviceName + "-tx").ptr();
+        this->pinName = pin->name;
     }
     if (desc.empty()) {
         desc = m_deviceName;

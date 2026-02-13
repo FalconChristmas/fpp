@@ -36,6 +36,9 @@ MuxSensorSource::MuxSensorSource(Json::Value& config) :
     }
 }
 MuxSensorSource::~MuxSensorSource() {
+    for (auto p : pins) {
+        p->releasePin();
+    }
 }
 
 void MuxSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {

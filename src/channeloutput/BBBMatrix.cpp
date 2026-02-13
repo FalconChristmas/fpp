@@ -280,6 +280,7 @@ bool BBBMatrix::configureControlPin(const std::string& ctype, Json::Value& root,
     std::string type = root["controls"][ctype]["type"].asString();
     if (type != "none") {
         std::string pinName = root["controls"][ctype]["pin"].asString();
+        m_usedGPIOS.push_back(pinName);
         const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
         if (ctype == "oe" && pin.pwm >= 99) {
             outputFile << "#define oe_pwm_address " << std::to_string(pin.getPWMRegisterAddress()) << "\n";
@@ -300,7 +301,6 @@ bool BBBMatrix::configureControlPin(const std::string& ctype, Json::Value& root,
                 controlGPIO = pin.mappedGPIOIdx();
             }
         }
-        m_usedPins.push_back(pinName);
     }
     return false;
 }
@@ -309,7 +309,7 @@ void BBBMatrix::configurePanelPin(int x, const std::string& color, int row, Json
     std::string pinName = root["outputs"][x]["pins"][color + std::to_string(row)].asString();
     const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
     pin.configPin();
-    m_usedPins.push_back(pinName);
+    m_usedGPIOS.push_back(pinName);
     int gpioIdx = pin.mappedGPIOIdx();
     minPort[gpioIdx] = std::min(minPort[gpioIdx], (int)pin.mappedGPIO());
     outputFile << "#define " << color << std::to_string(x + 1) << std::to_string(row) << "_gpio " << std::to_string(pin.mappedGPIOIdx()) << "\n";
@@ -807,10 +807,6 @@ int BBBMatrix::Close(void) {
         m_pruCopy->stop();
         delete m_pruCopy;
         m_pruCopy = nullptr;
-    }
-    for (auto& pinName : m_usedPins) {
-        const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
-        pin.configPin("default", false);
     }
     return ChannelOutput::Close();
 }

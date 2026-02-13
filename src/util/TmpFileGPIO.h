@@ -18,6 +18,7 @@ class TmpFilePinCapabilities : public PinCapabilitiesFluent<TmpFilePinCapabiliti
 public:
     TmpFilePinCapabilities(const std::string& n, uint32_t kg);
 
+    virtual void releasePin() const override {}
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true,
                           const std::string& desc = "") const override;

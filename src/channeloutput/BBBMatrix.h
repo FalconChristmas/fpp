@@ -123,8 +123,6 @@ private:
         } row[2];
     } m_pinInfo[8];
 
-    std::vector<std::string> m_usedPins;
-
     uint8_t* m_frames[8];
     int m_curFrame;
     int m_numFrames;
