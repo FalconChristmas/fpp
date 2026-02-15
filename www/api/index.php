@@ -141,6 +141,7 @@ dispatch_delete('/proxies/:ProxyIp', 'DeleteProxy');
 dispatch_get(array('/proxy/*/**', array("Ip", "urlPart")), 'GetProxiedURL');
 
 dispatch_get('/remotes', 'GetRemotes');
+dispatch_get('/remoteAction', 'remoteAction');
 
 dispatch_get('/sequence', 'GetSequences');
 dispatch_get('/sequence/current/step', 'GetSequenceStep');

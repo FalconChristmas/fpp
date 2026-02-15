@@ -166,6 +166,8 @@
             return rc;
         }
 
+
+
         function exportMultisync() {
             if (systemStatusCache == null || systemStatusCache == "" || systemStatusCache == "null") {
                 $.jGrowl("Please wait until the system statuses finish loading", { themeState: 'danger' });
@@ -454,6 +456,25 @@
 
         function isProxied(ip) {
             return proxies.includes(ip);
+        }
+
+        function getUniquePlatformsFromSelectedCheckboxes() {
+            var platforms = new Set();
+            
+            $('input.remoteCheckbox').each(function () {
+                if ($(this).is(":checked")) {
+                    var rowID = $(this).closest('tr').attr('id');
+                    if ($('#' + rowID).hasClass('filtered')) {
+                        return true;
+                    }
+                    var platform = $('#' + rowID + '_platform').text();
+                    if (platform) {
+                        platforms.add(platform);
+                    }
+                }
+            });
+            
+            return Array.from(platforms);
         }
 
         function getLocalVersionLink(ip, data) {
@@ -1809,7 +1830,7 @@
         function upgradeSystemByHostname(id) {
             id = id.replace('_logText', '');
             var ip = ipOrHostnameFromRowID(id);
-            StreamURL('upgradeRemote.php?ip=' + ip, id + '_logText', 'upgradeDone', 'upgradeFailed');
+            StreamURL('streamRemote.php?action=upgrade&ip=' + ip, id + '_logText', 'upgradeDone', 'upgradeFailed');
         }
 
         function upgradeSystem(rowID) {
@@ -1822,7 +1843,7 @@
             addLogsDivider(rowID);
 
             var ip = ipFromRowID(rowID);
-            StreamURL('upgradeRemote.php?ip=' + ip, rowID + '_logText', 'upgradeDone', 'upgradeSystemByHostname');
+            StreamURL('streamRemote.php?action=upgrade&ip=' + ip, rowID + '_logText', 'upgradeDone', 'upgradeSystemByHostname');
         }
 
         function showWaitingOnOriginUpdate(rowID, origin) {
@@ -1833,6 +1854,8 @@
         }
 
         var origins = {};
+        function upgradeOSSelectedSystems() {
+        }
         function upgradeSelectedSystems() {
             $origins = {};
             $('input.remoteCheckbox').each(function () {
@@ -2261,6 +2284,7 @@
 
             switch (action) {
                 case 'upgradeFPP': upgradeSelectedSystems(); break;
+                case 'upgradeOS': upgradeOSSelectedSystems(); break;
                 case 'restartFPPD': restartSelectedSystems(); break;
                 case 'copyFiles': copyFilesToSelectedSystems(); break;
                 case 'copyOSFiles': copyOSFilesToSelectedSystems(); break;
@@ -2285,6 +2309,7 @@
                 case 'copyFiles': $('#copyOptions').show(); break;
                 case 'copyOSFiles': $('#copyOSOptions').show(); break;
                 case 'changeBranch': $('#changeBranchOptions').show(); break;
+                case 'upgradeOS': $('#osUpgradeOptions').show(); break;
             }
         }
 
@@ -2388,6 +2413,7 @@
                                 <select id='multiAction' onChange='multiActionChanged();'>
                                     <option value='noop'>---- Select an Action ----</option>
                                     <option value='upgradeFPP'>Upgrade FPP</option>
+                                    <option value='upgradeOS'>Upgrade OS</option>
                                     <option value='restartFPPD'>Restart FPPD</option>
                                     <option value='reboot'>Reboot</option>
                                     <option value='shutdown'>Shutdown</option>
@@ -2422,6 +2448,15 @@
                                 <select id="branchSelect">
                                 </select>
                             </h2>
+                        </div>
+                        <div id='osUpgradeOptions' class='actionOptions'>
+                            <h2>Upgrade OS</h2>
+                            <p>This will download (if necessary) the FPPOS OS upgrade file to each selected remote system and then
+                                trigger the upgrade process on the remote system. This process can take a significant amount of time 
+                            </p>
+                            <div id='osUpgradeWarning'>Warning message goes here</div>
+                                
+                            </div>
                         </div>
                         <span class='actionOptions' id='copyOptions'>
                             <br>

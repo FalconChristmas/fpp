@@ -10,7 +10,23 @@ if (!isset($_GET['ip'])) {
     exit(0);
 }
 
+if (!isset($_GET['action'])) {
+    echo "ERROR: No action given\n";
+    exit(0);
+}
+
 $ip = $_GET['ip'];
+$action = $_GET['action'];
+
+$action_map = [
+    'upgrade' => '/manualUpdate.php?wrapped=1',
+    'upgradeOS' => '/upgradeOS.php?wrapped=1&os=' . ($_GET['os'] ?? 'NO_OS_SPECIFIED'),
+];
+
+if (!array_key_exists($action, $action_map)) {
+    echo "ERROR: Invalid action given\n";
+    exit(0);
+}
 
 if (!filter_var($ip, FILTER_VALIDATE_IP)) {
     $clean_ip = htmlspecialchars($ip, ENT_QUOTES, 'UTF-8');
@@ -21,7 +37,7 @@ if (!filter_var($ip, FILTER_VALIDATE_IP)) {
 echo "Upgrading FPP @ $ip\n";
 
 // FPP 5.0+
-$curl = curl_init('http://' . $ip . '/manualUpdate.php?wrapped=1');
+$curl = curl_init('http://' . $ip . $action_map[$action]);
 curl_setopt($curl, CURLOPT_FAILONERROR, true);
 curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
 curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
@@ -29,4 +45,4 @@ curl_exec($curl);
 $rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
 curl_close($curl);
 
-echo "\nFPP Upgraded\n";
+echo "\nDone\n";
