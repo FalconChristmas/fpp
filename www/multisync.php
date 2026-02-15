@@ -477,6 +477,81 @@
             return Array.from(platforms);
         }
 
+        function getUniqueIpFromSelectedCheckboxes() {
+            var ips = new Set();
+            
+            $('input.remoteCheckbox').each(function () {
+                if ($(this).is(":checked")) {
+                    var rowID = $(this).closest('tr').attr('id');
+                    if ($('#' + rowID).hasClass('filtered')) {
+                        return true;
+                    }
+                    var ip = $('#' + rowID).attr('ip');
+                    if (ip) {
+                        ips.add(ip);
+                    }
+                }
+            });
+            
+            return Array.from(ips);
+        }
+
+        function validateOSUpgrade() {
+            // THis method is called to validate that we can do an OS UPgrade
+            var uniquePlatforms = getUniquePlatformsFromSelectedCheckboxes();
+            var warningDiv = $('#osUpgradeWarning');
+            
+            if (uniquePlatforms.length === 0) {
+                warningDiv.html('You must select at least one remote system.');
+            } else if (uniquePlatforms.length > 1) {
+                warningDiv.html('All selected systems must have the same platform. Currently selected: ' + uniquePlatforms.join(', '));
+            } else {
+                warningDiv.html('');
+            }
+
+            if (!$('#osUpgradeOptions').is(':visible')) {
+                // No point in doing Rest calls if the section isn't shown.
+                return;
+            }
+
+            var ips = getUniqueIpFromSelectedCheckboxes();
+            console.log('IPs to check for OS upgrade files:', ips);
+            if (ips.length == 0) {
+                warningDiv.html('Unable to find IP address for selected systems. Please ensure at least one system is selected and not filtered out.');
+            } else {
+                var foundFiles = false;
+                var checkNextIp = function(index) {
+                    if (foundFiles || index >= ips.length) {
+                        return;
+                    }
+                    
+                    var ip = ips[index];
+                    $.ajax({
+                        url: 'api/remoteAction?ip=' + ip + '&action=listUpgrades',
+                        type: 'GET',
+                        dataType: 'json'
+                    }).done(function(data) {
+                            if (data && Array.isArray(data.files) && data.files.length > 0) {
+                                foundFiles = true;
+                                updateOSFileList(data.files);
+                            } else {
+                                checkNextIp(index + 1);
+                            }
+                        })
+                        .fail(function(error) {
+                            console.error('Error querying ' + ip + ':', error);
+                            checkNextIp(index + 1);
+                        });
+                };
+                checkNextIp(0);
+            }
+        }
+
+        function updateOSFileList(files) {
+            console.log('OS Upgrade files found:');
+            console.log(files);
+        }
+
         function getLocalVersionLink(ip, data) {
             var updatesAvailable = 0;
             if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
@@ -2235,7 +2310,7 @@
 
         function clearSelected() {
             // clear all entries, even if filtered
-            $('input.remoteCheckbox').prop('checked', false);
+            $('input.remoteCheckbox').prop('checked', false).first().trigger('change');
         }
 
         function selectAll() {
@@ -2246,6 +2321,8 @@
                     $(this).prop('checked', true);
                 }
             });
+            // Trigger change event to update platform validation
+            $('input.remoteCheckbox:first').trigger('change');
         }
 
         function selectAllChanged() {
@@ -2309,7 +2386,7 @@
                 case 'copyFiles': $('#copyOptions').show(); break;
                 case 'copyOSFiles': $('#copyOSOptions').show(); break;
                 case 'changeBranch': $('#changeBranchOptions').show(); break;
-                case 'upgradeOS': $('#osUpgradeOptions').show(); break;
+                case 'upgradeOS': $('#osUpgradeOptions').show();validateOSUpgrade(); break;
             }
         }
 
@@ -2454,7 +2531,7 @@
                             <p>This will download (if necessary) the FPPOS OS upgrade file to each selected remote system and then
                                 trigger the upgrade process on the remote system. This process can take a significant amount of time 
                             </p>
-                            <div id='osUpgradeWarning'>Warning message goes here</div>
+                            <div id='osUpgradeWarning' class='warning-text'>Warning message goes here</div>
                                 
                             </div>
                         </div>
@@ -2821,7 +2898,10 @@
                 });
             }, 3000);
 
-
+            // Event handler for remoteCheckbox changes to validate platform selection
+            $(document).on('change', 'input.remoteCheckbox', function() {
+                validateOSUpgrade();
+            });
 
             autoRefreshToggled();
 
