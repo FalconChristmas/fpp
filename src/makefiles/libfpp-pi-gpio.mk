@@ -1,6 +1,6 @@
 ifeq '$(ARCH)' 'Raspberry Pi'
 
-OBJECTS_fpp_pi_gpio_so += util/PiGPIOUtils.o util/PiFaceUtils.o util/MCP23x17Utils.o util/bcm2835.o
+OBJECTS_fpp_pi_gpio_so += util/PiGPIOUtils.o util/PiFaceUtils.o util/MCP23x17Utils.o
 LIBS_fpp_pi_gpio_so += -Wl,-rpath=$(SRCDIR):. -L. -ljsoncpp
 
 TARGETS += libfpp-pi-gpio.$(SHLIB_EXT)
