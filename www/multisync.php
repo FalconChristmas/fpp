@@ -497,9 +497,10 @@
         }
 
         function validateOSUpgrade() {
-            // THis method is called to validate that we can do an OS UPgrade
+            // This method is called to validate that we can do an OS Upgrade
             var uniquePlatforms = getUniquePlatformsFromSelectedCheckboxes();
             var warningDiv = $('#osUpgradeWarning');
+            $('#osUpgradeActionDiv').hide();
             
             if (uniquePlatforms.length === 0) {
                 warningDiv.html('You must select at least one remote system.');
@@ -509,13 +510,12 @@
                 warningDiv.html('');
             }
 
-            if (!$('#osUpgradeOptions').is(':visible')) {
-                // No point in doing Rest calls if the section isn't shown.
+            if (!$('#osUpgradeOptions').is(':visible') || warningDiv.html() != '') {
+                // No point in doing Rest calls if the section isn't shown or there are warnings.
                 return;
             }
 
             var ips = getUniqueIpFromSelectedCheckboxes();
-            console.log('IPs to check for OS upgrade files:', ips);
             if (ips.length == 0) {
                 warningDiv.html('Unable to find IP address for selected systems. Please ensure at least one system is selected and not filtered out.');
             } else {
@@ -526,6 +526,7 @@
                     }
                     
                     var ip = ips[index];
+                    warningDiv.html('Please Wait... Checking ' + ip + ' for OS Upgrade files...');
                     $.ajax({
                         url: 'api/remoteAction?ip=' + ip + '&action=listUpgrades',
                         type: 'GET',
@@ -533,6 +534,7 @@
                     }).done(function(data) {
                             if (data && Array.isArray(data.files) && data.files.length > 0) {
                                 foundFiles = true;
+                                warningDiv.html('');
                                 updateOSFileList(data.files);
                             } else {
                                 checkNextIp(index + 1);
@@ -548,8 +550,26 @@
         }
 
         function updateOSFileList(files) {
-            console.log('OS Upgrade files found:');
-            console.log(files);
+            // Function to update the OS Dropdown list.
+
+            //cleanup previous load values
+            $('#OSSelect option').filter(function () { return parseInt(this.value) > 0; }).remove();
+         
+            
+            for (const file of files) {
+                let id = file["asset_id"];
+                if (id < 211762298) {
+                    // This is a safety check to prevent some really old files from showing up in the list. 
+                    // The asset_id may need to be manually updated in the future.
+                    continue;
+                }
+                $('#OSSelect').append($('<option>', {
+                    value: id,
+                    text: file["filename"]
+                    }));
+            }   
+
+            $('#osUpgradeActionDiv').show();
         }
 
         function getLocalVersionLink(ip, data) {
@@ -2529,10 +2549,19 @@
                         <div id='osUpgradeOptions' class='actionOptions'>
                             <h2>Upgrade OS</h2>
                             <p>This will download (if necessary) the FPPOS OS upgrade file to each selected remote system and then
-                                trigger the upgrade process on the remote system. This process can take a significant amount of time 
+                                trigger the upgrade process on the remote system. This process can take a significant amount of time.
+                                As this executes a fppos update, please use with great care. <b>NOTE:</b>You should manually make 
+                                sure there is at least 200MB in order to be able to apply the fppos file or 1GB if you need to download it.
+                                This is <b>not</b> checked by the system before attempting the upgrade.
                             </p>
-                            <div id='osUpgradeWarning' class='warning-text'>Warning message goes here</div>
-                                
+                            <div id='osUpgradeWarning' class='warning-text'>
+                                Warning message goes here
+                            </div>
+                            <div id='osUpgradeActionDiv'>
+                                <b>Select File:</b>
+                                <select class='OSSelect' id='OSSelect'>
+                                    <option value=''>-- Choose an OS Version --</option>
+                                </select>
                             </div>
                         </div>
                         <span class='actionOptions' id='copyOptions'>
