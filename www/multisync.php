@@ -1929,6 +1929,15 @@
         }
 
         function upgradeSystem(rowID) {
+            streamUpgrade(rowID, 'upgrade', 'upgradeSystemByHostname');
+        }
+
+        function upgradeOSSystem(rowID, os) {
+            streamUpgrade(rowID, 'upgradeOS', 'upgradeFailed', '&os=' + os);
+        }
+
+        
+        function streamUpgrade(rowID, action, failedCallback, additionalParams = '') {
             $('#' + rowID).find('input.remoteCheckbox').prop('checked', false);
 
             streamCount++;
@@ -1938,7 +1947,7 @@
             addLogsDivider(rowID);
 
             var ip = ipFromRowID(rowID);
-            StreamURL('streamRemote.php?action=upgrade&ip=' + ip, rowID + '_logText', 'upgradeDone', 'upgradeSystemByHostname');
+            StreamURL('streamRemote.php?action=' + action + '&ip=' + ip + additionalParams, rowID + '_logText', 'upgradeDone', failedCallback);
         }
 
         function showWaitingOnOriginUpdate(rowID, origin) {
@@ -1949,7 +1958,24 @@
         }
 
         var origins = {};
+
         function upgradeOSSelectedSystems() {
+            // Apply fppos upgrades to selected systems.
+            var os = $('#OSSelect option:selected').text();
+            if (os == '' || !os.includes('.fppos')) {
+                alert('Please select a valid OS upgrade file to upgrade to.');
+                return;
+            }
+            $('input.remoteCheckbox').each(function () {
+                if ($(this).is(":checked")) {
+                    var rowID = $(this).closest('tr').attr('id');
+                    ip = ipFromRowID(rowID);
+                    if ($('#' + rowID).hasClass('filtered')) {
+                        return true;
+                    }
+                    upgradeOSSystem(rowID, os);
+                }
+            });
         }
         function upgradeSelectedSystems() {
             $origins = {};
@@ -2548,11 +2574,16 @@
                         </div>
                         <div id='osUpgradeOptions' class='actionOptions'>
                             <h2>Upgrade OS</h2>
-                            <p>This will download (if necessary) the FPPOS OS upgrade file to each selected remote system and then
-                                trigger the upgrade process on the remote system. This process can take a significant amount of time.
-                                As this executes a fppos update, please use with great care. <b>NOTE:</b>You should manually make 
-                                sure there is at least 200MB in order to be able to apply the fppos file or 1GB if you need to download it.
-                                This is <b>not</b> checked by the system before attempting the upgrade.
+                            <p>This will apply the FPPOS  upgrade file to each selected remote system, triggering the upgrade process.
+                                This process can take a significant amount of time. As this executes a fppos update, please use with great care.
+                                <br>
+                                <b>NOTES:</b>
+                                <ul>
+                                    <li>This will fail if the FPPOS file is not already on the system. You can use the "Copy OS Upgrade Files" action 
+                                        to copy it to the system before applying it.</li>
+                                    <li>You should manually verify there is at least 200MB of free space on the remote system before applying the upgrade 
+                                        as it can fail if there isn't enough space to apply the update.</li>
+                                </ul>
                             </p>
                             <div id='osUpgradeWarning' class='warning-text'>
                                 Warning message goes here
