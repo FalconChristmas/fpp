@@ -1,5 +1,53 @@
 <?
 require_once(__DIR__ . "/../../config.php");
+
+function remoteAction()
+{
+    global $settings;
+    $ip = htmlspecialchars(isset($_GET['ip']) ? $_GET['ip'] : null);
+    $action = htmlspecialchars(isset($_GET['action']) ? $_GET['action'] : null);
+
+    $action_map = [
+        'listUpgrades' => '/api/git/releases/os',
+        'reboot' => '/api/system/reboot',
+        'restartFppd' => '/api/system/fppd/restart',
+        'upgradeOS' => '/upgradeOS',
+    ];
+
+    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        http_response_code(400);
+        echo json_encode(['error' => "Invalid IP address: $ip"]);
+        exit(0);
+    }
+
+    if (!array_key_exists($action, $action_map)) {
+        http_response_code(400);
+        return json(['error' => 'HTTP Error: 400', 'details' => "Invalid action given: $action"]);
+    }
+
+    $curl = curl_init('http://' . $ip . $action_map[$action]);
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+    $request_content = curl_exec($curl);
+    $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    if ($http_code !== 200) {
+        curl_close($curl);
+        http_response_code($http_code);
+        $details = $request_content ? $request_content : 'No response content';
+        if ($http_code < 200) {
+            $details = curl_error($curl);
+        }
+        http_response_code(400);
+        return json(['error' => 'HTTP Error: ' . $http_code, 'details' => $request_content]);
+    }
+    curl_close($curl);
+
+    return($request_content);
+
+}
+
 function LoadProxyList()
 {
     global $settings;

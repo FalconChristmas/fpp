@@ -166,6 +166,8 @@
             return rc;
         }
 
+
+
         function exportMultisync() {
             if (systemStatusCache == null || systemStatusCache == "" || systemStatusCache == "null") {
                 $.jGrowl("Please wait until the system statuses finish loading", { themeState: 'danger' });
@@ -454,6 +456,148 @@
 
         function isProxied(ip) {
             return proxies.includes(ip);
+        }
+
+        /**
+         * Extracts unique platform types from all selected (checked) remote systems.
+         * Skips systems that are currently filtered out in the UI.
+         * 
+         * @returns {Array} Array of unique platform names (e.g., ['BBB', 'Pi'])
+         */
+        function getUniquePlatformsFromSelectedCheckboxes() {
+            var platforms = new Set();
+            
+            $('input.remoteCheckbox').each(function () {
+                if ($(this).is(":checked")) {
+                    var rowID = $(this).closest('tr').attr('id');
+                    if ($('#' + rowID).hasClass('filtered')) {
+                        return true;
+                    }
+                    var platform = $('#' + rowID + '_platform').text();
+                    if (platform) {
+                        platforms.add(platform);
+                    }
+                }
+            });
+            
+            return Array.from(platforms);
+        }
+
+        /**
+         * Extracts unique IP addresses from all selected (checked) remote systems.
+         * Skips systems that are currently filtered out in the UI.
+         * 
+         * @returns {Array} Array of unique IP addresses from selected systems
+         */
+        function getUniqueIpFromSelectedCheckboxes() {
+            var ips = new Set();
+            
+            $('input.remoteCheckbox').each(function () {
+                if ($(this).is(":checked")) {
+                    var rowID = $(this).closest('tr').attr('id');
+                    if ($('#' + rowID).hasClass('filtered')) {
+                        return true;
+                    }
+                    var ip = ipFromRowID(rowID);
+                    if (ip) {
+                        ips.add(ip);
+                    }
+                }
+            });
+            
+            return Array.from(ips);
+        }
+
+        /**
+         * Validates the prerequisites for performing an OS upgrade on selected systems.
+         * Checks that:
+         * - At least one system is selected
+         * - All selected systems have the same platform
+         * 
+         * As a side effect, updates the list of available OS files via updateOSFileList()
+         * 
+         * Displays appropriate warning messages if validation fails, or clears warnings
+         * and populates the OS file dropdown if validation succeeds.
+         */
+        function validateOSUpgrade() {
+            var uniquePlatforms = getUniquePlatformsFromSelectedCheckboxes();
+            var warningDiv = $('#osUpgradeWarning');
+            $('#osUpgradeActionDiv').hide();
+            
+            if (uniquePlatforms.length === 0) {
+                warningDiv.html('You must select at least one remote system.');
+            } else if (uniquePlatforms.length > 1) {
+                warningDiv.html('All selected systems must have the same platform. Currently selected: ' + uniquePlatforms.join(', '));
+            } else {
+                warningDiv.html('');
+            }
+
+            if (!$('#osUpgradeOptions').is(':visible') || warningDiv.html() != '') {
+                // No point in doing Rest calls if the section isn't shown or there are warnings.
+                return;
+            }
+
+            var ips = getUniqueIpFromSelectedCheckboxes();
+            if (ips.length == 0) {
+                warningDiv.html('Unable to find IP address for selected systems. Please ensure at least one system is selected and not filtered out.');
+            } else {
+                var foundFiles = false;
+                var checkNextIp = function(index) {
+                    if (foundFiles || index >= ips.length) {
+                        return;
+                    }
+                    
+                    var ip = ips[index];
+                    warningDiv.html('Please Wait... Checking ' + ip + ' for OS Upgrade files...');
+                    $.ajax({
+                        url: 'api/remoteAction?ip=' + ip + '&action=listUpgrades',
+                        type: 'GET',
+                        dataType: 'json'
+                    }).done(function(data) {
+                            if (data && Array.isArray(data.files) && data.files.length > 0) {
+                                foundFiles = true;
+                                warningDiv.html('');
+                                updateOSFileList(data.files);
+                            } else {
+                                checkNextIp(index + 1);
+                            }
+                        })
+                        .fail(function(error) {
+                            console.error('Error querying ' + ip + ':', error);
+                            checkNextIp(index + 1);
+                        });
+                };
+                checkNextIp(0);
+            }
+        }
+
+        /**
+         * Updates the OS file dropdown list with available OS upgrade files.
+         * Clears previous options and populates with new files, applying a minimum
+         * asset_id threshold to filter out deprecated versions.
+         * Makes the upgrade action div visible after populating the list.
+         * 
+         * @param {Array} files - Array of file objects containing 'asset_id' and 'filename' properties
+         */
+        function updateOSFileList(files) {
+            // Cleanup previous load values
+            $('#OSSelect option').filter(function () { return parseInt(this.value) > 0; }).remove();
+         
+            
+            for (const file of files) {
+                let id = file["asset_id"];
+                if (id < 211762298) {
+                    // This is a safety check to prevent some really old files from showing up in the list. 
+                    // The asset_id may need to be manually updated in the future.
+                    continue;
+                }
+                $('#OSSelect').append($('<option>', {
+                    value: id,
+                    text: file["filename"]
+                    }));
+            }   
+
+            $('#osUpgradeActionDiv').show();
         }
 
         function getLocalVersionLink(ip, data) {
@@ -1809,10 +1953,35 @@
         function upgradeSystemByHostname(id) {
             id = id.replace('_logText', '');
             var ip = ipOrHostnameFromRowID(id);
-            StreamURL('upgradeRemote.php?ip=' + ip, id + '_logText', 'upgradeDone', 'upgradeFailed');
+            StreamURL('streamRemote.php?action=upgrade&ip=' + ip, id + '_logText', 'upgradeDone', 'upgradeFailed');
         }
 
         function upgradeSystem(rowID) {
+            streamUpgrade(rowID, 'upgrade', 'upgradeSystemByHostname');
+        }
+
+        /**
+         * Initiates an OS upgrade for a single remote system.
+         * Delegates to streamUpgrade with the 'upgradeOS' action.
+         * 
+         * @param {string} rowID - The table row ID of the target system
+         * @param {string} os - The OS upgrade filename/version to apply
+         */
+        function upgradeOSSystem(rowID, os) {
+            streamUpgrade(rowID, 'upgradeOS', 'upgradeFailed', '&os=' + os);
+        }
+
+        /**
+         * Generic upgrade streaming handler that manages the upgrade process for a single system.
+         * Handles the UI state (hiding checkboxes, showing logs), manages stream count,
+         * and invokes the appropriate remote action via StreamURL.
+         * 
+         * @param {string} rowID - The table row ID of the target system
+         * @param {string} action - The type of upgrade action ('upgrade', 'upgradeOS', etc.)
+         * @param {string} failedCallback - Name of the callback function to invoke on failure
+         * @param {string} [additionalParams=''] - Additional URL parameters to pass to the remote action (e.g., '&os=filename')
+         */
+        function streamUpgrade(rowID, action, failedCallback, additionalParams = '') {
             $('#' + rowID).find('input.remoteCheckbox').prop('checked', false);
 
             streamCount++;
@@ -1822,7 +1991,7 @@
             addLogsDivider(rowID);
 
             var ip = ipFromRowID(rowID);
-            StreamURL('upgradeRemote.php?ip=' + ip, rowID + '_logText', 'upgradeDone', 'upgradeSystemByHostname');
+            StreamURL('streamRemote.php?action=' + action + '&ip=' + ip + additionalParams, rowID + '_logText', 'upgradeDone', failedCallback);
         }
 
         function showWaitingOnOriginUpdate(rowID, origin) {
@@ -1833,6 +2002,25 @@
         }
 
         var origins = {};
+
+        function upgradeOSSelectedSystems() {
+            // Apply fppos upgrades to selected systems.
+            var os = $('#OSSelect option:selected').text();
+            if (os == '' || !os.includes('.fppos')) {
+                alert('Please select a valid OS upgrade file to upgrade to.');
+                return;
+            }
+            $('input.remoteCheckbox').each(function () {
+                if ($(this).is(":checked")) {
+                    var rowID = $(this).closest('tr').attr('id');
+                    ip = ipFromRowID(rowID);
+                    if ($('#' + rowID).hasClass('filtered')) {
+                        return true;
+                    }
+                    upgradeOSSystem(rowID, os);
+                }
+            });
+        }
         function upgradeSelectedSystems() {
             $origins = {};
             $('input.remoteCheckbox').each(function () {
@@ -2212,7 +2400,7 @@
 
         function clearSelected() {
             // clear all entries, even if filtered
-            $('input.remoteCheckbox').prop('checked', false);
+            $('input.remoteCheckbox').prop('checked', false).first().trigger('change');
         }
 
         function selectAll() {
@@ -2223,6 +2411,8 @@
                     $(this).prop('checked', true);
                 }
             });
+            // Trigger change event to update platform validation
+            $('input.remoteCheckbox:first').trigger('change');
         }
 
         function selectAllChanged() {
@@ -2261,6 +2451,7 @@
 
             switch (action) {
                 case 'upgradeFPP': upgradeSelectedSystems(); break;
+                case 'upgradeOS': upgradeOSSelectedSystems(); break;
                 case 'restartFPPD': restartSelectedSystems(); break;
                 case 'copyFiles': copyFilesToSelectedSystems(); break;
                 case 'copyOSFiles': copyOSFilesToSelectedSystems(); break;
@@ -2285,6 +2476,7 @@
                 case 'copyFiles': $('#copyOptions').show(); break;
                 case 'copyOSFiles': $('#copyOSOptions').show(); break;
                 case 'changeBranch': $('#changeBranchOptions').show(); break;
+                case 'upgradeOS': $('#osUpgradeOptions').show();validateOSUpgrade(); break;
             }
         }
 
@@ -2388,6 +2580,7 @@
                                 <select id='multiAction' onChange='multiActionChanged();'>
                                     <option value='noop'>---- Select an Action ----</option>
                                     <option value='upgradeFPP'>Upgrade FPP</option>
+                                    <option value='upgradeOS'>Upgrade OS</option>
                                     <option value='restartFPPD'>Restart FPPD</option>
                                     <option value='reboot'>Reboot</option>
                                     <option value='shutdown'>Shutdown</option>
@@ -2422,6 +2615,29 @@
                                 <select id="branchSelect">
                                 </select>
                             </h2>
+                        </div>
+                        <div id='osUpgradeOptions' class='actionOptions'>
+                            <h2>Upgrade OS</h2>
+                            <p>This will apply the FPPOS  upgrade file to each selected remote system, triggering the upgrade process.
+                                This process can take a significant amount of time. As this executes a fppos update, please use with great care.
+                                <br>
+                                <b>NOTES:</b>
+                                <ul>
+                                    <li>This will fail if the FPPOS file is not already on the system. You can use the "Copy OS Upgrade Files" action 
+                                        to copy it to the system before applying it.</li>
+                                    <li>You should manually verify there is at least 200MB of free space on the remote system before applying the upgrade 
+                                        as it can fail if there isn't enough space to apply the update.</li>
+                                </ul>
+                            </p>
+                            <div id='osUpgradeWarning' class='warning-text'>
+                                Warning message goes here
+                            </div>
+                            <div id='osUpgradeActionDiv'>
+                                <b>Select File:</b>
+                                <select class='OSSelect' id='OSSelect'>
+                                    <option value=''>-- Choose an OS Version --</option>
+                                </select>
+                            </div>
                         </div>
                         <span class='actionOptions' id='copyOptions'>
                             <br>
@@ -2786,7 +3002,10 @@
                 });
             }, 3000);
 
-
+            // Event handler for remoteCheckbox changes to validate platform selection
+            $(document).on('change', 'input.remoteCheckbox', function() {
+                validateOSUpgrade();
+            });
 
             autoRefreshToggled();
 
