@@ -458,6 +458,12 @@
             return proxies.includes(ip);
         }
 
+        /**
+         * Extracts unique platform types from all selected (checked) remote systems.
+         * Skips systems that are currently filtered out in the UI.
+         * 
+         * @returns {Array} Array of unique platform names (e.g., ['BBB', 'Pi'])
+         */
         function getUniquePlatformsFromSelectedCheckboxes() {
             var platforms = new Set();
             
@@ -477,6 +483,12 @@
             return Array.from(platforms);
         }
 
+        /**
+         * Extracts unique IP addresses from all selected (checked) remote systems.
+         * Skips systems that are currently filtered out in the UI.
+         * 
+         * @returns {Array} Array of unique IP addresses from selected systems
+         */
         function getUniqueIpFromSelectedCheckboxes() {
             var ips = new Set();
             
@@ -486,7 +498,7 @@
                     if ($('#' + rowID).hasClass('filtered')) {
                         return true;
                     }
-                    var ip = $('#' + rowID).attr('ip');
+                    var ip = ipFromRowID(rowID);
                     if (ip) {
                         ips.add(ip);
                     }
@@ -496,8 +508,18 @@
             return Array.from(ips);
         }
 
+        /**
+         * Validates the prerequisites for performing an OS upgrade on selected systems.
+         * Checks that:
+         * - At least one system is selected
+         * - All selected systems have the same platform
+         * 
+         * As a side effect, updates the list of available OS files via updateOSFileList()
+         * 
+         * Displays appropriate warning messages if validation fails, or clears warnings
+         * and populates the OS file dropdown if validation succeeds.
+         */
         function validateOSUpgrade() {
-            // This method is called to validate that we can do an OS Upgrade
             var uniquePlatforms = getUniquePlatformsFromSelectedCheckboxes();
             var warningDiv = $('#osUpgradeWarning');
             $('#osUpgradeActionDiv').hide();
@@ -549,10 +571,16 @@
             }
         }
 
+        /**
+         * Updates the OS file dropdown list with available OS upgrade files.
+         * Clears previous options and populates with new files, applying a minimum
+         * asset_id threshold to filter out deprecated versions.
+         * Makes the upgrade action div visible after populating the list.
+         * 
+         * @param {Array} files - Array of file objects containing 'asset_id' and 'filename' properties
+         */
         function updateOSFileList(files) {
-            // Function to update the OS Dropdown list.
-
-            //cleanup previous load values
+            // Cleanup previous load values
             $('#OSSelect option').filter(function () { return parseInt(this.value) > 0; }).remove();
          
             
@@ -1932,11 +1960,27 @@
             streamUpgrade(rowID, 'upgrade', 'upgradeSystemByHostname');
         }
 
+        /**
+         * Initiates an OS upgrade for a single remote system.
+         * Delegates to streamUpgrade with the 'upgradeOS' action.
+         * 
+         * @param {string} rowID - The table row ID of the target system
+         * @param {string} os - The OS upgrade filename/version to apply
+         */
         function upgradeOSSystem(rowID, os) {
             streamUpgrade(rowID, 'upgradeOS', 'upgradeFailed', '&os=' + os);
         }
 
-        
+        /**
+         * Generic upgrade streaming handler that manages the upgrade process for a single system.
+         * Handles the UI state (hiding checkboxes, showing logs), manages stream count,
+         * and invokes the appropriate remote action via StreamURL.
+         * 
+         * @param {string} rowID - The table row ID of the target system
+         * @param {string} action - The type of upgrade action ('upgrade', 'upgradeOS', etc.)
+         * @param {string} failedCallback - Name of the callback function to invoke on failure
+         * @param {string} [additionalParams=''] - Additional URL parameters to pass to the remote action (e.g., '&os=filename')
+         */
         function streamUpgrade(rowID, action, failedCallback, additionalParams = '') {
             $('#' + rowID).find('input.remoteCheckbox').prop('checked', false);
 
