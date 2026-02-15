@@ -200,7 +200,7 @@ $freeSpace = disk_free_space($uploadDirectory);
                         //leave all avail options in place
                     } else {
                         //remove legacy files (n-1) - git assetid needs manually updating over time
-                        $('#OSSelect option').filter(function () { return parseInt(this.value) < 103024154; }).remove();
+                        $('#OSSelect option').filter(function () { return parseInt(this.value) < 211762298; }).remove();
                     }
 
                     //only show alpha and beta images in Advanced ui
