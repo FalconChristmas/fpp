@@ -13,7 +13,6 @@
 
 #include <string>
 
-
 class FPPColorOrder {
 public:
     enum Value {
@@ -23,26 +22,43 @@ public:
         kColorOrderGBR,
         kColorOrderBRG,
         kColorOrderBGR,
-        kColorOrderONE
+        kColorOrderONE,
+        kColorOrderRGBW,
+        kColorOrderRBGW,
+        kColorOrderGRBW,
+        kColorOrderGBRW,
+        kColorOrderBRGW,
+        kColorOrderBGRW,
+        kColorOrderWRGB,
+        kColorOrderWRBG,
+        kColorOrderWGRB,
+        kColorOrderWGBR,
+        kColorOrderWBRG,
+        kColorOrderWBGR
     };
 
     FPPColorOrder() = default;
-    constexpr FPPColorOrder(Value order) : value(order) { }
+    constexpr FPPColorOrder(Value order) : value(order) {}
 
     constexpr operator Value() const { return value; }
-    explicit operator bool() const = delete;  
+    explicit operator bool() const = delete;
 
     constexpr bool operator==(FPPColorOrder a) const { return value == a.value; }
     constexpr bool operator==(Value a) const { return value == a; }
     constexpr bool operator!=(FPPColorOrder a) const { return value != a.value; }
     constexpr bool operator!=(Value a) const { return value != a; }
 
-    int redOffset();
-    int greenOffset();
-    int blueOffset();
+    int redOffset() const;
+    int greenOffset() const;
+    int blueOffset() const;
+    int whiteOffset() const;
+
+    int channelCount() const;
+    bool hasWhite() const;
+
 private:
     Value value;
 };
 
 FPPColorOrder ColorOrderFromString(const std::string& colorOrderStr);
-const std::string ColorOrderToString(FPPColorOrder colorOrder);
+const std::string ColorOrderToString(const FPPColorOrder& colorOrder);

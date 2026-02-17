@@ -47,7 +47,6 @@ const char* SMART_RECEIVER_LABELS[] = {
 };
 
 VirtualString::VirtualString() :
-    whiteOffset(-1),
     receiverNum(-1),
     startChannel(0),
     pixelCount(0),
@@ -65,7 +64,6 @@ VirtualString::VirtualString() :
 }
 
 VirtualString::VirtualString(int rt, int rn) :
-    whiteOffset(-1),
     receiverNum(rn),
     startChannel(0),
     pixelCount(0),
@@ -123,10 +121,7 @@ int VirtualString::channelsPerNode() const {
     if (receiverNum >= 0) {
         return 1;
     }
-    if (colorOrder == FPPColorOrder::kColorOrderONE) {
-        return 1;
-    }
-    return whiteOffset == -1 ? 3 : 4;
+    return colorOrder.channelCount();
 }
 
 /*
@@ -163,9 +158,9 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
     m_portNumber = config["portNumber"].asInt();
     m_outputChannels = 0;
 
-    smartReceiverType = ReceiverType::Standard;
     int receiverCount = 1;
     if (m_isSmartReceiver && config.isMember("differentialType")) {
+        smartReceiverType = ReceiverType::Standard;
         int rt = config["differentialType"].asInt();
         if (rt) {
             if (rt <= 3) {
@@ -182,6 +177,8 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
                 smartReceiverType = ReceiverType::v2;
             }
         }
+    } else {
+        smartReceiverType = ReceiverType::None;
     }
     m_isSmartReceiver = smartReceiverType != ReceiverType::Standard;
     if (smartReceiverType == ReceiverType::v1) {
@@ -350,17 +347,6 @@ int PixelString::ReadVirtualString(Json::Value& vsc, VirtualString& vs) const {
         CHECKPS_SETTING(vs.zigZag < 0);
 
         std::string colorOrder = vsc["colorOrder"].asString();
-        if (colorOrder.length() == 4) {
-            if (colorOrder[0] == 'W') {
-                vs.whiteOffset = 0;
-                colorOrder = colorOrder.substr(1);
-            } else {
-                vs.whiteOffset = 3;
-                colorOrder = colorOrder.substr(0, 3);
-            }
-        } else if (colorOrder.length() == 1) {
-            colorOrder = "W";
-        }
         vs.colorOrder = ColorOrderFromString(colorOrder);
 
         if (vs.groupCount == 1)
@@ -449,6 +435,11 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
         maxGroups = vs.pixelCount / vs.groupCount;
     }
 
+    int redOffset = vs.colorOrder.redOffset();
+    int greenOffset = vs.colorOrder.greenOffset();
+    int blueOffset = vs.colorOrder.blueOffset();
+    int whiteOffset = vs.colorOrder.whiteOffset();
+
     for (int p = pStart; p < vs.pixelCount; p++) {
         if (vs.groupCount) {
             if (itemsInGroup >= vs.groupCount) {
@@ -466,46 +457,19 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
         if (vs.colorOrder == FPPColorOrder::kColorOrderONE) {
             m_outputMap[offset++] = ch;
         } else {
-            if (vs.colorOrder == FPPColorOrder::kColorOrderRGB) {
-                ch1 = ch;
-                ch2 = ch + 1;
-                ch3 = ch + 2;
-            } else if (vs.colorOrder == FPPColorOrder::kColorOrderRBG) {
-                ch1 = ch;
-                ch2 = ch + 2;
-                ch3 = ch + 1;
-            } else if (vs.colorOrder == FPPColorOrder::kColorOrderGRB) {
-                ch1 = ch + 1;
-                ch2 = ch;
-                ch3 = ch + 2;
-            } else if (vs.colorOrder == FPPColorOrder::kColorOrderGBR) {
-                ch1 = ch + 2;
-                ch2 = ch;
-                ch3 = ch + 1;
-            } else if (vs.colorOrder == FPPColorOrder::kColorOrderBRG) {
-                ch1 = ch + 1;
-                ch2 = ch + 2;
-                ch3 = ch;
-            } else if (vs.colorOrder == FPPColorOrder::kColorOrderBGR) {
-                ch1 = ch + 2;
-                ch2 = ch + 1;
-                ch3 = ch;
+            // incoming data is always RGB or RGBW, map to whatever order is needed
+            if (whiteOffset == 0) {
+                // white is first, then color order on the way out, but W is always data[3]
+                m_outputMap[offset++] = ch + 3;
             }
-
-            if (vs.whiteOffset == 0) {
-                m_outputMap[offset++] = ch;
-                ch1++;
-                ch2++;
-                ch3++;
-            }
-            m_outputMap[offset++] = ch1;
-            m_outputMap[offset++] = ch2;
-            m_outputMap[offset++] = ch3;
-            if (vs.whiteOffset == 3) {
+            m_outputMap[offset + redOffset] = ch;       // red is always data[0]
+            m_outputMap[offset + greenOffset] = ch + 1; // green is always data[1]
+            m_outputMap[offset + blueOffset] = ch + 2;  // blue is always data[2]
+            offset += 3;
+            if (whiteOffset == 3) {
                 m_outputMap[offset++] = ch + 3;
             }
         }
-        ch += vs.channelsPerNode();
     }
 
     DumpMap("BEFORE ZIGZAG");
@@ -600,13 +564,7 @@ void PixelString::DumpConfig(void) {
             LogDebug(VB_CHANNELOUT, "        pixel count   : %d\n", vs.pixelCount);
             LogDebug(VB_CHANNELOUT, "        group count   : %d\n", vs.groupCount);
             LogDebug(VB_CHANNELOUT, "        reverse       : %d\n", vs.reverse);
-            if (vs.whiteOffset == 0) {
-                LogDebug(VB_CHANNELOUT, "        color order   : W%s\n", ColorOrderToString(vs.colorOrder).c_str());
-            } else if (vs.whiteOffset == 0) {
-                LogDebug(VB_CHANNELOUT, "        color order   : %sW\n", ColorOrderToString(vs.colorOrder).c_str());
-            } else {
-                LogDebug(VB_CHANNELOUT, "        color order   : %s\n", ColorOrderToString(vs.colorOrder).c_str());
-            }
+            LogDebug(VB_CHANNELOUT, "        color order   : %s\n", ColorOrderToString(vs.colorOrder).c_str());
             LogDebug(VB_CHANNELOUT, "        start nulls   : %d\n", vs.startNulls);
             LogDebug(VB_CHANNELOUT, "        end nulls     : %d\n", vs.endNulls);
             LogDebug(VB_CHANNELOUT, "        zig zag       : %d\n", vs.zigZag);

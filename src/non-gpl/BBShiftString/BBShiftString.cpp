@@ -214,8 +214,9 @@ int BBShiftStringOutput::Init(Json::Value config) {
         Json::Value s = config["outputs"][i];
         PixelString* newString = new PixelString(true);
 
-        if (!newString->Init(s, &root["outputs"][i]))
+        if (!newString->Init(s, &root["outputs"][i])) {
             return 0;
+        }
 
         if (newString->m_outputChannels > maxStringLen) {
             maxStringLen = newString->m_outputChannels;
@@ -240,10 +241,13 @@ int BBShiftStringOutput::Init(Json::Value config) {
 
     int curRecPort = -1;
     for (int x = 0; x < m_strings.size(); x++) {
-        if (m_strings[x]->smartReceiverType == PixelString::ReceiverType::FalconV5) {
+        if (curRecPort == -1 && m_strings[x]->smartReceiverType == PixelString::ReceiverType::FalconV5) {
             curRecPort = 0;
         }
         if (m_strings[x]->m_outputChannels > 0 || curRecPort >= 0) {
+            if (curRecPort == -1 && m_strings[x]->smartReceiverType != PixelString::ReceiverType::None) {
+                curRecPort = m_strings[x]->m_portNumber % 4;
+            }
             // need to output this pin, configure it
             int pru = root["outputs"][x]["pru"].asInt();
             int pin = root["outputs"][x]["pin"].asInt();
@@ -283,8 +287,10 @@ int BBShiftStringOutput::Init(Json::Value config) {
                 m_pru1.stringMap[pin][pinIdx] = x;
                 m_pru1.maxStringLen = std::max(m_pru1.maxStringLen, m_strings[x]->m_outputChannels);
             }
-            if (++curRecPort == 4) {
-                curRecPort = -1;
+            if (curRecPort >= 0) {
+                if (++curRecPort == 4) {
+                    curRecPort = -1;
+                }
             }
         }
     }
@@ -593,6 +599,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
                                  ? tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen)
                                  : ps->prepareOutput(channelData);
                 newMax = std::max(newMax, newLen);
+
                 for (int p = 0; p < newLen; p++) {
                     *frame = *d;
                     frame += MAX_PINS_PER_PRU * NUM_STRINGS_PER_PIN;

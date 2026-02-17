@@ -15,7 +15,7 @@
 #include "PortNumberStringTester.h"
 #include "../PixelString.h"
 
-uint8_t* OutputPortNumberPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t &newLen) {
+uint8_t* OutputPortNumberPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t& newLen) {
     newLen = ps->m_outputChannels;
     uint8_t* data = ps->m_outputBuffer;
     uint8_t* out = data;
@@ -24,11 +24,11 @@ uint8_t* OutputPortNumberPixelStringTester::createTestData(PixelString* ps, int 
     switch (cycleCount % 3) {
     case 0:
         clr[2] = clr[1] = 0;
-        clr[0] = 255;        
+        clr[0] = 255;
         break;
     case 1:
         clr[0] = clr[2] = 0;
-        clr[1] = 255;        
+        clr[1] = 255;
         break;
     default:
         clr[0] = clr[1] = 0;
@@ -47,14 +47,14 @@ uint8_t* OutputPortNumberPixelStringTester::createTestData(PixelString* ps, int 
                         ++inCh;
                     }
                 } else {
-                    if (vs.channelsPerNode() == 4 && !vs.whiteOffset) {
+                    if (vs.colorOrder.whiteOffset() == 0) {
                         ++out;
                     }
                     for (int y = 0; y < std::min(vs.channelsPerNode(), 3); ++y) {
                         *out = vs.brightnessMap[clr[y]];
                         out++;
                     }
-                    if (vs.channelsPerNode() == 4 && vs.whiteOffset) {
+                    if (vs.colorOrder.whiteOffset() == 3) {
                         ++out;
                     }
                     inCh += vs.channelsPerNode();

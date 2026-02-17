@@ -54,14 +54,14 @@ uint8_t* PixelCountPixelStringTester::createTestData(PixelString* ps, int cycleC
                     }
                     curPixel = 1;
                 } else {
-                    if (vs.channelsPerNode() == 4 && !vs.whiteOffset) {
+                    if (vs.colorOrder.whiteOffset() == 0) {
                         ++out;
                     }
                     for (int y = 0; y < std::min(vs.channelsPerNode(), 3); ++y) {
                         *out = vs.brightnessMap[clr[y + clrOffset]];
                         out++;
                     }
-                    if (vs.channelsPerNode() == 4 && vs.whiteOffset) {
+                    if (vs.colorOrder.whiteOffset() == 3) {
                         ++out;
                     }
                     inCh += vs.channelsPerNode();

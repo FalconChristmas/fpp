@@ -23,7 +23,7 @@ class VirtualString {
 public:
     VirtualString();
     VirtualString(int receiverType, int receiverNum);
-    ~VirtualString(){};
+    ~VirtualString() {};
 
     int channelsPerNode() const;
 
@@ -42,7 +42,6 @@ public:
     float gamma;
     uint8_t brightnessMap[256];
 
-    int whiteOffset;
     int8_t receiverNum;
     uint8_t leadInCount;
     uint8_t toggleCount;
@@ -89,6 +88,7 @@ public:
     uint8_t** m_brightnessMaps;
 
     enum class ReceiverType {
+        None = -1,
         Standard = 0,
         v1 = 1,
         v2 = 2,
