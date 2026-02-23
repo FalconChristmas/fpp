@@ -134,8 +134,8 @@ if [ "$ARCH" == "aarch64" ]; then
     # create partitions
     sfdisk --force ${DEVICE} <<-__EOF__
 1M,256M,c,*
-257M,512M,82,*
-769M,${PARTSIZE},,-
+257M,1024M,82,*
+1281M,${PARTSIZE},,-
 __EOF__
 else
     # create partitions
@@ -243,6 +243,10 @@ set -o pipefail
 
 if [ "$ARCH" == "aarch64" ]; then
     prepareThreePartitions
+    
+    #install bootloader
+    #cd /opt/u-boot/bb-u-boot-pocketbeagle2/
+    #./install-emmc.sh
 else
     echo "---------------------------------------"
     echo "Installing bootloader "
@@ -280,20 +284,18 @@ if [ "$ARCH" == "aarch64" ]; then
     echo "---------------------------------------"
     echo "Configure /etc/fstab"
     echo ""
-    #echo "${DEVICE}p3  /  ext4  defaults,noatime,nodiratime,errors=remount-ro  0  1" > /tmp/rootfs/etc/fstab
-    echo "${DEVICE}p3  /  btrfs  noatime,nodiratime,compress=zstd  0  1" > /tmp/rootfs/etc/fstab
+    echo "${DEVICE}p3  /  ext4  defaults,noatime,nodiratime,errors=remount-ro  0  1" > /tmp/rootfs/etc/fstab
+    echo "${DEVICE}p2       none    swap    sw      0       0" >> /tmp/rootfs/etc/fstab
     echo "${DEVICE}p1  /boot/firmware vfat user,uid=1000,gid=1000,defaults 0 2" >> /tmp/rootfs/etc/fstab
-    echo "${DEVICE}p2       none    swap    sw      0       0" >>  /tmp/rootfs/etc/fstab
     echo "debugfs  /sys/kernel/debug  debugfs  mode=755,uid=root,gid=gpio,defaults  0  0" >> /tmp/rootfs/etc/fstab
-    echo "#####################################" >> /tmp/rootfs/etc/fstab
-    echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=75M 0 0" >> /tmp/rootfs/etc/fstab
     echo "#####################################" >> /tmp/rootfs/etc/fstab
     echo "#/dev/sda1     /home/fpp/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /tmp/rootfs/etc/fstab
     echo "#####################################" >> /tmp/rootfs/etc/fstab
 
     sed -i "s|root=/dev/[a-zA-Z0-9]*\([0-9]\) |root=${DEVICE}p3 |g" /tmp/rootfs/boot/firmware/extlinux/extlinux.conf
     sed -i "s|resume=/dev/[a-zA-Z0-9]*\([0-9]\) |resume=${DEVICE}p2 |g" /tmp/rootfs/boot/firmware/extlinux/extlinux.conf
-    sed -i "s|ext4|btrfs|g" /tmp/rootfs/boot/firmware/extlinux/extlinux.conf
+    #sed -i "s|ext4|btrfs|g" /tmp/rootfs/boot/firmware/extlinux/extlinux.conf
+    
 else
     echo "---------------------------------------"
     echo "Configure /boot"
@@ -323,10 +325,8 @@ else
 
     #configure fstab
     echo "debugfs  /sys/kernel/debug  debugfs  defaults  0  0" >> /tmp/rootfs/etc/fstab
-    echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=50M 0 0" >> /tmp/rootfs/etc/fstab
-    echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /tmp/rootfs/etc/fstab
     echo "#####################################" >> /tmp/rootfs/etc/fstab
-    echo "#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /tmp/rootfs/etc/fstab
+    echo "#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=1000,gid=1000  0  0" >> /tmp/rootfs/etc/fstab
     echo "#####################################" >> /tmp/rootfs/etc/fstab
 
     echo "---------------------------------------"
