@@ -584,12 +584,12 @@ function ComputeMakeParallelism() {
 
         if [[ ${CPUS} -gt 1 ]]; then
             MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
+            ARMV=$(uname -m)
             if [[ ${MEMORY} -lt 425000 ]]; then
                 # very limited memory, only use one core or we'll fail or
                 # will be very slow as we constantly swap in/out
                 CPUS=1
             elif [[ ${MEMORY} -lt 512000 ]]; then
-                ARMV=$(uname -m)
                 if [ "$ARMV" = "aarch64" ]; then
                     # 64bit compiles take more memory so if we are less than 512M, 
                     # we need to stick with a single core or it will swap
@@ -603,6 +603,10 @@ function ComputeMakeParallelism() {
                     else
                         CPUS=1
                     fi
+                fi
+            elif [[ ${MEMORY} -lt 1000000 ]]; then
+                if [[ ${CPUS} -gt 3 ]]; then
+                    CPUS=3
                 fi
             fi
         fi
@@ -632,21 +636,25 @@ compileBinaries() {
         MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
         FPPDPID=$(pgrep fppd)
         if [ ${MEMORY} -lt 512000 -a "${FPPDPID}" != "" ]; then
-            echo "System has less than 512MB RAM, activating swap."
-            # Create swapfile in fpp media so it will go onto the 
-            # storage location most likely having space on it (not 
-            # eMMC on Beagles)
-            #
-            # some of the larger C++ files are consuming a lot of memory
-            # and are starting to cause compile failures on the devices
-            # with limitted memory (PiZeros, older Pi's, etc...) so
-            # we'll allocate a swap file so it shouldn't fail, but
-            # will likely be slow.   We DON'T want an "always" swapfile
-            # to avoid killing the SD cards.
-            ${SUDO} fallocate -l 256M "${FPPHOME}/media/tmp/swapfile"
-            ${SUDO} chmod 600 "${FPPHOME}/media/tmp/swapfile"
-            ${SUDO} mkswap -q "${FPPHOME}/media/tmp/swapfile"
-            ${SUDO} swapon "${FPPHOME}/media/tmp/swapfile"
+            SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
+            
+            if [ ${SWAPTOTAL} -lt 384000 ]; then
+                echo "System has less than 512MB RAM and little swap, activating more swap."
+                # Create swapfile in fpp media so it will go onto the
+                # storage location most likely having space on it (not
+                # eMMC on Beagles)
+                #
+                # some of the larger C++ files are consuming a lot of memory
+                # and are starting to cause compile failures on the devices
+                # with limitted memory (PiZeros, older Pi's, etc...) so
+                # we'll allocate a swap file so it shouldn't fail, but
+                # will likely be slow.   We DON'T want an "always" swapfile
+                # to avoid killing the SD cards.
+                ${SUDO} fallocate -l 384M "${FPPHOME}/media/tmp/swapfile"
+                ${SUDO} chmod 600 "${FPPHOME}/media/tmp/swapfile"
+                ${SUDO} mkswap -q "${FPPHOME}/media/tmp/swapfile"
+                ${SUDO} swapon "${FPPHOME}/media/tmp/swapfile"
+            fi
         fi
     fi
 
