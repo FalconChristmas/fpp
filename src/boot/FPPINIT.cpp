@@ -1061,11 +1061,6 @@ static bool hasNetworkInterfaceForNTP() {
             }
         }
     }
-
-    if (!hasValidIP) {
-        printf("FPP - No network interfaces with link detected, skipping NTP time wait\n");
-    }
-
     return hasValidIP;
 }
 
@@ -1118,17 +1113,23 @@ static void handleBootDelay() {
     } else if (i == -1) {
         // Auto mode: check if we have any network interfaces that could get NTP
         // If not, skip the time wait entirely and clean up flag file now
-        if (!hasNetworkInterfaceForNTP()) {
-            printf("FPP - No network interface found, skipping boot delay\n");
-            unlink(delayFile.c_str());
-            unlink(skipFile.c_str());
-            return;
-        }
 
+        // On a Pi5, it takes about 4.1s from when fppinit is called to when eth0
+        // will report a link up. Since we want to wait for NTP if the network is
+        // available, we need to wait
         const auto processor_count = std::thread::hardware_concurrency();
         if (processor_count > 2) {
-            // super fast Pi, we need a minimal delay for devices to be found
-            std::this_thread::sleep_for(std::chrono::seconds(5));
+            int count = 0;
+            while (!hasNetworkInterfaceForNTP() && count < 50) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                count++;
+            }
+            if (!hasNetworkInterfaceForNTP()) {
+                printf("FPP - No network interface found, skipping boot delay\n");
+                unlink(delayFile.c_str());
+                unlink(skipFile.c_str());
+                return;
+            }
         }
     }
 }
@@ -1211,14 +1212,18 @@ static void checkWLANInterface() {
 }
 
 static bool waitForInterfacesUp(bool flite, int timeOut) {
-    // If no network interfaces have carrier/link, don't wait at all
-    if (!hasNetworkInterfaceForNTP()) {
-        printf("FPP - No network interfaces with link, skipping IP wait\n");
-        return false;
-    }
-
-    bool found = false;
     int count = 0;
+    // If no network interfaces have carrier/link, don't wait for IP address - likely no network available and no point waiting for DHCP/NTP
+    while (!hasNetworkInterfaceForNTP()) {
+        if (count >= (timeOut / 2)) { // spend half the timeOut waiting for interfaces to have link, then give up
+            printf("FPP - No network interfaces with link detected after waiting for %d ms, skipping IP wait\n", timeOut * 200);
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        ++count;
+    }
+    printf("FPP - Waited for %0.1f seconds for network interfaces to have link...\n", (((float)count) * 0.2));
+    bool found = false;
     std::string announce;
     do {
         announce = "I Have Found The Following I P Addresses";
@@ -1259,7 +1264,7 @@ static bool waitForInterfacesUp(bool flite, int timeOut) {
         printf("FPP - Could not get a valid IP address\n");
         return false;
     } else {
-        printf("FPP - Waited for %d seconds for IP address\n", (count / 5));
+        printf("FPP - Waited for %0.1f seconds for IP address\n", (((float)count) * 0.2f));
         if (!getRawSettingInt("disableIPAnnouncement", 0) && FileExists("/usr/bin/flite") && flite) {
             execbg("/usr/bin/flite -voice awb -t \"" + announce + "\" &");
         }
