@@ -33,6 +33,8 @@ echo ""
 mkdir -p /mnt
 mount ${DEVICE}p0 /mnt
 sed -i "s|default flashEMMC|default microSD|g" /mnt/extlinux/extlinux.conf
+# Don't need to check if we have to expand the FS on the eMMC
+rm -f /mnt/fpp_expand_rootfs
 umount /mnt
 
 shutdown -h now
