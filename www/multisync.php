@@ -27,6 +27,24 @@
 
 
     <style>
+        .channel-io-icons {
+            display: inline-block;
+            margin-left: 4px;
+            font-size: 0.85em;
+        }
+
+        .channel-io-icons i {
+            margin: 0 1px;
+        }
+
+        .channel-io-icon-input {
+            color: #17a2b8;
+        }
+
+        .channel-io-icon-output {
+            color: #28a745;
+        }
+
         /*** Bootstrap popover ***/
         #popover-target label {
             margin: 0 5px;
@@ -163,7 +181,26 @@
                 rc += " w/ Multisync"
             }
 
+            rc += getChannelIOIcons(data);
+
             return rc;
+        }
+
+        function getChannelIOIcons(data) {
+            var icons = '';
+            var hasInput = data.hasOwnProperty('channelInputsEnabled') && data.channelInputsEnabled;
+            var hasOutput = data.hasOwnProperty('channelOutputsEnabled') && data.channelOutputsEnabled;
+            if (hasInput || hasOutput) {
+                icons += '<span class="channel-io-icons">';
+                if (hasInput) {
+                    icons += '<i class="fas fa-circle-down channel-io-icon-input" title="Channel Inputs Enabled"></i>';
+                }
+                if (hasOutput) {
+                    icons += '<i class="fas fa-up-right-from-square channel-io-icon-output" title="Channel Outputs Enabled"></i>';
+                }
+                icons += '</span>';
+            }
+            return icons;
         }
 
 
@@ -466,7 +503,7 @@
          */
         function getUniquePlatformsFromSelectedCheckboxes() {
             var platforms = new Set();
-            
+
             $('input.remoteCheckbox').each(function () {
                 if ($(this).is(":checked")) {
                     var rowID = $(this).closest('tr').attr('id');
@@ -479,7 +516,7 @@
                     }
                 }
             });
-            
+
             return Array.from(platforms);
         }
 
@@ -491,7 +528,7 @@
          */
         function getUniqueIpFromSelectedCheckboxes() {
             var ips = new Set();
-            
+
             $('input.remoteCheckbox').each(function () {
                 if ($(this).is(":checked")) {
                     var rowID = $(this).closest('tr').attr('id');
@@ -504,7 +541,7 @@
                     }
                 }
             });
-            
+
             return Array.from(ips);
         }
 
@@ -523,7 +560,7 @@
             var uniquePlatforms = getUniquePlatformsFromSelectedCheckboxes();
             var warningDiv = $('#osUpgradeWarning');
             $('#osUpgradeActionDiv').hide();
-            
+
             if (uniquePlatforms.length === 0) {
                 warningDiv.html('You must select at least one remote system.');
             } else if (uniquePlatforms.length > 1) {
@@ -542,27 +579,27 @@
                 warningDiv.html('Unable to find IP address for selected systems. Please ensure at least one system is selected and not filtered out.');
             } else {
                 var foundFiles = false;
-                var checkNextIp = function(index) {
+                var checkNextIp = function (index) {
                     if (foundFiles || index >= ips.length) {
                         return;
                     }
-                    
+
                     var ip = ips[index];
                     warningDiv.html('Please Wait... Checking ' + ip + ' for OS Upgrade files...');
                     $.ajax({
                         url: 'api/remoteAction?ip=' + ip + '&action=listUpgrades',
                         type: 'GET',
                         dataType: 'json'
-                    }).done(function(data) {
-                            if (data && Array.isArray(data.files) && data.files.length > 0) {
-                                foundFiles = true;
-                                warningDiv.html('');
-                                updateOSFileList(data.files);
-                            } else {
-                                checkNextIp(index + 1);
-                            }
-                        })
-                        .fail(function(error) {
+                    }).done(function (data) {
+                        if (data && Array.isArray(data.files) && data.files.length > 0) {
+                            foundFiles = true;
+                            warningDiv.html('');
+                            updateOSFileList(data.files);
+                        } else {
+                            checkNextIp(index + 1);
+                        }
+                    })
+                        .fail(function (error) {
                             console.error('Error querying ' + ip + ':', error);
                             checkNextIp(index + 1);
                         });
@@ -582,8 +619,8 @@
         function updateOSFileList(files) {
             // Cleanup previous load values
             $('#OSSelect option').filter(function () { return parseInt(this.value) > 0; }).remove();
-         
-            
+
+
             for (const file of files) {
                 let id = file["asset_id"];
                 if (id < 211762298) {
@@ -594,8 +631,8 @@
                 $('#OSSelect').append($('<option>', {
                     value: id,
                     text: file["filename"]
-                    }));
-            }   
+                }));
+            }
 
             $('#osUpgradeActionDiv').show();
         }
@@ -1119,6 +1156,8 @@
                     } else if (data[i].fppModeString == 'unknown') {
                         fppMode = 'Unknown';
                     }
+
+                    fppMode += getChannelIOIcons(data[i]);
 
                     rowSpans[rowID] = 1;
 
@@ -2476,7 +2515,7 @@
                 case 'copyFiles': $('#copyOptions').show(); break;
                 case 'copyOSFiles': $('#copyOSOptions').show(); break;
                 case 'changeBranch': $('#changeBranchOptions').show(); break;
-                case 'upgradeOS': $('#osUpgradeOptions').show();validateOSUpgrade(); break;
+                case 'upgradeOS': $('#osUpgradeOptions').show(); validateOSUpgrade(); break;
             }
         }
 
@@ -2618,16 +2657,20 @@
                         </div>
                         <div id='osUpgradeOptions' class='actionOptions'>
                             <h2>Upgrade OS</h2>
-                            <p>This will apply the FPPOS  upgrade file to each selected remote system, triggering the upgrade process.
-                                This process can take a significant amount of time. As this executes a fppos update, please use with great care.
+                            <p>This will apply the FPPOS upgrade file to each selected remote system, triggering the
+                                upgrade process.
+                                This process can take a significant amount of time. As this executes a fppos update,
+                                please use with great care.
                                 <br>
                                 <b>NOTES:</b>
-                                <ul>
-                                    <li>This will fail if the FPPOS file is not already on the system. You can use the "Copy OS Upgrade Files" action 
-                                        to copy it to the system before applying it.</li>
-                                    <li>You should manually verify there is at least 200MB of free space on the remote system before applying the upgrade 
-                                        as it can fail if there isn't enough space to apply the update.</li>
-                                </ul>
+                            <ul>
+                                <li>This will fail if the FPPOS file is not already on the system. You can use the "Copy
+                                    OS Upgrade Files" action
+                                    to copy it to the system before applying it.</li>
+                                <li>You should manually verify there is at least 200MB of free space on the remote
+                                    system before applying the upgrade
+                                    as it can fail if there isn't enough space to apply the update.</li>
+                            </ul>
                             </p>
                             <div id='osUpgradeWarning' class='warning-text'>
                                 Warning message goes here
@@ -2698,7 +2741,7 @@
 
             $.get("api/proxies", function (data) {
                 // Extract just the host IPs from the proxy objects
-                proxies = data.map(function(proxy) { return proxy.host; });
+                proxies = data.map(function (proxy) { return proxy.host; });
 
                 // Update any existing links now that proxies
                 // are loaded
@@ -3003,7 +3046,7 @@
             }, 3000);
 
             // Event handler for remoteCheckbox changes to validate platform selection
-            $(document).on('change', 'input.remoteCheckbox', function() {
+            $(document).on('change', 'input.remoteCheckbox', function () {
                 validateOSUpgrade();
             });
 

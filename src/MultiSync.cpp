@@ -54,6 +54,7 @@
 #include "settings.h"
 #include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/channeloutputthread.h"
+#include "e131bridge.h"
 #include "commands/Commands.h"
 #include "mediaoutput/MediaOutputBase.h"
 #include "mediaoutput/mediaoutput.h"
@@ -184,6 +185,8 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
 
     if (local) {
         system["HostDescription"] = getSetting("HostDescription");
+        system["channelInputsEnabled"] = InputsEnabled();
+        system["channelOutputsEnabled"] = HasChannelOutputs();
     }
 
     return system;
