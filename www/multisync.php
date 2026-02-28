@@ -88,6 +88,35 @@
         #fppSystemsTable .group-header {
             display: none;
         }
+
+        /* Drag-and-drop reorder mode */
+        .reorder-grip {
+            display: none;
+            cursor: grab;
+            padding-right: 6px;
+            color: #adb5bd;
+            float: left;
+        }
+
+        .reorder-mode .reorder-grip {
+            display: inline-block;
+        }
+
+        .reorder-mode .systemRow:hover {
+            background-color: rgba(0, 123, 255, 0.08) !important;
+        }
+
+        .reorder-mode .ui-sortable-helper {
+            background-color: #e3f2fd !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .reorder-mode .ui-sortable-placeholder {
+            background-color: #f0f0f0;
+            border: 2px dashed #ccc;
+            visibility: visible !important;
+            height: 2.5em;
+        }
     </style>
 
     <script>
@@ -96,6 +125,221 @@
         var systemStatusCache = {}; // Cache of api/system/status?ip[]=
         var localFpposFiles = [];
         var proxies = [];
+        var savedDisplayOrder = <?php
+        $savedDisplayOrderStr = GetSettingValue('MultiSyncDisplayOrder', '');
+        if (!empty($savedDisplayOrderStr)) {
+            // Check for legacy JSON object format and convert
+            $decoded = json_decode($savedDisplayOrderStr, true);
+            if ($decoded !== null && isset($decoded['order'])) {
+                // Legacy JSON format - convert and re-save as pipe-delimited
+                $parts = $decoded['order'];
+                WriteSettingToFile('MultiSyncDisplayOrder', implode('|', $parts));
+            } else {
+                // Pipe-delimited format: "uuid:abc|host:xyz|..."
+                $parts = explode('|', $savedDisplayOrderStr);
+            }
+            echo json_encode(array_values(array_filter($parts, function ($v) {
+                return $v !== ''; })));
+        } else {
+            echo '[]';
+        }
+        ?>;
+
+        /**
+         * Returns a stable identifier for a system.
+         * Uses UUID for FPP systems (most stable across IP/hostname changes),
+         * falls back to hostname for non-FPP or systems without UUID.
+         */
+        function getSystemIdentifier(system) {
+            if (system.uuid && system.uuid !== '' && system.uuid !== 'Unknown') {
+                return 'uuid:' + system.uuid;
+            }
+            return 'host:' + (system.hostname || system.address);
+        }
+
+        /**
+         * Sorts a systems data array based on the saved display order.
+         * Systems matching saved identifiers appear first in saved order,
+         * unknown systems are appended at the end sorted by hostname.
+         */
+        function applySavedDisplayOrder(data, order) {
+            if (!order || order.length === 0) return data;
+
+            var orderMap = {};
+            for (var i = 0; i < order.length; i++) {
+                orderMap[order[i]] = i;
+            }
+
+            var sorted = data.slice(); // clone to avoid mutating original
+            sorted.sort(function (a, b) {
+                var idA = getSystemIdentifier(a);
+                var idB = getSystemIdentifier(b);
+                var posA = orderMap.hasOwnProperty(idA) ? orderMap[idA] : 99999;
+                var posB = orderMap.hasOwnProperty(idB) ? orderMap[idB] : 99999;
+                if (posA !== posB) return posA - posB;
+                // For systems not in saved order, sort by hostname
+                return (a.hostname || a.address).localeCompare(b.hostname || b.address);
+            });
+            return sorted;
+        }
+
+        /**
+         * Saves the current visible table row order as the display order.
+         * Captures system identifiers from the current DOM order (which reflects
+         * any tablesorter column sort the user has applied).
+         */
+        function saveDisplayOrder() {
+            var order = [];
+            var seen = {};
+            $('#fppSystems tr.systemRow').each(function () {
+                var ipList = $(this).attr('ipList');
+                if (!ipList) return;
+                var primaryIp = ipList.split(',')[0];
+                for (var i = 0; i < systemsList.length; i++) {
+                    if (systemsList[i].address === primaryIp) {
+                        var id = getSystemIdentifier(systemsList[i]);
+                        if (!seen[id]) {
+                            order.push(id);
+                            seen[id] = true;
+                        }
+                        break;
+                    }
+                }
+            });
+
+            if (order.length === 0) {
+                $.jGrowl('No systems to save order for.', { themeState: 'detract' });
+                return;
+            }
+
+            savedDisplayOrder = order;
+            // Store as pipe-delimited string to avoid JSON-in-INI quoting issues
+            SetSetting('MultiSyncDisplayOrder', order.join('|'), 0, 0);
+
+            // Clear tablesorter saved sort so our custom order takes effect on next load
+            if ($.tablesorter && $.tablesorter.storage) {
+                $.tablesorter.storage($('#fppSystemsTable')[0], 'tablesorter-savesort', '');
+            }
+
+            updateDisplayOrderButtons();
+
+            // Exit reorder mode if active
+            if (reorderModeActive) {
+                toggleReorderMode();
+            }
+
+            $.jGrowl('Display order saved.', { themeState: 'success' });
+        }
+
+        /**
+         * Clears the saved display order and refreshes the system list.
+         */
+        function clearDisplayOrder() {
+            savedDisplayOrder = [];
+            SetSetting('MultiSyncDisplayOrder', '', 0, 0);
+            updateDisplayOrderButtons();
+
+            // Exit reorder mode if active
+            if (reorderModeActive) {
+                toggleReorderMode();
+            }
+
+            $.jGrowl('Display order cleared.', { themeState: 'success' });
+            getFPPSystems();
+        }
+
+        /**
+         * Re-applies the saved display order by re-parsing the systems list.
+         * Useful when user has sorted by a column and wants to return to saved order.
+         */
+        function sortBySavedOrder() {
+            if (!savedDisplayOrder || savedDisplayOrder.length === 0) {
+                $.jGrowl('No saved display order.', { themeState: 'detract' });
+                return;
+            }
+            parseFPPSystems(systemsList);
+            // Clear tablesorter sort to preserve our DOM order
+            $('#fppSystemsTable').trigger('sorton', [[]]);
+        }
+
+        /**
+         * Updates visibility and text of display order buttons based on current state.
+         */
+        function updateDisplayOrderButtons() {
+            if (savedDisplayOrder && savedDisplayOrder.length > 0) {
+                $('#clearDisplayOrderBtn').show();
+                $('#sortBySavedOrderBtn').show();
+                $('#saveDisplayOrderBtn').html('<i class="fas fa-save"></i> Update Display Order');
+            } else {
+                $('#clearDisplayOrderBtn').hide();
+                $('#sortBySavedOrderBtn').hide();
+                $('#saveDisplayOrderBtn').html('<i class="fas fa-save"></i> Save Display Order');
+            }
+        }
+
+        var reorderModeActive = false;
+
+        /**
+         * Toggles reorder mode on/off.
+         * When enabled: adds drag handles, enables jQuery UI sortable on tbody,
+         * disables tablesorter column sorting.
+         * When disabled: removes sortable, re-enables tablesorter.
+         */
+        function toggleReorderMode() {
+            reorderModeActive = !reorderModeActive;
+            var $table = $('#fppSystemsTable');
+            var $tbody = $('#fppSystems');
+
+            if (reorderModeActive) {
+                $table.addClass('reorder-mode');
+                $('#reorderModeBtn').html('<i class="fas fa-arrows-alt"></i> Exit Reorder Mode').removeClass('btn-default').addClass('btn-warning');
+                $('#saveDisplayOrderBtn').show();
+
+                // Disable tablesorter header click sorting
+                $table.find('th').css('pointer-events', 'none');
+                // Disable filter inputs
+                $table.find('.tablesorter-filter').prop('disabled', true);
+
+                // Enable jQuery UI sortable on tbody
+                $tbody.sortable({
+                    items: '> tr.systemRow',
+                    handle: '.reorder-grip',
+                    axis: 'y',
+                    tolerance: 'pointer',
+                    helper: function (e, tr) {
+                        // Preserve column widths while dragging
+                        var $originals = tr.children();
+                        var $helper = tr.clone();
+                        $helper.children().each(function (index) {
+                            $(this).width($originals.eq(index).outerWidth());
+                        });
+                        return $helper;
+                    },
+                    start: function (event, ui) {
+                        // Hide child rows (warnings, logs) during drag
+                        var rowID = ui.item.attr('id');
+                        $('#' + rowID + '_warnings, #' + rowID + '_logs').hide();
+                    },
+                    stop: function (event, ui) {
+                        var rowID = ui.item.attr('id');
+                        rowSpanSet(rowID);
+                    }
+                });
+            } else {
+                $table.removeClass('reorder-mode');
+                $('#reorderModeBtn').html('<i class="fas fa-arrows-alt"></i> Reorder Systems').removeClass('btn-warning').addClass('btn-default');
+
+                // Destroy sortable
+                if ($tbody.sortable('instance')) {
+                    $tbody.sortable('destroy');
+                }
+
+                // Re-enable tablesorter header click sorting
+                $table.find('th').css('pointer-events', '');
+                // Re-enable filter inputs
+                $table.find('.tablesorter-filter').prop('disabled', false);
+            }
+        }
 
         function getLocalFpposFiles() {
             $.get('api/files/uploads', function (data) {
@@ -1032,6 +1276,11 @@
         }
 
         function parseFPPSystems(data) {
+            // Apply saved display order if one exists
+            if (savedDisplayOrder && savedDisplayOrder.length > 0) {
+                data = applySavedDisplayOrder(data, savedDisplayOrder);
+            }
+
             $('#fppSystems').empty();
             rowSpans = [];
 
@@ -1177,7 +1426,7 @@
 
 
                     var newRow = "<tr id='" + rowID + "' ip='" + data[i].address + "' ipList='" + data[i].address + "' class='systemRow'>" +
-                        "<td class='hostnameColumn'><span id='fpp_" + ip.replace(/\./g, '_') + "_hostname'" + hnSpanStyle + ">" + hostTxt + "</span><br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g, '_') + "_desc'>" + hostDescription + "</small></td>" +
+                        "<td class='hostnameColumn'><span class='reorder-grip'><i class='rowGripIcon fpp-icon-grip'></i></span><span id='fpp_" + ip.replace(/\./g, '_') + "_hostname'" + hnSpanStyle + ">" + hostTxt + "</span><br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g, '_') + "_desc'>" + hostDescription + "</small></td>" +
                         "<td id='" + rowID + "_ip' ip='" + data[i].address + "'>" + ipTxt + "</td>" +
                         "<td><span id='" + rowID + "_platform'>" + data[i].type + "</span><br><small id='" + rowID + "_variant'>" + data[i].model + "</small><span class='hidden typeId'>" + data[i].typeId + "</span>"
                         + "<span class='hidden version'>" + data[i].version + "</span></td>" +
@@ -1288,7 +1537,13 @@
                 SetSetting("MultiSyncExtraRemotes", extras, 0, 0);
             }
 
-            $('#fppSystems').trigger('update', true);
+            // When saved display order is active, don't re-sort (preserve our pre-sorted DOM order)
+            // Otherwise, allow tablesorter to apply its saved/default sort
+            if (savedDisplayOrder && savedDisplayOrder.length > 0) {
+                $('#fppSystems').trigger('update', false);
+            } else {
+                $('#fppSystems').trigger('update', true);
+            }
         }
 
         var systemsList = [];
@@ -2552,6 +2807,27 @@
                         Sort Systems by Color
                     </button>
 
+                    <!-- Display Order Buttons -->
+                    <button id="reorderModeBtn" type="button" class="buttons btn btn-default" data-bs-placement="bottom"
+                        data-bs-title="Drag and drop systems to reorder them" onclick="toggleReorderMode();">
+                        <i class="fas fa-arrows-alt"></i> Reorder Systems
+                    </button>
+                    <button id="saveDisplayOrderBtn" type="button" class="buttons btn btn-default"
+                        data-bs-placement="bottom" data-bs-title="Save the current display order of systems"
+                        onclick="saveDisplayOrder();">
+                        <i class="fas fa-save"></i> Save Display Order
+                    </button>
+                    <button id="sortBySavedOrderBtn" type="button" class="buttons btn btn-default"
+                        data-bs-placement="bottom" data-bs-title="Re-apply the saved display order"
+                        onclick="sortBySavedOrder();" style="display:none;">
+                        <i class="fas fa-sort-amount-down"></i> Saved Order
+                    </button>
+                    <button id="clearDisplayOrderBtn" type="button" class="buttons btn btn-default"
+                        data-bs-placement="bottom" data-bs-title="Clear the saved display order"
+                        onclick="clearDisplayOrder();" style="display:none;">
+                        <i class="fas fa-times"></i> Clear Display Order
+                    </button>
+
 
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
                         <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
@@ -2971,6 +3247,19 @@
                         group_complete: "groupingComplete"
                     }
                 });
+
+            // If a saved display order exists, clear any tablesorter saved sort
+            // so our custom order takes priority on initial load
+            if (savedDisplayOrder && savedDisplayOrder.length > 0) {
+                if ($.tablesorter && $.tablesorter.storage) {
+                    $.tablesorter.storage($table[0], 'tablesorter-savesort', '');
+                }
+                // Apply empty sort to preserve DOM insertion order
+                $table.trigger('sorton', [[]]);
+            }
+
+            // Update display order button visibility
+            updateDisplayOrderButtons();
 
             // call this function to copy the column selection code into the popover
             //$table.tablesorter.columnSelector.attachTo($('.bootstrap-popup'), '#columnSelector');
