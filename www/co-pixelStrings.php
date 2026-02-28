@@ -125,7 +125,7 @@ function readCapes($cd, $capes)
             if (confirm(msg)) {
                 var filename = $('#virtualEEPROM').val();
                 $('#upgradeText').html('');
-                StreamURL('upgradeCapeFirmware.php?force=true&filename=' + filename, 'InstallVirtualEEPROMText', 'UpgradeDone', 'UpgradeDone', 'GET', null, false, false);
+                StreamURL('upgradeCapeFirmware.php?force=true&resetDefaults=true&filename=' + filename, 'InstallVirtualEEPROMText', 'UpgradeDone', 'UpgradeDone', 'GET', null, false, false);
             } else {
                 reloadPage();
             }
@@ -142,7 +142,7 @@ function readCapes($cd, $capes)
         }
 
         DisplayProgressDialog("InstallVirtualEEPROM", "Install Cape Firmware");
-        StreamURL('upgradeCapeFirmware.php?filename=' + filename, 'InstallVirtualEEPROMText', 'InstallFirmwareDone', 'InstallFirmwareDone', 'GET', null, false, false);
+        StreamURL('upgradeCapeFirmware.php?resetDefaults=true&filename=' + filename, 'InstallVirtualEEPROMText', 'InstallFirmwareDone', 'InstallFirmwareDone', 'GET', null, false, false);
     }
 
     function MapPixelStringType(type) {

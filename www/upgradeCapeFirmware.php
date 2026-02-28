@@ -9,6 +9,13 @@ if (isset($_GET['force']) && $_GET['force'] == 'true') {
     $force = "force ";
 }
 
+$resetDefaults = "";
+if (isset($_GET['resetDefaults']) && $_GET['resetDefaults'] == 'true') {
+    $resetDefaults = "resetDefaults ";
+} else if (isset($_POST['resetDefaults']) && $_POST['resetDefaults'] == 'true') {
+    $resetDefaults = "resetDefaults ";
+}
+
 $action = 'Upgrading';
 $file = '';
 $unlink = 1;
@@ -47,7 +54,7 @@ if ($file != '') {
     echo "Upgrading firmware.....\n";
     echo "\n";
     flush();
-    system("sudo /opt/fpp/scripts/upgradeCapeFirmware " . $force . $file, $retval);
+    system("sudo /opt/fpp/scripts/upgradeCapeFirmware " . $force . $resetDefaults . $file, $retval);
     WriteSettingToFile('rebootFlag', 1);
     flush();
 

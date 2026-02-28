@@ -33,7 +33,7 @@ public:
         SIGNED
     };
 
-    CapeStatus initCape(bool readOnly = true);
+    CapeStatus initCape(bool readOnly = true, bool forceDefaults = false);
 
     const Json::Value& getCapeInfo();
     bool hasFile(const std::string& path);
@@ -49,7 +49,7 @@ public:
 private:
     CapeUtils();
     ~CapeUtils();
-    CapeInfo* initCapeInfo(bool ro = true);
+    CapeInfo* initCapeInfo(bool ro = true, bool forceDefaults = false);
 
     CapeInfo* capeInfo;
 };

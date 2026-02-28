@@ -677,8 +677,9 @@ static std::map<std::string, std::string> CONFIG_EEPROM_UPGRADE_MAP = {
 
 class CapeInfo {
 public:
-    CapeInfo(bool ro) :
+    CapeInfo(bool ro, bool fd = false) :
         readOnly(ro),
+        forceDefaults(fd),
         bus(I2C_DEV) {
         char buf[256] = "/tmp/fppcuXXXXXX";
         outputPath = mkdtemp(buf);
@@ -1103,9 +1104,15 @@ private:
                         for (auto a : result["defaultSettings"].getMemberNames()) {
                             std::string v = result["defaultSettings"][a].asString();
                             bool found = false;
-                            for (auto l : lines) {
-                                if (l.find(a) == 0) {
+                            for (int l = 0; l < lines.size(); l++) {
+                                if (lines[l].find(a) == 0) {
                                     found = true;
+                                    if (forceDefaults) {
+                                        // Replace existing setting with default value
+                                        lines[l] = a + " = \"" + v + "\"";
+                                        settingsChanged = true;
+                                    }
+                                    break;
                                 }
                             }
                             if (!found) {
@@ -1211,6 +1218,7 @@ private:
         }
 
         // if there are default configurations, copy them into place if they dont already exist
+        // unless forceDefaults is set, in which case overwrite with defaults from the new EEPROM image
         if (!readOnly && (!hasSignature || validSignature)) {
             std::vector<std::string> files;
             getFileList(outputPath + "/tmp/defaults", "", files);
@@ -1221,7 +1229,11 @@ private:
                 if (target[target.length() - 1] == '/') {
                     mkdir(target.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
                 } else {
-                    copyIfNotExist(src, target);
+                    if (forceDefaults) {
+                        copyFile(src, target);
+                    } else {
+                        copyIfNotExist(src, target);
+                    }
                     setOwnerGroup(target);
                 }
             }
@@ -1446,6 +1458,7 @@ private:
     }
 
     bool readOnly;
+    bool forceDefaults;
     int bus;
     std::string EEPROM;
     std::string ORIGEEPROM;
@@ -1477,15 +1490,15 @@ CapeUtils::~CapeUtils() {
         delete capeInfo;
     }
 }
-CapeInfo* CapeUtils::initCapeInfo(bool ro) {
+CapeInfo* CapeUtils::initCapeInfo(bool ro, bool forceDefaults) {
     if (capeInfo == nullptr) {
-        capeInfo = new CapeInfo(ro);
+        capeInfo = new CapeInfo(ro, forceDefaults);
     }
     return capeInfo;
 }
 
-CapeUtils::CapeStatus CapeUtils::initCape(bool readOnly) {
-    return initCapeInfo(readOnly)->capeStatus();
+CapeUtils::CapeStatus CapeUtils::initCape(bool readOnly, bool forceDefaults) {
+    return initCapeInfo(readOnly, forceDefaults)->capeStatus();
 }
 
 bool CapeUtils::hasFile(const std::string& path) {

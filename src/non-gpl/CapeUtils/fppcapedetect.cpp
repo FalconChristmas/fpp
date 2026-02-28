@@ -59,14 +59,17 @@ int main(int argc, char* argv[]) {
     try {
         bool readonly = false;
         bool noperms = false;
+        bool forceDefaults = false;
         for (int i = 1; i < argc; i++) {
             if (!strcmp(argv[i], "-ro")) {
                 readonly = true;
             } else if (!strcmp(argv[i], "-no-set-permissions")) {
                 noperms = true;
+            } else if (!strcmp(argv[i], "-force-defaults")) {
+                forceDefaults = true;
             }
         }
-        CapeUtils::INSTANCE.initCape(readonly);
+        CapeUtils::INSTANCE.initCape(readonly, forceDefaults);
         if (!noperms) {
             struct passwd* pwd = getpwnam("fpp");
             if (pwd) {

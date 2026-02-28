@@ -1,21 +1,31 @@
 #!/usr/bin/php
 <?php
 
-$newFirmwareFile = $argv[1];
+$newFirmwareFile = '';
 $force = false;
-if ($newFirmwareFile == 'force') {
-    $force = true;
-    $newFirmwareFile = $argv[2];
+$resetDefaults = false;
+
+// Parse all flags and the firmware filename from command line arguments
+for ($i = 1; $i < $argc; $i++) {
+    if ($argv[$i] == 'force') {
+        $force = true;
+    } else if ($argv[$i] == 'resetDefaults') {
+        $resetDefaults = true;
+    } else {
+        $newFirmwareFile = $argv[$i];
+    }
 }
+
+$fppcapedetectFlags = $resetDefaults ? " -force-defaults" : "";
 
 
 $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
 if (file_exists("/home/fpp/media/tmp/eeprom_location.txt")) {
     $eepromFile = file_get_contents("/home/fpp/media/tmp/eeprom_location.txt");
     if ($eepromFile == "/sys/bus/i2c/devices/1-0050/eeprom") {
-        file_put_contents("/sys/bus/i2c/devices/i2c-1/new_device" , "24c256 0x50");
+        file_put_contents("/sys/bus/i2c/devices/i2c-1/new_device", "24c256 0x50");
     } else if ($eepromFile == "/sys/bus/i2c/devices/2-0050/eeprom") {
-        file_put_contents("/sys/bus/i2c/devices/i2c-2/new_device" , "24c256 0x50");
+        file_put_contents("/sys/bus/i2c/devices/i2c-2/new_device", "24c256 0x50");
     }
     usleep(100000);
 }
@@ -32,7 +42,7 @@ if (!file_exists($eepromFile)) {
             echo "======================\n";
             echo "Running fppcapedetect:\n\n";
 
-            system("/opt/fpp/src/fppcapedetect");
+            system("/opt/fpp/src/fppcapedetect" . $fppcapedetectFlags);
             echo "\nFinished, please reboot.\n";
             return 0;
         } else {
@@ -66,7 +76,7 @@ if ($oldheader != "FPP02") {
 
     echo "======================\n";
     echo "Running fppcapedetect:\n\n";
-    system("/opt/fpp/src/fppcapedetect");
+    system("/opt/fpp/src/fppcapedetect" . $fppcapedetectFlags);
     echo "\nFinished, please reboot.\n";
     return 0;
 }
@@ -166,7 +176,7 @@ echo "Upgrade Complete\n\n";
 echo "======================\n";
 echo "Running fppcapedetect:\n\n";
 
-system("/opt/fpp/src/fppcapedetect");
+system("/opt/fpp/src/fppcapedetect" . $fppcapedetectFlags);
 
 echo "\nFinished, please reboot.\n";
 

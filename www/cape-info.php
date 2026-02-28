@@ -198,8 +198,9 @@ if (isset($settings["cape-info"])) {
                 var msg = "Are you sure you want to replace the firmware for cape:\n" + arrayOfLines[1] + "\n\nWith the firmware for: \n" + arrayOfLines[2] + "\n";
                 if (confirm(msg)) {
                     var filename = $('#backupFile').val();
+                    var resetDefaults = $('#resetDefaultsConfig').is(':checked') ? '&resetDefaults=true' : '';
                     $('#RestoreEEPROMText').html('');
-                    StreamURL('upgradeCapeFirmware.php?force=true&filename=' + filename, 'RestoreEEPROMText', 'RestoreDone', 'RestoreDone', 'GET', null, false, false);
+                    StreamURL('upgradeCapeFirmware.php?force=true&filename=' + filename + resetDefaults, 'RestoreEEPROMText', 'RestoreDone', 'RestoreDone', 'GET', null, false, false);
                 }
             }
             RestoreDone();
@@ -207,9 +208,10 @@ if (isset($settings["cape-info"])) {
 
         function RestoreFirmware() {
             var filename = $('#backupFile').val();
+            var resetDefaults = $('#resetDefaultsConfig').is(':checked') ? '&resetDefaults=true' : '';
 
             DisplayProgressDialog("RestoreEEPROM", "Restore Cape Firmware");
-            StreamURL('upgradeCapeFirmware.php?filename=' + filename, 'RestoreEEPROMText', 'RestoreFirmwareDone', 'RestoreFirmwareDone', 'GET', null, false, false);
+            StreamURL('upgradeCapeFirmware.php?filename=' + filename + resetDefaults, 'RestoreEEPROMText', 'RestoreFirmwareDone', 'RestoreFirmwareDone', 'GET', null, false, false);
         }
 
         function UpgradeDone() {
@@ -225,6 +227,7 @@ if (isset($settings["cape-info"])) {
                 if (confirm(msg)) {
                     var eepromFile = $('#eepromVendorCapeVersions').val();
                     let firmware = document.getElementById("firmware").files[0];
+                    var resetDefaults = $('#resetDefaultsConfig').is(':checked') ? '&resetDefaults=true' : '';
 
                     let formData = new FormData();
 
@@ -235,7 +238,7 @@ if (isset($settings["cape-info"])) {
                     }
 
                     $('#UpgradeEEPROMText').html('');
-                    StreamURL('upgradeCapeFirmware.php?force=true', 'UpgradeEEPROMText', 'UpgradeDone', 'UpgradeDone', 'POST', formData, false, false);
+                    StreamURL('upgradeCapeFirmware.php?force=true' + resetDefaults, 'UpgradeEEPROMText', 'UpgradeDone', 'UpgradeDone', 'POST', formData, false, false);
                 }
             }
             UpgradeDone();
@@ -256,12 +259,15 @@ if (isset($settings["cape-info"])) {
                 formData.append("firmware", firmware);
             }
 
-            var forceOpt = '';
+            var opts = [];
             if (force)
-                forceOpt = '?force=true';
+                opts.push('force=true');
+            if ($('#resetDefaultsConfig').is(':checked'))
+                opts.push('resetDefaults=true');
+            var queryString = opts.length > 0 ? '?' + opts.join('&') : '';
 
             DisplayProgressDialog("UpgradeEEPROM", "Upgrade Cape Firmware");
-            StreamURL('upgradeCapeFirmware.php' + forceOpt, 'UpgradeEEPROMText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
+            StreamURL('upgradeCapeFirmware.php' + queryString, 'UpgradeEEPROMText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
         }
 
         var eepromList = [];
@@ -1272,6 +1278,23 @@ if (isset($settings["cape-info"])) {
                                                         <br>
                                                         <input type="file" name="firmware" id="firmware"
                                                             style='padding-left: 0px;' onChange='firmwareChanged();'><br>
+                                                        <br>
+                                                        <div class="callout callout-warning">
+                                                            <b>Reset Configuration to Defaults:</b> When checked, upgrading
+                                                            the
+                                                            EEPROM will replace existing channel output configurations and
+                                                            default
+                                                            settings with the defaults from the new firmware image. Network
+                                                            settings
+                                                            will not be affected. Uncheck this option if you wish to keep
+                                                            your
+                                                            current configuration.<br><br>
+                                                            <label>
+                                                                <input type="checkbox" id="resetDefaultsConfig" checked>
+                                                                Reset configuration to defaults from new firmware
+                                                            </label>
+                                                        </div>
+                                                        <br>
                                                         <input type='button' class="buttons" value='Upgrade'
                                                             onClick='UpgradeFirmware();' id='UpdateFirmware' disabled>
                                                     </div>
