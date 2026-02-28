@@ -824,6 +824,10 @@ static void setupNetwork(bool fullReload = false) {
                        "PoolOffset=10\n"
                        "PoolSize=100\n"
                        "EmitDNS=no\n\n");
+        if (FileExists(FPP_MEDIA_DIR + "config/leases." + tetherInterface)) {
+            content.append(GetFileContents(FPP_MEDIA_DIR + "config/leases." + tetherInterface));
+        }
+        content.append("\n");
         filesNeeded["/etc/systemd/network/10-" + tetherInterface + ".network"] = content;
         hostapd = true;
     }
