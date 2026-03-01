@@ -1387,6 +1387,31 @@ static void maybeEnableTethering() {
             freeifaddrs(ifAddrStruct);
         }
         if (!found) {
+            // Before enabling tethering, check if any wired interface has carrier/link.
+            // If a cable is connected, DHCP will likely succeed shortly - don't enable tethering.
+            // This matches the original bash MaybeEnableTethering logic that checked ethtool link.
+            bool hasWiredLink = false;
+            for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net/")) {
+                std::string dev = entry.path().filename();
+                if (startsWith(dev, "eth") || startsWith(dev, "en") || startsWith(dev, "br") || startsWith(dev, "bond")) {
+                    std::string carrierPath = "/sys/class/net/" + dev + "/carrier";
+                    if (FileExists(carrierPath)) {
+                        std::string carrier = GetFileContents(carrierPath);
+                        TrimWhiteSpace(carrier);
+                        if (carrier == "1") {
+                            printf("FPP - Wired interface %s has link, not enabling tethering\n", dev.c_str());
+                            hasWiredLink = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (hasWiredLink) {
+                // A wired interface has link - DHCP should complete soon.
+                // Don't enable tethering; the routable.d/check_tether dispatcher
+                // will clean up tethering if it was enabled from a previous boot.
+                return;
+            }
             // Check if the tether interface has a wifi client configuration
             std::string tetherInterface = FindTetherWIFIAdapater();
             std::string interfaceConfigFile = FPP_MEDIA_DIR + "/config/interface." + tetherInterface;
