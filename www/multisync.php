@@ -30,7 +30,7 @@
         .channel-io-icons {
             display: inline-block;
             margin-left: 4px;
-            font-size: 0.85em;
+            font-size: 0.95em;
         }
 
         .channel-io-icons i {
@@ -139,7 +139,8 @@
                 $parts = explode('|', $savedDisplayOrderStr);
             }
             echo json_encode(array_values(array_filter($parts, function ($v) {
-                return $v !== ''; })));
+                return $v !== '';
+            })));
         } else {
             echo '[]';
         }
@@ -437,10 +438,10 @@
             if (hasInput || hasOutput) {
                 icons += '<span class="channel-io-icons">';
                 if (hasInput) {
-                    icons += '<i class="fas fa-circle-down channel-io-icon-input" title="Channel Inputs Enabled"></i>';
+                    icons += '<i class="fas fa-regular fa-circle-down  channel-io-icon-input" title="Channel Inputs Enabled"></i>';
                 }
                 if (hasOutput) {
-                    icons += '<i class="fas fa-up-right-from-square channel-io-icon-output" title="Channel Outputs Enabled"></i>';
+                    icons += '<i class="fas fa-regular fa-circle-up  channel-io-icon-output" title="Channel Outputs Enabled"></i>';
                 }
                 icons += '</span>';
             }
