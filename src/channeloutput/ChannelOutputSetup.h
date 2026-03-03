@@ -25,6 +25,7 @@ extern float mediaElapsedSeconds;
 extern OutputProcessors outputProcessors;
 
 bool HasChannelOutputs();
+bool HasUniverseOutputs();
 int InitializeChannelOutputs();
 int PrepareChannelData(char* channelData);
 int SendChannelData(const char* channelData);

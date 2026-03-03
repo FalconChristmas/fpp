@@ -92,7 +92,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
     result["powerBad"] = piPowerBad;
 
     result["channelInputsEnabled"] = InputsEnabled();
-    result["channelOutputsEnabled"] = HasChannelOutputs();
+    result["channelOutputsEnabled"] = HasUniverseOutputs();
 
     if (ChannelTester::INSTANCE.Testing()) {
         result["status_name"] = "testing";

@@ -186,7 +186,7 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
     if (local) {
         system["HostDescription"] = getSetting("HostDescription");
         system["channelInputsEnabled"] = InputsEnabled();
-        system["channelOutputsEnabled"] = HasChannelOutputs();
+        system["channelOutputsEnabled"] = HasUniverseOutputs();
     }
 
     return system;

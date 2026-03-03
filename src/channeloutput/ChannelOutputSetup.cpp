@@ -77,6 +77,16 @@ bool HasChannelOutputs() {
     return channelOutputs.load() != nullptr;
 }
 
+bool HasUniverseOutputs() {
+    std::string universeFile = FPP_DIR_CONFIG("/co-universes.json");
+    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+        if (inst->sourceFile == universeFile) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static std::map<std::string, std::set<std::string>> outputLoadWarnings;
 static std::vector<std::pair<uint32_t, uint32_t>> outputRanges;
 static std::vector<std::pair<uint32_t, uint32_t>> preciseOutputRanges;

@@ -51,7 +51,7 @@
         }
 
         .channel-io-tooltip-table {
-            font-size: 0.8em;
+            font-size: 0.95em;
             border-collapse: collapse;
             white-space: nowrap;
             margin: 0;
@@ -642,6 +642,78 @@
         }
 
 
+
+        // Track which IPs we've already probed for channel I/O on older systems
+        var channelIOCheckedIPs = {};
+
+        /**
+         * For older FPP systems that don't report channelOutputsEnabled/channelInputsEnabled,
+         * fetch the remote config and add icons if active universes are found.
+         */
+        function checkRemoteChannelIO(ip, rowID, data) {
+            if (!ip) return;
+            // If the data already has the properties, getChannelIOIcons handled it
+            var hasOutputProp = data && data.hasOwnProperty('channelOutputsEnabled');
+            var hasInputProp = data && data.hasOwnProperty('channelInputsEnabled');
+            if (hasOutputProp && hasInputProp) return;
+            // Only check each IP once
+            if (channelIOCheckedIPs[ip]) {
+                // Re-apply cached icons if mode cell was refreshed
+                applyChannelIOIcons(ip, rowID);
+                return;
+            }
+            channelIOCheckedIPs[ip] = { output: false, input: false };
+
+            var checks = [];
+            if (!hasOutputProp) {
+                checks.push(fetchChannelOutputConfig(ip).then(function (configData) {
+                    if (configData && configData.channelOutputs && configData.channelOutputs.length) {
+                        var co = configData.channelOutputs[0];
+                        if (co.enabled && co.universes && co.universes.length) {
+                            if (co.universes.some(function (u) { return u.active; })) {
+                                channelIOCheckedIPs[ip].output = true;
+                            }
+                        }
+                    }
+                }));
+            }
+            if (!hasInputProp) {
+                checks.push(fetchChannelInputConfig(ip).then(function (configData) {
+                    if (configData && configData.channelInputs && configData.channelInputs.length) {
+                        var ci = configData.channelInputs[0];
+                        if (ci.enabled && ci.universes && ci.universes.length) {
+                            if (ci.universes.some(function (u) { return u.active; })) {
+                                channelIOCheckedIPs[ip].input = true;
+                            }
+                        }
+                    }
+                }));
+            }
+            $.when.apply($, checks).always(function () {
+                applyChannelIOIcons(ip, rowID);
+            });
+        }
+
+        /**
+         * Apply cached channel I/O icons to a mode cell if not already present.
+         */
+        function applyChannelIOIcons(ip, rowID) {
+            var info = channelIOCheckedIPs[ip];
+            if (!info || (!info.output && !info.input)) return;
+            var $modeCell = $('#' + rowID + '_mode');
+            if ($modeCell.length === 0) return;
+            // Don't add if icons already present
+            if ($modeCell.find('.channel-io-icons').length > 0) return;
+            var icons = '<span class="channel-io-icons">';
+            if (info.input) {
+                icons += '<i class="fas fa-regular fa-circle-down channel-io-icon-input" data-ip="' + ip + '" aria-label="Channel Inputs Enabled (hover for details)"></i>';
+            }
+            if (info.output) {
+                icons += '<i class="fas fa-regular fa-circle-up channel-io-icon-output" data-ip="' + ip + '" aria-label="Channel Outputs Enabled (hover for details)"></i>';
+            }
+            icons += '</span>';
+            $modeCell.append(icons);
+        }
 
         function exportMultisync() {
             if (systemStatusCache == null || systemStatusCache == "" || systemStatusCache == "null") {
@@ -1246,8 +1318,10 @@
                         } else if (status != "") {
                             $('#' + rowID + '_status').html(status);
                             $('#' + rowID + '_mode').html(getFullMode(data, ip));
+                            checkRemoteChannelIO(ip, rowID, data);
                         } else {
                             $('#' + rowID + '_mode').html(getFullMode(data, ip));
+                            checkRemoteChannelIO(ip, rowID, data);
                         }
                         if (data.hasOwnProperty('wifi')) {
                             var wifi_html = [];
@@ -1667,6 +1741,11 @@
 
                     newRow = newRow + "</tr>";
                     $('#fppSystems').append(newRow);
+
+                    // For older FPP systems without channelOutputsEnabled, check remote config
+                    if (isFPP(data[i].typeId)) {
+                        checkRemoteChannelIO(data[i].address, rowID, data[i]);
+                    }
 
                     var colspan = 9;
                     newRow = "<tr id='" + rowID + "_warnings' class='tablesorter-childRow warning-row'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
