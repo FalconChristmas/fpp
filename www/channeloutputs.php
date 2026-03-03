@@ -422,86 +422,91 @@
                         $lpTabStyleActive = "active";
                     }
                     ?>
-                    <ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
-                        <li class="nav-item <?= $e131TabStyle ?>" id="tab-e131-LI" role="presentation">
-                            <a class="nav-link <?= $e131TabStyleActive ?>" id="tab-e131-tab" type="button" tabType='UDP'
-                                data-bs-toggle="pill" data-bs-target="#tab-e131" role="tab" aria-controls="tab-e131"
-                                aria-selected="true">
-                                E1.31 / ArtNet / DDP / KiNet
-                            </a>
-                        </li>
+                    <div class="d-flex align-items-end flex-wrap">
+                        <ul class="nav nav-pills pageContent-tabs flex-grow-1" id="channelOutputTabs" role="tablist">
+                            <li class="nav-item <?= $e131TabStyle ?>" id="tab-e131-LI" role="presentation">
+                                <a class="nav-link <?= $e131TabStyleActive ?>" id="tab-e131-tab" type="button"
+                                    tabType='UDP' data-bs-toggle="pill" data-bs-target="#tab-e131" role="tab"
+                                    aria-controls="tab-e131" aria-selected="true">
+                                    E1.31 / ArtNet / DDP / KiNet
+                                </a>
+                            </li>
 
-                        <?
+                                <?
 
-                        if (
-                            $settings['BeaglePlatform'] || $settings['Platform'] == "Raspberry Pi" ||
-                            ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))
-                        ) {
-                            $stringTabText = "Pixel Strings";
-                            if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-                                if (isset($currentCapeInfo["labels"]) && isset($currentCapeInfo["labels"]["strings"])) {
-                                    $stringTabText = $currentCapeInfo["labels"]["strings"];
-                                } else if (
-                                    ((in_array('all', $currentCapeInfo["provides"])) || (in_array('strings', $currentCapeInfo["provides"]))) &&
+                                if (
+                                    $settings['BeaglePlatform'] || $settings['Platform'] == "Raspberry Pi" ||
+                                    ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))
+                                ) {
+                                    $stringTabText = "Pixel Strings";
+                                    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+                                        if (isset($currentCapeInfo["labels"]) && isset($currentCapeInfo["labels"]["strings"])) {
+                                            $stringTabText = $currentCapeInfo["labels"]["strings"];
+                                        } else if (
+                                            ((in_array('all', $currentCapeInfo["provides"])) || (in_array('strings', $currentCapeInfo["provides"]))) &&
+                                            (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")
+                                        ) {
+                                            $stringTabText = $currentCapeInfo["name"];
+                                            if (in_array('all', $currentCapeInfo["provides"]) || in_array('panels', $currentCapeInfo["provides"])) {
+                                                $stringTabText .= " Pixel Strings";
+                                            }
+                                        }
+                                    }
+                                    ?>
+                                    <li class="nav-item <?= $stringTabStyle ?>" id="tab-strings-LI">
+                                        <a class="nav-link <?= $stringTabStyleActive ?>" id="stringTab-tab" type="button"
+                                            tabType='strings' data-bs-toggle="pill" data-bs-target='#stringTab' role="tab"
+                                            aria-controls="stringTab">
+                                            <? echo $stringTabText; ?>
+                                        </a>
+                                    </li>
+                                    <?
+                                }
+                                if (in_array('pwm', $currentCapeInfo["provides"]) && isset($currentCapeInfo['verifiedKeyId'])) {
+                                    $pwmTabText = "PWM";
+                                    if (isset($currentCapeInfo["labels"]) && isset($currentCapeInfo["labels"]["pwm"])) {
+                                        $pwmTabText = $currentCapeInfo["labels"]["pwm"];
+                                    }
+                                    ?>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="tab-pwm-tab" type="button" tabType='PWM' data-bs-toggle="pill"
+                                            data-bs-target='#tab-pwm' role="tab" aria-controls="tab-pwm">
+                                            <? echo $pwmTabText; ?>
+                                        </a>
+                                    </li>
+                                    <?
+                                }
+
+                                $ledTabText = "LED Panel Matrices";
+                                if (
+                                    ((in_array('all', $currentCapeInfo["provides"])) || (in_array('panels', $currentCapeInfo["provides"]))) &&
                                     (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")
                                 ) {
-                                    $stringTabText = $currentCapeInfo["name"];
-                                    if (in_array('all', $currentCapeInfo["provides"]) || in_array('panels', $currentCapeInfo["provides"])) {
-                                        $stringTabText .= " Pixel Strings";
+                                    $ledTabText = $currentCapeInfo["name"];
+                                    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+                                        $ledTabText .= " LED Panels";
                                     }
+
                                 }
-                            }
-                            ?>
-                            <li class="nav-item <?= $stringTabStyle ?>" id="tab-strings-LI">
-                                <a class="nav-link <?= $stringTabStyleActive ?>" id="stringTab-tab" type="button"
-                                    tabType='strings' data-bs-toggle="pill" data-bs-target='#stringTab' role="tab"
-                                    aria-controls="stringTab">
-                                    <? echo $stringTabText; ?>
-                                </a>
-                            </li>
-                            <?
-                        }
-                        if (in_array('pwm', $currentCapeInfo["provides"]) && isset($currentCapeInfo['verifiedKeyId'])) {
-                            $pwmTabText = "PWM";
-                            if (isset($currentCapeInfo["labels"]) && isset($currentCapeInfo["labels"]["pwm"])) {
-                                $pwmTabText = $currentCapeInfo["labels"]["pwm"];
-                            }
-                            ?>
-                            <li class="nav-item">
-                                <a class="nav-link" id="tab-pwm-tab" type="button" tabType='PWM' data-bs-toggle="pill"
-                                    data-bs-target='#tab-pwm' role="tab" aria-controls="tab-pwm">
-                                    <? echo $pwmTabText; ?>
-                                </a>
-                            </li>
-                            <?
-                        }
-
-                        $ledTabText = "LED Panel Matrices";
-                        if (
-                            ((in_array('all', $currentCapeInfo["provides"])) || (in_array('panels', $currentCapeInfo["provides"]))) &&
-                            (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")
-                        ) {
-                            $ledTabText = $currentCapeInfo["name"];
-                            if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-                                $ledTabText .= " LED Panels";
-                            }
-
-                        }
-                        ?>
-                        <li class="nav-item <?= $lpTabStyle ?>" id="tab-LEDPanels-LI">
-                            <a class="nav-link <?= $lpTabStyleActive ?>" id="tab-LEDPanels-tab" type="button"
-                                tabType='panels' data-bs-toggle="pill" data-bs-target='#tab-LEDPanels' role="tab"
+                                ?>
+                            <li class="nav-item <?= $lpTabStyle ?>" id="tab-LEDPanels-LI">
+                                <a class="nav-link <?= $lpTabStyleActive ?>" id="tab-LEDPanels-tab" type="button"
+                                    tabType='panels' data-bs-toggle="pill" data-bs-target='#tab-LEDPanels' role="tab"
                                 aria-controls="tab-LEDPanels">
                                 <? echo $ledTabText; ?>
                             </a>
                         </li>
-                        <li class="nav-item" id="tab-other-LI">
-                            <a class="nav-link" id="tab-other-tab" type="button" tabType='other' data-bs-toggle="pill"
-                                data-bs-target='#tab-other' role="tab" aria-controls="tab-other">
-                                Other
-                            </a>
-                        </li>
                     </ul>
+                        <div class="dropdown ms-auto" style="padding-bottom: 0.85em; margin-bottom: 1em"
+                            id="tab-add-output-LI">
+                            <button class="btn btn-outline-success dropdown-toggle" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false" id="addOutputDropdown">
+                            <i class="fas fa-plus"></i> Add Output Group
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" id="addOutputCategoryMenu">
+                            </ul>
+                        </div>
+                    </div>
 
 
                     <!-- --------------------------------------------------------------------- -->
@@ -528,18 +533,18 @@
                             ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))
                         ) {
                             ?>
-                            <div class="tab-pane fade <?= $stringTabStyleActive ?>" id="stringTab" role="tabpanel"
-                                aria-labelledby="stringTab-tab">
-                                <? include_once 'co-pixelStrings.php'; ?>
-                            </div>
-                            <?
+                                <div class="tab-pane fade <?= $stringTabStyleActive ?>" id="stringTab" role="tabpanel"
+                                    aria-labelledby="stringTab-tab">
+                                    <? include_once 'co-pixelStrings.php'; ?>
+                                </div>
+                                <?
                         }
                         if (in_array('pwm', $currentCapeInfo["provides"])) {
                             ?>
-                            <div class="tab-pane fade" id="tab-pwm" role="tabpanel" aria-labelledby="tab-pwm-tab">
-                                <? include_once 'co-pwm.php'; ?>
-                            </div>
-                            <?
+                                <div class="tab-pane fade" id="tab-pwm" role="tabpanel" aria-labelledby="tab-pwm-tab">
+                                    <? include_once 'co-pwm.php'; ?>
+                                </div>
+                                <?
                         }
                         ?>
 
@@ -547,11 +552,8 @@
                             aria-labelledby="tab-LEDPanels-tab">
                             <? include_once 'co-ledPanels.php'; ?>
                         </div>
-                        <div class="tab-pane fade" id="tab-other" role="tabpanel" aria-labelledby="tab-other-tab">
-                            <? include_once "co-other.php"; ?>
-                        </div>
-
                     </div> <!-- tabcontent close -->
+                    <? include_once "co-other.php"; ?>
 
                     <!-- --------------------------------------------------------------------- -->
 

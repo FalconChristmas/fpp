@@ -2,8 +2,8 @@
 <script>
 
     $(document).ready(function () {
-        PopulateAddOutputMenu();
         GetChannelOutputs();
+        SetupSelectableTableRow(otherTableInfo);
     });
 
     /////////////////////////////////////////////////////////////////////////////
@@ -624,226 +624,103 @@
         return SPInRFDeviceConfig(config);
     }
 
-
     /////////////////////////////////////////////////////////////////////////////
-    // Category Tab Management
-    /////////////////////////////////////////////////////////////////////////////
-    var categoryTableInfo = {};
-    var activeCategoryTabs = {};
-
-    function GetCategoryForType(type) {
-        return typeToCategoryMap[type] || "Misc";
-    }
-
-    function PopulateAddOutputMenu() {
-        var menu = $('#addOutputCategoryMenu');
-        menu.empty();
-        var orderedCategories = ["DMXSerial", "GPIO", "VirtualDisplay", "SPI", "PWM", "ControlSignal", "ExternalMatrix"];
-        for (var i = 0; i < orderedCategories.length; i++) {
-            var cat = orderedCategories[i];
-            var catInfo = outputCategories[cat];
-            if (catInfo && GetTypesForCategory(cat).length > 0) {
-                menu.append('<li><a class="dropdown-item" href="#" onclick="AddNewCategoryTab(\'' +
-                    cat + '\'); return false;">' + catInfo.label + '</a></li>');
-            }
-        }
-    }
-
-    function CreateCategoryTab(category) {
-        if ($('#tab-other-' + category + '-LI').length > 0) {
-            return;
-        }
-        var catInfo = outputCategories[category];
-        if (!catInfo) return;
-
-        var tabLi = '<li class="nav-item" id="tab-other-' + category + '-LI" role="presentation">' +
-            '<a class="nav-link" id="tab-other-' + category + '-tab" type="button" ' +
-            'data-bs-toggle="pill" data-bs-target="#tab-other-' + category + '" role="tab" ' +
-            'aria-controls="tab-other-' + category + '">' + catInfo.label + '</a></li>';
-        $('#channelOutputTabs').append(tabLi);
-
-        var tabPane = '<div class="tab-pane fade" id="tab-other-' + category + '" role="tabpanel" ' +
-            'aria-labelledby="tab-other-' + category + '-tab">' +
-            '<div id="divOther-' + category + '">' +
-            '<div class="row tableTabPageHeader">' +
-            '<div class="col-md"><h2>' + catInfo.label + ' Outputs</h2></div>' +
-            '<div class="col-md-auto ms-lg-auto">' +
-            '<div class="form-actions">' +
-            '<input id="btnDeleteOther-' + category + '" class="disableButtons" type="button" value="Delete" ' +
-            'data-btn-enabled-class="btn-outline-danger" onClick="DeleteOutputFromCategory(\'' + category + '\');">' +
-            '<button class="buttons btn-outline-success" type="button" ' +
-            'onClick="AddOutputToCategory(\'' + category + '\');"><i class="fas fa-plus"></i> Add</button>' +
-            '<input class="buttons btn-success ms-1" type="button" value="Save" ' +
-            'onClick="SaveOtherChannelOutputs();">' +
-            '</div>' +
-            '</div>' +
-            '</div>' +
-            '<div style="overflow: hidden; padding: 5px;">' +
-            '<form>' +
-            '<div class="fppTableWrapper">' +
-            '<div class="fppTableContents fppFThScrollContainer" role="region" tabindex="0">' +
-            '<table id="tblOther-' + category + '" class="fppSelectableRowTable fppStickyTheadTable">' +
-            '<thead><tr class="tblheader">' +
-            '<th>#</th><th>Active</th><th>Output Type</th>' +
-            '<th>Start<br>Ch.</th><th>Channel<br>Count</th><th>Output Config</th>' +
-            '</tr></thead>' +
-            '<tbody></tbody>' +
-            '</table>' +
-            '</div>' +
-            '</div>' +
-            '</form>' +
-            '</div>' +
-            '</div>' +
-            '</div>';
-
-        $('#channelOutputTabsContent').append(tabPane);
-
-        categoryTableInfo[category] = {
-            tableName: "tblOther-" + category,
-            selected: -1,
-            enableButtons: ["btnDeleteOther-" + category],
-            disableButtons: []
-        };
-        SetupSelectableTableRow(categoryTableInfo[category]);
-
-        activeCategoryTabs[category] = true;
-    }
-
-    function AddNewCategoryTab(category) {
-        CreateCategoryTab(category);
-        var tabEl = document.getElementById('tab-other-' + category + '-tab');
-        if (tabEl) {
-            var tab = new bootstrap.Tab(tabEl);
-            tab.show();
-        }
-    }
-
-    function AddOutputRowToTable(tableId, output, rowIndex) {
-        var type = output.type;
-        var newRow = "<tr class='rowUniverseDetails'><td style='vertical-align:top'>" + (rowIndex + 1) + "</td>" +
-            "<td style='vertical-align:top'><input class='act' type=checkbox";
-
-        if (output.enabled)
-            newRow += " checked";
-
-        var startDisabled = "";
-        var countDisabled = "";
-
-        let output_module = output_modules.find(obj => obj.typeName == type);
-
-        if (type == 'HTTPVirtualDisplay') {
-            startDisabled = " disabled='disabled'";
-        }
-
-        if ((type == 'USBRelay') ||
-            (type == 'Pixelnet-Lynx') ||
-            (type == 'Pixelnet-Open') ||
-            (type == 'MAX7219Matrix')) {
-            countDisabled = " disabled='disabled'";
-        }
-
-        var typeFriendlyName = type;
-        if (output_module != undefined) {
-            typeFriendlyName = output_module.typeFriendlyName;
-            if (output_module._fixedStart) {
-                startDisabled = " disabled='disabled'";
-            }
-            if (output_module._fixedChans) {
-                countDisabled = " disabled='disabled'";
-            }
-        }
-
-        var maxChannel = FPPD_MAX_CHANNELS;
-        if ((type == "DMX-Pro") || (type == "DMX-Open")) {
-            maxChannel = 512;
-        }
-
-        var numChannel = output.channelCount;
-        if (output.hasOwnProperty('channelCount')) {
-            if (numChannel == 0 || numChannel > maxChannel) {
-                numChannel = maxChannel;
-            }
-        } else {
-            numChannel = 1;
-        }
-
-        newRow += "></td>" +
-            "<td class='type' style='vertical-align:top'>" + typeFriendlyName +
-            "<input class='type' type='hidden' name='type' value='" + type + "'></td>" +
-            "<td style='vertical-align:top'><input class='start' type=number min=1 max=" + FPPD_MAX_CHANNELS +
-            " value='" + output.startChannel + "'" + startDisabled + "></td>" +
-            "<td style='vertical-align:top'><input class='count' type=number min=1 max=" + maxChannel +
-            " value='" + numChannel + "'" + countDisabled + "></td>" +
-            "<td style='vertical-align:top' class='config'>";
-
-        if ((type == "DMX-Pro") ||
-            (type == "DMX-Open") ||
-            (type == "Pixelnet-Lynx") ||
-            (type == "Pixelnet-Open")) {
-            newRow += USBDeviceConfig(output);
-        } else if (type == "GenericSerial") {
-            newRow += GenericSerialConfig(output);
-        } else if (type == "Renard") {
-            newRow += RenardOutputConfig(output);
-        } else if (type == "LOR") {
-            newRow += LOROutputConfig(output);
-        } else if (type == "SPI-nRF24L01") {
-            newRow += SPInRFDeviceConfig(output);
-        } else if (type == "HTTPVirtualDisplay") {
-            newRow += HTTPVirtualDisplayConfig(output);
-        } else if (type == "MAX7219Matrix") {
-            newRow += MAX7219MatrixConfig(output);
-        } else if (type == "USBRelay") {
-            newRow += USBRelayConfig(output);
-        } else if (output_module != undefined) {
-            newRow += output_module.PopulateHTMLRow(output);
-        }
-
-        newRow += "</td></tr>";
-
-        $('#' + tableId + ' > tbody').append(newRow);
-
-        if (output_module != undefined)
-            output_module.RowAdded($('#' + tableId + ' > tbody > tr').last());
-    }
-
-    /////////////////////////////////////////////////////////////////////////////
-    // Channel Output table population and management
+    // 'Other' Channel Outputs misc. functions
     function PopulateChannelOutputTable(data) {
-        // Remove all existing category tabs
-        var catsToRemove = Object.keys(activeCategoryTabs);
-        for (var i = 0; i < catsToRemove.length; i++) {
-            var cat = catsToRemove[i];
-            $('#tab-other-' + cat + '-LI').remove();
-            $('#tab-other-' + cat).remove();
-            delete categoryTableInfo[cat];
-        }
-        activeCategoryTabs = {};
+        $('#tblOtherOutputs > tbody').html("");
 
-        if (!data || !("channelOutputs" in data) || data.channelOutputs.length == 0) {
-            UpdateVirtualDisplayMenu(data);
-            return;
-        }
+        if ("channelOutputs" in data) {
+            for (var i = 0; i < data.channelOutputs.length; i++) {
+                var output = data.channelOutputs[i];
+                var type = output.type;
 
-        // Group outputs by category
-        var grouped = {};
-        for (var i = 0; i < data.channelOutputs.length; i++) {
-            var output = data.channelOutputs[i];
-            var cat = GetCategoryForType(output.type);
-            if (!grouped[cat]) grouped[cat] = [];
-            grouped[cat].push(output);
-        }
+                var newRow = "<tr class='rowUniverseDetails'><td style='vertical-align:top'>" + (i + 1) + "</td>" +
+                    "<td style='vertical-align:top'><input class='act' type=checkbox";
 
-        // Create tabs and populate for each category
-        for (var cat in grouped) {
-            CreateCategoryTab(cat);
-            var tableId = 'tblOther-' + cat;
-            for (var j = 0; j < grouped[cat].length; j++) {
-                AddOutputRowToTable(tableId, grouped[cat][j], j);
+                if (output.enabled)
+                    newRow += " checked";
+
+                var startDisabled = "";
+                var countDisabled = "";
+
+                ///////used for new way
+                let output_module = output_modules.find(obj => obj.typeName == type);
+                ///////
+
+                if (type == 'HTTPVirtualDisplay') {
+                    startDisabled = " disabled='disabled'";
+                }
+
+                if ((type == 'USBRelay') ||
+                    (type == 'Pixelnet-Lynx') ||
+                    (type == 'Pixelnet-Open') ||
+                    (type == 'MAX7219Matrix')) {
+                    countDisabled = " disabled='disabled'";
+                }
+
+                var typeFriendlyName = type;
+                if (output_module != undefined) {
+                    typeFriendlyName = output_module.typeFriendlyName;
+                    if (output_module._fixedStart) {
+                        startDisabled = " disabled='disabled'";
+                    }
+                    if (output_module._fixedChans) {
+                        countDisabled = " disabled='disabled'";
+                    }
+                }
+                var maxChannel = FPPD_MAX_CHANNELS;
+                if ((type == "DMX-Pro") ||
+                    (type == "DMX-Open")) {
+                    maxChannel = 512;
+                }
+                var numChannel = output.channelCount;
+                if (output.hasOwnProperty('channelCount')) {
+                    if (numChannel == 0 || numChannel > maxChannel) {
+                        numChannel = maxChannel;
+                    }
+                } else {
+                    numChannel = 1;
+                }
+
+                newRow += "></td>" +
+                    "<td class='type' style='vertical-align:top'>" + typeFriendlyName + "<input class='type' type='hidden' name='type' value='" + type + "'></td>" +
+                    "<td style='vertical-align:top'><input class='start' type=number min=1 max=" + FPPD_MAX_CHANNELS + " value='" + output.startChannel + "'" + startDisabled + "></td>" +
+                    "<td style='vertical-align:top'><input class='count' type=number min=1 max=" + maxChannel + " value='" + numChannel + "'" + countDisabled + "></td>" +
+                    "<td style='vertical-align:top' class='config'>";
+
+                if ((type == "DMX-Pro") ||
+                    (type == "DMX-Open") ||
+                    (type == "Pixelnet-Lynx") ||
+                    (type == "Pixelnet-Open")) {
+                    newRow += USBDeviceConfig(output);
+                } else if (type == "GenericSerial") {
+                    newRow += GenericSerialConfig(output);
+                } else if (type == "Renard") {
+                    newRow += RenardOutputConfig(output);
+                } else if (type == "LOR") {
+                    newRow += LOROutputConfig(output);
+                } else if (type == "SPI-nRF24L01") {
+                    newRow += SPInRFDeviceConfig(output);
+                } else if (type == "HTTPVirtualDisplay") {
+                    newRow += HTTPVirtualDisplayConfig(output);
+                } else if (type == "MAX7219Matrix") {
+                    newRow += MAX7219MatrixConfig(output);
+                } else if (type == "USBRelay") {
+                    newRow += USBRelayConfig(output);
+                } else if (output_module != undefined) {
+                    ///////new way
+                    newRow += output_module.PopulateHTMLRow(output);
+                }
+
+                newRow += "</td>" +
+                    "</tr>";
+
+                $('#tblOtherOutputs > tbody').append(newRow);
+
+                if (output_module != undefined)
+                    output_module.RowAdded($('#tblOtherOutputs > tbody > tr').last());
             }
         }
-
-        UpdateVirtualDisplayMenu(data);
     }
 
     function GetChannelOutputs() {
@@ -859,152 +736,142 @@
         var config;
         var outputs = [];
 
-        // Remember which tab is active for restore after save
-        var activeTabId = $('#channelOutputTabs .nav-link.active').attr('id');
+        $('#tblOtherOutputs > tbody > tr.rowUniverseDetails').each(function () {
+            $this = $(this);
 
-        // Collect from all category tables
-        for (var cat in activeCategoryTabs) {
-            $('#tblOther-' + cat + ' > tbody > tr.rowUniverseDetails').each(function () {
-                $this = $(this);
+            var enabled = 0;
 
-                var enabled = 0;
+            if ($this.find("td:nth-child(2) input.act").is(":checked")) {
+                enabled = 1;
+            }
 
-                if ($this.find("td:nth-child(2) input.act").is(":checked")) {
-                    enabled = 1;
-                }
+            // Type
+            var type = $this.find("input.type").val();
 
-                // Type
-                var type = $this.find("input.type").val();
-
-                // User has not selected a type yet
-                if (type.indexOf("None Selected") >= 0) {
-                    DialogError("Save Channel Outputs",
-                        "Output type must be selected on row " + rowNumber);
-                    dataError = 1;
-                    return;
-                }
-
-                var channelCount = $this.find("td:nth-child(5) input").val();
-                if ((channelCount == "") || isNaN(channelCount) || (parseInt(channelCount) > FPPD_MAX_CHANNELS)) {
-                    DialogError("Save Channel Outputs",
-                        "Invalid Channel Count '" + channelCount + "' on row " + rowNumber);
-                    dataError = 1;
-                    return;
-                }
-
-                var startChannel = $this.find("td:nth-child(4) input").val();
-                if ((startChannel == "") || isNaN(startChannel)) {
-                    DialogError("Save Channel Outputs",
-                        "Invalid Start Channel '" + startChannel + "' on row " + rowNumber);
-                    dataError = 1;
-                    return;
-                }
-
-                var endChannel = parseInt(startChannel) + parseInt(channelCount) - 1;
-                if (endChannel > FPPD_MAX_CHANNELS) {
-                    DialogError("Save Channel Outputs",
-                        "Start Channel '" + startChannel + "' plus Channel Count '" + channelCount +
-                        "' exceeds " + FPPD_MAX_CHANNELS + " on row " + rowNumber);
-                    dataError = 1;
-                    return;
-                }
-
-                config = {};
-                config.enabled = enabled;
-                config.type = type;
-                config.startChannel = parseInt(startChannel);
-                config.channelCount = parseInt(channelCount);
-
-                // Get output specific options
-                var maxChannels = 510;
-                if ((type == "DMX-Pro") ||
-                    (type == "DMX-Open") ||
-                    (type == "Pixelnet-Lynx") ||
-                    (type == "Pixelnet-Open")) {
-                    config = GetUSBOutputConfig(config, $this.find("td:nth-child(6)"));
-                    if (config == "") {
-                        dataError = 1;
-                        DialogError("Save Channel Outputs", "Invalid Output Config");
-                        return;
-                    }
-                    maxChannels = 512;
-                    if (type.substring(0, 8) == "Pixelnet")
-                        maxChannels = 4096;
-                } else if (type == "Renard") {
-                    config = GetRenardOutputConfig(config, $this.find("td:nth-child(6)"));
-                    if (config == "") {
-                        dataError = 1;
-                        DialogError("Save Channel Outputs", "Invalid Renard Config");
-                        return;
-                    }
-                    maxChannels = 1528;
-                } else if (type == "LOR") {
-                    config = GetLOROutputConfig(config, $this.find("td:nth-child(6)"));
-                    if (config == "") {
-                        dataError = 1;
-                        DialogError("Save Channel Outputs", "Invalid LOR Config");
-                        return;
-                    }
-                    maxChannels = 3840;
-                } else if (type == "SPI-nRF24L01") {
-                    config = GetnRFSpeedConfig(config, $this.find("td:nth-child(6)"));
-                    if (config == "") {
-                        dataError = 1;
-                        DialogError("Save Channel Outputs", "Invalid nRF Config");
-                        return;
-                    }
-                    maxChannels = 512;
-                } else if (type == "HTTPVirtualDisplay") {
-                    config = GetHTTPVirtualDisplayConfig(config, $this.find("td:nth-child(6)"));
-                    if (config == "") {
-                        dataError = 1;
-                        DialogError("Save Channel Outputs", "Invalid HTTPVirtual Display Config");
-                        return;
-                    }
-                    maxChannels = FPPD_MAX_CHANNELS;
-                } else if (type == "MAX7219Matrix") {
-                    config = GetMAX7219MatrixConfig(config, $this.find("td:nth-child(6)"));
-                    if (config == "") {
-                        dataError = 1;
-                        DialogError("Save Channel Outputs", "Invalid MAX7219Matrix Config");
-                        return;
-                    }
-                    maxChannels = 1536;
-                } else if (type == "GenericSerial") {
-                    config = GetGenericSerialConfig(config, $this.find("td:nth-child(6)"));
-                    if (config == "") {
-                        dataError = 1;
-                        DialogError("Save Channel Outputs", "Invalid Generic Serial Config");
-                        return;
-                    }
-                    maxChannels = 3072;
-                } else if (type == "USBRelay") {
-                    config = GetUSBRelayOutputConfig(config, $this.find("td:nth-child(6)"));
-                    if (config == "") {
-                        dataError = 1;
-                        DialogError("Save Channel Outputs", "Invalid USBRelay Config");
-                        return;
-                    }
-                    maxChannels = 8;
-                } else if (output_modules.find(obj => obj.typeName == type) != undefined) {
-                    ///////new method
-                    let output_module = output_modules.find(obj => obj.typeName == type);
-                    config = output_module.GetOutputConfig(config, $this.find("td:nth-child(6)"));
-                    if (config == "") {
-                        dataError = 1;
-                        DialogError("Save Channel Outputs", "Invalid " + output_module.typeFriendlyName + " Config");
-                        return;
-                    }
-                    maxChannels = output_module.maxChannels;
-                }
-
-                outputs.push(config);
-                rowNumber++;
-            });
-
-            if (dataError)
+            // User has not selected a type yet
+            if (type.indexOf("None Selected") >= 0) {
+                DialogError("Save Channel Outputs",
+                    "Output type must be selected on row " + rowNumber);
+                dataError = 1;
                 return;
-        }
+            }
+
+            var channelCount = $this.find("td:nth-child(5) input").val();
+            if ((channelCount == "") || isNaN(channelCount) || (parseInt(channelCount) > maxChannels)) {
+                DialogError("Save Channel Outputs",
+                    "Invalid Channel Count '" + channelCount + "' on row " + rowNumber);
+                dataError = 1;
+                return;
+            }
+
+            var startChannel = $this.find("td:nth-child(4) input").val();
+            if ((startChannel == "") || isNaN(startChannel)) {
+                DialogError("Save Channel Outputs",
+                    "Invalid Start Channel '" + startChannel + "' on row " + rowNumber);
+                dataError = 1;
+                return;
+            }
+
+            var endChannel = parseInt(startChannel) + parseInt(channelCount) - 1;
+            if (endChannel > FPPD_MAX_CHANNELS) {
+                DialogError("Save Channel Outputs",
+                    "Start Channel '" + startChannel + "' plus Channel Count '" + channelCount + "' exceeds " + FPPD_MAX_CHANNELS + " on row " + rowNumber);
+                dataError = 1;
+                return;
+            }
+
+            config = {};
+            config.enabled = enabled;
+            config.type = type;
+            config.startChannel = parseInt(startChannel);
+            config.channelCount = parseInt(channelCount);
+
+            // Get output specific options
+            var maxChannels = 510;
+            if ((type == "DMX-Pro") ||
+                (type == "DMX-Open") ||
+                (type == "Pixelnet-Lynx") ||
+                (type == "Pixelnet-Open")) {
+                config = GetUSBOutputConfig(config, $this.find("td:nth-child(6)"));
+                if (config == "") {
+                    dataError = 1;
+                    DialogError("Save Channel Outputs", "Invalid Output Config");
+                    return;
+                }
+                maxChannels = 512;
+                if (type.substring(0, 8) == "Pixelnet")
+                    maxChannels = 4096;
+            } else if (type == "Renard") {
+                config = GetRenardOutputConfig(config, $this.find("td:nth-child(6)"));
+                if (config == "") {
+                    dataError = 1;
+                    DialogError("Save Channel Outputs", "Invalid Renard Config");
+                    return;
+                }
+                maxChannels = 1528;
+            } else if (type == "LOR") {
+                config = GetLOROutputConfig(config, $this.find("td:nth-child(6)"));
+                if (config == "") {
+                    dataError = 1;
+                    DialogError("Save Channel Outputs", "Invalid LOR Config");
+                    return;
+                }
+                maxChannels = 3840;
+            } else if (type == "SPI-nRF24L01") {
+                config = GetnRFSpeedConfig(config, $this.find("td:nth-child(6)"));
+                if (config == "") {
+                    dataError = 1;
+                    DialogError("Save Channel Outputs", "Invalid nRF Config");
+                    return;
+                }
+                maxChannels = 512;
+            } else if (type == "HTTPVirtualDisplay") {
+                config = GetHTTPVirtualDisplayConfig(config, $this.find("td:nth-child(6)"));
+                if (config == "") {
+                    dataError = 1;
+                    DialogError("Save Channel Outputs", "Invalid HTTPVirtual Display Config");
+                    return;
+                }
+                maxChannels = FPPD_MAX_CHANNELS;
+            } else if (type == "MAX7219Matrix") {
+                config = GetMAX7219MatrixConfig(config, $this.find("td:nth-child(6)"));
+                if (config == "") {
+                    dataError = 1;
+                    DialogError("Save Channel Outputs", "Invalid MAX7219Matrix Config");
+                    return;
+                }
+                maxChannels = 1536;
+            } else if (type == "GenericSerial") {
+                config = GetGenericSerialConfig(config, $this.find("td:nth-child(6)"));
+                if (config == "") {
+                    dataError = 1;
+                    DialogError("Save Channel Outputs", "Invalid Generic Serial Config");
+                    return;
+                }
+                maxChannels = 3072;
+            } else if (type == "USBRelay") {
+                config = GetUSBRelayOutputConfig(config, $this.find("td:nth-child(6)"));
+                if (config == "") {
+                    dataError = 1;
+                    DialogError("Save Channel Outputs", "Invalid USBRelay Config");
+                    return;
+                }
+                maxChannels = 8;
+            } else if (output_modules.find(obj => obj.typeName == type) != undefined) {
+                ///////new method
+                let output_module = output_modules.find(obj => obj.typeName == type);
+                config = output_module.GetOutputConfig(config, $this.find("td:nth-child(6)"));
+                if (config == "") {
+                    dataError = 1;
+                    DialogError("Save Channel Outputs", "Invalid " + output_module.typeFriendlyName + " Config");
+                    return;
+                }
+                maxChannels = output_module.maxChannels;
+            }
+
+            outputs.push(config);
+            rowNumber++;
+        });
 
         if (dataError)
             return;
@@ -1016,15 +883,6 @@
             $.jGrowl("Channel Output Configuration Saved", { themeState: 'success' });
             common_ViewPortChange();
 
-            // Restore active tab if it was a category tab
-            if (activeTabId && activeTabId.startsWith('tab-other-')) {
-                var tabEl = document.getElementById(activeTabId);
-                if (tabEl) {
-                    var tab = new bootstrap.Tab(tabEl);
-                    tab.show();
-                }
-            }
-
             // Update menu to show/hide Virtual Display links
             UpdateVirtualDisplayMenu(data);
 
@@ -1035,76 +893,6 @@
         }).fail(function () {
             DialogError("Save Channel Outputs", "Save Failed");
         });
-    }
-
-    /////////////////////////////////////////////////////////////////////////////
-    // Get available output types for a specific category
-    function GetTypesForCategory(category) {
-        var types = [];
-
-        // Legacy types for DMX/Serial
-        if (category == "DMXSerial") {
-            if (Object.keys(SerialDevices).length > 0) {
-                types.push({ value: "DMX-Open", label: "DMX-Open" });
-                types.push({ value: "DMX-Pro", label: "DMX-Pro" });
-                types.push({ value: "GenericSerial", label: "Generic Serial" });
-                types.push({ value: "Pixelnet-Lynx", label: "Pixelnet-Lynx" });
-                types.push({ value: "Pixelnet-Open", label: "Pixelnet-Open" });
-                types.push({ value: "Renard", label: "Renard" });
-                types.push({ value: "LOR", label: "LOR" });
-            }
-        }
-
-        // Legacy types for Virtual Display
-        if (category == "VirtualDisplay") {
-            types.push({ value: "HTTPVirtualDisplay", label: "HTTP Virtual Display" });
-        }
-
-        <?
-        if ($settings['Platform'] == "Raspberry Pi") {
-            ?>
-            // Legacy SPI types (Raspberry Pi only)
-            if (category == "SPI") {
-                if (Object.keys(SPIDevices).length > 0) {
-                    types.push({ value: "SPI-nRF24L01", label: "SPI-nRF24L01" });
-                }
-            }
-            // Legacy External Matrix types (Raspberry Pi only)
-            if (category == "ExternalMatrix") {
-                if (Object.keys(SPIDevices).length > 0) {
-                    types.push({ value: "MAX7219Matrix", label: "MAX7219 Matrix" });
-                }
-            }
-            <?
-        }
-        ?>
-
-        // Legacy USB Relay for Control Signal
-        if (category == "ControlSignal" && Object.keys(SerialDevices).length > 0) {
-            types.push({ value: "USBRelay", label: "USBRelay" });
-        }
-
-        // Module types for this category
-        output_modules.forEach(function (m) {
-            if (typeToCategoryMap[m.typeName] == category) {
-                types.push({ value: m.typeName, label: m.typeFriendlyName });
-            }
-        });
-
-        // Remove duplicates (legacy + module)
-        var seen = {};
-        types = types.filter(function (t) {
-            if (seen[t.value]) return false;
-            seen[t.value] = true;
-            return true;
-        });
-
-        // Sort alphabetically
-        types.sort(function (a, b) {
-            return a.label.localeCompare(b.label);
-        });
-
-        return types;
     }
 
     function AddOtherTypeOptions(row, type) {
@@ -1160,7 +948,6 @@
         row.find("td:nth-child(6)").html(config);
     }
 
-
     function OtherTypeSelected(selectbox) {
         $row = $(selectbox.parentNode.parentNode);
 
@@ -1174,7 +961,6 @@
                 (type == 'Pixelnet-Open') ||
                 (type == 'Renard'))) {
             $row.remove();
-            return;
         }
 
         ///////new way
@@ -1182,11 +968,10 @@
         if (output_module != undefined) {
             if (!output_module.CanAddNewOutput()) {
                 $row.remove();
-                return;
             }
         }
 
-        //add friendly type name if available
+        //add frindly type name if available
         var typeFriendlyName = type;
         if (output_module != undefined)
             typeFriendlyName = output_module.typeFriendlyName;
@@ -1196,44 +981,76 @@
         AddOtherTypeOptions($row, type);
     }
 
-    function AddOutputToCategory(category) {
-        var tableId = 'tblOther-' + category;
-        var selectId = 'outputType-' + category;
+    function AddOtherOutput() {
+        //Check there isn't a new unconfigured output already displayed
+        if ($('select#outputType').length > 0) {
+            DialogError("Configure One Output At a Time", "Please configure the newly added output row before adding another");
+        } else {
+            var currentRows = $("#tblOtherOutputs > tbody > tr").length;
 
-        // Check if there's already an unconfigured output
-        if ($('#' + selectId).length > 0) {
-            DialogError("Configure One Output At a Time",
-                "Please configure the newly added output row before adding another");
-            return;
+            var newRow =
+                "<tr class='rowUniverseDetails'><td style='vertical-align:top'>" + (currentRows + 1) + "</td>" +
+                "<td style='vertical-align:top'><input class='act' type=checkbox></td>" +
+                "<td style='vertical-align:top' class='type'><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
+                "<option value=''>Select a type</option>";
+
+            if (Object.keys(SerialDevices).length > 0) {
+                newRow += "<option value='DMX-Pro'>DMX-Pro</option>" +
+                    "<option value='DMX-Open'>DMX-Open</option>" +
+                    "<option value='GenericSerial'>Generic Serial</option>" +
+                    "<option value='LOR'>LOR</option>" +
+                    "<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
+                    "<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
+                    "<option value='USBRelay'>USBRelay</option>" +
+                    "<option value='Renard'>Renard</option>";
+            }
+            <?
+            if ($settings['Platform'] == "Raspberry Pi") {
+                ?>
+                if (Object.keys(SPIDevices).length > 0) {
+                    newRow += "<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
+                        "<option value='MAX7219Matrix'>MAX7219 Matrix</option>";
+                }
+                <?
+            }
+            ?>
+
+            newRow += "<option value='HTTPVirtualDisplay'>HTTP Virtual Display</option>";
+            newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
+                "<td style='vertical-align:top'><input class='start' type='number' min=1 max=" + FPPD_MAX_CHANNELS + " value='' style='display: none;'></td>" +
+                "<td style='vertical-align:top'><input class='count' type='number' min=1 max=" + FPPD_MAX_CHANNELS + " value='' style='display: none;'></td>" +
+                "<td> </td>" +
+                "</tr>";
+
+            $('#tblOtherOutputs > tbody').append(newRow);
+
+            ///////new method
+            output_modules.forEach(function addOption(output_module) {
+                $('#outputType').append(new Option(output_module.typeFriendlyName, output_module.typeName));
+            });
+
+            // Sort options but keep 'Select a type' at the top
+            $('#outputType').html($('#outputType').find('option').sort(function (a, b) {
+                a = $(a).text().toUpperCase();
+                b = $(b).text().toUpperCase();
+
+                if (a == 'SELECT A TYPE') return -1;
+                if (b == 'SELECT A TYPE') return 1;
+
+                return a < b ? -1 : 1
+            }));
+
+            //Default to 'Select a Type' as default selected option
+            $('#outputType').find('option')[0].selected = true;
         }
-
-        var types = GetTypesForCategory(category);
-        if (types.length == 0) {
-            DialogError("No Output Types Available",
-                "There are no available output types for this category.");
-            return;
-        }
-
-        var currentRows = $('#' + tableId + ' > tbody > tr').length;
-
-        var newRow =
-            "<tr class='rowUniverseDetails'><td style='vertical-align:top'>" + (currentRows + 1) + "</td>" +
-            "<td style='vertical-align:top'><input class='act' type=checkbox></td>" +
-            "<td style='vertical-align:top' class='type'><select id='" + selectId + "' class='type' onChange='OtherTypeSelected(this);'>" +
-            "<option value=''>Select a type</option>";
-
-        for (var i = 0; i < types.length; i++) {
-            newRow += "<option value='" + types[i].value + "'>" + types[i].label + "</option>";
-        }
-
-        newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
-            "<td style='vertical-align:top'><input class='start' type='number' min=1 max=" + FPPD_MAX_CHANNELS + " value='' style='display: none;'></td>" +
-            "<td style='vertical-align:top'><input class='count' type='number' min=1 max=" + FPPD_MAX_CHANNELS + " value='' style='display: none;'></td>" +
-            "<td> </td>" +
-            "</tr>";
-
-        $('#' + tableId + ' > tbody').append(newRow);
     }
+
+    var otherTableInfo = {
+        tableName: "tblOtherOutputs",
+        selected: -1,
+        enableButtons: ["btnDeleteOther"],
+        disableButtons: []
+    };
 
     function RenumberColumns(tableName) {
         var id = 1;
@@ -1244,14 +1061,58 @@
         });
     }
 
-    function DeleteOutputFromCategory(category) {
-        var info = categoryTableInfo[category];
-        if (!info || info.selected < 0) return;
-
-        $('#tblOther-' + category + ' > tbody > tr:nth-child(' + (info.selected + 1) + ')').remove();
-        info.selected = -1;
-        SetButtonState("#btnDeleteOther-" + category, "disable");
-        RenumberColumns("tblOther-" + category);
+    function DeleteOtherOutput() {
+        if (otherTableInfo.selected >= 0) {
+            $('#tblOtherOutputs > tbody > tr:nth-child(' + (otherTableInfo.selected + 1) + ')').remove();
+            otherTableInfo.selected = -1;
+            SetButtonState("#btnDeleteOther", "disable");
+            RenumberColumns("tblOtherOutputs");
+        }
     }
 
 </script>
+
+<div id='divOther'>
+    <div class="row tableTabPageHeader">
+        <div class="col-md">
+            <h2> Other Outputs </h2>
+        </div>
+        <div class="col-md-auto ms-lg-auto">
+            <input name="command" type="hidden" value="saveOtherOutputs">
+            <div class="form-actions">
+                <input id="btnDeleteOther" class="disableButtons" type="button" value="Delete"
+                    data-btn-enabled-class="btn-outline-danger" onClick="DeleteOtherOutput();">
+                <button id="btnAddOther" class="buttons btn-outline-success" type="button" value="Add"
+                    onClick="AddOtherOutput();"><i class="fas fa-plus"></i> Add</button>
+                <input id="btnSaveOther" class="buttons btn-success ms-1" type="button" value="Save"
+                    onClick='SaveOtherChannelOutputs();'>
+            </div>
+        </div>
+    </div>
+
+    <div id='divOtherData'>
+        <div style="overflow: hidden; padding: 5px;">
+            <form id="frmOtherOutputs">
+                <div class='fppTableWrapper'>
+                    <div class='fppTableContents fppFThScrollContainer' role="region" aria-labelledby="tblOtherOutputs"
+                        tabindex="0">
+                        <table id="tblOtherOutputs" class="fppSelectableRowTable fppStickyTheadTable">
+                            <thead>
+                                <tr class='tblheader'>
+                                    <th>#</th>
+                                    <th>Active</th>
+                                    <th>Output Type</th>
+                                    <th>Start<br>Ch.</th>
+                                    <th>Channel<br>Count</th>
+                                    <th>Output Config</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

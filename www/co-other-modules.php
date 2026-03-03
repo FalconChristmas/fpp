@@ -1263,4 +1263,45 @@
     output_modules.push(new VirtualMatrixDevice());
     output_modules.push(new HTTPVirtualDisplay3D());
 
+    /////////////////////////////////////////////////////////////////////////////
+    // Output Category Definitions
+    var outputCategories = {
+        "DMXSerial": { label: "DMX / Serial" },
+        "GPIO": { label: "GPIO" },
+        "VirtualDisplay": { label: "Virtual Display" },
+        "SPI": { label: "SPI" },
+        "PWM": { label: "PWM" },
+        "ControlSignal": { label: "Control Signal" },
+        "ExternalMatrix": { label: "External Matrix" }
+    };
+
+    var typeToCategoryMap = {
+        "DMX-Open": "DMXSerial",
+        "DMX-Pro": "DMXSerial",
+        "GenericSerial": "DMXSerial",
+        "UDMX": "DMXSerial",
+        "Pixelnet-Lynx": "DMXSerial",
+        "Pixelnet-Open": "DMXSerial",
+        "Renard": "DMXSerial",
+        "LOR": "DMXSerial",
+        "LOREnhanced": "DMXSerial",
+        "GenericUDP": "DMXSerial",
+        "GPIO": "GPIO",
+        "GPIO-595": "GPIO",
+        "PCF8574": "GPIO",
+        "MCP23017": "GPIO",
+        "HTTPVirtualDisplay": "VirtualDisplay",
+        "HTTPVirtualDisplay3D": "VirtualDisplay",
+        "VirtualDisplay": "VirtualDisplay",
+        "GenericSPI": "SPI",
+        "SPI-nRF24L01": "SPI",
+        "SPIws2801": "SPI",
+        "PCA9685": "PWM",
+        "MQTTOutput": "ControlSignal",
+        "ControlChannel": "ControlSignal",
+        "USBRelay": "ControlSignal",
+        "MAX7219Matrix": "ExternalMatrix",
+        "VirtualMatrix": "ExternalMatrix"
+    };
+
 </script>
