@@ -578,6 +578,28 @@ static bool handleCapeOverlay(const std::string& outputPath) {
 #elif defined(PLATFORM_PI)
     static const std::string src = outputPath + "/tmp/fpp-cape-overlay-rpi.dtb";
     static const std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtbo";
+    // FPP 9.x has the param in config.txt set wrong for the RPi, so we need to check for that and if it's wrong then we need to flip it to the correct one
+    const std::string configFile = FPP_BOOT_DIR "/config.txt";
+    if (file_exists(configFile)) {
+        int len = 0;
+        char* data = (char*)get_file_contents(configFile, len);
+        std::string configData(data, len);
+        free(data);
+        if (configData.find("dtoverlay=fpp-cape-overlay") == std::string::npos) {
+            // not found, need to add it
+            printf("Adding dtoverlay=fpp-cape-overlay to config.txt\n");
+            if (configData.find("dtparam=fpp-cape-overlay") != std::string::npos) {
+                // replace the wrong param with the right one
+                size_t pos = configData.find("dtparam=fpp-cape-overlay");
+                configData.replace(pos, strlen("dtparam=fpp-cape-overlay"), "dtoverlay=fpp-cape-overlay"); 
+            } else {
+                configData += "\ndtoverlay=fpp-cape-overlay\n";
+            }
+            put_file_contents(configFile, (const uint8_t*)configData.c_str(), configData.size());
+        }
+    }
+
+
 #else
     static const std::string src = "";
     static const std::string target = "";
