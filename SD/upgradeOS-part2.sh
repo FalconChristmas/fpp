@@ -129,6 +129,19 @@ if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
     /bin/rpi-eeprom-update -a    
 fi
 
+if [ "${FPPPLATFORM}" = "BeagleBone 64" ]; then
+    if [ -f "/dev/mmcblk0p1" ]; then
+        # need to install the bootloader to the eMMC that goes with this version of the os
+        echo "Updating Beagle boot loader:"
+        /opt/u-boot/bb-u-boot-pocketbeagle2/install-emmc.sh
+        echo
+    fi
+    NEWROOT=$(findmnt -n -o SOURCE -f /mnt)
+    DEVICE="${NEWROOT%p?}"
+    sed -i "s|root=/dev/[a-zA-Z0-9]*\([0-9]\) |root=${DEVICE}p3 |g" /mnt/boot/firmware/extlinux/extlinux.conf
+    sed -i "s|resume=/dev/[a-zA-Z0-9]*\([0-9]\) |resume=${DEVICE}p2 |g" /mnt/boot/firmware/extlinux/extlinux.conf
+fi
+
 echo "Running sync command to flush data"
 sync
 

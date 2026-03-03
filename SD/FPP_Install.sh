@@ -497,20 +497,23 @@ case "${OSVER}" in
         #########################################
 
         PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools distcc \
-                      apache2 apache2-bin apache2-data apache2-utils libavahi-client-dev \
+                      apache2 apache2-bin apache2-data apache2-utils libavahi-client-dev util-linux-extra \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
                       fbi fbset file flite ca-certificates lshw gettext wget iproute2 fswatch \
                       build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git hdparm i2c-tools jq less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd sqlite3 at haveged samba samba-common-bin \
-                      mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils \
+                      mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils libhidapi-dev \
                       php${PHPVER} php${PHPVER}-cli php${PHPVER}-fpm php${PHPVER}-common php${PHPVER}-curl php-pear \
                       php${PHPVER}-bcmath php${PHPVER}-sqlite3 php${PHPVER}-zip php${PHPVER}-xml ccache \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
-                      gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain \
+                      gettext apt-utils x265 libtheora-dev libvorbis-dev libx265-dev iputils-ping mp3gain clang-format \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev mesa-common-dev qrencode libusb-1.0-0-dev \
+                      pipewire-alsa pipewire-jack pipewire-audio-client-libraries libpipewire-0.3-dev pulseaudio-utils linuxptp gstreamer1.0-tools \
+                      gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-pipewire \
+                      gstreamer1.0-libav libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev wireplumber pipewire-bin pipewire \
                       flex bison pkg-config libasound2-dev python3-setuptools libssl-dev libtool bsdextrautils iw rsyslog tzdata libsystemd-dev"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black"  -o "$FPPPLATFORM" == "BeagleBone 64" ]; then
