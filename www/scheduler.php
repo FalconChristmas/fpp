@@ -960,7 +960,7 @@ error_reporting(E_ALL);
                     //undo the firefox fix.
                     // Not sure what this is, but copied from playlists.php to here
                     if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
-                        $(window).unbind('scroll.sortableplaylist');
+                        $(window).off('scroll.sortableplaylist');
                         ui.helper.css('margin-top', 0);
                     }
                 },

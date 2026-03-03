@@ -1561,7 +1561,7 @@ function SetupTableSorter (tableName) {
 	if ($('#' + tableName).find('tbody').length > 0) {
 		$('#' + tableName)
 			.tablesorter(eval('tablesorterOptions_' + fileType))
-			.bind('filterEnd', function (event, config) {
+			.on('filterEnd', function (event, config) {
 				if (event.type === 'filterEnd') {
 					UpdateFileCount(fileType);
 				}

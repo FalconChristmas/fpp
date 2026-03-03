@@ -51,7 +51,7 @@
                     //undo the firefox fix.
                     // Not sure what this is, but copied from playlists.php to here
                     if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
-                        $(window).unbind('scroll.sortableplaylist');
+                        $(window).off('scroll.sortableplaylist');
                         ui.helper.css('margin-top', 0);
                     }
                 },
@@ -178,12 +178,12 @@
             var total = $tabs.find('.ui-tabs-nav li').length;
             if (total > 1) {
                 var currentLoadingTab = 1;
-                $tabs.bind('tabsload', function () {
+                $tabs.on('tabsload', function () {
                     currentLoadingTab++;
                     if (currentLoadingTab < total)
                         $tabs.tabs('load', currentLoadingTab);
                     else
-                        $tabs.unbind('tabsload');
+                        $tabs.off('tabsload');
                 }).tabs('load', currentLoadingTab);
             }
 

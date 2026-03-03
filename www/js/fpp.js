@@ -857,7 +857,7 @@ function CheckBrowser () {
 
 /* jQuery helper method to allow for PUT (similar to standard GET/POST)*/
 $.put = function (url, data, callback, type) {
-	if ($.isFunction(data)) {
+	if (typeof data === 'function') {
 		(type = type || callback), (callback = data), (data = {});
 	} else if (data != undefined && typeof data != 'object') {
 		data = JSON.stringify(data);
@@ -874,7 +874,7 @@ $.put = function (url, data, callback, type) {
 
 /* jQuery helper method to allow for DELETE (similar to standard GET/POST)*/
 $.delete = function (url, data, callback, type) {
-	if ($.isFunction(data)) {
+	if (typeof data === 'function') {
 		(type = type || callback), (callback = data), (data = {});
 	} else if (data != undefined && typeof data != 'object') {
 		data = JSON.stringify(data);
@@ -1742,7 +1742,7 @@ function psiDetailsForEntrySimple (entry, editMode) {
 			var partialResult = '';
 
 			if (a.type == 'args') {
-				if (entry[a.name].length == 1 && $.isNumeric(entry[a.name][0])) {
+				if (entry[a.name].length == 1 && !isNaN(parseFloat(entry[a.name][0]))) {
 					partialResult += entry[a.name][0];
 				} else {
 					for (var x = 0; x < entry[a.name].length; x++) {
@@ -1753,7 +1753,7 @@ function psiDetailsForEntrySimple (entry, editMode) {
 				}
 			} else if (a.type == 'array') {
 				var akeys = Object.keys(entry[a.name]);
-				if (akeys.length == 1 && $.isNumeric(entry[a.name][akeys[0]])) {
+				if (akeys.length == 1 && !isNaN(parseFloat(entry[a.name][akeys[0]]))) {
 					partialResult += entry[a.name][akeys[0]];
 				} else {
 					for (var x = 0; x < akeys.length; x++) {

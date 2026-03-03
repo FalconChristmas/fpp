@@ -62,7 +62,7 @@ if (!isset($simplifiedPlaylist)) {
             beforeStop: function (event, ui) {
                 //undo the firefox fix.
                 if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
-                    $(window).unbind('scroll.sortableplaylist');
+                    $(window).off('scroll.sortableplaylist');
                     ui.helper.css('margin-top', 0);
                 }
             },
