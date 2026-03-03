@@ -45,6 +45,43 @@
             color: #28a745;
         }
 
+        .channel-io-icon-output[data-ip],
+        .channel-io-icon-input[data-ip] {
+            cursor: pointer;
+        }
+
+        .channel-io-tooltip-table {
+            font-size: 0.8em;
+            border-collapse: collapse;
+            white-space: nowrap;
+            margin: 0;
+        }
+
+        .channel-io-tooltip-table th {
+            padding: 2px 6px;
+            border-bottom: 1px solid #555;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .channel-io-tooltip-table td {
+            padding: 2px 6px;
+        }
+
+        .channel-io-tooltip-table tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .channel-io-popover {
+            max-width: 500px !important;
+        }
+
+        .channel-io-popover .popover-body {
+            padding: 6px 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
         /*** Bootstrap popover ***/
         #popover-target label {
             margin: 0 5px;
@@ -417,7 +454,7 @@
         /*
          * Returns Mode + value of "Send Multisync"
          */
-        function getFullMode(data) {
+        function getFullMode(data, ip) {
             rc = "Unknown";
             if (data.hasOwnProperty('mode')) {
                 rc = modeToString(data.mode);
@@ -426,26 +463,182 @@
                 rc += " w/ Multisync"
             }
 
-            rc += getChannelIOIcons(data);
+            rc += getChannelIOIcons(data, ip);
 
             return rc;
         }
 
-        function getChannelIOIcons(data) {
+        function getChannelIOIcons(data, ip) {
             var icons = '';
             var hasInput = data.hasOwnProperty('channelInputsEnabled') && data.channelInputsEnabled;
             var hasOutput = data.hasOwnProperty('channelOutputsEnabled') && data.channelOutputsEnabled;
             if (hasInput || hasOutput) {
+                var ipAttr = ip ? " data-ip='" + ip + "'" : '';
                 icons += '<span class="channel-io-icons">';
                 if (hasInput) {
-                    icons += '<i class="fas fa-regular fa-circle-down  channel-io-icon-input" title="Channel Inputs Enabled"></i>';
+                    icons += '<i class="fas fa-regular fa-circle-down channel-io-icon-input"' + ipAttr + ' aria-label="Channel Inputs Enabled (hover for details)"></i>';
                 }
                 if (hasOutput) {
-                    icons += '<i class="fas fa-regular fa-circle-up  channel-io-icon-output" title="Channel Outputs Enabled"></i>';
+                    icons += '<i class="fas fa-regular fa-circle-up channel-io-icon-output"' + ipAttr + ' aria-label="Channel Outputs Enabled (hover for details)"></i>';
                 }
                 icons += '</span>';
             }
             return icons;
+        }
+
+        // Cache for remote channel output/input configs keyed by IP
+        var channelOutputConfigCache = {};
+        var channelInputConfigCache = {};
+
+        // Universe type ID to display name mapping
+        var universeTypeNames = {
+            0: 'E1.31 Multicast',
+            1: 'E1.31 Unicast',
+            2: 'ArtNet Broadcast',
+            3: 'ArtNet Unicast',
+            4: 'DDP Raw',
+            5: 'DDP',
+            6: 'KiNet v1',
+            7: 'KiNet v2',
+            8: 'Twinkly',
+            9: 'ArtNet Unicast'
+        };
+
+        function getUniverseTypeName(typeId) {
+            return universeTypeNames[typeId] || ('Type ' + typeId);
+        }
+
+        /**
+         * Fetches channel output config from a remote FPP system.
+         * Returns a promise resolving to the parsed config data.
+         */
+        function fetchChannelOutputConfig(ip) {
+            if (channelOutputConfigCache[ip]) {
+                return $.Deferred().resolve(channelOutputConfigCache[ip]).promise();
+            }
+            return $.get('api/channel/output/universeOutputs', { ip: ip }).then(function (data) {
+                channelOutputConfigCache[ip] = data;
+                return data;
+            }).fail(function () {
+                channelOutputConfigCache[ip] = null;
+                return null;
+            });
+        }
+
+        /**
+         * Fetches channel input config from a remote FPP system.
+         */
+        function fetchChannelInputConfig(ip) {
+            if (channelInputConfigCache[ip]) {
+                return $.Deferred().resolve(channelInputConfigCache[ip]).promise();
+            }
+            return $.get('api/channel/output/universeInputs', { ip: ip }).then(function (data) {
+                channelInputConfigCache[ip] = data;
+                return data;
+            }).fail(function () {
+                channelInputConfigCache[ip] = null;
+                return null;
+            });
+        }
+
+        /**
+         * Builds tooltip HTML table from channel output config data.
+         */
+        function buildOutputTooltipHtml(data) {
+            if (!data || !data.channelOutputs || !data.channelOutputs.length) {
+                return '<em>No Output configuration found</em>';
+            }
+            var co = data.channelOutputs[0];
+            if (!co.universes || !co.universes.length) {
+                return '<em>No universes configured</em>';
+            }
+            var activeUniverses = co.universes.filter(function (u) { return u.active; });
+            if (!activeUniverses.length) {
+                return '<em>No active outputs</em>';
+            }
+            var html = '<table class="channel-io-tooltip-table">';
+            html += '<tr><th>Description</th><th>Type</th><th>IP/Address</th><th>Channels</th></tr>';
+            activeUniverses.forEach(function (u) {
+                var desc = u.description || '-';
+                var typeName = getUniverseTypeName(u.type);
+                var addr = u.address || '-';
+                var chRange = u.startChannel + '-' + (u.startChannel + (u.channelCount * (u.universeCount || 1)) - 1);
+                html += '<tr>';
+                html += '<td>' + desc + '</td>';
+                html += '<td>' + typeName + '</td>';
+                html += '<td>' + addr + '</td>';
+                html += '<td>' + chRange + '</td>';
+                html += '</tr>';
+            });
+            html += '</table>';
+            return html;
+        }
+
+        /**
+         * Builds tooltip HTML table from channel input config data.
+         */
+        function buildInputTooltipHtml(data) {
+            if (!data || !data.channelInputs || !data.channelInputs.length) {
+                return '<em>No Input configuration found</em>';
+            }
+            var ci = data.channelInputs[0];
+            if (!ci.universes || !ci.universes.length) {
+                return '<em>No input universes configured</em>';
+            }
+            var activeInputs = ci.universes.filter(function (u) { return u.active; });
+            if (!activeInputs.length) {
+                return '<em>No active inputs</em>';
+            }
+            var html = '<table class="channel-io-tooltip-table">';
+            html += '<tr><th>Type</th><th>Start Ch</th><th>Channels</th><th>Universes</th></tr>';
+            activeInputs.forEach(function (u) {
+                var typeName = getUniverseTypeName(u.type);
+                var chCount = u.channelCount * (u.universeCount || 1);
+                html += '<tr>';
+                html += '<td>' + typeName + '</td>';
+                html += '<td>' + u.startChannel + '</td>';
+                html += '<td>' + chCount + '</td>';
+                html += '<td>' + (u.universeCount || 1) + '</td>';
+                html += '</tr>';
+            });
+            html += '</table>';
+            return html;
+        }
+
+        /**
+         * Shows a Bootstrap popover with channel output/input details on an icon.
+         */
+        function showChannelIOPopover(iconEl, isOutput) {
+            var $icon = $(iconEl);
+            var ip = $icon.data('ip');
+            if (!ip) return;
+
+            // If popover already exists, don't recreate
+            if (bootstrap.Popover.getInstance(iconEl)) return;
+
+            // Show loading popover
+            var popover = new bootstrap.Popover(iconEl, {
+                html: true,
+                trigger: 'manual',
+                placement: 'bottom',
+                customClass: 'channel-io-popover',
+                title: isOutput ? 'Channel Outputs' : 'Channel Inputs',
+                content: '<em>Loading...</em>'
+            });
+            popover.show();
+
+            // Fetch and update content
+            var fetchFn = isOutput ? fetchChannelOutputConfig : fetchChannelInputConfig;
+            var buildFn = isOutput ? buildOutputTooltipHtml : buildInputTooltipHtml;
+            fetchFn(ip).then(function (data) {
+                var html = buildFn(data);
+                // Update the popover content
+                var tip = popover.tip;
+                if (tip) {
+                    $(tip).find('.popover-body').html(html);
+                    popover.update();
+                }
+            });
         }
 
 
@@ -1052,9 +1245,9 @@
                             $('#' + rowID + '_mode').html("<span class=\"warning-text\">Unreachable</span>");
                         } else if (status != "") {
                             $('#' + rowID + '_status').html(status);
-                            $('#' + rowID + '_mode').html(getFullMode(data));
+                            $('#' + rowID + '_mode').html(getFullMode(data, ip));
                         } else {
-                            $('#' + rowID + '_mode').html(getFullMode(data));
+                            $('#' + rowID + '_mode').html(getFullMode(data, ip));
                         }
                         if (data.hasOwnProperty('wifi')) {
                             var wifi_html = [];
@@ -1407,7 +1600,7 @@
                         fppMode = 'Unknown';
                     }
 
-                    fppMode += getChannelIOIcons(data[i]);
+                    fppMode += getChannelIOIcons(data[i], data[i].address);
 
                     rowSpans[rowID] = 1;
 
@@ -3015,6 +3208,37 @@
     <script>
 
         $(document).ready(function () {
+
+            // Channel I/O icon tooltip popovers
+            var activePopover = null;
+            $(document).on('mouseenter', '.channel-io-icon-output, .channel-io-icon-input', function () {
+                var $icon = $(this);
+                var isOutput = $icon.hasClass('channel-io-icon-output');
+                // Dispose any existing popover
+                if (activePopover) {
+                    bootstrap.Popover.getInstance(activePopover)?.dispose();
+                    activePopover = null;
+                }
+                activePopover = this;
+                showChannelIOPopover(this, isOutput);
+            });
+            $(document).on('mouseleave', '.channel-io-icon-output, .channel-io-icon-input', function () {
+                var self = this;
+                // Small delay so user can move mouse into the popover
+                setTimeout(function () {
+                    if (!$('.channel-io-popover:hover').length) {
+                        bootstrap.Popover.getInstance(self)?.dispose();
+                        if (activePopover === self) activePopover = null;
+                    }
+                }, 200);
+            });
+            $(document).on('mouseleave', '.channel-io-popover', function () {
+                // When mouse leaves the popover body, dispose it
+                if (activePopover) {
+                    bootstrap.Popover.getInstance(activePopover)?.dispose();
+                    activePopover = null;
+                }
+            });
 
             $.get("api/proxies", function (data) {
                 // Extract just the host IPs from the proxy objects

@@ -74,6 +74,33 @@ function channel_get_output()
     global $settings;
 
     $file = params("file");
+
+    // If ip parameter is provided, fetch from remote system via server-side curl
+    // This avoids CSP restrictions on cross-origin browser requests
+    if (isset($_GET['ip'])) {
+        $ip = $_GET['ip'];
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+            return json(array("status" => "ERROR: Invalid IP address"));
+        }
+        $curl = curl_init("http://" . $ip . "/api/channel/output/" . urlencode($file));
+        curl_setopt($curl, CURLOPT_FAILONERROR, true);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 500);
+        curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
+        $request_content = curl_exec($curl);
+        $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        curl_close($curl);
+        if ($request_content === false || $responseCode != 200) {
+            return json(array("status" => "ERROR: Could not reach remote system"));
+        }
+        $data = json_decode($request_content, true);
+        if ($data === null) {
+            return json(array("status" => "ERROR: Invalid response from remote system"));
+        }
+        return json($data);
+    }
+
     $rc = array("status" => "ERROR: File not found");
 
     $jsonStr = "";
