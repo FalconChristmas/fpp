@@ -41,8 +41,8 @@
 MEMORY
 {
       PAGE 0:
-	/* 12 KB PRU Instruction RAM */
-	PRU_IMEM	: org = 0x00000000 len = 0x00003000
+	/* 16 KB PRU Instruction RAM */
+	PRU_IMEM	: org = 0x00000000 len = 0x00004000
 
       PAGE 1:
 	/* Data RAMs */
