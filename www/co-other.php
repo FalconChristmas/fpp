@@ -642,10 +642,13 @@
         for (var i = 0; i < orderedCategories.length; i++) {
             var cat = orderedCategories[i];
             var catInfo = outputCategories[cat];
-            if (catInfo && GetTypesForCategory(cat).length > 0) {
+            if (catInfo && GetTypesForCategory(cat).length > 0 && !activeCategoryTabs[cat]) {
                 menu.append('<li><a class="dropdown-item" href="#" onclick="AddNewCategoryTab(\'' +
-                    cat + '\'); return false;">' + catInfo.label + '</a></li>');
+                    cat + '\'); PopulateAddOutputMenu(); return false;">' + catInfo.label + '</a></li>');
             }
+        }
+        if (menu.children().length === 0) {
+            menu.append('<li><span class="dropdown-item disabled">All groups already added</span></li>');
         }
     }
 
@@ -844,6 +847,7 @@
         }
 
         UpdateVirtualDisplayMenu(data);
+        PopulateAddOutputMenu();
     }
 
     function GetChannelOutputs() {

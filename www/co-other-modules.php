@@ -1268,7 +1268,7 @@
     var outputCategories = {
         "DMXSerial": { label: "DMX / Serial" },
         "GPIO": { label: "GPIO" },
-        "VirtualDisplay": { label: "Virtual Display" },
+        "VirtualDisplay": { label: "Virtuals" },
         "SPI": { label: "SPI" },
         "PWM": { label: "PWM" },
         "ControlSignal": { label: "Control Signal" },
@@ -1300,8 +1300,8 @@
         "MQTTOutput": "ControlSignal",
         "ControlChannel": "ControlSignal",
         "USBRelay": "ControlSignal",
-        "MAX7219Matrix": "ExternalMatrix",
-        "VirtualMatrix": "ExternalMatrix"
+        "MAX7219Matrix": "SPI",
+        "VirtualMatrix": "VirtualDisplay"
     };
 
 </script>
