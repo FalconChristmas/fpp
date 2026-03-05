@@ -809,8 +809,8 @@ int main(int argc, char* argv[]) {
     CleanupMediaOutput();
     CloseEffects();
     CloseChannelOutputs();
-    PingManager::INSTANCE.Cleanup();
     MDNSManager::INSTANCE.Cleanup();
+    PingManager::INSTANCE.Cleanup();
     OutputMonitor::INSTANCE.Cleanup();
     CommandManager::INSTANCE.Cleanup();
     MultiSync::INSTANCE.ShutdownSync();
