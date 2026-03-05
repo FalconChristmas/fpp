@@ -132,7 +132,12 @@ static void client_callback(AvahiClient* c, AvahiClientState state, void* userda
         
         // create a service browser for _fppd._udp
         void* sb = avahi_service_browser_new(c, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, "_fppd._udp", NULL, (AvahiLookupFlags)0, browse_callback, mgr);
-        mgr->SetServiceBrowser(sb);
+        if (!sb) {
+            LogErr(VB_SYNC, "Failed to create Avahi service browser for _fppd._udp: %s\n",
+                   avahi_strerror(avahi_client_errno(c)));
+        } else {
+            mgr->SetServiceBrowser(sb);
+        }
     } else if (state == AVAHI_CLIENT_FAILURE) {
         LogErr(VB_SYNC, "Avahi client failure: %s\n", avahi_strerror(avahi_client_errno(c)));
     }
