@@ -69,6 +69,7 @@ OBJECTS_fpp_so += \
 	NetworkController.o \
  	NetworkMonitor.o \
 	ping.o \
+	MDNSManager.o \
 	Player.o \
 	OutputMonitor.o \
 	overlays/PixelOverlay.o \

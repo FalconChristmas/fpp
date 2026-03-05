@@ -8,6 +8,7 @@ OBJECTS_fpp = \
 LIBS_fpp = \
     -ljsoncpp \
     -lcurl \
+    -lavahi-client -lavahi-common \
 	$(NULL)
 
 TARGETS+=fpp
