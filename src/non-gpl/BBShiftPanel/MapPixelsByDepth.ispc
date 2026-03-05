@@ -136,116 +136,55 @@ export void OPERAIONNAME(const uniform uint16 data[], uniform uint32 start, unif
 
 
 /*
-    Blocks of 48  16bit RGBrgb's
+    Blocks of 48  16bit RGBrgb's (8 outputs) or 96 (16 outputs)
 */
 
+#define PWM_BIT_EXTRACT(offset) \
+    d <<= 1; \
+    b1 = d & 0x8000 ? 0x01 : 0x0; \
+    b1 <<= programIndex; \
+    b1u = reduce_add(b1); \
+    out[outIdx + offset] = b1u;
 
-export void MapPixelsForPWM(const uniform uint16 data[], uniform uint32 start, uniform uint32 end, uniform uint16 out[]) {
-    //print("Start: %    End: %\n", start, end);
+static inline void MapPixelsForPWMInner(const uniform uint16 data[], uniform uint32 start, uniform uint32 end,
+                                         uniform uint16 out[], uniform uint32 stride) {
+    uniform uint step = stride / programCount;
     for (uniform int y = start; y < end; y++) {
-        uniform uint youtIdx = y * 48;
+        uniform uint youtIdx = y * stride;
 
-        for (uniform int x = 0; x < 48; x += programCount) {
+        for (uniform int x = 0; x < stride; x += programCount) {
             uniform uint outIdx = youtIdx + x / programCount;
             uint inIdx = youtIdx + x + programIndex;
 
-            // bit1
             uint16 d = data[inIdx];
             uint16 b1 = d & 0x8000 ? 0x01 : 0x0;
             b1 <<= programIndex;
             uniform uint16 b1u = reduce_add(b1);
             out[outIdx] = b1u;
 
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 3] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 6] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 9] = b1u;
-            
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 12] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 15] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 18] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 21] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 24] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 27] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 30] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 33] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 36] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 39] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 42] = b1u;
-
-            d <<= 1;
-            b1 = d & 0x8000 ? 0x01 : 0x0;
-            b1 <<= programIndex;
-            b1u = reduce_add(b1);
-            out[outIdx + 45] = b1u;
-
+            PWM_BIT_EXTRACT(step)
+            PWM_BIT_EXTRACT(step * 2)
+            PWM_BIT_EXTRACT(step * 3)
+            PWM_BIT_EXTRACT(step * 4)
+            PWM_BIT_EXTRACT(step * 5)
+            PWM_BIT_EXTRACT(step * 6)
+            PWM_BIT_EXTRACT(step * 7)
+            PWM_BIT_EXTRACT(step * 8)
+            PWM_BIT_EXTRACT(step * 9)
+            PWM_BIT_EXTRACT(step * 10)
+            PWM_BIT_EXTRACT(step * 11)
+            PWM_BIT_EXTRACT(step * 12)
+            PWM_BIT_EXTRACT(step * 13)
+            PWM_BIT_EXTRACT(step * 14)
+            PWM_BIT_EXTRACT(step * 15)
         }
     }
+}
+
+export void MapPixelsForPWM(const uniform uint16 data[], uniform uint32 start, uniform uint32 end, uniform uint16 out[]) {
+    MapPixelsForPWMInner(data, start, end, out, 48);
+}
+
+export void MapPixelsForPWM16(const uniform uint16 data[], uniform uint32 start, uniform uint32 end, uniform uint16 out[]) {
+    MapPixelsForPWMInner(data, start, end, out, 96);
 }

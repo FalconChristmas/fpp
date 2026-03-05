@@ -5,7 +5,7 @@ OBJECTS_fpp_co_BBShiftPanel_so += non-gpl/BBShiftPanel/BBShiftPanel.o non-gpl/BB
 
 LIBS_fpp_co_BBShiftPanel_so += -L. -lfpp -ljsoncpp -lfpp_capeutils -Wl,-rpath=$(SRCDIR):.
 
-TARGETS += libfpp-co-matrix-BBShiftPanel.$(SHLIB_EXT) non-gpl/BBShiftPanel/BBShiftPanel.out non-gpl/BBShiftPanel/BBShiftPanel_single.out non-gpl/BBShiftPanel/BBShiftPanel_pwm.out non-gpl/BBShiftPanel/BBShiftPanel_oe.out non-gpl/BBShiftPanel/BBShiftPanel_gclk.out
+TARGETS += libfpp-co-matrix-BBShiftPanel.$(SHLIB_EXT) non-gpl/BBShiftPanel/BBShiftPanel.out non-gpl/BBShiftPanel/BBShiftPanel_single.out non-gpl/BBShiftPanel/BBShiftPanel_16.out non-gpl/BBShiftPanel/BBShiftPanel_single_16.out non-gpl/BBShiftPanel/BBShiftPanel_pwm.out non-gpl/BBShiftPanel/BBShiftPanel_pwm_16.out non-gpl/BBShiftPanel/BBShiftPanel_oe.out non-gpl/BBShiftPanel/BBShiftPanel_gclk.out
 OBJECTS_ALL+=$(OBJECTS_fpp_co_BBShiftPanel_so)
 
 CXXFLAGS_non-gpl/BBShiftPanel/BBShiftPanel.o+=-Wno-address-of-packed-member
@@ -28,11 +28,29 @@ non-gpl/BBShiftPanel/BBShiftPanel.out: non-gpl/BBShiftPanel/BBShiftPanel.asm
 	clpru -v3 -DAM62X -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftPanel/BBShiftPanel.out" "/tmp/BBShiftPanel.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
 	@rm "/tmp/BBShiftPanel.asm" "/tmp/BBShiftPanel.obj"
 
+non-gpl/BBShiftPanel/BBShiftPanel_16.out: non-gpl/BBShiftPanel/BBShiftPanel.asm
+	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X -DOUTPUTS16 "/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.asm" > "/tmp/BBShiftPanel_16.asm"
+	clpru -v3 -o -DAM62X -DOUTPUTS16 --endian=little --hardware_mac=on --obj_directory /tmp "/tmp/BBShiftPanel_16.asm"
+	clpru -v3 -DAM62X -DOUTPUTS16 -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftPanel/BBShiftPanel_16.out" "/tmp/BBShiftPanel_16.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
+	@rm "/tmp/BBShiftPanel_16.asm" "/tmp/BBShiftPanel_16.obj"
+
+non-gpl/BBShiftPanel/BBShiftPanel_single_16.out: non-gpl/BBShiftPanel/BBShiftPanel.asm
+	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X -DSINGLEPRU -DOUTPUTS16 "/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.asm" > "/tmp/BBShiftPanel_single_16.asm"
+	clpru -v3 -o -DAM62X -DSINGLEPRU -DOUTPUTS16 --endian=little --hardware_mac=on --obj_directory /tmp "/tmp/BBShiftPanel_single_16.asm"
+	clpru -v3 -DAM62X -DSINGLEPRU -DOUTPUTS16 -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftPanel/BBShiftPanel_single_16.out" "/tmp/BBShiftPanel_single_16.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
+	@rm "/tmp/BBShiftPanel_single_16.asm" "/tmp/BBShiftPanel_single_16.obj"
+
 non-gpl/BBShiftPanel/BBShiftPanel_pwm.out: non-gpl/BBShiftPanel/BBShiftPanel_pwm.asm
 	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X "/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_pwm.asm" > "/tmp/BBShiftPanel_pwm.asm"
 	clpru -v3 -o -DAM62X --endian=little --hardware_mac=on --obj_directory /tmp "/tmp/BBShiftPanel_pwm.asm"
 	clpru -v3 -DAM62X -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftPanel/BBShiftPanel_pwm.out" "/tmp/BBShiftPanel_pwm.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
 	@rm "/tmp/BBShiftPanel_pwm.asm" "/tmp/BBShiftPanel_pwm.obj"
+
+non-gpl/BBShiftPanel/BBShiftPanel_pwm_16.out: non-gpl/BBShiftPanel/BBShiftPanel_pwm.asm
+	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X -DOUTPUTS16 "/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_pwm.asm" > "/tmp/BBShiftPanel_pwm_16.asm"
+	clpru -v3 -o -DAM62X -DOUTPUTS16 --endian=little --hardware_mac=on --obj_directory /tmp "/tmp/BBShiftPanel_pwm_16.asm"
+	clpru -v3 -DAM62X -DOUTPUTS16 -z /opt/fpp/src/pru/AM62x_PRU0.cmd -o "non-gpl/BBShiftPanel/BBShiftPanel_pwm_16.out" "/tmp/BBShiftPanel_pwm_16.obj" -i/usr/share/ti/cgt-pru/lib -i/usr/share/ti/cgt-pru/include --library=libc.a
+	@rm "/tmp/BBShiftPanel_pwm_16.asm" "/tmp/BBShiftPanel_pwm_16.obj"
 
 non-gpl/BBShiftPanel/BBShiftPanel_oe.out: non-gpl/BBShiftPanel/BBShiftPanel_oe.asm
 	/usr/bin/cpp -P -I/opt/fpp/src/pru -DAM62X "/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_oe.asm" > "/tmp/BBShiftPanel_oe.asm"

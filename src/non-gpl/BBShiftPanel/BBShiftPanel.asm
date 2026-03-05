@@ -154,7 +154,7 @@ TOGGLE_LATCH .macro
     .endm
 
 // output a full rgb/rgb2 for a pixel
-OUTPUT_PIXEL .macro 
+OUTPUT_PIXEL .macro
     .newblock
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
@@ -168,6 +168,21 @@ OUTPUT_PIXEL .macro
     TOGGLE_OSHIFT
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
+#ifdef OUTPUTS16
+    // Second bank (outputs 8-15): R1,G1,B1,R2,G2,B2
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+#endif
     TOGGLE_OLATCH
 
     TOGGLE_CLOCK
@@ -433,8 +448,19 @@ WAIT_FOR_TIMER1:
         DISPLAY_ON
         WAIT_FOR_DISLAY_OFF
 
+#ifdef OUTPUTS16
 OUTPUTPIXELS:
-    // output 8 pixels
+    // output 4 pixels (12 bytes each = 48 bytes per LOAD_DATA)
+    LOAD_DATA
+    CHECK_FOR_DISPLAY_OFF
+    LOOP ENDLOOPPIXEL, 4
+        OUTPUT_PIXEL
+ENDLOOPPIXEL:
+
+    SUB curPixel, curPixel, 4
+#else
+OUTPUTPIXELS:
+    // output 8 pixels (6 bytes each = 48 bytes per LOAD_DATA)
     LOAD_DATA
     CHECK_FOR_DISPLAY_OFF
     LOOP ENDLOOPPIXEL, 4
@@ -446,6 +472,7 @@ ENDLOOPPIXEL:
 ENDLOOPPIXEL2:
 
     SUB curPixel, curPixel, 8
+#endif
     CHECK_FOR_DISPLAY_OFF
     QBNE OUTPUTPIXELS, curPixel, 0
 

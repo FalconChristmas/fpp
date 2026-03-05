@@ -21,17 +21,30 @@ typedef int bool;
 namespace ispc { /* namespace */
 #endif // __cplusplus
 
-#ifndef __ISPC_ALIGN__
-#if defined(__clang__) || !defined(_MSC_VER)
-// Clang, GCC, ICC
-#define __ISPC_ALIGN__(s) __attribute__((aligned(s)))
+/* Portable alignment macro that works across different compilers and standards */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+/* C++11 or newer - use alignas keyword */
+#define __ISPC_ALIGN__(x) alignas(x)
+#elif defined(__GNUC__) || defined(__clang__)
+/* GCC or Clang - use __attribute__ */
+#define __ISPC_ALIGN__(x) __attribute__((aligned(x)))
+#elif defined(_MSC_VER)
+/* Microsoft Visual C++ - use __declspec */
+#define __ISPC_ALIGN__(x) __declspec(align(x))
+#else
+/* Unknown compiler/standard - alignment not supported */
+#define __ISPC_ALIGN__(x)
+#warning "Alignment not supported on this compiler"
+#endif // defined(__cplusplus) && __cplusplus >= 201103L
+#ifndef __ISPC_ALIGNED_STRUCT__
+#if defined(__clang__) || !defined(_MSC_VER) || _MSC_VER > 1943
+// Clang, GCC, ICC, Visual Studio
 #define __ISPC_ALIGNED_STRUCT__(s) struct __ISPC_ALIGN__(s)
 #else
-// Visual Studio
-#define __ISPC_ALIGN__(s) __declspec(align(s))
+// Older Visual Studio
 #define __ISPC_ALIGNED_STRUCT__(s) __ISPC_ALIGN__(s) struct
-#endif
-#endif
+#endif // defined(__clang__) || !defined(_MSC_VER) || _MSC_VER > 1943
+#endif // __ISPC_ALIGNED_STRUCT__
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -42,6 +55,7 @@ extern "C" {
 #endif // __cplusplus
     extern void MapPixelsByDepth16(const uint16_t * data, uint32_t start, uint32_t end, uint32_t bits, uint16_t * res0, uint16_t * res1, uint16_t * res2, uint16_t * res3, uint16_t * res4, uint16_t * res5, uint16_t * res6, uint16_t * res7, uint16_t * res8, uint16_t * res9, uint16_t * res10, uint16_t * res11, uint16_t * res12, uint16_t * res13, uint16_t * res14, uint16_t * res15);
     extern void MapPixelsForPWM(const uint16_t * data, uint32_t start, uint32_t end, uint16_t * out);
+    extern void MapPixelsForPWM16(const uint16_t * data, uint32_t start, uint32_t end, uint16_t * out);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus

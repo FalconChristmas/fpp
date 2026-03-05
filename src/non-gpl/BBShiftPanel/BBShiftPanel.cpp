@@ -86,7 +86,7 @@ static const std::vector<std::string> PRU0_PWM_PINS = {
     "P1-31", "P2-28", "P2-30", "P2-32", "P2-34", "P1-36"
 };
 
-constexpr int NUM_OUTPUTS = 8;
+constexpr int MAX_OUTPUTS = 16;
 
 BBShiftPanelOutput::BBShiftPanelOutput(unsigned int startChannel, unsigned int channelCount) :
     ChannelOutput(startChannel, channelCount) {
@@ -140,11 +140,23 @@ int BBShiftPanelOutput::Init(Json::Value config) {
         LogErr(VB_CHANNELOUT, "Could not read panel pin configuration for %s\n", subType.c_str());
         return 0;
     }
-    for (int i = 0; i < root["outputs"].size(); i++) {
+    m_numOutputs = root["outputs"].size();
+    if (m_numOutputs > MAX_OUTPUTS) {
+        m_numOutputs = MAX_OUTPUTS;
+    }
+    m_numOutputSlots = 8;
+    for (int i = 0; i < m_numOutputs; i++) {
         Json::Value s = root["outputs"][i];
         std::string pinName = s["pin"].asString();
         const BBBPinCapabilities* pin = (const BBBPinCapabilities*)(PinCapabilities::getPinByName(pinName).ptr());
-        outputMap[i] = pin->pruPin(1);
+        outputPin[i] = pin->pruPin(1);
+        outputBank[i] = 0;
+        if (s.isMember("index")) {
+            outputBank[i] = s["index"].asInt();
+            if (outputBank[i] > 0) {
+                m_numOutputSlots = 16;
+            }
+        }
     }
     if (root.isMember("singlePRU")) {
         singlePRU = root["singlePRU"].asBool();
@@ -181,10 +193,7 @@ int BBShiftPanelOutput::Init(Json::Value config) {
         LogErr(VB_CHANNELOUT, "BBShiftPanelOutput: Unable to create PanelMatrix\n");
         return 0;
     }
-    bool usesOutput[16] = {
-        false, false, false, false,
-        false, false, false, false
-    };
+    bool usesOutput[MAX_OUTPUTS] = { false };
     for (int i = 0; i < config["panels"].size(); i++) {
         Json::Value p = config["panels"][i];
         if (p["outputNumber"].asInt() <= outputs) {
@@ -326,12 +335,24 @@ int BBShiftPanelOutput::StartPRU() {
     if (isPWMPanel()) {
         pwmPru = new BBBPru(0);
         started &= pwmPru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_gclk.out");
-        started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_pwm.out");
+        if (m_numOutputSlots == 16) {
+            started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_pwm_16.out");
+        } else {
+            started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_pwm.out");
+        }
     } else {
         if (singlePRU) {
-            started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_single.out");
+            if (m_numOutputSlots == 16) {
+                started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_single_16.out");
+            } else {
+                started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_single.out");
+            }
         } else {
-            started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.out");
+            if (m_numOutputSlots == 16) {
+                started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_16.out");
+            } else {
+                started &= pru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel.out");
+            }
             pwmPru = new BBBPru(0);
             started &= pwmPru->run("/opt/fpp/src/non-gpl/BBShiftPanel/BBShiftPanel_oe.out");
         }
@@ -341,7 +362,8 @@ int BBShiftPanelOutput::StartPRU() {
         WarningHolder::AddWarning("BBShiftPanel: Unable to start PRU(s). May require a reboot.");
         return 0;
     }
-    uint32_t strideLen = rowLen * 6;
+    uint32_t bytesPerPixel = (m_numOutputSlots * 6 * 2) / 16;
+    uint32_t strideLen = rowLen * bytesPerPixel;
     uint32_t numStride = numRows * m_colorDepth;
     uint32_t oframeSize = numStride * strideLen;
     // round up to a page boundary
@@ -515,7 +537,11 @@ void BBShiftPanelOutput::PrepDataPWM() {
             uint32_t start = curRow * rowLen;
             uint32_t end = start + rowLen;
 
-            ispc::MapPixelsForPWM(currentChannelData, start, end, (uint16_t*)buf);
+            if (m_numOutputSlots == 16) {
+                ispc::MapPixelsForPWM16(currentChannelData, start, end, (uint16_t*)buf);
+            } else {
+                ispc::MapPixelsForPWM(currentChannelData, start, end, (uint16_t*)buf);
+            }
             --counter;
         });
     }
@@ -542,7 +568,7 @@ void BBShiftPanelOutput::PrepDataPWM() {
     printf("\n");
     */
 
-    int frameSize = rowLen * 48 * numRows * 2;
+    int frameSize = rowLen * (m_numOutputSlots * 6) * numRows * 2;
     // make sure memory is flushed before command is set
     msync(buf, frameSize, MS_SYNC | MS_INVALIDATE);
     __builtin___clear_cache(buf, buf + frameSize);
@@ -571,7 +597,8 @@ void BBShiftPanelOutput::PrepDataPWM() {
 void BBShiftPanelOutput::PrepDataShift() {
     std::array<std::array<uint16_t*, 16>, 32> results;
 
-    uint32_t strideLen = rowLen * 6;
+    uint32_t bytesPerPixel = (m_numOutputSlots * 6 * 2) / 16;
+    uint32_t strideLen = rowLen * bytesPerPixel;
     uint8_t* buf = outputBuffers[currOutputBuffer];
     if (m_outputByRow) {
         for (int r = 0; r < numRows; r++) {
@@ -614,8 +641,8 @@ void BBShiftPanelOutput::PrepDataShift() {
         // Map the pixels for this row
         ++counter;
         bgTasks.push([this, curRow, strideLen, &results, &counter]() {
-            uint32_t start = curRow * rowLen * 6 * 8;
-            uint32_t end = start + (rowLen * 6 * 8);
+            uint32_t start = curRow * rowLen * 6 * m_numOutputSlots;
+            uint32_t end = start + (rowLen * 6 * m_numOutputSlots);
             ispc::MapPixelsByDepth16(currentChannelData, start, end, m_colorDepth,
                                      results[curRow][0], results[curRow][1],
                                      results[curRow][2], results[curRow][3],
@@ -642,7 +669,8 @@ int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     if (!isPWMPanel()) {
         uint32_t dataOffset = (outputBuffers[currOutputBuffer] - outputBuffers[0]);
         uint32_t addr = (pru->ddr_addr + dataOffset);
-        uint32_t strideLen = rowLen * 6;
+        uint32_t bytesPerPixel = (m_numOutputSlots * 6 * 2) / 16;
+        uint32_t strideLen = rowLen * bytesPerPixel;
         uint32_t numStride = numRows * m_colorDepth;
         uint32_t frameSize = numStride * strideLen;
 
@@ -690,8 +718,9 @@ inline int mapRow(int row, int mode) {
     return row;
 }
 
-static int outputRegData(int curidx, uint8_t* odata, uint16_t r, uint16_t g, uint16_t b) {
+static int outputRegData(int curidx, uint8_t* odata, uint16_t r, uint16_t g, uint16_t b, int numOutputs = 8) {
     // int sidx = curidx;
+    int bytesPerClock = numOutputs == 16 ? 12 : 6;
     for (int x = 0; x < 16; x++) {
         odata[curidx] = r & 0x8000 ? 0xFF : 0x00;
         curidx++;
@@ -705,6 +734,21 @@ static int outputRegData(int curidx, uint8_t* odata, uint16_t r, uint16_t g, uin
         curidx++;
         odata[curidx] = b & 0x8000 ? 0xFF : 0x00;
         curidx++;
+        if (numOutputs == 16) {
+            // Duplicate for outputs 8-15
+            odata[curidx] = r & 0x8000 ? 0xFF : 0x00;
+            curidx++;
+            odata[curidx] = g & 0x8000 ? 0xFF : 0x00;
+            curidx++;
+            odata[curidx] = b & 0x8000 ? 0xFF : 0x00;
+            curidx++;
+            odata[curidx] = r & 0x8000 ? 0xFF : 0x00;
+            curidx++;
+            odata[curidx] = g & 0x8000 ? 0xFF : 0x00;
+            curidx++;
+            odata[curidx] = b & 0x8000 ? 0xFF : 0x00;
+            curidx++;
+        }
         r <<= 1;
         g <<= 1;
         b <<= 1;
@@ -747,12 +791,14 @@ void BBShiftPanelOutput::setupPWMRegisters() {
         0x0000, 0x0000, 0x0000
     };
 
-    // create the "data" array of for all 8 outputs of r/g/b triplets for the registers
-    uint8_t odata[96 * 5];
+    // create the "data" array of for all outputs of r/g/b triplets for the registers
+    // 16 clocks * bytesPerClock * 5 registers
+    int bytesPerClock = m_numOutputSlots == 16 ? 12 : 6;
+    uint8_t odata[192 * 5];
 
     // register 1 contains the number of scan lines (rows)
     uint16_t rn = ((numRows - 1) << 8) & 0x3F00;
-    int curidx = outputRegData(0, odata, conf_6363[0] | rn, conf_6363[1] | rn, conf_6363[2] | rn);
+    int curidx = outputRegData(0, odata, conf_6363[0] | rn, conf_6363[1] | rn, conf_6363[2] | rn, m_numOutputSlots);
 
     // register 2 contains adjustments for current
 
@@ -780,10 +826,10 @@ void BBShiftPanelOutput::setupPWMRegisters() {
         b &= 0x1FE;
     }
 
-    curidx = outputRegData(curidx, odata, conf_6363[3] | b, conf_6363[4] | b, conf_6363[5] | b);
-    curidx = outputRegData(curidx, odata, conf_6363[6], conf_6363[7], conf_6363[8]);
-    curidx = outputRegData(curidx, odata, conf_6363[9], conf_6363[10], conf_6363[11]);
-    curidx = outputRegData(curidx, odata, conf_6363[12], conf_6363[13], conf_6363[14]);
+    curidx = outputRegData(curidx, odata, conf_6363[3] | b, conf_6363[4] | b, conf_6363[5] | b, m_numOutputSlots);
+    curidx = outputRegData(curidx, odata, conf_6363[6], conf_6363[7], conf_6363[8], m_numOutputSlots);
+    curidx = outputRegData(curidx, odata, conf_6363[9], conf_6363[10], conf_6363[11], m_numOutputSlots);
+    curidx = outputRegData(curidx, odata, conf_6363[12], conf_6363[13], conf_6363[14], m_numOutputSlots);
 
     pru->memcpyToPRU(&pruData->registers[0], &odata[0], curidx);
 
@@ -872,7 +918,7 @@ bool BBShiftPanelOutput::setupChannelOffsets() {
     numRows = 0;
     rowLen = 0;
     int maxRowLen = 0;
-    for (int output = 0; output < NUM_OUTPUTS; output++) {
+    for (int output = 0; output < m_numOutputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
 
         for (int i = 0; i < panelsOnOutput; i++) {
@@ -895,10 +941,14 @@ bool BBShiftPanelOutput::setupChannelOffsets() {
     channelOffsets = new uint32_t[m_channelCount];
     memset(channelOffsets, 0xFF, m_channelCount * sizeof(uint32_t));
 
-    int totalRowLen = rowLen * 8 * 6;
-    for (int output = 0; output < NUM_OUTPUTS; output++) {
+    int pixelStride = m_numOutputSlots * 6;
+    int totalRowLen = rowLen * pixelStride;
+    for (int output = 0; output < m_numOutputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
-        int outputIdx = outputMap[output];
+        // For 16 outputs, bank1 data starts at offset 48 (= 8 slots * 6 colors)
+        // so that ISPC's 16-lane reduce_add packs bank0/bank1 pairs correctly:
+        // bank0 channels occupy slots 0-47, bank1 channels occupy slots 48-95
+        int outputIdx = outputPin[output] + outputBank[output] * 48;
 
         for (int i = 0; i < panelsOnOutput; i++) {
             int panel = m_panelMatrix->m_outputPanels[output][i];
@@ -931,12 +981,15 @@ bool BBShiftPanelOutput::setupChannelOffsets() {
 
                         xOut = xo2 * (rowLen / 16) + xo3;
                     }
-                    channelOffsets[r1] = yOut * totalRowLen + xOut * 48 + outputIdx;
-                    channelOffsets[g1] = yOut * totalRowLen + xOut * 48 + outputIdx + 8;
-                    channelOffsets[b1] = yOut * totalRowLen + xOut * 48 + outputIdx + 16;
-                    channelOffsets[r2] = yOut * totalRowLen + xOut * 48 + outputIdx + 24;
-                    channelOffsets[g2] = yOut * totalRowLen + xOut * 48 + outputIdx + 32;
-                    channelOffsets[b2] = yOut * totalRowLen + xOut * 48 + outputIdx + 40;
+                    // Color stride is always 8: within each bank, 8 slots per color channel.
+                    // For 8 outputs: outputIdx=pin(0-7), channels at +0,+8,+16,+24,+32,+40
+                    // For 16 outputs bank0: same; bank1: outputIdx=pin+48, same offsets
+                    channelOffsets[r1] = yOut * totalRowLen + xOut * pixelStride + outputIdx;
+                    channelOffsets[g1] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 8;
+                    channelOffsets[b1] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 16;
+                    channelOffsets[r2] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 24;
+                    channelOffsets[g2] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 32;
+                    channelOffsets[b2] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 40;
                 }
             }
         }
@@ -965,8 +1018,8 @@ bool BBShiftPanelOutput::setupChannelOffsets() {
         }
     }
     */
-    currentChannelData = new uint16_t[rowLen * 8 * 6 * numRows];
-    memset(currentChannelData, 0, rowLen * 8 * 6 * numRows * sizeof(uint16_t));
+    currentChannelData = new uint16_t[rowLen * m_numOutputSlots * 6 * numRows];
+    memset(currentChannelData, 0, rowLen * m_numOutputSlots * 6 * numRows * sizeof(uint16_t));
     return true;
 }
 
@@ -1038,7 +1091,7 @@ void BBShiftPanelOutput::setupGamma(float gamma) {
 }
 
 void BBShiftPanelOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
-    for (int output = 0; output < NUM_OUTPUTS; output++) {
+    for (int output = 0; output < m_numOutputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         for (int i = 0; i < panelsOnOutput; i++) {
             int panel = m_panelMatrix->m_outputPanels[output][i];
@@ -1064,6 +1117,7 @@ void BBShiftPanelOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Inverted Data  : %d\n", m_invertedData);
     LogDebug(VB_CHANNELOUT, "    Output Rows    : %d\n", numRows);
     LogDebug(VB_CHANNELOUT, "    Output Length  : %d\n", rowLen);
+    LogDebug(VB_CHANNELOUT, "    Num Outputs    : %d (%d slots)\n", m_numOutputs, m_numOutputSlots);
     LogDebug(VB_CHANNELOUT, "    Addressing Mode: %d %s\n", m_addressingMode, isPWMPanel() ? "PWM" : "Shift");
 
     ChannelOutput::DumpConfig();

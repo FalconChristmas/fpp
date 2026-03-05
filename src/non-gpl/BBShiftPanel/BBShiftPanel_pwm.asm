@@ -112,7 +112,7 @@ CLEAR_DATA_PINS .macro
 
 
 // output a full rgb/rgb2 for a pixel
-OUTPUT_PIXEL .macro 
+OUTPUT_PIXEL .macro
     .newblock
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
@@ -127,12 +127,26 @@ OUTPUT_PIXEL .macro
     TOGGLE_OSHIFT
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
+#ifdef OUTPUTS16
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+#endif
     TOGGLE_OLATCH
     SET_CLOCK
     .endm
 
 // output a full rgb/rgb2 for a pixel
-OUTPUT_PIXEL_LE .macro 
+OUTPUT_PIXEL_LE .macro
     .newblock
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
@@ -147,13 +161,27 @@ OUTPUT_PIXEL_LE .macro
     TOGGLE_OSHIFT
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
+#ifdef OUTPUTS16
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+#endif
     TOGGLE_OLATCH
     SET r30, r30, LE_PIN
     SET_CLOCK
-    .endm 
+    .endm
 
 // output a full rgb/rgb2 for a pixel
-OUTPUT_PIXEL_CLRLE .macro 
+OUTPUT_PIXEL_CLRLE .macro
     .newblock
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
@@ -168,11 +196,25 @@ OUTPUT_PIXEL_CLRLE .macro
     TOGGLE_OSHIFT
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_OSHIFT
+#ifdef OUTPUTS16
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+    MVIB DATA_BYTE, *r1.b0++
+    TOGGLE_OSHIFT
+#endif
     TOGGLE_OLATCH
     SET_CLOCK
     .endm
 
-OUTPUT_EMPTY_PIXEL .macro 
+OUTPUT_EMPTY_PIXEL .macro
     .newblock
     LDI DATA_BYTE, 0
     TOGGLE_OSHIFT
@@ -187,11 +229,25 @@ OUTPUT_EMPTY_PIXEL .macro
     TOGGLE_OSHIFT
     LDI DATA_BYTE, 0
     TOGGLE_OSHIFT
+#ifdef OUTPUTS16
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+#endif
     TOGGLE_OLATCH
     SET_CLOCK
     .endm
 
-OUTPUT_EMPTY_PIXEL_SETLE .macro 
+OUTPUT_EMPTY_PIXEL_SETLE .macro
     .newblock
     LDI DATA_BYTE, 0
     TOGGLE_OSHIFT
@@ -207,6 +263,20 @@ OUTPUT_EMPTY_PIXEL_SETLE .macro
     TOGGLE_OSHIFT
     LDI DATA_BYTE, 0
     TOGGLE_OSHIFT
+#ifdef OUTPUTS16
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+    LDI DATA_BYTE, 0
+    TOGGLE_OSHIFT
+#endif
     TOGGLE_OLATCH
     SET_CLOCK
     .endm
@@ -247,6 +317,30 @@ DONELE?:
 
 
 
+#ifdef OUTPUTS16
+// 16-output versions use subroutine calls (JAL r29) to avoid
+// inline macro expansion bloat that exceeds PRU IMEM (16KB).
+// Subroutines OUTPUT_4_PIXELS_SUBR and OUTPUT_2_PIXELS_SUBR
+// are defined near the end of the file.
+
+DO_FULL_REGISTER .macro offset
+    .newblock
+    // pixels 0-3 (data already loaded in r2-r13)
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 4-7
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 8-11
+    LDI     tmpReg1, (offset + 96)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 12-15
+    LDI     tmpReg1, (offset + 144)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    .endm
+#else
 DO_FULL_REGISTER .macro offset
     .newblock
     LDI     r1.b0, &r2
@@ -258,8 +352,124 @@ DONEHALFREG?
     LDI     r1.b0, &r2
     LOOP DONEPIXELFULLREG?, 8
         OUTPUT_PIXEL
-DONEPIXELFULLREG?:        
+DONEPIXELFULLREG?:
     .endm
+#endif
+
+#ifdef OUTPUTS16
+// 16-output versions: 16 pixels total in 4 groups of 4
+// LE timing: REG1=4 before end, REG2=6, REG3=8, REG4=10, REG5=2
+// Uses JAL r29 to call subroutines, avoiding massive inline expansion.
+
+DO_REG1_LAST .macro offset
+    .newblock
+    // pixels 0-3
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 4-7
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 8-11
+    LDI     tmpReg1, (offset + 96)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // LE high for pixels 12-15
+    SET     r30, r30, LE_PIN
+    LDI     tmpReg1, (offset + 144)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    .endm
+
+
+DO_REG2_LAST .macro offset
+    .newblock
+    // pixels 0-3
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 4-7
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 8-9
+    LDI     tmpReg1, (offset + 96)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    LDI     r1.b0, &r2
+    JAL     r29, OUTPUT_2_PIXELS_SUBR
+    // LE high for pixels 10-11
+    SET     r30, r30, LE_PIN
+    JAL     r29, OUTPUT_2_PIXELS_SUBR
+    // pixels 12-15
+    LDI     tmpReg1, (offset + 144)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    .endm
+
+
+DO_REG3_LAST .macro offset
+    .newblock
+    // pixels 0-3
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 4-7
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // LE high for pixels 8-15
+    SET     r30, r30, LE_PIN
+    // pixels 8-11
+    LDI     tmpReg1, (offset + 96)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 12-15
+    LDI     tmpReg1, (offset + 144)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    .endm
+
+DO_REG4_LAST .macro offset
+    .newblock
+    // pixels 0-3
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 4-5
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    LDI     r1.b0, &r2
+    JAL     r29, OUTPUT_2_PIXELS_SUBR
+    // LE high for pixels 6-7
+    SET     r30, r30, LE_PIN
+    JAL     r29, OUTPUT_2_PIXELS_SUBR
+    // pixels 8-11
+    LDI     tmpReg1, (offset + 96)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 12-15
+    LDI     tmpReg1, (offset + 144)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    .endm
+
+DO_REG5_LAST .macro offset
+    .newblock
+    // pixels 0-3
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 4-7
+    LDI     tmpReg1, (offset + 48)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 8-11
+    LDI     tmpReg1, (offset + 96)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    JAL     r29, OUTPUT_4_PIXELS_SUBR
+    // pixels 12-13
+    LDI     tmpReg1, (offset + 144)
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
+    LDI     r1.b0, &r2
+    JAL     r29, OUTPUT_2_PIXELS_SUBR
+    // LE high for pixels 14-15
+    SET     r30, r30, LE_PIN
+    JAL     r29, OUTPUT_2_PIXELS_SUBR
+    .endm
+
+#else
+// 8-output versions: 16 pixels total in 2 groups of 8
 
 DO_REG1_LAST .macro offset
     .newblock
@@ -273,10 +483,10 @@ DONEHALFREG?
     LOOP DONEPRELATCH?, 4
         OUTPUT_PIXEL
 DONEPRELATCH?:
-    SET  r30, r30, LE_PIN                
+    SET  r30, r30, LE_PIN
     LOOP DONEPOSTLATCH?, 4
         OUTPUT_PIXEL
-DONEPOSTLATCH?        
+DONEPOSTLATCH?
     .endm
 
 
@@ -292,10 +502,10 @@ DONEHALFREG?
     LOOP DONEPRELATCH?, 2
         OUTPUT_PIXEL
 DONEPRELATCH?:
-    SET  r30, r30, LE_PIN                
+    SET  r30, r30, LE_PIN
     LOOP DONEPOSTLATCH?, 6
         OUTPUT_PIXEL
-DONEPOSTLATCH?        
+DONEPOSTLATCH?
     .endm
 
 
@@ -308,10 +518,10 @@ DONEHALFREG?
     LDI     tmpReg1, (offset + 48)
 	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
     LDI     r1.b0, &r2
-    SET  r30, r30, LE_PIN                
+    SET  r30, r30, LE_PIN
     LOOP DONEPOSTLATCH?, 8
         OUTPUT_PIXEL
-DONEPOSTLATCH?        
+DONEPOSTLATCH?
     .endm
 
 DO_REG4_LAST .macro offset
@@ -320,7 +530,7 @@ DO_REG4_LAST .macro offset
     LOOP DOPRELATCH?, 6
         OUTPUT_PIXEL
 DOPRELATCH?
-    SET  r30, r30, LE_PIN                
+    SET  r30, r30, LE_PIN
     OUTPUT_PIXEL
     OUTPUT_PIXEL
     LDI     tmpReg1, (offset + 48)
@@ -328,7 +538,7 @@ DOPRELATCH?
     LDI     r1.b0, &r2
     LOOP DONEPOSTLATCH?, 8
         OUTPUT_PIXEL
-DONEPOSTLATCH?        
+DONEPOSTLATCH?
     .endm
 
 DO_REG5_LAST .macro offset
@@ -343,11 +553,12 @@ DONEHALFREG?
     LOOP DONEPRELATCH?, 6
         OUTPUT_PIXEL
 DONEPRELATCH?:
-    SET  r30, r30, LE_PIN                
+    SET  r30, r30, LE_PIN
     LOOP DONEPOSTLATCH?, 2
         OUTPUT_PIXEL
-DONEPOSTLATCH?          
+DONEPOSTLATCH?
     .endm
+#endif
 
 
 
@@ -596,34 +807,63 @@ DOROWOUTPUT:
 DOREGISTEROUTPUT:
     QBEQ  DONEREGISTEROUT, curReg, 0
     MOV   curBlock, numBlocks
+#ifdef OUTPUTS16
+DOROWOUT:
+    QBEQ  LASTINROW, curBlock, 1
+        LOAD_DATA
+        JAL     r29, OUTPUT_4_PIXELS_CLRLE_SUBR
+        LOAD_DATA
+        JAL     r29, OUTPUT_4_PIXELS_CLRLE_SUBR
+        SUB   curBlock, curBlock, 1
+        JMP   DOROWOUT
+LASTINROW:
+    LOAD_DATA
+    JAL     r29, OUTPUT_4_PIXELS_CLRLE_SUBR
+    LOAD_DATA
+    LDI     r1.b0, &r2
+    LDI     r28, 3
+LASTINROW_CLRLE_LOOP:
+    JAL     r29, OUTPUT_PIXEL_CLRLE_SUBR
+    SUB     r28, r28, 1
+    QBNE    LASTINROW_CLRLE_LOOP, r28, 0
+    OUTPUT_PIXEL_LE
+#else
 DOROWOUT:
     QBEQ  LASTINROW, curBlock, 1
         LOAD_DATA
         LOOP ENDLOOPPIXELFIRST8, 8
             OUTPUT_PIXEL_CLRLE
-ENDLOOPPIXELFIRST8:            
+ENDLOOPPIXELFIRST8:
         LOAD_DATA
         LOOP ENDLOOPPIXEL, 8
             OUTPUT_PIXEL_CLRLE
-ENDLOOPPIXEL:            
+ENDLOOPPIXEL:
         SUB   curBlock, curBlock, 1
         JMP   DOROWOUT
-LASTINROW:        
+LASTINROW:
     LOAD_DATA
     LOOP ENDLOOPPIXEL2, 8
         OUTPUT_PIXEL_CLRLE
-ENDLOOPPIXEL2:        
+ENDLOOPPIXEL2:
     LOAD_DATA
     LOOP ENDLOOPPIXEL3, 7
         OUTPUT_PIXEL_CLRLE
 ENDLOOPPIXEL3:
     OUTPUT_PIXEL_LE
+#endif
     SUB curReg, curReg, 1
     JMP DOREGISTEROUTPUT
 DONEREGISTEROUT:    
     SUB     curRow, curRow, 1
     JMP     DOROWOUTPUT
 DONEDATAOUT:
+#ifdef OUTPUTS16
+    LDI     r28, 7
+DONEDATAOUT_LOOP:
+    JAL     r29, OUTPUT_PIXEL_CLRLE_SUBR
+    SUB     r28, r28, 1
+    QBNE    DONEDATAOUT_LOOP, r28, 0
+#else
     OUTPUT_PIXEL_CLRLE
     OUTPUT_PIXEL_CLRLE
     OUTPUT_PIXEL_CLRLE
@@ -631,6 +871,7 @@ DONEDATAOUT:
     OUTPUT_PIXEL_CLRLE
     OUTPUT_PIXEL_CLRLE
     OUTPUT_PIXEL_CLRLE
+#endif
     JMP SKIPDATA
 
 
@@ -648,19 +889,38 @@ OUTPUT_REGISTERS:
 	LE_FOR_CLOCKS_NO_CLR 12
     LOW_FOR_CLOCKS 6
 
+#ifdef OUTPUTS16
+    // 16-output register offsets: each register is 16 pixels * 12 bytes = 192 bytes
+    // With 16-byte header: 16, 208, 400, 592, 784
+#define REG1_OFF 16
+#define REG2_OFF 208
+#define REG3_OFF 400
+#define REG4_OFF 592
+#define REG5_OFF 784
+#else
+    // 8-output register offsets: each register is 16 pixels * 6 bytes = 96 bytes
+    // With 16-byte header: 16, 112, 208, 304, 400
+#define REG1_OFF 16
+#define REG2_OFF 112
+#define REG3_OFF 208
+#define REG4_OFF 304
+#define REG5_OFF 400
+#endif
+
     //-----------
     // Do register #1
     MOV     curReg, numBlocks
 	LE_FOR_CLOCKS_NO_CLR 14
     LOW_FOR_CLOCKS 4
 REG1_LOOP:
-	LBCO	&r2, CONST_PRUDRAM, 16, 48    
+    LDI     tmpReg1, REG1_OFF
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
     QBEQ    REG1_LAST, curReg,  1
-    DO_FULL_REGISTER    16
+    DO_FULL_REGISTER    REG1_OFF
     SUB     curReg, curReg, 1
     JMP     REG1_LOOP
 REG1_LAST:
-    DO_REG1_LAST        16
+    DO_REG1_LAST        REG1_OFF
     CLEAR_DATA_PINS
     LOW_FOR_CLOCKS 6
     //-----------
@@ -672,13 +932,14 @@ REG1_LAST:
 	LE_FOR_CLOCKS_NO_CLR 14
     LOW_FOR_CLOCKS 4
 REG2_LOOP:
-	LBCO	&r2, CONST_PRUDRAM, 112, 48    
+    LDI     tmpReg1, REG2_OFF
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
     QBEQ    REG2_LAST, curReg,  1
-    DO_FULL_REGISTER    112
+    DO_FULL_REGISTER    REG2_OFF
     SUB     curReg, curReg, 1
     JMP     REG2_LOOP
 REG2_LAST:
-    DO_REG2_LAST        112
+    DO_REG2_LAST        REG2_OFF
     CLEAR_DATA_PINS
     LOW_FOR_CLOCKS 6
     //-----------
@@ -690,14 +951,14 @@ REG2_LAST:
 	LE_FOR_CLOCKS_NO_CLR 14
     LOW_FOR_CLOCKS 4
 REG3_LOOP:
-    LDI     tmpReg1, 208
-	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
+    LDI     tmpReg1, REG3_OFF
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
     QBEQ    REG3_LAST, curReg,  1
-    DO_FULL_REGISTER    208
+    DO_FULL_REGISTER    REG3_OFF
     SUB     curReg, curReg, 1
     JMP     REG3_LOOP
 REG3_LAST:
-    DO_REG3_LAST        208
+    DO_REG3_LAST        REG3_OFF
     CLEAR_DATA_PINS
     LOW_FOR_CLOCKS 6
     //-----------
@@ -709,14 +970,14 @@ REG3_LAST:
 	LE_FOR_CLOCKS_NO_CLR 14
     LOW_FOR_CLOCKS 4
 REG4_LOOP:
-    LDI     tmpReg1, 304
-	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
+    LDI     tmpReg1, REG4_OFF
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
     QBEQ    REG4_LAST, curReg,  1
-    DO_FULL_REGISTER    304
+    DO_FULL_REGISTER    REG4_OFF
     SUB     curReg, curReg, 1
     JMP     REG4_LOOP
 REG4_LAST:
-    DO_REG4_LAST        304
+    DO_REG4_LAST        REG4_OFF
     CLEAR_DATA_PINS
     LOW_FOR_CLOCKS 6
     //-----------
@@ -728,14 +989,14 @@ REG4_LAST:
 	LE_FOR_CLOCKS_NO_CLR 14
     LOW_FOR_CLOCKS 4
 REG5_LOOP:
-    LDI     tmpReg1, 400
-	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48    
+    LDI     tmpReg1, REG5_OFF
+	LBCO	&r2, CONST_PRUDRAM, tmpReg1, 48
     QBEQ    REG5_LAST, curReg,  1
-    DO_FULL_REGISTER    400
+    DO_FULL_REGISTER    REG5_OFF
     SUB     curReg, curReg, 1
     JMP     REG5_LOOP
 REG5_LAST:
-    DO_REG5_LAST        400
+    DO_REG5_LAST        REG5_OFF
     CLEAR_DATA_PINS
     LOW_FOR_CLOCKS 6
 
@@ -746,6 +1007,43 @@ REG5_LAST:
 
 
 
+
+
+#ifdef OUTPUTS16
+;*****************************************************************************
+; Subroutines for 16-output mode to reduce code size.
+; Called via JAL r29, <label>; return via JMP r29.
+; r28 is available as a loop counter for manual loops.
+;*****************************************************************************
+
+// Output 4 pixels from data in r2-r13, sets r1.b0 = &r2
+OUTPUT_4_PIXELS_SUBR:
+    LDI     r1.b0, &r2
+    LOOP    OUTPUT_4_PIXELS_DONE, 4
+        OUTPUT_PIXEL
+OUTPUT_4_PIXELS_DONE:
+    JMP     r29
+
+// Output 4 pixels with CLRLE from data in r2-r13, sets r1.b0 = &r2
+OUTPUT_4_PIXELS_CLRLE_SUBR:
+    LDI     r1.b0, &r2
+    LOOP    OUTPUT_4_CLRLE_DONE, 4
+        OUTPUT_PIXEL_CLRLE
+OUTPUT_4_CLRLE_DONE:
+    JMP     r29
+
+// Output 2 pixels from current r1.b0 position (caller must set r1.b0)
+OUTPUT_2_PIXELS_SUBR:
+    LOOP    OUTPUT_2_PIXELS_DONE, 2
+        OUTPUT_PIXEL
+OUTPUT_2_PIXELS_DONE:
+    JMP     r29
+
+// Output 1 pixel with CLRLE from current r1.b0 position
+OUTPUT_PIXEL_CLRLE_SUBR:
+    OUTPUT_PIXEL_CLRLE
+    JMP     r29
+#endif
 
 
 EXIT:

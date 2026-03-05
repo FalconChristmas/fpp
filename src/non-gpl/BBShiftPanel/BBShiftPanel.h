@@ -51,7 +51,7 @@ typedef struct {
             uint8_t numBlocks;
             uint8_t numRows;
             uint16_t buffer[4];            // buffer to get registers aligned on boundary
-            uint8_t registers[5 * 6 * 16]; // 5 registers for each of r/g/b/r2/b2/g2, 16 bits each
+            uint8_t registers[5 * 12 * 16]; // 5 registers, up to 12 bytes per clock (16 outputs), 16 clocks each
         } __attribute__((__packed__));
     } __attribute__((__packed__));
 } __attribute__((__packed__)) BBShiftPanelData;
@@ -121,7 +121,10 @@ private:
     int addressingType = 0;
 
     uint16_t gammaCurve[256];
-    uint8_t outputMap[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+    int m_numOutputs = 8;      // number of configured outputs (from cape config)
+    int m_numOutputSlots = 8;  // 8 or 16 - determines data width per pixel (6 or 12 bytes)
+    uint8_t outputPin[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7 };  // PRU pin (0-7) per output
+    uint8_t outputBank[16] = { 0 };  // 0=first bank, 1=second bank per output
 
     uint32_t* channelOffsets = nullptr;
     uint16_t* currentChannelData = nullptr;
