@@ -107,10 +107,23 @@ static void entry_group_callback(AvahiEntryGroup* g, AvahiEntryGroupState state,
     case AVAHI_ENTRY_GROUP_ESTABLISHED:
         LogInfo(VB_SYNC, "MDNS service registered successfully\n");
         break;
-    case AVAHI_ENTRY_GROUP_COLLISION:
-        LogWarn(VB_SYNC, "MDNS service name collision, creating alternate name\n");
-        // In a real implementation, you could rename and retry
+    case AVAHI_ENTRY_GROUP_COLLISION: {
+        LogWarn(VB_SYNC, "MDNS service name collision, attempting to create alternate name\n");
+
+        AvahiClient* client = avahi_entry_group_get_client(g);
+        if (client) {
+            /*
+             * Reset the entry group and re-register the service. The
+             * RegisterService implementation can use Avahi's helper
+             * functions (e.g. avahi_alternative_service_name) to choose
+             * a non-conflicting name when re-adding the service.
+             */
+            avahi_entry_group_reset(g);
+            mgr->RegisterService(client);
+        }
+
         break;
+    }
     case AVAHI_ENTRY_GROUP_FAILURE:
         LogErr(VB_SYNC, "MDNS entry group failure\n");
         break;
