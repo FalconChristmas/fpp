@@ -322,11 +322,14 @@ static void handleCrash(int s) {
     #endif
 #else
             // most non‑OSX platforms support file_clock (C++20); if not,
-            // fall back to system_clock with the same timestamp.
+            // compute a corresponding system_clock time using the
+            // offset between the file clock and system_clock.
     #if defined(__cpp_lib_chrono) || (__cplusplus >= 202002L)
             stm = std::chrono::file_clock::to_sys(ftime);
     #else
-            stm = std::chrono::system_clock::now();
+            auto now_sys  = std::chrono::system_clock::now();
+            auto now_file = decltype(ftime)::clock::now();
+            stm = now_sys + std::chrono::duration_cast<std::chrono::system_clock::duration>(ftime - now_file);
     #endif
 #endif
             auto tdiff = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - stm);
