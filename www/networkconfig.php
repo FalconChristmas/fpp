@@ -701,10 +701,10 @@
 
                 data.Leases = {};
                 $('#staticLeasesTable_' + safeName + ' > tbody > tr').each(function () {
-                    var checkBox = $(this).find('#static_enabled');
+                    var checkBox = $(this).find('.static_enabled');
                     if (checkBox.is(":checked")) {
-                        var ip = $(this).find('#static_ip').val();
-                        var mac = $(this).find('#static_mac').val();
+                        var ip = $(this).find('.static_ip').val();
+                        var mac = $(this).find('.static_mac').val();
                         data.Leases[ip] = mac;
                     }
                 })
@@ -1131,6 +1131,56 @@
 
             if (data.ROUTEMETRIC) {
                 contentDiv.find('#eth_route_metric_' + safeName).val(data.ROUTEMETRIC);
+            } else {
+                contentDiv.find('#eth_route_metric_' + safeName).val(0);
+            }
+
+            // Populate advanced settings
+            if (data.IPFORWARDING) {
+                contentDiv.find('#ipForwarding_' + safeName).val(data.IPFORWARDING);
+            } else {
+                contentDiv.find('#ipForwarding_' + safeName).val(0);
+            }
+            if (data.DHCPSERVER && data.DHCPSERVER == "1") {
+                contentDiv.find('#dhcpServer_' + safeName).prop('checked', true);
+            } else {
+                contentDiv.find('#dhcpServer_' + safeName).prop('checked', false);
+            }
+            if (data.DHCPOFFSET) {
+                contentDiv.find('#dhcpOffset_' + safeName).val(data.DHCPOFFSET);
+            } else {
+                contentDiv.find('#dhcpOffset_' + safeName).val(100);
+            }
+            if (data.DHCPPOOLSIZE) {
+                contentDiv.find('#dhcpPoolSize_' + safeName).val(data.DHCPPOOLSIZE);
+            } else {
+                contentDiv.find('#dhcpPoolSize_' + safeName).val(50);
+            }
+
+            // Populate static leases
+            contentDiv.find('#staticLeasesTable_' + safeName + ' > tbody').empty();
+            if (data.DHCPSERVER && data.DHCPSERVER == "1") {
+                if (data.StaticLeases) {
+                    for (var ip in data.StaticLeases) {
+                        var mac = data.StaticLeases[ip];
+                        var tr = "<tr><td><input type='checkbox' class='static_enabled' checked></td>";
+                        tr += "<td><input type='text' class='static_ip' value='" + $('<span/>').text(ip).html() + "' size='16'></td>";
+                        tr += "<td><input type='hidden' class='static_mac' value='" + $('<span/>').text(mac).html() + "'/>" + $('<span/>').text(mac).html() + "</td></tr>";
+                        contentDiv.find('#staticLeasesTable_' + safeName + ' > tbody').append(tr);
+                    }
+                }
+                if (data.CurrentLeases) {
+                    for (var ip in data.CurrentLeases) {
+                        var mac = data.CurrentLeases[ip];
+                        var tr = "<tr><td><input type='checkbox' class='static_enabled'></td>";
+                        tr += "<td><input type='text' class='static_ip' value='" + $('<span/>').text(ip).html() + "' size='16'></td>";
+                        tr += "<td><input type='hidden' class='static_mac' value='" + $('<span/>').text(mac).html() + "'/>" + $('<span/>').text(mac).html() + "</td></tr>";
+                        contentDiv.find('#staticLeasesTable_' + safeName + ' > tbody').append(tr);
+                    }
+                }
+                contentDiv.find('#staticLeases_' + safeName).show();
+            } else {
+                contentDiv.find('#staticLeases_' + safeName).hide();
             }
 
             // Set up event handlers for this interface
@@ -1467,62 +1517,7 @@
                 }
             }
             <? if ($settings['uiLevel'] >= 1) { ?>
-                if (data.ROUTEMETRIC) {
-                    contentDiv.find('#routeMetric_' + safeName).val(data.ROUTEMETRIC);
-                } else {
-                    contentDiv.find('#routeMetric_' + safeName).val(0);
-                }
-                if (data.DHCPSERVER) {
-                    if (data.DHCPSERVER == "1") {
-                        contentDiv.find('#dhcpServer_' + safeName).prop('checked', true);
-                    } else {
-                        contentDiv.find('#dhcpServer_' + safeName).prop('checked', false);
-                    }
-                } else {
-                    contentDiv.find('#dhcpServer_' + safeName).prop('checked', false);
-                }
-                if (data.DHCPOFFSET) {
-                    contentDiv.find('#dhcpOffset_' + safeName).val(data.DHCPOFFSET);
-                } else {
-                    contentDiv.find('#dhcpOffset_' + safeName).val(100);
-                }
-                if (data.DHCPPOOLSIZE) {
-                    contentDiv.find('#dhcpPoolSize_' + safeName).val(data.DHCPPOOLSIZE);
-                } else {
-                    contentDiv.find('#dhcpPoolSize_' + safeName).val(50);
-                }
-                if (data.IPFORWARDING) {
-                    contentDiv.find('#ipForwarding_' + safeName).val(data.IPFORWARDING);
-                } else {
-                    contentDiv.find('#ipForwarding_' + safeName).val(0);
-                }
-
-                contentDiv.find("#staticLeasesTable_" + safeName + " > tbody").empty();
-                if (data.DHCPSERVER && (data.DHCPSERVER == "1")) {
-                    var leases = data.StaticLeases;
-                    for (ip in leases) {
-                        var mac = leases[ip];
-                        var tr = "<tr><td><input type='checkbox' id='static_enabled' checked></td>";
-                        tr += "<td><input type='text' id='static_ip' value='" + ip + "' size='16'></td>";
-                        tr += "<td><input type='hidden' id='static_mac' value='" + mac + "'/>" + mac + "</td></tr>";
-                        contentDiv.find("#staticLeasesTable_" + safeName + " > tbody").append(tr);
-                    }
-                    var leases = data.CurrentLeases;
-                    for (ip in leases) {
-                        var mac = leases[ip];
-                        var tr = "<tr><td><input type='checkbox' id='static_enabled'></td>";
-                        tr += "<td><input type='text' id='static_ip' value='" + ip + "' size='16'></td>";
-                        tr += "<td><input type='hidden' id='static_mac' value='" + mac + "'/>" + mac + "</td></tr>";
-                        contentDiv.find("#staticLeasesTable_" + safeName + " > tbody").append(tr);
-                    }
-                    contentDiv.find("#staticLeases_" + safeName).show();
-                } else {
-                    contentDiv.find("#staticLeases_" + safeName).hide();
-                }
-
-                // Note: updateInterfaceChildSettings will be called after setupInterfaceEvents
-            <? } else { ?>
-                contentDiv.find("#staticLeases_" + safeName).hide();
+                // Advanced settings are now populated in populateInterfaceForm
             <? } ?>
             CheckDNS();
 
@@ -1886,7 +1881,110 @@
                                             <i class="fas fa-cogs"></i> Advanced Configuration
                                         </h3>
                                         <div class="container-fluid settingsTable settingsGroupTable">
-                                            <?php PrintSettingGroup("advNetworkSettingsGroup", "", "", 1, "", "", false); ?>
+                                            <div class="row" id="routeMetricRow">
+                                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                    <div class="description">
+                                                        <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1"
+                                                            data-bs-tooltip-title="Advanced Level Setting"
+                                                            data-bs-toggle="tooltip" data-bs-placement="auto"></i>
+                                                        Route Metric
+                                                    </div>
+                                                </div>
+                                                <div class="printSettingFieldCol col-md">
+                                                    <input type="number" id="eth_route_metric" min="0" max="10000" step="1"
+                                                        value="0" size="6">
+                                                    <span
+                                                        data-bs-title="IP Routing metric. Lower number is higher priority. 0 is default."
+                                                        data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                        data-bs-html="true">
+                                                        <img src="images/redesign/help-icon.svg" class="icon-help"
+                                                            alt="Help">
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="row" id="ipForwardingRow">
+                                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                    <div class="description">
+                                                        <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1"
+                                                            data-bs-tooltip-title="Advanced Level Setting"
+                                                            data-bs-toggle="tooltip" data-bs-placement="auto"></i>
+                                                        IP Forwarding
+                                                    </div>
+                                                </div>
+                                                <div class="printSettingFieldCol col-md">
+                                                    <select id="ipForwarding">
+                                                        <option value="0">Off</option>
+                                                        <option value="1">Forwarding</option>
+                                                        <option value="2">Masquerading/NAT</option>
+                                                    </select>
+                                                    <span
+                                                        data-bs-title="Enable forwarding of IP packets through this interface. Optionally support IP Masquerading/NAT."
+                                                        data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                        data-bs-html="true">
+                                                        <img src="images/redesign/help-icon.svg" class="icon-help"
+                                                            alt="Help">
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="row" id="dhcpServerRow">
+                                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                    <div class="description">
+                                                        <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1"
+                                                            data-bs-tooltip-title="Advanced Level Setting"
+                                                            data-bs-toggle="tooltip" data-bs-placement="auto"></i>
+                                                        DHCP Server
+                                                    </div>
+                                                </div>
+                                                <div class="printSettingFieldCol col-md">
+                                                    <input type="checkbox" id="dhcpServer" value="1">
+                                                    <span data-bs-title="Enable DHCP Server on selected interface."
+                                                        data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                        data-bs-html="true">
+                                                        <img src="images/redesign/help-icon.svg" class="icon-help"
+                                                            alt="Help">
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="row" id="dhcpOffsetRow">
+                                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                    <div class="description">
+                                                        <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1"
+                                                            data-bs-tooltip-title="Advanced Level Setting"
+                                                            data-bs-toggle="tooltip" data-bs-placement="auto"></i>
+                                                        DHCP Pool Offset
+                                                    </div>
+                                                </div>
+                                                <div class="printSettingFieldCol col-md">
+                                                    <input type="number" id="dhcpOffset" min="1" max="254" step="1"
+                                                        value="100" size="6">
+                                                    <span data-bs-title="Offset for first entry in DHCP Pool."
+                                                        data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                        data-bs-html="true">
+                                                        <img src="images/redesign/help-icon.svg" class="icon-help"
+                                                            alt="Help">
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="row" id="dhcpPoolSizeRow">
+                                                <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                    <div class="description">
+                                                        <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1"
+                                                            data-bs-tooltip-title="Advanced Level Setting"
+                                                            data-bs-toggle="tooltip" data-bs-placement="auto"></i>
+                                                        DHCP Pool Size
+                                                    </div>
+                                                </div>
+                                                <div class="printSettingFieldCol col-md">
+                                                    <input type="number" id="dhcpPoolSize" min="1" max="254" step="1"
+                                                        value="50" size="6">
+                                                    <span data-bs-title="Number of IP addresses in DHCP Pool."
+                                                        data-bs-toggle="tooltip" data-bs-placement="auto"
+                                                        data-bs-html="true">
+                                                        <img src="images/redesign/help-icon.svg" class="icon-help"
+                                                            alt="Help">
+                                                    </span>
+                                                </div>
+                                            </div>
 
                                             <div class="row">
                                                 <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
