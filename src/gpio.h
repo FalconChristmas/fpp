@@ -38,15 +38,15 @@ private:
             lastValue(0),
             lastTriggerTime(0),
             futureValue(0),
-            pendingValue(0),    // ADDED
-            pendingTime(0),     // ADDED
+            pendingValue(0),
+            pendingTime(0),
             file(-1) {}
         const PinCapabilities* pin;
         int lastValue;
         long long lastTriggerTime;
         int futureValue;
-        int pendingValue;           // ADDED: candidate value waiting to settle
-        long long pendingTime;      // ADDED: usec timestamp when pendingValue was first seen
+        int pendingValue;       // candidate value waiting to settle
+        long long pendingTime;  // usec timestamp when pendingValue was first seen
         int file;
         Json::Value fallingAction;
         Json::Value risingAction;
@@ -54,18 +54,15 @@ private:
         bool hasCallback = false;
         uint32_t debounceTime = DEFAULT_GPIO_DEBOUNCE_TIME;
 
-        // ADDED: controls which edges have debounce applied
-        // Both:    debounce rising and falling (default — preserves original behavior)
-        // Rising:  debounce only the rising edge; falling fires immediately
-        // Falling: debounce only the falling edge; rising fires immediately
+        // Controls which edges have debounce applied
         enum class DebounceEdge {
-            Both,
-            Rising,
-            Falling
+            Both,    // debounce rising and falling (default)
+            Rising,  // debounce only rising; falling fires immediately
+            Falling  // debounce only falling; rising fires immediately
         };
-        DebounceEdge debounceEdge = DebounceEdge::Both;     // ADDED
+        DebounceEdge debounceEdge = DebounceEdge::Both;
 
-        bool shouldDebounce(int v) const;   // ADDED
+        bool shouldDebounce(int v) const;
         void doAction(int newVal);
     };
     GPIOManager();
@@ -73,8 +70,9 @@ private:
     void SetupGPIOInput(std::map<int, std::function<bool(int)>>& callbacks);
     void addState(GPIOState* state);
     void addGPIOCallback(GPIOState* state);
+    void checkDebounceTimers();
+    void scheduleDebounceCheck(GPIOState* state);
     std::list<GPIOState*> pollStates;
     std::list<GPIOState*> eventStates;
-    bool checkDebounces;
     friend class GPIOCommand;
 };

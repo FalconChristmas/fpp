@@ -956,6 +956,12 @@ void MainLoop(void) {
     multiSync->Discover();
     Events::Ready();
 
+    // Wire up EPollManager timer to fire Timers, so epoll_wait/kevent
+    // wakes precisely when the next timer is due
+    EPollManager::INSTANCE.setTimerCallback([]() {
+        Timers::INSTANCE.fireTimers();
+    });
+
     LogInfo(VB_GENERAL, "Starting main processing loop\n");
 
     int lowestLogLevel = FPPLogger::INSTANCE.MinimumLogLevel();

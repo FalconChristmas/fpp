@@ -18,6 +18,7 @@
 #include <sys/epoll.h>
 #include <sys/prctl.h>
 #include <sys/sysinfo.h>
+#include <sys/timerfd.h>
 #include <syscall.h>
 #endif
 
@@ -28,7 +29,7 @@
 class EPollManager {
 public:
     static EPollManager INSTANCE;
-    
+
     EPollManager();
     ~EPollManager();
 
@@ -48,8 +49,23 @@ public:
     };
     WaitResult waitForEvents(int mstimeout);
 
+    // Register a callback to be invoked when the timer fires
+    void setTimerCallback(std::function<void()>&& callback);
+
+    // Arm (or rearm) the single wakeup timer to fire at deadlineMS
+    // (absolute time in GetTimeMS() units). Passing 0 disarms.
+    void armTimer(long long deadlineMS);
+
+    // Disarm the wakeup timer
+    void disarmTimer();
+
     void shutdown();
 private:
     int epollf = -1;
+    int timerFd = -1;
+    std::function<void()> timerCallback;
     std::map<int, std::function<bool(int)>> callbacks;
+#ifdef USE_KQUEUE
+    static constexpr uintptr_t KQUEUE_TIMER_IDENT = 0xFFFFFFFE;
+#endif
 };

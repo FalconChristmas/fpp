@@ -47,6 +47,22 @@ EPollManager::EPollManager() {
     } else {
         epollf = epoll_create1(EPOLL_CLOEXEC);
     }
+
+    // Create a single timerfd for waking epoll on timer deadlines
+    timerFd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+    if (timerFd >= 0) {
+        epoll_event event;
+        memset(&event, 0, sizeof(event));
+        event.events = EPOLLIN;
+        event.data.fd = timerFd;
+        if (epoll_ctl(epollf, EPOLL_CTL_ADD, timerFd, &event) == -1) {
+            LogWarn(VB_GENERAL, "Failed to add timerfd to epoll: %s\n", strerror(errno));
+            close(timerFd);
+            timerFd = -1;
+        }
+    } else {
+        LogWarn(VB_GENERAL, "Failed to create timerfd: %s\n", strerror(errno));
+    }
 #endif
 }
 
@@ -57,9 +73,16 @@ void EPollManager::shutdown() {
     if (epollf < 0) {
         return;
     }
+#ifndef USE_KQUEUE
+    if (timerFd >= 0) {
+        close(timerFd);
+        timerFd = -1;
+    }
+#endif
     close(epollf);
     epollf = -1;
     callbacks.clear();
+    timerCallback = nullptr;
 }
 
 void EPollManager::addFileDescriptor(int fd, std::function<bool(int)>& callback) {
@@ -108,6 +131,55 @@ void EPollManager::removeFileDescriptor(int fd) {
         callbacks.erase(fd);
     }
 }
+
+void EPollManager::setTimerCallback(std::function<void()>&& callback) {
+    timerCallback = std::move(callback);
+}
+
+void EPollManager::armTimer(long long deadlineMS) {
+    if (epollf == -1) {
+        return;
+    }
+
+    long long nowMS = GetTimeMS();
+    long long relativeMS = deadlineMS - nowMS;
+    if (relativeMS < 1) {
+        relativeMS = 1; // fire ASAP but not zero (which disarms on Linux)
+    }
+
+#ifdef USE_KQUEUE
+    // kqueue EVFILT_TIMER default unit is milliseconds (no flag needed)
+    struct kevent change;
+    EV_SET(&change, KQUEUE_TIMER_IDENT, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT, 0, relativeMS, NULL);
+    kevent(epollf, &change, 1, NULL, 0, NULL);
+#else
+    if (timerFd < 0) {
+        return;
+    }
+    struct itimerspec its = {};
+    its.it_value.tv_sec = relativeMS / 1000;
+    its.it_value.tv_nsec = (relativeMS % 1000) * 1000000;
+    timerfd_settime(timerFd, 0, &its, NULL);
+#endif
+}
+
+void EPollManager::disarmTimer() {
+    if (epollf == -1) {
+        return;
+    }
+#ifdef USE_KQUEUE
+    struct kevent change;
+    EV_SET(&change, KQUEUE_TIMER_IDENT, EVFILT_TIMER, EV_DELETE, 0, 0, NULL);
+    kevent(epollf, &change, 1, NULL, 0, NULL);
+#else
+    if (timerFd < 0) {
+        return;
+    }
+    struct itimerspec its = {};
+    timerfd_settime(timerFd, 0, &its, NULL);
+#endif
+}
+
 EPollManager::WaitResult EPollManager::waitForEvents(int mstimeout) {
     // Implementation for waiting for events and calling the appropriate callbacks
     constexpr int MAX_EVENTS = 40;
@@ -131,8 +203,22 @@ EPollManager::WaitResult EPollManager::waitForEvents(int mstimeout) {
     if (epollresult > 0) {
         for (int x = 0; x < epollresult; x++) {
 #ifdef USE_KQUEUE
+            if (events[x].ident == KQUEUE_TIMER_IDENT) {
+                if (timerCallback) {
+                    timerCallback();
+                }
+                continue;
+            }
             retVal |= callbacks[events[x].ident](events[x].ident);
 #else
+            if (events[x].data.fd == timerFd) {
+                uint64_t expirations;
+                read(timerFd, &expirations, sizeof(expirations));
+                if (timerCallback) {
+                    timerCallback();
+                }
+                continue;
+            }
             retVal |= callbacks[events[x].data.fd](events[x].data.fd);
 #endif
         }

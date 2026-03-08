@@ -21,6 +21,7 @@
 #include "common.h"
 #include "commands/Commands.h"
 
+#include "EPollManager.h"
 #include "Timers.h"
 
 Timers Timers::INSTANCE;
@@ -160,6 +161,9 @@ void Timers::updateTimers() {
         for (int x = 0; x < timers.size(); x++) {
             nextTimer = std::min(timers[x]->fireTimeMS, nextTimer);
         }
+        EPollManager::INSTANCE.armTimer(nextTimer);
+    } else {
+        EPollManager::INSTANCE.disarmTimer();
     }
 }
 
