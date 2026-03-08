@@ -830,7 +830,7 @@ case "${FPPPLATFORM}" in
             echo "dtparam=pciex1_gen=3" >> ${BOOTDIR}/config.txt
             echo >> ${BOOTDIR}/config.txt
             echo "# Enable Cape Specific Overlays" >> ${BOOTDIR}/config.txt
-            echo "dtparam=fpp-cape-overlay" >> ${BOOTDIR}/config.txt
+            echo "dtoverlay=fpp-cape-overlay" >> ${BOOTDIR}/config.txt
             echo >> ${BOOTDIR}/config.txt
 
             echo "FPP - Updating SPI buffer size and enabling HDMI audio devices"
