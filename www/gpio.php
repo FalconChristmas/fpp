@@ -107,6 +107,7 @@ foreach ($usedGpioPins as $pin => $usage) {
         gp["mode"] = $("#gpio_" + key + "_PullUpDown").val();
         gp["desc"] = $('#gpio_' + key + '_Desc').val();
         gp["debounceTime"] = parseInt($("#gpio_" + key + "_debounce").val());
+        gp["debounceEdge"] = $("#gpio_" + key + "_debounceEdge").val();
 
         var rc = $('#gpio_' + key + '_RisingCommand').val();
         if (rc != "") {
@@ -249,7 +250,8 @@ include 'menu.inc';?>
                         <th >Hdr-Pin</th>
                         <th >GPIO# - GPIOD</th>
                         <th  id='pullHeader' >Pull Up/Down</th>
-                        <th  id='debounceHeadaer'>Debounce<br>(ms)</th>
+                        <th  id='debounceHeader'>Debounce<br>(ms)</th>
+                        <th  id='debounceEdgeHeader'>Debounce<br>On</th>
                         <th >Description</th>
                         <th >Commands: Rising Edge</th>
                         <th >Commands: Falling Edge</th>
@@ -320,9 +322,10 @@ foreach ($gpiojson as $gpio) {
                         ?>
                         <td><span style="color: #888;">Cape Controlled</span></td>
                         <td><span style="color: #888;">N/A</span></td>
+                        <td><span style="color: #888;">N/A</span></td>
                         <?php
                     } else if ($pCount > 0) {
-                        echo "<td></td><td></td>";
+                        echo "<td></td><td></td><td></td>";
                     }
                     ?>
                     <td><strong style="color: #0066cc;">In Use: <?=htmlspecialchars($usedGpioPins[$pinName])?></strong></td>
@@ -354,11 +357,18 @@ foreach ($gpiojson as $gpio) {
                     </select>
                 </td>
                 <td>
-                <input type="number" min="10" max="60000" id="gpio_<?=$pinNameClean?>_debounce" value="100">
+                    <input type="number" min="10" max="60000" id="gpio_<?=$pinNameClean?>_debounce" value="100">
+                </td>
+                <td>
+                    <select id='gpio_<?=$pinNameClean?>_debounceEdge'>
+                        <option value='both'>Both</option>
+                        <option value='rising'>Rising</option>
+                        <option value='falling'>Falling</option>
+                    </select>
                 </td>
                 <?php
                     } else if ($pCount > 0) {
-                        echo "<td></td><td></td>";
+                        echo "<td></td><td></td><td></td>";
                     }
                     ?>
                     <td><input id='gpio_<?=$pinNameClean?>_Desc' type='text' size=30 maxlength=128 style='width: 6em'/></td>
@@ -399,6 +409,8 @@ foreach ($gpiojson as $gpio) {
         <?
 if ($pCount == 0) {
     echo "$('#pullHeader').hide();";
+    echo "$('#debounceHeader').hide();";
+    echo "$('#debounceEdgeHeader').hide();";
 }
 
 if (file_exists($mediaDirectory . '/config/gpio.json')) {
@@ -425,9 +437,14 @@ if (file_exists($mediaDirectory . '/config/gpio.json')) {
         }
 
         echo "$('#gpio_" . $pinNameClean . "_Desc').val(\"" . $gpio["desc"] . "\");\n";
+
         if (isset($gpio["debounceTime"])) {
             echo "$('#gpio_" . $pinNameClean . "_debounce').val(\"" . $gpio["debounceTime"] . "\");\n";
         }
+
+        // Restore debounce edge selection (default to 'both' if not set)
+        $debounceEdge = isset($gpio["debounceEdge"]) ? $gpio["debounceEdge"] : "both";
+        echo "$('#gpio_" . $pinNameClean . "_debounceEdge').val(\"" . $debounceEdge . "\");\n";
 
         echo "PopulateExistingCommand(gpioConfig[" . $x . "][\"falling\"], 'gpio_" . $pinNameClean . "_FallingCommand', 'tableFallingGPIO" . $pinNameClean . "', false);\n";
         echo "PopulateExistingCommand(gpioConfig[" . $x . "][\"rising\"], 'gpio_" . $pinNameClean . "_RisingCommand', 'tableRisingGPIO" . $pinNameClean . "', false);\n";
@@ -443,8 +460,8 @@ if (file_exists($mediaDirectory . '/config/gpio.json')) {
 
                                 </div>
 
-        				</div>
         			</div>
+        		</div>
     </div>
 </div>
 

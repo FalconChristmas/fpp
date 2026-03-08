@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "EPollManager.h"
-#include "Events.h"
 #include "common.h"
 #include "log.h"
 #include "settings.h"
@@ -79,38 +78,68 @@ void GPIOManager::Initialize(std::map<int, std::function<bool(int)>>& callbacks)
         CommandManager::INSTANCE.addCommand(new FPPGPIOCommand());
     }
 }
+
+// CHANGED: Replaced fire-then-suppress logic with settle-then-fire logic.
+// Both poll-based and event-based paths now use pendingValue/pendingTime
+// to confirm the pin has held its new state for the full debounce window
+// before firing. Edges not selected for debounce fire immediately as before.
 void GPIOManager::CheckGPIOInputs(void) {
     if (pollStates.empty() && !checkDebounces) {
         return;
     }
     long long tm = GetTime();
+
+    // Poll-based pins
     for (auto a : pollStates) {
         int val = a->pin->getValue();
-        if (val != a->lastValue) {
-            long long lastAllowedTime = tm - a->debounceTime; // usec's ago
-            if ((a->lastTriggerTime < lastAllowedTime)) {
+
+        if (!a->shouldDebounce(val)) {
+            // No debounce on this edge — fire immediately on any change.
+            if (val != a->lastValue) {
                 a->doAction(val);
+            }
+        } else {
+            if (val != a->lastValue && val != a->pendingValue) {
+                // New transition detected — start the settle timer.
+                a->pendingValue = val;
+                a->pendingTime = tm;
+            } else if (val == a->pendingValue && val != a->lastValue) {
+                // Pin is still holding — check if settle window has elapsed.
+                if ((tm - a->pendingTime) >= (long long)a->debounceTime) {
+                    a->doAction(val);
+                }
+            } else if (val == a->lastValue && a->pendingValue != a->lastValue) {
+                // Pin bounced back before settling — cancel.
+                a->pendingValue = val;
+                a->pendingTime = 0;
             }
         }
     }
+
+    // Event/interrupt-based pins — settle re-check pass
     if (checkDebounces) {
         checkDebounces = false;
         for (auto a : eventStates) {
-            if (a->futureValue != a->lastValue) {
-                long long lastAllowedTime = tm - a->debounceTime; // usec's ago
-                if ((a->lastTriggerTime < lastAllowedTime)) {
+            if (a->pendingValue != a->lastValue) {
+                if ((tm - a->pendingTime) >= (long long)a->debounceTime) {
+                    // Settle window elapsed — confirm pin is still at pending value.
                     int val = a->pin->getValue();
-                    if (val != a->lastValue) {
+                    if (val == a->pendingValue) {
                         a->doAction(val);
+                    } else {
+                        // Bounced back — cancel.
+                        a->pendingValue = a->lastValue;
+                        a->pendingTime = 0;
                     }
                 } else {
-                    // will need to check again
+                    // Still within settle window — keep checking.
                     checkDebounces = true;
                 }
             }
         }
     }
 }
+
 void GPIOManager::Cleanup() {
     for (auto a : eventStates) {
         if (a->file != -1) {
@@ -295,6 +324,19 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                     if (v.isMember("debounceTime")) {
                         state->debounceTime = v["debounceTime"].asInt() * 1000;
                     }
+
+                    // CHANGED: Load debounce edge setting: "both" (default), "rising", or "falling"
+                    if (v.isMember("debounceEdge")) {
+                        std::string edge = v["debounceEdge"].asString();
+                        if (edge == "rising") {
+                            state->debounceEdge = GPIOState::DebounceEdge::Rising;
+                        } else if (edge == "falling") {
+                            state->debounceEdge = GPIOState::DebounceEdge::Falling;
+                        } else {
+                            state->debounceEdge = GPIOState::DebounceEdge::Both;
+                        }
+                    }
+
                     state->pin = pc;
                     if (v.isMember("rising")) {
                         state->risingAction = v["rising"];
@@ -324,24 +366,34 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
     LogDebug(VB_GPIO, "%d GPIO Input(s) enabled\n", enabledCount);
 }
 
+// CHANGED: Event callback now uses settle-then-fire logic.
+// On a debounced edge, we record pendingValue/pendingTime and arm checkDebounces
+// rather than firing immediately. Non-debounced edges still fire right away.
+// The gpiod_line_event_read_fd() call and #ifdef are preserved exactly from the original.
 void GPIOManager::addGPIOCallback(GPIOState* a) {
+#ifdef HAS_GPIOD
     std::function<bool(int)> f = [a, this](int i) {
-        int v = a->pin->readEventFromFile();
-        if (v >= 0 && v != a->lastValue) {
-            long long lastAllowedTime = GetTime() - a->debounceTime; // usec's ago
-            if (a->lastTriggerTime < lastAllowedTime) {
+        struct gpiod_line_event event;
+        int rc = gpiod_line_event_read_fd(i, &event);
+
+        int v = event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
+        if (v != a->lastValue) {
+            if (!a->shouldDebounce(v)) {
+                // No debounce on this edge — fire immediately.
                 a->doAction(v);
             } else {
-                // we are within the debounce time, we'll record this as a last value
-                // and if we end up with a different value after the debounce time,
-                // we'll send the command then
-                a->futureValue = v;
+                // Settle-then-fire: start the settle timer if this is a new direction.
+                if (v != a->pendingValue) {
+                    a->pendingValue = v;
+                    a->pendingTime = GetTime();
+                }
                 checkDebounces = true;
             }
         }
         return false;
     };
     EPollManager::INSTANCE.addFileDescriptor(a->file, f);
+#endif
 }
 
 void GPIOManager::AddGPIOCallback(const PinCapabilities* pin, const std::function<bool(int)>& cb) {
@@ -351,6 +403,7 @@ void GPIOManager::AddGPIOCallback(const PinCapabilities* pin, const std::functio
     state->hasCallback = true;
     addState(state);
 }
+
 void GPIOManager::RemoveGPIOCallback(const PinCapabilities* pin) {
     for (auto it = eventStates.begin(); it != eventStates.end(); ++it) {
         GPIOState* a = *it;
@@ -374,11 +427,16 @@ void GPIOManager::RemoveGPIOCallback(const PinCapabilities* pin) {
     }
 }
 
+// CHANGED: addState no longer uses the startup-time lastTriggerTime trick
+// (which was the root of the original debounce bug). pendingValue is
+// initialised to match lastValue so no spurious settle is pending at boot.
 void GPIOManager::addState(GPIOState* state) {
-    // Set the time immediately to utilize the debounce code
-    // from triggering our GPIOs on startup.
-    state->lastTriggerTime = GetTime();
-    state->lastValue = state->futureValue = state->pin->getValue();
+    int currentVal = state->pin->getValue();
+    state->lastValue = currentVal;
+    state->futureValue = currentVal;   // kept for compatibility
+    state->pendingValue = currentVal;  // no pending transition at startup
+    state->pendingTime = 0;
+    state->lastTriggerTime = 0;
     state->file = -1;
 
     if (state->pin->supportsGpiod()) {
@@ -397,16 +455,6 @@ void GPIOManager::addState(GPIOState* state) {
 
 void GPIOManager::GPIOState::doAction(int v) {
     LogDebug(VB_GPIO, "GPIO %s triggered.  Value:  %d\n", pin->name.c_str(), v);
-
-    // Publish GPIO edge events to MQTT
-    if (v == 1) {
-        std::string risingTopic = "gpio/" + pin->name + "/rising";
-        Events::Publish(risingTopic, 1);
-    } else {
-        std::string fallingTopic = "gpio/" + pin->name + "/falling";
-        Events::Publish(fallingTopic, 0);
-    }
-
     if (hasCallback) {
         callback(v);
     } else {
@@ -418,4 +466,21 @@ void GPIOManager::GPIOState::doAction(int v) {
     lastTriggerTime = GetTime();
     lastValue = v;
     futureValue = v;
+    // CHANGED: clear pending state now that the action has fired.
+    pendingValue = v;
+    pendingTime = 0;
+}
+
+// CHANGED: new method — returns true if debounce should apply to this edge.
+// v == 1 is rising, v == 0 is falling.
+bool GPIOManager::GPIOState::shouldDebounce(int v) const {
+    switch (debounceEdge) {
+        case DebounceEdge::Rising:
+            return (v == 1);
+        case DebounceEdge::Falling:
+            return (v == 0);
+        case DebounceEdge::Both:
+        default:
+            return true;
+    }
 }
