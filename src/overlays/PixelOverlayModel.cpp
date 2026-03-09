@@ -337,18 +337,18 @@ void PixelOverlayModel::setChildState(const std::string& n, const PixelOverlaySt
         if (it->name == n) {
             found = true;
             if (st.getState() == 0) {
-                children.erase(it);
-                it = children.begin();
+                it = children.erase(it);
             } else {
-                it->name = n;
                 it->state = st;
                 it->xoffset = ox;
                 it->yoffset = oy;
                 it->width = w;
                 it->height = h;
+                ++it;
             }
+        } else {
+            ++it;
         }
-        it++;
     }
 
     if (!found && st.getState()) {
@@ -716,12 +716,24 @@ uint8_t* PixelOverlayModel::getOverlayBuffer() {
         mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
         int f = shm_open(overlayBufferName.c_str(), O_RDWR | O_CREAT, mode);
         int size = width * height * 3 + sizeof(OverlayBufferData);
-        ftruncate(f, size);
-        overlayBufferData = (OverlayBufferData*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
+        int flags = MAP_SHARED;
+        if (f == -1) {
+            LogWarn(VB_CHANNELOUT, "Could not create shared memory for overlay buffer %s: %s\n", name.c_str(), strerror(errno));
+            flags = MAP_ANON;
+        } else {
+            ftruncate(f, size);
+        }
+        overlayBufferData = (OverlayBufferData*)mmap(0, size, PROT_READ | PROT_WRITE, flags, f, 0);
+        if (overlayBufferData == MAP_FAILED) {
+            LogWarn(VB_CHANNELOUT, "Could not mmap overlay buffer for %s, using malloc\n", name.c_str());
+            overlayBufferData = (OverlayBufferData*)malloc(size);
+        }
         memset(overlayBufferData, 0, size);
         overlayBufferData->width = width;
         overlayBufferData->height = height;
-        close(f);
+        if (f != -1) {
+            close(f);
+        }
     }
     return overlayBufferData->data;
 }

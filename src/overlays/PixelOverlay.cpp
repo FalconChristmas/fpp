@@ -60,6 +60,9 @@ public:
 };
 
 uint32_t PixelOverlayManager::mapColor(const std::string& c) {
+    if (c.empty()) {
+        return 0x000000;
+    }
     if (c[0] == '#') {
         std::string color = "0x" + c.substr(1);
         return std::stoul(color, nullptr, 0);
@@ -390,7 +393,12 @@ static void findFonts(const std::string& dir, std::map<std::string, std::string>
     dp = opendir(dir.c_str());
     if (dp != NULL) {
         while ((ep = readdir(dp))) {
-            int location = strstr(ep->d_name, ".") - ep->d_name;
+            char* dot = strstr(ep->d_name, ".");
+            // No dot means no extension — skip
+            if (!dot) {
+                continue;
+            }
+            int location = dot - ep->d_name;
 
             // We're one of ".", "..", or hidden, so let's skip
             if (location == 0) {
@@ -482,9 +490,9 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
             std::string model = req.get_path_pieces()[1];
             std::string type;
             std::unique_lock<std::recursive_mutex> lock(modelsLock);
-            auto m = models[model].model;
-            if (m) {
-                m->toJson(result);
+            auto it = models.find(model);
+            if (it != models.end() && it->second.model) {
+                it->second.model->toJson(result);
             } else {
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Model not found: " + req.get_path_pieces()[1], 404));
             }
@@ -533,7 +541,8 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
             }
         } else if (p2 == "model") {
             std::unique_lock<std::recursive_mutex> lock(modelsLock);
-            auto m = models[p3].model;
+            auto mit = models.find(p3);
+            auto m = (mit != models.end()) ? mit->second.model : nullptr;
             if (m) {
                 std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
                 if (p4 == "data") {
@@ -630,7 +639,8 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> PixelOverlayManag
     if (p1 == "overlays") {
         if (p2 == "model") {
             std::unique_lock<std::recursive_mutex> lock(modelsLock);
-            auto m = models[p3].model;
+            auto mit = models.find(p3);
+            auto m = (mit != models.end()) ? mit->second.model : nullptr;
             if (m) {
                 if (p4 == "state") {
                     Json::Value root;
@@ -968,7 +978,7 @@ public:
         } else {
             newArgs.push_back(args[7]);
         }
-        return CommandManager::INSTANCE.run("Overlay Model Effect", args);
+        return CommandManager::INSTANCE.run("Overlay Model Effect", newArgs);
     }
 };
 
@@ -1126,7 +1136,7 @@ void PixelOverlayManager::doOverlayModelEffects() {
 void PixelOverlayManager::removePeriodicUpdate(PixelOverlayModel* m) {
     std::unique_lock<std::mutex> l(threadLock);
     for (auto& a : updates) {
-        updates.begin()->second.remove(m);
+        a.second.remove(m);
     }
     afterOverlayModels.remove(m);
 }
