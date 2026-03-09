@@ -168,9 +168,9 @@ public:
 #else
     mutable gpiod::chip* chip = nullptr;
     mutable gpiod::line line;
+    mutable decltype(gpiod::line_request::flags) lastRequestFlags = {};
 #endif
     mutable int lastRequestType = 0;
-    mutable int lastRequestFlags = 0;
     mutable bool lastValue = false;
     mutable std::string lastDesc;
 #endif
