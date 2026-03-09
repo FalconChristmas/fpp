@@ -19,9 +19,11 @@
 #include "common_mini.h"
 
 static bool isPi5() {
-    std::string model = GetFileContents("/proc/device-tree/model");
-    static bool pi5 = startsWith(model, "Raspberry Pi 5") ||
-                      startsWith(model, "Raspberry Pi Compute Module 5");
+    static bool pi5 = [] {
+        std::string model = GetFileContents("/proc/device-tree/model");
+        return startsWith(model, "Raspberry Pi 5") ||
+               startsWith(model, "Raspberry Pi Compute Module 5");
+    }();
     return pi5;
 }
 
@@ -89,25 +91,38 @@ public:
             configPin("pwm", true, "PWM");
             char dir_name[128];
             FILE* dir = fopen("/sys/class/pwm/pwmchip0/export", "w");
+            if (!dir) {
+                return false;
+            }
             fprintf(dir, "%d", subPwm);
             fclose(dir);
 
             snprintf(dir_name, sizeof(dir_name), "/sys/class/pwm/pwmchip0/pwm%d/period", subPwm);
             dir = fopen(dir_name, "w");
+            if (!dir) {
+                return false;
+            }
             fprintf(dir, "%d", maxValue);
             fclose(dir);
 
             snprintf(dir_name, sizeof(dir_name), "/sys/class/pwm/pwmchip0/pwm%d/duty_cycle", subPwm);
             dutyFile = fopen(dir_name, "w");
+            if (!dutyFile) {
+                return false;
+            }
             fprintf(dutyFile, "0");
             fflush(dutyFile);
 
             snprintf(dir_name, sizeof(dir_name), "/sys/class/pwm/pwmchip0/pwm%d/enable", subPwm);
             dir = fopen(dir_name, "w");
+            if (!dir) {
+                return false;
+            }
             fprintf(dir, "1");
             fclose(dir);
+            return true;
         }
-        return 0;
+        return false;
     }
     virtual void setPWMValue(int valueNS) const override {
         if (pwm != -1) {

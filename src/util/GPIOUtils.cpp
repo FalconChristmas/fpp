@@ -31,7 +31,7 @@ const NoPinCapabilities& NoPinCapabilitiesProvider::getPinByUART(const std::stri
 
 Json::Value PinCapabilities::toJSON() const {
     Json::Value ret;
-    if (name != "" && name != "-non-") {
+    if (name != "" && name != "-none-") {
         ret["pin"] = name;
         ret["gpioChip"] = gpioIdx;
         ret["gpioLine"] = gpio;
@@ -59,10 +59,17 @@ void PinCapabilities::enableOledScreen(int i2cBus, bool enable) {
     // this pin is i2c, we may need to tell fppoled to turn off the display
     // before we shutdown this pin because once we re-configure, i2c will
     // be unavailable and the display won't update
-    int smfd = shm_open("fppoled", O_CREAT | O_RDWR, 0);
+    int smfd = shm_open("fppoled", O_CREAT | O_RDWR, 0644);
+    if (smfd < 0) {
+        return;
+    }
     ftruncate(smfd, 1024);
     unsigned int* status = (unsigned int*)mmap(0, 1024, PROT_WRITE | PROT_READ, MAP_SHARED, smfd, 0);
-    if (i2cBus == status[0]) {
+    if (status == MAP_FAILED) {
+        close(smfd);
+        return;
+    }
+    if (i2cBus == (int)status[0]) {
         if (!enable) {
             // force the display off
             status[2] = 1;
@@ -76,8 +83,8 @@ void PinCapabilities::enableOledScreen(int i2cBus, bool enable) {
             status[2] = 0;
         }
     }
-    close(smfd);
     munmap(status, 1024);
+    close(smfd);
 }
 
 // the built in GPIO chips that are handled by the more optimized
@@ -233,18 +240,20 @@ int GPIODCapabilities::configPin(const std::string& mode,
             req.flags |= gpiod::line_request::FLAG_BIAS_DISABLE;
         }
     }
-    if (req.request_type != lastRequestType) {
+    if (req.request_type != lastRequestType || req.flags != lastRequestFlags) {
         if (line.is_requested()) {
             line.release();
         }
         try {
             line.request(req, 1);
             lastRequestType = req.request_type;
+            lastRequestFlags = req.flags;
         } catch (const std::exception& ex) {
             std::string w = "Could not configure pin " + name + "(" + desc + ") as " + mode + " (" + ex.what() + ")";
             WarningHolder::AddWarning(w);
             LogWarn(VB_GPIO, "%s\n", w.c_str());
             lastRequestType = 0;
+            lastRequestFlags = 0;
         }
     }
 #endif
@@ -264,6 +273,7 @@ void GPIODCapabilities::releaseGPIOD() const {
     if (line.is_requested()) {
         line.release();
         lastRequestType = 0;
+        lastRequestFlags = 0;
         lastDesc.clear();
     }
 #endif

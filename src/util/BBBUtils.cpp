@@ -240,7 +240,7 @@ static void setupBBBMemoryMap() {
         }
     }
 #endif
-    registersMemMapped = 1;
+    registersMemMapped = true;
 }
 
 // ------------------------------------------------------------------------
@@ -443,18 +443,27 @@ bool BBBPinCapabilities::setupPWM(int maxValue) const {
         char dir_name[128];
         snprintf(dir_name, sizeof(dir_name), "%s%d/export", bbbPWMDeviceName, chipNum);
         FILE* dir = fopen(dir_name, "w");
+        if (!dir) {
+            return false;
+        }
         fprintf(dir, "%d", subPwm);
         fclose(dir);
 
         snprintf(dir_name, sizeof(dir_name), "%s%d/pwm%d/period",
                  bbbPWMDeviceName, chipNum, subPwm);
         dir = fopen(dir_name, "w");
+        if (!dir) {
+            return false;
+        }
         fprintf(dir, "%d", maxValue);
         fclose(dir);
 
         snprintf(dir_name, sizeof(dir_name), "%s%d/pwm%d/duty_cycle",
                  bbbPWMDeviceName, chipNum, subPwm);
         dir = fopen(dir_name, "w");
+        if (!dir) {
+            return false;
+        }
         fprintf(dir, "0");
         fflush(dir);
         bbbPWMDutyFiles[pwm * 2 + subPwm] = dir;
@@ -462,8 +471,12 @@ bool BBBPinCapabilities::setupPWM(int maxValue) const {
         snprintf(dir_name, sizeof(dir_name), "%s%d/pwm%d/enable",
                  bbbPWMDeviceName, chipNum, subPwm);
         dir = fopen(dir_name, "w");
+        if (!dir) {
+            return false;
+        }
         fprintf(dir, "1");
         fclose(dir);
+        return true;
     }
     return false;
 }

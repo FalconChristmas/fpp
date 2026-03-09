@@ -155,7 +155,7 @@ void GPIOManager::Cleanup() {
         delete a;
     }
     for (auto a : pollStates) {
-        if (a->file) {
+        if (a->file != -1) {
             a->pin->releaseGPIOD();
         }
         delete a;
