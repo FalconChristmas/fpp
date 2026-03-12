@@ -1754,7 +1754,7 @@
                                         </div>
                                         <div class="row" id="pskRow" style="display: none;">
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                                <div class="description">WPA Pre Shared key (PSK)</div>
+                                                <div class="description">WPA Pre Shared Key (PSK)</div>
                                             </div>
                                             <div class="printSettingFieldCol col-md"><input type="password"
                                                     name="eth_psk" id="eth_psk" size="32" maxlength="64">&nbsp;<i
@@ -1812,7 +1812,7 @@
                                                             data-bs-toggle="tooltip" data-bs-placement="auto"
                                                             aria-label="Advanced Level Setting"
                                                             data-bs-original-title="Advanced Level Setting"></i>
-                                                        Backup WPA Pre Shared key (PSK)
+                                                        Backup WPA Pre Shared Key (PSK)
                                                     </div>
                                                 </div>
                                                 <div class="printSettingFieldCol col-md"><input type="password"
