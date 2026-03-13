@@ -87,6 +87,8 @@
 #include "util/GPIOUtils.h"
 #include "util/TmpFileGPIO.h"
 
+#include "MDNSManager.h"
+
 #include "fppd.h"
 
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
@@ -310,15 +312,25 @@ static void handleCrash(int s) {
         for (const auto& entry : std::filesystem::directory_iterator(cdir)) {
             filenames.insert(entry.path());
             auto ftime = entry.last_write_time();
+            std::chrono::system_clock::time_point stm;
 #if defined(PLATFORM_OSX)
-#if (__apple_build_version__ >= 14030022)
-            auto stm = std::chrono::file_clock::to_sys(ftime);
-#else
+    #if (__apple_build_version__ >= 14030022)
+            stm = std::chrono::file_clock::to_sys(ftime);
+    #else
             std::time_t tt = decltype(ftime)::clock::to_time_t(ftime);
-            auto stm = std::chrono::system_clock::from_time_t(tt);
-#endif
+            stm = std::chrono::system_clock::from_time_t(tt);
+    #endif
 #else
-            auto stm = std::chrono::file_clock::to_sys(ftime);
+            // most non‑OSX platforms support file_clock (C++20); if not,
+            // compute a corresponding system_clock time using the
+            // offset between the file clock and system_clock.
+    #if defined(__cpp_lib_chrono) || (__cplusplus >= 202002L)
+            stm = std::chrono::file_clock::to_sys(ftime);
+    #else
+            auto now_sys  = std::chrono::system_clock::now();
+            auto now_file = decltype(ftime)::clock::now();
+            stm = now_sys + std::chrono::duration_cast<std::chrono::system_clock::duration>(ftime - now_file);
+    #endif
 #endif
             auto tdiff = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - stm);
             if (tdiff.count() < 60) {
@@ -800,6 +812,7 @@ int main(int argc, char* argv[]) {
     CleanupMediaOutput();
     CloseEffects();
     CloseChannelOutputs();
+    MDNSManager::INSTANCE.Cleanup();
     PingManager::INSTANCE.Cleanup();
     OutputMonitor::INSTANCE.Cleanup();
     CommandManager::INSTANCE.Cleanup();
@@ -892,7 +905,8 @@ void MainLoop(void) {
     NetworkMonitor::INSTANCE.Init(callbacks);
     Sensors::INSTANCE.Init(callbacks);
     FileMonitor::INSTANCE.Initialize(callbacks);
-
+    MDNSManager::INSTANCE.Initialize(callbacks);
+    
     // Get the last release date from rpi-imager file to use as minimum valid date
     // Systems without RTC boot with filesystem timestamps, which will be older than the release
     // If clock shows a date before the last OS release, it's definitely wrong
