@@ -8,7 +8,12 @@ $baseFile = "unknown";
 $keepOptFPP = 0;
 
 if (isset($_GET['os'])) {
-    $baseFile = escapeshellcmd($_GET['os']);
+    $baseFile = basename($_GET['os']); // strip path components
+    // Only allow safe filename characters (alphanumeric, hyphens, underscores, dots)
+    if (!preg_match('/^[a-zA-Z0-9._-]+$/', $baseFile)) {
+        echo "Invalid OS filename\n";
+        exit(1);
+    }
 }
 
 if (isset($_GET['downloadOnly'])) {
@@ -80,7 +85,8 @@ if (!$wrapped) {
 }
 
 if (preg_match('/^https?:/', $_GET['os'])) {
-    $baseFile = escapeshellcmd(preg_replace('/.*\/([^\/]*)$/', '$1', $_GET['os']));
+    $baseFile = basename($_GET['os']);
+    if (!preg_match('/^[a-zA-Z0-9._-]+$/', $baseFile)) { echo 'Invalid filename'; exit(1); }
 
 
     // For now, we'll fork wget to get the file.   There is an issue with OpenSSL combined with the cURL built into PHP
