@@ -45,8 +45,6 @@ public:
     void RegisterService(void* client);  // register local _fppd._udp service
 
 private:
-    void discoveryLoop();
-
     std::thread* m_thread = nullptr;
     bool m_running = false;
 

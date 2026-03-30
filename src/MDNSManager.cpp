@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstring>
 #include <thread>
+#include <vector>
 #include <unistd.h>
 
 #if __has_include(<avahi-client/client.h>)
@@ -203,6 +204,20 @@ void MDNSManager::Cleanup() {
     }
 
 #if HAVE_AVAHI
+    // First, stop the event loop to prevent callbacks while we free objects
+    if (m_avahiSimplePoll) {
+        AvahiSimplePoll* sp = static_cast<AvahiSimplePoll*>(m_avahiSimplePoll);
+        avahi_simple_poll_quit(sp);
+    }
+    
+    // Wait for the event loop thread to finish
+    if (m_thread) {
+        m_thread->join();
+        delete m_thread;
+        m_thread = nullptr;
+    }
+
+    // Now that the event loop is stopped, free Avahi objects (no risk of use-after-free)
     if (m_entryGroup) {
         avahi_entry_group_free(static_cast<AvahiEntryGroup*>(m_entryGroup));
         m_entryGroup = nullptr;
@@ -217,12 +232,6 @@ void MDNSManager::Cleanup() {
     }
     if (m_avahiSimplePoll) {
         AvahiSimplePoll* sp = static_cast<AvahiSimplePoll*>(m_avahiSimplePoll);
-        avahi_simple_poll_quit(sp);
-        if (m_thread) {
-            m_thread->join();
-            delete m_thread;
-            m_thread = nullptr;
-        }
         avahi_simple_poll_free(sp);
         m_avahiSimplePoll = nullptr;
     }
@@ -268,9 +277,19 @@ void MDNSManager::HandleResolveIP(const std::string& ip) {
     });
     MultiSync::INSTANCE.PingSingleRemote(ip.c_str(), 1);
 
-    std::unique_lock<std::recursive_mutex> lk(m_callbackLock);
-    for (auto const& pair : m_callbacks) {
-        pair.second(ip);
+    // Take a snapshot of callbacks while holding the lock, then invoke them without the lock
+    // to avoid deadlock/iterator invalidation if callbacks modify m_callbacks
+    std::vector<std::function<void(const std::string&)>> callbacksSnapshot;
+    {
+        std::unique_lock<std::recursive_mutex> lk(m_callbackLock);
+        for (auto const& pair : m_callbacks) {
+            callbacksSnapshot.push_back(pair.second);
+        }
+    }
+
+    // Invoke callbacks without holding the lock
+    for (auto const& callback : callbacksSnapshot) {
+        callback(ip);
     }
 }
 
