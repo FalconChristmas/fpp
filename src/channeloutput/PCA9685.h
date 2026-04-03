@@ -13,9 +13,20 @@
 
 #include "ChannelOutput.h"
 #include "util/I2CUtils.h"
+#include "commands/Commands.h"
 
 class PCA9685Output : public ChannelOutput {
 public:
+    class ServoPositionCommand : public Command {
+    public:
+        ServoPositionCommand(PCA9685Output* output);
+        virtual ~ServoPositionCommand();
+
+        virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+
+    private:
+        PCA9685Output* m_output;
+    };
     PCA9685Output(unsigned int startChannel, unsigned int channelCount);
     virtual ~PCA9685Output();
 
@@ -63,7 +74,7 @@ public:
     void restoreOriginalConfig();
     void loadPortConfig(const Json::Value& portConfig);
 
-private:
+    // Made public for ServoPositionCommand access
     I2CUtils* i2c;
     int m_deviceID;
     std::string m_i2cDevice;
@@ -98,10 +109,14 @@ private:
     };
 
     PCA9685Port m_ports[16];
-    uint32_t numPorts = 16;
+    uint32_t numPorts;
 
+private:
     std::atomic<uint64_t> lastFrameTime;
     std::array<uint16_t, 32> data;
     Json::Value origConfig;
     int lastTestType = 0;
+
+    // Servo Position Command
+    ServoPositionCommand* m_servoCommand = nullptr;
 };
