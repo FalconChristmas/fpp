@@ -24,6 +24,7 @@
 #include "non-gpl/CapeUtils/CapeUtils.h"
 
 #include "util/GPIOUtils.h"
+#include "commands/Commands.h"
 
 class PCA9685Plugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
@@ -46,7 +47,8 @@ FPPPlugins::Plugin* createPlugin() {
  */
 PCA9685Output::PCA9685Output(unsigned int startChannel, unsigned int channelCount) :
     ChannelOutput(startChannel, channelCount),
-    i2c(nullptr) {
+    i2c(nullptr),
+    m_servoCommand(nullptr) {
     LogDebug(VB_CHANNELOUT, "PCA9685Output::PCA9685Output(%u, %u)\n",
              startChannel, channelCount);
 }
@@ -56,6 +58,13 @@ PCA9685Output::PCA9685Output(unsigned int startChannel, unsigned int channelCoun
  */
 PCA9685Output::~PCA9685Output() {
     LogDebug(VB_CHANNELOUT, "PCA9685Output::~PCA9685Output()\n");
+    
+    if (m_servoCommand) {
+        CommandManager::INSTANCE.removeCommand("Servo Position");
+        delete m_servoCommand;
+        m_servoCommand = nullptr;
+    }
+    
     if (i2c) {
         delete i2c;
     }
@@ -334,6 +343,21 @@ int PCA9685Output::Init(Json::Value config) {
     // sleep for at least 500uS for the oscillator to stabilize
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
+    // Check if any servo ports are enabled and register command
+    bool hasServoPort = false;
+    for (uint32_t x = 0; x < numPorts; x++) {
+        if (m_ports[x].type == PWMType::SERVO) {
+            hasServoPort = true;
+            break;
+        }
+    }
+
+    if (!m_servoCommand) {
+        m_servoCommand = new ServoPositionCommand(this);
+        CommandManager::INSTANCE.addCommand(m_servoCommand);
+        LogDebug(VB_CHANNELOUT, "PCA9685: Servo Position command registered\n");
+    }
+
     return ChannelOutput::Init(config);
 }
 
@@ -472,8 +496,96 @@ int PCA9685Output::Close(void) {
     return ChannelOutput::Close();
 }
 
-void PCA9685Output::StartingOutput() {
-    uint8_t b = i2c->readByteData(0x00);
+PCA9685Output::ServoPositionCommand::ServoPositionCommand(PCA9685Output* output) :
+    Command("Servo Position", "Set servo position by percentage"),
+    m_output(output) {
+    args.push_back(CommandArg("ServoIndex", "int", "Servo index (1-16)").setRange(1, 16));
+    args.push_back(CommandArg("Position", "int", "Position percentage (0-100)").setRange(0, 100));
+}
+
+PCA9685Output::ServoPositionCommand::~ServoPositionCommand() {
+    LogDebug(VB_CHANNELOUT, "ServoPositionCommand destroyed\n");
+}
+
+std::unique_ptr<Command::Result> PCA9685Output::ServoPositionCommand::run(const std::vector<std::string>& args) {
+    if (args.size() != 2) {
+        return std::make_unique<Command::ErrorResult>("Servo Position requires 2 arguments: ServoIndex (1-16) and Position (0-100)");
+    }
+
+    int servo_index;
+    int position_percent;
+    try {
+        servo_index = std::stoi(args[0]);
+        position_percent = std::stoi(args[1]);
+    } catch (const std::exception& e) {
+        return std::make_unique<Command::ErrorResult>(std::string("Parse error: ") + e.what());
+    }
+
+    if (servo_index < 1 || servo_index > 16) {
+        return std::make_unique<Command::ErrorResult>("ServoIndex must be between 1 and 16");
+    }
+    if (position_percent < 0 || position_percent > 100) {
+        return std::make_unique<Command::ErrorResult>("Position must be between 0 and 100");
+    }
+
+    if (!m_output) {
+        return std::make_unique<Command::ErrorResult>("PCA9685 output is not available");
+    }
+
+    int internal_index = servo_index - 1;
+    if (internal_index < 0 || (uint32_t)internal_index >= m_output->numPorts) {
+        return std::make_unique<Command::ErrorResult>("Servo index is out of configured ports range");
+    }
+
+    PCA9685Output::PCA9685Port& port = m_output->m_ports[internal_index];
+    if (port.type != PCA9685Output::PWMType::SERVO) {
+        return std::make_unique<Command::ErrorResult>("Selected port is not configured as SERVO");
+    }
+
+    uint32_t targetValue = 0;
+    if (port.m_dataType == PCA9685Output::DataType::SCALED) {
+        if (port.is16Bit) {
+            if (position_percent <= 50) {
+                targetValue = static_cast<uint32_t>(std::round(port.m_min + (port.m_center - port.m_min) * (position_percent / 50.0f)));
+            } else {
+                targetValue = static_cast<uint32_t>(std::round(port.m_center + (port.m_max - port.m_center) * ((position_percent - 50) / 50.0f)));
+            }
+        } else {
+            // 8-bit range storage still in pulse ticks after config conversion
+            if (position_percent <= 50) {
+                targetValue = static_cast<uint32_t>(std::round(port.m_min + (port.m_center - port.m_min) * (position_percent / 50.0f)));
+            } else {
+                targetValue = static_cast<uint32_t>(std::round(port.m_center + (port.m_max - port.m_center) * ((position_percent - 50) / 50.0f)));
+            }
+        }
+    } else {
+        if (position_percent <= 50) {
+            targetValue = static_cast<uint32_t>(std::round(port.m_min + (port.m_center - port.m_min) * (position_percent / 50.0f)));
+        } else {
+            targetValue = static_cast<uint32_t>(std::round(port.m_center + (port.m_max - port.m_center) * ((position_percent - 50) / 50.0f)));
+        }
+    }
+
+    if (port.m_reverse) {
+        if (targetValue >= port.m_min && targetValue <= port.m_max) {
+            targetValue = port.m_max - (targetValue - port.m_min);
+        }
+    }
+
+    if (targetValue < port.m_min) targetValue = port.m_min;
+    if (targetValue > port.m_max) targetValue = port.m_max;
+
+    port.m_nextValue = targetValue;
+    port.m_lastValue = targetValue;
+
+    m_output->SendData(nullptr);
+
+    LogInfo(VB_CHANNELOUT, "ServoPosition: set servo %d to %d%% -> raw %u\n", servo_index, position_percent, targetValue);
+
+    return std::make_unique<Command::Result>("Servo " + std::to_string(servo_index) + " set to " + std::to_string(position_percent) + "% (raw " + std::to_string(targetValue) + ")");
+}
+
+void PCA9685Output::StartingOutput() {    uint8_t b = i2c->readByteData(0x00);
     i2c->writeByteData(0x00, b & 0x6F);
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
