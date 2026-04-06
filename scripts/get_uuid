@@ -36,7 +36,7 @@ fi
 
 if [ -f "/sys/bus/i2c/devices/0-0050/eeprom" ]; then 
     sn=$(dd if=/sys/bus/i2c/devices/0-0050/eeprom count=16 skip=40 bs=1 2>/dev/null || true)
-    if [[ "$sn" =~ ^[0-9]*PB2[0-9A-F]*$ ]]; then
+    if [[ "$sn" =~ ^[0-9]*PB[0-9A-FI]*$ ]]; then
         echo "M5-$sn"
         exit 0
     fi
