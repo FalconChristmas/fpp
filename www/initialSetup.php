@@ -54,10 +54,21 @@
                 }
             <? } ?>
 
+            var osPasswordEnable = $('#osPasswordEnable').val();
+
             // Password verify fields are UI-only confirmation values.
+            // If UI/OS password auth is disabled, ignore password field writes even if
+            // browser autofill or prior UI events populated pendingSettings.
             var filteredSettings = {};
             $.each(pendingSettings, function (key, value) {
                 if (key !== 'passwordVerify' && key !== 'osPasswordVerify') {
+                    // Don't save the value if user does not want passwords enabled.
+                    if (key === 'password' && passwordEnable !== '1') {
+                        return;
+                    }
+                    if (key === 'osPassword' && osPasswordEnable !== '1') {
+                        return;
+                    }
                     filteredSettings[key] = value;
                 }
             });
