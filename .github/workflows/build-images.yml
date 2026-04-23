@@ -121,7 +121,7 @@ jobs:
 
       - name: Checkout
         if: steps.gate.outputs.skip == 'false'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
           # fppversion.sh runs `git describe` inside the chroot against the
@@ -178,7 +178,7 @@ jobs:
 
       - name: Cache base image download
         if: steps.gate.outputs.skip == 'false'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/*.img.xz
           # Base image URL/name is baked into the platform script; cache
@@ -200,7 +200,7 @@ jobs:
 
       - name: Upload image artifacts
         if: steps.gate.outputs.skip == 'false'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: FPP-${{ needs.prep.outputs.version }}-${{ matrix.suffix }}
           path: |
@@ -219,7 +219,7 @@ jobs:
       contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
 
@@ -253,12 +253,12 @@ jobs:
       contents: write
     steps:
       - name: Checkout (for gh CLI to know the repo)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
 
