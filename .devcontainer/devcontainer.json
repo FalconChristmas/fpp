@@ -16,7 +16,8 @@
         "--cap-add=SYS_NICE"
     ],
     "mounts": [
-        "source=fpp-ccache,target=/root/.ccache,type=volume"
+        "source=fpp-ccache,target=/root/.ccache,type=volume",
+        "source=fpp-media,target=/home/fpp/media,type=volume"
     ],
     "postStartCommand": "/opt/fpp/src/fppinit start && /opt/fpp/scripts/fppd_start && mkdir -p /run/php && /usr/sbin/php-fpm8.4 --fpm-config /etc/php/8.4/fpm/php-fpm.conf && /usr/sbin/apache2ctl start",
     "customizations": {
