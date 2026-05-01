@@ -1,0 +1,41 @@
+{
+    "name": "FPP Development",
+    "build": {
+        "dockerfile": "../Docker/Dockerfile",
+        "context": "..",
+        "args": {
+            "EXTRA_INSTALL_FLAG": "--skip-clone",
+            "FPPBRANCH": "master"
+        }
+    },
+    "workspaceFolder": "/opt/fpp",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/opt/fpp,type=bind,consistency=cached",
+    "remoteUser": "root",
+    "postStartCommand": "/opt/fpp/src/fppinit start && /opt/fpp/scripts/fppd_start && mkdir -p /run/php && /usr/sbin/php-fpm8.4 --fpm-config /etc/php/8.4/fpm/php-fpm.conf && /usr/sbin/apache2ctl start",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cpptools-extension-pack",
+                "xaver.clang-format"
+            ]
+        }
+    },
+    "forwardPorts": [
+        "8080:80",
+        32322
+    ],
+    "portsAttributes": {
+        "8080:80": {
+            "label": "FPP Web UI",
+            "onAutoForward": "notify"
+        },
+        "32322": {
+            "label": "FPPD/HTTP",
+            "onAutoForward": "silent"
+        }
+    },
+    "otherPortsAttributes": {
+        "onAutoForward": "silent"
+    }
+}
