@@ -71,6 +71,7 @@ OBJECTS_fpp_so += \
  	NetworkMonitor.o \
 	ping.o \
 	MDNSManager.o \
+	WLEDAPIResponder.o \
 	Player.o \
 	OutputMonitor.o \
 	overlays/PixelOverlay.o \
@@ -140,6 +141,7 @@ LIBS_fpp_so += \
 	-lm \
 	-lcurl \
 	-lmosquitto \
+	-lcrypto \
 	-lutil \
 	-ltag \
 	-lSDL2 \

@@ -1556,7 +1556,10 @@ configure_apache() {
     sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=${FPPUSER}/"   /etc/apache2/envvars
     sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=${FPPUSER}/" /etc/apache2/envvars
     sed -i -e "s#APACHE_LOG_DIR=.*#APACHE_LOG_DIR=${FPPHOME}/media/logs#" /etc/apache2/envvars
-    sed -i -e "s/Listen 8080.*/Listen 80/" /etc/apache2/ports.conf
+    # Listen on the IPv6 wildcard; with net.ipv6.bindv6only=0 (the
+    # Linux default) this dual-binds and serves both v4 and v6 clients
+    # from a single socket.
+    sed -i -e "s/Listen 8080.*/Listen [::]:80/" -e "s/^Listen 80$/Listen [::]:80/" /etc/apache2/ports.conf
 
     cat /opt/fpp/etc/apache2.site   > /etc/apache2/sites-enabled/000-default.conf
     cat /opt/fpp/etc/apache2.status > /etc/apache2/mods-enabled/status.conf

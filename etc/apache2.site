@@ -28,7 +28,52 @@ ServerTokens Prod
 
     # Control password protected UI
     IncludeOptional /home/fpp/media/config/ui-password-config.conf
+
+    # WLED iOS app embeds a WKWebView that loads http://<device>/ with a
+    # custom User-Agent of "wled-native/<n>". Redirect that to our
+    # WLED-styled overlay UI so users see a familiar interface instead of
+    # the full FPP admin page. Also accept ?wled=1 as a manual override.
+    RewriteEngine On
+    RewriteCond %{HTTP_USER_AGENT} wled-native [NC,OR]
+    RewriteCond %{QUERY_STRING} (^|&)wled=1(&|$)
+    RewriteCond %{REQUEST_URI} ^/(index\.php)?$
+    RewriteRule ^.*$ /wled/ [R=302,L]
 	</Directory>
+
+  # WLED-compatibility JSON shims. Apache normally 301-redirects /json/info
+  # to /json/info/ to add the trailing slash; WLED clients call the slash-less
+  # form, so we disable that and dispatch via index.php directly.
+  # WLED-compat WebSocket. The WLED iOS app speaks WebSocket at /ws on
+  # port 80 and exchanges JSON state frames. fppd's WLEDAPIResponder
+  # handles those on 127.0.0.1:32327; we proxy with mod_proxy_wstunnel
+  # (already loaded by FPP for the existing /proxy/* WS upgrade).
+  ProxyPass        /ws  ws://127.0.0.1:32327/ws  upgrade=websocket
+  ProxyPassReverse /ws  ws://127.0.0.1:32327/ws
+
+  # WLED-compat shim endpoints. WLED clients hit /json/info (no trailing
+  # slash); AliasMatch dispatches them straight to the right index.php so
+  # there's no 301 round-trip and no Apache "directory listing forbidden"
+  # response on the bare /json or /win paths.
+  AliasMatch "^/json/(info|state|eff|pal|palx|nodes|live)/?$" "/opt/fpp/www/json/$1/index.php"
+  AliasMatch "^/json/?$" "/opt/fpp/www/json/index.php"
+  AliasMatch "^/win/?$" "/opt/fpp/www/win/index.php"
+
+  # No Require directive here — inherits from /opt/fpp/www/ (which OR's
+  # `Require local` with the password-config include). Same pattern as
+  # /opt/fpp/www/api so LAN clients can reach the WLED-compat endpoints.
+  <Directory "/opt/fpp/www/json">
+    Options FollowSymLinks
+    AllowOverride None
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
+    Header always set Access-Control-Allow-Headers "Content-Type"
+  </Directory>
+
+  <Directory "/opt/fpp/www/win">
+    Options FollowSymLinks
+    AllowOverride None
+    Header always set Access-Control-Allow-Origin "*"
+  </Directory>
 
   <Directory "/opt/fpp/www/api">
     Options FollowSymLinks

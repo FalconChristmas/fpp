@@ -211,10 +211,19 @@ void FBMatrixOutput::PrepData(unsigned char* channelData) {
 }
 
 int FBMatrixOutput::SendData(unsigned char* channelData) {
-    model->setData(buffer);
     if (model->getState() == 0) {
+        // Pass-through mode: the model isn't being driven by an active
+        // overlay/effect, so push the current sequence channels into it
+        // and draw to the framebuffer right here.
+        model->setData(buffer);
         model->doOverlay(channelData);
     }
+    // else: the model is acting as an overlay (e.g., a Pixel Overlay
+    // effect is writing into channelData via flushOverlayBuffer). Don't
+    // call setData here — that would overwrite the effect's data with
+    // m_seqData every frame and leave the framebuffer mostly black.
+    // doOverlays() in ProcessSequenceData() drives the framebuffer in
+    // that case via PixelOverlayModelFB::doOverlay().
     return m_channelCount;
 }
 

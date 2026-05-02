@@ -88,6 +88,7 @@
 #include "util/TmpFileGPIO.h"
 
 #include "MDNSManager.h"
+#include "WLEDAPIResponder.h"
 
 #include "fppd.h"
 
@@ -780,6 +781,7 @@ int main(int argc, char* argv[]) {
     InitMediaOutput();
     PixelOverlayManager::INSTANCE.Initialize();
     PingManager::INSTANCE.Initialize();
+    WLEDAPIResponder::INSTANCE.Initialize();
     InitializeChannelOutputs();
     PluginManager::INSTANCE.loadUserPlugins();
 
@@ -806,6 +808,7 @@ int main(int argc, char* argv[]) {
     CloseEffects();
     CloseChannelOutputs();
     MDNSManager::INSTANCE.Cleanup();
+    WLEDAPIResponder::INSTANCE.Cleanup();
     PingManager::INSTANCE.Cleanup();
     OutputMonitor::INSTANCE.Cleanup();
     CommandManager::INSTANCE.Cleanup();

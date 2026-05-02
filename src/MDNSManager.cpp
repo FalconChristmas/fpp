@@ -10,6 +10,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <dirent.h>
 #include <vector>
 #include <unistd.h>
 #include <sys/time.h>
@@ -440,13 +441,64 @@ void MDNSManager::RegisterService(void* client) {
         return;
     }
 
-    // Register _fppd._udp service on port 32320 (MultiSync port)
+    // Register _fppd._udp service on port 32320 (MultiSync port).
     error = avahi_entry_group_add_service(group, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, (AvahiPublishFlags)0,
                                           m_serviceName.c_str(), "_fppd._udp", NULL, NULL, 32320, NULL);
     if (error < 0) {
         LogWarn(VB_SYNC, "Failed to add service: %s\n", avahi_strerror(error));
         avahi_entry_group_free(group);
         return;
+    }
+
+    // Also register _wled._tcp on the HTTP port so WLED-compatible apps
+    // (notably WLED-iOS / WLED-native) discover the FPP node and treat
+    // it as a WLED device. The mac= TXT record is what those apps key
+    // off for device identity.
+    {
+        // Pick the first non-loopback interface with a real MAC. Modern
+        // Debian uses predictable names like "enxXX..." and "wlxXX..."
+        // so we enumerate /sys/class/net rather than guessing.
+        std::string mac;
+        if (DIR* d = opendir("/sys/class/net")) {
+            struct dirent* e;
+            while ((e = readdir(d)) != nullptr) {
+                if (e->d_name[0] == '.' || std::string(e->d_name) == "lo") continue;
+                char path[256];
+                snprintf(path, sizeof(path), "/sys/class/net/%s/address", e->d_name);
+                FILE* f = fopen(path, "r");
+                if (!f) continue;
+                char buf[32] = {};
+                if (fgets(buf, sizeof(buf), f)) {
+                    std::string s(buf);
+                    s.erase(s.find_last_not_of(" \t\r\n") + 1);
+                    if (!s.empty() && s != "00:00:00:00:00:00") {
+                        mac = s;
+                        break;
+                    }
+                }
+                fclose(f);
+            }
+            closedir(d);
+        }
+        // WLED uses lowercase hex with no colons in the mac TXT field.
+        std::string macFlat;
+        for (char c : mac) if (c != ':') macFlat.push_back(std::tolower(c));
+        std::string macTxt = "mac=" + macFlat;
+
+        // Restrict _wled._tcp to IPv4 (AVAHI_PROTO_INET) even though
+        // Apache is dual-stack. The WLED iOS UI renders the device's
+        // address inline and a full IPv6 string wraps awkwardly; the
+        // shorter v4 dotted-quad fits the layout cleanly.
+        AvahiStringList* txt = avahi_string_list_new(macTxt.c_str(), NULL);
+        int werror = avahi_entry_group_add_service_strlst(group, AVAHI_IF_UNSPEC, AVAHI_PROTO_INET,
+                                                         (AvahiPublishFlags)0, m_serviceName.c_str(),
+                                                         "_wled._tcp", NULL, NULL, 80, txt);
+        avahi_string_list_free(txt);
+        if (werror < 0) {
+            LogWarn(VB_SYNC, "Failed to add _wled._tcp service: %s\n", avahi_strerror(werror));
+        } else {
+            LogDebug(VB_SYNC, "MDNS _wled._tcp on port 80 (mac=%s)\n", macFlat.c_str());
+        }
     }
 
     // Commit the entry group to make the service visible

@@ -390,8 +390,12 @@ void APIServer::Init(void) {
     // Let plugins register their own routes
     PluginManager::INSTANCE.registerApis();
 
-    // Configure and start drogon in a separate thread (since app().run() blocks)
+    // Configure and start drogon in a separate thread (since app().run() blocks).
+    // Bind both v4 and v6 loopback so Apache's reverse-proxy works no
+    // matter how libc resolves "localhost" (modern glibc returns ::1
+    // first per RFC 6724).
     app.addListener(FPP_BIND_ADDRESS, FPP_HTTP_PORT);
+    app.addListener("::1", FPP_HTTP_PORT);
     app.setThreadNum(10);
     app.disableSession();
 

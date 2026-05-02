@@ -195,23 +195,10 @@ static const std::vector<std::string_view>& PALETTES() {
 
 extern float GetChannelOutputRefreshRate();
 
-enum class ArgMapping {
-    Mapping,
-    Brightness,
-    Speed,
-    Intensity,
-    Palette,
-    Color1,
-    Color2,
-    Color3,
-    Custom1,
-    Custom2,
-    Custom3,
-    Check1,
-    Check2,
-    Check3,
-    Text
-};
+// Re-use the public WLEDArgRole enum for our internal slot-mapping;
+// keeps the WLEDAPIResponder's view of slot semantics in lockstep with
+// the per-effect arg layout RawWLEDEffect builds at construction time.
+using ArgMapping = WLEDArgRole;
 
 const char* defaultSliderName(int idx, ArgMapping& m) {
     switch (idx) {
@@ -590,6 +577,9 @@ public:
 
     int mode;
     std::vector<ArgMapping> argMap;
+
+public:
+    std::vector<WLEDArgRole> getArgRoles() const override { return argMap; }
 };
 
 std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {

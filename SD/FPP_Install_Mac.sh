@@ -122,7 +122,7 @@ cd ../..
 echo "Configuring HTTP"
 HTTPCONF="${BREWLOC}/etc/httpd/httpd.conf"
 USER=$(whoami)
-sed -i -e "s/Listen 8080.*/Listen 80/" $HTTPCONF
+sed -i -e "s/Listen 8080.*/Listen [::]:80/" -e "s/^Listen 80$/Listen [::]:80/" $HTTPCONF
 sed -i -e "s+#LoadModule proxy+LoadModule proxy+g" $HTTPCONF
 sed -i -e "s+LoadModule proxy_balanc+#LoadModule proxy_balanc+g" $HTTPCONF
 sed -i -e "s+LoadModule proxy_http2_+#LoadModule proxy_http2_+g" $HTTPCONF

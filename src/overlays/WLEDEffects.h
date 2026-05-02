@@ -15,10 +15,38 @@
 
 #include "PixelOverlayEffects.h"
 
+// Per-arg semantic role for WLED-ported effects. The base class returns
+// an empty role list (meaning "match by arg name"); RawWLEDEffect
+// overrides getArgRoles() to declare which slot is which, so external
+// callers (e.g. WLEDAPIResponder) can fill the args vector from the
+// matching WLED segment fields without re-parsing FX.cpp data strings.
+enum class WLEDArgRole {
+    Unknown,
+    Mapping,
+    Brightness,
+    Speed,
+    Intensity,
+    Palette,
+    Color1,
+    Color2,
+    Color3,
+    Custom1,
+    Custom2,
+    Custom3,
+    Check1,
+    Check2,
+    Check3,
+    Text
+};
+
 class WLEDEffect : public PixelOverlayEffect {
 public:
     WLEDEffect(const std::string& name);
     virtual ~WLEDEffect();
+
+    // One entry per `args` slot, in the same order. Empty means
+    // "fall back to name-based heuristics in the caller".
+    virtual std::vector<WLEDArgRole> getArgRoles() const { return {}; }
 
     static std::list<PixelOverlayEffect*> getWLEDEffects();
     static void cleanupWLEDEffects();

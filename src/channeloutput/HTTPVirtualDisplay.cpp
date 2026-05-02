@@ -146,7 +146,11 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
 
     bzero(m_virtualDisplay, m_screenSize);
 
-    m_socket = socket(AF_INET, SOCK_STREAM, 0);
+    // Bind a dual-stack socket (IPv6 with V6ONLY off) so the SSE feed
+    // is reachable on both IPv4 and IPv6 clients without needing two
+    // listeners. Apache's mod_proxy talks to us on localhost; both
+    // 127.0.0.1 and ::1 land here.
+    m_socket = socket(AF_INET6, SOCK_STREAM, 0);
     if (m_socket < 0) {
         LogErr(VB_CHANNELOUT, "Could not create socket: %s\n", strerror(errno));
         return 0;
@@ -154,18 +158,19 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
 
     fcntl(m_socket, F_SETFL, O_NONBLOCK);
 
-    struct sockaddr_in addr;
-
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(m_port);
-
     int optval = 1;
     if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
         LogErr(VB_CHANNELOUT, "Error turning on SO_REUSEPORT; %s\n", strerror(errno));
         return 0;
     }
+    int v6only = 0;
+    setsockopt(m_socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6only, sizeof(v6only));
+
+    struct sockaddr_in6 addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin6_family = AF_INET6;
+    addr.sin6_addr = in6addr_any;
+    addr.sin6_port = htons(m_port);
 
     int rc = bind(m_socket, (struct sockaddr*)&addr, sizeof(addr));
     if (rc < 0) {
