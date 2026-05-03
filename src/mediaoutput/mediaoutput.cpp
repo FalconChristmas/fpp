@@ -371,7 +371,7 @@ bool MatchesRunningMediaFilename(const std::string& filename) {
     return false;
 }
 
-int StartMediaOutput(const std::string& filename) {
+int StartMediaOutput(const std::string& filename, float secondsElapsed) {
     if (!MatchesRunningMediaFilename(filename)) {
         CloseMediaOutput();
     }
@@ -390,7 +390,8 @@ int StartMediaOutput(const std::string& filename) {
         multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename);
     }
 
-    if (!mediaOutput->Start()) {
+    int msTime = (secondsElapsed > 0.0f) ? (int)(secondsElapsed * 1000.0f) : 0;
+    if (!mediaOutput->Start(msTime)) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", mediaOutput->m_mediaFilename.c_str());
         delete mediaOutput;
         mediaOutput = 0;
@@ -458,7 +459,7 @@ void UpdateMasterMediaPosition(const std::string& filename, float seconds) {
     } else {
         // with VLC, we can jump forward a bit and get close
         OpenMediaOutput(filename);
-        StartMediaOutput(filename);
+        StartMediaOutput(filename, seconds);
         masterMediaPosition = seconds;
         std::unique_lock<std::mutex> lock(mediaOutputLock);
         if (!mediaOutput) {
