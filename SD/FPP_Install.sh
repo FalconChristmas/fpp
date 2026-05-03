@@ -489,8 +489,10 @@ install_base_packages() {
             ;;
     esac
 
-        # Stop unattended-upgrades as it can hold a lock on the apt repository
-        systemctl stop unattended-upgrades
+        # Stop unattended-upgrades (if it exists) as it can hold a lock on the apt repository
+		if systemctl cat unattended-upgrades.service >/dev/null 2>&1; then
+	        systemctl stop unattended-upgrades
+		fi
 
         #remove a bunch of packages that aren't neeeded, free's up space
         PACKAGE_REMOVE="nginx nginx-full nginx-common  triggerhappy pocketsphinx-en-us guile-2.2-libs \
@@ -646,9 +648,12 @@ install_base_packages() {
 		then
 			echo "FPP - Disabling unneeded/unwanted services"
 			# beagle-flasher: present on current rcn-ee BB images and would
-			# otherwise re-flash the eMMC on shutdown. Disable it so FPP
-			# images don't surprise users by overwriting their installation.
-			systemctl disable beagle-flasher-init-shutdown.service
+			# otherwise re-flash the eMMC on shutdown. Disable it (if it
+			# exists) so FPP images don't surprise users by overwriting their
+			# installation.
+			if systemctl cat beagle-flasher-init-shutdown.service >/dev/null 2>&1; then
+				systemctl disable beagle-flasher-init-shutdown.service
+			fi
 
 			# Mask systemd-firstboot so it doesn't prompt for a username on
 			# first boot. We've already created the fpp user; the prompt is
