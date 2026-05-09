@@ -1321,6 +1321,58 @@
 	line-height: 1.5;
 }
 
+/* Collapsible wrapper for info-grid (advanced UI mode) */
+.fpp-info-collapsible {
+	margin-bottom: var(--fpp-sp-md);
+}
+
+.fpp-info-collapsible > .fpp-info-grid {
+	margin-bottom: 0;
+	margin-top: var(--fpp-sp-sm);
+}
+
+.fpp-info-collapsible__summary {
+	cursor: pointer;
+	padding: var(--fpp-sp-sm) var(--fpp-sp-md);
+	background: var(--fpp-bg-card);
+	border: 1px solid var(--fpp-border-light);
+	border-radius: var(--fpp-radius-lg);
+	font-size: var(--fpp-fs-sm);
+	font-weight: var(--fpp-fw-semibold);
+	color: var(--fpp-text-secondary);
+	list-style: none;
+	user-select: none;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	transition: all var(--fpp-transition-fast);
+}
+
+.fpp-info-collapsible__summary::-webkit-details-marker,
+.fpp-info-collapsible__summary::marker {
+	display: none;
+	content: '';
+}
+
+.fpp-info-collapsible__summary:hover {
+	border-color: var(--fpp-border-dark);
+	color: var(--fpp-text-primary);
+}
+
+.fpp-info-collapsible[open] > .fpp-info-collapsible__summary {
+	color: var(--fpp-primary);
+	border-color: var(--fpp-primary);
+}
+
+.fpp-info-collapsible__chevron {
+	font-size: var(--fpp-fs-xs);
+	transition: transform var(--fpp-transition-normal);
+}
+
+.fpp-info-collapsible[open] > .fpp-info-collapsible__summary .fpp-info-collapsible__chevron {
+	transform: rotate(180deg);
+}
+
 /* ==========================================================================
    BADGE COMPONENT
    Small status labels and tags

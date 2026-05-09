@@ -948,6 +948,12 @@
                                 </div>
                             </div>
 
+                            <?php $advancedInfoCollapse = isset($settings['uiLevel']) && $settings['uiLevel'] >= 1; ?>
+                            <?php if ($advancedInfoCollapse) { ?><details class="fpp-info-collapsible">
+                                <summary class="fpp-info-collapsible__summary">
+                                    <span><i class="fas fa-info-circle"></i> When to use &amp; What it does</span>
+                                    <i class="fas fa-chevron-down fpp-info-collapsible__chevron"></i>
+                                </summary><?php } ?>
                             <div class="fpp-info-grid">
                                 <div class="fpp-info-box fpp-info-box--neutral">
                                     <div class="fpp-info-box__title"><i class="fas fa-question-circle"></i> When to use
@@ -965,6 +971,7 @@
                                         takes 2-5 minutes. Reboots are not usually required.</p>
                                 </div>
                             </div>
+                            <?php if ($advancedInfoCollapse) { ?></details><?php } ?>
 
                             <!-- Standard View Version Indicators (uiLevel 0 - Basic) -->
                             <div id="fppVersionStandard" class="fpp-version-standard-wrapper">
@@ -1088,6 +1095,11 @@
                                 </div>
                             </div>
 
+                            <?php if ($advancedInfoCollapse) { ?><details class="fpp-info-collapsible">
+                                <summary class="fpp-info-collapsible__summary">
+                                    <span><i class="fas fa-info-circle"></i> When to use &amp; What it does</span>
+                                    <i class="fas fa-chevron-down fpp-info-collapsible__chevron"></i>
+                                </summary><?php } ?>
                             <div class="fpp-info-grid">
                                 <div class="fpp-info-box fpp-info-box--neutral">
                                     <div class="fpp-info-box__title"><i class="fas fa-question-circle"></i> When to use
@@ -1118,6 +1130,7 @@
                                         change architectures, flash a fresh image.</span>
                                 </div>
                             </div>
+                            <?php if ($advancedInfoCollapse) { ?></details><?php } ?>
 
                             <!-- Legacy OS warning (shown when checkbox is checked) -->
                             <div id="legacyOSWarning"
