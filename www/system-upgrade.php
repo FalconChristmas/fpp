@@ -1098,6 +1098,12 @@
                                         <li>Experiencing OS issues</li>
                                         <li>Applying latest OS security patches</li>
                                     </ul>
+                                    <div class="fpp-alert fpp-alert--warning fpp-alert--compact"
+                                        style="margin-top: var(--fpp-sp-md); margin-bottom: var(--fpp-sp-sm);">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <span><strong>Warning:</strong> OS upgrade will reboot your system. Ensure no
+                                            shows are running.</span>
+                                    </div>
                                 </div>
                                 <div class="fpp-info-box fpp-info-box--info">
                                     <div class="fpp-info-box__title"><i class="fas fa-info-circle"></i> What it does
@@ -1111,13 +1117,6 @@
                                         Switching between 32-bit and 64-bit is not supported from this screen. To
                                         change architectures, flash a fresh image.</span>
                                 </div>
-                            </div>
-
-                            <!-- Warning alert -->
-                            <div class="fpp-alert fpp-alert--warning fpp-alert--compact fpp-alert--mb-lg">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <span><strong>Warning:</strong> OS upgrade will reboot your system. Ensure no shows are
-                                    running.</span>
                             </div>
 
                             <!-- Legacy OS warning (shown when checkbox is checked) -->
