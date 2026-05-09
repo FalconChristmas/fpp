@@ -899,32 +899,67 @@
                     </div>
                 </div>
 
-                <?php if (!isset($settings['cape-info']) || !isset($settings['cape-info']['verifiedKeyId']) || ($settings['cape-info']['verifiedKeyId'] != 'fp')) { ?>
-                    <div id="donateBanner" class="fpp-donate-banner">
-                        <h3 class="fpp-donate-banner__title">
-                            <i class="fas fa-heart"></i> Support FPP Development
+                <!-- Version Information -->
+                <div class="card fpp-card fpp-card--accent fpp-card--accent-neutral">
+                    <div class="fpp-card__header-simple">
+                        <h3>
+                            <i class="fas fa-info-circle"></i>
+                            Version Information
                         </h3>
-                        <p class="fpp-donate-banner__text">
-                            Help support the continued development of the Falcon Player. Your donation
-                            helps fund equipment, hosting, and countless hours of development.
-                        </p>
-                        <form action="https://www.paypal.com/donate" method="post" target="_top">
-                            <input type="hidden" name="hosted_button_id" value="ASF9XYZ2V2F5G" />
-                            <button type="submit" class="fpp-donate-btn" title="Donate to the Falcon Player">
-                                <svg class="paypal-logo" viewBox="0 0 24 24" width="17" height="17" fill="currentColor">
-                                    <path
-                                        d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.77.77 0 0 1 .757-.629h6.578c2.182 0 3.91.558 5.143 1.66 1.233 1.1 1.677 2.65 1.321 4.612-.042.236-.09.473-.152.707a7.092 7.092 0 0 1-.906 2.326c-.402.627-.905 1.16-1.5 1.586-.596.426-1.297.756-2.09.986-.792.23-1.666.345-2.604.345h-1.58a.95.95 0 0 0-.938.803l-.692 4.39-.394 2.5a.641.641 0 0 1-.633.531h-.278zm11.461-14.02c-.014.084-.03.168-.048.254-.593 3.044-2.623 4.095-5.215 4.095h-1.32a.641.641 0 0 0-.633.543l-.676 4.282-.383 2.43a.336.336 0 0 0 .332.39h2.333a.564.564 0 0 0 .557-.476l.023-.12.441-2.8.028-.154a.564.564 0 0 1 .557-.476h.35c2.268 0 4.042-.921 4.561-3.585.217-1.113.105-2.042-.47-2.695a2.238 2.238 0 0 0-.637-.488z" />
-                                </svg>
-                                Donate with PayPal
-                            </button>
-                            <img alt="" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1"
-                                style="display:none;" />
-                        </form>
-                        <p class="fpp-donate-banner__footer">
-                            <i class="fas fa-coffee"></i> It takes a lot of time, equipment, and coffee to power your shows!
-                        </p>
                     </div>
-                <?php } ?>
+                    <div class="row">
+                        <div class="col-md-4 fpp-col-divider">
+                            <div class="fpp-row">
+                                <span class="fpp-row__label">FPP Version:</span>
+                                <span class="fpp-row__value">
+                                    <span id="fppVersionStatusBadge"
+                                        class="badge text-bg-secondary">Checking...</span>
+                                    <span id="fppVersionValue"><?= $fppVersion ?></span>
+                                </span>
+                            </div>
+                            <div class="fpp-row">
+                                <span class="fpp-row__label">OS Version:</span>
+                                <span class="fpp-row__value">
+                                    <span id="osVersionStatusBadge" class="badge text-bg-success"
+                                        style="display: none;">Up to Date</span>
+                                    <span id="osVersionValue">--</span>
+                                </span>
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-4 fpp-col-divider">
+                            <div class="fpp-row">
+                                <span class="fpp-row__label">OS Build:</span>
+                                <span class="fpp-row__value" id="osReleaseValue">--</span>
+                            </div>
+                            <div class="fpp-row">
+                                <span class="fpp-row__label">Platform:</span>
+                                <span class="fpp-row__value" id="platformValue">
+                                    <?php
+                                    echo $settings['Platform'];
+                                    if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform'])) {
+                                        echo " (" . $settings['Variant'] . ")";
+                                    }
+                                    ?>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <?php if (isset($serialNumber) && $serialNumber != "") { ?>
+                                <div class="fpp-row">
+                                    <span class="fpp-row__label">Serial Number:</span>
+                                    <span class="fpp-row__value"><?= $serialNumber ?></span>
+                                </div>
+                            <?php } ?>
+                            <div class="fpp-row">
+                                <span class="fpp-row__label">Kernel:</span>
+                                <span class="fpp-row__value" id="kernelValue">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Upgrade Options -->
                 <div class="row">
@@ -1207,67 +1242,32 @@
                         </button>
                     </div>
 
-                    <!-- Version Information -->
-                    <div class="card fpp-card fpp-card--accent fpp-card--accent-neutral">
-                        <div class="fpp-card__header-simple">
-                            <h3>
-                                <i class="fas fa-info-circle"></i>
-                                Version Information
-                                <span class="badge text-bg-secondary">Advanced</span>
-                            </h3>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 fpp-col-divider">
-                                <div class="fpp-row">
-                                    <span class="fpp-row__label">FPP Version:</span>
-                                    <span class="fpp-row__value">
-                                        <span id="fppVersionStatusBadge"
-                                            class="badge text-bg-secondary">Checking...</span>
-                                        <span id="fppVersionValue"><?= $fppVersion ?></span>
-                                    </span>
-                                </div>
-                                <div class="fpp-row">
-                                    <span class="fpp-row__label">OS Version:</span>
-                                    <span class="fpp-row__value">
-                                        <span id="osVersionStatusBadge" class="badge text-bg-success"
-                                            style="display: none;">Up to Date</span>
-                                        <span id="osVersionValue">--</span>
-                                    </span>
-                                </div>
+                <?php } ?>
 
-                            </div>
-
-                            <div class="col-md-4 fpp-col-divider">
-                                <div class="fpp-row">
-                                    <span class="fpp-row__label">OS Build:</span>
-                                    <span class="fpp-row__value" id="osReleaseValue">--</span>
-                                </div>
-                                <div class="fpp-row">
-                                    <span class="fpp-row__label">Platform:</span>
-                                    <span class="fpp-row__value" id="platformValue">
-                                        <?php
-                                        echo $settings['Platform'];
-                                        if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform'])) {
-                                            echo " (" . $settings['Variant'] . ")";
-                                        }
-                                        ?>
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <?php if (isset($serialNumber) && $serialNumber != "") { ?>
-                                    <div class="fpp-row">
-                                        <span class="fpp-row__label">Serial Number:</span>
-                                        <span class="fpp-row__value"><?= $serialNumber ?></span>
-                                    </div>
-                                <?php } ?>
-                                <div class="fpp-row">
-                                    <span class="fpp-row__label">Kernel:</span>
-                                    <span class="fpp-row__value" id="kernelValue">--</span>
-                                </div>
-                            </div>
-                        </div>
+                <?php if (!isset($settings['cape-info']) || !isset($settings['cape-info']['verifiedKeyId']) || ($settings['cape-info']['verifiedKeyId'] != 'fp')) { ?>
+                    <div id="donateBanner" class="fpp-donate-banner">
+                        <h3 class="fpp-donate-banner__title">
+                            <i class="fas fa-heart"></i> Support FPP Development
+                        </h3>
+                        <p class="fpp-donate-banner__text">
+                            Help support the continued development of the Falcon Player. Your donation
+                            helps fund equipment, hosting, and countless hours of development.
+                        </p>
+                        <form action="https://www.paypal.com/donate" method="post" target="_top">
+                            <input type="hidden" name="hosted_button_id" value="ASF9XYZ2V2F5G" />
+                            <button type="submit" class="fpp-donate-btn" title="Donate to the Falcon Player">
+                                <svg class="paypal-logo" viewBox="0 0 24 24" width="17" height="17" fill="currentColor">
+                                    <path
+                                        d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.77.77 0 0 1 .757-.629h6.578c2.182 0 3.91.558 5.143 1.66 1.233 1.1 1.677 2.65 1.321 4.612-.042.236-.09.473-.152.707a7.092 7.092 0 0 1-.906 2.326c-.402.627-.905 1.16-1.5 1.586-.596.426-1.297.756-2.09.986-.792.23-1.666.345-2.604.345h-1.58a.95.95 0 0 0-.938.803l-.692 4.39-.394 2.5a.641.641 0 0 1-.633.531h-.278zm11.461-14.02c-.014.084-.03.168-.048.254-.593 3.044-2.623 4.095-5.215 4.095h-1.32a.641.641 0 0 0-.633.543l-.676 4.282-.383 2.43a.336.336 0 0 0 .332.39h2.333a.564.564 0 0 0 .557-.476l.023-.12.441-2.8.028-.154a.564.564 0 0 1 .557-.476h.35c2.268 0 4.042-.921 4.561-3.585.217-1.113.105-2.042-.47-2.695a2.238 2.238 0 0 0-.637-.488z" />
+                                </svg>
+                                Donate with PayPal
+                            </button>
+                            <img alt="" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1"
+                                style="display:none;" />
+                        </form>
+                        <p class="fpp-donate-banner__footer">
+                            <i class="fas fa-coffee"></i> It takes a lot of time, equipment, and coffee to power your shows!
+                        </p>
                     </div>
                 <?php } ?>
 
