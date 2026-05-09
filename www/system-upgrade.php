@@ -695,10 +695,33 @@
 
             ShowLoadingModal('osReleaseNotesModal', 'OS Release Notes: ' + osVersion);
 
+            // Nightly builds don't have published GitHub releases
+            if (/nightly/i.test(osVersion)) {
+                var html = '<div class="fpp-alert fpp-alert--warning" style="display: block;">';
+                html += '<div><i class="fas fa-info-circle"></i> <strong>Nightly builds do not have published release notes.</strong></div>';
+                html += '<div class="mt-3">Nightly builds track the latest development changes and are rebuilt automatically. To see what\'s changed, browse recent commits or releases on GitHub.</div>';
+                html += '<div class="mt-3">';
+                html += '<a href="https://github.com/FalconChristmas/fpp/commits/master" target="_blank" class="fpp-btn fpp-btn--outline">';
+                html += '<i class="fas fa-external-link-alt"></i> View Recent Commits on GitHub';
+                html += '</a>';
+                html += '</div>';
+                html += '</div>';
+                $('#osReleaseNotesModal .modal-body').html(html);
+                return;
+            }
+
             // Extract version tag from OS filename (e.g., BBB-9.3_2025-11.fppos -> 9.3)
             var versionMatch = osVersion.match(/(v?\d+\.\d+(?:\.\d+)?(?:-[a-z]+\d*)?)/i);
             if (!versionMatch) {
-                $('#osReleaseNotesModal .modal-body').html('<div class=\"alert alert-warning\">Could not determine version number from selected OS.</div>');
+                var html = '<div class="fpp-alert fpp-alert--warning" style="display: block;">';
+                html += '<div><i class="fas fa-info-circle"></i> <strong>Could not determine version number from selected OS.</strong></div>';
+                html += '<div class="mt-3">';
+                html += '<a href="https://github.com/FalconChristmas/fpp/releases" target="_blank" class="fpp-btn fpp-btn--outline">';
+                html += '<i class="fas fa-external-link-alt"></i> Browse All Releases on GitHub';
+                html += '</a>';
+                html += '</div>';
+                html += '</div>';
+                $('#osReleaseNotesModal .modal-body').html(html);
                 return;
             }
 
