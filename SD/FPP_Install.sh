@@ -75,6 +75,7 @@ FPPHOME=/home/${FPPUSER}
 OSVER="UNKNOWN"
 FPPSCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FPPSCRIPTNAME="$(basename "${BASH_SOURCE[0]}")"
+FPPSCRIPTLOG=${FPPSCRIPTNAME%.sh}.log
 
 # Make sure the sbin directories are on the path as we will
 # need the adduser/addgroup/ldconfig/a2enmod/etc... commands
@@ -342,7 +343,7 @@ echo "OS Version       : ${OSVER}"
 echo "OS ID            : ${OSID}"
 echo "Image            : ${isimage}"
 echo "Install Script   : $FPPSCRIPTDIR/$FPPSCRIPTNAME"
-echo "Install Log      : $FPPSCRIPTDIR/${FPPSCRIPTNAME%.sh}.log"
+echo "Install Log      : $FPPSCRIPTDIR/$FPPSCRIPTLOG"
 echo "============================================================"
 #############################################################################
 
@@ -378,8 +379,8 @@ STARTTIME=$(date)
 
 #######################################
 # Log output and notify user
-echo "ALL output will be copied to ${FPPSCRIPTNAME%.sh}.log"
-exec > >(tee -a "${FPPSCRIPTNAME%.sh}.log")
+echo "ALL output will be copied to ${FPPSCRIPTLOG}"
+exec > >(tee -a "${FPPSCRIPTLOG}")
 exec 2>&1
 echo "========================================================================"
 echo "${FPPSCRIPTNAME} started at ${STARTTIME}"
@@ -1939,5 +1940,6 @@ EOF
 generate_apache_csp
 print_install_complete
 
-cp "$FPPSCRIPTDIR/${FPPSCRIPTNAME%.sh}".* "${FPPHOME}/"
+cp "${FPPSCRIPTDIR}/${FPPSCRIPTNAME%.sh}".* "${FPPHOME}/"
 chown fpp:fpp "${FPPHOME}/${FPPSCRIPTNAME%.sh}".*
+cp "${FPPSCRIPTDIR}/${FPPSCRIPTLOG}" "/var/log/${FPPSCRIPTLOG}"
