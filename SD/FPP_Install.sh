@@ -510,17 +510,74 @@ install_base_packages() {
             PACKAGE_REMOVE=""
         fi
         
+        # Seamlessly migrate to systemd-networkd without dropping connectivity
         if [ "x${PACKAGE_REMOVE}" != "x" ]; then
             # Need to make sure there is configuration for eth0 or uninstalling dhcpclient will cause network to drop
+            echo "FPP - Detecting active network manager"
+
+            USE_NM=0
+
+            if systemctl list-unit-files | grep -q '^NetworkManager.service'; then
+                if systemctl is-active --quiet NetworkManager; then
+                    USE_NM=1
+                fi
+            fi
+
+            # Ensure networkd config exists BEFORE switching anything
             rm -f /etc/systemd/network/50-default.network
-            curl -o /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
-            
+
+            curl -fsSL \
+                -o /etc/systemd/network/50-default.network \
+                https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+
+            # Install required packages first
+            apt-get update
             apt-get install -y systemd-resolved
-            systemctl reload systemd-networkd
+
+            # Unmask + enable services
+            systemctl unmask systemd-networkd || true
+            systemctl unmask systemd-resolved || true
+
+            systemctl enable systemd-networkd
+            systemctl enable systemd-resolved
+
+            # If NetworkManager is active, migrate cleanly
+            if [ "$USE_NM" = "1" ]; then
+                echo "FPP - NetworkManager detected, migrating to systemd-networkd"
+
+                # Start networkd while NM still owns the interface
+                systemctl start systemd-networkd
+                systemctl start systemd-resolved
+
+                echo "FPP - Waiting for networkd startup"
+                sleep 5
+
+                # Gracefully release interfaces from NM
+                if command -v nmcli >/dev/null 2>&1; then
+                    nmcli networking off || true
+                fi
+
+                # Stop/disable NM
+                systemctl stop NetworkManager || true
+                systemctl disable NetworkManager || true
+
+                echo "FPP - Restarting networkd after migration"
+                systemctl restart systemd-networkd
+                systemctl restart systemd-resolved
+
+                echo "FPP - Waiting for network stabilization"
+                sleep 5
+
+            else
+                echo "FPP - NetworkManager not active, ensuring networkd is running"
+
+                systemctl restart systemd-networkd
+                systemctl restart systemd-resolved
+
+                sleep 3
+            fi
+
             apt-get remove -y --purge --autoremove --allow-change-held-packages ${PACKAGE_REMOVE}
-            
-            systemctl unmask systemd-networkd
-            systemctl unmask systemd-resolved
 
             systemctl restart systemd-networkd
             systemctl restart systemd-resolved
