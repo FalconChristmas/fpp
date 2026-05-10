@@ -726,9 +726,10 @@ install_base_packages() {
             # generic display-manager alias cover the desktop-DM cases we
             # might encounter when --img is run on a desktop install. The
             # legacy gdm/wdm/xdm names are gone from supported releases.
-            systemctl disable gdm3
-            systemctl disable lightdm
-            systemctl disable display-manager.service
+			# Check if exists before disabling using cat
+			systemctl cat gdm3 >/dev/null 2>&1 && systemctl disable gdm3
+			systemctl cat lightdm >/dev/null 2>&1 && systemctl disable lightdm
+			systemctl cat display-manager.service >/dev/null 2>&1 && systemctl disable display-manager.service
             
             echo "FPP - Disabling dhcp-helper and hostapd from automatically starting"
             systemctl disable dhcp-helper
