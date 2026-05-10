@@ -509,6 +509,8 @@ install_base_packages() {
         if $skip_apt_install; then
             PACKAGE_REMOVE=""
         fi
+
+		apt-get install curl -y
         
         # Seamlessly migrate to systemd-networkd without dropping connectivity
         if [ "x${PACKAGE_REMOVE}" != "x" ]; then
