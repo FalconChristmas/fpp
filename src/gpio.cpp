@@ -527,10 +527,10 @@ void GPIOManager::addState(GPIOState* state) {
 void GPIOManager::GPIOState::doAction(int v) {
     LogDebug(VB_GPIO, "GPIO %s triggered.  Value:  %d\n", pin->name.c_str(), v);
 
-    // When the input is suppressed post-trigger, skip all commands but still
-    // update tracking state and let the LED follow the physical button state.
+    // When the input is suppressed post-trigger, skip all commands and LED
+    // effects — the LED is already parked off by startLEDIdle() and should
+    // stay that way until the input is re-enabled.
     if (inputDisabled) {
-        triggerLEDEffect(v);
         lastTriggerTime = GetTime();
         lastValue = v;
         futureValue = v;
@@ -631,6 +631,12 @@ void GPIOManager::GPIOState::stopLEDIdle() {
 void GPIOManager::GPIOState::startLEDIdle() {
     if (ledPin.empty()) return;
     stopLEDIdle();
+    if (inputDisabled) {
+        // Input is suppressed — hold the LED off so it visually reflects
+        // that the input is not yet ready for another trigger.
+        setLEDState(false);
+        return;
+    }
     switch (ledIdleMode) {
         case LEDIdleMode::Off:
             setLEDState(false);
@@ -702,6 +708,7 @@ void GPIOManager::GPIOState::scheduleReEnable() {
             uint32_t delay = (reEnableDelay > 0) ? reEnableDelay : 1000;
             Timers::INSTANCE.addTimer(timerName, GetTimeMS() + delay, [this]() {
                 inputDisabled = false;
+                startLEDIdle();
                 LogDebug(VB_GPIO, "GPIO %s re-enabled after timed delay.\n", pin->name.c_str());
             });
             break;
@@ -731,10 +738,12 @@ void GPIOManager::GPIOState::checkReEnable(long long startMs, bool playerHasStar
     } else if (playerHasStarted) {
         // Player started and has returned to idle — safe to re-enable.
         inputDisabled = false;
+        startLEDIdle();
         LogDebug(VB_GPIO, "GPIO %s re-enabled: player returned to idle.\n", pin->name.c_str());
     } else if (now - startMs > 2000) {
         // Player never started within 2 s (action wasn't a playlist) — re-enable anyway.
         inputDisabled = false;
+        startLEDIdle();
         LogDebug(VB_GPIO, "GPIO %s re-enabled: player-idle timeout.\n", pin->name.c_str());
     } else {
         // Still waiting for player to start — check again soon.
