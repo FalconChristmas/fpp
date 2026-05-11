@@ -55,6 +55,16 @@ if (is_dir($stringsDir)) {
     require_once "common.php";
     include 'common/menuHead.inc';
 
+    // Generates an FPP-standard help icon with a Bootstrap tooltip.
+    // $tip may contain HTML (e.g. <br>, <strong>) for formatted tips.
+    function helpTip($tip) {
+        $t = htmlspecialchars($tip, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return '<span data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="auto"'
+             . ' data-bs-container="body" data-bs-title="' . $t . '">'
+             . '<img src="images/redesign/help-icon.svg" class="icon-help" alt="help icon">'
+             . '</span>';
+    }
+
     $gpioData = file_get_contents('http://127.0.0.1:32322/gpio');
     $gpiojson = json_decode($gpioData, true);
 
@@ -546,12 +556,30 @@ if (is_dir($stringsDir)) {
 
             var showParam = hasPin && (trigMode === 'flash' || trigMode === 'timed_on');
             $('#gpioLEDTriggerParamRow').toggle(showParam);
+
+            var labelText, helpText, tipText;
             if (trigMode === 'flash') {
-                $('#gpioLEDTriggerParamLabel').text('Number of flashes');
-                $('#gpioLEDTriggerParamHelp').text('How many times the LED flashes before returning to idle.');
+                labelText = 'Number of flashes';
+                helpText  = 'How many times the LED flashes before returning to idle.';
+                tipText   = 'How many times the LED flashes after the button is pressed. Each flash is 150 ms on followed by 150 ms off.';
             } else {
-                $('#gpioLEDTriggerParamLabel').text('On duration (ms)');
-                $('#gpioLEDTriggerParamHelp').text('How long (ms) the LED stays on before returning to idle.');
+                labelText = 'On duration (ms)';
+                helpText  = 'How long (ms) the LED stays on before returning to idle.';
+                tipText   = 'How long in milliseconds the LED stays on after the button is pressed before returning to idle mode.';
+            }
+            // Update label text node without touching the tooltip span child
+            $('#gpioLEDTriggerParamLabel').contents().filter(function () {
+                return this.nodeType === 3;
+            }).first().replaceWith(labelText + ' ');
+            $('#gpioLEDTriggerParamHelp').text(helpText);
+
+            // Refresh the dynamic tooltip
+            var tipEl = document.getElementById('gpioLEDTriggerParamTip');
+            if (tipEl) {
+                var existing = bootstrap.Tooltip.getInstance(tipEl);
+                if (existing) existing.dispose();
+                tipEl.setAttribute('data-bs-title', tipText);
+                new bootstrap.Tooltip(tipEl);
             }
         }
 
@@ -726,22 +754,22 @@ if (is_dir($stringsDir)) {
                             </div>
                             <div class="row g-3">
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold">GPIO Pin</label>
+                                    <label class="form-label fw-semibold">GPIO Pin <?= helpTip('The GPIO input pin to monitor for signal changes. Only pins not reserved by capes or channel outputs are listed.') ?></label>
                                     <select class="form-select" id="gpioModalPin"></select>
                                 </div>
                                 <div class="col-md-1 d-flex align-items-end pb-1">
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="gpioModalEnabled">
-                                        <label class="form-check-label" for="gpioModalEnabled">Enabled</label>
+                                        <label class="form-check-label" for="gpioModalEnabled">Enabled <?= helpTip('When unchecked this trigger is loaded but never fires, letting you disable it temporarily without losing its configuration.') ?></label>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Description</label>
+                                    <label class="form-label fw-semibold">Description <?= helpTip('Optional label shown on the trigger card. Useful for identifying buttons by function, e.g. <em>Start show</em> or <em>Emergency stop</em>.') ?></label>
                                     <input class="form-control" type="text" id="gpioModalDesc" maxlength="128"
                                         placeholder="e.g. Start button">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Pull Up / Down</label>
+                                    <label class="form-label fw-semibold">Pull Up / Down <?= helpTip('Configures the internal resistor on the pin.<br><strong>None</strong> – relies on an external pull resistor.<br><strong>Pull Up</strong> – pin reads HIGH at rest; pressing a button to GND produces a falling edge.<br><strong>Pull Down</strong> – pin reads LOW at rest; pressing a button to 3.3 V produces a rising edge.') ?></label>
                                     <select class="form-select" id="gpioModalMode">
                                         <option value="gpio">None / External Pull</option>
                                         <option value="gpio_pu">Pull Up</option>
@@ -751,12 +779,12 @@ if (is_dir($stringsDir)) {
                             </div>
                             <div class="row g-3 mt-1">
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold">Debounce Time (ms)</label>
+                                    <label class="form-label fw-semibold">Debounce Time (ms) <?= helpTip('Mechanical switches briefly bounce between open and closed. FPP ignores transitions shorter than this window to prevent false triggers. 50–200 ms is typical for push buttons.') ?></label>
                                     <input class="form-control" type="number" id="gpioModalDebounce" min="10"
                                         max="60000" value="100">
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold">Debounce On</label>
+                                    <label class="form-label fw-semibold">Debounce On <?= helpTip('Which edges the debounce window applies to.<br><strong>Both</strong> – debounce rising and falling edges.<br><strong>Rising only</strong> – debounce the press; release fires immediately.<br><strong>Falling only</strong> – debounce the release; press fires immediately.') ?></label>
                                     <select class="form-select" id="gpioModalDebounceEdge">
                                         <option value="both">Both edges</option>
                                         <option value="rising">Rising only</option>
@@ -778,6 +806,7 @@ if (is_dir($stringsDir)) {
                                 <div class="gpio-modal-section-title">
                                     <i class="fas fa-arrow-up text-success"></i> Rising Edge Commands
                                     <span class="section-subtitle">(button pressed / signal HIGH)</span>
+                                    <?= helpTip('Commands run when the GPIO signal transitions LOW → HIGH. With a pull-up circuit this is button release; with a pull-down circuit this is button press.') ?>
                                 </div>
                                 <div id="gpioModal_rising_list" class="mb-2"></div>
                                 <button class="btn btn-sm btn-outline-success" onclick="addModalCmd('rising')">
@@ -790,6 +819,7 @@ if (is_dir($stringsDir)) {
                                 <div class="gpio-modal-section-title">
                                     <i class="fas fa-arrow-down text-danger"></i> Falling Edge Commands
                                     <span class="section-subtitle">(button released / signal LOW)</span>
+                                    <?= helpTip('Commands run when the GPIO signal transitions HIGH → LOW. With a pull-up circuit this is button press; with a pull-down circuit this is button release.<br>Not fired if a Hold command triggered during that press.') ?>
                                 </div>
                                 <p class="small text-muted mb-2">
                                     <i class="fas fa-info-circle"></i>
@@ -806,10 +836,11 @@ if (is_dir($stringsDir)) {
                                 <div class="gpio-modal-section-title">
                                     <i class="fas fa-hand-paper text-info"></i> Long-Press / Hold Commands
                                     <span class="section-subtitle">(optional)</span>
+                                    <?= helpTip('Commands that fire only when the button is held down for the configured duration. When hold fires, the falling-edge commands for that press are suppressed to prevent double-actions.') ?>
                                 </div>
                                 <div class="row g-3 mb-3">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold">Hold Time (ms)</label>
+                                        <label class="form-label fw-semibold">Hold Time (ms) <?= helpTip('How long in milliseconds the button must be continuously held before the hold commands fire. Set to 0 to disable hold detection entirely.') ?></label>
                                         <input class="form-control" type="number" id="gpioModalHoldTime" min="0"
                                             max="30000" value="0" placeholder="0 = disabled"
                                             oninput="toggleHoldSection()">
@@ -835,7 +866,7 @@ if (is_dir($stringsDir)) {
                             </div>
                             <div class="row g-3">
                                 <div class="col-md-5">
-                                    <label class="form-label fw-semibold">Re-enable Mode</label>
+                                    <label class="form-label fw-semibold">Re-enable Mode <?= helpTip('Controls when the input accepts another press after triggering.<br><strong>Always enabled</strong> – no delay; immediate re-triggering is allowed.<br><strong>Fixed delay</strong> – input is locked for the specified number of milliseconds after each trigger.<br><strong>Player idle</strong> – input stays locked until FPP finishes playback. If no playback starts within 2 seconds, the input re-enables automatically.') ?></label>
                                     <select class="form-select" id="gpioModalReEnableMode"
                                         onchange="updateReEnableVisibility()">
                                         <option value="always">Always enabled (no suppression)</option>
@@ -844,7 +875,7 @@ if (is_dir($stringsDir)) {
                                     </select>
                                 </div>
                                 <div class="col-md-3" id="gpioReEnableDelayRow" style="display:none">
-                                    <label class="form-label fw-semibold">Delay (ms)</label>
+                                    <label class="form-label fw-semibold">Delay (ms) <?= helpTip('How many milliseconds the input is suppressed after triggering before it will accept another press. Minimum 100 ms.') ?></label>
                                     <input class="form-control" type="number" id="gpioModalReEnableDelay" min="100"
                                         max="3600000" value="5000">
                                     <div class="form-text">Duration before the input is re-enabled.</div>
@@ -868,7 +899,7 @@ if (is_dir($stringsDir)) {
 
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <label class="form-label fw-semibold">LED Output Pin</label>
+                                    <label class="form-label fw-semibold">LED Output Pin <?= helpTip('GPIO output pin wired to the button\'s built-in LED. The pin is driven as a digital output — ensure it is not used for any other purpose such as pixel strings or cape outputs.') ?></label>
                                     <select class="form-select" id="gpioModalLedPin" onchange="updateLEDVisibility()">
                                         <option value="">None</option>
                                     </select>
@@ -879,7 +910,7 @@ if (is_dir($stringsDir)) {
                             <div id="gpioLEDSettingsRow" style="display:none" class="mt-3">
                                 <div class="row g-3">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold">LED Logic</label>
+                                        <label class="form-label fw-semibold">LED Logic <?= helpTip('Which output level illuminates the LED.<br><strong>Active-high</strong> – writing HIGH turns the LED on. This is the most common wiring when the LED is connected directly between the GPIO pin and GND.<br><strong>Active-low</strong> – writing LOW turns the LED on. Typical when a transistor or open-collector driver is used.') ?></label>
                                         <select class="form-select" id="gpioModalLedActiveHigh">
                                             <option value="true">Active-high (HIGH = LED on)</option>
                                             <option value="false">Active-low (LOW = LED on)</option>
@@ -893,7 +924,7 @@ if (is_dir($stringsDir)) {
                                 <p class="small text-muted mb-2">What the LED does when no trigger is active.</p>
                                 <div class="row g-3">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold">Idle LED Mode</label>
+                                        <label class="form-label fw-semibold">Idle LED Mode <?= helpTip('What the LED does when no trigger is active — the standby / ready state.<br><strong>Off</strong> – LED stays dark at rest.<br><strong>On</strong> – LED stays lit at rest, indicating the input is ready to accept a press.<br><strong>Pulsing</strong> – LED blinks continuously at the configured rate. While the input is suppressed after a trigger, the LED is held off regardless of this setting.') ?></label>
                                         <select class="form-select" id="gpioModalLedIdleMode"
                                             onchange="updateLEDVisibility()">
                                             <option value="off">Off (dark at rest)</option>
@@ -902,7 +933,7 @@ if (is_dir($stringsDir)) {
                                         </select>
                                     </div>
                                     <div class="col-md-4" id="gpioLEDPulseRateRow" style="display:none">
-                                        <label class="form-label fw-semibold">Pulse half-period (ms)</label>
+                                        <label class="form-label fw-semibold">Pulse half-period (ms) <?= helpTip('Time in milliseconds between each LED on↔off toggle while pulsing. 500 ms gives a 1 Hz blink (on for 500 ms, off for 500 ms). Minimum 50 ms.') ?></label>
                                         <input class="form-control" type="number" id="gpioModalLedPulseRate" min="50"
                                             max="5000" value="500">
                                         <div class="form-text">Time between LED on↔off toggles (e.g. 500 = 1 Hz blink).
@@ -917,7 +948,7 @@ if (is_dir($stringsDir)) {
                                 </p>
                                 <div class="row g-3">
                                     <div class="col-md-5">
-                                        <label class="form-label fw-semibold">Trigger Mode</label>
+                                        <label class="form-label fw-semibold">Trigger Mode <?= helpTip('What the LED does immediately when the button fires (rising edge).<br><strong>None</strong> – idle mode controls the LED; triggers have no extra effect.<br><strong>Follow input</strong> – LED turns on while the button is held and off when released.<br><strong>Flash N times</strong> – LED flashes the set number of times (each flash: 150 ms on, 150 ms off) then returns to idle.<br><strong>Stay on for N ms</strong> – LED lights up for the specified duration then returns to idle.') ?></label>
                                         <select class="form-select" id="gpioModalLedTriggerMode"
                                             onchange="updateLEDVisibility()">
                                             <option value="none">None (idle mode only, ignore trigger)</option>
@@ -928,7 +959,7 @@ if (is_dir($stringsDir)) {
                                     </div>
                                     <div class="col-md-3" id="gpioLEDTriggerParamRow" style="display:none">
                                         <label class="form-label fw-semibold" id="gpioLEDTriggerParamLabel">Number of
-                                            flashes</label>
+                                            flashes <span id="gpioLEDTriggerParamTip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="auto" data-bs-container="body" data-bs-title=""><img src="images/redesign/help-icon.svg" class="icon-help" alt="help icon"></span></label>
                                         <input class="form-control" type="number" id="gpioModalLedTriggerParam" min="1"
                                             max="20" value="3">
                                         <div class="form-text" id="gpioLEDTriggerParamHelp"></div>
