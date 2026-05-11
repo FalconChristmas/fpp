@@ -26,6 +26,7 @@
 #include "commands/Commands.h"
 #include "util/GPIOUtils.h"
 
+#include "Player.h"
 #include "Timers.h"
 #include "gpio.h"
 
@@ -402,6 +403,19 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                     if (v.isMember("ledTriggerParam"))
                         state->ledTriggerParam = v["ledTriggerParam"].asUInt();
 
+                    // Re-enable mode — controls how long input is suppressed post-trigger.
+                    if (v.isMember("reEnableMode")) {
+                        std::string m = v["reEnableMode"].asString();
+                        if (m == "timed")
+                            state->reEnableMode = GPIOState::ReEnableMode::Timed;
+                        else if (m == "player_idle")
+                            state->reEnableMode = GPIOState::ReEnableMode::OnPlayerIdle;
+                        else
+                            state->reEnableMode = GPIOState::ReEnableMode::Always;
+                    }
+                    if (v.isMember("reEnableDelay"))
+                        state->reEnableDelay = v["reEnableDelay"].asUInt();
+
                     bool hasAnyAction = !state->risingActions.empty() ||
                                        !state->fallingActions.empty() ||
                                        !state->holdActions.empty();
@@ -512,6 +526,19 @@ void GPIOManager::addState(GPIOState* state) {
 
 void GPIOManager::GPIOState::doAction(int v) {
     LogDebug(VB_GPIO, "GPIO %s triggered.  Value:  %d\n", pin->name.c_str(), v);
+
+    // When the input is suppressed post-trigger, skip all commands but still
+    // update tracking state and let the LED follow the physical button state.
+    if (inputDisabled) {
+        triggerLEDEffect(v);
+        lastTriggerTime = GetTime();
+        lastValue = v;
+        futureValue = v;
+        pendingValue = v;
+        pendingTime = 0;
+        return;
+    }
+
     if (hasCallback) {
         callback(v);
     } else {
@@ -528,6 +555,11 @@ void GPIOManager::GPIOState::doAction(int v) {
                     "gpio_hold_" + pin->name,
                     GetTimeMS() + holdTime,
                     [this, scheduled]() { checkHoldTimer(scheduled); });
+            }
+            // Suppress the input until re-enable condition is met.
+            if (reEnableMode != ReEnableMode::Always) {
+                inputDisabled = true;
+                scheduleReEnable();
             }
         } else {
             // Falling edge — cancel any pending hold (by resetting holdStartTime),
@@ -655,6 +687,60 @@ void GPIOManager::GPIOState::triggerLEDEffect(int v) {
                     [this]() { startLEDIdle(); });
             }
             break;
+    }
+}
+
+// ── Re-enable helpers ────────────────────────────────────────────────────────
+
+void GPIOManager::GPIOState::scheduleReEnable() {
+    std::string timerName = "gpio_reenable_" + pin->name;
+    switch (reEnableMode) {
+        case ReEnableMode::Always:
+            inputDisabled = false;
+            break;
+        case ReEnableMode::Timed: {
+            uint32_t delay = (reEnableDelay > 0) ? reEnableDelay : 1000;
+            Timers::INSTANCE.addTimer(timerName, GetTimeMS() + delay, [this]() {
+                inputDisabled = false;
+                LogDebug(VB_GPIO, "GPIO %s re-enabled after timed delay.\n", pin->name.c_str());
+            });
+            break;
+        }
+        case ReEnableMode::OnPlayerIdle: {
+            // Give the player 200 ms to start before polling.
+            long long startMs = GetTimeMS();
+            Timers::INSTANCE.addTimer(timerName, startMs + 200, [this, startMs]() {
+                checkReEnable(startMs, false);
+            });
+            break;
+        }
+    }
+}
+
+void GPIOManager::GPIOState::checkReEnable(long long startMs, bool playerHasStarted) {
+    if (!inputDisabled) return;
+    std::string timerName = "gpio_reenable_" + pin->name;
+    long long now = GetTimeMS();
+    PlaylistStatus status = Player::INSTANCE.GetStatus();
+
+    if (status != FPP_STATUS_IDLE) {
+        // Player is active — keep polling every 500 ms.
+        Timers::INSTANCE.addTimer(timerName, now + 500, [this, startMs]() {
+            checkReEnable(startMs, true);
+        });
+    } else if (playerHasStarted) {
+        // Player started and has returned to idle — safe to re-enable.
+        inputDisabled = false;
+        LogDebug(VB_GPIO, "GPIO %s re-enabled: player returned to idle.\n", pin->name.c_str());
+    } else if (now - startMs > 2000) {
+        // Player never started within 2 s (action wasn't a playlist) — re-enable anyway.
+        inputDisabled = false;
+        LogDebug(VB_GPIO, "GPIO %s re-enabled: player-idle timeout.\n", pin->name.c_str());
+    } else {
+        // Still waiting for player to start — check again soon.
+        Timers::INSTANCE.addTimer(timerName, now + 200, [this, startMs]() {
+            checkReEnable(startMs, false);
+        });
     }
 }
 

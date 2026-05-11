@@ -194,6 +194,41 @@ foreach ($gpiojson as $gpio) {
     font-size: var(--fpp-fs-sm);
     color: var(--fpp-text-muted);
 }
+
+/* ── Command group wrapper ───────────────────────────────────────────────── */
+.gpio-cmd-group {
+    border: 2px solid var(--bs-primary);
+    border-radius: var(--fpp-radius-lg);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+.gpio-cmd-group-header {
+    background: rgba(var(--bs-primary-rgb), 0.10);
+    border-bottom: 2px solid var(--bs-primary);
+    padding: 0.6rem 1rem;
+    font-weight: var(--fpp-fw-semibold);
+    color: var(--bs-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.gpio-cmd-group-header .section-subtitle {
+    font-weight: var(--fpp-fw-normal);
+    font-size: var(--fpp-fs-sm);
+    color: var(--fpp-text-muted);
+}
+.gpio-cmd-group .gpio-modal-section {
+    margin-bottom: 0;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+}
+.gpio-cmd-group .gpio-modal-section:last-child {
+    border-bottom: none;
+}
+.gpio-cmd-group .gpio-modal-section + .gpio-modal-section {
+    border-top: 1px solid var(--bs-border-color);
+}
 </style>
 
 <script>
@@ -252,7 +287,10 @@ function normalizeTrigger(t) {
         ledIdleMode:      t.ledIdleMode    || 'off',
         ledPulseRateMs:   t.ledPulseRateMs || 500,
         ledTriggerMode:   t.ledTriggerMode || 'follow_input',
-        ledTriggerParam:  t.ledTriggerParam || 0
+        ledTriggerParam:  t.ledTriggerParam || 0,
+        // Re-enable fields — backward compatible defaults
+        reEnableMode:     t.reEnableMode   || 'always',
+        reEnableDelay:    t.reEnableDelay  || 0
     };
 }
 
@@ -303,6 +341,12 @@ function buildTriggerCard(idx, t) {
         ? '<span class="badge bg-info text-dark" title="Long-press hold">Hold ' + t.holdTime + 'ms</span>' : '';
     var ledBadge  = t.ledPin
         ? '<span class="badge bg-warning text-dark"><i class="fas fa-lightbulb"></i> ' + esc(t.ledPin) + '</span>' : '';
+    var reEnableBadge = '';
+    if (t.reEnableMode === 'timed') {
+        reEnableBadge = '<span class="badge bg-secondary" title="Re-enable after delay"><i class="fas fa-clock"></i> ' + t.reEnableDelay + 'ms</span>';
+    } else if (t.reEnableMode === 'player_idle') {
+        reEnableBadge = '<span class="badge bg-secondary" title="Re-enable on player idle"><i class="fas fa-play-circle"></i> On idle</span>';
+    }
     var modeLabel = { gpio:'No pull', gpio_pu:'Pull up', gpio_pd:'Pull down' }[t.mode] || t.mode;
 
     var card = $('<div class="gpio-trigger-card"></div>');
@@ -311,7 +355,7 @@ function buildTriggerCard(idx, t) {
             enBadge +
             '<strong>' + esc(t.pin) + '</strong>' + gpioLbl +
             (t.desc ? '<span class="text-muted">' + esc(t.desc) + '</span>' : '') +
-            holdBadge + ledBadge +
+            holdBadge + ledBadge + reEnableBadge +
             '<span class="text-muted small ms-auto">' + esc(modeLabel) + ' · ' + t.debounceTime + 'ms debounce</span>' +
             '<button class="btn btn-sm btn-outline-primary ms-2" onclick="openEditModal(' + idx + ')"><i class="fas fa-edit"></i> Edit</button>' +
             '<button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteTrigger(' + idx + ')"><i class="fas fa-trash"></i></button>' +
@@ -421,6 +465,11 @@ function openEditModalWith(t) {
     $('#gpioModalLedTriggerMode').val(t.ledTriggerMode);
     $('#gpioModalLedTriggerParam').val(t.ledTriggerParam);
 
+    // Re-enable fields
+    $('#gpioModalReEnableMode').val(t.reEnableMode);
+    $('#gpioModalReEnableDelay').val(t.reEnableDelay || 5000);
+    updateReEnableVisibility();
+
     updateLEDVisibility();
     updatePinModeOptions(t.pin);
     $('#gpioModalPin').off('change').on('change', function(){ updatePinModeOptions($(this).val()); });
@@ -446,6 +495,12 @@ function updatePinModeOptions(pinName) {
 function toggleHoldSection() {
     var t = parseInt($('#gpioModalHoldTime').val()) || 0;
     $('#gpioModalHoldSection').toggle(t > 0);
+}
+
+function updateReEnableVisibility() {
+    var mode = $('#gpioModalReEnableMode').val();
+    $('#gpioReEnableDelayRow').toggle(mode === 'timed');
+    $('#gpioReEnableInfo').toggle(mode !== 'always');
 }
 
 function updateLEDVisibility() {
@@ -495,7 +550,9 @@ function saveGPIOModal() {
         ledIdleMode:    $('#gpioModalLedIdleMode').val(),
         ledPulseRateMs: parseInt($('#gpioModalLedPulseRate').val()) || 500,
         ledTriggerMode: $('#gpioModalLedTriggerMode').val(),
-        ledTriggerParam:parseInt($('#gpioModalLedTriggerParam').val()) || 0
+        ledTriggerParam:parseInt($('#gpioModalLedTriggerParam').val()) || 0,
+        reEnableMode:   $('#gpioModalReEnableMode').val(),
+        reEnableDelay:  parseInt($('#gpioModalReEnableDelay').val()) || 0
     };
     if (currentEditIdx === -1) gpioTriggers.push(t);
     else gpioTriggers[currentEditIdx] = t;
@@ -672,53 +729,92 @@ $(document).ready(function() {
                             </div>
                         </div>
 
-                        <!-- Rising commands ────────────────────────────────── -->
-                        <div class="gpio-modal-section">
-                            <div class="gpio-modal-section-title">
-                                <i class="fas fa-arrow-up text-success"></i> Rising Edge Commands
-                                <span class="section-subtitle">(button pressed / signal HIGH)</span>
+                        <!-- ── Trigger Commands group ───────────────────── -->
+                        <div class="gpio-cmd-group">
+                            <div class="gpio-cmd-group-header">
+                                <i class="fas fa-terminal"></i> Trigger Commands
+                                <span class="section-subtitle">Commands to execute when the GPIO input fires</span>
                             </div>
-                            <div id="gpioModal_rising_list" class="mb-2"></div>
-                            <button class="btn btn-sm btn-outline-success" onclick="addModalCmd('rising')">
-                                <i class="fas fa-plus"></i> Add Command
-                            </button>
-                        </div>
 
-                        <!-- Falling commands ────────────────────────────────── -->
-                        <div class="gpio-modal-section">
-                            <div class="gpio-modal-section-title">
-                                <i class="fas fa-arrow-down text-danger"></i> Falling Edge Commands
-                                <span class="section-subtitle">(button released / signal LOW)</span>
+                            <!-- Rising commands -->
+                            <div class="gpio-modal-section">
+                                <div class="gpio-modal-section-title">
+                                    <i class="fas fa-arrow-up text-success"></i> Rising Edge Commands
+                                    <span class="section-subtitle">(button pressed / signal HIGH)</span>
+                                </div>
+                                <div id="gpioModal_rising_list" class="mb-2"></div>
+                                <button class="btn btn-sm btn-outline-success" onclick="addModalCmd('rising')">
+                                    <i class="fas fa-plus"></i> Add Command
+                                </button>
                             </div>
-                            <p class="small text-muted mb-2">
-                                <i class="fas fa-info-circle"></i>
-                                Falling commands are suppressed when a Hold command fires for that press.
-                            </p>
-                            <div id="gpioModal_falling_list" class="mb-2"></div>
-                            <button class="btn btn-sm btn-outline-danger" onclick="addModalCmd('falling')">
-                                <i class="fas fa-plus"></i> Add Command
-                            </button>
-                        </div>
 
-                        <!-- Hold / long-press ──────────────────────────────── -->
-                        <div class="gpio-modal-section">
-                            <div class="gpio-modal-section-title">
-                                <i class="fas fa-hand-paper text-info"></i> Long-Press / Hold Commands
-                                <span class="section-subtitle">(optional)</span>
+                            <!-- Falling commands -->
+                            <div class="gpio-modal-section">
+                                <div class="gpio-modal-section-title">
+                                    <i class="fas fa-arrow-down text-danger"></i> Falling Edge Commands
+                                    <span class="section-subtitle">(button released / signal LOW)</span>
+                                </div>
+                                <p class="small text-muted mb-2">
+                                    <i class="fas fa-info-circle"></i>
+                                    Falling commands are suppressed when a Hold command fires for that press.
+                                </p>
+                                <div id="gpioModal_falling_list" class="mb-2"></div>
+                                <button class="btn btn-sm btn-outline-danger" onclick="addModalCmd('falling')">
+                                    <i class="fas fa-plus"></i> Add Command
+                                </button>
                             </div>
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Hold Time (ms)</label>
-                                    <input class="form-control" type="number" id="gpioModalHoldTime" min="0" max="30000"
-                                           value="0" placeholder="0 = disabled" oninput="toggleHoldSection()">
-                                    <div class="form-text">0 = disabled. Falling commands suppressed when hold fires.</div>
+
+                            <!-- Hold / long-press -->
+                            <div class="gpio-modal-section">
+                                <div class="gpio-modal-section-title">
+                                    <i class="fas fa-hand-paper text-info"></i> Long-Press / Hold Commands
+                                    <span class="section-subtitle">(optional)</span>
+                                </div>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold">Hold Time (ms)</label>
+                                        <input class="form-control" type="number" id="gpioModalHoldTime" min="0" max="30000"
+                                               value="0" placeholder="0 = disabled" oninput="toggleHoldSection()">
+                                        <div class="form-text">0 = disabled. Falling commands suppressed when hold fires.</div>
+                                    </div>
+                                </div>
+                                <div id="gpioModalHoldSection" style="display:none">
+                                    <div id="gpioModal_hold_list" class="mb-2"></div>
+                                    <button class="btn btn-sm btn-outline-info" onclick="addModalCmd('hold')">
+                                        <i class="fas fa-plus"></i> Add Hold Command
+                                    </button>
                                 </div>
                             </div>
-                            <div id="gpioModalHoldSection" style="display:none">
-                                <div id="gpioModal_hold_list" class="mb-2"></div>
-                                <button class="btn btn-sm btn-outline-info" onclick="addModalCmd('hold')">
-                                    <i class="fas fa-plus"></i> Add Hold Command
-                                </button>
+
+                        </div><!-- /.gpio-cmd-group -->
+
+                        <!-- Re-enable Behavior ──────────────────────────────── -->
+                        <div class="gpio-modal-section">
+                            <div class="gpio-modal-section-title">
+                                <i class="fas fa-lock-open text-secondary"></i> Re-enable After Trigger
+                                <span class="section-subtitle">(optional — prevents rapid re-triggering)</span>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-5">
+                                    <label class="form-label fw-semibold">Re-enable Mode</label>
+                                    <select class="form-select" id="gpioModalReEnableMode" onchange="updateReEnableVisibility()">
+                                        <option value="always">Always enabled (no suppression)</option>
+                                        <option value="timed">Re-enable after a fixed delay</option>
+                                        <option value="player_idle">Re-enable when player becomes idle</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3" id="gpioReEnableDelayRow" style="display:none">
+                                    <label class="form-label fw-semibold">Delay (ms)</label>
+                                    <input class="form-control" type="number" id="gpioModalReEnableDelay"
+                                           min="100" max="3600000" value="5000">
+                                    <div class="form-text">Duration before the input is re-enabled.</div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info py-2 mt-2 mb-0" id="gpioReEnableInfo" style="display:none">
+                                <i class="fas fa-info-circle"></i>
+                                While suppressed, additional button presses are ignored.
+                                <strong>Player idle</strong> mode re-enables once playback finishes;
+                                if no playback starts within 2 seconds the input re-enables automatically.
                             </div>
                         </div>
 

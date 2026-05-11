@@ -116,6 +116,20 @@ private:
         };
         DebounceEdge debounceEdge = DebounceEdge::Both;
 
+        // ── Re-enable after trigger ──────────────────────────────────────────
+        // Controls how long the input is suppressed after commands fire.
+        enum class ReEnableMode {
+            Always,       // always enabled — no suppression (default)
+            Timed,        // re-enable after reEnableDelay ms
+            OnPlayerIdle  // re-enable once the player returns to idle
+        };
+        ReEnableMode reEnableMode = ReEnableMode::Always;
+        uint32_t reEnableDelay = 0;  // ms; used by Timed mode
+        bool inputDisabled = false;  // true while the input is suppressed post-trigger
+
+        void scheduleReEnable();
+        void checkReEnable(long long startMs, bool playerHasStarted);
+
         bool shouldDebounce(int v) const;
         void doAction(int newVal);
         void checkHoldTimer(long long scheduledStart);
