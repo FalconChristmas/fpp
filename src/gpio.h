@@ -12,6 +12,7 @@
  */
 #include <functional>
 #include <map>
+#include <vector>
 #include "fpphttp.h"
 #include "config.h"
 
@@ -40,7 +41,17 @@ private:
             futureValue(0),
             pendingValue(0),
             pendingTime(0),
-            file(-1) {}
+            file(-1),
+            holdTime(0),
+            holdFired(false),
+            holdStartTime(0),
+            ledActiveHigh(true),
+            ledIdleMode(LEDIdleMode::Off),
+            ledPulseRateMs(500),
+            ledTriggerMode(LEDTriggerMode::FollowInput),
+            ledTriggerParam(0),
+            ledPulseState(false) {}
+
         const PinCapabilities* pin;
         int lastValue;
         long long lastTriggerTime;
@@ -48,13 +59,56 @@ private:
         int pendingValue;       // candidate value waiting to settle
         long long pendingTime;  // usec timestamp when pendingValue was first seen
         int file;
-        Json::Value fallingAction;
-        Json::Value risingAction;
+
+        // Multiple commands per edge — old single-object format is normalised
+        // into these vectors during SetupGPIOInput.
+        std::vector<Json::Value> risingActions;
+        std::vector<Json::Value> fallingActions;
+
+        // Long-press / hold: commands fired after holdTime ms of continuous press.
+        std::vector<Json::Value> holdActions;
+        uint32_t holdTime;         // ms; 0 = disabled
+        bool holdFired;            // true once hold actions have fired this press
+        long long holdStartTime;   // GetTimeMS() when the current press began
+
+        // ── LED output associated with this illuminated button ──────────────
+        std::string ledPin;
+        bool ledActiveHigh;    // true → HIGH means LED on
+
+        // What the LED does when idle (not in a trigger effect)
+        enum class LEDIdleMode {
+            Off,    // LED off at rest
+            On,     // LED on at rest
+            Pulse   // LED blinks at ledPulseRateMs interval
+        };
+        LEDIdleMode ledIdleMode;
+        uint32_t ledPulseRateMs;    // ms per half-period when pulsing
+        bool ledPulseState;         // current toggle state for pulsing
+
+        // What the LED does when a trigger fires (rising edge)
+        enum class LEDTriggerMode {
+            None,           // no LED change on trigger; idle mode only
+            FollowInput,    // LED mirrors input state (on when pressed, off when released)
+            Flash,          // flash N times (ledTriggerParam = flash count) then restore idle
+            TimedOn         // stay on for ledTriggerParam ms then restore idle
+        };
+        LEDTriggerMode ledTriggerMode;
+        uint32_t ledTriggerParam;   // flash count  OR  duration ms
+
+        // ── LED helpers ─────────────────────────────────────────────────────
+        void initLED();
+        void setLEDState(bool on);
+        void startLEDIdle();
+        void stopLEDIdle();
+        void triggerLEDEffect(int v);
+        void doLEDFlash(int halfPeriodsRemaining);
+
+        // ── Callback (for non-command uses) ─────────────────────────────────
         std::function<bool(int)> callback;
         bool hasCallback = false;
-        uint32_t debounceTime = DEFAULT_GPIO_DEBOUNCE_TIME;
 
-        // Controls which edges have debounce applied
+        // ── Debounce ────────────────────────────────────────────────────────
+        uint32_t debounceTime = DEFAULT_GPIO_DEBOUNCE_TIME;
         enum class DebounceEdge {
             Both,    // debounce rising and falling (default)
             Rising,  // debounce only rising; falling fires immediately
@@ -64,6 +118,7 @@ private:
 
         bool shouldDebounce(int v) const;
         void doAction(int newVal);
+        void checkHoldTimer(long long scheduledStart);
     };
     GPIOManager();
     ~GPIOManager();

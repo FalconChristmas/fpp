@@ -148,15 +148,17 @@ void GPIOManager::scheduleDebounceCheck(GPIOState* state) {
 
 void GPIOManager::Cleanup() {
     for (auto a : eventStates) {
-        if (a->file != -1) {
+        if (!a->ledPin.empty())
+            Timers::INSTANCE.stopPeriodicTimer("gpio_led_pulse_" + a->pin->name);
+        if (a->file != -1)
             a->pin->releaseGPIOD();
-        }
         delete a;
     }
     for (auto a : pollStates) {
-        if (a->file != -1) {
+        if (!a->ledPin.empty())
+            Timers::INSTANCE.stopPeriodicTimer("gpio_led_pulse_" + a->pin->name);
+        if (a->file != -1)
             a->pin->releaseGPIOD();
-        }
         delete a;
     }
     eventStates.clear();
@@ -311,8 +313,6 @@ HttpResponsePtr GPIOManager::render_POST(const HttpRequestPtr& req) {
 void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callbacks) {
     LogDebug(VB_GPIO, "SetupGPIOInput()\n");
 
-    char settingName[32];
-    int i = 0;
     int enabledCount = 0;
 
     std::string file = FPP_DIR_CONFIG("/gpio.json");
@@ -346,20 +346,66 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                     }
 
                     state->pin = pc;
-                    if (v.isMember("rising")) {
-                        state->risingAction = v["rising"];
-                        if (state->risingAction["command"].asString() == "OLED Navigation") {
-                            state->risingAction["command"] = "";
-                        }
-                    }
-                    if (v.isMember("falling")) {
-                        state->fallingAction = v["falling"];
-                        if (state->fallingAction["command"].asString() == "OLED Navigation") {
-                            state->fallingAction["command"] = "";
-                        }
-                    }
 
-                    if (state->risingAction["command"].asString() != "" || state->fallingAction["command"].asString() != "") {
+                    // Parse rising/falling: accept both old single-object format and
+                    // new array-of-commands format for backward compatibility.
+                    auto parseActions = [](const Json::Value& jv, const std::string& key) -> std::vector<Json::Value> {
+                        std::vector<Json::Value> result;
+                        if (!jv.isMember(key))
+                            return result;
+                        const Json::Value& actions = jv[key];
+                        if (actions.isArray()) {
+                            for (int i = 0; i < (int)actions.size(); i++) {
+                                std::string cmd = actions[i]["command"].asString();
+                                if (!cmd.empty() && cmd != "OLED Navigation")
+                                    result.push_back(actions[i]);
+                            }
+                        } else if (actions.isObject()) {
+                            std::string cmd = actions["command"].asString();
+                            if (!cmd.empty() && cmd != "OLED Navigation")
+                                result.push_back(actions);
+                        }
+                        return result;
+                    };
+
+                    state->risingActions = parseActions(v, "rising");
+                    state->fallingActions = parseActions(v, "falling");
+                    state->holdActions = parseActions(v, "hold");
+
+                    if (v.isMember("holdTime"))
+                        state->holdTime = v["holdTime"].asInt();
+
+                    if (v.isMember("ledPin"))
+                        state->ledPin = v["ledPin"].asString();
+
+                    if (v.isMember("ledActiveHigh"))
+                        state->ledActiveHigh = v["ledActiveHigh"].asBool();
+
+                    // LED idle mode — what the LED does when not in a trigger effect
+                    if (v.isMember("ledIdleMode")) {
+                        std::string m = v["ledIdleMode"].asString();
+                        if (m == "on")          state->ledIdleMode = GPIOState::LEDIdleMode::On;
+                        else if (m == "pulse")  state->ledIdleMode = GPIOState::LEDIdleMode::Pulse;
+                        else                    state->ledIdleMode = GPIOState::LEDIdleMode::Off;
+                    }
+                    if (v.isMember("ledPulseRateMs"))
+                        state->ledPulseRateMs = std::max(50u, v["ledPulseRateMs"].asUInt());
+
+                    // LED trigger mode — what happens to the LED when the button fires
+                    if (v.isMember("ledTriggerMode")) {
+                        std::string m = v["ledTriggerMode"].asString();
+                        if (m == "none")              state->ledTriggerMode = GPIOState::LEDTriggerMode::None;
+                        else if (m == "flash")        state->ledTriggerMode = GPIOState::LEDTriggerMode::Flash;
+                        else if (m == "timed_on")     state->ledTriggerMode = GPIOState::LEDTriggerMode::TimedOn;
+                        else                          state->ledTriggerMode = GPIOState::LEDTriggerMode::FollowInput;
+                    }
+                    if (v.isMember("ledTriggerParam"))
+                        state->ledTriggerParam = v["ledTriggerParam"].asUInt();
+
+                    bool hasAnyAction = !state->risingActions.empty() ||
+                                       !state->fallingActions.empty() ||
+                                       !state->holdActions.empty();
+                    if (hasAnyAction) {
                         state->pin->configPin(mode, false, "GPIO Input");
 
                         addState(state);
@@ -372,6 +418,10 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
         }
     }
     LogDebug(VB_GPIO, "%d GPIO Input(s) enabled\n", enabledCount);
+
+    // Apply initial LED idle state for all configured inputs.
+    for (auto* s : eventStates) s->initLED();
+    for (auto* s : pollStates)  s->initLED();
 }
 
 // Event callback uses settle-then-fire logic.
@@ -444,7 +494,10 @@ void GPIOManager::addState(GPIOState* state) {
     state->file = -1;
 
     if (state->pin->supportsGpiod()) {
-        state->file = state->pin->requestEventFile(state->risingAction != "", state->fallingAction != "");
+        // Request events for any edge that has actions or is needed for hold detection.
+        bool wantRising = !state->risingActions.empty() || !state->holdActions.empty();
+        bool wantFalling = !state->fallingActions.empty() || !state->holdActions.empty();
+        state->file = state->pin->requestEventFile(wantRising, wantFalling);
     } else {
         state->file = -1;
     }
@@ -462,10 +515,35 @@ void GPIOManager::GPIOState::doAction(int v) {
     if (hasCallback) {
         callback(v);
     } else {
-        std::string command = (v == 0) ? fallingAction["command"].asString() : risingAction["command"].asString();
-        if (command != "") {
-            CommandManager::INSTANCE.run((v == 0) ? fallingAction : risingAction);
+        if (v == 1) {
+            // Rising edge — run rising commands, then schedule hold timer if needed.
+            for (auto& action : risingActions) {
+                CommandManager::INSTANCE.run(action);
+            }
+            holdFired = false;
+            holdStartTime = GetTimeMS();
+            if (holdTime > 0 && !holdActions.empty()) {
+                long long scheduled = holdStartTime;
+                Timers::INSTANCE.addTimer(
+                    "gpio_hold_" + pin->name,
+                    GetTimeMS() + holdTime,
+                    [this, scheduled]() { checkHoldTimer(scheduled); });
+            }
+        } else {
+            // Falling edge — cancel any pending hold (by resetting holdStartTime),
+            // then run falling commands only if hold has not already fired.
+            bool wasHeld = holdFired;
+            holdStartTime = 0;
+            holdFired = false;
+            if (!wasHeld) {
+                for (auto& action : fallingActions) {
+                    CommandManager::INSTANCE.run(action);
+                }
+            }
         }
+
+        // Drive the associated LED output if one is configured.
+        triggerLEDEffect(v);
     }
     lastTriggerTime = GetTime();
     lastValue = v;
@@ -473,6 +551,18 @@ void GPIOManager::GPIOState::doAction(int v) {
     // Clear pending state now that the action has fired.
     pendingValue = v;
     pendingTime = 0;
+}
+
+// Called by the hold timer.  Only fires hold actions when the button is still
+// pressed and belongs to the same press session that scheduled this timer.
+void GPIOManager::GPIOState::checkHoldTimer(long long scheduledStart) {
+    if (holdStartTime != scheduledStart || holdFired || lastValue != 1)
+        return;
+    LogDebug(VB_GPIO, "GPIO %s hold timer fired.\n", pin->name.c_str());
+    for (auto& action : holdActions) {
+        CommandManager::INSTANCE.run(action);
+    }
+    holdFired = true;
 }
 
 // Returns true if debounce should apply to this edge.
@@ -487,4 +577,97 @@ bool GPIOManager::GPIOState::shouldDebounce(int v) const {
         default:
             return true;
     }
+}
+
+// ── LED helpers ──────────────────────────────────────────────────────────────
+
+void GPIOManager::GPIOState::setLEDState(bool on) {
+    if (ledPin.empty()) return;
+    const PinCapabilities* ledCap = PinCapabilities::getPinByName(ledPin).ptr();
+    if (!ledCap) return;
+    bool pinState = on ? ledActiveHigh : !ledActiveHigh;
+    ledCap->configPin("gpio", true);
+    ledCap->setValue(pinState);
+    GPIOManager::INSTANCE.fppCommandLastValue[ledPin] = pinState;
+}
+
+void GPIOManager::GPIOState::stopLEDIdle() {
+    if (ledPin.empty()) return;
+    Timers::INSTANCE.stopPeriodicTimer("gpio_led_pulse_" + pin->name);
+}
+
+void GPIOManager::GPIOState::startLEDIdle() {
+    if (ledPin.empty()) return;
+    stopLEDIdle();
+    switch (ledIdleMode) {
+        case LEDIdleMode::Off:
+            setLEDState(false);
+            break;
+        case LEDIdleMode::On:
+            setLEDState(true);
+            break;
+        case LEDIdleMode::Pulse:
+            ledPulseState = false;
+            setLEDState(false);
+            Timers::INSTANCE.addPeriodicTimer(
+                "gpio_led_pulse_" + pin->name,
+                ledPulseRateMs,
+                [this]() {
+                    ledPulseState = !ledPulseState;
+                    setLEDState(ledPulseState);
+                });
+            break;
+    }
+}
+
+void GPIOManager::GPIOState::initLED() {
+    if (ledPin.empty()) return;
+    // Start in idle state; trigger effects will override when the button fires.
+    startLEDIdle();
+}
+
+void GPIOManager::GPIOState::triggerLEDEffect(int v) {
+    if (ledPin.empty()) return;
+    switch (ledTriggerMode) {
+        case LEDTriggerMode::None:
+            // LED ignores trigger events; idle mode drives it.
+            break;
+        case LEDTriggerMode::FollowInput:
+            stopLEDIdle();
+            setLEDState(v == 1);
+            if (v == 0) startLEDIdle();  // restore idle when released
+            break;
+        case LEDTriggerMode::Flash:
+            if (v == 1) {
+                stopLEDIdle();
+                uint32_t count = (ledTriggerParam > 0) ? ledTriggerParam : 3;
+                doLEDFlash((int)(count * 2));  // 2 half-periods per flash
+            }
+            break;
+        case LEDTriggerMode::TimedOn:
+            if (v == 1) {
+                stopLEDIdle();
+                setLEDState(true);
+                uint32_t dur = (ledTriggerParam > 0) ? ledTriggerParam : 1000;
+                Timers::INSTANCE.addTimer(
+                    "gpio_led_timed_" + pin->name,
+                    GetTimeMS() + dur,
+                    [this]() { startLEDIdle(); });
+            }
+            break;
+    }
+}
+
+// Countdown-based LED flash: halfPeriodsRemaining decrements each 150 ms half-period.
+// Even remaining → LED on; odd → LED off.  When 0 → restore idle.
+void GPIOManager::GPIOState::doLEDFlash(int halfPeriodsRemaining) {
+    if (halfPeriodsRemaining <= 0) {
+        startLEDIdle();
+        return;
+    }
+    setLEDState(halfPeriodsRemaining % 2 == 0);
+    Timers::INSTANCE.addTimer(
+        "gpio_led_flash_" + pin->name,
+        GetTimeMS() + 150,
+        [this, halfPeriodsRemaining]() { doLEDFlash(halfPeriodsRemaining - 1); });
 }
