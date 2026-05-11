@@ -1771,9 +1771,9 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         long long elapsed = GetTimeMS() - m_globalPauseStartTime;
         long long remaining = m_globalPauseBetweenSequencesMS - elapsed;
         if (remaining < 0) remaining = 0;
-        result["global_pause"]["elapsed_ms"] = elapsed;
-        result["global_pause"]["remaining_ms"] = remaining;
-        result["global_pause"]["remaining_seconds"] = (remaining + 999) / 1000; // Round up
+        result["global_pause"]["elapsed_ms"] = static_cast<Json::Int64>(elapsed);
+        result["global_pause"]["remaining_ms"] = static_cast<Json::Int64>(remaining);
+        result["global_pause"]["remaining_seconds"] = static_cast<Json::Int64>((remaining + 999) / 1000); // Round up
     }
 
     auto ple = m_currentSection->at(m_sectionPosition);
@@ -1811,7 +1811,7 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
             result["current_song"] = "";
             result["seconds_played"] = std::to_string(secsElapsed);
             result["seconds_elapsed"] = std::to_string(secsElapsed);
-            result["milliseconds_elapsed"] = elapsed;
+            result["milliseconds_elapsed"] = static_cast<Json::Int64>(elapsed);
             result["seconds_remaining"] = std::to_string(secsRemaining);
             result["time_elapsed"] = secondsToTime(secsElapsed);
             result["time_remaining"] = secondsToTime(secsRemaining);
