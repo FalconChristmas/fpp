@@ -2349,28 +2349,6 @@
         }
       }
     },
-    "/api/help": {
-      "get": {
-        "tags": [
-          "help"
-        ],
-        "summary": "help",
-        "description": "Returns an HTML page listing all available FPP API endpoints and their descriptions.",
-        "responses": {
-          "200": {
-            "description": "HTML page listing all API endpoints",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                },
-                "example": "<html table listing all API endpoints>"
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/media": {
       "get": {
         "tags": [
