@@ -7,7 +7,8 @@ require_once(__DIR__ . "/../../config.php");
  * Proxies a named action to a remote FPP instance by IP address.
  * Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.
  *
- * @route GET /api/remoteAction
+ * @route POST /api/remoteAction
+ * @body {"ip": "192.168.1.100", "action": "reboot"}
  * @response 400 Invalid action
  * ```json
  * {"error": "Invalid action given: badaction"}
@@ -16,8 +17,9 @@ require_once(__DIR__ . "/../../config.php");
 function RemoteAction_v1()
 {
     global $settings;
-    $ip = htmlspecialchars(isset($_GET['ip']) ? $_GET['ip'] : null);
-    $action = htmlspecialchars(isset($_GET['action']) ? $_GET['action'] : null);
+    $body = json_decode(file_get_contents('php://input'), true);
+    $ip = htmlspecialchars(isset($body['ip']) ? $body['ip'] : '');
+    $action = htmlspecialchars(isset($body['action']) ? $body['action'] : '');
 
     $action_map = [
         'listUpgrades' => '/api/git/releases/os',
