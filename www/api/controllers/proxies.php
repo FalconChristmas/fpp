@@ -17,7 +17,7 @@ require_once(__DIR__ . "/../../config.php");
 function remoteAction()
 {
     global $settings;
-    $body = json_decode(file_get_contents('php://input'), true);
+    $body = get_json_body();
     $ip = htmlspecialchars(isset($body['ip']) ? $body['ip'] : '');
     $action = htmlspecialchars(isset($body['action']) ? $body['action'] : '');
 
