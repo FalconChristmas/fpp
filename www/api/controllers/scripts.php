@@ -113,7 +113,7 @@ function script_save()
  *
  * Runs a locally installed script.
  *
- * @route GET /api/scripts/{scriptName}/run
+ * @route POST /api/scripts/{scriptName}/run
  * @response 200 Script output
  * ```text
  * The output of the script as a String
@@ -159,7 +159,7 @@ function scripts_view_remote()
  *
  * Installs a remote script from the script repository.
  *
- * @route GET /api/scripts/installRemote/{category}/{filename}
+ * @route POST /api/scripts/installRemote/{category}/{filename}
  * @response 200 Remote script installed
  * ```json
  * {"status": "OK"}

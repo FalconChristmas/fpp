@@ -8,7 +8,7 @@ require_once '../commandsocket.php';
  *
  * Reboots the operating system.
  *
- * @route GET /api/system/reboot
+ * @route POST /api/system/reboot
  * @response 200 Reboot initiated
  * ```json
  * {"status": "OK"}
@@ -35,7 +35,7 @@ function RebootDevice()
  *
  * Executes a clean shutdown of the operating system.
  *
- * @route GET /api/system/shutdown
+ * @route POST /api/system/shutdown
  * @response 200 Shutdown initiated
  * ```json
  * {"status": "OK"}
@@ -61,7 +61,7 @@ function SystemShutdownOS()
  *
  * Starts the `fppd` process idempotently (if it isn't already running).
  *
- * @route GET /api/system/fppd/start
+ * @route POST /api/system/fppd/start
  * @response 200 fppd started
  * ```json
  * {"status": "OK"}
@@ -116,7 +116,7 @@ function StopFPPDNoStatus()
  *
  * Stops the `fppd` process if it is running.
  *
- * @route GET /api/system/fppd/stop
+ * @route POST /api/system/fppd/stop
  * @response 200 fppd stopped
  * ```json
  * {"status": "OK"}
@@ -135,7 +135,8 @@ function StopFPPD()
  * Restarts the `fppd` process. Pass `?quick=1` to reload some configuration without
  * a full restart.
  *
- * @route GET /api/system/fppd/restart
+ * @route POST /api/system/fppd/restart
+ * @param int quick When `1`, send a reload signal to a running fppd instead of a full stop/start
  * @response 200 fppd restarted
  * ```json
  * {"status": "OK"}

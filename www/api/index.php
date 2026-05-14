@@ -57,12 +57,12 @@ dispatch_post('/email/test', 'SendTestEmail');
 
 dispatch_get('/events', 'events_list');
 dispatch_get('/events/:eventId', 'event_get');
-dispatch_get('/events/:eventId/trigger', 'event_trigger');
+dispatch_post('/events/:eventId/trigger', 'event_trigger');
 
 dispatch_get('/files/:DirName', 'GetFiles');
 dispatch_get('/file/info/:plugin/:ext/**', 'GetPluginFileInfo'); // keep above file/:DirName
-dispatch_get('/file/onUpload/:ext/**', 'PluginFileOnUpload'); // keep above file/:DirName
-dispatch_get('/file/move/:fileName', 'MoveFile'); // keep above file/:DirName
+dispatch_post('/file/onUpload/:ext/**', 'PluginFileOnUpload'); // keep above file/:DirName
+dispatch_post('/file/move/:fileName', 'MoveFile'); // keep above file/:DirName
 dispatch_get('/files/zip/:DirNames', 'GetZipDir');
 dispatch_post('/file/:DirName/copy/:source/:dest', 'files_copy');
 dispatch_post('/file/:DirName/rename/:source/:dest', 'files_rename');
@@ -76,7 +76,7 @@ dispatch_post('/file/:DirName/:Name', 'PostFile');
 dispatch_get('/git/originLog', 'GetGitOriginLog');
 dispatch_get('/git/releases/os/:All', 'GitOSReleases');
 dispatch_get('/git/releases/sizes', 'GitOSReleaseSizes');
-dispatch_get('/git/reset', 'GitReset');
+dispatch_post('/git/reset', 'GitReset');
 dispatch_get('/git/status', 'GitStatus');
 dispatch_get('/git/branches', 'GitBranches');
 
@@ -90,7 +90,7 @@ dispatch_get('/network/gateway', 'network_get_gateway');
 dispatch_post('/network/gateway', 'network_save_gateway');
 dispatch_get('/network/interface', 'network_list_interfaces');
 dispatch_get('/network/interface/:interface', 'network_get_interface');
-dispatch_get('/network/interface/add/:interface', 'network_add_interface');
+dispatch_post('/network/interface/add/:interface', 'network_add_interface');
 dispatch_post('/network/interface/:interface', 'network_set_interface');
 dispatch_post('/network/interface/:interface/apply', 'network_apply_interface');
 
@@ -107,15 +107,15 @@ dispatch_get('/playlists', 'playlist_list');
 dispatch_post('/playlists', 'playlist_insert');
 dispatch_get('/playlists/playable', 'playlist_playable');
 dispatch_get('/playlists/validate', 'playlist_list_validate');
-dispatch_get('/playlists/stop', 'playlist_stop');
-dispatch_get('/playlists/pause', 'playlist_pause');
-dispatch_get('/playlists/resume', 'playlist_resume');
-dispatch_get('/playlists/stopgracefully', 'playlist_stopgracefully');
-dispatch_get('/playlists/stopgracefullyafterloop', 'playlist_stopgracefullyafterloop');
+dispatch_post('/playlists/stop', 'playlist_stop');
+dispatch_post('/playlists/pause', 'playlist_pause');
+dispatch_post('/playlists/resume', 'playlist_resume');
+dispatch_post('/playlists/stopgracefully', 'playlist_stopgracefully');
+dispatch_post('/playlists/stopgracefullyafterloop', 'playlist_stopgracefullyafterloop');
 dispatch_get('/playlist/:PlaylistName', 'playlist_get');
-dispatch_get('/playlist/:PlaylistName/start', 'playlist_start');
-dispatch_get('/playlist/:PlaylistName/start/:Repeat', 'playlist_start_repeat');
-dispatch_get('/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'playlist_start_repeat_protected');
+dispatch_post('/playlist/:PlaylistName/start', 'playlist_start');
+dispatch_post('/playlist/:PlaylistName/start/:Repeat', 'playlist_start_repeat');
+dispatch_post('/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'playlist_start_repeat_protected');
 dispatch_post('/playlist/:PlaylistName', 'playlist_update');
 dispatch_delete('/playlist/:PlaylistName', 'playlist_delete');
 dispatch_post('/playlist/:PlaylistName/:SectionName/item', 'PlaylistSectionInsertItem');
@@ -130,7 +130,6 @@ dispatch_get('/plugin/:RepoName/settings/:SettingName', 'PluginGetSetting');
 dispatch_put('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');
 dispatch_post('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');
 dispatch_post('/plugin/:RepoName/updates', 'CheckForPluginUpdates');
-dispatch_get('/plugin/:RepoName/upgrade', 'UpgradePlugin');
 dispatch_post('/plugin/:RepoName/upgrade', 'UpgradePlugin');
 // NOTE: Plugins may also implement their own /plugin/:RepoName/* endpoints
 // which are added after the above endpoints via addPluginEndpoints() below.
@@ -144,15 +143,15 @@ dispatch_delete('/proxies/:ProxyIp', 'DeleteProxy');
 dispatch_get(array('/proxy/*/**', array("Ip", "urlPart")), 'GetProxiedURL');
 
 dispatch_get('/remotes', 'GetRemotes');
-dispatch_get('/remoteAction', 'remoteAction');
+dispatch_post('/remoteAction', 'remoteAction');
 
 dispatch_get('/sequence', 'GetSequences');
-dispatch_get('/sequence/current/step', 'GetSequenceStep');
-dispatch_get('/sequence/current/stop', 'GetSequenceStop');
-dispatch_get('/sequence/current/togglePause', 'GetSequenceTogglePause');
+dispatch_post('/sequence/current/step', 'GetSequenceStep');
+dispatch_post('/sequence/current/stop', 'GetSequenceStop');
+dispatch_post('/sequence/current/togglePause', 'GetSequenceTogglePause');
 dispatch_get('/sequence/:SequenceName', 'GetSequence');
 dispatch_get('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
-dispatch_get('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');
+dispatch_post('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');
 dispatch_post('/sequence/:SequenceName', 'PostSequence');
 dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
 
@@ -167,23 +166,23 @@ dispatch_put('/settings/:SettingName', 'PutSetting');
 dispatch_put('/settings/:SettingName/jsonValueUpdate', 'UpdateJSONValueSetting');
 
 dispatch_get('/scripts', 'scripts_list');
-dispatch_get('/scripts/installRemote/:category/:filename', 'scripts_install_remote');
+dispatch_post('/scripts/installRemote/:category/:filename', 'scripts_install_remote');
 dispatch_get('/scripts/viewRemote/:category/:filename', 'scripts_view_remote');
 dispatch_get('/scripts/:scriptName', 'script_get');
 dispatch_post('/scripts/:scriptName', 'script_save');
-dispatch_get('/scripts/:scriptName/run', 'script_run');
+dispatch_post('/scripts/:scriptName/run', 'script_run');
 
 dispatch_get('/statistics/usage', 'stats_get_last_file');
 dispatch_post('/statistics/usage', 'stats_publish_stats_file');
 dispatch_delete('/statistics/usage', 'stats_delete_last_file');
 
-dispatch_get('/system/fppd/restart', 'RestartFPPD');
-dispatch_get('/system/fppd/start', 'StartFPPD');
-dispatch_get('/system/fppd/stop', 'StopFPPD');
+dispatch_post('/system/fppd/restart', 'RestartFPPD');
+dispatch_post('/system/fppd/start', 'StartFPPD');
+dispatch_post('/system/fppd/stop', 'StopFPPD');
 dispatch_post('/system/fppd/skipBootDelay', 'SkipBootDelay');
-dispatch_get('/system/reboot', 'RebootDevice');
+dispatch_post('/system/reboot', 'RebootDevice');
 dispatch_get('/system/releaseNotes/:version', 'ViewReleaseNotes');
-dispatch_get('/system/shutdown', 'SystemShutdownOS');
+dispatch_post('/system/shutdown', 'SystemShutdownOS');
 dispatch_get('/system/status', 'SystemGetStatus');
 dispatch_get('/system/updateStatus', 'GetUpdateStatus');
 dispatch_get('/system/info', 'SystemGetInfo');

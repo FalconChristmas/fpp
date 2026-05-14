@@ -281,8 +281,8 @@ function CheckForPluginUpdates()
  * Pull in git updates for plugin `{RepoName}`. Supports an optional
  * `?stream=true` query parameter for streaming output.
  *
- * @route GET /api/plugin/{RepoName}/upgrade
  * @route POST /api/plugin/{RepoName}/upgrade
+ * @param bool stream When `true`, stream the upgrade output to the response instead of buffering it
  * @response 200 Plugin upgraded
  * ```json
  * {"Status": "OK", "Message": ""}

@@ -549,7 +549,7 @@ function network_get_interface()
  * Creates a new blank DHCP interface configuration file for the specified
  * network interface (e.g. `eth1`, `wlan0`).
  *
- * @route GET /api/network/interface/add/{interface}
+ * @route POST /api/network/interface/add/{interface}
  * @response 200 DHCP interface created
  * ```json
  * {"status": "New Blank Interface created"}

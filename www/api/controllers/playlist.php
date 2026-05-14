@@ -736,7 +736,7 @@ function PlaylistSectionInsertItem()
  * Immediately stop the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stop
+ * @route POST /api/playlists/stop
  * @response 200 Playlist stopped
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -761,7 +761,7 @@ function playlist_stop()
  * Gracefully stop the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stopgracefully
+ * @route POST /api/playlists/stopgracefully
  * @response 200 Graceful stop initiated
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -787,7 +787,7 @@ function playlist_stopgracefully()
  * current loop.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stopgracefullyafterloop
+ * @route POST /api/playlists/stopgracefullyafterloop
  * @response 200 Stop after loop initiated
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -814,7 +814,7 @@ function playlist_stopgracefullyafterloop()
  * this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start
+ * @route POST /api/playlist/{PlaylistName}/start
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -844,7 +844,7 @@ function playlist_start()
  * scheduler from stopping this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start/{Repeat}
+ * @route POST /api/playlist/{PlaylistName}/start/{Repeat}
  * @param bool scheduleProtected Prevent schedule from stopping this playlist
  * @response 200 Playlist started
  * ```json
@@ -876,7 +876,7 @@ function playlist_start_repeat()
  * stop this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
+ * @route POST /api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -905,7 +905,7 @@ function playlist_start_repeat_protected()
  * Pause the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/pause
+ * @route POST /api/playlists/pause
  * @response 200 Playlist paused
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -930,7 +930,7 @@ function playlist_pause()
  * Resume a previously paused playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/resume
+ * @route POST /api/playlists/resume
  * @response 200 Playlist resumed
  * ```json
  * {"Status": "OK", "Message": ""}

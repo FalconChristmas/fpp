@@ -197,7 +197,7 @@ function DeleteSequences()
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
  *
- * @route GET /api/sequence/{SequenceName}/start/{startSecond}
+ * @route POST /api/sequence/{SequenceName}/start/{startSecond}
  * @response 200 Sequence started
  * ```json
  * {
@@ -239,7 +239,7 @@ function GetSequenceStart()
  * If the sequence was paused via `sequence/current/togglePause`, steps the sequence forward one frame.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/sequence/current/step
+ * @route POST /api/sequence/current/step
  * @response 200 Sequence stepped
  * ```json
  * {"status": "OK"}
@@ -262,7 +262,7 @@ function GetSequenceStep()
  *
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
- * @route GET /api/sequence/current/togglePause
+ * @route POST /api/sequence/current/togglePause
  * @response 200 Sequence play/pause toggled
  * ```json
  * {"status": "OK"}
@@ -283,7 +283,7 @@ function GetSequenceTogglePause()
  *
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
- * @route GET /api/sequence/current/stop
+ * @route POST /api/sequence/current/stop
  * @response 200 Sequence stopped
  * ```json
  * {"status": "OK"}

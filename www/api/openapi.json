@@ -46,9 +46,6 @@
       "name": "git"
     },
     {
-      "name": "help"
-    },
-    {
       "name": "media"
     },
     {
@@ -1573,7 +1570,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "events"
         ],
@@ -1647,7 +1644,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "file"
         ],
@@ -1681,7 +1678,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "file"
         ],
@@ -2296,7 +2293,7 @@
       }
     },
     "/api/git/reset": {
-      "get": {
+      "post": {
         "tags": [
           "git"
         ],
@@ -2649,7 +2646,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "network"
         ],
@@ -3089,7 +3086,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -3138,7 +3135,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -3206,7 +3203,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -3381,7 +3378,7 @@
       }
     },
     "/api/playlists/pause": {
-      "get": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -3438,7 +3435,7 @@
       }
     },
     "/api/playlists/resume": {
-      "get": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -3469,7 +3466,7 @@
       }
     },
     "/api/playlists/stop": {
-      "get": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -3500,7 +3497,7 @@
       }
     },
     "/api/playlists/stopgracefully": {
-      "get": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -3531,7 +3528,7 @@
       }
     },
     "/api/playlists/stopgracefullyafterloop": {
-      "get": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -3917,12 +3914,23 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "plugin"
         ],
         "summary": "Update plugin",
         "description": "Pull in git updates for plugin `{RepoName}`. Supports an optional `?stream=true` query parameter for streaming output.",
+        "parameters": [
+          {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "When `true`, stream the upgrade output to the response instead of buffering it"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Plugin upgraded",
@@ -4170,12 +4178,25 @@
       }
     },
     "/api/remoteAction": {
-      "get": {
+      "post": {
         "tags": [
           "remoteAction"
         ],
         "summary": "Proxy a command to remote FPP",
         "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "ip": "192.168.1.100",
+                "action": "reboot"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Invalid action",
@@ -4392,7 +4413,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "scripts"
         ],
@@ -4522,7 +4543,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "scripts"
         ],
@@ -4570,7 +4591,7 @@
       }
     },
     "/api/sequence/current/step": {
-      "get": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -4600,7 +4621,7 @@
       }
     },
     "/api/sequence/current/stop": {
-      "get": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -4634,7 +4655,7 @@
       }
     },
     "/api/sequence/current/togglePause": {
-      "get": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -4836,7 +4857,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -5147,12 +5168,23 @@
       }
     },
     "/api/system/fppd/restart": {
-      "get": {
+      "post": {
         "tags": [
           "system"
         ],
         "summary": "Restart fppd process",
         "description": "Restarts the `fppd` process. Pass `?quick=1` to reload some configuration without a full restart.",
+        "parameters": [
+          {
+            "name": "quick",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "When `1`, send a reload signal to a running fppd instead of a full stop/start"
+          }
+        ],
         "responses": {
           "200": {
             "description": "fppd restarted",
@@ -5196,7 +5228,7 @@
       }
     },
     "/api/system/fppd/start": {
-      "get": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -5220,7 +5252,7 @@
       }
     },
     "/api/system/fppd/stop": {
-      "get": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -5355,7 +5387,7 @@
       }
     },
     "/api/system/reboot": {
-      "get": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -5417,7 +5449,7 @@
       }
     },
     "/api/system/shutdown": {
-      "get": {
+      "post": {
         "tags": [
           "system"
         ],

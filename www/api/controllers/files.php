@@ -405,7 +405,7 @@ function CallPluginFileUploaded($dir, $filename)
  * Notifies any plugin that has registered an `onUpload` handler for the given
  * file extension. `:ext` is the extension category and `**` is the file path.
  *
- * @route GET /api/file/onUpload/{ext}/**
+ * @route POST /api/file/onUpload/{ext}/**
  * @response 200 Plugin notified of upload
  * ```json
  * {"status": "OK"}
@@ -626,7 +626,7 @@ function findFile($dir, $filename)
  * subfolder based on its extension, returning a status of `OK` or an error
  * message if not successful.
  *
- * @route GET /api/file/move/{fileName}
+ * @route POST /api/file/move/{fileName}
  * @response 200 File moved to media directory
  * ```json
  * {"status": "OK"}
