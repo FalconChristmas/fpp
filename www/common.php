@@ -704,9 +704,7 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
                 echo "        open: function () {\n";
                 echo "            var dlg = $('#" . $modalId . "');\n";
                 echo "            dlg.find('.modal-dialog').addClass('modal-fullscreen');\n";
-                echo "            dlg.find('.modal-content').css({ 'background': '#fff', 'color': '#212529' });\n";
                 echo "            dlg.find('.modal-body').css({ 'padding': '0', 'overflow': 'hidden' });\n";
-                echo "            dlg.find('.modal-header').css({ 'background': '#fff', 'color': '#212529' });\n";
                 if ($modalOnClose) {
                     echo "            dlg.one('hidden.bs.modal', function() { " . $modalOnClose . "(); });\n";
                 }

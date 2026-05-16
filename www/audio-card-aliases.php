@@ -104,11 +104,6 @@
                 z-index: 99998 !important;
             }
 
-            body {
-                background: #fff !important;
-                color: #212529 !important;
-            }
-
         <?php } ?>
     </style>
 </head>
