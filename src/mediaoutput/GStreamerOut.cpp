@@ -498,6 +498,10 @@ int GStreamerOutput::Start(int msTime) {
         // stream-properties cannot be set inline in gst_parse_launch (GstStructure
         // values with spaces break the parser).  Set it post-launch instead.
         sinkStr = "pipewiresink name=pwsink sync=true target-object=" + pipelineSinkName;
+    } else if (usePipeWire) {
+        // PipeWire backend with no specific sink configured — use pipewiresink
+        // and let PipeWire route to the default output.
+        sinkStr = "pipewiresink name=pwsink sync=true";
     } else {
         // Use alsasink directly — autoaudiosink probes pulsesink first
         // which fails slowly in ALSA-only mode, causing startup delay.
