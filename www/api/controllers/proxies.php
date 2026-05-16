@@ -2,7 +2,7 @@
 require_once(__DIR__ . "/../../config.php");
 
 /**
- * Proxy a command to remote FPP
+ * Proxy a command to remote FPP (v1 — query parameters)
  *
  * Proxies a named action to a remote FPP instance by IP address.
  * Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.
@@ -13,11 +13,72 @@ require_once(__DIR__ . "/../../config.php");
  * {"error": "Invalid action given: badaction"}
  * ```
  */
-function remoteAction()
+function RemoteAction_v1()
 {
     global $settings;
     $ip = htmlspecialchars(isset($_GET['ip']) ? $_GET['ip'] : null);
     $action = htmlspecialchars(isset($_GET['action']) ? $_GET['action'] : null);
+
+    $action_map = [
+        'listUpgrades' => '/api/git/releases/os',
+        'reboot' => '/api/system/reboot',
+        'restartFppd' => '/api/system/fppd/restart',
+        'upgradeOS' => '/upgradeOS',
+    ];
+
+    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        http_response_code(400);
+        echo json_encode(['error' => "Invalid IP address: $ip"]);
+        exit(0);
+    }
+
+    if (!array_key_exists($action, $action_map)) {
+        http_response_code(400);
+        return json(['error' => 'HTTP Error: 400', 'details' => "Invalid action given: $action"]);
+    }
+
+    $curl = curl_init('http://' . $ip . $action_map[$action]);
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+    $request_content = curl_exec($curl);
+    $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    if ($http_code !== 200) {
+        curl_close($curl);
+        http_response_code($http_code);
+        $details = $request_content ? $request_content : 'No response content';
+        if ($http_code < 200) {
+            $details = curl_error($curl);
+        }
+        http_response_code(400);
+        return json(['error' => 'HTTP Error: ' . $http_code, 'details' => $request_content]);
+    }
+    curl_close($curl);
+
+    return($request_content);
+
+}
+
+/**
+ * Proxy a command to remote FPP (v2 — JSON body)
+ *
+ * Proxies a named action to a remote FPP instance by IP address.
+ * Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.
+ *
+ * @route POST /api/v2/remoteAction
+ * @body {"ip": "192.168.1.100", "action": "reboot"}
+ * @response 400 Invalid action
+ * ```json
+ * {"error": "Invalid action given: badaction"}
+ * ```
+ */
+function RemoteAction()
+{
+    global $settings;
+    $body = getJsonBody();
+    $ip = htmlspecialchars(isset($body['ip']) ? $body['ip'] : '');
+    $action = htmlspecialchars(isset($body['action']) ? $body['action'] : '');
 
     $action_map = [
         'listUpgrades' => '/api/git/releases/os',

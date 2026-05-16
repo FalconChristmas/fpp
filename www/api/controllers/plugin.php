@@ -72,9 +72,9 @@ function InstallPlugin()
 	// are configured, regardless of whether the plugin is flagged private.
 	// This handles the case where a private repo is installed via a public
 	// listing (or a pluginInfo.json that does not set "private": true).
-	// InjectGitHubCredentials only modifies github.com / raw.githubusercontent.com
+	// injectGitHubCredentials only modifies github.com / raw.githubusercontent.com
 	// URLs so credentials are never leaked to unrelated hosts.
-	$injectedURL = InjectGitHubCredentials($srcURL);
+	$injectedURL = injectGitHubCredentials($srcURL);
 	if ($injectedURL !== false) {
 		$srcURL = $injectedURL;
 	} else if ($useCredentials) {
@@ -100,10 +100,10 @@ function InstallPlugin()
 			$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
 			if (!file_exists($infoFile)) {
 				// no pluginInfo.json in repository, install the one we
-				// installed the plugin from. FetchURLWithGitHubCredentials
+				// installed the plugin from. fetchURLWithGitHubCredentials
 				// transparently falls back to anonymous fetch when GitHub
 				// credentials are not configured.
-				$info = FetchURLWithGitHubCredentials($infoURL);
+				$info = fetchURLWithGitHubCredentials($infoURL);
 				file_put_contents($infoFile, $info);
 
 				$data = json_decode($info, true);
@@ -169,7 +169,7 @@ function GetPluginInfo()
 		$json = file_get_contents($infoFile);
 		$result = json_decode($json, true);
 		$result['Status'] = 'OK';
-		$result['updatesAvailable'] = PluginHasUpdates($plugin);
+		$result['updatesAvailable'] = pluginHasUpdates($plugin);
 
 		return json($result);
 	}
@@ -266,7 +266,7 @@ function CheckForPluginUpdates()
 	if ($return_val == 0) {
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
-		$result['updatesAvailable'] = PluginHasUpdates($plugin);
+		$result['updatesAvailable'] = pluginHasUpdates($plugin);
 	} else {
 		$result['Status'] = 'Error';
 		$result['Message'] = 'Could not run git fetch for plugin ' . $plugin;
@@ -281,8 +281,8 @@ function CheckForPluginUpdates()
  * Pull in git updates for plugin `{RepoName}`. Supports an optional
  * `?stream=true` query parameter for streaming output.
  *
- * @route GET /api/plugin/{RepoName}/upgrade
  * @route POST /api/plugin/{RepoName}/upgrade
+ * @param bool stream When `true`, stream the upgrade output to the response instead of buffering it
  * @response 200 Plugin upgraded
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -350,7 +350,7 @@ function UpgradePlugin()
  * @return string|false Modified URL on success, or false if credentials are not
  *                      configured or the URL is not a recognized GitHub URL.
  */
-function InjectGitHubCredentials($url)
+function injectGitHubCredentials($url)
 {
 	global $settings;
 
@@ -379,7 +379,7 @@ function InjectGitHubCredentials($url)
  * @param string $url URL to fetch.
  * @return string|false Response body on success, or false on failure.
  */
-function FetchURLWithGitHubCredentials($url)
+function fetchURLWithGitHubCredentials($url)
 {
 	global $GitHubFetchLastError;
 	$GitHubFetchLastError = '';
@@ -512,7 +512,7 @@ function FetchPluginInfoProxy()
 		if ($user === '' || $pat === '') {
 			return json(array('Status' => 'Error', 'Message' => 'GitHub user name and/or Personal Access Token are not configured on the Developer settings page.'));
 		}
-		$data = FetchURLWithGitHubCredentials($url);
+		$data = fetchURLWithGitHubCredentials($url);
 	} else {
 		$data = file_get_contents($url);
 	}
@@ -539,7 +539,7 @@ function FetchPluginInfoProxy()
  * @param string $plugin Plugin directory name (repo name).
  * @return int 1 if updates are available, 0 otherwise.
  */
-function PluginHasUpdates($plugin)
+function pluginHasUpdates($plugin)
 {
 	global $settings;
 	$output = '';

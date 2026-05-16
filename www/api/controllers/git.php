@@ -57,7 +57,7 @@ function GetGitOriginLog()
  * Discard local changes
  * Performs a hard reset on the current branch, discarding any local changes.
  *
- * @route GET /api/git/reset
+ * @route POST /api/git/reset
  * @response 200 Reset complete
  * ```json
  * {
@@ -113,7 +113,7 @@ function GitStatus()
  * @param array  $settings Global FPP settings array providing OSImagePrefix and Is64Bit.
  * @return bool True if the filename matches this device; false otherwise.
  */
-function MatchesDeviceOSImage($name, $settings)
+function matchesDeviceOSImage($name, $settings)
 {
     if (!str_ends_with($name, ".fppos") || !isset($settings['OSImagePrefix']) || $settings['OSImagePrefix'] == "") {
         return false;
@@ -228,7 +228,7 @@ function GitOSReleases()
                             $row["size"] = $file["size"];
                             $row["prerelease"] = $r["prerelease"];
                             array_push($releases, $row);
-                        } else if (MatchesDeviceOSImage($name, $settings)) {
+                        } else if (matchesDeviceOSImage($name, $settings)) {
                             $row = array();
                             $row["tag"] = $r["tag_name"];
                             $row["release_name"] = $r["name"];
@@ -287,7 +287,7 @@ function GitOSReleaseSizes()
             if (isset($r["assets"]) && $settings['OSImagePrefix'] != "") {
                 foreach ($r["assets"] as $file) {
                     $name = $file["name"];
-                    if (MatchesDeviceOSImage($name, $settings)) {
+                    if (matchesDeviceOSImage($name, $settings)) {
                         $rc = $rc . $name . "," . $file["size"] . "\n";
                     }
                 }

@@ -32,7 +32,7 @@ require_once "../common.php";
  * ]
  * ```
  */
-function network_list_interfaces()
+function NetworkListInterfaces()
 {
     return json(network_list_interfaces_obj());
 }
@@ -55,7 +55,7 @@ function network_list_interfaces()
  * ]
  * ```
  */
-function network_wifi_strength()
+function NetworkWiFiStrength()
 {
     return json(network_wifi_strength_obj());
 }
@@ -82,14 +82,14 @@ function network_wifi_strength()
  * }
  * ```
  */
-function network_wifi_scan()
+function NetworkWiFiScan()
 {
     $networks = array();
     $current = array();
     $interface = params('interface');
 
     # Validate interface.   -- Important because of SUDO
-    $interfaces = json_decode(network_list_interfaces(), true);
+    $interfaces = json_decode(NetworkListInterfaces(), true);
     $found = false;
 
     foreach ($interfaces as $row) {
@@ -159,7 +159,7 @@ function network_wifi_scan()
  * {"status": "OK"}
  * ```
  */
-function network_persistentNames_delete()
+function NetworkPersistentNamesDelete()
 {
     global $settings;
 
@@ -210,10 +210,10 @@ function network_persistentNames_delete()
  * {"status": "OK", "interfaceCnt": 2}
  * ```
  */
-function network_persistentNames_create()
+function NetworkPersistentNamesCreate()
 {
     global $settings;
-    network_persistentNames_delete();
+    NetworkPersistentNamesDelete();
 
     $interfaces = network_list_interfaces_array();
     $count = 0;
@@ -273,7 +273,7 @@ function network_persistentNames_create()
  * }
  * ```
  */
-function network_get_dns()
+function NetworkGetDNS()
 {
     global $settings;
 
@@ -304,7 +304,7 @@ function network_get_dns()
  * }
  * ```
  */
-function network_save_dns()
+function NetworkSaveDNS()
 {
     global $settings;
 
@@ -344,7 +344,7 @@ function network_save_dns()
  * {"GATEWAY": "192.168.1.1"}
  * ```
  */
-function network_get_gateway()
+function NetworkGetGateway()
 {
     global $settings;
 
@@ -379,7 +379,7 @@ function network_get_gateway()
  * {"status": "OK", "GATEWAY": "192.168.1.1"}
  * ```
  */
-function network_save_gateway()
+function NetworkSaveGateway()
 {
     global $settings;
 
@@ -424,7 +424,7 @@ function network_save_gateway()
  * }
  * ```
  */
-function network_get_interface()
+function NetworkGetInterface()
 {
     global $settings;
 
@@ -549,13 +549,13 @@ function network_get_interface()
  * Creates a new blank DHCP interface configuration file for the specified
  * network interface (e.g. `eth1`, `wlan0`).
  *
- * @route GET /api/network/interface/add/{interface}
+ * @route POST /api/network/interface/add/{interface}
  * @response 200 DHCP interface created
  * ```json
  * {"status": "New Blank Interface created"}
  * ```
  */
-function network_add_interface()
+function NetworkAddInterface()
 {
     global $settings;
 
@@ -593,7 +593,7 @@ function network_add_interface()
  * {"status": "OK"}
  * ```
  */
-function network_set_interface()
+function NetworkSetInterface()
 {
     global $settings;
 
@@ -704,7 +704,7 @@ function network_set_interface()
  * {"status": "OK", "output": []}
  * ```
  */
-function network_apply_interface()
+function NetworkApplyInterface()
 {
     global $settings, $SUDO;
 

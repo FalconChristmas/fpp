@@ -11,7 +11,7 @@
 //   { "aliases": { "<cardId>": "<alias>", ... } }
 /////////////////////////////////////////////////////////////////////////////
 
-function GetAudioCardAliasesFile()
+function getAudioCardAliasesFile()
 {
     global $configDirectory;
     return $configDirectory . "/audio-card-aliases.json";
@@ -19,9 +19,9 @@ function GetAudioCardAliasesFile()
 
 // Returns associative array mapping ALSA card ID -> user alias.
 // Empty array if no aliases configured.
-function LoadAudioCardAliases()
+function loadAudioCardAliases()
 {
-    $file = GetAudioCardAliasesFile();
+    $file = getAudioCardAliasesFile();
     if (!file_exists($file)) {
         return array();
     }
@@ -47,10 +47,10 @@ function LoadAudioCardAliases()
 // Returns a label suitable for display in a select option.
 // If an alias exists for $cardId, returns "<alias> (<original>)".
 // Otherwise returns $original unchanged.
-function ApplyAudioCardAlias($cardId, $original, $aliases = null)
+function applyAudioCardAlias($cardId, $original, $aliases = null)
 {
     if ($aliases === null) {
-        $aliases = LoadAudioCardAliases();
+        $aliases = loadAudioCardAliases();
     }
     if ($cardId !== '' && isset($aliases[$cardId]) && $aliases[$cardId] !== '') {
         return $aliases[$cardId] . ' (' . $original . ')';
@@ -65,7 +65,7 @@ function GetAudioCardAliases()
 {
     global $SUDO, $settings;
 
-    $aliases = LoadAudioCardAliases();
+    $aliases = loadAudioCardAliases();
     $cards = array();
 
     if (isset($settings["Platform"]) && $settings["Platform"] == "MacOS") {
@@ -207,7 +207,7 @@ function SaveAudioCardAliases()
         $clean[$cardId] = $alias;
     }
 
-    $file = GetAudioCardAliasesFile();
+    $file = getAudioCardAliasesFile();
     $dir = dirname($file);
     if (!is_dir($dir)) {
         @mkdir($dir, 0755, true);

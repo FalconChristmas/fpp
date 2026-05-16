@@ -47,7 +47,7 @@ function GetSequence()
     if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = FSeqOrEseqDirectory($sequence);
+    $dir = fSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         if (ob_get_level()) {
@@ -96,7 +96,7 @@ function GetSequenceMetaData()
     if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = FSeqOrEseqDirectory($sequence);
+    $dir = fSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         $cmd = $fppDir . "/src/fsequtils -j " . escapeshellarg($file) . " 2> /dev/null";
@@ -138,7 +138,7 @@ function PostSequence()
     if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = FSeqOrEseqDirectory($sequence);
+    $dir = fSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
 
     $putdata = fopen("php://input", "r");
@@ -167,14 +167,14 @@ function PostSequence()
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function DeleteSequences()
+function DeleteSequence()
 {
     global $settings;
     $sequence = params('SequenceName');
     if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = FSeqOrEseqDirectory($sequence);
+    $dir = fSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         unlink($file);
@@ -197,7 +197,7 @@ function DeleteSequences()
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
  *
- * @route GET /api/sequence/{SequenceName}/start/{startSecond}
+ * @route POST /api/sequence/{SequenceName}/start/{startSecond}
  * @response 200 Sequence started
  * ```json
  * {
@@ -239,7 +239,7 @@ function GetSequenceStart()
  * If the sequence was paused via `sequence/current/togglePause`, steps the sequence forward one frame.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/sequence/current/step
+ * @route POST /api/sequence/current/step
  * @response 200 Sequence stepped
  * ```json
  * {"status": "OK"}
@@ -262,7 +262,7 @@ function GetSequenceStep()
  *
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
- * @route GET /api/sequence/current/togglePause
+ * @route POST /api/sequence/current/togglePause
  * @response 200 Sequence play/pause toggled
  * ```json
  * {"status": "OK"}
@@ -283,7 +283,7 @@ function GetSequenceTogglePause()
  *
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
- * @route GET /api/sequence/current/stop
+ * @route POST /api/sequence/current/stop
  * @response 200 Sequence stopped
  * ```json
  * {"status": "OK"}
@@ -303,7 +303,7 @@ function GetSequenceStop()
  * @param string $seq Sequence filename including extension (`.fseq` or `.eseq`).
  * @return string Absolute path to the directory containing the sequence file.
  */
-function FSeqOrEseqDirectory($seq)
+function fSeqOrEseqDirectory($seq)
 {
     global $settings;
     if (substr($seq, -5) == ".fseq") {

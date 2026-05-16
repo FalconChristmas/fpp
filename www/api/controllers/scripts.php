@@ -11,7 +11,7 @@
  * ["script1.sh", "script2.sh"]
  * ```
  */
-function scripts_list()
+function ScriptsList()
 {
     global $settings;
 
@@ -43,7 +43,7 @@ function scripts_list()
  * The content of the script as a string
  * ```
  */
-function script_get()
+function ScriptGet()
 {
     global $settings;
 
@@ -71,7 +71,7 @@ function script_get()
  * }
  * ```
  */
-function script_save()
+function ScriptSave()
 {
     global $settings;
     $scriptName = params("scriptName");
@@ -113,13 +113,13 @@ function script_save()
  *
  * Runs a locally installed script.
  *
- * @route GET /api/scripts/{scriptName}/run
+ * @route POST /api/scripts/{scriptName}/run
  * @response 200 Script output
  * ```text
  * The output of the script as a String
  * ```
  */
-function script_run()
+function ScriptRun()
 {
     global $settings;
 
@@ -144,7 +144,7 @@ function script_run()
  * The content of the script as a string
  * ```
  */
-function scripts_view_remote()
+function ScriptsViewRemote()
 {
     $category = params('category');
     $filename = params('filename');
@@ -159,13 +159,13 @@ function scripts_view_remote()
  *
  * Installs a remote script from the script repository.
  *
- * @route GET /api/scripts/installRemote/{category}/{filename}
+ * @route POST /api/scripts/installRemote/{category}/{filename}
  * @response 200 Remote script installed
  * ```json
  * {"status": "OK"}
  * ```
  */
-function scripts_install_remote()
+function ScriptsInstallRemote()
 {
     global $fppDir, $SUDO;
     global $scriptDirectory;

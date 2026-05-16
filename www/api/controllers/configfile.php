@@ -9,7 +9,7 @@
  * @param string $subdir Current subdirectory relative to $dir (used during recursion).
  * @return array Flat array of relative file paths found under $dir.
  */
-function GetFilesInDir($dir, $subdir = '')
+function getFilesInDir($dir, $subdir = '')
 {
 	$result = array();
 
@@ -19,7 +19,7 @@ function GetFilesInDir($dir, $subdir = '')
 	foreach (scandir($dir . '/' . $subdir) as $file) {
 		if ($file != '.' && $file != '..') {
 			if (is_dir($dir . '/' . $subdir . $file))
-				$result = array_merge($result, GetFilesInDir($dir, $subdir . $file));
+				$result = array_merge($result, getFilesInDir($dir, $subdir . $file));
 			else
 				array_push($result, $subdir . $file);
 		}
@@ -54,7 +54,7 @@ function GetConfigFileList($dir = '')
 
 	$result = array();
 
-	$files = GetFilesInDir($dir);
+	$files = getFilesInDir($dir);
 
 	$result['Path'] = $origDir;
 	$result['ConfigFiles'] = $files;

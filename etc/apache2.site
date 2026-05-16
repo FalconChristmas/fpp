@@ -105,13 +105,20 @@ ServerTokens Prod
 
     # Static and redirect rules
     RewriteRule ^$ /api/index.php?uri=/ [L]
+    RewriteRule ^v1/?$ /api/index.php?uri=/v1/ [NC,L,QSA,B]
+    RewriteRule ^v1/api\.html$ /api/index.php?uri=/v1/api.html [NC,L,QSA,B]
+    RewriteRule ^v1/openapi\.(json|yaml)$ /api/index.php?uri=/v1/openapi.$1 [NC,L,QSA,B]
+    RewriteRule ^v2/?$ /api/index.php?uri=/v2/ [NC,L,QSA,B]
+    RewriteRule ^v2/api\.html$ /api/index.php?uri=/v2/api.html [NC,L,QSA,B]
+    RewriteRule ^v2/openapi\.(json|yaml)$ /api/index.php?uri=/v2/openapi.$1 [NC,L,QSA,B]
     RewriteRule ^index.php - [L,NC]
     RewriteRule ^api.php - [L,NC]
-    RewriteRule ^api.html - [L,NC]
-    RewriteRule ^openapi.json - [L,NC]
     RewriteRule ^help ../api/ [R=301,L,NC]
     RewriteRule ^help/.* ../api/ [R=301,L,NC]
     RewriteRule ^endpoints.json - [L,NC]
+
+    # v2 API routes — served by the merged router
+    RewriteRule ^v2/(.*)$ /api/index.php?uri=/v2/$1 [NC,L,QSA,B]
 
     # Catch-all rewrite to index.php
     RewriteRule ^(.*)$ /api/index.php?uri=/$1 [NC,L,QSA,B]

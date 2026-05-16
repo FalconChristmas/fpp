@@ -94,7 +94,7 @@ function GetCapeOptions()
  *
  * @return string Absolute path to the EEPROM file, or empty string if not found.
  */
-function GetEEPROMFilename()
+function getEEPROMFilename()
 {
     global $settings;
 
@@ -126,7 +126,7 @@ function GetEEPROMFilename()
  * @param string $order       Order ID; read from request params if empty.
  * @return array|string       Signing data array, or a JSON error response string.
  */
-function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
+function getSigningDataHelper($returnArray = false, $key = '', $order = '')
 {
     if (($key == '') && ($order == '')) {
         $key = strtoupper(params('key'));
@@ -150,7 +150,7 @@ function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
     }
 
     $eepromData = '';
-    $eepromFile = GetEEPROMFilename();
+    $eepromFile = getEEPROMFilename();
     $origEEPROM = $eepromFile;
     $tmpEEPROM = '/home/fpp/media/config/tmpEEPROM.bin';
     if (file_exists($eepromFile)) {
@@ -243,7 +243,7 @@ function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
  */
 function GetSigningData()
 {
-    $data = GetSigningDataHelper(true);
+    $data = getSigningDataHelper(true);
 
     if (!isset($data['key'])) {
         return $data;
@@ -267,7 +267,7 @@ function GetSigningFile()
 {
     global $settings;
 
-    $data = GetSigningDataHelper(true);
+    $data = getSigningDataHelper(true);
 
     if (!isset($data['key'])) {
         return $data;
@@ -286,12 +286,12 @@ function GetSigningFile()
  * @param array $data Signed payload containing a base64-encoded 'eeprom' key.
  * @return string JSON response with Status OK or ERROR.
  */
-function SignEEPROMHelper($data)
+function signEEPROMHelper($data)
 {
     # Backup the current EEPROM
     $date = new DateTime();
     $timestamp = date_format($date, 'Ymd-His');
-    $eepromFile = GetEEPROMFilename();
+    $eepromFile = getEEPROMFilename();
     $backup = '/home/fpp/media/upload/cape-eeprom-Backup-' . $timestamp . '.bin';
     $newFile = '/home/fpp/media/upload/cape-eeprom-Signed-' . $timestamp . '.bin';
 
@@ -352,7 +352,7 @@ function SignEEPROM($key = '', $order = '')
     $url = "https://$APIhost/api/fpp/eeprom/sign";
     $result = array();
 
-    $data = GetSigningDataHelper(true, $key, $order);
+    $data = getSigningDataHelper(true, $key, $order);
 
     if (!isset($data['key'])) {
         return $data;
@@ -390,7 +390,7 @@ function SignEEPROM($key = '', $order = '')
         return json($result);
     }
 
-    return SignEEPROMHelper($reply);
+    return signEEPROMHelper($reply);
 }
 
 /**
@@ -431,7 +431,7 @@ function PostSigningData()
 
     $data = json_decode($postJSON, true);
 
-    return SignEEPROMHelper($data);
+    return signEEPROMHelper($data);
 }
 
 /**

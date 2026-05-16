@@ -3,12 +3,12 @@
   "info": {
     "title": "FPP API",
     "description": "Falcon Player (FPP) REST API",
-    "version": "1.0"
+    "version": "2.0"
   },
   "servers": [
     {
-      "url": "/",
-      "description": "Local FPP instance"
+      "url": "/api/v2",
+      "description": "Local FPP instance (v2)"
     }
   ],
   "tags": [
@@ -46,9 +46,6 @@
       "name": "git"
     },
     {
-      "name": "help"
-    },
-    {
       "name": "media"
     },
     {
@@ -56,9 +53,6 @@
     },
     {
       "name": "options"
-    },
-    {
-      "name": "pipewire"
     },
     {
       "name": "playlist"
@@ -107,7 +101,7 @@
     }
   ],
   "paths": {
-    "/api/backups/configuration": {
+    "/api/v2/backups/configuration": {
       "post": {
         "tags": [
           "backups"
@@ -143,7 +137,7 @@
         }
       }
     },
-    "/api/backups/configuration/list": {
+    "/api/v2/backups/configuration/list": {
       "get": {
         "tags": [
           "backups"
@@ -182,7 +176,7 @@
         }
       }
     },
-    "/api/backups/configuration/list/{DeviceName}": {
+    "/api/v2/backups/configuration/list/{DeviceName}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -219,7 +213,7 @@
         }
       }
     },
-    "/api/backups/configuration/restore/{Directory}/{BackupFilename}": {
+    "/api/v2/backups/configuration/restore/{Directory}/{BackupFilename}": {
       "parameters": [
         {
           "name": "Directory",
@@ -281,7 +275,7 @@
         }
       }
     },
-    "/api/backups/configuration/{Directory}/{BackupFilename}": {
+    "/api/v2/backups/configuration/{Directory}/{BackupFilename}": {
       "parameters": [
         {
           "name": "Directory",
@@ -362,7 +356,7 @@
         }
       }
     },
-    "/api/backups/devices": {
+    "/api/v2/backups/devices": {
       "get": {
         "tags": [
           "backups"
@@ -391,7 +385,7 @@
         }
       }
     },
-    "/api/backups/devices/mount/{DeviceName}/{MountLocation}": {
+    "/api/v2/backups/devices/mount/{DeviceName}/{MountLocation}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -435,7 +429,7 @@
         }
       }
     },
-    "/api/backups/devices/unmount/{DeviceName}/{MountLocation}": {
+    "/api/v2/backups/devices/unmount/{DeviceName}/{MountLocation}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -479,7 +473,7 @@
         }
       }
     },
-    "/api/backups/list": {
+    "/api/v2/backups/list": {
       "get": {
         "tags": [
           "backups"
@@ -505,7 +499,7 @@
         }
       }
     },
-    "/api/backups/list/{DeviceName}": {
+    "/api/v2/backups/list/{DeviceName}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -541,7 +535,7 @@
         }
       }
     },
-    "/api/cape": {
+    "/api/v2/cape": {
       "get": {
         "tags": [
           "cape"
@@ -610,7 +604,7 @@
         }
       }
     },
-    "/api/cape/eeprom/sign/{key}/{order}": {
+    "/api/v2/cape/eeprom/sign/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -653,7 +647,7 @@
         }
       }
     },
-    "/api/cape/eeprom/signingData": {
+    "/api/v2/cape/eeprom/signingData": {
       "post": {
         "tags": [
           "cape"
@@ -693,7 +687,7 @@
         }
       }
     },
-    "/api/cape/eeprom/signingData/{key}/{order}": {
+    "/api/v2/cape/eeprom/signingData/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -738,7 +732,7 @@
         }
       }
     },
-    "/api/cape/eeprom/signingFile/{key}/{order}": {
+    "/api/v2/cape/eeprom/signingFile/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -778,7 +772,7 @@
         }
       }
     },
-    "/api/cape/eeprom/voucher": {
+    "/api/v2/cape/eeprom/voucher": {
       "post": {
         "tags": [
           "cape"
@@ -821,7 +815,7 @@
         }
       }
     },
-    "/api/cape/options": {
+    "/api/v2/cape/options": {
       "get": {
         "tags": [
           "cape"
@@ -851,7 +845,7 @@
         }
       }
     },
-    "/api/cape/panel": {
+    "/api/v2/cape/panel": {
       "get": {
         "tags": [
           "cape"
@@ -873,7 +867,7 @@
         }
       }
     },
-    "/api/cape/panel/{key}": {
+    "/api/v2/cape/panel/{key}": {
       "parameters": [
         {
           "name": "key",
@@ -905,7 +899,7 @@
         }
       }
     },
-    "/api/cape/strings": {
+    "/api/v2/cape/strings": {
       "get": {
         "tags": [
           "cape"
@@ -930,7 +924,7 @@
         }
       }
     },
-    "/api/cape/strings/{key}": {
+    "/api/v2/cape/strings/{key}": {
       "parameters": [
         {
           "name": "key",
@@ -993,7 +987,7 @@
         }
       }
     },
-    "/api/channel/input/stats": {
+    "/api/v2/channel/input/stats": {
       "delete": {
         "tags": [
           "channel"
@@ -1060,7 +1054,7 @@
         }
       }
     },
-    "/api/channel/output/processors": {
+    "/api/v2/channel/output/processors": {
       "get": {
         "tags": [
           "channel"
@@ -1150,7 +1144,7 @@
         }
       }
     },
-    "/api/channel/output/{file}": {
+    "/api/v2/channel/output/{file}": {
       "parameters": [
         {
           "name": "file",
@@ -1225,7 +1219,7 @@
         }
       }
     },
-    "/api/configfile": {
+    "/api/v2/configfile": {
       "get": {
         "tags": [
           "configfile"
@@ -1254,7 +1248,7 @@
         }
       }
     },
-    "/api/configfile/**": {
+    "/api/v2/configfile/**": {
       "delete": {
         "tags": [
           "configfile"
@@ -1332,7 +1326,7 @@
         }
       }
     },
-    "/api/dir/{DirName}/{SubDir}": {
+    "/api/v2/dir/{DirName}/{SubDir}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1400,7 +1394,7 @@
         }
       }
     },
-    "/api/effects": {
+    "/api/v2/effects": {
       "get": {
         "tags": [
           "effects"
@@ -1425,7 +1419,7 @@
         }
       }
     },
-    "/api/effects/ALL": {
+    "/api/v2/effects/ALL": {
       "get": {
         "tags": [
           "effects"
@@ -1451,7 +1445,7 @@
         }
       }
     },
-    "/api/email/configure": {
+    "/api/v2/email/configure": {
       "post": {
         "tags": [
           "email"
@@ -1476,7 +1470,7 @@
         }
       }
     },
-    "/api/email/test": {
+    "/api/v2/email/test": {
       "post": {
         "tags": [
           "email"
@@ -1501,7 +1495,7 @@
         }
       }
     },
-    "/api/events": {
+    "/api/v2/events": {
       "get": {
         "tags": [
           "events"
@@ -1529,7 +1523,7 @@
         }
       }
     },
-    "/api/events/{eventId}": {
+    "/api/v2/events/{eventId}": {
       "parameters": [
         {
           "name": "eventId",
@@ -1565,7 +1559,7 @@
         }
       }
     },
-    "/api/events/{eventId}/trigger": {
+    "/api/v2/events/{eventId}/trigger": {
       "parameters": [
         {
           "name": "eventId",
@@ -1576,7 +1570,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "events"
         ],
@@ -1599,7 +1593,7 @@
         }
       }
     },
-    "/api/file/info/{plugin}/{ext}/**": {
+    "/api/v2/file/info/{plugin}/{ext}/**": {
       "parameters": [
         {
           "name": "plugin",
@@ -1639,7 +1633,7 @@
         }
       }
     },
-    "/api/file/move/{fileName}": {
+    "/api/v2/file/move/{fileName}": {
       "parameters": [
         {
           "name": "fileName",
@@ -1650,7 +1644,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "file"
         ],
@@ -1673,7 +1667,7 @@
         }
       }
     },
-    "/api/file/onUpload/{ext}/**": {
+    "/api/v2/file/onUpload/{ext}/**": {
       "parameters": [
         {
           "name": "ext",
@@ -1684,7 +1678,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "file"
         ],
@@ -1707,7 +1701,7 @@
         }
       }
     },
-    "/api/file/{DirName}": {
+    "/api/v2/file/{DirName}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1744,7 +1738,7 @@
         }
       }
     },
-    "/api/file/{DirName}/**": {
+    "/api/v2/file/{DirName}/**": {
       "parameters": [
         {
           "name": "DirName",
@@ -1840,7 +1834,7 @@
         }
       }
     },
-    "/api/file/{DirName}/copy/{source}/{dest}": {
+    "/api/v2/file/{DirName}/copy/{source}/{dest}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1892,7 +1886,7 @@
         }
       }
     },
-    "/api/file/{DirName}/rename/{source}/{dest}": {
+    "/api/v2/file/{DirName}/rename/{source}/{dest}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1944,7 +1938,7 @@
         }
       }
     },
-    "/api/file/{DirName}/tailfollow/*": {
+    "/api/v2/file/{DirName}/tailfollow/*": {
       "parameters": [
         {
           "name": "DirName",
@@ -2009,7 +2003,7 @@
         }
       }
     },
-    "/api/file/{DirName}/{Name}": {
+    "/api/v2/file/{DirName}/{Name}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2073,7 +2067,7 @@
         }
       }
     },
-    "/api/files/zip/{DirNames}": {
+    "/api/v2/files/zip/{DirNames}": {
       "parameters": [
         {
           "name": "DirNames",
@@ -2105,7 +2099,7 @@
         }
       }
     },
-    "/api/files/{DirName}": {
+    "/api/v2/files/{DirName}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2159,7 +2153,7 @@
         }
       }
     },
-    "/api/git/branches": {
+    "/api/v2/git/branches": {
       "get": {
         "tags": [
           "git"
@@ -2187,7 +2181,7 @@
         }
       }
     },
-    "/api/git/originLog": {
+    "/api/v2/git/originLog": {
       "get": {
         "tags": [
           "git"
@@ -2223,7 +2217,7 @@
         }
       }
     },
-    "/api/git/releases/os/{All}": {
+    "/api/v2/git/releases/os/{All}": {
       "parameters": [
         {
           "name": "All",
@@ -2273,7 +2267,7 @@
         }
       }
     },
-    "/api/git/releases/sizes": {
+    "/api/v2/git/releases/sizes": {
       "get": {
         "tags": [
           "git"
@@ -2298,8 +2292,8 @@
         }
       }
     },
-    "/api/git/reset": {
-      "get": {
+    "/api/v2/git/reset": {
+      "post": {
         "tags": [
           "git"
         ],
@@ -2327,7 +2321,7 @@
         }
       }
     },
-    "/api/git/status": {
+    "/api/v2/git/status": {
       "get": {
         "tags": [
           "git"
@@ -2352,29 +2346,7 @@
         }
       }
     },
-    "/api/help": {
-      "get": {
-        "tags": [
-          "help"
-        ],
-        "summary": "help",
-        "description": "Returns an HTML page listing all available FPP API endpoints and their descriptions.",
-        "responses": {
-          "200": {
-            "description": "HTML page listing all API endpoints",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                },
-                "example": "<html table listing all API endpoints>"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/media": {
+    "/api/v2/media": {
       "get": {
         "tags": [
           "media"
@@ -2399,7 +2371,7 @@
         }
       }
     },
-    "/api/media/{MediaName}/duration": {
+    "/api/v2/media/{MediaName}/duration": {
       "parameters": [
         {
           "name": "MediaName",
@@ -2446,7 +2418,7 @@
         }
       }
     },
-    "/api/media/{MediaName}/meta": {
+    "/api/v2/media/{MediaName}/meta": {
       "parameters": [
         {
           "name": "MediaName",
@@ -2490,7 +2462,7 @@
         }
       }
     },
-    "/api/network/dns": {
+    "/api/v2/network/dns": {
       "get": {
         "tags": [
           "network"
@@ -2555,7 +2527,7 @@
         }
       }
     },
-    "/api/network/gateway": {
+    "/api/v2/network/gateway": {
       "get": {
         "tags": [
           "network"
@@ -2614,7 +2586,7 @@
         }
       }
     },
-    "/api/network/interface": {
+    "/api/v2/network/interface": {
       "get": {
         "tags": [
           "network"
@@ -2663,7 +2635,7 @@
         }
       }
     },
-    "/api/network/interface/add/{interface}": {
+    "/api/v2/network/interface/add/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -2674,7 +2646,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "network"
         ],
@@ -2697,7 +2669,7 @@
         }
       }
     },
-    "/api/network/interface/{interface}": {
+    "/api/v2/network/interface/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -2775,7 +2747,7 @@
         }
       }
     },
-    "/api/network/interface/{interface}/apply": {
+    "/api/v2/network/interface/{interface}/apply": {
       "parameters": [
         {
           "name": "interface",
@@ -2810,7 +2782,7 @@
         }
       }
     },
-    "/api/network/persistentNames": {
+    "/api/v2/network/persistentNames": {
       "delete": {
         "tags": [
           "network"
@@ -2857,7 +2829,7 @@
         }
       }
     },
-    "/api/network/wifi/scan/{interface}": {
+    "/api/v2/network/wifi/scan/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -2899,7 +2871,7 @@
         }
       }
     },
-    "/api/network/wifi/strength": {
+    "/api/v2/network/wifi/strength": {
       "get": {
         "tags": [
           "network"
@@ -2928,7 +2900,7 @@
         }
       }
     },
-    "/api/options/{SettingName}": {
+    "/api/v2/options/{SettingName}": {
       "parameters": [
         {
           "name": "SettingName",
@@ -2962,901 +2934,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups": {
-      "get": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "List output groups with live state",
-        "description": "Returns every configured audio output group together with its member sound cards. Volume/mute for groups and member cards are read live from PipeWire (`volumeSource: \"live\"` when the sink is running, else the saved config value with `volumeSource: \"config\"`).",
-        "responses": {
-          "200": {
-            "description": "Output groups with live runtime state",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "groups": [
-                    {
-                      "id": 1,
-                      "name": "Front",
-                      "enabled": true,
-                      "channels": 2,
-                      "nodeName": "fpp_group_front",
-                      "configVolume": 100,
-                      "configMute": false,
-                      "liveVolume": 80,
-                      "liveMute": false,
-                      "running": true,
-                      "state": "RUNNING",
-                      "volumeSource": "live",
-                      "members": [
-                        {
-                          "cardId": "S3",
-                          "channels": 2,
-                          "nodeName": "fpp_fx_g1_s3",
-                          "configVolume": 100,
-                          "liveVolume": 75,
-                          "liveMute": false,
-                          "running": true,
-                          "volumeSource": "live"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/groups/{id}": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Get one output group with live state",
-        "description": "Returns a single audio output group (by numeric group id) with its member sound cards and live runtime volume/mute.",
-        "responses": {
-          "200": {
-            "description": "Output group with live runtime state",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "group": {
-                    "id": 1,
-                    "name": "Front",
-                    "enabled": true,
-                    "nodeName": "fpp_group_front",
-                    "liveVolume": 80,
-                    "liveMute": false,
-                    "running": true,
-                    "members": []
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Output group not found"
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/groups/{id}/members/{cardId}/mute": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "cardId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Mute or unmute a member sound card",
-        "description": "Sets the mute state of an individual sound card within an output group, addressed by its ALSA card id. Provide `mute` (bool) or `toggle: true`. Applied live and persisted.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "toggle": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Member mute state applied and persisted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "groupId": 1,
-                  "cardId": "S3",
-                  "nodeName": "fpp_fx_g1_s3",
-                  "mute": true,
-                  "applied": true
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Provide 'mute' (bool) or 'toggle': true"
-          },
-          "404": {
-            "description": "Card not found in group"
-          },
-          "409": {
-            "description": "PipeWire backend not active"
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/groups/{id}/members/{cardId}/volume": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "cardId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Set member sound-card volume",
-        "description": "Sets the volume (0-150%) of an individual sound card within an output group, addressed by its stable ALSA card id (e.g. `S3`). Applied live to the member filter-chain sink and persisted.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "volume": 75
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Member volume applied and persisted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "groupId": 1,
-                  "cardId": "S3",
-                  "nodeName": "fpp_fx_g1_s3",
-                  "volume": 75,
-                  "applied": true,
-                  "message": "Volume set to 75%"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing 'volume'"
-          },
-          "404": {
-            "description": "Card not found in group"
-          },
-          "409": {
-            "description": "PipeWire backend not active"
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/groups/{id}/mute": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Mute or unmute an output group",
-        "description": "Sets the mute state of an output group's combined sink. Provide an explicit `mute` boolean, or `toggle: true` to flip the current state. Applied live and persisted.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "mute": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Mute state applied and persisted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "groupId": 1,
-                  "nodeName": "fpp_group_front",
-                  "mute": true,
-                  "applied": true
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Provide 'mute' (bool) or 'toggle': true"
-          },
-          "404": {
-            "description": "Output group not found"
-          },
-          "409": {
-            "description": "PipeWire backend not active"
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/groups/{id}/volume": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Set output group volume",
-        "description": "Sets the master volume (0-150%) of an audio output group's combined PipeWire sink. The value is applied live and persisted to the group config so it survives a reboot.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "volume": 80
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Volume applied and persisted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "groupId": 1,
-                  "nodeName": "fpp_group_front",
-                  "volume": 80,
-                  "applied": true,
-                  "message": "Volume set to 80%"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing 'volume'"
-          },
-          "404": {
-            "description": "Output group not found"
-          },
-          "409": {
-            "description": "PipeWire backend not active"
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/input-groups": {
-      "get": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "List input groups (mix buses)",
-        "description": "Returns every configured input group (mix bus) with its members and the output groups it routes to. Member volume/mute reflect the saved config (`volumeSource: \"config\"`) plus a live `running` flag indicating whether the loopback node is currently active.",
-        "responses": {
-          "200": {
-            "description": "Input groups with member state",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "inputGroups": [
-                    {
-                      "id": 1,
-                      "name": "Main Mix",
-                      "enabled": true,
-                      "channels": 2,
-                      "outputs": [
-                        1,
-                        2
-                      ],
-                      "members": [
-                        {
-                          "index": 0,
-                          "type": "fppd_stream",
-                          "sourceId": "fppd_stream_1",
-                          "name": "FPP Media",
-                          "configVolume": 100,
-                          "configMute": false,
-                          "running": true,
-                          "volumeSource": "config"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/input-groups/{id}": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Get one input group (mix bus)",
-        "description": "Returns a single input group by numeric id with its members and routing targets.",
-        "responses": {
-          "200": {
-            "description": "Input group with member state",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "inputGroup": {
-                    "id": 1,
-                    "name": "Main Mix",
-                    "enabled": true,
-                    "channels": 2,
-                    "outputs": [
-                      1
-                    ],
-                    "members": []
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Input group not found"
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "memberIndex",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Mute or unmute an input-group member",
-        "description": "Sets the mute state of a member within an input group, addressed by zero-based member index. Loopback nodes have no mute property, so mute is implemented by driving channelmix volume to 0 and unmute restores the saved member volume. Provide `mute` (bool) or `toggle: true`.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "mute": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Member mute state applied and persisted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "inputGroupId": 1,
-                  "memberIndex": 0,
-                  "mute": true,
-                  "applied": true
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Provide 'mute' (bool) or 'toggle': true"
-          },
-          "404": {
-            "description": "Member not found in input group"
-          },
-          "409": {
-            "description": "PipeWire backend not active"
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "memberIndex",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Set input-group member volume",
-        "description": "Sets the volume (0-100%) of a member within an input group (mix bus), addressed by its zero-based member index. Applied live to the member loopback via channelmix and persisted. Note: the primary fppd stream's volume is governed by fppd itself, not a loopback.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "volume": 60
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Member volume applied and persisted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "inputGroupId": 1,
-                  "memberIndex": 0,
-                  "volume": 60,
-                  "applied": true,
-                  "message": "Volume set to 60%"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing 'volume'"
-          },
-          "404": {
-            "description": "Member not found in input group"
-          },
-          "409": {
-            "description": "PipeWire backend not active"
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/routing": {
-      "get": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Get the routing matrix",
-        "description": "Returns the full input-group to output-group routing matrix. For every input group, each possible output-group path is listed with its connected state, per-path volume and mute. Values reflect the saved config (`volumeSource: \"config\"`).",
-        "responses": {
-          "200": {
-            "description": "Routing matrix",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "volumeSource": "config",
-                  "matrix": [
-                    {
-                      "inputGroupId": 1,
-                      "inputGroupName": "Main Mix",
-                      "enabled": true,
-                      "paths": [
-                        {
-                          "outputGroupId": 1,
-                          "outputGroupName": "Front",
-                          "connected": true,
-                          "volume": 100,
-                          "mute": false
-                        },
-                        {
-                          "outputGroupId": 2,
-                          "outputGroupName": "Rear",
-                          "connected": false,
-                          "volume": 75,
-                          "mute": false
-                        }
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
-      "parameters": [
-        {
-          "name": "inputGroupId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "outputGroupId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Mute or unmute a routing path",
-        "description": "Sets the mute state of a single input-group to output-group routing path. Mute drives the routing channelmix volume to 0; unmute restores the saved per-path volume. Provide `mute` (bool) or `toggle: true`. Persisted to the input-group routing config.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "toggle": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Route mute state applied and persisted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "inputGroupId": 1,
-                  "outputGroupId": 2,
-                  "mute": true,
-                  "applied": true
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Provide 'mute' (bool) or 'toggle': true"
-          },
-          "409": {
-            "description": "PipeWire backend not active"
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
-      "parameters": [
-        {
-          "name": "inputGroupId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "outputGroupId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Set routing-path volume",
-        "description": "Sets the volume (0-100%) of a single input-group to output-group routing path. Applied live to the routing combine-stream and persisted to the input-group routing config.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "volume": 50
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Route volume applied and persisted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "inputGroupId": 1,
-                  "outputGroupId": 2,
-                  "volume": 50,
-                  "applied": true,
-                  "message": "Route volume set to 50%"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing 'volume'"
-          },
-          "409": {
-            "description": "PipeWire backend not active"
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/status": {
-      "get": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "PipeWire control status",
-        "description": "Reports whether the PipeWire backend is active, the systemd service health of the PipeWire/WirePlumber/pulse units, and configured group counts. Use this to discover capability before issuing control calls.",
-        "responses": {
-          "200": {
-            "description": "PipeWire backend status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "backend": "pipewire",
-                  "pipewireActive": true,
-                  "simpleMode": false,
-                  "services": {
-                    "fpp-pipewire": "active",
-                    "fpp-wireplumber": "active",
-                    "fpp-pipewire-pulse": "active"
-                  },
-                  "outputGroupCount": 2,
-                  "outputGroupsEnabled": 2,
-                  "inputGroupCount": 1,
-                  "inputGroupsEnabled": 1
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/streams": {
-      "get": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "List fppd stream slots",
-        "description": "Returns the status of all 5 fppd media stream slots (idle/playing). Slot 1 additionally reports the currently playing media filename and timing from fppd.",
-        "responses": {
-          "200": {
-            "description": "Stream slot status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "streams": [
-                    {
-                      "slot": 1,
-                      "nodeName": "fppd_stream_1",
-                      "status": "playing",
-                      "mediaFilename": "show.mp4",
-                      "secondsElapsed": 12,
-                      "secondsRemaining": 48
-                    },
-                    {
-                      "slot": 2,
-                      "nodeName": "fppd_stream_2",
-                      "status": "idle",
-                      "mediaFilename": ""
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/streams/{slot}/volume": {
-      "parameters": [
-        {
-          "name": "slot",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "pipewire"
-        ],
-        "summary": "Set fppd stream slot volume",
-        "description": "Sets the volume (0-100%) of an fppd media stream slot (1-5). Slot 1 uses fppd's built-in volume control; slots 2-5 are set live via PipeWire channelmix on the stream node. The response `control` field indicates which path was used.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "volume": 90
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Stream volume applied",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "slot": 1,
-                  "volume": 90,
-                  "applied": true,
-                  "control": "fppd"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing 'volume'"
-          },
-          "409": {
-            "description": "PipeWire backend not active"
-          }
-        }
-      }
-    },
-    "/api/playlist/{PlaylistName}": {
+    "/api/v2/playlist/{PlaylistName}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -3997,7 +3075,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/start": {
+    "/api/v2/playlist/{PlaylistName}/start": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -4008,7 +3086,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -4038,7 +3116,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/start/{Repeat}": {
+    "/api/v2/playlist/{PlaylistName}/start/{Repeat}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -4057,7 +3135,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -4098,7 +3176,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}": {
+    "/api/v2/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -4125,7 +3203,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -4155,7 +3233,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/{SectionName}/item": {
+    "/api/v2/playlist/{PlaylistName}/{SectionName}/item": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -4213,7 +3291,7 @@
         }
       }
     },
-    "/api/playlists": {
+    "/api/v2/playlists": {
       "get": {
         "tags": [
           "playlists"
@@ -4299,8 +3377,8 @@
         }
       }
     },
-    "/api/playlists/pause": {
-      "get": {
+    "/api/v2/playlists/pause": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -4330,7 +3408,7 @@
         }
       }
     },
-    "/api/playlists/playable": {
+    "/api/v2/playlists/playable": {
       "get": {
         "tags": [
           "playlists"
@@ -4356,8 +3434,8 @@
         }
       }
     },
-    "/api/playlists/resume": {
-      "get": {
+    "/api/v2/playlists/resume": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -4387,8 +3465,8 @@
         }
       }
     },
-    "/api/playlists/stop": {
-      "get": {
+    "/api/v2/playlists/stop": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -4418,8 +3496,8 @@
         }
       }
     },
-    "/api/playlists/stopgracefully": {
-      "get": {
+    "/api/v2/playlists/stopgracefully": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -4449,8 +3527,8 @@
         }
       }
     },
-    "/api/playlists/stopgracefullyafterloop": {
-      "get": {
+    "/api/v2/playlists/stopgracefullyafterloop": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -4480,7 +3558,7 @@
         }
       }
     },
-    "/api/playlists/validate": {
+    "/api/v2/playlists/validate": {
       "get": {
         "tags": [
           "playlists"
@@ -4515,7 +3593,7 @@
         }
       }
     },
-    "/api/plugin": {
+    "/api/v2/plugin": {
       "get": {
         "tags": [
           "plugin"
@@ -4581,7 +3659,7 @@
         }
       }
     },
-    "/api/plugin/fetchInfo": {
+    "/api/v2/plugin/fetchInfo": {
       "post": {
         "tags": [
           "plugin"
@@ -4616,7 +3694,7 @@
         }
       }
     },
-    "/api/plugin/headerIndicators": {
+    "/api/v2/plugin/headerIndicators": {
       "get": {
         "tags": [
           "plugin"
@@ -4644,7 +3722,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}": {
+    "/api/v2/plugin/{RepoName}": {
       "parameters": [
         {
           "name": "RepoName",
@@ -4713,7 +3791,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/settings/{SettingName}": {
+    "/api/v2/plugin/{RepoName}/settings/{SettingName}": {
       "parameters": [
         {
           "name": "RepoName",
@@ -4789,7 +3867,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/updates": {
+    "/api/v2/plugin/{RepoName}/updates": {
       "parameters": [
         {
           "name": "RepoName",
@@ -4825,7 +3903,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/upgrade": {
+    "/api/v2/plugin/{RepoName}/upgrade": {
       "parameters": [
         {
           "name": "RepoName",
@@ -4836,12 +3914,23 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "plugin"
         ],
         "summary": "Update plugin",
         "description": "Pull in git updates for plugin `{RepoName}`. Supports an optional `?stream=true` query parameter for streaming output.",
+        "parameters": [
+          {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "When `true`, stream the upgrade output to the response instead of buffering it"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Plugin upgraded",
@@ -4860,7 +3949,7 @@
         }
       }
     },
-    "/api/proxies": {
+    "/api/v2/proxies": {
       "delete": {
         "tags": [
           "proxies"
@@ -4976,7 +4065,7 @@
         }
       }
     },
-    "/api/proxies/{ProxyIp}": {
+    "/api/v2/proxies/{ProxyIp}": {
       "parameters": [
         {
           "name": "ProxyIp",
@@ -5033,7 +4122,7 @@
         }
       }
     },
-    "/api/proxy/{Ip}/{urlPart}": {
+    "/api/v2/proxy/{Ip}/{urlPart}": {
       "parameters": [
         {
           "name": "Ip",
@@ -5088,13 +4177,26 @@
         }
       }
     },
-    "/api/remoteAction": {
-      "get": {
+    "/api/v2/remoteAction": {
+      "post": {
         "tags": [
           "remoteAction"
         ],
-        "summary": "Proxy a command to remote FPP",
+        "summary": "Proxy a command to remote FPP (v2 \u2014 JSON body)",
         "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "ip": "192.168.1.100",
+                "action": "reboot"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Invalid action",
@@ -5112,7 +4214,7 @@
         }
       }
     },
-    "/api/remotes": {
+    "/api/v2/remotes": {
       "get": {
         "tags": [
           "remotes"
@@ -5137,7 +4239,7 @@
         }
       }
     },
-    "/api/schedule": {
+    "/api/v2/schedule": {
       "get": {
         "tags": [
           "schedule"
@@ -5236,7 +4338,7 @@
         }
       }
     },
-    "/api/schedule/reload": {
+    "/api/v2/schedule/reload": {
       "post": {
         "tags": [
           "schedule"
@@ -5267,7 +4369,7 @@
         }
       }
     },
-    "/api/scripts": {
+    "/api/v2/scripts": {
       "get": {
         "tags": [
           "scripts"
@@ -5292,7 +4394,7 @@
         }
       }
     },
-    "/api/scripts/installRemote/{category}/{filename}": {
+    "/api/v2/scripts/installRemote/{category}/{filename}": {
       "parameters": [
         {
           "name": "category",
@@ -5311,7 +4413,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "scripts"
         ],
@@ -5334,7 +4436,7 @@
         }
       }
     },
-    "/api/scripts/viewRemote/{category}/{filename}": {
+    "/api/v2/scripts/viewRemote/{category}/{filename}": {
       "parameters": [
         {
           "name": "category",
@@ -5374,7 +4476,7 @@
         }
       }
     },
-    "/api/scripts/{scriptName}": {
+    "/api/v2/scripts/{scriptName}": {
       "parameters": [
         {
           "name": "scriptName",
@@ -5430,7 +4532,7 @@
         }
       }
     },
-    "/api/scripts/{scriptName}/run": {
+    "/api/v2/scripts/{scriptName}/run": {
       "parameters": [
         {
           "name": "scriptName",
@@ -5441,7 +4543,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "scripts"
         ],
@@ -5462,7 +4564,7 @@
         }
       }
     },
-    "/api/sequence": {
+    "/api/v2/sequence": {
       "get": {
         "tags": [
           "sequence"
@@ -5488,8 +4590,8 @@
         }
       }
     },
-    "/api/sequence/current/step": {
-      "get": {
+    "/api/v2/sequence/current/step": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -5518,8 +4620,8 @@
         }
       }
     },
-    "/api/sequence/current/stop": {
-      "get": {
+    "/api/v2/sequence/current/stop": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -5552,8 +4654,8 @@
         }
       }
     },
-    "/api/sequence/current/togglePause": {
-      "get": {
+    "/api/v2/sequence/current/togglePause": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -5586,7 +4688,7 @@
         }
       }
     },
-    "/api/sequence/{SequenceName}": {
+    "/api/v2/sequence/{SequenceName}": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -5685,7 +4787,7 @@
         }
       }
     },
-    "/api/sequence/{SequenceName}/meta": {
+    "/api/v2/sequence/{SequenceName}/meta": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -5736,7 +4838,7 @@
         }
       }
     },
-    "/api/sequence/{SequenceName}/start/{startSecond}": {
+    "/api/v2/sequence/{SequenceName}/start/{startSecond}": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -5755,7 +4857,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -5790,7 +4892,7 @@
         }
       }
     },
-    "/api/settings": {
+    "/api/v2/settings": {
       "get": {
         "tags": [
           "settings"
@@ -5831,7 +4933,7 @@
         }
       }
     },
-    "/api/settings/{SettingName}": {
+    "/api/v2/settings/{SettingName}": {
       "parameters": [
         {
           "name": "SettingName",
@@ -5909,7 +5011,7 @@
         }
       }
     },
-    "/api/settings/{SettingName}/jsonValueUpdate": {
+    "/api/v2/settings/{SettingName}/jsonValueUpdate": {
       "parameters": [
         {
           "name": "SettingName",
@@ -5953,7 +5055,7 @@
         }
       }
     },
-    "/api/statistics/usage": {
+    "/api/v2/statistics/usage": {
       "delete": {
         "tags": [
           "statistics"
@@ -6065,13 +5167,24 @@
         }
       }
     },
-    "/api/system/fppd/restart": {
-      "get": {
+    "/api/v2/system/fppd/restart": {
+      "post": {
         "tags": [
           "system"
         ],
         "summary": "Restart fppd process",
         "description": "Restarts the `fppd` process. Pass `?quick=1` to reload some configuration without a full restart.",
+        "parameters": [
+          {
+            "name": "quick",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "When `1`, send a reload signal to a running fppd instead of a full stop/start"
+          }
+        ],
         "responses": {
           "200": {
             "description": "fppd restarted",
@@ -6089,7 +5202,7 @@
         }
       }
     },
-    "/api/system/fppd/skipBootDelay": {
+    "/api/v2/system/fppd/skipBootDelay": {
       "post": {
         "tags": [
           "system"
@@ -6114,8 +5227,8 @@
         }
       }
     },
-    "/api/system/fppd/start": {
-      "get": {
+    "/api/v2/system/fppd/start": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -6138,8 +5251,8 @@
         }
       }
     },
-    "/api/system/fppd/stop": {
-      "get": {
+    "/api/v2/system/fppd/stop": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -6162,7 +5275,7 @@
         }
       }
     },
-    "/api/system/info": {
+    "/api/v2/system/info": {
       "get": {
         "tags": [
           "system"
@@ -6211,7 +5324,7 @@
         }
       }
     },
-    "/api/system/packages": {
+    "/api/v2/system/packages": {
       "get": {
         "tags": [
           "system"
@@ -6237,7 +5350,7 @@
         }
       }
     },
-    "/api/system/packages/info/{packageName}": {
+    "/api/v2/system/packages/info/{packageName}": {
       "parameters": [
         {
           "name": "packageName",
@@ -6273,8 +5386,8 @@
         }
       }
     },
-    "/api/system/reboot": {
-      "get": {
+    "/api/v2/system/reboot": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -6297,7 +5410,7 @@
         }
       }
     },
-    "/api/system/releaseNotes/{version}": {
+    "/api/v2/system/releaseNotes/{version}": {
       "parameters": [
         {
           "name": "version",
@@ -6335,8 +5448,8 @@
         }
       }
     },
-    "/api/system/shutdown": {
-      "get": {
+    "/api/v2/system/shutdown": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -6359,7 +5472,7 @@
         }
       }
     },
-    "/api/system/status": {
+    "/api/v2/system/status": {
       "get": {
         "tags": [
           "system"
@@ -6396,7 +5509,7 @@
         }
       }
     },
-    "/api/system/updateStatus": {
+    "/api/v2/system/updateStatus": {
       "get": {
         "tags": [
           "system"
@@ -6430,7 +5543,7 @@
         }
       }
     },
-    "/api/system/volume": {
+    "/api/v2/system/volume": {
       "get": {
         "tags": [
           "system"
@@ -6491,7 +5604,7 @@
         }
       }
     },
-    "/api/testmode": {
+    "/api/v2/testmode": {
       "get": {
         "tags": [
           "testmode"
@@ -6573,7 +5686,7 @@
         }
       }
     },
-    "/api/time": {
+    "/api/v2/time": {
       "get": {
         "tags": [
           "time"

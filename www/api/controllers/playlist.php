@@ -11,7 +11,7 @@
  * ["Playlist_1", "Playlist_2", "Playlist_3"]
  * ```
  */
-function playlist_list()
+function PlaylistList()
 {
     global $settings;
     $playlists = array();
@@ -186,7 +186,7 @@ function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
  * ]
  * ```
  */
-function playlist_list_validate()
+function PlaylistListValidate()
 {
     global $settings;
     $mediaFiles = loadValidateFiles();
@@ -204,7 +204,7 @@ function playlist_list_validate()
 
     $rc = array();
     foreach ($playlists as $plName) {
-        $pl = LoadPlayListDetails($plName, false);
+        $pl = loadPlayListDetails($plName, false);
         $valid = true;
         $msg = [];
         if (isset($pl->leadIn)) {
@@ -274,7 +274,7 @@ function playlist_list_validate()
  * ["Playlist_1", "Playlist_2", "MySequence.fseq"]
  * ```
  */
-function playlist_playable()
+function PlaylistPlayable()
 {
     global $settings;
     $playlists = array();
@@ -364,7 +364,7 @@ function cleanMedialNamesInPlaylist(&$playlistObj, $section)
  * }
  * ```
  */
-function playlist_insert()
+function PlaylistInsert()
 {
     global $settings;
 
@@ -401,9 +401,9 @@ function playlist_insert()
  * @param object $plentry  Playlist entry object containing the sub-playlist name.
  * @return void
  */
-function LoadSubPlaylist(&$playlist, &$i, $plentry)
+function loadSubPlaylist(&$playlist, &$i, $plentry)
 {
-    $data = GetPlaylist($plentry->name);
+    $data = getPlaylist($plentry->name);
 
     $subPlaylist = array();
 
@@ -422,7 +422,7 @@ function LoadSubPlaylist(&$playlist, &$i, $plentry)
     $li = 0;
     foreach ($subPlaylist as $entry) {
         if ($entry->type == "playlist") {
-            LoadSubPlaylist($subPlaylist, $li, $entry);
+            loadSubPlaylist($subPlaylist, $li, $entry);
         }
 
         $li++;
@@ -441,7 +441,7 @@ function LoadSubPlaylist(&$playlist, &$i, $plentry)
  * @param bool   $mergeSubs When true, recursively merges sub-playlists into parent sections.
  * @return object|string    Decoded playlist object, or empty string if the file does not exist.
  */
-function LoadPlayListDetails($file, $mergeSubs)
+function loadPlayListDetails($file, $mergeSubs)
 {
     global $settings;
 
@@ -456,7 +456,7 @@ function LoadPlayListDetails($file, $mergeSubs)
         return "";
     }
 
-    $data = GetPlaylist($file);
+    $data = getPlaylist($file);
 
     if (!$mergeSubs) {
         return $data;
@@ -466,7 +466,7 @@ function LoadPlayListDetails($file, $mergeSubs)
         $i = 0;
         foreach ($data->leadIn as $entry) {
             if ($mergeSubs && $entry->type == "playlist") {
-                LoadSubPlaylist($data->leadIn, $i, $entry);
+                loadSubPlaylist($data->leadIn, $i, $entry);
             }
             $i++;
         }
@@ -476,7 +476,7 @@ function LoadPlayListDetails($file, $mergeSubs)
         $i = 0;
         foreach ($data->mainPlaylist as $entry) {
             if ($mergeSubs && $entry->type == "playlist") {
-                LoadSubPlaylist($data->mainPlaylist, $i, $entry);
+                loadSubPlaylist($data->mainPlaylist, $i, $entry);
             }
             $i++;
         }
@@ -486,7 +486,7 @@ function LoadPlayListDetails($file, $mergeSubs)
         $i = 0;
         foreach ($data->leadOut as $entry) {
             if ($mergeSubs && $entry->type == "playlist") {
-                LoadSubPlaylist($data->leadOut, $i, $entry);
+                loadSubPlaylist($data->leadOut, $i, $entry);
             }
             $i++;
         }
@@ -501,7 +501,7 @@ function LoadPlayListDetails($file, $mergeSubs)
  * @param string $playlistName Playlist name (without .json extension).
  * @return object Decoded playlist object.
  */
-function GetPlaylist($playlistName)
+function getPlaylist($playlistName)
 {
     global $settings;
 
@@ -534,7 +534,7 @@ function GetPlaylist($playlistName)
  * }
  * ```
  */
-function playlist_get()
+function PlaylistGet()
 {
     global $settings;
 
@@ -544,7 +544,7 @@ function playlist_get()
         $mergeSubs = 1;
     }
 
-    $data = LoadPlayListDetails($playlistName, $mergeSubs);
+    $data = loadPlayListDetails($playlistName, $mergeSubs);
 
     return json($data);
 }
@@ -571,7 +571,7 @@ function playlist_get()
  * }
  * ```
  */
-function playlist_update()
+function PlaylistUpdate()
 {
     global $settings;
 
@@ -643,7 +643,7 @@ function playlist_update()
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_delete()
+function PlaylistDelete()
 {
     global $settings;
 
@@ -736,13 +736,13 @@ function PlaylistSectionInsertItem()
  * Immediately stop the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stop
+ * @route POST /api/playlists/stop
  * @response 200 Playlist stopped
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_stop()
+function PlaylistStop()
 {
     global $settings;
     $curl = curl_init();
@@ -761,13 +761,13 @@ function playlist_stop()
  * Gracefully stop the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stopgracefully
+ * @route POST /api/playlists/stopgracefully
  * @response 200 Graceful stop initiated
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_stopgracefully()
+function PlaylistStopGracefully()
 {
     global $settings;
 
@@ -787,13 +787,13 @@ function playlist_stopgracefully()
  * current loop.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stopgracefullyafterloop
+ * @route POST /api/playlists/stopgracefullyafterloop
  * @response 200 Stop after loop initiated
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_stopgracefullyafterloop()
+function PlaylistStopGracefullyAfterLoop()
 {
     global $settings;
 
@@ -814,13 +814,13 @@ function playlist_stopgracefullyafterloop()
  * this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start
+ * @route POST /api/playlist/{PlaylistName}/start
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_start()
+function PlaylistStart()
 {
     global $settings;
 
@@ -844,14 +844,14 @@ function playlist_start()
  * scheduler from stopping this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start/{Repeat}
+ * @route POST /api/playlist/{PlaylistName}/start/{Repeat}
  * @param bool scheduleProtected Prevent schedule from stopping this playlist
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_start_repeat()
+function PlaylistStartRepeat()
 {
     global $settings;
 
@@ -876,13 +876,13 @@ function playlist_start_repeat()
  * stop this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
+ * @route POST /api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_start_repeat_protected()
+function PlaylistStartRepeatProtected()
 {
     global $settings;
 
@@ -905,13 +905,13 @@ function playlist_start_repeat_protected()
  * Pause the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/pause
+ * @route POST /api/playlists/pause
  * @response 200 Playlist paused
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_pause()
+function PlaylistPause()
 {
     global $settings;
 
@@ -930,13 +930,13 @@ function playlist_pause()
  * Resume a previously paused playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/resume
+ * @route POST /api/playlists/resume
  * @response 200 Playlist resumed
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_resume()
+function PlaylistResume()
 {
     global $settings;
 

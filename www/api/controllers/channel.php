@@ -24,7 +24,7 @@
  * }
  * ```
  */
-function channel_input_get_stats()
+function ChannelInputGetStats()
 {
     $data = file_get_contents('http://127.0.0.1:32322/fppd/e131stats');
     $rc = array();
@@ -52,7 +52,7 @@ function channel_input_get_stats()
  * {"status": "OK"}
  * ```
  */
-function channel_input_delete_stats()
+function ChannelInputDeleteStats()
 {
     $url = 'http://127.0.0.1:32322/fppd/e131stats';
     $ch = curl_init();
@@ -92,7 +92,7 @@ function channel_input_delete_stats()
  * }
  * ```
  */
-function channel_get_output_processors()
+function ChannelGetOutputProcessors()
 {
     global $settings;
 
@@ -134,7 +134,7 @@ function channel_get_output_processors()
  * }
  * ```
  */
-function channel_save_output_processors()
+function ChannelSaveOutputProcessors()
 {
     global $settings;
     global $args;
@@ -147,7 +147,7 @@ function channel_save_output_processors()
     //Trigger a JSON Configuration Backup
     GenerateBackupViaAPI('Channel Output Processor was modified.');
 
-    return channel_get_output_processors();
+    return ChannelGetOutputProcessors();
 }
 
 /**
@@ -168,7 +168,7 @@ function channel_save_output_processors()
  * {"status": "ERROR: File not found"}
  * ```
  */
-function channel_get_output()
+function ChannelGetOutput()
 {
     global $settings;
 
@@ -229,7 +229,7 @@ function channel_get_output()
  * {}
  * ```
  */
-function channel_save_output()
+function ChannelSaveOutput()
 {
     global $settings;
 
@@ -242,7 +242,7 @@ function channel_save_output()
         //Trigger a JSON Configuration Backup
         GenerateBackupViaAPI('Channel output ' . $file . ' was modified.');
 
-        return channel_get_output();
+        return ChannelGetOutput();
     } else {
         return json(array("status" => "ERROR file not supported: " . $file));
     }

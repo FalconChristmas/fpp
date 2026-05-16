@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate www/api/openapi.json from @route/@body/@response PHPDoc tags
+Generate www/api/v1/openapi.json from @route/@body/@response PHPDoc tags
 in www/api/controllers/*.php.
 
 Usage (run from www/api/):
@@ -25,7 +25,39 @@ from pathlib import Path
 
 API_PREFIX = '/api'
 CONTROLLERS = sorted(glob.glob(str(Path(__file__).parent.parent / 'controllers' / '*.php')))
-OUTPUT = Path(__file__).parent.parent / 'openapi.json'
+OUTPUT = Path(__file__).parent.parent / 'v1' / 'openapi.json'
+
+ROUTELESS_DOC_PATHS = {
+    '/api/help',
+}
+
+V1_GET_COMPAT_PATHS = {
+    '/api/events/{eventId}/trigger',
+    '/api/file/onUpload/{ext}/**',
+    '/api/file/move/{fileName}',
+    '/api/git/reset',
+    '/api/network/interface/add/{interface}',
+    '/api/playlists/stop',
+    '/api/playlists/pause',
+    '/api/playlists/resume',
+    '/api/playlists/stopgracefully',
+    '/api/playlists/stopgracefullyafterloop',
+    '/api/playlist/{PlaylistName}/start',
+    '/api/playlist/{PlaylistName}/start/{Repeat}',
+    '/api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}',
+    '/api/plugin/{RepoName}/upgrade',
+    '/api/sequence/{SequenceName}/start/{startSecond}',
+    '/api/sequence/current/step',
+    '/api/sequence/current/stop',
+    '/api/sequence/current/togglePause',
+    '/api/scripts/installRemote/{category}/{filename}',
+    '/api/scripts/{scriptName}/run',
+    '/api/system/fppd/restart',
+    '/api/system/fppd/start',
+    '/api/system/fppd/stop',
+    '/api/system/reboot',
+    '/api/system/shutdown',
+}
 
 BADGE_COLORS = {
     'success':  '#2e7d32',
@@ -163,8 +195,28 @@ def load_endpoints():
         source = open(php_file, encoding='utf-8', errors='replace').read()
         for ep in parse_docblocks(source):
             endpoints.append(ep)
+    endpoints = rewrite_v1_compat_routes(endpoints)
     endpoints.sort(key=lambda e: (e['path'], e['method']))
     return endpoints
+
+
+def rewrite_v1_compat_routes(endpoints):
+    rewritten = []
+    for ep in endpoints:
+        path = ep['path']
+        if path.startswith('/api/v2/'):
+            continue
+        if path in ROUTELESS_DOC_PATHS:
+            continue
+
+        current = dict(ep)
+        if current['method'] == 'post' and current['path'] in V1_GET_COMPAT_PATHS:
+            current['method'] = 'get'
+            current['body_raw'] = None
+
+        rewritten.append(current)
+
+    return rewritten
 
 
 # ---------------------------------------------------------------------------

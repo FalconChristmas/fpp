@@ -9,7 +9,7 @@
  * @param string $backupDir Absolute path to the directory to scan.
  * @return array List of relative directory paths found under $backupDir.
  */
-function GetAvailableBackupsFromDir($backupDir)
+function getAvailableBackupsFromDir($backupDir)
 {
 	global $settings;
 
@@ -60,7 +60,7 @@ function GetAvailableBackupsFromDir($backupDir)
 function GetAvailableBackups()
 {
 	global $settings;
-	return json(GetAvailableBackupsFromDir($settings['mediaDirectory'] . '/backups/'));
+	return json(getAvailableBackupsFromDir($settings['mediaDirectory'] . '/backups/'));
 }
 
 /**
@@ -105,7 +105,7 @@ function GetAvailableBackupsOnDevice()
 	$deviceName = params('DeviceName');
 	$dirs = array();
 
-	$dirs = DriveMountHelper($deviceName, 'GetAvailableBackupsFromDir', array('/mnt/tmp/'));
+	$dirs = driveMountHelper($deviceName, 'getAvailableBackupsFromDir', array('/mnt/tmp/'));
 
 	return json($dirs);
 }
@@ -124,7 +124,7 @@ function GetAvailableBackupsOnDevice()
  * @param bool   $returnResultCodes       Whether to return output and result codes of the commands that were run.
  * @return mixed Callback return value, or an array with detailed command results when $returnResultCodes is true.
  */
-function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = array(), $mountPath = '/mnt/tmp', $unmountWhenDone = true, $globalNameSpace = false, $returnResultCodes = false)
+function driveMountHelper($deviceName, $usercallback_function, $functionArgs = array(), $mountPath = '/mnt/tmp', $unmountWhenDone = true, $globalNameSpace = false, $returnResultCodes = false)
 {
 	global $SUDO;
 	$dirs = array();
@@ -181,7 +181,7 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 	if ($returnResultCodes === true) {
 		return (array('dirs' => $dirs,
 			'fsType' => array('fsTypeOutput' => $fsTypeOutput, 'fsTypeResultCode' => $fsTypeResultCode),
-			'mountCmd' => array('mountCmdOutput' => $mountCmdOutput, 'mountCmdResultCode' => $mountCmdResultCode, 'mountCmdResultCodeText' => MountReturnCodeMap($mountCmdResultCode), 'actualMountCmd' => $mountCmd),
+			'mountCmd' => array('mountCmdOutput' => $mountCmdOutput, 'mountCmdResultCode' => $mountCmdResultCode, 'mountCmdResultCodeText' => mountReturnCodeMap($mountCmdResultCode), 'actualMountCmd' => $mountCmd),
 			'unmountCmd' => array('unmountCmdOutput' => $unmountCmdOutput, 'unmountCmdResultCode' => $unmountCmdResultCode),
 			'args' => array('mountPath' => '/mnt/tmp', 'unmountWhenDone' => $unmountWhenDone, 'globalNameSpace' => $globalNameSpace)
 		)
@@ -223,7 +223,7 @@ function MountDevice()
 	//Make sure we have a valid device name supplied
 	if (isset($deviceName) && ($deviceName !== "no" || $deviceName !== "")) {
 		//Mount the device at the specified location
-		$mountResult = DriveMountHelper($deviceName, '', array(), $drive_mount_location, false, true, true);
+		$mountResult = driveMountHelper($deviceName, '', array(), $drive_mount_location, false, true, true);
 
 		//Check the relevant result code keys exist in the returned data
 		if (array_key_exists('mountCmd', $mountResult) && array_key_exists('mountCmdResultCode', $mountResult['mountCmd'])) {
@@ -287,7 +287,7 @@ function UnmountDevice()
 		//Unmount device from the root namespace (it will be mounted there)
 		$umountCmd = exec($SUDO . $nsEnter . ' umount -l ' . $drive_mount_location, $unmountCmdOutput, $unmountCmdResultCode);
 		//This could be incorrect as this result codes are for the mount command, but will give us an idea
-		$unmountCmdOutputText = MountReturnCodeMap($unmountCmdResultCode);
+		$unmountCmdOutputText = mountReturnCodeMap($unmountCmdResultCode);
 
 		//Remove the folder that is created for the device to be mounted under
 		exec($SUDO . ' rmdir ' . $drive_mount_location);
@@ -353,22 +353,22 @@ function GetAvailableJSONBackups(){
 	//Grabs only the array keys which contain the JSON filenames
 	$json_config_backup_filenames = (read_directory_files($dir_jsonbackups, false, true, 'asc'));
 	//Process the backup files to extra some info about them
-	$json_config_backup_filenames = process_jsonbackup_file_data_helper($json_config_backup_filenames, $dir_jsonbackups);
+	$json_config_backup_filenames = processJsonBackupFileDataHelper($json_config_backup_filenames, $dir_jsonbackups);
 
 	//See what backups are stored on the selected storage device if it's value is set
 	if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation'])) {
 		$dir_jsonbackupsalternate = GetDirSetting('JsonBackupsAlternate');
 
 		//$settings['jsonConfigBackupUSBLocation'] is the selected alternative drive to stop backups to
-		$json_config_backup_filenames_on_alternative = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'read_directory_files', array($dir_jsonbackupsalternate, false, true, 'asc'));
+		$json_config_backup_filenames_on_alternative = driveMountHelper($settings['jsonConfigBackupUSBLocation'], 'read_directory_files', array($dir_jsonbackupsalternate, false, true, 'asc'));
 		//Process the backup files to extra some info about them
-		$json_config_backup_filenames_on_alternative =  DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'process_jsonbackup_file_data_helper', array($json_config_backup_filenames_on_alternative, $dir_jsonbackupsalternate));
+		$json_config_backup_filenames_on_alternative =  driveMountHelper($settings['jsonConfigBackupUSBLocation'], 'processJsonBackupFileDataHelper', array($json_config_backup_filenames_on_alternative, $dir_jsonbackupsalternate));
 	}
 	//Merge the results together, if the same backup name exists in the alternative backup location it will overwrite the record from the local cnfig directory
 	$json_config_backup_filenames_clean = array_merge($json_config_backup_filenames, $json_config_backup_filenames_on_alternative);
 
 	//Once merged - do another sort on the entries but sort on the backup_time_unix value
-	usort($json_config_backup_filenames_clean, "sort_backup_time_asc");
+	usort($json_config_backup_filenames_clean, "sortBackupTimeAsc");
 
 	return json($json_config_backup_filenames_clean);
 }
@@ -380,7 +380,7 @@ function GetAvailableJSONBackups(){
  * @param string $source_directory        Absolute path to the directory containing the backup files.
  * @return array Processed array keyed by clean backup name with metadata fields.
  */
-function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_directory)
+function processJsonBackupFileDataHelper($json_config_backup_Data, $source_directory)
 {
 	global $settings;
 
@@ -404,7 +404,7 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 		$decoded_backup_data = json_decode(file_get_contents($backup_filepath . '/' . $backup_filename), true);
 		if (is_null($decoded_backup_data)) {
 			$decode_error_result = array('Status' => 'Error', 'Message' => 'Unable to decode JSON backup file (' . $backup_filepath . '/' . $backup_filename, 'IsReadable' => is_readable($backup_filepath . '/' . $backup_filename), 'FileContent' => file_get_contents($backup_filepath . '/' . $backup_filename));
-			error_log('process_jsonbackup_file_data_helper: ( ' . json_encode($decode_error_result) . ' )');
+			error_log('processJsonBackupFileDataHelper: ( ' . json_encode($decode_error_result) . ' )');
 		}
 
 		if (is_array($decoded_backup_data) && array_key_exists('backup_comment', $decoded_backup_data)) {
@@ -534,7 +534,7 @@ function GetAvailableJSONBackupsOnDevice(){
 	//Get the full directory path for the type of directory type we're processing
 	$dir_jsonbackupsalternate = GetDirSetting('JsonBackupsAlternate');
 
-	$json_config_backup_filenames = DriveMountHelper($deviceName, 'read_directory_files', array($dir_jsonbackupsalternate, false, true));
+	$json_config_backup_filenames = driveMountHelper($deviceName, 'read_directory_files', array($dir_jsonbackupsalternate, false, true));
 
 	//do some additional massaging of the data
 	$json_config_backup_filenames = array_keys($json_config_backup_filenames);
@@ -624,7 +624,7 @@ function RestoreJsonBackup(){
 		} else if ((strtolower($restore_from_directory) === 'jsonbackupsalternate')) {
 			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation'])) {
 				//Mount and read the json backup from the jsonConfigBackupUSBLocation location
-				$file_contents = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_get_contents', array($fullPath));
+				$file_contents = driveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_get_contents', array($fullPath));
 
 				//If the file was read ok, $file_contents will be false if there was issue reading the file
 				if ($file_contents !== FALSE) {
@@ -706,8 +706,8 @@ function DownloadJsonBackup(){
 			return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
 		}
 	} elseif (strtolower($dirName) == "jsonbackupsalternate") {
-		//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
-		$fileExists = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_exists', array($fullPath));
+		//Use our driveMountHelper to mount the specified USB drive and check if the file exists
+		$fileExists = driveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_exists', array($fullPath));
 
 		if ($fileExists) {
 			//Content type will always be json so see the header
@@ -718,7 +718,7 @@ function DownloadJsonBackup(){
 			ob_clean();
 			flush();
 
-			DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'readfile', array($fullPath));
+			driveMountHelper($settings['jsonConfigBackupUSBLocation'], 'readfile', array($fullPath));
 		} else {
 			$status = "File Not Found";
 			return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
@@ -763,10 +763,10 @@ function DeleteJsonBackup(){
 		$fileExists = file_exists($fullPath);
 
 	} elseif (strtolower($dirName) == "jsonbackupsalternate") {
-		//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
+		//Use our driveMountHelper to mount the specified USB drive and check if the file exists
 
 		//Mount the drive and see if the file exists
-		$fileExists = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_exists', array($fullPath));
+		$fileExists = driveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_exists', array($fullPath));
 	}
 
 	if ($dir == "") {
@@ -779,9 +779,9 @@ function DeleteJsonBackup(){
 			//Check if the file exists, we can use unlink directly on the path for normal jsonhackups as it's going to be in the /home/fpp directory
 			$fileDeleted = unlink($fullPath);
 		} elseif (strtolower($dirName) == "jsonbackupsalternate") {
-			//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
+			//Use our driveMountHelper to mount the specified USB drive and check if the file exists
 			// Mount the drive and delete the file
-			$fileDeleted = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'unlink', array($fullPath));
+			$fileDeleted = driveMountHelper($settings['jsonConfigBackupUSBLocation'], 'unlink', array($fullPath));
 
 			//ALSO check if the file exists in the /home/fpp/media location, because the backup we're deleting could have been copied to USB from location
 			//and we want to delete it in both
@@ -813,7 +813,7 @@ function DeleteJsonBackup(){
  * @param array $b Second backup entry.
  * @return int Negative, zero, or positive.
  */
-function sort_backup_time_asc($a, $b)
+function sortBackupTimeAsc($a, $b)
 {
 	return $b['backup_time_unix'] - $a['backup_time_unix'];
 }
@@ -824,7 +824,7 @@ function sort_backup_time_asc($a, $b)
  * @param int $returnCode The numeric return code from the mount command.
  * @return string Human-readable status string.
  */
-function MountReturnCodeMap($returnCode)
+function mountReturnCodeMap($returnCode)
 {
     if ($returnCode == 0) {
         return 'success';

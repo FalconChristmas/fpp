@@ -22,7 +22,7 @@ require_once '../commandsocket.php';
 // Returns array('wasPlaying' => bool, 'playlist' => string, 'repeat' => bool)
 // Uses stream context timeout so PHP doesn't hang if fppd's HTTP handler
 // blocks during GStreamer pipeline teardown.
-function StopFppdPlaybackSafe($timeoutSec = 3)
+function stopFppdPlaybackSafe($timeoutSec = 3)
 {
     $result = array('wasPlaying' => false, 'playlist' => '', 'repeat' => false);
 
@@ -54,7 +54,7 @@ function StopFppdPlaybackSafe($timeoutSec = 3)
 // Helper: Send a setting to fppd, tolerating a non-responsive daemon.
 // Writes to the settings file (always works) then best-effort sends via
 // the command socket (1-second timeout built into SendCommand).
-function SetFppdSetting($key, $value)
+function setFppdSetting($key, $value)
 {
     WriteSettingToFile($key, $value);
     // SendCommand may fail if fppd is deadlocked/restarting — that's OK
@@ -168,7 +168,7 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
     }
 
     // Generate PipeWire config
-    $genResult = GeneratePipeWireGroupsConfig($data['groups'], true);
+    $genResult = generatePipeWireGroupsConfig($data['groups'], true);
     $conf = $genResult['conf'];
     $resolvedCardMap = $genResult['cardNodeMap'];
 
@@ -220,7 +220,7 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
         if (file_exists($igFile)) {
             $igData = json_decode(file_get_contents($igFile), true);
             if (is_array($igData) && isset($igData['inputGroups']) && !empty($igData['inputGroups'])) {
-                $igConf = GeneratePipeWireInputGroupsConfig($igData['inputGroups'], $data['groups']);
+                $igConf = generatePipeWireInputGroupsConfig($igData['inputGroups'], $data['groups']);
                 $igConfPath = "/etc/pipewire/pipewire.conf.d/96-fpp-input-groups.conf";
                 $igTmpFile = tempnam(sys_get_temp_dir(), 'fpp_pw_ig_');
                 file_put_contents($igTmpFile, $igConf);
@@ -248,7 +248,7 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
     // Without this, combine-stream output nodes can get linked to the default
     // sink (e.g. Sound Blaster) in addition to their intended filter-chain
     // targets, causing doubled audio.
-    InstallWirePlumberFppLinkingHook($SUDO);
+    installWirePlumberFppLinkingHook($SUDO);
 
     // When called with $skipRestart=true (e.g. from a MediaBackend mode switch),
     // config files are already written; the caller backgrounds the service restarts
@@ -282,7 +282,7 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
     // where WirePlumber creates rogue links to orphaned streams during the
     // service restart window.  Uses timeout to prevent deadlock if fppd's
     // GStreamer teardown blocks on PipeWire.
-    $playbackState = StopFppdPlaybackSafe(3);
+    $playbackState = stopFppdPlaybackSafe(3);
     $wasPlaying = $playbackState['wasPlaying'];
     $resumePlaylist = $playbackState['playlist'];
     $resumeRepeat = $playbackState['repeat'];
@@ -420,24 +420,24 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
         $fppdTarget = isset($igSlotTargets[1]) ? $igSlotTargets[1] : '';
         if (!empty($fppdTarget)) {
             exec($SUDO . " " . $env . " pactl set-default-sink " . escapeshellarg($fppdTarget) . " 2>&1");
-            SetFppdSetting('PipeWireSinkName', $fppdTarget);
+            setFppdSetting('PipeWireSinkName', $fppdTarget);
         }
         for ($s = 2; $s <= 5; $s++) {
             $key = "PipeWireSinkName_$s";
             if (isset($igSlotTargets[$s])) {
-                SetFppdSetting($key, $igSlotTargets[$s]);
+                setFppdSetting($key, $igSlotTargets[$s]);
             }
         }
     } else {
         if (!empty($activeGroup)) {
             exec($SUDO . " " . $env . " pactl set-default-sink " . escapeshellarg($activeGroup) . " 2>&1");
-            SetFppdSetting('PipeWireSinkName', $activeGroup);
+            setFppdSetting('PipeWireSinkName', $activeGroup);
         }
     }
 
     // Restore configured volume levels to PipeWire sinks.
     // WirePlumber may have restored stale volume state after restart.
-    RestorePipeWireGroupVolumes($data['groups']);
+    restorePipeWireGroupVolumes($data['groups']);
 
     // Resume playback if it was active before the restart
     if ($wasPlaying && !empty($resumePlaylist)) {
@@ -491,7 +491,7 @@ function GetPipeWireSinks()
 // Helper: Resolve an ALSA card ID (e.g. "S3", "vc4hdmi0") to its current
 // card number by reading /proc/asound/<cardId> symlink.
 // Returns the card number as int, or -1 if not found.
-function ResolveCardIdToNumber($cardId)
+function resolveCardIdToNumber($cardId)
 {
     $symlink = "/proc/asound/" . $cardId;
     if (is_link($symlink)) {
@@ -523,7 +523,7 @@ function ResolveCardIdToNumber($cardId)
 //   RATE: [8000 192000]   (continuous range)
 //
 // Returns $fallbackRate if the device cannot be queried.
-function QueryAlsaCardBestRate($cardId, $allowedRates, $fallbackRate)
+function queryAlsaCardBestRate($cardId, $allowedRates, $fallbackRate)
 {
     // Only alphanumeric + underscore card IDs are safe as hw: path components.
     if (!preg_match('/^[a-zA-Z0-9_]+$/', $cardId)) {
@@ -592,7 +592,7 @@ function GetPipeWireAudioCards()
     $cards = array();
 
     // User-defined sound card aliases (issue #2586) keyed by ALSA card ID
-    $audioCardAliases = LoadAudioCardAliases();
+    $audioCardAliases = loadAudioCardAliases();
 
     // Query running PipeWire sinks to map to actual node names
     $pwSinkNames = array(); // substring -> full node name
@@ -729,7 +729,7 @@ function GetPipeWireAudioCards()
                     // Resolve card number from api.alsa.path (e.g. "hw:S3" → card 5)
                     $fppAlsaPath = isset($pwProps['api.alsa.path']) ? $pwProps['api.alsa.path'] : '';
                     if (preg_match('/^hw:(.+)$/', $fppAlsaPath, $hwM)) {
-                        $fppCardNum = ResolveCardIdToNumber(trim($hwM[1]));
+                        $fppCardNum = resolveCardIdToNumber(trim($hwM[1]));
                         if ($fppCardNum >= 0) {
                             $pwSinkByAlsaCardNum[$fppCardNum] = $pwName;
                         }
@@ -1024,7 +1024,7 @@ function UpdatePipeWireEQRealtime()
         return json(array("status" => "ERROR", "message" => "Missing cardId or bands"));
     }
 
-    $nodeId = FindFXFilterChainNodeId($groupId, $cardId);
+    $nodeId = findFXFilterChainNodeId($groupId, $cardId);
 
     if ($nodeId === null) {
         // Filter-chain not running — needs Apply first
@@ -1081,7 +1081,7 @@ function UpdatePipeWireDelayRealtime()
         return json(array("status" => "ERROR", "message" => "Missing cardId"));
     }
 
-    $nodeId = FindFXFilterChainNodeId($groupId, $cardId);
+    $nodeId = findFXFilterChainNodeId($groupId, $cardId);
 
     if ($nodeId === null) {
         return json(array("status" => "NOT_RUNNING", "message" => "Filter chain not active — Save & Apply first"));
@@ -1112,7 +1112,7 @@ function UpdatePipeWireDelayRealtime()
 /////////////////////////////////////////////////////////////////////////////
 // Helper: resolve the PipeWire combine-sink node name for an audio group
 // by index (as ordered in pipewire-audio-groups.json).
-function GetSyncCalibrationSinkForGroup($groupIndex)
+function getSyncCalibrationSinkForGroup($groupIndex)
 {
     global $settings;
 
@@ -1148,13 +1148,13 @@ function StartSyncCalibration()
     $groupIndex = isset($data['groupIndex']) ? intval($data['groupIndex']) : 0;
     $mediaFile = isset($data['mediaFile']) ? trim($data['mediaFile']) : '';
 
-    $sinkName = GetSyncCalibrationSinkForGroup($groupIndex);
+    $sinkName = getSyncCalibrationSinkForGroup($groupIndex);
     if (!$sinkName) {
         return json(array("status" => "ERROR", "message" => "Could not resolve target sink for group index " . $groupIndex . " — make sure the group has been saved/applied."));
     }
 
     // Stop any existing calibration playback first
-    StopSyncCalibrationInternal();
+    stopSyncCalibrationInternal();
 
     // If the user picked a media file, play that to the group sink; otherwise
     // generate (if needed) and loop the click track.
@@ -1165,7 +1165,7 @@ function StartSyncCalibration()
         if ($resolved === false || strpos($resolved, realpath($musicDir)) !== 0 || !is_file($resolved)) {
             return json(array("status" => "ERROR", "message" => "Media file not found: " . $mediaFile));
         }
-        return StartSyncCalibrationPlayback($sinkName, $resolved, false);
+        return startSyncCalibrationPlayback($sinkName, $resolved, false);
     }
 
     $clickFile = $settings['mediaDirectory'] . "/music/fpp_sync_click.wav";
@@ -1185,12 +1185,12 @@ function StartSyncCalibration()
         }
     }
 
-    return StartSyncCalibrationPlayback($sinkName, $clickFile, true);
+    return startSyncCalibrationPlayback($sinkName, $clickFile, true);
 }
 
 // Spawn pw-cat (fed by ffmpeg for non-WAV files) targeted at the group sink.
 // $loop: if true, restart playback indefinitely until stopped.
-function StartSyncCalibrationPlayback($sinkName, $absFile, $loop)
+function startSyncCalibrationPlayback($sinkName, $absFile, $loop)
 {
     global $SUDO;
 
@@ -1235,11 +1235,11 @@ function StartSyncCalibrationPlayback($sinkName, $absFile, $loop)
 // Stop sync calibration playback
 function StopSyncCalibration()
 {
-    StopSyncCalibrationInternal();
+    stopSyncCalibrationInternal();
     return json(array("status" => "OK", "message" => "Sync calibration stopped"));
 }
 
-function StopSyncCalibrationInternal()
+function stopSyncCalibrationInternal()
 {
     global $SUDO;
 
@@ -1273,7 +1273,7 @@ function StopSyncCalibrationInternal()
 /////////////////////////////////////////////////////////////////////////////
 // Helper: Find the PipeWire node ID for a member's filter-chain
 // Looks for "fpp_fx_g<groupId>_<cardId>" first, falls back to legacy "fpp_eq_g<groupId>_<cardId>"
-function FindFXFilterChainNodeId($groupId, $cardId)
+function findFXFilterChainNodeId($groupId, $cardId)
 {
     global $SUDO;
 
@@ -1309,7 +1309,7 @@ function FindFXFilterChainNodeId($groupId, $cardId)
 // Without this hook, WirePlumber may create rogue links from combine outputs
 // to the default ALSA sink (e.g. Sound Blaster), causing doubled audio, and
 // may link filter-chain outputs back to the combine sink, creating loops.
-function InstallWirePlumberFppLinkingHook($SUDO)
+function installWirePlumberFppLinkingHook($SUDO)
 {
     $luaScript = <<<'LUA'
 -- FPP: Block default target fallback for combine-stream and filter-chain nodes
@@ -1616,7 +1616,7 @@ function ApplyPipeWireInputGroups($skipRestart = false)
     }
 
     // Generate PipeWire config
-    $conf = GeneratePipeWireInputGroupsConfig($data['inputGroups'], $outputGroups);
+    $conf = generatePipeWireInputGroupsConfig($data['inputGroups'], $outputGroups);
 
     // Ensure directory exists
     exec($SUDO . " /bin/mkdir -p /etc/pipewire/pipewire.conf.d");
@@ -1632,10 +1632,10 @@ function ApplyPipeWireInputGroups($skipRestart = false)
     file_put_contents($cachedConf, $conf);
 
     // Update WirePlumber hook to include input group patterns
-    InstallWirePlumberFppLinkingHook($SUDO);
+    installWirePlumberFppLinkingHook($SUDO);
 
     // Stop fppd playback before restarting PipeWire (with timeout protection)
-    $playbackState = StopFppdPlaybackSafe(3);
+    $playbackState = stopFppdPlaybackSafe(3);
     $wasPlaying = $playbackState['wasPlaying'];
     $resumePlaylist = $playbackState['playlist'];
     $resumeRepeat = $playbackState['repeat'];
@@ -1718,14 +1718,14 @@ function ApplyPipeWireInputGroups($skipRestart = false)
     if (!empty($fppdTarget)) {
         $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse";
         exec($SUDO . " " . $env . " pactl set-default-sink " . escapeshellarg($fppdTarget) . " 2>&1");
-        SetFppdSetting('PipeWireSinkName', $fppdTarget);
+        setFppdSetting('PipeWireSinkName', $fppdTarget);
     }
     for ($s = 2; $s <= 5; $s++) {
         $key = "PipeWireSinkName_$s";
         if (isset($slotTargets[$s])) {
-            SetFppdSetting($key, $slotTargets[$s]);
+            setFppdSetting($key, $slotTargets[$s]);
         } else {
-            SetFppdSetting($key, '');
+            setFppdSetting($key, '');
         }
     }
 
@@ -1797,7 +1797,7 @@ function SetInputGroupMemberVolume()
     $mbr = $targetGroup['members'][$memberIndex];
     $mbrType = isset($mbr['type']) ? $mbr['type'] : '';
 
-    // Build the expected loopback node name (must match GeneratePipeWireInputGroupsConfig)
+    // Build the expected loopback node name (must match generatePipeWireInputGroupsConfig)
     $groupName = isset($targetGroup['name']) ? $targetGroup['name'] : "Input Group";
     $mbrName = isset($mbr['name']) ? $mbr['name'] : "Member $memberIndex";
 
@@ -3125,7 +3125,7 @@ function GetPipeWireAudioSources()
 /////////////////////////////////////////////////////////////////////////////
 // Helper: Resolve ALSA card ID to exact PipeWire capture node name
 // Queries pw-dump to find the Audio/Source node matching the given card ID.
-function ResolveAlsaCaptureNodeName($cardId)
+function resolveAlsaCaptureNodeName($cardId)
 {
     global $SUDO;
 
@@ -3167,7 +3167,7 @@ function ResolveAlsaCaptureNodeName($cardId)
 
 /////////////////////////////////////////////////////////////////////////////
 // Helper: Generate PipeWire input group config (combine-stream + loopback)
-function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
+function generatePipeWireInputGroupsConfig($inputGroups, $outputGroups)
 {
     global $settings;
     $channelPositions = array(
@@ -3556,7 +3556,7 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                     $sourceTarget = $mbr['nodeName'];
                 } else {
                     // Resolve from pw-dump at config generation time
-                    $sourceTarget = ResolveAlsaCaptureNodeName($cardId);
+                    $sourceTarget = resolveAlsaCaptureNodeName($cardId);
                     if (empty($sourceTarget))
                         continue;
                 }
@@ -3653,7 +3653,7 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
 
 /////////////////////////////////////////////////////////////////////////////
 // Helper: Generate PipeWire combine-stream config from groups
-function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
+function generatePipeWireGroupsConfig($groups, $returnCardMap = false)
 {
     global $SUDO, $settings;
 
@@ -3733,7 +3733,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                             $cn = intval($dev);
                         } else {
                             // Stable card ID — resolve via /proc/asound
-                            $cn = ResolveCardIdToNumber($dev);
+                            $cn = resolveCardIdToNumber($dev);
                         }
                     }
                 }
@@ -3853,7 +3853,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             }
 
             // Priority 3: cardId → card number → node name
-            $cardNum = ResolveCardIdToNumber($cardId);
+            $cardNum = resolveCardIdToNumber($cardId);
             if ($cardNum >= 0 && isset($sinkCardNumMap[$cardNum])) {
                 $cardNodeMap[$cardId] = $sinkCardNumMap[$cardNum];
                 continue;
@@ -3867,7 +3867,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             // crashes fatally trying to open a missing ALSA device).
             if (isset($member['nodeTarget']) && !empty($member['nodeTarget'])) {
                 if (strpos($member['nodeTarget'], 'fpp_alsa_') === 0) {
-                    $p4CardNum = ResolveCardIdToNumber($cardId);
+                    $p4CardNum = resolveCardIdToNumber($cardId);
                     if ($p4CardNum < 0) {
                         $unresolvedCards[] = $cardId . " (device unplugged — will be restored when reconnected)";
                         continue;
@@ -4018,7 +4018,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             if (!$needsCustom)
                 continue;
             // Verify ALSA device is still present (may have been unplugged)
-            if (ResolveCardIdToNumber($cid) < 0)
+            if (resolveCardIdToNumber($cid) < 0)
                 continue;
             // Track max channels needed per card (same card in multiple groups)
             if (!isset($customAlsaAdapters[$cid]) || $memberCh > $customAlsaAdapters[$cid]['channels']) {
@@ -4107,7 +4107,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
         foreach ($customAlsaAdapters as $cid => $info) {
             // Verify ALSA device is physically present before creating adapter.
             // A missing device causes PipeWire to crash fatally on startup.
-            if (ResolveCardIdToNumber($cid) < 0) {
+            if (resolveCardIdToNumber($cid) < 0) {
                 $conf .= "  # SKIPPED: $cid — ALSA card not present (device unplugged?)\n";
                 unset($cardNodeMap[$cid]);
                 continue;
@@ -4119,7 +4119,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             $conf .= "      factory.name = api.alsa.pcm.sink\n";
             $conf .= "      node.name = \"" . $info['nodeName'] . "\"\n";
             // Read USB product name for consistent description
-            $cardNumForDesc = ResolveCardIdToNumber($cid);
+            $cardNumForDesc = resolveCardIdToNumber($cid);
             $productNameForDesc = $cid;
             if ($cardNumForDesc >= 0) {
                 $sysfsProduct = @file_get_contents("/sys/class/sound/card$cardNumForDesc/device/product");
@@ -4139,7 +4139,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             $conf .= "      api.alsa.period-size = $adapterPeriod\n";
             // USB audio cards need extra headroom: their independent oscillators
             // drift relative to the PipeWire graph driver clock, causing resyncs.
-            $cardNum = ResolveCardIdToNumber($cid);
+            $cardNum = resolveCardIdToNumber($cid);
             $isUsb = false;
             if ($cardNum >= 0) {
                 $driverLink = @readlink("/sys/class/sound/card$cardNum/device/driver");
@@ -4155,7 +4155,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                 if (isset($sinkCardRateMap[$cid])) {
                     $adapterRate = $sinkCardRateMap[$cid];
                 } else {
-                    $adapterRate = QueryAlsaCardBestRate($cid, $allowedRates, $alsaRate);
+                    $adapterRate = queryAlsaCardBestRate($cid, $allowedRates, $alsaRate);
                 }
             }
             $conf .= "      audio.rate = " . $adapterRate . "\n";
@@ -4435,10 +4435,10 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// RestorePipeWireGroupVolumes
+// restorePipeWireGroupVolumes
 // Apply per-group and per-member volume levels from the audio groups JSON
 // to the running PipeWire sinks via pactl.  Call after PipeWire restart.
-function RestorePipeWireGroupVolumes($groups = null)
+function restorePipeWireGroupVolumes($groups = null)
 {
     global $SUDO, $settings;
 
@@ -5657,7 +5657,7 @@ function GetPipeWireGraph()
 /////////////////////////////////////////////////////////////////////////////
 // Helper: Enumerate available DRM/KMS video connectors via sysfs.
 // Returns array of { connector, card, connectorId, connected, width, height }
-function GetVideoConnectors()
+function getVideoConnectors()
 {
     $connectors = array();
     $drmDir = '/sys/class/drm';
@@ -5727,7 +5727,7 @@ function GetVideoConnectors()
 
 /////////////////////////////////////////////////////////////////////////////
 // Helper: Enumerate available PixelOverlay models for video output.
-function GetVideoOverlayModels()
+function getVideoOverlayModels()
 {
     $models = array();
     $ctx = stream_context_create(array('http' => array('timeout' => 2)));
@@ -5761,8 +5761,8 @@ function GetVideoOverlayModels()
 function GetVideoOutputTargets()
 {
     return json(array(
-        'connectors' => GetVideoConnectors(),
-        'overlayModels' => GetVideoOverlayModels(),
+        'connectors' => getVideoConnectors(),
+        'overlayModels' => getVideoOverlayModels(),
     ));
 }
 
@@ -5878,7 +5878,7 @@ function ApplyPipeWireVideoGroups($overrideData = null)
     }
 
     // Resolve hardware info once
-    $connectors = GetVideoConnectors();
+    $connectors = getVideoConnectors();
     $connectorMap = array();
     foreach ($connectors as $c) {
         $connectorMap[$c['connector']] = $c;
@@ -6007,7 +6007,7 @@ function ApplyPipeWireVideoGroups($overrideData = null)
             $key = ($s === 1) ? 'PipeWireVideoSinkName' : "PipeWireVideoSinkName_$s";
             if ($anyGroupUnrestricted || isset($slotsNeeded[$s])) {
                 WriteSettingToFile($key, $videoSinkName);
-                SetFppdSetting($key, $videoSinkName);
+                setFppdSetting($key, $videoSinkName);
             } else {
                 WriteSettingToFile($key, '');
                 @SendCommand("setSetting,$key,");
@@ -6018,7 +6018,7 @@ function ApplyPipeWireVideoGroups($overrideData = null)
     }
 
     // Install / update WirePlumber hook (already has video patterns)
-    InstallWirePlumberFppLinkingHook($SUDO);
+    installWirePlumberFppLinkingHook($SUDO);
 
     // Signal fppd to reload video consumer config
     @SendCommand("reloadVideoOutputs");
@@ -6407,7 +6407,7 @@ function SaveVideoRoutingMatrix()
 // ALSA card ID (read from /proc/asound/cardN/id).  Used by Simple PipeWire
 // mode to translate the legacy AudioOutput numeric setting into the cardId
 // string consumed by PipeWire audio groups.
-function ResolveAlsaCardNumberToId($cardNum)
+function resolveAlsaCardNumberToId($cardNum)
 {
     $cardNum = (string) intval($cardNum);
     $idFile = "/proc/asound/card{$cardNum}/id";
@@ -6422,9 +6422,9 @@ function ResolveAlsaCardNumberToId($cardNum)
 /////////////////////////////////////////////////////////////////////////////
 // Build a single-group audio data structure from the AudioOutput setting.
 // Returns an array shaped like the contents of pipewire-audio-groups.json.
-function BuildSimpleAudioGroupsData($audioOutput)
+function buildSimpleAudioGroupsData($audioOutput)
 {
-    $cardId = ResolveAlsaCardNumberToId($audioOutput);
+    $cardId = resolveAlsaCardNumberToId($audioOutput);
     if ($cardId === '') {
         return array("groups" => array());
     }
@@ -6456,7 +6456,7 @@ function BuildSimpleAudioGroupsData($audioOutput)
 // Returns an array shaped like pipewire-video-groups.json, or null if the
 // VideoOutput value does not map to a real DRM connector (Disabled,
 // --Default--, etc.) — in which case the video pipeline is skipped.
-function BuildSimpleVideoGroupsData($videoOutput)
+function buildSimpleVideoGroupsData($videoOutput)
 {
     if (empty($videoOutput) || $videoOutput === 'Disabled' || $videoOutput === '--Default--') {
         return array("videoOutputGroups" => array());
@@ -6464,7 +6464,7 @@ function BuildSimpleVideoGroupsData($videoOutput)
 
     // Validate the connector exists; bail out if not (e.g. Composite-1 on
     // a board without that connector).
-    $connectors = GetVideoConnectors();
+    $connectors = getVideoConnectors();
     $found = false;
     foreach ($connectors as $c) {
         if ($c['connector'] === $videoOutput) {
@@ -6509,8 +6509,8 @@ function ApplyPipeWireSimpleConfig($skipRestart = false)
     $audioOutput = isset($settings['AudioOutput']) ? $settings['AudioOutput'] : '0';
     $videoOutput = isset($settings['VideoOutput']) ? $settings['VideoOutput'] : '';
 
-    $audioData = BuildSimpleAudioGroupsData($audioOutput);
-    $videoData = BuildSimpleVideoGroupsData($videoOutput);
+    $audioData = buildSimpleAudioGroupsData($audioOutput);
+    $videoData = buildSimpleVideoGroupsData($videoOutput);
 
     // Persist a record of the synthesised config so the boot-time apply
     // (and any future debugging) can see what Simple mode produced.
@@ -6530,7 +6530,7 @@ function ApplyPipeWireSimpleConfig($skipRestart = false)
     ApplyPipeWireVideoGroups($videoData);
     ob_end_clean();
 
-    $cardId = ResolveAlsaCardNumberToId($audioOutput);
+    $cardId = resolveAlsaCardNumberToId($audioOutput);
     return json(array(
         "status" => "OK",
         "message" => "Simple PipeWire config applied",
