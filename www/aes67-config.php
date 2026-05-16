@@ -152,11 +152,6 @@
                 z-index: 99998 !important;
             }
 
-            body {
-                background: #fff !important;
-                color: #212529 !important;
-            }
-
         <?php } ?>
     </style>
 </head>
@@ -255,7 +250,7 @@
             <div class="modal fade" id="modalDialogBase" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"
                 aria-labelledby="modalDialogLabel" aria-hidden="true">
                 <div class="modal-dialog">
-                    <div class="modal-content" style="background:#fff;color:#212529;">
+                    <div class="modal-content">
                         <div class="modal-header">
                             <h3 class="modal-title fs-5" id="modalDialogLabel"></h3>
                             <button id="modalCloseButton" type="button" class="btn-close" data-bs-dismiss="modal"

@@ -39,16 +39,18 @@
         .ig-header .ig-name-input {
             font-size: 1.1rem;
             font-weight: 600;
-            border: 1px solid #ccc;
-            background: white;
+            border: 1px solid var(--bs-border-color, #ccc);
+            background: var(--bs-body-bg, #fff);
+            color: var(--bs-body-color, #212529);
             padding: 0.25rem 0.5rem;
             border-radius: 3px;
             min-width: 250px;
         }
 
         .ig-header .ig-name-input:focus {
-            border-color: #007cba;
-            background: white;
+            border-color: var(--bs-primary, #007cba);
+            background: var(--bs-body-bg, #fff);
+            color: var(--bs-body-color, #212529);
             outline: none;
             box-shadow: 0 0 3px rgba(0, 124, 186, 0.3);
         }
@@ -277,7 +279,7 @@
 </head>
 
 <body<?php if ($modalMode)
-    echo ' style="margin:0;padding:1rem;background:#fff;color:#212529;"'; ?>>
+    echo ' style="margin:0;padding:1rem;"'; ?>>
     <?php if (!$modalMode) { ?>
         <div id="bodyWrapper">
             <?php

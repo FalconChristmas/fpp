@@ -39,16 +39,18 @@
         .group-header .group-name-input {
             font-size: 1.1rem;
             font-weight: 600;
-            border: 1px solid #ccc;
-            background: white;
+            border: 1px solid var(--bs-border-color, #ccc);
+            background: var(--bs-body-bg, #fff);
+            color: var(--bs-body-color, #212529);
             padding: 0.25rem 0.5rem;
             border-radius: 3px;
             min-width: 250px;
         }
 
         .group-header .group-name-input:focus {
-            border-color: #007cba;
-            background: white;
+            border-color: var(--bs-primary, #007cba);
+            background: var(--bs-body-bg, #fff);
+            color: var(--bs-body-color, #212529);
             outline: none;
             box-shadow: 0 0 3px rgba(0, 124, 186, 0.3);
         }
@@ -188,7 +190,7 @@
         }
 
         #applyOverlay .apply-box {
-            background: #fff;
+            background: var(--bs-body-bg, #fff);
             border-radius: 8px;
             padding: 2rem;
             text-align: center;
@@ -198,7 +200,7 @@
 </head>
 
 <body<?php if ($modalMode)
-    echo ' style="margin:0;padding:1rem;background:#fff;color:#212529;"'; ?>>
+    echo ' style="margin:0;padding:1rem;"'; ?>>
     <?php if (!$modalMode) { ?>
         <div id="bodyWrapper">
             <?php
@@ -295,7 +297,7 @@
         <div class="modal fade" id="modalDialogBase" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"
             aria-labelledby="modalDialogLabel" aria-hidden="true">
             <div class="modal-dialog">
-                <div class="modal-content" style="background:#fff;color:#212529;">
+                <div class="modal-content">
                     <div class="modal-header">
                         <h3 class="modal-title fs-5" id="modalDialogLabel"></h3>
                         <button id="modalCloseButton" type="button" class="btn-close" data-bs-dismiss="modal"

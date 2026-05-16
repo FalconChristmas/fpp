@@ -39,16 +39,18 @@
         .group-header .group-name-input {
             font-size: 1.1rem;
             font-weight: 600;
-            border: 1px solid #ccc;
-            background: white;
+            border: 1px solid var(--bs-border-color, #ccc);
+            background: var(--bs-body-bg, #fff);
+            color: var(--bs-body-color, #212529);
             padding: 0.25rem 0.5rem;
             border-radius: 3px;
             min-width: 300px;
         }
 
         .group-header .group-name-input:focus {
-            border-color: #007cba;
-            background: white;
+            border-color: var(--bs-primary, #007cba);
+            background: var(--bs-body-bg, #fff);
+            color: var(--bs-body-color, #212529);
             outline: none;
             box-shadow: 0 0 3px rgba(0, 124, 186, 0.3);
         }
@@ -359,7 +361,7 @@
 </head>
 
 <body<?php if ($modalMode)
-    echo ' style="margin:0;padding:1rem;background:#fff;color:#212529;"'; ?>>
+    echo ' style="margin:0;padding:1rem;"'; ?>>
     <?php if (!$modalMode) { ?>
         <div id="bodyWrapper">
             <?php
@@ -448,7 +450,7 @@
         <div class="modal fade" id="modalDialogBase" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"
             aria-labelledby="modalDialogLabel" aria-hidden="true">
             <div class="modal-dialog">
-                <div class="modal-content" style="background:#fff;color:#212529;">
+                <div class="modal-content">
                     <div class="modal-header">
                         <h3 class="modal-title fs-5" id="modalDialogLabel"></h3>
                         <button id="modalCloseButton" type="button" class="btn-close" data-bs-dismiss="modal"
@@ -1607,9 +1609,9 @@
                     'position:fixed;top:0;left:0;right:0;bottom:0;' +
                     'background:rgba(0,0,0,0.6);z-index:9999;' +
                     'display:flex;align-items:center;justify-content:center;">' +
-                    '<div style="background:#fff;border-radius:8px;padding:2rem 2.5rem;text-align:center;max-width:400px;">' +
-                    '<div><i class="fas fa-spinner fa-spin fa-2x" style="color:#0d6efd;"></i></div>' +
-                    '<div id="apply-progress-msg" style="margin-top:1rem;font-size:1.1rem;color:#333;"></div>' +
+                    '<div style="background:var(--bs-body-bg,#fff);border-radius:8px;padding:2rem 2.5rem;text-align:center;max-width:400px;">' +
+                    '<div><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--bs-primary,#0d6efd);"></i></div>' +
+                    '<div id="apply-progress-msg" style="margin-top:1rem;font-size:1.1rem;color:var(--bs-body-color,#333);"></div>' +
                     '</div></div>');
                 $('body').append(overlay);
             }

@@ -219,7 +219,7 @@
 </head>
 
 <body<?php if ($modalMode)
-    echo ' class="modal-mode" style="margin:0;padding:0.75rem;background:#fff;color:#212529;"'; ?>>
+    echo ' class="modal-mode" style="margin:0;padding:0.75rem;"'; ?>>
     <?php if (!$modalMode) { ?>
         <div id="bodyWrapper">
             <?php
