@@ -519,10 +519,19 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
     if (port < portPins.size() && portPins[port] && portPins[port]->name == name) {
         PortPinInfo* pi = portPins[port];
         if (pi->enablePin) {
-            if (pi->highToEnable) {
-                pullHighOutputPins.remove(pi->enablePin);
-            } else {
-                pullLowOutputPins.remove(pi->enablePin);
+            bool sharedWithEnabledPort = false;
+            for (auto other : portPins) {
+                if (other && other != pi && other->enablePin == pi->enablePin && other->receivers[0].enabled) {
+                    sharedWithEnabledPort = true;
+                    break;
+                }
+            }
+            if (!sharedWithEnabledPort) {
+                if (pi->highToEnable) {
+                    pullHighOutputPins.remove(pi->enablePin);
+                } else {
+                    pullLowOutputPins.remove(pi->enablePin);
+                }
             }
         }
         if (pi->eFusePin) {
@@ -556,20 +565,13 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
     if (pinConfig.isMember("enablePin")) {
         std::string ep = pinConfig.get("enablePin", "").asString();
         if (ep != "") {
-            pi->enablePin = AddOutputPin(name, ep);
+            pi->highToEnable = (ep[0] != '!');
+            pi->enablePin = AddOutputPin(name, ep, enabled);
             if (!pi->enablePin) {
                 enabled = false;
             }
-            pi->highToEnable = (ep[0] != '!');
             if (!enabled) {
                 pi->receivers[0].enabled = false;
-                if (pi->enablePin) {
-                    if (pi->highToEnable) {
-                        pullHighOutputPins.pop_back();
-                    } else {
-                        pullLowOutputPins.pop_back();
-                    }
-                }
             }
             hasInfo = true;
         }
@@ -741,7 +743,7 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
     }
 }
 
-const PinCapabilities* OutputMonitor::AddOutputPin(const std::string& name, const std::string& pinName) {
+const PinCapabilities* OutputMonitor::AddOutputPin(const std::string& name, const std::string& pinName, bool addToList) {
     std::string pin = pinName;
     bool highToEnable = true;
     if (pin[0] == '!') {
@@ -762,7 +764,9 @@ const PinCapabilities* OutputMonitor::AddOutputPin(const std::string& name, cons
         return nullptr;
     }
     std::unique_lock<std::mutex> lock(gpioLock);
-    op.push_back(pc);
+    if (addToList) {
+        op.push_back(pc);
+    }
     pc->configPin("gpio", true, "Enable-" + name);
     pc->setValue(!highToEnable);
     return pc;

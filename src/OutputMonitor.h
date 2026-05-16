@@ -32,7 +32,7 @@ public:
 
     void RemovePortConfiguration(int port, const Json::Value& config);
     void AddPortConfiguration(int port, const Json::Value& config, bool enabled = true);
-    const PinCapabilities* AddOutputPin(const std::string& name, const std::string& pin);
+    const PinCapabilities* AddOutputPin(const std::string& name, const std::string& pin, bool addToList = true);
 
     void EnableOutputs();
     void DisableOutputs();
