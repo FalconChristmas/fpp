@@ -1,0 +1,85 @@
+#!/usr/bin/php
+<?php
+/////////////////////////////////////////////////////////////////////////////
+// apply_pipewire_simple_config
+//
+// Generates and applies the PipeWire Simple mode audio/video configuration
+// from the current AudioOutput and VideoOutput settings.  Called by FPPINIT
+// when MediaBackend is 'pipewire-simple' and the simple groups JSON does not
+// yet exist (e.g. first boot after OS upgrade or fresh flash).
+//
+// This is equivalent to saving audio settings via the UI, which triggers
+// ApplyPipeWireSimpleConfig() and writes PipeWireSinkName to the settings
+// file.
+//
+// Usage:  apply_pipewire_simple_config
+//
+// Exit codes:
+//   0  Success
+//   1  Error (wrong backend, missing settings, etc.)
+/////////////////////////////////////////////////////////////////////////////
+
+$SUDO = "";
+if (posix_getuid() !== 0) {
+    $SUDO = "sudo";
+}
+
+// Load settings
+$settings = array();
+$settingsFile = "/home/fpp/media/settings";
+if (file_exists($settingsFile)) {
+    $lines = file($settingsFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (empty($line) || $line[0] === '#')
+            continue;
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value, " \t\n\r\0\x0B\"'");
+            $settings[$key] = $value;
+        }
+    }
+}
+if (!isset($settings['mediaDirectory']))
+    $settings['mediaDirectory'] = '/home/fpp/media';
+
+$mediaBackend = isset($settings['MediaBackend']) ? strtolower(trim($settings['MediaBackend'])) : 'alsa';
+if ($mediaBackend !== 'pipewire-simple') {
+    fprintf(STDERR, "FPP - apply_pipewire_simple_config: MediaBackend is '%s', not pipewire-simple — nothing to do\n", $mediaBackend);
+    exit(0);
+}
+
+$fppDir = isset($settings['fppDir']) ? $settings['fppDir'] : '/opt/fpp';
+chdir($fppDir . '/www/api');
+
+$_SERVER['REQUEST_URI'] = '/api/pipewire';
+$_SERVER['PHP_SELF'] = 'apply_pipewire_simple_config';
+
+if (!function_exists('json')) {
+    function json($data) {
+        return json_encode($data);
+    }
+}
+
+ob_start();
+require_once $fppDir . '/www/common.php';
+require_once $fppDir . '/www/api/controllers/pipewire.php';
+ob_end_clean();
+
+fprintf(STDERR, "FPP - apply_pipewire_simple_config: generating Simple PipeWire config (AudioOutput=%s)\n",
+    isset($settings['AudioOutput']) ? $settings['AudioOutput'] : '0');
+
+ob_start();
+ApplyPipeWireSimpleConfig();
+ob_end_clean();
+
+// Verify PipeWireSinkName was written
+$sinkName = ReadSettingFromFile('PipeWireSinkName');
+if (!empty($sinkName)) {
+    fprintf(STDERR, "FPP - apply_pipewire_simple_config: PipeWireSinkName set to '%s'\n", $sinkName);
+    exit(0);
+} else {
+    fprintf(STDERR, "FPP - apply_pipewire_simple_config: WARNING — PipeWireSinkName still empty after apply (no audio card detected?)\n");
+    exit(1);
+}

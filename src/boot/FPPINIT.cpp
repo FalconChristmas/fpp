@@ -2040,7 +2040,20 @@ static void setupAudio() {
     // configured sound card, and one input group with fppd_stream_1 routed
     // to it.  This ensures audio works immediately when switching to PipeWire.
     const std::string groupsJsonPath = FPP_MEDIA_DIR + "/config/pipewire-audio-groups.json";
+    const std::string simpleGroupsJsonPath = FPP_MEDIA_DIR + "/config/pipewire-audio-groups-simple.json";
     const std::string igJsonPath = FPP_MEDIA_DIR + "/config/pipewire-input-groups.json";
+
+    // Simple PipeWire mode: the active config lives in pipewire-audio-groups-simple.json
+    // and PipeWireSinkName is written by ApplyPipeWireSimpleConfig().  If that file is
+    // missing (e.g. OS upgrade, fresh flash, or settings migrated without an explicit
+    // UI save) synthesise it now from the current AudioOutput/VideoOutput settings so
+    // PipeWireSinkName is populated before fppd starts.
+    if (usePipeWireBackend && !runningInDocker && mediaBackendLower == "pipewire-simple"
+        && !FileExists(simpleGroupsJsonPath)) {
+        printf("FPP - pipewire-simple: no simple groups config found, generating from AudioOutput setting...\n");
+        system("/usr/bin/php /opt/fpp/scripts/apply_pipewire_simple_config");
+    }
+
     if (usePipeWireBackend && !runningInDocker && !FileExists(groupsJsonPath)) {
         std::string defCardId = getAlsaCardId(card);
         printf("FPP - First PipeWire setup: creating default output group (card %s) and input group\n", defCardId.c_str());
