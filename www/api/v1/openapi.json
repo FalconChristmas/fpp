@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "/",
+      "url": "/api/",
       "description": "Local FPP instance"
     }
   ],
@@ -137,7 +137,7 @@
     }
   ],
   "paths": {
-    "/api/backups/configuration": {
+    "/backups/configuration": {
       "post": {
         "tags": [
           "backups"
@@ -173,7 +173,7 @@
         }
       }
     },
-    "/api/backups/configuration/list": {
+    "/backups/configuration/list": {
       "get": {
         "tags": [
           "backups"
@@ -212,7 +212,7 @@
         }
       }
     },
-    "/api/backups/configuration/list/{DeviceName}": {
+    "/backups/configuration/list/{DeviceName}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -249,7 +249,7 @@
         }
       }
     },
-    "/api/backups/configuration/restore/{Directory}/{BackupFilename}": {
+    "/backups/configuration/restore/{Directory}/{BackupFilename}": {
       "parameters": [
         {
           "name": "Directory",
@@ -311,7 +311,7 @@
         }
       }
     },
-    "/api/backups/configuration/{Directory}/{BackupFilename}": {
+    "/backups/configuration/{Directory}/{BackupFilename}": {
       "parameters": [
         {
           "name": "Directory",
@@ -392,7 +392,7 @@
         }
       }
     },
-    "/api/backups/devices": {
+    "/backups/devices": {
       "get": {
         "tags": [
           "backups"
@@ -421,7 +421,7 @@
         }
       }
     },
-    "/api/backups/devices/mount/{DeviceName}/{MountLocation}": {
+    "/backups/devices/mount/{DeviceName}/{MountLocation}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -465,7 +465,7 @@
         }
       }
     },
-    "/api/backups/devices/unmount/{DeviceName}/{MountLocation}": {
+    "/backups/devices/unmount/{DeviceName}/{MountLocation}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -509,7 +509,7 @@
         }
       }
     },
-    "/api/backups/list": {
+    "/backups/list": {
       "get": {
         "tags": [
           "backups"
@@ -535,7 +535,7 @@
         }
       }
     },
-    "/api/backups/list/{DeviceName}": {
+    "/backups/list/{DeviceName}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -571,7 +571,7 @@
         }
       }
     },
-    "/api/cape": {
+    "/cape": {
       "get": {
         "tags": [
           "cape"
@@ -640,7 +640,7 @@
         }
       }
     },
-    "/api/cape/eeprom/sign/{key}/{order}": {
+    "/cape/eeprom/sign/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -683,7 +683,7 @@
         }
       }
     },
-    "/api/cape/eeprom/signingData": {
+    "/cape/eeprom/signingData": {
       "post": {
         "tags": [
           "cape"
@@ -723,7 +723,7 @@
         }
       }
     },
-    "/api/cape/eeprom/signingData/{key}/{order}": {
+    "/cape/eeprom/signingData/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -768,7 +768,7 @@
         }
       }
     },
-    "/api/cape/eeprom/signingFile/{key}/{order}": {
+    "/cape/eeprom/signingFile/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -808,7 +808,7 @@
         }
       }
     },
-    "/api/cape/eeprom/voucher": {
+    "/cape/eeprom/voucher": {
       "post": {
         "tags": [
           "cape"
@@ -851,7 +851,7 @@
         }
       }
     },
-    "/api/cape/options": {
+    "/cape/options": {
       "get": {
         "tags": [
           "cape"
@@ -881,7 +881,7 @@
         }
       }
     },
-    "/api/cape/panel": {
+    "/cape/panel": {
       "get": {
         "tags": [
           "cape"
@@ -903,7 +903,7 @@
         }
       }
     },
-    "/api/cape/panel/{key}": {
+    "/cape/panel/{key}": {
       "parameters": [
         {
           "name": "key",
@@ -935,7 +935,7 @@
         }
       }
     },
-    "/api/cape/strings": {
+    "/cape/strings": {
       "get": {
         "tags": [
           "cape"
@@ -960,7 +960,7 @@
         }
       }
     },
-    "/api/cape/strings/{key}": {
+    "/cape/strings/{key}": {
       "parameters": [
         {
           "name": "key",
@@ -1023,7 +1023,7 @@
         }
       }
     },
-    "/api/channel/input/stats": {
+    "/channel/input/stats": {
       "delete": {
         "tags": [
           "channel"
@@ -1090,7 +1090,7 @@
         }
       }
     },
-    "/api/channel/output/processors": {
+    "/channel/output/processors": {
       "get": {
         "tags": [
           "channel"
@@ -1180,7 +1180,7 @@
         }
       }
     },
-    "/api/channel/output/{file}": {
+    "/channel/output/{file}": {
       "parameters": [
         {
           "name": "file",
@@ -1255,7 +1255,7 @@
         }
       }
     },
-    "/api/command": {
+    "/command": {
       "post": {
         "tags": [
           "command"
@@ -1287,7 +1287,7 @@
         }
       }
     },
-    "/api/command/{command}": {
+    "/command/{command}": {
       "parameters": [
         {
           "name": "command",
@@ -1345,7 +1345,7 @@
         }
       }
     },
-    "/api/commandPresets": {
+    "/commandPresets": {
       "get": {
         "tags": [
           "commandPresets"
@@ -1370,7 +1370,7 @@
         }
       }
     },
-    "/api/commandPresets/{name}": {
+    "/commandPresets/{name}": {
       "parameters": [
         {
           "name": "name",
@@ -1394,7 +1394,7 @@
         }
       }
     },
-    "/api/commands": {
+    "/commands": {
       "get": {
         "tags": [
           "commands"
@@ -1408,7 +1408,7 @@
         }
       }
     },
-    "/api/commands/{command}": {
+    "/commands/{command}": {
       "parameters": [
         {
           "name": "command",
@@ -1435,7 +1435,7 @@
         }
       }
     },
-    "/api/configfile": {
+    "/configfile": {
       "get": {
         "tags": [
           "configfile"
@@ -1464,7 +1464,7 @@
         }
       }
     },
-    "/api/configfile/**": {
+    "/configfile/**": {
       "delete": {
         "tags": [
           "configfile"
@@ -1542,7 +1542,7 @@
         }
       }
     },
-    "/api/dir/{DirName}/{SubDir}": {
+    "/dir/{DirName}/{SubDir}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1610,7 +1610,7 @@
         }
       }
     },
-    "/api/effects": {
+    "/effects": {
       "get": {
         "tags": [
           "effects"
@@ -1635,7 +1635,7 @@
         }
       }
     },
-    "/api/effects/ALL": {
+    "/effects/ALL": {
       "get": {
         "tags": [
           "effects"
@@ -1661,7 +1661,7 @@
         }
       }
     },
-    "/api/email/configure": {
+    "/email/configure": {
       "post": {
         "tags": [
           "email"
@@ -1686,7 +1686,7 @@
         }
       }
     },
-    "/api/email/test": {
+    "/email/test": {
       "post": {
         "tags": [
           "email"
@@ -1711,7 +1711,7 @@
         }
       }
     },
-    "/api/events": {
+    "/events": {
       "get": {
         "tags": [
           "events"
@@ -1739,7 +1739,7 @@
         }
       }
     },
-    "/api/events/{eventId}": {
+    "/events/{eventId}": {
       "parameters": [
         {
           "name": "eventId",
@@ -1775,7 +1775,7 @@
         }
       }
     },
-    "/api/events/{eventId}/trigger": {
+    "/events/{eventId}/trigger": {
       "parameters": [
         {
           "name": "eventId",
@@ -1809,7 +1809,7 @@
         }
       }
     },
-    "/api/file/info/{plugin}/{ext}/**": {
+    "/file/info/{plugin}/{ext}/**": {
       "parameters": [
         {
           "name": "plugin",
@@ -1849,7 +1849,7 @@
         }
       }
     },
-    "/api/file/move/{fileName}": {
+    "/file/move/{fileName}": {
       "parameters": [
         {
           "name": "fileName",
@@ -1883,7 +1883,7 @@
         }
       }
     },
-    "/api/file/onUpload/{ext}/**": {
+    "/file/onUpload/{ext}/**": {
       "parameters": [
         {
           "name": "ext",
@@ -1917,7 +1917,7 @@
         }
       }
     },
-    "/api/file/{DirName}": {
+    "/file/{DirName}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1954,7 +1954,7 @@
         }
       }
     },
-    "/api/file/{DirName}/**": {
+    "/file/{DirName}/**": {
       "parameters": [
         {
           "name": "DirName",
@@ -2050,7 +2050,7 @@
         }
       }
     },
-    "/api/file/{DirName}/copy/{source}/{dest}": {
+    "/file/{DirName}/copy/{source}/{dest}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2102,7 +2102,7 @@
         }
       }
     },
-    "/api/file/{DirName}/rename/{source}/{dest}": {
+    "/file/{DirName}/rename/{source}/{dest}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2154,7 +2154,7 @@
         }
       }
     },
-    "/api/file/{DirName}/tailfollow/*": {
+    "/file/{DirName}/tailfollow/*": {
       "parameters": [
         {
           "name": "DirName",
@@ -2219,7 +2219,7 @@
         }
       }
     },
-    "/api/file/{DirName}/{Name}": {
+    "/file/{DirName}/{Name}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2283,7 +2283,7 @@
         }
       }
     },
-    "/api/files/Sequences/fps": {
+    "/files/Sequences/fps": {
       "get": {
         "tags": [
           "files"
@@ -2308,7 +2308,7 @@
         }
       }
     },
-    "/api/files/zip/{DirNames}": {
+    "/files/zip/{DirNames}": {
       "parameters": [
         {
           "name": "DirNames",
@@ -2340,7 +2340,7 @@
         }
       }
     },
-    "/api/files/{DirName}": {
+    "/files/{DirName}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2394,7 +2394,7 @@
         }
       }
     },
-    "/api/fppd/condition/preview": {
+    "/fppd/condition/preview": {
       "get": {
         "tags": [
           "fppd"
@@ -2455,7 +2455,7 @@
         }
       }
     },
-    "/api/fppd/e131stats": {
+    "/fppd/e131stats": {
       "delete": {
         "tags": [
           "fppd"
@@ -2481,7 +2481,7 @@
         }
       }
     },
-    "/api/fppd/effects": {
+    "/fppd/effects": {
       "get": {
         "tags": [
           "fppd"
@@ -2495,7 +2495,7 @@
         }
       }
     },
-    "/api/fppd/effects/{name}": {
+    "/fppd/effects/{name}": {
       "parameters": [
         {
           "name": "name",
@@ -2519,7 +2519,7 @@
         }
       }
     },
-    "/api/fppd/falcon/hardware": {
+    "/fppd/falcon/hardware": {
       "post": {
         "tags": [
           "fppd"
@@ -2533,7 +2533,7 @@
         }
       }
     },
-    "/api/fppd/gpio/ext": {
+    "/fppd/gpio/ext": {
       "post": {
         "tags": [
           "fppd"
@@ -2547,7 +2547,7 @@
         }
       }
     },
-    "/api/fppd/log": {
+    "/fppd/log": {
       "get": {
         "tags": [
           "fppd"
@@ -2561,7 +2561,7 @@
         }
       }
     },
-    "/api/fppd/log/level/{level}": {
+    "/fppd/log/level/{level}": {
       "parameters": [
         {
           "name": "level",
@@ -2597,7 +2597,7 @@
         }
       }
     },
-    "/api/fppd/mqtt/cache": {
+    "/fppd/mqtt/cache": {
       "get": {
         "tags": [
           "fppd"
@@ -2614,7 +2614,7 @@
         }
       }
     },
-    "/api/fppd/multiSyncStats": {
+    "/fppd/multiSyncStats": {
       "get": {
         "tags": [
           "fppd"
@@ -2639,7 +2639,7 @@
         }
       }
     },
-    "/api/fppd/multiSyncSystems": {
+    "/fppd/multiSyncSystems": {
       "get": {
         "tags": [
           "fppd"
@@ -2664,7 +2664,7 @@
         }
       }
     },
-    "/api/fppd/outputs": {
+    "/fppd/outputs": {
       "post": {
         "tags": [
           "fppd"
@@ -2678,7 +2678,7 @@
         }
       }
     },
-    "/api/fppd/outputs/remap": {
+    "/fppd/outputs/remap": {
       "post": {
         "tags": [
           "fppd"
@@ -2692,7 +2692,7 @@
         }
       }
     },
-    "/api/fppd/playlist/config": {
+    "/fppd/playlist/config": {
       "get": {
         "tags": [
           "fppd"
@@ -2706,7 +2706,7 @@
         }
       }
     },
-    "/api/fppd/playlist/filetime": {
+    "/fppd/playlist/filetime": {
       "get": {
         "tags": [
           "fppd"
@@ -2720,7 +2720,7 @@
         }
       }
     },
-    "/api/fppd/playlists": {
+    "/fppd/playlists": {
       "get": {
         "tags": [
           "fppd"
@@ -2734,7 +2734,7 @@
         }
       }
     },
-    "/api/fppd/ports": {
+    "/fppd/ports": {
       "get": {
         "tags": [
           "fppd"
@@ -2748,7 +2748,7 @@
         }
       }
     },
-    "/api/fppd/ports/list": {
+    "/fppd/ports/list": {
       "get": {
         "tags": [
           "fppd"
@@ -2774,7 +2774,7 @@
         }
       }
     },
-    "/api/fppd/ports/pixelCount": {
+    "/fppd/ports/pixelCount": {
       "get": {
         "tags": [
           "fppd"
@@ -2788,7 +2788,7 @@
         }
       }
     },
-    "/api/fppd/ports/stop": {
+    "/fppd/ports/stop": {
       "get": {
         "tags": [
           "fppd"
@@ -2802,7 +2802,7 @@
         }
       }
     },
-    "/api/fppd/schedule": {
+    "/fppd/schedule": {
       "get": {
         "tags": [
           "fppd"
@@ -2828,7 +2828,7 @@
         }
       }
     },
-    "/api/fppd/schedule/range": {
+    "/fppd/schedule/range": {
       "get": {
         "tags": [
           "fppd"
@@ -2883,7 +2883,7 @@
         }
       }
     },
-    "/api/fppd/sequence": {
+    "/fppd/sequence": {
       "get": {
         "tags": [
           "fppd"
@@ -2897,7 +2897,7 @@
         }
       }
     },
-    "/api/fppd/shutdown": {
+    "/fppd/shutdown": {
       "post": {
         "tags": [
           "fppd"
@@ -2911,7 +2911,7 @@
         }
       }
     },
-    "/api/fppd/status": {
+    "/fppd/status": {
       "get": {
         "tags": [
           "fppd"
@@ -2925,7 +2925,7 @@
         }
       }
     },
-    "/api/fppd/testing": {
+    "/fppd/testing": {
       "get": {
         "tags": [
           "fppd"
@@ -2951,7 +2951,7 @@
         }
       }
     },
-    "/api/fppd/testing/tests": {
+    "/fppd/testing/tests": {
       "get": {
         "tags": [
           "fppd"
@@ -2982,7 +2982,7 @@
         }
       }
     },
-    "/api/fppd/testing/tests/{pattern}": {
+    "/fppd/testing/tests/{pattern}": {
       "parameters": [
         {
           "name": "pattern",
@@ -3009,7 +3009,7 @@
         }
       }
     },
-    "/api/fppd/version": {
+    "/fppd/version": {
       "get": {
         "tags": [
           "fppd"
@@ -3038,7 +3038,7 @@
         }
       }
     },
-    "/api/fppd/volume": {
+    "/fppd/volume": {
       "get": {
         "tags": [
           "fppd"
@@ -3072,7 +3072,7 @@
         }
       }
     },
-    "/api/fppd/volume/{volume}": {
+    "/fppd/volume/{volume}": {
       "parameters": [
         {
           "name": "volume",
@@ -3096,7 +3096,7 @@
         }
       }
     },
-    "/api/fppd/warnings": {
+    "/fppd/warnings": {
       "get": {
         "tags": [
           "fppd"
@@ -3121,7 +3121,7 @@
         }
       }
     },
-    "/api/fppd/warnings_full": {
+    "/fppd/warnings_full": {
       "get": {
         "tags": [
           "fppd"
@@ -3135,7 +3135,7 @@
         }
       }
     },
-    "/api/geoip": {
+    "/geoip": {
       "get": {
         "tags": [
           "geoip"
@@ -3177,7 +3177,7 @@
         }
       }
     },
-    "/api/git/branches": {
+    "/git/branches": {
       "get": {
         "tags": [
           "git"
@@ -3205,7 +3205,7 @@
         }
       }
     },
-    "/api/git/originLog": {
+    "/git/originLog": {
       "get": {
         "tags": [
           "git"
@@ -3241,7 +3241,7 @@
         }
       }
     },
-    "/api/git/releases/notes/{tag}": {
+    "/git/releases/notes/{tag}": {
       "parameters": [
         {
           "name": "tag",
@@ -3271,7 +3271,7 @@
         }
       }
     },
-    "/api/git/releases/os/{All}": {
+    "/git/releases/os/{All}": {
       "parameters": [
         {
           "name": "All",
@@ -3321,7 +3321,7 @@
         }
       }
     },
-    "/api/git/releases/sizes": {
+    "/git/releases/sizes": {
       "get": {
         "tags": [
           "git"
@@ -3346,7 +3346,7 @@
         }
       }
     },
-    "/api/git/reset": {
+    "/git/reset": {
       "get": {
         "tags": [
           "git"
@@ -3375,7 +3375,7 @@
         }
       }
     },
-    "/api/git/status": {
+    "/git/status": {
       "get": {
         "tags": [
           "git"
@@ -3400,7 +3400,7 @@
         }
       }
     },
-    "/api/gpio": {
+    "/gpio": {
       "get": {
         "tags": [
           "gpio"
@@ -3425,7 +3425,7 @@
         }
       }
     },
-    "/api/gpio/{pin}": {
+    "/gpio/{pin}": {
       "parameters": [
         {
           "name": "pin",
@@ -3485,7 +3485,7 @@
         }
       }
     },
-    "/api/media": {
+    "/media": {
       "get": {
         "tags": [
           "media"
@@ -3510,7 +3510,7 @@
         }
       }
     },
-    "/api/media/{MediaName}/duration": {
+    "/media/{MediaName}/duration": {
       "parameters": [
         {
           "name": "MediaName",
@@ -3557,7 +3557,7 @@
         }
       }
     },
-    "/api/media/{MediaName}/meta": {
+    "/media/{MediaName}/meta": {
       "parameters": [
         {
           "name": "MediaName",
@@ -3601,7 +3601,7 @@
         }
       }
     },
-    "/api/models": {
+    "/models": {
       "get": {
         "tags": [
           "models"
@@ -3647,7 +3647,7 @@
         }
       }
     },
-    "/api/models/raw": {
+    "/models/raw": {
       "post": {
         "tags": [
           "models"
@@ -3661,7 +3661,7 @@
         }
       }
     },
-    "/api/models/{model}": {
+    "/models/{model}": {
       "parameters": [
         {
           "name": "model",
@@ -3688,7 +3688,7 @@
         }
       }
     },
-    "/api/network/dns": {
+    "/network/dns": {
       "get": {
         "tags": [
           "network"
@@ -3753,7 +3753,7 @@
         }
       }
     },
-    "/api/network/gateway": {
+    "/network/gateway": {
       "get": {
         "tags": [
           "network"
@@ -3812,7 +3812,7 @@
         }
       }
     },
-    "/api/network/interface": {
+    "/network/interface": {
       "get": {
         "tags": [
           "network"
@@ -3866,7 +3866,7 @@
         }
       }
     },
-    "/api/network/interface/add/{interface}": {
+    "/network/interface/add/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -3900,7 +3900,7 @@
         }
       }
     },
-    "/api/network/interface/{interface}": {
+    "/network/interface/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -3978,7 +3978,7 @@
         }
       }
     },
-    "/api/network/interface/{interface}/apply": {
+    "/network/interface/{interface}/apply": {
       "parameters": [
         {
           "name": "interface",
@@ -4013,7 +4013,7 @@
         }
       }
     },
-    "/api/network/persistentNames": {
+    "/network/persistentNames": {
       "delete": {
         "tags": [
           "network"
@@ -4060,7 +4060,7 @@
         }
       }
     },
-    "/api/network/wifi/scan/{interface}": {
+    "/network/wifi/scan/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -4102,7 +4102,7 @@
         }
       }
     },
-    "/api/network/wifi/status/{interface}": {
+    "/network/wifi/status/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -4144,7 +4144,7 @@
         }
       }
     },
-    "/api/network/wifi/strength": {
+    "/network/wifi/strength": {
       "get": {
         "tags": [
           "network"
@@ -4173,7 +4173,7 @@
         }
       }
     },
-    "/api/options/{SettingName}": {
+    "/options/{SettingName}": {
       "parameters": [
         {
           "name": "SettingName",
@@ -4207,7 +4207,7 @@
         }
       }
     },
-    "/api/overlays/effects": {
+    "/overlays/effects": {
       "get": {
         "tags": [
           "overlays"
@@ -4232,7 +4232,7 @@
         }
       }
     },
-    "/api/overlays/effects/{effect}": {
+    "/overlays/effects/{effect}": {
       "parameters": [
         {
           "name": "effect",
@@ -4256,7 +4256,7 @@
         }
       }
     },
-    "/api/overlays/fonts": {
+    "/overlays/fonts": {
       "get": {
         "tags": [
           "overlays"
@@ -4270,7 +4270,7 @@
         }
       }
     },
-    "/api/overlays/model/{model}": {
+    "/overlays/model/{model}": {
       "parameters": [
         {
           "name": "model",
@@ -4294,7 +4294,7 @@
         }
       }
     },
-    "/api/overlays/model/{model}/clear": {
+    "/overlays/model/{model}/clear": {
       "parameters": [
         {
           "name": "model",
@@ -4318,7 +4318,7 @@
         }
       }
     },
-    "/api/overlays/model/{model}/data": {
+    "/overlays/model/{model}/data": {
       "parameters": [
         {
           "name": "model",
@@ -4342,7 +4342,7 @@
         }
       }
     },
-    "/api/overlays/model/{model}/fill": {
+    "/overlays/model/{model}/fill": {
       "parameters": [
         {
           "name": "model",
@@ -4366,7 +4366,7 @@
         }
       }
     },
-    "/api/overlays/model/{model}/mmap": {
+    "/overlays/model/{model}/mmap": {
       "parameters": [
         {
           "name": "model",
@@ -4390,7 +4390,7 @@
         }
       }
     },
-    "/api/overlays/model/{model}/pixel": {
+    "/overlays/model/{model}/pixel": {
       "parameters": [
         {
           "name": "model",
@@ -4414,7 +4414,7 @@
         }
       }
     },
-    "/api/overlays/model/{model}/preview": {
+    "/overlays/model/{model}/preview": {
       "parameters": [
         {
           "name": "model",
@@ -4438,7 +4438,7 @@
         }
       }
     },
-    "/api/overlays/model/{model}/save": {
+    "/overlays/model/{model}/save": {
       "parameters": [
         {
           "name": "model",
@@ -4462,7 +4462,7 @@
         }
       }
     },
-    "/api/overlays/model/{model}/state": {
+    "/overlays/model/{model}/state": {
       "parameters": [
         {
           "name": "model",
@@ -4486,7 +4486,7 @@
         }
       }
     },
-    "/api/overlays/model/{model}/text": {
+    "/overlays/model/{model}/text": {
       "parameters": [
         {
           "name": "model",
@@ -4510,7 +4510,7 @@
         }
       }
     },
-    "/api/overlays/models": {
+    "/overlays/models": {
       "get": {
         "tags": [
           "overlays"
@@ -4524,7 +4524,7 @@
         }
       }
     },
-    "/api/overlays/range/{ranges}": {
+    "/overlays/range/{ranges}": {
       "parameters": [
         {
           "name": "ranges",
@@ -4548,7 +4548,7 @@
         }
       }
     },
-    "/api/overlays/running": {
+    "/overlays/running": {
       "get": {
         "tags": [
           "overlays"
@@ -4562,7 +4562,7 @@
         }
       }
     },
-    "/api/overlays/settings": {
+    "/overlays/settings": {
       "get": {
         "tags": [
           "overlays"
@@ -4576,7 +4576,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups": {
+    "/pipewire/control/groups": {
       "get": {
         "tags": [
           "pipewire"
@@ -4628,7 +4628,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}": {
+    "/pipewire/control/groups/{id}": {
       "parameters": [
         {
           "name": "id",
@@ -4675,7 +4675,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/members/{cardId}/mute": {
+    "/pipewire/control/groups/{id}/members/{cardId}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -4743,7 +4743,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/members/{cardId}/volume": {
+    "/pipewire/control/groups/{id}/members/{cardId}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -4812,7 +4812,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/mute": {
+    "/pipewire/control/groups/{id}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -4871,7 +4871,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/volume": {
+    "/pipewire/control/groups/{id}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -4931,7 +4931,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups": {
+    "/pipewire/control/input-groups": {
       "get": {
         "tags": [
           "pipewire"
@@ -4979,7 +4979,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups/{id}": {
+    "/pipewire/control/input-groups/{id}": {
       "parameters": [
         {
           "name": "id",
@@ -5026,7 +5026,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
+    "/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -5093,7 +5093,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
+    "/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -5161,7 +5161,7 @@
         }
       }
     },
-    "/api/pipewire/control/routing": {
+    "/pipewire/control/routing": {
       "get": {
         "tags": [
           "pipewire"
@@ -5209,7 +5209,7 @@
         }
       }
     },
-    "/api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
+    "/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
       "parameters": [
         {
           "name": "inputGroupId",
@@ -5273,7 +5273,7 @@
         }
       }
     },
-    "/api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
+    "/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
       "parameters": [
         {
           "name": "inputGroupId",
@@ -5338,7 +5338,7 @@
         }
       }
     },
-    "/api/pipewire/control/status": {
+    "/pipewire/control/status": {
       "get": {
         "tags": [
           "pipewire"
@@ -5374,7 +5374,7 @@
         }
       }
     },
-    "/api/pipewire/control/streams": {
+    "/pipewire/control/streams": {
       "get": {
         "tags": [
           "pipewire"
@@ -5414,7 +5414,7 @@
         }
       }
     },
-    "/api/pipewire/control/streams/{slot}/volume": {
+    "/pipewire/control/streams/{slot}/volume": {
       "parameters": [
         {
           "name": "slot",
@@ -5470,7 +5470,7 @@
         }
       }
     },
-    "/api/player": {
+    "/player": {
       "get": {
         "tags": [
           "player"
@@ -5484,7 +5484,7 @@
         }
       }
     },
-    "/api/player/current": {
+    "/player/current": {
       "get": {
         "tags": [
           "player"
@@ -5498,7 +5498,7 @@
         }
       }
     },
-    "/api/player/status": {
+    "/player/status": {
       "get": {
         "tags": [
           "player"
@@ -5512,7 +5512,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}": {
+    "/playlist/{PlaylistName}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -5653,7 +5653,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/start": {
+    "/playlist/{PlaylistName}/start": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -5694,7 +5694,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/start/{Repeat}": {
+    "/playlist/{PlaylistName}/start/{Repeat}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -5754,7 +5754,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}": {
+    "/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -5811,7 +5811,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/{SectionName}/item": {
+    "/playlist/{PlaylistName}/{SectionName}/item": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -5869,7 +5869,7 @@
         }
       }
     },
-    "/api/playlists": {
+    "/playlists": {
       "get": {
         "tags": [
           "playlists"
@@ -5955,7 +5955,7 @@
         }
       }
     },
-    "/api/playlists/pause": {
+    "/playlists/pause": {
       "get": {
         "tags": [
           "playlists"
@@ -5986,7 +5986,7 @@
         }
       }
     },
-    "/api/playlists/playable": {
+    "/playlists/playable": {
       "get": {
         "tags": [
           "playlists"
@@ -6012,7 +6012,7 @@
         }
       }
     },
-    "/api/playlists/resume": {
+    "/playlists/resume": {
       "get": {
         "tags": [
           "playlists"
@@ -6043,7 +6043,7 @@
         }
       }
     },
-    "/api/playlists/stop": {
+    "/playlists/stop": {
       "get": {
         "tags": [
           "playlists"
@@ -6074,7 +6074,7 @@
         }
       }
     },
-    "/api/playlists/stopgracefully": {
+    "/playlists/stopgracefully": {
       "get": {
         "tags": [
           "playlists"
@@ -6105,7 +6105,7 @@
         }
       }
     },
-    "/api/playlists/stopgracefullyafterloop": {
+    "/playlists/stopgracefullyafterloop": {
       "get": {
         "tags": [
           "playlists"
@@ -6136,7 +6136,7 @@
         }
       }
     },
-    "/api/playlists/validate": {
+    "/playlists/validate": {
       "get": {
         "tags": [
           "playlists"
@@ -6171,7 +6171,7 @@
         }
       }
     },
-    "/api/plugin": {
+    "/plugin": {
       "get": {
         "tags": [
           "plugin"
@@ -6237,7 +6237,7 @@
         }
       }
     },
-    "/api/plugin/fetchImage?url=...": {
+    "/plugin/fetchImage?url=...": {
       "get": {
         "tags": [
           "plugin"
@@ -6254,7 +6254,7 @@
         }
       }
     },
-    "/api/plugin/fetchInfo": {
+    "/plugin/fetchInfo": {
       "post": {
         "tags": [
           "plugin"
@@ -6289,7 +6289,7 @@
         }
       }
     },
-    "/api/plugin/githubStats": {
+    "/plugin/githubStats": {
       "get": {
         "tags": [
           "plugin"
@@ -6330,7 +6330,7 @@
         }
       }
     },
-    "/api/plugin/headerIndicators": {
+    "/plugin/headerIndicators": {
       "get": {
         "tags": [
           "plugin"
@@ -6358,7 +6358,7 @@
         }
       }
     },
-    "/api/plugin/popularity": {
+    "/plugin/popularity": {
       "get": {
         "tags": [
           "plugin"
@@ -6386,7 +6386,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}": {
+    "/plugin/{RepoName}": {
       "parameters": [
         {
           "name": "RepoName",
@@ -6455,7 +6455,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/icon": {
+    "/plugin/{RepoName}/icon": {
       "parameters": [
         {
           "name": "RepoName",
@@ -6482,7 +6482,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/page": {
+    "/plugin/{RepoName}/page": {
       "parameters": [
         {
           "name": "RepoName",
@@ -6518,7 +6518,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/settings/{SettingName}": {
+    "/plugin/{RepoName}/settings/{SettingName}": {
       "parameters": [
         {
           "name": "RepoName",
@@ -6594,7 +6594,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/updates": {
+    "/plugin/{RepoName}/updates": {
       "parameters": [
         {
           "name": "RepoName",
@@ -6630,7 +6630,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/upgrade": {
+    "/plugin/{RepoName}/upgrade": {
       "parameters": [
         {
           "name": "RepoName",
@@ -6676,7 +6676,7 @@
         }
       }
     },
-    "/api/proxies": {
+    "/proxies": {
       "delete": {
         "tags": [
           "proxies"
@@ -6792,7 +6792,7 @@
         }
       }
     },
-    "/api/proxies/{ProxyIp}": {
+    "/proxies/{ProxyIp}": {
       "parameters": [
         {
           "name": "ProxyIp",
@@ -6849,7 +6849,7 @@
         }
       }
     },
-    "/api/proxy/{Ip}/{urlPart}": {
+    "/proxy/{Ip}/{urlPart}": {
       "parameters": [
         {
           "name": "Ip",
@@ -6904,7 +6904,7 @@
         }
       }
     },
-    "/api/recurringtasks": {
+    "/recurringtasks": {
       "get": {
         "tags": [
           "recurringtasks"
@@ -6945,7 +6945,7 @@
         }
       }
     },
-    "/api/remoteAction": {
+    "/remoteAction": {
       "get": {
         "tags": [
           "remoteAction"
@@ -6969,7 +6969,7 @@
         }
       }
     },
-    "/api/remotes": {
+    "/remotes": {
       "get": {
         "tags": [
           "remotes"
@@ -6994,7 +6994,7 @@
         }
       }
     },
-    "/api/schedule": {
+    "/schedule": {
       "get": {
         "tags": [
           "schedule"
@@ -7093,7 +7093,7 @@
         }
       }
     },
-    "/api/schedule/reload": {
+    "/schedule/reload": {
       "post": {
         "tags": [
           "schedule"
@@ -7124,7 +7124,7 @@
         }
       }
     },
-    "/api/scripts": {
+    "/scripts": {
       "get": {
         "tags": [
           "scripts"
@@ -7149,7 +7149,7 @@
         }
       }
     },
-    "/api/scripts/installRemote/{category}/{filename}": {
+    "/scripts/installRemote/{category}/{filename}": {
       "parameters": [
         {
           "name": "category",
@@ -7191,7 +7191,7 @@
         }
       }
     },
-    "/api/scripts/viewRemote/{category}/{filename}": {
+    "/scripts/viewRemote/{category}/{filename}": {
       "parameters": [
         {
           "name": "category",
@@ -7231,7 +7231,7 @@
         }
       }
     },
-    "/api/scripts/{scriptName}": {
+    "/scripts/{scriptName}": {
       "parameters": [
         {
           "name": "scriptName",
@@ -7287,7 +7287,7 @@
         }
       }
     },
-    "/api/scripts/{scriptName}/run": {
+    "/scripts/{scriptName}/run": {
       "parameters": [
         {
           "name": "scriptName",
@@ -7319,7 +7319,7 @@
         }
       }
     },
-    "/api/sequence": {
+    "/sequence": {
       "get": {
         "tags": [
           "sequence"
@@ -7345,7 +7345,7 @@
         }
       }
     },
-    "/api/sequence/current/step": {
+    "/sequence/current/step": {
       "get": {
         "tags": [
           "sequence"
@@ -7375,7 +7375,7 @@
         }
       }
     },
-    "/api/sequence/current/stop": {
+    "/sequence/current/stop": {
       "get": {
         "tags": [
           "sequence"
@@ -7409,7 +7409,7 @@
         }
       }
     },
-    "/api/sequence/current/togglePause": {
+    "/sequence/current/togglePause": {
       "get": {
         "tags": [
           "sequence"
@@ -7443,7 +7443,7 @@
         }
       }
     },
-    "/api/sequence/{SequenceName}": {
+    "/sequence/{SequenceName}": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -7542,7 +7542,7 @@
         }
       }
     },
-    "/api/sequence/{SequenceName}/meta": {
+    "/sequence/{SequenceName}/meta": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -7593,7 +7593,7 @@
         }
       }
     },
-    "/api/sequence/{SequenceName}/start/{startSecond}": {
+    "/sequence/{SequenceName}/start/{startSecond}": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -7647,7 +7647,7 @@
         }
       }
     },
-    "/api/settings": {
+    "/settings": {
       "get": {
         "tags": [
           "settings"
@@ -7688,7 +7688,7 @@
         }
       }
     },
-    "/api/settings/fanThermal/reset": {
+    "/settings/fanThermal/reset": {
       "post": {
         "tags": [
           "settings"
@@ -7712,7 +7712,7 @@
         }
       }
     },
-    "/api/settings/{SettingName}": {
+    "/settings/{SettingName}": {
       "parameters": [
         {
           "name": "SettingName",
@@ -7790,7 +7790,7 @@
         }
       }
     },
-    "/api/settings/{SettingName}/jsonValueUpdate": {
+    "/settings/{SettingName}/jsonValueUpdate": {
       "parameters": [
         {
           "name": "SettingName",
@@ -7834,7 +7834,7 @@
         }
       }
     },
-    "/api/statistics/usage": {
+    "/statistics/usage": {
       "delete": {
         "tags": [
           "statistics"
@@ -7946,7 +7946,7 @@
         }
       }
     },
-    "/api/system/fppd/restart": {
+    "/system/fppd/restart": {
       "get": {
         "tags": [
           "system"
@@ -7981,7 +7981,7 @@
         }
       }
     },
-    "/api/system/fppd/skipBootDelay": {
+    "/system/fppd/skipBootDelay": {
       "post": {
         "tags": [
           "system"
@@ -8006,7 +8006,7 @@
         }
       }
     },
-    "/api/system/fppd/start": {
+    "/system/fppd/start": {
       "get": {
         "tags": [
           "system"
@@ -8030,7 +8030,7 @@
         }
       }
     },
-    "/api/system/fppd/stop": {
+    "/system/fppd/stop": {
       "get": {
         "tags": [
           "system"
@@ -8054,7 +8054,7 @@
         }
       }
     },
-    "/api/system/info": {
+    "/system/info": {
       "get": {
         "tags": [
           "system"
@@ -8103,7 +8103,7 @@
         }
       }
     },
-    "/api/system/packages": {
+    "/system/packages": {
       "get": {
         "tags": [
           "system"
@@ -8129,7 +8129,7 @@
         }
       }
     },
-    "/api/system/packages/info/{packageName}": {
+    "/system/packages/info/{packageName}": {
       "parameters": [
         {
           "name": "packageName",
@@ -8165,7 +8165,7 @@
         }
       }
     },
-    "/api/system/reboot": {
+    "/system/reboot": {
       "get": {
         "tags": [
           "system"
@@ -8189,7 +8189,7 @@
         }
       }
     },
-    "/api/system/releaseNotes/{version}": {
+    "/system/releaseNotes/{version}": {
       "parameters": [
         {
           "name": "version",
@@ -8227,7 +8227,7 @@
         }
       }
     },
-    "/api/system/shutdown": {
+    "/system/shutdown": {
       "get": {
         "tags": [
           "system"
@@ -8251,7 +8251,7 @@
         }
       }
     },
-    "/api/system/status": {
+    "/system/status": {
       "get": {
         "tags": [
           "system"
@@ -8288,7 +8288,7 @@
         }
       }
     },
-    "/api/system/updateStatus": {
+    "/system/updateStatus": {
       "get": {
         "tags": [
           "system"
@@ -8322,7 +8322,7 @@
         }
       }
     },
-    "/api/system/volume": {
+    "/system/volume": {
       "get": {
         "tags": [
           "system"
@@ -8383,7 +8383,7 @@
         }
       }
     },
-    "/api/testmode": {
+    "/testmode": {
       "get": {
         "tags": [
           "testmode"
@@ -8465,7 +8465,7 @@
         }
       }
     },
-    "/api/time": {
+    "/time": {
       "get": {
         "tags": [
           "time"
@@ -8489,7 +8489,7 @@
         }
       }
     },
-    "/api/variables": {
+    "/variables": {
       "get": {
         "tags": [
           "variables"
@@ -8541,7 +8541,7 @@
         }
       }
     },
-    "/api/variables/{name}": {
+    "/variables/{name}": {
       "parameters": [
         {
           "name": "name",

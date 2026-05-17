@@ -107,7 +107,7 @@
     }
   ],
   "paths": {
-    "/api/v2/backups/configuration": {
+    "/backups/configuration": {
       "post": {
         "tags": [
           "backups"
@@ -143,7 +143,7 @@
         }
       }
     },
-    "/api/v2/backups/configuration/list": {
+    "/backups/configuration/list": {
       "get": {
         "tags": [
           "backups"
@@ -182,7 +182,7 @@
         }
       }
     },
-    "/api/v2/backups/configuration/list/{DeviceName}": {
+    "/backups/configuration/list/{DeviceName}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -219,7 +219,7 @@
         }
       }
     },
-    "/api/v2/backups/configuration/restore/{Directory}/{BackupFilename}": {
+    "/backups/configuration/restore/{Directory}/{BackupFilename}": {
       "parameters": [
         {
           "name": "Directory",
@@ -281,7 +281,7 @@
         }
       }
     },
-    "/api/v2/backups/configuration/{Directory}/{BackupFilename}": {
+    "/backups/configuration/{Directory}/{BackupFilename}": {
       "parameters": [
         {
           "name": "Directory",
@@ -362,7 +362,7 @@
         }
       }
     },
-    "/api/v2/backups/devices": {
+    "/backups/devices": {
       "get": {
         "tags": [
           "backups"
@@ -391,7 +391,7 @@
         }
       }
     },
-    "/api/v2/backups/devices/mount/{DeviceName}/{MountLocation}": {
+    "/backups/devices/mount/{DeviceName}/{MountLocation}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -435,7 +435,7 @@
         }
       }
     },
-    "/api/v2/backups/devices/unmount/{DeviceName}/{MountLocation}": {
+    "/backups/devices/unmount/{DeviceName}/{MountLocation}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -479,7 +479,7 @@
         }
       }
     },
-    "/api/v2/backups/list": {
+    "/backups/list": {
       "get": {
         "tags": [
           "backups"
@@ -505,7 +505,7 @@
         }
       }
     },
-    "/api/v2/backups/list/{DeviceName}": {
+    "/backups/list/{DeviceName}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -541,7 +541,7 @@
         }
       }
     },
-    "/api/v2/cape": {
+    "/cape": {
       "get": {
         "tags": [
           "cape"
@@ -610,7 +610,7 @@
         }
       }
     },
-    "/api/v2/cape/eeprom/sign/{key}/{order}": {
+    "/cape/eeprom/sign/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -653,7 +653,7 @@
         }
       }
     },
-    "/api/v2/cape/eeprom/signingData": {
+    "/cape/eeprom/signingData": {
       "post": {
         "tags": [
           "cape"
@@ -693,7 +693,7 @@
         }
       }
     },
-    "/api/v2/cape/eeprom/signingData/{key}/{order}": {
+    "/cape/eeprom/signingData/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -738,7 +738,7 @@
         }
       }
     },
-    "/api/v2/cape/eeprom/signingFile/{key}/{order}": {
+    "/cape/eeprom/signingFile/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -778,7 +778,7 @@
         }
       }
     },
-    "/api/v2/cape/eeprom/voucher": {
+    "/cape/eeprom/voucher": {
       "post": {
         "tags": [
           "cape"
@@ -821,7 +821,7 @@
         }
       }
     },
-    "/api/v2/cape/options": {
+    "/cape/options": {
       "get": {
         "tags": [
           "cape"
@@ -851,7 +851,7 @@
         }
       }
     },
-    "/api/v2/cape/panel": {
+    "/cape/panel": {
       "get": {
         "tags": [
           "cape"
@@ -873,7 +873,7 @@
         }
       }
     },
-    "/api/v2/cape/panel/{key}": {
+    "/cape/panel/{key}": {
       "parameters": [
         {
           "name": "key",
@@ -905,7 +905,7 @@
         }
       }
     },
-    "/api/v2/cape/strings": {
+    "/cape/strings": {
       "get": {
         "tags": [
           "cape"
@@ -930,7 +930,7 @@
         }
       }
     },
-    "/api/v2/cape/strings/{key}": {
+    "/cape/strings/{key}": {
       "parameters": [
         {
           "name": "key",
@@ -993,7 +993,7 @@
         }
       }
     },
-    "/api/v2/channel/input/stats": {
+    "/channel/input/stats": {
       "delete": {
         "tags": [
           "channel"
@@ -1060,7 +1060,7 @@
         }
       }
     },
-    "/api/v2/channel/output/processors": {
+    "/channel/output/processors": {
       "get": {
         "tags": [
           "channel"
@@ -1150,7 +1150,7 @@
         }
       }
     },
-    "/api/v2/channel/output/{file}": {
+    "/channel/output/{file}": {
       "parameters": [
         {
           "name": "file",
@@ -1225,7 +1225,7 @@
         }
       }
     },
-    "/api/v2/configfile": {
+    "/configfile": {
       "get": {
         "tags": [
           "configfile"
@@ -1254,7 +1254,7 @@
         }
       }
     },
-    "/api/v2/configfile/**": {
+    "/configfile/**": {
       "delete": {
         "tags": [
           "configfile"
@@ -1332,7 +1332,7 @@
         }
       }
     },
-    "/api/v2/dir/{DirName}/{SubDir}": {
+    "/dir/{DirName}/{SubDir}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1400,7 +1400,7 @@
         }
       }
     },
-    "/api/v2/effects": {
+    "/effects": {
       "get": {
         "tags": [
           "effects"
@@ -1425,7 +1425,7 @@
         }
       }
     },
-    "/api/v2/effects/ALL": {
+    "/effects/ALL": {
       "get": {
         "tags": [
           "effects"
@@ -1451,7 +1451,7 @@
         }
       }
     },
-    "/api/v2/email/configure": {
+    "/email/configure": {
       "post": {
         "tags": [
           "email"
@@ -1476,7 +1476,7 @@
         }
       }
     },
-    "/api/v2/email/test": {
+    "/email/test": {
       "post": {
         "tags": [
           "email"
@@ -1501,7 +1501,7 @@
         }
       }
     },
-    "/api/v2/events": {
+    "/events": {
       "get": {
         "tags": [
           "events"
@@ -1529,7 +1529,7 @@
         }
       }
     },
-    "/api/v2/events/{eventId}": {
+    "/events/{eventId}": {
       "parameters": [
         {
           "name": "eventId",
@@ -1565,7 +1565,7 @@
         }
       }
     },
-    "/api/v2/events/{eventId}/trigger": {
+    "/events/{eventId}/trigger": {
       "parameters": [
         {
           "name": "eventId",
@@ -1599,7 +1599,7 @@
         }
       }
     },
-    "/api/v2/file/info/{plugin}/{ext}/**": {
+    "/file/info/{plugin}/{ext}/**": {
       "parameters": [
         {
           "name": "plugin",
@@ -1639,7 +1639,7 @@
         }
       }
     },
-    "/api/v2/file/move/{fileName}": {
+    "/file/move/{fileName}": {
       "parameters": [
         {
           "name": "fileName",
@@ -1673,7 +1673,7 @@
         }
       }
     },
-    "/api/v2/file/onUpload/{ext}/**": {
+    "/file/onUpload/{ext}/**": {
       "parameters": [
         {
           "name": "ext",
@@ -1707,7 +1707,7 @@
         }
       }
     },
-    "/api/v2/file/{DirName}": {
+    "/file/{DirName}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1744,7 +1744,7 @@
         }
       }
     },
-    "/api/v2/file/{DirName}/**": {
+    "/file/{DirName}/**": {
       "parameters": [
         {
           "name": "DirName",
@@ -1840,7 +1840,7 @@
         }
       }
     },
-    "/api/v2/file/{DirName}/copy/{source}/{dest}": {
+    "/file/{DirName}/copy/{source}/{dest}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1892,7 +1892,7 @@
         }
       }
     },
-    "/api/v2/file/{DirName}/rename/{source}/{dest}": {
+    "/file/{DirName}/rename/{source}/{dest}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1944,7 +1944,7 @@
         }
       }
     },
-    "/api/v2/file/{DirName}/tailfollow/*": {
+    "/file/{DirName}/tailfollow/*": {
       "parameters": [
         {
           "name": "DirName",
@@ -2009,7 +2009,7 @@
         }
       }
     },
-    "/api/v2/file/{DirName}/{Name}": {
+    "/file/{DirName}/{Name}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2073,7 +2073,7 @@
         }
       }
     },
-    "/api/v2/files/Sequences/fps": {
+    "/files/Sequences/fps": {
       "get": {
         "tags": [
           "files"
@@ -2098,7 +2098,7 @@
         }
       }
     },
-    "/api/v2/files/zip/{DirNames}": {
+    "/files/zip/{DirNames}": {
       "parameters": [
         {
           "name": "DirNames",
@@ -2130,7 +2130,7 @@
         }
       }
     },
-    "/api/v2/files/{DirName}": {
+    "/files/{DirName}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2184,7 +2184,7 @@
         }
       }
     },
-    "/api/v2/geoip": {
+    "/geoip": {
       "get": {
         "tags": [
           "geoip"
@@ -2226,7 +2226,7 @@
         }
       }
     },
-    "/api/v2/git/branches": {
+    "/git/branches": {
       "get": {
         "tags": [
           "git"
@@ -2254,7 +2254,7 @@
         }
       }
     },
-    "/api/v2/git/originLog": {
+    "/git/originLog": {
       "get": {
         "tags": [
           "git"
@@ -2290,7 +2290,7 @@
         }
       }
     },
-    "/api/v2/git/releases/notes/{tag}": {
+    "/git/releases/notes/{tag}": {
       "parameters": [
         {
           "name": "tag",
@@ -2320,7 +2320,7 @@
         }
       }
     },
-    "/api/v2/git/releases/os/{All}": {
+    "/git/releases/os/{All}": {
       "parameters": [
         {
           "name": "All",
@@ -2370,7 +2370,7 @@
         }
       }
     },
-    "/api/v2/git/releases/sizes": {
+    "/git/releases/sizes": {
       "get": {
         "tags": [
           "git"
@@ -2395,7 +2395,7 @@
         }
       }
     },
-    "/api/v2/git/reset": {
+    "/git/reset": {
       "post": {
         "tags": [
           "git"
@@ -2424,7 +2424,7 @@
         }
       }
     },
-    "/api/v2/git/status": {
+    "/git/status": {
       "get": {
         "tags": [
           "git"
@@ -2449,7 +2449,7 @@
         }
       }
     },
-    "/api/v2/media": {
+    "/media": {
       "get": {
         "tags": [
           "media"
@@ -2474,7 +2474,7 @@
         }
       }
     },
-    "/api/v2/media/{MediaName}/duration": {
+    "/media/{MediaName}/duration": {
       "parameters": [
         {
           "name": "MediaName",
@@ -2521,7 +2521,7 @@
         }
       }
     },
-    "/api/v2/media/{MediaName}/meta": {
+    "/media/{MediaName}/meta": {
       "parameters": [
         {
           "name": "MediaName",
@@ -2565,7 +2565,7 @@
         }
       }
     },
-    "/api/v2/network/dns": {
+    "/network/dns": {
       "get": {
         "tags": [
           "network"
@@ -2630,7 +2630,7 @@
         }
       }
     },
-    "/api/v2/network/gateway": {
+    "/network/gateway": {
       "get": {
         "tags": [
           "network"
@@ -2689,7 +2689,7 @@
         }
       }
     },
-    "/api/v2/network/interface": {
+    "/network/interface": {
       "get": {
         "tags": [
           "network"
@@ -2743,7 +2743,7 @@
         }
       }
     },
-    "/api/v2/network/interface/add/{interface}": {
+    "/network/interface/add/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -2777,7 +2777,7 @@
         }
       }
     },
-    "/api/v2/network/interface/{interface}": {
+    "/network/interface/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -2855,7 +2855,7 @@
         }
       }
     },
-    "/api/v2/network/interface/{interface}/apply": {
+    "/network/interface/{interface}/apply": {
       "parameters": [
         {
           "name": "interface",
@@ -2890,7 +2890,7 @@
         }
       }
     },
-    "/api/v2/network/persistentNames": {
+    "/network/persistentNames": {
       "delete": {
         "tags": [
           "network"
@@ -2937,7 +2937,7 @@
         }
       }
     },
-    "/api/v2/network/wifi/scan/{interface}": {
+    "/network/wifi/scan/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -2979,7 +2979,7 @@
         }
       }
     },
-    "/api/v2/network/wifi/status/{interface}": {
+    "/network/wifi/status/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -3021,7 +3021,7 @@
         }
       }
     },
-    "/api/v2/network/wifi/strength": {
+    "/network/wifi/strength": {
       "get": {
         "tags": [
           "network"
@@ -3050,7 +3050,7 @@
         }
       }
     },
-    "/api/v2/options/{SettingName}": {
+    "/options/{SettingName}": {
       "parameters": [
         {
           "name": "SettingName",
@@ -3084,7 +3084,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/groups": {
+    "/pipewire/control/groups": {
       "get": {
         "tags": [
           "pipewire"
@@ -3136,7 +3136,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/groups/{id}": {
+    "/pipewire/control/groups/{id}": {
       "parameters": [
         {
           "name": "id",
@@ -3183,7 +3183,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/groups/{id}/members/{cardId}/mute": {
+    "/pipewire/control/groups/{id}/members/{cardId}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -3251,7 +3251,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/groups/{id}/members/{cardId}/volume": {
+    "/pipewire/control/groups/{id}/members/{cardId}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -3320,7 +3320,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/groups/{id}/mute": {
+    "/pipewire/control/groups/{id}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -3379,7 +3379,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/groups/{id}/volume": {
+    "/pipewire/control/groups/{id}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -3439,7 +3439,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/input-groups": {
+    "/pipewire/control/input-groups": {
       "get": {
         "tags": [
           "pipewire"
@@ -3487,7 +3487,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/input-groups/{id}": {
+    "/pipewire/control/input-groups/{id}": {
       "parameters": [
         {
           "name": "id",
@@ -3534,7 +3534,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
+    "/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -3601,7 +3601,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
+    "/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -3669,7 +3669,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/routing": {
+    "/pipewire/control/routing": {
       "get": {
         "tags": [
           "pipewire"
@@ -3717,7 +3717,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
+    "/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
       "parameters": [
         {
           "name": "inputGroupId",
@@ -3781,7 +3781,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
+    "/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
       "parameters": [
         {
           "name": "inputGroupId",
@@ -3846,7 +3846,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/status": {
+    "/pipewire/control/status": {
       "get": {
         "tags": [
           "pipewire"
@@ -3882,7 +3882,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/streams": {
+    "/pipewire/control/streams": {
       "get": {
         "tags": [
           "pipewire"
@@ -3922,7 +3922,7 @@
         }
       }
     },
-    "/api/v2/pipewire/control/streams/{slot}/volume": {
+    "/pipewire/control/streams/{slot}/volume": {
       "parameters": [
         {
           "name": "slot",
@@ -3978,7 +3978,7 @@
         }
       }
     },
-    "/api/v2/playlist/{PlaylistName}": {
+    "/playlist/{PlaylistName}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -4119,7 +4119,7 @@
         }
       }
     },
-    "/api/v2/playlist/{PlaylistName}/start": {
+    "/playlist/{PlaylistName}/start": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -4160,7 +4160,7 @@
         }
       }
     },
-    "/api/v2/playlist/{PlaylistName}/start/{Repeat}": {
+    "/playlist/{PlaylistName}/start/{Repeat}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -4220,7 +4220,7 @@
         }
       }
     },
-    "/api/v2/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}": {
+    "/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -4277,7 +4277,7 @@
         }
       }
     },
-    "/api/v2/playlist/{PlaylistName}/{SectionName}/item": {
+    "/playlist/{PlaylistName}/{SectionName}/item": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -4335,7 +4335,7 @@
         }
       }
     },
-    "/api/v2/playlists": {
+    "/playlists": {
       "get": {
         "tags": [
           "playlists"
@@ -4421,7 +4421,7 @@
         }
       }
     },
-    "/api/v2/playlists/pause": {
+    "/playlists/pause": {
       "post": {
         "tags": [
           "playlists"
@@ -4452,7 +4452,7 @@
         }
       }
     },
-    "/api/v2/playlists/playable": {
+    "/playlists/playable": {
       "get": {
         "tags": [
           "playlists"
@@ -4478,7 +4478,7 @@
         }
       }
     },
-    "/api/v2/playlists/resume": {
+    "/playlists/resume": {
       "post": {
         "tags": [
           "playlists"
@@ -4509,7 +4509,7 @@
         }
       }
     },
-    "/api/v2/playlists/stop": {
+    "/playlists/stop": {
       "post": {
         "tags": [
           "playlists"
@@ -4540,7 +4540,7 @@
         }
       }
     },
-    "/api/v2/playlists/stopgracefully": {
+    "/playlists/stopgracefully": {
       "post": {
         "tags": [
           "playlists"
@@ -4571,7 +4571,7 @@
         }
       }
     },
-    "/api/v2/playlists/stopgracefullyafterloop": {
+    "/playlists/stopgracefullyafterloop": {
       "post": {
         "tags": [
           "playlists"
@@ -4602,7 +4602,7 @@
         }
       }
     },
-    "/api/v2/playlists/validate": {
+    "/playlists/validate": {
       "get": {
         "tags": [
           "playlists"
@@ -4637,7 +4637,7 @@
         }
       }
     },
-    "/api/v2/plugin": {
+    "/plugin": {
       "get": {
         "tags": [
           "plugin"
@@ -4703,7 +4703,7 @@
         }
       }
     },
-    "/api/v2/plugin/fetchImage?url=...": {
+    "/plugin/fetchImage?url=...": {
       "get": {
         "tags": [
           "plugin"
@@ -4720,7 +4720,7 @@
         }
       }
     },
-    "/api/v2/plugin/fetchInfo": {
+    "/plugin/fetchInfo": {
       "post": {
         "tags": [
           "plugin"
@@ -4755,7 +4755,7 @@
         }
       }
     },
-    "/api/v2/plugin/githubStats": {
+    "/plugin/githubStats": {
       "get": {
         "tags": [
           "plugin"
@@ -4796,7 +4796,7 @@
         }
       }
     },
-    "/api/v2/plugin/headerIndicators": {
+    "/plugin/headerIndicators": {
       "get": {
         "tags": [
           "plugin"
@@ -4824,7 +4824,7 @@
         }
       }
     },
-    "/api/v2/plugin/popularity": {
+    "/plugin/popularity": {
       "get": {
         "tags": [
           "plugin"
@@ -4852,7 +4852,7 @@
         }
       }
     },
-    "/api/v2/plugin/{RepoName}": {
+    "/plugin/{RepoName}": {
       "parameters": [
         {
           "name": "RepoName",
@@ -4921,7 +4921,7 @@
         }
       }
     },
-    "/api/v2/plugin/{RepoName}/icon": {
+    "/plugin/{RepoName}/icon": {
       "parameters": [
         {
           "name": "RepoName",
@@ -4948,7 +4948,7 @@
         }
       }
     },
-    "/api/v2/plugin/{RepoName}/page": {
+    "/plugin/{RepoName}/page": {
       "parameters": [
         {
           "name": "RepoName",
@@ -4984,7 +4984,7 @@
         }
       }
     },
-    "/api/v2/plugin/{RepoName}/settings/{SettingName}": {
+    "/plugin/{RepoName}/settings/{SettingName}": {
       "parameters": [
         {
           "name": "RepoName",
@@ -5060,7 +5060,7 @@
         }
       }
     },
-    "/api/v2/plugin/{RepoName}/updates": {
+    "/plugin/{RepoName}/updates": {
       "parameters": [
         {
           "name": "RepoName",
@@ -5096,7 +5096,7 @@
         }
       }
     },
-    "/api/v2/plugin/{RepoName}/upgrade": {
+    "/plugin/{RepoName}/upgrade": {
       "parameters": [
         {
           "name": "RepoName",
@@ -5142,7 +5142,7 @@
         }
       }
     },
-    "/api/v2/proxies": {
+    "/proxies": {
       "delete": {
         "tags": [
           "proxies"
@@ -5258,7 +5258,7 @@
         }
       }
     },
-    "/api/v2/proxies/{ProxyIp}": {
+    "/proxies/{ProxyIp}": {
       "parameters": [
         {
           "name": "ProxyIp",
@@ -5315,7 +5315,7 @@
         }
       }
     },
-    "/api/v2/proxy/{Ip}/{urlPart}": {
+    "/proxy/{Ip}/{urlPart}": {
       "parameters": [
         {
           "name": "Ip",
@@ -5370,7 +5370,7 @@
         }
       }
     },
-    "/api/v2/remoteAction": {
+    "/remoteAction": {
       "post": {
         "tags": [
           "remoteAction"
@@ -5407,7 +5407,7 @@
         }
       }
     },
-    "/api/v2/remotes": {
+    "/remotes": {
       "get": {
         "tags": [
           "remotes"
@@ -5432,7 +5432,7 @@
         }
       }
     },
-    "/api/v2/schedule": {
+    "/schedule": {
       "get": {
         "tags": [
           "schedule"
@@ -5531,7 +5531,7 @@
         }
       }
     },
-    "/api/v2/schedule/reload": {
+    "/schedule/reload": {
       "post": {
         "tags": [
           "schedule"
@@ -5562,7 +5562,7 @@
         }
       }
     },
-    "/api/v2/scripts": {
+    "/scripts": {
       "get": {
         "tags": [
           "scripts"
@@ -5587,7 +5587,7 @@
         }
       }
     },
-    "/api/v2/scripts/installRemote/{category}/{filename}": {
+    "/scripts/installRemote/{category}/{filename}": {
       "parameters": [
         {
           "name": "category",
@@ -5629,7 +5629,7 @@
         }
       }
     },
-    "/api/v2/scripts/viewRemote/{category}/{filename}": {
+    "/scripts/viewRemote/{category}/{filename}": {
       "parameters": [
         {
           "name": "category",
@@ -5669,7 +5669,7 @@
         }
       }
     },
-    "/api/v2/scripts/{scriptName}": {
+    "/scripts/{scriptName}": {
       "parameters": [
         {
           "name": "scriptName",
@@ -5725,7 +5725,7 @@
         }
       }
     },
-    "/api/v2/scripts/{scriptName}/run": {
+    "/scripts/{scriptName}/run": {
       "parameters": [
         {
           "name": "scriptName",
@@ -5757,7 +5757,7 @@
         }
       }
     },
-    "/api/v2/sequence": {
+    "/sequence": {
       "get": {
         "tags": [
           "sequence"
@@ -5783,7 +5783,7 @@
         }
       }
     },
-    "/api/v2/sequence/current/step": {
+    "/sequence/current/step": {
       "post": {
         "tags": [
           "sequence"
@@ -5813,7 +5813,7 @@
         }
       }
     },
-    "/api/v2/sequence/current/stop": {
+    "/sequence/current/stop": {
       "post": {
         "tags": [
           "sequence"
@@ -5847,7 +5847,7 @@
         }
       }
     },
-    "/api/v2/sequence/current/togglePause": {
+    "/sequence/current/togglePause": {
       "post": {
         "tags": [
           "sequence"
@@ -5881,7 +5881,7 @@
         }
       }
     },
-    "/api/v2/sequence/{SequenceName}": {
+    "/sequence/{SequenceName}": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -5980,7 +5980,7 @@
         }
       }
     },
-    "/api/v2/sequence/{SequenceName}/meta": {
+    "/sequence/{SequenceName}/meta": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -6031,7 +6031,7 @@
         }
       }
     },
-    "/api/v2/sequence/{SequenceName}/start/{startSecond}": {
+    "/sequence/{SequenceName}/start/{startSecond}": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -6085,7 +6085,7 @@
         }
       }
     },
-    "/api/v2/settings": {
+    "/settings": {
       "get": {
         "tags": [
           "settings"
@@ -6126,7 +6126,7 @@
         }
       }
     },
-    "/api/v2/settings/fanThermal/reset": {
+    "/settings/fanThermal/reset": {
       "post": {
         "tags": [
           "settings"
@@ -6150,7 +6150,7 @@
         }
       }
     },
-    "/api/v2/settings/{SettingName}": {
+    "/settings/{SettingName}": {
       "parameters": [
         {
           "name": "SettingName",
@@ -6228,7 +6228,7 @@
         }
       }
     },
-    "/api/v2/settings/{SettingName}/jsonValueUpdate": {
+    "/settings/{SettingName}/jsonValueUpdate": {
       "parameters": [
         {
           "name": "SettingName",
@@ -6272,7 +6272,7 @@
         }
       }
     },
-    "/api/v2/statistics/usage": {
+    "/statistics/usage": {
       "delete": {
         "tags": [
           "statistics"
@@ -6384,7 +6384,7 @@
         }
       }
     },
-    "/api/v2/system/fppd/restart": {
+    "/system/fppd/restart": {
       "post": {
         "tags": [
           "system"
@@ -6419,7 +6419,7 @@
         }
       }
     },
-    "/api/v2/system/fppd/skipBootDelay": {
+    "/system/fppd/skipBootDelay": {
       "post": {
         "tags": [
           "system"
@@ -6444,7 +6444,7 @@
         }
       }
     },
-    "/api/v2/system/fppd/start": {
+    "/system/fppd/start": {
       "post": {
         "tags": [
           "system"
@@ -6468,7 +6468,7 @@
         }
       }
     },
-    "/api/v2/system/fppd/stop": {
+    "/system/fppd/stop": {
       "post": {
         "tags": [
           "system"
@@ -6492,7 +6492,7 @@
         }
       }
     },
-    "/api/v2/system/info": {
+    "/system/info": {
       "get": {
         "tags": [
           "system"
@@ -6541,7 +6541,7 @@
         }
       }
     },
-    "/api/v2/system/packages": {
+    "/system/packages": {
       "get": {
         "tags": [
           "system"
@@ -6567,7 +6567,7 @@
         }
       }
     },
-    "/api/v2/system/packages/info/{packageName}": {
+    "/system/packages/info/{packageName}": {
       "parameters": [
         {
           "name": "packageName",
@@ -6603,7 +6603,7 @@
         }
       }
     },
-    "/api/v2/system/reboot": {
+    "/system/reboot": {
       "post": {
         "tags": [
           "system"
@@ -6627,7 +6627,7 @@
         }
       }
     },
-    "/api/v2/system/releaseNotes/{version}": {
+    "/system/releaseNotes/{version}": {
       "parameters": [
         {
           "name": "version",
@@ -6665,7 +6665,7 @@
         }
       }
     },
-    "/api/v2/system/shutdown": {
+    "/system/shutdown": {
       "post": {
         "tags": [
           "system"
@@ -6689,7 +6689,7 @@
         }
       }
     },
-    "/api/v2/system/status": {
+    "/system/status": {
       "get": {
         "tags": [
           "system"
@@ -6726,7 +6726,7 @@
         }
       }
     },
-    "/api/v2/system/updateStatus": {
+    "/system/updateStatus": {
       "get": {
         "tags": [
           "system"
@@ -6760,7 +6760,7 @@
         }
       }
     },
-    "/api/v2/system/volume": {
+    "/system/volume": {
       "get": {
         "tags": [
           "system"
@@ -6821,7 +6821,7 @@
         }
       }
     },
-    "/api/v2/testmode": {
+    "/testmode": {
       "get": {
         "tags": [
           "testmode"
@@ -6903,7 +6903,7 @@
         }
       }
     },
-    "/api/v2/time": {
+    "/time": {
       "get": {
         "tags": [
           "time"
