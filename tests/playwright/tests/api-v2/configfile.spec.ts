@@ -33,22 +33,22 @@ test.describe('configfile', () => {
     expect(await delRes.json()).toEqual({ Status: 'OK', Message: '' });
   });
 
-  test('GET /configfile', async () => {
+  test('GET /configfile', { tag: ['@covered'] }, async () => {
     test.info().annotations.push({ type: 'tier', description: 'COVERED' });
     test.skip(true, 'Covered inline by End-to-End /configfile test');
   });
 
-  test('POST /configfile/**', async () => {
+  test('POST /configfile/**', { tag: ['@covered'] }, async () => {
     test.info().annotations.push({ type: 'tier', description: 'COVERED' });
     test.skip(true, 'Covered inline by End-to-End /configfile test');
   });
 
-  test('GET /configfile/**', async () => {
+  test('GET /configfile/**', { tag: ['@covered'] }, async () => {
     test.info().annotations.push({ type: 'tier', description: 'COVERED' });
     test.skip(true, 'Covered inline by End-to-End /configfile test');
   });
 
-  test('DELETE /configfile/**', async () => {
+  test('DELETE /configfile/**', { tag: ['@covered'] }, async () => {
     test.info().annotations.push({ type: 'tier', description: 'COVERED' });
     test.skip(true, 'Covered inline by End-to-End /configfile test');
   });
