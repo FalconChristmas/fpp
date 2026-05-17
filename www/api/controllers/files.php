@@ -1450,12 +1450,16 @@ function TailFollowFile()
             $lines = 500;
     }
 
-    // Set up SSE headers
-    DisableOutputBuffering();
+    // Set up SSE headers BEFORE disabling output buffering. DisableOutputBuffering()
+    // ends with flush(), which commits the HTTP response headers to the client. If the
+    // Content-Type isn't set to text/event-stream before that flush, it stays the
+    // default text/html and the browser's EventSource rejects the stream immediately
+    // ("Connection error or stream ended").
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
     header('Connection: keep-alive');
     header('X-Accel-Buffering: no');
+    DisableOutputBuffering();
 
     // Open tail process with timeout wrapper to prevent orphaned processes
     $descriptorspec = array(
