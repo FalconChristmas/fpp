@@ -153,6 +153,24 @@ dispatch_get('/pipewire/aes67/status', 'GetAES67Status');
 dispatch_get('/pipewire/aes67/interfaces', 'GetAES67NetworkInterfaces');
 dispatch_get('/pipewire/graph', 'GetPipeWireGraph');
 
+// PipeWire control facade — clean, ID-addressed, live-state 3rd-party API
+dispatch_get('/pipewire/control/status', 'PWCtl_GetStatus');
+dispatch_get('/pipewire/control/groups', 'PWCtl_GetGroups');
+dispatch_get('/pipewire/control/groups/:id', 'PWCtl_GetGroup');
+dispatch_post('/pipewire/control/groups/:id/volume', 'PWCtl_SetGroupVolume');
+dispatch_post('/pipewire/control/groups/:id/mute', 'PWCtl_SetGroupMute');
+dispatch_post('/pipewire/control/groups/:id/members/:cardId/volume', 'PWCtl_SetMemberVolume');
+dispatch_post('/pipewire/control/groups/:id/members/:cardId/mute', 'PWCtl_SetMemberMute');
+dispatch_get('/pipewire/control/input-groups', 'PWCtl_GetInputGroups');
+dispatch_get('/pipewire/control/input-groups/:id', 'PWCtl_GetInputGroup');
+dispatch_post('/pipewire/control/input-groups/:id/members/:memberIndex/volume', 'PWCtl_SetInputMemberVolume');
+dispatch_post('/pipewire/control/input-groups/:id/members/:memberIndex/mute', 'PWCtl_SetInputMemberMute');
+dispatch_get('/pipewire/control/streams', 'PWCtl_GetStreams');
+dispatch_post('/pipewire/control/streams/:slot/volume', 'PWCtl_SetStreamVolume');
+dispatch_get('/pipewire/control/routing', 'PWCtl_GetRouting');
+dispatch_post('/pipewire/control/routing/:inputGroupId/:outputGroupId/volume', 'PWCtl_SetRoutingVolume');
+dispatch_post('/pipewire/control/routing/:inputGroupId/:outputGroupId/mute', 'PWCtl_SetRoutingMute');
+
 dispatch_get('/playlists', 'playlist_list');
 dispatch_post('/playlists', 'playlist_insert');
 dispatch_get('/playlists/playable', 'playlist_playable');

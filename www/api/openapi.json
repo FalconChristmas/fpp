@@ -58,6 +58,9 @@
       "name": "options"
     },
     {
+      "name": "pipewire"
+    },
+    {
       "name": "playlist"
     },
     {
@@ -2955,6 +2958,900 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/groups": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "List output groups with live state",
+        "description": "Returns every configured audio output group together with its member sound cards. Volume/mute for groups and member cards are read live from PipeWire (`volumeSource: \"live\"` when the sink is running, else the saved config value with `volumeSource: \"config\"`).",
+        "responses": {
+          "200": {
+            "description": "Output groups with live runtime state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "groups": [
+                    {
+                      "id": 1,
+                      "name": "Front",
+                      "enabled": true,
+                      "channels": 2,
+                      "nodeName": "fpp_group_front",
+                      "configVolume": 100,
+                      "configMute": false,
+                      "liveVolume": 80,
+                      "liveMute": false,
+                      "running": true,
+                      "state": "RUNNING",
+                      "volumeSource": "live",
+                      "members": [
+                        {
+                          "cardId": "S3",
+                          "channels": 2,
+                          "nodeName": "fpp_fx_g1_s3",
+                          "configVolume": 100,
+                          "liveVolume": 75,
+                          "liveMute": false,
+                          "running": true,
+                          "volumeSource": "live"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/groups/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Get one output group with live state",
+        "description": "Returns a single audio output group (by numeric group id) with its member sound cards and live runtime volume/mute.",
+        "responses": {
+          "200": {
+            "description": "Output group with live runtime state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "group": {
+                    "id": 1,
+                    "name": "Front",
+                    "enabled": true,
+                    "nodeName": "fpp_group_front",
+                    "liveVolume": 80,
+                    "liveMute": false,
+                    "running": true,
+                    "members": []
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Output group not found"
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/groups/{id}/members/{cardId}/mute": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "cardId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Mute or unmute a member sound card",
+        "description": "Sets the mute state of an individual sound card within an output group, addressed by its ALSA card id. Provide `mute` (bool) or `toggle: true`. Applied live and persisted.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "toggle": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member mute state applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "groupId": 1,
+                  "cardId": "S3",
+                  "nodeName": "fpp_fx_g1_s3",
+                  "mute": true,
+                  "applied": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Provide 'mute' (bool) or 'toggle': true"
+          },
+          "404": {
+            "description": "Card not found in group"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/groups/{id}/members/{cardId}/volume": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "cardId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Set member sound-card volume",
+        "description": "Sets the volume (0-150%) of an individual sound card within an output group, addressed by its stable ALSA card id (e.g. `S3`). Applied live to the member filter-chain sink and persisted.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 75
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member volume applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "groupId": 1,
+                  "cardId": "S3",
+                  "nodeName": "fpp_fx_g1_s3",
+                  "volume": 75,
+                  "applied": true,
+                  "message": "Volume set to 75%"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing 'volume'"
+          },
+          "404": {
+            "description": "Card not found in group"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/groups/{id}/mute": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Mute or unmute an output group",
+        "description": "Sets the mute state of an output group's combined sink. Provide an explicit `mute` boolean, or `toggle: true` to flip the current state. Applied live and persisted.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "mute": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mute state applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "groupId": 1,
+                  "nodeName": "fpp_group_front",
+                  "mute": true,
+                  "applied": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Provide 'mute' (bool) or 'toggle': true"
+          },
+          "404": {
+            "description": "Output group not found"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/groups/{id}/volume": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Set output group volume",
+        "description": "Sets the master volume (0-150%) of an audio output group's combined PipeWire sink. The value is applied live and persisted to the group config so it survives a reboot.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 80
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Volume applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "groupId": 1,
+                  "nodeName": "fpp_group_front",
+                  "volume": 80,
+                  "applied": true,
+                  "message": "Volume set to 80%"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing 'volume'"
+          },
+          "404": {
+            "description": "Output group not found"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/input-groups": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "List input groups (mix buses)",
+        "description": "Returns every configured input group (mix bus) with its members and the output groups it routes to. Member volume/mute reflect the saved config (`volumeSource: \"config\"`) plus a live `running` flag indicating whether the loopback node is currently active.",
+        "responses": {
+          "200": {
+            "description": "Input groups with member state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroups": [
+                    {
+                      "id": 1,
+                      "name": "Main Mix",
+                      "enabled": true,
+                      "channels": 2,
+                      "outputs": [
+                        1,
+                        2
+                      ],
+                      "members": [
+                        {
+                          "index": 0,
+                          "type": "fppd_stream",
+                          "sourceId": "fppd_stream_1",
+                          "name": "FPP Media",
+                          "configVolume": 100,
+                          "configMute": false,
+                          "running": true,
+                          "volumeSource": "config"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/input-groups/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Get one input group (mix bus)",
+        "description": "Returns a single input group by numeric id with its members and routing targets.",
+        "responses": {
+          "200": {
+            "description": "Input group with member state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroup": {
+                    "id": 1,
+                    "name": "Main Mix",
+                    "enabled": true,
+                    "channels": 2,
+                    "outputs": [
+                      1
+                    ],
+                    "members": []
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Input group not found"
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "memberIndex",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Mute or unmute an input-group member",
+        "description": "Sets the mute state of a member within an input group, addressed by zero-based member index. Loopback nodes have no mute property, so mute is implemented by driving channelmix volume to 0 and unmute restores the saved member volume. Provide `mute` (bool) or `toggle: true`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "mute": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member mute state applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroupId": 1,
+                  "memberIndex": 0,
+                  "mute": true,
+                  "applied": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Provide 'mute' (bool) or 'toggle': true"
+          },
+          "404": {
+            "description": "Member not found in input group"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "memberIndex",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Set input-group member volume",
+        "description": "Sets the volume (0-100%) of a member within an input group (mix bus), addressed by its zero-based member index. Applied live to the member loopback via channelmix and persisted. Note: the primary fppd stream's volume is governed by fppd itself, not a loopback.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 60
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member volume applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroupId": 1,
+                  "memberIndex": 0,
+                  "volume": 60,
+                  "applied": true,
+                  "message": "Volume set to 60%"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing 'volume'"
+          },
+          "404": {
+            "description": "Member not found in input group"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/routing": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Get the routing matrix",
+        "description": "Returns the full input-group to output-group routing matrix. For every input group, each possible output-group path is listed with its connected state, per-path volume and mute. Values reflect the saved config (`volumeSource: \"config\"`).",
+        "responses": {
+          "200": {
+            "description": "Routing matrix",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "volumeSource": "config",
+                  "matrix": [
+                    {
+                      "inputGroupId": 1,
+                      "inputGroupName": "Main Mix",
+                      "enabled": true,
+                      "paths": [
+                        {
+                          "outputGroupId": 1,
+                          "outputGroupName": "Front",
+                          "connected": true,
+                          "volume": 100,
+                          "mute": false
+                        },
+                        {
+                          "outputGroupId": 2,
+                          "outputGroupName": "Rear",
+                          "connected": false,
+                          "volume": 75,
+                          "mute": false
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
+      "parameters": [
+        {
+          "name": "inputGroupId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "outputGroupId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Mute or unmute a routing path",
+        "description": "Sets the mute state of a single input-group to output-group routing path. Mute drives the routing channelmix volume to 0; unmute restores the saved per-path volume. Provide `mute` (bool) or `toggle: true`. Persisted to the input-group routing config.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "toggle": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Route mute state applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroupId": 1,
+                  "outputGroupId": 2,
+                  "mute": true,
+                  "applied": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Provide 'mute' (bool) or 'toggle': true"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
+      "parameters": [
+        {
+          "name": "inputGroupId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "outputGroupId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Set routing-path volume",
+        "description": "Sets the volume (0-100%) of a single input-group to output-group routing path. Applied live to the routing combine-stream and persisted to the input-group routing config.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 50
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Route volume applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroupId": 1,
+                  "outputGroupId": 2,
+                  "volume": 50,
+                  "applied": true,
+                  "message": "Route volume set to 50%"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing 'volume'"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/status": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "PipeWire control status",
+        "description": "Reports whether the PipeWire backend is active, the systemd service health of the PipeWire/WirePlumber/pulse units, and configured group counts. Use this to discover capability before issuing control calls.",
+        "responses": {
+          "200": {
+            "description": "PipeWire backend status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "backend": "pipewire",
+                  "pipewireActive": true,
+                  "simpleMode": false,
+                  "services": {
+                    "fpp-pipewire": "active",
+                    "fpp-wireplumber": "active",
+                    "fpp-pipewire-pulse": "active"
+                  },
+                  "outputGroupCount": 2,
+                  "outputGroupsEnabled": 2,
+                  "inputGroupCount": 1,
+                  "inputGroupsEnabled": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/streams": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "List fppd stream slots",
+        "description": "Returns the status of all 5 fppd media stream slots (idle/playing). Slot 1 additionally reports the currently playing media filename and timing from fppd.",
+        "responses": {
+          "200": {
+            "description": "Stream slot status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "streams": [
+                    {
+                      "slot": 1,
+                      "nodeName": "fppd_stream_1",
+                      "status": "playing",
+                      "mediaFilename": "show.mp4",
+                      "secondsElapsed": 12,
+                      "secondsRemaining": 48
+                    },
+                    {
+                      "slot": 2,
+                      "nodeName": "fppd_stream_2",
+                      "status": "idle",
+                      "mediaFilename": ""
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pipewire/control/streams/{slot}/volume": {
+      "parameters": [
+        {
+          "name": "slot",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Set fppd stream slot volume",
+        "description": "Sets the volume (0-100%) of an fppd media stream slot (1-5). Slot 1 uses fppd's built-in volume control; slots 2-5 are set live via PipeWire channelmix on the stream node. The response `control` field indicates which path was used.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 90
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stream volume applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "slot": 1,
+                  "volume": 90,
+                  "applied": true,
+                  "control": "fppd"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing 'volume'"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
           }
         }
       }
