@@ -72,8 +72,11 @@ RUN apt-get clean
 # directory
 ARG EXTRA_INSTALL_FLAG=
 
-# branch being build
+# branch being build. Promote to ENV so it reaches `make` inside
+# FPP_Install.sh -- the makefile uses FPPBRANCH to decide whether to add
+# -g1 for release builds, and ARG alone is not in the RUN environment.
 ARG FPPBRANCH
+ENV FPPBRANCH=${FPPBRANCH}
 
 COPY ./ /opt/fpp/
 COPY SD/FPP_Install.sh /root/FPP_Install.sh

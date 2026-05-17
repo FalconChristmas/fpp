@@ -44,8 +44,23 @@ ifeq '$(SRCDIR)' ''
 endif
 
 ifeq '$(CXXCOMPILER)' 'g++'
-	GITBRANCH := $(shell git -C $(SRCDIR) rev-parse --abbrev-ref HEAD)
-	ifeq ($(GITBRANCH), master)
+	# Build branch detection -- drives the -g1 release flag below.
+	# Resolved in three steps so detached-HEAD checkouts (CI ref builds,
+	# tag builds) don't silently drop -g1 and bust the ccache:
+	#   1. Explicit FPPBRANCH from the env/CLI wins (set by CI).
+	#   2. Local clones on a branch: rev-parse --abbrev-ref.
+	#   3. Detached HEAD: probe for a known branch that contains HEAD.
+	ifeq ($(FPPBRANCH),)
+		FPPBRANCH := $(shell git -C $(SRCDIR) rev-parse --abbrev-ref HEAD 2>/dev/null)
+	endif
+	ifeq ($(FPPBRANCH),HEAD)
+		FPPBRANCH := $(shell git -C $(SRCDIR) for-each-ref --contains HEAD \
+			--format='%(refname:short)' \
+			refs/heads/master refs/heads/main \
+			refs/remotes/origin/master refs/remotes/origin/main \
+			2>/dev/null | head -1 | sed 's|^origin/||')
+	endif
+	ifeq ($(FPPBRANCH),master)
 	OPTIMIZE_FLAGS=-g1
 	endif
     GCCVERSIONGTEQ12:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 12)

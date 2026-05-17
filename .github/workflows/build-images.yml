@@ -135,6 +135,18 @@ jobs:
           # (b) ship a credential we should never be publishing.
           persist-credentials: false
 
+      - name: Set FPPBRANCH from ref
+        # actions/checkout leaves the tree in detached HEAD, so
+        # `git rev-parse --abbrev-ref HEAD` returns "HEAD" and the
+        # makefile's branch check fails to add -g1 to release builds --
+        # which both ships unstripped binaries and busts the ccache by
+        # changing compile flags vs. local dev builds on master.
+        # Pass the ref name through explicitly so every step (including
+        # FPP_Install.sh inside the chroot, which exports FPPBRANCH) sees
+        # the right value.
+        if: steps.gate.outputs.skip == 'false'
+        run: echo "FPPBRANCH=${{ github.ref_name }}" >> "$GITHUB_ENV"
+
       - name: Maximize disk space
         # Default GH runners have ~14 GB free; BBB / Pi builds easily use
         # 12-15 GB (base image + work image + artifacts). Strip the pre-
