@@ -73,6 +73,32 @@ void GStreamerOutput::EnsureGStreamerInit() {
     }
 }
 
+// Pick the best available ALSA-direct audio sink element.
+//
+// We prefer alsasink (avoids autoaudiosink's slow pulsesink probe in
+// ALSA-only mode), but the gstreamer1.0-alsa plugin is not present on
+// every install — older/upgraded systems may lack it.  If alsasink is
+// not registered, gst_parse_launch() / gst_element_factory_make() fail
+// with "no element alsasink" and audio never starts.  Fall back to
+// autoaudiosink so playback always works.  Result is cached; must be
+// called after gst_init().
+static const char* GetAlsaDirectSinkName() {
+    static const char* cached = nullptr;
+    if (!cached) {
+        GstElementFactory* f = gst_element_factory_find("alsasink");
+        if (f) {
+            gst_object_unref(f);
+            cached = "alsasink";
+        } else {
+            LogWarn(VB_MEDIAOUT, "GStreamer: alsasink not available "
+                                 "(gstreamer1.0-alsa not installed) — "
+                                 "falling back to autoaudiosink\n");
+            cached = "autoaudiosink";
+        }
+    }
+    return cached;
+}
+
 // Resolve a DRM connector name (e.g., "HDMI-A-1") to its card path, connector ID,
 // connection status, and current display resolution by scanning sysfs.
 // Works on all Pi models (Pi 3/4/5) and x86 — no libdrm ioctls needed.
@@ -503,11 +529,18 @@ int GStreamerOutput::Start(int msTime) {
         // and let PipeWire route to the default output.
         sinkStr = "pipewiresink name=pwsink sync=true";
     } else {
-        // Use alsasink directly — autoaudiosink probes pulsesink first
+        // Prefer alsasink directly — autoaudiosink probes pulsesink first
         // which fails slowly in ALSA-only mode, causing startup delay.
         // buffer-time=500000 (500ms) gives USB audio devices adequate ring
-        // buffer headroom to avoid underruns during initial isochronous scheduling.
-        sinkStr = "alsasink buffer-time=500000";
+        // buffer headroom to avoid underruns during initial isochronous
+        // scheduling.  Falls back to autoaudiosink if the gstreamer1.0-alsa
+        // plugin is not installed (otherwise the pipeline fails to build).
+        const char* alsaSink = GetAlsaDirectSinkName();
+        if (strcmp(alsaSink, "alsasink") == 0) {
+            sinkStr = "alsasink buffer-time=500000";
+        } else {
+            sinkStr = alsaSink;
+        }
     }
 
     GError* error = nullptr;
@@ -553,9 +586,13 @@ int GStreamerOutput::Start(int msTime) {
             g_object_set(sink, "stream-properties", props, NULL);
             gst_structure_free(props);
         } else {
-            // Use alsasink directly — avoids autoaudiosink probe delay.
-            sink = gst_element_factory_make("alsasink", "audiosink");
-            g_object_set(sink, "buffer-time", (gint64)500000, NULL);
+            // Prefer alsasink directly — avoids autoaudiosink probe delay.
+            // Fall back to autoaudiosink if gstreamer1.0-alsa is missing.
+            const char* alsaSinkName = GetAlsaDirectSinkName();
+            sink = gst_element_factory_make(alsaSinkName, "audiosink");
+            if (sink && strcmp(alsaSinkName, "alsasink") == 0) {
+                g_object_set(sink, "buffer-time", (gint64)500000, NULL);
+            }
         }
         GstElement* queue2 = gst_element_factory_make("queue", "q2");
         GstElement* audioconvert2 = gst_element_factory_make("audioconvert", "aconv2");
@@ -719,9 +756,13 @@ int GStreamerOutput::Start(int msTime) {
             g_object_set(sink, "stream-properties", props, NULL);
             gst_structure_free(props);
         } else {
-            // Use alsasink directly — avoids autoaudiosink probe delay.
-            sink = gst_element_factory_make("alsasink", "audiosink");
-            g_object_set(sink, "buffer-time", (gint64)500000, NULL);
+            // Prefer alsasink directly — avoids autoaudiosink probe delay.
+            // Fall back to autoaudiosink if gstreamer1.0-alsa is missing.
+            const char* alsaSinkName = GetAlsaDirectSinkName();
+            sink = gst_element_factory_make(alsaSinkName, "audiosink");
+            if (sink && strcmp(alsaSinkName, "alsasink") == 0) {
+                g_object_set(sink, "buffer-time", (gint64)500000, NULL);
+            }
         }
         GstElement* queue2 = gst_element_factory_make("queue", "q2");
         GstElement* audioconvert2 = gst_element_factory_make("audioconvert", "aconv2");

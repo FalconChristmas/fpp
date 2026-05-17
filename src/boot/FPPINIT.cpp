@@ -1876,20 +1876,40 @@ static void setupAudio() {
             std::string productName = getAlsaCardProductName(cardNum, cardName);
             std::string desc = productName + " (" + cId + ")";
 
-            // Detect max playback channels from ALSA HW params
+            // Detect playback channels from ALSA HW params.
+            // Formats: "CHANNELS: 8" (fixed), "CHANNELS[2]: 2 8" (discrete
+            // list), "CHANNELS: [1 8]" (continuous range).
+            //
+            // A continuous range like "[1 8]" means the driver accepts any
+            // count in that range — it does NOT imply that many physical
+            // outputs.  The Pi onboard analog (bcm2835) reports "[1 8]"
+            // because it has 8 hardware mixer subdevices, but it is a
+            // 2-channel stereo jack.  Opening it as 8ch feeds interleaved
+            // 8-channel data to a stereo DAC → garbled, high-pitched noise.
+            // So for a range we default to stereo (clamped into the range);
+            // only fixed/discrete declarations use the largest value.
             int maxChannels = 2;
-            // Match CHANNELS line — formats: "CHANNELS: 8", "CHANNELS[2]: 2 8", "CHANNELS: [1 8]"
             std::smatch chMatch;
-            // Try discrete list first: "CHANNELS[N]: val1 val2 ..." or "CHANNELS: val"
             if (std::regex_search(hwParams, chMatch, std::regex(R"(CHANNELS\[?\d*\]?:\s+(.+))"))) {
                 std::string chLine = chMatch[1].str();
-                // Find the largest number on the line
+                bool isRange = chLine.find('[') != std::string::npos;
                 std::regex numRe(R"(\d+)");
                 std::sregex_iterator it(chLine.begin(), chLine.end(), numRe);
                 std::sregex_iterator end;
+                std::vector<int> nums;
                 for (; it != end; ++it) {
-                    int ch = std::stoi((*it)[0].str());
-                    if (ch > maxChannels) maxChannels = ch;
+                    nums.push_back(std::stoi((*it)[0].str()));
+                }
+                if (isRange && nums.size() >= 2) {
+                    // Continuous range [lo hi]: prefer stereo within the range.
+                    int lo = nums.front();
+                    int hi = nums.back();
+                    maxChannels = std::min(std::max(2, lo), hi);
+                } else {
+                    // Fixed or discrete list: take the largest declared count.
+                    for (int ch : nums) {
+                        if (ch > maxChannels) maxChannels = ch;
+                    }
                 }
             }
             if (maxChannels > 8) maxChannels = 8; // cap at 7.1

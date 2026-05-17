@@ -195,6 +195,20 @@ function PutSetting()
             ob_start();
             ApplyPipeWireSimpleConfig();
             ob_end_clean();
+        } else if (IsPipeWireBackend($settings)) {
+            // Switching INTO Advanced PipeWire mode: re-apply the saved
+            // advanced audio/input-group config so the regenerated graph
+            // and PipeWireSinkName match.  Without this, PipeWireSinkName
+            // is left at whatever the previous mode set (e.g. the Simple
+            // mode "fpp_group_default"), which does not exist in the
+            // advanced graph — fppd's stream is then orphaned and silent.
+            // Audio groups first (output sinks), then input groups (mix
+            // buses target the output groups and write the final
+            // PipeWireSinkName, e.g. fpp_input_mix_bus_1).
+            ob_start();
+            ApplyPipeWireAudioGroups();
+            ApplyPipeWireInputGroups();
+            ob_end_clean();
         }
     } else if ($setting == "EnableTethering") {
         $ssid = ReadSettingFromFile("TetherSSID");

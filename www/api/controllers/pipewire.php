@@ -533,7 +533,15 @@ function QueryAlsaCardBestRate($cardId, $allowedRates, $fallbackRate)
         return $fallbackRate;
     }
 
-    // Pick the highest allowed rate the device supports for best quality.
+    // Prefer the PipeWire graph clock rate (48000) when the device supports
+    // it — matching the graph clock avoids a graph-wide resample and is the
+    // safe choice for onboard analog DACs (e.g. Pi bcm2835), which advertise
+    // a continuous 8000–192000 range but are happiest at the graph rate.
+    // Only step up to a higher rate if 48000 is not supported.
+    if (in_array(48000, $deviceRates)) {
+        return 48000;
+    }
+    // Otherwise pick the highest allowed rate the device supports.
     foreach (array_reverse($allowedRates) as $ar) {
         if (in_array($ar, $deviceRates)) {
             return $ar;
@@ -3745,12 +3753,24 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                     $adapterName = 'fpp_alsa_' . $cidNorm;
                     $cardNodeMap[$cardId] = $adapterName;
                     if (!isset($customAlsaAdaptersForUnresolved[$cardId])) {
-                        // Detect max channels from ALSA HW params
+                        // Detect channels from ALSA HW params.  A continuous
+                        // range "[lo hi]" (e.g. bcm2835 onboard analog reports
+                        // "[1 8]" due to 8 mixer subdevices, not 8 physical
+                        // outputs) must default to stereo — opening it as 8ch
+                        // feeds garbled high-pitched audio to a stereo DAC.
+                        // Only fixed/discrete declarations use the max value.
                         $unresolvedMaxCh = 2;
                         if (preg_match('/CHANNELS\[?\d*\]?:\s+(.+)/i', $testOutput, $chM)) {
-                            preg_match_all('/\d+/', $chM[1], $chNums);
+                            $chLine = $chM[1];
+                            preg_match_all('/\d+/', $chLine, $chNums);
                             if (!empty($chNums[0])) {
-                                $unresolvedMaxCh = min(8, max(array_map('intval', $chNums[0])));
+                                $cn = array_map('intval', $chNums[0]);
+                                if (strpos($chLine, '[') !== false && count($cn) >= 2) {
+                                    // Continuous range [lo hi]: prefer stereo within range.
+                                    $unresolvedMaxCh = min(max(2, $cn[0]), end($cn));
+                                } else {
+                                    $unresolvedMaxCh = min(8, max($cn));
+                                }
                             }
                         }
                         // Detect best audio format: S32 > S24 > S16
@@ -3808,14 +3828,27 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                 continue;
             $memberRate = isset($member['sampleRate']) ? intval($member['sampleRate']) : 0;
             $memberPeriod = isset($member['periodSize']) ? intval($member['periodSize']) : 0;
-            // Need a custom adapter if channels >2 or explicit rate/period override
-            $needsCustom = ($memberCh > 2 || $memberRate > 0 || $memberPeriod > 0);
-            if (!$needsCustom)
-                continue;
             // Skip AES67 virtual sinks — they don't use ALSA adapters
             if (strpos($cid, 'aes67_') === 0)
                 continue;
             if (!isset($cardNodeMap[$cid]))
+                continue;
+            // If the resolved target is an fpp_alsa_* adapter name that does
+            // not exist as a real PipeWire sink, we MUST create that adapter
+            // node — otherwise the filter-chain / combine-stream playback
+            // targets a non-existent node and the chain is never linked to
+            // the hardware (silent output).  This happens for plain 2ch
+            // members whose cardId resolved via the stored-nodeTarget
+            // fallback (Priority 4) instead of a live WirePlumber sink.
+            $resolvedTarget = isset($cardNodeMap[$cid]) ? $cardNodeMap[$cid] : '';
+            $targetIsMissingFppAdapter = (strpos($resolvedTarget, 'fpp_alsa_') === 0)
+                && !isset($existingSinks[$resolvedTarget]);
+            // Need a custom adapter if channels >2, explicit rate/period
+            // override, or the config references an fpp_alsa_* node that
+            // nothing else creates.
+            $needsCustom = ($memberCh > 2 || $memberRate > 0 || $memberPeriod > 0
+                || $targetIsMissingFppAdapter);
+            if (!$needsCustom)
                 continue;
             // Verify ALSA device is still present (may have been unplugged)
             if (ResolveCardIdToNumber($cid) < 0)
