@@ -256,7 +256,9 @@ def rewrite_v1_compat_routes(endpoints):
             current['method'] = 'get'
             current['body_raw'] = None
 
-        rewritten.append(current)
+        if current['path'].startswith('/api/'):
+            current['path'] = current['path'].replace('/api/', '/', 1)
+            rewritten.append(current)
 
     return rewritten
 
@@ -313,7 +315,7 @@ def build_openapi(endpoints):
             'description': 'Falcon Player (FPP) REST API',
             'version': '1.0',
         },
-        'servers': [{'url': '/', 'description': 'Local FPP instance'}],
+        'servers': [{'url': '/api/', 'description': 'Local FPP instance'}],
         'tags': [{'name': t} for t in tags],
         'paths': {},
     }
