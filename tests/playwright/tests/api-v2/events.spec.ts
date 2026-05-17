@@ -4,7 +4,7 @@ const V2 = '/api/v2';
 
 test.describe('events', () => {
 
-  test('GET /events', async ({ request }) => {
+  test('GET /events', { tag: ['@schema'] }, async ({ request }) => {
     test.info().annotations.push({ type: 'tier', description: 'SCHEMA' });
     const res = await request.get(`${V2}/events`);
     expect(res.status()).toBe(200);
