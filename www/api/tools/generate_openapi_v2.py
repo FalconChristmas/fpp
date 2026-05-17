@@ -361,7 +361,7 @@ def build_openapi(endpoints):
             operation['responses'] = responses
             path_item[method] = operation
 
-        spec['paths'][path] = path_item
+        spec['paths'][path.removeprefix(API_PREFIX) or '/'] = path_item
 
     return spec
 
