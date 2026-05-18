@@ -110,7 +110,20 @@ detect_systems_subnets() {
   done
 }
 
-# Function to detect the domain name of the device 
+# Function to detect local WebSocket origins for all interfaces
+# Allows ws:// connections on any port for each local IPv4 address,
+# so that plugins and FPP services can use WebSockets without
+# individual CSP entries per port.
+detect_local_websocket_origins() {
+  ip_addresses=$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
+  for ip in $ip_addresses; do
+    echo "ws://${ip}:*"
+  done
+  echo "ws://localhost:*"
+  echo "ws://127.0.0.1:*"
+}
+
+# Function to detect the domain name of the device
 detect_systems_domainname() {
   domain_name=$(hostname -d)
   if [ -z "$domain_name" ]; then
@@ -180,6 +193,12 @@ generate_csp() {
     if [ -n "$cape_domains" ]; then
         combined_values["img-src"]="${combined_values["img-src"]} $cape_domains"
         combined_values["connect-src"]="${combined_values["connect-src"]} $cape_domains"
+    fi
+
+    # Allow WebSocket connections to all local interfaces (any port)
+    local_ws_origins=$(detect_local_websocket_origins)
+    if [ -n "$local_ws_origins" ]; then
+        combined_values["connect-src"]="${combined_values["connect-src"]} $local_ws_origins"
     fi
 
     # Detect FPPD Discovered MultiSync Hosts to trust
