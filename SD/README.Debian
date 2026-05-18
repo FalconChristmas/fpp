@@ -72,13 +72,9 @@ Useful flags
                         already populated (Docker images that pre-stage source,
                         or local-source CI flows).
 
-  --skip-vlc            Don't build VLC from source.
-
   --skip-apt-install    Don't run `apt-get install $PACKAGE_LIST`. Use when the
                         Dockerfile / build script has already pre-installed
                         the dependency set.
-
-  --build-vlc           Force VLC to be built from source rather than apt'd.
 
 Thermal note (low-power SBCs)
 -----------------------------
@@ -95,6 +91,6 @@ Container installs
 ------------------
 
 For Docker / OCI images, see Docker/Dockerfile in the repo root. The
-installer is invoked with `--skip-apt-install --skip-vlc` because the
+installer is invoked with `--skip-apt-install` because the
 Dockerfile pre-installs the dependency set as separate layers (so the
 expensive parts cache properly across builds).
