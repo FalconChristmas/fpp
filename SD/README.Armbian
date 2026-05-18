@@ -44,10 +44,10 @@ the SD-running install to eMMC across multiple devices.
 Thermal note
 ------------
 
-The compile (especially building VLC from source) pegs all cores at 100%
-for a long time. Boards without a heatsink/fan can hit thermal-shutdown
-mid-install. If that happens, you have to restart from a fresh image. To
-avoid it, lock the CPU lower before running the installer:
+The compile pegs all cores at 100% for a long time. Boards without a long time
+Boards without a heatsink/fan can hit thermal-shutdown mid-install. If that
+happens, you have to restart from a fresh image. To avoid it, lock the CPU
+lower before running the installer:
 
     cpufreq-set -u 800000   # cap at 800 MHz
 

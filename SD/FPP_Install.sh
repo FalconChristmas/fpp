@@ -475,7 +475,7 @@ export DEBIAN_FRONTEND=noninteractive
 # Top-level apt phase: remove unwanted stock packages, update apt, select PHP
 # version, install the full FPP dependency set, and do the one-off Pi USB-boot
 # fstab/cmdline plumbing that needs to run once-per-image.
-# Reads globals: FPPPLATFORM, OSVER, desktop, isimage, skip_apt_install, build_vlc
+# Reads globals: FPPPLATFORM, OSVER, desktop, isimage, skip_apt_install
 # Sets globals:  ACTUAL_PHPVER, PHPVER, BOOTDIR (on Pi)
 #############################################################################
 install_base_packages() {

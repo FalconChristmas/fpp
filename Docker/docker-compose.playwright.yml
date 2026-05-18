@@ -2,7 +2,7 @@ services:
   fpp:
     build:
       args:
-        EXTRA_INSTALL_FLAG: --skip-clone --skip-vlc --skip-apt-install --yes
+        EXTRA_INSTALL_FLAG: --skip-clone --skip-apt-install --yes
         FPPBRANCH: ${FPPBRANCH}
       context: ../
       dockerfile: ./Docker/Dockerfile
