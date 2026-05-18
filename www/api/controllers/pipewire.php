@@ -3597,7 +3597,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             $nodeName = isset($props['node.name']) ? $props['node.name'] : '';
             $mediaClass = isset($props['media.class']) ? $props['media.class'] : '';
             if ($nodeName && $mediaClass === 'Audio/Sink') {
-                $existingSinks[$nodeName] = true;
+                $existingSinks[$nodeName] = isset($props['audio.channels']) ? intval($props['audio.channels']) : 2;
                 $cn = -1;
 
                 // WirePlumber-managed sinks have alsa.card set directly.
@@ -3843,10 +3843,15 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             $resolvedTarget = isset($cardNodeMap[$cid]) ? $cardNodeMap[$cid] : '';
             $targetIsMissingFppAdapter = (strpos($resolvedTarget, 'fpp_alsa_') === 0)
                 && !isset($existingSinks[$resolvedTarget]);
-            // Need a custom adapter if channels >2, explicit rate/period
-            // override, or the config references an fpp_alsa_* node that
-            // nothing else creates.
-            $needsCustom = ($memberCh > 2 || $memberRate > 0 || $memberPeriod > 0
+            // If an fpp_alsa_* boot-time adapter already exists with enough channels,
+            // don't create a duplicate — the boot-time node already covers this card.
+            $existingAdapterChannels = (strpos($resolvedTarget, 'fpp_alsa_') === 0 && isset($existingSinks[$resolvedTarget]))
+                ? $existingSinks[$resolvedTarget] : 0;
+            $bootAdapterSufficient = ($existingAdapterChannels >= $memberCh);
+            // Need a custom adapter if channels >2 (and not already covered by boot node),
+            // explicit rate/period override, or the config references an fpp_alsa_* node
+            // that nothing else creates.
+            $needsCustom = (($memberCh > 2 && !$bootAdapterSufficient) || $memberRate > 0 || $memberPeriod > 0
                 || $targetIsMissingFppAdapter);
             if (!$needsCustom)
                 continue;

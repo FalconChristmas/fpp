@@ -1876,6 +1876,9 @@ static void setupAudio() {
             std::string productName = getAlsaCardProductName(cardNum, cardName);
             std::string desc = productName + " (" + cId + ")";
 
+            // USB audio cards need extra headroom and use different channel-detection logic.
+            bool isUsbCard = cardLines.count(key) && cardLines[key].find("USB Audio") != std::string::npos;
+
             // Detect playback channels from ALSA HW params.
             // Formats: "CHANNELS: 8" (fixed), "CHANNELS[2]: 2 8" (discrete
             // list), "CHANNELS: [1 8]" (continuous range).
@@ -1886,7 +1889,7 @@ static void setupAudio() {
             // because it has 8 hardware mixer subdevices, but it is a
             // 2-channel stereo jack.  Opening it as 8ch feeds interleaved
             // 8-channel data to a stereo DAC → garbled, high-pitched noise.
-            // So for a range we default to stereo (clamped into the range);
+            // So for non-USB cards with a range we default to stereo;
             // only fixed/discrete declarations use the largest value.
             int maxChannels = 2;
             std::smatch chMatch;
@@ -1901,13 +1904,38 @@ static void setupAudio() {
                     nums.push_back(std::stoi((*it)[0].str()));
                 }
                 if (isRange && nums.size() >= 2) {
-                    // Continuous range [lo hi]: prefer stereo within the range.
                     int lo = nums.front();
                     int hi = nums.back();
-                    maxChannels = std::min(std::max(2, lo), hi);
+                    if (isUsbCard) {
+                        // USB audio: a range [lo hi] covers actual multi-channel
+                        // altsets — use the maximum.
+                        maxChannels = hi;
+                    } else {
+                        // Non-USB (e.g. bcm2835 analog): range is misleading,
+                        // default to stereo clamped into the range.
+                        maxChannels = std::min(std::max(2, lo), hi);
+                    }
                 } else {
                     // Fixed or discrete list: take the largest declared count.
                     for (int ch : nums) {
+                        if (ch > maxChannels) maxChannels = ch;
+                    }
+                }
+            }
+            // For USB audio also read /proc/asound/cardN/stream0 which lists
+            // every playback altset with its exact channel count.  This catches
+            // cases where aplay reports a range or probes only one altset.
+            if (isUsbCard) {
+                std::string stream0 = GetFileContents("/proc/asound/card" + std::to_string(cardNum) + "/stream0");
+                if (!stream0.empty()) {
+                    // Only look in the Playback section (stop before Capture:)
+                    size_t capturePos = stream0.find("\nCapture:");
+                    std::string playSection = (capturePos != std::string::npos) ? stream0.substr(0, capturePos) : stream0;
+                    std::regex chRe(R"(\bChannels:\s+(\d+))");
+                    std::sregex_iterator it(playSection.begin(), playSection.end(), chRe);
+                    std::sregex_iterator end;
+                    for (; it != end; ++it) {
+                        int ch = std::stoi((*it)[1].str());
                         if (ch > maxChannels) maxChannels = ch;
                     }
                 }
@@ -1946,7 +1974,6 @@ static void setupAudio() {
 
             // USB audio cards need extra headroom: their independent oscillators
             // drift relative to the PipeWire graph driver clock, causing resyncs.
-            bool isUsbCard = cardLines.count(key) && cardLines[key].find("USB-Audio") != std::string::npos;
             int headroom = isUsbCard ? 4096 : 256;
 
             printf("FPP - PipeWire: creating adapter fpp_alsa_%s for card %d (%s) [%dch %s]%s\n",
