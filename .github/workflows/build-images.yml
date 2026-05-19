@@ -44,6 +44,7 @@ concurrency:
 jobs:
   prep:
     runs-on: ubuntu-latest
+    if: github.repository == 'FalconChristmas/fpp'   # Only run nightly builds on main repo
     outputs:
       version: ${{ steps.ver.outputs.version }}
       is_release: ${{ steps.ver.outputs.is_release }}
