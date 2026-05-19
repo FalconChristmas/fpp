@@ -76,6 +76,11 @@
             var hasNewerOS = false;
             $('#osSelect option').each(function () {
                 if (this.value !== '') {
+                    // Nightly builds are listed for dev users but should not
+                    // trigger the "OS upgrade available" banner.
+                    if (/nightly/i.test(this.text)) {
+                        return;
+                    }
                     var availableVersion = parseOSVersion(this.text);
                     if (isNewerOSVersion(availableVersion, currentVersion)) {
                         hasNewerOS = true;
