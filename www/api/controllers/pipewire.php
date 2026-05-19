@@ -3753,6 +3753,27 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                 // Also verify card supports standard PCM formats (not IEC958/passthrough only)
                 $hasPcmFmt = (strpos($testOutput, 'S16_LE') !== false || strpos($testOutput, 'S24_LE') !== false
                     || strpos($testOutput, 'S24_3LE') !== false || strpos($testOutput, 'S32_LE') !== false);
+                // On some hardware (e.g. Pi Zero 2 W vc4-hdmi with KMS), the
+                // raw hw: device only exposes IEC958_SUBFRAME_LE.  PipeWire's
+                // SPA ALSA plugin fatally crashes when it encounters IEC958-only
+                // hw: devices because it tries to open a passthrough variant
+                // (appending "p" to the card name) which doesn't exist.  Using
+                // sysdefault: instead routes through ALSA's dmix/plug layer
+                // which handles the IEC958-to-PCM format conversion and avoids
+                // the passthrough probe crash.
+                $needsSysdefault = false;
+                if ($canOpen && !$hasPcmFmt
+                    && strpos($testOutput, 'IEC958_SUBFRAME_LE') !== false) {
+                    $sysOutput = shell_exec("timeout 2 aplay -D sysdefault:$cardId --dump-hw-params /dev/zero 2>&1");
+                    $sysCanOpen = (strpos($sysOutput, 'HW Params') !== false);
+                    $sysHasPcm = (strpos($sysOutput, 'S16_LE') !== false || strpos($sysOutput, 'S24_LE') !== false
+                        || strpos($sysOutput, 'S24_3LE') !== false || strpos($sysOutput, 'S32_LE') !== false);
+                    if ($sysCanOpen && $sysHasPcm) {
+                        $hasPcmFmt = true;
+                        $needsSysdefault = true;
+                        $testOutput = $sysOutput;
+                    }
+                }
                 if ($canOpen && $hasPcmFmt) {
                     $cidNorm = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cardId));
                     $adapterName = 'fpp_alsa_' . $cidNorm;
@@ -3795,6 +3816,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                             'channels' => $unresolvedMaxCh,
                             'rate' => 0,
                             'format' => $unresolvedFmt,
+                            'needsSysdefault' => $needsSysdefault,
                         );
                     }
                 } else {
@@ -3868,9 +3890,23 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                 $cidNorm = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cid));
                 // Detect best audio format from ALSA HW params
                 $adapterFmt = 'S16LE';
+                $adapterNeedsSysdefault = false;
                 $cidSafe = preg_match('/^[a-zA-Z0-9_]+$/', $cid) ? $cid : strval(ResolveCardIdToNumber($cid));
                 if (!empty($cidSafe)) {
                     $fmtOut = shell_exec("timeout 2 aplay -D hw:" . escapeshellarg($cidSafe) . " --dump-hw-params /dev/zero 2>&1 | head -40");
+                    // If hw: only exposes IEC958 (e.g. Pi Zero 2 W HDMI with
+                    // KMS), fall back to sysdefault: for PCM format conversion.
+                    // Using sysdefault: instead of plughw: avoids PipeWire's SPA
+                    // ALSA plugin crashing when it probes for a passthrough
+                    // variant by appending "p" to the device path.
+                    if ($fmtOut && strpos($fmtOut, 'IEC958_SUBFRAME_LE') !== false
+                        && strpos($fmtOut, 'S16_LE') === false && strpos($fmtOut, 'S32_LE') === false) {
+                        $sysFmtOut = shell_exec("timeout 2 aplay -D sysdefault:" . escapeshellarg($cidSafe) . " --dump-hw-params /dev/zero 2>&1 | head -40");
+                        if ($sysFmtOut && (strpos($sysFmtOut, 'S16_LE') !== false || strpos($sysFmtOut, 'S32_LE') !== false)) {
+                            $fmtOut = $sysFmtOut;
+                            $adapterNeedsSysdefault = true;
+                        }
+                    }
                     if ($fmtOut && preg_match('/FORMAT[^:]*:\s+(.+)/i', $fmtOut, $fmtM)) {
                         $fmtLine = $fmtM[1];
                         if (strpos($fmtLine, 'S32_LE') !== false) {
@@ -3888,6 +3924,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                     'rate' => $memberRate,
                     'periodSize' => $memberPeriod,
                     'format' => $adapterFmt,
+                    'needsSysdefault' => $adapterNeedsSysdefault,
                 );
             } else {
                 // Card already tracked — merge per-card overrides (first non-zero wins)
@@ -3961,7 +3998,8 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             }
             $conf .= "      node.description = \"$descStr\"\n";
             $conf .= "      media.class = \"Audio/Sink\"\n";
-            $conf .= "      api.alsa.path = \"hw:$cid\"\n";
+            $alsaPrefix = (!empty($info['needsSysdefault'])) ? 'sysdefault' : 'hw';
+            $conf .= "      api.alsa.path = \"$alsaPrefix:$cid\"\n";
             $adapterPeriod = isset($info['periodSize']) && $info['periodSize'] > 0 ? intval($info['periodSize']) : 1024;
             $conf .= "      api.alsa.period-size = $adapterPeriod\n";
             // USB audio cards need extra headroom: their independent oscillators
