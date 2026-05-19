@@ -292,6 +292,8 @@ function SetupLocalMQTTBroker($value)
                 error_log("Error creating mosquitto password file: " . implode("\n", $output));
                 return;
             }
+            exec("sudo chown mosquitto:mosquitto /etc/mosquitto/passwd");
+            exec("sudo chmod 640 /etc/mosquitto/passwd");
 
             //generate local broker config and restart the service
             $config = "listener 1883\n";
