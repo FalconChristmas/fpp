@@ -1012,6 +1012,9 @@ gpu_mem=128
 gpu_mem=64
 [pi02]
 gpu_mem=128
+dtparam=audio=off                                                                                                                                                                                                            
+hdmi_force_hotplug=1                                                                                                                                                                                                         
+hdmi_drive=2
 [pi1]
 gpu_mem=64
 [pi2]
