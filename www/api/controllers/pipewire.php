@@ -130,7 +130,7 @@ function SavePipeWireAudioGroups()
 /////////////////////////////////////////////////////////////////////////////
 // POST /api/pipewire/audio/groups/apply
 // Generates PipeWire config files and restarts PipeWire services
-function ApplyPipeWireAudioGroups($overrideData = null)
+function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
 {
     global $settings, $SUDO;
 
@@ -157,11 +157,13 @@ function ApplyPipeWireAudioGroups($overrideData = null)
             unlink($cachedConf);
         }
         // Restart PipeWire to pick up removal (order matters — pulse depends on pipewire socket)
-        exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
-        usleep(500000);
-        exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
-        usleep(500000);
-        exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
+        if (!$skipRestart) {
+            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
+            usleep(500000);
+            exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
+            usleep(500000);
+            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
+        }
         return json(array("status" => "OK", "message" => "Audio groups cleared, PipeWire restarted"));
     }
 
@@ -247,6 +249,13 @@ function ApplyPipeWireAudioGroups($overrideData = null)
     // sink (e.g. Sound Blaster) in addition to their intended filter-chain
     // targets, causing doubled audio.
     InstallWirePlumberFppLinkingHook($SUDO);
+
+    // When called with $skipRestart=true (e.g. from a MediaBackend mode switch),
+    // config files are already written; the caller backgrounds the service restarts
+    // so the HTTP response returns immediately.
+    if ($skipRestart) {
+        return;
+    }
 
     // Stop fppd playback before restarting PipeWire to avoid race conditions
     // where WirePlumber creates rogue links to orphaned streams during the
@@ -1483,7 +1492,7 @@ function SavePipeWireInputGroups()
 /////////////////////////////////////////////////////////////////////////////
 // POST /api/pipewire/audio/input-groups/apply
 // Generates PipeWire input group config and restarts PipeWire services
-function ApplyPipeWireInputGroups()
+function ApplyPipeWireInputGroups($skipRestart = false)
 {
     global $settings, $SUDO;
 
@@ -1500,11 +1509,13 @@ function ApplyPipeWireInputGroups()
             unlink($cachedConf);
         }
         // Restart PipeWire
-        exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
-        usleep(500000);
-        exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
-        usleep(500000);
-        exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
+        if (!$skipRestart) {
+            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
+            usleep(500000);
+            exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
+            usleep(500000);
+            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
+        }
         return json(array("status" => "OK", "message" => "Input groups cleared, PipeWire restarted"));
     }
 
@@ -1517,11 +1528,13 @@ function ApplyPipeWireInputGroups()
         if (file_exists($cachedConf)) {
             unlink($cachedConf);
         }
-        exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
-        usleep(500000);
-        exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
-        usleep(500000);
-        exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
+        if (!$skipRestart) {
+            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
+            usleep(500000);
+            exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
+            usleep(500000);
+            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
+        }
         return json(array("status" => "OK", "message" => "Input groups cleared, PipeWire restarted"));
     }
 
@@ -1616,20 +1629,22 @@ function ApplyPipeWireInputGroups()
         }
     }
 
-    // Restart PipeWire services
-    exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
-    usleep(500000);
-    exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
-    for ($i = 0; $i < 10; $i++) {
-        if (file_exists('/run/pipewire-fpp/pipewire-0'))
-            break;
-        usleep(250000);
-    }
-    exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
-    for ($i = 0; $i < 10; $i++) {
-        if (file_exists('/run/pipewire-fpp/pulse/native'))
-            break;
-        usleep(250000);
+    // Restart PipeWire services (skipped when $skipRestart=true — caller backgrounds it)
+    if (!$skipRestart) {
+        exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
+        usleep(500000);
+        exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
+        for ($i = 0; $i < 10; $i++) {
+            if (file_exists('/run/pipewire-fpp/pipewire-0'))
+                break;
+            usleep(250000);
+        }
+        exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
+        for ($i = 0; $i < 10; $i++) {
+            if (file_exists('/run/pipewire-fpp/pulse/native'))
+                break;
+            usleep(250000);
+        }
     }
 
     // Set PipeWire default sink and push setting to fppd (best-effort)
@@ -6217,7 +6232,7 @@ function BuildSimpleVideoGroupsData($videoOutput)
 //
 // Returns a JSON-encoded status response (compatible with the existing
 // /api/pipewire/audio/groups/apply contract).
-function ApplyPipeWireSimpleConfig()
+function ApplyPipeWireSimpleConfig($skipRestart = false)
 {
     global $settings;
 
@@ -6234,11 +6249,11 @@ function ApplyPipeWireSimpleConfig()
     @file_put_contents($audioRecord, json_encode($audioData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     @file_put_contents($videoRecord, json_encode($videoData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
-    // Apply audio first (restarts pipewire services), then video.
+    // Apply audio first (restarts pipewire services unless $skipRestart), then video.
     // Both functions accept an in-memory override and skip writing to the
     // advanced-mode JSON files when invoked this way.
     ob_start();
-    ApplyPipeWireAudioGroups($audioData);
+    ApplyPipeWireAudioGroups($audioData, $skipRestart);
     ob_end_clean();
 
     ob_start();

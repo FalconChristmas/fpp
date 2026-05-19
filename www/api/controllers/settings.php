@@ -184,8 +184,6 @@ function PutSetting()
     } else if ($setting == "MediaBackend") {
         ApplySetting($setting, $value);
         SendCommand("SetSetting,$setting,$value,");
-        exec($SUDO . " " . $settings['fppDir'] . "/src/fppinit setupAudio", $output, $return_val);
-        unset($output);
         // When switching INTO Simple PipeWire mode, generate and apply the
         // single-card / single-display config from the existing AudioOutput
         // / VideoOutput selections.  Advanced-mode JSON files are left
@@ -193,7 +191,7 @@ function PutSetting()
         $settings[$setting] = $value;
         if (IsSimplePipeWireBackend($settings)) {
             ob_start();
-            ApplyPipeWireSimpleConfig();
+            ApplyPipeWireSimpleConfig(true);
             ob_end_clean();
         } else if (IsPipeWireBackend($settings)) {
             // Switching INTO Advanced PipeWire mode: re-apply the saved
@@ -206,10 +204,22 @@ function PutSetting()
             // buses target the output groups and write the final
             // PipeWireSinkName, e.g. fpp_input_mix_bus_1).
             ob_start();
-            ApplyPipeWireAudioGroups();
-            ApplyPipeWireInputGroups();
+            ApplyPipeWireAudioGroups(null, true);
+            ApplyPipeWireInputGroups(true);
             ob_end_clean();
         }
+        // Config files are written above (fast). Now background fppinit setupAudio +
+        // PipeWire service restarts so the HTTP response returns immediately.
+        // Using < /dev/null ensures the background process fully detaches from Apache.
+        $fppDir = $settings['fppDir'];
+        $bgScript =
+            $SUDO . " " . escapeshellarg($fppDir . "/src/fppinit") . " setupAudio\n" .
+            $SUDO . " /usr/bin/systemctl restart fpp-pipewire.service\n" .
+            "sleep 0.5\n" .
+            $SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service\n" .
+            "for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /run/pipewire-fpp/pipewire-0 ] && break; sleep 0.25; done\n" .
+            $SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service\n";
+        exec("nohup bash -c " . escapeshellarg($bgScript) . " < /dev/null > /dev/null 2>&1 &");
     } else if ($setting == "EnableTethering") {
         $ssid = ReadSettingFromFile("TetherSSID");
         $psk = ReadSettingFromFile("TetherPSK");
