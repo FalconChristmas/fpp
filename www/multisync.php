@@ -17,14 +17,14 @@
     <script type="text/javascript" src="js/FileSaver.min.js" async></script>
 
     <title><? echo $pageTitle; ?></title>
+    <!-- TODO: extract to www/css/multisync.css when ready to split into external files -->
     <style>
+        /* === Action options === */
         .actionOptions {
             display: none;
         }
-    </style>
 
-
-    <style>
+        /* === Channel I/O popover === */
         .channel-io-icons {
             display: inline-block;
             margin-left: 4px;
@@ -80,7 +80,7 @@
             overflow-y: auto;
         }
 
-        /*** Bootstrap popover ***/
+        /* === Bootstrap popover (column selector target) === */
         #popover-target label {
             margin: 0 5px;
             display: block;
@@ -94,7 +94,8 @@
             color: var(--fpp-text-light);
         }
 
-        /* Bootstrap Table sort icons for #fppSystemsTable — structural/theming in fpp.css/fpp-dark.css */
+        /* === Table sort icons === */
+        /* structural/theming counterparts live in fpp.css / fpp-dark.css */
         #fppSystemsTable thead th .both {
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><path fill="%23888" d="m103.05877,41.4c9.37707,-12.5 24.60541,-12.5 33.98248,0l96.02113,128c6.90152,9.2 8.92696,22.9 5.17614,34.9s-12.45274,19.8 -22.20489,19.8l-192.04225,-0.1c-9.67713,0 -18.45406,-7.8 -22.20489,-19.8s-1.65036,-25.7 5.17614,-34.9l96.02113,-128l0.07501,0.1z"/><path fill="%23888" d="m103.05877,470.7l-96.02113,-128c-6.90152,-9.2 -8.92696,-22.9 -5.17614,-34.9s12.45274,-19.8 22.20489,-19.8l192.04225,0c9.67713,0 18.45406,7.8 22.20489,19.8s1.65036,25.7 -5.17614,34.9l-96.02113,128c-9.37707,12.5 -24.60541,12.5 -33.98248,0l-0.07501,0z"/></svg>');
         }
@@ -108,6 +109,7 @@
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><path fill="%23ccc" d="m103.05877,41.4c9.37707,-12.5 24.60541,-12.5 33.98248,0l96.02113,128c6.90152,9.2 8.92696,22.9 5.17614,34.9s-12.45274,19.8 -22.20489,19.8l-192.04225,-0.1c-9.67713,0 -18.45406,-7.8 -22.20489,-19.8s-1.65036,-25.7 5.17614,-34.9l96.02113,-128l0.07501,0.1z"/><path fill="%230d47a1" d="m103.05877,470.7l-96.02113,-128c-6.90152,-9.2 -8.92696,-22.9 -5.17614,-34.9s12.45274,-19.8 22.20489,-19.8l192.04225,0c9.67713,0 18.45406,7.8 22.20489,19.8s1.65036,25.7 -5.17614,34.9l-96.02113,128c-9.37707,12.5 -24.60541,12.5 -33.98248,0l-0.07501,0z"/></svg>');
         }
 
+        /* === Column selector === */
         #columnSelector input[type="checkbox"] {
             margin-right: 8px;
             margin-bottom: 2px;
@@ -127,7 +129,7 @@
             margin-top: -8px;
         }
 
-        /* Drag-and-drop reorder mode */
+        /* === Drag-and-drop reorder mode === */
         .reorder-grip {
             display: none;
             cursor: grab;
@@ -158,6 +160,21 @@
     </style>
 
     <script>
+        // Migrate some inline php code to javascript to enhance readability
+        window.fppConfig = {
+            hideExternalURLs: <?= json_encode((bool)$settings['hideExternalURLs']) ?>,
+            uiLevel: <?= json_encode((int)$uiLevel) ?>,
+            serverName: <?= json_encode($_SERVER['SERVER_NAME'] ?? '') ?>,
+            serverAddr: <?= json_encode($_SERVER['SERVER_ADDR'] ?? '') ?>
+        };
+    </script>
+
+    <!-- TODO: when ready to add a build step, extract each section to its listed future file -->
+    <script>
+        // ============================================================
+        // SECTION: Config / globals
+        // ============================================================
+
         var hostRows = new Object();
         var rowSpans = new Object();
         var systemStatusCache = {}; // Cache of api/system/status?ip[]=
@@ -183,6 +200,499 @@
             echo '[]';
         }
         ?>;
+
+        class AutoRefreshController {
+            constructor(intervalMs = 2000) {
+                this._timer = null;
+                this._intervalMs = intervalMs;
+            }
+            schedule(fn) {
+                this.cancel();
+                this._timer = setTimeout(() => {
+                    this._timer = null;
+                    fn();
+                }, this._intervalMs);
+            }
+            cancel() {
+                if (this._timer !== null) {
+                    clearTimeout(this._timer);
+                    this._timer = null;
+                }
+            }
+        }
+
+        const fppPoller     = new AutoRefreshController();
+        const falconPoller  = new AutoRefreshController();
+        const wledPoller    = new AutoRefreshController();
+        const geniusPoller  = new AutoRefreshController();
+        const baldrickPoller = new AutoRefreshController();
+
+        var unavailables = [];
+        var reorderModeActive = false;
+
+        var channelOutputConfigCache = {};
+        var channelInputConfigCache = {};
+
+        // Universe type ID to display name mapping
+        const universeTypeNames = {
+            0: 'E1.31 Multicast',
+            1: 'E1.31 Unicast',
+            2: 'ArtNet Broadcast',
+            3: 'ArtNet Unicast',
+            4: 'DDP Raw',
+            5: 'DDP',
+            6: 'KiNet v1',
+            7: 'KiNet v2',
+            8: 'Twinkly',
+            9: 'ArtNet Unicast'
+        };
+
+        var streamCount = 0;
+
+        // ============================================================
+        // SECTION: Device type classifiers
+        // ============================================================
+
+        // Lookup sets for each device category.
+        // Range-based categories are generated programmatically to keep
+        // this readable while remaining identical in behavior to the
+        // original switch/if-chain implementations.
+        const DEVICE_TYPE_SETS = {
+            // 0x01–0x7F  (typeId >= 1 && typeId < 128)
+            FPP:           new Set(Array.from({ length: 127 }, function (_, i) { return i + 1; })),
+            // 0x02–0x3F  (typeId >= 2 && typeId <= 63)
+            FPP_PI:        new Set(Array.from({ length: 62 },  function (_, i) { return i + 2; })),
+            // 0x41–0x5F  (typeId >= 65 && typeId <= 95)
+            FPP_BEAGLEBONE: new Set(Array.from({ length: 31 }, function (_, i) { return i + 65; })),
+            // 0x70 = 112
+            FPP_MAC:       new Set([0x70]),
+            // 0x60 = 96
+            FPP_ARMBIAN:   new Set([0x60]),
+            // 0x00 = 0
+            UNKNOWN:       new Set([0x00]),
+            // 0x80–0x87  (128–135)
+            FALCON:        new Set(Array.from({ length: 8 },   function (_, i) { return i + 0x80; })),
+            // 0x88–0x8F  (136–143)
+            FALCON_V4:     new Set(Array.from({ length: 8 },   function (_, i) { return i + 0x88; })),
+            // 0xC2, 0xC3  (194, 195)
+            ESPIXELSTICK:  new Set([0xC2, 0xC3]),
+            // 0xFF = 255
+            SANDEVICES:    new Set([0xFF]),
+            // 0xA0–0xAF  (160–175)
+            GENIUS:        new Set(Array.from({ length: 16 },  function (_, i) { return i + 0xA0; })),
+            // 0xFB = 251
+            WLED:          new Set([0xFB]),
+            // 0xC4 = 196
+            BALDRICK:      new Set([0xC4]),
+        };
+
+        function isDeviceType(typeId, category) {
+            return DEVICE_TYPE_SETS[category]?.has(parseInt(typeId)) ?? false;
+        }
+
+        function isFPP(typeId)            { return isDeviceType(typeId, 'FPP'); }
+        function isFPPPi(typeId)          { return isDeviceType(typeId, 'FPP_PI'); }
+        function isFPPBeagleBone(typeId)  { return isDeviceType(typeId, 'FPP_BEAGLEBONE'); }
+        function isFPPMac(typeId)         { return isDeviceType(typeId, 'FPP_MAC'); }
+        function isFPPArmbian(typeId)     { return isDeviceType(typeId, 'FPP_ARMBIAN'); }
+        function isUnknownController(typeId) { return isDeviceType(typeId, 'UNKNOWN'); }
+        function isFalcon(typeId)         { return isDeviceType(typeId, 'FALCON'); }
+        function isFalconV4(typeId)       { return isDeviceType(typeId, 'FALCON_V4'); }
+        function isESPixelStick(typeId)   { return isDeviceType(typeId, 'ESPIXELSTICK'); }
+        function isSanDevices(typeId)     { return isDeviceType(typeId, 'SANDEVICES'); }
+        function isGenius(typeId)         { return isDeviceType(typeId, 'GENIUS'); }
+        function isWLED(typeId)           { return isDeviceType(typeId, 'WLED'); }
+        function isBaldrick(typeId)       { return isDeviceType(typeId, 'BALDRICK'); }
+
+        // ============================================================
+        // SECTION: Utilities
+        // ============================================================
+
+        /*
+         * Does a deep object flattening of "obj" using the specified base path
+         * setting new properties on rc to rc[path + "." + key] == value
+         */
+        function flattenObject(obj, path, rc) {
+            if (((typeof obj != "object" && typeof obj != 'function')) || (obj == null)) {
+                console.log("WARNING: Not an object", obj);
+                return;
+            }
+
+            for (const [key, value] of Object.entries(obj)) {
+                let newPath = (path === "" ? key : path + "." + key)
+                if (typeof value === "object") {
+                    flattenObject(value, newPath, rc);
+                } else if (typeof value === "boolean" || typeof value === "string" || typeof value == "number") {
+                    rc[newPath] = value;
+                } else {
+                    console.log("Unable to handle path ", newPath, "of type", typeof value);
+                }
+            }
+
+        }
+
+        function s2ab(s) {
+            var buf = new ArrayBuffer(s.length); //convert s to arrayBuffer
+            var view = new Uint8Array(buf);  //create uint8array as viewer
+            for (var i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF; //convert to octet
+            return buf;
+        }
+
+        function rowSpanSet(rowID) {
+            var rowSpan = 1;
+
+            if ($('#' + rowID + '_logs').is(':visible'))
+                rowSpan++;
+
+            if ($('#' + rowID + '_warnings').is(':visible'))
+                rowSpan++;
+
+            $('#' + rowID + ' > td:nth-child(1)').attr('rowspan', rowSpan);
+        }
+
+        function proxyURLsInString(str, ip) {
+            if (!isProxied(ip))
+                return str;
+
+            var re = /(href=['"])([^:]*)\//;
+            if (re.test(str))
+                str = str.replace(re, "$1proxy/" + ip + "/$2/");
+
+            return str;
+        }
+
+        function isProxied(ip) {
+            return proxies.includes(ip);
+        }
+
+        function wrapUrlWithProxy(ip, path) {
+            if (fppConfig.hideExternalURLs) {
+                return "";
+            }
+            if (isProxied(ip)) {
+                return 'proxy/' + ip + path;
+            }
+            return 'http://' + ip + path;
+        }
+
+        function ipLink(ip) {
+            if (fppConfig.hideExternalURLs) {
+                return ip;
+            }
+            return "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "' data-ip='" + ip + "'>" + ip + "</a>";
+        }
+
+        // ============================================================
+        // SECTION: Uptime formatting
+        // ============================================================
+
+        /**
+         * Format uptime seconds into a short 2-field string and a "since" timestamp.
+         *   uptimeShort("12d 3h")  or  "3h 42m"  — no zero-padding
+         * @param {number} seconds  — uptime in seconds
+         * @returns {{ short: string, since: string }}
+         */
+        function formatUptime(seconds) {
+            seconds = Math.round(+seconds || 0);
+            var days  = Math.floor(seconds / 86400);
+            var hours = Math.floor((seconds % 86400) / 3600);
+            var mins  = Math.floor((seconds % 3600) / 60);
+
+            var short = days > 0
+                ? days + 'd ' + hours + 'h'
+                : hours + 'h ' + mins + 'm';
+
+            var since = new Date(Date.now() - seconds * 1000);
+            var pad = function(n) { return String(n).padStart(2, '0'); };
+            var sinceStr = since.getFullYear() + '-' + pad(since.getMonth() + 1) + '-' + pad(since.getDate()) +
+                ' ' + pad(since.getHours()) + ':' + pad(since.getMinutes()) + ':' + pad(since.getSeconds());
+
+            return { short: short, since: sinceStr };
+        }
+
+        // ============================================================
+        // SECTION: Network helpers
+        // ============================================================
+
+        function IPsCanTalk(ip1, ip2, octets) {
+            var p1 = ip1.split('.');
+            var p2 = ip2.split('.');
+
+            switch (octets) {
+                case 3: if ((p1[0] == p2[0]) && (p1[1] == p2[1]) && (p1[2] == p2[2]))
+                    return true;
+                    break;
+                case 2: if ((p1[0] == p2[0]) && (p1[1] == p2[1]))
+                    return true;
+                    break;
+                case 1: if (p1[0] == p2[0])
+                    return true;
+                    break;
+            }
+
+            return false;
+        }
+
+        function getReachableIPFromRowID(id) {
+            var ip = ipFromRowID(id);
+            var ipListStr = $('#' + id).attr('data-iplist');
+
+            if (ip == ipListStr)
+                return ip;
+
+            var ipList = ipListStr.split(',');
+
+            for (var o = 3; o > 0; o--) {
+                for (var i = 0; i < systemsList.length; i++) {
+                    if (systemsList[i].local == 1) {
+                        for (var j = 0; j < ipList.length; j++) {
+                            if (IPsCanTalk(systemsList[i].address, ipList[j], o))
+                                return ipList[j];
+                        }
+                    }
+                }
+            }
+
+            return '';
+        }
+
+        function ipFromRowID(id) {
+            ip = $('#' + id).attr('data-ip');
+
+            return ip;
+        }
+        function ipOrHostnameFromRowID(id) {
+            var ip;
+            if (fppConfig.serverName !== fppConfig.serverAddr) {
+                // Hitting the FPP instance via hostname, not IP; use hostnames
+                // for remotes as well or CORS will trigger.
+                ip = $('#' + id + "_hostname").html();
+                if (ip == "") {
+                    ip = $('#' + id).attr('data-ip');
+                }
+            } else {
+                ip = $('#' + id).attr('data-ip');
+            }
+            return ip;
+        }
+
+        // ============================================================
+        // SECTION: Channel I/O
+        // ============================================================
+
+        function getUniverseTypeName(typeId) {
+            return universeTypeNames[typeId] || ('Type ' + typeId);
+        }
+
+        /**
+         * Fetches channel output config from a remote FPP system.
+         * Returns a promise resolving to the parsed config data.
+         */
+        async function fetchChannelOutputConfig(ip) {
+            if (channelOutputConfigCache[ip]) {
+                return channelOutputConfigCache[ip];
+            }
+            try {
+                const r = await fetch('api/channel/output/universeOutputs?ip=' + encodeURIComponent(ip));
+                const data = await r.json();
+                channelOutputConfigCache[ip] = data;
+                return data;
+            } catch {
+                channelOutputConfigCache[ip] = null;
+                return null;
+            }
+        }
+
+        /**
+         * Fetches channel input config from a remote FPP system.
+         */
+        async function fetchChannelInputConfig(ip) {
+            if (channelInputConfigCache[ip]) {
+                return channelInputConfigCache[ip];
+            }
+            try {
+                const r = await fetch('api/channel/output/universeInputs?ip=' + encodeURIComponent(ip));
+                const data = await r.json();
+                channelInputConfigCache[ip] = data;
+                return data;
+            } catch {
+                channelInputConfigCache[ip] = null;
+                return null;
+            }
+        }
+
+        /**
+         * Builds tooltip HTML table from channel output config data.
+         */
+        function buildOutputTooltipHtml(data) {
+            if (!data || !data.channelOutputs || !data.channelOutputs.length) {
+                return '<em>No Output configuration found</em>';
+            }
+            var co = data.channelOutputs[0];
+            if (!co.universes || !co.universes.length) {
+                return '<em>No universes configured</em>';
+            }
+            var activeUniverses = co.universes.filter(function (u) { return u.active; });
+            if (!activeUniverses.length) {
+                return '<em>No active outputs</em>';
+            }
+            var html = '<table class="channel-io-tooltip-table">';
+            html += '<tr><th>Description</th><th>Type</th><th>IP/Address</th><th>Channels</th></tr>';
+            activeUniverses.forEach(function (u) {
+                var desc = u.description || '-';
+                var typeName = getUniverseTypeName(u.type);
+                var addr = u.address || '-';
+                var chRange = u.startChannel + '-' + (u.startChannel + (u.channelCount * (u.universeCount || 1)) - 1);
+                html += '<tr>';
+                html += '<td>' + desc + '</td>';
+                html += '<td>' + typeName + '</td>';
+                html += '<td>' + addr + '</td>';
+                html += '<td>' + chRange + '</td>';
+                html += '</tr>';
+            });
+            html += '</table>';
+            return html;
+        }
+
+        /**
+         * Builds tooltip HTML table from channel input config data.
+         */
+        function buildInputTooltipHtml(data) {
+            if (!data || !data.channelInputs || !data.channelInputs.length) {
+                return '<em>No Input configuration found</em>';
+            }
+            var ci = data.channelInputs[0];
+            if (!ci.universes || !ci.universes.length) {
+                return '<em>No input universes configured</em>';
+            }
+            var activeInputs = ci.universes.filter(function (u) { return u.active; });
+            if (!activeInputs.length) {
+                return '<em>No active inputs</em>';
+            }
+            var html = '<table class="channel-io-tooltip-table">';
+            html += '<tr><th>Type</th><th>Start Ch</th><th>Channels</th><th>Universes</th></tr>';
+            activeInputs.forEach(function (u) {
+                var typeName = getUniverseTypeName(u.type);
+                var chCount = u.channelCount * (u.universeCount || 1);
+                html += '<tr>';
+                html += '<td>' + typeName + '</td>';
+                html += '<td>' + u.startChannel + '</td>';
+                html += '<td>' + chCount + '</td>';
+                html += '<td>' + (u.universeCount || 1) + '</td>';
+                html += '</tr>';
+            });
+            html += '</table>';
+            return html;
+        }
+
+        /**
+         * Shows a Bootstrap popover with channel output/input details on an icon.
+         */
+        async function showChannelIOPopover(iconEl, isOutput) {
+            var $icon = $(iconEl);
+            var ip = $icon.data('ip');
+            if (!ip) return;
+
+            // If popover already exists, don't recreate
+            if (bootstrap.Popover.getInstance(iconEl)) return;
+
+            // Show loading popover
+            var popover = new bootstrap.Popover(iconEl, {
+                html: true,
+                trigger: 'manual',
+                placement: 'bottom',
+                customClass: 'channel-io-popover',
+                title: isOutput ? 'Channel Outputs' : 'Channel Inputs',
+                content: '<em>Loading...</em>'
+            });
+            popover.show();
+
+            // Fetch and update content
+            var fetchFn = isOutput ? fetchChannelOutputConfig : fetchChannelInputConfig;
+            var buildFn = isOutput ? buildOutputTooltipHtml : buildInputTooltipHtml;
+            const data = await fetchFn(ip);
+            var html = buildFn(data);
+            // Update the popover content
+            var tip = popover.tip;
+            if (tip) {
+                $(tip).find('.popover-body').html(html);
+                popover.update();
+            }
+        }
+
+        // Track which IPs we've already probed for channel I/O on older systems
+        var channelIOCheckedIPs = {};
+
+        /**
+         * For older FPP systems that don't report channelOutputsEnabled/channelInputsEnabled,
+         * fetch the remote config and add icons if active universes are found.
+         */
+        async function checkRemoteChannelIO(ip, rowID, data) {
+            if (!ip) return;
+            // If the data already has the properties, getChannelIOIcons handled it
+            var hasOutputProp = data && data.hasOwnProperty('channelOutputsEnabled');
+            var hasInputProp = data && data.hasOwnProperty('channelInputsEnabled');
+            if (hasOutputProp && hasInputProp) return;
+            // Only check each IP once
+            if (channelIOCheckedIPs[ip]) {
+                // Re-apply cached icons if mode cell was refreshed
+                applyChannelIOIcons(ip, rowID);
+                return;
+            }
+            channelIOCheckedIPs[ip] = { output: false, input: false };
+
+            var checks = [];
+            if (!hasOutputProp) {
+                checks.push(fetchChannelOutputConfig(ip).then(function (configData) {
+                    if (configData && configData.channelOutputs && configData.channelOutputs.length) {
+                        var co = configData.channelOutputs[0];
+                        if (co.enabled && co.universes && co.universes.length) {
+                            if (co.universes.some(function (u) { return u.active; })) {
+                                channelIOCheckedIPs[ip].output = true;
+                            }
+                        }
+                    }
+                }));
+            }
+            if (!hasInputProp) {
+                checks.push(fetchChannelInputConfig(ip).then(function (configData) {
+                    if (configData && configData.channelInputs && configData.channelInputs.length) {
+                        var ci = configData.channelInputs[0];
+                        if (ci.enabled && ci.universes && ci.universes.length) {
+                            if (ci.universes.some(function (u) { return u.active; })) {
+                                channelIOCheckedIPs[ip].input = true;
+                            }
+                        }
+                    }
+                }));
+            }
+            await Promise.allSettled(checks);
+            applyChannelIOIcons(ip, rowID);
+        }
+
+        /**
+         * Apply cached channel I/O icons to a mode cell if not already present.
+         */
+        function applyChannelIOIcons(ip, rowID) {
+            var info = channelIOCheckedIPs[ip];
+            if (!info || (!info.output && !info.input)) return;
+            var item = $('#fppSystemsTable').bootstrapTable('getRowByUniqueId', rowID);
+            if (!item) return;
+            if (item.mode && item.mode.indexOf('channel-io-icons') >= 0) return;
+            var icons = '<span class="channel-io-icons">';
+            if (info.input) {
+                icons += '<i class="fas fa-regular fa-circle-down channel-io-icon-input" data-ip="' + ip + '" aria-label="Channel Inputs Enabled (hover for details)"></i>';
+            }
+            if (info.output) {
+                icons += '<i class="fas fa-regular fa-circle-up channel-io-icon-output" data-ip="' + ip + '" aria-label="Channel Outputs Enabled (hover for details)"></i>';
+            }
+            icons += '</span>';
+            item.mode = (item.mode || '') + icons;
+        }
+
+        // ============================================================
+        // SECTION: Display order
+        // ============================================================
 
         /**
          * Returns a stable identifier for a system.
@@ -289,6 +799,21 @@
          * Re-applies the saved display order by re-parsing the systems list.
          * Useful when user has sorted by a column and wants to return to saved order.
          */
+        function sortSystemsByColor() {
+            var bt = $('#fppSystemsTable').data('bootstrap.table');
+            if (!bt) return;
+            bt.options.data.sort(function (a, b) {
+                var ac = (a.fppcolor !== '' && a.fppcolor !== null && a.fppcolor !== undefined) ? parseInt(a.fppcolor, 10) : -1;
+                var bc = (b.fppcolor !== '' && b.fppcolor !== null && b.fppcolor !== undefined) ? parseInt(b.fppcolor, 10) : -1;
+                if (ac < 0 && bc < 0) return 0;
+                if (ac < 0) return 1;
+                if (bc < 0) return -1;
+                return ac - bc;
+            });
+            bt.data = bt.options.data.slice();
+            bt.initBody();
+        }
+
         function sortBySavedOrder() {
             if (!savedDisplayOrder || savedDisplayOrder.length === 0) {
                 $.jGrowl('No saved display order.', { themeState: 'detract' });
@@ -313,8 +838,6 @@
                 $('#saveDisplayOrderBtn').html('<i class="fas fa-save"></i> Save Display Order');
             }
         }
-
-        var reorderModeActive = false;
 
         /**
          * Toggles reorder mode on/off.
@@ -378,9 +901,1470 @@
             }
         }
 
-        function getLocalFpposFiles() {
-            $.get('api/files/uploads', function (data) {
-                if (data.hasOwnProperty("files")) {
+        // ============================================================
+        // SECTION: HTML renderers
+        // ============================================================
+
+        /*
+         * Returns Mode + value of "Send Multisync"
+         */
+        function getFullMode(data, ip) {
+            rc = "Unknown";
+            if (data.hasOwnProperty('mode')) {
+                rc = modeToString(data.mode);
+            }
+            if (data.hasOwnProperty('multisync') && data.multisync && data.mode == 2) {
+                rc += " w/ Multisync"
+            }
+
+            rc += getChannelIOIcons(data, ip);
+
+            return rc;
+        }
+
+        function getChannelIOIcons(data, ip) {
+            var icons = '';
+            var hasInput = data.hasOwnProperty('channelInputsEnabled') && data.channelInputsEnabled;
+            var hasOutput = data.hasOwnProperty('channelOutputsEnabled') && data.channelOutputsEnabled;
+            if (hasInput || hasOutput) {
+                var ipAttr = ip ? " data-ip='" + ip + "'" : '';
+                icons += '<span class="channel-io-icons">';
+                if (hasInput) {
+                    icons += '<i class="fas fa-regular fa-circle-down channel-io-icon-input"' + ipAttr + ' aria-label="Channel Inputs Enabled (hover for details)"></i>';
+                }
+                if (hasOutput) {
+                    icons += '<i class="fas fa-regular fa-circle-up channel-io-icon-output"' + ipAttr + ' aria-label="Channel Outputs Enabled (hover for details)"></i>';
+                }
+                icons += '</span>';
+            }
+            return icons;
+        }
+
+        function getLocalVersionLink(ip, data) {
+            var updatesAvailable = 0;
+            if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
+                (typeof (data.advancedView.LocalGitVersion) !== 'undefined') &&
+                (data.advancedView.RemoteGitVersion !== "Unknown") &&
+                (data.advancedView.RemoteGitVersion !== "") &&
+                (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion)) {
+                updatesAvailable = 1;
+            }
+            var localVer = fppConfig.hideExternalURLs ? ""
+                : "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, '/about.php') + "' target='_blank' data-ip='" + ip + "'>";
+            var colorClass = updatesAvailable ? 'text-danger'
+                : ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
+                    (data.advancedView.RemoteGitVersion == data.advancedView.LocalGitVersion))
+                    ? 'text-success'
+                    : 'text-muted';
+            localVer += "<span class='fw-bold " + colorClass + "'>" + data.advancedView.LocalGitVersion + "</span>";
+            if (!fppConfig.hideExternalURLs) {
+                localVer += "</a>";
+            }
+
+            return localVer;
+        }
+
+        // ============================================================
+        // SECTION: FPP system polling
+        // ============================================================
+
+        async function getFPPSystemStatus(ipAddresses, refreshing = false) {
+            ips = "";
+            if (Array.isArray(ipAddresses)) {
+                fppPoller.cancel();
+                ipAddresses.forEach(function (entry) {
+                    ips += "&ip[]=" + entry;
+                });
+            } else {
+                ips = "&ip[]=" + ipAddresses;
+            }
+            if (ips == "") {
+                return;
+            }
+            try {
+                const r = await fetch("api/system/status?type=FPP" + ips);
+                const alldata = await r.json();
+                systemStatusCache = alldata;
+                Object.entries(alldata).forEach(function (entry) {
+                        var ip = entry[0], data = entry[1];
+                        var status = 'Idle';
+                        var statusInfo = "";
+                        var elapsed = "";
+                        var files = "";
+                        if (data == null || data == "" || data == "null") {
+                            return;
+                        }
+
+                        if (data.status_name == 'playing') {
+                            status = 'Playing';
+
+                            elapsed = data.time_elapsed;
+
+                            if (data.current_sequence != "") {
+                                files += data.current_sequence;
+                                if (data.current_song != "")
+                                    files += "<br>" + data.current_song;
+                            } else {
+                                files += data.current_song;
+                            }
+
+                            if (files != "")
+                                status += ":<br>" + files;
+                        } else if (data.status_name == 'updating') {
+                            status = 'Updating';
+                        } else if (data.status_name == 'stopped') {
+                            status = 'Stopped';
+                        } else if (data.status_name == 'stopping gracefully') {
+                            status = 'Stopping Gracefully';
+                        } else if (data.status_name == 'stopping gracefully after loop') {
+                            status = 'Stopping Gracefully After Loop';
+                        } else if (data.status_name == 'paused') {
+                            status = 'Paused';
+                        } else if (data.status_name == 'testing') {
+                            status = 'Testing';
+                        } else if (data.status_name == 'unreachable') {
+                            unavailables[ip]++;
+                            status = "unreachable";
+                        } else if (data.status_name == 'password') {
+                            status = '<span class="text-danger">Protected</span>';
+                        } else if (data.status_name == 'unknown') {
+                            status = '-';
+                        } else if (data.status_name == 'idle') {
+                            if (data.mode_name == 'remote') {
+                                if ((data.sequence_filename != "") ||
+                                    (data.media_filename != "")) {
+                                    status = 'Syncing';
+
+                                    elapsed += data.time_elapsed;
+
+                                    if (data.sequence_filename != "") {
+                                        files += data.sequence_filename;
+                                        if (data.media_filename != "")
+                                            files += "<br>" + data.media_filename;
+                                    } else {
+                                        files += data.media_filename;
+                                    }
+
+                                    if (files != "")
+                                        status += ":<br>" + files;
+                                }
+                            }
+                        } else {
+                            status = data.status_name;
+                        }
+                        if (data.status_name != 'unreachable') {
+                            unavailables[ip] = 0;
+                        }
+
+                        if (data.rebootFlag == 1) {
+                            status += "<br><i class=\"fas fa-exclamation-triangle text-danger\"></i><span class='warning-text'>Device Reboot Required</span>";
+                        }
+
+                        if (data.restartFlag == 1) {
+                            status += "<br><i class=\"fas fa-exclamation-triangle text-warning\"></i><span class='warning-text'>FPPD Restart Required</span>";
+                        }
+
+                        var hostRowKey = ip.replace(/\./g, '_');
+                        var rowID = hostRows[hostRowKey];
+
+                        var item = $('#fppSystemsTable').bootstrapTable('getRowByUniqueId', rowID);
+                        if (!item) return;
+
+                        var curStatus = item.status || '';
+                        if (curStatus !== '' && curStatus.indexOf('Last Seen') === -1 && !refreshing) {
+                            // Don't replace an existing status via a different IP
+                            return;
+                        }
+                        if (status == 'unreachable') {
+                            if (unavailables[ip] < 4) {
+                                return;
+                            }
+                            item.mode = "<span class=\"warning-text\">Unreachable</span>";
+                        } else if (status != "") {
+                            item.status = status;
+                            item.mode = getFullMode(data, ip);
+                            checkRemoteChannelIO(ip, rowID, data);
+                        } else {
+                            item.mode = getFullMode(data, ip);
+                            checkRemoteChannelIO(ip, rowID, data);
+                        }
+
+                        // Wifi path 1: interfaces-based (newer systems).
+                        // Show icon next to whichever IP in this row is on an active wifi
+                        // interface (link > 0). Covers both cases:
+                        //   - polled IP is the wifi IP (common case)
+                        //   - polled IP is eth0 but device's wlan0 IP is also shown in this row
+                        var wifiIconHtml = '';
+                        var wifiIconIp = null;
+                        if (data.hasOwnProperty('wifi') && data.hasOwnProperty('interfaces')) {
+                            var ipIface = null;
+                            var anyWifiIface = null;
+                            var anyWifiIp = null;
+                            var rowIpHtml = (item._baseIpHtml || '') + (item._extraIpHtml || '');
+                            for (var i = 0; i < data.interfaces.length; i++) {
+                                var iface = data.interfaces[i];
+                                if (iface.addr_info) {
+                                    for (var j = 0; j < iface.addr_info.length; j++) {
+                                        var addr = iface.addr_info[j].local;
+                                        if (addr === ip) {
+                                            ipIface = iface;
+                                        }
+                                        // Track any wifi interface whose IP is displayed in this row
+                                        if (!anyWifiIface && iface.hasOwnProperty('wifi') &&
+                                                (iface.wifi.link || 0) > 0 &&
+                                                rowIpHtml.indexOf(addr) !== -1) {
+                                            anyWifiIface = iface;
+                                            anyWifiIp = addr;
+                                        }
+                                    }
+                                }
+                            }
+                            // Prefer the polled IP's own wifi; fall back to any displayed wifi IP
+                            var wifiSource = null;
+                            if (ipIface && ipIface.hasOwnProperty('wifi') &&
+                                    (ipIface.wifi.link || 0) > 0) {
+                                wifiSource = ipIface;
+                                wifiIconIp = ip;
+                            } else if (anyWifiIface) {
+                                wifiSource = anyWifiIface;
+                                wifiIconIp = anyWifiIp;
+                            }
+                            if (wifiSource) {
+                                var w = wifiSource.wifi;
+                                var wifi_html = [];
+                                wifi_html.push('<span title="');
+                                if (w.pct) {
+                                    wifi_html.push(w.pct + '%');
+                                    if (w.unit == 'dBm') {
+                                        wifi_html.push(' ' + w.level + 'dBm');
+                                    }
+                                } else {
+                                    wifi_html.push(w.level + w.unit);
+                                }
+                                wifi_html.push('" class="wifi-icon wifi-');
+                                wifi_html.push(w.desc);
+                                wifi_html.push('"></span>');
+                                wifiIconHtml = wifi_html.join('');
+                            }
+                        }
+                        // Insert wifi icon immediately after the correct IP's link.
+                        var base = item._baseIpHtml || '';
+                        var extra = item._extraIpHtml || '';
+                        if (wifiIconHtml && wifiIconIp) {
+                            var endTag = wifiIconIp + '</a>';
+                            if (base.indexOf(endTag) !== -1) {
+                                item.ipaddress = base.replace(endTag, endTag + wifiIconHtml) + extra;
+                            } else if (extra.indexOf(endTag) !== -1) {
+                                item.ipaddress = base + extra.replace(endTag, endTag + wifiIconHtml);
+                            } else {
+                                item.ipaddress = base.replace(wifiIconIp, wifiIconIp + wifiIconHtml) + extra;
+                            }
+                        } else {
+                            item.ipaddress = base + extra;
+                        }
+
+                        if (item._dataIp !== ip) item._dataIp = ip;
+
+                        item.elapsed = elapsed;
+
+                        if (data.warnings != null && data.warnings.length > 0) {
+                            $('#' + rowID + '_warnings').removeAttr('style');
+
+                            // Ensure child rows match parent striping color
+                            if ($('#' + rowID).hasClass('odd'))
+                                $('#' + rowID + '_warnings').addClass('odd');
+
+                            var wHTML = "";
+                            for (var i = 0; i < data.warnings.length; i++) {
+                                if (isProxied(ip))
+                                    data.warnings[i] = proxyURLsInString(data.warnings[i], ip);
+
+                                let wstr = data.warnings[i];
+                                let idx = wstr.indexOf("href=");
+                                if (idx > 0) {
+                                    wstr = wstr.substr(0, idx + 6) + "http://" + ip + "/" + wstr.substr(idx + 6);
+                                }
+                                wHTML += "<span class='warning-text'>" + wstr + "</span><br>";
+                            }
+                            $('#' + rowID + '_warningCell').html(wHTML);
+                        }
+                        rowSpanSet(rowID);
+
+                        //Expert View Rows
+                        if (data.hasOwnProperty('advancedView') && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
+                            // Rebuild platform cell from advancedView data
+                            // Prefer SubPlatform (verbose hardware model string, e.g.
+                            // "Raspberry Pi Zero 2 W Rev 1.0") over Variant (short label,
+                            // e.g. "PiZero 2") so the platform column keeps the detail
+                            // shown by the initial multiSyncSystems render. See issue #2614.
+                            var platformTxt = item._platformInit || '';
+                            if (data.advancedView.hasOwnProperty('Platform')) {
+                                platformTxt = data.advancedView.Platform;
+                            }
+                            var variantTxt = item._variantInit || '';
+                            if (data.advancedView.hasOwnProperty('SubPlatform') && (data.advancedView.SubPlatform != '')) {
+                                variantTxt = data.advancedView.SubPlatform;
+                            } else if (data.advancedView.hasOwnProperty('Variant') && (data.advancedView.Variant != '')) {
+                                variantTxt = data.advancedView.Variant;
+                            }
+                            item.platform = "<span id='" + rowID + "_platform'>" + platformTxt + "</span>" +
+                                "<br><small id='" + rowID + "_variant'>" + variantTxt + "</small>" +
+                                "<span class='hidden typeId'> " + item._typeIdHex + " </span>" +
+                                "<span class='hidden version'>" + item._versionStr + "</span>";
+
+                            if (data.advancedView.hasOwnProperty("backgroundColor") && data.advancedView.backgroundColor != "") {
+                                var colorInt = parseInt(data.advancedView.backgroundColor, 16);
+                                item.fppcolor = isNaN(colorInt) ? '' : colorInt;
+                                item._style = isNaN(colorInt) ? '' : 'background: #' + data.advancedView.backgroundColor + '; color: #FFF;';
+                            } else {
+                                item.fppcolor = '';
+                                item._style = '';
+                            }
+                            if (data.advancedView.hasOwnProperty("RemoteGitVersion")) {
+                                var u = "<table class='multiSyncVerboseTable'>";
+                                u += "<tr><td><small class='text-muted'>COMMIT:</small></td><td id='" + rowID + "_localgitvers'>";
+                                u += getLocalVersionLink(ip, data);
+                                u += "</td></tr>" +
+                                    "<tr><td><small class='text-muted'>BRANCH:</small></td><td id='" + rowID + "_gitbranch'>" + data.advancedView.Branch + "</td></tr>";
+
+                                if ((typeof (data.advancedView.UpgradeSource) !== 'undefined') &&
+                                    (data.advancedView.UpgradeSource != 'github.com')) {
+                                    u += "<tr><td><small class='text-muted'>ORIGIN:</small></td><td id='" + rowID + "_origin'>" + data.advancedView.UpgradeSource + "</td></tr>";
+                                } else {
+                                    u += "<span style='display: none;' id='" + rowID + "_origin'></span>";
+                                }
+                                u += "</table>";
+                                item.gitversions = u;
+                            }
+
+                            if (data.advancedView.OSVersion !== "") {
+                                item.version = "<table class='multiSyncVerboseTable'>" +
+                                    "<tr><td><small class='text-muted'>FPP:</small></td><td>" + item._versionStr + "</td></tr>" +
+                                    "<tr><td><small class='text-muted'>OS:</small></td><td>" + data.advancedView.OSVersion + "</td></tr>" +
+                                    "</table>";
+                            }
+
+                            if (data.advancedView.HostDescription !== "") {
+                                if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
+                                    item.hostname = item.hostname.replace(
+                                        "class='hostDescriptionSM'></small>",
+                                        "class='hostDescriptionSM'>" + data.advancedView.HostDescription + "</small>"
+                                    );
+                                }
+                            }
+
+                            var u = "<table class='multiSyncVerboseTable'>";
+                            if (typeof (data.advancedView.Utilization) !== 'undefined') {
+                                let diskHtml = "";
+                                try {
+                                    let row = data.advancedView.Utilization.Disk;
+                                    for (const [type, data] of Object.entries(row)) {
+                                        let used = bytesToHuman(data["Total"] - data["Free"]);
+                                        let total = bytesToHuman(data["Total"]);
+                                        if (diskHtml == "") {
+                                            diskHtml += "<b>Disk Usage:</b> "
+                                        } else {
+                                            diskHtml += ", "
+                                        }
+                                        diskHtml += type + ": " + used + "/" + total;
+                                    }
+                                } catch (error) {
+                                    // This feature may not exist on older devices
+                                }
+
+                                if (diskHtml == "") {
+                                    diskHtml = "<b>Disk Usage:</b> unknown";
+                                }
+                                if (data.advancedView.Utilization.hasOwnProperty("CPU")) {
+                                    u += "<tr><td><small class='text-muted'>CPU:</small></td><td>" + Math.round(data.advancedView.Utilization.CPU) + "%</td></tr>";
+                                }
+                                if (data.advancedView.Utilization.hasOwnProperty("Memory")) {
+                                    u += "<tr><td><small class='text-muted'>MEM:</small></td><td>" + Math.round(data.advancedView.Utilization.Memory) + "%</td></tr>";
+                                }
+                                if (data.advancedView.Utilization.hasOwnProperty("MemoryFree")) {
+                                    var fr = data.advancedView.Utilization.MemoryFree;
+                                    fr /= 1024;
+                                    u += "<tr><td>Mem:&nbsp;</td><td>" + Math.round(fr) + "K Free</td></tr>";
+                                }
+                                if (data.advancedView.hasOwnProperty("rssi")) {
+                                    // Wifi path 2: legacy rssi field (older systems without interfaces data)
+                                    var isWifiIp = true;
+                                    if (data.hasOwnProperty('interfaces') && data.interfaces.length > 0) {
+                                        isWifiIp = false;
+                                        outer: for (var i = 0; i < data.interfaces.length; i++) {
+                                            var iface = data.interfaces[i];
+                                            if (iface.addr_info) {
+                                                for (var j = 0; j < iface.addr_info.length; j++) {
+                                                    if (iface.addr_info[j].local === ip) {
+                                                        isWifiIp = iface.hasOwnProperty('wifi');
+                                                        break outer;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (isWifiIp && wifiIconHtml === '') {
+                                        var rssi = +data.advancedView.rssi;
+                                        var quality = 2 * (rssi + 100);
+
+                                        if (rssi <= -100)
+                                            quality = 0;
+                                        else if (rssi >= -50)
+                                            quality = 100;
+
+                                        var wifi_html = [];
+
+                                        wifi_html.push('<span title="');
+                                        wifi_html.push(quality + '%');
+                                        wifi_html.push(' ' + rssi + 'dBm');
+                                        wifi_html.push('" class="wifi-icon wifi-');
+
+                                        if (quality < 25) { var desc = "weak"; }
+                                        else if (quality < 50) { var desc = "fair"; }
+                                        else if (quality < 75) { var desc = "good"; }
+                                        else { var desc = "excellent"; }
+
+                                        wifi_html.push(desc);
+                                        wifi_html.push('"></span>');
+
+                                        wifiIconHtml = wifi_html.join('');
+                                        var base2 = item._baseIpHtml || '';
+                                        var extra2 = item._extraIpHtml || '';
+                                        var endTag2 = ip + '</a>';
+                                        if (base2.indexOf(endTag2) !== -1) {
+                                            item.ipaddress = base2.replace(endTag2, endTag2 + wifiIconHtml) + extra2;
+                                        } else {
+                                            item.ipaddress = base2.replace(ip, ip + wifiIconHtml) + extra2;
+                                        }
+                                    }
+                                }
+
+                                if (data.advancedView.Utilization.hasOwnProperty("Uptime")) {
+                                    var rawUt = data.advancedView.Utilization.Uptime;
+                                    var uptimeSec = null;
+                                    if (typeof rawUt !== "string" && !(rawUt instanceof String)) {
+                                        uptimeSec = rawUt / 1000;
+                                    } else {
+                                        // "D days H:M" or "H:M"
+                                        var dm = String(rawUt).match(/(\d+)\s+days?\s+(\d+):(\d+)/);
+                                        var hm = String(rawUt).match(/^(\d+):(\d+)$/);
+                                        if (dm) uptimeSec = +dm[1]*86400 + +dm[2]*3600 + +dm[3]*60;
+                                        else if (hm) uptimeSec = +hm[1]*3600 + +hm[2]*60;
+                                    }
+                                    if (uptimeSec !== null) {
+                                        var uf = formatUptime(uptimeSec);
+                                        u += "<tr><td><small class='text-muted'>UP:</small></td><td>";
+                                        u += '<span title="since ' + uf.since + '">' + uf.short + '</span>';
+                                        u += ' <span data-bs-html="true" title="<span class=\'tooltipSpan\'>' + diskHtml + '<br><b>Since:</b> ' + uf.since + '</span>">...</span>';
+                                        u += "</td></tr>";
+                                    }
+                                }
+                            }
+                            u += "</table>";
+                            item.utilization = u;
+
+                            // Add any IPs the device reports in advancedView but that
+                            // multiSyncSystems didn't include (e.g. a secondary subnet NIC).
+                            // Extra IPs go into _extraIpHtml so the wifi icon stays between
+                            // the primary IPs and the secondary ones.
+                            if (data.advancedView.hasOwnProperty('IPs') &&
+                                    Array.isArray(data.advancedView.IPs)) {
+                                var changed = false;
+                                var extra = item._extraIpHtml || '';
+                                data.advancedView.IPs.forEach(function(avIp) {
+                                    // Skip link-local (169.254.x.x) — APIPA addresses have no DHCP lease
+                                    if (avIp.indexOf('169.254.') === 0) return;
+                                    if ((item._baseIpHtml || '').indexOf(avIp) === -1 &&
+                                            extra.indexOf(avIp) === -1) {
+                                        extra += '<br>' + ipLink(avIp);
+                                        changed = true;
+                                    }
+                                });
+                                if (changed) {
+                                    item._extraIpHtml = extra;
+                                    item.ipaddress = (item._baseIpHtml || '') + wifiIconHtml + extra;
+                                }
+                            }
+                        }
+                    });
+            var statusBt = $('#fppSystemsTable').data('bootstrap.table');
+            if (statusBt) statusBt.initBody();
+            SetupToolTips();
+            } finally {
+                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+                    fppPoller.schedule(() => getFPPSystemStatus(ipAddresses, true));
+                }
+            }
+            validateMultiSyncSettings();
+        } // end of "api/system/status?ip=" + ips
+
+        function parseFPPSystems(data) {
+            // Apply saved display order if one exists
+            if (savedDisplayOrder && savedDisplayOrder.length > 0) {
+                data = applySavedDisplayOrder(data, savedDisplayOrder);
+            }
+
+            // Destroy Bootstrap Table before manipulating DOM so destroy
+            // doesn't restore a stale snapshot over our new rows
+            var $tbl = $('#fppSystemsTable');
+            if ($tbl.closest('.bootstrap-table').length) {
+                $tbl.bootstrapTable('destroy');
+            }
+
+            $('#fppSystems').empty();
+            rowSpans = [];
+            var systemsData = [];
+
+            // UUID → rowID. Each unique UUID = one physical device = one row.
+            var seenUuids = {};
+
+            var fppIpAddresses = [];
+            var wledIpAddresses = [];
+            var geniusIpAddresses = [];
+            var baldrickIpAddresses = [];
+            var falconV4Addresses = [];
+            var falconV3Addresses = [];
+
+            var remotes = [];
+            if ((settings['MultiSyncEnabled'] == '1') &&
+                (settings['fppMode'] == 'player')) {
+                if (typeof settings['MultiSyncRemotes'] === 'string') {
+                    var tarr = settings['MultiSyncRemotes'].split(',');
+                    for (var i = 0; i < tarr.length; i++) {
+                        remotes[tarr[i]] = 1;
+
+                        if ((tarr[i] == "255.255.255.255") &&
+                            (!$('#MultiSyncBroadcast').is(":checked")))
+                            $('#MultiSyncBroadcast').prop('checked', true).trigger('change');
+
+                        if ((tarr[i] == "239.70.80.80") &&
+                            (!$('#MultiSyncMulticast').is(":checked")))
+                            $('#MultiSyncMulticast').prop('checked', true).trigger('change');
+                    }
+                }
+
+                $('.masterOptions').show();
+            }
+
+            for (var i = 0; i < data.length; i++) {
+                var star = "";
+                var ip = data[i].address;
+
+                if (ip.indexOf('169.254') == 0)
+                    continue;
+
+                if ((settings.hasOwnProperty('MultiSyncHide10')) &&
+                    (settings['MultiSyncHide10'] == '1') &&
+                    (ip.indexOf('10.') == 0)) {
+                    continue;
+                }
+
+                if ((settings.hasOwnProperty('MultiSyncHide172')) &&
+                    (settings['MultiSyncHide172'] == '1') &&
+                    (ip.indexOf('172.') == 0)) {
+                    var parts = ip.split('.');
+                    var second = parseInt(parts[1]);
+                    if ((second >= 16) && (second <= 31)) {
+                        continue;
+                    }
+                }
+
+                if ((settings.hasOwnProperty('MultiSyncHide192')) &&
+                    (settings['MultiSyncHide192'] == '1') &&
+                    (ip.indexOf('192.168.') == 0)) {
+                    continue;
+                }
+
+                var hostname = data[i].hostname || ip;
+
+                // Stable row ID: UUID when present, then hostname+mode, then IP.
+                // UUID guarantees one physical device = one row. For older devices
+                // without UUID, hostname+mode deduplicates multi-IP entries without
+                // the version-string mismatch that broke the original hostKey approach.
+                var rawHostname = data[i].hostname || '';
+                var uuid = (data[i].uuid && data[i].uuid !== '')
+                    ? data[i].uuid
+                    : (rawHostname !== '' ? 'host:' + rawHostname + ':' + (data[i].fppModeString || '') : 'ip:' + ip);
+                var rowID = uuid.replace(/[^a-zA-Z0-9]/g, '_');
+                var hostRowKey = ip.replace(/\./g, '_');
+
+                hostRows[hostRowKey] = rowID;
+
+                var hnSpanStyle = "";
+                if (data[i].local) {
+                    hnSpanStyle = " class='fw-bold'";
+                } else {
+                    if ((settings['MultiSyncEnabled'] == '1') &&
+                        (settings['fppMode'] == 'player') &&
+                        (data[i].fppModeString == "remote")) {
+                        star = " <input type='checkbox' class='syncCheckbox' name='" + data[i].address + "'";
+                        if (typeof remotes[data[i].address] !== 'undefined') {
+                            star += " checked";
+                            delete remotes[data[i].address];
+                        }
+                        star += " onClick='updateMultiSyncRemotes(true);'>";
+                    }
+                }
+
+                if (seenUuids.hasOwnProperty(uuid)) {
+                    // Same physical device, additional IP — merge into existing row.
+                    // Do NOT add to poll list; the primary IP already covers this device.
+                    var mergeExtra = '<br>' + ipLink(data[i].address);
+                    if (data[i].fppModeString == 'remote') mergeExtra += star;
+                    var mergeItem = seenUuids[uuid]._item;
+                    mergeItem.ipaddress    += mergeExtra;
+                    mergeItem._baseIpHtml  += mergeExtra;
+                    mergeItem._dataIplist  += ',' + data[i].address;
+                    continue;
+                }
+
+                // First time we see this UUID — create the row.
+                var fppMode = 'Player';
+                if (data[i].fppModeString == 'bridge') {
+                    fppMode = 'Bridge';
+                } else if (data[i].fppModeString == 'master') {
+                    fppMode = 'Master';
+                } else if (data[i].fppModeString == 'remote') {
+                    fppMode = 'Remote';
+                } else if (data[i].fppModeString == 'unknown') {
+                    fppMode = 'Unknown';
+                }
+
+                fppMode += getChannelIOIcons(data[i], data[i].address);
+
+                rowSpans[rowID] = 1;
+
+                var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
+
+                if ((data[i].fppModeString == 'remote') && (star != ""))
+                    ipTxt = "<small>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
+
+                var hostTxt = (fppConfig.hideExternalURLs || data[i].local || data[i].address == hostname)
+                    ? hostname
+                    : "<a target='host_" + data[i].address + "' href='" + wrapUrlWithProxy(data[i].address, "/") + "'>" + hostname + "</a>";
+
+                var versionParts = data[i].version.split('.');
+                var majorVersion = 0;
+                if (data[i].version != 'Unknown')
+                    majorVersion = parseInt(versionParts[0]);
+
+                var versionStr = data[i].version;
+                var versionHtml;
+                if (isFPP(data[i].typeId)) {
+                    versionStr = data[i].version.replace('.x-master', '.x').replace(/-g[A-Za-z0-9]*/, '');
+                    if (versionStr.endsWith('-dirty')) {
+                        versionStr = versionStr.replace('-dirty', '');
+                        var dirtyLink = "<br><a ";
+                        if (data[i].local) {
+                            dirtyLink += "href='settings.php#settings-developer'";
+                        } else {
+                            dirtyLink += "target='host_" + data[i].address + "' href='" + wrapUrlWithProxy(data[i].address, '/settings.php#settings-developer') + "'";
+                        }
+                        dirtyLink += ">Modified</a>";
+                        versionStr += dirtyLink;
+                    }
+                    versionHtml = "<table class='multiSyncVerboseTable'>" +
+                        "<tr><td>FPP:</td><td>" + versionStr + "</td></tr>" +
+                        "<tr><td>OS:</td><td></td></tr>" +
+                        "</table>";
+                } else {
+                    versionHtml = data[i].version;
+                }
+
+                var selectboxHtml = '';
+                if (isFPP(data[i].typeId) && majorVersion >= 4) {
+                    selectboxHtml = "<input type='checkbox' class='remoteCheckbox largeCheckbox multisyncRowCheckbox' name='" + data[i].address + "'>";
+                }
+
+                var ipDash = ip.replace(/\./g, '_');
+                var typeIdHex = '0x' + parseInt(data[i].typeId).toString(16);
+
+                var newItem = {
+                    _id:           rowID,
+                    _dataIp:       data[i].address,
+                    _dataIplist:   data[i].address,
+                    _isFPP:        isFPP(data[i].typeId),
+                    _typeIdHex:    typeIdHex,
+                    _platformInit: data[i].type,
+                    _variantInit:  data[i].model,
+                    _versionStr:   versionStr,
+                    _baseIpHtml:   ipTxt,
+                    hostname:     "<span class='reorder-grip'><i class='rowGripIcon fpp-icon-grip'></i></span>" +
+                                  "<span id='fpp_" + ipDash + "_hostname'" + hnSpanStyle + ">" + hostTxt + "</span>" +
+                                  "<br><small class='hostDescriptionSM'></small>",
+                    ipaddress:    ipTxt,
+                    platform:     "<span id='" + rowID + "_platform'>" + data[i].type + "</span>" +
+                                  "<br><small id='" + rowID + "_variant'>" + data[i].model + "</small>" +
+                                  "<span class='hidden typeId'> " + typeIdHex + " </span>" +
+                                  "<span class='hidden version'>" + data[i].version + "</span>",
+                    mode:         fppMode,
+                    status:       'Last Seen:<br>' + data[i].lastSeenStr,
+                    elapsed:      '',
+                    version:      versionHtml,
+                    gitversions:  '',
+                    utilization:  '',
+                    fppcolor:     '',
+                    selectbox:    selectboxHtml
+                };
+                systemsData.push(newItem);
+                // Register so subsequent entries with the same UUID can find this item.
+                seenUuids[uuid] = { rowID: rowID, _item: newItem };
+
+                // For older FPP systems without channelOutputsEnabled, check remote config
+                if (isFPP(data[i].typeId)) {
+                    checkRemoteChannelIO(data[i].address, rowID, data[i]);
+                }
+
+                $('#fppSystems').append(
+                    "<tr id='" + rowID + "_warnings' class='child-row warning-row'>" +
+                    "<td colspan='10' id='" + rowID + "_warningCell'></td></tr>"
+                );
+                $('#fppSystems').append(
+                    "<tr id='" + rowID + "_logs' style='display:none' class='logRow child-row'>" +
+                    "<td colspan='10' id='" + rowID + "_logCell'>" +
+                    "<table class='multiSyncVerboseTable' width='100%'>" +
+                    "<tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr>" +
+                    "<tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'>" +
+                    "<input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'>" +
+                    "<input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'>" +
+                    "<input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID + "_logs\").hide(); rowSpanSet(\"" + rowID + "\");'>" +
+                    "</div></td></tr></table></td></tr>"
+                );
+
+                if (isFPP(data[i].typeId)) {
+                    fppIpAddresses.push(ip);
+                } else if (isESPixelStick(data[i].typeId)) {
+                    if ((majorVersion == 4) || (majorVersion == 0)) {
+                        getESPixelStickBridgeStatus(ip);
+                    } else {
+                        fppIpAddresses.push(ip);
+                    }
+                } else if (isFalconV4(data[i].typeId)) {
+                    falconV4Addresses.push(ip);
+                } else if (isFalcon(data[i].typeId)) {
+                    falconV3Addresses.push(ip);
+                } else if (isWLED(data[i].typeId)) {
+                    wledIpAddresses.push(ip);
+                } else if (isGenius(data[i].typeId)) {
+                    geniusIpAddresses.push(ip);
+                } else if (isBaldrick(data[i].typeId)) {
+                    baldrickIpAddresses.push(ip);
+                }
+            }
+            getFPPSystemStatus(fppIpAddresses, false);
+            getWLEDControllerStatus(wledIpAddresses, false);
+            getGeniusControllerStatus(geniusIpAddresses, false);
+            getBaldrickControllerStatus(baldrickIpAddresses, false);
+            getFalconControllerStatus(falconV3Addresses, falconV4Addresses, false);
+
+            var extraRemotes = [];
+            var origExtra = "";
+            if (typeof settings['MultiSyncExtraRemotes'] === 'string') {
+                origExtra = settings['MultiSyncExtraRemotes'];
+                extraRemotes = origExtra.split(',');
+            }
+            for (var x in remotes) {
+                if (!extraRemotes.includes(x)) {
+                    extraRemotes.push(x);
+                }
+            }
+            extraRemotes.sort();
+            var extras = extraRemotes.join(',');
+            settings['MultiSyncExtraRemotes'] = extras;
+
+            if (extras != '' && origExtra != extras) {
+                if (fppConfig.uiLevel >= 1) {
+                    var inp = document.getElementById("MultiSyncExtraRemotes");
+                    if (inp) {
+                        $('#MultiSyncExtraRemotes').val(extras);
+                    }
+                }
+                SetSetting("MultiSyncExtraRemotes", extras, 0, 0);
+            }
+
+            // Initialize Bootstrap Table with empty data so its first
+            // initBody is a no-op, then load through the monkey-patch.
+            var $tbl = $('#fppSystemsTable');
+
+            // Detach child rows before BT init — they aren't BT data rows.
+            var $detachedChildren = $('#fppSystems > tr.child-row').detach();
+
+            $tbl.bootstrapTable({
+                idField: '_id',
+                uniqueId: '_id',
+                data: [],
+                filterControl: true,
+                filterControlVisible: true,
+                sortName: (savedDisplayOrder && savedDisplayOrder.length > 0) ? undefined : 'hostname',
+                sortOrder: 'asc',
+                showColumns: false,
+                striped: true,
+                undefinedText: '',
+                rowAttributes: function (row) {
+                    var attrs = { id: row._id, class: 'systemRow' };
+                    if (row._dataIp) attrs['data-ip'] = row._dataIp;
+                    if (row._dataIplist) attrs['data-iplist'] = row._dataIplist;
+                    return attrs;
+                },
+                rowStyle: function (row) {
+                    if (row && row.fppcolor !== '' && row.fppcolor !== null && row.fppcolor !== undefined) {
+                        var colorNum = parseInt(row.fppcolor, 10);
+                        if (!isNaN(colorNum)) {
+                            var hex = colorNum.toString(16);
+                            while (hex.length < 6) {
+                                hex = '0' + hex;
+                            }
+                            return {
+                                css: {
+                                    background: '#' + hex,
+                                    color: '#FFF'
+                                }
+                            };
+                        }
+                    }
+                    return {};
+                }
+            });
+
+            // Monkey-patch initBody to preserve child rows across re-renders.
+            var bt = $tbl.data('bootstrap.table');
+            if (bt) {
+                var origInitBody = bt.initBody;
+                bt.initBody = function (fixedScroll, updatedUid) {
+                    var $body = this.$el.find('>tbody');
+                    var $childRows = $body.length
+                        ? $body.find('>tr.child-row').detach() : $();
+                    origInitBody.call(this, fixedScroll, updatedUid);
+                    if ($childRows.length) {
+                        reattachChildRows($tbl, $childRows);
+                    }
+                };
+            }
+
+            // Load data through the monkey-patch so rowStyle and rowAttributes apply.
+            $tbl.bootstrapTable('load', systemsData);
+
+            // Re-attach child rows after their parent system rows.
+            reattachChildRows($tbl, $detachedChildren);
+
+            if (typeof buildColumnSelector === 'function') buildColumnSelector();
+        }
+
+        /**
+         * Insert child rows (warnings / logs) immediately after their
+         * parent system row inside the table body.
+         */
+        function reattachChildRows($tbl, $children) {
+            if (!$children || !$children.length) return;
+            var $tbody = $tbl.find('>tbody');
+            if (!$tbody.length) $tbody = $tbl.find('tbody');
+            $children.each(function () {
+                var id = this.id || '';
+                // Derive parent row id: strip _warnings or _logs suffix
+                var parentId = id.replace(/_warnings$|_logs$/, '');
+                var $parent = $tbody.find('#' + parentId);
+                if ($parent.length) {
+                    // Insert after parent row, but after any sibling
+                    // child rows that already follow it.
+                    var $after = $parent;
+                    $parent.nextAll('.child-row').each(function () {
+                        if (this.id && this.id.startsWith(parentId + '_')) {
+                            $after = $(this);
+                        } else {
+                            return false; // stop at first non-sibling
+                        }
+                    });
+                    $after.after(this);
+                }
+            });
+        }
+
+        var systemsList = [];
+        async function getFPPSystems() {
+            if (streamCount) {
+                alert("FPP Systems are being updated, you will need to manually refresh once these updates are complete.");
+                return;
+            }
+
+            $('.masterOptions').hide();
+            $('#fppSystems').html("<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>");
+
+            const r = await fetch('api/fppd/multiSyncSystems');
+            const data = await r.json();
+            systemsList = data.systems;
+            parseFPPSystems(data.systems);
+        }
+
+        // ============================================================
+        // SECTION: ESPixelStick polling
+        // ============================================================
+
+        var ESPSockets = {};
+        function espUpdateDescription(item, desc) {
+            if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
+                item.hostname = item.hostname.replace(
+                    "class='hostDescriptionSM'></small>",
+                    "class='hostDescriptionSM'>" + desc + "</small>"
+                );
+            }
+        }
+
+        function parseESPixelStickConfig(ip, data) {
+            var s = JSON.parse(data);
+            var $tbl = $('#fppSystemsTable');
+            var rowId = hostRows[ip.replace(/\./g, '_')];
+            var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+            if (!item) return;
+            espUpdateDescription(item, s.device.id);
+            var bt = $tbl.data('bootstrap.table');
+            if (bt) bt.initBody();
+        }
+
+        function parseESPixelStickStatus(ip, data) {
+            var s = JSON.parse(data);
+            var ips = ip.replace(/\./g, '_');
+
+            if (s.hasOwnProperty("status")) {
+                s = s.status;
+            }
+
+            var rssi = +s.system.rssi;
+            var quality = 2 * (rssi + 100);
+
+            if (rssi <= -100)
+                quality = 0;
+            else if (rssi >= -50)
+                quality = 100;
+
+            var wifiDesc = quality < 25 ? 'weak' : quality < 50 ? 'fair' : quality < 75 ? 'good' : 'excellent';
+            var wifiIcon = '<span title="' + quality + '% ' + rssi + 'dBm" class="wifi-icon wifi-' + wifiDesc + '"></span>';
+
+            var uf = formatUptime(+s.system.uptime / 1000);
+
+            var u = "<table class='multiSyncVerboseTable'>";
+            u += '<tr><td>UP:</td><td><span title="since ' + uf.since + '">' + uf.short + '</span></td></tr>';
+            u += "</table>";
+
+            var $tbl = $('#fppSystemsTable');
+            var rowId = hostRows[ips];
+            var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+            if (!item) return;
+
+            item.utilization = u;
+
+            var endTag = ip + '</a>';
+            var base = item._baseIpHtml || '';
+            var extra = item._extraIpHtml || '';
+            if (base.indexOf(endTag) !== -1) {
+                item.ipaddress = base.replace(endTag, endTag + wifiIcon) + extra;
+            } else {
+                item.ipaddress = base + wifiIcon + extra;
+            }
+
+            if (item.mode === 'Bridge') {
+                var st = 'Bridging';
+                if (s.hasOwnProperty('e131')) {
+                    st = "<table class='multiSyncVerboseTable'>";
+                    st += "<tr><td>Tot Pkts:</td><td>" + s.e131.num_packets + "</td></tr>";
+                    st += "<tr><td>Seq Errs:</td><td>" + s.e131.seq_errors + "</td></tr>";
+                    st += "<tr><td>Pkt Errs:</td><td>" + s.e131.packet_errors + "</td></tr>";
+                    st += "</table>";
+                } else if (s.hasOwnProperty('input')) {
+                    for (var i = 0; i < s.input.length; i++) {
+                        if (s.input[i].hasOwnProperty('e131')) {
+                            st = "<table class='multiSyncVerboseTable'>";
+                            st += "<tr><td>Tot Pkts:</td><td>" + s.input[i].e131.num_packets + "</td></tr>";
+                            st += "<tr><td>Pkt Errs:</td><td>" + s.input[i].e131.packet_errors + "</td></tr>";
+                            st += "</table>";
+                        }
+                    }
+                }
+                item.status = st;
+            }
+
+            var bt = $tbl.data('bootstrap.table');
+            if (bt) bt.initBody();
+
+            if ($('#MultiSyncRefreshStatus').is(":checked")) {
+                setTimeout(function () { ESPSockets[ips].send("XJ"); }, 1000);
+            }
+        }
+
+        function parseESPixelStickVersion(ip, data) {
+            var s = JSON.parse(data);
+            if (!s.hasOwnProperty('version')) return;
+            var $tbl = $('#fppSystemsTable');
+            var rowId = hostRows[ip.replace(/\./g, '_')];
+            var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+            if (!item) return;
+            item.version = s.version;
+            item._versionStr = s.version;
+            var bt = $tbl.data('bootstrap.table');
+            if (bt) bt.initBody();
+        }
+
+        function parseESPixelStickCommandResponse(ip, data) {
+            var s = JSON.parse(data);
+            if (!s.hasOwnProperty('get') || !s.get.hasOwnProperty('device') || !s.get.device.hasOwnProperty('id')) return;
+            var $tbl = $('#fppSystemsTable');
+            var rowId = hostRows[ip.replace(/\./g, '_')];
+            var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+            if (!item) return;
+            espUpdateDescription(item, s.get.device.id);
+            var bt = $tbl.data('bootstrap.table');
+            if (bt) bt.initBody();
+        }
+
+        function getESPixelStickBridgeStatus(ip) {
+            var ips = ip.replace(/\./g, '_');
+
+            if (ESPSockets.hasOwnProperty(ips)) {
+                ESPSockets[ips].send("XJ");
+            } else {
+                var ws = new WebSocket("ws://" + ip + "/ws");
+                ESPSockets[ips] = ws;
+
+                ws.binaryType = "arraybuffer";
+                ws.onopen = function () {
+                    ws.send("G1");
+                    ws.send("G2");
+                    ws.send("XA"); // ESPixelStick v4.x
+                    ws.send("XJ");
+                    ws.send('{"cmd":{"get":"device"}}'); // ESPixelStick v4.x
+                };
+
+                ws.onmessage = function (e) {
+                    if ("string" == typeof e.data) {
+                        var t = e.data.substr(0, 2)
+                            , n = e.data.substr(2);
+                        switch (t) {
+                            case "XA":
+                            case "G2":
+                                parseESPixelStickVersion(ip, n);
+                                break;
+                            case "G1":
+                                parseESPixelStickConfig(ip, n);
+                                break;
+                            case "XJ":
+                                parseESPixelStickStatus(ip, n);
+                                break;
+                            case '{"':
+                                parseESPixelStickCommandResponse(ip, e.data);
+                                break;
+                        }
+                    }
+                };
+
+                ws.onclose = function () {
+                    delete ESPSockets[ips];
+                };
+            }
+        }
+
+
+        // ============================================================
+        // SECTION: Falcon polling
+        // ============================================================
+
+        async function getFalconControllerStatus(fv3ips, fv4ips, refreshing = false) {
+            falconPoller.cancel();
+
+            ips3 = "";
+            if (Array.isArray(fv3ips)) {
+                fv3ips.forEach(function (entry) {
+                    ips3 += "&ip[]=" + entry;
+                });
+            } else {
+                ips3 = "&ip[]=" + fv3ips;
+            }
+
+            ips4 = "";
+            if (Array.isArray(fv4ips)) {
+                fv4ips.forEach(function (entry) {
+                    ips4 += "&ip[]=" + entry;
+                });
+            } else {
+                ips4 = "&ip[]=" + fv4ips;
+            }
+
+            const promises = [];
+            if (ips3 != "") {
+                promises.push((async () => {
+                    const r = await fetch("api/system/status?type=FV3" + ips3);
+                    const alldata = await r.json();
+                    var $tbl = $('#fppSystemsTable');
+                    Object.entries(alldata).forEach(function (entry) {
+                        var ip = entry[0], data = entry[1];
+                        var rowId = hostRows[ip.replace(/\./g, '_')];
+                        var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+                        if (!item) return;
+
+                        var u = "<table class='multiSyncVerboseTable'>";
+                        u += "<tr><td>Uptime:</td><td>" + data['u'] + "</td></tr>";
+                        u += "<tr><td>V1 Voltage:</td><td> " + data['v1'] + "</td></tr>";
+                        u += "<tr><td>V2 Voltage:</td><td> " + data['v2'] + "</td></tr>";
+                        u += "</table>";
+
+                        item.utilization = u;
+                        item.status = (item.mode === 'Bridge') ? 'Bridging' : '';
+                    });
+                    var bt = $tbl.data('bootstrap.table');
+                    if (bt) bt.initBody();
+                })());
+            }
+            if (ips4 != "") {
+                promises.push((async () => {
+                    const r = await fetch("api/system/status?type=FV4" + ips4);
+                    const alldata = await r.json();
+                    var $tbl = $('#fppSystemsTable');
+                    Object.entries(alldata).forEach(function (entry) {
+                        var ip = entry[0], s = entry[1];
+
+                        var tempthreshold = s.P.BS;
+                        var t1temp = s.P.T1 / 10;
+                        var t2temp = s.P.T2 / 10;
+                        var t1tempLabel = t1temp + "C";
+
+                        if (settings['temperatureInF'] == 1) {
+                            t1temp = Math.round((t1temp * 9 / 5) + 32);
+                            t2temp = Math.round((t2temp * 9 / 5) + 32);
+                            tempthreshold = Math.round((tempthreshold * 9 / 5) + 32);
+                            t1tempLabel = t1temp + "F";
+                        }
+
+                        var v1voltage = s.P.V1 / 10;
+                        var v2voltage = s.P.V2 / 10;
+
+                        var testmode = new Boolean(s.P.TS);
+                        var overtemp = new Boolean(Math.max(t1temp, t2temp) > tempthreshold);
+
+                        var uf = formatUptime(parseInt(s.P.U));
+
+                        var u = "<table class='multiSyncVerboseTable'>";
+                        u += '<tr><td><small class="text-muted">UP:</small></td><td><span title="since ' + uf.since + '">' + uf.short + '</span></td></tr>';
+                        u += "<tr><td><small class='text-muted'>V1:</small></td><td> " + v1voltage + "v</td></tr>";
+                        if (s.P.BR != 48) {
+                            u += "<tr><td><small class='text-muted'>V2:</small></td><td> " + v2voltage + "v</td></tr>";
+                        }
+                        u += "<tr><td><small class='text-muted'>TEMP:</small></td><td> " + t1tempLabel + "</td></tr>";
+                        u += "</table>";
+
+                        var rowId = hostRows[ip.replace(/\./g, '_')];
+                        var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+                        if (!item) return;
+
+                        item.utilization = u;
+                        item.status = s.status_name;
+
+                        if (testmode == true || overtemp == true) {
+                            $('#' + rowId + '_warnings').removeAttr('style');
+                            if ($('#' + rowId).hasClass('odd'))
+                                $('#' + rowId + '_warnings').addClass('odd');
+
+                            var wHTML = "";
+                            if (testmode == true) wHTML += "<span class='warning-text'>Controller Test mode is active</span><br>";
+                            if (overtemp == true) wHTML += "<span class='warning-text'>Pixel brightness reduced due to high temperatures</span><br>";
+
+                            $('#' + rowId + '_warningCell').html(wHTML);
+                        }
+                    });
+                    var bt = $tbl.data('bootstrap.table');
+                    if (bt) bt.initBody();
+                })());
+            }
+            await Promise.allSettled(promises);
+            if ($('#MultiSyncRefreshStatus').is(":checked")) {
+                falconPoller.schedule(() => getFalconControllerStatus(fv3ips, fv4ips, true));
+            }
+        }
+
+        // ============================================================
+        // SECTION: WLED polling
+        // ============================================================
+
+        async function getWLEDControllerStatus(ipAddresses, refreshing = false) {
+            ips = "";
+            if (Array.isArray(ipAddresses)) {
+                wledPoller.cancel();
+                ipAddresses.forEach(function (entry) {
+                    ips += "&ip[]=" + entry;
+                });
+            } else {
+                ips = "&ip[]=" + ipAddresses;
+            }
+            if (ips == "") {
+                return;
+            }
+            try {
+                const r = await fetch("api/system/status?type=WLED" + ips);
+                const alldata = await r.json();
+                var $tbl = $('#fppSystemsTable');
+                Object.entries(alldata).forEach(function (entry) {
+                    var ip = entry[0], data = entry[1];
+                    if (data == null || data == "" || data == "null") {
+                        return;
+                    }
+                    var rssi = data.wifi.rssi;
+                    var quality = data.wifi.signal;
+                    var wifiDesc = quality < 25 ? 'weak' : quality < 50 ? 'fair' : quality < 75 ? 'good' : 'excellent';
+                    var wifiIcon = '<span title="' + quality + '% ' + rssi + 'dBm" class="wifi-icon wifi-' + wifiDesc + '"></span>';
+
+                    var uf = formatUptime(parseInt(data.uptime));
+
+                    var u = "<table class='multiSyncVerboseTable'>";
+                    u += '<tr><td><small class="text-muted">UP:</small></td><td><span title="since ' + uf.since + '">' + uf.short + '</span></td></tr>';
+                    u += "</table>";
+
+                    var rowId = hostRows[ip.replace(/\./g, '_')];
+                    var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+                    if (!item) return;
+                    item.utilization = u;
+                    item.status = data.status_name;
+
+                    var endTag = ip + '</a>';
+                    var base = item._baseIpHtml || '';
+                    var extra = item._extraIpHtml || '';
+                    if (base.indexOf(endTag) !== -1) {
+                        item.ipaddress = base.replace(endTag, endTag + wifiIcon) + extra;
+                    } else {
+                        item.ipaddress = base + wifiIcon + extra;
+                    }
+                });
+                var bt = $tbl.data('bootstrap.table');
+                if (bt) bt.initBody();
+            } finally {
+                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+                    wledPoller.schedule(() => getWLEDControllerStatus(ipAddresses, true));
+                }
+            }
+        }
+
+        // ============================================================
+        // SECTION: Genius polling
+        // ============================================================
+
+        async function getGeniusControllerStatus(ipAddresses, refreshing = false) {
+            ips = "";
+            if (Array.isArray(ipAddresses)) {
+                geniusPoller.cancel();
+                ipAddresses.forEach(function (entry) {
+                    ips += "&ip[]=" + entry;
+                });
+            } else {
+                ips = "&ip[]=" + ipAddresses;
+            }
+            if (ips == "") {
+                return;
+            }
+            try {
+                const r = await fetch("api/system/status?type=Genius" + ips);
+                const alldata = await r.json();
+                var $tbl = $('#fppSystemsTable');
+                Object.entries(alldata).forEach(function (entry) {
+                    var ip = entry[0], data = entry[1];
+                    if (data == null || data == "" || data == "null") {
+                        return;
+                    }
+                    var uf = formatUptime(data.system.uptime_seconds);
+
+                    var u = "<table class='multiSyncVerboseTable'>";
+                    u += '<tr><td><small class="text-muted">UP:</small></td><td><span title="since ' + uf.since + '">' + uf.short + '</span></td></tr>';
+                    u += "</table>";
+
+                    var rowId = hostRows[ip.replace(/\./g, '_')];
+                    var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+                    if (!item) return;
+                    item.utilization = u;
+                    item.status = data.status_name;
+                    if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
+                        item.hostname = item.hostname.replace(
+                            "class='hostDescriptionSM'></small>",
+                            "class='hostDescriptionSM'>" + data.system.friendly_name + "</small>"
+                        );
+                    }
+                });
+                var bt = $tbl.data('bootstrap.table');
+                if (bt) bt.initBody();
+            } finally {
+                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+                    geniusPoller.schedule(() => getGeniusControllerStatus(ipAddresses, true));
+                }
+            }
+        }
+
+        // ============================================================
+        // SECTION: Baldrick polling
+        // ============================================================
+
+        async function getBaldrickControllerStatus(ipAddresses, refreshing = false) {
+            ips = "";
+            if (Array.isArray(ipAddresses)) {
+                baldrickPoller.cancel();
+                ipAddresses.forEach(function (entry) {
+                    ips += "&ip[]=" + entry;
+                });
+            } else {
+                ips = "&ip[]=" + ipAddresses;
+            }
+            if (ips == "") {
+                return;
+            }
+            try {
+                const r = await fetch("api/system/status?type=Baldrick" + ips);
+                const alldata = await r.json();
+                var $tbl = $('#fppSystemsTable');
+                Object.entries(alldata).forEach(function (entry) {
+                    var ip = entry[0], data = entry[1];
+                    if (data == null || data == "" || data == "null") {
+                        return;
+                    }
+                    var uf = formatUptime(data.uptime);
+
+                    var u = "<table class='multiSyncVerboseTable'>";
+                    u += '<tr><td><small class="text-muted">UP:</small></td><td><span title="since ' + uf.since + '">' + uf.short + '</span></td></tr>';
+                    u += "</table>";
+
+                    var rowId = hostRows[ip.replace(/\./g, '_')];
+                    var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+                    if (!item) return;
+
+                    item.utilization = u;
+                    if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
+                        item.hostname = item.hostname.replace(
+                            "class='hostDescriptionSM'></small>",
+                            "class='hostDescriptionSM'>" + (data.board_model || data.hostname) + "</small>"
+                        );
+                    }
+
+                    var status = 'Idle';
+                    if (data.test_mode_active) {
+                        status = 'Testing';
+                    } else if (data.frame_rate && data.frame_rate > 0) {
+                        status = 'Playing';
+                    }
+                    item.status = status;
+
+                    if (data.ota && data.ota.current_firmware_version && data.ota.available_firmware_version) {
+                        var current = data.ota.current_firmware_version;
+                        var available = data.ota.available_firmware_version;
+                        if (current !== available) {
+                            item.version = '<span class="text-warning" title="Update available: ' + available + '">' +
+                                current + ' <i class="fas fa-exclamation-triangle"></i></span>';
+                        } else {
+                            item.version = current;
+                        }
+                    }
+                });
+                var bt = $tbl.data('bootstrap.table');
+                if (bt) bt.initBody();
+            } finally {
+                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+                    baldrickPoller.schedule(() => getBaldrickControllerStatus(ipAddresses, true));
+                }
+            }
+        }
+
+        // ============================================================
+        // SECTION: Refresh orchestration
+        // ============================================================
+
+        function clearRefreshTimers() {
+            fppPoller.cancel();
+            falconPoller.cancel();
+            wledPoller.cancel();
+            geniusPoller.cancel();
+            baldrickPoller.cancel();
+        }
+
+        function RefreshStats() {
+            var $tbl = $('#fppSystemsTable');
+            var ips = [], gips = [], wips = [], bips = [], fv3ips = [], fv4ips = [];
+            var seenRows = {};
+
+            Object.keys(hostRows).forEach(function (key) {
+                var rowID = hostRows[key];
+                if (seenRows[rowID]) return;
+                seenRows[rowID] = true;
+
+                var item = $tbl.bootstrapTable('getRowByUniqueId', rowID);
+                if (!item) return;
+
+                var ip = item._dataIp;
+                var typeId = item._typeIdHex;
+
+                if (item._isFPP) {
+                    ips.push(ip);
+                } else if (isESPixelStick(typeId)) {
+                    var majorVersion = parseInt((item._versionStr || '0').split('.')[0]);
+                    if (majorVersion >= 4) {
+                        getESPixelStickBridgeStatus(ip);
+                    } else {
+                        ips.push(ip);
+                    }
+                } else if (isFalconV4(typeId)) {
+                    fv4ips.push(ip);
+                } else if (isFalcon(typeId)) {
+                    fv3ips.push(ip);
+                } else if (isWLED(typeId)) {
+                    wips.push(ip);
+                } else if (isGenius(typeId)) {
+                    gips.push(ip);
+                } else if (isBaldrick(typeId)) {
+                    bips.push(ip);
+                }
+            });
+
+            getFPPSystemStatus(ips, true);
+            getGeniusControllerStatus(gips, true);
+            getWLEDControllerStatus(wips, true);
+            getBaldrickControllerStatus(bips, true);
+            getFalconControllerStatus(fv3ips, fv4ips, true);
+        }
+
+        function MultiSyncEnableToggled() {
+            SetRestartFlag();
+        }
+
+
+        function autoRefreshToggled() {
+            if ($('#MultiSyncRefreshStatus').is(":checked")) {
+                RefreshStats();
+            }
+        }
+
+        function syncModeUpdated(setting = '') {
+            var multicastChecked = $('#MultiSyncMulticast').is(":checked");
+            var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
+
+            if (setting == 'MultiSyncMulticast') {
+                if (multicastChecked && broadcastChecked)
+                    $('#MultiSyncBroadcast').prop('checked', false).trigger('change');
+            } else if (setting == 'MultiSyncBroadcast') {
+                if (multicastChecked && broadcastChecked)
+                    $('#MultiSyncMulticast').prop('checked', false).trigger('change');
+            }
+
+            var anyUnicast = 0;
+            $('input.syncCheckbox').each(function () {
+                if ($(this).is(":checked")) {
+                    anyUnicast = 1;
+                }
+            });
+
+            if (!anyUnicast && !multicastChecked && !broadcastChecked) {
+                $('#MultiSyncMulticast').prop('checked', true).trigger('change');
+                alert('FPP will use multicast if no other sync methods are chosen.');
+            }
+        }
+
+        // ============================================================
+        // SECTION: OS upgrade helpers
+        // ============================================================
+
+        async function getLocalFpposFiles() {
+            const r = await fetch('api/files/uploads');
+            const data = await r.json();
+            if (data.hasOwnProperty("files")) {
                     data.files.forEach(function (f) {
                         if (f.hasOwnProperty("name")) {
                             if (f.name.endsWith(".fppos")) {
@@ -423,585 +2407,7 @@
                         });
                         $("#copyOSOptionsDetails").html(html.join(''));
                     }
-                } // hasOwnProperty("files");
-            });
-        }
-
-        /*
-         * Does a deep object flattening of "obj" using the specified base path
-         * setting new properties on rc to rc[path + "." + key] == value
-         */
-        function flattenObject(obj, path, rc) {
-            if (((typeof obj != "object" && typeof obj != 'function')) || (obj == null)) {
-                console.log("WARNING: Not an object", obj);
-                return;
-            }
-
-            for (const [key, value] of Object.entries(obj)) {
-                let newPath = (path === "" ? key : path + "." + key)
-                if (typeof value === "object") {
-                    flattenObject(value, newPath, rc);
-                } else if (typeof value === "boolean" || typeof value === "string" || typeof value == "number") {
-                    rc[newPath] = value;
-                } else {
-                    console.log("Unable to handle path ", newPath, "of type", typeof value);
-                }
-            }
-
-        }
-
-        /*
-         * Returns Mode + value of "Send Multisync"
-         */
-        function getFullMode(data, ip) {
-            rc = "Unknown";
-            if (data.hasOwnProperty('mode')) {
-                rc = modeToString(data.mode);
-            }
-            if (data.hasOwnProperty('multisync') && data.multisync && data.mode == 2) {
-                rc += " w/ Multisync"
-            }
-
-            rc += getChannelIOIcons(data, ip);
-
-            return rc;
-        }
-
-        function getChannelIOIcons(data, ip) {
-            var icons = '';
-            var hasInput = data.hasOwnProperty('channelInputsEnabled') && data.channelInputsEnabled;
-            var hasOutput = data.hasOwnProperty('channelOutputsEnabled') && data.channelOutputsEnabled;
-            if (hasInput || hasOutput) {
-                var ipAttr = ip ? " data-ip='" + ip + "'" : '';
-                icons += '<span class="channel-io-icons">';
-                if (hasInput) {
-                    icons += '<i class="fas fa-regular fa-circle-down channel-io-icon-input"' + ipAttr + ' aria-label="Channel Inputs Enabled (hover for details)"></i>';
-                }
-                if (hasOutput) {
-                    icons += '<i class="fas fa-regular fa-circle-up channel-io-icon-output"' + ipAttr + ' aria-label="Channel Outputs Enabled (hover for details)"></i>';
-                }
-                icons += '</span>';
-            }
-            return icons;
-        }
-
-        // Cache for remote channel output/input configs keyed by IP
-        var channelOutputConfigCache = {};
-        var channelInputConfigCache = {};
-
-        // Universe type ID to display name mapping
-        var universeTypeNames = {
-            0: 'E1.31 Multicast',
-            1: 'E1.31 Unicast',
-            2: 'ArtNet Broadcast',
-            3: 'ArtNet Unicast',
-            4: 'DDP Raw',
-            5: 'DDP',
-            6: 'KiNet v1',
-            7: 'KiNet v2',
-            8: 'Twinkly',
-            9: 'ArtNet Unicast'
-        };
-
-        function getUniverseTypeName(typeId) {
-            return universeTypeNames[typeId] || ('Type ' + typeId);
-        }
-
-        /**
-         * Fetches channel output config from a remote FPP system.
-         * Returns a promise resolving to the parsed config data.
-         */
-        function fetchChannelOutputConfig(ip) {
-            if (channelOutputConfigCache[ip]) {
-                return $.Deferred().resolve(channelOutputConfigCache[ip]).promise();
-            }
-            return $.get('api/channel/output/universeOutputs', { ip: ip }).then(function (data) {
-                channelOutputConfigCache[ip] = data;
-                return data;
-            }).fail(function () {
-                channelOutputConfigCache[ip] = null;
-                return null;
-            });
-        }
-
-        /**
-         * Fetches channel input config from a remote FPP system.
-         */
-        function fetchChannelInputConfig(ip) {
-            if (channelInputConfigCache[ip]) {
-                return $.Deferred().resolve(channelInputConfigCache[ip]).promise();
-            }
-            return $.get('api/channel/output/universeInputs', { ip: ip }).then(function (data) {
-                channelInputConfigCache[ip] = data;
-                return data;
-            }).fail(function () {
-                channelInputConfigCache[ip] = null;
-                return null;
-            });
-        }
-
-        /**
-         * Builds tooltip HTML table from channel output config data.
-         */
-        function buildOutputTooltipHtml(data) {
-            if (!data || !data.channelOutputs || !data.channelOutputs.length) {
-                return '<em>No Output configuration found</em>';
-            }
-            var co = data.channelOutputs[0];
-            if (!co.universes || !co.universes.length) {
-                return '<em>No universes configured</em>';
-            }
-            var activeUniverses = co.universes.filter(function (u) { return u.active; });
-            if (!activeUniverses.length) {
-                return '<em>No active outputs</em>';
-            }
-            var html = '<table class="channel-io-tooltip-table">';
-            html += '<tr><th>Description</th><th>Type</th><th>IP/Address</th><th>Channels</th></tr>';
-            activeUniverses.forEach(function (u) {
-                var desc = u.description || '-';
-                var typeName = getUniverseTypeName(u.type);
-                var addr = u.address || '-';
-                var chRange = u.startChannel + '-' + (u.startChannel + (u.channelCount * (u.universeCount || 1)) - 1);
-                html += '<tr>';
-                html += '<td>' + desc + '</td>';
-                html += '<td>' + typeName + '</td>';
-                html += '<td>' + addr + '</td>';
-                html += '<td>' + chRange + '</td>';
-                html += '</tr>';
-            });
-            html += '</table>';
-            return html;
-        }
-
-        /**
-         * Builds tooltip HTML table from channel input config data.
-         */
-        function buildInputTooltipHtml(data) {
-            if (!data || !data.channelInputs || !data.channelInputs.length) {
-                return '<em>No Input configuration found</em>';
-            }
-            var ci = data.channelInputs[0];
-            if (!ci.universes || !ci.universes.length) {
-                return '<em>No input universes configured</em>';
-            }
-            var activeInputs = ci.universes.filter(function (u) { return u.active; });
-            if (!activeInputs.length) {
-                return '<em>No active inputs</em>';
-            }
-            var html = '<table class="channel-io-tooltip-table">';
-            html += '<tr><th>Type</th><th>Start Ch</th><th>Channels</th><th>Universes</th></tr>';
-            activeInputs.forEach(function (u) {
-                var typeName = getUniverseTypeName(u.type);
-                var chCount = u.channelCount * (u.universeCount || 1);
-                html += '<tr>';
-                html += '<td>' + typeName + '</td>';
-                html += '<td>' + u.startChannel + '</td>';
-                html += '<td>' + chCount + '</td>';
-                html += '<td>' + (u.universeCount || 1) + '</td>';
-                html += '</tr>';
-            });
-            html += '</table>';
-            return html;
-        }
-
-        /**
-         * Shows a Bootstrap popover with channel output/input details on an icon.
-         */
-        function showChannelIOPopover(iconEl, isOutput) {
-            var $icon = $(iconEl);
-            var ip = $icon.data('ip');
-            if (!ip) return;
-
-            // If popover already exists, don't recreate
-            if (bootstrap.Popover.getInstance(iconEl)) return;
-
-            // Show loading popover
-            var popover = new bootstrap.Popover(iconEl, {
-                html: true,
-                trigger: 'manual',
-                placement: 'bottom',
-                customClass: 'channel-io-popover',
-                title: isOutput ? 'Channel Outputs' : 'Channel Inputs',
-                content: '<em>Loading...</em>'
-            });
-            popover.show();
-
-            // Fetch and update content
-            var fetchFn = isOutput ? fetchChannelOutputConfig : fetchChannelInputConfig;
-            var buildFn = isOutput ? buildOutputTooltipHtml : buildInputTooltipHtml;
-            fetchFn(ip).then(function (data) {
-                var html = buildFn(data);
-                // Update the popover content
-                var tip = popover.tip;
-                if (tip) {
-                    $(tip).find('.popover-body').html(html);
-                    popover.update();
-                }
-            });
-        }
-
-
-
-        // Track which IPs we've already probed for channel I/O on older systems
-        var channelIOCheckedIPs = {};
-
-        /**
-         * For older FPP systems that don't report channelOutputsEnabled/channelInputsEnabled,
-         * fetch the remote config and add icons if active universes are found.
-         */
-        function checkRemoteChannelIO(ip, rowID, data) {
-            if (!ip) return;
-            // If the data already has the properties, getChannelIOIcons handled it
-            var hasOutputProp = data && data.hasOwnProperty('channelOutputsEnabled');
-            var hasInputProp = data && data.hasOwnProperty('channelInputsEnabled');
-            if (hasOutputProp && hasInputProp) return;
-            // Only check each IP once
-            if (channelIOCheckedIPs[ip]) {
-                // Re-apply cached icons if mode cell was refreshed
-                applyChannelIOIcons(ip, rowID);
-                return;
-            }
-            channelIOCheckedIPs[ip] = { output: false, input: false };
-
-            var checks = [];
-            if (!hasOutputProp) {
-                checks.push(fetchChannelOutputConfig(ip).then(function (configData) {
-                    if (configData && configData.channelOutputs && configData.channelOutputs.length) {
-                        var co = configData.channelOutputs[0];
-                        if (co.enabled && co.universes && co.universes.length) {
-                            if (co.universes.some(function (u) { return u.active; })) {
-                                channelIOCheckedIPs[ip].output = true;
-                            }
-                        }
-                    }
-                }));
-            }
-            if (!hasInputProp) {
-                checks.push(fetchChannelInputConfig(ip).then(function (configData) {
-                    if (configData && configData.channelInputs && configData.channelInputs.length) {
-                        var ci = configData.channelInputs[0];
-                        if (ci.enabled && ci.universes && ci.universes.length) {
-                            if (ci.universes.some(function (u) { return u.active; })) {
-                                channelIOCheckedIPs[ip].input = true;
-                            }
-                        }
-                    }
-                }));
-            }
-            $.when.apply($, checks).always(function () {
-                applyChannelIOIcons(ip, rowID);
-            });
-        }
-
-        /**
-         * Apply cached channel I/O icons to a mode cell if not already present.
-         */
-        function applyChannelIOIcons(ip, rowID) {
-            var info = channelIOCheckedIPs[ip];
-            if (!info || (!info.output && !info.input)) return;
-            var $modeCell = $('#' + rowID + '_mode');
-            if ($modeCell.length === 0) return;
-            // Don't add if icons already present
-            if ($modeCell.find('.channel-io-icons').length > 0) return;
-            var icons = '<span class="channel-io-icons">';
-            if (info.input) {
-                icons += '<i class="fas fa-regular fa-circle-down channel-io-icon-input" data-ip="' + ip + '" aria-label="Channel Inputs Enabled (hover for details)"></i>';
-            }
-            if (info.output) {
-                icons += '<i class="fas fa-regular fa-circle-up channel-io-icon-output" data-ip="' + ip + '" aria-label="Channel Outputs Enabled (hover for details)"></i>';
-            }
-            icons += '</span>';
-            $modeCell.append(icons);
-        }
-
-        function exportMultisync() {
-            if (systemStatusCache == null || systemStatusCache == "" || systemStatusCache == "null") {
-                $.jGrowl("Please wait until the system statuses finish loading", { themeState: 'danger' });
-                return;
-            }
-            const allKeys = new Set();
-            let finalData = {};
-            // Flatten the data
-            for (const [ip, data] of Object.entries(systemStatusCache)) {
-                let rc = {};
-                flattenObject(data, "", rc);
-                finalData[ip] = rc;
-
-                for (const [key, junk] of Object.entries(rc)) {
-                    allKeys.add(key);
-                }
-            }
-
-            // Create XLSX
-            const sortedKeys = Array.from(allKeys).sort();
-            let labels = ['ip'];
-            labels = labels.concat(sortedKeys);
-
-            let allRows = [];
-            allRows.push(labels);
-
-            for (const [ip, data] of Object.entries(finalData)) {
-                let row = [];
-                row.push(ip);
-                let value = "";
-                for (const key of sortedKeys) {
-                    if (key in data) {
-                        value = data[key];
-                    }
-                    row.push(value);
-                }
-                allRows.push(row);
-            }
-
-            var wb = XLSX.utils.book_new();
-            wb.SheetNames.push("Data");
-            var ws = XLSX.utils.aoa_to_sheet(allRows);
-            wb.Sheets["Data"] = ws;
-            var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
-            saveAs(new Blob([s2ab(wbout)], { type: "application/octet-stream" }), 'export.xlsx');
-
-        }
-
-        function s2ab(s) {
-            var buf = new ArrayBuffer(s.length); //convert s to arrayBuffer
-            var view = new Uint8Array(buf);  //create uint8array as viewer
-            for (var i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF; //convert to octet
-            return buf;
-        }
-
-        function rowSpanSet(rowID) {
-            var rowSpan = 1;
-
-            if ($('#' + rowID + '_logs').is(':visible'))
-                rowSpan++;
-
-            if ($('#' + rowID + '_warnings').is(':visible'))
-                rowSpan++;
-
-            $('#' + rowID + ' > td:nth-child(1)').attr('rowspan', rowSpan);
-        }
-
-        // Updates the warning information for multi-sync
-        // Also handles if warnings row should be displayed in general.
-        function validateMultiSyncSettings() {
-            var multicastChecked = $('#MultiSyncMulticast').is(":checked");
-            var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
-            // Remove any Multisync warnings
-            $(document).find(".multisync-warning").remove();
-
-            // check if Warnings window should be shown
-            $(document).find('tr[id*="_warnings"').each(function () {
-                let cnt = $(this).find('td[id*="_warningCell"').children().length;
-                if (cnt == 0) { //no warnings
-                    $(this).hide();
-                } else { //has warning messages
-                    if ($(this).hasClass('filtered')) {
-                        $(this).hide();
-                    } else {
-                        $(this).show();
-                    }
-                }
-            });
-
-
-            // If these are unchecked, than each remote can be set either way
-            // no need to check anything
-            if (!(multicastChecked || broadcastChecked)) {
-                return;
-            }
-
-            $("input.syncCheckbox").each(function () {
-                if ($(this).is(":checked")) {
-                    let name = $(this).attr('name');
-                    let msg = "";
-                    if (multicastChecked) {
-                        msg = "Having Unicast checked when Multicast is enabled (view options below) is discouraged: " + name;
-                    } else {
-                        msg = "Having Unicast checked when Broadcast is enabled (view options below) is discouraged: " + name;
-                    }
-                    msg = '<div class="warning-text multisync-warning">' + msg + '</div>';
-                    $(this).closest('.systemRow').next(".warning-row").each(function () {
-                        $(this).find("td").append(msg);
-                        $(this).show();
-                    })
-                }
-            });
-        }
-
-        function updateMultiSyncRemotes(verbose = false) {
-            var remotes = "";
-
-            $('input.syncCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    if (remotes != "") {
-                        remotes += ",";
-                    }
-                    remotes += $(this).attr("name");
-                }
-            });
-
-            var multicastChecked = $('#MultiSyncMulticast').is(":checked");
-            var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
-
-            if ((remotes == '') &&
-                (!$('#MultiSyncMulticast').is(":checked")) &&
-                (!$('#MultiSyncBroadcast').is(":checked"))) {
-                $('#MultiSyncMulticast').prop('checked', true).trigger('change');
-                alert('FPP will use multicast if no other sync methods are chosen.');
-            }
-
-            $.put("api/settings/MultiSyncRemotes", remotes
-            ).done(function () {
-                settings['MultiSyncRemotes'] = remotes;
-                if (verbose) {
-                    if (remotes == "") {
-                        $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.", { themeState: 'success' });
-                    } else {
-                        $.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.", { themeState: 'success' });
-                    }
-                }
-
-                //Mark FPPD as needing restart
-                SetRestartFlag(2);
-                settings['restartFlag'] = 2;
-                //Get the resart banner showing
-                CheckRestartRebootFlags();
-                validateMultiSyncSettings();
-            }).fail(function () {
-                DialogError("Save Remotes", "Save Failed");
-            });
-
-        }
-
-        function isFPP(typeId) {
-            typeId = parseInt(typeId);
-
-            if ((typeId >= 0x01) && (typeId < 0x80))
-                return true;
-
-            return false;
-        }
-
-        function isFPPPi(typeId) {
-            typeId = parseInt(typeId);
-
-            if ((typeId >= 0x02) && (typeId <= 0x3F))
-                return true;
-
-            return false;
-        }
-
-        function isFPPBeagleBone(typeId) {
-            typeId = parseInt(typeId);
-
-            if ((typeId >= 0x41) && (typeId <= 0x5F))
-                return true;
-
-            return false;
-        }
-        function isFPPMac(typeId) {
-            typeId = parseInt(typeId);
-
-            if (typeId == 0x70)
-                return true;
-
-            return false;
-        }
-        function isFPPArmbian(typeId) {
-            typeId = parseInt(typeId);
-
-            if (typeId == 0x60)
-                return true;
-
-            return false;
-        }
-
-        function isUnknownController(typeId) {
-            typeId = parseInt(typeId);
-
-            if (typeId == 0x00)
-                return true;
-
-            return false;
-        }
-
-        function isFalcon(typeId) {
-            typeId = parseInt(typeId);
-
-            if ((typeId >= 0x80) && (typeId <= 0x87))
-                return true;
-
-            return false;
-        }
-
-        function isFalconV4(typeId) {
-            typeId = parseInt(typeId);
-
-            if ((typeId >= 0x88) && (typeId <= 0x8F))
-                return true;
-
-            return false;
-        }
-
-        function isESPixelStick(typeId) {
-            typeId = parseInt(typeId);
-
-            if (typeId == 0xC2 || typeId == 0xC3)
-                return true;
-
-            return false;
-        }
-
-        function isSanDevices(typeId) {
-            typeId = parseInt(typeId);
-
-            if (typeId == 0xFF)
-                return true;
-
-            return false;
-        }
-
-        function isGenius(typeId) {
-            typeId = parseInt(typeId);
-
-            if ((typeId >= 0xA0) && (typeId <= 0xAF))
-                return true;
-
-            return false;
-        }
-
-
-        function isWLED(typeId) {
-            typeId = parseInt(typeId);
-
-            if (typeId == 0xFB)
-                return true;
-
-            return false;
-        }
-
-        function isBaldrick(typeId) {
-            typeId = parseInt(typeId);
-
-            if (typeId == 0xC4)
-                return true;
-
-            return false;
-        }
-
-        function proxyURLsInString(str, ip) {
-            if (!isProxied(ip))
-                return str;
-
-            var re = /(href=['"])([^:]*)\//;
-            if (re.test(str))
-                str = str.replace(re, "$1proxy/" + ip + "/$2/");
-
-            return str;
-        }
-
-        function isProxied(ip) {
-            return proxies.includes(ip);
+            } // hasOwnProperty("files");
         }
 
         /**
@@ -1088,30 +2494,24 @@
                 warningDiv.html('Unable to find IP address for selected systems. Please ensure at least one system is selected and not filtered out.');
             } else {
                 var foundFiles = false;
-                var checkNextIp = function (index) {
-                    if (foundFiles || index >= ips.length) {
-                        return;
-                    }
-
+                var checkNextIp = async function (index) {
+                    if (foundFiles || index >= ips.length) return;
                     var ip = ips[index];
                     warningDiv.html('Please Wait... Checking ' + ip + ' for OS Upgrade files...');
-                    $.ajax({
-                        url: 'api/remoteAction?ip=' + ip + '&action=listUpgrades',
-                        type: 'GET',
-                        dataType: 'json'
-                    }).done(function (data) {
+                    try {
+                        const r = await fetch('api/remoteAction?ip=' + ip + '&action=listUpgrades');
+                        const data = await r.json();
                         if (data && Array.isArray(data.files) && data.files.length > 0) {
                             foundFiles = true;
                             warningDiv.html('');
                             updateOSFileList(data.files);
                         } else {
-                            checkNextIp(index + 1);
+                            await checkNextIp(index + 1);
                         }
-                    })
-                        .fail(function (error) {
-                            console.error('Error querying ' + ip + ':', error);
-                            checkNextIp(index + 1);
-                        });
+                    } catch (error) {
+                        console.error('Error querying ' + ip + ':', error);
+                        await checkNextIp(index + 1);
+                    }
                 };
                 checkNextIp(0);
             }
@@ -1146,1538 +2546,10 @@
             $('#osUpgradeActionDiv').show();
         }
 
-        function getLocalVersionLink(ip, data) {
-            var updatesAvailable = 0;
-            if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
-                (typeof (data.advancedView.LocalGitVersion) !== 'undefined') &&
-                (data.advancedView.RemoteGitVersion !== "Unknown") &&
-                (data.advancedView.RemoteGitVersion !== "") &&
-                (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion)) {
-                updatesAvailable = 1;
-            }
-            <? if (!$settings['hideExternalURLs']) { ?>
-                var localVer = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, '/system-upgrade.php') + "' target='_blank' data-ip='" + ip + "'>";
-            <? } else { ?>
-                var localVer = "";
-            <? } ?>
-            localVer += "<b><font color='";
-            if (updatesAvailable) {
-                localVer += 'text-warning';
-            } else if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
-                (data.advancedView.RemoteGitVersion == data.advancedView.LocalGitVersion)) {
-                localVer += 'text-success';
-            } else {
-                // Unknown or can't tell if up to date or not for some reason
-                localVer += 'text-info';
-            }
-            localVer += "'>" + data.advancedView.LocalGitVersion + "</font></b>";
-            <? if (!$settings['hideExternalURLs']) { ?>
-                localVer += "</a>";
-            <? } ?>
+        // ============================================================
+        // SECTION: Stream / upgrade actions
+        // ============================================================
 
-            return localVer;
-        }
-
-        var ipRows = new Object();
-
-        var refreshTimer = null;
-        var geniusRefreshTimer = null;
-        var wledRefreshTimer = null;
-        var baldrickRefreshTimer = null;
-        var falconRefreshTimer = null;
-        function clearRefreshTimers() {
-            clearTimeout(refreshTimer);
-            clearTimeout(geniusRefreshTimer);
-            clearTimeout(wledRefreshTimer);
-            clearTimeout(baldrickRefreshTimer);
-            clearTimeout(falconRefreshTimer);
-            refreshTimer = null;
-            geniusRefreshTimer = null;
-            wledRefreshTimer = null;
-            falconRefreshTimer = null;
-        }
-        var unavailables = [];
-
-        function getFPPSystemStatus(ipAddresses, refreshing = false) {
-            ips = "";
-            if (Array.isArray(ipAddresses)) {
-                if (refreshTimer != null) {
-                    clearTimeout(refreshTimer);
-                    delete refreshTimer;
-                    refreshTimer = null;
-                }
-                ipAddresses.forEach(function (entry) {
-                    ips += "&ip[]=" + entry;
-                });
-            } else {
-                ips = "&ip[]=" + ipAddresses;
-            }
-            if (ips == "") {
-                return;
-            }
-            $.get("api/system/status?type=FPP" + ips)
-                .done(function (alldata) {
-                    systemStatusCache = alldata;
-                    jQuery.each(alldata, function (ip, data) {
-                        var status = 'Idle';
-                        var statusInfo = "";
-                        var elapsed = "";
-                        var files = "";
-                        if (data == null || data == "" || data == "null") {
-                            return;
-                        }
-
-                        if (data.status_name == 'playing') {
-                            status = 'Playing';
-
-                            elapsed = data.time_elapsed;
-
-                            if (data.current_sequence != "") {
-                                files += data.current_sequence;
-                                if (data.current_song != "")
-                                    files += "<br>" + data.current_song;
-                            } else {
-                                files += data.current_song;
-                            }
-
-                            if (files != "")
-                                status += ":<br>" + files;
-                        } else if (data.status_name == 'updating') {
-                            status = 'Updating';
-                        } else if (data.status_name == 'stopped') {
-                            status = 'Stopped';
-                        } else if (data.status_name == 'stopping gracefully') {
-                            status = 'Stopping Gracefully';
-                        } else if (data.status_name == 'stopping gracefully after loop') {
-                            status = 'Stopping Gracefully After Loop';
-                        } else if (data.status_name == 'paused') {
-                            status = 'Paused';
-                        } else if (data.status_name == 'testing') {
-                            status = 'Testing';
-                        } else if (data.status_name == 'unreachable') {
-                            unavailables[ip]++;
-                            status = "unreachable";
-                        } else if (data.status_name == 'password') {
-                            status = '<font color="red">Protected</font>';
-                        } else if (data.status_name == 'unknown') {
-                            status = '-';
-                        } else if (data.status_name == 'idle') {
-                            if (data.mode_name == 'remote') {
-                                if ((data.sequence_filename != "") ||
-                                    (data.media_filename != "")) {
-                                    status = 'Syncing';
-
-                                    elapsed += data.time_elapsed;
-
-                                    if (data.sequence_filename != "") {
-                                        files += data.sequence_filename;
-                                        if (data.media_filename != "")
-                                            files += "<br>" + data.media_filename;
-                                    } else {
-                                        files += data.media_filename;
-                                    }
-
-                                    if (files != "")
-                                        status += ":<br>" + files;
-                                }
-                            }
-                        } else {
-                            status = data.status_name;
-                        }
-                        if (data.status_name != 'unreachable') {
-                            unavailables[ip] = 0;
-                        }
-
-                        if (data.rebootFlag == 1) {
-                            status += "<br><i class=\"fas fa-exclamation-triangle\" style=\"color: red;\"></i><span class='warning-text'>Device Reboot Required</span>";
-                        }
-
-                        if (data.restartFlag == 1) {
-                            status += "<br><i class=\"fas fa-exclamation-triangle\" style=\"color: orange;\"></i><span class='warning-text'>FPPD Restart Required</span>";
-                        }
-
-                        var rowID = "fpp_" + ip.replace(/\./g, '_');
-                        var hostRowKey = ip.replace(/\./g, '_');
-
-                        rowID = hostRows[hostRowKey];
-
-                        // Update wifi icons for this row whenever we have a valid response
-                        // with non-empty interface data.  We scan ALL interfaces in the
-                        // response for wifi properties so that a device reachable only via
-                        // its wired IP still shows a wifi icon next to its wireless IP.
-                        // Unreachable polls return interfaces:[] and are skipped so they
-                        // don't erase icons set by a successful poll on a different IP.
-                        if (data.hasOwnProperty('interfaces') && data.interfaces.length > 0) {
-                            var $ipCell = $('#' + rowID + '_ip');
-                            $ipCell.find('.wifi-icon').remove();
-                            for (var i = 0; i < data.interfaces.length; i++) {
-                                var iface = data.interfaces[i];
-                                if (!iface.hasOwnProperty('wifi') || !iface.addr_info) continue;
-                                var w = iface.wifi;
-                                var ifaceIp = iface.addr_info.length > 0 ? iface.addr_info[0].local : null;
-                                if (!ifaceIp) continue;
-                                var wifi_html = [];
-                                wifi_html.push('<span data-for-ip="' + ifaceIp + '" title="');
-                                if (w.pct) {
-                                    wifi_html.push(w.pct + '%');
-                                    if (w.unit == 'dBm') {
-                                        wifi_html.push(' ' + w.level + 'dBm');
-                                    }
-                                } else {
-                                    wifi_html.push(w.level + w.unit);
-                                }
-                                wifi_html.push('" class="wifi-icon wifi-');
-                                wifi_html.push(w.desc);
-                                wifi_html.push('"></span>');
-                                // Place icon after the interface IP's anchor when present,
-                                // or append to the cell as a fallback.
-                                var $anchor = $ipCell.find('[data-ip="' + ifaceIp + '"]');
-                                if ($anchor.length > 0) {
-                                    $(wifi_html.join('')).insertAfter($anchor);
-                                } else {
-                                    $(wifi_html.join('')).appendTo($ipCell);
-                                }
-                            }
-                        }
-
-                        var curStatus = $('#' + rowID + '_status').html();
-                        if ((curStatus != null) &&
-                            (curStatus != '') &&
-                            (curStatus.substr(0, 9) != "Last Seen") &&
-                            (!refreshing)) {
-                            // Don't replace an existing status via a different IP
-                            return;
-                        }
-                        if (status == 'unreachable') {
-                            if (unavailables[ip] < 4) {
-                                return;
-                            }
-                            $('#' + rowID + '_mode').html("<span class=\"warning-text\">Unreachable</span>");
-                        } else if (status != "") {
-                            $('#' + rowID + '_status').html(status);
-                            $('#' + rowID + '_mode').html(getFullMode(data, ip));
-                            checkRemoteChannelIO(ip, rowID, data);
-                        } else {
-                            $('#' + rowID + '_mode').html(getFullMode(data, ip));
-                            checkRemoteChannelIO(ip, rowID, data);
-                        }
-
-                        if ($('#' + rowID).attr('data-ip') != ip)
-                            $('#' + rowID).attr('data-ip', ip);
-
-                        $('#' + rowID + '_elapsed').html(elapsed);
-
-                        if (data.warnings != null && data.warnings.length > 0) {
-                            $('#' + rowID + '_warnings').removeAttr('style'); // Remove 'display: none' style
-
-                            // Ensure child rows match parent striping color
-                            if ($('#' + rowID).hasClass('odd'))
-                                $('#' + rowID + '_warnings').addClass('odd');
-
-                            var wHTML = "";
-                            for (var i = 0; i < data.warnings.length; i++) {
-                                if (isProxied(ip))
-                                    data.warnings[i] = proxyURLsInString(data.warnings[i], ip);
-
-                                let wstr = data.warnings[i];
-                                let idx = wstr.indexOf("href=");
-                                if (idx > 0) {
-                                    wstr = wstr.substr(0, idx + 6) + "http://" + ip + "/" + wstr.substr(idx + 6);
-                                }
-                                wHTML += "<span class='warning-text'>" + wstr + "</span><br>";
-                            }
-                            $('#' + rowID + '_warningCell').html(wHTML);
-                        }
-                        rowSpanSet(rowID);
-
-                        //Expert View Rows
-                        if (data.hasOwnProperty('advancedView') && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
-                            if (data.advancedView.hasOwnProperty('Platform')) {
-                                $('#' + rowID + '_platform').html(data.advancedView.Platform);
-                            }
-                            // Prefer SubPlatform (verbose hardware model string, e.g.
-                            // "Raspberry Pi Zero 2 W Rev 1.0") over Variant (short label,
-                            // e.g. "PiZero 2") so the platform column keeps the detail
-                            // shown by the initial multiSyncSystems render. See issue #2614.
-                            if (data.advancedView.hasOwnProperty('SubPlatform') && (data.advancedView.SubPlatform != '')) {
-                                $('#' + rowID + '_variant').html(data.advancedView.SubPlatform);
-                            } else if (data.advancedView.hasOwnProperty('Variant') && (data.advancedView.Variant != '')) {
-                                $('#' + rowID + '_variant').html(data.advancedView.Variant);
-                            }
-
-                            var updatesAvailable = 0;
-                            if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
-                                (typeof (data.advancedView.LocalGitVersion) !== 'undefined') &&
-                                (data.advancedView.RemoteGitVersion !== "Unknown") &&
-                                (data.advancedView.RemoteGitVersion !== "") &&
-                                (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion)) {
-                                updatesAvailable = 1;
-                            }
-                            if (data.advancedView.hasOwnProperty("backgroundColor") && data.advancedView.backgroundColor != "") {
-                                $('#' + rowID).css('background', "#" + data.advancedView.backgroundColor);
-                                $('#' + rowID + "_warnings").css('background', "#" + data.advancedView.backgroundColor);
-                                $('#' + rowID).css('color', "#FFF");
-                                $('#' + rowID + " a").css('color', "#989898");
-                                $('#' + rowID + "_warnings .warning-text").css('color', "#FF8080");
-                                var colorInt = parseInt(data.advancedView.backgroundColor, 16);
-                                $('#advancedViewFPPColor_' + rowID).html(colorInt);
-                                setBTColorData(rowID, data.advancedView.backgroundColor);
-                            } else {
-                                setBTColorData(rowID, '');
-                            }
-                            if (data.advancedView.hasOwnProperty("RemoteGitVersion")) {
-                                var u = "<table class='multiSyncVerboseTable'>";
-                                u += "<tr><td>Local:</td><td id='" + rowID + "_localgitvers'>";
-                                u += getLocalVersionLink(ip, data);
-                                u += "</td></tr>" +
-                                    "<tr><td>Remote:</td><td id='" + rowID + "_remotegitvers'>" + data.advancedView.RemoteGitVersion + "</td></tr>" +
-                                    "<tr><td>Branch:</td><td id='" + rowID + "_gitbranch'>" + data.advancedView.Branch + "</td></tr>";
-
-                                if ((typeof (data.advancedView.UpgradeSource) !== 'undefined') &&
-                                    (data.advancedView.UpgradeSource != 'github.com')) {
-                                    u += "<tr><td>Origin:</td><td id='" + rowID + "_origin'>" + data.advancedView.UpgradeSource + "</td></tr>";
-                                } else {
-                                    u += "<span style='display: none;' id='" + rowID + "_origin'></span>";
-                                }
-                                u += "</table>";
-                                $('#advancedViewGitVersions_' + rowID).html(u);
-                            }
-
-
-                            if (data.advancedView.OSVersion !== "") {
-                                $('#' + rowID + '_osversionRow').show();
-                                $('#' + rowID + '_osversion').html(data.advancedView.OSVersion);
-                            }
-                            if (data.advancedView.HostDescription !== "") {
-                                var origDesc = $('#' + rowID).find('.hostDescriptionSM').html();
-                                if (origDesc == '')
-                                    $('#' + rowID).find('.hostDescriptionSM').html(data.advancedView.HostDescription);
-                            }
-
-                            var u = "<table class='multiSyncVerboseTable'>";
-                            if (typeof (data.advancedView.Utilization) !== 'undefined') {
-                                let diskHtml = "";
-                                try {
-                                    let row = data.advancedView.Utilization.Disk;
-                                    for (const [type, data] of Object.entries(row)) {
-                                        let used = bytesToHuman(data["Total"] - data["Free"]);
-                                        let total = bytesToHuman(data["Total"]);
-                                        if (diskHtml == "") {
-                                            diskHtml += "<b>Disk Usage:</b> "
-                                        } else {
-                                            diskHtml += ", "
-                                        }
-                                        diskHtml += type + ": " + used + "/" + total;
-                                    }
-                                } catch (error) {
-                                    // This feature may not exists on older devices
-                                }
-
-                                if (diskHtml == "") {
-                                    diskHtml = "<b>Disk Usage:</b> unknown";
-                                }
-                                if (data.advancedView.Utilization.hasOwnProperty("CPU")) {
-                                    u += "<tr><td>CPU:</td><td>" + Math.round(data.advancedView.Utilization.CPU) + "%</td></tr>";
-                                }
-                                if (data.advancedView.Utilization.hasOwnProperty("Memory")) {
-                                    u += "<tr><td>Mem:</td><td>" + Math.round(data.advancedView.Utilization.Memory) + "%</td></tr>";
-                                }
-                                if (data.advancedView.Utilization.hasOwnProperty("MemoryFree")) {
-                                    var fr = data.advancedView.Utilization.MemoryFree;
-                                    fr /= 1024;
-                                    u += "<tr><td>Mem:&nbsp;</td><td>" + Math.round(fr) + "K Free</td></tr>";
-                                }
-                                if (data.advancedView.hasOwnProperty("rssi")) {
-                                    // Only show wifi icon if the polled IP belongs to a wireless interface.
-                                    // For legacy systems without interfaces data, assume wifi (old behaviour).
-                                    var isWifiIp = true;
-                                    if (data.hasOwnProperty('interfaces') && data.interfaces.length > 0) {
-                                        isWifiIp = false;
-                                        outer: for (var i = 0; i < data.interfaces.length; i++) {
-                                            var iface = data.interfaces[i];
-                                            if (iface.addr_info) {
-                                                for (var j = 0; j < iface.addr_info.length; j++) {
-                                                    if (iface.addr_info[j].local === ip) {
-                                                        isWifiIp = iface.hasOwnProperty('wifi');
-                                                        break outer;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    if (isWifiIp) {
-                                        var rssi = +data.advancedView.rssi;
-                                        var quality = 2 * (rssi + 100);
-
-                                        if (rssi <= -100)
-                                            quality = 0;
-                                        else if (rssi >= -50)
-                                            quality = 100;
-
-                                        var wifi_html = [];
-
-                                        wifi_html.push('<span title="');
-                                        wifi_html.push(quality + '%');
-                                        wifi_html.push(' ' + rssi + 'dBm');
-                                        wifi_html.push('" class="wifi-icon wifi-');
-
-                                        if (quality < 25) { var desc = "weak"; }
-                                        else if (quality < 50) { var desc = "fair"; }
-                                        else if (quality < 75) { var desc = "good"; }
-                                        else { var desc = "excellent"; }
-
-                                        wifi_html.push(desc);
-                                        wifi_html.push('"></span>');
-
-                                        if (wifi_html.length > 0) {
-                                            $('#' + rowID + "_ip").find(".wifi-icon").remove();
-                                            $(wifi_html.join('')).appendTo('td[data-ip="' + ip + '"]');
-                                        }
-                                    }
-
-                                    //u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
-                                }
-
-                                if (data.advancedView.Utilization.hasOwnProperty("Uptime")) {
-                                    var ut = data.advancedView.Utilization.Uptime;
-                                    if (typeof ut === "string" || ut instanceof String) {
-                                        ut = ut.replace(/ /, '&nbsp;');
-                                    } else {
-                                        ut /= 1000;
-                                        ut = Math.round(ut);
-
-                                        var min = Math.round(ut / 60);
-                                        var hours = Math.round(min / 60);
-                                        min = Math.round(min % 60);
-                                        min = min.toString();
-                                        if (min.length < 2) {
-                                            min = "0" + min;
-                                        }
-                                        ut = hours.toString() + ":" + min.toString();
-
-                                    }
-                                    u += "<tr><td>Up:&nbsp;</td><td>" + ut
-                                    u += ' <span data-bs-html="true" title="<span class=\'tooltipSpan\'>' + diskHtml + '<br><b>Uptime:</b> ' + ut;
-                                    u += '</span>">...</td></tr>'
-                                }
-                            }
-                            u += "</table>";
-
-                            $('#advancedViewUtilization_'             + rowID).html(u);
-                            SetupToolTips();
-                        }
-                    });
-
-                }).always(function () {
-                    if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
-                        refreshTimer = setTimeout(function () { getFPPSystemStatus(ipAddresses, true); }, 2000);
-                    }
-                });
-
-            validateMultiSyncSettings();
-        } // end of "api/system/status?ip=" + ips
-
-        function ipLink(ip) {
-            <? if ($settings['hideExternalURLs']) { ?>
-                    return ip;
-            <? } else { ?>
-                    return "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "' data-ip='" + ip + "'>" + ip + "</a>";
-            <? } ?>
-        }
-
-        function parseFPPSystems(data) {
-            // Apply saved display order if one exists
-            if (savedDisplayOrder && savedDisplayOrder.length > 0) {
-                data = applySavedDisplayOrder(data, savedDisplayOrder);
-            }
-
-            // Destroy Bootstrap Table before manipulating DOM so destroy
-            // doesn't restore a stale snapshot over our new rows
-            var $tbl = $('#fppSystemsTable');
-            if ($tbl.closest('.bootstrap-table').length) {
-                $tbl.bootstrapTable('destroy');
-            }
-
-            $('#fppSystems').empty();
-            rowSpans = [];
-
-            var uniqueHosts = new Object();
-
-            var fppIpAddresses = [];
-            var wledIpAddresses = [];
-            var geniusIpAddresses = [];
-            var baldrickIpAddresses = [];
-            var falconV4Addresses = [];
-            var falconV3Addresses = [];
-
-            var remotes = [];
-            if ((settings['MultiSyncEnabled'] == '1') &&
-                (settings['fppMode'] == 'player')) {
-                if (typeof settings['MultiSyncRemotes'] === 'string') {
-                    var tarr = settings['MultiSyncRemotes'].split(',');
-                    for (var i = 0; i < tarr.length; i++) {
-                        remotes[tarr[i]] = 1;
-
-                        if ((tarr[i] == "255.255.255.255") &&
-                            (!$('#MultiSyncBroadcast').is(":checked")))
-                            $('#MultiSyncBroadcast').prop('checked', true).trigger('change');
-
-                        if ((tarr[i] == "239.70.80.80") &&
-                            (!$('#MultiSyncMulticast').is(":checked")))
-                            $('#MultiSyncMulticast').prop('checked', true).trigger('change');
-                    }
-                }
-
-                $('.masterOptions').show();
-            }
-
-            for (var i = 0; i < data.length; i++) {
-                var star = "";
-                var ip = data[i].address;
-                var hostDescription = "";
-
-                if (ip.indexOf('169.254') == 0)
-                    continue;
-
-                if ((settings.hasOwnProperty('MultiSyncHide10')) &&
-                    (settings['MultiSyncHide10'] == '1') &&
-                    (ip.indexOf('10.') == 0)) {
-                    continue;
-                }
-
-                if ((settings.hasOwnProperty('MultiSyncHide172')) &&
-                    (settings['MultiSyncHide172'] == '1') &&
-                    (ip.indexOf('172.') == 0)) {
-                    var parts = ip.split('.');
-                    var second = parseInt(parts[1]);
-                    if ((second >= 16) && (second <= 31)) {
-                        continue;
-                    }
-                }
-
-                if ((settings.hasOwnProperty('MultiSyncHide192')) &&
-                    (settings['MultiSyncHide192'] == '1') &&
-                    (ip.indexOf('192.168.') == 0)) {
-                    continue;
-                }
-
-                var rowID = "fpp_" + ip.replace(/\./g, '_');
-                var newHost = 1;
-                var hostRowKey = ip.replace(/\./g, '_');
-
-                var hostname = data[i].hostname;
-                if (hostname == "") {
-                    hostname = ip;
-                } else {
-                    var cleanHost = hostname.replace(/[^a-zA-Z0-9]/, '_');
-                    rowID = rowID + '_' + cleanHost;
-                }
-                var hostKey = hostname + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].channelRanges;
-                hostKey = hostKey.replace(/[^a-zA-Z0-9]/, '_');
-
-                hostRows[hostRowKey] = rowID;
-
-                var hnSpanStyle = "";
-                if (data[i].local) {
-                    hnSpanStyle = " style='font-weight:bold;'";
-                } else {
-                    if ((settings['MultiSyncEnabled'] == '1') &&
-                        (settings['fppMode'] == 'player') &&
-                        (data[i].fppModeString == "remote")) {
-                        star = " <input type='checkbox' class='syncCheckbox' name='" + data[i].address + "'";
-                        if (typeof remotes[data[i].address] !== 'undefined') {
-                            star += " checked";
-                            delete remotes[data[i].address];
-                        }
-                        star += " onClick='updateMultiSyncRemotes(true);'>";
-                    }
-                }
-                if (uniqueHosts.hasOwnProperty(hostKey)) {
-                    rowID = uniqueHosts[hostKey];
-                    hostRows[hostRowKey] = rowID;
-                    ipRows[data[i].address] = rowID;
-
-                    $('#' + rowID + '_ip').append('<br>' + ipLink(data[i].address));
-
-                    $('#' + rowID).attr('data-iplist', $('#' + rowID).attr('data-iplist') + ',' + data[i].address);
-
-                    if (data[i].fppModeString == 'remote') {
-                        $('#' + rowID + '_ip').append(star);
-                    }
-
-                    if (isFPP(data[i].typeId)) {
-                        fppIpAddresses.push(ip);
-                    }
-                } else {
-                    uniqueHosts[hostKey] = rowID;
-                    ipRows[data[i].address] = rowID;
-
-                    var fppMode = 'Player';
-                    if (data[i].fppModeString == 'bridge') {
-                        fppMode = 'Bridge';
-                    } else if (data[i].fppModeString == 'master') {
-                        fppMode = 'Master';
-                    } else if (data[i].fppModeString == 'remote') {
-                        fppMode = 'Remote';
-                    } else if (data[i].fppModeString == 'unknown') {
-                        fppMode = 'Unknown';
-                    }
-
-                    fppMode += getChannelIOIcons(data[i], data[i].address);
-
-                    rowSpans[rowID] = 1;
-
-                    var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
-
-                    if ((data[i].fppModeString == 'remote') && (star != ""))
-                        ipTxt = "<small>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
-
-                    <? if ($settings['hideExternalURLs']) { ?>
-                            var hostTxt = hostname;
-                    <? } else { ?>
-                            var hostTxt = data[i].local ? hostname : "<a target='host_" + data[i].address + "' href='" + wrapUrlWithProxy(data[i].address, "/") + "'>" + hostname + "</a>";
-                            if (data[i].address == hostname) {
-                                hostTxt = hostname;
-                            }
-                    <? } ?>
-
-
-                    var newRow = "<tr id='" + rowID + "' data-ip='" + data[i].address + "' data-iplist='" + data[i].address + "' class='systemRow'>" +
-                        "<td class='hostnameColumn'><span class='reorder-grip'><i class='rowGripIcon fpp-icon-grip'></i></span><span id='fpp_" + ip.replace(/\./g, '_') + "_hostname'" + hnSpanStyle + ">" + hostTxt + "</span><br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g, '_') + "_desc'>" + hostDescription + "</small></td>" +
-                        "<td id='" + rowID + "_ip' data-ip='" + data[i].address + "'>" + ipTxt + "</td>" +
-                        "<td><span id='" + rowID + "_platform'>" + data[i].type + "</span><br><small id='" + rowID + "_variant'>" + data[i].model + "</small><span class='hidden typeId'> 0x" + parseInt(data[i].typeId).toString(16) + " </span>"
-                        + "<span class='hidden version'>" + data[i].version + "</span></td>" +
-                        "<td id='" + rowID + "_mode'>" + fppMode + "</td>" +
-                        "<td id='" + rowID + "_status'>Last Seen:<br>" + data[i].lastSeenStr + "</td>" +
-                        "<td id='" + rowID + "_elapsed'></td>";
-
-                    var versionParts = data[i].version.split('.');
-                    var majorVersion = 0;
-                    if (data[i].version != 'Unknown')
-                        majorVersion = parseInt(versionParts[0]);
-
-                    if ((isFPP(data[i].typeId))) {
-                        var versionStr = data[i].version.replace('.x-master', '.x').replace(/-g[A-Za-z0-9]*/, '');
-                        if (versionStr.endsWith('-dirty')) {
-                            versionStr = versionStr.replace('-dirty', '');
-                            var link = "<br><a ";
-                            if (data[i].local) {
-                                link += "href='settings.php#settings-developer'";
-                            } else {
-                                link += "target='host_" + data[i].address + "' href='" + wrapUrlWithProxy(data[i].address, '/settings.php#settings-developer') + "'";
-                            }
-                            link += ">Modified</a>";
-                            versionStr += link;
-                        }
-                        newRow += "<td><table class='multiSyncVerboseTable'><tr><td>FPP:</td><td id='" + rowID + "_version'>" + versionStr + "</td></tr><tr><td>OS:</td><td id='" + rowID + "_osversion'></td></tr></table></td>";
-                    } else {
-                        newRow += "<td id='" + rowID + "_version'>" + data[i].version + "</td>";
-                    }
-
-
-                    newRow +=
-                        "<td id='advancedViewGitVersions_" + rowID + "'></td>" +
-                        "<td id='advancedViewUtilization_" + rowID + "'></td>" +
-                        "<td id='advancedViewFPPColor_" + rowID + "'></td>";
-
-                    newRow += "<td class='centerCenter'>";
-                    if ((isFPP(data[i].typeId)) &&
-                        (majorVersion >= 4))
-                        newRow += "<input type='checkbox' class='remoteCheckbox largeCheckbox multisyncRowCheckbox' name='" + data[i].address + "'>";
-
-                    newRow += "</td>";
-
-
-                    newRow = newRow + "</tr>";
-                    $('#fppSystems').append(newRow);
-
-                    // For older FPP systems without channelOutputsEnabled, check remote config
-                    if (isFPP(data[i].typeId)) {
-                        checkRemoteChannelIO(data[i].address, rowID, data[i]);
-                    }
-
-                    var colspan = 11;
-                    newRow = "<tr id='" + rowID + "_warnings' class='child-row warning-row'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
-                    $('#fppSystems').append(newRow);
-
-                    newRow = "<tr id='" + rowID + "_logs' style='display:none' class='logRow child-row'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'><input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'><input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID + "_logs\").hide(); rowSpanSet(\"" + rowID + "\");'></div></td></tr></table></td></tr>";
-                    $('#fppSystems').append(newRow);
-
-                    if (isFPP(data[i].typeId)) {
-                        fppIpAddresses.push(ip);
-                    } else if (isESPixelStick(data[i].typeId)) {
-                        if ((majorVersion == 3) || (majorVersion == 0)) {
-                            getESPixelStickBridgeStatus(ip);
-                        } else {
-                            fppIpAddresses.push(ip);
-                        }
-                    } else if (isFalconV4(data[i].typeId)) {
-                        falconV4Addresses.push(ip);
-                    } else if (isFalcon(data[i].typeId)) {
-                        falconV3Addresses.push(ip);
-                    } else if (isWLED(data[i].typeId)) {
-                        wledIpAddresses.push(ip);
-                    } else if (isGenius(data[i].typeId)) {
-                        geniusIpAddresses.push(ip);
-                    } else if (isBaldrick(data[i].typeId)) {
-                        baldrickIpAddresses.push(ip);
-                    }
-                }
-            }
-            getFPPSystemStatus(fppIpAddresses, false);
-            getWLEDControllerStatus(wledIpAddresses, false);
-            getGeniusControllerStatus(geniusIpAddresses, false);
-            getBaldrickControllerStatus(baldrickIpAddresses, false);
-            getFalconControllerStatus(falconV3Addresses, falconV4Addresses, false);
-
-            var extraRemotes = [];
-            var origExtra = "";
-            if (typeof settings['MultiSyncExtraRemotes'] === 'string') {
-                origExtra = settings['MultiSyncExtraRemotes'];
-                extraRemotes = origExtra.split(',');
-            }
-            for (var x in remotes) {
-                if (!extraRemotes.includes(x)) {
-                    extraRemotes.push(x);
-                }
-            }
-            extraRemotes.sort();
-            var extras = extraRemotes.join(',');
-            settings['MultiSyncExtraRemotes'] = extras;
-
-            if (extras != '' && origExtra != extras) {
-                <?php
-                if ($uiLevel >= 1) {
-                    ?>
-                        var inp = document.getElementById("MultiSyncExtraRemotes");
-                        if (inp) {
-                            $('#MultiSyncExtraRemotes').val(extras);
-                        }
-                        <?
-                }
-                ?>
-                SetSetting("MultiSyncExtraRemotes", extras, 0, 0);
-            }
-
-            // Initialize Bootstrap Table now that DOM rows are populated
-            var $tbl = $('#fppSystemsTable');
-
-            // Detach child rows (warnings/logs) before BT init so they
-            // don't enter BT's data model — they have a single colspan
-            // cell that doesn't map to BT's column structure.
-            var $detachedChildren = $('#fppSystems > tr.child-row').detach();
-
-            $tbl.bootstrapTable({
-                filterControl: true,
-                filterControlVisible: true,
-                sortName: (savedDisplayOrder && savedDisplayOrder.length > 0) ? undefined : 'hostname',
-                sortOrder: 'asc',
-                showColumns: false,
-                striped: true,
-                undefinedText: '',
-                rowStyle: function (row) {
-                    if (row && row.fppcolor !== '' && row.fppcolor !== null && row.fppcolor !== undefined) {
-                        var colorNum = parseInt(row.fppcolor, 10);
-                        if (!isNaN(colorNum)) {
-                            var hex = colorNum.toString(16);
-                            while (hex.length < 6) {
-                                hex = '0' + hex;
-                            }
-                            return {
-                                css: {
-                                    background: '#' + hex,
-                                    color: '#FFF'
-                                }
-                            };
-                        }
-                    }
-                    return {};
-                }
-            });
-
-            // Re-attach child rows after their parent system rows
-            reattachChildRows($tbl, $detachedChildren);
-
-            // Monkey-patch the BT instance so sort / filter / column
-            // toggle operations don't mangle child rows.
-            var bt = $tbl.data('bootstrap.table');
-            if (bt) {
-                var origInitBody = bt.initBody;
-                bt.initBody = function (fixedScroll, updatedUid) {
-                    var $body = this.$el.find('>tbody');
-                    // Detach child rows before BT re-renders tbody
-                    var $childRows = $body.length
-                        ? $body.find('>tr.child-row').detach() : $();
-
-                    // Sync any async DOM cell updates back into BT's
-                    // data model so they survive the upcoming render.
-                    syncDOMToModel(this);
-
-                    // Original render (replaces tbody content)
-                    origInitBody.call(this, fixedScroll, updatedUid);
-
-                    // Put child rows back in the correct position
-                    if ($childRows.length) {
-                        reattachChildRows($tbl, $childRows);
-                    }
-                };
-            }
-
-            if (typeof buildColumnSelector === 'function') buildColumnSelector();
-        }
-
-        /**
-         * Sync current DOM cell contents back into BT's data model so
-         * async status updates (written directly to DOM) survive the
-         * next sort / filter / column-toggle re-render.
-         *
-         * Uses getVisibleFields() to correctly map TD positions to
-         * field names regardless of which columns are hidden.
-         *
-         * IMPORTANT: skips sync when the number of TDs in a row does
-         * not match the expected visible-field count.  This happens
-         * during column-toggle operations where initHeader already
-         * changed the visibility but initBody hasn't re-rendered yet.
-         */
-        function syncDOMToModel(bt) {
-            if (!bt || !bt.options.data || !bt.options.data.length) return;
-            var $tbody = bt.$el.find('>tbody');
-            if (!$tbody.length) return;
-
-            var visibleFields = bt.getVisibleFields();
-            if (!visibleFields.length) return;
-
-            var expectedTds = visibleFields.length;
-
-            for (var d = 0; d < bt.options.data.length; d++) {
-                var item = bt.options.data[d];
-                if (!item._id) continue;
-                var tr = $tbody[0].querySelector('#' + CSS.escape(item._id));
-                if (!tr) continue;
-                var tds = tr.querySelectorAll(':scope > td');
-
-                // If TD count doesn't match visible fields the DOM was
-                // rendered with a different column set — skip this row
-                // to avoid mapping cells to the wrong fields.
-                if (tds.length !== expectedTds) continue;
-
-                // Sync TR-level data-* attributes (e.g. data-ip updates)
-                var ds = tr.dataset;
-                var newData = {};
-                for (var key in ds) {
-                    if (key !== 'index' && key !== 'uniqueid' && key !== 'hasDetailView') {
-                        newData[key] = ds[key];
-                    }
-                }
-                item._data = newData;
-
-                for (var i = 0; i < visibleFields.length; i++) {
-                    var td = tds[i];
-                    if (!td) break;
-                    var field = visibleFields[i];
-                    item[field] = td.innerHTML.trim();
-                    // Preserve cell-level id, class, data-* and style
-                    if (td.id) item['_' + field + '_id'] = td.id;
-                    var cls = td.getAttribute('class');
-                    if (cls) item['_' + field + '_class'] = cls;
-                    var stl = td.getAttribute('style');
-                    if (stl) item['_' + field + '_style'] = stl;
-                }
-            }
-        }
-
-        /**
-         * Insert child rows (warnings / logs) immediately after their
-         * parent system row inside the table body.
-         */
-        function reattachChildRows($tbl, $children) {
-            if (!$children || !$children.length) return;
-            var $tbody = $tbl.find('>tbody');
-            if (!$tbody.length) $tbody = $tbl.find('tbody');
-            $children.each(function () {
-                var id = this.id || '';
-                // Derive parent row id: strip _warnings or _logs suffix
-                var parentId = id.replace(/_warnings$|_logs$/, '');
-                var $parent = $tbody.find('#' + parentId);
-                if ($parent.length) {
-                    // Insert after parent row, but after any sibling
-                    // child rows that already follow it.
-                    var $after = $parent;
-                    $parent.nextAll('.child-row').each(function () {
-                        if (this.id && this.id.startsWith(parentId + '_')) {
-                            $after = $(this);
-                        } else {
-                            return false; // stop at first non-sibling
-                        }
-                    });
-                    $after.after(this);
-                }
-            });
-        }
-
-        function findBTItemByRowId(rowID) {
-            var bt = $('#fppSystemsTable').data('bootstrap.table');
-            if (!bt || !bt.options || !Array.isArray(bt.options.data)) return null;
-
-            for (var i = 0; i < bt.options.data.length; i++) {
-                if (bt.options.data[i] && bt.options.data[i]._id === rowID) {
-                    return bt.options.data[i];
-                }
-            }
-
-            return null;
-        }
-
-        function setBTColorData(rowID, colorHex) {
-            var item = findBTItemByRowId(rowID);
-            if (!item) return;
-
-            if (colorHex && colorHex !== '') {
-                var colorInt = parseInt(colorHex, 16);
-                if (!isNaN(colorInt)) {
-                    item.fppcolor = colorInt;
-                }
-                item._style = 'background: #' + colorHex + '; color: #FFF;';
-            } else {
-                item.fppcolor = '';
-                delete item._style;
-            }
-        }
-
-        var systemsList = [];
-        function getFPPSystems() {
-            if (streamCount) {
-                alert("FPP Systems are being updated, you will need to manually refresh once these updates are complete.");
-                return;
-            }
-
-            $('.masterOptions').hide();
-            $('#fppSystems').html("<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>");
-
-            $.get('api/fppd/multiSyncSystems', function (data) {
-                systemsList = data.systems;
-                parseFPPSystems(data.systems);
-            });
-        }
-
-        var ESPSockets = {};
-        function parseESPixelStickConfig(ip, data) {
-            var s = JSON.parse(data);
-            var ips = ip.replace(/\./g, '_');
-
-            $('#fpp_' + ips + '_desc').html(s.device.id);
-        }
-
-        function parseESPixelStickStatus(ip, data) {
-            var s = JSON.parse(data);
-            var ips = ip.replace(/\./g, '_');
-
-            if (s.hasOwnProperty("status")) {
-                s = s.status;
-            }
-
-            if (s.hasOwnProperty('system')) {
-                if (s['system'].hasOwnProperty('hostname'))
-                    $('#fpp_' + ips + '_hostname').html(s.system.hostname);
-            }
-
-            var rssi = +s.system.rssi;
-            var quality = 2 * (rssi + 100);
-
-            if (rssi <= -100)
-                quality = 0;
-            else if (rssi >= -50)
-                quality = 100;
-
-            var date = new Date(+s.system.uptime);
-            var uptime = '';
-
-            uptime += Math.floor(date.getTime() / 86400000) + " days, ";
-            uptime += ("0" + date.getUTCHours()).slice(-2) + ":";
-            uptime += ("0" + date.getUTCMinutes()).slice(-2) + ":";
-            uptime += ("0" + date.getUTCSeconds()).slice(-2);
-
-            var u = "<table class='multiSyncVerboseTable'>";
-            u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
-            u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
-            u += "</table>";
-
-            var hostRowKey = ip.replace(/\./g, '_');
-            var rowId = hostRows[hostRowKey];
-            $('#advancedViewUtilization_' + rowId).html(u);
-
-            var mode = $('#fpp_' + ips + '_mode').html();
-
-            if (mode == 'Bridge') {
-                st = 'Bridging';
-                if (s.hasOwnProperty('e131')) {
-                    st = "<table class='multiSyncVerboseTable'>";
-                    st += "<tr><td>Tot Pkts:</td><td>" + s.e131.num_packets + "</td></tr>";
-                    st += "<tr><td>Seq Errs:</td><td>" + s.e131.seq_errors + "</td></tr>";
-                    st += "<tr><td>Pkt Errs:</td><td>" + s.e131.packet_errors + "</td></tr>";
-                    st += "</table>";
-                } else if (s.hasOwnProperty('input')) {
-                    for (var i = 0; i < s.input.length; i++) {
-                        if (s.input[i].hasOwnProperty('e131')) {
-                            st = "<table class='multiSyncVerboseTable'>";
-                            st += "<tr><td>Tot Pkts:</td><td>" + s.input[i].e131.num_packets + "</td></tr>";
-                            st += "<tr><td>Pkt Errs:</td><td>" + s.input[i].e131.packet_errors + "</td></tr>";
-                            st += "</table>";
-                        }
-                    }
-                }
-
-                $('#' + rowId + '_status').html(st);
-            }
-
-            if ($('#MultiSyncRefreshStatus').is(":checked")) {
-                setTimeout(function () { ESPSockets[ips].send("XJ"); }, 1000);
-            }
-        }
-
-        function parseESPixelStickVersion(ip, data) {
-            var s = JSON.parse(data);
-            var ips = ip.replace(/\./g, '_');
-
-            if (s.hasOwnProperty('version')) {
-                $('#fpp_' + ips + '_version').html(s.version);
-                $('#fpp_' + ips).find('.version').html(s.version);
-                var versionParts = s['version'].split('.');
-            }
-        }
-
-        function parseESPixelStickCommandResponse(ip, data) {
-            var s = JSON.parse(data);
-            var ips = ip.replace(/\./g, '_');
-
-            if ((s.hasOwnProperty('get')) &&
-                (s.get.hasOwnProperty('device')) &&
-                (s.get.device.hasOwnProperty('id'))) {
-                $('#fpp_' + ips + '_desc').html(s.get.device.id);
-            }
-        }
-
-        function getESPixelStickBridgeStatus(ip) {
-            var ips = ip.replace(/\./g, '_');
-
-            if (ESPSockets.hasOwnProperty(ips)) {
-                ESPSockets[ips].send("XJ");
-            } else {
-                var ws = new WebSocket("ws://" + ip + "/ws");
-                ESPSockets[ips] = ws;
-
-                ws.binaryType = "arraybuffer";
-                ws.onopen = function () {
-                    ws.send("G1");
-                    ws.send("G2");
-                    ws.send("XA"); // ESPixelStick v4.x
-                    ws.send("XJ");
-                    ws.send('{"cmd":{"get":"device"}}'); // ESPixelStick v4.x
-                };
-
-                ws.onmessage = function (e) {
-                    if ("string" == typeof e.data) {
-                        var t = e.data.substr(0, 2)
-                            , n = e.data.substr(2);
-                        switch (t) {
-                            case "XA":
-                            case "G2":
-                                parseESPixelStickVersion(ip, n);
-                                break;
-                            case "G1":
-                                parseESPixelStickConfig(ip, n);
-                                break;
-                            case "XJ":
-                                parseESPixelStickStatus(ip, n);
-                                break;
-                            case '{"':
-                                parseESPixelStickCommandResponse(ip, e.data);
-                                break;
-                        }
-                    }
-                };
-
-                ws.onclose = function () {
-                    delete ESPSockets[ips];
-                };
-            }
-        }
-
-
-        function wrapUrlWithProxy(ip, path) {
-            <? if (!$settings['hideExternalURLs']) { ?>
-                    if (isProxied(ip)) {
-                        return 'proxy/' + ip + path;
-                    }
-                    return 'http://' + ip + path;
-            <? } else { ?>
-                    return "";
-            <? } ?>
-        }
-
-        function getFalconControllerStatus(fv3ips, fv4ips, refreshing = false) {
-            if (falconRefreshTimer != null) {
-                clearTimeout(falconRefreshTimer);
-                delete falconRefreshTimer;
-                falconRefreshTimer = null;
-            }
-
-            ips3 = "";
-            if (Array.isArray(fv3ips)) {
-                fv3ips.forEach(function (entry) {
-                    ips3 += "&ip[]=" + entry;
-                });
-            } else {
-                ips3 = "&ip[]=" + fv3ips;
-            }
-
-            ips4 = "";
-            if (Array.isArray(fv4ips)) {
-                fv4ips.forEach(function (entry) {
-                    ips4 += "&ip[]=" + entry;
-                });
-            } else {
-                ips4 = "&ip[]=" + fv4ips;
-            }
-
-            if (ips3 != "") {
-                $.get("api/system/status?type=FV3" + ips3)
-                    .done(function (alldata) {
-                        jQuery.each(alldata, function (ip, data) {
-                            var ips = ip.replace(/\./g, '_');
-                            var u = "<table class='multiSyncVerboseTable'>";
-                            u += "<tr><td>Uptime:</td><td>" + data['u'] + "</td></tr>";
-                            u += "<tr><td>V1 Voltage:</td><td> " + data['v1'] + "</td></tr>";
-                            u += "<tr><td>V2 Voltage:</td><td> " + data['v2'] + "</td></tr>";
-
-                            u += "</table>";
-
-                            $('#advancedViewUtilization_fpp_' + ips).html(u);
-
-                            var mode = $('#fpp_' + ips + '_mode').html();
-
-                            if (mode == 'Bridge') {
-                                $('#fpp_' + ips + '_status').html('Bridging');
-                            } else {
-                                $('#fpp_' + ips + '_status').html('');
-                            }
-                        });
-                        if ($('#MultiSyncRefreshStatus').is(":checked")) {
-                            falconRefreshTimer = setTimeout(function () { getFalconControllerStatus(fv3ips, fv4ips, true); }, 2000);
-                        }
-
-                    });
-            }
-            if (ips4 != "") {
-                $.get("api/system/status?type=FV4" + ips4)
-                    .done(function (alldata) {
-                        jQuery.each(alldata, function (ip, s) {
-                            var ips = ip.replace(/\./g, '_');
-
-                            var tempthreshold = s.P.BS;
-                            var t1temp = s.P.T1 / 10;
-                            var t2temp = s.P.T2 / 10;
-                            var t1tempLabel = t1temp + "C";
-
-                            if (settings['temperatureInF'] == 1) {
-                                t1temp = Math.round((t1temp * 9 / 5) + 32);
-                                t2temp = Math.round((t2temp * 9 / 5) + 32);
-                                tempthreshold = Math.round((tempthreshold * 9 / 5) + 32);
-                                t1tempLabel = t1temp + "F";
-                            }
-
-                            var v1voltage = s.P.V1 / 10;
-                            var v2voltage = s.P.V2 / 10;
-
-                            var testmode = new Boolean(s.P.TS);
-                            var overtemp = new Boolean(Math.max(t1temp, t2temp) > tempthreshold);
-
-                            var t = parseInt(s.P.U);
-                            var days = Math.floor(t / 86400);
-                            var hours = Math.floor((t - 86400 * days) / 3600);
-                            var mins = Math.floor((t - 86400 * days - 3600 * hours) / 60);
-
-                            var uptime = '';
-
-                            uptime += (days + " days, ");
-                            uptime += ("0" + hours).slice(-2) + ":";
-                            uptime += ("0" + mins).slice(-2);
-
-                            var u = "<table class='multiSyncVerboseTable'>";
-                            u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
-                            u += "<tr><td>V1 Voltage:</td><td> " + v1voltage + "v</td></tr>";
-                            if (s.P.BR != 48) {
-                                u += "<tr><td>V2 Voltage:</td><td> " + v2voltage + "v</td></tr>";
-                            }
-                            u += "<tr><td>Temp:</td><td> " + t1tempLabel + "</td></tr>";
-                            u += "</table>";
-
-                            var hostRowKey = ip.replace(/\./g, '_');
-                            var rowId = hostRows[hostRowKey];
-
-                            $('#advancedViewUtilization_' + rowId).html(u);
-                            $('#' + rowId + '_status').html(s.status_name);
-
-                            if (testmode == true || overtemp == true) {
-                                $('#' + rowId + '_warnings').removeAttr('style'); // Remove 'display: none' style
-                                // Ensure child rows match parent striping color
-                                if ($('#' + rowId).hasClass('odd'))
-                                    $('#' + rowId + '_warnings').addClass('odd');
-
-                                var wHTML = "";
-                                if (testmode == true) wHTML += "<span class='warning-text'>Controller Test mode is active</span><br>";
-                                if (overtemp == true) wHTML += "<span class='warning-text'>Pixel brightness reduced due to high temperatures</span><br>";
-
-                                $('#' + rowId + '_warningCell').html(wHTML);
-                            }
-                        });
-                        if ($('#MultiSyncRefreshStatus').is(":checked")) {
-                            falconRefreshTimer = setTimeout(function () { getFalconControllerStatus(fv3ips, fv4ips, true); }, 2000);
-                        }
-                    });
-            }
-        }
-
-        function getWLEDControllerStatus(ipAddresses, refreshing = false) {
-            ips = "";
-            if (Array.isArray(ipAddresses)) {
-                if (wledRefreshTimer != null) {
-                    clearTimeout(wledRefreshTimer);
-                    delete wledRefreshTimer;
-                    wledRefreshTimer = null;
-                }
-                ipAddresses.forEach(function (entry) {
-                    ips += "&ip[]=" + entry;
-                });
-            } else {
-                ips = "&ip[]=" + ipAddresses;
-            }
-            if (ips == "") {
-                return;
-            }
-            $.get("api/system/status?type=WLED" + ips)
-                .done(function (alldata) {
-                    jQuery.each(alldata, function (ip, data) {
-                        if (data == null || data == "" || data == "null") {
-                            return;
-                        }
-                        var ips = ip.replace(/\./g, '_');
-                        var rssi = data.wifi.rssi;
-                        var quality = data.wifi.signal;
-
-                        var t = parseInt(data.uptime);
-                        var days = Math.floor(t / 86400);
-                        var hours = Math.floor((t - 86400 * days) / 3600);
-                        var mins = Math.floor((t - 86400 * days - 3600 * hours) / 60);
-
-                        var uptime = '';
-
-                        uptime += (days + " days, ");
-                        uptime += ("0" + hours).slice(-2) + ":";
-                        uptime += ("0" + mins).slice(-2);
-
-                        var u = "<table class='multiSyncVerboseTable'>";
-                        u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
-                        u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
-                        u += "</table>";
-
-                        var hostRowKey = ip.replace(/\./g, '_');
-                        var rowId = hostRows[hostRowKey];
-
-                        $('#advancedViewUtilization_' + rowId).html(u);
-                        $('#' + rowId + '_status').html(data.status_name);
-                    });
-
-                    if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
-                        wledRefreshTimer = setTimeout(function () { getWLEDControllerStatus(ipAddresses, true); }, 2000);
-                    }
-                });
-        }
-
-        function getGeniusControllerStatus(ipAddresses, refreshing = false) {
-            ips = "";
-            if (Array.isArray(ipAddresses)) {
-                if (geniusRefreshTimer != null) {
-                    clearTimeout(geniusRefreshTimer);
-                    delete geniusRefreshTimer;
-                    geniusRefreshTimer = null;
-                }
-                ipAddresses.forEach(function (entry) {
-                    ips += "&ip[]=" + entry;
-                });
-            } else {
-                ips = "&ip[]=" + ipAddresses;
-            }
-            if (ips == "") {
-                return;
-            }
-            $.get("api/system/status?type=Genius" + ips)
-                .done(function (alldata) {
-                    jQuery.each(alldata, function (ip, data) {
-                        if (data == null || data == "" || data == "null") {
-                            return;
-                        }
-                        var ips = ip.replace(/\./g, '_');
-                        var t = data.system.uptime_seconds;
-                        var days = Math.floor(t / 86400);
-                        var hours = Math.floor((t - 86400 * days) / 3600);
-                        var mins = Math.floor((t - 86400 * days - 3600 * hours) / 60);
-
-                        var uptime = '';
-                        uptime += (days + " days, ");
-                        uptime += ("0" + hours).slice(-2) + ":";
-                        uptime += ("0" + mins).slice(-2);
-
-                        var u = "<table class='multiSyncVerboseTable'>";
-                        //u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
-                        u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
-                        u += "</table>";
-
-                        var hostRowKey = ip.replace(/\./g, '_');
-                        var rowId = hostRows[hostRowKey];
-                        $('#advancedViewUtilization_' + rowId).html(u);
-
-                        var origDesc = $('#' + rowId + '_desc').html();
-                        if (origDesc == '') {
-                            $('#' + rowId + '_desc').html(data.system.friendly_name);
-                        }
-                        $('#' + rowId + '_status').html(data.status_name);
-                    });
-
-                    if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
-                        geniusRefreshTimer = setTimeout(function () { getGeniusControllerStatus(ipAddresses, true); }, 2000);
-                    }
-                });
-        }
-
-        function getBaldrickControllerStatus(ipAddresses, refreshing = false) {
-            ips = "";
-            if (Array.isArray(ipAddresses)) {
-                if (baldrickRefreshTimer != null) {
-                    clearTimeout(baldrickRefreshTimer);
-                    delete baldrickRefreshTimer;
-                    baldrickRefreshTimer = null;
-                }
-                ipAddresses.forEach(function (entry) {
-                    ips += "&ip[]=" + entry;
-                });
-            } else {
-                ips = "&ip[]=" + ipAddresses;
-            }
-            if (ips == "") {
-                return;
-            }
-            $.get("api/system/status?type=Baldrick" + ips)
-                .done(function (alldata) {
-                    jQuery.each(alldata, function (ip, data) {
-                        if (data == null || data == "" || data == "null") {
-                            return;
-                        }
-                        var ips = ip.replace(/\./g, '_');
-                        var t = data.uptime;
-                        var days = Math.floor(t / 86400);
-                        var hours = Math.floor((t - 86400 * days) / 3600);
-                        var mins = Math.floor((t - 86400 * days - 3600 * hours) / 60);
-
-                        var uptime = '';
-                        uptime += (days + " days, ");
-                        uptime += ("0" + hours).slice(-2) + ":";
-                        uptime += ("0" + mins).slice(-2);
-
-                        var u = "<table class='multiSyncVerboseTable'>";
-                        u += "<tr><td>Up:</td><td>" + uptime + "</td></tr>";
-                        u += "</table>";
-
-                        var hostRowKey = ip.replace(/\./g, '_');
-                        var rowId = hostRows[hostRowKey];
-                        $('#advancedViewUtilization_' + rowId).html(u);
-
-                        var origDesc = $('#' + rowId + '_desc').html();
-                        if (origDesc == '') {
-                            $('#' + rowId + '_desc').html(data.board_model || data.hostname);
-                        }
-
-                        // Set status based on test mode
-                        var status = 'Idle';
-                        if (data.test_mode_active) {
-                            status = 'Testing';
-                        } else if (data.frame_rate && data.frame_rate > 0) {
-                            status = 'Playing';
-                        }
-                        $('#' + rowId + '_status').html(status);
-
-                        // Check for firmware update available
-                        var versionCell = $('#' + rowId + '_version');
-                        if (data.ota && data.ota.current_firmware_version && data.ota.available_firmware_version) {
-                            var current = data.ota.current_firmware_version;
-                            var available = data.ota.available_firmware_version;
-                            if (current !== available) {
-                                versionCell.html('<span class="text-warning" title="Update available: ' + available + '">' +
-                                    current + ' <i class="fas fa-exclamation-triangle"></i></span>');
-                            } else {
-                                versionCell.html(current);
-                            }
-                        }
-                    });
-
-                    if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
-                        baldrickRefreshTimer = setTimeout(function () { getBaldrickControllerStatus(ipAddresses, true); }, 2000);
-                    }
-                });
-        }
-
-        function RefreshStats() {
-            var keys = Object.keys(hostRows);
-            var ips = [];
-            var gips = [];
-            var wips = [];
-            var bips = [];
-            var fv3ips = [];
-            var fv4ips = [];
-
-            for (var i = 0; i < keys.length; i++) {
-                var rowID = hostRows[keys[i]];
-                var ip = ipFromRowID(rowID);
-                var mode = $('#' + rowID + '_mode').html();
-
-                var typeId = $('#' + rowID).find('.typeId').html();
-                var version = $('#' + rowID).find('.version').html();
-                if (isFPP(typeId)) {
-                    ips.push(ip);
-                } else if (isESPixelStick(typeId)) {
-                    var versionParts = version.split('.');
-                    var majorVersion = parseInt(versionParts[0]);
-                    if (majorVersion >= 3) {
-                        getESPixelStickBridgeStatus(ip);
-                    } else {
-                        ips.push(ip);
-                    }
-                } else if (isFalcon(typeId)) {
-                    fv3ips.push(ip);
-                } else if (isFalconV4(typeId)) {
-                    fv4ips.push(ip);
-                } else if (isWLED(typeId)) {
-                    wips.push(ip);
-                } else if (isGenius(typeId)) {
-                    gips.push(ip);
-                } else if (isBaldrick(typeId)) {
-                    bips.push(ip);
-                }
-            }
-            getFPPSystemStatus(ips, true);
-            getGeniusControllerStatus(gips, true);
-            getWLEDControllerStatus(wips, true);
-            getBaldrickControllerStatus(bips, true);
-            getFalconControllerStatus(fv3ips, fv4ips, true);
-        }
-
-        function MultiSyncEnableToggled() {
-            SetRestartFlag();
-        }
-
-
-        function autoRefreshToggled() {
-            if ($('#MultiSyncRefreshStatus').is(":checked")) {
-                RefreshStats();
-            }
-        }
-
-        function reloadMultiSyncPage() {
-            if (streamCount) {
-                alert("FPP Systems are being updated, you will need to manually refresh once these updates are complete.");
-                return;
-            }
-
-            reloadPage();
-        }
-
-        function syncModeUpdated(setting = '') {
-            var multicastChecked = $('#MultiSyncMulticast').is(":checked");
-            var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
-
-            if (setting == 'MultiSyncMulticast') {
-                if (multicastChecked && broadcastChecked)
-                    $('#MultiSyncBroadcast').prop('checked', false).trigger('change');
-            } else if (setting == 'MultiSyncBroadcast') {
-                if (multicastChecked && broadcastChecked)
-                    $('#MultiSyncMulticast').prop('checked', false).trigger('change');
-            }
-
-            var anyUnicast = 0;
-            $('input.syncCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    anyUnicast = 1;
-                }
-            });
-
-            if (!anyUnicast && !multicastChecked && !broadcastChecked) {
-                $('#MultiSyncMulticast').prop('checked', true).trigger('change');
-                alert('FPP will use multicast if no other sync methods are chosen.');
-            }
-        }
-
-        function IPsCanTalk(ip1, ip2, octets) {
-            var p1 = ip1.split('.');
-            var p2 = ip2.split('.');
-
-            switch (octets) {
-                case 3: if ((p1[0] == p2[0]) && (p1[1] == p2[1]) && (p1[2] == p2[2]))
-                    return true;
-                    break;
-                case 2: if ((p1[0] == p2[0]) && (p1[1] == p2[1]))
-                    return true;
-                    break;
-                case 1: if (p1[0] == p2[0])
-                    return true;
-                    break;
-            }
-
-            return false;
-        }
-
-        function getReachableIPFromRowID(id) {
-            var ip = ipFromRowID(id);
-            var ipListStr = $('#' + id).attr('data-iplist');
-
-            if (ip == ipListStr)
-                return ip;
-
-            var ipList = ipListStr.split(',');
-
-            for (var o = 3; o > 0; o--) {
-                for (var i = 0; i < systemsList.length; i++) {
-                    if (systemsList[i].local == 1) {
-                        for (var j = 0; j < ipList.length; j++) {
-                            if (IPsCanTalk(systemsList[i].address, ipList[j], o))
-                                return ipList[j];
-                        }
-                    }
-                }
-            }
-
-            return '';
-        }
-
-        function ipFromRowID(id) {
-            ip = $('#' + id).attr('data-ip');
-
-            return ip;
-        }
-        function ipOrHostnameFromRowID(id) {
-            <? if ($_SERVER['SERVER_NAME'] != $_SERVER['SERVER_ADDR']) { ?>
-                    // Hitting the FPP instance via Hostname, not Ip address.  Thus, we need to use
-                    // hostnames for the remotes as well or CORS will trigger
-                    var ip = $('#' + id + "_hostname").html();
-                    if (ip == "") {
-                        ip = $('#' + id).attr('data-ip');
-                    }
-            <? } else { ?>
-                    var ip = $('#' + id).attr('data-ip');
-            <? } ?>
-            return ip;
-        }
-
-        var streamCount = 0;
         function EnableDisableStreamButtons() {
             if (streamCount) {
                 $('#performActionButton').prop("disabled", true);
@@ -2877,6 +2749,10 @@
             });
         }
 
+        // ============================================================
+        // SECTION: System actions
+        // ============================================================
+
         function actionDone(id) {
             id = id.replace('_logText', '');
             $('#' + id + '_doneButtons').show();
@@ -2998,6 +2874,10 @@
             });
         }
 
+        // ============================================================
+        // SECTION: Git / branch actions
+        // ============================================================
+
         function changeBranch(rowID) {
             streamCount++;
             EnableDisableStreamButtons();
@@ -3010,16 +2890,13 @@
             var remote = $("#branchRemoteSelect").length ? $("#branchRemoteSelect").val() : 'origin';
             StreamURL('changeRemoteBranch.php?branch=' + encodeURIComponent(branch) + '&remote=' + encodeURIComponent(remote) + '&ip=' + ip, rowID + '_logText', 'actionDone', 'actionFailed');
         }
-        function reloadBranchSelect() {
+        async function reloadBranchSelect() {
             var remote = $("#branchRemoteSelect").length ? $("#branchRemoteSelect").val() : 'origin';
-            $.get("api/git/branches?remote=" + encodeURIComponent(remote), function (data) {
-                $('#branchSelect').empty();
-                $.each(data, function (i, item) {
-                    $('#branchSelect').append($('<option>', {
-                        value: item,
-                        text: item
-                    }));
-                });
+            const r = await fetch("api/git/branches?remote=" + encodeURIComponent(remote));
+            const data = await r.json();
+            $('#branchSelect').empty();
+            data.forEach(function (item) {
+                $('#branchSelect').append($('<option>', { value: item, text: item }));
             });
         }
         function changeBranchSelectedSystems() {
@@ -3035,6 +2912,10 @@
                 }
             });
         }
+
+        // ============================================================
+        // SECTION: File copy actions
+        // ============================================================
 
         function copyFilesToSystem(rowID) {
             streamCount++;
@@ -3179,12 +3060,18 @@
                 $('#fppSystemsTableWrapper').addClass('fppTableWrapperErrored');
         }
 
-        function addProxyForIP(rowID) {
+        // ============================================================
+        // SECTION: Proxy actions
+        // ============================================================
+
+        async function addProxyForIP(rowID) {
             var ip = ipFromRowID(rowID);
-            $.post("api/proxies/" + ip, "AddProxy").done(function (data) {
-            }).fail(function (data) {
+            try {
+                const r = await fetch("api/proxies/" + ip, { method: 'POST', body: "AddProxy" });
+                if (!r.ok) throw new Error(r.status);
+            } catch {
                 DialogError("Failed to set Proxy", "Post failed");
-            });
+            }
         }
 
         function proxySelectedIPs() {
@@ -3200,6 +3087,10 @@
                 }
             });
         }
+
+        // ============================================================
+        // SECTION: Selection helpers
+        // ============================================================
 
         function clearSelected() {
             // clear all entries, even if filtered
@@ -3226,13 +3117,156 @@
             }
         }
 
-        function closeAllLogs() {
-            $('.systemRow').each(function () {
-                var rowID = $(this).attr('id');
-                $('#' + rowID + '_logs').hide();
-                rowSpanSet(rowID);
+        // ============================================================
+        // SECTION: MultiSync settings
+        // ============================================================
+
+        // Updates the warning information for multi-sync
+        // Also handles if warnings row should be displayed in general.
+        function validateMultiSyncSettings() {
+            var multicastChecked = $('#MultiSyncMulticast').is(":checked");
+            var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
+            // Remove any Multisync warnings
+            $(document).find(".multisync-warning").remove();
+
+            // check if Warnings window should be shown
+            $(document).find('tr[id*="_warnings"').each(function () {
+                let cnt = $(this).find('td[id*="_warningCell"').children().length;
+                if (cnt == 0) { //no warnings
+                    $(this).hide();
+                } else { //has warning messages
+                    if ($(this).hasClass('filtered')) {
+                        $(this).hide();
+                    } else {
+                        $(this).show();
+                    }
+                }
+            });
+
+
+            // If these are unchecked, than each remote can be set either way
+            // no need to check anything
+            if (!(multicastChecked || broadcastChecked)) {
+                return;
+            }
+
+            $("input.syncCheckbox").each(function () {
+                if ($(this).is(":checked")) {
+                    let name = $(this).attr('name');
+                    let msg = "";
+                    if (multicastChecked) {
+                        msg = "Having Unicast checked when Multicast is enabled (view options below) is discouraged: " + name;
+                    } else {
+                        msg = "Having Unicast checked when Broadcast is enabled (view options below) is discouraged: " + name;
+                    }
+                    msg = '<div class="warning-text multisync-warning">' + msg + '</div>';
+                    $(this).closest('.systemRow').next(".warning-row").each(function () {
+                        $(this).find("td").append(msg);
+                        $(this).show();
+                    })
+                }
             });
         }
+
+        async function updateMultiSyncRemotes(verbose = false) {
+            var remotes = "";
+
+            $('input.syncCheckbox').each(function () {
+                if ($(this).is(":checked")) {
+                    if (remotes != "") {
+                        remotes += ",";
+                    }
+                    remotes += $(this).attr("name");
+                }
+            });
+
+            var multicastChecked = $('#MultiSyncMulticast').is(":checked");
+            var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
+
+            if ((remotes == '') &&
+                (!$('#MultiSyncMulticast').is(":checked")) &&
+                (!$('#MultiSyncBroadcast').is(":checked"))) {
+                $('#MultiSyncMulticast').prop('checked', true).trigger('change');
+                alert('FPP will use multicast if no other sync methods are chosen.');
+            }
+
+            try {
+                const r = await fetch("api/settings/MultiSyncRemotes", {
+                    method: 'PUT',
+                    body: JSON.stringify(remotes),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!r.ok) throw new Error(r.status);
+                settings['MultiSyncRemotes'] = remotes;
+                if (verbose) {
+                    if (remotes == "") {
+                        $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.", { themeState: 'success' });
+                    } else {
+                        $.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.", { themeState: 'success' });
+                    }
+                }
+                //Mark FPPD as needing restart
+                SetRestartFlag(2);
+                settings['restartFlag'] = 2;
+                //Get the resart banner showing
+                CheckRestartRebootFlags();
+                validateMultiSyncSettings();
+            } catch {
+                DialogError("Save Remotes", "Save Failed");
+            }
+        }
+
+        function exportMultisync() {
+            if (systemStatusCache == null || systemStatusCache == "" || systemStatusCache == "null") {
+                $.jGrowl("Please wait until the system statuses finish loading", { themeState: 'danger' });
+                return;
+            }
+            const allKeys = new Set();
+            let finalData = {};
+            // Flatten the data
+            for (const [ip, data] of Object.entries(systemStatusCache)) {
+                let rc = {};
+                flattenObject(data, "", rc);
+                finalData[ip] = rc;
+
+                for (const [key, junk] of Object.entries(rc)) {
+                    allKeys.add(key);
+                }
+            }
+
+            // Create XLSX
+            const sortedKeys = Array.from(allKeys).sort();
+            let labels = ['ip'];
+            labels = labels.concat(sortedKeys);
+
+            let allRows = [];
+            allRows.push(labels);
+
+            for (const [ip, data] of Object.entries(finalData)) {
+                let row = [];
+                row.push(ip);
+                let value = "";
+                for (const key of sortedKeys) {
+                    if (key in data) {
+                        value = data[key];
+                    }
+                    row.push(value);
+                }
+                allRows.push(row);
+            }
+
+            var wb = XLSX.utils.book_new();
+            wb.SheetNames.push("Data");
+            var ws = XLSX.utils.aoa_to_sheet(allRows);
+            wb.Sheets["Data"] = ws;
+            var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+            saveAs(new Blob([s2ab(wbout)], { type: "application/octet-stream" }), 'export.xlsx');
+
+        }
+
+        // ============================================================
+        // SECTION: Multi-action dispatch
+        // ============================================================
 
         async function triggerCSPBashScript() {
             try {
@@ -3312,7 +3346,7 @@
                     <!-- Sort by Color Btn  -->
                     <button id="sortbyColorBtn" type="button" class="buttons btn btn-secondary"
                         data-bs-placement="bottom" data-bs-title="Sort Systems by Color"
-                        onclick="$('#fppSystemsTable').bootstrapTable('sortBy', {field: 'fppcolor', sortOrder: 'asc'});">
+                        onclick="sortSystemsByColor();">
                         Sort Systems by Color
                     </button>
 
@@ -3361,9 +3395,6 @@
                                             Version</th>
                                         <th data-field="gitversions" data-sortable="false">Git Versions</th>
                                         <th data-field="utilization" data-sortable="false">Utilization</th>
-                                        <th data-field="fppcolor" data-sortable="true" data-sorter="fppColorSorter"
-                                            data-visible="false">
-                                            FPPColor</th>
                                         <th data-field="selectbox" data-sortable="false" data-filter-control="false"
                                             data-switchable="false">
                                             <input id='selectAllCheckbox' type='checkbox'
@@ -3573,29 +3604,28 @@
                 }
             });
 
-            $.get("api/proxies", function (data) {
-                // Extract just the host IPs from the proxy objects
-                proxies = data.map(function (proxy) { return proxy.host; });
+            fetch("api/proxies")
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    // Extract just the host IPs from the proxy objects
+                    proxies = data.map(function (proxy) { return proxy.host; });
 
-                // Update any existing links now that proxies
-                // are loaded
-                $("a[data-ip]").each(function () {
-                    let ip = $(this).attr('data-ip');
-                    $(this).attr('href', wrapUrlWithProxy(ip, "/"));
+                    // Update any existing links now that proxies are loaded
+                    $("a[data-ip]").each(function () {
+                        let ip = $(this).attr('data-ip');
+                        $(this).attr('href', wrapUrlWithProxy(ip, "/"));
+                    });
+
+                    getFPPSystems();
+                    getLocalFpposFiles();
                 });
-
-                getFPPSystems();
-                getLocalFpposFiles();
-            });
-            $.get("api/git/branches", function (data) {
-
-                $.each(data, function (i, item) {
-                    $('#branchSelect').append($('<option>', {
-                        value: item,
-                        text: item
-                    }));
+            fetch("api/git/branches")
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    data.forEach(function (item) {
+                        $('#branchSelect').append($('<option>', { value: item, text: item }));
+                    });
                 });
-            });
 
             // Reload branch list when remote selection changes (dev UI mode)
             $('#branchRemoteSelect').on('change', function () {
@@ -3759,7 +3789,7 @@
                 // Individual column checkboxes
                 var columns = $tbl.bootstrapTable('getVisibleColumns').concat($tbl.bootstrapTable('getHiddenColumns'));
                 columns.forEach(function (col) {
-                    if (col.field === 'hostname' || col.field === 'selectbox' || col.field === 'fppcolor') return;
+                    if (col.field === 'hostname' || col.field === 'selectbox') return;
                     var isVisible = $tbl.bootstrapTable('getVisibleColumns').some(function (c) { return c.field === col.field; });
                     var label = $('<label></label>');
                     var checkbox = $('<input type="checkbox">').prop('checked', isVisible).data('field', col.field);
