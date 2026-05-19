@@ -252,8 +252,29 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
 
     // When called with $skipRestart=true (e.g. from a MediaBackend mode switch),
     // config files are already written; the caller backgrounds the service restarts
-    // so the HTTP response returns immediately.
+    // so the HTTP response returns immediately.  Write PipeWireSinkName to file
+    // now so it is correct on the next fppd start — even before the restarted
+    // PipeWire graph is up and SetFppdSetting can be called.
     if ($skipRestart) {
+        if ($useOverride) {
+            // Simple mode: no input groups, route directly to the first enabled output group.
+            $simpleActiveGroup = isset($data['activeGroup']) ? $data['activeGroup'] : '';
+            if (empty($simpleActiveGroup)) {
+                foreach ($data['groups'] as $grp) {
+                    if (isset($grp['enabled']) && $grp['enabled'] && !empty($grp['members'])) {
+                        $simpleActiveGroup = "fpp_group_" . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($grp['name']));
+                        break;
+                    }
+                }
+            }
+            if (!empty($simpleActiveGroup)) {
+                WriteSettingToFile('PipeWireSinkName', $simpleActiveGroup);
+            }
+            // Clear any stale per-slot sink names from advanced mode.
+            for ($s = 2; $s <= 5; $s++) {
+                WriteSettingToFile("PipeWireSinkName_$s", '');
+            }
+        }
         return;
     }
 
