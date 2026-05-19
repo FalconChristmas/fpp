@@ -6201,7 +6201,7 @@ function BuildSimpleAudioGroupsData($audioOutput)
                     array(
                         "cardId" => $cardId,
                         "channels" => 2,
-                        "delayMs" => 0,
+                        "delayMs" => 50,
                         "volume" => 100,
                     ),
                 ),
