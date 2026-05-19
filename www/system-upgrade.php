@@ -167,8 +167,26 @@
             });
         }
 
+        // Keep the OS version badge in sync with the detected OS upgrade state
+        // so it doesn't contradict the banners/recommendation card.
+        function updateOSVersionStatusBadge() {
+            var $badge = $('#osVersionStatusBadge');
+            if (isMajorVersionUpgrade) {
+                $badge.removeClass('text-bg-success text-bg-secondary text-bg-warning')
+                    .addClass('text-bg-warning').text('Upgrade Required');
+            } else if (osUpgradeAvailable) {
+                $badge.removeClass('text-bg-success text-bg-secondary text-bg-warning')
+                    .addClass('text-bg-warning').text('Upgrade Available');
+            } else {
+                $badge.removeClass('text-bg-warning text-bg-secondary')
+                    .addClass('text-bg-success').text('Up to Date');
+            }
+        }
+
         // Check upgrade scenarios and show appropriate banners
         function checkUpgradeRecommendation() {
+            updateOSVersionStatusBadge();
+
             // Major FPP version upgrades: OS banner already configured in UpdateVersionInfo(), no separate recommendation needed
             if (isMajorVersionUpgrade) {
                 $('#upgradeRecommendationBanner').hide();
