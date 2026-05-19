@@ -1126,11 +1126,17 @@ int GStreamerOutput::Start(int msTime) {
         s_sampleRate = 0;
     }
 
-    // Apply volume adjustment if set
-    if (m_volumeAdjust != 0 && m_volume) {
-        // Convert dB adjustment to linear scale
-        double linearVol = pow(10.0, m_volumeAdjust / 2000.0); // volAdj is in 0.01dB units
-        g_object_set(m_volume, "volume", linearVol, NULL);
+    // Compute the target volume (1.0 unless dB adjustment is set)
+    double targetVolume = 1.0;
+    if (m_volumeAdjust != 0) {
+        targetVolume = pow(10.0, m_volumeAdjust / 2000.0); // volAdj is in 0.01dB units
+    }
+
+    // Start muted — the background thread will ramp up to targetVolume
+    // after the pipeline reaches PLAYING.  This eliminates audible clicks
+    // caused by USB/ALSA/PipeWire sink initialisation transients.
+    if (m_volume) {
+        g_object_set(m_volume, "volume", 0.0, NULL);
     }
 
     // Get the bus for message handling
@@ -1186,7 +1192,7 @@ int GStreamerOutput::Start(int msTime) {
         int seekMs = msTime;
         bool videoPW = m_videoPipeWireRouting;
         gst_object_ref(m_pipeline);
-        std::thread([this, seekMs, videoPW]() {
+        std::thread([this, seekMs, videoPW, targetVolume]() {
             LogWarn(VB_MEDIAOUT, "GStreamer: Setting pipeline to PLAYING...\n");
             GstStateChangeReturn ret = gst_element_set_state(m_pipeline, GST_STATE_PLAYING);
             LogWarn(VB_MEDIAOUT, "GStreamer: set_state returned %d\n", ret);
@@ -1202,6 +1208,19 @@ int GStreamerOutput::Start(int msTime) {
                 gst_element_seek_simple(m_pipeline, GST_FORMAT_TIME,
                                         (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
                                         (gint64)seekMs * GST_MSECOND);
+            }
+
+            // Fade volume from 0 to target over ~50ms to eliminate startup
+            // clicks from sink initialisation transients.
+            if (m_volume && m_playing) {
+                constexpr int kRampSteps = 10;
+                constexpr int kRampStepUs = 5000; // 5ms per step = 50ms total
+                for (int i = 1; i <= kRampSteps && m_playing; i++) {
+                    double v = targetVolume * ((double)i / kRampSteps);
+                    g_object_set(m_volume, "volume", v, NULL);
+                    std::this_thread::sleep_for(std::chrono::microseconds(kRampStepUs));
+                }
+                g_object_set(m_volume, "volume", targetVolume, NULL);
             }
 
             // Deferred: attach pipewiresink to video tee and start consumer
@@ -1393,6 +1412,21 @@ int GStreamerOutput::Stop(void) {
         // the deferred-attach thread ensures the buffer pool is active so
         // on_param_changed never blocks, and the pipeline NULL below can
         // proceed normally.
+
+        // Flush silence through the PipeWire graph before tearing down.
+        // When the pipeline stops, PipeWire combine-stream and filter-chain
+        // nodes go IDLE with whatever audio was last in their buffers.  If a
+        // new track starts before WirePlumber suspends those nodes (~5s),
+        // the stale buffer contents replay as an audible click.
+        // Setting GStreamer volume to 0 while the pipeline is still PLAYING
+        // pushes silence through the entire chain (filter-chain delay buffers,
+        // combine-stream mixers, ALSA ring buffers), overwriting stale data.
+        // 250ms covers the longest configured delay (206ms) plus a few
+        // PipeWire quanta for propagation.
+        if (m_volume) {
+            g_object_set(m_volume, "volume", 0.0, NULL);
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        }
 
         Stopping();
         LogDebug(VB_MEDIAOUT, "GStreamerOutput::Stop() - setting pipeline to NULL\n");

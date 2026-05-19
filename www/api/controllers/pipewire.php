@@ -3339,6 +3339,7 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             $conf .= "        media.class = Audio/Sink\n";
             $conf .= "        audio.channels = $numCh\n";
             $conf .= "        audio.position = $groupPos\n";
+            $conf .= "";
             $conf .= "      }\n";
             $conf .= "      playback.props = {\n";
             $conf .= "        node.name = \"$fxOutName\"\n";
@@ -3347,6 +3348,7 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             $conf .= "        stream.dont-remix = true\n";
             $conf .= "        audio.channels = $numCh\n";
             $conf .= "        audio.position = $groupPos\n";
+            $conf .= "";
             $conf .= "      }\n";
 
             $conf .= "    }\n"; // args
@@ -3361,6 +3363,7 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             $conf .= "      node.description = \"$groupName (Routing)\"\n";
             $conf .= "      combine.props = {\n";
             $conf .= "        audio.position = $groupPos\n";
+            $conf .= "";
             $conf .= "      }\n";
             $conf .= "      stream.props = {\n";
             $conf .= "        stream.dont-remix = true\n";
@@ -3378,6 +3381,7 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             $conf .= "      node.description = \"$groupName\"\n";
             $conf .= "      combine.props = {\n";
             $conf .= "        audio.position = $groupPos\n";
+            $conf .= "";
             $conf .= "      }\n";
             $conf .= "      stream.props = {\n";
             $conf .= "        stream.dont-remix = true\n";
@@ -3409,6 +3413,7 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             $conf .= "      node.description = \"$groupName\"\n";
             $conf .= "      combine.props = {\n";
             $conf .= "        audio.position = $groupPos\n";
+            $conf .= "";
             $conf .= "      }\n";
             $conf .= "      stream.props = {\n";
             $conf .= "        stream.dont-remix = true\n";
@@ -4194,6 +4199,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             $conf .= "        media.class = Audio/Sink\n";
             $conf .= "        audio.channels = $numCh\n";
             $conf .= "        audio.position = $posStr\n";
+            $conf .= "";
             $conf .= "      }\n";
 
             // Playback props (output to real sink)
@@ -4204,6 +4210,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             $conf .= "        stream.dont-remix = true\n";
             $conf .= "        audio.channels = $numCh\n";
             $conf .= "        audio.position = $posStr\n";
+            $conf .= "";
             $conf .= "      }\n";
 
             $conf .= "    }\n"; // args
@@ -4252,6 +4259,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
         $conf .= "      combine.latency-compensate = $latencyCompensate\n";
         $conf .= "      combine.props = {\n";
         $conf .= "        audio.position = $groupPos\n";
+        $conf .= "";
         $conf .= "      }\n";
         $conf .= "      stream.props = {\n";
         $conf .= "        stream.dont-remix = true\n";
