@@ -77,6 +77,15 @@ bool AES67Manager::Init() {
         return true;
     }
 
+    // AES67 uses pipewiresrc/pipewiresink which require the full PipeWire graph.
+    // In pipewire-simple mode the graph doesn't have the node connections needed
+    // for audio format negotiation, so the state change blocks indefinitely.
+    std::string mediaBackend = toLowerCopy(getSetting("MediaBackend"));
+    if (mediaBackend == "pipewire-simple") {
+        LogDebug(VB_MEDIAOUT, "AES67Manager: MediaBackend=pipewire-simple, skipping AES67 init\n");
+        return true;
+    }
+
     // Check if the config file exists
     if (!FileExists(m_configPath)) {
         LogDebug(VB_MEDIAOUT, "AES67Manager: No config file at %s, skipping init\n",
