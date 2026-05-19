@@ -3211,7 +3211,8 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                         'name' => $outNodeName,
                         'desc' => $ogName,
                         'volume' => $pathVolume,
-                        'ogId' => intval($outGroupId)
+                        'ogId' => intval($outGroupId),
+                        'channels' => isset($og['channels']) ? intval($og['channels']) : 2
                     );
                     break;
                 }
@@ -3231,10 +3232,12 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
         $numCh = min($groupChannels, count($channelLabels));
 
         // Helper: generate stream.rules block for output groups with per-path volume
-        $generateOutputRules = function ($rules) use (&$conf) {
+        $generateOutputRules = function ($rules) use (&$conf, $channelPositions) {
             $conf .= "      stream.rules = [\n";
             foreach ($rules as $rule) {
                 $volLinear = round($rule['volume'] / 100.0, 3);
+                $outCh = isset($rule['channels']) ? intval($rule['channels']) : 2;
+                $outPos = isset($channelPositions[$outCh]) ? $channelPositions[$outCh] : "[ FL FR ]";
                 $conf .= "        { matches = [\n";
                 $conf .= "            { media.class = \"Audio/Sink\"\n";
                 $conf .= "              node.name = \"" . $rule['name'] . "\"\n";
@@ -3243,6 +3246,8 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                 $conf .= "          actions = {\n";
                 $conf .= "            create-stream = {\n";
                 $conf .= "              node.target = \"" . $rule['name'] . "\"\n";
+                $conf .= "              combine.audio.position = $outPos\n";
+                $conf .= "              audio.position = $outPos\n";
                 if ($volLinear < 0.999) {
                     $conf .= "              channelmix.volume = $volLinear\n";
                 }
