@@ -1301,6 +1301,45 @@
 
                         rowID = hostRows[hostRowKey];
 
+                        // Update wifi icons for this row whenever we have a valid response
+                        // with non-empty interface data.  We scan ALL interfaces in the
+                        // response for wifi properties so that a device reachable only via
+                        // its wired IP still shows a wifi icon next to its wireless IP.
+                        // Unreachable polls return interfaces:[] and are skipped so they
+                        // don't erase icons set by a successful poll on a different IP.
+                        if (data.hasOwnProperty('interfaces') && data.interfaces.length > 0) {
+                            var $ipCell = $('#' + rowID + '_ip');
+                            $ipCell.find('.wifi-icon').remove();
+                            for (var i = 0; i < data.interfaces.length; i++) {
+                                var iface = data.interfaces[i];
+                                if (!iface.hasOwnProperty('wifi') || !iface.addr_info) continue;
+                                var w = iface.wifi;
+                                var ifaceIp = iface.addr_info.length > 0 ? iface.addr_info[0].local : null;
+                                if (!ifaceIp) continue;
+                                var wifi_html = [];
+                                wifi_html.push('<span data-for-ip="' + ifaceIp + '" title="');
+                                if (w.pct) {
+                                    wifi_html.push(w.pct + '%');
+                                    if (w.unit == 'dBm') {
+                                        wifi_html.push(' ' + w.level + 'dBm');
+                                    }
+                                } else {
+                                    wifi_html.push(w.level + w.unit);
+                                }
+                                wifi_html.push('" class="wifi-icon wifi-');
+                                wifi_html.push(w.desc);
+                                wifi_html.push('"></span>');
+                                // Place icon after the interface IP's anchor when present,
+                                // or append to the cell as a fallback.
+                                var $anchor = $ipCell.find('[data-ip="' + ifaceIp + '"]');
+                                if ($anchor.length > 0) {
+                                    $(wifi_html.join('')).insertAfter($anchor);
+                                } else {
+                                    $(wifi_html.join('')).appendTo($ipCell);
+                                }
+                            }
+                        }
+
                         var curStatus = $('#' + rowID + '_status').html();
                         if ((curStatus != null) &&
                             (curStatus != '') &&
@@ -1321,40 +1360,6 @@
                         } else {
                             $('#' + rowID + '_mode').html(getFullMode(data, ip));
                             checkRemoteChannelIO(ip, rowID, data);
-                        }
-                        if (data.hasOwnProperty('wifi') && data.hasOwnProperty('interfaces')) {
-                            // Only show a wifi icon if the polled IP belongs to a wireless interface
-                            var ipIface = null;
-                            for (var i = 0; i < data.interfaces.length; i++) {
-                                var iface = data.interfaces[i];
-                                if (iface.addr_info) {
-                                    for (var j = 0; j < iface.addr_info.length; j++) {
-                                        if (iface.addr_info[j].local === ip) {
-                                            ipIface = iface;
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (ipIface) break;
-                            }
-                            $('#' + rowID + "_ip").find(".wifi-icon").remove();
-                            if (ipIface && ipIface.hasOwnProperty('wifi')) {
-                                var w = ipIface.wifi;
-                                var wifi_html = [];
-                                wifi_html.push('<span title="');
-                                if (w.pct) {
-                                    wifi_html.push(w.pct + '%');
-                                    if (w.unit == 'dBm') {
-                                        wifi_html.push(' ' + w.level + 'dBm');
-                                    }
-                                } else {
-                                    wifi_html.push(w.level + w.unit);
-                                }
-                                wifi_html.push('" class="wifi-icon wifi-');
-                                wifi_html.push(w.desc);
-                                wifi_html.push('"></span>');
-                                $(wifi_html.join('')).appendTo('td[data-ip="' + ip + '"]');
-                            }
                         }
 
                         if ($('#' + rowID).attr('data-ip') != ip)
