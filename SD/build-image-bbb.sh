@@ -462,6 +462,10 @@ if [ "${SKIP_KERNEL_UPDATE}" != "1" ] && [ -f "/root/${FPP_KERNEL_DEB}" ]; then
         apt-get remove -y --purge --autoremove "linux-headers-\$OLD_KV" 2>/dev/null || true
     done
     rm -rf /boot/initrd.img*
+    
+    # Remove the blacklist of the rtw88 drivers as we don't have the out-of-tree drivers
+    # as part of our kernel
+    rm -f /etc/modprobe.d/rtw88.conf
 fi
 
 # Finalization (mirrors SD/README.BBB post-install cleanup)
