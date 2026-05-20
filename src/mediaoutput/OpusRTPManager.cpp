@@ -293,12 +293,17 @@ bool OpusRTPManager::CreateSendPipeline(const OpusRTPInstance& inst) {
     //   ! udpsink host=<ip> port=<port> [multicast options]
 
     std::ostringstream oss;
-    oss << "pipewiresrc min-buffers=2 stream-properties=\"props,node.name=" << nodeName
-        << ",node.autoconnect=false\" "
+    oss << "pipewiresrc min-buffers=2 do-timestamp=true "
+        << "stream-properties=\"props,node.name=" << nodeName
+        << ",node.autoconnect=false"
+        << ",node.latency=960/48000\" "
+        << "! queue max-size-buffers=0 max-size-bytes=0 max-size-time=200000000 leaky=downstream "
         << "! audioconvert "
+        << "! audiorate "
         << "! audio/x-raw,rate=" << OpusRTP::AUDIO_RATE
         << ",channels=" << inst.channels << " "
         << "! opusenc bitrate=" << inst.bitrate
+        << " frame-size=20"
         << " dtx=" << (inst.dtx ? "true" : "false")
         << " inband-fec=" << (inst.fec ? "true" : "false")
         << " packet-loss-percentage=" << inst.packetLoss << " "
@@ -394,6 +399,9 @@ bool OpusRTPManager::CreateRecvPipeline(const OpusRTPInstance& inst) {
         << "! rtpopusdepay "
         << "! opusdec "
         << "! audioconvert "
+        << "! audiorate "
+        << "! audio/x-raw,rate=" << OpusRTP::AUDIO_RATE << ",format=F32LE "
+        << "! queue max-size-buffers=0 max-size-bytes=0 max-size-time=200000000 "
         << "! pipewiresink name=pwsink "
         << "stream-properties=\"props,media.class=Audio/Source,"
         << "node.name=" << nodeName << ","

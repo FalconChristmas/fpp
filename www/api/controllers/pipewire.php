@@ -3169,6 +3169,7 @@ function ResolveAlsaCaptureNodeName($cardId)
 // Helper: Generate PipeWire input group config (combine-stream + loopback)
 function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
 {
+    global $settings;
     $channelPositions = array(
         1 => "[ MONO ]",
         2 => "[ FL FR ]",
@@ -3569,6 +3570,31 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                 if (empty($instanceId))
                     continue;
                 $sourceTarget = $instanceId;
+            } elseif ($mbrType === 'opus_rtp_receive') {
+                $opusInstId = isset($mbr['instanceId']) ? intval($mbr['instanceId']) : 0;
+                if ($opusInstId <= 0)
+                    continue;
+                // Resolve instance ID to PipeWire node name
+                $opusCfgFile = $settings['mediaDirectory'] . "/config/pipewire-opus-rtp-instances.json";
+                $sourceTarget = '';
+                if (file_exists($opusCfgFile)) {
+                    $opusCfg = json_decode(file_get_contents($opusCfgFile), true);
+                    if ($opusCfg && isset($opusCfg['instances'])) {
+                        foreach ($opusCfg['instances'] as $oi) {
+                            if (isset($oi['id']) && intval($oi['id']) === $opusInstId && !empty($oi['enabled'])) {
+                                $sourceTarget = 'opusrtp_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($oi['name'])) . '_recv';
+                                if (empty($mbrName)) {
+                                    $mbrName = $oi['name'] . ' (Opus RTP)';
+                                    $loopbackName = "fpp_loopback_ig{$groupId}_" . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($mbrName));
+                                    $loopbackDesc = "$mbrName → $groupName";
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (empty($sourceTarget))
+                    continue;
             } else {
                 continue;
             }
