@@ -159,6 +159,11 @@ bool OpusRTPManager::ApplyConfig() {
         if (!Init()) {
             return false;
         }
+        // Init() may return true but skip initialization (e.g. wrong backend).
+        // If m_initialized is still false, there's nothing to do.
+        if (!m_initialized.load()) {
+            return true;
+        }
     }
 
     // Stop existing watchdog and pipelines

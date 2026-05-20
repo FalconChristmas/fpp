@@ -1630,7 +1630,7 @@ static void setupAudio() {
     if (!FileExists("/root/.libao")) {
         PutFileContents("/root/.libao", "dev=default");
     }
-    std::string mediaBackend = "alsa";
+    std::string mediaBackend = "pipewire-simple";
     getRawSetting("MediaBackend", mediaBackend);
     std::string mediaBackendLower = mediaBackend;
     std::transform(mediaBackendLower.begin(), mediaBackendLower.end(), mediaBackendLower.begin(), [](unsigned char c) {
