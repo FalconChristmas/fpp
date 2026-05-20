@@ -57,9 +57,15 @@ bool OpusRTPManager::Init() {
     }
 
     // Opus RTP uses pipewiresrc/pipewiresink which require the full PipeWire graph.
+    // Only proceed when MediaBackend is "pipewire" (the advanced PipeWire mode).
+    // - ALSA / no backend: PipeWire daemon is not running; gst_parse_launch with
+    //   pipewiresrc crashes in gst_value_deserialize.
+    // - pipewire-simple: the graph lacks the node connections needed for audio
+    //   format negotiation, causing the state change to block indefinitely.
     std::string mediaBackend = toLowerCopy(getSetting("MediaBackend"));
-    if (mediaBackend == "pipewire-simple") {
-        LogDebug(VB_MEDIAOUT, "OpusRTPManager: MediaBackend=pipewire-simple, skipping init\n");
+    if (mediaBackend != "pipewire") {
+        LogDebug(VB_MEDIAOUT, "OpusRTPManager: MediaBackend='%s' (need 'pipewire'), skipping init\n",
+                 mediaBackend.c_str());
         return true;
     }
 
