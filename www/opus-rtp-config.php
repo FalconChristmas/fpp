@@ -162,7 +162,12 @@
                         <div class="callout callout-info" style="padding:0.75rem 1rem; margin-bottom:1rem;">
                             <b>Opus RTP</b> provides compressed audio streaming ideal for WiFi networks.
                             Unlike AES67 (uncompressed, wired-only), Opus is loss-tolerant and bandwidth-efficient.
-                            Supports both unicast (point-to-point) and multicast destinations.
+                            <ul style="margin:0.5rem 0 0 0; padding-left:1.2rem;">
+                                <li><b>WiFi:</b> Use <b>unicast</b> (the receiver's IP address) for reliable streaming.
+                                    WiFi multicast is unreliable &mdash; most access points send it without retransmission at the lowest data rate.</li>
+                                <li><b>Wired:</b> Both unicast and multicast (239.x.x.x) work well. Multicast allows one sender to reach multiple receivers.</li>
+                                <li><b>Receiver:</b> Set the Destination IP to the <em>receiver's own IP</em> for unicast, or a multicast group address (e.g. 239.69.1.x) that both sender and receiver share.</li>
+                            </ul>
                         </div>
 
                         <div
@@ -322,6 +327,7 @@
                 }
 
                 InitTooltips();
+                UpdateMulticastWarnings();
             }
 
             /////////////////////////////////////////////////////////////////////////////
@@ -367,9 +373,10 @@
 
                 // Destination IP
                 html += '<div>';
-                html += '<label>Destination IP' + HelpIcon('The destination IP address. Use a multicast address (e.g. 239.69.1.x) for one-to-many, or a unicast IP for point-to-point. Unicast is often more reliable over WiFi.') + '</label>';
+                html += '<label>Destination IP' + HelpIcon('<b>Unicast</b> (recommended for WiFi): enter the receiver\'s IP address for reliable point-to-point streaming with full WiFi retransmission.<br><br><b>Multicast</b> (wired only): use a 239.x.x.x address to send to multiple receivers simultaneously. Avoid multicast over WiFi &mdash; most access points deliver it unreliably at the lowest data rate with no retransmission.') + '</label>';
                 html += '<input type="text" class="form-control form-control-sm" value="' + EscapeAttr(inst.destIP || '239.69.1.1') + '" ';
-                html += 'onchange="UpdateField(' + index + ', \'destIP\', this.value)" maxlength="15" placeholder="239.69.1.1 or 192.168.1.x">';
+                html += 'onchange="UpdateField(' + index + ', \'destIP\', this.value)" maxlength="45" placeholder="Receiver IP (e.g. 192.168.1.x)">';
+                html += '<div id="destip-warn-' + inst.id + '" class="form-text text-warning" style="display:none;"><i class="fas fa-exclamation-triangle"></i> Multicast over WiFi is unreliable. Use the receiver\'s IP address (unicast) for WiFi streaming.</div>';
                 html += '</div>';
 
                 // Port
@@ -394,7 +401,7 @@
 
                 // Network Interface
                 html += '<div>';
-                html += '<label>Network Interface' + HelpIcon('The network interface to use. For WiFi streaming, select the wireless interface (e.g. wlan0). Leave as Default to use the system primary route.') + '</label>';
+                html += '<label>Network Interface' + HelpIcon('The network interface to send or receive on. Select the interface matching your network:<br><br><b>WiFi (e.g. wlan0):</b> Use with unicast for best results.<br><b>Wired (e.g. eth0):</b> Works with both unicast and multicast.<br><b>Default:</b> Uses the system\'s primary route.') + '</label>';
                 html += '<select class="form-select form-select-sm" onchange="UpdateField(' + index + ', \'interface\', this.value)">';
                 html += '<option value="">(Default)</option>';
                 for (var n = 0; n < availableInterfaces.length; n++) {
@@ -426,7 +433,7 @@
 
                 // Latency
                 html += '<div>';
-                html += '<label>Network Latency' + HelpIcon('Jitter buffer latency in milliseconds for receive streams. Higher values improve reliability over WiFi but add delay. 50ms is a good default for WiFi; lower for wired.') + '</label>';
+                html += '<label>Jitter Buffer' + HelpIcon('Jitter buffer size in milliseconds for receive streams. This buffers incoming packets to smooth out network timing variations.<br><br><b>Wired unicast:</b> 50ms is usually sufficient.<br><b>WiFi unicast:</b> 100&ndash;150ms recommended.<br><b>WiFi multicast:</b> not recommended &mdash; if you must, try 200&ndash;500ms.<br><br>Higher values add audio delay but improve reliability.') + '</label>';
                 html += '<div class="input-group input-group-sm">';
                 html += '<input type="number" class="form-control form-control-sm" min="10" max="500" step="10" value="' + (inst.latency || 50) + '" ';
                 html += 'onchange="UpdateField(' + index + ', \'latency\', parseInt(this.value))">';
@@ -470,12 +477,12 @@
                     name: 'Opus RTP Stream ' + id,
                     enabled: true,
                     mode: 'send',
-                    destIP: '239.69.1.' + id,
+                    destIP: '',
                     port: 5005,
                     channels: 2,
                     interface: '',
                     bitrate: 128000,
-                    latency: 50,
+                    latency: 100,
                     fec: true,
                     dtx: false,
                     packetLoss: 5
@@ -503,6 +510,31 @@
                 opusData.instances[index][field] = value;
                 if (field === 'mode' || field === 'name') {
                     RenderInstances();
+                }
+                if (field === 'destIP' || field === 'interface') {
+                    UpdateMulticastWarnings();
+                }
+            }
+
+            function IsMulticastIP(ip) {
+                if (!ip) return false;
+                var first = parseInt(ip.split('.')[0], 10);
+                return first >= 224 && first <= 239;
+            }
+
+            function IsWifiInterface(iface) {
+                return iface && (iface.indexOf('wlan') === 0 || iface.indexOf('wlp') === 0);
+            }
+
+            function UpdateMulticastWarnings() {
+                for (var i = 0; i < opusData.instances.length; i++) {
+                    var inst = opusData.instances[i];
+                    var warn = $('#destip-warn-' + inst.id);
+                    if (warn.length && IsMulticastIP(inst.destIP) && IsWifiInterface(inst.interface)) {
+                        warn.show();
+                    } else if (warn.length) {
+                        warn.hide();
+                    }
                 }
             }
 
