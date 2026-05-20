@@ -4226,7 +4226,6 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             // Playback props (output to real sink)
             $conf .= "      playback.props = {\n";
             $conf .= "        node.name = \"$fxOutName\"\n";
-            $conf .= "        node.passive = true\n";
             $conf .= "        node.target = \"$realNodeName\"\n";
             $conf .= "        stream.dont-remix = true\n";
             $conf .= "        audio.channels = $numCh\n";
@@ -6201,7 +6200,7 @@ function BuildSimpleAudioGroupsData($audioOutput)
                     array(
                         "cardId" => $cardId,
                         "channels" => 2,
-                        "delayMs" => 50,
+                        "delayMs" => 0,
                         "volume" => 100,
                     ),
                 ),
