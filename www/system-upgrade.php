@@ -76,6 +76,11 @@
             var hasNewerOS = false;
             $('#osSelect option').each(function () {
                 if (this.value !== '') {
+                    // Nightly builds are listed for dev users but should not
+                    // trigger the "OS upgrade available" banner.
+                    if (/nightly/i.test(this.text)) {
+                        return;
+                    }
                     var availableVersion = parseOSVersion(this.text);
                     if (isNewerOSVersion(availableVersion, currentVersion)) {
                         hasNewerOS = true;
@@ -167,8 +172,57 @@
             });
         }
 
+        // Keep OS version pills (status badge + current-version pill in the
+        // Upgrade OS card) in sync with the detected OS upgrade state so they
+        // don't contradict the banners/recommendation card.
+        function updateOSVersionStatusBadge() {
+            var $statusBadge = $('#osVersionStatusBadge');
+            var $currentBadge = $('#osCurrentVersionBadge');
+            var statusClass, statusText;
+
+            if (isMajorVersionUpgrade) {
+                statusClass = 'text-bg-warning';
+                statusText = 'Upgrade Required';
+            } else if (osUpgradeAvailable) {
+                statusClass = 'text-bg-warning';
+                statusText = 'Upgrade Available';
+            } else {
+                statusClass = 'text-bg-success';
+                statusText = 'Up to Date';
+            }
+
+            $statusBadge.removeClass('text-bg-success text-bg-secondary text-bg-warning')
+                .addClass(statusClass).text(statusText);
+            // Current-OS pill keeps its version text but mirrors the status color.
+            $currentBadge.removeClass('text-bg-success text-bg-secondary text-bg-warning')
+                .addClass(statusClass);
+        }
+
+        // Keep the FPP/OS action buttons styled consistently with availability:
+        //   updates available -> yellow (warning), no updates -> gray (secondary).
+        function updateActionButtonStyles() {
+            var $fpp = $('#fppUpdateButton');
+            // Major version upgrade forces use of OS upgrade, so the FPP button
+            // is inert -- show it gray to match its disabled state.
+            if (fppUpdateAvailable && !isMajorVersionUpgrade) {
+                $fpp.removeClass('fpp-btn--success fpp-btn--secondary').addClass('fpp-btn--warning');
+            } else {
+                $fpp.removeClass('fpp-btn--success fpp-btn--warning').addClass('fpp-btn--secondary');
+            }
+
+            var $os = $('#osUpgradeButton');
+            if (osUpgradeAvailable) {
+                $os.removeClass('fpp-btn--secondary fpp-btn--success').addClass('fpp-btn--warning');
+            } else {
+                $os.removeClass('fpp-btn--warning fpp-btn--success').addClass('fpp-btn--secondary');
+            }
+        }
+
         // Check upgrade scenarios and show appropriate banners
         function checkUpgradeRecommendation() {
+            updateOSVersionStatusBadge();
+            updateActionButtonStyles();
+
             // Major FPP version upgrades: OS banner already configured in UpdateVersionInfo(), no separate recommendation needed
             if (isMajorVersionUpgrade) {
                 $('#upgradeRecommendationBanner').hide();
@@ -178,16 +232,20 @@
             }
 
             if (fppUpdateAvailable && osUpgradeAvailable) {
-                // Both FPP update and OS upgrade available (non-major version)
-                $('#upgradeRecommendationTitle').text('Recommended: Update FPP Software First');
+                // Both FPP update and OS upgrade available (non-major version).
+                // The OS image ships with a fresh FPP, so doing the FPP update
+                // first is wasted work -- recommend the OS upgrade instead.
+                $('#upgradeRecommendationTitle').text('Recommended: Upgrade OS First');
                 $('#upgradeRecommendationMessage').text(
-                    'Both a software update and OS upgrade are available. We recommend updating ' +
-                    'FPP software first - it\'s quick (2-5 min). It resolves any bugs and provides a clean upgrade path. '
+                    'Both a software update and OS upgrade are available. We recommend the ' +
+                    'OS upgrade -- it ships with a fresh FPP build, so a separate FPP update ' +
+                    'beforehand is unnecessary. Always backup your configuration first!'
                 );
-                $('#fppRecommendedBadge').show();
-                $('#osRecommendedBadge').hide();
+                $('#osRecommendedBadge').show();
+                $('#fppRecommendedBadge').hide();
                 $('#upgradeRecommendationBanner').show();
                 $('#osUpdateBanner').hide();
+                $('#fppUpdateBanner').hide();
             } else if (!fppUpdateAvailable && osUpgradeAvailable) {
                 // FPP is up to date, but OS upgrade available
                 $('#upgradeRecommendationBanner').hide();
@@ -294,6 +352,13 @@
             }
             $.get(updateStatusUrl, function (updateData) {
                 if (updateData.status !== 'OK') return;
+
+                // Test mode: force OS upgrade available regardless of which
+                // FPP-update path we land in below.
+                if (updateData.forceOsUpgradeAvailable) {
+                    osUpgradeAvailable = true;
+                    forceOsUpgradeTest = true;
+                }
 
                 var isAdvancedView = settings['uiLevel'] && (parseInt(settings['uiLevel']) >= 1);
 
@@ -425,12 +490,6 @@
                     branchUpgradeData = null;
                     fppUpdateAvailable = false;
                     isMajorVersionUpgrade = false;
-
-                    // Test mode: force OS upgrade available
-                    if (updateData.forceOsUpgradeAvailable) {
-                        osUpgradeAvailable = true;
-                        forceOsUpgradeTest = true;
-                    }
 
                     $('#gitUpdateBadge').hide();
                     $('#fppUpdateBanner').hide();
@@ -912,12 +971,12 @@
                         <i class="fas fa-lightbulb"></i>
                     </div>
                     <div class="fpp-banner__content">
-                        <div class="fpp-banner__title" id="upgradeRecommendationTitle">Recommended: Update FPP Software
-                            First</div>
+                        <div class="fpp-banner__title" id="upgradeRecommendationTitle">Recommended: Upgrade OS First
+                        </div>
                         <p class="fpp-banner__message" id="upgradeRecommendationMessage">
-                            Both a software update and OS upgrade are available. We recommend updating
-                            FPP software first - it's quick (2-5 min) and may resolve any issues.
-                            Consider the OS upgrade after if needed.
+                            Both a software update and OS upgrade are available. We recommend the OS upgrade --
+                            it ships with a fresh FPP build, so a separate FPP update beforehand is unnecessary.
+                            Always backup your configuration first!
                         </p>
                     </div>
                 </div>
@@ -1092,7 +1151,7 @@
                             </div>
 
                             <div class="fpp-card__actions">
-                                <button class="fpp-btn fpp-btn--success" id="fppUpdateButton"
+                                <button class="fpp-btn fpp-btn--secondary" id="fppUpdateButton"
                                     onclick="HandleFPPUpdate();">
                                     <i class="fas fa-download"></i> <span id="fppUpdateButtonText">Update FPP Now</span>
                                 </button>
@@ -1203,7 +1262,7 @@
                                 <select id="osSelect" class="form-select fpp-select" onChange="OSSelectChanged();">
                                     <option value="">-- Select OS Image --</option>
                                 </select>
-                                <button class="fpp-btn fpp-btn--warning" id="osUpgradeButton" onclick="UpgradeOS();"
+                                <button class="fpp-btn fpp-btn--secondary" id="osUpgradeButton" onclick="UpgradeOS();"
                                     disabled>
                                     <i class="fas fa-arrow-up"></i> Upgrade OS
                                 </button>
