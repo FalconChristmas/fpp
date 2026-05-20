@@ -568,8 +568,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     //   ! udpsink host=<multicast> port=<port> multicast-iface=<iface> ttl-mc=4 auto-multicast=true sync=true
 
     std::ostringstream oss;
-    oss << "pipewiresrc min-buffers=2 stream-properties=\"props,node.name=" << nodeName
-        << ",node.autoconnect=false\" "
+    oss << "pipewiresrc name=pwsrc min-buffers=2 "
         << "! audioconvert "
         << "! audio/x-raw,format=S24BE,rate=" << AES67::AUDIO_RATE
         << ",channels=" << inst.channels << " "
@@ -597,6 +596,19 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                inst.id, error->message);
         g_error_free(error);
         return false;
+    }
+
+    // Set stream-properties post-launch — inline GstStructure values in
+    // gst_parse_launch can crash gst_value_deserialize on some platforms.
+    GstElement* pwsrc = gst_bin_get_by_name(GST_BIN(pipeline), "pwsrc");
+    if (pwsrc) {
+        GstStructure* props = gst_structure_new("props",
+            "node.name", G_TYPE_STRING, nodeName.c_str(),
+            "node.autoconnect", G_TYPE_BOOLEAN, FALSE,
+            NULL);
+        g_object_set(pwsrc, "stream-properties", props, NULL);
+        gst_structure_free(props);
+        gst_object_unref(pwsrc);
     }
 
     // Note: The pipeline uses the system clock.  PTP synchronization is
@@ -665,10 +677,7 @@ bool AES67Manager::CreateRecvPipeline(const AES67Instance& inst) {
         << "! rtpjitterbuffer latency=" << inst.latency << " "
         << "! rtpL24depay "
         << "! audioconvert "
-        << "! pipewiresink name=pwsink "
-        << "stream-properties=\"props,media.class=Audio/Source,"
-        << "node.name=" << nodeName << ","
-        << "node.description=" << SafeNodeName(inst.name) << "_recv\"";
+        << "! pipewiresink name=pwsink";
 
     std::string pipelineStr = oss.str();
     LogInfo(VB_MEDIAOUT, "AES67 recv pipeline [%d] %s: %s\n",
@@ -681,6 +690,22 @@ bool AES67Manager::CreateRecvPipeline(const AES67Instance& inst) {
                inst.id, error->message);
         g_error_free(error);
         return false;
+    }
+
+    // Set stream-properties post-launch — gst_parse_launch cannot
+    // deserialize GstStructure values containing '/' (e.g. Audio/Source)
+    // which crashes gst_value_deserialize.
+    std::string recvNodeDesc = SafeNodeName(inst.name) + "_recv";
+    GstElement* pwsink = gst_bin_get_by_name(GST_BIN(pipeline), "pwsink");
+    if (pwsink) {
+        GstStructure* props = gst_structure_new("props",
+            "media.class", G_TYPE_STRING, "Audio/Source",
+            "node.name", G_TYPE_STRING, nodeName.c_str(),
+            "node.description", G_TYPE_STRING, recvNodeDesc.c_str(),
+            NULL);
+        g_object_set(pwsink, "stream-properties", props, NULL);
+        gst_structure_free(props);
+        gst_object_unref(pwsink);
     }
 
     // Store the bus for polling in the watchdog thread (no GLib main loop).

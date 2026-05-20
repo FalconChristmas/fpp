@@ -293,10 +293,7 @@ bool OpusRTPManager::CreateSendPipeline(const OpusRTPInstance& inst) {
     //   ! udpsink host=<ip> port=<port> [multicast options]
 
     std::ostringstream oss;
-    oss << "pipewiresrc min-buffers=2 do-timestamp=true "
-        << "stream-properties=\"props,node.name=" << nodeName
-        << ",node.autoconnect=false"
-        << ",node.latency=960/48000\" "
+    oss << "pipewiresrc name=pwsrc min-buffers=2 do-timestamp=true "
         << "! queue max-size-buffers=0 max-size-bytes=0 max-size-time=200000000 leaky=downstream "
         << "! audioconvert "
         << "! audiorate "
@@ -331,6 +328,20 @@ bool OpusRTPManager::CreateSendPipeline(const OpusRTPInstance& inst) {
                inst.id, error->message);
         g_error_free(error);
         return false;
+    }
+
+    // Set stream-properties post-launch — inline GstStructure values
+    // containing '/' (e.g. node.latency=960/48000) crash gst_value_deserialize.
+    GstElement* pwsrc = gst_bin_get_by_name(GST_BIN(pipeline), "pwsrc");
+    if (pwsrc) {
+        GstStructure* props = gst_structure_new("props",
+            "node.name", G_TYPE_STRING, nodeName.c_str(),
+            "node.autoconnect", G_TYPE_BOOLEAN, FALSE,
+            "node.latency", G_TYPE_STRING, "960/48000",
+            NULL);
+        g_object_set(pwsrc, "stream-properties", props, NULL);
+        gst_structure_free(props);
+        gst_object_unref(pwsrc);
     }
 
     GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
@@ -400,10 +411,7 @@ bool OpusRTPManager::CreateRecvPipeline(const OpusRTPInstance& inst) {
         << "! opusdec plc=true "
         << "! audioconvert "
         << "! audio/x-raw,rate=" << OpusRTP::AUDIO_RATE << ",format=F32LE "
-        << "! pipewiresink name=pwsink "
-        << "stream-properties=\"props,media.class=Audio/Source,"
-        << "node.name=" << nodeName << ","
-        << "node.description=" << SafeNodeName(inst.name) << "_recv\"";
+        << "! pipewiresink name=pwsink";
 
     std::string pipelineStr = oss.str();
     LogInfo(VB_MEDIAOUT, "Opus RTP recv pipeline [%d] %s: %s\n",
@@ -416,6 +424,22 @@ bool OpusRTPManager::CreateRecvPipeline(const OpusRTPInstance& inst) {
                inst.id, error->message);
         g_error_free(error);
         return false;
+    }
+
+    // Set stream-properties post-launch — gst_parse_launch cannot
+    // deserialize GstStructure values containing '/' (e.g. Audio/Source)
+    // which crashes gst_value_deserialize.
+    std::string recvNodeDesc = SafeNodeName(inst.name) + "_recv";
+    GstElement* pwsink = gst_bin_get_by_name(GST_BIN(pipeline), "pwsink");
+    if (pwsink) {
+        GstStructure* props = gst_structure_new("props",
+            "media.class", G_TYPE_STRING, "Audio/Source",
+            "node.name", G_TYPE_STRING, nodeName.c_str(),
+            "node.description", G_TYPE_STRING, recvNodeDesc.c_str(),
+            NULL);
+        g_object_set(pwsink, "stream-properties", props, NULL);
+        gst_structure_free(props);
+        gst_object_unref(pwsink);
     }
 
     GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
