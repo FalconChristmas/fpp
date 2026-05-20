@@ -805,6 +805,7 @@
 					"PipeWireVideoInputSources",
 					"PipeWireAES67Config",
 					"PipeWireOpusRTPConfig",
+					"PipeWireStreams",
 					"PipeWireGraph"
 				],
 				"pipewire-simple": [
