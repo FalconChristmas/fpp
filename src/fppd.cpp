@@ -78,6 +78,7 @@
 #include "channeltester/ChannelTester.h"
 #include "commands/Commands.h"
 #include "mediaoutput/AES67Manager.h"
+#include "mediaoutput/OpusRTPManager.h"
 #include "mediaoutput/MediaOutputBase.h"
 #include "mediaoutput/MediaOutputStatus.h"
 #include "mediaoutput/VideoInputManager.h"
@@ -830,6 +831,10 @@ int main(int argc, char* argv[]) {
     AES67Manager::INSTANCE.Init();
     AES67Manager::INSTANCE.ApplyConfig();
 #endif
+#ifdef HAS_OPUS_RTP_GSTREAMER
+    OpusRTPManager::INSTANCE.Init();
+    OpusRTPManager::INSTANCE.ApplyConfig();
+#endif
     VideoInputManager::Instance().Init();
     VideoOutputManager::Instance().Init();
     PixelOverlayManager::INSTANCE.Initialize();
@@ -870,6 +875,9 @@ int main(int argc, char* argv[]) {
     VideoOutputManager::Instance().Shutdown();
 #ifdef HAS_AES67_GSTREAMER
     AES67Manager::INSTANCE.Shutdown();
+#endif
+#ifdef HAS_OPUS_RTP_GSTREAMER
+    OpusRTPManager::INSTANCE.Shutdown();
 #endif
     CleanupMediaOutput();
     CloseEffects();

@@ -108,3 +108,17 @@ public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 #endif
+
+#ifdef HAS_OPUS_RTP_GSTREAMER
+class OpusRTPApplyCommand : public Command {
+public:
+    OpusRTPApplyCommand();
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+
+class OpusRTPCleanupCommand : public Command {
+public:
+    OpusRTPCleanupCommand();
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+#endif

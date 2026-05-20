@@ -524,3 +524,25 @@ std::unique_ptr<Command::Result> ApplyRoutingPresetCommand::run(const std::vecto
     return std::make_unique<CURLResult>(curlArgs);
 }
 #endif
+
+#ifdef HAS_OPUS_RTP_GSTREAMER
+#include "mediaoutput/OpusRTPManager.h"
+
+OpusRTPApplyCommand::OpusRTPApplyCommand() :
+    Command("Opus RTP Apply", "Apply Opus RTP audio streaming configuration") {
+}
+std::unique_ptr<Command::Result> OpusRTPApplyCommand::run(const std::vector<std::string>& args) {
+    if (OpusRTPManager::INSTANCE.ApplyConfig()) {
+        return std::make_unique<Command::Result>("Opus RTP config applied");
+    }
+    return std::make_unique<Command::ErrorResult>("Opus RTP apply failed");
+}
+
+OpusRTPCleanupCommand::OpusRTPCleanupCommand() :
+    Command("Opus RTP Cleanup", "Stop all Opus RTP pipelines and clean up") {
+}
+std::unique_ptr<Command::Result> OpusRTPCleanupCommand::run(const std::vector<std::string>& args) {
+    OpusRTPManager::INSTANCE.Cleanup();
+    return std::make_unique<Command::Result>("Opus RTP cleaned up");
+}
+#endif

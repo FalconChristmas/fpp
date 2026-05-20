@@ -51,7 +51,7 @@ PrintSettingGroup('generalAudio');
     $isAlsa = (!$isPipeWireAdv && !$isPipeWireSimple);
     ?>
     <div id="pipeWireSection" <?= $isPipeWireAdv ? '' : ' style="display:none;"' ?>>
-        <h2>General PipeWire</h2>
+        <h2>PipeWire Routing</h2>
         <?
         PrintSettingGroup('pipeWireGeneral', '', '', 1, '', '', false);
         ?>
@@ -60,6 +60,12 @@ PrintSettingGroup('generalAudio');
 
         <?
         PrintSettingGroup('pipeWireAudio', '', '', 1, '', '', false);
+        ?>
+
+        <h2>PipeWire Network Streams</h2>
+
+        <?
+        PrintSettingGroup('pipeWireStreams', '', '', 1, '', '', false);
         ?>
 
 
@@ -122,6 +128,7 @@ PrintSettingGroup('generalAudio');
 
 <div id="hardwareDirectVideoSection" <?= ($mediaBackend === 'pipewire') ? ' style="display:none;"' : '' ?>>
     <h2 id="hardwareDirectVideoHeader">
-        <?= ($mediaBackend === 'pipewire-simple') ? 'Simple PipeWire Video' : 'Hardware Direct Video' ?></h2>
+        <?= ($mediaBackend === 'pipewire-simple') ? 'Simple PipeWire Video' : 'Hardware Direct Video' ?>
+    </h2>
     <? PrintSettingGroup('generalVideo', '', '', 1, '', '', false); ?>
 </div>

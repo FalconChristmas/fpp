@@ -64,6 +64,7 @@ extern volatile int runMainFPPDLoop;
 #include "channeltester/ChannelTester.h"
 #include "commands/Commands.h"
 #include "mediaoutput/AES67Manager.h"
+#include "mediaoutput/OpusRTPManager.h"
 #include "mediaoutput/MediaOutputBase.h"
 #include "mediaoutput/MediaOutputStatus.h"
 #include "mediaoutput/StreamSlotManager.h"
@@ -326,6 +327,15 @@ void APIServer::Init(void) {
     };
     app.registerHandler("/aes67", handleAES67, {drogon::Get, drogon::Head});
     app.registerHandlerViaRegex("/aes67/.*", handleAES67, {drogon::Get, drogon::Head});
+#endif
+
+#ifdef HAS_OPUS_RTP_GSTREAMER
+    auto handleOpusRTP = [](const HttpRequestPtr& req,
+                            std::function<void(const HttpResponsePtr&)>&& callback) {
+        callback(OpusRTPManager::INSTANCE.render_GET(req));
+    };
+    app.registerHandler("/opusrtp", handleOpusRTP, {drogon::Get, drogon::Head});
+    app.registerHandlerViaRegex("/opusrtp/.*", handleOpusRTP, {drogon::Get, drogon::Head});
 #endif
 
     // PlayerResource catch-all for all other /fppd/* paths (registered AFTER

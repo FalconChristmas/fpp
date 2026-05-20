@@ -925,6 +925,52 @@ function GetPipeWireAudioCards()
         }
     }
 
+    // --- Also include Opus RTP virtual sinks as selectable cards ---
+    $opusFile = $settings['mediaDirectory'] . "/config/pipewire-opus-rtp-instances.json";
+    if (file_exists($opusFile)) {
+        $opusData = json_decode(file_get_contents($opusFile), true);
+        if ($opusData && isset($opusData['instances']) && is_array($opusData['instances'])) {
+            foreach ($opusData['instances'] as $inst) {
+                if (!isset($inst['enabled']) || !$inst['enabled'])
+                    continue;
+                $mode = isset($inst['mode']) ? $inst['mode'] : 'send';
+                if ($mode !== 'send' && $mode !== 'both')
+                    continue;
+
+                $nodeSafeName = 'opusrtp_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($inst['name']));
+                $sinkNodeName = $nodeSafeName . '_send';
+                $instChannels = isset($inst['channels']) ? intval($inst['channels']) : 2;
+
+                $pwNodeName = '';
+                $sinkSearch = array();
+                exec($SUDO . " " . $pwEnv . " pactl list sinks short 2>/dev/null | grep " . escapeshellarg($sinkNodeName), $sinkSearch);
+                if (!empty($sinkSearch)) {
+                    $sp = preg_split('/\s+/', trim($sinkSearch[0]));
+                    if (count($sp) >= 2)
+                        $pwNodeName = $sp[1];
+                }
+
+                $cards[] = array(
+                    "cardNum" => -1,
+                    "cardId" => 'opusrtp_' . $inst['id'],
+                    "cardName" => $inst['name'] . ' (Opus RTP Send)',
+                    "device" => 0,
+                    "deviceName" => "Opus RTP Sink",
+                    "channels" => $instChannels,
+                    "mixerControls" => array(),
+                    "alsaPath" => "",
+                    "byPath" => "",
+                    "byId" => "",
+                    "pwNodeName" => !empty($pwNodeName) ? $pwNodeName : $sinkNodeName,
+                    "isOpusRTP" => true,
+                    "opusrtpInstanceId" => $inst['id'],
+                    "destIP" => isset($inst['destIP']) ? $inst['destIP'] : '',
+                    "port" => isset($inst['port']) ? $inst['port'] : 5005
+                );
+            }
+        }
+    }
+
     return json($cards);
 }
 
@@ -3739,6 +3785,28 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                 continue;
             }
 
+            // Opus RTP virtual sinks: cardId starts with "opusrtp_"
+            if (strpos($cardId, 'opusrtp_') === 0) {
+                $opusFile = $settings['mediaDirectory'] . "/config/pipewire-opus-rtp-instances.json";
+                if (file_exists($opusFile)) {
+                    $opusJson = json_decode(file_get_contents($opusFile), true);
+                    if ($opusJson && isset($opusJson['instances'])) {
+                        $opusInstId = intval(str_replace('opusrtp_', '', $cardId));
+                        foreach ($opusJson['instances'] as $oi) {
+                            if (isset($oi['id']) && intval($oi['id']) === $opusInstId && isset($oi['enabled']) && $oi['enabled']) {
+                                $opusNodeName = 'opusrtp_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($oi['name'])) . '_send';
+                                $cardNodeMap[$cardId] = $opusNodeName;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!isset($cardNodeMap[$cardId])) {
+                    $unresolvedCards[] = $cardId . " (Opus RTP instance not found or disabled)";
+                }
+                continue;
+            }
+
             // Priority 1: Previously-stored nodeTarget from last successful Apply
             if (isset($member['nodeTarget']) && !empty($member['nodeTarget'])) {
                 $storedTarget = $member['nodeTarget'];
@@ -4561,6 +4629,154 @@ function GetAES67NetworkInterfaces()
 // Status: GET /api/pipewire/aes67/status → queries AES67Manager in fppd
 // PTP: GstPtpClock (replaces external ptp4l daemon)
 // SAP: Built-in C++ SAP announcer (replaces fpp_aes67_sap Python daemon)
+
+/////////////////////////////////////////////////////////////////////////////
+//  OPUS RTP MULTI-INSTANCE API
+/////////////////////////////////////////////////////////////////////////////
+
+// GET /api/pipewire/opusrtp/instances
+function GetOpusRTPInstances()
+{
+    global $settings;
+    $configFile = $settings['mediaDirectory'] . "/config/pipewire-opus-rtp-instances.json";
+    if (file_exists($configFile)) {
+        $data = json_decode(file_get_contents($configFile), true);
+        if ($data !== null) {
+            return json($data);
+        }
+    }
+    return json(array("instances" => array()));
+}
+
+// POST /api/pipewire/opusrtp/instances
+function SaveOpusRTPInstances()
+{
+    global $settings;
+    $configFile = $settings['mediaDirectory'] . "/config/pipewire-opus-rtp-instances.json";
+
+    $data = file_get_contents('php://input');
+    $parsed = json_decode($data, true);
+    if ($parsed === null) {
+        http_response_code(400);
+        return json(array("status" => "ERROR", "message" => "Invalid JSON"));
+    }
+    if (!isset($parsed['instances']) || !is_array($parsed['instances'])) {
+        http_response_code(400);
+        return json(array("status" => "ERROR", "message" => "Missing instances array"));
+    }
+    $nextId = 1;
+    foreach ($parsed['instances'] as &$inst) {
+        if (!isset($inst['id'])) {
+            $inst['id'] = $nextId;
+        }
+        if ($inst['id'] >= $nextId)
+            $nextId = $inst['id'] + 1;
+        if (empty($inst['name']))
+            $inst['name'] = 'Opus RTP Instance ' . $inst['id'];
+        if (empty($inst['mode']))
+            $inst['mode'] = 'send';
+        if (empty($inst['destIP']))
+            $inst['destIP'] = '239.69.1.' . $inst['id'];
+        if (empty($inst['port']))
+            $inst['port'] = 5005;
+        if (empty($inst['channels']))
+            $inst['channels'] = 2;
+        if (!isset($inst['bitrate']))
+            $inst['bitrate'] = 128000;
+        if (!isset($inst['latency']))
+            $inst['latency'] = 50;
+        if (!isset($inst['fec']))
+            $inst['fec'] = true;
+        if (!isset($inst['dtx']))
+            $inst['dtx'] = false;
+        if (!isset($inst['packetLoss']))
+            $inst['packetLoss'] = 5;
+        if (!isset($inst['enabled']))
+            $inst['enabled'] = true;
+    }
+    unset($inst);
+
+    file_put_contents($configFile, json_encode($parsed, JSON_PRETTY_PRINT));
+    return json(array("status" => "OK"));
+}
+
+// POST /api/pipewire/opusrtp/apply
+function ApplyOpusRTPInstances()
+{
+    global $settings;
+    $configFile = $settings['mediaDirectory'] . "/config/pipewire-opus-rtp-instances.json";
+
+    if (!file_exists($configFile)) {
+        $result = @file_get_contents('http://localhost/api/command', false, stream_context_create(array(
+            'http' => array(
+                'method' => 'POST',
+                'header' => 'Content-Type: application/json',
+                'content' => json_encode(array('command' => 'Opus RTP Cleanup')),
+                'timeout' => 5
+            )
+        )));
+        return json(array("status" => "OK", "message" => "No Opus RTP instances configured"));
+    }
+
+    $result = @file_get_contents('http://localhost/api/command', false, stream_context_create(array(
+        'http' => array(
+            'method' => 'POST',
+            'header' => 'Content-Type: application/json',
+            'content' => json_encode(array('command' => 'Opus RTP Apply')),
+            'timeout' => 10
+        )
+    )));
+
+    if ($result === false) {
+        return json(array(
+            "status" => "ERROR",
+            "message" => "Failed to signal fppd — is it running?"
+        ));
+    }
+
+    return json(array(
+        "status" => "OK",
+        "message" => "Opus RTP configuration applied via GStreamer"
+    ));
+}
+
+// GET /api/pipewire/opusrtp/status
+function GetOpusRTPStatus()
+{
+    $result = @file_get_contents('http://localhost:32322/opusrtp/status');
+
+    if ($result !== false) {
+        $data = json_decode($result, true);
+        if ($data !== null) {
+            return json($data);
+        }
+    }
+
+    return json(array(
+        "pipelines" => array(),
+        "active" => false
+    ));
+}
+
+// GET /api/pipewire/opusrtp/interfaces
+function GetOpusRTPNetworkInterfaces()
+{
+    $interfaces = array();
+    exec("ip -o link show | awk -F': ' '{print \$2}' | grep -v lo", $output);
+    if (!empty($output)) {
+        foreach ($output as $iface) {
+            $iface = trim($iface);
+            if (!empty($iface))
+                $interfaces[] = $iface;
+        }
+    }
+    return json($interfaces);
+}
+
+// Opus RTP audio streaming is managed by OpusRTPManager in fppd (GStreamer-based).
+// Config JSON: $mediaDirectory/config/pipewire-opus-rtp-instances.json
+// Apply: POST /api/command {"command":"Opus RTP Apply"} → fppd rebuilds GStreamer pipelines
+// Status: GET /api/pipewire/opusrtp/status → queries OpusRTPManager in fppd
 
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/pipewire/graph

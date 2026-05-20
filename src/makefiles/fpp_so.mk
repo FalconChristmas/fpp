@@ -65,6 +65,7 @@ OBJECTS_fpp_so += \
 	mediaoutput/MediaOutputBase.o \
 	mediaoutput/mediaoutput.o \
 	mediaoutput/AES67Manager.o \
+	mediaoutput/OpusRTPManager.o \
 	mediaoutput/GStreamerOut.o \
 	mediaoutput/StreamSlotManager.o \
 	mediaoutput/VideoInputManager.o \

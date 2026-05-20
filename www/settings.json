@@ -154,16 +154,22 @@
 		"pipeWireAudio": {
 			"description": "PipeWire Audio",
 			"settings": [
-				"PipeWireAudioGroups",
 				"PipeWireInputMixing",
-				"PipeWireAES67Config"
+				"PipeWireAudioGroups"
+			]
+		},
+		"pipeWireStreams": {
+			"description": "PipeWire Network Streams",
+			"settings": [
+				"PipeWireAES67Config",
+				"PipeWireOpusRTPConfig"
 			]
 		},
 		"pipeWireVideo": {
 			"description": "PipeWire Video",
 			"settings": [
-				"PipeWireVideoOutputs",
-				"PipeWireVideoInputSources"
+				"PipeWireVideoInputSources",
+				"PipeWireVideoOutputs"
 			]
 		},
 		"pipeWireGeneral": {
@@ -798,6 +804,7 @@
 					"PipeWireVideoOutputs",
 					"PipeWireVideoInputSources",
 					"PipeWireAES67Config",
+					"PipeWireOpusRTPConfig",
 					"PipeWireGraph"
 				],
 				"pipewire-simple": [
@@ -903,6 +910,19 @@
 			"icon": "fas fa-broadcast-tower",
 			"buttonText": "Configure AES67 Instances",
 			"modalTitle": "AES67 Audio-over-IP Instances",
+			"platforms": [
+				"!MacOS"
+			]
+		},
+		"PipeWireOpusRTPConfig": {
+			"name": "PipeWireOpusRTPConfig",
+			"description": "Opus RTP Audio Streaming",
+			"tip": "Send and receive compressed audio streams over WiFi or wired networks using the Opus codec. Ideal for wireless audio where AES67 would be unreliable.",
+			"type": "modal",
+			"modalUrl": "opus-rtp-config.php?modal=1",
+			"icon": "fas fa-wifi",
+			"buttonText": "Configure Opus RTP Instances",
+			"modalTitle": "Opus RTP Audio Streaming Instances",
 			"platforms": [
 				"!MacOS"
 			]

@@ -115,6 +115,10 @@ void CommandManager::Init() {
     addCommand(new AES67TestCommand());
     addCommand(new ApplyRoutingPresetCommand());
 #endif
+#ifdef HAS_OPUS_RTP_GSTREAMER
+    addCommand(new OpusRTPApplyCommand());
+    addCommand(new OpusRTPCleanupCommand());
+#endif
     addCommand(new PlaylistPauseCommand());
     addCommand(new PlaylistResumeCommand());
     addCommand(new TriggerPresetCommand());
