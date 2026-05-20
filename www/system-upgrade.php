@@ -172,25 +172,56 @@
             });
         }
 
-        // Keep the OS version badge in sync with the detected OS upgrade state
-        // so it doesn't contradict the banners/recommendation card.
+        // Keep OS version pills (status badge + current-version pill in the
+        // Upgrade OS card) in sync with the detected OS upgrade state so they
+        // don't contradict the banners/recommendation card.
         function updateOSVersionStatusBadge() {
-            var $badge = $('#osVersionStatusBadge');
+            var $statusBadge = $('#osVersionStatusBadge');
+            var $currentBadge = $('#osCurrentVersionBadge');
+            var statusClass, statusText;
+
             if (isMajorVersionUpgrade) {
-                $badge.removeClass('text-bg-success text-bg-secondary text-bg-warning')
-                    .addClass('text-bg-warning').text('Upgrade Required');
+                statusClass = 'text-bg-warning';
+                statusText = 'Upgrade Required';
             } else if (osUpgradeAvailable) {
-                $badge.removeClass('text-bg-success text-bg-secondary text-bg-warning')
-                    .addClass('text-bg-warning').text('Upgrade Available');
+                statusClass = 'text-bg-warning';
+                statusText = 'Upgrade Available';
             } else {
-                $badge.removeClass('text-bg-warning text-bg-secondary')
-                    .addClass('text-bg-success').text('Up to Date');
+                statusClass = 'text-bg-success';
+                statusText = 'Up to Date';
+            }
+
+            $statusBadge.removeClass('text-bg-success text-bg-secondary text-bg-warning')
+                .addClass(statusClass).text(statusText);
+            // Current-OS pill keeps its version text but mirrors the status color.
+            $currentBadge.removeClass('text-bg-success text-bg-secondary text-bg-warning')
+                .addClass(statusClass);
+        }
+
+        // Keep the FPP/OS action buttons styled consistently with availability:
+        //   updates available -> yellow (warning), no updates -> gray (secondary).
+        function updateActionButtonStyles() {
+            var $fpp = $('#fppUpdateButton');
+            // Major version upgrade forces use of OS upgrade, so the FPP button
+            // is inert -- show it gray to match its disabled state.
+            if (fppUpdateAvailable && !isMajorVersionUpgrade) {
+                $fpp.removeClass('fpp-btn--success fpp-btn--secondary').addClass('fpp-btn--warning');
+            } else {
+                $fpp.removeClass('fpp-btn--success fpp-btn--warning').addClass('fpp-btn--secondary');
+            }
+
+            var $os = $('#osUpgradeButton');
+            if (osUpgradeAvailable) {
+                $os.removeClass('fpp-btn--secondary fpp-btn--success').addClass('fpp-btn--warning');
+            } else {
+                $os.removeClass('fpp-btn--warning fpp-btn--success').addClass('fpp-btn--secondary');
             }
         }
 
         // Check upgrade scenarios and show appropriate banners
         function checkUpgradeRecommendation() {
             updateOSVersionStatusBadge();
+            updateActionButtonStyles();
 
             // Major FPP version upgrades: OS banner already configured in UpdateVersionInfo(), no separate recommendation needed
             if (isMajorVersionUpgrade) {
@@ -1115,7 +1146,7 @@
                             </div>
 
                             <div class="fpp-card__actions">
-                                <button class="fpp-btn fpp-btn--success" id="fppUpdateButton"
+                                <button class="fpp-btn fpp-btn--secondary" id="fppUpdateButton"
                                     onclick="HandleFPPUpdate();">
                                     <i class="fas fa-download"></i> <span id="fppUpdateButtonText">Update FPP Now</span>
                                 </button>
@@ -1226,7 +1257,7 @@
                                 <select id="osSelect" class="form-select fpp-select" onChange="OSSelectChanged();">
                                     <option value="">-- Select OS Image --</option>
                                 </select>
-                                <button class="fpp-btn fpp-btn--warning" id="osUpgradeButton" onclick="UpgradeOS();"
+                                <button class="fpp-btn fpp-btn--secondary" id="osUpgradeButton" onclick="UpgradeOS();"
                                     disabled>
                                     <i class="fas fa-arrow-up"></i> Upgrade OS
                                 </button>
