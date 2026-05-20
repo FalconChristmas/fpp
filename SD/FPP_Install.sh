@@ -390,6 +390,7 @@ then
     rm -f /etc/fpp/arch
     rm -f /etc/fpp/rfs_version
     rm -f /etc/fpp/desktop
+	rm -rf /etc/fpp
 fi
 
 #######################################
@@ -530,9 +531,7 @@ install_base_packages() {
             # Ensure networkd config exists BEFORE switching anything
             rm -f /etc/systemd/network/50-default.network
 
-            curl -fsSL \
-                -o /etc/systemd/network/50-default.network \
-                https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+            curl -fsSL -o /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
 
             # Install required packages first
             apt-get update
@@ -759,7 +758,7 @@ install_base_packages() {
             if [ ! -f /etc/systemd/network/50-default.network ]; then
                 # Need to make sure there is configuration for eth0 or no connection will be
                 # setup after a reboot
-                curl -o /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
+                curl -fsSL -o /etc/systemd/network/50-default.network https://raw.githubusercontent.com/FalconChristmas/fpp/master/etc/systemd/network/50-default.network
             fi
             # make sure we end up with eth0/wlan0 instead of enx#### wlx#### naming for now
             ln -s /dev/null /etc/systemd/network/99-default.link
@@ -1580,7 +1579,7 @@ EOF
 
     COMMENTED=""
     SDA1=$(lsblk -l | grep sda1 | awk '{print $7}')
-    if [ -n ${SDA1} ]
+    if [ -n "${SDA1}" ]
     then
         COMMENTED="#"
     fi
