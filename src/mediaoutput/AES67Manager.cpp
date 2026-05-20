@@ -668,7 +668,7 @@ bool AES67Manager::CreateRecvPipeline(const AES67Instance& inst) {
         << "! pipewiresink name=pwsink "
         << "stream-properties=\"props,media.class=Audio/Source,"
         << "node.name=" << nodeName << ","
-        << "node.description=" << inst.sessionName << " (Receive)\"";
+        << "node.description=" << SafeNodeName(inst.name) << "_recv\"";
 
     std::string pipelineStr = oss.str();
     LogInfo(VB_MEDIAOUT, "AES67 recv pipeline [%d] %s: %s\n",

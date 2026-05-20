@@ -397,7 +397,7 @@ bool OpusRTPManager::CreateRecvPipeline(const OpusRTPInstance& inst) {
         << "! pipewiresink name=pwsink "
         << "stream-properties=\"props,media.class=Audio/Source,"
         << "node.name=" << nodeName << ","
-        << "node.description=" << inst.name << " (Opus RTP Receive)\"";
+        << "node.description=" << SafeNodeName(inst.name) << "_recv\"";
 
     std::string pipelineStr = oss.str();
     LogInfo(VB_MEDIAOUT, "Opus RTP recv pipeline [%d] %s: %s\n",
