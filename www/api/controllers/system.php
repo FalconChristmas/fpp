@@ -276,7 +276,8 @@ function GetUpdateStatus()
                 "latestMajorVersion" => $currentMajor
             ));
         } else if ($test === 'both') {
-            // Simulate: branch upgrade AND commits behind
+            // Simulate: FPP branch upgrade AND OS upgrade both available
+            // (exercises the "Recommended: Upgrade OS First" recommendation banner)
             return json(array(
                 "status" => "OK",
                 "branchUpgradeAvailable" => true,
@@ -287,6 +288,7 @@ function GetUpdateStatus()
                 "remoteCommit" => "def456789",
                 "currentBranch" => "v9.4",
                 "localCommit" => $localCommit,
+                "forceOsUpgradeAvailable" => true,
                 "isEndOfLife" => false,
                 "latestMajorVersion" => $currentMajor
             ));

@@ -232,16 +232,20 @@
             }
 
             if (fppUpdateAvailable && osUpgradeAvailable) {
-                // Both FPP update and OS upgrade available (non-major version)
-                $('#upgradeRecommendationTitle').text('Recommended: Update FPP Software First');
+                // Both FPP update and OS upgrade available (non-major version).
+                // The OS image ships with a fresh FPP, so doing the FPP update
+                // first is wasted work -- recommend the OS upgrade instead.
+                $('#upgradeRecommendationTitle').text('Recommended: Upgrade OS First');
                 $('#upgradeRecommendationMessage').text(
-                    'Both a software update and OS upgrade are available. We recommend updating ' +
-                    'FPP software first - it\'s quick (2-5 min). It resolves any bugs and provides a clean upgrade path. '
+                    'Both a software update and OS upgrade are available. We recommend the ' +
+                    'OS upgrade -- it ships with a fresh FPP build, so a separate FPP update ' +
+                    'beforehand is unnecessary. Always backup your configuration first!'
                 );
-                $('#fppRecommendedBadge').show();
-                $('#osRecommendedBadge').hide();
+                $('#osRecommendedBadge').show();
+                $('#fppRecommendedBadge').hide();
                 $('#upgradeRecommendationBanner').show();
                 $('#osUpdateBanner').hide();
+                $('#fppUpdateBanner').hide();
             } else if (!fppUpdateAvailable && osUpgradeAvailable) {
                 // FPP is up to date, but OS upgrade available
                 $('#upgradeRecommendationBanner').hide();
@@ -348,6 +352,13 @@
             }
             $.get(updateStatusUrl, function (updateData) {
                 if (updateData.status !== 'OK') return;
+
+                // Test mode: force OS upgrade available regardless of which
+                // FPP-update path we land in below.
+                if (updateData.forceOsUpgradeAvailable) {
+                    osUpgradeAvailable = true;
+                    forceOsUpgradeTest = true;
+                }
 
                 var isAdvancedView = settings['uiLevel'] && (parseInt(settings['uiLevel']) >= 1);
 
@@ -479,12 +490,6 @@
                     branchUpgradeData = null;
                     fppUpdateAvailable = false;
                     isMajorVersionUpgrade = false;
-
-                    // Test mode: force OS upgrade available
-                    if (updateData.forceOsUpgradeAvailable) {
-                        osUpgradeAvailable = true;
-                        forceOsUpgradeTest = true;
-                    }
 
                     $('#gitUpdateBadge').hide();
                     $('#fppUpdateBanner').hide();
@@ -966,12 +971,12 @@
                         <i class="fas fa-lightbulb"></i>
                     </div>
                     <div class="fpp-banner__content">
-                        <div class="fpp-banner__title" id="upgradeRecommendationTitle">Recommended: Update FPP Software
-                            First</div>
+                        <div class="fpp-banner__title" id="upgradeRecommendationTitle">Recommended: Upgrade OS First
+                        </div>
                         <p class="fpp-banner__message" id="upgradeRecommendationMessage">
-                            Both a software update and OS upgrade are available. We recommend updating
-                            FPP software first - it's quick (2-5 min) and may resolve any issues.
-                            Consider the OS upgrade after if needed.
+                            Both a software update and OS upgrade are available. We recommend the OS upgrade --
+                            it ships with a fresh FPP build, so a separate FPP update beforehand is unnecessary.
+                            Always backup your configuration first!
                         </p>
                     </div>
                 </div>
