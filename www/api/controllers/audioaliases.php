@@ -136,6 +136,12 @@ function GetAudioCardAliases()
     }
 
     foreach ($cardIdMap as $cardNum => $cardId) {
+        // Only include cards that have PCM playback devices — same filter used by
+        // other audio dropdowns (aplay -l). MIDI-only and other non-audio USB
+        // devices appear in /proc/asound/cards but not in aplay -l output.
+        if (!isset($shortNameMap[$cardNum])) {
+            continue;
+        }
         $name = isset($shortNameMap[$cardNum]) ? $shortNameMap[$cardNum] : '';
         if ($name === '' && isset($cardNameMap[$cardNum])) {
             $name = $cardNameMap[$cardNum];
