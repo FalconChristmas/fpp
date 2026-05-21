@@ -1034,6 +1034,15 @@ EOF
         #     briefly blanks the display.
         echo "FPP - Updating SPI buffer size and audio device selection"
         sed -i 's/$/ spidev.bufsiz=102400 snd_bcm2835.enable_headphones=1 snd_bcm2835.enable_hdmi=0/' ${BOOTDIR}/cmdline.txt
+        # Pi Zero 2 W uses vc4-hdmi for HDMI audio with dtparam=audio=off, so
+        # snd_bcm2835 is never loaded — its cmdline params must be absent or the
+        # module won't be present to honour them, and some kernel versions treat
+        # unknown module params as fatal.  Strip them for this model only.
+        if echo "${MODEL}" | grep -q "Zero 2"; then
+            echo "FPP - Pi Zero 2 W detected: removing snd_bcm2835 cmdline params (vc4-hdmi handles HDMI audio)"
+            sed -i 's/ snd_bcm2835\.enable_headphones=[0-9]*//g' ${BOOTDIR}/cmdline.txt
+            sed -i 's/ snd_bcm2835\.enable_hdmi=[0-9]*//g' ${BOOTDIR}/cmdline.txt
+        fi
 
         echo "FPP - Updating root partition device"
         sed -i 's/root=PARTUUID=[A-Fa-f0-9-]* /root=\/dev\/mmcblk0p2 /g' ${BOOTDIR}/cmdline.txt
