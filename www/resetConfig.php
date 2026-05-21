@@ -87,6 +87,31 @@ $files['user'] = array(
     '/root/.ssh/authorized_keys',
     '/root/.ssh/known_hosts',
 );
+# Media-dir PipeWire config files (user-configured routing, groups, AES67, Opus RTP).
+# The dynamically-generated OS conf files under /etc/pipewire/pipewire.conf.d/ and
+# /etc/wireplumber/wireplumber.conf.d/ are also removed here so the OS state matches
+# the cleared media config.  The static FPP overlay files (90-fpp.conf, 10-fpp-alsa.conf,
+# 15-fpp-usb-audio-headroom.conf) are NOT touched — PipeWire will not start without them.
+# After file removal this area also resets MediaBackend to pipewire-simple and clears
+# all PipeWire-specific settings, then restarts the PipeWire services.
+$files['audiobackend'] = array(
+    'config/pipewire-audio-groups.json',
+    'config/pipewire-audio-groups.conf',
+    'config/pipewire-audio-groups-simple.json',
+    'config/pipewire-input-groups.json',
+    'config/pipewire-input-groups.conf',
+    'config/pipewire-aes67-instances.json',
+    'config/pipewire-opus-rtp-instances.json',
+    'config/pipewire-video-groups.json',
+    'config/pipewire-video-groups-simple.json',
+    'config/pipewire-video-consumers.json',
+    'config/pipewire-video-input-sources.json',
+    'config/pipewire-video-input-sources-gen.json',
+    '/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf',
+    '/etc/pipewire/pipewire.conf.d/96-fpp-input-groups.conf',
+    '/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf',
+    '/etc/wireplumber/wireplumber.conf.d/60-fpp-block-combine-fallback.conf',
+);
 
 ?>
 Resetting FPP Configuration
@@ -132,4 +157,38 @@ foreach ($areas as $area) {
 }
 
 flush();
+
+if (in_array('audiobackend', $areas)) {
+    printf("\nResetting audio backend settings...\n");
+
+    # Reset MediaBackend to the safe minimal PipeWire mode
+    WriteSettingToFile('MediaBackend', 'pipewire-simple');
+    printf("  MediaBackend reset to pipewire-simple\n");
+
+    # Clear PipeWire output routing settings
+    $pipewireSettings = array(
+        'PipeWireSinkName', 'PipeWireSinkName_2', 'PipeWireSinkName_3',
+        'PipeWireSinkName_4', 'PipeWireSinkName_5',
+        'PipeWireVideoSinkName', 'PipeWireVideoSinkName_2', 'PipeWireVideoSinkName_3',
+        'PipeWireVideoSinkName_4', 'PipeWireVideoSinkName_5',
+        'PipeWirePrimaryOutput', 'ForceAudioId',
+        'AES67Enabled',
+    );
+    foreach ($pipewireSettings as $setting) {
+        DeleteSettingFromFile($setting);
+        printf("  Cleared setting: %s\n", $setting);
+    }
+
+    printf("\nRestarting PipeWire services...\n");
+    exec($SUDO . ' systemctl restart fpp-pipewire.service fpp-wireplumber.service fpp-pipewire-pulse.service 2>&1', $output, $ret);
+    foreach ($output as $line) {
+        printf("  %s\n", $line);
+    }
+    if ($ret === 0) {
+        printf("  PipeWire services restarted successfully.\n");
+    } else {
+        printf("  WARNING: PipeWire services restart returned exit code %d.\n", $ret);
+    }
+    flush();
+}
 ?>
