@@ -79,11 +79,10 @@ Useful flags
 Thermal note (low-power SBCs)
 -----------------------------
 
-The compile (especially VLC if you opt into building it) pegs all CPU cores
-near 100% for a long time. Headless SBCs without a heatsink/fan can hit
-thermal-shutdown in the middle of the install -- recovery means starting
-over from a fresh image. If you're hitting thermals, lock the CPU lower
-before starting:
+The compile pegs all CPU cores near 100% for a long time. Headless SBCs
+without a heatsink/fan can hit thermal-shutdown in the middle of the
+install -- recovery means starting over from a fresh image. If you're
+hitting thermals, lock the CPU lower before starting:
 
     cpufreq-set -u 800000   # lock to 800 MHz max
 
