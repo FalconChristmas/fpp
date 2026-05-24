@@ -156,7 +156,7 @@ checkTimeAgainstUSNO () {
 
 		# allow clocks to differ by 24 hours to handle time zone differences
 		THRESHOLD=86400
-        USNODATE=$(curl -I --connect-timeout 10 --max-time 10 --retry 2 --retry-max-time 10 -f -v --silent https://nist.time.gov/ 2>&1 \ | grep '< Date' | sed -e 's/< Date: //')
+        USNODATE=$(curl -I --connect-timeout 10 --max-time 10 --retry 2 --retry-max-time 10 -f -v --silent https://time.gov/ 2>&1 \ | grep '< Date' | sed -e 's/< Date: //')
         if  [ "x${USNODATE}" != "x" ]
         then
         USNOSECS=$(date -d "${USNODATE}" +%s)
