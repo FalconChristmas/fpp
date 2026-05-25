@@ -35,13 +35,10 @@ private:
 
     char m_outputData[513];
     int m_dataOffset;
-    int m_dataLen;
 
     struct libusb_context* m_ctx{nullptr};
     struct libusb_device* m_device{nullptr};
-    //struct libusb_device_descriptor *m_descriptor{nullptr};
     struct libusb_device_handle* m_handle{nullptr};
-    #pragma endregion 
 
     bool isValidDevice(const struct libusb_device_descriptor* desc) const;
 };
