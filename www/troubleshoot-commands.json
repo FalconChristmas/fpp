@@ -203,6 +203,14 @@
                 "all"
             ],
             "commands": {
+                "USBDeviceList": {
+                    "title": "USB Device List",
+                    "description": "",
+                    "cmd": "lsusb",
+                    "platforms": [
+                        "all"
+                    ]
+                },
                 "USBDeviceTree": {
                     "title": "USB Device Tree",
                     "description": "",
@@ -428,6 +436,14 @@
                     "title": "FPP Image Version",
                     "description": "",
                     "cmd": "cat /etc/fpp/rfs_version",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "Image32-64": {
+                    "title": "FPP Image 32/64-bit",
+                    "description": "",
+                    "cmd": "dpkg --print-architecture | grep -q arm64 && echo \"64-bit FPP\" || echo \"32-bit FPP\"",
                     "platforms": [
                         "all"
                     ]
