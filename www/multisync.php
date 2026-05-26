@@ -1156,7 +1156,7 @@
                 updatesAvailable = 1;
             }
             <? if (!$settings['hideExternalURLs']) { ?>
-                var localVer = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, '/about.php') + "' target='_blank' data-ip='" + ip + "'>";
+                var localVer = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, '/system-upgrade.php') + "' target='_blank' data-ip='" + ip + "'>";
             <? } else { ?>
                 var localVer = "";
             <? } ?>

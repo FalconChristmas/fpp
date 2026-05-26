@@ -442,7 +442,7 @@ function list_plugin_entries($menu)
                             </a>
                             <div class="dropdown-menu dropdown-with-icons dropdown-menu-end"
                                 aria-labelledby="navbarDropdownMenuLinkHelp">
-                                <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> About</a>
+                                <a class="dropdown-item" href="system-upgrade.php"><i class="fas fa-info-circle"></i> System Upgrade</a>
                                 <?php
                                 $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
                                 if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {

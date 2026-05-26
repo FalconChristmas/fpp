@@ -1789,8 +1789,7 @@ function get_server_memory_info()
 }
 
 /**
- * Returns current memory usage as a percentage for about.php 
- * TODO: DELETE ME WHEN ABOUT.PHP IS REMOVED
+ * Returns current memory usage as a percentage for system-upgrade.php 
  *
  * @deprecated Use get_server_memory_info() for detailed memory breakdown
  *             including used, free, buffer/cache, and percentages.
