@@ -67,6 +67,10 @@ External plugins (`/media/plugins/`) are compiled separately and link against FP
 - **JavaScript**: Configured via `.prettierrc`. Semicolons, tabs, experimental ternaries.
 - **C++ standard**: GNU++23 with GCC 12+, GNU++2a with older GCC, C++20 with Clang.
 
+## Frontend
+
+When designing HTML, CSS, or working within `www/`, read `.claude/FRONTEND-GUIDELINES.md` before generating any markup.
+
 ## Configuration Formats
 
 - **Channel outputs**: `config/channeloutputs.json` — output type, startChannel, channelCount, per-output config
