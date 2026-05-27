@@ -7,7 +7,8 @@ require_once('../commandsocket.php');
  *
  * Returns the current FPP schedule configuration from `schedule.json`.
  *
- * @route GET /api/schedule
+ * @route-v1 GET /schedule
+ * @route-v2 GET /schedule
  * @response 200 Current schedule entries
  * ```json
  * [
@@ -44,7 +45,8 @@ function GetSchedule() {
  *
  * Saves the new schedule configuration to `schedule.json`.
  *
- * @route POST /api/schedule
+ * @route-v1 POST /schedule
+ * @route-v2 POST /schedule
  * @body [{"day": 7, "enabled": 0, "endDate": "2099-12-31", "endTime": "23:00:00", "playlist": "Main Show", "repeat": 1, "startDate": "2014-01-01", "startTime": "17:00:00", "stopType": 0}]
  * @response 200 Saved schedule entries
  * ```json
@@ -98,7 +100,8 @@ function SaveSchedule() {
  * Sends a reload command to `fppd` to re-read the schedule configuration.
  *
  * @badge "FPP REQUIRED" critical
- * @route POST /api/schedule/reload
+ * @route-v1 POST /schedule/reload
+ * @route-v2 POST /schedule/reload
  * @response 200 Schedule reloaded
  * ```json
  * {"Status": "OK", "Message": ""}

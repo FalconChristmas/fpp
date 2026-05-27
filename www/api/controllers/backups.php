@@ -51,7 +51,8 @@ function getAvailableBackupsFromDir($backupDir)
  *
  * Returns a list of full system backup files stored in the local `backups/` directory.
  *
- * @route GET /api/backups/list
+ * @route-v1 GET /backups/list
+ * @route-v2 GET /backups/list
  * @response 200 List of backup directory names
  * ```json
  * ["/", "FPPDevP4", "FPPDevP4_2026_05_02"]
@@ -68,7 +69,8 @@ function GetAvailableBackups()
  *
  * Returns a list of devices (e.g. USB drives, SSDs) attached to the system that can be used for backups.
  *
- * @route GET /api/backups/devices
+ * @route-v1 GET /backups/devices
+ * @route-v2 GET /backups/devices
  * @response 200 List of available backup devices
  * ```json
  * [
@@ -93,7 +95,8 @@ function RetrieveAvailableBackupsDevices()
  *
  * Returns a list of full system backup files stored on the specified device (e.g. a USB drive).
  *
- * @route GET /api/backups/list/{DeviceName}
+ * @route-v1 GET /backups/list/{DeviceName}
+ * @route-v2 GET /backups/list/{DeviceName}
  * @response 200 List of backup directory names on the device
  * ```json
  * ["/", "FPPDevP4", "FPPDevP4_2026_05_02"]
@@ -196,7 +199,8 @@ function driveMountHelper($deviceName, $usercallback_function, $functionArgs = a
  *
  * Mounts the specified device to `/mnt/{MountLocation}` (defaults to `/mnt/api_mount`).
  *
- * @route POST /api/backups/devices/mount/{DeviceName}/{MountLocation}
+ * @route-v1 POST /backups/devices/mount/{DeviceName}/{MountLocation}
+ * @route-v2 POST /backups/devices/mount/{DeviceName}/{MountLocation}
  * @response 200 Device mounted successfully
  * ```json
  * {
@@ -255,7 +259,8 @@ function MountDevice()
  *
  * Unmounts the drive at `/mnt/{MountLocation}` (defaults to `/mnt/api_mount`).
  *
- * @route POST /api/backups/devices/unmount/{DeviceName}/{MountLocation}
+ * @route-v1 POST /backups/devices/unmount/{DeviceName}/{MountLocation}
+ * @route-v2 POST /backups/devices/unmount/{DeviceName}/{MountLocation}
  * @response 200 Device unmounted successfully
  * ```json
  * {
@@ -318,7 +323,8 @@ function UnmountDevice()
  * Returns a list of JSON configuration backups stored locally, or — if `jsonConfigBackupUSBLocation`
  * is set — a combined list from local storage and the configured USB device.
  *
- * @route GET /api/backups/configuration/list
+ * @route-v1 GET /backups/configuration/list
+ * @route-v2 GET /backups/configuration/list
  * @response 200 List of available JSON configuration backups
  * ```json
  * [
@@ -443,7 +449,8 @@ function processJsonBackupFileDataHelper($json_config_backup_Data, $source_direc
  * Generates a new JSON settings backup for all settings areas. If an alternate backup location has been
  * set, the backup is also copied to that location.
  *
- * @route POST /api/backups/configuration
+ * @route-v1 POST /backups/configuration
+ * @route-v2 POST /backups/configuration
  * @body "The describing comment to be added to the backup"
  * @response 200 Backup created successfully
  * ```json
@@ -516,7 +523,8 @@ function MakeJSONBackup()
  * Available devices can be obtained from `/backups/devices`, or the currently configured device
  * is stored in the `jsonConfigBackupUSBLocation` setting.
  *
- * @route GET /api/backups/configuration/list/{DeviceName}
+ * @route-v1 GET /backups/configuration/list/{DeviceName}
+ * @route-v2 GET /backups/configuration/list/{DeviceName}
  * @response 200 List of JSON backup filenames on the device
  * ```json
  * [
@@ -549,7 +557,8 @@ function GetAvailableJSONBackupsOnDevice(){
  * (configured alternate device). `GET /api/backups/configuration/list` can be used to obtain valid
  * directory and filename combinations.
  *
- * @route POST /api/backups/configuration/restore/{Directory}/{BackupFilename}
+ * @route-v1 POST /backups/configuration/restore/{Directory}/{BackupFilename}
+ * @route-v2 POST /backups/configuration/restore/{Directory}/{BackupFilename}
  * @body "all"
  * @response 200 Restore result
  * ```json
@@ -659,7 +668,8 @@ function RestoreJsonBackup(){
  * (configured alternate device). `GET /api/backups/configuration/list` can be used to obtain valid
  * directories and filenames.
  *
- * @route GET /api/backups/configuration/{Directory}/{BackupFilename}
+ * @route-v1 GET /backups/configuration/{Directory}/{BackupFilename}
+ * @route-v2 GET /backups/configuration/{Directory}/{BackupFilename}
  * @response 200 Contents of the specified JSON Settings backup as a download.
  * ```json
  * {
@@ -733,7 +743,8 @@ function DownloadJsonBackup(){
  * (configured alternate device). `GET /api/backups/configuration/list` can be used to obtain valid
  * directories and filenames.
  *
- * @route DELETE /api/backups/configuration/{Directory}/{BackupFilename}
+ * @route-v1 DELETE /backups/configuration/{Directory}/{BackupFilename}
+ * @route-v2 DELETE /backups/configuration/{Directory}/{BackupFilename}
  * @response 200 Backup deleted successfully
  * ```json
  * {

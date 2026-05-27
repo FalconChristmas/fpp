@@ -1579,6 +1579,12 @@
         ],
         "summary": "Trigger event",
         "description": "Triggers the specified event by sending a `Trigger Event` command to `fppd`.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Event triggered",
@@ -1653,6 +1659,12 @@
         ],
         "summary": "Move file",
         "description": "Moves the specified file from the `uploads` directory to the correct media subfolder based on its extension, returning a status of `OK` or an error message if not successful.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
             "description": "File moved to media directory",
@@ -1687,6 +1699,12 @@
         ],
         "summary": "Notify plugin of upload",
         "description": "Notifies any plugin that has registered an `onUpload` handler for the given file extension. `:ext` is the extension category and `**` is the file path.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Plugin notified of upload",
@@ -1982,13 +2000,13 @@
             }
           },
           "403": {
-            "description": "Forbidden directory",
+            "description": "Forbidden filename",
             "content": {
               "text/plain": {
                 "schema": {
                   "type": "string"
                 },
-                "example": "Tail follow is only allowed for log files."
+                "example": "Invalid file path."
               }
             }
           },
@@ -2302,6 +2320,12 @@
         ],
         "summary": "git/reset",
         "description": "Discard local changes Performs a hard reset on the current branch, discarding any local changes.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Reset complete",
@@ -2655,6 +2679,12 @@
         ],
         "summary": "Create DHCP interface",
         "description": "Creates a new blank DHCP interface configuration file for the specified network interface (e.g. `eth1`, `wlan0`).",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
             "description": "DHCP interface created",
@@ -2937,7 +2967,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups": {
+    "/pipewire/control/groups": {
       "get": {
         "tags": [
           "pipewire"
@@ -2989,7 +3019,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}": {
+    "/pipewire/control/groups/{id}": {
       "parameters": [
         {
           "name": "id",
@@ -3036,7 +3066,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/members/{cardId}/mute": {
+    "/pipewire/control/groups/{id}/members/{cardId}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -3104,7 +3134,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/members/{cardId}/volume": {
+    "/pipewire/control/groups/{id}/members/{cardId}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -3173,7 +3203,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/mute": {
+    "/pipewire/control/groups/{id}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -3232,7 +3262,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/volume": {
+    "/pipewire/control/groups/{id}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -3292,7 +3322,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups": {
+    "/pipewire/control/input-groups": {
       "get": {
         "tags": [
           "pipewire"
@@ -3340,7 +3370,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups/{id}": {
+    "/pipewire/control/input-groups/{id}": {
       "parameters": [
         {
           "name": "id",
@@ -3387,7 +3417,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
+    "/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -3454,7 +3484,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
+    "/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -3522,7 +3552,7 @@
         }
       }
     },
-    "/api/pipewire/control/routing": {
+    "/pipewire/control/routing": {
       "get": {
         "tags": [
           "pipewire"
@@ -3570,7 +3600,7 @@
         }
       }
     },
-    "/api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
+    "/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
       "parameters": [
         {
           "name": "inputGroupId",
@@ -3634,7 +3664,7 @@
         }
       }
     },
-    "/api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
+    "/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
       "parameters": [
         {
           "name": "inputGroupId",
@@ -3699,7 +3729,7 @@
         }
       }
     },
-    "/api/pipewire/control/status": {
+    "/pipewire/control/status": {
       "get": {
         "tags": [
           "pipewire"
@@ -3735,7 +3765,7 @@
         }
       }
     },
-    "/api/pipewire/control/streams": {
+    "/pipewire/control/streams": {
       "get": {
         "tags": [
           "pipewire"
@@ -3775,7 +3805,7 @@
         }
       }
     },
-    "/api/pipewire/control/streams/{slot}/volume": {
+    "/pipewire/control/streams/{slot}/volume": {
       "parameters": [
         {
           "name": "slot",
@@ -3831,7 +3861,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}": {
+    "/playlist/{PlaylistName}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -3993,6 +4023,10 @@
           {
             "name": "FPP REQUIRED",
             "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -4042,6 +4076,10 @@
           {
             "name": "FPP REQUIRED",
             "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "parameters": [
@@ -4110,6 +4148,10 @@
           {
             "name": "FPP REQUIRED",
             "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -4285,6 +4327,10 @@
           {
             "name": "FPP REQUIRED",
             "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -4342,6 +4388,10 @@
           {
             "name": "FPP REQUIRED",
             "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -4373,6 +4423,10 @@
           {
             "name": "FPP REQUIRED",
             "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -4404,6 +4458,10 @@
           {
             "name": "FPP REQUIRED",
             "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -4435,6 +4493,10 @@
           {
             "name": "FPP REQUIRED",
             "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -4817,6 +4879,12 @@
         ],
         "summary": "Update plugin",
         "description": "Pull in git updates for plugin `{RepoName}`. Supports an optional `?stream=true` query parameter for streaming output.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "parameters": [
           {
             "name": "stream",
@@ -5075,12 +5143,25 @@
       }
     },
     "/remoteAction": {
-      "get": {
+      "post": {
         "tags": [
           "remoteAction"
         ],
         "summary": "Proxy a command to remote FPP (v1 \u2014 query parameters)",
         "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "ip": "192.168.1.100",
+                "action": "reboot"
+              }
+            }
+          }
+        },
         "responses": {
           "400": {
             "description": "Invalid action",
@@ -5303,6 +5384,12 @@
         ],
         "summary": "Install remote script",
         "description": "Installs a remote script from the script repository.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Remote script installed",
@@ -5433,6 +5520,12 @@
         ],
         "summary": "Run script",
         "description": "Runs a locally installed script.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Script output",
@@ -5485,6 +5578,10 @@
           {
             "name": "FPP REQUIRED",
             "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -5519,6 +5616,10 @@
           {
             "name": "DEVELOPER ONLY",
             "color": "#546e7a"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -5553,6 +5654,10 @@
           {
             "name": "DEVELOPER ONLY",
             "color": "#546e7a"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -5755,6 +5860,10 @@
           {
             "name": "DEVELOPER ONLY",
             "color": "#546e7a"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
           }
         ],
         "responses": {
@@ -6058,6 +6167,12 @@
         ],
         "summary": "Restart fppd process",
         "description": "Restarts the `fppd` process. Pass `?quick=1` to reload some configuration without a full restart.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "parameters": [
           {
             "name": "quick",
@@ -6118,6 +6233,12 @@
         ],
         "summary": "Start fppd",
         "description": "Starts the `fppd` process idempotently (if it isn't already running).",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
             "description": "fppd started",
@@ -6142,6 +6263,12 @@
         ],
         "summary": "Stop fppd",
         "description": "Stops the `fppd` process if it is running.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
             "description": "fppd stopped",
@@ -6277,19 +6404,15 @@
         ],
         "summary": "Reboot the operating system",
         "description": "Reboots the operating system.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Reboot initiated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK"
-                }
-              }
-            }
+            "description": "Reboot initiated"
           }
         }
       }
@@ -6339,19 +6462,15 @@
         ],
         "summary": "Shutdown the operating system",
         "description": "Executes a clean shutdown of the operating system.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Shutdown initiated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK"
-                }
-              }
-            }
+            "description": "Shutdown initiated"
           }
         }
       }

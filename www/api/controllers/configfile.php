@@ -33,7 +33,8 @@ function getFilesInDir($dir, $subdir = '')
  *
  * Returns a list of config files in `/home/fpp/media/config` or an optional subdirectory.
  *
- * @route GET /api/configfile
+ * @route-v1 GET /configfile
+ * @route-v2 GET /configfile
  * @response 200 Directory listing
  * ```json
  * {
@@ -68,7 +69,8 @@ function GetConfigFileList($dir = '')
  * Returns the contents of a specific config file, or a directory listing if
  * the path resolves to a directory.
  *
- * @route GET /api/configfile/**
+ * @route-v1 GET /configfile/**
+ * @route-v2 GET /configfile/**
  * @response 200 Raw config file contents
  * ```text
  * (Raw config file contents)
@@ -94,7 +96,8 @@ function DownloadConfigFile()
  * Uploads or overwrites a config file in `/home/fpp/media/config`, creating any
  * necessary subdirectories. Accepts a multipart file upload or raw `POST` body.
  *
- * @route POST /api/configfile/**
+ * @route-v1 POST /configfile/**
+ * @route-v2 POST /configfile/**
  * @body "(Raw config file contents)"
  * @response 200 File uploaded
  * ```json
@@ -165,7 +168,8 @@ function UploadConfigFile()
  *
  * Deletes a config file from `/home/fpp/media/config`.
  *
- * @route DELETE /api/configfile/**
+ * @route-v1 DELETE /configfile/**
+ * @route-v2 DELETE /configfile/**
  * @response 200 File deleted
  * ```json
  * {"Status": "OK", "Message": ""}

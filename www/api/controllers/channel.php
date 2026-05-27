@@ -7,7 +7,8 @@
  * Returns a meaningful error if the connection to `fppd` fails.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/channel/input/stats
+ * @route-v1 GET /channel/input/stats
+ * @route-v2 GET /channel/input/stats
  * @response 200 E1.31/DDP channel input statistics
  * ```json
  * {
@@ -46,7 +47,8 @@ function ChannelInputGetStats()
  * Resets the E1.31/DDP channel input statistics counters.
  *
  * @badge "FPP REQUIRED" critical
- * @route DELETE /api/channel/input/stats
+ * @route-v1 DELETE /channel/input/stats
+ * @route-v2 DELETE /channel/input/stats
  * @response 200 Statistics reset
  * ```json
  * {"status": "OK"}
@@ -73,7 +75,8 @@ function ChannelInputDeleteStats()
  *
  * Returns the current configuration of any output processors.
  *
- * @route GET /api/channel/output/processors
+ * @route-v1 GET /channel/output/processors
+ * @route-v2 GET /channel/output/processors
  * @response 200 Current output processor configuration
  * ```json
  * {
@@ -114,7 +117,8 @@ function ChannelGetOutputProcessors()
  * Overwrites the output processor settings file with a new configuration and
  * returns the saved configuration.
  *
- * @route POST /api/channel/output/processors
+ * @route-v1 POST /channel/output/processors
+ * @route-v2 POST /channel/output/processors
  * @body {"outputProcessors": [{"type": "Brightness", "active": 0, "description": "", "start": 1, "count": 10, "brightness": 50, "gamma": 1}]}
  * @response 200 Current output processor configuration
  * ```json
@@ -158,7 +162,8 @@ function ChannelSaveOutputProcessors()
  * `co-pwm`, and `co-bbbStrings`. Supports an optional `?ip=` query parameter to fetch from
  * a remote FPP instance.
  *
- * @route GET /api/channel/output/{file}
+ * @route-v1 GET /channel/output/{file}
+ * @route-v2 GET /channel/output/{file}
  * @response 200 Channel output configuration file contents
  * ```json
  * {}
@@ -222,7 +227,8 @@ function ChannelGetOutput()
  * Overwrites the specified output configuration file with the `POST` body
  * and returns the saved configuration.
  *
- * @route POST /api/channel/output/{file}
+ * @route-v1 POST /channel/output/{file}
+ * @route-v2 POST /channel/output/{file}
  * @body "Format varies based on file"
  * @response 200 Saved configuration echoed back
  * ```json

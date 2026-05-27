@@ -67,7 +67,8 @@ function mapDirectoryKey($dirName)
  *
  * Copies the specified file from `:source` to `:dest` within the given directory.
  *
- * @route POST /api/file/{DirName}/copy/{source}/{dest}
+ * @route-v1 POST /file/{DirName}/copy/{source}/{dest}
+ * @route-v2 POST /file/{DirName}/copy/{source}/{dest}
  * @response 200 File copied successfully
  * ```json
  * {
@@ -108,7 +109,8 @@ function FilesCopy()
  *
  * Renames the specified file from `:source` to `:dest` within the given directory.
  *
- * @route POST /api/file/{DirName}/rename/{source}/{dest}
+ * @route-v1 POST /file/{DirName}/rename/{source}/{dest}
+ * @route-v2 POST /file/{DirName}/rename/{source}/{dest}
  * @response 200 File renamed successfully
  * ```json
  * {
@@ -282,7 +284,8 @@ function getFilesHelper($dirName, $prefix = '')
  *
  * Returns a list of files in the specified media directory.
  *
- * @route GET /api/files/{DirName}
+ * @route-v1 GET /files/{DirName}
+ * @route-v2 GET /files/{DirName}
  * @param bool nameOnly When `1`, return a flat array of filenames instead of the default object envelope
  * @response 200 Listing of files
  * ```json
@@ -323,7 +326,8 @@ function GetFiles()
  * name, extension category, and file path are read from route parameters.
  * The metadata command is defined in the plugin's `pluginInfo.json`.
  *
- * @route GET /api/file/info/{plugin}/{ext}/**
+ * @route-v1 GET /file/info/{plugin}/{ext}/**
+ * @route-v2 GET /file/info/{plugin}/{ext}/**
  * @response 200 Plugin-specific file information
  * ```json
  * {}
@@ -405,7 +409,9 @@ function callPluginFileUploaded($dir, $filename)
  * Notifies any plugin that has registered an `onUpload` handler for the given
  * file extension. `:ext` is the extension category and `**` is the file path.
  *
- * @route POST /api/file/onUpload/{ext}/**
+ * @route-v1 GET /file/onUpload/{ext}/**
+ * @route-v2 POST /file/onUpload/{ext}/**
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Plugin notified of upload
  * ```json
  * {"status": "OK"}
@@ -461,7 +467,8 @@ function movePluginFile($uploadDir, $filename)
  *
  * Downloads the specified file from a media directory.
  *
- * @route GET /api/file/{DirName}/**
+ * @route-v1 GET /file/{DirName}/**
+ * @route-v2 GET /file/{DirName}/**
  * @param int tail Return the last N lines instead of the whole file
  * @param bool play When `1`, set a playback-oriented content type instead of a forced attachment
  * @param bool attach When `1`, force attachment download for images
@@ -626,7 +633,9 @@ function findFile($dir, $filename)
  * subfolder based on its extension, returning a status of `OK` or an error
  * message if not successful.
  *
- * @route POST /api/file/move/{fileName}
+ * @route-v1 GET /file/move/{fileName}
+ * @route-v2 POST /file/move/{fileName}
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 File moved to media directory
  * ```json
  * {"status": "OK"}
@@ -723,7 +732,8 @@ function MoveFile()
  * directories) as a zip archive. `logs` and `config` are handled specially to
  * include system log and config files.
  *
- * @route GET /api/files/zip/{DirNames}
+ * @route-v1 GET /files/zip/{DirNames}
+ * @route-v2 GET /files/zip/{DirNames}
  * @response 200 Binary file stream of the compressed system archive.
  * ```bytes
  * [Raw Binary Stream: application/zip]
@@ -960,7 +970,8 @@ function removeDir(string $dir): void
  * Deletes the specified file or directory from a media directory. Validates
  * the resolved path against the allowed base directory to prevent path traversal.
  *
- * @route DELETE /api/file/{DirName}/**
+ * @route-v1 DELETE /file/{DirName}/**
+ * @route-v2 DELETE /file/{DirName}/**
  * @response 200 File or directory deleted
  * ```json
  * {
@@ -1052,8 +1063,10 @@ function emulatedFseekForBigFiles($fp, $pos)
  * delivers a chunk identified by `Upload-Name`, `Upload-Offset`, and `Upload-Length`
  * headers; when all chunks arrive, the file is assembled.
  *
- * @route POST /api/file/{DirName}
- * @route PATCH /api/file/{DirName}
+ * @route-v1 POST /file/{DirName}
+ * @route-v2 POST /file/{DirName}
+ * @route-v1 PATCH /file/{DirName}
+ * @route-v2 PATCH /file/{DirName}
  * @response 200 Upload chunk received
  * ```json
  * {
@@ -1174,7 +1187,8 @@ function PatchFile()
  *
  * Uploads a file to the specified media directory.
  *
- * @route POST /api/file/{DirName}/{Name}
+ * @route-v1 POST /file/{DirName}/{Name}
+ * @route-v2 POST /file/{DirName}/{Name}
  * @param int bs Block size used for fragmented uploads
  * @param int sb Starting block index used for fragmented uploads
  * @response 200 File uploaded successfully
@@ -1293,7 +1307,8 @@ function getFileInfo(&$list, $dirName, $fileName, $prefix = '')
  *
  * Creates a subdirectory inside the specified media directory.
  *
- * @route POST /api/dir/{DirName}/{SubDir}
+ * @route-v1 POST /dir/{DirName}/{SubDir}
+ * @route-v2 POST /dir/{DirName}/{SubDir}
  * @response 200 Subdirectory created
  * ```json
  * {
@@ -1335,7 +1350,8 @@ function CreateDir()
  *
  * Deletes an empty subdirectory from the specified media directory.
  *
- * @route DELETE /api/dir/{DirName}/{SubDir}
+ * @route-v1 DELETE /dir/{DirName}/{SubDir}
+ * @route-v2 DELETE /dir/{DirName}/{SubDir}
  * @response 200 Subdirectory deleted
  * ```json
  * {
@@ -1377,7 +1393,8 @@ function DeleteDir()
  * Streams the tail of a log file using Server-Sent Events (SSE). Only works
  * for files in the `logs` directory.
  *
- * @route GET /api/file/{DirName}/tailfollow/*
+ * @route-v1 GET /file/{DirName}/tailfollow/*
+ * @route-v2 GET /file/{DirName}/tailfollow/*
  * @param int lines Number of existing lines to seed into the stream, from 1 to 500, default 50
  * @response 200 Success
  * ```text

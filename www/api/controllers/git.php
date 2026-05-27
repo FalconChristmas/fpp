@@ -4,7 +4,8 @@
  *
  * Returns a list of commits present in the `origin` (GitHub) but not in the local repository.
  *
- * @route GET /api/git/originLog
+ * @route-v1 GET /git/originLog
+ * @route-v2 GET /git/originLog
  * @response 200 Commits in origin not yet in local
  * ```json
  * {
@@ -57,7 +58,9 @@ function GetGitOriginLog()
  * Discard local changes
  * Performs a hard reset on the current branch, discarding any local changes.
  *
- * @route POST /api/git/reset
+ * @route-v1 GET /git/reset
+ * @route-v2 POST /git/reset
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Reset complete
  * ```json
  * {
@@ -84,7 +87,8 @@ function GitReset()
  *
  * Returns the status of the local git branch, including any dirty files.
  *
- * @route GET /api/git/status
+ * @route-v1 GET /git/status
+ * @route-v2 GET /git/status
  * @response 200 Local repository status
  * ```json
  * {
@@ -164,7 +168,8 @@ function matchesDeviceOSImage($name, $settings)
  * Returns lists of `.fppos` files available locally or on GitHub for the current platform.
  * If the `{All}` path parameter is `"all"`, returns all releases regardless of platform.
  *
- * @route GET /api/git/releases/os/{All}
+ * @route-v1 GET /git/releases/os/{All}
+ * @route-v2 GET /git/releases/os/{All}
  * @response 200 Available OS release assets
  * ```json
  * {
@@ -256,7 +261,8 @@ function GitOSReleases()
  *
  * Returns release asset size information from the GitHub `FalconChristmas/fpp` releases API.
  *
- * @route GET /api/git/releases/sizes
+ * @route-v1 GET /git/releases/sizes
+ * @route-v2 GET /git/releases/sizes
  * @response 200 Release asset sizes
  * ```json
  * [
@@ -307,7 +313,8 @@ function GitOSReleaseSizes()
  * Returns an array of branches available to switch to, filtering out obsolete version branches
  * and Dependabot branches.
  *
- * @route GET /api/git/branches
+ * @route-v1 GET /git/branches
+ * @route-v2 GET /git/branches
  * @response 200 Available local branches
  * ```json
  * ["master", "v7.3", "v7.2", "v7.1", "v7.0"]

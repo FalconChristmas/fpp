@@ -55,7 +55,8 @@ function stats_generate($statsFile)
  * if sharing statistics is enabled. A cached file is returned unless it is
  * more than 2 hours old or `?force=1` is passed, in which case it is regenerated.
  *
- * @route GET /api/statistics/usage
+ * @route-v1 GET /statistics/usage
+ * @route-v2 GET /statistics/usage
  * @param int force bypass cache
  * @response 200 Usage statistics payload
  * ```json
@@ -218,7 +219,8 @@ function stats_memory()
  * Transmits the statistics payload to the remote stats server configured in
  * the `statsPublishUrl` setting.
  *
- * @route POST /api/statistics/usage
+ * @route-v1 POST /statistics/usage
+ * @route-v2 POST /statistics/usage
  * @response 200 Statistics transmitted
  * ```json
  * {"status": "OK", "uuid": "M2-xxxxxxxx-f67f-930d-56ee-7xxxxxxxxxx"}
@@ -248,7 +250,8 @@ function stats_publish_stats_file()
  *
  * Deletes the cached statistics file.
  *
- * @route DELETE /api/statistics/usage
+ * @route-v1 DELETE /statistics/usage
+ * @route-v2 DELETE /statistics/usage
  * @response 200 Statistics cache cleared
  * ```json
  * {"status": "OK"}

@@ -8,8 +8,10 @@ require_once '../commandsocket.php';
  *
  * Reboots the operating system.
  *
- * @route POST /api/system/reboot
+ * @route-v1 GET /system/reboot
+ * @route-v2 POST /system/reboot
  * @response 200 Reboot initiated
+ * @badge-v1 "DEPRECATED" warning
  * ```json
  * {"status": "OK"}
  * ```
@@ -35,8 +37,10 @@ function RebootDevice()
  *
  * Executes a clean shutdown of the operating system.
  *
- * @route POST /api/system/shutdown
+ * @route-v1 GET /system/shutdown
+ * @route-v2 POST /system/shutdown
  * @response 200 Shutdown initiated
+ * @badge-v1 "DEPRECATED" warning
  * ```json
  * {"status": "OK"}
  * ```
@@ -61,7 +65,9 @@ function SystemShutdownOS()
  *
  * Starts the `fppd` process idempotently (if it isn't already running).
  *
- * @route POST /api/system/fppd/start
+ * @route-v1 GET /system/fppd/start
+ * @route-v2 POST /system/fppd/start
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 fppd started
  * ```json
  * {"status": "OK"}
@@ -116,7 +122,9 @@ function stopFPPDNoStatus()
  *
  * Stops the `fppd` process if it is running.
  *
- * @route POST /api/system/fppd/stop
+ * @route-v1 GET /system/fppd/stop
+ * @route-v2 POST /system/fppd/stop
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 fppd stopped
  * ```json
  * {"status": "OK"}
@@ -135,7 +143,9 @@ function StopFPPD()
  * Restarts the `fppd` process. Pass `?quick=1` to reload some configuration without
  * a full restart.
  *
- * @route POST /api/system/fppd/restart
+ * @route-v1 GET /system/fppd/restart
+ * @route-v2 POST /system/fppd/restart
+ * @badge-v1 "DEPRECATED" warning
  * @param int quick When `1`, send a reload signal to a running fppd instead of a full stop/start
  * @response 200 fppd restarted
  * ```json
@@ -163,7 +173,8 @@ function RestartFPPD()
  *
  * Returns release notes for the specified FPP version tag from the GitHub releases API.
  *
- * @route GET /api/system/releaseNotes/{version}
+ * @route-v1 GET /system/releaseNotes/{version}
+ * @route-v2 GET /system/releaseNotes/{version}
  * @response 200 Release notes
  * ```json
  * {
@@ -201,7 +212,8 @@ function ViewReleaseNotes()
  * Returns the current FPP update/upgrade status, including whether a newer version is available,
  * the current commit, and any major version or end-of-life warnings.
  *
- * @route GET /api/system/updateStatus
+ * @route-v1 GET /system/updateStatus
+ * @route-v2 GET /system/updateStatus
  * @response 200 FPP upgrade status
  * ```json
  * {
@@ -390,7 +402,8 @@ function GetUpdateStatus()
  *
  * Sets the system volume. The new level should be passed as a JSON body.
  *
- * @route POST /api/system/volume
+ * @route-v1 POST /system/volume
+ * @route-v2 POST /system/volume
  * @body {"volume": 34}
  * @response 200 Volume set
  * ```json
@@ -422,7 +435,8 @@ function SystemSetAudio()
  *
  * Returns the current volume if `fppd` is running, or the `Volume` setting value if not.
  *
- * @route GET /api/system/volume
+ * @route-v1 GET /system/volume
+ * @route-v2 GET /system/volume
  * @response 200 Current volume
  * ```json
  * {"status": "OK", "method": "FPPD", "volume": 70}
@@ -463,7 +477,8 @@ function SystemGetAudio()
  * Pass an optional array of IP addresses (e.g. `&ip[]=192.168.0.1&ip[]=192.168.0.2`) to query
  * remote instances instead.
  *
- * @route GET /api/system/status
+ * @route-v1 GET /system/status
+ * @route-v2 GET /system/status
  * @response 200 System status
  * ```json
  * {
@@ -660,7 +675,8 @@ function SystemGetStatus()
  *
  * Returns basic information about the system.
  *
- * @route GET /api/system/info
+ * @route-v1 GET /system/info
+ * @route-v2 GET /system/info
  * @response 200 System information
  * ```json
  * {
@@ -780,7 +796,8 @@ function finalizeStatusJson($obj)
  *
  * Returns a list of all installed and available OS package names via `apt list --all-versions`.
  *
- * @route GET /api/system/packages
+ * @route-v1 GET /system/packages
+ * @route-v2 GET /system/packages
  * @response 200 List of OS package names
  * ```json
  * ["apache2", "ffmpeg", "php"]
@@ -812,7 +829,8 @@ function GetOSPackages()
  *
  * Returns description, dependencies, and installation status for the specified OS package.
  *
- * @route GET /api/system/packages/info/{packageName}
+ * @route-v1 GET /system/packages/info/{packageName}
+ * @route-v2 GET /system/packages/info/{packageName}
  * @response 200 Package information
  * ```json
  * {
@@ -869,7 +887,8 @@ function GetOSPackageInfo()
  *
  * Skips the current boot delay by creating a skip flag file, allowing FPP startup to proceed immediately.
  *
- * @route POST /api/system/fppd/skipBootDelay
+ * @route-v1 POST /system/fppd/skipBootDelay
+ * @route-v2 POST /system/fppd/skipBootDelay
  * @response 200 Boot delay skip requested
  * ```json
  * {"status": "OK", "message": "Boot delay skip requested"}

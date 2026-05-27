@@ -547,7 +547,8 @@ function GetOptions_AES67Interface()
  * Returns the available options for the specified setting.
  * Supports `AudioMixerDevice`, `AudioOutput`, `AudioInput`, and other platform-specific option sets.
  *
- * @route GET /api/options/{SettingName}
+ * @route-v1 GET /options/{SettingName}
+ * @route-v2 GET /options/{SettingName}
  * @response 200 Available options for the setting
  * ```json
  * {"Dummy": "0"}

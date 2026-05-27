@@ -7,7 +7,7 @@ require_once(__DIR__ . "/../../config.php");
  * Proxies a named action to a remote FPP instance by IP address.
  * Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.
  *
- * @route POST /api/remoteAction
+ * @route-v1 POST /remoteAction
  * @body {"ip": "192.168.1.100", "action": "reboot"}
  * @response 400 Invalid action
  * ```json
@@ -68,7 +68,7 @@ function RemoteAction_v1()
  * Proxies a named action to a remote FPP instance by IP address.
  * Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.
  *
- * @route POST /api/v2/remoteAction
+ * @route-v2 POST /remoteAction
  * @body {"ip": "192.168.1.100", "action": "reboot"}
  * @response 400 Invalid action
  * ```json
@@ -192,7 +192,8 @@ function LoadProxyList()
  * Replaces the proxy list with the submitted array of `host`/`description` objects,
  * validates each entry, and triggers an Apache graceful reload.
  *
- * @route POST /api/proxies
+ * @route-v1 POST /proxies
+ * @route-v2 POST /proxies
  * @body [{"host": "192.168.1.2", "description": "Mega Tree"}]
  * @response 200 Updated proxy list
  * ```json
@@ -303,7 +304,8 @@ function WriteProxyFile($proxies)
  *
  * Returns the list of IP addresses this FPP instance can proxy.
  *
- * @route GET /api/proxies
+ * @route-v1 GET /proxies
+ * @route-v2 GET /proxies
  * @response 200 Current proxy list
  * ```json
  * [
@@ -324,7 +326,8 @@ function GetProxies()
  *
  * Adds a single IP address to the FPP proxy list if it does not already exist.
  *
- * @route POST /api/proxies/{ProxyIp}
+ * @route-v1 POST /proxies/{ProxyIp}
+ * @route-v2 POST /proxies/{ProxyIp}
  * @response 200 Updated proxy list
  * ```json
  * [
@@ -357,7 +360,8 @@ function AddProxy()
  *
  * Removes a single IP address from the FPP proxy list.
  *
- * @route DELETE /api/proxies/{ProxyIp}
+ * @route-v1 DELETE /proxies/{ProxyIp}
+ * @route-v2 DELETE /proxies/{ProxyIp}
  * @response 200 Updated proxy list
  * ```json
  * []
@@ -383,7 +387,8 @@ function DeleteProxy()
  *
  * Returns the list of known remote FPP systems from `fppd` multiSync discovery.
  *
- * @route GET /api/remotes
+ * @route-v1 GET /remotes
+ * @route-v2 GET /remotes
  * @response 200 Known remote FPP systems
  * ```json
  * {
@@ -418,7 +423,8 @@ function GetRemotes()
  *
  * Fetches a URL on a remote FPP instance via server-side proxy to avoid CSP restrictions.
  *
- * @route GET /api/proxy/{Ip}/{urlPart}
+ * @route-v1 GET /proxy/{Ip}/{urlPart}
+ * @route-v2 GET /proxy/{Ip}/{urlPart}
  * @response 400 Invalid IP address
  * ```json
  * {"error": "Invalid IP address"}
@@ -504,7 +510,8 @@ function getDHCPLeases()
  * Deletes all proxy entries by writing an empty `proxy-config.conf` and
  * triggering an Apache graceful reload.
  *
- * @route DELETE /api/proxies
+ * @route-v1 DELETE /proxies
+ * @route-v2 DELETE /proxies
  * @response 200 All proxies deleted
  * ```json
  * []
