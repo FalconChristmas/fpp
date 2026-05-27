@@ -43,9 +43,6 @@
       "name": "files"
     },
     {
-      "name": "geoip"
-    },
-    {
       "name": "git"
     },
     {
@@ -1985,13 +1982,13 @@
             }
           },
           "403": {
-            "description": "Forbidden directory",
+            "description": "Forbidden filename",
             "content": {
               "text/plain": {
                 "schema": {
                   "type": "string"
                 },
-                "example": "Tail follow is only allowed for log files."
+                "example": "Invalid file path."
               }
             }
           },
@@ -2066,31 +2063,6 @@
                   "status": "OK",
                   "file": "beepbeep.fseq",
                   "dir": "sequences"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/files/Sequences/fps": {
-      "get": {
-        "tags": [
-          "files"
-        ],
-        "summary": "Get sequence frame rates (fps)",
-        "description": "Returns a map of sequence filename => fps for every `.fseq` file in the sequence directory. This is intentionally split out from the main file listing so the file manager can render the sequence list immediately and lazily fill in the FPS column via this endpoint. The fps is derived from the fseq header StepTime (fps = round(1000 / StepTime)) and cached per file (keyed on name + size) so fsequtils is only run on cache misses.",
-        "responses": {
-          "200": {
-            "description": "Map of sequence filename to fps",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "GreatestShow.fseq": 40,
-                  "subdir/Intro.fseq": 20
                 }
               }
             }
@@ -2184,48 +2156,6 @@
         }
       }
     },
-    "/geoip": {
-      "get": {
-        "tags": [
-          "geoip"
-        ],
-        "summary": "GeoIP lookup",
-        "description": "Server-side proxy for ipapi.co's IP geolocation lookup, used by the Timezone/GeoLocation \"Lookup\"/\"Detect\" buttons on settings.php. ipapi.co does not send Access-Control-Allow-Origin, so the browser can't call it directly from FPP's UI (blocked by the Same Origin Policy) - PHP isn't subject to that, so we fetch it here and hand back the same JSON.",
-        "responses": {
-          "200": {
-            "description": "ipapi.co's JSON response, passed through unmodified",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "ip": "1.2.3.4",
-                  "city": "Adelaide",
-                  "region": "South Australia",
-                  "timezone": "Australia/Adelaide",
-                  "latitude": -34.9,
-                  "longitude": 138.6
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Lookup failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "error": "GeoIP lookup failed"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/git/branches": {
       "get": {
         "tags": [
@@ -2286,36 +2216,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/git/releases/notes/{tag}": {
-      "parameters": [
-        {
-          "name": "tag",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "git"
-        ],
-        "summary": "Get OS release notes for a tag",
-        "description": "Proxies the GitHub `FalconChristmas/fpp` release-by-tag API so the browser does not call api.github.com directly (same pattern/UA/timeout as GitOSReleases). Returns the raw GitHub release object on success; a non-200 status otherwise so the caller's error handler fires.",
-        "responses": {
-          "200": {
-            "description": "GitHub release object for the tag"
-          },
-          "400": {
-            "description": "Invalid tag"
-          },
-          "404": {
-            "description": "Release not found for the tag"
           }
         }
       }
@@ -2972,48 +2872,6 @@
                       "SSID": "Christmas"
                     }
                   ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/network/wifi/status/{interface}": {
-      "parameters": [
-        {
-          "name": "interface",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "network"
-        ],
-        "summary": "Get WiFi connection status / diagnostics",
-        "description": "Returns the wpa_supplicant association state for the given wireless `{interface}` plus a human-readable reason describing why it is (not) connected (wrong password, SSID not in range, waiting for DHCP, etc).",
-        "responses": {
-          "200": {
-            "description": "WiFi connection status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "connected": false,
-                  "wpa_state": "SCANNING",
-                  "ssid": "",
-                  "configuredSSID": "MyNet",
-                  "ip": "",
-                  "signal": null,
-                  "ssidVisible": false,
-                  "reason": "Network 'MyNet' not found in range (or it is hidden)."
                 }
               }
             }
@@ -4703,23 +4561,6 @@
         }
       }
     },
-    "/plugin/fetchImage?url=...": {
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "Proxy-fetch a plugin icon image",
-        "description": "Fetches an image from an external URL and serves it with the correct content-type. Used to bypass CSP restrictions that block loading images from external hosts (e.g. raw.githubusercontent.com) directly in `<img>` tags.",
-        "responses": {
-          "200": {
-            "description": "Image data"
-          },
-          "400": {
-            "description": "Missing or invalid URL"
-          }
-        }
-      }
-    },
     "/plugin/fetchInfo": {
       "post": {
         "tags": [
@@ -4755,47 +4596,6 @@
         }
       }
     },
-    "/plugin/githubStats": {
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "Get open issue / open PR counts for a list of GitHub repos.",
-        "description": "Developer-UI helper for the plugin cards. Accepts a comma-separated list of `owner/name` repos and returns per-repo `{ openIssues, openPRs }`. Counts are proxied from GitHub's issue-search API (one aggregate query per group of repos, cached per box), never one request per plugin -- which is what floods the device with 404s when there is no network or a repo is gone. Fail-soft: on any upstream problem it serves a stale cache if present, else an empty map (`source: unavailable`); the UI then hides the corner counts.",
-        "parameters": [
-          {
-            "name": "repos",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Comma-separated `owner/name` GitHub repos."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "repos": {
-                    "FalconChristmas/fpp-brightness": {
-                      "openIssues": 7,
-                      "openPRs": 1
-                    }
-                  },
-                  "source": "live|cache|partial|unavailable"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/plugin/headerIndicators": {
       "get": {
         "tags": [
@@ -4818,34 +4618,6 @@
                     "color": "red"
                   }
                 ]
-              }
-            }
-          }
-        }
-      }
-    },
-    "/plugin/popularity": {
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "plugin/popularity",
-        "description": "Get plugin install-popularity counts (repoName -> install count, last 365 days), proxied + cached from the community stats feed.",
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "period": "last365Days",
-                  "counts": {
-                    "remote-falcon": 1680
-                  },
-                  "source": "live|cache|stale|unavailable"
-                }
               }
             }
           }
@@ -4914,69 +4686,6 @@
                       "sha": ""
                     }
                   ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/plugin/{RepoName}/icon": {
-      "parameters": [
-        {
-          "name": "RepoName",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "Serve plugin icon",
-        "description": "Serves the plugin icon. First checks for a local icon.png in the plugin directory. If not found, checks the plugin's pluginInfo.json for an iconURL field and proxies it (same-origin, avoids CSP restrictions on external image hosts).",
-        "responses": {
-          "200": {
-            "description": "PNG image data"
-          },
-          "404": {
-            "description": "No icon available"
-          }
-        }
-      }
-    },
-    "/plugin/{RepoName}/page": {
-      "parameters": [
-        {
-          "name": "RepoName",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "Get plugin page URL",
-        "description": "Scans the plugin's menu files (menu.inc, status_menu.inc, etc.) and returns the best page URL for the plugin.  Prefers the Status/Control page; falls back to the Content Setup (config) page if no status page is found.",
-        "responses": {
-          "200": {
-            "description": "Plugin page info",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "url": "plugin.php?plugin=fpp-matrixtools&page=status.php",
-                  "page": "status.php",
-                  "found": true
                 }
               }
             }
@@ -6126,30 +5835,6 @@
         }
       }
     },
-    "/settings/fanThermal/reset": {
-      "post": {
-        "tags": [
-          "settings"
-        ],
-        "summary": "Reset fan thermal trip settings",
-        "description": "Removes all FanTrip_* settings and restores the hardware (device tree) default trip temperatures that fppinit captured at boot.",
-        "responses": {
-          "200": {
-            "description": "Settings reset",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/settings/{SettingName}": {
       "parameters": [
         {
@@ -6612,17 +6297,7 @@
         "description": "Reboots the operating system.",
         "responses": {
           "200": {
-            "description": "Reboot initiated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK"
-                }
-              }
-            }
+            "description": "Reboot initiated"
           }
         }
       }
@@ -6674,17 +6349,7 @@
         "description": "Executes a clean shutdown of the operating system.",
         "responses": {
           "200": {
-            "description": "Shutdown initiated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK"
-                }
-              }
-            }
+            "description": "Shutdown initiated"
           }
         }
       }

@@ -47,7 +47,7 @@ Run `SD/FPP_Install_Mac.sh` from a directory that will serve as the media direct
 ### Platform Build Configuration (`src/makefiles/platform/`)
 
 | Platform | File | Defines | Notes |
-|----------|------|---------|-------|
+| -------- | ---- | ------- | ----- |
 | Raspberry Pi | `pi.mk` | `PLATFORM_PI` | libgpiod, builds all external submodules, fppoled/fppcapedetect/fpprtc |
 | BeagleBone | `bb.mk` | `PLATFORM_BBB` or `PLATFORM_BB64` | PRU support, NEON SIMD (32-bit), fppoled/fppcapedetect |
 | macOS | `osx.mk` | `PLATFORM_OSX` | clang++, CoreAudio framework, `.dylib` extension |
@@ -70,6 +70,10 @@ External plugins (`/media/plugins/`) are compiled separately and link against FP
 ## Frontend
 
 When designing HTML, CSS, or working within `www/`, read `.claude/FRONTEND-GUIDELINES.md` before generating any markup.
+
+## Web API
+
+When adding, modifying, or reviewing routes in `www/api/`, read `.claude/WWWAPI-GUIDELINES.md` before making changes.
 
 ## Configuration Formats
 

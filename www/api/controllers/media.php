@@ -8,7 +8,8 @@ require_once '../common/metadata.php';
  *
  * Returns a list of media files (includes both music and video files).
  *
- * @route GET /api/media
+ * @route-v1 GET /media
+ * @route-v2 GET /media
  * @response 200 List of media filenames
  * ```json
  * ["Frosty.mp4", "Jingle_Bells.mp3"]
@@ -41,7 +42,8 @@ function GetMedia()
  *
  * Returns the duration of a media item.
  *
- * @route GET /api/media/{MediaName}/duration
+ * @route-v1 GET /media/{MediaName}/duration
+ * @route-v2 GET /media/{MediaName}/duration
  * @response 200 Media duration
  * ```json
  * {
@@ -77,7 +79,8 @@ function GetMediaDuration()
  *
  * Returns metadata streams, codecs, profiles, type for a specific media file.
  *
- * @route GET /api/media/{MediaName}/meta
+ * @route-v1 GET /media/{MediaName}/meta
+ * @route-v2 GET /media/{MediaName}/meta
  * @response 200 Media file metadata
  * ```json
  * {

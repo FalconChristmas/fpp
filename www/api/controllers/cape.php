@@ -6,7 +6,8 @@
  * Returns the cape information for the currently detected hardware cape
  * (from `cape-info` settings).
  *
- * @route GET /api/cape
+ * @route-v1 GET /cape
+ * @route-v2 GET /cape
  * @response 200 Cape hardware information
  * ```json
  * {
@@ -56,7 +57,8 @@ function GetCapeInfo()
  *
  * Returns a list of available cape EEPROM options for the current platform.
  *
- * @route GET /api/cape/options
+ * @route-v1 GET /cape/options
+ * @route-v2 GET /cape/options
  * @response 200 Available cape EEPROM options
  * ```json
  * ["--None--", "F16-B", "F32-B", "F4-B", "F8-B", "F8-Bv2", "RGB-123"]
@@ -230,7 +232,8 @@ function getSigningDataHelper($returnArray = false, $key = '', $order = '')
  *
  * Returns the cape EEPROM signing data payload for use with an external signing service.
  *
- * @route GET /api/cape/eeprom/signingData/{key}/{order}
+ * @route-v1 GET /cape/eeprom/signingData/{key}/{order}
+ * @route-v2 GET /cape/eeprom/signingData/{key}/{order}
  * @response 200 EEPROM signing data payload
  * ```json
  * {
@@ -257,7 +260,8 @@ function GetSigningData()
  *
  * Downloads the cape EEPROM signing data as a binary file attachment.
  *
- * @route GET /api/cape/eeprom/signingFile/{key}/{order}
+ * @route-v1 GET /cape/eeprom/signingFile/{key}/{order}
+ * @route-v2 GET /cape/eeprom/signingFile/{key}/{order}
  * @response 200 EEPROM signing data as binary file attachment
  * ```bytes
  * [Content-Type: application/octet-stream]
@@ -334,7 +338,8 @@ function signEEPROMHelper($data)
  * Signs the cape EEPROM by sending its data to the FalconPlayer.com signing API
  * using the provided `key` and order ID.
  *
- * @route POST /api/cape/eeprom/sign/{key}/{order}
+ * @route-v1 POST /cape/eeprom/sign/{key}/{order}
+ * @route-v2 POST /cape/eeprom/sign/{key}/{order}
  * @response 200 EEPROM signed successfully
  * ```json
  * {"Status": "OK", "Message": "EEPROM Signed."}
@@ -399,7 +404,8 @@ function SignEEPROM($key = '', $order = '')
  * Accepts a signed EEPROM data payload and writes it back to the cape EEPROM.
  * Accepts either a multipart file upload (`signingPacket`) or a raw JSON body.
  *
- * @route POST /api/cape/eeprom/signingData
+ * @route-v1 POST /cape/eeprom/signingData
+ * @route-v2 POST /cape/eeprom/signingData
  * @body {"key": "ABCD-1234", "orderID": "42", "serial": "1000000012345678", "eeprom": "<base64-encoded binary>"}
  * @response 200 Signed EEPROM written successfully
  * ```json
@@ -440,7 +446,8 @@ function PostSigningData()
  * Redeems a voucher code against the FalconPlayer.com signing API to obtain
  * a signing `key` and order ID.
  *
- * @route POST /api/cape/eeprom/voucher
+ * @route-v1 POST /cape/eeprom/voucher
+ * @route-v2 POST /cape/eeprom/voucher
  * @body {"voucher": "XXXX-XXXX-XXXX-XXXX", "first_name": "John", "last_name": "Doe", "email": "john@example.com", "password": "secret"}
  * @response 200 Voucher redeemed successfully
  * ```json
@@ -530,7 +537,8 @@ function RedeemVoucher()
  *
  * Returns a list of available string cape configuration `key` values.
  *
- * @route GET /api/cape/strings
+ * @route-v1 GET /cape/strings
+ * @route-v2 GET /cape/strings
  * @response 200 Available string cape configuration keys
  * ```json
  * ["F16v3-strings", "F8v2-strings"]
@@ -554,7 +562,8 @@ function GetCapeStringOptions()
  *
  * Returns a list of available LED panel cape configuration `key` values.
  *
- * @route GET /api/cape/panel
+ * @route-v1 GET /cape/panel
+ * @route-v2 GET /cape/panel
  * @response 200 Available LED panel cape configuration keys
  * ```json
  * []
@@ -578,7 +587,8 @@ function GetCapePanelOptions()
  *
  * Returns the string cape configuration JSON for the specified `key`.
  *
- * @route GET /api/cape/strings/{key}
+ * @route-v1 GET /cape/strings/{key}
+ * @route-v2 GET /cape/strings/{key}
  * @response 200 String cape configuration
  * ```json
  * {
@@ -615,7 +625,8 @@ function GetCapeStringConfig()
  *
  * Returns the LED panel cape configuration JSON for the specified `key`.
  *
- * @route GET /api/cape/panel/{key}
+ * @route-v1 GET /cape/panel/{key}
+ * @route-v2 GET /cape/panel/{key}
  * @response 200 LED panel cape configuration
  * ```json
  * {}

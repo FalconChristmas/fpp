@@ -5,7 +5,8 @@
  *
  * Get list of playlist names.
  *
- * @route GET /api/playlists
+ * @route-v1 GET /playlists
+ * @route-v2 GET /playlists
  * @response 200 List of playlist names
  * ```json
  * ["Playlist_1", "Playlist_2", "Playlist_3"]
@@ -167,7 +168,8 @@ function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
  * Returns a list of all playlists with any validation errors, total item
  * counts, and total duration.
  *
- * @route GET /api/playlists/validate
+ * @route-v1 GET /playlists/validate
+ * @route-v2 GET /playlists/validate
  * @response 200 Validation results for all playlists
  * ```json
  * [
@@ -268,7 +270,8 @@ function PlaylistListValidate()
  *
  * Get a combined list of playlist names and `*.fseq` sequence filenames that are playable.
  *
- * @route GET /api/playlists/playable
+ * @route-v1 GET /playlists/playable
+ * @route-v2 GET /playlists/playable
  * @response 200 Playable playlist and sequence names
  * ```json
  * ["Playlist_1", "Playlist_2", "MySequence.fseq"]
@@ -347,7 +350,8 @@ function cleanMedialNamesInPlaylist(&$playlistObj, $section)
  *
  * Insert a new playlist.
  *
- * @route POST /api/playlists
+ * @route-v1 POST /playlists
+ * @route-v2 POST /playlists
  * @body {"name": "UploadTest", "globalPauseBetweenSequencesMS": 5000, "mainPlaylist": [{"type": "pause", "enabled": 1, "playOnce": 0, "duration": 8}], "playlistInfo": {"total_duration": 8, "total_items": 1}}
  * @response 200 Newly created playlist
  * ```json
@@ -517,7 +521,8 @@ function getPlaylist($playlistName)
  * `?mergeSubs=1` is specified, sub-playlists are recursively merged into
  * the parent sections.
  *
- * @route GET /api/playlist/{PlaylistName}
+ * @route-v1 GET /playlist/{PlaylistName}
+ * @route-v2 GET /playlist/{PlaylistName}
  * @param int mergeSubs Merge sub-playlsits recursively
  * @response 200 Playlist details
  * ```json
@@ -554,7 +559,8 @@ function PlaylistGet()
  *
  * Update or Insert (upsert) the playlist named {PlaylistName}.
  *
- * @route POST /api/playlist/{PlaylistName}
+ * @route-v1 POST /playlist/{PlaylistName}
+ * @route-v2 POST /playlist/{PlaylistName}
  * @body {"name": "UploadTest", "globalPauseBetweenSequencesMS": 5000, "mainPlaylist": [{"type": "pause", "enabled": 1, "playOnce": 0, "duration": 8}], "playlistInfo": {"total_duration": 8, "total_items": 1}}
  * @response 200 Updated playlist
  * ```json
@@ -637,7 +643,8 @@ function PlaylistUpdate()
  *
  * Delete the playlist named {PlaylistName}.
  *
- * @route DELETE /api/playlist/{PlaylistName}
+ * @route-v1 DELETE /playlist/{PlaylistName}
+ * @route-v2 DELETE /playlist/{PlaylistName}
  * @response 200 Playlist deleted
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -676,7 +683,8 @@ function PlaylistDelete()
  *
  * Insert an item into the `{SectionName}` section of playlist `{PlaylistName}`.
  *
- * @route POST /api/playlist/{PlaylistName}/{SectionName}/item
+ * @route-v1 POST /playlist/{PlaylistName}/{SectionName}/item
+ * @route-v2 POST /playlist/{PlaylistName}/{SectionName}/item
  * @body {"type": "pause", "enabled": 1, "playOnce": 0, "duration": 8}
  * @response 200 Item inserted
  * ```json
@@ -736,7 +744,9 @@ function PlaylistSectionInsertItem()
  * Immediately stop the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route POST /api/playlists/stop
+ * @route-v1 GET /playlists/stop
+ * @route-v2 POST /playlists/stop
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Playlist stopped
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -761,7 +771,9 @@ function PlaylistStop()
  * Gracefully stop the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route POST /api/playlists/stopgracefully
+ * @route-v1 GET /playlists/stopgracefully
+ * @route-v2 POST /playlists/stopgracefully
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Graceful stop initiated
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -787,7 +799,9 @@ function PlaylistStopGracefully()
  * current loop.
  *
  * @badge "FPP REQUIRED" critical
- * @route POST /api/playlists/stopgracefullyafterloop
+ * @route-v1 GET /playlists/stopgracefullyafterloop
+ * @route-v2 POST /playlists/stopgracefullyafterloop
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Stop after loop initiated
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -814,7 +828,9 @@ function PlaylistStopGracefullyAfterLoop()
  * this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route POST /api/playlist/{PlaylistName}/start
+ * @route-v1 GET /playlist/{PlaylistName}/start
+ * @route-v2 POST /playlist/{PlaylistName}/start
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -844,7 +860,9 @@ function PlaylistStart()
  * scheduler from stopping this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route POST /api/playlist/{PlaylistName}/start/{Repeat}
+ * @route-v1 GET /playlist/{PlaylistName}/start/{Repeat}
+ * @route-v2 POST /playlist/{PlaylistName}/start/{Repeat}
+ * @badge-v1 "DEPRECATED" warning
  * @param bool scheduleProtected Prevent schedule from stopping this playlist
  * @response 200 Playlist started
  * ```json
@@ -876,7 +894,9 @@ function PlaylistStartRepeat()
  * stop this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route POST /api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
+ * @route-v1 GET /playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
+ * @route-v2 POST /playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -905,7 +925,9 @@ function PlaylistStartRepeatProtected()
  * Pause the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route POST /api/playlists/pause
+ * @route-v1 GET /playlists/pause
+ * @route-v2 POST /playlists/pause
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Playlist paused
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -930,7 +952,9 @@ function PlaylistPause()
  * Resume a previously paused playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route POST /api/playlists/resume
+ * @route-v1 GET /playlists/resume
+ * @route-v2 POST /playlists/resume
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Playlist resumed
  * ```json
  * {"Status": "OK", "Message": ""}

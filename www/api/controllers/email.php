@@ -6,7 +6,8 @@ require_once '../common.php';
  *
  * Configures outbound email using the existing settings.
  *
- * @route POST /api/email/configure
+ * @route-v1 POST /email/configure
+ * @route-v2 POST /email/configure
  * @response 200 Email configured
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -31,7 +32,8 @@ function ConfigureEmail() {
  *
  * Sends a test email using the existing settings.
  *
- * @route POST /api/email/test
+ * @route-v1 POST /email/test
+ * @route-v2 POST /email/test
  * @response 200 Test email sent
  * ```json
  * {"Status": "OK", "Message": ""}

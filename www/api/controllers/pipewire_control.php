@@ -290,7 +290,8 @@ function pwctl_not_pipewire_response()
  * of the PipeWire/WirePlumber/pulse units, and configured group counts. Use
  * this to discover capability before issuing control calls.
  *
- * @route GET /api/pipewire/control/status
+ * @route-v1 GET /pipewire/control/status
+ * @route-v2 GET /pipewire/control/status
  * @response 200 PipeWire backend status
  * ```json
  * {"status":"OK","backend":"pipewire","pipewireActive":true,"simpleMode":false,"services":{"fpp-pipewire":"active","fpp-wireplumber":"active","fpp-pipewire-pulse":"active"},"outputGroupCount":2,"outputGroupsEnabled":2,"inputGroupCount":1,"inputGroupsEnabled":1}
@@ -391,7 +392,8 @@ function pwctl_build_group_view($group, $liveSinks)
  * PipeWire (`volumeSource: "live"` when the sink is running, else the saved
  * config value with `volumeSource: "config"`).
  *
- * @route GET /api/pipewire/control/groups
+ * @route-v1 GET /pipewire/control/groups
+ * @route-v2 GET /pipewire/control/groups
  * @response 200 Output groups with live runtime state
  * ```json
  * {"status":"OK","groups":[{"id":1,"name":"Front","enabled":true,"channels":2,"nodeName":"fpp_group_front","configVolume":100,"configMute":false,"liveVolume":80,"liveMute":false,"running":true,"state":"RUNNING","volumeSource":"live","members":[{"cardId":"S3","channels":2,"nodeName":"fpp_fx_g1_s3","configVolume":100,"liveVolume":75,"liveMute":false,"running":true,"volumeSource":"live"}]}]}
@@ -414,7 +416,8 @@ function PWCtl_GetGroups()
  * Returns a single audio output group (by numeric group id) with its member
  * sound cards and live runtime volume/mute.
  *
- * @route GET /api/pipewire/control/groups/{id}
+ * @route-v1 GET /pipewire/control/groups/{id}
+ * @route-v2 GET /pipewire/control/groups/{id}
  * @response 200 Output group with live runtime state
  * ```json
  * {"status":"OK","group":{"id":1,"name":"Front","enabled":true,"nodeName":"fpp_group_front","liveVolume":80,"liveMute":false,"running":true,"members":[]}}
@@ -441,7 +444,8 @@ function PWCtl_GetGroup()
  * PipeWire sink. The value is applied live and persisted to the group
  * config so it survives a reboot.
  *
- * @route POST /api/pipewire/control/groups/{id}/volume
+ * @route-v1 POST /pipewire/control/groups/{id}/volume
+ * @route-v2 POST /pipewire/control/groups/{id}/volume
  * @body {"volume": 80}
  * @response 200 Volume applied and persisted
  * ```json
@@ -501,7 +505,8 @@ function PWCtl_SetGroupVolume()
  * explicit `mute` boolean, or `toggle: true` to flip the current state.
  * Applied live and persisted.
  *
- * @route POST /api/pipewire/control/groups/{id}/mute
+ * @route-v1 POST /pipewire/control/groups/{id}/mute
+ * @route-v2 POST /pipewire/control/groups/{id}/mute
  * @body {"mute": true}
  * @response 200 Mute state applied and persisted
  * ```json
@@ -570,7 +575,8 @@ function PWCtl_SetGroupMute()
  * group, addressed by its stable ALSA card id (e.g. `S3`). Applied live to
  * the member filter-chain sink and persisted.
  *
- * @route POST /api/pipewire/control/groups/{id}/members/{cardId}/volume
+ * @route-v1 POST /pipewire/control/groups/{id}/members/{cardId}/volume
+ * @route-v2 POST /pipewire/control/groups/{id}/members/{cardId}/volume
  * @body {"volume": 75}
  * @response 200 Member volume applied and persisted
  * ```json
@@ -639,7 +645,8 @@ function PWCtl_SetMemberVolume()
  * addressed by its ALSA card id. Provide `mute` (bool) or `toggle: true`.
  * Applied live and persisted.
  *
- * @route POST /api/pipewire/control/groups/{id}/members/{cardId}/mute
+ * @route-v1 POST /pipewire/control/groups/{id}/members/{cardId}/mute
+ * @route-v2 POST /pipewire/control/groups/{id}/members/{cardId}/mute
  * @body {"toggle": true}
  * @response 200 Member mute state applied and persisted
  * ```json
@@ -778,7 +785,8 @@ function pwctl_build_input_group_view($ig, $liveNodes)
  * (`volumeSource: "config"`) plus a live `running` flag indicating whether
  * the loopback node is currently active.
  *
- * @route GET /api/pipewire/control/input-groups
+ * @route-v1 GET /pipewire/control/input-groups
+ * @route-v2 GET /pipewire/control/input-groups
  * @response 200 Input groups with member state
  * ```json
  * {"status":"OK","inputGroups":[{"id":1,"name":"Main Mix","enabled":true,"channels":2,"outputs":[1,2],"members":[{"index":0,"type":"fppd_stream","sourceId":"fppd_stream_1","name":"FPP Media","configVolume":100,"configMute":false,"running":true,"volumeSource":"config"}]}]}
@@ -801,7 +809,8 @@ function PWCtl_GetInputGroups()
  * Returns a single input group by numeric id with its members and routing
  * targets.
  *
- * @route GET /api/pipewire/control/input-groups/{id}
+ * @route-v1 GET /pipewire/control/input-groups/{id}
+ * @route-v2 GET /pipewire/control/input-groups/{id}
  * @response 200 Input group with member state
  * ```json
  * {"status":"OK","inputGroup":{"id":1,"name":"Main Mix","enabled":true,"channels":2,"outputs":[1],"members":[]}}
@@ -843,7 +852,8 @@ function pwctl_find_input_member(&$data, $id, $memberIndex)
  * loopback via channelmix and persisted. Note: the primary fppd stream's
  * volume is governed by fppd itself, not a loopback.
  *
- * @route POST /api/pipewire/control/input-groups/{id}/members/{memberIndex}/volume
+ * @route-v1 POST /pipewire/control/input-groups/{id}/members/{memberIndex}/volume
+ * @route-v2 POST /pipewire/control/input-groups/{id}/members/{memberIndex}/volume
  * @body {"volume": 60}
  * @response 200 Member volume applied and persisted
  * ```json
@@ -909,7 +919,8 @@ function PWCtl_SetInputMemberVolume()
  * implemented by driving channelmix volume to 0 and unmute restores the
  * saved member volume. Provide `mute` (bool) or `toggle: true`.
  *
- * @route POST /api/pipewire/control/input-groups/{id}/members/{memberIndex}/mute
+ * @route-v1 POST /pipewire/control/input-groups/{id}/members/{memberIndex}/mute
+ * @route-v2 POST /pipewire/control/input-groups/{id}/members/{memberIndex}/mute
  * @body {"mute": true}
  * @response 200 Member mute state applied and persisted
  * ```json
@@ -974,7 +985,8 @@ function PWCtl_SetInputMemberMute()
  * additionally reports the currently playing media filename and timing from
  * fppd.
  *
- * @route GET /api/pipewire/control/streams
+ * @route-v1 GET /pipewire/control/streams
+ * @route-v2 GET /pipewire/control/streams
  * @response 200 Stream slot status
  * ```json
  * {"status":"OK","streams":[{"slot":1,"nodeName":"fppd_stream_1","status":"playing","mediaFilename":"show.mp4","secondsElapsed":12,"secondsRemaining":48},{"slot":2,"nodeName":"fppd_stream_2","status":"idle","mediaFilename":""}]}
@@ -1021,7 +1033,8 @@ function PWCtl_GetStreams()
  * channelmix on the stream node. The response `control` field indicates
  * which path was used.
  *
- * @route POST /api/pipewire/control/streams/{slot}/volume
+ * @route-v1 POST /pipewire/control/streams/{slot}/volume
+ * @route-v2 POST /pipewire/control/streams/{slot}/volume
  * @body {"volume": 90}
  * @response 200 Stream volume applied
  * ```json
@@ -1079,7 +1092,8 @@ function PWCtl_SetStreamVolume()
  * connected state, per-path volume and mute. Values reflect the saved
  * config (`volumeSource: "config"`).
  *
- * @route GET /api/pipewire/control/routing
+ * @route-v1 GET /pipewire/control/routing
+ * @route-v2 GET /pipewire/control/routing
  * @response 200 Routing matrix
  * ```json
  * {"status":"OK","volumeSource":"config","matrix":[{"inputGroupId":1,"inputGroupName":"Main Mix","enabled":true,"paths":[{"outputGroupId":1,"outputGroupName":"Front","connected":true,"volume":100,"mute":false},{"outputGroupId":2,"outputGroupName":"Rear","connected":false,"volume":75,"mute":false}]}]}
@@ -1198,7 +1212,8 @@ function pwctl_persist_routing(&$igData, $igId, $ogId, $volume, $mute)
  * path. Applied live to the routing combine-stream and persisted to the
  * input-group routing config.
  *
- * @route POST /api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume
+ * @route-v1 POST /pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume
+ * @route-v2 POST /pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume
  * @body {"volume": 50}
  * @response 200 Route volume applied and persisted
  * ```json
@@ -1245,7 +1260,8 @@ function PWCtl_SetRoutingVolume()
  * per-path volume. Provide `mute` (bool) or `toggle: true`. Persisted to the
  * input-group routing config.
  *
- * @route POST /api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute
+ * @route-v1 POST /pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute
+ * @route-v2 POST /pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute
  * @body {"toggle": true}
  * @response 200 Route mute state applied and persisted
  * ```json

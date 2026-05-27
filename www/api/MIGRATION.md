@@ -4,6 +4,10 @@ This document records breaking changes to the FPP REST API surface. Each section
 one phase of the ongoing API review. Entries are cumulative — newer phases are added at the
 top.
 
+The verb differences below are encoded directly in the controller docblocks via
+`@route-v1` and `@route-v2` tags. See `www/api/README.md` for the full annotation
+convention.
+
 ---
 
 ## HTTP Verb Corrections
