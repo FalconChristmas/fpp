@@ -592,7 +592,7 @@ install_base_packages() {
             sleep 5
         fi
         
-		echo "FPP - Removing anything left that wasn't explicity removed"
+		echo "FPP - Removing anything left that wasn't explicitly removed"
 		apt-get -y --purge autoremove
 
 		echo "FPP - Updating package list"
@@ -683,7 +683,7 @@ install_base_packages() {
         PACKAGE_LIST="$PACKAGE_LIST ntpsec pipewire"
         
         if $skip_apt_install; then
-            echo "skipping apt install because skpt_apt_install == $skip_apt_install"
+            echo "skipping apt install because skip_apt_install == $skip_apt_install"
             PACKAGE_LIST=""
         else
             echo "--------------------------"
