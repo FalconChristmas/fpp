@@ -443,7 +443,7 @@
                 "Image32-64": {
                     "title": "FPP Image 32/64-bit",
                     "description": "",
-                    "cmd": "dpkg --print-architecture | grep -q arm64 && echo \"64-bit FPP\" || echo \"32-bit FPP\"",
+                    "cmd": "dpkg --print-architecture | grep -qE \"amd64|arm64\" && echo \"64-bit FPP\" || echo \"32-bit FPP\"",
                     "platforms": [
                         "all"
                     ]
