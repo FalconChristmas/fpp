@@ -82,7 +82,7 @@ static bool piPowerBad = false;
  Build a Status JSON String
 */
 void GetCurrentFPPDStatus(Json::Value& result) {
-    static std::string UUID = getSetting("SystemUUID");
+    std::string UUID = getSetting("SystemUUID");
     static std::string host_name = getSetting("HostName");
     static std::string host_description = getSetting("HostDescription");
     static std::string fpp_version = getFPPVersion();
