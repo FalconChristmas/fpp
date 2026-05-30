@@ -1,0 +1,6717 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "FPP API",
+    "description": "Falcon Player (FPP) REST API",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "/api/",
+      "description": "Local FPP instance"
+    }
+  ],
+  "tags": [
+    {
+      "name": "backups"
+    },
+    {
+      "name": "cape"
+    },
+    {
+      "name": "channel"
+    },
+    {
+      "name": "configfile"
+    },
+    {
+      "name": "dir"
+    },
+    {
+      "name": "effects"
+    },
+    {
+      "name": "email"
+    },
+    {
+      "name": "events"
+    },
+    {
+      "name": "file"
+    },
+    {
+      "name": "files"
+    },
+    {
+      "name": "git"
+    },
+    {
+      "name": "media"
+    },
+    {
+      "name": "network"
+    },
+    {
+      "name": "options"
+    },
+    {
+      "name": "pipewire"
+    },
+    {
+      "name": "playlist"
+    },
+    {
+      "name": "playlists"
+    },
+    {
+      "name": "plugin"
+    },
+    {
+      "name": "proxies"
+    },
+    {
+      "name": "proxy"
+    },
+    {
+      "name": "remoteAction"
+    },
+    {
+      "name": "remotes"
+    },
+    {
+      "name": "schedule"
+    },
+    {
+      "name": "scripts"
+    },
+    {
+      "name": "sequence"
+    },
+    {
+      "name": "settings"
+    },
+    {
+      "name": "statistics"
+    },
+    {
+      "name": "system"
+    },
+    {
+      "name": "testmode"
+    },
+    {
+      "name": "time"
+    }
+  ],
+  "paths": {
+    "/backups/configuration": {
+      "post": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Create JSON backup",
+        "description": "Generates a new JSON settings backup for all settings areas. If an alternate backup location has been set, the backup is also copied to that location.",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "The describing comment to be added to the backup"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Backup created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "backup_file_path": "/home/fpp/media/config/backups/FPP_all-backup_v6_20230124212305.json",
+                  "copied_to_usb": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backups/configuration/list": {
+      "get": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Get available JSON backups",
+        "description": "Returns a list of JSON configuration backups stored locally, or \u2014 if `jsonConfigBackupUSBLocation` is set \u2014 a combined list from local storage and the configured USB device.",
+        "responses": {
+          "200": {
+            "description": "List of available JSON configuration backups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "backup_alternative_location": false,
+                    "backup_filedirectory": "/home/fpp/media/config/backups",
+                    "backup_filename": "FPP_all-backup_v6_20230124212305.json",
+                    "backup_comment": "FPP Settings - Disable Scheduler setting was set to ( 0 ).",
+                    "backup_time": "Tue Jan 24 21:23:05 2023",
+                    "backup_time_unix": "1674559385"
+                  },
+                  {
+                    "backup_alternative_location": true,
+                    "backup_filedirectory": "/mnt/tmp/Automatic_Backups/config/backups",
+                    "backup_filename": "FPP_all-backup_v6_20230124210519.json",
+                    "backup_comment": "Schedule was modified.",
+                    "backup_time": "Tue Jan 24 21:05:19 2023",
+                    "backup_time_unix": "1674558319"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backups/configuration/list/{DeviceName}": {
+      "parameters": [
+        {
+          "name": "DeviceName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Get list of JSON backups on device",
+        "description": "Returns a list of JSON configuration files on a specified alternate storage device. Available devices can be obtained from `/backups/devices`, or the currently configured device is stored in the `jsonConfigBackupUSBLocation` setting.",
+        "responses": {
+          "200": {
+            "description": "List of JSON backup filenames on the device",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "FPP_all-backup_v6_20230114025351.json",
+                  "FPP_all-backup_v6_20230114025354.json",
+                  "FPP_all-backup_v6_20230114214459.json",
+                  "FPP_all-backup_v6_20230114215622.json"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backups/configuration/restore/{Directory}/{BackupFilename}": {
+      "parameters": [
+        {
+          "name": "Directory",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "BackupFilename",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Restores JSON backup",
+        "description": "Restores the specified JSON backup. `Directory` is either `JsonBackups` (local) or `JsonBackupsAlternate` (configured alternate device). `GET /api/backups/configuration/list` can be used to obtain valid directory and filename combinations.",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "all"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Restore result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Success": true,
+                  "Message": {
+                    "success": true,
+                    "message": {
+                      "channelInputs": {
+                        "VALID_DATA": true,
+                        "ATTEMPT": true,
+                        "SUCCESS": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backups/configuration/{Directory}/{BackupFilename}": {
+      "parameters": [
+        {
+          "name": "Directory",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "BackupFilename",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Delete JSON backup",
+        "description": "Deletes a specific JSON backup. `Directory` is either `JsonBackups` (local) or `JsonBackupsAlternate` (configured alternate device). `GET /api/backups/configuration/list` can be used to obtain valid directories and filenames.",
+        "responses": {
+          "200": {
+            "description": "Backup deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "file": "FPP_all-backup_v6_20230124210514.json",
+                  "dir": "JsonBackupsAlternate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Download JSON backup",
+        "description": "Downloads a specific JSON backup. `Directory` is either `JsonBackups` (local) or `JsonBackupsAlternate` (configured alternate device). `GET /api/backups/configuration/list` can be used to obtain valid directories and filenames.",
+        "responses": {
+          "200": {
+            "description": "Contents of the specified JSON Settings backup as a download.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "key": "value"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Returned when the requested file cannot be located on disk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "File Not Found",
+                  "file": "FPP_all-backup_v6_20230124210514.json",
+                  "dir": "JsonBackups"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backups/devices": {
+      "get": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Get devices available for backups",
+        "description": "Returns a list of devices (e.g. USB drives, SSDs) attached to the system that can be used for backups.",
+        "responses": {
+          "200": {
+            "description": "List of available backup devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "name": "sda1",
+                    "size": 7.5,
+                    "model": "Cruzer Blade",
+                    "vendor": "SanDisk"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backups/devices/mount/{DeviceName}/{MountLocation}": {
+      "parameters": [
+        {
+          "name": "DeviceName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "MountLocation",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Mount device",
+        "description": "Mounts the specified device to `/mnt/{MountLocation}` (defaults to `/mnt/api_mount`).",
+        "responses": {
+          "200": {
+            "description": "Device mounted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "Device (sda1) mounted at (/mnt/api_mount)",
+                  "MountLocation": "/mnt/api_mount"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backups/devices/unmount/{DeviceName}/{MountLocation}": {
+      "parameters": [
+        {
+          "name": "DeviceName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "MountLocation",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Unmount device",
+        "description": "Unmounts the drive at `/mnt/{MountLocation}` (defaults to `/mnt/api_mount`).",
+        "responses": {
+          "200": {
+            "description": "Device unmounted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "Device (sda1) unmounted from (/mnt/api_mount)",
+                  "MountLocation": "/mnt/api_mount"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backups/list": {
+      "get": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Get available backups",
+        "description": "Returns a list of full system backup files stored in the local `backups/` directory.",
+        "responses": {
+          "200": {
+            "description": "List of backup directory names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "/",
+                  "FPPDevP4",
+                  "FPPDevP4_2026_05_02"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backups/list/{DeviceName}": {
+      "parameters": [
+        {
+          "name": "DeviceName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Get list of backups on device",
+        "description": "Returns a list of full system backup files stored on the specified device (e.g. a USB drive).",
+        "responses": {
+          "200": {
+            "description": "List of backup directory names on the device",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "/",
+                  "FPPDevP4",
+                  "FPPDevP4_2026_05_02"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape": {
+      "get": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Get cape information",
+        "description": "Returns the cape information for the currently detected hardware cape (from `cape-info` settings).",
+        "responses": {
+          "200": {
+            "description": "Cape hardware information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "id": "K16A-Bv1",
+                  "name": "K16A-B",
+                  "description": "K16A-B is a cape for the BeagleBone Black...",
+                  "version": "1.0",
+                  "designer": "Daniel Kulp",
+                  "vendor": {
+                    "name": "Kulp Lights",
+                    "url": "https://kulplights.com/",
+                    "email": "sales@kulplights.com",
+                    "image": "https://kulplights.com/images/kulplights_small.png"
+                  },
+                  "provides": [
+                    "strings"
+                  ],
+                  "serialNumber": "XXXXXXXXXXXXXX",
+                  "validEepromLocation": true,
+                  "verifiedKeyId": "dk",
+                  "eepromLocation": "/sys/bus/i2c/devices/2-0050/eeprom",
+                  "modules": [
+                    "gpio_pcf857x",
+                    "pcm5102a",
+                    "lm75"
+                  ],
+                  "i2cDevices": [
+                    "pca9675 0x20",
+                    "pcf8523 0x68",
+                    "lm75 0x48"
+                  ],
+                  "defaultSettings": {
+                    "LEDDisplayType": "1",
+                    "piRTC": "4",
+                    "showAllOptions": "0"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No cape detected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "id": "No Cape!"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape/eeprom/sign/{key}/{order}": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "order",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Sign EEPROM",
+        "description": "Signs the cape EEPROM by sending its data to the FalconPlayer.com signing API using the provided `key` and order ID.",
+        "responses": {
+          "200": {
+            "description": "EEPROM signed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "EEPROM Signed."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape/eeprom/signingData": {
+      "post": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Upload signed EEPROM",
+        "description": "Accepts a signed EEPROM data payload and writes it back to the cape EEPROM. Accepts either a multipart file upload (`signingPacket`) or a raw JSON body.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "key": "ABCD-1234",
+                "orderID": "42",
+                "serial": "1000000012345678",
+                "eeprom": "<base64-encoded binary>"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed EEPROM written successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "EEPROM Signed."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape/eeprom/signingData/{key}/{order}": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "order",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Get signing data as text",
+        "description": "Returns the cape EEPROM signing data payload for use with an external signing service.",
+        "responses": {
+          "200": {
+            "description": "EEPROM signing data payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "key": "ABCD-1234",
+                  "orderID": "42",
+                  "serial": "1000000012345678",
+                  "eeprom": "<base64-encoded binary>"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape/eeprom/signingFile/{key}/{order}": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "order",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Get signing data as binary",
+        "description": "Downloads the cape EEPROM signing data as a binary file attachment.",
+        "responses": {
+          "200": {
+            "description": "EEPROM signing data as binary file attachment",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape/eeprom/voucher": {
+      "post": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Redeem signing voucher",
+        "description": "Redeems a voucher code against the FalconPlayer.com signing API to obtain a signing `key` and order ID.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "voucher": "XXXX-XXXX-XXXX-XXXX",
+                "first_name": "John",
+                "last_name": "Doe",
+                "email": "john@example.com",
+                "password": "secret"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Voucher redeemed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "",
+                  "key": "ABCD-1234",
+                  "order": "42"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape/options": {
+      "get": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Get cape options",
+        "description": "Returns a list of available cape EEPROM options for the current platform.",
+        "responses": {
+          "200": {
+            "description": "Available cape EEPROM options",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "--None--",
+                  "F16-B",
+                  "F32-B",
+                  "F4-B",
+                  "F8-B",
+                  "F8-Bv2",
+                  "RGB-123"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape/panel": {
+      "get": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Get all cape panels",
+        "description": "Returns a list of available LED panel cape configuration `key` values.",
+        "responses": {
+          "200": {
+            "description": "Available LED panel cape configuration keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape/panel/{key}": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Get cape panel",
+        "description": "Returns the LED panel cape configuration JSON for the specified `key`.",
+        "responses": {
+          "200": {
+            "description": "LED panel cape configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape/strings": {
+      "get": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Get all cape strings",
+        "description": "Returns a list of available string cape configuration `key` values.",
+        "responses": {
+          "200": {
+            "description": "Available string cape configuration keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "F16v3-strings",
+                  "F8v2-strings"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cape/strings/{key}": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Get cape string",
+        "description": "Returns the string cape configuration JSON for the specified `key`.",
+        "responses": {
+          "200": {
+            "description": "String cape configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "name": "K16A-B",
+                  "longName": "K16A-B",
+                  "pinoutVersion": "1.x",
+                  "numSerial": 0,
+                  "supportsSmartReceivers": true,
+                  "outputs": [
+                    {
+                      "pin": "P8-45"
+                    }
+                  ],
+                  "groups": [
+                    {
+                      "start": 1,
+                      "count": 16
+                    }
+                  ],
+                  "serial": []
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Key not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "Not Found!"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/channel/input/stats": {
+      "delete": {
+        "tags": [
+          "channel"
+        ],
+        "summary": "Reset E1.31 stats",
+        "description": "Resets the E1.31/DDP channel input statistics counters.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statistics reset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "channel"
+        ],
+        "summary": "Get E1.31 stats",
+        "description": "Returns the E1.31 or DDP statistics for inbound packets. Returns a meaningful error if the connection to `fppd` fails.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "E1.31/DDP channel input statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "universes": [
+                    {
+                      "bytesReceived": "325632",
+                      "errors": "1",
+                      "id": 1,
+                      "packetsReceived": "636",
+                      "startChannel": 1
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/channel/output/processors": {
+      "get": {
+        "tags": [
+          "channel"
+        ],
+        "summary": "Get output processors",
+        "description": "Returns the current configuration of any output processors.",
+        "responses": {
+          "200": {
+            "description": "Current output processor configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "outputProcessors": [
+                    {
+                      "type": "Brightness",
+                      "active": 0,
+                      "description": "",
+                      "start": 1,
+                      "count": 10,
+                      "brightness": 50,
+                      "gamma": 1
+                    }
+                  ],
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "channel"
+        ],
+        "summary": "Set output processors",
+        "description": "Overwrites the output processor settings file with a new configuration and returns the saved configuration.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "outputProcessors": [
+                  {
+                    "type": "Brightness",
+                    "active": 0,
+                    "description": "",
+                    "start": 1,
+                    "count": 10,
+                    "brightness": 50,
+                    "gamma": 1
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current output processor configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "outputProcessors": [
+                    {
+                      "type": "Brightness",
+                      "active": 0,
+                      "description": "",
+                      "start": 1,
+                      "count": 10,
+                      "brightness": 50,
+                      "gamma": 1
+                    }
+                  ],
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/channel/output/{file}": {
+      "parameters": [
+        {
+          "name": "file",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "channel"
+        ],
+        "summary": "Get channel output",
+        "description": "Returns the current configuration of the specified output file in JSON format. Common values of `{file}` include `universeOutputs`, `universeInputs`, `co-other`, `dmxInputs`, `co-pwm`, and `co-bbbStrings`. Supports an optional `?ip=` query parameter to fetch from a remote FPP instance.",
+        "responses": {
+          "200": {
+            "description": "Channel output configuration file contents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {}
+              }
+            }
+          },
+          "404": {
+            "description": "File not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "ERROR: File not found"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "channel"
+        ],
+        "summary": "Set channel output",
+        "description": "Overwrites the specified output configuration file with the `POST` body and returns the saved configuration.",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "Format varies based on file"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved configuration echoed back",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/configfile": {
+      "get": {
+        "tags": [
+          "configfile"
+        ],
+        "summary": "Get directory list",
+        "description": "Returns a list of config files in `/home/fpp/media/config` or an optional subdirectory.",
+        "responses": {
+          "200": {
+            "description": "Directory listing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Path": "",
+                  "ConfigFiles": [
+                    "File1",
+                    "File2",
+                    "File3"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/configfile/**": {
+      "delete": {
+        "tags": [
+          "configfile"
+        ],
+        "summary": "Delete configuration file",
+        "description": "Deletes a config file from `/home/fpp/media/config`.",
+        "responses": {
+          "200": {
+            "description": "File deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "configfile"
+        ],
+        "summary": "Get file or directory list",
+        "description": "Returns the contents of a specific config file, or a directory listing if the path resolves to a directory.",
+        "responses": {
+          "200": {
+            "description": "Raw config file contents",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "(Raw config file contents)"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "configfile"
+        ],
+        "summary": "Upload configuration file",
+        "description": "Uploads or overwrites a config file in `/home/fpp/media/config`, creating any necessary subdirectories. Accepts a multipart file upload or raw `POST` body.",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "(Raw config file contents)"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dir/{DirName}/{SubDir}": {
+      "parameters": [
+        {
+          "name": "DirName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "SubDir",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "dir"
+        ],
+        "summary": "Delete empty subdirectory",
+        "description": "Deletes an empty subdirectory from the specified media directory.",
+        "responses": {
+          "200": {
+            "description": "Subdirectory deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "subdir": "mySubDir",
+                  "dir": "sequences"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "dir"
+        ],
+        "summary": "Create subdirectory",
+        "description": "Creates a subdirectory inside the specified media directory.",
+        "responses": {
+          "200": {
+            "description": "Subdirectory created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "subdir": "mySubDir",
+                  "dir": "sequences"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/effects": {
+      "get": {
+        "tags": [
+          "effects"
+        ],
+        "summary": "Get effects",
+        "description": "Returns a list of effect (`*.eseq`) files available in the effects directory.",
+        "responses": {
+          "200": {
+            "description": "List of effect filenames",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "rainbow",
+                  "twinkle"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/effects/ALL": {
+      "get": {
+        "tags": [
+          "effects"
+        ],
+        "summary": "Get all effects",
+        "description": "Returns a combined list of all effect (`*.eseq`) files from both the effects directory and the sequences directory.",
+        "responses": {
+          "200": {
+            "description": "Combined list of effect and sequence filenames",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "rainbow",
+                  "twinkle",
+                  "MySequence"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/configure": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "summary": "Set email options",
+        "description": "Configures outbound email using the existing settings.",
+        "responses": {
+          "200": {
+            "description": "Email configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email/test": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "summary": "Send test email",
+        "description": "Sends a test email using the existing settings.",
+        "responses": {
+          "200": {
+            "description": "Test email sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Get all event files",
+        "description": "Returns a map of all event (`*.fevt`) files, keyed by event ID (filename without extension).",
+        "responses": {
+          "200": {
+            "description": "Map of all event files keyed by event ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "1_1": {
+                    "name": "My Event",
+                    "effect": "rainbow",
+                    "startChannel": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{eventId}": {
+      "parameters": [
+        {
+          "name": "eventId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Get event file",
+        "description": "Returns the contents of a specific event file. If `{eventId}` is `ids`, returns a map of event IDs to display names.",
+        "responses": {
+          "200": {
+            "description": "Event file contents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "name": "My Event",
+                  "effect": "rainbow",
+                  "startChannel": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{eventId}/trigger": {
+      "parameters": [
+        {
+          "name": "eventId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Trigger event",
+        "description": "Triggers the specified event by sending a `Trigger Event` command to `fppd`.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event triggered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/info/{plugin}/{ext}/**": {
+      "parameters": [
+        {
+          "name": "plugin",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "ext",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Get plugin file info",
+        "description": "Returns plugin-specific file info for the specified file path. The plugin name, extension category, and file path are read from route parameters. The metadata command is defined in the plugin's `pluginInfo.json`.",
+        "responses": {
+          "200": {
+            "description": "Plugin-specific file information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/move/{fileName}": {
+      "parameters": [
+        {
+          "name": "fileName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Move file",
+        "description": "Moves the specified file from the `uploads` directory to the correct media subfolder based on its extension, returning a status of `OK` or an error message if not successful.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File moved to media directory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/onUpload/{ext}/**": {
+      "parameters": [
+        {
+          "name": "ext",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Notify plugin of upload",
+        "description": "Notifies any plugin that has registered an `onUpload` handler for the given file extension. `:ext` is the extension category and `**` is the file path.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plugin notified of upload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/{DirName}": {
+      "parameters": [
+        {
+          "name": "DirName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Upload file",
+        "description": "Handles chunked file uploads via `PATCH` (TUS-style). A `POST` to the same route initiates the session and returns a unique upload ID. Each `PATCH` request delivers a chunk identified by `Upload-Name`, `Upload-Offset`, and `Upload-Length` headers; when all chunks arrive, the file is assembled.",
+        "responses": {
+          "200": {
+            "description": "Upload chunk received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "file": "block_driveways.xbkp",
+                  "dir": "uploads",
+                  "size": 1048576
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/{DirName}/**": {
+      "parameters": [
+        {
+          "name": "DirName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Delete file or directory",
+        "description": "Deletes the specified file or directory from a media directory. Validates the resolved path against the allowed base directory to prevent path traversal.",
+        "responses": {
+          "200": {
+            "description": "File or directory deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "file": "block_driveways.xbkp",
+                  "dir": "uploads"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Get file contents",
+        "description": "Downloads the specified file from a media directory.",
+        "parameters": [
+          {
+            "name": "tail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return the last N lines instead of the whole file"
+          },
+          {
+            "name": "play",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "When `1`, set a playback-oriented content type instead of a forced attachment"
+          },
+          {
+            "name": "attach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "When `1`, force attachment download for images"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File contents; content type varies by file extension and query params",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "File <path> does not exist."
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/{DirName}/copy/{source}/{dest}": {
+      "parameters": [
+        {
+          "name": "DirName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "source",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "dest",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Copy file",
+        "description": "Copies the specified file from `:source` to `:dest` within the given directory.",
+        "responses": {
+          "200": {
+            "description": "File copied successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "success",
+                  "original": "test.py",
+                  "new": "test2.py"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/{DirName}/rename/{source}/{dest}": {
+      "parameters": [
+        {
+          "name": "DirName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "source",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "dest",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Rename file",
+        "description": "Renames the specified file from `:source` to `:dest` within the given directory.",
+        "responses": {
+          "200": {
+            "description": "File renamed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "success",
+                  "original": "test.py",
+                  "new": "test2.py"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/{DirName}/tailfollow/*": {
+      "parameters": [
+        {
+          "name": "DirName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Stream tail of file",
+        "description": "Streams the tail of a log file using Server-Sent Events (SSE). Only works for files in the `logs` directory.",
+        "parameters": [
+          {
+            "name": "lines",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Number of existing lines to seed into the stream, from 1 to 500, default 50"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "[12-May-2026 01:24:10] NOTICE: fpm is running, pid 80\n[12-May-2026 01:24:10] NOTICE: ready to handle connections"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden filename",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Invalid file path."
+              }
+            }
+          },
+          "404": {
+            "description": "File not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "File not found: <filename>"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/file/{DirName}/{Name}": {
+      "parameters": [
+        {
+          "name": "DirName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "Name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Upload file to directory",
+        "description": "Uploads a file to the specified media directory.",
+        "parameters": [
+          {
+            "name": "bs",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Block size used for fragmented uploads"
+          },
+          {
+            "name": "sb",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Starting block index used for fragmented uploads"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File uploaded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "file": "beepbeep.fseq",
+                  "dir": "sequences"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/zip/{DirNames}": {
+      "parameters": [
+        {
+          "name": "DirNames",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Get zip file of directories",
+        "description": "Downloads all files in the specified directory (or comma-separated list of directories) as a zip archive. `logs` and `config` are handled specially to include system log and config files.",
+        "responses": {
+          "200": {
+            "description": "Binary file stream of the compressed system archive.",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/{DirName}": {
+      "parameters": [
+        {
+          "name": "DirName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Get all files",
+        "description": "Returns a list of files in the specified media directory.",
+        "parameters": [
+          {
+            "name": "nameOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "When `1`, return a flat array of filenames instead of the default object envelope"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listing of files",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "ok",
+                  "files": [
+                    {
+                      "name": "Christmas Every Day.mp3",
+                      "mtime": "09/23/20  07:47 PM",
+                      "sizeBytes": 7929000,
+                      "sizeHuman": "7.56MB",
+                      "playtimeSeconds": "03m:46s"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/git/branches": {
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Get local branches",
+        "description": "Returns an array of branches available to switch to, filtering out obsolete version branches and Dependabot branches.",
+        "responses": {
+          "200": {
+            "description": "Available local branches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "master",
+                  "v7.3",
+                  "v7.2",
+                  "v7.1",
+                  "v7.0"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/git/originLog": {
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Get origin commits",
+        "description": "Returns a list of commits present in the `origin` (GitHub) but not in the local repository.",
+        "responses": {
+          "200": {
+            "description": "Commits in origin not yet in local",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "rows": [
+                    {
+                      "hash": "95ccb370e45272d8aed76aabfa55e60d489a8280",
+                      "author": "GithubUser1",
+                      "msg": "Use our SaveJsonToString() when generating MQTT warnings JSON message."
+                    },
+                    {
+                      "hash": "2fad5ad941baea49edaab834429343b42981bcc5",
+                      "author": "GithubUser2",
+                      "msg": "Move Playlist initialization into main() via Player::Init()"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/git/releases/os/{All}": {
+      "parameters": [
+        {
+          "name": "All",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Get releases for OS",
+        "description": "Returns lists of `.fppos` files available locally or on GitHub for the current platform. If the `{All}` path parameter is `\"all\"`, returns all releases regardless of platform.",
+        "responses": {
+          "200": {
+            "description": "Available OS release assets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "downloaded": [
+                    "Pi-v4.4.fppos",
+                    "Pi-5.0-alpha1.fppos"
+                  ],
+                  "files": [
+                    {
+                      "tag": "5.1",
+                      "release_name": "5.1",
+                      "filename": "Pi-5.1.1.fppos",
+                      "url": "https://github.com/FalconChristmas/fpp/releases/download/5.1/Pi-5.1.1.fppos",
+                      "asset_id": 42917234,
+                      "downloaded": false,
+                      "size": 0,
+                      "prerelease": false
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/git/releases/sizes": {
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Get release asset sizes",
+        "description": "Returns release asset size information from the GitHub `FalconChristmas/fpp` releases API.",
+        "responses": {
+          "200": {
+            "description": "Release asset sizes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "BBB-nightly_2026-05.fppos,1161494528",
+                  "BBB-10.0-alpha_2026-02.fppos,884658176"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/git/reset": {
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "git/reset",
+        "description": "Discard local changes Performs a hard reset on the current branch, discarding any local changes.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reset complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "log": [
+                    "HEAD is now at a1b65d43 Git Reset moved - #944",
+                    "Entering 'external/RF24'",
+                    "HEAD is now at ebc3abe Fix typo, missing space."
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/git/status": {
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Get local repo status",
+        "description": "Returns the status of the local git branch, including any dirty files.",
+        "responses": {
+          "200": {
+            "description": "Local repository status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "log": "On branch master\nYour branch is up to date with 'origin/master'."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "List all media files",
+        "description": "Returns a list of media files (includes both music and video files).",
+        "responses": {
+          "200": {
+            "description": "List of media filenames",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "Frosty.mp4",
+                  "Jingle_Bells.mp3"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media/{MediaName}/duration": {
+      "parameters": [
+        {
+          "name": "MediaName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Get duration of media item",
+        "description": "Returns the duration of a media item.",
+        "responses": {
+          "200": {
+            "description": "Media duration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "1min_720p29_2014-10-01.mp4": {
+                    "duration": 60.010666666667
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Media file not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Not found: {MediaName}"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media/{MediaName}/meta": {
+      "parameters": [
+        {
+          "name": "MediaName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Get metadata for media item",
+        "description": "Returns metadata streams, codecs, profiles, type for a specific media file.",
+        "responses": {
+          "200": {
+            "description": "Media file metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "programs": [],
+                  "streams": [
+                    {
+                      "index": 0,
+                      "codec_name": "h264",
+                      "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+                      "profile": "High",
+                      "codec_type": "video",
+                      "codec_time_base": "500/29971"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/dns": {
+      "get": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Get DNS configuration",
+        "description": "Returns the current DNS configuration. If not configured, `status` will be `Not Configured`.",
+        "responses": {
+          "200": {
+            "description": "Current DNS configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "DNS1": "192.168.50.1",
+                  "DNS2": "192.168.1.1",
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Set DNS configuration",
+        "description": "Updates the DNS configuration.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "DNS1": "192.168.50.1",
+                "DNS2": "192.168.1.1"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "DNS configuration updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "DNS": {
+                    "DNS1": "192.168.50.1",
+                    "DNS2": "192.168.1.1"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/gateway": {
+      "get": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Get default gateway",
+        "description": "Returns the currently configured default gateway IP address. May be empty when using DHCP.",
+        "responses": {
+          "200": {
+            "description": "Current default gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "GATEWAY": "192.168.1.1"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Set default gateway",
+        "description": "Saves the default gateway IP address to the `gateway` configuration file.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "GATEWAY": "192.168.1.1"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default gateway saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "GATEWAY": "192.168.1.1"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/interface": {
+      "get": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Get network interface details",
+        "description": "Returns detailed information about network interfaces, their IP addresses, and Wi-Fi signal strength.",
+        "responses": {
+          "200": {
+            "description": "Network interface details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "ifindex": 2,
+                    "ifname": "wlan0",
+                    "flags": [
+                      "BROADCAST",
+                      "MULTICAST",
+                      "UP",
+                      "LOWER_UP"
+                    ],
+                    "mtu": 1500,
+                    "operstate": "UP",
+                    "addr_info": [
+                      {
+                        "family": "inet",
+                        "local": "192.168.50.146",
+                        "prefixlen": 24
+                      }
+                    ],
+                    "wifi": {
+                      "interface": "wlan0",
+                      "link": 52,
+                      "level": -58,
+                      "noise": -256,
+                      "desc": "good"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/interface/add/{interface}": {
+      "parameters": [
+        {
+          "name": "interface",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Create DHCP interface",
+        "description": "Creates a new blank DHCP interface configuration file for the specified network interface (e.g. `eth1`, `wlan0`).",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DHCP interface created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "New Blank Interface created"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/interface/{interface}": {
+      "parameters": [
+        {
+          "name": "interface",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Get network interface configuration",
+        "description": "Retrieves the current network interface configuration.",
+        "responses": {
+          "200": {
+            "description": "Network interface configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "INTERFACE": "eth0",
+                  "PROTO": "static",
+                  "ADDRESS": "192.168.1.149",
+                  "NETMASK": "255.255.255.0",
+                  "status": "OK",
+                  "CurrentAddress": "192.168.1.149",
+                  "CurrentNetmask": "255.255.255.0"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Set network interface configuration",
+        "description": "Updates the saved configuration for the specified `{interface}` but does not restart the network.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "INTERFACE": "eth0",
+                "PROTO": "static",
+                "ADDRESS": "192.168.1.149",
+                "NETMASK": "255.255.255.0",
+                "GATEWAY": "192.168.1.1"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Interface configuration saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/interface/{interface}/apply": {
+      "parameters": [
+        {
+          "name": "interface",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Set networking configuration",
+        "description": "Applies the networking settings for the specified `{interface}` at the OS level and restarts the interface.",
+        "responses": {
+          "200": {
+            "description": "Networking configuration applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "output": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/persistentNames": {
+      "delete": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Delete interface persistent names",
+        "description": "Removes interface persistent names by deleting systemd `.link` files and restoring any USB ethernet adapter config files back to `eth*` names.",
+        "responses": {
+          "200": {
+            "description": "Persistent names removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Set interface persistent names",
+        "description": "Creates interface persistent names by writing systemd `.link` files that pin each interface's name to its MAC address.",
+        "responses": {
+          "200": {
+            "description": "Persistent names created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "interfaceCnt": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/wifi/scan/{interface}": {
+      "parameters": [
+        {
+          "name": "interface",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Get discoverable wifi networks",
+        "description": "Returns information about Wi-Fi networks discoverable via the specified `{interface}`. Networks without an SSID may appear in the list.",
+        "responses": {
+          "200": {
+            "description": "Discoverable Wi-Fi networks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "networks": [
+                    {
+                      "lastSeen": "0 ms ago",
+                      "freq": 2437,
+                      "signal": "-61.00 dBm",
+                      "SSID": "Christmas"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/wifi/strength": {
+      "get": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Get all wifi signal strenths",
+        "description": "Returns signal strength information for wireless network interfaces.",
+        "responses": {
+          "200": {
+            "description": "Wi-Fi signal strength per interface",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "interface": "wlan0",
+                    "link": 45,
+                    "level": -65,
+                    "noise": -256
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/options/{SettingName}": {
+      "parameters": [
+        {
+          "name": "SettingName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "options"
+        ],
+        "summary": "Get a setting's options",
+        "description": "Returns the available options for the specified setting. Supports `AudioMixerDevice`, `AudioOutput`, `AudioInput`, and other platform-specific option sets.",
+        "responses": {
+          "200": {
+            "description": "Available options for the setting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Dummy": "0"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pipewire/control/groups": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "List output groups with live state",
+        "description": "Returns every configured audio output group together with its member sound cards. Volume/mute for groups and member cards are read live from PipeWire (`volumeSource: \"live\"` when the sink is running, else the saved config value with `volumeSource: \"config\"`).",
+        "responses": {
+          "200": {
+            "description": "Output groups with live runtime state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "groups": [
+                    {
+                      "id": 1,
+                      "name": "Front",
+                      "enabled": true,
+                      "channels": 2,
+                      "nodeName": "fpp_group_front",
+                      "configVolume": 100,
+                      "configMute": false,
+                      "liveVolume": 80,
+                      "liveMute": false,
+                      "running": true,
+                      "state": "RUNNING",
+                      "volumeSource": "live",
+                      "members": [
+                        {
+                          "cardId": "S3",
+                          "channels": 2,
+                          "nodeName": "fpp_fx_g1_s3",
+                          "configVolume": 100,
+                          "liveVolume": 75,
+                          "liveMute": false,
+                          "running": true,
+                          "volumeSource": "live"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pipewire/control/groups/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Get one output group with live state",
+        "description": "Returns a single audio output group (by numeric group id) with its member sound cards and live runtime volume/mute.",
+        "responses": {
+          "200": {
+            "description": "Output group with live runtime state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "group": {
+                    "id": 1,
+                    "name": "Front",
+                    "enabled": true,
+                    "nodeName": "fpp_group_front",
+                    "liveVolume": 80,
+                    "liveMute": false,
+                    "running": true,
+                    "members": []
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Output group not found"
+          }
+        }
+      }
+    },
+    "/pipewire/control/groups/{id}/members/{cardId}/mute": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "cardId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Mute or unmute a member sound card",
+        "description": "Sets the mute state of an individual sound card within an output group, addressed by its ALSA card id. Provide `mute` (bool) or `toggle: true`. Applied live and persisted.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "toggle": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member mute state applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "groupId": 1,
+                  "cardId": "S3",
+                  "nodeName": "fpp_fx_g1_s3",
+                  "mute": true,
+                  "applied": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Provide 'mute' (bool) or 'toggle': true"
+          },
+          "404": {
+            "description": "Card not found in group"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/pipewire/control/groups/{id}/members/{cardId}/volume": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "cardId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Set member sound-card volume",
+        "description": "Sets the volume (0-150%) of an individual sound card within an output group, addressed by its stable ALSA card id (e.g. `S3`). Applied live to the member filter-chain sink and persisted.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 75
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member volume applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "groupId": 1,
+                  "cardId": "S3",
+                  "nodeName": "fpp_fx_g1_s3",
+                  "volume": 75,
+                  "applied": true,
+                  "message": "Volume set to 75%"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing 'volume'"
+          },
+          "404": {
+            "description": "Card not found in group"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/pipewire/control/groups/{id}/mute": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Mute or unmute an output group",
+        "description": "Sets the mute state of an output group's combined sink. Provide an explicit `mute` boolean, or `toggle: true` to flip the current state. Applied live and persisted.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "mute": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mute state applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "groupId": 1,
+                  "nodeName": "fpp_group_front",
+                  "mute": true,
+                  "applied": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Provide 'mute' (bool) or 'toggle': true"
+          },
+          "404": {
+            "description": "Output group not found"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/pipewire/control/groups/{id}/volume": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Set output group volume",
+        "description": "Sets the master volume (0-150%) of an audio output group's combined PipeWire sink. The value is applied live and persisted to the group config so it survives a reboot.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 80
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Volume applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "groupId": 1,
+                  "nodeName": "fpp_group_front",
+                  "volume": 80,
+                  "applied": true,
+                  "message": "Volume set to 80%"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing 'volume'"
+          },
+          "404": {
+            "description": "Output group not found"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/pipewire/control/input-groups": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "List input groups (mix buses)",
+        "description": "Returns every configured input group (mix bus) with its members and the output groups it routes to. Member volume/mute reflect the saved config (`volumeSource: \"config\"`) plus a live `running` flag indicating whether the loopback node is currently active.",
+        "responses": {
+          "200": {
+            "description": "Input groups with member state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroups": [
+                    {
+                      "id": 1,
+                      "name": "Main Mix",
+                      "enabled": true,
+                      "channels": 2,
+                      "outputs": [
+                        1,
+                        2
+                      ],
+                      "members": [
+                        {
+                          "index": 0,
+                          "type": "fppd_stream",
+                          "sourceId": "fppd_stream_1",
+                          "name": "FPP Media",
+                          "configVolume": 100,
+                          "configMute": false,
+                          "running": true,
+                          "volumeSource": "config"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pipewire/control/input-groups/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Get one input group (mix bus)",
+        "description": "Returns a single input group by numeric id with its members and routing targets.",
+        "responses": {
+          "200": {
+            "description": "Input group with member state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroup": {
+                    "id": 1,
+                    "name": "Main Mix",
+                    "enabled": true,
+                    "channels": 2,
+                    "outputs": [
+                      1
+                    ],
+                    "members": []
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Input group not found"
+          }
+        }
+      }
+    },
+    "/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "memberIndex",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Mute or unmute an input-group member",
+        "description": "Sets the mute state of a member within an input group, addressed by zero-based member index. Loopback nodes have no mute property, so mute is implemented by driving channelmix volume to 0 and unmute restores the saved member volume. Provide `mute` (bool) or `toggle: true`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "mute": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member mute state applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroupId": 1,
+                  "memberIndex": 0,
+                  "mute": true,
+                  "applied": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Provide 'mute' (bool) or 'toggle': true"
+          },
+          "404": {
+            "description": "Member not found in input group"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "memberIndex",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Set input-group member volume",
+        "description": "Sets the volume (0-100%) of a member within an input group (mix bus), addressed by its zero-based member index. Applied live to the member loopback via channelmix and persisted. Note: the primary fppd stream's volume is governed by fppd itself, not a loopback.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 60
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member volume applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroupId": 1,
+                  "memberIndex": 0,
+                  "volume": 60,
+                  "applied": true,
+                  "message": "Volume set to 60%"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing 'volume'"
+          },
+          "404": {
+            "description": "Member not found in input group"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/pipewire/control/routing": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Get the routing matrix",
+        "description": "Returns the full input-group to output-group routing matrix. For every input group, each possible output-group path is listed with its connected state, per-path volume and mute. Values reflect the saved config (`volumeSource: \"config\"`).",
+        "responses": {
+          "200": {
+            "description": "Routing matrix",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "volumeSource": "config",
+                  "matrix": [
+                    {
+                      "inputGroupId": 1,
+                      "inputGroupName": "Main Mix",
+                      "enabled": true,
+                      "paths": [
+                        {
+                          "outputGroupId": 1,
+                          "outputGroupName": "Front",
+                          "connected": true,
+                          "volume": 100,
+                          "mute": false
+                        },
+                        {
+                          "outputGroupId": 2,
+                          "outputGroupName": "Rear",
+                          "connected": false,
+                          "volume": 75,
+                          "mute": false
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
+      "parameters": [
+        {
+          "name": "inputGroupId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "outputGroupId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Mute or unmute a routing path",
+        "description": "Sets the mute state of a single input-group to output-group routing path. Mute drives the routing channelmix volume to 0; unmute restores the saved per-path volume. Provide `mute` (bool) or `toggle: true`. Persisted to the input-group routing config.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "toggle": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Route mute state applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroupId": 1,
+                  "outputGroupId": 2,
+                  "mute": true,
+                  "applied": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Provide 'mute' (bool) or 'toggle': true"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
+      "parameters": [
+        {
+          "name": "inputGroupId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "outputGroupId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Set routing-path volume",
+        "description": "Sets the volume (0-100%) of a single input-group to output-group routing path. Applied live to the routing combine-stream and persisted to the input-group routing config.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 50
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Route volume applied and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inputGroupId": 1,
+                  "outputGroupId": 2,
+                  "volume": 50,
+                  "applied": true,
+                  "message": "Route volume set to 50%"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing 'volume'"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/pipewire/control/status": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "PipeWire control status",
+        "description": "Reports whether the PipeWire backend is active, the systemd service health of the PipeWire/WirePlumber/pulse units, and configured group counts. Use this to discover capability before issuing control calls.",
+        "responses": {
+          "200": {
+            "description": "PipeWire backend status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "backend": "pipewire",
+                  "pipewireActive": true,
+                  "simpleMode": false,
+                  "services": {
+                    "fpp-pipewire": "active",
+                    "fpp-wireplumber": "active",
+                    "fpp-pipewire-pulse": "active"
+                  },
+                  "outputGroupCount": 2,
+                  "outputGroupsEnabled": 2,
+                  "inputGroupCount": 1,
+                  "inputGroupsEnabled": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pipewire/control/streams": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "List fppd stream slots",
+        "description": "Returns the status of all 5 fppd media stream slots (idle/playing). Slot 1 additionally reports the currently playing media filename and timing from fppd.",
+        "responses": {
+          "200": {
+            "description": "Stream slot status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "streams": [
+                    {
+                      "slot": 1,
+                      "nodeName": "fppd_stream_1",
+                      "status": "playing",
+                      "mediaFilename": "show.mp4",
+                      "secondsElapsed": 12,
+                      "secondsRemaining": 48
+                    },
+                    {
+                      "slot": 2,
+                      "nodeName": "fppd_stream_2",
+                      "status": "idle",
+                      "mediaFilename": ""
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pipewire/control/streams/{slot}/volume": {
+      "parameters": [
+        {
+          "name": "slot",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Set fppd stream slot volume",
+        "description": "Sets the volume (0-100%) of an fppd media stream slot (1-5). Slot 1 uses fppd's built-in volume control; slots 2-5 are set live via PipeWire channelmix on the stream node. The response `control` field indicates which path was used.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 90
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stream volume applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "slot": 1,
+                  "volume": 90,
+                  "applied": true,
+                  "control": "fppd"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing 'volume'"
+          },
+          "409": {
+            "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/playlist/{PlaylistName}": {
+      "parameters": [
+        {
+          "name": "PlaylistName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Delete playlist",
+        "description": "Delete the playlist named {PlaylistName}.",
+        "responses": {
+          "200": {
+            "description": "Playlist deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Get a playlist",
+        "description": "Get the playlist named `{PlaylistName}` in FPP JSON format. If `?mergeSubs=1` is specified, sub-playlists are recursively merged into the parent sections.",
+        "parameters": [
+          {
+            "name": "mergeSubs",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Merge sub-playlsits recursively"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "name": "UploadTest",
+                  "globalPauseBetweenSequencesMS": 5000,
+                  "mainPlaylist": [
+                    {
+                      "type": "pause",
+                      "enabled": 1,
+                      "playOnce": 0,
+                      "duration": 8
+                    }
+                  ],
+                  "playlistInfo": {
+                    "total_duration": 8,
+                    "total_items": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Upsert playlist",
+        "description": "Update or Insert (upsert) the playlist named {PlaylistName}.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "name": "UploadTest",
+                "globalPauseBetweenSequencesMS": 5000,
+                "mainPlaylist": [
+                  {
+                    "type": "pause",
+                    "enabled": 1,
+                    "playOnce": 0,
+                    "duration": 8
+                  }
+                ],
+                "playlistInfo": {
+                  "total_duration": 8,
+                  "total_items": 1
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "name": "UploadTest",
+                  "globalPauseBetweenSequencesMS": 5000,
+                  "mainPlaylist": [
+                    {
+                      "type": "pause",
+                      "enabled": 1,
+                      "playOnce": 0,
+                      "duration": 8
+                    }
+                  ],
+                  "playlistInfo": {
+                    "total_duration": 8,
+                    "total_items": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlist/{PlaylistName}/start": {
+      "parameters": [
+        {
+          "name": "PlaylistName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Start playlist",
+        "description": "Start the playlist named `{PlaylistName}`. The optional query parameter `scheduleProtected` (`true`/`false`) prevents the scheduler from stopping this playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlist/{PlaylistName}/start/{Repeat}": {
+      "parameters": [
+        {
+          "name": "PlaylistName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "Repeat",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Start playlist on repeat",
+        "description": "Start the playlist named `{PlaylistName}` with repeat mode. The optional query parameter `scheduleProtected` (`true`/`false`) prevents the scheduler from stopping this playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scheduleProtected",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Prevent schedule from stopping this playlist"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}": {
+      "parameters": [
+        {
+          "name": "PlaylistName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "Repeat",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "ScheduleProtected",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Start playlist on repeat (alt)",
+        "description": "Start the playlist named `{PlaylistName}` with repeat mode and schedule protection. When `{ScheduleProtected}` is `true`, the scheduler cannot stop this playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlist/{PlaylistName}/{SectionName}/item": {
+      "parameters": [
+        {
+          "name": "PlaylistName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "SectionName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Insert section into playlist",
+        "description": "Insert an item into the `{SectionName}` section of playlist `{PlaylistName}`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "type": "pause",
+                "enabled": 1,
+                "playOnce": 0,
+                "duration": 8
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item inserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists": {
+      "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Get all playlists",
+        "description": "Get list of playlist names.",
+        "responses": {
+          "200": {
+            "description": "List of playlist names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "Playlist_1",
+                  "Playlist_2",
+                  "Playlist_3"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Create playlist",
+        "description": "Insert a new playlist.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "name": "UploadTest",
+                "globalPauseBetweenSequencesMS": 5000,
+                "mainPlaylist": [
+                  {
+                    "type": "pause",
+                    "enabled": 1,
+                    "playOnce": 0,
+                    "duration": 8
+                  }
+                ],
+                "playlistInfo": {
+                  "total_duration": 8,
+                  "total_items": 1
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Newly created playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "name": "UploadTest",
+                  "globalPauseBetweenSequencesMS": 5000,
+                  "mainPlaylist": [
+                    {
+                      "type": "pause",
+                      "enabled": 1,
+                      "playOnce": 0,
+                      "duration": 8
+                    }
+                  ],
+                  "playlistInfo": {
+                    "total_duration": 8,
+                    "total_items": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/pause": {
+      "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Pause currently running playlist",
+        "description": "Pause the currently running playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist paused",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/playable": {
+      "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Get playable objects",
+        "description": "Get a combined list of playlist names and `*.fseq` sequence filenames that are playable.",
+        "responses": {
+          "200": {
+            "description": "Playable playlist and sequence names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "Playlist_1",
+                  "Playlist_2",
+                  "MySequence.fseq"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/resume": {
+      "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Resume paused playlist",
+        "description": "Resume a previously paused playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist resumed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/stop": {
+      "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Stop playlist",
+        "description": "Immediately stop the currently running playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/stopgracefully": {
+      "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Gracefully stop playlist",
+        "description": "Gracefully stop the currently running playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Graceful stop initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/stopgracefullyafterloop": {
+      "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Gracefully stop at end of loop",
+        "description": "Gracefully stop the currently running playlist after completion of the current loop.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stop after loop initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/playlists/validate": {
+      "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Validate all playlists",
+        "description": "Returns a list of all playlists with any validation errors, total item counts, and total duration.",
+        "responses": {
+          "200": {
+            "description": "Validation results for all playlists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "name": "Test1",
+                    "description": "User entered playlist description",
+                    "valid": true,
+                    "messages": [],
+                    "total_duration": 10,
+                    "total_items": 3,
+                    "version": 4,
+                    "leadIn_items": 0,
+                    "mainPlaylist_items": 3,
+                    "leadOut_items": 0
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plugin": {
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Get all plugins",
+        "description": "Get list of installed plugins.",
+        "responses": {
+          "200": {
+            "description": "List of installed plugin names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "fpp-brightness",
+                  "fpp-matrixtools",
+                  "fpp-vastfmt"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Install plugin",
+        "description": "Install a new plugin. The request body is a `pluginInfo.json` structure with `branch` and `sha` fields added to specify which branch and commit to install.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "repoName": "fpp-matrixtools",
+                "name": "MatrixTools",
+                "author": "Chris Pinkham (CaptainMurdoch)",
+                "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git",
+                "branch": "master",
+                "sha": ""
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plugin installed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plugin/fetchInfo": {
+      "post": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Get plugin info from URL",
+        "description": "Server-side proxy for fetching a `pluginInfo.json` from a remote URL. Used to retrieve plugin repository info without CORS issues, and to authenticate against private GitHub repositories using credentials configured on the Developer settings page.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "url": "https://example.com/pluginInfo.json",
+                "useCredentials": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plugin info fetched from remote URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plugin/headerIndicators": {
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Get header indicators",
+        "description": "Returns header indicator data (e.g., notification badges) from all installed plugins that define a `headerIndicators.php` file.",
+        "responses": {
+          "200": {
+            "description": "Plugin header indicator data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "pluginName": "fpp-matrixtools",
+                    "label": "1",
+                    "color": "red"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plugin/{RepoName}": {
+      "parameters": [
+        {
+          "name": "RepoName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Uninstall plugin",
+        "description": "Uninstall plugin {RepoName}.",
+        "responses": {
+          "200": {
+            "description": "Plugin uninstalled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Get plugin information",
+        "description": "Get `pluginInfo.json` for installed plugin `{RepoName}`. An additional `updatesAvailable` field indicates whether the plugin has commits that have been fetched but not yet merged.",
+        "responses": {
+          "200": {
+            "description": "Plugin information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "repoName": "fpp-matrixtools",
+                  "name": "MatrixTools",
+                  "author": "Chris Pinkham (CaptainMurdoch)",
+                  "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git",
+                  "updatesAvailable": 0,
+                  "versions": [
+                    {
+                      "minFPPVersion": 0,
+                      "maxFPPVersion": 0,
+                      "branch": "master",
+                      "sha": ""
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plugin/{RepoName}/settings/{SettingName}": {
+      "parameters": [
+        {
+          "name": "RepoName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "SettingName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Get setting from plugin",
+        "description": "Returns the value of setting `{SettingName}` from plugin `{RepoName}`.",
+        "responses": {
+          "200": {
+            "description": "Plugin setting value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "SettingName": "SettingValue"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Set setting for plugin",
+        "description": "Sets `{SettingName}` for plugin `{RepoName}` and returns the updated value.",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "SettingValue"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plugin setting updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "SettingName": "SettingValue"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plugin/{RepoName}/updates": {
+      "parameters": [
+        {
+          "name": "RepoName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Check plugin for updates",
+        "description": "Check plugin `{RepoName}` for available updates by running `git fetch` in the plugin directory and checking for any unmerged commits.",
+        "responses": {
+          "200": {
+            "description": "Update check result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "",
+                  "updatesAvailable": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plugin/{RepoName}/upgrade": {
+      "parameters": [
+        {
+          "name": "RepoName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Update plugin",
+        "description": "Pull in git updates for plugin `{RepoName}`. Supports an optional `?stream=true` query parameter for streaming output.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "When `true`, stream the upgrade output to the response instead of buffering it"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plugin upgraded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proxies": {
+      "delete": {
+        "tags": [
+          "proxies"
+        ],
+        "summary": "Delete all proxies",
+        "description": "Deletes all proxy entries by writing an empty `proxy-config.conf` and triggering an Apache graceful reload.",
+        "responses": {
+          "200": {
+            "description": "All proxies deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": []
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "proxies"
+        ],
+        "summary": "Get list of proxy IPs",
+        "description": "Returns the list of IP addresses this FPP instance can proxy.",
+        "responses": {
+          "200": {
+            "description": "Current proxy list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "host": "192.168.1.2",
+                    "description": "Mega Tree"
+                  },
+                  {
+                    "host": "192.168.1.146",
+                    "description": "Yard"
+                  },
+                  {
+                    "host": "192.168.1.148",
+                    "description": "Left House"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "proxies"
+        ],
+        "summary": "Set proxy list",
+        "description": "Replaces the proxy list with the submitted array of `host`/`description` objects, validates each entry, and triggers an Apache graceful reload.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array"
+              },
+              "example": [
+                {
+                  "host": "192.168.1.2",
+                  "description": "Mega Tree"
+                }
+              ]
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated proxy list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "host": "192.168.1.2",
+                    "description": "Mega Tree"
+                  },
+                  {
+                    "host": "192.168.1.146",
+                    "description": "Yard"
+                  },
+                  {
+                    "host": "192.168.1.148",
+                    "description": "Left House"
+                  }
+                ]
+              }
+            }
+          },
+          "400": {
+            "description": "No valid proxies provided",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "error": "No valid proxies provided"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proxies/{ProxyIp}": {
+      "parameters": [
+        {
+          "name": "ProxyIp",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "proxies"
+        ],
+        "summary": "Remove proxy",
+        "description": "Removes a single IP address from the FPP proxy list.",
+        "responses": {
+          "200": {
+            "description": "Updated proxy list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": []
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "proxies"
+        ],
+        "summary": "Add proxy",
+        "description": "Adds a single IP address to the FPP proxy list if it does not already exist.",
+        "responses": {
+          "200": {
+            "description": "Updated proxy list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "host": "192.168.1.2",
+                    "description": "Mega Tree"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proxy/{Ip}/{urlPart}": {
+      "parameters": [
+        {
+          "name": "Ip",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "urlPart",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Get URL from remote FPP",
+        "description": "Fetches a URL on a remote FPP instance via server-side proxy to avoid CSP restrictions.",
+        "responses": {
+          "400": {
+            "description": "Invalid IP address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "error": "Invalid IP address"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Proxy fetch failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "error": "Failed to fetch proxied URL"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/remoteAction": {
+      "post": {
+        "tags": [
+          "remoteAction"
+        ],
+        "summary": "Proxy a command to remote FPP (v1 \u2014 query parameters)",
+        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "ip": "192.168.1.100",
+                "action": "reboot"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Invalid action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "error": "Invalid action given: badaction"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/remotes": {
+      "get": {
+        "tags": [
+          "remotes"
+        ],
+        "summary": "Get all remote FPPs",
+        "description": "Returns the list of known remote FPP systems from `fppd` multiSync discovery.",
+        "responses": {
+          "200": {
+            "description": "Known remote FPP systems",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "192.168.1.10": "192.168.1.10 - remote-fpp",
+                  "192.168.1.11": "192.168.1.11"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedule": {
+      "get": {
+        "tags": [
+          "schedule"
+        ],
+        "summary": "Get schedules",
+        "description": "Returns the current FPP schedule configuration from `schedule.json`.",
+        "responses": {
+          "200": {
+            "description": "Current schedule entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "day": 7,
+                    "enabled": 0,
+                    "endDate": "2099-12-31",
+                    "endTime": "23:00:00",
+                    "playlist": "Main Show",
+                    "repeat": 1,
+                    "startDate": "2014-01-01",
+                    "startTime": "17:00:00",
+                    "stopType": 0
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "schedule"
+        ],
+        "summary": "Set schedule",
+        "description": "Saves the new schedule configuration to `schedule.json`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array"
+              },
+              "example": [
+                {
+                  "day": 7,
+                  "enabled": 0,
+                  "endDate": "2099-12-31",
+                  "endTime": "23:00:00",
+                  "playlist": "Main Show",
+                  "repeat": 1,
+                  "startDate": "2014-01-01",
+                  "startTime": "17:00:00",
+                  "stopType": 0
+                }
+              ]
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved schedule entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "day": 7,
+                    "enabled": 0,
+                    "endDate": "2099-12-31",
+                    "endTime": "23:00:00",
+                    "playlist": "Main Show",
+                    "repeat": 1,
+                    "startDate": "2014-01-01",
+                    "startTime": "17:00:00",
+                    "stopType": 0
+                  }
+                ]
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to write schedule",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Unable to open schedule.json for writing."
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedule/reload": {
+      "post": {
+        "tags": [
+          "schedule"
+        ],
+        "summary": "Reload schedules",
+        "description": "Sends a reload command to `fppd` to re-read the schedule configuration.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule reloaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scripts": {
+      "get": {
+        "tags": [
+          "scripts"
+        ],
+        "summary": "Get all scripts",
+        "description": "Returns a list of currently installed scripts.",
+        "responses": {
+          "200": {
+            "description": "List of installed script filenames",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "script1.sh",
+                  "script2.sh"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scripts/installRemote/{category}/{filename}": {
+      "parameters": [
+        {
+          "name": "category",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "filename",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "scripts"
+        ],
+        "summary": "Install remote script",
+        "description": "Installs a remote script from the script repository.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Remote script installed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scripts/viewRemote/{category}/{filename}": {
+      "parameters": [
+        {
+          "name": "category",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "filename",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "scripts"
+        ],
+        "summary": "Get remote script",
+        "description": "Returns the source code of a remote script from the script repository.",
+        "responses": {
+          "200": {
+            "description": "Remote script source code",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "The content of the script as a string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scripts/{scriptName}": {
+      "parameters": [
+        {
+          "name": "scriptName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "scripts"
+        ],
+        "summary": "Get a script",
+        "description": "Returns the source code of an installed script.",
+        "responses": {
+          "200": {
+            "description": "Script source code",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "The content of the script as a string"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "scripts"
+        ],
+        "summary": "Update script",
+        "description": "Writes the `POST` request body to the file specified by `{scriptName}`.",
+        "responses": {
+          "200": {
+            "description": "Script saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "scriptName": "test.py",
+                  "scriptBody": "#!/usr/bin/python\n\nprint(\"hi There Matt!\");\n"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scripts/{scriptName}/run": {
+      "parameters": [
+        {
+          "name": "scriptName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "scripts"
+        ],
+        "summary": "Run script",
+        "description": "Runs a locally installed script.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Script output",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "The output of the script as a String"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sequence": {
+      "get": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Get all sequences",
+        "description": "Returns a list of all `*.fseq` sequence files.",
+        "responses": {
+          "200": {
+            "description": "List of sequence names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "GreatestShow",
+                  "StPatricksDay",
+                  "Valentine"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sequence/current/step": {
+      "get": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Step a paused sequence",
+        "description": "If the sequence was paused via `sequence/current/togglePause`, steps the sequence forward one frame.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sequence stepped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sequence/current/stop": {
+      "get": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Stop sequence",
+        "description": "Stops the currently playing sequence. Only valid if the sequence was started via `/api/sequence/{SequenceName}/start/{startSecond}`.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEVELOPER ONLY",
+            "color": "#546e7a"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sequence stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sequence/current/togglePause": {
+      "get": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Toggle play/pause on sequence",
+        "description": "Pauses or resumes the currently playing sequence. Only valid if the sequence was started via `/api/sequence/{SequenceName}/start/{startSecond}`.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEVELOPER ONLY",
+            "color": "#546e7a"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sequence play/pause toggled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sequence/{SequenceName}": {
+      "parameters": [
+        {
+          "name": "SequenceName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Delete sequence file",
+        "description": "Deletes the named `*.fseq` sequence file.",
+        "responses": {
+          "200": {
+            "description": "Sequence deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Download sequence",
+        "description": "Downloads the `*.fseq` file for the named sequence.",
+        "responses": {
+          "200": {
+            "description": "Raw FSEQ file download",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sequence not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Not found: {SequenceName}"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Uploads sequence file",
+        "description": "Uploads a new `*.fseq` sequence file.",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "(Raw FSEQ file data)"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sequence uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sequence/{SequenceName}/meta": {
+      "parameters": [
+        {
+          "name": "SequenceName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Get sequence metadata",
+        "description": "Returns `name`, `version`, `id`, `time`, and other details from the `*.fseq` file for the named sequence.",
+        "responses": {
+          "200": {
+            "description": "Sequence metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Name": "GreatestShow.fseq",
+                  "Version": "2.0",
+                  "ID": "1553194098754908",
+                  "StepTime": 25,
+                  "NumFrames": 10750,
+                  "MaxChannel": 84992,
+                  "ChannelCount": 84992
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sequence not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Not found: {SequenceName}"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sequence/{SequenceName}/start/{startSecond}": {
+      "parameters": [
+        {
+          "name": "SequenceName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "startSecond",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Start sequence at time",
+        "description": "Starts the given sequence at the specified time frame. Only intended for testing. In most situations, use the \"Start Playlist\" command from the command API and pass the sequence name as the playlist name.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEVELOPER ONLY",
+            "color": "#546e7a"
+          },
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sequence started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "SequenceName": "single_line.fseq",
+                  "startSecond": "9"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get all settings.json",
+        "description": "Returns the `settings.json` metadata file as a JSON list of settings.",
+        "responses": {
+          "200": {
+            "description": "All settings metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "settingGroups": {
+                    "BBBLeds": {
+                      "description": "BeagleBone LEDs",
+                      "platforms": [
+                        "BeagleBone Black"
+                      ],
+                      "settings": [
+                        "BBBLeds0",
+                        "BBBLeds1",
+                        "BBBLeds2",
+                        "BBBLeds3",
+                        "BBBLedPWR"
+                      ]
+                    }
+                  },
+                  "settings": {
+                    "alwaysTransmit": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/{SettingName}": {
+      "parameters": [
+        {
+          "name": "SettingName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get value of setting",
+        "description": "Get info about a particular setting, including its current `value`.",
+        "responses": {
+          "200": {
+            "description": "Setting metadata and current value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "name": "AudioFormat",
+                  "description": "Audio Output Format",
+                  "tip": "The Audio Format generated by the decoder",
+                  "level": 1,
+                  "restart": 2,
+                  "default": 0,
+                  "type": "select",
+                  "options": {
+                    "Default": 0,
+                    "MP3": 1,
+                    "Ogg": 2,
+                    "Flac": 3
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Set value for setting",
+        "description": "Sets the value for a specific setting.",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "0"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Setting saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/{SettingName}/jsonValueUpdate": {
+      "parameters": [
+        {
+          "name": "SettingName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Set sub-value",
+        "description": "Updates a sub-value held as JSON within a setting's value. Only valid for settings stored as JSON.",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "raw json of hierarchy to update"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sub-value updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/statistics/usage": {
+      "delete": {
+        "tags": [
+          "statistics"
+        ],
+        "summary": "Resets statistics cache",
+        "description": "Deletes the cached statistics file.",
+        "responses": {
+          "200": {
+            "description": "Statistics cache cleared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "statistics"
+        ],
+        "summary": "Get statistics",
+        "description": "Returns the statistics file that will be shared with the development team if sharing statistics is enabled. A cached file is returned unless it is more than 2 hours old or `?force=1` is passed, in which case it is regenerated.",
+        "parameters": [
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "bypass cache"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage statistics payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "uuid": "6ba176e7-da7f-49f4-8b27-edb5bd9ff616",
+                  "systemInfo": {
+                    "mqtt": {
+                      "configured": true,
+                      "connected": true
+                    },
+                    "fppdStatus": "running",
+                    "fppdMode": "player",
+                    "fppdUptimeSeconds": 3436,
+                    "platform": "Debian",
+                    "version": "4.x-master-914-gebda8520",
+                    "majorVersion": 4,
+                    "minorVersion": 1000,
+                    "typeId": 1,
+                    "branch": "master",
+                    "utilization": {
+                      "CPU": 2.2,
+                      "Memory": 15.9,
+                      "Uptime": "7 days"
+                    }
+                  },
+                  "capeInfo": {
+                    "type": "None"
+                  },
+                  "files": {
+                    "sequences": {
+                      "cnt": 2,
+                      "bytes": 19025632
+                    }
+                  },
+                  "models": {
+                    "count": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "statistics"
+        ],
+        "summary": "Publsh statistics",
+        "description": "Transmits the statistics payload to the remote stats server configured in the `statsPublishUrl` setting.",
+        "responses": {
+          "200": {
+            "description": "Statistics transmitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "uuid": "M2-xxxxxxxx-f67f-930d-56ee-7xxxxxxxxxx"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/fppd/restart": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Restart fppd process",
+        "description": "Restarts the `fppd` process. Pass `?quick=1` to reload some configuration without a full restart.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quick",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "When `1`, send a reload signal to a running fppd instead of a full stop/start"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "fppd restarted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/fppd/skipBootDelay": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Skip boot delay",
+        "description": "Skips the current boot delay by creating a skip flag file, allowing FPP startup to proceed immediately.",
+        "responses": {
+          "200": {
+            "description": "Boot delay skip requested",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "message": "Boot delay skip requested"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/fppd/start": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Start fppd",
+        "description": "Starts the `fppd` process idempotently (if it isn't already running).",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "fppd started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/fppd/stop": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Stop fppd",
+        "description": "Stops the `fppd` process if it is running.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "fppd stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/info": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get system info",
+        "description": "Returns basic information about the system.",
+        "responses": {
+          "200": {
+            "description": "System information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "HostName": "FPPPi",
+                  "HostDescription": "",
+                  "Platform": "Raspberry Pi",
+                  "Variant": "Pi 4",
+                  "Mode": "player",
+                  "Version": "6.0",
+                  "Branch": "master",
+                  "OSVersion": "v2022-02",
+                  "OSRelease": "Raspbian GNU/Linux 11 (bullseye)",
+                  "channelRanges": "1545-84479",
+                  "majorVersion": 6,
+                  "minorVersion": 1000,
+                  "typeId": 13,
+                  "uuid": "M1-10000000AAAAAAA",
+                  "Utilization": {
+                    "CPU": 0.12,
+                    "Memory": 1.96,
+                    "Uptime": "11 days"
+                  },
+                  "Kernel": "5.10.92-v7l+",
+                  "LocalGitVersion": "b998f65",
+                  "RemoteGitVersion": "ed62c12",
+                  "UpgradeSource": "github.com",
+                  "IPs": [
+                    "192.168.3.84"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/packages": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get all system packages",
+        "description": "Returns a list of all installed and available OS package names via `apt list --all-versions`.",
+        "responses": {
+          "200": {
+            "description": "List of OS package names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "apache2",
+                  "ffmpeg",
+                  "php"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/packages/info/{packageName}": {
+      "parameters": [
+        {
+          "name": "packageName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get system package information",
+        "description": "Returns description, dependencies, and installation status for the specified OS package.",
+        "responses": {
+          "200": {
+            "description": "Package information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Description": "The FFmpeg multimedia framework",
+                  "Depends": "libavcodec58, libavformat58",
+                  "Installed": "Yes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/reboot": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Reboot the operating system",
+        "description": "Reboots the operating system.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reboot initiated"
+          }
+        }
+      }
+    },
+    "/system/releaseNotes/{version}": {
+      "parameters": [
+        {
+          "name": "version",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get release notes",
+        "description": "Returns release notes for the specified FPP version tag from the GitHub releases API.",
+        "responses": {
+          "200": {
+            "description": "Release notes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "draft": false,
+                  "prerelease": false,
+                  "body": "...",
+                  "published_at": "2026-01-08T03:09:40Z"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/shutdown": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Shutdown the operating system",
+        "description": "Executes a clean shutdown of the operating system.",
+        "x-badges": [
+          {
+            "name": "DEPRECATED",
+            "color": "#b25e00"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shutdown initiated"
+          }
+        }
+      }
+    },
+    "/system/status": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get system status",
+        "description": "Returns `fppd`, network, current playlist, schedule, utilization, host, version, and MQTT status. Pass an optional array of IP addresses (e.g. `&ip[]=192.168.0.1&ip[]=192.168.0.2`) to query remote instances instead.",
+        "responses": {
+          "200": {
+            "description": "System status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "fppd": "running",
+                  "status": 1,
+                  "status_name": "playing",
+                  "mode": 2,
+                  "mode_name": "player",
+                  "current_playlist": {
+                    "count": "4",
+                    "playlist": "Test1",
+                    "type": "pause",
+                    "index": "2"
+                  },
+                  "volume": 70,
+                  "wifi": [],
+                  "interfaces": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/updateStatus": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get fpp upgrade status",
+        "description": "Returns the current FPP update/upgrade status, including whether a newer version is available, the current commit, and any major version or end-of-life warnings.",
+        "responses": {
+          "200": {
+            "description": "FPP upgrade status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "branchUpgradeAvailable": false,
+                  "branchUpgradeTarget": "",
+                  "branchUpgradeVersion": "",
+                  "isMajorVersionUpgrade": false,
+                  "commitUpdateAvailable": false,
+                  "remoteCommit": "ece480e86b7dd8f2d013248e8f99bb0e8baac197",
+                  "currentBranch": "master",
+                  "localCommit": "ece480e86",
+                  "isEndOfLife": false,
+                  "latestMajorVersion": 9
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/volume": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get volume",
+        "description": "Returns the current volume if `fppd` is running, or the `Volume` setting value if not.",
+        "responses": {
+          "200": {
+            "description": "Current volume",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "method": "FPPD",
+                  "volume": 70
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Set volume",
+        "description": "Sets the system volume. The new level should be passed as a JSON body.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "volume": 34
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Volume set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "volume": 34
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/testmode": {
+      "get": {
+        "tags": [
+          "testmode"
+        ],
+        "summary": "Get Test Mode state",
+        "description": "Returns the current Test Mode configuration for this instance.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current Test Mode configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "mode": "RGBChase",
+                  "subMode": "RGBChase-RGB",
+                  "cycleMS": 1000,
+                  "colorPattern": "FF000000FF000000FF",
+                  "enabled": 1,
+                  "channelSet": "1-520",
+                  "channelSetType": "channelRange"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "testmode"
+        ],
+        "summary": "Set Test Mode configuration",
+        "description": "Sets the current Test Mode configuration for this instance.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "mode": "RGBChase",
+                "subMode": "RGBChase-RGB",
+                "cycleMS": 1000,
+                "colorPattern": "FF000000FF000000FF",
+                "enabled": 1,
+                "channelSet": "1-520",
+                "channelSetType": "channelRange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Test mode updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/time": {
+      "get": {
+        "tags": [
+          "time"
+        ],
+        "summary": "Get current time",
+        "description": "Returns the current system time as a formatted string.",
+        "responses": {
+          "200": {
+            "description": "Current system time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "time": "Tue Apr 02 08:06:34 EDT 2019"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

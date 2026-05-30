@@ -8,7 +8,8 @@ require_once '../commandsocket.php';
  * Returns the current Test Mode configuration for this instance.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/testmode
+ * @route-v1 GET /testmode
+ * @route-v2 GET /testmode
  * @response 200 Current Test Mode configuration
  * ```json
  * {
@@ -33,7 +34,8 @@ function testMode_Get()
  * Sets the current Test Mode configuration for this instance.
  *
  * @badge "FPP REQUIRED" critical
- * @route POST /api/testmode
+ * @route-v1 POST /testmode
+ * @route-v2 POST /testmode
  * @body {"mode": "RGBChase", "subMode": "RGBChase-RGB", "cycleMS": 1000, "colorPattern": "FF000000FF000000FF", "enabled": 1, "channelSet": "1-520", "channelSetType": "channelRange"}
  * @response 200 Test mode updated successfully
  * ```json

@@ -4,274 +4,339 @@ require_once 'lib/limonade.php';
 $skipJSsettings = 1;
 require_once '../config.php';
 require_once '../common.php';
+require_once 'controllers/helpers.php';
 
-dispatch_get('/', 'ServeApiDocs');
-dispatch_get('/api.html', 'ServeApiHtml');
-dispatch_get('/openapi.yaml', 'ServeOpenApiSpec');
-dispatch_get('/openapi.json', 'ServeOpenApiSpec');
+$apiVersionPrefixes = ['', '/v2'];
 
-dispatch_get('/backups/list', 'GetAvailableBackups');
-dispatch_get('/backups/list/:DeviceName', 'GetAvailableBackupsOnDevice');
-dispatch_get('/backups/devices', 'RetrieveAvailableBackupsDevices');
-dispatch_post('/backups/devices/mount/:DeviceName/:MountLocation', 'MountDevice');
-dispatch_post('/backups/devices/unmount/:DeviceName/:MountLocation', 'UnmountDevice');
-dispatch_post('/backups/configuration', 'MakeJSONBackup');
-dispatch_get('/backups/configuration/list', 'GetAvailableJSONBackups');
-dispatch_get('/backups/configuration/list/:DeviceName', 'GetAvailableJSONBackupsOnDevice');
-dispatch_post('/backups/configuration/restore/:Directory/:BackupFilename', 'RestoreJsonBackup');
-dispatch_get('/backups/configuration/:Directory/:BackupFilename', 'DownloadJsonBackup');
-dispatch_delete('/backups/configuration/:Directory/:BackupFilename', 'DeleteJsonBackup');
+function dispatch_all(string $path, string $method, string $fn): void {
+    global $apiVersionPrefixes;
+    foreach ($apiVersionPrefixes as $prefix) {
+        call_user_func("dispatch_{$method}", $prefix . $path, $fn);
+    }
+}
 
-dispatch_get('/cape', 'GetCapeInfo');
-dispatch_post('/cape/eeprom/voucher', 'RedeemVoucher');
-dispatch_post('/cape/eeprom/sign/:key/:order', 'SignEEPROM');
-dispatch_get('/cape/eeprom/signingData/:key/:order', 'GetSigningData');
-dispatch_get('/cape/eeprom/signingFile/:key/:order', 'GetSigningFile');
-dispatch_post('/cape/eeprom/signingData', 'PostSigningData');
-dispatch_get('/cape/options', 'GetCapeOptions');
-dispatch_get('/cape/strings', 'GetCapeStringOptions');
-dispatch_get('/cape/panel', 'GetCapePanelOptions');
-dispatch_get('/cape/strings/:key', 'GetCapeStringConfig');
-dispatch_get('/cape/panel/:key', 'GetCapePanelConfig');
+// Spec / docs — v1 reads from www/api/v1/, v2 reads from www/api/v2/
+dispatch_get('/',             'ServeApiDocs_v1');
+dispatch_get('/api.html',     'ServeApiHtml_v1');
+dispatch_get('/openapi.yaml', 'ServeOpenApiSpec_v1');
+dispatch_get('/openapi.json', 'ServeOpenApiSpec_v1');
+dispatch_get('/v1/',             'ServeApiDocs_v1');
+dispatch_get('/v1/api.html',     'ServeApiHtml_v1');
+dispatch_get('/v1/openapi.yaml', 'ServeOpenApiSpec_v1');
+dispatch_get('/v1/openapi.json', 'ServeOpenApiSpec_v1');
+dispatch_get('/v2/',             'ServeApiDocs_v2');
+dispatch_get('/v2/api.html',     'ServeApiHtml_v2');
+dispatch_get('/v2/openapi.yaml', 'ServeOpenApiSpec_v2');
+dispatch_get('/v2/openapi.json', 'ServeOpenApiSpec_v2');
 
-dispatch_get('/channel/input/stats', 'channel_input_get_stats');
-dispatch_delete('/channel/input/stats', 'channel_input_delete_stats');
-dispatch_get('/channel/output/processors', 'channel_get_output_processors');
-dispatch_post('/channel/output/processors', 'channel_save_output_processors');
-dispatch_get('/channel/output/:file', 'channel_get_output');
-dispatch_post('/channel/output/:file', 'channel_save_output');
+// Backups
+dispatch_all('/backups/list', 'get', 'GetAvailableBackups');
+dispatch_all('/backups/list/:DeviceName', 'get', 'GetAvailableBackupsOnDevice');
+dispatch_all('/backups/devices', 'get', 'RetrieveAvailableBackupsDevices');
+dispatch_all('/backups/devices/mount/:DeviceName/:MountLocation', 'post', 'MountDevice');
+dispatch_all('/backups/devices/unmount/:DeviceName/:MountLocation', 'post', 'UnmountDevice');
+dispatch_all('/backups/configuration', 'post', 'MakeJSONBackup');
+dispatch_all('/backups/configuration/list', 'get', 'GetAvailableJSONBackups');
+dispatch_all('/backups/configuration/list/:DeviceName', 'get', 'GetAvailableJSONBackupsOnDevice');
+dispatch_all('/backups/configuration/restore/:Directory/:BackupFilename', 'post', 'RestoreJsonBackup');
+dispatch_all('/backups/configuration/:Directory/:BackupFilename', 'get', 'DownloadJsonBackup');
+dispatch_all('/backups/configuration/:Directory/:BackupFilename', 'delete', 'DeleteJsonBackup');
 
-dispatch_get('/configfile', 'GetConfigFileList');
-dispatch_get('/configfile/**', 'DownloadConfigFile');
-dispatch_post('/configfile/**', 'UploadConfigFile');
-dispatch_delete('/configfile/**', 'DeleteConfigFile');
+// Cape
+dispatch_all('/cape', 'get', 'GetCapeInfo');
+dispatch_all('/cape/eeprom/voucher', 'post', 'RedeemVoucher');
+dispatch_all('/cape/eeprom/sign/:key/:order', 'post', 'SignEEPROM');
+dispatch_all('/cape/eeprom/signingData/:key/:order', 'get', 'GetSigningData');
+dispatch_all('/cape/eeprom/signingFile/:key/:order', 'get', 'GetSigningFile');
+dispatch_all('/cape/eeprom/signingData', 'post', 'PostSigningData');
+dispatch_all('/cape/options', 'get', 'GetCapeOptions');
+dispatch_all('/cape/strings', 'get', 'GetCapeStringOptions');
+dispatch_all('/cape/panel', 'get', 'GetCapePanelOptions');
+dispatch_all('/cape/strings/:key', 'get', 'GetCapeStringConfig');
+dispatch_all('/cape/panel/:key', 'get', 'GetCapePanelConfig');
 
-dispatch_post('/dir/:DirName/:SubDir', 'CreateDir');
-dispatch_delete('/dir/:DirName/:SubDir', 'DeleteDir');
+// Channel
+dispatch_all('/channel/input/stats', 'get', 'ChannelInputGetStats');
+dispatch_all('/channel/input/stats', 'delete', 'ChannelInputDeleteStats');
+dispatch_all('/channel/output/processors', 'get', 'ChannelGetOutputProcessors');
+dispatch_all('/channel/output/processors', 'post', 'ChannelSaveOutputProcessors');
+dispatch_all('/channel/output/:file', 'get', 'ChannelGetOutput');
+dispatch_all('/channel/output/:file', 'post', 'ChannelSaveOutput');
 
-dispatch_get('/effects', 'effects_list');
-dispatch_get('/effects/ALL', 'effects_list_ALL');
+// Config files
+dispatch_all('/configfile', 'get', 'GetConfigFileList');
+dispatch_all('/configfile/**', 'get', 'DownloadConfigFile');
+dispatch_all('/configfile/**', 'post', 'UploadConfigFile');
+dispatch_all('/configfile/**', 'delete', 'DeleteConfigFile');
 
-dispatch_post('/email/configure', 'ConfigureEmail');
-dispatch_post('/email/test', 'SendTestEmail');
+// Directories
+dispatch_all('/dir/:DirName/:SubDir', 'post', 'CreateDir');
+dispatch_all('/dir/:DirName/:SubDir', 'delete', 'DeleteDir');
 
-dispatch_get('/events', 'events_list');
-dispatch_get('/events/:eventId', 'event_get');
-dispatch_get('/events/:eventId/trigger', 'event_trigger');
+// Effects
+dispatch_all('/effects', 'get', 'EffectsList');
+dispatch_all('/effects/ALL', 'get', 'EffectsListAll');
 
-dispatch_get('/files/:DirName', 'GetFiles');
-dispatch_get('/file/info/:plugin/:ext/**', 'GetPluginFileInfo'); // keep above file/:DirName
-dispatch_get('/file/onUpload/:ext/**', 'PluginFileOnUpload'); // keep above file/:DirName
-dispatch_get('/file/move/:fileName', 'MoveFile'); // keep above file/:DirName
-dispatch_get('/files/zip/:DirNames', 'GetZipDir');
-dispatch_post('/file/:DirName/copy/:source/:dest', 'files_copy');
-dispatch_post('/file/:DirName/rename/:source/:dest', 'files_rename');
-dispatch_get('/file/:DirName/tailfollow/**', 'TailFollowFile');
-dispatch_get('/file/:DirName/**', 'GetFile');
-dispatch_delete('/file/:DirName/**', 'DeleteFile');
-dispatch_post('/file/:DirName', 'PatchFile');
-dispatch_patch('/file/:DirName', 'PatchFile');
-dispatch_post('/file/:DirName/:Name', 'PostFile');
+// Email
+dispatch_all('/email/configure', 'post', 'ConfigureEmail');
+dispatch_all('/email/test', 'post', 'SendTestEmail');
 
-dispatch_get('/git/originLog', 'GetGitOriginLog');
-dispatch_get('/git/releases/os/:All', 'GitOSReleases');
-dispatch_get('/git/releases/sizes', 'GitOSReleaseSizes');
-dispatch_get('/git/reset', 'GitReset');
-dispatch_get('/git/status', 'GitStatus');
-dispatch_get('/git/branches', 'GitBranches');
+// Events
+dispatch_all('/events', 'get', 'EventsList');
+dispatch_all('/events/:eventId', 'get', 'EventGet');
+dispatch_get('/events/:eventId/trigger', 'EventTrigger');         // v1: GET
+dispatch_post('/v2/events/:eventId/trigger', 'EventTrigger');     // v2: POST
 
-dispatch_get('/media', 'GetMedia');
-dispatch_get('/media/:MediaName/duration', 'GetMediaDuration');
-dispatch_get('/media/:MediaName/meta', 'GetMediaMetaData');
+// Files — more-specific routes must precede /file/:DirName/**
+dispatch_all('/files/:DirName', 'get', 'GetFiles');
+dispatch_all('/file/info/:plugin/:ext/**', 'get', 'GetPluginFileInfo'); // keep above /file/:DirName
+dispatch_get('/file/onUpload/:ext/**', 'PluginFileOnUpload');           // v1: GET; keep above /file/:DirName
+dispatch_post('/v2/file/onUpload/:ext/**', 'PluginFileOnUpload');       // v2: POST
+dispatch_get('/file/move/:fileName', 'MoveFile');                       // v1: GET; keep above /file/:DirName
+dispatch_post('/v2/file/move/:fileName', 'MoveFile');                   // v2: POST
+dispatch_all('/files/zip/:DirNames', 'get', 'GetZipDir');
+dispatch_all('/file/:DirName/copy/:source/:dest', 'post', 'FilesCopy');
+dispatch_all('/file/:DirName/rename/:source/:dest', 'post', 'FilesRename');
+dispatch_all('/file/:DirName/tailfollow/**', 'get', 'TailFollowFile');
+dispatch_all('/file/:DirName/**', 'get', 'GetFile');
+dispatch_all('/file/:DirName/**', 'delete', 'DeleteFile');
+dispatch_all('/file/:DirName', 'post', 'PatchFile');
+dispatch_all('/file/:DirName', 'patch', 'PatchFile');
+dispatch_all('/file/:DirName/:Name', 'post', 'PostFile');
 
-dispatch_get('/network/dns', 'network_get_dns');
-dispatch_post('/network/dns', 'network_save_dns');
-dispatch_get('/network/gateway', 'network_get_gateway');
-dispatch_post('/network/gateway', 'network_save_gateway');
-dispatch_get('/network/interface', 'network_list_interfaces');
-dispatch_get('/network/interface/:interface', 'network_get_interface');
-dispatch_get('/network/interface/add/:interface', 'network_add_interface');
-dispatch_post('/network/interface/:interface', 'network_set_interface');
-dispatch_post('/network/interface/:interface/apply', 'network_apply_interface');
+// Git
+dispatch_all('/git/originLog', 'get', 'GetGitOriginLog');
+dispatch_all('/git/releases/os/:All', 'get', 'GitOSReleases');
+dispatch_all('/git/releases/sizes', 'get', 'GitOSReleaseSizes');
+dispatch_get('/git/reset', 'GitReset');                           // v1: GET
+dispatch_post('/v2/git/reset', 'GitReset');                       // v2: POST
+dispatch_all('/git/status', 'get', 'GitStatus');
+dispatch_all('/git/branches', 'get', 'GitBranches');
 
-dispatch_delete('/network/presisentNames', 'network_persistentNames_delete');
-dispatch_post('/network/presisentNames', 'network_persistentNames_create');
-dispatch_delete('/network/persistentNames', 'network_persistentNames_delete');
-dispatch_post('/network/persistentNames', 'network_persistentNames_create');
-dispatch_get('/network/wifi/scan/:interface', 'network_wifi_scan');
-dispatch_get('/network/wifi/strength', 'network_wifi_strength');
+// Media
+dispatch_all('/media', 'get', 'GetMedia');
+dispatch_all('/media/:MediaName/duration', 'get', 'GetMediaDuration');
+dispatch_all('/media/:MediaName/meta', 'get', 'GetMediaMetaData');
 
-dispatch_get('/options/:SettingName', 'GetOptions');
+// Network
+dispatch_all('/network/dns', 'get', 'NetworkGetDNS');
+dispatch_all('/network/dns', 'post', 'NetworkSaveDNS');
+dispatch_all('/network/gateway', 'get', 'NetworkGetGateway');
+dispatch_all('/network/gateway', 'post', 'NetworkSaveGateway');
+dispatch_all('/network/interface', 'get', 'NetworkListInterfaces');
+dispatch_all('/network/interface/:interface', 'get', 'NetworkGetInterface');
+dispatch_get('/network/interface/add/:interface', 'NetworkAddInterface');    // v1: GET
+dispatch_post('/v2/network/interface/add/:interface', 'NetworkAddInterface'); // v2: POST
+dispatch_all('/network/interface/:interface', 'post', 'NetworkSetInterface');
+dispatch_all('/network/interface/:interface/apply', 'post', 'NetworkApplyInterface');
+dispatch_all('/network/presisentNames', 'delete', 'NetworkPersistentNamesDelete');
+dispatch_all('/network/presisentNames', 'post', 'NetworkPersistentNamesCreate');
+dispatch_all('/network/persistentNames', 'delete', 'NetworkPersistentNamesDelete');
+dispatch_all('/network/persistentNames', 'post', 'NetworkPersistentNamesCreate');
+dispatch_all('/network/wifi/scan/:interface', 'get', 'NetworkWiFiScan');
+dispatch_all('/network/wifi/strength', 'get', 'NetworkWiFiStrength');
 
-dispatch_get('/audio/cardaliases', 'GetAudioCardAliases');
-dispatch_post('/audio/cardaliases', 'SaveAudioCardAliases');
+// Options
+dispatch_all('/options/:SettingName', 'get', 'GetOptions');
 
-dispatch_get('/pipewire/audio/groups', 'GetPipeWireAudioGroups');
-dispatch_post('/pipewire/audio/groups', 'SavePipeWireAudioGroups');
-dispatch_post('/pipewire/audio/groups/apply', 'ApplyPipeWireAudioGroups');
-dispatch_get('/pipewire/audio/sinks', 'GetPipeWireSinks');
-dispatch_get('/pipewire/audio/cards', 'GetPipeWireAudioCards');
-dispatch_get('/pipewire/audio/sources', 'GetPipeWireAudioSources');
-dispatch_get('/pipewire/audio/input-groups', 'GetPipeWireInputGroups');
-dispatch_post('/pipewire/audio/input-groups', 'SavePipeWireInputGroups');
-dispatch_post('/pipewire/audio/input-groups/apply', 'ApplyPipeWireInputGroups');
-dispatch_post('/pipewire/audio/input-groups/volume', 'SetInputGroupMemberVolume');
-dispatch_post('/pipewire/audio/input-groups/effects', 'SaveInputGroupEffects');
-dispatch_post('/pipewire/audio/input-groups/eq/update', 'UpdateInputGroupEQRealtime');
-dispatch_get('/pipewire/audio/routing', 'GetRoutingMatrix');
-dispatch_post('/pipewire/audio/routing', 'SaveRoutingMatrix');
-dispatch_post('/pipewire/audio/routing/volume', 'SetRoutingPathVolume');
-dispatch_get('/pipewire/audio/routing/presets', 'GetRoutingPresets');
-dispatch_get('/pipewire/audio/routing/presets/names', 'GetRoutingPresetNames');
-dispatch_post('/pipewire/audio/routing/presets', 'SaveRoutingPreset');
-dispatch_post('/pipewire/audio/routing/presets/load', 'LoadRoutingPreset');
-dispatch_post('/pipewire/audio/routing/presets/live-apply', 'LiveApplyRoutingPreset');
-dispatch_delete('/pipewire/audio/routing/presets/:name', 'DeleteRoutingPreset');
-dispatch_post('/pipewire/audio/stream/volume', 'SetStreamSlotVolume');
-dispatch_get('/pipewire/audio/stream/status', 'GetStreamSlotStatus');
-dispatch_post('/pipewire/audio/group/volume', 'SetPipeWireGroupVolume');
-dispatch_post('/pipewire/audio/eq/update', 'UpdatePipeWireEQRealtime');
-dispatch_post('/pipewire/audio/delay/update', 'UpdatePipeWireDelayRealtime');
-dispatch_post('/pipewire/audio/sync/start', 'StartSyncCalibration');
-dispatch_post('/pipewire/audio/sync/stop', 'StopSyncCalibration');
-dispatch_get('/pipewire/video/groups', 'GetPipeWireVideoGroups');
-dispatch_post('/pipewire/video/groups', 'SavePipeWireVideoGroups');
-dispatch_post('/pipewire/video/groups/apply', 'ApplyPipeWireVideoGroups');
-dispatch_post('/pipewire/simple/apply', 'ApplyPipeWireSimpleConfig');
-dispatch_get('/pipewire/video/connectors', 'GetVideoOutputTargets');
-dispatch_get('/pipewire/video/routing', 'GetVideoRoutingMatrix');
-dispatch_post('/pipewire/video/routing', 'SaveVideoRoutingMatrix');
-dispatch_get('/pipewire/video/input-sources', 'GetPipeWireVideoInputSources');
-dispatch_post('/pipewire/video/input-sources', 'SavePipeWireVideoInputSources');
-dispatch_post('/pipewire/video/input-sources/apply', 'ApplyPipeWireVideoInputSources');
-dispatch_get('/pipewire/video/input-sources/v4l2-devices', 'GetV4L2Devices');
+// Audio
+dispatch_all('/audio/cardaliases', 'get', 'GetAudioCardAliases');
+dispatch_all('/audio/cardaliases', 'post', 'SaveAudioCardAliases');
 
-dispatch_get('/pipewire/aes67/instances', 'GetAES67Instances');
-dispatch_post('/pipewire/aes67/instances', 'SaveAES67Instances');
-dispatch_post('/pipewire/aes67/apply', 'ApplyAES67Instances');
-dispatch_get('/pipewire/aes67/status', 'GetAES67Status');
-dispatch_get('/pipewire/aes67/interfaces', 'GetAES67NetworkInterfaces');
-
-dispatch_get('/pipewire/opusrtp/instances', 'GetOpusRTPInstances');
-dispatch_post('/pipewire/opusrtp/instances', 'SaveOpusRTPInstances');
-dispatch_post('/pipewire/opusrtp/apply', 'ApplyOpusRTPInstances');
-dispatch_get('/pipewire/opusrtp/status', 'GetOpusRTPStatus');
-dispatch_get('/pipewire/opusrtp/interfaces', 'GetOpusRTPNetworkInterfaces');
-dispatch_get('/pipewire/graph', 'GetPipeWireGraph');
+// PipeWire
+dispatch_all('/pipewire/audio/groups', 'get', 'GetPipeWireAudioGroups');
+dispatch_all('/pipewire/audio/groups', 'post', 'SavePipeWireAudioGroups');
+dispatch_all('/pipewire/audio/groups/apply', 'post', 'ApplyPipeWireAudioGroups');
+dispatch_all('/pipewire/audio/sinks', 'get', 'GetPipeWireSinks');
+dispatch_all('/pipewire/audio/cards', 'get', 'GetPipeWireAudioCards');
+dispatch_all('/pipewire/audio/sources', 'get', 'GetPipeWireAudioSources');
+dispatch_all('/pipewire/audio/input-groups', 'get', 'GetPipeWireInputGroups');
+dispatch_all('/pipewire/audio/input-groups', 'post', 'SavePipeWireInputGroups');
+dispatch_all('/pipewire/audio/input-groups/apply', 'post', 'ApplyPipeWireInputGroups');
+dispatch_all('/pipewire/audio/input-groups/volume', 'post', 'SetInputGroupMemberVolume');
+dispatch_all('/pipewire/audio/input-groups/effects', 'post', 'SaveInputGroupEffects');
+dispatch_all('/pipewire/audio/input-groups/eq/update', 'post', 'UpdateInputGroupEQRealtime');
+dispatch_all('/pipewire/audio/routing', 'get', 'GetRoutingMatrix');
+dispatch_all('/pipewire/audio/routing', 'post', 'SaveRoutingMatrix');
+dispatch_all('/pipewire/audio/routing/volume', 'post', 'SetRoutingPathVolume');
+dispatch_all('/pipewire/audio/routing/presets', 'get', 'GetRoutingPresets');
+dispatch_all('/pipewire/audio/routing/presets/names', 'get', 'GetRoutingPresetNames');
+dispatch_all('/pipewire/audio/routing/presets', 'post', 'SaveRoutingPreset');
+dispatch_all('/pipewire/audio/routing/presets/load', 'post', 'LoadRoutingPreset');
+dispatch_all('/pipewire/audio/routing/presets/live-apply', 'post', 'LiveApplyRoutingPreset');
+dispatch_all('/pipewire/audio/routing/presets/:name', 'delete', 'DeleteRoutingPreset');
+dispatch_all('/pipewire/audio/stream/volume', 'post', 'SetStreamSlotVolume');
+dispatch_all('/pipewire/audio/stream/status', 'get', 'GetStreamSlotStatus');
+dispatch_all('/pipewire/audio/group/volume', 'post', 'SetPipeWireGroupVolume');
+dispatch_all('/pipewire/audio/eq/update', 'post', 'UpdatePipeWireEQRealtime');
+dispatch_all('/pipewire/audio/delay/update', 'post', 'UpdatePipeWireDelayRealtime');
+dispatch_all('/pipewire/audio/sync/start', 'post', 'StartSyncCalibration');
+dispatch_all('/pipewire/audio/sync/stop', 'post', 'StopSyncCalibration');
+dispatch_all('/pipewire/video/groups', 'get', 'GetPipeWireVideoGroups');
+dispatch_all('/pipewire/video/groups', 'post', 'SavePipeWireVideoGroups');
+dispatch_all('/pipewire/video/groups/apply', 'post', 'ApplyPipeWireVideoGroups');
+dispatch_all('/pipewire/simple/apply', 'post', 'ApplyPipeWireSimpleConfig');
+dispatch_all('/pipewire/video/connectors', 'get', 'GetVideoOutputTargets');
+dispatch_all('/pipewire/video/routing', 'get', 'GetVideoRoutingMatrix');
+dispatch_all('/pipewire/video/routing', 'post', 'SaveVideoRoutingMatrix');
+dispatch_all('/pipewire/video/input-sources', 'get', 'GetPipeWireVideoInputSources');
+dispatch_all('/pipewire/video/input-sources', 'post', 'SavePipeWireVideoInputSources');
+dispatch_all('/pipewire/video/input-sources/apply', 'post', 'ApplyPipeWireVideoInputSources');
+dispatch_all('/pipewire/video/input-sources/v4l2-devices', 'get', 'GetV4L2Devices');
+dispatch_all('/pipewire/aes67/instances', 'get', 'GetAES67Instances');
+dispatch_all('/pipewire/aes67/instances', 'post', 'SaveAES67Instances');
+dispatch_all('/pipewire/aes67/apply', 'post', 'ApplyAES67Instances');
+dispatch_all('/pipewire/aes67/status', 'get', 'GetAES67Status');
+dispatch_all('/pipewire/aes67/interfaces', 'get', 'GetAES67NetworkInterfaces');
+dispatch_all('/pipewire/graph', 'get', 'GetPipeWireGraph');
 
 // PipeWire control facade — clean, ID-addressed, live-state 3rd-party API
-dispatch_get('/pipewire/control/status', 'PWCtl_GetStatus');
-dispatch_get('/pipewire/control/groups', 'PWCtl_GetGroups');
-dispatch_get('/pipewire/control/groups/:id', 'PWCtl_GetGroup');
-dispatch_post('/pipewire/control/groups/:id/volume', 'PWCtl_SetGroupVolume');
-dispatch_post('/pipewire/control/groups/:id/mute', 'PWCtl_SetGroupMute');
-dispatch_post('/pipewire/control/groups/:id/members/:cardId/volume', 'PWCtl_SetMemberVolume');
-dispatch_post('/pipewire/control/groups/:id/members/:cardId/mute', 'PWCtl_SetMemberMute');
-dispatch_get('/pipewire/control/input-groups', 'PWCtl_GetInputGroups');
-dispatch_get('/pipewire/control/input-groups/:id', 'PWCtl_GetInputGroup');
-dispatch_post('/pipewire/control/input-groups/:id/members/:memberIndex/volume', 'PWCtl_SetInputMemberVolume');
-dispatch_post('/pipewire/control/input-groups/:id/members/:memberIndex/mute', 'PWCtl_SetInputMemberMute');
-dispatch_get('/pipewire/control/streams', 'PWCtl_GetStreams');
-dispatch_post('/pipewire/control/streams/:slot/volume', 'PWCtl_SetStreamVolume');
-dispatch_get('/pipewire/control/routing', 'PWCtl_GetRouting');
-dispatch_post('/pipewire/control/routing/:inputGroupId/:outputGroupId/volume', 'PWCtl_SetRoutingVolume');
-dispatch_post('/pipewire/control/routing/:inputGroupId/:outputGroupId/mute', 'PWCtl_SetRoutingMute');
+dispatch_all('/pipewire/control/status', 'get', 'PWCtl_GetStatus');
+dispatch_all('/pipewire/control/groups', 'get', 'PWCtl_GetGroups');
+dispatch_all('/pipewire/control/groups/:id', 'get', 'PWCtl_GetGroup');
+dispatch_all('/pipewire/control/groups/:id/volume', 'post', 'PWCtl_SetGroupVolume');
+dispatch_all('/pipewire/control/groups/:id/mute', 'post', 'PWCtl_SetGroupMute');
+dispatch_all('/pipewire/control/groups/:id/members/:cardId/volume', 'post', 'PWCtl_SetMemberVolume');
+dispatch_all('/pipewire/control/groups/:id/members/:cardId/mute', 'post', 'PWCtl_SetMemberMute');
+dispatch_all('/pipewire/control/input-groups', 'get', 'PWCtl_GetInputGroups');
+dispatch_all('/pipewire/control/input-groups/:id', 'get', 'PWCtl_GetInputGroup');
+dispatch_all('/pipewire/control/input-groups/:id/members/:memberIndex/volume', 'post', 'PWCtl_SetInputMemberVolume');
+dispatch_all('/pipewire/control/input-groups/:id/members/:memberIndex/mute', 'post', 'PWCtl_SetInputMemberMute');
+dispatch_all('/pipewire/control/streams', 'get', 'PWCtl_GetStreams');
+dispatch_all('/pipewire/control/streams/:slot/volume', 'post', 'PWCtl_SetStreamVolume');
+dispatch_all('/pipewire/control/routing', 'get', 'PWCtl_GetRouting');
+dispatch_all('/pipewire/control/routing/:inputGroupId/:outputGroupId/volume', 'post', 'PWCtl_SetRoutingVolume');
+dispatch_all('/pipewire/control/routing/:inputGroupId/:outputGroupId/mute', 'post', 'PWCtl_SetRoutingMute');
 
-dispatch_get('/playlists', 'playlist_list');
-dispatch_post('/playlists', 'playlist_insert');
-dispatch_get('/playlists/playable', 'playlist_playable');
-dispatch_get('/playlists/validate', 'playlist_list_validate');
-dispatch_get('/playlists/stop', 'playlist_stop');
-dispatch_get('/playlists/pause', 'playlist_pause');
-dispatch_get('/playlists/resume', 'playlist_resume');
-dispatch_get('/playlists/stopgracefully', 'playlist_stopgracefully');
-dispatch_get('/playlists/stopgracefullyafterloop', 'playlist_stopgracefullyafterloop');
-dispatch_get('/playlist/:PlaylistName', 'playlist_get');
-dispatch_get('/playlist/:PlaylistName/start', 'playlist_start');
-dispatch_get('/playlist/:PlaylistName/start/:Repeat', 'playlist_start_repeat');
-dispatch_get('/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'playlist_start_repeat_protected');
-dispatch_post('/playlist/:PlaylistName', 'playlist_update');
-dispatch_delete('/playlist/:PlaylistName', 'playlist_delete');
-dispatch_post('/playlist/:PlaylistName/:SectionName/item', 'PlaylistSectionInsertItem');
+// Playlists
+dispatch_all('/playlists', 'get', 'PlaylistList');
+dispatch_all('/playlists', 'post', 'PlaylistInsert');
+dispatch_all('/playlists/playable', 'get', 'PlaylistPlayable');
+dispatch_all('/playlists/validate', 'get', 'PlaylistListValidate');
+dispatch_get('/playlists/stop', 'PlaylistStop');                                               // v1: GET
+dispatch_post('/v2/playlists/stop', 'PlaylistStop');                                           // v2: POST
+dispatch_get('/playlists/pause', 'PlaylistPause');                                             // v1: GET
+dispatch_post('/v2/playlists/pause', 'PlaylistPause');                                         // v2: POST
+dispatch_get('/playlists/resume', 'PlaylistResume');                                           // v1: GET
+dispatch_post('/v2/playlists/resume', 'PlaylistResume');                                       // v2: POST
+dispatch_get('/playlists/stopgracefully', 'PlaylistStopGracefully');                           // v1: GET
+dispatch_post('/v2/playlists/stopgracefully', 'PlaylistStopGracefully');                       // v2: POST
+dispatch_get('/playlists/stopgracefullyafterloop', 'PlaylistStopGracefullyAfterLoop');         // v1: GET
+dispatch_post('/v2/playlists/stopgracefullyafterloop', 'PlaylistStopGracefullyAfterLoop');     // v2: POST
+dispatch_all('/playlist/:PlaylistName', 'get', 'PlaylistGet');
+dispatch_get('/playlist/:PlaylistName/start', 'PlaylistStart');                                // v1: GET
+dispatch_post('/v2/playlist/:PlaylistName/start', 'PlaylistStart');                            // v2: POST
+dispatch_get('/playlist/:PlaylistName/start/:Repeat', 'PlaylistStartRepeat');                  // v1: GET
+dispatch_post('/v2/playlist/:PlaylistName/start/:Repeat', 'PlaylistStartRepeat');              // v2: POST
+dispatch_get('/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'PlaylistStartRepeatProtected'); // v1: GET
+dispatch_post('/v2/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'PlaylistStartRepeatProtected'); // v2: POST
+dispatch_all('/playlist/:PlaylistName', 'post', 'PlaylistUpdate');
+dispatch_all('/playlist/:PlaylistName', 'delete', 'PlaylistDelete');
+dispatch_all('/playlist/:PlaylistName/:SectionName/item', 'post', 'PlaylistSectionInsertItem');
 
-dispatch_get('/plugin/headerIndicators', 'GetPluginHeaderIndicators');
-dispatch_get('/plugin', 'GetInstalledPlugins');
-dispatch_post('/plugin', 'InstallPlugin');
-dispatch_post('/plugin/fetchInfo', 'FetchPluginInfoProxy');
-dispatch_get('/plugin/:RepoName', 'GetPluginInfo');
-dispatch_delete('/plugin/:RepoName', 'UninstallPlugin');
-dispatch_get('/plugin/:RepoName/settings/:SettingName', 'PluginGetSetting');
-dispatch_put('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');
-dispatch_post('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');
-dispatch_post('/plugin/:RepoName/updates', 'CheckForPluginUpdates');
-dispatch_get('/plugin/:RepoName/upgrade', 'UpgradePlugin');
-dispatch_post('/plugin/:RepoName/upgrade', 'UpgradePlugin');
+// Plugins
+dispatch_all('/plugin/headerIndicators', 'get', 'GetPluginHeaderIndicators');
+dispatch_all('/plugin', 'get', 'GetInstalledPlugins');
+dispatch_all('/plugin', 'post', 'InstallPlugin');
+dispatch_all('/plugin/fetchInfo', 'post', 'FetchPluginInfoProxy');
+dispatch_all('/plugin/:RepoName', 'get', 'GetPluginInfo');
+dispatch_all('/plugin/:RepoName', 'delete', 'UninstallPlugin');
+dispatch_all('/plugin/:RepoName/settings/:SettingName', 'get', 'PluginGetSetting');
+dispatch_all('/plugin/:RepoName/settings/:SettingName', 'put', 'PluginSetSetting');
+dispatch_all('/plugin/:RepoName/settings/:SettingName', 'post', 'PluginSetSetting');
+dispatch_all('/plugin/:RepoName/updates', 'post', 'CheckForPluginUpdates');
+dispatch_get('/plugin/:RepoName/upgrade', 'UpgradePlugin');              // v1: GET (backward compat only)
+dispatch_all('/plugin/:RepoName/upgrade', 'post', 'UpgradePlugin');
 // NOTE: Plugins may also implement their own /plugin/:RepoName/* endpoints
 // which are added after the above endpoints via addPluginEndpoints() below.
 
-dispatch_get('/proxies', 'GetProxies');
-dispatch_post('/proxies', 'PostProxies');
-dispatch_delete('/proxies', 'DeleteAllProxies');
-dispatch_post('/proxies/:ProxyIp', 'AddProxy');
-dispatch_delete('/proxies/:ProxyIp', 'DeleteProxy');
+// Proxies
+dispatch_all('/proxies', 'get', 'GetProxies');
+dispatch_all('/proxies', 'post', 'PostProxies');
+dispatch_all('/proxies', 'delete', 'DeleteAllProxies');
+dispatch_all('/proxies/:ProxyIp', 'post', 'AddProxy');
+dispatch_all('/proxies/:ProxyIp', 'delete', 'DeleteProxy');
 
-dispatch_get(array('/proxy/*/**', array("Ip", "urlPart")), 'GetProxiedURL');
+foreach (['', '/v2'] as $prefix) {
+    dispatch_get(array($prefix . '/proxy/*/**', array("Ip", "urlPart")), 'GetProxiedURL');
+}
 
-dispatch_get('/remotes', 'GetRemotes');
-dispatch_get('/remoteAction', 'remoteAction');
+// Remotes
+dispatch_all('/remotes', 'get', 'GetRemotes');
+dispatch_get('/remoteAction', 'RemoteAction_v1');       // v1: GET + query params
+dispatch_post('/v2/remoteAction', 'RemoteAction');      // v2: POST + JSON body
 
-dispatch_get('/sequence', 'GetSequences');
-dispatch_get('/sequence/current/step', 'GetSequenceStep');
-dispatch_get('/sequence/current/stop', 'GetSequenceStop');
-dispatch_get('/sequence/current/togglePause', 'GetSequenceTogglePause');
-dispatch_get('/sequence/:SequenceName', 'GetSequence');
-dispatch_get('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
-dispatch_get('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');
-dispatch_post('/sequence/:SequenceName', 'PostSequence');
-dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
+// Sequences
+dispatch_all('/sequence', 'get', 'GetSequences');
+dispatch_get('/sequence/current/step', 'GetSequenceStep');               // v1: GET
+dispatch_post('/v2/sequence/current/step', 'GetSequenceStep');           // v2: POST
+dispatch_get('/sequence/current/stop', 'GetSequenceStop');               // v1: GET
+dispatch_post('/v2/sequence/current/stop', 'GetSequenceStop');           // v2: POST
+dispatch_get('/sequence/current/togglePause', 'GetSequenceTogglePause'); // v1: GET
+dispatch_post('/v2/sequence/current/togglePause', 'GetSequenceTogglePause'); // v2: POST
+dispatch_all('/sequence/:SequenceName', 'get', 'GetSequence');
+dispatch_all('/sequence/:SequenceName/meta', 'get', 'GetSequenceMetaData');
+dispatch_get('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');    // v1: GET
+dispatch_post('/v2/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart'); // v2: POST
+dispatch_all('/sequence/:SequenceName', 'post', 'PostSequence');
+dispatch_all('/sequence/:SequenceName', 'delete', 'DeleteSequence');
 
-dispatch_post('/schedule/reload', 'ReloadSchedule');
-dispatch_get('/schedule', 'GetSchedule');
-dispatch_post('/schedule', 'SaveSchedule');
+// Schedule
+dispatch_all('/schedule/reload', 'post', 'ReloadSchedule');
+dispatch_all('/schedule', 'get', 'GetSchedule');
+dispatch_all('/schedule', 'post', 'SaveSchedule');
 
-dispatch_get('/settings', 'GetSettings');
-dispatch_get('/settings/:SettingName', 'GetSetting');
-dispatch_get('/settings/:SettingName/options', 'GetOptions');
-dispatch_put('/settings/:SettingName', 'PutSetting');
-dispatch_put('/settings/:SettingName/jsonValueUpdate', 'UpdateJSONValueSetting');
+// Settings
+dispatch_all('/settings', 'get', 'GetSettings');
+dispatch_all('/settings/:SettingName', 'get', 'GetSetting');
+dispatch_all('/settings/:SettingName/options', 'get', 'GetOptions');
+dispatch_all('/settings/:SettingName', 'put', 'PutSetting');
+dispatch_all('/settings/:SettingName/jsonValueUpdate', 'put', 'UpdateJSONValueSetting');
 
-dispatch_get('/scripts', 'scripts_list');
-dispatch_get('/scripts/installRemote/:category/:filename', 'scripts_install_remote');
-dispatch_get('/scripts/viewRemote/:category/:filename', 'scripts_view_remote');
-dispatch_get('/scripts/:scriptName', 'script_get');
-dispatch_post('/scripts/:scriptName', 'script_save');
-dispatch_get('/scripts/:scriptName/run', 'script_run');
+// Scripts
+dispatch_all('/scripts', 'get', 'ScriptsList');
+dispatch_get('/scripts/installRemote/:category/:filename', 'ScriptsInstallRemote');     // v1: GET
+dispatch_post('/v2/scripts/installRemote/:category/:filename', 'ScriptsInstallRemote'); // v2: POST
+dispatch_all('/scripts/viewRemote/:category/:filename', 'get', 'ScriptsViewRemote');
+dispatch_all('/scripts/:scriptName', 'get', 'ScriptGet');
+dispatch_all('/scripts/:scriptName', 'post', 'ScriptSave');
+dispatch_get('/scripts/:scriptName/run', 'ScriptRun');                   // v1: GET
+dispatch_post('/v2/scripts/:scriptName/run', 'ScriptRun');               // v2: POST
 
-dispatch_get('/statistics/usage', 'stats_get_last_file');
-dispatch_post('/statistics/usage', 'stats_publish_stats_file');
-dispatch_delete('/statistics/usage', 'stats_delete_last_file');
+// Statistics
+dispatch_all('/statistics/usage', 'get', 'StatsGetLastFile');
+dispatch_all('/statistics/usage', 'post', 'StatsPublishStatsFile');
+dispatch_all('/statistics/usage', 'delete', 'StatsDeleteLastFile');
 
-dispatch_get('/system/fppd/restart', 'RestartFPPD');
-dispatch_get('/system/fppd/start', 'StartFPPD');
-dispatch_get('/system/fppd/stop', 'StopFPPD');
-dispatch_post('/system/fppd/skipBootDelay', 'SkipBootDelay');
-dispatch_get('/system/reboot', 'RebootDevice');
-dispatch_get('/system/releaseNotes/:version', 'ViewReleaseNotes');
-dispatch_get('/system/shutdown', 'SystemShutdownOS');
-dispatch_get('/system/status', 'SystemGetStatus');
-dispatch_get('/system/updateStatus', 'GetUpdateStatus');
-dispatch_get('/system/info', 'SystemGetInfo');
-dispatch_get('/system/volume', 'SystemGetAudio');
-dispatch_post('/system/volume', 'SystemSetAudio');
-dispatch_post('/system/proxies', 'PostProxies');
-dispatch_get('/system/proxies', 'GetProxies');
-dispatch_get('/system/packages', 'GetOSpackages');
-dispatch_get('/system/packages/info/:packageName', 'GetOSpackageInfo');
+// System
+dispatch_get('/system/fppd/restart', 'RestartFPPD');                    // v1: GET
+dispatch_post('/v2/system/fppd/restart', 'RestartFPPD');                 // v2: POST
+dispatch_get('/system/fppd/start', 'StartFPPD');                         // v1: GET
+dispatch_post('/v2/system/fppd/start', 'StartFPPD');                     // v2: POST
+dispatch_get('/system/fppd/stop', 'StopFPPD');                           // v1: GET
+dispatch_post('/v2/system/fppd/stop', 'StopFPPD');                       // v2: POST
+dispatch_all('/system/fppd/skipBootDelay', 'post', 'SkipBootDelay');
+dispatch_get('/system/reboot', 'RebootDevice');                          // v1: GET
+dispatch_post('/v2/system/reboot', 'RebootDevice');                      // v2: POST
+dispatch_all('/system/releaseNotes/:version', 'get', 'ViewReleaseNotes');
+dispatch_get('/system/shutdown', 'SystemShutdownOS');                    // v1: GET
+dispatch_post('/v2/system/shutdown', 'SystemShutdownOS');                // v2: POST
+dispatch_all('/system/status', 'get', 'SystemGetStatus');
+dispatch_all('/system/updateStatus', 'get', 'GetUpdateStatus');
+dispatch_all('/system/info', 'get', 'SystemGetInfo');
+dispatch_all('/system/volume', 'get', 'SystemGetAudio');
+dispatch_all('/system/volume', 'post', 'SystemSetAudio');
+dispatch_all('/system/proxies', 'post', 'PostProxies');
+dispatch_all('/system/proxies', 'get', 'GetProxies');
+dispatch_all('/system/packages', 'get', 'GetOSPackages');
+dispatch_all('/system/packages/info/:packageName', 'get', 'GetOSPackageInfo');
 
-dispatch_get('/testmode', 'testMode_Get');
-dispatch_post('/testmode', 'testMode_Set');
+// Test mode
+dispatch_all('/testmode', 'get', 'TestModeGet');
+dispatch_all('/testmode', 'post', 'TestModeSet');
 
-dispatch_get('/time', 'GetTime');
+// Time
+dispatch_all('/time', 'get', 'GetTime');
 
 addPluginEndpoints();
 
@@ -340,37 +405,71 @@ function addPluginEndpoints()
             continue;
         }
         $path = '/plugin/' . $ep['plugin'] . '/' . $ep['endpoint'];
-        if ($ep['method'] == 'GET') {
-            dispatch_get($path, $ep['callback']);
-        } else if ($ep['method'] == 'POST') {
-            dispatch_post($path, $ep['callback']);
-        } else if ($ep['method'] == 'PUT') {
-            dispatch_put($path, $ep['callback']);
-        } else if ($ep['method'] == 'DELETE') {
-            dispatch_delete($path, $ep['callback']);
-        }
+        dispatch_all($path, strtolower($ep['method']), $ep['callback']);
     }
 }
 
-function ServeApiDocs() {
+function ServeApiDocs_v1()
+{
     set_include_path(get_include_path() . PATH_SEPARATOR . dirname(__DIR__));
     extract($GLOBALS);
     include __DIR__ . '/api.php';
     exit;
 }
 
-function ServeApiHtml() {
-    header('Content-Type: text/html; charset=utf-8');
-    readfile(__DIR__ . '/api.html');
+function ServeApiDocs_v2()
+{
+    set_include_path(get_include_path() . PATH_SEPARATOR . dirname(__DIR__));
+    extract($GLOBALS);
+    include __DIR__ . '/api.php';
     exit;
 }
 
-function ServeOpenApiSpec() {
-    $spec = json_decode(file_get_contents(__DIR__ . '/openapi.json'), true);
+function ServeApiHtml_v1()
+{
+    header('Content-Type: text/html; charset=utf-8');
+    readfile(__DIR__ . '/v1/api.html');
+    exit;
+}
+
+function ServeApiHtml_v2()
+{
+    header('Content-Type: text/html; charset=utf-8');
+    readfile(__DIR__ . '/v2/api.html');
+    exit;
+}
+
+function ServeOpenApiSpec_v1()
+{
+    $spec = json_decode(file_get_contents(__DIR__ . '/v1/openapi.json'), true);
 
     foreach (collectPluginEndpoints() as $ep) {
         $method = strtolower($ep['method']);
-        $path   = '/plugin/' . $ep['plugin'] . '/' . $ep['endpoint'];
+        $path   = '/api/plugin/' . $ep['plugin'] . '/' . $ep['endpoint'];
+        if (!isset($spec['paths'][$path])) {
+            $spec['paths'][$path] = array();
+        }
+        if (!isset($spec['paths'][$path][$method])) {
+            $spec['paths'][$path][$method] = array(
+                'summary'  => $ep['plugin'] . ' - ' . $ep['endpoint'],
+                'tags'     => array('Plugins', $ep['plugin']),
+                'responses' => array('200' => array('description' => 'Success')),
+            );
+        }
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($spec, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function ServeOpenApiSpec_v2()
+{
+    $spec = json_decode(file_get_contents(__DIR__ . '/v2/openapi.json'), true);
+
+    foreach (collectPluginEndpoints() as $ep) {
+        $method = strtolower($ep['method']);
+        $path   = '/api/v2/plugin/' . $ep['plugin'] . '/' . $ep['endpoint'];
         if (!isset($spec['paths'][$path])) {
             $spec['paths'][$path] = array();
         }

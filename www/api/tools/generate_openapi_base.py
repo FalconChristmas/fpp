@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """
-Generate www/api/openapi.json from @route/@body/@response PHPDoc tags
-in www/api/controllers/*.php.
+Shared OpenAPI generator logic for all FPP API versions.
 
-Usage (run from www/api/):
-    python3 tools/generate_openapi.py
+Imported by generate_openapi_v1.py, generate_openapi_v2.py, etc.
 
-Docblock summary/description rules:
-  - One prose line  → description only; summary falls back to the route slug.
-  - Two+ prose lines → first line is summary, remainder joined as description.
+Docblock tag reference:
+  @route-vN METHOD /path     — route for version N (REQUIRED; path is prefix-free)
+  @body-vN  JSON             — version-specific request body (falls back to @body)
+  @response-vN STATUS DESC   — version-specific response (falls back to @response)
+  @badge-vN "Label" level    — version-specific badge (falls back to @badge)
+  @deprecated-vN             — marks the operation deprecated: true in version N
+  @param TYPE NAME DESC      — query parameter (shared across all versions)
 
-Badge syntax (multiple allowed, Scalar x-badges spec):
-  @badge "Label text" <level>
-  Levels: success | warning | critical | info
-  Maps to {name, color} — Scalar uses color as the badge background.
+Paths in docblocks must be prefix-free: write /system/reboot, not
+/api/system/reboot or /api/v2/system/reboot. The generator prepends the
+server base URL; the OpenAPI spec paths are relative to the server entry.
 """
 
 import glob
@@ -22,10 +23,6 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
-
-API_PREFIX = '/api'
-CONTROLLERS = sorted(glob.glob(str(Path(__file__).parent.parent / 'controllers' / '*.php')))
-OUTPUT = Path(__file__).parent.parent / 'openapi.json'
 
 BADGE_COLORS = {
     'success':  '#2e7d32',
@@ -43,21 +40,23 @@ MEDIA_HINT_MAP = {
     'html':   'text/html',
 }
 
-# Matches @response, its optional fenced code block, and stops before the next tag.
+DOCBLOCK_RE = re.compile(r'/\*\*(.*?)\*/', re.DOTALL)
+
+# Matches @response (unversioned) or @response-vN.
 # Groups: (1) status code, (2) description, (3) media hint, (4) block content
-RESPONSE_RE = re.compile(
-    r'@response(?:\s+(\d{3}))?\s+([^\n]+)'
-    r'(?:\n\s*```(\w+)\n(.*?)\n\s*```)?',
-    re.DOTALL,
+_RESPONSE_RE_TMPL = (
+    r'@response{suffix}(?:\s+(\d{{3}}))?\s+([^\n]+)'
+    r'(?:\n\s*```(\w+)\n(.*?)\n\s*```)?'
 )
+
+
+def _response_re(suffix=''):
+    return re.compile(_RESPONSE_RE_TMPL.format(suffix=suffix), re.DOTALL)
 
 
 # ---------------------------------------------------------------------------
 # PHPDoc parsing
 # ---------------------------------------------------------------------------
-
-DOCBLOCK_RE = re.compile(r'/\*\*(.*?)\*/', re.DOTALL)
-
 
 def strip_stars(block):
     lines = []
@@ -67,26 +66,32 @@ def strip_stars(block):
     return '\n'.join(lines)
 
 
-def parse_docblocks(php_source):
+def parse_docblocks(php_source, version: int):
     """
-    Yield dicts for every docblock that contains a @route tag.
-    Each dict has: method, path, description, body_raw, responses.
-    responses is a list of (status_code, value) tuples.
+    Yield endpoint dicts for every docblock that has @route-vN for the
+    requested version.  Tags without a version suffix are shared/fallback.
     """
-    blocks = [(m.end(), strip_stars(m.group(1))) for m in DOCBLOCK_RE.finditer(php_source)]
+    route_re     = re.compile(rf'@route-v{version}\s+(GET|POST|PUT|DELETE|PATCH)\s+(\S+)')
+    body_ver_re  = re.compile(rf'@body-v{version}\s+(.+)')
+    body_re      = re.compile(r'@body\s+(.+)')
+    depr_re      = re.compile(rf'@deprecated-v{version}')
+    badge_ver_re = re.compile(rf'@badge-v{version}\s+"([^"]+)"\s+(\w+)')
+    badge_re     = re.compile(r'@badge\s+"([^"]+)"\s+(\w+)')
+    resp_ver_re  = _response_re(rf'-v{version}')
+    resp_re      = _response_re()
 
-    for end_pos, text in blocks:
-        route_match = re.search(r'@route\s+(GET|POST|PUT|DELETE|PATCH)\s+(\S+)', text)
+    blocks = [strip_stars(m.group(1)) for m in DOCBLOCK_RE.finditer(php_source)]
+
+    for text in blocks:
+        route_match = route_re.search(text)
         if not route_match:
             continue
 
-        method = route_match.group(1).lower()
-        full_path = route_match.group(2)
-        oapi_path = full_path if full_path else '/'
+        method    = route_match.group(1).lower()
+        oapi_path = route_match.group(2)
 
+        # Description / summary (everything before the first @tag)
         desc_raw = text[:text.find('@')].strip() if '@' in text else text.strip()
-        # Split into blank-line-separated paragraphs; each paragraph is one
-        # or more consecutive non-empty lines joined into a single string.
         paragraphs = []
         current = []
         for ln in desc_raw.splitlines():
@@ -100,27 +105,33 @@ def parse_docblocks(php_source):
             paragraphs.append(' '.join(current))
 
         if len(paragraphs) == 0:
-            summary = None
-            description = None
+            summary = description = None
         elif len(paragraphs) == 1:
-            summary = None  # falls back to route slug in build_openapi
+            summary     = None
             description = paragraphs[0]
         else:
-            summary = paragraphs[0]
+            summary     = paragraphs[0]
             description = ' '.join(paragraphs[1:])
 
-        body_match = re.search(r'@body\s+(.+)', text)
-        body_raw = body_match.group(1).strip() if body_match else None
+        # Body: versioned wins over generic
+        bm       = body_ver_re.search(text) or body_re.search(text)
+        body_raw = bm.group(1).strip() if bm else None
 
+        # Deprecated flag
+        deprecated = bool(depr_re.search(text))
+
+        # Query params (shared; path params are derived from the route pattern)
         path_param_names = set(extract_path_params(oapi_path))
         params = []
         for pm in re.finditer(r'@param\s+(\S+)\s+(\S+)\s*(.*)', text):
             php_type, pname, pdesc = pm.group(1), pm.group(2), pm.group(3).strip()
             if pname in path_param_names:
-                continue  # path params are handled via extract_path_params
-            type_map = {'int': 'integer', 'integer': 'integer',
-                        'bool': 'boolean', 'boolean': 'boolean',
-                        'float': 'number', 'number': 'number'}
+                continue
+            type_map = {
+                'int': 'integer', 'integer': 'integer',
+                'bool': 'boolean', 'boolean': 'boolean',
+                'float': 'number', 'number': 'number',
+            }
             params.append({
                 'name':        pname,
                 'in':          'query',
@@ -129,21 +140,37 @@ def parse_docblocks(php_source):
                 'description': pdesc or None,
             })
 
-        responses = []
-        for rm in RESPONSE_RE.finditer(text):
-            status = int(rm.group(1)) if rm.group(1) else 200
-            resp_desc = rm.group(2).strip()
-            media_hint = rm.group(3)           # e.g. 'json', 'text', 'bytes' or None
-            content = rm.group(4).strip() if rm.group(4) is not None else None
-            responses.append((status, resp_desc, media_hint, content))
+        # Responses: versioned entries override generic ones by status code
+        def collect_responses(pattern):
+            result = {}
+            for rm in pattern.finditer(text):
+                status = int(rm.group(1)) if rm.group(1) else 200
+                result[status] = (
+                    status,
+                    rm.group(2).strip(),
+                    rm.group(3),
+                    rm.group(4).strip() if rm.group(4) is not None else None,
+                )
+            return result
 
-        badges = []
-        for bm in re.finditer(r'@badge\s+"([^"]+)"\s+(\w+)', text):
-            level = bm.group(2).lower()
-            badges.append({
-                'name':  bm.group(1),
-                'color': BADGE_COLORS.get(level, BADGE_COLORS['info']),
-            })
+        resp_base = collect_responses(resp_re)
+        resp_base.update(collect_responses(resp_ver_re))
+        responses = list(resp_base.values())
+
+        # Badges: versioned entries supplement / override generic ones by name
+        def collect_badges(pattern):
+            return [
+                {
+                    'name':  bm.group(1),
+                    'color': BADGE_COLORS.get(bm.group(2).lower(), BADGE_COLORS['info']),
+                }
+                for bm in pattern.finditer(text)
+            ]
+
+        seen_names = {}
+        for b in collect_badges(badge_re) + collect_badges(badge_ver_re):
+            seen_names[b['name']] = b
+        badges = list(seen_names.values())
 
         yield {
             'method':      method,
@@ -151,17 +178,18 @@ def parse_docblocks(php_source):
             'summary':     summary,
             'description': description,
             'body_raw':    body_raw,
+            'deprecated':  deprecated,
             'responses':   responses,
             'badges':      badges,
             'params':      params,
         }
 
 
-def load_endpoints():
+def load_endpoints(controllers_glob, version):
     endpoints = []
-    for php_file in CONTROLLERS:
+    for php_file in sorted(glob.glob(controllers_glob)):
         source = open(php_file, encoding='utf-8', errors='replace').read()
-        for ep in parse_docblocks(source):
+        for ep in parse_docblocks(source, version):
             endpoints.append(ep)
     endpoints.sort(key=lambda e: (e['path'], e['method']))
     return endpoints
@@ -180,19 +208,16 @@ def parse_json_value(raw):
 
 def extract_mime_override(block_content, default_type):
     """
-    If the first line of block_content is a bracketed MIME-type hint such as
+    If the first line is a bracketed MIME-type hint such as
       [Content-Type: text/event-stream]
-      [Raw Binary Stream: application/zip]
-    return (mime_type, remaining_content_stripped).
-    Otherwise return (default_type, block_content).
+    return (mime_type, remaining_content).  Otherwise return (default_type, block_content).
     """
     if not block_content:
         return default_type, block_content
     lines = block_content.splitlines()
     m = re.match(r'^\[.*?([a-z]+/[a-z][a-z0-9+.\-]*)\]', lines[0], re.IGNORECASE)
     if m:
-        rest = '\n'.join(lines[1:]).strip()
-        return m.group(1), rest
+        return m.group(1), '\n'.join(lines[1:]).strip()
     return default_type, block_content
 
 
@@ -201,7 +226,7 @@ def extract_path_params(path):
 
 
 def tag_from_path(path):
-    parts = [p for p in path.strip('/').split('/') if p and not p.startswith('{') and p != 'api']
+    parts = [p for p in path.strip('/').split('/') if p and not p.startswith('{')]
     return parts[0] if parts else 'general'
 
 
@@ -209,19 +234,19 @@ def tag_from_path(path):
 # Build OpenAPI dict
 # ---------------------------------------------------------------------------
 
-def build_openapi(endpoints):
+def build_openapi(endpoints, server_url, server_desc, info_version):
     tags = sorted(set(tag_from_path(e['path']) for e in endpoints))
 
     spec = {
         'openapi': '3.0.3',
         'info': {
-            'title': 'FPP API',
+            'title':       'FPP API',
             'description': 'Falcon Player (FPP) REST API',
-            'version': '1.0',
+            'version':     info_version,
         },
-        'servers': [{'url': '/', 'description': 'Local FPP instance'}],
-        'tags': [{'name': t} for t in tags],
-        'paths': {},
+        'servers': [{'url': server_url, 'description': server_desc}],
+        'tags':    [{'name': t} for t in tags],
+        'paths':   {},
     }
 
     by_path = defaultdict(list)
@@ -229,26 +254,29 @@ def build_openapi(endpoints):
         by_path[ep['path']].append(ep)
 
     for path in sorted(by_path):
-        eps = by_path[path]
-        params = extract_path_params(path)
+        eps       = by_path[path]
+        path_params = extract_path_params(path)
         path_item = {}
 
-        if params:
+        if path_params:
             path_item['parameters'] = [
                 {'name': p, 'in': 'path', 'required': True, 'schema': {'type': 'string'}}
-                for p in params
+                for p in path_params
             ]
 
         for ep in sorted(eps, key=lambda e: e['method']):
-            method        = ep['method']
-            tag           = tag_from_path(path)
-            route_slug    = path.removeprefix(API_PREFIX).lstrip('/')
-            summary       = ep['summary'] if ep['summary'] else route_slug
+            method     = ep['method']
+            tag        = tag_from_path(path)
+            route_slug = path.lstrip('/')
+            summary    = ep['summary'] if ep['summary'] else route_slug
 
             operation = {
                 'tags':    [tag],
                 'summary': summary,
             }
+
+            if ep.get('deprecated'):
+                operation['deprecated'] = True
 
             if ep['description']:
                 operation['description'] = ep['description']
@@ -265,11 +293,13 @@ def build_openapi(endpoints):
             if ep['body_raw']:
                 body_val = parse_json_value(ep['body_raw'])
                 if isinstance(body_val, str):
-                    content = {'text/plain': {'schema': {'type': 'string'}, 'example': body_val}}
+                    content = {
+                        'text/plain': {'schema': {'type': 'string'}, 'example': body_val}
+                    }
                 else:
                     content = {
                         'application/json': {
-                            'schema': {'type': 'array' if isinstance(body_val, list) else 'object'},
+                            'schema':  {'type': 'array' if isinstance(body_val, list) else 'object'},
                             'example': body_val,
                         }
                     }
@@ -288,11 +318,10 @@ def build_openapi(endpoints):
 
                         if media_hint == 'json':
                             parsed = parse_json_value(block_content)
+                            schema  = {'type': 'array' if isinstance(parsed, list) else 'object'}
+                            example = parsed
                             if isinstance(parsed, str):
-                                schema = {'type': 'string'}
-                                example = parsed
-                            else:
-                                schema = {'type': 'array' if isinstance(parsed, list) else 'object'}
+                                schema  = {'type': 'string'}
                                 example = parsed
                             responses[str(status)] = {
                                 'description': desc,
@@ -302,23 +331,19 @@ def build_openapi(endpoints):
                             content_type, _ = extract_mime_override(block_content, content_type)
                             responses[str(status)] = {
                                 'description': desc,
-                                'content': {content_type: {'schema': {'type': 'string', 'format': 'binary'}}},
+                                'content': {
+                                    content_type: {'schema': {'type': 'string', 'format': 'binary'}}
+                                },
                             }
                         else:
-                            # text, xml, html, and any unknown hint
-                            # A bracketed first line overrides the content type and is stripped from the example.
                             content_type, example = extract_mime_override(block_content, content_type)
                             responses[str(status)] = {
                                 'description': desc,
                                 'content': {
-                                    content_type: {
-                                        'schema': {'type': 'string'},
-                                        'example': example,
-                                    }
+                                    content_type: {'schema': {'type': 'string'}, 'example': example},
                                 },
                             }
                     else:
-                        # No fenced block — fall back: try to parse desc as inline JSON (legacy)
                         val = parse_json_value(desc)
                         if isinstance(val, str):
                             responses[str(status)] = {'description': val}
@@ -328,7 +353,7 @@ def build_openapi(endpoints):
                                 'description': fallback_desc,
                                 'content': {
                                     'application/json': {
-                                        'schema': {'type': 'array' if isinstance(val, list) else 'object'},
+                                        'schema':  {'type': 'array' if isinstance(val, list) else 'object'},
                                         'example': val,
                                     }
                                 },
@@ -345,22 +370,26 @@ def build_openapi(endpoints):
 
 
 # ---------------------------------------------------------------------------
-# Main
+# Entry point called by version-specific wrappers
 # ---------------------------------------------------------------------------
 
-def main():
-    endpoints = load_endpoints()
+def main(*, version, output, server_url, server_desc, info_version):
+    controllers_glob = str(
+        Path(__file__).parent.parent / 'controllers' / '*.php'
+    )
+    endpoints = load_endpoints(controllers_glob, version)
     if not endpoints:
-        print('ERROR: No @route annotations found. Are you running from www/api/?', file=sys.stderr)
+        print(
+            f'ERROR: No @route-v{version} annotations found. '
+            'Are you running from www/api/?',
+            file=sys.stderr,
+        )
         sys.exit(1)
 
-    spec = build_openapi(endpoints)
-    OUTPUT.write_text(json.dumps(spec, indent=2), encoding='utf-8')
+    spec     = build_openapi(endpoints, server_url, server_desc, info_version)
+    out_path = Path(__file__).parent.parent / output
+    out_path.write_text(json.dumps(spec, indent=2), encoding='utf-8')
 
     path_count = len(set(e['path'] for e in endpoints))
     op_count   = len(endpoints)
-    print(f'Written {OUTPUT} ({path_count} paths, {op_count} operations)')
-
-
-if __name__ == '__main__':
-    main()
+    print(f'Written {out_path} ({path_count} paths, {op_count} operations)')

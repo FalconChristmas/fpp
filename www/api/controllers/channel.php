@@ -7,7 +7,8 @@
  * Returns a meaningful error if the connection to `fppd` fails.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/channel/input/stats
+ * @route-v1 GET /channel/input/stats
+ * @route-v2 GET /channel/input/stats
  * @response 200 E1.31/DDP channel input statistics
  * ```json
  * {
@@ -24,7 +25,7 @@
  * }
  * ```
  */
-function channel_input_get_stats()
+function ChannelInputGetStats()
 {
     $data = file_get_contents('http://127.0.0.1:32322/fppd/e131stats');
     $rc = array();
@@ -46,13 +47,14 @@ function channel_input_get_stats()
  * Resets the E1.31/DDP channel input statistics counters.
  *
  * @badge "FPP REQUIRED" critical
- * @route DELETE /api/channel/input/stats
+ * @route-v1 DELETE /channel/input/stats
+ * @route-v2 DELETE /channel/input/stats
  * @response 200 Statistics reset
  * ```json
  * {"status": "OK"}
  * ```
  */
-function channel_input_delete_stats()
+function ChannelInputDeleteStats()
 {
     $url = 'http://127.0.0.1:32322/fppd/e131stats';
     $ch = curl_init();
@@ -73,7 +75,8 @@ function channel_input_delete_stats()
  *
  * Returns the current configuration of any output processors.
  *
- * @route GET /api/channel/output/processors
+ * @route-v1 GET /channel/output/processors
+ * @route-v2 GET /channel/output/processors
  * @response 200 Current output processor configuration
  * ```json
  * {
@@ -92,7 +95,7 @@ function channel_input_delete_stats()
  * }
  * ```
  */
-function channel_get_output_processors()
+function ChannelGetOutputProcessors()
 {
     global $settings;
 
@@ -114,7 +117,8 @@ function channel_get_output_processors()
  * Overwrites the output processor settings file with a new configuration and
  * returns the saved configuration.
  *
- * @route POST /api/channel/output/processors
+ * @route-v1 POST /channel/output/processors
+ * @route-v2 POST /channel/output/processors
  * @body {"outputProcessors": [{"type": "Brightness", "active": 0, "description": "", "start": 1, "count": 10, "brightness": 50, "gamma": 1}]}
  * @response 200 Current output processor configuration
  * ```json
@@ -134,7 +138,7 @@ function channel_get_output_processors()
  * }
  * ```
  */
-function channel_save_output_processors()
+function ChannelSaveOutputProcessors()
 {
     global $settings;
     global $args;
@@ -147,7 +151,7 @@ function channel_save_output_processors()
     //Trigger a JSON Configuration Backup
     GenerateBackupViaAPI('Channel Output Processor was modified.');
 
-    return channel_get_output_processors();
+    return ChannelGetOutputProcessors();
 }
 
 /**
@@ -158,7 +162,8 @@ function channel_save_output_processors()
  * `co-pwm`, and `co-bbbStrings`. Supports an optional `?ip=` query parameter to fetch from
  * a remote FPP instance.
  *
- * @route GET /api/channel/output/{file}
+ * @route-v1 GET /channel/output/{file}
+ * @route-v2 GET /channel/output/{file}
  * @response 200 Channel output configuration file contents
  * ```json
  * {}
@@ -168,7 +173,7 @@ function channel_save_output_processors()
  * {"status": "ERROR: File not found"}
  * ```
  */
-function channel_get_output()
+function ChannelGetOutput()
 {
     global $settings;
 
@@ -222,14 +227,15 @@ function channel_get_output()
  * Overwrites the specified output configuration file with the `POST` body
  * and returns the saved configuration.
  *
- * @route POST /api/channel/output/{file}
+ * @route-v1 POST /channel/output/{file}
+ * @route-v2 POST /channel/output/{file}
  * @body "Format varies based on file"
  * @response 200 Saved configuration echoed back
  * ```json
  * {}
  * ```
  */
-function channel_save_output()
+function ChannelSaveOutput()
 {
     global $settings;
 
@@ -242,7 +248,7 @@ function channel_save_output()
         //Trigger a JSON Configuration Backup
         GenerateBackupViaAPI('Channel output ' . $file . ' was modified.');
 
-        return channel_get_output();
+        return ChannelGetOutput();
     } else {
         return json(array("status" => "ERROR file not supported: " . $file));
     }

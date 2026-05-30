@@ -5,13 +5,14 @@
  *
  * Get list of playlist names.
  *
- * @route GET /api/playlists
+ * @route-v1 GET /playlists
+ * @route-v2 GET /playlists
  * @response 200 List of playlist names
  * ```json
  * ["Playlist_1", "Playlist_2", "Playlist_3"]
  * ```
  */
-function playlist_list()
+function PlaylistList()
 {
     global $settings;
     $playlists = array();
@@ -167,7 +168,8 @@ function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
  * Returns a list of all playlists with any validation errors, total item
  * counts, and total duration.
  *
- * @route GET /api/playlists/validate
+ * @route-v1 GET /playlists/validate
+ * @route-v2 GET /playlists/validate
  * @response 200 Validation results for all playlists
  * ```json
  * [
@@ -186,7 +188,7 @@ function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
  * ]
  * ```
  */
-function playlist_list_validate()
+function PlaylistListValidate()
 {
     global $settings;
     $mediaFiles = loadValidateFiles();
@@ -204,7 +206,7 @@ function playlist_list_validate()
 
     $rc = array();
     foreach ($playlists as $plName) {
-        $pl = LoadPlayListDetails($plName, false);
+        $pl = loadPlayListDetails($plName, false);
         $valid = true;
         $msg = [];
         if (isset($pl->leadIn)) {
@@ -268,13 +270,14 @@ function playlist_list_validate()
  *
  * Get a combined list of playlist names and `*.fseq` sequence filenames that are playable.
  *
- * @route GET /api/playlists/playable
+ * @route-v1 GET /playlists/playable
+ * @route-v2 GET /playlists/playable
  * @response 200 Playable playlist and sequence names
  * ```json
  * ["Playlist_1", "Playlist_2", "MySequence.fseq"]
  * ```
  */
-function playlist_playable()
+function PlaylistPlayable()
 {
     global $settings;
     $playlists = array();
@@ -347,7 +350,8 @@ function cleanMedialNamesInPlaylist(&$playlistObj, $section)
  *
  * Insert a new playlist.
  *
- * @route POST /api/playlists
+ * @route-v1 POST /playlists
+ * @route-v2 POST /playlists
  * @body {"name": "UploadTest", "globalPauseBetweenSequencesMS": 5000, "mainPlaylist": [{"type": "pause", "enabled": 1, "playOnce": 0, "duration": 8}], "playlistInfo": {"total_duration": 8, "total_items": 1}}
  * @response 200 Newly created playlist
  * ```json
@@ -364,7 +368,7 @@ function cleanMedialNamesInPlaylist(&$playlistObj, $section)
  * }
  * ```
  */
-function playlist_insert()
+function PlaylistInsert()
 {
     global $settings;
 
@@ -401,9 +405,9 @@ function playlist_insert()
  * @param object $plentry  Playlist entry object containing the sub-playlist name.
  * @return void
  */
-function LoadSubPlaylist(&$playlist, &$i, $plentry)
+function loadSubPlaylist(&$playlist, &$i, $plentry)
 {
-    $data = GetPlaylist($plentry->name);
+    $data = getPlaylist($plentry->name);
 
     $subPlaylist = array();
 
@@ -422,7 +426,7 @@ function LoadSubPlaylist(&$playlist, &$i, $plentry)
     $li = 0;
     foreach ($subPlaylist as $entry) {
         if ($entry->type == "playlist") {
-            LoadSubPlaylist($subPlaylist, $li, $entry);
+            loadSubPlaylist($subPlaylist, $li, $entry);
         }
 
         $li++;
@@ -441,7 +445,7 @@ function LoadSubPlaylist(&$playlist, &$i, $plentry)
  * @param bool   $mergeSubs When true, recursively merges sub-playlists into parent sections.
  * @return object|string    Decoded playlist object, or empty string if the file does not exist.
  */
-function LoadPlayListDetails($file, $mergeSubs)
+function loadPlayListDetails($file, $mergeSubs)
 {
     global $settings;
 
@@ -456,7 +460,7 @@ function LoadPlayListDetails($file, $mergeSubs)
         return "";
     }
 
-    $data = GetPlaylist($file);
+    $data = getPlaylist($file);
 
     if (!$mergeSubs) {
         return $data;
@@ -466,7 +470,7 @@ function LoadPlayListDetails($file, $mergeSubs)
         $i = 0;
         foreach ($data->leadIn as $entry) {
             if ($mergeSubs && $entry->type == "playlist") {
-                LoadSubPlaylist($data->leadIn, $i, $entry);
+                loadSubPlaylist($data->leadIn, $i, $entry);
             }
             $i++;
         }
@@ -476,7 +480,7 @@ function LoadPlayListDetails($file, $mergeSubs)
         $i = 0;
         foreach ($data->mainPlaylist as $entry) {
             if ($mergeSubs && $entry->type == "playlist") {
-                LoadSubPlaylist($data->mainPlaylist, $i, $entry);
+                loadSubPlaylist($data->mainPlaylist, $i, $entry);
             }
             $i++;
         }
@@ -486,7 +490,7 @@ function LoadPlayListDetails($file, $mergeSubs)
         $i = 0;
         foreach ($data->leadOut as $entry) {
             if ($mergeSubs && $entry->type == "playlist") {
-                LoadSubPlaylist($data->leadOut, $i, $entry);
+                loadSubPlaylist($data->leadOut, $i, $entry);
             }
             $i++;
         }
@@ -501,7 +505,7 @@ function LoadPlayListDetails($file, $mergeSubs)
  * @param string $playlistName Playlist name (without .json extension).
  * @return object Decoded playlist object.
  */
-function GetPlaylist($playlistName)
+function getPlaylist($playlistName)
 {
     global $settings;
 
@@ -517,7 +521,8 @@ function GetPlaylist($playlistName)
  * `?mergeSubs=1` is specified, sub-playlists are recursively merged into
  * the parent sections.
  *
- * @route GET /api/playlist/{PlaylistName}
+ * @route-v1 GET /playlist/{PlaylistName}
+ * @route-v2 GET /playlist/{PlaylistName}
  * @param int mergeSubs Merge sub-playlsits recursively
  * @response 200 Playlist details
  * ```json
@@ -534,7 +539,7 @@ function GetPlaylist($playlistName)
  * }
  * ```
  */
-function playlist_get()
+function PlaylistGet()
 {
     global $settings;
 
@@ -544,7 +549,7 @@ function playlist_get()
         $mergeSubs = 1;
     }
 
-    $data = LoadPlayListDetails($playlistName, $mergeSubs);
+    $data = loadPlayListDetails($playlistName, $mergeSubs);
 
     return json($data);
 }
@@ -554,7 +559,8 @@ function playlist_get()
  *
  * Update or Insert (upsert) the playlist named {PlaylistName}.
  *
- * @route POST /api/playlist/{PlaylistName}
+ * @route-v1 POST /playlist/{PlaylistName}
+ * @route-v2 POST /playlist/{PlaylistName}
  * @body {"name": "UploadTest", "globalPauseBetweenSequencesMS": 5000, "mainPlaylist": [{"type": "pause", "enabled": 1, "playOnce": 0, "duration": 8}], "playlistInfo": {"total_duration": 8, "total_items": 1}}
  * @response 200 Updated playlist
  * ```json
@@ -571,7 +577,7 @@ function playlist_get()
  * }
  * ```
  */
-function playlist_update()
+function PlaylistUpdate()
 {
     global $settings;
 
@@ -637,13 +643,14 @@ function playlist_update()
  *
  * Delete the playlist named {PlaylistName}.
  *
- * @route DELETE /api/playlist/{PlaylistName}
+ * @route-v1 DELETE /playlist/{PlaylistName}
+ * @route-v2 DELETE /playlist/{PlaylistName}
  * @response 200 Playlist deleted
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_delete()
+function PlaylistDelete()
 {
     global $settings;
 
@@ -676,7 +683,8 @@ function playlist_delete()
  *
  * Insert an item into the `{SectionName}` section of playlist `{PlaylistName}`.
  *
- * @route POST /api/playlist/{PlaylistName}/{SectionName}/item
+ * @route-v1 POST /playlist/{PlaylistName}/{SectionName}/item
+ * @route-v2 POST /playlist/{PlaylistName}/{SectionName}/item
  * @body {"type": "pause", "enabled": 1, "playOnce": 0, "duration": 8}
  * @response 200 Item inserted
  * ```json
@@ -736,13 +744,15 @@ function PlaylistSectionInsertItem()
  * Immediately stop the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stop
+ * @route-v1 GET /playlists/stop
+ * @route-v2 POST /playlists/stop
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Playlist stopped
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_stop()
+function PlaylistStop()
 {
     global $settings;
     $curl = curl_init();
@@ -761,13 +771,15 @@ function playlist_stop()
  * Gracefully stop the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stopgracefully
+ * @route-v1 GET /playlists/stopgracefully
+ * @route-v2 POST /playlists/stopgracefully
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Graceful stop initiated
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_stopgracefully()
+function PlaylistStopGracefully()
 {
     global $settings;
 
@@ -787,13 +799,15 @@ function playlist_stopgracefully()
  * current loop.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stopgracefullyafterloop
+ * @route-v1 GET /playlists/stopgracefullyafterloop
+ * @route-v2 POST /playlists/stopgracefullyafterloop
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Stop after loop initiated
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_stopgracefullyafterloop()
+function PlaylistStopGracefullyAfterLoop()
 {
     global $settings;
 
@@ -814,13 +828,15 @@ function playlist_stopgracefullyafterloop()
  * this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start
+ * @route-v1 GET /playlist/{PlaylistName}/start
+ * @route-v2 POST /playlist/{PlaylistName}/start
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_start()
+function PlaylistStart()
 {
     global $settings;
 
@@ -844,14 +860,16 @@ function playlist_start()
  * scheduler from stopping this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start/{Repeat}
+ * @route-v1 GET /playlist/{PlaylistName}/start/{Repeat}
+ * @route-v2 POST /playlist/{PlaylistName}/start/{Repeat}
+ * @badge-v1 "DEPRECATED" warning
  * @param bool scheduleProtected Prevent schedule from stopping this playlist
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_start_repeat()
+function PlaylistStartRepeat()
 {
     global $settings;
 
@@ -876,13 +894,15 @@ function playlist_start_repeat()
  * stop this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
+ * @route-v1 GET /playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
+ * @route-v2 POST /playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_start_repeat_protected()
+function PlaylistStartRepeatProtected()
 {
     global $settings;
 
@@ -905,13 +925,15 @@ function playlist_start_repeat_protected()
  * Pause the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/pause
+ * @route-v1 GET /playlists/pause
+ * @route-v2 POST /playlists/pause
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Playlist paused
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_pause()
+function PlaylistPause()
 {
     global $settings;
 
@@ -930,13 +952,15 @@ function playlist_pause()
  * Resume a previously paused playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/resume
+ * @route-v1 GET /playlists/resume
+ * @route-v2 POST /playlists/resume
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Playlist resumed
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function playlist_resume()
+function PlaylistResume()
 {
     global $settings;
 

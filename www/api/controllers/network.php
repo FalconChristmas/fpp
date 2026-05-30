@@ -8,7 +8,8 @@ require_once "../common.php";
  * Returns detailed information about network interfaces, their IP addresses,
  * and Wi-Fi signal strength.
  *
- * @route GET /api/network/interface
+ * @route-v1 GET /network/interface
+ * @route-v2 GET /network/interface
  * @response 200 Network interface details
  * ```json
  * [
@@ -32,7 +33,7 @@ require_once "../common.php";
  * ]
  * ```
  */
-function network_list_interfaces()
+function NetworkListInterfaces()
 {
     return json(network_list_interfaces_obj());
 }
@@ -42,7 +43,8 @@ function network_list_interfaces()
  *
  * Returns signal strength information for wireless network interfaces.
  *
- * @route GET /api/network/wifi/strength
+ * @route-v1 GET /network/wifi/strength
+ * @route-v2 GET /network/wifi/strength
  * @response 200 Wi-Fi signal strength per interface
  * ```json
  * [
@@ -55,7 +57,7 @@ function network_list_interfaces()
  * ]
  * ```
  */
-function network_wifi_strength()
+function NetworkWiFiStrength()
 {
     return json(network_wifi_strength_obj());
 }
@@ -66,7 +68,8 @@ function network_wifi_strength()
  * Returns information about Wi-Fi networks discoverable via the specified
  * `{interface}`. Networks without an SSID may appear in the list.
  *
- * @route GET /api/network/wifi/scan/{interface}
+ * @route-v1 GET /network/wifi/scan/{interface}
+ * @route-v2 GET /network/wifi/scan/{interface}
  * @response 200 Discoverable Wi-Fi networks
  * ```json
  * {
@@ -82,14 +85,14 @@ function network_wifi_strength()
  * }
  * ```
  */
-function network_wifi_scan()
+function NetworkWiFiScan()
 {
     $networks = array();
     $current = array();
     $interface = params('interface');
 
     # Validate interface.   -- Important because of SUDO
-    $interfaces = json_decode(network_list_interfaces(), true);
+    $interfaces = json_decode(NetworkListInterfaces(), true);
     $found = false;
 
     foreach ($interfaces as $row) {
@@ -153,13 +156,14 @@ function network_wifi_scan()
  * Removes interface persistent names by deleting systemd `.link` files and
  * restoring any USB ethernet adapter config files back to `eth*` names.
  *
- * @route DELETE /api/network/persistentNames
+ * @route-v1 DELETE /network/persistentNames
+ * @route-v2 DELETE /network/persistentNames
  * @response 200 Persistent names removed
  * ```json
  * {"status": "OK"}
  * ```
  */
-function network_persistentNames_delete()
+function NetworkPersistentNamesDelete()
 {
     global $settings;
 
@@ -204,16 +208,17 @@ function network_persistentNames_delete()
  * Creates interface persistent names by writing systemd `.link` files that
  * pin each interface's name to its MAC address.
  *
- * @route POST /api/network/persistentNames
+ * @route-v1 POST /network/persistentNames
+ * @route-v2 POST /network/persistentNames
  * @response 200 Persistent names created
  * ```json
  * {"status": "OK", "interfaceCnt": 2}
  * ```
  */
-function network_persistentNames_create()
+function NetworkPersistentNamesCreate()
 {
     global $settings;
-    network_persistentNames_delete();
+    NetworkPersistentNamesDelete();
 
     $interfaces = network_list_interfaces_array();
     $count = 0;
@@ -263,7 +268,8 @@ function network_persistentNames_create()
  * Returns the current DNS configuration. If not configured, `status` will
  * be `Not Configured`.
  *
- * @route GET /api/network/dns
+ * @route-v1 GET /network/dns
+ * @route-v2 GET /network/dns
  * @response 200 Current DNS configuration
  * ```json
  * {
@@ -273,7 +279,7 @@ function network_persistentNames_create()
  * }
  * ```
  */
-function network_get_dns()
+function NetworkGetDNS()
 {
     global $settings;
 
@@ -291,7 +297,8 @@ function network_get_dns()
  *
  * Updates the DNS configuration.
  *
- * @route POST /api/network/dns
+ * @route-v1 POST /network/dns
+ * @route-v2 POST /network/dns
  * @body {"DNS1": "192.168.50.1", "DNS2": "192.168.1.1"}
  * @response 200 DNS configuration updated
  * ```json
@@ -304,7 +311,7 @@ function network_get_dns()
  * }
  * ```
  */
-function network_save_dns()
+function NetworkSaveDNS()
 {
     global $settings;
 
@@ -338,13 +345,14 @@ function network_save_dns()
  * Returns the currently configured default gateway IP address. May be empty
  * when using DHCP.
  *
- * @route GET /api/network/gateway
+ * @route-v1 GET /network/gateway
+ * @route-v2 GET /network/gateway
  * @response 200 Current default gateway
  * ```json
  * {"GATEWAY": "192.168.1.1"}
  * ```
  */
-function network_get_gateway()
+function NetworkGetGateway()
 {
     global $settings;
 
@@ -372,14 +380,15 @@ function network_get_gateway()
  *
  * Saves the default gateway IP address to the `gateway` configuration file.
  *
- * @route POST /api/network/gateway
+ * @route-v1 POST /network/gateway
+ * @route-v2 POST /network/gateway
  * @body {"GATEWAY": "192.168.1.1"}
  * @response 200 Default gateway saved
  * ```json
  * {"status": "OK", "GATEWAY": "192.168.1.1"}
  * ```
  */
-function network_save_gateway()
+function NetworkSaveGateway()
 {
     global $settings;
 
@@ -410,7 +419,8 @@ function network_save_gateway()
  *
  * Retrieves the current network interface configuration.
  *
- * @route GET /api/network/interface/{interface}
+ * @route-v1 GET /network/interface/{interface}
+ * @route-v2 GET /network/interface/{interface}
  * @response 200 Network interface configuration
  * ```json
  * {
@@ -424,7 +434,7 @@ function network_save_gateway()
  * }
  * ```
  */
-function network_get_interface()
+function NetworkGetInterface()
 {
     global $settings;
 
@@ -549,13 +559,15 @@ function network_get_interface()
  * Creates a new blank DHCP interface configuration file for the specified
  * network interface (e.g. `eth1`, `wlan0`).
  *
- * @route GET /api/network/interface/add/{interface}
+ * @route-v1 GET /network/interface/add/{interface}
+ * @route-v2 POST /network/interface/add/{interface}
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 DHCP interface created
  * ```json
  * {"status": "New Blank Interface created"}
  * ```
  */
-function network_add_interface()
+function NetworkAddInterface()
 {
     global $settings;
 
@@ -586,14 +598,15 @@ function network_add_interface()
  * Updates the saved configuration for the specified `{interface}` but does
  * not restart the network.
  *
- * @route POST /api/network/interface/{interface}
+ * @route-v1 POST /network/interface/{interface}
+ * @route-v2 POST /network/interface/{interface}
  * @body {"INTERFACE": "eth0", "PROTO": "static", "ADDRESS": "192.168.1.149", "NETMASK": "255.255.255.0", "GATEWAY": "192.168.1.1"}
  * @response 200 Interface configuration saved
  * ```json
  * {"status": "OK"}
  * ```
  */
-function network_set_interface()
+function NetworkSetInterface()
 {
     global $settings;
 
@@ -698,13 +711,14 @@ function network_set_interface()
  * Applies the networking settings for the specified `{interface}` at the OS
  * level and restarts the interface.
  *
- * @route POST /api/network/interface/{interface}/apply
+ * @route-v1 POST /network/interface/{interface}/apply
+ * @route-v2 POST /network/interface/{interface}/apply
  * @response 200 Networking configuration applied
  * ```json
  * {"status": "OK", "output": []}
  * ```
  */
-function network_apply_interface()
+function NetworkApplyInterface()
 {
     global $settings, $SUDO;
 

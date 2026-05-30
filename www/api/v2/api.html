@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FPP API v2</title>
+</head>
+<body>
+  <script id="api-reference" data-url="/api/v2/openapi.json"></script>
+  <script>
+    (function () {
+      var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+      var dark = mq && mq.matches;
+
+      document.getElementById('api-reference').dataset.configuration = JSON.stringify({
+        theme: 'none',
+        layout: 'modern',
+        defaultOpenAllTags: false,
+        darkMode: dark,
+        metaData: { title: 'FPP API v2' },
+        agent: { disabled: true },
+        mcp:   { disabled: true },
+        hideDarkModeToggle: true,
+        customCss: dark
+          ? ':root{--scalar-color-1:#dee2e6;--scalar-color-2:rgba(222,226,230,0.65);--scalar-color-3:rgba(222,226,230,0.40);--scalar-color-accent:#6ea8fe;--scalar-background-1:#212529;--scalar-background-2:#2c3034;--scalar-background-3:#343a40;--scalar-background-accent:rgba(110,168,254,0.08);--scalar-border-color:rgba(255,255,255,0.10);}.badge{color:#ffffff!important;}'
+          : ':root{--scalar-color-1:#333333;--scalar-color-2:rgba(51,51,51,0.65);--scalar-color-3:rgba(51,51,51,0.40);--scalar-color-accent:#007bff;--scalar-background-1:#ffffff;--scalar-background-2:#f8f9fa;--scalar-background-3:#e9ecef;--scalar-background-accent:rgba(0,123,255,0.06);--scalar-border-color:rgba(0,0,0,0.10);}.badge{color:#ffffff!important;}'
+      });
+
+      if (mq) {
+        mq.addEventListener('change', function () { location.reload(); });
+      }
+    })();
+  </script>
+  <script src="/js/scalar.js"></script>
+</body>
+</html>

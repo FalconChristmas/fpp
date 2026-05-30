@@ -5,7 +5,7 @@
  *
  * @return array Associative array of settings metadata.
  */
-function ReadSettingsJSON()
+function readSettingsJSON()
 {
     global $settings;
     $json = file_get_contents($settings['fppDir'] . '/www/settings.json');
@@ -18,7 +18,8 @@ function ReadSettingsJSON()
  *
  * Get info about a particular setting, including its current `value`.
  *
- * @route GET /api/settings/{SettingName}
+ * @route-v1 GET /settings/{SettingName}
+ * @route-v2 GET /settings/{SettingName}
  * @response 200 Setting metadata and current value
  * ```json
  * {
@@ -42,7 +43,7 @@ function GetSetting()
 {
     global $settings;
 
-    $sInfos = ReadSettingsJSON();
+    $sInfos = readSettingsJSON();
     $settingName = params('SettingName');
 
     if (isset($sInfos['settings'][$settingName])) {
@@ -74,7 +75,8 @@ function GetSetting()
  *
  * Sets the value for a specific setting.
  *
- * @route PUT /api/settings/{SettingName}
+ * @route-v1 PUT /settings/{SettingName}
+ * @route-v2 PUT /settings/{SettingName}
  * @body "0"
  * @response 200 Setting saved
  * ```json
@@ -256,7 +258,8 @@ function PutSetting()
  *
  * Returns the `settings.json` metadata file as a JSON list of settings.
  *
- * @route GET /api/settings
+ * @route-v1 GET /settings
+ * @route-v2 GET /settings
  * @response 200 All settings metadata
  * ```json
  * {
@@ -284,7 +287,8 @@ function GetSettings()
  *
  * Returns the current system time as a formatted string.
  *
- * @route GET /api/time
+ * @route-v1 GET /time
+ * @route-v2 GET /time
  * @response 200 Current system time
  * ```json
  * {"time": "Tue Apr 02 08:06:34 EDT 2019"}
@@ -303,7 +307,8 @@ function GetTime()
  *
  * Updates a sub-value held as JSON within a setting's value. Only valid for settings stored as JSON.
  *
- * @route PUT /api/settings/{SettingName}/jsonValueUpdate
+ * @route-v1 PUT /settings/{SettingName}/jsonValueUpdate
+ * @route-v2 PUT /settings/{SettingName}/jsonValueUpdate
  * @body "raw json of hierarchy to update"
  * @response 200 Sub-value updated
  * ```json
