@@ -483,6 +483,134 @@ PlayerResource::~PlayerResource() {
 /*
  *
  */
+// --------------------------------------------------------------------------
+// OpenAPI docs for the /fppd/* GET endpoints handled below.
+// These @route docblocks are parsed by www/api/tools/generate_openapi.py; the
+// fppd daemon serves them on port 32322 and Apache proxies them under /api/*.
+// --------------------------------------------------------------------------
+
+/**
+ * List the effects currently running on the player.
+ *
+ * @route GET /api/fppd/effects
+ * @response 200 Object with a `runningEffects` array.
+ */
+
+/**
+ * Get the current fppd logging configuration (log level and enabled channels).
+ *
+ * @route GET /api/fppd/log
+ * @response 200 Current log settings.
+ */
+
+/**
+ * Get the full current player status (playlist, sequence, time, mode, etc.).
+ *
+ * @route GET /api/fppd/status
+ * @response 200 Current player status JSON.
+ */
+
+/**
+ * List the messages for all currently active warnings.
+ *
+ * @route GET /api/fppd/warnings
+ * @response 200 Array of warning message strings.
+ * ```json
+ * ["Low disk space", "No network connection"]
+ * ```
+ */
+
+/**
+ * List all currently active warnings as full objects (message plus metadata).
+ *
+ * @route GET /api/fppd/warnings_full
+ * @response 200 Array of warning objects.
+ */
+
+/**
+ * Get the number of E1.31/sACN bytes received per universe.
+ *
+ * @route GET /api/fppd/e131stats
+ * @response 200 E1.31 receive statistics.
+ */
+
+/**
+ * List the MultiSync systems discovered on the network.
+ *
+ * @route GET /api/fppd/multiSyncSystems
+ * @param int localOnly Set to 1 to return only the local system.
+ * @response 200 MultiSync systems.
+ */
+
+/**
+ * Get MultiSync packet statistics.
+ *
+ * @route GET /api/fppd/multiSyncStats
+ * @param int reset Set to 1 to reset the statistics after reading them.
+ * @response 200 MultiSync statistics.
+ */
+
+/**
+ * List the playlists that are currently running.
+ *
+ * @route GET /api/fppd/playlists
+ * @response 200 Currently running playlists.
+ */
+
+/**
+ * Get the last-modified time of the running playlist file.
+ *
+ * @route GET /api/fppd/playlist/filetime
+ * @response 200 Playlist file time.
+ */
+
+/**
+ * Get the configuration of the running playlist.
+ *
+ * @route GET /api/fppd/playlist/config
+ * @response 200 Playlist configuration.
+ */
+
+/**
+ * Get the currently loaded schedule.
+ *
+ * @route GET /api/fppd/schedule
+ * @response 200 Object with a `schedule` member.
+ */
+
+/**
+ * Get FPP version information.
+ *
+ * @route GET /api/fppd/version
+ * @response 200 Version details.
+ * ```json
+ * {"version": "9.0", "majorVersion": 9, "minorVersion": 0, "branch": "master", "fppdAPI": 4, "Status": "OK"}
+ * ```
+ */
+
+/**
+ * Get (or set) the master output volume.
+ *
+ * @route GET /api/fppd/volume
+ * @param int set New volume (0-100) to apply before returning.
+ * @param boolean simple Return the volume as a bare text/plain integer instead of JSON.
+ * @response 200 Object with a `volume` member (0-100).
+ */
+
+/**
+ * Get the list of running sequences.
+ *
+ * @route GET /api/fppd/sequence
+ * @response 200 Running sequences.
+ */
+
+/**
+ * Dump the cached MQTT messages.
+ *
+ * @route GET /api/fppd/mqtt/cache
+ * @response 200 Cached MQTT messages.
+ * @response 400 MQTT is not initialized.
+ */
 HttpResponsePtr PlayerResource::render_GET(const HttpRequestPtr& req) {
     LogRequest(req);
 
@@ -601,6 +729,184 @@ HttpResponsePtr PlayerResource::render_GET(const HttpRequestPtr& req) {
 
 /*
  *
+ */
+// --------------------------------------------------------------------------
+// OpenAPI docs for the /fppd/* POST endpoints handled below.
+// --------------------------------------------------------------------------
+
+/**
+ * Start (or update) a named overlay effect on the player.
+ *
+ * @route POST /api/fppd/effects/{name}
+ * @response 200 Effect started.
+ */
+
+/**
+ * Re-read the Falcon hardware (e.g. cape/receiver) configuration.
+ *
+ * @route POST /api/fppd/falcon/hardware
+ * @response 200 Hardware refreshed.
+ */
+
+/**
+ * Set an external GPIO input state.
+ *
+ * @route POST /api/fppd/gpio/ext
+ * @response 200 GPIO state updated.
+ */
+
+/**
+ * Set the logging level for a specific log channel.
+ *
+ * @route POST /api/fppd/log/level/{level}
+ * @response 200 Log level updated.
+ */
+
+/**
+ * Apply a new channel-output configuration.
+ *
+ * @route POST /api/fppd/outputs
+ * @response 200 Outputs updated.
+ */
+
+/**
+ * Remap channel outputs.
+ *
+ * @route POST /api/fppd/outputs/remap
+ * @response 200 Outputs remapped.
+ */
+
+/**
+ * Stop all running playlists.
+ *
+ * @route POST /api/fppd/playlists/stop
+ * @response 200 All playlists stopped.
+ */
+
+/**
+ * Start a playlist by name.
+ *
+ * @route POST /api/fppd/playlists/{name}/start
+ * @response 200 Playlist started.
+ */
+
+/**
+ * Stop a running playlist by name.
+ *
+ * @route POST /api/fppd/playlists/{name}/stop
+ * @response 200 Playlist stopped.
+ */
+
+/**
+ * Skip to the next item in a running playlist.
+ *
+ * @route POST /api/fppd/playlists/{name}/nextItem
+ * @response 200 Advanced to next item.
+ */
+
+/**
+ * Skip to the previous item in a running playlist.
+ *
+ * @route POST /api/fppd/playlists/{name}/prevItem
+ * @response 200 Moved to previous item.
+ */
+
+/**
+ * Restart the current item in a running playlist.
+ *
+ * @route POST /api/fppd/playlists/{name}/restartItem
+ * @response 200 Current item restarted.
+ */
+
+/**
+ * Jump to a named section (mainPlaylist, leadIn, leadOut) of a playlist.
+ *
+ * @route POST /api/fppd/playlists/{name}/section/{section}
+ * @response 200 Jumped to section.
+ */
+
+/**
+ * Jump to a specific item index in a playlist.
+ *
+ * @route POST /api/fppd/playlists/{name}/item/{item}
+ * @response 200 Jumped to item.
+ */
+
+/**
+ * Replace the active schedule.
+ *
+ * @route POST /api/fppd/schedule
+ * @response 200 Schedule updated.
+ */
+
+/**
+ * Set the master output volume (0-100).
+ *
+ * @route POST /api/fppd/volume/{volume}
+ * @response 200 Object with the new `volume`.
+ */
+
+/**
+ * Start playing a sequence by name.
+ *
+ * @route POST /api/fppd/sequences/{name}/start
+ * @response 200 Sequence started.
+ */
+
+/**
+ * Stop a running sequence by name.
+ *
+ * @route POST /api/fppd/sequences/{name}/stop
+ * @response 200 Sequence stopped.
+ */
+
+/**
+ * Toggle pause on a running sequence (append /0 to resume, /1 to pause).
+ *
+ * @route POST /api/fppd/sequences/{name}/pause
+ * @response 200 Pause state toggled.
+ */
+
+/**
+ * Step a paused sequence forward (optionally by /{frames}).
+ *
+ * @route POST /api/fppd/sequences/{name}/step
+ * @response 200 Sequence stepped forward.
+ */
+
+/**
+ * Step a paused sequence backward (optionally by /{frames}).
+ *
+ * @route POST /api/fppd/sequences/{name}/back
+ * @response 200 Sequence stepped backward.
+ */
+
+/**
+ * Reload all settings from disk.
+ *
+ * @route POST /api/fppd/settings/reload
+ * @response 200 Settings reloaded.
+ */
+
+/**
+ * Reload a single setting from disk.
+ *
+ * @route POST /api/fppd/settings/reload/{setting}
+ * @response 200 Setting reloaded.
+ */
+
+/**
+ * Restart the fppd daemon.
+ *
+ * @route POST /api/fppd/restart
+ * @response 200 fppd restarting.
+ */
+
+/**
+ * Shut down the fppd daemon.
+ *
+ * @route POST /api/fppd/shutdown
+ * @response 200 fppd shutting down.
  */
 HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
     LogRequest(req);
@@ -738,6 +1044,12 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
 /*
  *
  */
+/**
+ * Reset the E1.31/sACN receive statistics.
+ *
+ * @route DELETE /api/fppd/e131stats
+ * @response 200 Statistics cleared.
+ */
 HttpResponsePtr PlayerResource::render_DELETE(const HttpRequestPtr& req) {
     LogRequest(req);
 
@@ -781,6 +1093,12 @@ HttpResponsePtr PlayerResource::render_DELETE(const HttpRequestPtr& req) {
 
 /*
  *
+ */
+/**
+ * Update the runtime settings of a running playlist.
+ *
+ * @route PUT /api/fppd/playlists/{name}/settings
+ * @response 200 Playlist settings updated.
  */
 HttpResponsePtr PlayerResource::render_PUT(const HttpRequestPtr& req) {
     LogRequest(req);

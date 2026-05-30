@@ -374,6 +374,30 @@ Json::Value Player::GetStatusJSON() {
     return result;
 }
 
+// --------------------------------------------------------------------------
+// OpenAPI docs for the /player/* endpoints handled below.
+// --------------------------------------------------------------------------
+
+/**
+ * Get the player status. Equivalent to /api/player/status.
+ *
+ * @route GET /api/player
+ * @response 200 Player status JSON.
+ */
+
+/**
+ * Get the player status (playlist, sequence, timing, mode, etc.).
+ *
+ * @route GET /api/player/status
+ * @response 200 Player status JSON.
+ */
+
+/**
+ * Get information about the currently playing playlist.
+ *
+ * @route GET /api/player/current
+ * @response 200 Object with a `playlist` member describing the current playlist.
+ */
 HttpResponsePtr Player::render_GET(const HttpRequestPtr& req) {
     auto pieces = getPathPieces(req->path());
     int plen = pieces.size();

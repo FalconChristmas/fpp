@@ -25,6 +25,25 @@ from pathlib import Path
 
 API_PREFIX = '/api'
 CONTROLLERS = sorted(glob.glob(str(Path(__file__).parent.parent / 'controllers' / '*.php')))
+
+# C++ daemon (fppd) sources that carry @route docblocks. These endpoints are
+# served directly by fppd's embedded HTTP server (port 32322) and proxied under
+# /api/* by Apache (see etc/apache2.site), so they never pass through a PHP
+# controller. The @route docblock syntax is identical to the PHP controllers
+# (C++ uses the same /** ... */ comment style), so the same parser handles both.
+REPO_ROOT = Path(__file__).resolve().parents[3]
+CPP_SOURCES = [
+    REPO_ROOT / 'src' / 'httpAPI.cpp',                          # PlayerResource      /fppd/*
+    REPO_ROOT / 'src' / 'OutputMonitor.cpp',                    # OutputMonitor       /fppd/ports/*
+    REPO_ROOT / 'src' / 'channeltester' / 'ChannelTester.cpp',  # ChannelTester       /fppd/testing/*
+    REPO_ROOT / 'src' / 'overlays' / 'PixelOverlay.cpp',        # PixelOverlayManager /models, /overlays/*
+    REPO_ROOT / 'src' / 'commands' / 'Commands.cpp',            # CommandManager      /command(s), /commandPresets
+    REPO_ROOT / 'src' / 'gpio.cpp',                             # GPIOManager         /gpio/*
+    REPO_ROOT / 'src' / 'Player.cpp',                           # Player              /player/*
+]
+
+# Both PHP controllers and C++ daemon sources are parsed for @route docblocks.
+SOURCES = CONTROLLERS + [str(p) for p in CPP_SOURCES if p.exists()]
 OUTPUT = Path(__file__).parent.parent / 'openapi.json'
 
 BADGE_COLORS = {
@@ -159,7 +178,7 @@ def parse_docblocks(php_source):
 
 def load_endpoints():
     endpoints = []
-    for php_file in CONTROLLERS:
+    for php_file in SOURCES:
         source = open(php_file, encoding='utf-8', errors='replace').read()
         for ep in parse_docblocks(source):
             endpoints.append(ep)

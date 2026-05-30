@@ -166,6 +166,26 @@ void GPIOManager::Cleanup() {
     pollStates.clear();
 }
 
+// --------------------------------------------------------------------------
+// OpenAPI docs for the /gpio/* endpoints handled below.
+// --------------------------------------------------------------------------
+
+/**
+ * List the available GPIO pins. Add ?list=true for just the pin names.
+ *
+ * @route GET /api/gpio
+ * @param boolean list Return just the pin names instead of full capabilities.
+ * @response 200 Array of pin capability objects (or pin names when `list=true`).
+ */
+
+/**
+ * Read the last value set on a GPIO pin via the API/commands. Only pins with a
+ * cached value can be read; output pins must be SET before they can be read.
+ *
+ * @route GET /api/gpio/{pin}
+ * @response 200 Object with `pin` and `value` (0 or 1).
+ * @response 400 The pin has no cached value.
+ */
 HttpResponsePtr GPIOManager::render_GET(const HttpRequestPtr& req) {
     auto pieces = getPathPieces(req->path());
     int plen = pieces.size();
@@ -226,6 +246,16 @@ HttpResponsePtr GPIOManager::render_GET(const HttpRequestPtr& req) {
     return makeStringResponse("Not Found", 404, "text/plain");
 }
 
+/**
+ * Configure a GPIO pin for output and set its value. Body: `{"value": 0|1}`.
+ *
+ * @route POST /api/gpio/{pin}
+ * @body {"value": 1}
+ * @response 200 Object with `pin` and the applied `value`.
+ * @response 400 Missing/invalid `value` field.
+ * @response 404 The named pin does not exist.
+ * @response 500 Error setting the pin.
+ */
 HttpResponsePtr GPIOManager::render_POST(const HttpRequestPtr& req) {
     auto pieces = getPathPieces(req->path());
     int plen = pieces.size();

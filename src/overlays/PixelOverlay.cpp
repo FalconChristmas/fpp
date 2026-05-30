@@ -459,6 +459,92 @@ HttpResponsePtr PixelOverlayManager::render_HEAD(const HttpRequestPtr& req) {
     return render_GET(req);
 }
 
+// --------------------------------------------------------------------------
+// OpenAPI docs for the /models and /overlays/* endpoints handled below.
+// --------------------------------------------------------------------------
+
+/**
+ * List all configured pixel-overlay models.
+ *
+ * @route GET /api/models
+ * @param boolean simple Return just the model names instead of full definitions.
+ * @param boolean all Prepend the "--All Models--" entry to the result.
+ * @response 200 Array of models (or model names when `simple=true`).
+ */
+
+/**
+ * Get a single pixel-overlay model definition by name.
+ *
+ * @route GET /api/models/{model}
+ * @response 200 The model definition.
+ * @response 404 No model with that name exists.
+ */
+
+/**
+ * List the fonts available for overlay text effects.
+ *
+ * @route GET /api/overlays/fonts
+ * @response 200 Array of font names.
+ */
+
+/**
+ * Get the pixel-overlay manager settings.
+ *
+ * @route GET /api/overlays/settings
+ * @response 200 Object with the `autoCreate` flag.
+ */
+
+/**
+ * List all overlay models with their current runtime state (active state,
+ * running effect, dimensions).
+ *
+ * @route GET /api/overlays/models
+ * @response 200 Array of models with runtime state.
+ */
+
+/**
+ * Get a single overlay model with its current runtime state.
+ *
+ * @route GET /api/overlays/model/{model}
+ * @response 200 Model definition plus runtime state.
+ */
+
+/**
+ * Get the current pixel buffer of an overlay model. Append /rle for
+ * run-length-encoded data.
+ *
+ * @route GET /api/overlays/model/{model}/data
+ * @response 200 Object with a `data` array (and `rle` flag).
+ */
+
+/**
+ * Clear (blank) an overlay model's pixel buffer.
+ *
+ * @route GET /api/overlays/model/{model}/clear
+ * @response 200 Model cleared.
+ */
+
+/**
+ * List the available overlay effects. Add ?full=true for full descriptions.
+ *
+ * @route GET /api/overlays/effects
+ * @param boolean full Return full effect descriptions instead of just names.
+ * @response 200 Array of effect names (or descriptions when `full=true`).
+ */
+
+/**
+ * Get the description of a single overlay effect.
+ *
+ * @route GET /api/overlays/effects/{effect}
+ * @response 200 The effect description.
+ */
+
+/**
+ * List the overlay effects that are currently running.
+ *
+ * @route GET /api/overlays/running
+ * @response 200 Active overlay effects.
+ */
 HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
     auto parts = getPathPieces(req->path());
     std::string p1 = parts[0];
@@ -595,6 +681,21 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
     }
     return makeStringResponse("Not found: " + p1, 404);
 }
+/**
+ * Replace the overlay model definitions (writes config/model-overlays.json) and
+ * flag fppd for restart.
+ *
+ * @route POST /api/models
+ * @response 200 Model overlay configuration saved.
+ */
+
+/**
+ * Upload a raw channel-memory-map file (writes media/channelmemorymaps) and
+ * flag fppd for restart.
+ *
+ * @route POST /api/models/raw
+ * @response 200 Raw channel memory map saved.
+ */
 HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
     auto parts = getPathPieces(req->path());
     std::string p1 = parts[0];
@@ -635,6 +736,56 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
     }
     return makeStringResponse("POST Not found " + req->path(), 404);
 }
+/**
+ * Set an overlay model's active state. Body: `{"State": <int>}`.
+ *
+ * @route PUT /api/overlays/model/{model}/state
+ * @response 200 State updated.
+ */
+
+/**
+ * Fill an overlay model with a solid color. Body: `{"RGB":[r,g,b]}` or `{"Value":v}`.
+ *
+ * @route PUT /api/overlays/model/{model}/fill
+ * @response 200 Model filled.
+ */
+
+/**
+ * Set a single pixel in an overlay model. Body: `{"X":x,"Y":y,"RGB":[r,g,b]}`.
+ *
+ * @route PUT /api/overlays/model/{model}/pixel
+ * @response 200 Pixel set.
+ */
+
+/**
+ * Save an overlay model's current buffer to an image file. Body: `{"File":"name"}`.
+ *
+ * @route PUT /api/overlays/model/{model}/save
+ * @response 200 Overlay saved as image.
+ */
+
+/**
+ * Render text onto an overlay model. Body includes Message, Color, Font,
+ * FontSize, Position, PixelsPerSecond, AntiAlias and optional AutoEnable.
+ *
+ * @route PUT /api/overlays/model/{model}/text
+ * @response 200 Text effect started.
+ */
+
+/**
+ * Force the overlay buffer to be memory-mapped so external programs can access it.
+ *
+ * @route PUT /api/overlays/model/{model}/mmap
+ * @response 200 Overlay buffer mmapped.
+ */
+
+/**
+ * Set, update, or delete active overlay channel ranges. Body: `{"Value":v}`,
+ * `{"delete":true}`, or `{"deleteAll":true}`.
+ *
+ * @route PUT /api/overlays/range/{ranges}
+ * @response 200 Ranges updated.
+ */
 HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
     auto parts = getPathPieces(req->path());
     std::string p1 = parts[0];

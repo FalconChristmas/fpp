@@ -22,6 +22,15 @@
       "name": "channel"
     },
     {
+      "name": "command"
+    },
+    {
+      "name": "commandPresets"
+    },
+    {
+      "name": "commands"
+    },
+    {
       "name": "configfile"
     },
     {
@@ -43,7 +52,13 @@
       "name": "files"
     },
     {
+      "name": "fppd"
+    },
+    {
       "name": "git"
+    },
+    {
+      "name": "gpio"
     },
     {
       "name": "help"
@@ -52,13 +67,22 @@
       "name": "media"
     },
     {
+      "name": "models"
+    },
+    {
       "name": "network"
     },
     {
       "name": "options"
     },
     {
+      "name": "overlays"
+    },
+    {
       "name": "pipewire"
+    },
+    {
+      "name": "player"
     },
     {
       "name": "playlist"
@@ -1225,6 +1249,186 @@
         }
       }
     },
+    "/api/command": {
+      "post": {
+        "tags": [
+          "command"
+        ],
+        "summary": "command",
+        "description": "Run a command described by the posted JSON object (with `command` and `args`).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "command": "Volume Set",
+                "args": [
+                  "50"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command result."
+          },
+          "500": {
+            "description": "The command errored or timed out."
+          }
+        }
+      }
+    },
+    "/api/command/{command}": {
+      "parameters": [
+        {
+          "name": "command",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "command"
+        ],
+        "summary": "command/{command}",
+        "description": "Run a command by name via GET, passing arguments as extra path segments (e.g. /api/command/Volume%20Set/50).",
+        "responses": {
+          "200": {
+            "description": "Command result (text/plain)."
+          },
+          "404": {
+            "description": "No command with that name exists."
+          },
+          "500": {
+            "description": "The command errored or timed out."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "command"
+        ],
+        "summary": "command/{command}",
+        "description": "Run a named command, passing its arguments as a JSON array in the body.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array"
+              },
+              "example": [
+                "arg1",
+                "arg2"
+              ]
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command result."
+          },
+          "500": {
+            "description": "The command errored or timed out."
+          }
+        }
+      }
+    },
+    "/api/commandPresets": {
+      "get": {
+        "tags": [
+          "commandPresets"
+        ],
+        "summary": "commandPresets",
+        "description": "Get the saved command presets (config/commandPresets.json).",
+        "parameters": [
+          {
+            "name": "names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Return just the preset names instead of full definitions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Command presets (or preset names when `names=true`)."
+          }
+        }
+      }
+    },
+    "/api/commandPresets/{name}": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "commandPresets"
+        ],
+        "summary": "commandPresets/{name}",
+        "description": "Get a single command preset by name.",
+        "responses": {
+          "200": {
+            "description": "The preset definition."
+          }
+        }
+      }
+    },
+    "/api/commands": {
+      "get": {
+        "tags": [
+          "commands"
+        ],
+        "summary": "commands",
+        "description": "List all available commands and their argument descriptions.",
+        "responses": {
+          "200": {
+            "description": "Array of command descriptions."
+          }
+        }
+      }
+    },
+    "/api/commands/{command}": {
+      "parameters": [
+        {
+          "name": "command",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "commands"
+        ],
+        "summary": "commands/{command}",
+        "description": "Get the description of a single command by name.",
+        "responses": {
+          "200": {
+            "description": "The command description."
+          },
+          "404": {
+            "description": "No command with that name exists."
+          }
+        }
+      }
+    },
     "/api/configfile": {
       "get": {
         "tags": [
@@ -2159,6 +2363,1013 @@
         }
       }
     },
+    "/api/fppd/e131stats": {
+      "delete": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/e131stats",
+        "description": "Reset the E1.31/sACN receive statistics.",
+        "responses": {
+          "200": {
+            "description": "Statistics cleared."
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/e131stats",
+        "description": "Get the number of E1.31/sACN bytes received per universe.",
+        "responses": {
+          "200": {
+            "description": "E1.31 receive statistics."
+          }
+        }
+      }
+    },
+    "/api/fppd/effects": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/effects",
+        "description": "List the effects currently running on the player.",
+        "responses": {
+          "200": {
+            "description": "Object with a `runningEffects` array."
+          }
+        }
+      }
+    },
+    "/api/fppd/effects/{name}": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/effects/{name}",
+        "description": "Start (or update) a named overlay effect on the player.",
+        "responses": {
+          "200": {
+            "description": "Effect started."
+          }
+        }
+      }
+    },
+    "/api/fppd/falcon/hardware": {
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/falcon/hardware",
+        "description": "Re-read the Falcon hardware (e.g. cape/receiver) configuration.",
+        "responses": {
+          "200": {
+            "description": "Hardware refreshed."
+          }
+        }
+      }
+    },
+    "/api/fppd/gpio/ext": {
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/gpio/ext",
+        "description": "Set an external GPIO input state.",
+        "responses": {
+          "200": {
+            "description": "GPIO state updated."
+          }
+        }
+      }
+    },
+    "/api/fppd/log": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/log",
+        "description": "Get the current fppd logging configuration (log level and enabled channels).",
+        "responses": {
+          "200": {
+            "description": "Current log settings."
+          }
+        }
+      }
+    },
+    "/api/fppd/log/level/{level}": {
+      "parameters": [
+        {
+          "name": "level",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/log/level/{level}",
+        "description": "Set the logging level for a specific log channel.",
+        "responses": {
+          "200": {
+            "description": "Log level updated."
+          }
+        }
+      }
+    },
+    "/api/fppd/mqtt/cache": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/mqtt/cache",
+        "description": "Dump the cached MQTT messages.",
+        "responses": {
+          "200": {
+            "description": "Cached MQTT messages."
+          },
+          "400": {
+            "description": "MQTT is not initialized."
+          }
+        }
+      }
+    },
+    "/api/fppd/multiSyncStats": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/multiSyncStats",
+        "description": "Get MultiSync packet statistics.",
+        "parameters": [
+          {
+            "name": "reset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Set to 1 to reset the statistics after reading them."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MultiSync statistics."
+          }
+        }
+      }
+    },
+    "/api/fppd/multiSyncSystems": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/multiSyncSystems",
+        "description": "List the MultiSync systems discovered on the network.",
+        "parameters": [
+          {
+            "name": "localOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Set to 1 to return only the local system."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MultiSync systems."
+          }
+        }
+      }
+    },
+    "/api/fppd/outputs": {
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/outputs",
+        "description": "Apply a new channel-output configuration.",
+        "responses": {
+          "200": {
+            "description": "Outputs updated."
+          }
+        }
+      }
+    },
+    "/api/fppd/outputs/remap": {
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/outputs/remap",
+        "description": "Remap channel outputs.",
+        "responses": {
+          "200": {
+            "description": "Outputs remapped."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlist/config": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlist/config",
+        "description": "Get the configuration of the running playlist.",
+        "responses": {
+          "200": {
+            "description": "Playlist configuration."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlist/filetime": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlist/filetime",
+        "description": "Get the last-modified time of the running playlist file.",
+        "responses": {
+          "200": {
+            "description": "Playlist file time."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlists": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlists",
+        "description": "List the playlists that are currently running.",
+        "responses": {
+          "200": {
+            "description": "Currently running playlists."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlists/stop": {
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlists/stop",
+        "description": "Stop all running playlists.",
+        "responses": {
+          "200": {
+            "description": "All playlists stopped."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlists/{name}/item/{item}": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "item",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlists/{name}/item/{item}",
+        "description": "Jump to a specific item index in a playlist.",
+        "responses": {
+          "200": {
+            "description": "Jumped to item."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlists/{name}/nextItem": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlists/{name}/nextItem",
+        "description": "Skip to the next item in a running playlist.",
+        "responses": {
+          "200": {
+            "description": "Advanced to next item."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlists/{name}/prevItem": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlists/{name}/prevItem",
+        "description": "Skip to the previous item in a running playlist.",
+        "responses": {
+          "200": {
+            "description": "Moved to previous item."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlists/{name}/restartItem": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlists/{name}/restartItem",
+        "description": "Restart the current item in a running playlist.",
+        "responses": {
+          "200": {
+            "description": "Current item restarted."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlists/{name}/section/{section}": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "section",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlists/{name}/section/{section}",
+        "description": "Jump to a named section (mainPlaylist, leadIn, leadOut) of a playlist.",
+        "responses": {
+          "200": {
+            "description": "Jumped to section."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlists/{name}/settings": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlists/{name}/settings",
+        "description": "Update the runtime settings of a running playlist.",
+        "responses": {
+          "200": {
+            "description": "Playlist settings updated."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlists/{name}/start": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlists/{name}/start",
+        "description": "Start a playlist by name.",
+        "responses": {
+          "200": {
+            "description": "Playlist started."
+          }
+        }
+      }
+    },
+    "/api/fppd/playlists/{name}/stop": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/playlists/{name}/stop",
+        "description": "Stop a running playlist by name.",
+        "responses": {
+          "200": {
+            "description": "Playlist stopped."
+          }
+        }
+      }
+    },
+    "/api/fppd/ports": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/ports",
+        "description": "Get the current status of every output port (current draw, smart-receiver data, sensor readings, etc.).",
+        "responses": {
+          "200": {
+            "description": "Array of port status objects."
+          }
+        }
+      }
+    },
+    "/api/fppd/ports/list": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/ports/list",
+        "description": "List the names of all configured output ports.",
+        "responses": {
+          "200": {
+            "description": "Array of port names (first entry is \"--ALL--\").",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "--ALL--",
+                  "Port 1",
+                  "Port 2"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fppd/ports/pixelCount": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/ports/pixelCount",
+        "description": "Start a pixel-count test on all ports, then return current port status.",
+        "responses": {
+          "200": {
+            "description": "Array of port status objects."
+          }
+        }
+      }
+    },
+    "/api/fppd/ports/stop": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/ports/stop",
+        "description": "Stop any running port test, then return current port status.",
+        "responses": {
+          "200": {
+            "description": "Array of port status objects."
+          }
+        }
+      }
+    },
+    "/api/fppd/restart": {
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/restart",
+        "description": "Restart the fppd daemon.",
+        "responses": {
+          "200": {
+            "description": "fppd restarting."
+          }
+        }
+      }
+    },
+    "/api/fppd/schedule": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/schedule",
+        "description": "Get the currently loaded schedule.",
+        "responses": {
+          "200": {
+            "description": "Object with a `schedule` member."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/schedule",
+        "description": "Replace the active schedule.",
+        "responses": {
+          "200": {
+            "description": "Schedule updated."
+          }
+        }
+      }
+    },
+    "/api/fppd/sequence": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/sequence",
+        "description": "Get the list of running sequences.",
+        "responses": {
+          "200": {
+            "description": "Running sequences."
+          }
+        }
+      }
+    },
+    "/api/fppd/sequences/{name}/back": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/sequences/{name}/back",
+        "description": "Step a paused sequence backward (optionally by /{frames}).",
+        "responses": {
+          "200": {
+            "description": "Sequence stepped backward."
+          }
+        }
+      }
+    },
+    "/api/fppd/sequences/{name}/pause": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/sequences/{name}/pause",
+        "description": "Toggle pause on a running sequence (append /0 to resume, /1 to pause).",
+        "responses": {
+          "200": {
+            "description": "Pause state toggled."
+          }
+        }
+      }
+    },
+    "/api/fppd/sequences/{name}/start": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/sequences/{name}/start",
+        "description": "Start playing a sequence by name.",
+        "responses": {
+          "200": {
+            "description": "Sequence started."
+          }
+        }
+      }
+    },
+    "/api/fppd/sequences/{name}/step": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/sequences/{name}/step",
+        "description": "Step a paused sequence forward (optionally by /{frames}).",
+        "responses": {
+          "200": {
+            "description": "Sequence stepped forward."
+          }
+        }
+      }
+    },
+    "/api/fppd/sequences/{name}/stop": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/sequences/{name}/stop",
+        "description": "Stop a running sequence by name.",
+        "responses": {
+          "200": {
+            "description": "Sequence stopped."
+          }
+        }
+      }
+    },
+    "/api/fppd/settings/reload": {
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/settings/reload",
+        "description": "Reload all settings from disk.",
+        "responses": {
+          "200": {
+            "description": "Settings reloaded."
+          }
+        }
+      }
+    },
+    "/api/fppd/settings/reload/{setting}": {
+      "parameters": [
+        {
+          "name": "setting",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/settings/reload/{setting}",
+        "description": "Reload a single setting from disk.",
+        "responses": {
+          "200": {
+            "description": "Setting reloaded."
+          }
+        }
+      }
+    },
+    "/api/fppd/shutdown": {
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/shutdown",
+        "description": "Shut down the fppd daemon.",
+        "responses": {
+          "200": {
+            "description": "fppd shutting down."
+          }
+        }
+      }
+    },
+    "/api/fppd/status": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/status",
+        "description": "Get the full current player status (playlist, sequence, time, mode, etc.).",
+        "responses": {
+          "200": {
+            "description": "Current player status JSON."
+          }
+        }
+      }
+    },
+    "/api/fppd/testing": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/testing",
+        "description": "Get the current test-mode configuration.",
+        "responses": {
+          "200": {
+            "description": "Object with the current test `config`."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/testing",
+        "description": "Activate or deactivate test mode. POST the test configuration JSON (with an `enabled` flag); an empty/disabled config turns test mode off.",
+        "responses": {
+          "200": {
+            "description": "Test mode activated or deactivated."
+          }
+        }
+      }
+    },
+    "/api/fppd/testing/tests": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/testing/tests",
+        "description": "List the available test pattern names.",
+        "responses": {
+          "200": {
+            "description": "Array of test pattern names.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "RGB Chase",
+                  "RGB Cycle",
+                  "Custom Chase",
+                  "Custom Cycle",
+                  "RGB Single Color",
+                  "Single Channel Chase",
+                  "Single Channel Fill",
+                  "Output Specific"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fppd/testing/tests/{pattern}": {
+      "parameters": [
+        {
+          "name": "pattern",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/testing/tests/{pattern}",
+        "description": "Get the argument definitions for a specific test pattern.",
+        "responses": {
+          "200": {
+            "description": "Object with an `args` array describing the pattern's inputs."
+          },
+          "400": {
+            "description": "The named test pattern does not exist."
+          }
+        }
+      }
+    },
+    "/api/fppd/version": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/version",
+        "description": "Get FPP version information.",
+        "responses": {
+          "200": {
+            "description": "Version details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "version": "9.0",
+                  "majorVersion": 9,
+                  "minorVersion": 0,
+                  "branch": "master",
+                  "fppdAPI": 4,
+                  "Status": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fppd/volume": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/volume",
+        "description": "Get (or set) the master output volume.",
+        "parameters": [
+          {
+            "name": "set",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "New volume (0-100) to apply before returning."
+          },
+          {
+            "name": "simple",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Return the volume as a bare text/plain integer instead of JSON."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Object with a `volume` member (0-100)."
+          }
+        }
+      }
+    },
+    "/api/fppd/volume/{volume}": {
+      "parameters": [
+        {
+          "name": "volume",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/volume/{volume}",
+        "description": "Set the master output volume (0-100).",
+        "responses": {
+          "200": {
+            "description": "Object with the new `volume`."
+          }
+        }
+      }
+    },
+    "/api/fppd/warnings": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/warnings",
+        "description": "List the messages for all currently active warnings.",
+        "responses": {
+          "200": {
+            "description": "Array of warning message strings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  "Low disk space",
+                  "No network connection"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fppd/warnings_full": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/warnings_full",
+        "description": "List all currently active warnings as full objects (message plus metadata).",
+        "responses": {
+          "200": {
+            "description": "Array of warning objects."
+          }
+        }
+      }
+    },
     "/api/git/branches": {
       "get": {
         "tags": [
@@ -2352,6 +3563,91 @@
         }
       }
     },
+    "/api/gpio": {
+      "get": {
+        "tags": [
+          "gpio"
+        ],
+        "summary": "gpio",
+        "description": "List the available GPIO pins. Add ?list=true for just the pin names.",
+        "parameters": [
+          {
+            "name": "list",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Return just the pin names instead of full capabilities."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of pin capability objects (or pin names when `list=true`)."
+          }
+        }
+      }
+    },
+    "/api/gpio/{pin}": {
+      "parameters": [
+        {
+          "name": "pin",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "gpio"
+        ],
+        "summary": "gpio/{pin}",
+        "description": "Read the last value set on a GPIO pin via the API/commands. Only pins with a cached value can be read; output pins must be SET before they can be read.",
+        "responses": {
+          "200": {
+            "description": "Object with `pin` and `value` (0 or 1)."
+          },
+          "400": {
+            "description": "The pin has no cached value."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "gpio"
+        ],
+        "summary": "gpio/{pin}",
+        "description": "Configure a GPIO pin for output and set its value. Body: `{\"value\": 0|1}`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "value": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Object with `pin` and the applied `value`."
+          },
+          "400": {
+            "description": "Missing/invalid `value` field."
+          },
+          "404": {
+            "description": "The named pin does not exist."
+          },
+          "500": {
+            "description": "Error setting the pin."
+          }
+        }
+      }
+    },
     "/api/help": {
       "get": {
         "tags": [
@@ -2486,6 +3782,93 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "models",
+        "description": "List all configured pixel-overlay models.",
+        "parameters": [
+          {
+            "name": "simple",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Return just the model names instead of full definitions."
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Prepend the \"--All Models--\" entry to the result."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of models (or model names when `simple=true`)."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "models",
+        "description": "Replace the overlay model definitions (writes config/model-overlays.json) and flag fppd for restart.",
+        "responses": {
+          "200": {
+            "description": "Model overlay configuration saved."
+          }
+        }
+      }
+    },
+    "/api/models/raw": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "models/raw",
+        "description": "Upload a raw channel-memory-map file (writes media/channelmemorymaps) and flag fppd for restart.",
+        "responses": {
+          "200": {
+            "description": "Raw channel memory map saved."
+          }
+        }
+      }
+    },
+    "/api/models/{model}": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "models/{model}",
+        "description": "Get a single pixel-overlay model definition by name.",
+        "responses": {
+          "200": {
+            "description": "The model definition."
+          },
+          "404": {
+            "description": "No model with that name exists."
           }
         }
       }
@@ -2958,6 +4341,351 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/overlays/effects": {
+      "get": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/effects",
+        "description": "List the available overlay effects. Add ?full=true for full descriptions.",
+        "parameters": [
+          {
+            "name": "full",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Return full effect descriptions instead of just names."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of effect names (or descriptions when `full=true`)."
+          }
+        }
+      }
+    },
+    "/api/overlays/effects/{effect}": {
+      "parameters": [
+        {
+          "name": "effect",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/effects/{effect}",
+        "description": "Get the description of a single overlay effect.",
+        "responses": {
+          "200": {
+            "description": "The effect description."
+          }
+        }
+      }
+    },
+    "/api/overlays/fonts": {
+      "get": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/fonts",
+        "description": "List the fonts available for overlay text effects.",
+        "responses": {
+          "200": {
+            "description": "Array of font names."
+          }
+        }
+      }
+    },
+    "/api/overlays/model/{model}": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/model/{model}",
+        "description": "Get a single overlay model with its current runtime state.",
+        "responses": {
+          "200": {
+            "description": "Model definition plus runtime state."
+          }
+        }
+      }
+    },
+    "/api/overlays/model/{model}/clear": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/model/{model}/clear",
+        "description": "Clear (blank) an overlay model's pixel buffer.",
+        "responses": {
+          "200": {
+            "description": "Model cleared."
+          }
+        }
+      }
+    },
+    "/api/overlays/model/{model}/data": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/model/{model}/data",
+        "description": "Get the current pixel buffer of an overlay model. Append /rle for run-length-encoded data.",
+        "responses": {
+          "200": {
+            "description": "Object with a `data` array (and `rle` flag)."
+          }
+        }
+      }
+    },
+    "/api/overlays/model/{model}/fill": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/model/{model}/fill",
+        "description": "Fill an overlay model with a solid color. Body: `{\"RGB\":[r,g,b]}` or `{\"Value\":v}`.",
+        "responses": {
+          "200": {
+            "description": "Model filled."
+          }
+        }
+      }
+    },
+    "/api/overlays/model/{model}/mmap": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/model/{model}/mmap",
+        "description": "Force the overlay buffer to be memory-mapped so external programs can access it.",
+        "responses": {
+          "200": {
+            "description": "Overlay buffer mmapped."
+          }
+        }
+      }
+    },
+    "/api/overlays/model/{model}/pixel": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/model/{model}/pixel",
+        "description": "Set a single pixel in an overlay model. Body: `{\"X\":x,\"Y\":y,\"RGB\":[r,g,b]}`.",
+        "responses": {
+          "200": {
+            "description": "Pixel set."
+          }
+        }
+      }
+    },
+    "/api/overlays/model/{model}/save": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/model/{model}/save",
+        "description": "Save an overlay model's current buffer to an image file. Body: `{\"File\":\"name\"}`.",
+        "responses": {
+          "200": {
+            "description": "Overlay saved as image."
+          }
+        }
+      }
+    },
+    "/api/overlays/model/{model}/state": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/model/{model}/state",
+        "description": "Set an overlay model's active state. Body: `{\"State\": <int>}`.",
+        "responses": {
+          "200": {
+            "description": "State updated."
+          }
+        }
+      }
+    },
+    "/api/overlays/model/{model}/text": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/model/{model}/text",
+        "description": "Render text onto an overlay model. Body includes Message, Color, Font, FontSize, Position, PixelsPerSecond, AntiAlias and optional AutoEnable.",
+        "responses": {
+          "200": {
+            "description": "Text effect started."
+          }
+        }
+      }
+    },
+    "/api/overlays/models": {
+      "get": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/models",
+        "description": "List all overlay models with their current runtime state (active state, running effect, dimensions).",
+        "responses": {
+          "200": {
+            "description": "Array of models with runtime state."
+          }
+        }
+      }
+    },
+    "/api/overlays/range/{ranges}": {
+      "parameters": [
+        {
+          "name": "ranges",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/range/{ranges}",
+        "description": "Set, update, or delete active overlay channel ranges. Body: `{\"Value\":v}`, `{\"delete\":true}`, or `{\"deleteAll\":true}`.",
+        "responses": {
+          "200": {
+            "description": "Ranges updated."
+          }
+        }
+      }
+    },
+    "/api/overlays/running": {
+      "get": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/running",
+        "description": "List the overlay effects that are currently running.",
+        "responses": {
+          "200": {
+            "description": "Active overlay effects."
+          }
+        }
+      }
+    },
+    "/api/overlays/settings": {
+      "get": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "overlays/settings",
+        "description": "Get the pixel-overlay manager settings.",
+        "responses": {
+          "200": {
+            "description": "Object with the `autoCreate` flag."
           }
         }
       }
@@ -3852,6 +5580,48 @@
           },
           "409": {
             "description": "PipeWire backend not active"
+          }
+        }
+      }
+    },
+    "/api/player": {
+      "get": {
+        "tags": [
+          "player"
+        ],
+        "summary": "player",
+        "description": "Get the player status. Equivalent to /api/player/status.",
+        "responses": {
+          "200": {
+            "description": "Player status JSON."
+          }
+        }
+      }
+    },
+    "/api/player/current": {
+      "get": {
+        "tags": [
+          "player"
+        ],
+        "summary": "player/current",
+        "description": "Get information about the currently playing playlist.",
+        "responses": {
+          "200": {
+            "description": "Object with a `playlist` member describing the current playlist."
+          }
+        }
+      }
+    },
+    "/api/player/status": {
+      "get": {
+        "tags": [
+          "player"
+        ],
+        "summary": "player/status",
+        "description": "Get the player status (playlist, sequence, timing, mode, etc.).",
+        "responses": {
+          "200": {
+            "description": "Player status JSON."
           }
         }
       }

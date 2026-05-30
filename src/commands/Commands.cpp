@@ -306,6 +306,49 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
     return run(command, cmd["args"]);
 }
 
+// --------------------------------------------------------------------------
+// OpenAPI docs for the /command(s) and /commandPresets endpoints handled below.
+// --------------------------------------------------------------------------
+
+/**
+ * List all available commands and their argument descriptions.
+ *
+ * @route GET /api/commands
+ * @response 200 Array of command descriptions.
+ */
+
+/**
+ * Get the description of a single command by name.
+ *
+ * @route GET /api/commands/{command}
+ * @response 200 The command description.
+ * @response 404 No command with that name exists.
+ */
+
+/**
+ * Get the saved command presets (config/commandPresets.json).
+ *
+ * @route GET /api/commandPresets
+ * @param boolean names Return just the preset names instead of full definitions.
+ * @response 200 Command presets (or preset names when `names=true`).
+ */
+
+/**
+ * Get a single command preset by name.
+ *
+ * @route GET /api/commandPresets/{name}
+ * @response 200 The preset definition.
+ */
+
+/**
+ * Run a command by name via GET, passing arguments as extra path segments
+ * (e.g. /api/command/Volume%20Set/50).
+ *
+ * @route GET /api/command/{command}
+ * @response 200 Command result (text/plain).
+ * @response 404 No command with that name exists.
+ * @response 500 The command errored or timed out.
+ */
 HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
     auto parts = getPathPieces(req->path());
     int plen = parts.size();
@@ -399,6 +442,23 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
     return makeStringResponse("Not Found", 404, "text/plain");
 }
 
+/**
+ * Run a command described by the posted JSON object (with `command` and `args`).
+ *
+ * @route POST /api/command
+ * @body {"command": "Volume Set", "args": ["50"]}
+ * @response 200 Command result.
+ * @response 500 The command errored or timed out.
+ */
+
+/**
+ * Run a named command, passing its arguments as a JSON array in the body.
+ *
+ * @route POST /api/command/{command}
+ * @body ["arg1", "arg2"]
+ * @response 200 Command result.
+ * @response 500 The command errored or timed out.
+ */
 HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
     auto parts = getPathPieces(req->path());
     std::string p1 = parts[0];

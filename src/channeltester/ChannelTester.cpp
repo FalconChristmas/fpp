@@ -178,6 +178,34 @@ void ChannelTester::RegisterCommands() {
     CommandManager::INSTANCE.addCommand(new StartTestingCommand());
     CommandManager::INSTANCE.addCommand(new StopTestingCommand());
 }
+// --------------------------------------------------------------------------
+// OpenAPI docs for the /fppd/testing/* endpoints handled below.
+// --------------------------------------------------------------------------
+
+/**
+ * Get the current test-mode configuration.
+ *
+ * @route GET /api/fppd/testing
+ * @response 200 Object with the current test `config`.
+ */
+
+/**
+ * List the available test pattern names.
+ *
+ * @route GET /api/fppd/testing/tests
+ * @response 200 Array of test pattern names.
+ * ```json
+ * ["RGB Chase", "RGB Cycle", "Custom Chase", "Custom Cycle", "RGB Single Color", "Single Channel Chase", "Single Channel Fill", "Output Specific"]
+ * ```
+ */
+
+/**
+ * Get the argument definitions for a specific test pattern.
+ *
+ * @route GET /api/fppd/testing/tests/{pattern}
+ * @response 200 Object with an `args` array describing the pattern's inputs.
+ * @response 400 The named test pattern does not exist.
+ */
 HttpResponsePtr ChannelTester::render_GET(const HttpRequestPtr& req) {
     Json::Value result;
     auto parts = getPathPieces(req->path());
@@ -317,6 +345,13 @@ HttpResponsePtr ChannelTester::render_GET(const HttpRequestPtr& req) {
     std::string resultStr = SaveJsonToString(result);
     return makeStringResponse(resultStr, 200, "application/json");
 }
+/**
+ * Activate or deactivate test mode. POST the test configuration JSON (with an
+ * `enabled` flag); an empty/disabled config turns test mode off.
+ *
+ * @route POST /api/fppd/testing
+ * @response 200 Test mode activated or deactivated.
+ */
 HttpResponsePtr ChannelTester::render_POST(const HttpRequestPtr& req) {
     Json::Value result;
     std::string content = std::string{ getRequestContent(req) };

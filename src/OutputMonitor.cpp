@@ -943,6 +943,41 @@ void OutputMonitor::setSmartReceiverInfo(int port, int index, bool enabled, bool
     }
 }
 
+// --------------------------------------------------------------------------
+// OpenAPI docs for the /fppd/ports/* endpoints handled below.
+// --------------------------------------------------------------------------
+
+/**
+ * Get the current status of every output port (current draw, smart-receiver
+ * data, sensor readings, etc.).
+ *
+ * @route GET /api/fppd/ports
+ * @response 200 Array of port status objects.
+ */
+
+/**
+ * List the names of all configured output ports.
+ *
+ * @route GET /api/fppd/ports/list
+ * @response 200 Array of port names (first entry is "--ALL--").
+ * ```json
+ * ["--ALL--", "Port 1", "Port 2"]
+ * ```
+ */
+
+/**
+ * Start a pixel-count test on all ports, then return current port status.
+ *
+ * @route GET /api/fppd/ports/pixelCount
+ * @response 200 Array of port status objects.
+ */
+
+/**
+ * Stop any running port test, then return current port status.
+ *
+ * @route GET /api/fppd/ports/stop
+ * @response 200 Array of port status objects.
+ */
 HttpResponsePtr OutputMonitor::render_GET(const HttpRequestPtr& req) {
     auto parts = getPathPieces(req->path());
     int plen = parts.size();
