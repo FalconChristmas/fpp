@@ -38,6 +38,7 @@
 #include "mediadetails.h"
 #include "settings.h"
 #include "channeloutput/channeloutputthread.h"
+#include "../MultiSync.h"
 #include "overlays/PixelOverlay.h"
 #include "overlays/PixelOverlayModel.h"
 
@@ -1593,6 +1594,11 @@ int GStreamerOutput::Process(void) {
             float elapsed = (float)pos / GST_SECOND;
             float remaining = (effectiveDur > pos) ? (float)(effectiveDur - pos) / GST_SECOND : 0.0f;
             setMediaElapsed(elapsed, remaining);
+
+            if (multiSync->isMultiSyncEnabled()) {
+                multiSync->SendMediaSyncPacket(m_mediaFilename, m_mediaOutputStatus->mediaSeconds);
+            }
+            CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
 
             // Always update total duration — it may be refined for VBR media
             if (effectiveDur > 0) {
