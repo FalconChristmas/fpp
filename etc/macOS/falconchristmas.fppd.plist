@@ -16,7 +16,10 @@
 	<key>StandardErrorPath</key>
 	<string>MEDIADIR/logs/fppd.log</string>
 	<key>KeepAlive</key>
-	<false/>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
 	<key>RunAtLoad</key>
 	<true/>
 </dict>
