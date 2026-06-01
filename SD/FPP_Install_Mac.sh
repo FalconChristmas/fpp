@@ -42,17 +42,22 @@ if [ "x${ANSWER}" != "xY" -a "x${ANSWER}" != "xy" ]; then
     exit
 fi
 echo ""
-echo "The first thing that needs to be installed is 'homebrew' from https://brew.sh/ "
-echo "This requires sudo and will ask for your password to install itself."
-echo -n "Do you wish to proceed? [N/y] "
-read ANSWER
-if [ "x${ANSWER}" != "xY" -a "x${ANSWER}" != "xy" ]; then
-    echo
-    echo "Install cancelled."
-    echo
-    exit
+if [ -x "${BREWLOC}/bin/brew" ] && "${BREWLOC}/bin/brew" --version >/dev/null 2>&1; then
+    echo "Homebrew is already installed at ${BREWLOC} ($(${BREWLOC}/bin/brew --version | head -1))."
+    echo "Skipping Homebrew installation."
+else
+    echo "The first thing that needs to be installed is 'homebrew' from https://brew.sh/ "
+    echo "This requires sudo and will ask for your password to install itself."
+    echo -n "Do you wish to proceed? [N/y] "
+    read ANSWER
+    if [ "x${ANSWER}" != "xY" -a "x${ANSWER}" != "xy" ]; then
+        echo
+        echo "Install cancelled."
+        echo
+        exit
+    fi
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 NEEDBREW=1
 if [ -f ~/.zprofile ]; then

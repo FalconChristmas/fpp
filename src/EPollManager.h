@@ -14,6 +14,16 @@
 #ifdef PLATFORM_OSX
 #include <sys/event.h>
 #define USE_KQUEUE
+// macOS uses kqueue rather than Linux epoll, so <sys/epoll.h> is unavailable.
+// Define the epoll event-flag constants (standard Linux values) used by the
+// epoll-style event masks in this code so the kqueue code paths still compile.
+#ifndef EPOLLIN
+#define EPOLLIN  0x001
+#define EPOLLPRI 0x002
+#define EPOLLOUT 0x004
+#define EPOLLERR 0x008
+#define EPOLLHUP 0x010
+#endif
 #else
 #include <sys/epoll.h>
 #include <sys/prctl.h>
