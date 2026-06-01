@@ -264,7 +264,7 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
     const uint8_t* sB = buffer + 2;
     uint8_t* ob = m_outputBuffer;
 
-    if (draw && (m_pixelSize = 1)) {
+    if (draw && (m_pixelSize == 1)) {
         m_bufferLock.lock();
         ob = FB_CURRENT_PAGE_PTR;
     }

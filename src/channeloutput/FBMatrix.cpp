@@ -63,8 +63,7 @@ int FBMatrixOutput::Init(Json::Value config) {
     if (config.isMember("modelName"))
         modelName = config["modelName"].asString();
 
-    printf("FBMatrix::Init: modelName='%s', empty=%d\n", modelName.c_str(), modelName == "");
-    fflush(stdout);
+    LogDebug(VB_CHANNELOUT, "FBMatrix::Init: modelName='%s', empty=%d\n", modelName.c_str(), modelName == "");
 
     if (modelName == "") {
         int width = 0;
@@ -82,14 +81,12 @@ int FBMatrixOutput::Init(Json::Value config) {
             modelName = "FB - ";
             modelName += device;
 
-            printf("FBMatrix: Checking for existing model '%s', hasModel=%d\n", 
-                   modelName.c_str(), PixelOverlayManager::INSTANCE.getModel(modelName) != nullptr);
-            fflush(stdout);
+            LogDebug(VB_CHANNELOUT, "FBMatrix: Checking for existing model '%s', hasModel=%d\n",
+                     modelName.c_str(), PixelOverlayManager::INSTANCE.getModel(modelName) != nullptr);
 
             // Delete existing model if it exists, so we can recreate with PixelSize
             if (PixelOverlayManager::INSTANCE.getModel(modelName)) {
-                printf("FBMatrix: Removing existing model '%s' to recreate with PixelSize\n", modelName.c_str());
-                fflush(stdout);
+                LogDebug(VB_CHANNELOUT, "FBMatrix: Removing existing model '%s' to recreate with PixelSize\n", modelName.c_str());
                 PixelOverlayManager::INSTANCE.removeAutoOverlayModel(modelName);
             }
 
@@ -106,11 +103,9 @@ int FBMatrixOutput::Init(Json::Value config) {
                 if (config.isMember("pixelSize")) {
                     int ps = config["pixelSize"].asInt();
                     val["PixelSize"] = ps;
-                    printf("FBMatrix: Setting PixelSize=%d for model '%s'\n", ps, modelName.c_str());
-                    fflush(stdout);
+                    LogDebug(VB_CHANNELOUT, "FBMatrix: Setting PixelSize=%d for model '%s'\n", ps, modelName.c_str());
                 } else {
-                    printf("FBMatrix: No pixelSize in config for model '%s'\n", modelName.c_str());
-                    fflush(stdout);
+                    LogDebug(VB_CHANNELOUT, "FBMatrix: No pixelSize in config for model '%s'\n", modelName.c_str());
                 }
 
                 PixelOverlayManager::INSTANCE.addModel(val);

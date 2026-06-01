@@ -190,6 +190,9 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
 
             if ($(item).parent().parent().find('input.pixelSize').length) {
                 var pixelSize = parseInt($(item).parent().parent().find('input.pixelSize').val());
+                if (!pixelSize || pixelSize < 1) {
+                    pixelSize = 1;
+                }
 
                 var pWidth = parseInt(width / pixelSize);
                 var pHeight = parseInt(height / pixelSize);
@@ -253,8 +256,14 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                         postr += "</td><td>"
                         break;
                     case "FB":
-                        var pWidth = parseInt(model.Width / model.PixelSize);
-                        var pHeight = parseInt(model.Height / model.PixelSize);
+                        var pixelSize = parseInt(model.PixelSize);
+                        if (!pixelSize || pixelSize < 1) {
+                            // Auto-created FB models (e.g. Virtual Matrix) don't
+                            // specify a PixelSize, which defaults to 1.
+                            pixelSize = 1;
+                        }
+                        var pWidth = parseInt(model.Width / pixelSize);
+                        var pHeight = parseInt(model.Height / pixelSize);
                         var channels = pWidth * pHeight * 3;
                         var select = CreateSelect(FBDevices, model.Device, '', '-- Port --', 'device', 'DeviceChanged(this);');
 
@@ -273,7 +282,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                                 + ",<input class='yOffset X11input' type='number' min='8' max='2160' step='8' value='" + model.Y + "'" + attr + "></span>";
                         }
 
-                        postr += "<td colspan='2'>Pixel Size: <input class='pixelSize' type='number' min='1' max='64' value='" + model.PixelSize + "'" + attr + " onChange='WidthOrHeightModified(this);'></td>";
+                        postr += "<td colspan='2'>Pixel Size: <input class='pixelSize' type='number' min='1' max='64' value='" + pixelSize + "'" + attr + " onChange='WidthOrHeightModified(this);'></td>";
                         postr += "</td>" +
                             "<td></td>" +
                             "<td>";
