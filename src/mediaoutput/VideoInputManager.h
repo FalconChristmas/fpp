@@ -172,6 +172,9 @@ private:
     mutable std::mutex m_mutex;
     std::vector<SourceInfo> m_sources;
     bool m_initialized = false;
+    // Guards Shutdown() so the destructor doesn't re-run it after main() already
+    // did (the "Shutdown complete" was logged twice). Keeps teardown single-shot.
+    std::atomic<bool> m_shutdownDone{false};
 
     static constexpr int MAX_RESTARTS = 3;
 };

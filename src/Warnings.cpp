@@ -90,7 +90,14 @@ void WarningHolder::StartNotifyThread() {
 void WarningHolder::StopNotifyThread() {
     runNotifyThread = false;
     sema.release();
-    notifyThread.join();
+    // Guard the join: StopNotifyThread() can run when the thread was never
+    // started (a crash signal arrives before StartNotifyThread) or has already
+    // been joined (normal shutdown joins it, then a later crash re-enters the
+    // signal handler). join() on a non-joinable thread throws std::system_error
+    // on both Linux and macOS -> terminate. joinable() makes it safe/idempotent.
+    if (notifyThread.joinable()) {
+        notifyThread.join();
+    }
 }
 void WarningHolder::WriteWarningsFile() {
     std::shared_lock<std::shared_mutex> lock(warningsLock);

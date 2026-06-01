@@ -107,6 +107,11 @@ private:
     int  m_recvSocket = -1;
     std::thread* m_recvThread = nullptr;
     std::atomic<bool> m_running{false};
+    // Guards Cleanup() so the destructor can't run it a second time after
+    // main() already did. The destructor runs during static teardown, where
+    // re-entering the (possibly already-destroyed) global SettingsConfig to
+    // unregister listeners throws out of a noexcept dtor -> std::terminate.
+    std::atomic<bool> m_cleanedUp{false};
 
     // Cache of the most recent received audio frame. Refreshed by the
     // listener thread; consulted by InjectCachedFrame from the effect-

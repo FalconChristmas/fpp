@@ -87,6 +87,14 @@ void WLEDAudioSync::Initialize() {
 }
 
 void WLEDAudioSync::Cleanup() {
+    // Idempotent: main() calls this during shutdown, and ~WLEDAudioSync() calls
+    // it again at static-destruction time. The second call must be a no-op --
+    // unregisterSettingsListener() reaches into the global SettingsConfig, which
+    // may already be destroyed by then (cross-TU static destruction order),
+    // and locking its destroyed mutex throws EINVAL out of the noexcept dtor.
+    if (m_cleanedUp.exchange(true)) {
+        return;
+    }
     unregisterSettingsListener("WLEDAudioSync", "WLEDAudioSyncMode");
     unregisterSettingsListener("WLEDAudioSync", "WLEDAudioSyncDest");
     unregisterSettingsListener("WLEDAudioSync", "WLEDAudioSyncPort");

@@ -152,6 +152,11 @@ void VideoOutputManager::Reload() {
 }
 
 void VideoOutputManager::Shutdown() {
+    // Idempotent: main() calls this at shutdown and ~VideoOutputManager() calls
+    // it again at static-destruction time. Run the teardown only once.
+    if (m_shutdownDone.exchange(true)) {
+        return;
+    }
     // Stop SAP announcer first — outside the lock because SAP thread needs m_mutex
     StopSAPAnnouncer();
 

@@ -934,6 +934,18 @@ int main(int argc, char* argv[]) {
         }
     }
 
+#ifdef PLATFORM_OSX
+    // Every subsystem was torn down explicitly above, so the C++ global/static
+    // singleton destructors that would run on a normal return are redundant --
+    // and unsafe on macOS. A noexcept destructor can lock a mutex belonging to
+    // an already-destroyed singleton (or one a still-draining drogon thread is
+    // touching); libc++ throws EINVAL ("mutex lock failed: Invalid argument")
+    // from that lock, which escapes the noexcept dtor and calls std::terminate.
+    // libstdc++ on Linux tolerates the same lock, so this only bites on macOS.
+    // Flush and exit now, skipping the redundant (and crash-prone) teardown.
+    fflush(nullptr);
+    _exit(0);
+#endif
     return 0;
 }
 

@@ -91,6 +91,11 @@ void VideoInputManager::Reload() {
 }
 
 void VideoInputManager::Shutdown() {
+    // Idempotent: main() calls this at shutdown and ~VideoInputManager() calls
+    // it again at static-destruction time. Run the teardown only once.
+    if (m_shutdownDone.exchange(true)) {
+        return;
+    }
     std::lock_guard<std::mutex> lock(m_mutex);
     StopAllSources();
     m_sources.clear();
