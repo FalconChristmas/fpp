@@ -390,8 +390,15 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         // instead of the entire process.  This allows fppd to survive
         // DRM/KMS buffer crashes in video consumer threads while keeping
         // audio and other functionality running.
+#ifndef PLATFORM_OSX
         if (s == SIGBUS && gettid() != getpid()) {
             LogErr(VB_ALL, "SIGBUS in non-main thread %u — terminating thread only\n", gettid());
+#else
+        if (s == SIGBUS && !pthread_main_np()) {
+            uint64_t tid = 0;
+            pthread_threadid_np(NULL, &tid);
+            LogErr(VB_ALL, "SIGBUS in non-main thread %llu — terminating thread only\n", tid);
+#endif
             WarningHolder::AddWarning(1, "Video thread crashed (SIGBUS). Video output may be unavailable.");
             WarningHolder::WriteWarningsFile();
             // Restore default SIGBUS handler for this thread so the

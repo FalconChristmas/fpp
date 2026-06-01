@@ -46,11 +46,13 @@ void StreamSlotManager::SetActiveOutput(int slot, GStreamerOutput* output) {
     if (slot < 1 || slot > MAX_SLOTS) return;
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_slots[slot - 1].activeOutput = output;
+#ifdef HAS_GSTREAMER
     if (output) {
         m_slots[slot - 1].mediaFilename = output->m_mediaFilename;
         LogInfo(VB_MEDIAOUT, "StreamSlotManager: slot %d active (%s)\n", slot,
                 output->m_mediaFilename.c_str());
     }
+#endif
 }
 
 GStreamerOutput* StreamSlotManager::GetActiveOutput(int slot) {
