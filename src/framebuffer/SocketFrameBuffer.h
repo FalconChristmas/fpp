@@ -33,5 +33,6 @@ public:
     int shmemFile = -1;
     struct sockaddr_un dev_address;
     bool targetExists = false;
+    ino_t m_lastInode = 0;  // detect the control socket being re-created
 };
 #endif

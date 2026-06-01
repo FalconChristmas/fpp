@@ -18,6 +18,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/uio.h>
 #include <cstring>
 #include <ctime>
@@ -152,12 +153,26 @@ void SocketFrameBuffer::sendFramebufferFrame() {
             strncpy(dev_address.sun_path, devString.c_str(), sizeof(dev_address.sun_path) - 1);
         }
     }
-    bool fe = FileExists(dev_address.sun_path);
+
+    // Detect (re)creation of the socket by inode. FPPMon binds with
+    // unlink()+bind(), so when it restarts (or starts after us) the path may
+    // already exist as a *stale* file from a prior run — a plain FileExists()
+    // check would never notice the new socket and we'd never re-send the
+    // config (size + shmem fd), leaving the new FPPMon with page updates but
+    // no buffer. Re-send the config whenever the inode changes.
+    struct stat st;
+    bool fe = (stat(dev_address.sun_path, &st) == 0);
+    if (fe && st.st_ino != m_lastInode) {
+        m_lastInode = st.st_ino;
+        targetExists = false;  // force a fresh config send below
+    }
+
     if (!targetExists && fe) {
         sendFramebufferConfig();
         targetExists = true;
     } else if (!fe) {
         targetExists = false;
+        m_lastInode = 0;
     }
     if (targetExists) {
         uint16_t data[2] = { 2, (uint16_t)m_cPage };
