@@ -158,19 +158,34 @@ sed -i '' -e "s+^#LoadModule mpm_event+LoadModule mpm_event+" $HTTPCONF
 sed -i '' -e "s+^LoadModule mpm_prefork+#LoadModule mpm_prefork+" $HTTPCONF
 grep -q "extra/fpp.conf" "$HTTPCONF" || echo "IncludeOptional ${FPPHTTPCONF}" >> "$HTTPCONF"
 
-# Everything else is self-contained in this Include file. It is pulled in last,
-# so its directives win, and uninstall just deletes it (plus the line above).
+# The config is built in two parts: a small macOS "glue" prefix (module loading,
+# User/Group, the php-fpm handler -- the bits Debian supplies out-of-band) and
+# then the canonical etc/apache2.site with its paths rewritten for this install.
+# Uninstall just deletes this whole file (plus the Include line above).
 cat > "$FPPHTTPCONF" <<EOF
 # FPP (Falcon Player) web server configuration.
 # Created by FPP_Install_Mac.sh -- delete this file (and the matching
 # "IncludeOptional .../extra/fpp.conf" line in httpd.conf) to disable it.
 
-# Modules FPP needs that are off in the stock config (loaded only if not already).
+# Part 1 -- macOS glue. Homebrew's httpd has no Debian-style mods-enabled, so
+# load the modules etc/apache2.site relies on (guards make re-runs no-ops).
 <IfModule !proxy_module>
     LoadModule proxy_module lib/httpd/modules/mod_proxy.so
 </IfModule>
+<IfModule !proxy_http_module>
+    LoadModule proxy_http_module lib/httpd/modules/mod_proxy_http.so
+</IfModule>
 <IfModule !proxy_fcgi_module>
     LoadModule proxy_fcgi_module lib/httpd/modules/mod_proxy_fcgi.so
+</IfModule>
+<IfModule !proxy_wstunnel_module>
+    LoadModule proxy_wstunnel_module lib/httpd/modules/mod_proxy_wstunnel.so
+</IfModule>
+<IfModule !xml2enc_module>
+    LoadModule xml2enc_module lib/httpd/modules/mod_xml2enc.so
+</IfModule>
+<IfModule !proxy_html_module>
+    LoadModule proxy_html_module lib/httpd/modules/mod_proxy_html.so
 </IfModule>
 <IfModule !rewrite_module>
     LoadModule rewrite_module lib/httpd/modules/mod_rewrite.so
@@ -178,27 +193,23 @@ cat > "$FPPHTTPCONF" <<EOF
 <IfModule !expires_module>
     LoadModule expires_module lib/httpd/modules/mod_expires.so
 </IfModule>
-<IfModule !watchdog_module>
-    LoadModule watchdog_module lib/httpd/modules/mod_watchdog.so
+<IfModule !cgid_module>
+    LoadModule cgid_module lib/httpd/modules/mod_cgid.so
+</IfModule>
+
+# Link declarations the ProxyHTML directives in apache2.site's /proxy block
+# need. Stock httpd.conf only includes these once proxy_html is loaded (above).
+<IfModule proxy_html_module>
+    Include ${BREWLOC}/etc/httpd/extra/proxy-html.conf
 </IfModule>
 
 User ${USER}
 Group staff
 ServerName localhost
 
-DocumentRoot "${MEDIADIR}/fpp/www"
-<Directory "${MEDIADIR}/fpp/www">
-    Options Indexes FollowSymLinks
-    AllowOverride All
-    Require all granted
-</Directory>
-
 <IfModule dir_module>
     DirectoryIndex index.php index.html
 </IfModule>
-
-ErrorLog "${MEDIADIR}/logs/apache2-error_log"
-CustomLog "${MEDIADIR}/logs/apache2-access_log" common
 
 <IfModule setenvif_module>
 SetEnvIfNoCase ^Authorization$ "(.+)" HTTP_AUTHORIZATION=\$1
@@ -216,6 +227,16 @@ SetEnvIfNoCase ^Authorization$ "(.+)" HTTP_AUTHORIZATION=\$1
     Require all denied
 </FilesMatch>
 EOF
+
+# Part 2 -- the canonical site config shared with Linux. We substitute the
+# install paths and drop the one Debian-only Include (serve-cgi-bin.conf, which
+# is a hard Include of a path that does not exist on macOS). Appending
+# etc/apache2.site verbatim keeps the macOS and Linux web routing in lockstep
+# instead of maintaining a divergent copy here.
+sed -e "s#/opt/fpp#${MEDIADIR}/fpp#g" \
+    -e "s#/home/fpp/media#${MEDIADIR}#g" \
+    -e "/conf-available\/serve-cgi-bin.conf/d" \
+    "${MEDIADIR}/fpp/etc/apache2.site" >> "$FPPHTTPCONF"
 
 # Detect the installed PHP version dynamically. Homebrew's "php" formula tracks
 # the latest stable (8.5+ as of 2025), so a hardcoded list goes stale fast.
