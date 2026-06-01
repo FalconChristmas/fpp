@@ -304,11 +304,22 @@ mkdir -p ~/Library/LaunchAgents
 cp fpp/etc/macOS/falconchristmas.fppd.plist ~/Library/LaunchAgents
 sed -i '' -e "s+FPPDIR+${MEDIADIR}/fpp+g" ~/Library/LaunchAgents/falconchristmas.fppd.plist
 sed -i '' -e "s+MEDIADIR+${MEDIADIR}+g" ~/Library/LaunchAgents/falconchristmas.fppd.plist
-# Load and (re)start the agent. "load -w"/"start" are deprecated on modern
-# macOS in favor of the bootstrap/kickstart subcommands.
-launchctl bootout gui/$(id -u)/falconchristmas.fppd 2>/dev/null
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/falconchristmas.fppd.plist
-launchctl kickstart -k gui/$(id -u)/falconchristmas.fppd
+# Load and start the agent. Remove any previous instance first (both the modern
+# and legacy ways), ignoring errors. Then prefer the modern bootstrap, but fall
+# back to the legacy "load -w" if the GUI domain rejects it -- bootstrap into
+# gui/<uid> can fail with "Bootstrap failed: 5: Input/output error" when run
+# without an Aqua session (e.g. over SSH) or while launchd is still tearing down
+# a just-removed instance. RunAtLoad starts fppd either way.
+FPPD_PLIST="${HOME}/Library/LaunchAgents/falconchristmas.fppd.plist"
+FPPD_DOMAIN="gui/$(id -u)"
+launchctl bootout "${FPPD_DOMAIN}/falconchristmas.fppd" 2>/dev/null
+launchctl unload "${FPPD_PLIST}" 2>/dev/null
+if launchctl bootstrap "${FPPD_DOMAIN}" "${FPPD_PLIST}" 2>/dev/null; then
+    launchctl kickstart -k "${FPPD_DOMAIN}/falconchristmas.fppd" 2>/dev/null
+else
+    echo "  launchctl bootstrap was rejected; using legacy 'launchctl load' instead"
+    launchctl load -w "${FPPD_PLIST}"
+fi
 
 echo "Starting HTTP"
 brew services start php
