@@ -141,6 +141,17 @@ void SocketFrameBuffer::sendFramebufferConfig() {
 
 void SocketFrameBuffer::sendFramebufferFrame() {
     // CMD 2 - sync, param is page#
+    if (!targetExists) {
+        // Not connected yet. The monitor app (FPPMon) may have started — and
+        // set framebufferControlSocketPath — after fppd initialized, so the
+        // path cached at init can be stale (the default "/dev"). Re-read it
+        // while disconnected so we pick up the real socket path.
+        std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/" + m_device;
+        if (strncmp(dev_address.sun_path, devString.c_str(), sizeof(dev_address.sun_path)) != 0) {
+            memset(dev_address.sun_path, 0, sizeof(dev_address.sun_path));
+            strncpy(dev_address.sun_path, devString.c_str(), sizeof(dev_address.sun_path) - 1);
+        }
+    }
     bool fe = FileExists(dev_address.sun_path);
     if (!targetExists && fe) {
         sendFramebufferConfig();
