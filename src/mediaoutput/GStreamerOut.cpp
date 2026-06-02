@@ -579,10 +579,14 @@ int GStreamerOutput::Start(int msTime) {
             // filter-chain delay nodes handle inter-member alignment,
             // and PipeWire quantum latency (~21ms) ≈ DRM vsync (~16ms).
             g_object_set(sink, "sync", TRUE, NULL);
-            // Set stream identity so PipeWire shows a meaningful node name
+            // Set stream identity and disable channel remixing so PipeWire
+            // preserves the source file's channel order (prevents random
+            // FL-FR / RL-RR / SL-SR swaps on multi-channel devices).
             GstStructure* props = gst_structure_new("props",
                 "node.name", G_TYPE_STRING, streamNodeName.c_str(),
                 "node.description", G_TYPE_STRING, streamNodeDesc.c_str(),
+                "stream.dont-remix", G_TYPE_BOOLEAN, TRUE,
+                "channelmix.disable", G_TYPE_BOOLEAN, TRUE,
                 NULL);
             g_object_set(sink, "stream-properties", props, NULL);
             gst_structure_free(props);
@@ -749,10 +753,13 @@ int GStreamerOutput::Start(int msTime) {
             g_object_set(sink, "target-object", pipelineSinkName.c_str(), NULL);
             // sync=TRUE: same rationale as the wantVideo branch above.
             g_object_set(sink, "sync", TRUE, NULL);
-            // Set stream identity so PipeWire shows a meaningful node name
+            // Set stream identity and disable channel remixing so PipeWire
+            // preserves the source file's channel order.
             GstStructure* props = gst_structure_new("props",
                 "node.name", G_TYPE_STRING, streamNodeName.c_str(),
                 "node.description", G_TYPE_STRING, streamNodeDesc.c_str(),
+                "stream.dont-remix", G_TYPE_BOOLEAN, TRUE,
+                "channelmix.disable", G_TYPE_BOOLEAN, TRUE,
                 NULL);
             g_object_set(sink, "stream-properties", props, NULL);
             gst_structure_free(props);
@@ -1068,13 +1075,16 @@ int GStreamerOutput::Start(int msTime) {
         m_appsink = gst_bin_get_by_name(GST_BIN(m_pipeline), "sampletap");
 
         // Set stream-properties on pipewiresink (must be done post-launch;
-        // gst_parse_launch can't deserialize GstStructure with spaced values)
-        if (!pipelineSinkName.empty()) {
+        // gst_parse_launch can't deserialize GstStructure with spaced values).
+        // Always set when using PipeWire backend to disable channel remixing.
+        if (usePipeWire) {
             GstElement* pwsink = gst_bin_get_by_name(GST_BIN(m_pipeline), "pwsink");
             if (pwsink) {
                 GstStructure* props = gst_structure_new("props",
                     "node.name", G_TYPE_STRING, streamNodeName.c_str(),
                     "node.description", G_TYPE_STRING, streamNodeDesc.c_str(),
+                    "stream.dont-remix", G_TYPE_BOOLEAN, TRUE,
+                    "channelmix.disable", G_TYPE_BOOLEAN, TRUE,
                     NULL);
                 g_object_set(pwsink, "stream-properties", props, NULL);
                 gst_structure_free(props);
