@@ -785,10 +785,21 @@ void MultiSync::ResetSyncStats() {
     std::unique_lock<std::recursive_mutex> slock(m_statsLock);
     for (auto& a : m_syncStats) {
         MultiSyncStats* stats = (MultiSyncStats*)a.second;
-        delete stats;
+        stats->pktCommand = 0;
+        stats->pktSyncSeqOpen = 0;
+        stats->pktSyncSeqStart = 0;
+        stats->pktSyncSeqStop = 0;
+        stats->pktSyncSeqSync = 0;
+        stats->pktSyncMedOpen = 0;
+        stats->pktSyncMedStart = 0;
+        stats->pktSyncMedStop = 0;
+        stats->pktSyncMedSync = 0;
+        stats->pktBlank = 0;
+        stats->pktPing = 0;
+        stats->pktPlugin = 0;
+        stats->pktFPPCommand = 0;
+        stats->pktError = 0;
     }
-
-    m_syncStats.clear();
 }
 
 void MultiSync::Discover() {
