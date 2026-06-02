@@ -1259,7 +1259,8 @@ body.is-loading #schedulerInfo .labelValue:before {
 }
 
 #playerTime > div:last-child .labelValue,
-.tblPlaylistHeaderDetails > div:last-child .labelValue {
+.tblPlaylistHeaderDetails > div:last-child .labelValue,
+.tblPlaylistHeaderDetails > div.lastVisibleDetail .labelValue {
 	border-top-right-radius: 28px;
 	border-bottom-right-radius: 28px;
 }
@@ -1484,7 +1485,8 @@ body.is-loading #schedulerInfo .labelValue:before {
 	padding-left: 30px;
 }
 
-.tblPlaylistHeaderDetails > div:last-child > div {
+.tblPlaylistHeaderDetails > div:last-child > div,
+.tblPlaylistHeaderDetails > div.lastVisibleDetail > div {
 	padding-right: 30px;
 }
 
@@ -3926,7 +3928,8 @@ a.api-anchor {
 	}
 
 	#playerTime > div:last-child > div,
-	.tblPlaylistHeaderDetails > div:last-child > div {
+	.tblPlaylistHeaderDetails > div:last-child > div,
+	.tblPlaylistHeaderDetails > div.lastVisibleDetail > div {
 		padding-right: 10px;
 	}
 

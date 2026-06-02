@@ -50,11 +50,11 @@ $simplifiedPlaylist = 0;
                                     <span class='playlistDurationMainPlaylist'>00m:00s</span>
                                 </div>
                             </div>
-                            <div>
+                            <div id="playlistRandomizeDetails" style="display: none;">
                                 <div class="labelHeading">Randomize:</div>
                                 <div id="txtRandomize" class="labelValue">NULL</div>
                             </div>
-                            <div id="playlistMainGlobalPauseDetails">
+                            <div id="playlistMainGlobalPauseDetails" style="display: none;">
                                 <div class="labelHeading">Global Pause:</div>
                                 <div id="txtGlobalPause" class="labelValue">
                                     <span class="btn btn-sm btn-secondary"

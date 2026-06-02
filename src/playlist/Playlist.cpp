@@ -1757,10 +1757,11 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         result["time_elapsed"] = "00:00";
         result["time_remaining"] = "00:00";
         
-        // Still provide global pause info even when idle
+        // Still provide global pause and random info even when idle
         result["global_pause"]["configured"] = m_globalPauseBetweenSequencesMS > 0;
         result["global_pause"]["duration_ms"] = m_globalPauseBetweenSequencesMS;
         result["global_pause"]["active"] = false; // Always false when idle
+        result["random"] = m_random;
         return;
     }
 
@@ -1769,6 +1770,8 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     result["current_playlist"]["description"] = m_desc;
     result["current_playlist"]["count"] = std::to_string(GetSize());
     result["current_playlist"]["index"] = std::to_string(GetPosition());
+
+    result["random"] = m_random;
 
     // Global pause between sequences status
     result["global_pause"]["configured"] = m_globalPauseBetweenSequencesMS > 0;

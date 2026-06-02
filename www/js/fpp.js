@@ -2961,7 +2961,22 @@ window.updateMainPageGlobalPauseIndicator = function () {
 	// Only proceed if a playlist is selected
 	if (!isPlaylistSelected) {
 		$('#globalPauseIndicator').hide();
+		$('#randomizeIndicator').hide();
 		return;
+	}
+
+	// Helper to update randomize indicator from playlist data
+	function updateRandomizeFromPlaylist(playlistData) {
+		if (playlistData && playlistData.random && playlistData.random > 0) {
+			$('#randomizeIndicator').show();
+			if (playlistData.random == 1) {
+				$('#randomizeStatus').text('Once at load time');
+			} else if (playlistData.random == 2) {
+				$('#randomizeStatus').text('Once per iteration');
+			}
+		} else {
+			$('#randomizeIndicator').hide();
+		}
 	}
 
 	// First try to get the current player status to see if we're actively playing
@@ -3002,10 +3017,33 @@ window.updateMainPageGlobalPauseIndicator = function () {
 					} else {
 						$('#globalPauseIndicator').hide();
 					}
+					updateRandomizeFromPlaylist(playlistData);
 				}
 			).fail(function () {
-				// If we can't load the playlist, hide the indicator
+				// If we can't load the playlist, hide the indicators
 				$('#globalPauseIndicator').hide();
+				$('#randomizeIndicator').hide();
+			});
+			return;
+		}
+
+		// Update randomize from player status
+		if (statusData && statusData.random && statusData.random > 0) {
+			$('#randomizeIndicator').show();
+			if (statusData.random == 1) {
+				$('#randomizeStatus').text('Once at load time');
+			} else if (statusData.random == 2) {
+				$('#randomizeStatus').text('Once per iteration');
+			}
+		} else {
+			// Fall back to playlist data for randomize
+			$.get(
+				'api/playlist/' + encodeURIComponent(selectedValue),
+				function (playlistData) {
+					updateRandomizeFromPlaylist(playlistData);
+				}
+			).fail(function () {
+				$('#randomizeIndicator').hide();
 			});
 		}
 	}).fail(function () {
@@ -3026,10 +3064,12 @@ window.updateMainPageGlobalPauseIndicator = function () {
 				} else {
 					$('#globalPauseIndicator').hide();
 				}
+				updateRandomizeFromPlaylist(playlistData);
 			}
 		).fail(function () {
-			console.log('Failed to get playlist data for global pause indicator');
+			console.log('Failed to get playlist data for indicators');
 			$('#globalPauseIndicator').hide();
+			$('#randomizeIndicator').hide();
 		});
 	});
 };
@@ -5249,7 +5289,7 @@ function parseStatus (jsonStatus) {
 			$('.schedulerEndTime').hide();
 			$('body').removeClass('schedulderStatusPlaying');
 
-			// Update global pause indicator based on selected playlist
+			// Update global pause and randomize indicators based on selected playlist
 			if (typeof window.updateMainPageGlobalPauseIndicator === 'function') {
 				window.updateMainPageGlobalPauseIndicator();
 			}
@@ -5365,6 +5405,18 @@ function parseStatus (jsonStatus) {
 				$('#chkRepeat').prop('checked', true);
 			} else {
 				$('#chkRepeat').prop('checked', false);
+			}
+
+			// Update randomize indicator - only show when enabled
+			if (jsonStatus.random && jsonStatus.random > 0) {
+				$('#randomizeIndicator').show();
+				if (jsonStatus.random == 1) {
+					$('#randomizeStatus').text('Once at load time');
+				} else if (jsonStatus.random == 2) {
+					$('#randomizeStatus').text('Once per iteration');
+				}
+			} else {
+				$('#randomizeIndicator').hide();
 			}
 
 			// Update global pause indicator - only show for playlists
@@ -6748,27 +6800,40 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 	} else {
 		$('#randomizePlaylist').val(data.random);
 	}
-	if (data.random == 0) {
+	if (data.random == 1) {
+		$('#playlistRandomizeDetails').show();
+		$('#txtRandomize').html('Once at load time');
+	} else if (data.random == 2) {
+		$('#playlistRandomizeDetails').show();
+		$('#txtRandomize').html('Once per iteration');
+	} else {
+		$('#playlistRandomizeDetails').hide();
 		$('#txtRandomize').html('Off');
-	} else if (data.random == 1) $('#txtRandomize').html('Once at load time');
-	else if (data.random == 2) $('#txtRandomize').html('Once per iteration');
-	else $('#txtRandomize').html('Invalid value');
+	}
 
 	// Update main playlist view global pause indicator
 	if (
 		typeof data.globalPauseBetweenSequencesMS !== 'undefined' &&
 		data.globalPauseBetweenSequencesMS > 0
 	) {
+		$('#playlistMainGlobalPauseDetails').show();
 		$('#txtGlobalPause').html(
 			'<span class="btn btn-sm btn-info" style="padding: 2px 6px; font-size: 10px;">' +
 				data.globalPauseBetweenSequencesMS +
 				'ms</span>'
 		);
 	} else {
+		$('#playlistMainGlobalPauseDetails').hide();
 		$('#txtGlobalPause').html(
 			'<span class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 10px;">Disabled</span>'
 		);
 	}
+
+	// Update rounded corner on last visible detail field
+	$('.tblPlaylistHeaderDetails').each(function () {
+		$(this).children('div').removeClass('lastVisibleDetail');
+		$(this).children('div:visible:last').addClass('lastVisibleDetail');
+	});
 
 	// Load global pause between sequences setting
 	if (typeof data.globalPauseBetweenSequencesMS === 'undefined') {

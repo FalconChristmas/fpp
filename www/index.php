@@ -549,6 +549,12 @@
                                         <input class="form-check-input" type="checkbox" value="" aria-label="Repeat"
                                             title="Repeat" id="chkRepeat">
                                     </div>
+                                    <div class="col-auto" id="randomizeIndicator"
+                                        style="display: none;">
+                                        <span class="settingLabelHeading">Randomised:</span>
+                                        <span id="randomizeStatus" class="btn btn-sm btn-info"
+                                            style="padding: 2px 6px; font-size: 11px;">On</span>
+                                    </div>
                                     <div class="col-auto playlistGlobalPauseCol" id="globalPauseIndicator"
                                         style="display: none;">
                                         <span class="settingLabelHeading">Global Pause:</span>
