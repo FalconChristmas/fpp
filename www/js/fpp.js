@@ -5769,7 +5769,7 @@ function SetSetting (
 					SetRestartFlag(restart);
 				}
 				if (reboot > 0 && reboot != settings['rebootFlag']) {
-					SetRebootFlag(restart);
+					SetRebootFlag(reboot);
 				}
 				CheckRestartRebootFlags();
 
@@ -5825,7 +5825,7 @@ function SetPluginSetting (
 					SetRestartFlag(restart);
 				}
 				if (reboot > 0 && reboot != settings['rebootFlag']) {
-					SetRebootFlag(restart);
+					SetRebootFlag(reboot);
 				}
 				CheckRestartRebootFlags();
 

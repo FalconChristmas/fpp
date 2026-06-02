@@ -1135,15 +1135,17 @@ function " . $changedFunction . "() {
 
     echo "</select>\n";
 
-    // If we auto-selected a different value, output JavaScript to update the setting
+    // If we auto-selected a different value, output JavaScript to update the setting.
+    // Use restart=0, reboot=0 since the system was already running with the mismatched
+    // value — silently correcting it on page load should not trigger a restart/reboot banner.
     if ($shouldAutoSelect && $newValue != $currentValue) {
         echo "<script>\n";
         echo "$(document).ready(function() {\n";
         echo "    // The saved value '$currentValue' is no longer available. Auto-updating to '$newValue'.\n";
         if ($pluginName !== "") {
-            echo "    SetPluginSetting('$pluginName', '$setting', '$newValue', $restart, $reboot, true);\n";
+            echo "    SetPluginSetting('$pluginName', '$setting', '$newValue', 0, 0, true);\n";
         } else {
-            echo "    SetSetting('$setting', '$newValue', $restart, $reboot, true);\n";
+            echo "    SetSetting('$setting', '$newValue', 0, 0, true);\n";
         }
         echo "});\n";
         echo "</script>\n";
