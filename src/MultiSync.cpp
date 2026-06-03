@@ -732,6 +732,59 @@ static std::string createRanges(std::vector<std::pair<uint32_t, uint32_t>> range
     return range;
 }
 
+// Build a map of configured-output controller address -> channel range string.
+// Output-only controllers (WLED, Falcon, etc.) generally don't report their own
+// channel ranges, but FPP knows them from its universe output configuration, so
+// we backfill the ranges from our own config (issue #2667).  Each address is
+// keyed both by the raw configured value and by its resolved IP so that we can
+// match a system regardless of whether it was discovered/stored by hostname or
+// by IP.
+static std::map<std::string, std::string> GetConfiguredOutputRanges() {
+    std::map<std::string, std::vector<std::pair<uint32_t, uint32_t>>> byAddress;
+
+    if (FileExists(FPP_DIR_CONFIG("/co-universes.json"))) {
+        Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"));
+        for (const auto& co : outputs["channelOutputs"]) {
+            if (!co.isMember("universes")) {
+                continue;
+            }
+            for (const auto& u : co["universes"]) {
+                if (!u.isMember("address") || !u.isMember("startChannel") || !u.isMember("channelCount")) {
+                    continue;
+                }
+                std::string address = u["address"].asString();
+                uint32_t count = u["channelCount"].asUInt();
+                if (address.empty() || count == 0) {
+                    continue;
+                }
+                byAddress[address].emplace_back(u["startChannel"].asUInt(), count);
+            }
+        }
+    }
+
+    std::map<std::string, std::string> result;
+    for (auto& [address, ranges] : byAddress) {
+        std::sort(ranges.begin(), ranges.end());
+        // merge contiguous/overlapping ranges so the reported string is clean
+        std::vector<std::pair<uint32_t, uint32_t>> merged;
+        for (const auto& r : ranges) {
+            if (!merged.empty() && r.first <= (merged.back().first + merged.back().second)) {
+                uint32_t end = std::max(merged.back().first + merged.back().second, r.first + r.second);
+                merged.back().second = end - merged.back().first;
+            } else {
+                merged.push_back(r);
+            }
+        }
+        std::string rangeStr = createRanges(merged, 999999);
+        result[address] = rangeStr;
+        std::string ip = address;
+        if (GetIPForHost(ip) && ip != address) {
+            result[ip] = rangeStr;
+        }
+    }
+    return result;
+}
+
 Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps) {
     Json::Value result;
     Json::Value systems(Json::arrayValue);
@@ -745,7 +798,36 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps) {
         systems.append(sys.toJSON(true, timestamps));
     }
     if (!localOnly) {
+        std::map<std::string, std::string> configuredRanges = GetConfiguredOutputRanges();
+        auto findConfiguredRange = [&](const std::string& a) -> const std::string* {
+            if (a.empty()) {
+                return nullptr;
+            }
+            auto it = configuredRanges.find(a);
+            if (it != configuredRanges.end()) {
+                return &it->second;
+            }
+            std::string ip = a;
+            if (GetIPForHost(ip) && ip != a) {
+                it = configuredRanges.find(ip);
+                if (it != configuredRanges.end()) {
+                    return &it->second;
+                }
+            }
+            return nullptr;
+        };
         for (auto& sys : m_remoteSystems) {
+            // Only backfill when the controller didn't report a real range of
+            // its own, so we never clobber ranges from FPP remotes.
+            if (sys.ranges.empty() || sys.ranges == "0-0") {
+                const std::string* r = findConfiguredRange(sys.address);
+                if (!r) {
+                    r = findConfiguredRange(sys.hostname);
+                }
+                if (r) {
+                    sys.ranges = *r;
+                }
+            }
             systems.append(sys.toJSON(false, timestamps));
         }
     }
@@ -875,7 +957,6 @@ void MultiSync::PerformHTTPDiscovery() {
                     }
                     struct in_addr ia;
                     char ip[16];
-                    char url[24];
                     for (int i = 0; i < ips; i++) {
                         ia.s_addr = ntohl(firstIP + i);
                         strcpy(ip, inet_ntoa(ia));
@@ -1019,15 +1100,17 @@ void MultiSync::DiscoverViaHTTP(const std::set<std::string>& ipSet, const std::s
 
     multi_handle = curl_multi_init();
     int ips = 0;
-    char url[24];
     for (auto& ip : ipSet) {
         LogExcess(VB_SYNC, "  %s\n", ip.c_str());
         handles[ips] = curl_easy_init();
         ipList[ips] = ip;
         m_httpResponses.erase(ip);
 
-        snprintf(url, sizeof(url), "http://%s/", ip.c_str());
-        curl_easy_setopt(handles[ips], CURLOPT_URL, url);
+        // ip may be a hostname, so this must not be a fixed-size buffer
+        // (a fixed buffer would silently truncate hostnames and they'd
+        //  never get discovered - see issue #2667)
+        std::string url = "http://" + ip + "/";
+        curl_easy_setopt(handles[ips], CURLOPT_URL, url.c_str());
         curl_easy_setopt(handles[ips], CURLOPT_CONNECTTIMEOUT_MS, 1000L);
         curl_easy_setopt(handles[ips], CURLOPT_TIMEOUT_MS, 5000L);
         curl_easy_setopt(handles[ips], CURLOPT_FOLLOWLOCATION, 1L);
