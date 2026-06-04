@@ -20,7 +20,7 @@ Output:
 Default base image
 ------------------
 
-    https://rcn-ee.net/rootfs/debian-armhf-13-base-v6.18/2026-04-08/am335x-debian-13.4-base-v6.18-armhf-2026-04-08-4gb.img.xz
+    https://rcn-ee.net/rootfs/debian-armhf-13-base-v6.18/2026-06-03/am335x-debian-13.5-base-v6.18-armhf-2026-06-03-4gb.img.xz
 
 When upstream rev's, override:
 

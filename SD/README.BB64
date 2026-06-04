@@ -22,7 +22,7 @@ Default base image
 
 The script's defaults compose this URL:
 
-    https://rcn-ee.net/rootfs/debian-arm64-13-iot-v6.18-k3/2026-04-03/pocketbeagle2-debian-13.4-iot-v6.18-k3-arm64-2026-04-03-8gb.img.xz
+    https://rcn-ee.net/rootfs/debian-arm64-13-iot-v6.18-k3/2026-06-03/pocketbeagle2-debian-13.5-iot-v6.18-k3-arm64-2026-06-03-8gb.img.xz
 
 When upstream rev's the date or filename, override:
 
