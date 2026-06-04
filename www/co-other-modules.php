@@ -118,6 +118,7 @@
             super(name, friendlyName, maxChannels, fixedStart, fixedChans, devices, config)
 
             this._allowInvert = false;
+            this._allowFlipHorizontal = false;
             this._allowPixelSize = false;
             this._allowScaling = false;
             this._updateChannelCount = true;
@@ -157,10 +158,17 @@
             }
 
             if (this._allowInvert) {
-                result += "Invert:&nbsp;<input type='checkbox' class='invert'";
+                result += "Flip&nbsp;Vertical:&nbsp;<input type='checkbox' class='invert'";
                 if (config.invert)
                     result += " checked";
-                result += ">";
+                result += ">&nbsp;";
+            }
+
+            if (this._allowFlipHorizontal) {
+                result += "Flip&nbsp;Horizontal:&nbsp;<input type='checkbox' class='flipHorizontal'";
+                if (config.flipHorizontal)
+                    result += " checked";
+                result += ">&nbsp;";
             }
 
             var width = this._defaultWidth;
@@ -201,6 +209,7 @@
         GetOutputConfig(result, cell) {
             result.modelName = cell.find('select.device').val();
             result.invert = cell.find('input.invert').is(':checked');
+            result.flipHorizontal = cell.find('input.flipHorizontal').is(':checked');
 
             if (result.modelName == '') {
                 result.device = cell.find('select.fbDevice').val();
@@ -888,10 +897,11 @@
     class VirtualMatrixDevice extends OtherAutoFBBaseDevice {
 
         constructor(name = "VirtualMatrix", friendlyName = "Virtual Matrix", maxChannels = FPPD_MAX_CHANNELS, fixedStart = false, fixedChans = true,
-            config = { modelName: '', invert: false }) {
+            config = { modelName: '', invert: false, flipHorizontal: false }) {
             super(name, friendlyName, maxChannels, fixedStart, fixedChans, PixelOverlayModels, config);
 
             this._allowInvert = true;
+            this._allowFlipHorizontal = true;
             this._allowScaling = false;
             this._defaultWidth = 192;
             this._defaultHeight = 108;

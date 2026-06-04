@@ -137,6 +137,7 @@ int FBMatrixOutput::Init(Json::Value config) {
     m_channelCount = width * height * 3;
 
     inverted = config["invert"].asInt();
+    flipHorizontal = config["flipHorizontal"].asInt();
 
     if (m_channelCount != (width * height * 3)) {
         LogErr(VB_CHANNELOUT, "Error, channel count is incorrect\n");
@@ -187,20 +188,26 @@ void FBMatrixOutput::PrepData(unsigned char* channelData) {
               channelData);
 
     int stride = width * 3;
-    int drow = inverted ? height - 1 : 0;
-    unsigned char* src = channelData;
-    unsigned char* dst = buffer;
 
-    if (inverted) {
-        dst = (unsigned char*)buffer + (stride * (height - 1));
-    }
     for (int y = 0; y < height; y++) {
-        memcpy(dst, src, stride);
-        src += stride;
-        if (inverted) {
-            dst -= stride;
+        unsigned char* src = channelData + (y * stride);
+        // Vertical flip: write source row y into the mirrored destination row
+        int dstRow = inverted ? (height - 1 - y) : y;
+        unsigned char* dst = buffer + (dstRow * stride);
+
+        if (flipHorizontal) {
+            // Horizontal flip: reverse the pixel order within the row
+            unsigned char* sp = src;
+            unsigned char* dp = dst + ((width - 1) * 3);
+            for (int x = 0; x < width; x++) {
+                dp[0] = sp[0];
+                dp[1] = sp[1];
+                dp[2] = sp[2];
+                sp += 3;
+                dp -= 3;
+            }
         } else {
-            dst += stride;
+            memcpy(dst, src, stride);
         }
     }
 }
@@ -234,4 +241,6 @@ void FBMatrixOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    model  : %s\n", modelName.c_str());
     LogDebug(VB_CHANNELOUT, "    width  : %d\n", width);
     LogDebug(VB_CHANNELOUT, "    height : %d\n", height);
+    LogDebug(VB_CHANNELOUT, "    flipV  : %d\n", inverted);
+    LogDebug(VB_CHANNELOUT, "    flipH  : %d\n", flipHorizontal);
 }

@@ -43,4 +43,5 @@ private:
     int width = 0;
     int height = 0;
     int inverted = 0;
+    int flipHorizontal = 0;
 };
