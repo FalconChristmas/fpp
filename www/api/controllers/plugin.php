@@ -398,6 +398,7 @@ function FetchURLWithGitHubCredentials($url)
 		// since we'll authenticate with the configured PAT instead.
 		$fetchUrl = preg_replace('/([?&])token=GHSAT[^&]*(&|$)/i', '$1', $url);
 		$fetchUrl = preg_replace('/[?&]$/', '', $fetchUrl);
+		$hadGhsatToken = ($fetchUrl !== $url);
 
 		$attempts = array($fetchUrl);
 
@@ -465,9 +466,25 @@ function FetchURLWithGitHubCredentials($url)
 			}
 		}
 
+		// PAT authentication failed. If the original URL contained a GitHub share-link
+		// token (?token=GHSAT...) try it as a last resort — server-side requests are not
+		// subject to CORS, so the share-link token can work here even when the browser
+		// fetch failed. This handles the case where the PAT is missing or expired but
+		// the URL was freshly copied from GitHub.
+		if ($hadGhsatToken) {
+			$ghsatData = @file_get_contents($url);
+			if ($ghsatData !== false && $ghsatData !== '') {
+				return $ghsatData;
+			}
+		}
+
+		$patHint = ($lastCode === 401 || $lastCode === 403)
+			? ' The configured GitHub Personal Access Token may be invalid or expired — check the Developer settings page.'
+			: '';
 		$GitHubFetchLastError = 'HTTP ' . $lastCode .
 			($lastErr !== '' ? ' (' . $lastErr . ')' : '') .
-			($lastBody !== '' ? ': ' . trim(substr($lastBody, 0, 200)) : '');
+			($lastBody !== '' ? ': ' . trim(substr($lastBody, 0, 200)) : '') .
+			$patHint;
 		return false;
 	}
 
