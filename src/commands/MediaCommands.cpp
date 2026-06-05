@@ -373,7 +373,7 @@ std::unique_ptr<Command::Result> StopMediaCommand::run(const std::vector<std::st
 }
 
 StopAllMediaCommand::StopAllMediaCommand() :
-    Command("Stop All Media", "Stops all running media was was created via a Command") {
+    Command("Stop All Media", "Stops all running media that was created via a Command") {
 }
 std::unique_ptr<Command::Result> StopAllMediaCommand::run(const std::vector<std::string>& args) {
     runningMediaLock.lock();
