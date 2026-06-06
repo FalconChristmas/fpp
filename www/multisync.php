@@ -221,6 +221,23 @@
             }
         }
 
+        /**
+         * Returns true when the user is actively working with the table in a way
+         * that should suppress scheduling the NEXT auto-refresh tick.
+         *
+         * WHY: safeInitBody() already preserves focus/order/checks on the current
+         * in-flight render.  But if a filter dropdown is open, the safest UX is to
+         * also skip scheduling the *next* tick — this gives a full 2 s grace period
+         * after the last completed tick before the next one fires.  Reorder mode is
+         * included because a drag-in-progress must never be interrupted by a re-render
+         * that resets bt.data order back to pre-drag.
+         */
+        function isUserInteracting() {
+            if (reorderModeActive) return true;
+            var active = document.activeElement;
+            return !!(active && $(active).closest('.filter-control').length);
+        }
+
         const fppPoller     = new AutoRefreshController();
         const falconPoller  = new AutoRefreshController();
         const wledPoller    = new AutoRefreshController();
@@ -229,6 +246,11 @@
 
         var unavailables = [];
         var reorderModeActive = false;
+        // Captured synchronously in the jQuery UI sortable 'stop' callback so
+        // safeInitBody() has a reliable snapshot of the post-drag row order.
+        // Reading the live DOM from a setTimeout (poll tick) turns out to be
+        // unreliable — the DOM may appear reverted by the time the tick fires.
+        var _reorderCommittedOrder = null;
 
         var channelOutputConfigCache = {};
         var channelInputConfigCache = {};
@@ -380,6 +402,136 @@
                 return ip;
             }
             return "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "' data-ip='" + ip + "'>" + ip + "</a>";
+        }
+
+        /**
+         * safeInitBody — wrapper around Bootstrap Table's initBody() that preserves
+         * ephemeral UI state across every poll-driven re-render.
+         *
+         * WHY THIS EXISTS
+         * ---------------
+         * Status polling calls bt.initBody() to push updated data (mode, status,
+         * utilization…) from the item objects into the DOM.  initBody() rebuilds
+         * the entire <tbody>, which silently destroys three pieces of state:
+         *
+         *   1. FOCUS  — the focused filter-control <select>/<input> is re-created as
+         *               a brand-new DOM node.  The browser drops focus to <body>,
+         *               so a user mid-selection of a filter dropdown loses it.
+         *
+         *   2. ORDER  — jQuery UI drag-and-drop only reorders DOM rows; bt.data keeps
+         *               the original insertion order.  initBody() re-renders from
+         *               bt.data, discarding any drag the user just performed.
+         *
+         *   3. CHECKS — row checkboxes (.multisyncRowCheckbox / .syncCheckbox) are
+         *               generated as static HTML strings without a "checked" attr.
+         *               initBody() rebuilds them all unchecked.
+         *
+         * HOW IT WORKS
+         * ------------
+         * Before calling origInitBody():
+         *   a. Snapshot every checked checkbox (keyed by name=IP).
+         *   b. If reorder mode is active, sync bt.options.data to the current DOM
+         *      row order so the re-render preserves what the user dragged.
+         *   c. Record the focused element's id and value (only if it is inside the
+         *      filter-control row; other focus contexts are intentionally left alone).
+         *
+         * After calling origInitBody():
+         *   d. Restore checked state on the freshly rendered checkboxes.
+         *   e. Re-focus the saved element and restore its value.
+         *
+         * WHEN TO USE
+         * -----------
+         * Call safeInitBody() instead of the raw bt.initBody() pattern:
+         *
+         *   var bt = $tbl.data('bootstrap.table');
+         *   if (bt) bt.initBody();         // ← old: unsafe for poll-cycle callers
+         *
+         *   safeInitBody($tbl);            // ← new: safe
+         *
+         * The monkey-patched initBody() inside parseFPPSystems() (which preserves
+         * child rows across full system-list re-renders) still calls origInitBody()
+         * directly — that is intentional and correct.  safeInitBody() is only for
+         * the poll-cycle callers outside parseFPPSystems().
+         */
+        function safeInitBody($tbl) {
+            var bt = $tbl.data('bootstrap.table');
+            if (!bt) return;
+
+            // (a) Snapshot checked action-checkboxes by IP/name so we can restore
+            //     them after initBody() rebuilds the rows from static HTML.
+            var checkedNames = {};
+            $tbl.find('input.multisyncRowCheckbox, input.syncCheckbox').each(function () {
+                if (this.checked) checkedNames[this.name] = true;
+            });
+
+            // (b) In reorder mode, use the order captured synchronously in the jQuery
+            //     UI sortable 'stop' callback (_reorderCommittedOrder).  This is more
+            //     reliable than reading the live DOM here, because by the time this
+            //     setTimeout-based poll tick fires the browser's DOM can appear to have
+            //     reverted to the pre-drag order (investigation found no MutationObserver
+            //     events, suggesting it is an internal browser/jQuery UI state issue).
+            //
+            //     _reorderCommittedOrder is null if no drag has occurred since entering
+            //     reorder mode, in which case we skip the reorder step.
+            //
+            //     We also clear the active sort options so initBody()/initSort() does
+            //     not re-sort the data and undo the order we're about to restore.
+            var savedDomOrder = null;
+            if (reorderModeActive && _reorderCommittedOrder && _reorderCommittedOrder.length) {
+                savedDomOrder = _reorderCommittedOrder;
+                bt.options.sortName = undefined;
+                bt.options.sortOrder = undefined;
+            }
+
+            // (c) Record the focused element's id and value if it lives inside a
+            //     filter-control cell.  Other focus contexts (buttons, inputs in
+            //     modals, etc.) are intentionally ignored.
+            var focusedId = null;
+            var focusedValue = null;
+            var active = document.activeElement;
+            if (active && active.id && $(active).closest('.filter-control').length) {
+                focusedId = active.id;
+                focusedValue = active.value;
+            }
+
+            bt.initBody();
+
+            // (d) Re-apply the user's drag order if we are in reorder mode.
+            //     initBody() may have re-sorted rows; we move them back to the
+            //     position the user dragged them to.  Each system row is moved with
+            //     its immediately-following child rows (warnings / logs) so that they
+            //     stay attached to their parent after the reorder.
+            if (savedDomOrder && savedDomOrder.length) {
+                var $tbody = $tbl.find('>tbody');
+                savedDomOrder.forEach(function (rowId) {
+                    var $row = $tbody.find('#' + rowId);
+                    if (!$row.length) return;
+                    var toMove = [$row[0]];
+                    var $next = $row.next();
+                    while ($next.length && $next.hasClass('child-row') &&
+                           $next.attr('id') && $next.attr('id').startsWith(rowId + '_')) {
+                        toMove.push($next[0]);
+                        $next = $next.next();
+                    }
+                    toMove.forEach(function (el) { $tbody.append(el); });
+                });
+            }
+
+            // (f) Restore checked state on freshly rebuilt checkbox nodes.
+            if (Object.keys(checkedNames).length) {
+                $tbl.find('input.multisyncRowCheckbox, input.syncCheckbox').each(function () {
+                    if (checkedNames[this.name]) this.checked = true;
+                });
+            }
+
+            // (g) Re-focus the filter element and restore its value.
+            if (focusedId) {
+                var el = document.getElementById(focusedId);
+                if (el) {
+                    if (focusedValue !== null) el.value = focusedValue;
+                    el.focus();
+                }
+            }
         }
 
         // ============================================================
@@ -851,6 +1003,7 @@
             var $tbody = $('#fppSystems');
 
             if (reorderModeActive) {
+                _reorderCommittedOrder = null; // cleared on entry; first drag will populate it
                 $table.addClass('reorder-mode');
                 $('#reorderModeBtn').html('<i class="fas fa-arrows-alt"></i> Exit Reorder Mode').removeClass('btn-secondary').addClass('btn-warning');
                 $('#saveDisplayOrderBtn').show();
@@ -883,6 +1036,14 @@
                     stop: function (event, ui) {
                         var rowID = ui.item.attr('id');
                         rowSpanSet(rowID);
+                        // Capture the post-drag row order synchronously here, while
+                        // jQuery UI has just committed the new DOM position.
+                        // safeInitBody() uses this snapshot rather than reading the
+                        // live DOM from a setTimeout tick, which may see stale order.
+                        _reorderCommittedOrder = [];
+                        $('#fppSystems > tr.systemRow').each(function () {
+                            _reorderCommittedOrder.push(this.id);
+                        });
                     }
                 });
             } else {
@@ -1387,11 +1548,10 @@
                             }
                         }
                     });
-            var statusBt = $('#fppSystemsTable').data('bootstrap.table');
-            if (statusBt) statusBt.initBody();
+            safeInitBody($('#fppSystemsTable'));
             SetupToolTips();
             } finally {
-                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked") && !isUserInteracting()) {
                     fppPoller.schedule(() => getFPPSystemStatus(ipAddresses, true));
                 }
             }
@@ -1816,8 +1976,7 @@
             var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
             if (!item) return;
             espUpdateDescription(item, s.device.id);
-            var bt = $tbl.data('bootstrap.table');
-            if (bt) bt.initBody();
+            safeInitBody($tbl);
         }
 
         function parseESPixelStickStatus(ip, data) {
@@ -1882,8 +2041,7 @@
                 item.status = st;
             }
 
-            var bt = $tbl.data('bootstrap.table');
-            if (bt) bt.initBody();
+            safeInitBody($tbl);
 
             if ($('#MultiSyncRefreshStatus').is(":checked")) {
                 setTimeout(function () { ESPSockets[ips].send("XJ"); }, 1000);
@@ -1899,8 +2057,7 @@
             if (!item) return;
             item.version = s.version;
             item._versionStr = s.version;
-            var bt = $tbl.data('bootstrap.table');
-            if (bt) bt.initBody();
+            safeInitBody($tbl);
         }
 
         function parseESPixelStickCommandResponse(ip, data) {
@@ -1911,8 +2068,7 @@
             var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
             if (!item) return;
             espUpdateDescription(item, s.get.device.id);
-            var bt = $tbl.data('bootstrap.table');
-            if (bt) bt.initBody();
+            safeInitBody($tbl);
         }
 
         function getESPixelStickBridgeStatus(ip) {
@@ -2008,8 +2164,7 @@
                         item.utilization = u;
                         item.status = (item.mode === 'Bridge') ? 'Bridging' : '';
                     });
-                    var bt = $tbl.data('bootstrap.table');
-                    if (bt) bt.initBody();
+                    safeInitBody($tbl);
                 })());
             }
             if (ips4 != "") {
@@ -2068,12 +2223,11 @@
                             $('#' + rowId + '_warningCell').html(wHTML);
                         }
                     });
-                    var bt = $tbl.data('bootstrap.table');
-                    if (bt) bt.initBody();
+                    safeInitBody($tbl);
                 })());
             }
             await Promise.allSettled(promises);
-            if ($('#MultiSyncRefreshStatus').is(":checked")) {
+            if ($('#MultiSyncRefreshStatus').is(":checked") && !isUserInteracting()) {
                 falconPoller.schedule(() => getFalconControllerStatus(fv3ips, fv4ips, true));
             }
         }
@@ -2130,10 +2284,9 @@
                         item.ipaddress = base + wifiIcon + extra;
                     }
                 });
-                var bt = $tbl.data('bootstrap.table');
-                if (bt) bt.initBody();
+                safeInitBody($tbl);
             } finally {
-                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked") && !isUserInteracting()) {
                     wledPoller.schedule(() => getWLEDControllerStatus(ipAddresses, true));
                 }
             }
@@ -2183,10 +2336,9 @@
                         );
                     }
                 });
-                var bt = $tbl.data('bootstrap.table');
-                if (bt) bt.initBody();
+                safeInitBody($tbl);
             } finally {
-                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked") && !isUserInteracting()) {
                     geniusPoller.schedule(() => getGeniusControllerStatus(ipAddresses, true));
                 }
             }
@@ -2255,10 +2407,9 @@
                         }
                     }
                 });
-                var bt = $tbl.data('bootstrap.table');
-                if (bt) bt.initBody();
+                safeInitBody($tbl);
             } finally {
-                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
+                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked") && !isUserInteracting()) {
                     baldrickPoller.schedule(() => getBaldrickControllerStatus(ipAddresses, true));
                 }
             }
