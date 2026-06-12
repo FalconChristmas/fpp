@@ -740,7 +740,7 @@ void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycle
             if (m_flippedLayout)
                 chain = (m_longestChain - 1) - m_panelMatrix->m_panels[panel].chain - 1;
 
-            m_panelMatrix->m_panels[panel].drawTestPattern(channelData + m_startChannel, cycleNum, testType);
+            m_panelMatrix->m_panels[panel].drawTestPattern(channelData + m_startChannel, cycleNum, percentOfCycle, testType);
         }
     }
 }

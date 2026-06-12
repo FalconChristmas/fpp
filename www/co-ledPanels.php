@@ -2220,14 +2220,14 @@
     } */
 
 
-    function TogglePanelTestPattern() {
+    function SetPanelTestPattern() {
         if (verboseDebug) {
-            console.trace("TogglePanelTestPattern called");
+            console.trace("SetPanelTestPattern called");
         }
 
-        panelMatrixID = GetCurrentActiveMatrixPanelID();
-        var val = $("#PanelTestPatternButton").val();
-        if (val == "Test Pattern") {
+        var val = $("#PanelTestPatternType").val();
+        if (val != "0") {
+            panelMatrixID = GetCurrentActiveMatrixPanelID();
             var outputType = $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).val();
             <?
             if ($panelCapesDriver == "BBShiftPanel") {
@@ -2245,16 +2245,12 @@
             }
             ?>
 
-
-
-            $("#PanelTestPatternButton").val("Stop Pattern");
-            var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","' + outputType + '","1"]}';
+            var data = '{"command":"Test Start","multisyncCommand":false,"multisyncHosts":"","args":["1000","Output Specific","' + outputType + '","' + val + '"]}';
             $.post("api/command", data
             ).done(function (data) {
             }).fail(function () {
             });
         } else {
-            $("#PanelTestPatternButton").val("Test Pattern");
             var data = '{"command":"Test Stop","multisyncCommand":false,"multisyncHosts":"","args":[]}';
             $.post("api/command", data
             ).done(function (data) {
@@ -2995,8 +2991,17 @@
                 <button id="AddPanelMatrixButton" class="buttons btn-outline-success btn-rounded  btn-icon-add"
                     onClick='AddPanelMatrixDialog();'><i class="fas fa-plus"></i> Add Panel Matrix
                 </button>
-                <input id="PanelTestPatternButton" type='button' class="buttons ms-1"
-                    onClick='TogglePanelTestPattern();' value='Test Pattern'>
+                <span class="ms-1"><b>Testing:</b>
+                    <select id='PanelTestPatternType' class='form-select d-inline w-auto'
+                        onchange='SetPanelTestPattern();'>
+                        <option value='0'>Off</option>
+                        <option value='1'>Panel Layout</option>
+                        <option value='4'>Red Fade</option>
+                        <option value='5'>Green Fade</option>
+                        <option value='6'>Blue Fade</option>
+                        <option value='7'>White Fade</option>
+                    </select>
+                </span>
                 <input type='button' class="buttons btn-success ms-1" onClick='SaveChannelOutputsJSON();' value='Save'>
             </div>
         </div>

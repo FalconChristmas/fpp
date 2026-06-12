@@ -34,9 +34,10 @@ public:
 
     std::vector<int> pixelMap;
 
-    void drawTestPattern(unsigned char* channelData, int cycleNum, int testType);
+    void drawTestPattern(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType);
 
 private:
+    void drawFadePattern(unsigned char* channelData, float percentOfCycle, int testType);
     void drawNumber(int v, int x, int y, unsigned char* channelData);
 };
 

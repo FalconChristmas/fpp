@@ -1096,7 +1096,7 @@ void BBShiftPanelOutput::OverlayTestData(unsigned char* channelData, int cycleNu
         for (int i = 0; i < panelsOnOutput; i++) {
             int panel = m_panelMatrix->m_outputPanels[output][i];
 
-            m_panelMatrix->m_panels[panel].drawTestPattern(channelData + m_startChannel, cycleNum, testType);
+            m_panelMatrix->m_panels[panel].drawTestPattern(channelData + m_startChannel, cycleNum, percentOfCycle, testType);
         }
     }
 }

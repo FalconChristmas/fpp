@@ -205,7 +205,14 @@ int PanelMatrix::CalculateMaps(void) {
     return 1;
 }
 
-void LEDPanel::drawTestPattern(unsigned char* channelData, int cycleNum, int testType) {
+void LEDPanel::drawTestPattern(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType) {
+    // Test types match the ids the pixel-string test dropdown uses so the UIs
+    // can present a consistent list: 1 = panel layout/ID pattern, 4-7 =
+    // red/green/blue/white fades. Anything else draws the layout pattern.
+    if (testType >= 4 && testType <= 7) {
+        drawFadePattern(channelData, percentOfCycle, testType);
+        return;
+    }
     unsigned char clr[3];
     switch (cycleNum % 3) {
     case 0:
@@ -293,6 +300,35 @@ void LEDPanel::drawTestPattern(unsigned char* channelData, int cycleNum, int tes
     }
     drawNumber(output + 1, width / 2 + 1, height > 16 ? 2 : 1, channelData);
     drawNumber(chain + 1, width / 2 + 8, height > 16 ? 2 : 1, channelData);
+}
+
+void LEDPanel::drawFadePattern(unsigned char* channelData, float percentOfCycle, int testType) {
+    // Same triangle fade the pixel-string testers use (PixelFadeStringTester).
+    uint8_t fade;
+    if (percentOfCycle < 0.50f) {
+        fade = percentOfCycle * 508.0f + 1;
+    } else {
+        fade = 255 - (percentOfCycle - 0.5f) * 508.0f;
+    }
+    // 4 = red, 5 = green, 6 = blue, 7 = white.
+    uint8_t r = (testType == 4 || testType == 7) ? fade : 0;
+    uint8_t g = (testType == 5 || testType == 7) ? fade : 0;
+    uint8_t b = (testType == 6 || testType == 7) ? fade : 0;
+
+    int actualHeight = height;
+    int actualWidth = width;
+    if ((orientation == 'L') || (orientation == 'R')) {
+        actualHeight = width;
+        actualWidth = height;
+    }
+    for (int y = 0; y < actualHeight; y++) {
+        int yw = y * actualWidth * 3;
+        for (int x = 0; x < actualWidth; ++x) {
+            channelData[pixelMap[yw + x * 3]] = r;
+            channelData[pixelMap[yw + x * 3 + 1]] = g;
+            channelData[pixelMap[yw + x * 3 + 2]] = b;
+        }
+    }
 }
 
 void LEDPanel::drawNumber(int v, int x, int y, unsigned char* channelData) {
