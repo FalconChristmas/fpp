@@ -39,8 +39,11 @@ public:
     void removeCallback(int id);
 
     // Helper used by Avahi callbacks (public so static C callbacks can call)
-    void HandleResolveIP(const std::string& ip);
+    // isWled is true when the host was discovered via the _wled._tcp browser,
+    // in which case it is probed over HTTP rather than the FPP ping protocol.
+    void HandleResolveIP(const std::string& ip, bool isWled = false);
     void SetServiceBrowser(void* sb);
+    void SetWLEDServiceBrowser(void* sb);
     void RegisterService(void* client);  // register local _fppd._udp service
     void PickAlternativeServiceName();    // pick new name on collision
 
@@ -59,6 +62,7 @@ private:
     // Avahi objects (opaque pointers) - only used in implementation
     void* m_avahiPoll = nullptr;     // custom AvahiPoll adapter
     void* m_avahiClient = nullptr;
-    void* m_serviceBrowser = nullptr;
+    void* m_serviceBrowser = nullptr;       // browser for _fppd._udp
+    void* m_wledServiceBrowser = nullptr;   // browser for _wled._tcp
     void* m_entryGroup = nullptr;    // for registering local service
 };

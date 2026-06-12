@@ -193,8 +193,11 @@ static void resolve_callback(AvahiServiceResolver* r,
         char addr_buf[AVAHI_ADDRESS_STR_MAX];
         avahi_address_snprint(addr_buf, sizeof(addr_buf), a);
         std::string ip(addr_buf);
+        // WLED nodes (and FPP's own _wled._tcp advertisement) are probed over
+        // HTTP rather than the FPP ping protocol.
+        bool isWled = (type != nullptr && strstr(type, "_wled._tcp") != nullptr);
         // delegate to instance method to avoid accessing private members from C callback
-        mgr->HandleResolveIP(ip);
+        mgr->HandleResolveIP(ip, isWled);
     }
 
     avahi_service_resolver_free(r);
@@ -280,6 +283,17 @@ static void client_callback(AvahiClient* c, AvahiClientState state, void* userda
         } else {
             mgr->SetServiceBrowser(sb);
         }
+
+        // Also browse for _wled._tcp so WLED nodes show up in the systems
+        // list. FPP nodes also advertise _wled._tcp; per-IP dedup in
+        // HandleResolveIP keeps them from being processed twice.
+        void* wsb = avahi_service_browser_new(c, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, "_wled._tcp", NULL, (AvahiLookupFlags)0, browse_callback, mgr);
+        if (!wsb) {
+            LogErr(VB_SYNC, "Failed to create Avahi service browser for _wled._tcp: %s\n",
+                   avahi_strerror(avahi_client_errno(c)));
+        } else {
+            mgr->SetWLEDServiceBrowser(wsb);
+        }
     } else if (state == AVAHI_CLIENT_FAILURE) {
         LogErr(VB_SYNC, "Avahi client failure: %s\n", avahi_strerror(avahi_client_errno(c)));
     }
@@ -347,6 +361,10 @@ void MDNSManager::Cleanup() {
         avahi_service_browser_free(static_cast<AvahiServiceBrowser*>(m_serviceBrowser));
         m_serviceBrowser = nullptr;
     }
+    if (m_wledServiceBrowser) {
+        avahi_service_browser_free(static_cast<AvahiServiceBrowser*>(m_wledServiceBrowser));
+        m_wledServiceBrowser = nullptr;
+    }
     if (m_avahiClient) {
         avahi_client_free(static_cast<AvahiClient*>(m_avahiClient));
         m_avahiClient = nullptr;
@@ -371,7 +389,7 @@ void MDNSManager::removeCallback(int id) {
     m_callbacks.erase(id);
 }
 
-void MDNSManager::HandleResolveIP(const std::string& ip) {
+void MDNSManager::HandleResolveIP(const std::string& ip, bool isWled) {
     bool isNew = false;
     {
         std::unique_lock<std::recursive_mutex> lk(m_callbackLock);
@@ -383,13 +401,29 @@ void MDNSManager::HandleResolveIP(const std::string& ip) {
     if (!isNew)
         return;
 
-    LogDebug(VB_SYNC, "MDNS discovered new host %s\n", ip.c_str());
+    LogDebug(VB_SYNC, "MDNS discovered new host %s%s\n", ip.c_str(), isWled ? " (wled)" : "");
 
-    // ping and notify MultiSync
+    // ping and notify MultiSync. The FPP discover-ping is a harmless no-op for a
+    // pure WLED node (it doesn't speak the protocol), and FPP nodes advertise
+    // _wled._tcp too, so we always send it regardless of which browser found the
+    // host - that way an FPP node still gets discovered if the _wled._tcp
+    // resolve happens to win the race against _fppd._udp.
     PingManager::INSTANCE.ping(ip, 1000, [ip](int result) {
         LogDebug(VB_SYNC, "MDNS ping %s result %d\n", ip.c_str(), result);
     });
     MultiSync::INSTANCE.PingSingleRemote(ip.c_str(), 1);
+
+    if (isWled) {
+        // WLED nodes don't respond to the FPP ping, so also probe over HTTP,
+        // which runs controller detection and adds the node to the systems
+        // list. Done on a detached thread so the blocking curl request doesn't
+        // stall the main event loop. PingSingleRemoteViaHTTP calls UpdateSystem
+        // itself. (For an FPP node that also advertises _wled._tcp this is a
+        // harmless refresh - detection identifies it as FPP.)
+        std::thread([ip]() {
+            MultiSync::INSTANCE.PingSingleRemoteViaHTTP(ip);
+        }).detach();
+    }
 
     // Take a snapshot of callbacks while holding the lock, then invoke them without the lock
     // to avoid deadlock/iterator invalidation if callbacks modify m_callbacks
@@ -416,6 +450,17 @@ void MDNSManager::SetServiceBrowser(void* sb) {
         m_serviceBrowser = nullptr;
     }
     m_serviceBrowser = sb;
+}
+
+void MDNSManager::SetWLEDServiceBrowser(void* sb) {
+    std::unique_lock<std::recursive_mutex> lk(m_callbackLock);
+    if (m_wledServiceBrowser) {
+#if HAVE_AVAHI
+        avahi_service_browser_free(static_cast<AvahiServiceBrowser*>(m_wledServiceBrowser));
+#endif
+        m_wledServiceBrowser = nullptr;
+    }
+    m_wledServiceBrowser = sb;
 }
 
 void MDNSManager::PickAlternativeServiceName() {
