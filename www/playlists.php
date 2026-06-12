@@ -703,7 +703,7 @@
             RenumberPlaylistEditorEntries();
             UpdatePlaylistDurations();
             markCurrentPlaylistModified();
-            UpdatePlaylistSelectCount();
+            ExitPlaylistSelectMode();
         }
 
         function DuplicateSelectedPlaylistEntries() {
@@ -718,7 +718,7 @@
             RenumberPlaylistEditorEntries();
             UpdatePlaylistDurations();
             markCurrentPlaylistModified();
-            UpdatePlaylistSelectCount();
+            ExitPlaylistSelectMode();
         }
     </script>
     <style>
