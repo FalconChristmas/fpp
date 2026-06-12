@@ -720,6 +720,98 @@
             markCurrentPlaylistModified();
             ExitPlaylistSelectMode();
         }
+
+        function CopySelectedToPlaylist() {
+            var selected = $('.playlistEntryCheckbox:checked');
+            if (!selected.length) return;
+            var currentName = $('#txtPlaylistName').val();
+            var count = selected.length;
+
+            var options = '<option value="">Select target playlist...</option>';
+            for (var i = 0; i < playListArray.length; i++) {
+                if (playListArray[i].name == currentName) continue;
+                options += '<option value="' + playListArray[i].name + '">' + playListArray[i].name + ' (' + playListArray[i].total_items + ' items)</option>';
+            }
+
+            DoModalDialog({
+                id: "CopySelectedDialog",
+                title: "Copy Selected Items",
+                body: '<div class="form-group"><label>Copy ' + count + ' selected item' + (count > 1 ? 's' : '') + ' to:</label><select id="copyTargetPlaylist" class="form-control">' + options + '</select></div><div class="form-group" style="margin-top: 12px;"><label>Destination section:</label><div style="margin-top: 4px;"><label style="display: inline-block; margin-right: 16px;"><input type="radio" name="copySection" value="leadIn"> Lead In</label><label style="display: inline-block; margin-right: 16px;"><input type="radio" name="copySection" value="mainPlaylist" checked> Main</label><label style="display: inline-block;"><input type="radio" name="copySection" value="leadOut"> Lead Out</label></div></div>',
+                class: "modal-m",
+                backdrop: true,
+                keyboard: true,
+                buttons: {
+                    "Copy": {
+                        click: function () {
+                            var targetName = $("#copyTargetPlaylist").val();
+                            if (!targetName) {
+                                DialogError('No playlist selected', 'Please select a target playlist.');
+                                return;
+                            }
+                            if (targetName == currentName) {
+                                DialogError('Same playlist', 'Cannot copy to the same playlist.');
+                                return;
+                            }
+
+                            var section = $('input[name="copySection"]:checked').val() || 'mainPlaylist';
+
+                            // Read selected entries from the DOM
+                            var entries = [];
+                            selected.each(function () {
+                                var row = $(this).closest('tr.playlistRow');
+                                entries.push(GetPlaylistEntry(row));
+                            });
+
+                            // Fetch target playlist, append, and save
+                            $.ajax({
+                                url: 'api/playlist/' + targetName,
+                                type: 'GET',
+                                dataType: 'json',
+                                async: false,
+                                success: function (data) {
+                                    if (!data.hasOwnProperty(section)) {
+                                        data[section] = [];
+                                    }
+                                    for (var e = 0; e < entries.length; e++) {
+                                        data[section].push(entries[e]);
+                                    }
+
+                                    data.version = 4;
+                                    if (!data.hasOwnProperty('playlistInfo')) {
+                                        data.playlistInfo = {};
+                                    }
+
+                                    $.ajax({
+                                        url: 'api/playlist/' + targetName,
+                                        type: 'POST',
+                                        contentType: 'application/json',
+                                        data: JSON.stringify(data),
+                                        async: false,
+                                        dataType: 'json',
+                                        success: function () {
+                                            PopulateLists();
+                                            $.jGrowl(count + ' item' + (count > 1 ? 's' : '') + ' copied to "' + targetName + '"', { themeState: 'success' });
+                                            CloseModalDialog("CopySelectedDialog");
+                                            ExitPlaylistSelectMode();
+                                        },
+                                        error: function () {
+                                            DialogError('Error', 'Failed to save target playlist.');
+                                        }
+                                    });
+                                },
+                                error: function () {
+                                    DialogError('Error', 'Could not load target playlist "' + targetName + '".');
+                                }
+                            });
+                        },
+                        class: 'btn-success'
+                    },
+                    "Cancel": function () {
+                        CloseModalDialog("CopySelectedDialog");
+                    }
+                }
+            });
+        }
     </script>
     <style>
         .ui-resizable-se {
@@ -823,6 +915,7 @@
                                         <div class="dropdown-divider"></div>
                                         <a href="#" onclick="RemoveSelectedPlaylistEntries();" class="dropdown-item">Remove Selected</a>
                                         <a href="#" onclick="DuplicateSelectedPlaylistEntries();" class="dropdown-item">Duplicate Selected</a>
+                                        <a href="#" onclick="CopySelectedToPlaylist();" class="dropdown-item">Copy to...</a>
                                     </div>
                                 </div>
                                 <div class="dropdown pe-2">
