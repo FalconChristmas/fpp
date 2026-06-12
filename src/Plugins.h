@@ -65,4 +65,9 @@ private:
 
     std::vector<void*> mShlibHandles;
     std::set<std::string> mLoadedUserPlugins;
+
+    // Cached at registerApis() time so Cleanup() can run the plugins'
+    // unregister hooks (which remove/delete their CommandManager commands)
+    // before CommandManager is torn down.
+    httpserver::webserver* mWebserver = nullptr;
 };

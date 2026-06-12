@@ -379,6 +379,16 @@ PluginManager::~PluginManager() {
     Cleanup();
 }
 void PluginManager::Cleanup() {
+    // Give API-providing plugins their unregister callback before destroying
+    // them: that is where they remove (and may delete) the Command objects
+    // they added to CommandManager. Without this, those commands are still
+    // registered when CommandManager::Cleanup() bulk-deletes everything it
+    // holds, and a plugin destructor that also deletes them double-frees.
+    if (mWebserver) {
+        unregisterApis(mWebserver);
+        mWebserver = nullptr;
+    }
+    mAPIProviderPlugins.clear();
     while (!mPlugins.empty()) {
         delete mPlugins.back();
         mPlugins.pop_back();
@@ -566,6 +576,7 @@ void PluginManager::mediaCallback(const Json::Value& playlist, const MediaDetail
     }
 }
 void PluginManager::registerApis(httpserver::webserver* m_ws) {
+    mWebserver = m_ws;
     for (auto a : mAPIProviderPlugins) {
         a->registerApis(m_ws);
     }
