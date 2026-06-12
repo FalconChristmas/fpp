@@ -379,6 +379,13 @@ PluginManager::~PluginManager() {
     Cleanup();
 }
 void PluginManager::Cleanup() {
+    // Give API-providing plugins their unregister callback before destroying
+    // them: that is where they remove (and may delete) the Command objects
+    // they added to CommandManager. Without this, those commands are still
+    // registered when CommandManager::Cleanup() bulk-deletes everything it
+    // holds, and a plugin destructor that also deletes them double-frees.
+    unregisterApis();
+    mAPIProviderPlugins.clear();
     while (!mPlugins.empty()) {
         delete mPlugins.back();
         mPlugins.pop_back();

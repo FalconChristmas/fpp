@@ -265,6 +265,19 @@ APIServer::~APIServer() {
     m_pr.reset();
 }
 
+// drogon's registerHandler/registerHandlerViaRegex take the callable by
+// rvalue reference and move out of it, so a handler that is registered on
+// more than one route must be copied for each registration. Re-using the
+// same variable would register a moved-from closure: harmless for the
+// captureless lambdas below, but for capturing ones (e.g. handleFppd's
+// shared_ptr) the later route ends up dereferencing a nulled capture and
+// crashes. Every registration below goes through this explicit copy so
+// adding a capture to any handler stays safe.
+template<typename T>
+static T copyHandler(const T& handler) {
+    return handler;
+}
+
 /*
  *
  */
@@ -295,15 +308,15 @@ void APIServer::Init(void) {
     };
     // Register /fppd exact match first; the catch-all regex is registered after
     // the more specific /fppd/* routes below so they take priority.
-    app.registerHandler("/fppd", handleFppd, {drogon::Get, drogon::Post, drogon::Put, drogon::Delete, drogon::Head});
+    app.registerHandler("/fppd", copyHandler(handleFppd), {drogon::Get, drogon::Post, drogon::Put, drogon::Delete, drogon::Head});
 
     // OutputMonitor (/fppd/ports/*)
     auto handlePorts = [](const HttpRequestPtr& req,
                           std::function<void(const HttpResponsePtr&)>&& callback) {
         callback(OutputMonitor::INSTANCE.render_GET(req));
     };
-    app.registerHandlerViaRegex("/fppd/ports", handlePorts, {drogon::Get, drogon::Head});
-    app.registerHandlerViaRegex("/fppd/ports/.*", handlePorts, {drogon::Get, drogon::Head});
+    app.registerHandlerViaRegex("/fppd/ports", copyHandler(handlePorts), {drogon::Get, drogon::Head});
+    app.registerHandlerViaRegex("/fppd/ports/.*", copyHandler(handlePorts), {drogon::Get, drogon::Head});
 
     // ChannelTester (/fppd/testing/*)
     auto handleTesting = [](const HttpRequestPtr& req,
@@ -317,7 +330,7 @@ void APIServer::Init(void) {
             resp = makeStringResponse("Method Not Allowed", 405);
         callback(resp);
     };
-    app.registerHandlerViaRegex("/fppd/testing(/.*)?", handleTesting, {drogon::Get, drogon::Post, drogon::Head});
+    app.registerHandlerViaRegex("/fppd/testing(/.*)?", copyHandler(handleTesting), {drogon::Get, drogon::Post, drogon::Head});
 
 #ifdef HAS_AES67_GSTREAMER
     // AES67 status/test endpoint
@@ -325,8 +338,8 @@ void APIServer::Init(void) {
                           std::function<void(const HttpResponsePtr&)>&& callback) {
         callback(AES67Manager::INSTANCE.render_GET(req));
     };
-    app.registerHandler("/aes67", handleAES67, {drogon::Get, drogon::Head});
-    app.registerHandlerViaRegex("/aes67/.*", handleAES67, {drogon::Get, drogon::Head});
+    app.registerHandler("/aes67", copyHandler(handleAES67), {drogon::Get, drogon::Head});
+    app.registerHandlerViaRegex("/aes67/.*", copyHandler(handleAES67), {drogon::Get, drogon::Head});
 #endif
 
 #ifdef HAS_OPUS_RTP_GSTREAMER
@@ -334,13 +347,13 @@ void APIServer::Init(void) {
                             std::function<void(const HttpResponsePtr&)>&& callback) {
         callback(OpusRTPManager::INSTANCE.render_GET(req));
     };
-    app.registerHandler("/opusrtp", handleOpusRTP, {drogon::Get, drogon::Head});
-    app.registerHandlerViaRegex("/opusrtp/.*", handleOpusRTP, {drogon::Get, drogon::Head});
+    app.registerHandler("/opusrtp", copyHandler(handleOpusRTP), {drogon::Get, drogon::Head});
+    app.registerHandlerViaRegex("/opusrtp/.*", copyHandler(handleOpusRTP), {drogon::Get, drogon::Head});
 #endif
 
     // PlayerResource catch-all for all other /fppd/* paths (registered AFTER
     // specific /fppd/ports and /fppd/testing routes so they match first)
-    app.registerHandlerViaRegex("/fppd/.*", handleFppd, {drogon::Get, drogon::Post, drogon::Put, drogon::Delete, drogon::Head});
+    app.registerHandlerViaRegex("/fppd/.*", copyHandler(handleFppd), {drogon::Get, drogon::Post, drogon::Put, drogon::Delete, drogon::Head});
 
     // PixelOverlayManager (/models/*, /overlays/*)
     auto handleModels = [](const HttpRequestPtr& req,
@@ -356,10 +369,10 @@ void APIServer::Init(void) {
             resp = makeStringResponse("Method Not Allowed", 405);
         callback(resp);
     };
-    app.registerHandler("/models", handleModels, {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
-    app.registerHandlerViaRegex("/models/.*", handleModels, {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
-    app.registerHandler("/overlays", handleModels, {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
-    app.registerHandlerViaRegex("/overlays/.*", handleModels, {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
+    app.registerHandler("/models", copyHandler(handleModels), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
+    app.registerHandlerViaRegex("/models/.*", copyHandler(handleModels), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
+    app.registerHandler("/overlays", copyHandler(handleModels), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
+    app.registerHandlerViaRegex("/overlays/.*", copyHandler(handleModels), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
 
     // CommandManager (/command/*, /commands/*, /commandPresets/*)
     auto handleCommands = [](const HttpRequestPtr& req,
@@ -373,12 +386,12 @@ void APIServer::Init(void) {
             resp = makeStringResponse("Method Not Allowed", 405);
         callback(resp);
     };
-    app.registerHandler("/command", handleCommands, {drogon::Get, drogon::Post, drogon::Head});
-    app.registerHandlerViaRegex("/command/.*", handleCommands, {drogon::Get, drogon::Post, drogon::Head});
-    app.registerHandler("/commands", handleCommands, {drogon::Get, drogon::Post, drogon::Head});
-    app.registerHandlerViaRegex("/commands/.*", handleCommands, {drogon::Get, drogon::Post, drogon::Head});
-    app.registerHandler("/commandPresets", handleCommands, {drogon::Get, drogon::Post, drogon::Head});
-    app.registerHandlerViaRegex("/commandPresets/.*", handleCommands, {drogon::Get, drogon::Post, drogon::Head});
+    app.registerHandler("/command", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
+    app.registerHandlerViaRegex("/command/.*", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
+    app.registerHandler("/commands", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
+    app.registerHandlerViaRegex("/commands/.*", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
+    app.registerHandler("/commandPresets", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
+    app.registerHandlerViaRegex("/commandPresets/.*", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
 
     // GPIOManager (/gpio/*)
     auto handleGpio = [](const HttpRequestPtr& req,
@@ -392,8 +405,8 @@ void APIServer::Init(void) {
             resp = makeStringResponse("Method Not Allowed", 405);
         callback(resp);
     };
-    app.registerHandler("/gpio", handleGpio, {drogon::Get, drogon::Post, drogon::Head});
-    app.registerHandlerViaRegex("/gpio/.*", handleGpio, {drogon::Get, drogon::Post, drogon::Head});
+    app.registerHandler("/gpio", copyHandler(handleGpio), {drogon::Get, drogon::Post, drogon::Head});
+    app.registerHandlerViaRegex("/gpio/.*", copyHandler(handleGpio), {drogon::Get, drogon::Post, drogon::Head});
 
     // Player (/player/*)
     auto handlePlayer = [](const HttpRequestPtr& req,
@@ -409,8 +422,8 @@ void APIServer::Init(void) {
             resp = makeStringResponse("Method Not Allowed", 405);
         callback(resp);
     };
-    app.registerHandler("/player", handlePlayer, {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
-    app.registerHandlerViaRegex("/player/.*", handlePlayer, {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
+    app.registerHandler("/player", copyHandler(handlePlayer), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
+    app.registerHandlerViaRegex("/player/.*", copyHandler(handlePlayer), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
 
     // Let plugins register their own routes
     PluginManager::INSTANCE.registerApis();

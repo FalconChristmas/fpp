@@ -893,9 +893,12 @@ int main(int argc, char* argv[]) {
     WLEDAudioSync::INSTANCE.Cleanup();
     PingManager::INSTANCE.Cleanup();
     OutputMonitor::INSTANCE.Cleanup();
+    // Plugins must clean up before CommandManager: their unregister hooks
+    // pull the commands they own out of the registry so CommandManager's
+    // bulk delete below doesn't free objects a plugin still references.
+    PluginManager::INSTANCE.Cleanup();
     CommandManager::INSTANCE.Cleanup();
     MultiSync::INSTANCE.ShutdownSync();
-    PluginManager::INSTANCE.Cleanup();
     GPIOManager::INSTANCE.Cleanup();
 
     delete scheduler;
