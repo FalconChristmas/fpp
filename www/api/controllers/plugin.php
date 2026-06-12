@@ -296,6 +296,19 @@ function UpgradePlugin()
 	$plugin = params('RepoName');
 	$stream = $_REQUEST['stream'];
 
+	// After the git pull, run the plugin's optional upgrade script if it has
+	// one (for plugins whose artifacts live outside git, e.g. prebuilt
+	// binaries on a release — a re-run of the install script may consider
+	// the cached artifact current); otherwise re-run the install script as
+	// before.
+	$post_pull_script = $settings['pluginDirectory'] . '/' . $plugin . '/scripts/fpp_upgrade.sh';
+	if (!file_exists($post_pull_script)) {
+		$post_pull_script = $settings['pluginDirectory'] . '/' . $plugin . '/scripts/fpp_install.sh';
+	}
+	if (!file_exists($post_pull_script)) {
+		$post_pull_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
+	}
+
 	if (isset($stream) && $stream != "false") {
 		DisableOutputBuffering();
 		$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git pull)';
@@ -304,13 +317,9 @@ function UpgradePlugin()
 			$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git clean -fd && ' . $SUDO . ' git pull)';
 			system($cmd, $return_val);
 		}
-		$install_script = $settings['pluginDirectory'] . '/' . $plugin . '/scripts/fpp_install.sh';
-		if (!file_exists($install_script)) {
-			$install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
-		}
-		if (file_exists($install_script)) {
-			echo "Running install script " . $install_script . "\n";
-			system($SUDO . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src " . $install_script, $return_val);
+		if (file_exists($post_pull_script)) {
+			echo "Running " . $post_pull_script . "\n";
+			system($SUDO . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src " . $post_pull_script, $return_val);
 		}
 		return "\nDone\n";
 	}
@@ -320,12 +329,8 @@ function UpgradePlugin()
 		$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git clean -fd && ' . $SUDO . ' git pull)';
 		exec($cmd, $output, $return_val);
 	}
-	$install_script = $settings['pluginDirectory'] . '/' . $plugin . '/scripts/fpp_install.sh';
-	if (!file_exists($install_script)) {
-		$install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
-	}
-	if (file_exists($install_script)) {
-		exec($SUDO . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src " . $install_script, $return_val);
+	if (file_exists($post_pull_script)) {
+		exec($SUDO . "  FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src " . $post_pull_script, $return_val);
 	}
 
 	if ($return_val == 0) {
@@ -550,15 +555,24 @@ function FetchPluginInfoProxy()
 }
 
 /**
- * Checks whether the installed plugin has commits that have been fetched
- * but not yet merged into the local branch.
+ * Checks whether the installed plugin has updates available: commits that
+ * have been fetched but not yet merged into the local branch, or — for
+ * plugins that distribute artifacts outside of git (e.g. prebuilt binaries
+ * attached to a release) — updates reported by the plugin's own optional
+ * update-check script.
+ *
+ * A plugin may provide scripts/fpp_update_check.sh. It is run with
+ * FPPDIR/SRCDIR set (like fpp_install.sh); the last line of its stdout must
+ * be "1" if an update is available or "0" if not. A non-zero exit status
+ * means "could not check" and is ignored. The script's answer is OR'd with
+ * the git check, so repo commits are still detected for such plugins.
  *
  * @param string $plugin Plugin directory name (repo name).
  * @return int 1 if updates are available, 0 otherwise.
  */
 function PluginHasUpdates($plugin)
 {
-	global $settings;
+	global $settings, $fppDir;
 	$output = '';
 
 	$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && git log $(git rev-parse --abbrev-ref HEAD)..origin/$(git rev-parse --abbrev-ref HEAD))';
@@ -566,6 +580,14 @@ function PluginHasUpdates($plugin)
 
 	if (($return_val == 0) && !empty($output))
 		return 1;
+
+	$check_script = $settings['pluginDirectory'] . '/' . $plugin . '/scripts/fpp_update_check.sh';
+	if (file_exists($check_script)) {
+		unset($output);
+		exec("FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src " . $check_script, $output, $return_val);
+		if (($return_val == 0) && !empty($output) && (trim(end($output)) == '1'))
+			return 1;
+	}
 
 	return 0;
 }
