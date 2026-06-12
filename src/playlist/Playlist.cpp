@@ -668,8 +668,11 @@ int Playlist::StopNow(int forceStop) {
         return 1;
     }
 
-    // Stop all background stream slots
-    StreamSlotManager::Instance().StopAllSlots();
+    // Stop background stream slots (2-5).  Slot 1 is stopped by the current
+    // entry's Stop() below, which sends the MultiSync media stop packet
+    // BEFORE the (slow) pipeline teardown — stopping slot 1 here first would
+    // delay that packet by ~0.5s and make remotes stop late (issue #2676).
+    StreamSlotManager::Instance().StopBackgroundSlots();
 
     std::map<std::string, std::string> keywords;
     keywords["PLAYLIST_NAME"] = m_name;

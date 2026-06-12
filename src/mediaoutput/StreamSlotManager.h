@@ -76,8 +76,10 @@ public:
     /// Count of currently active (playing) slots.
     int ActiveSlotCount();
 
-    /// Stop all active slots. Called during playlist stop.
-    void StopAllSlots();
+    /// Stop active background slots (2-5). Called during playlist stop.
+    /// Slot 1 is owned by the playlist entry, which must stop it itself so
+    /// the MultiSync media stop packet is sent before pipeline teardown.
+    void StopBackgroundSlots();
 
     /// Process all active background slots (call from Playlist::Process).
     void ProcessBackgroundSlots();
