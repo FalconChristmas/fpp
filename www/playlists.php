@@ -602,6 +602,8 @@
                     }
                 }
 
+                ExitPlaylistSelectMode();
+
                 // Clear playlist DOM tables to prevent data being put in new playlists
                 $('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
                 $('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
@@ -633,6 +635,8 @@
             window.addEventListener('popstate', function (e) {
                 if (e.state) {
                     if (e.state.view === 'list') {
+                        ExitPlaylistSelectMode();
+
                         // Clear playlist tables to prevent stale data
                         $('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
                         $('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
@@ -658,6 +662,64 @@
             history.replaceState({ view: 'list' }, '', location.href);
 
         })
+
+        function TogglePlaylistSelectMode() {
+            if ($('#playlistEditor').hasClass('playlistSelectMode')) {
+                ExitPlaylistSelectMode();
+            } else {
+                $('#playlistEditor').addClass('playlistSelectMode');
+                $('.playlistSelectActionsDropdown').show();
+                $('.editPlaylistBtn, .playlistEditButton, .savePlaylistBtn').hide();
+                UpdatePlaylistSelectCount();
+            }
+        }
+
+        function ExitPlaylistSelectMode() {
+            $('#playlistEditor').removeClass('playlistSelectMode');
+            $('.playlistSelectActionsDropdown').hide();
+            $('.editPlaylistBtn, .playlistEditButton, .savePlaylistBtn').show();
+            DeselectAllPlaylistEntries();
+        }
+
+        function UpdatePlaylistSelectCount() {
+            var count = $('.playlistEntryCheckbox:checked').length;
+            $('.playlistSelectCount').text(count);
+        }
+
+        function SelectAllPlaylistEntries() {
+            $('.playlistEntryCheckbox').prop('checked', true);
+            UpdatePlaylistSelectCount();
+        }
+
+        function DeselectAllPlaylistEntries() {
+            $('.playlistEntryCheckbox').prop('checked', false);
+            UpdatePlaylistSelectCount();
+        }
+
+        function RemoveSelectedPlaylistEntries() {
+            var selected = $('.playlistEntryCheckbox:checked');
+            if (!selected.length) return;
+            selected.closest('tr.playlistRow').remove();
+            RenumberPlaylistEditorEntries();
+            UpdatePlaylistDurations();
+            markCurrentPlaylistModified();
+            UpdatePlaylistSelectCount();
+        }
+
+        function DuplicateSelectedPlaylistEntries() {
+            var selected = $('.playlistEntryCheckbox:checked');
+            if (!selected.length) return;
+            selected.each(function () {
+                var row = $(this).closest('tr.playlistRow');
+                var clone = row.clone();
+                clone.find('.playlistEntryCheckbox').prop('checked', false);
+                row.after(clone);
+            });
+            RenumberPlaylistEditorEntries();
+            UpdatePlaylistDurations();
+            markCurrentPlaylistModified();
+            UpdatePlaylistSelectCount();
+        }
     </script>
     <style>
         .ui-resizable-se {
@@ -745,6 +807,24 @@
                                 <button class="buttons editPlaylistBtn">
                                     <i class="fas fa-cog"></i>
                                 </button>
+                                <button class="buttons playlistSelectModeBtn" onclick="TogglePlaylistSelectMode()">
+                                    <i class="fas fa-check-square"></i>
+                                </button>
+                                <div class="dropdown playlistSelectActionsDropdown" style="display: none;">
+                                    <button class="buttons dropdown-toggle" type="button"
+                                        id="playlistSelectActionsBtn" data-bs-toggle="dropdown" aria-haspopup="true"
+                                        aria-expanded="false">
+                                        <span class="playlistSelectCount">0</span> Selected
+                                    </button>
+                                    <div class="dropdown-menu playlistSelectActionsMenu"
+                                        aria-labelledby="playlistSelectActionsBtn">
+                                        <a href="#" onclick="SelectAllPlaylistEntries();" class="dropdown-item">Select All</a>
+                                        <a href="#" onclick="DeselectAllPlaylistEntries();" class="dropdown-item">Deselect All</a>
+                                        <div class="dropdown-divider"></div>
+                                        <a href="#" onclick="RemoveSelectedPlaylistEntries();" class="dropdown-item">Remove Selected</a>
+                                        <a href="#" onclick="DuplicateSelectedPlaylistEntries();" class="dropdown-item">Duplicate Selected</a>
+                                    </div>
+                                </div>
                                 <div class="dropdown pe-2">
                                     <button class="buttons dropdown-toggle playlistEditButton" type="button"
                                         id="playlistEditMoreButton" data-bs-toggle="dropdown" aria-haspopup="true"

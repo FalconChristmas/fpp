@@ -1701,6 +1701,50 @@ body.is-loading #schedulerInfo .labelValue:before {
 	text-align: right;
 }
 
+.playlistRowCheckCell {
+	width: 32px;
+	padding: 0.4em 0.4em !important;
+	text-align: center;
+	display: none;
+}
+
+.playlistSelectMode .playlistRowCheckCell {
+	display: table-cell;
+}
+
+.playlistSelectMode .playlistRowCheckCell + .center {
+	display: none;
+}
+
+.playlistSelectMode .playlistRowEditActionCell {
+	display: none;
+}
+
+.playlistEntryCheckbox {
+	cursor: pointer;
+	width: 16px;
+	height: 16px;
+}
+
+.playlistSelectMode .playlistSelectedEntry {
+	background-color: transparent !important;
+}
+
+.playlistSelectMode .playlistSelectModeBtn {
+	background-color: var(--bs-success);
+	color: #fff;
+}
+
+.playlistSelectActionsDropdown .buttons {
+	background-color: var(--bs-success);
+	color: #fff;
+	font-size: 0.85em;
+}
+
+.playlistSelectActionsDropdown .buttons:hover {
+	filter: brightness(1.1);
+}
+
 .hasPlaylistDetailsLoaded .playlistEditorContainer {
 	display: block;
 }

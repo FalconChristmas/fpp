@@ -42,9 +42,9 @@ if (!isset($simplifiedPlaylist)) {
                 if (this === ui.item.parent()[0]) {
                     var parent = $(ui.item).parent().attr('id');
                     $('#' + parent + 'PlaceHolder').remove();
-                    var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
-                    if (rowsLeft == 0)
-                        $('#' + start_parent).html("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
+					var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
+					if (rowsLeft == 0)
+						$('#' + start_parent).html("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=5>&nbsp;</td></tr>");
 
 
                     RenumberPlaylistEditorEntries();
@@ -53,9 +53,9 @@ if (!isset($simplifiedPlaylist)) {
                 }
             },
             over: function () {
-                var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
-                if (rowsLeft == 1)
-                    $('#' + start_parent).append("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
+			var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
+				if (rowsLeft == 1)
+					$('#' + start_parent).append("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=5>&nbsp;</td></tr>");
                 // console.log(rowsLeft)
             },
 

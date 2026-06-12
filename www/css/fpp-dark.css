@@ -152,6 +152,14 @@
     background-color: #1c3a6e;
 }
 
+[data-bs-theme="dark"] .playlistSelectMode .playlistSelectedEntry {
+    background-color: transparent !important;
+}
+
+[data-bs-theme="dark"] .playlistSelectActionsDropdown .buttons {
+    background-color: #198754;
+}
+
 /* ------------------------------------------------------------- */
 /* Settings section headings                                     */
 /* ------------------------------------------------------------- */
