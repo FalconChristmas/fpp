@@ -949,6 +949,17 @@ setup_platform_raspberry_pi() {
         echo "FPP - Tweaking ${BOOTDIR}/config.txt"
         # Camera auto-detect off (we don't use it; saves a bit of boot time).
         sed -i -e "s/camera_auto_detect/#camera_auto_detect/"  ${BOOTDIR}/config.txt
+        # Cap the vc4-KMS CMA pool at 256MB. The firmware default on a Pi4 is
+        # 512MB, which on a 1GB board leaves so little general RAM that a
+        # parallel compile gets OOM-killed mid-build (issue #2679). 256MB is far
+        # more than FPP ever needs for DMA/GPU buffers (DPI framebuffers, kmssink
+        # dumb buffers, virtual matrices all fit comfortably). We modify the
+        # existing overlay line in place rather than adding a second
+        # dtoverlay=vc4-kms-v3d line -- loading the overlay twice would fail to
+        # apply, silently dropping the cma setting. Matches both the generic
+        # overlay (Pi0-4) and the -pi5 variant; skips a line that already
+        # specifies a cma- size so a user override is preserved.
+        sed -i '/^[[:space:]]*dtoverlay=vc4-kms-v3d/{/cma-/!s/$/,cma-256/}' ${BOOTDIR}/config.txt
         # NOTE: leave hdmi_force_hotplug alone. With the 6.18 vc4 KMS driver,
         # disabling it lets the GPU drop the HDMI signal entirely when the
         # kernel's hot-plug detection misses (which it does often enough on

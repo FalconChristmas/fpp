@@ -146,6 +146,18 @@ function ComputeMakeParallelism() {
         if [[ ${CPUS} -gt 1 ]]; then
             MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
             ARMV=$(uname -m)
+
+            # MemTotal includes the CMA pool, but on the Pi the vc4-KMS driver
+            # reserves a large CMA region (512MB by default on a Pi4). Those
+            # pages are dedicated to DMA/GPU buffers and migration out of CMA
+            # fails under pressure, so for the purpose of sizing the compile we
+            # treat CMA as unavailable. Without this, a 1GB Pi4 reports ~730MB
+            # MemTotal, lands in the -j3 bucket, and the OOM-killer kills cc1plus
+            # mid-build (see issue #2679). CmaTotal is absent on non-CMA kernels.
+            CMATOTAL=$(grep "^CmaTotal" /proc/meminfo | awk '{print $2}')
+            if [[ -n "${CMATOTAL}" && ${CMATOTAL} -gt 0 && ${MEMORY} -gt ${CMATOTAL} ]]; then
+                MEMORY=$((MEMORY - CMATOTAL))
+            fi
             if [[ ${MEMORY} -lt 425000 ]]; then
                 # very limited memory, only use one core or we'll fail or
                 # will be very slow as we constantly swap in/out
