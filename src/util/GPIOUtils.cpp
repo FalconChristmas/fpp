@@ -11,6 +11,7 @@
  */
 
 #include "fpp-pch.h"
+#include "common.h"
 
 #include <sys/mman.h>
 #include <sys/types.h>

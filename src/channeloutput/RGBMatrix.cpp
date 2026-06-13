@@ -11,6 +11,8 @@
  */
 
 #include "fpp-pch.h"
+#include "common.h"
+#include "Sequence.h"
 
 #include <cmath>
 #include <unistd.h>

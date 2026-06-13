@@ -11,6 +11,7 @@
  */
 
 #include "fpp-pch.h"
+#include "log.h"
 
 #include "StreamSlotManager.h"
 #include "GStreamerOut.h"

@@ -11,6 +11,8 @@
  */
 
 #include "fpp-pch.h"
+#include <set>
+#include <tuple>
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>

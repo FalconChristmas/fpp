@@ -1,4 +1,5 @@
 #include "fpp-pch.h"
+#include <fstream>
 
 #include <linux/nl80211.h>
 #include <net/if.h>

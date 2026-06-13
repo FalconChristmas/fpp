@@ -11,6 +11,7 @@
  */
 
 #include "fpp-pch.h"
+#include <cmath>
 
 #include "GStreamerOut.h"
 

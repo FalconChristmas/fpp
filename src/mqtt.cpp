@@ -11,6 +11,7 @@
  */
 
 #include "fpp-pch.h"
+#include "fppversion.h"
 
 #include <atomic>
 #include <cstring>

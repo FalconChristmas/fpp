@@ -14,6 +14,7 @@
  */
 
 #include "fpp-pch.h"
+#include "log.h"
 
 #include "../../settings.h"
 #include "../PixelOverlayModel.h"

@@ -11,6 +11,7 @@
  */
 
 #include "fpp-pch.h"
+#include "Events.h"
 
 #include <array>
 #include <list>

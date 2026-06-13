@@ -13,6 +13,7 @@
 
 #include <mutex>
 #include <vector>
+#include <functional>
 
 extern long long GetTimeMS();
 

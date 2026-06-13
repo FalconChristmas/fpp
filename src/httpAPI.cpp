@@ -18,6 +18,7 @@
 #undef LOG_DEBUG
 
 #include "fpp-pch.h"
+#include <fcntl.h>
 
 // Defined in fppd.cpp; setting it to 0 breaks the main loop and triggers
 // FPP's normal shutdown sequence, same as SIGQUIT or a graceful stop.
