@@ -367,6 +367,19 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                     m_bpp = 32;
                     if (!CreateDumbBuffer(card->fd, m_width, m_height, format, m_fb[x])) {
                         LogErr(VB_CHANNELOUT, "Failed to create dumb buffer\n");
+                        // Free any buffer(s) already created and undo the
+                        // connector/CRTC reservations pushed above so we don't
+                        // leak CMA or permanently reserve this output.
+                        for (int y = 0; y < x; y++) {
+                            DestroyDumbBuffer(card->fd, m_fb[y]);
+                            m_pageBuffers[y] = nullptr;
+                        }
+                        auto& rc = card->reservedConnectors;
+                        rc.erase(std::remove(rc.begin(), rc.end(), m_connectorId), rc.end());
+                        auto& rcr = card->reservedCrtcs;
+                        rcr.erase(std::remove(rcr.begin(), rcr.end(), m_crtcId), rcr.end());
+                        m_connectorId = 0;
+                        m_crtcId = 0;
                         drmModeFreeConnector(conn);
                         drmModeFreeResources(res);
                         return 0;

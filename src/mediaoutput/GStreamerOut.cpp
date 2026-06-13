@@ -193,6 +193,10 @@ int GStreamerOutput::GetSharedDrmFd(const std::string& cardPath) {
 // multiple kmssink elements sharing a DRM fd don't collide.
 // ──────────────────────────────────────────────────────────────────────────────
 static std::set<uint32_t> s_allocatedPlanes;
+// FindPrimaryPlaneForConnector / ReleasePlane are called both from the main
+// media thread (GStreamerOutput pipelines) and from VideoOutputManager's
+// consumer threads, so the shared set needs its own lock.
+static std::mutex s_allocatedPlanesMutex;
 
 int GStreamerOutput::FindPrimaryPlaneForConnector(int drmFd, int connectorId) {
     if (drmFd < 0 || connectorId < 0)
@@ -235,6 +239,10 @@ int GStreamerOutput::FindPrimaryPlaneForConnector(int drmFd, int connectorId) {
     drmModePlaneResPtr planeRes = drmModeGetPlaneResources(drmFd);
     if (!planeRes) return -1;
 
+    // Hold the lock across the scan-and-claim so two concurrent callers can't
+    // both select the same free plane.
+    std::lock_guard<std::mutex> planeLock(s_allocatedPlanesMutex);
+
     int foundPlane = -1;
     for (uint32_t i = 0; i < planeRes->count_planes && foundPlane < 0; i++) {
         uint32_t pid = planeRes->planes[i];
@@ -274,6 +282,13 @@ int GStreamerOutput::FindPrimaryPlaneForConnector(int drmFd, int connectorId) {
     LogInfo(VB_MEDIAOUT, "GStreamer DRM: connector %d → CRTC %u (index %d) → overlay plane %d\n",
             connectorId, crtcId, crtcIndex, foundPlane);
     return foundPlane;
+}
+
+void GStreamerOutput::ReleasePlane(int planeId) {
+    if (planeId < 0)
+        return;
+    std::lock_guard<std::mutex> lock(s_allocatedPlanesMutex);
+    s_allocatedPlanes.erase((uint32_t)planeId);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -858,6 +873,7 @@ int GStreamerOutput::Start(int msTime) {
                 int planeId = FindPrimaryPlaneForConnector(sharedFd, m_hdmiConnectorId);
                 if (planeId >= 0) {
                     g_object_set(m_kmssink, "plane-id", planeId, NULL);
+                    m_allocatedPlanes.push_back(planeId);
                 }
             } else {
                 g_object_set(m_kmssink,
@@ -979,6 +995,11 @@ int GStreamerOutput::Start(int msTime) {
                                       : FindPrimaryPlaneForConnector(drmFd, resolvedConnId);
                         if (planeId >= 0) {
                             g_object_set(dkmsSink, "plane-id", planeId, NULL);
+                            // hc.primaryPlaneId is always -1 today (GetHdmiConsumers
+                            // never sets it), so this plane came from our own
+                            // allocation and must be released in Close().
+                            if (hc.primaryPlaneId < 0)
+                                m_allocatedPlanes.push_back(planeId);
                         }
                         // Verify the fd was accepted by kmssink
                         gint readbackFd = -1;
@@ -1891,6 +1912,15 @@ int GStreamerOutput::Close(void) {
         gst_object_unref(m_pipeline);
         m_pipeline = nullptr;
     }
+
+    // Return any DRM overlay planes we reserved for this pipeline's kmssink
+    // elements to the shared free pool.  The kmssinks themselves were owned by
+    // the pipeline bin and were destroyed by the unref above; without this the
+    // planes stay marked allocated forever and eventually run out.
+    for (int planeId : m_allocatedPlanes) {
+        ReleasePlane(planeId);
+    }
+    m_allocatedPlanes.clear();
 
     // Clean up video overlay state
     if (m_videoFramesReceived > 0 || m_videoFramesDelivered > 0) {

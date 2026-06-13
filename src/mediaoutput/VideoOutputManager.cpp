@@ -942,6 +942,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                 int planeId = GStreamerOutput::FindPrimaryPlaneForConnector(drmFd, resolvedConnId);
                 if (planeId >= 0) {
                     g_object_set(sink, "plane-id", planeId, NULL);
+                    consumer.assignedPlaneId = planeId;
                 }
                 LogInfo(VB_MEDIAOUT, "VideoOutputManager: Set shared DRM fd=%d plane=%d on consumer '%s' kmssink\n",
                         drmFd, planeId, consumer.name.c_str());
@@ -1190,13 +1191,21 @@ void VideoOutputManager::StopConsumer(ConsumerInfo& consumer) {
     if (consumer.pipeline) {
         GstElement* p = consumer.pipeline;
         consumer.pipeline = nullptr;
+        // Release the reserved overlay plane only after the pipeline reaches
+        // NULL (which destroys the kmssink and frees the plane in DRM).
+        // Releasing it earlier would let a new consumer claim a plane the old
+        // kmssink still holds.  -1 if this consumer never got a plane.
+        int planeId = consumer.assignedPlaneId;
+        consumer.assignedPlaneId = -1;
         {
             std::lock_guard<std::mutex> tl(m_teardownMutex);
             m_pendingTeardowns++;
         }
-        std::thread([this, p]() {
+        std::thread([this, p, planeId]() {
             gst_element_set_state(p, GST_STATE_NULL);
             gst_object_unref(p);
+            if (planeId >= 0)
+                GStreamerOutput::ReleasePlane(planeId);
             {
                 std::lock_guard<std::mutex> tl(m_teardownMutex);
                 m_pendingTeardowns--;

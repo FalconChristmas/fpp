@@ -71,6 +71,13 @@ public:
     // Returns -1 if not found.  Requires the shared DRM fd.
     static int FindPrimaryPlaneForConnector(int drmFd, int connectorId);
 
+    // Return a plane previously handed out by FindPrimaryPlaneForConnector to
+    // the free pool so it can be reused.  Must be called when the kmssink that
+    // owned the plane is torn down, otherwise the allocated-plane set grows
+    // until no overlay planes remain and HDMI video silently stops working.
+    // A negative id or an id that was never allocated is ignored.
+    static void ReleasePlane(int planeId);
+
     // GStreamer-specific
     void SetLoopCount(int loops) { m_loopCount = loops; }
     void SetVolumeAdjustment(int volAdj);
@@ -136,6 +143,7 @@ private:
     GstElement* m_kmssink = nullptr;       // kmssink element (owned by pipeline bin)
     int m_hdmiConnectorId = -1;            // DRM connector ID from sysfs
     std::string m_hdmiCardPath;            // e.g. "/dev/dri/card1"
+    std::vector<int> m_allocatedPlanes;    // overlay planes reserved for this pipeline's kmssinks; released in Close()
     int m_hdmiDisplayWidth = 0;            // display resolution
     int m_hdmiDisplayHeight = 0;
 

@@ -139,6 +139,7 @@ private:
         int width = 0;
         int height = 0;
         std::string scaling;        // "fit", "fill", "stretch"
+        int assignedPlaneId = -1;   // DRM overlay plane reserved for this consumer's kmssink; released in StopConsumer
 
         // Overlay-specific
         std::string overlayModel;
