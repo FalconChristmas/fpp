@@ -663,11 +663,25 @@ install_base_packages() {
                       yt-dlp"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black"  -o "$FPPPLATFORM" == "BeagleBone 64" ]; then
-            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity zram-tools"
+            # firmware-misc-nonfree carries the rt2x00 / Mediatek (mt7601u, mt76xx) USB
+            # wifi blobs
+            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity firmware-misc-nonfree zram-tools"
             if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
                 PACKAGE_LIST="$PACKAGE_LIST libva-dev smartmontools edid-decode kms++-utils"
             fi
             if [ "$FPPPLATFORM" == "BeagleBone Black"  -o "$FPPPLATFORM" == "BeagleBone 64" ]; then
+                # The rcn-ee BeagleBone base images ship Debian's non-free firmware
+                # packages (firmware-realtek, etc.) preinstalled but do NOT enable the
+                # non-free-firmware apt component, so firmware-misc-nonfree has no install
+                # candidate. Enable the component so those drivers can be installed. (On
+                # the Pi OS repos non-free-firmware is already enabled by default.)
+                CODENAME="$(. /etc/os-release; echo "${VERSION_CODENAME:-trixie}")"
+                cat > /etc/apt/sources.list.d/fpp-nonfree-firmware.list <<EOF
+deb http://deb.debian.org/debian ${CODENAME} non-free-firmware
+deb http://deb.debian.org/debian ${CODENAME}-updates non-free-firmware
+deb http://security.debian.org/debian-security ${CODENAME}-security non-free-firmware
+EOF
+                apt-get update
                 PACKAGE_LIST="$PACKAGE_LIST ti-pru-cgt-v2.3"
             fi
         else
