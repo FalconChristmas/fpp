@@ -39,6 +39,10 @@ echo "Generating crash report in: $TEMP_DIR"
 cp /tmp/fppd_crash.log "$TEMP_DIR/" 2>/dev/null || true
 cp fpp-info.json "$TEMP_DIR/" 2>/dev/null || true
 
+# Include stats file if the user has opted in to stat collection (provides
+# additional contextual information about the crash)
+cp /tmp/fpp_stats.json "$TEMP_DIR/" 2>/dev/null || true
+
 # Level 2+: Include settings
 if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
     echo "Including settings (with passwords redacted)..."
