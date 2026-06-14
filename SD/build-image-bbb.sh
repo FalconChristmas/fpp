@@ -396,7 +396,18 @@ update-locale LANG=en_US.UTF-8 || true
 export LC_ALL=en_US.UTF-8
 
 # Strip BBB-specific bloat per README.BBB. Filter to installed packages.
-BB_PURGE_CANDIDATES="bb-code-server libstd-rust-dev rustc docker.io containerd nginx nginx-full nginx-common bb-u-boot-am57xx-evm firmware-nvidia-graphics firmware-intel-graphics"
+# cockpit* is the rcn-ee web admin console on :9090 -- pointless for FPP (web
+# UI only, no desktop) and only bound to localhost, so purge it.
+BB_PURGE_CANDIDATES="bb-code-server libstd-rust-dev rustc docker.io containerd nginx nginx-full nginx-common bb-u-boot-am57xx-evm firmware-nvidia-graphics firmware-intel-graphics cockpit cockpit-ws cockpit-bridge cockpit-system cockpit-packagekit"
+# More base-image dev/admin bloat unused by FPP (the dpkg -s filter below skips
+# any not present): the full llvm/clang dev stack (~530MB) -- FPP only needs
+# clang-format, which keeps its libllvm19/libclang-cpp19 runtime -- plus the
+# leftover docker CLI tooling (docker.io/containerd are purged above).
+# NOTE: no arm-linux-gnueabihf cross compiler here -- on the 32-bit BBB image
+# that is the native toolchain.
+# (mesa-vulkan-drivers / samba-ad-provision get pulled back in as deps by
+# FPP_Install, so they are purged AFTER it runs -- see POST_PURGE below.)
+BB_PURGE_CANDIDATES="\$BB_PURGE_CANDIDATES llvm-19 llvm-19-dev llvm-19-runtime llvm-19-linker-tools clang-19 clang-tools-19 libclang-rt-19-dev libclang-common-19-dev docker-cli docker-buildx docker-compose"
 BB_PURGE_INSTALLED=""
 for pkg in \$BB_PURGE_CANDIDATES; do
     if dpkg -s "\$pkg" >/dev/null 2>&1; then
@@ -411,6 +422,23 @@ rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1.x* /opt/source/dtb-6.6.x* /opt/sou
 
 cd /root
 /root/FPP_Install.sh --img --yes --branch ${FPPBRANCH} ${INSTALLER_EXTRA_ARGS}
+
+# Purge packages that FPP_Install pulls back in as (recommended) deps but that
+# a headless FPP has no use for. Done here, after the install, because the
+# pre-install BB_PURGE above runs before these get dragged in. dpkg -s filter
+# keeps it safe if a name isn't present.
+#   mesa-vulkan-drivers -- Vulkan ICD; FPP video is GStreamer/GL, no Vulkan
+#   samba-ad-provision  -- Samba AD domain-controller tooling; FPP only file-shares
+POST_PURGE="mesa-vulkan-drivers samba-ad-provision"
+POST_PURGE_INSTALLED=""
+for pkg in \$POST_PURGE; do
+    if dpkg -s "\$pkg" >/dev/null 2>&1; then
+        POST_PURGE_INSTALLED="\$POST_PURGE_INSTALLED \$pkg"
+    fi
+done
+if [ -n "\$POST_PURGE_INSTALLED" ]; then
+    apt-get remove -y --autoremove --purge \$POST_PURGE_INSTALLED
+fi
 
 # FPP_Install.sh replaces /etc/resolv.conf with a symlink to
 # /run/systemd/resolve/resolv.conf near its end. In our chroot /run is a

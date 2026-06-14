@@ -376,7 +376,20 @@ export LC_ALL=en_US.UTF-8
 
 # Strip stock bloat per README.BB64. Filter to installed packages so missing
 # ones don't abort under set -e.
-BB_PURGE_CANDIDATES="bb-node-red-installer bb-code-server ti-zephyr-firmware bb-u-boot-beagleboneai64 bb-u-boot-beagleplay bb-u-boot-beagley-ai bb-u-boot-beagleplay-mainline libstd-rust-dev rustc docker.io containerd nginx firmware-nvidia-graphics firmware-intel-graphics"
+# cockpit* is the rcn-ee web admin console on :9090 -- pointless for FPP (web
+# UI only, no desktop) and only bound to localhost, so purge it.
+BB_PURGE_CANDIDATES="bb-node-red-installer bb-code-server ti-zephyr-firmware bb-u-boot-beagleboneai64 bb-u-boot-beagleplay bb-u-boot-beagley-ai bb-u-boot-beagleplay-mainline libstd-rust-dev rustc docker.io containerd nginx firmware-nvidia-graphics firmware-intel-graphics cockpit cockpit-ws cockpit-bridge cockpit-system cockpit-packagekit"
+# More base-image dev/admin bloat unused by FPP (the dpkg -s filter below skips
+# any not present): the full llvm/clang dev stack (~530MB) -- FPP only needs
+# clang-format, which keeps its libllvm19/libclang-cpp19 runtime -- plus the
+# leftover docker CLI tooling (docker.io/containerd are purged above).
+# (mesa-vulkan-drivers / samba-ad-provision get pulled back in as deps by
+# FPP_Install, so they are purged AFTER it runs -- see POST_PURGE below.)
+BB_PURGE_CANDIDATES="\$BB_PURGE_CANDIDATES llvm-19 llvm-19-dev llvm-19-runtime llvm-19-linker-tools clang-19 clang-tools-19 libclang-rt-19-dev libclang-common-19-dev docker-cli docker-buildx docker-compose"
+# BB64 is arm64, so the 32-bit arm-linux-gnueabihf toolchain is a pure cross
+# compiler with nothing depending on it. (Do NOT add this on the 32-bit BBB
+# image, where arm-linux-gnueabihf is the *native* compiler.)
+BB_PURGE_CANDIDATES="\$BB_PURGE_CANDIDATES gcc-arm-linux-gnueabihf gcc-14-arm-linux-gnueabihf cpp-arm-linux-gnueabihf cpp-14-arm-linux-gnueabihf g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf"
 BB_PURGE_INSTALLED=""
 for pkg in \$BB_PURGE_CANDIDATES; do
     if dpkg -s "\$pkg" >/dev/null 2>&1; then
@@ -393,6 +406,23 @@ rm -rf /opt/bb-code-server /opt/vsx-examples
 
 cd /root
 /root/FPP_Install.sh --img --yes --branch ${FPPBRANCH} ${INSTALLER_EXTRA_ARGS}
+
+# Purge packages that FPP_Install pulls back in as (recommended) deps but that
+# a headless FPP has no use for. Done here, after the install, because the
+# pre-install BB_PURGE above runs before these get dragged in. dpkg -s filter
+# keeps it safe if a name isn't present.
+#   mesa-vulkan-drivers -- Vulkan ICD (~135MB); FPP video is GStreamer/GL, no Vulkan
+#   samba-ad-provision  -- Samba AD domain-controller tooling; FPP only file-shares
+POST_PURGE="mesa-vulkan-drivers samba-ad-provision"
+POST_PURGE_INSTALLED=""
+for pkg in \$POST_PURGE; do
+    if dpkg -s "\$pkg" >/dev/null 2>&1; then
+        POST_PURGE_INSTALLED="\$POST_PURGE_INSTALLED \$pkg"
+    fi
+done
+if [ -n "\$POST_PURGE_INSTALLED" ]; then
+    apt-get remove -y --autoremove --purge \$POST_PURGE_INSTALLED
+fi
 
 # Finalization (mirrors SD/README.BB64 post-install cleanup)
 apt-get clean
