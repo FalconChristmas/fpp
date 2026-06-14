@@ -860,6 +860,17 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // Every subsystem was torn down explicitly above, so the C++ global/static
+    // singleton destructors that would run on a normal return are redundant --
+    // and crash-prone. The single most common fppd crash is std::thread::~thread
+    // -> std::terminate from __cxa_finalize, when a file-static std::thread in
+    // libfpp.so (the Events publish thread, WarningHolder's notify thread, ...)
+    // is still joinable at process exit. The orderly shutdown above joins these,
+    // but a late restart during the drawn-out shutdown can leave one joinable
+    // again. Flush and exit now, skipping the redundant (and crash-prone)
+    // global-destructor pass.
+    fflush(nullptr);
+    _exit(0);
     return 0;
 }
 
