@@ -26,6 +26,7 @@
 #include "../../Warnings.h"
 #include "../../common.h"
 #include "../../log.h"
+#include "../../settings.h"
 
 #include "BBShiftPanel.h"
 #include "../CapeUtils/CapeUtils.h"
