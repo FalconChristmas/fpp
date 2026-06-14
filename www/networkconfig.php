@@ -1037,6 +1037,17 @@
                     contentDiv.find('[for="' + oldId + '"]').attr('for', newId);
                 });
 
+                // Fix HideShow icon IDs and onclick handlers for suffixed interface IDs
+                contentDiv.find('[id$="HideShow_' + safeName + '"]').each(function() {
+                    var $icon = $(this);
+                    var oldId = $icon.attr('id');
+                    var inputBase = oldId.replace('HideShow_' + safeName, '');
+                    var inputId = inputBase + '_' + safeName;
+                    // Rename icon ID to match TogglePasswordHideShow's expected pattern: inputId + 'HideShow'
+                    $icon.attr('id', inputId + 'HideShow');
+                    this.onclick = function() { TogglePasswordHideShow(inputId); };
+                });
+
                 // Update wireless visibility for this interface
                 if (visible) {
                     contentDiv.find('#WirelessSubsection_' + safeName).show();
