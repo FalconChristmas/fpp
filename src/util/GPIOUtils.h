@@ -165,6 +165,7 @@ public:
 #ifdef IS_GPIOD_CXX_V2
     mutable std::shared_ptr<gpiod::chip> chip = nullptr;
     mutable std::shared_ptr<gpiod::line_request> request = nullptr;
+    mutable gpiod::line::bias lastBias = gpiod::line::bias::UNKNOWN;
 #else
     mutable gpiod::chip* chip = nullptr;
     mutable gpiod::line line;
