@@ -937,18 +937,25 @@ int main(int argc, char* argv[]) {
         }
     }
 
-#ifdef PLATFORM_OSX
     // Every subsystem was torn down explicitly above, so the C++ global/static
     // singleton destructors that would run on a normal return are redundant --
-    // and unsafe on macOS. A noexcept destructor can lock a mutex belonging to
-    // an already-destroyed singleton (or one a still-draining drogon thread is
-    // touching); libc++ throws EINVAL ("mutex lock failed: Invalid argument")
-    // from that lock, which escapes the noexcept dtor and calls std::terminate.
-    // libstdc++ on Linux tolerates the same lock, so this only bites on macOS.
+    // and crash-prone. Two distinct failure modes show up in the crash reports:
+    //   * macOS: a noexcept destructor locks a mutex belonging to an
+    //     already-destroyed singleton (or one a still-draining drogon thread is
+    //     touching); libc++ throws EINVAL ("mutex lock failed: Invalid
+    //     argument") from that lock, which escapes the noexcept dtor and calls
+    //     std::terminate.
+    //   * Linux: a file-static std::thread (the Events publish thread, the
+    //     WarningHolder notify thread, ...) that is still joinable when
+    //     __cxa_finalize destroys it -> std::thread::~thread calls
+    //     std::terminate. The orderly shutdown above joins these, but a late
+    //     restart (e.g. an event reconfigure during the drawn-out shutdown) can
+    //     leave one joinable again. This is the single most common fppd crash
+    //     on the dashboard, so the same _exit() shortcut macOS uses is applied
+    //     on Linux too.
     // Flush and exit now, skipping the redundant (and crash-prone) teardown.
     fflush(nullptr);
     _exit(0);
-#endif
     return 0;
 }
 
