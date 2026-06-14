@@ -181,10 +181,13 @@ int GPIODCapabilities::configPin(const std::string& mode,
             settings.set_direction(gpiod::line::direction::INPUT);
             if (mode == "gpio_pu") {
                 settings.set_bias(gpiod::line::bias::PULL_UP);
+                lastBias = gpiod::line::bias::PULL_UP;
             } else if (mode == "gpio_pd") {
                 settings.set_bias(gpiod::line::bias::PULL_DOWN);
+                lastBias = gpiod::line::bias::PULL_DOWN;
             } else {
                 settings.set_bias(gpiod::line::bias::DISABLED);
+                lastBias = gpiod::line::bias::DISABLED;
             }
         }
 
@@ -352,6 +355,9 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
         } else if (fallingEdge) {
             settings.set_edge_detection(gpiod::line::edge::FALLING);
         }
+        if (lastBias != gpiod::line::bias::UNKNOWN) {
+            settings.set_bias(lastBias);
+        }
         std::string consumer = lastDesc.empty() ? PROCESS_NAME : lastDesc;
 
         LogDebug(VB_GPIO, "Building request for pin %s: chip device=%s, line=%d\n",
@@ -376,6 +382,9 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
         try {
             gpiod::line_settings settings;
             settings.set_direction(gpiod::line::direction::INPUT);
+            if (lastBias != gpiod::line::bias::UNKNOWN) {
+                settings.set_bias(lastBias);
+            }
             std::string consumer = lastDesc.empty() ? PROCESS_NAME : lastDesc;
             gpiod::request_builder builder = chip->prepare_request();
             builder.add_line_settings(gpio, settings);
@@ -392,6 +401,7 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
     gpiod::line_request req;
     req.consumer = lastDesc.empty() ? PROCESS_NAME : lastDesc;
     req.request_type = lastRequestType;
+    req.flags = lastRequestFlags;
     if (risingEdge && fallingEdge) {
         req.request_type |= gpiod::line_request::EVENT_BOTH_EDGES;
     } else if (risingEdge) {
