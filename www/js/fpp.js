@@ -2049,6 +2049,8 @@ function GetPlaylistRowHTML (ID, entry, editMode) {
 	if (editMode) {
 		HTML += "<tr class='playlistRow'>";
 		HTML +=
+			"<td class='playlistRowCheckCell'><input type='checkbox' class='playlistEntryCheckbox' onchange='UpdatePlaylistSelectCount()' /></td>";
+		HTML +=
 			"<td class='center' valign='middle'> <div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>";
 	} else {
 		HTML += "<tr id='playlistRow" + rowNum + "' class='playlistRow'>";
@@ -2309,6 +2311,10 @@ function EditPlaylist () {
 	var name = $('#playlistSelect').val();
 	EnableButtonClass('playlistEditButton');
 	DisableButtonClass('playlistDetailsEditButton');
+
+	if (typeof ExitPlaylistSelectMode === 'function') {
+		ExitPlaylistSelectMode();
+	}
 
 	LoadPlaylistDetails(name);
 	$('#playlistEditor').addClass('hasPlaylistDetailsLoaded');

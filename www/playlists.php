@@ -602,6 +602,8 @@
                     }
                 }
 
+                ExitPlaylistSelectMode();
+
                 // Clear playlist DOM tables to prevent data being put in new playlists
                 $('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
                 $('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
@@ -633,6 +635,8 @@
             window.addEventListener('popstate', function (e) {
                 if (e.state) {
                     if (e.state.view === 'list') {
+                        ExitPlaylistSelectMode();
+
                         // Clear playlist tables to prevent stale data
                         $('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
                         $('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
@@ -658,6 +662,156 @@
             history.replaceState({ view: 'list' }, '', location.href);
 
         })
+
+        function TogglePlaylistSelectMode() {
+            if ($('#playlistEditor').hasClass('playlistSelectMode')) {
+                ExitPlaylistSelectMode();
+            } else {
+                $('#playlistEditor').addClass('playlistSelectMode');
+                $('.playlistSelectActionsDropdown').show();
+                $('.editPlaylistBtn, .playlistEditButton, .savePlaylistBtn').hide();
+                UpdatePlaylistSelectCount();
+            }
+        }
+
+        function ExitPlaylistSelectMode() {
+            $('#playlistEditor').removeClass('playlistSelectMode');
+            $('.playlistSelectActionsDropdown').hide();
+            $('.editPlaylistBtn, .playlistEditButton, .savePlaylistBtn').show();
+            DeselectAllPlaylistEntries();
+        }
+
+        function UpdatePlaylistSelectCount() {
+            var count = $('.playlistEntryCheckbox:checked').length;
+            $('.playlistSelectCount').text(count);
+        }
+
+        function SelectAllPlaylistEntries() {
+            $('.playlistEntryCheckbox').prop('checked', true);
+            UpdatePlaylistSelectCount();
+        }
+
+        function DeselectAllPlaylistEntries() {
+            $('.playlistEntryCheckbox').prop('checked', false);
+            UpdatePlaylistSelectCount();
+        }
+
+        function RemoveSelectedPlaylistEntries() {
+            var selected = $('.playlistEntryCheckbox:checked');
+            if (!selected.length) return;
+            selected.closest('tr.playlistRow').remove();
+            RenumberPlaylistEditorEntries();
+            UpdatePlaylistDurations();
+            markCurrentPlaylistModified();
+            ExitPlaylistSelectMode();
+        }
+
+        function DuplicateSelectedPlaylistEntries() {
+            var selected = $('.playlistEntryCheckbox:checked');
+            if (!selected.length) return;
+            selected.each(function () {
+                var row = $(this).closest('tr.playlistRow');
+                var clone = row.clone();
+                clone.find('.playlistEntryCheckbox').prop('checked', false);
+                row.after(clone);
+            });
+            RenumberPlaylistEditorEntries();
+            UpdatePlaylistDurations();
+            markCurrentPlaylistModified();
+            ExitPlaylistSelectMode();
+        }
+
+        function CopySelectedToPlaylist() {
+            var selected = $('.playlistEntryCheckbox:checked');
+            if (!selected.length) return;
+            var currentName = $('#txtPlaylistName').val();
+            var count = selected.length;
+
+            var options = '<option value="">Select target playlist...</option>';
+            for (var i = 0; i < playListArray.length; i++) {
+                if (playListArray[i].name == currentName) continue;
+                options += '<option value="' + playListArray[i].name + '">' + playListArray[i].name + ' (' + playListArray[i].total_items + ' items)</option>';
+            }
+
+            DoModalDialog({
+                id: "CopySelectedDialog",
+                title: "Copy Selected Items",
+                body: '<div class="form-group"><label>Copy ' + count + ' selected item' + (count > 1 ? 's' : '') + ' to:</label><select id="copyTargetPlaylist" class="form-control">' + options + '</select></div><div class="form-group" style="margin-top: 12px;"><label>Destination section:</label><div style="margin-top: 4px;"><label style="display: inline-block; margin-right: 16px;"><input type="radio" name="copySection" value="leadIn"> Lead In</label><label style="display: inline-block; margin-right: 16px;"><input type="radio" name="copySection" value="mainPlaylist" checked> Main</label><label style="display: inline-block;"><input type="radio" name="copySection" value="leadOut"> Lead Out</label></div></div>',
+                class: "modal-m",
+                backdrop: true,
+                keyboard: true,
+                buttons: {
+                    "Copy": {
+                        click: function () {
+                            var targetName = $("#copyTargetPlaylist").val();
+                            if (!targetName) {
+                                DialogError('No playlist selected', 'Please select a target playlist.');
+                                return;
+                            }
+                            if (targetName == currentName) {
+                                DialogError('Same playlist', 'Cannot copy to the same playlist.');
+                                return;
+                            }
+
+                            var section = $('input[name="copySection"]:checked').val() || 'mainPlaylist';
+
+                            // Read selected entries from the DOM
+                            var entries = [];
+                            selected.each(function () {
+                                var row = $(this).closest('tr.playlistRow');
+                                entries.push(GetPlaylistEntry(row));
+                            });
+
+                            // Fetch target playlist, append, and save
+                            $.ajax({
+                                url: 'api/playlist/' + targetName,
+                                type: 'GET',
+                                dataType: 'json',
+                                async: false,
+                                success: function (data) {
+                                    if (!data.hasOwnProperty(section)) {
+                                        data[section] = [];
+                                    }
+                                    for (var e = 0; e < entries.length; e++) {
+                                        data[section].push(entries[e]);
+                                    }
+
+                                    data.version = 4;
+                                    if (!data.hasOwnProperty('playlistInfo')) {
+                                        data.playlistInfo = {};
+                                    }
+
+                                    $.ajax({
+                                        url: 'api/playlist/' + targetName,
+                                        type: 'POST',
+                                        contentType: 'application/json',
+                                        data: JSON.stringify(data),
+                                        async: false,
+                                        dataType: 'json',
+                                        success: function () {
+                                            PopulateLists();
+                                            $.jGrowl(count + ' item' + (count > 1 ? 's' : '') + ' copied to "' + targetName + '"', { themeState: 'success' });
+                                            CloseModalDialog("CopySelectedDialog");
+                                            ExitPlaylistSelectMode();
+                                        },
+                                        error: function () {
+                                            DialogError('Error', 'Failed to save target playlist.');
+                                        }
+                                    });
+                                },
+                                error: function () {
+                                    DialogError('Error', 'Could not load target playlist "' + targetName + '".');
+                                }
+                            });
+                        },
+                        class: 'btn-success'
+                    },
+                    "Cancel": function () {
+                        CloseModalDialog("CopySelectedDialog");
+                    }
+                }
+            });
+        }
     </script>
     <style>
         .ui-resizable-se {
@@ -745,6 +899,25 @@
                                 <button class="buttons editPlaylistBtn">
                                     <i class="fas fa-cog"></i>
                                 </button>
+                                <button class="buttons playlistSelectModeBtn" onclick="TogglePlaylistSelectMode()">
+                                    <i class="fas fa-check-square"></i>
+                                </button>
+                                <div class="dropdown playlistSelectActionsDropdown" style="display: none;">
+                                    <button class="buttons dropdown-toggle" type="button"
+                                        id="playlistSelectActionsBtn" data-bs-toggle="dropdown" aria-haspopup="true"
+                                        aria-expanded="false">
+                                        <span class="playlistSelectCount">0</span> Selected
+                                    </button>
+                                    <div class="dropdown-menu playlistSelectActionsMenu"
+                                        aria-labelledby="playlistSelectActionsBtn">
+                                        <a href="#" onclick="SelectAllPlaylistEntries();" class="dropdown-item">Select All</a>
+                                        <a href="#" onclick="DeselectAllPlaylistEntries();" class="dropdown-item">Deselect All</a>
+                                        <div class="dropdown-divider"></div>
+                                        <a href="#" onclick="RemoveSelectedPlaylistEntries();" class="dropdown-item">Remove Selected</a>
+                                        <a href="#" onclick="DuplicateSelectedPlaylistEntries();" class="dropdown-item">Duplicate Selected</a>
+                                        <a href="#" onclick="CopySelectedToPlaylist();" class="dropdown-item">Copy to...</a>
+                                    </div>
+                                </div>
                                 <div class="dropdown pe-2">
                                     <button class="buttons dropdown-toggle playlistEditButton" type="button"
                                         id="playlistEditMoreButton" data-bs-toggle="dropdown" aria-haspopup="true"
