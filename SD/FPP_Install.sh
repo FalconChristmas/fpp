@@ -497,7 +497,7 @@ install_base_packages() {
         #remove a bunch of packages that aren't neeeded, free's up space
         PACKAGE_REMOVE="nginx nginx-full nginx-common  triggerhappy pocketsphinx-en-us guile-2.2-libs \
             gfortran glib-networking libxmuu1 xauth network-manager dhcpcd5 fake-hwclock ifupdown isc-dhcp-client isc-dhcp-common openresolv \
-            unattended-upgrades packagekit iwd"
+            unattended-upgrades packagekit iwd apt-listchanges"
         if [ "$FPPPLATFORM" == "BeagleBone 64" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_REMOVE="$PACKAGE_REMOVE nodejs mender-client bb-code-server"
         fi
@@ -643,7 +643,7 @@ install_base_packages() {
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
                       fbi fbset file flite ca-certificates lshw gettext wget iproute2 fswatch \
                       build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
-                      git hdparm i2c-tools jq less sysstat tcpdump time usbutils usb-modeswitch \
+                      git hdparm i2c-tools jq less tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd sqlite3 at haveged samba samba-common-bin \
                       mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils libhidapi-dev \
                       php${PHPVER} php${PHPVER}-cli php${PHPVER}-fpm php${PHPVER}-common php${PHPVER}-curl php-pear \
@@ -765,7 +765,22 @@ EOF
             systemctl disable apt-daily.timer || true
             systemctl disable apt-daily-upgrade.service || true
             systemctl disable apt-daily-upgrade.timer || true
-            
+
+            # Disable stock Debian housekeeping that serves no purpose on a
+            # fixed-image appliance and just adds disk writes / boot-time work:
+            #   man-db.timer        - rebuilds the man page index (no man use)
+            #   dpkg-db-backup.timer- daily /var/lib/dpkg backup (image is fixed)
+            #   e2scrub_*           - online ext4 scrub for LVM (we don't use LVM)
+            #   systemd-pstore      - archives kernel crash pstore at every boot
+            #   wtmpdb-update-boot  - writes boot records to the wtmp database
+            echo "FPP - Disabling unneeded housekeeping timers/services"
+            systemctl disable man-db.timer || true
+            systemctl disable dpkg-db-backup.timer || true
+            systemctl disable e2scrub_all.timer || true
+            systemctl disable e2scrub_reap.service || true
+            systemctl disable systemd-pstore.service || true
+            systemctl disable wtmpdb-update-boot.service || true
+
             echo "FPP - Enabling systemd-networkd"
             # clean out the links to /dev/null so that we can enable systemd-networkd
             rm -f /etc/systemd/network/99*
@@ -919,6 +934,10 @@ EOF
     systemctl disable unattended-upgrades
     systemctl disable resize_filesystem
     systemctl disable console-setup
+    # FPP uses smbd/nmbd for media file shares, never the AD domain controller.
+    systemctl disable samba-ad-dc || true
+    # No Bluetooth use on BeagleBone; kept enabled only on the Pi.
+    systemctl disable bluetooth || true
 }
 
 setup_platform_beaglebone_64() {
@@ -927,7 +946,10 @@ setup_platform_beaglebone_64() {
     systemctl disable mender-client
     systemctl disable resize_filesystem
     systemctl disable console-setup
-    systemctl disable samba-ad-dc
+    # FPP uses smbd/nmbd for media file shares, never the AD domain controller.
+    systemctl disable samba-ad-dc || true
+    # No Bluetooth use on BeagleBone; kept enabled only on the Pi.
+    systemctl disable bluetooth || true
 
     echo "FPP - Adding required modules to modules-load to speed up boot"
     cat >> /etc/modules-load.d/modules.conf <<'EOF'
@@ -965,6 +987,9 @@ setup_platform_raspberry_pi() {
         sed -i -e "s/^pi:.*/pi:*:16372:0:99999:7:::/"         /etc/shadow
         sed -i -e "s/^odroid:.*/odroid:*:16372:0:99999:7:::/" /etc/shadow
         sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
+
+        # FPP uses smbd/nmbd for media file shares, never the AD domain controller.
+        systemctl disable samba-ad-dc || true
 
         echo "FPP - Tweaking ${BOOTDIR}/config.txt"
         # Camera auto-detect off (we don't use it; saves a bit of boot time).
@@ -1345,6 +1370,20 @@ do
     fi
 done
 
+# FPP serves very few web clients (usually one or two), so the stock
+# every-30-minutes PHP session garbage collection is overkill. Run it every
+# 2 hours instead, and turn off Persistent so a power-cycled appliance doesn't
+# fire a catch-up GC run on every boot -- that run was adding ~14s to the boot
+# critical path. The empty OnCalendar= first clears the inherited schedule.
+echo "FPP - Reducing phpsessionclean frequency"
+mkdir -p /etc/systemd/system/phpsessionclean.timer.d
+cat > /etc/systemd/system/phpsessionclean.timer.d/fpp.conf <<'EOF'
+[Timer]
+OnCalendar=
+OnCalendar=*-*-* 00/2:09:00
+Persistent=false
+EOF
+
 if $isimage; then
     #######################################
     echo "FPP - Copying rsync daemon config files into place"
@@ -1617,14 +1656,16 @@ EOF
         sed -i 's|tmpfs\s*/var/tmp\s*tmpfs.*||g' /etc/fstab
     fi
 
-    COMMENTED=""
-    SDA1=$(lsblk -l | grep sda1 | awk '{print $7}')
-    if [ -n "${SDA1}" ]
-    then
-        COMMENTED="#"
-    fi
+    # /home/fpp/media lives on an external drive only when the user explicitly
+    # selects one in the Storage settings (uncommon). Ship the fstab entry
+    # COMMENTED: otherwise systemd's fstab generator creates home-fpp-media.mount
+    # for a /dev/sda1 that isn't present, and the dev-sda1.device job sits for the
+    # full 90s device timeout before failing. fppinit.service (After=/Wants= that
+    # mount) -- and everything ordered behind networking -- then waits out that
+    # 90s on every boot. The settings UI rewrites this line when external storage
+    # is chosen, so commenting it by default loses no functionality.
     echo "#####################################" >> /etc/fstab
-    echo "${COMMENTED}/dev/sda1     ${FPPHOME}/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
+    echo "#/dev/sda1     ${FPPHOME}/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
     echo "#####################################" >> /etc/fstab
 
     #######################################
@@ -1843,6 +1884,17 @@ finalize_image_services() {
 if $isimage; then
     rm -rf /usr/share/doc/*
     apt-get clean
+
+    # The image-build CI checks out the source tree into /opt/fpp as a non-root
+    # build user, so every tracked file is owned by that uid (e.g. 1001). On a
+    # shipped image /opt/fpp is system software and must be root:root -- both for
+    # correctness and because anything copied out of the tree with "cp -a"
+    # (preserving ownership) would otherwise carry the build uid into /etc. A
+    # concrete failure: networkd-dispatcher refuses to run hooks in directories
+    # not owned by root, which broke the routable.d/ntpd fast time-sync hook.
+    # Do this before install_fpp_services so its copies inherit root ownership.
+    echo "FPP - Setting root:root ownership on /opt/fpp"
+    chown -R root:root /opt/fpp
 fi
 
 install_fpp_services
