@@ -2215,23 +2215,38 @@ static void setupAudio() {
     const std::string igConfCache = FPP_MEDIA_DIR + "/config/pipewire-input-groups.conf";
     const std::string igConfDest = "/etc/pipewire/pipewire.conf.d/96-fpp-input-groups.conf";
     bool hasGroupsConfig = false;
+    // Track whether the effective PipeWire config actually changes from what it
+    // already loaded at boot. PipeWire (fpp-pipewire.service) starts during boot
+    // with the persisted /etc/pipewire configs, so a restart in postNetwork is
+    // only needed when something actually differs -- otherwise the costly
+    // pipewire-pulse/WirePlumber/session-bus restart cascade buys nothing. On a
+    // no-soundcard board the config is identical every boot, so this skips it.
+    bool audioConfigChanged = false;
     if (usePipeWireBackend && !runningInDocker && FileExists(groupsConfCache)) {
-        printf("FPP - Restoring PipeWire audio output groups config\n");
-        exec("/bin/cp " + groupsConfCache + " " + groupsConfDest);
+        if (!FileExists(groupsConfDest) || GetFileContents(groupsConfCache) != GetFileContents(groupsConfDest)) {
+            printf("FPP - Restoring PipeWire audio output groups config\n");
+            exec("/bin/cp " + groupsConfCache + " " + groupsConfDest);
+            audioConfigChanged = true;
+        }
         hasGroupsConfig = true;
     } else if (usePipeWireBackend && !runningInDocker && FileExists(groupsJsonPath)) {
         // JSON exists but no cached .conf yet (e.g. first-time default creation).
         // The regeneration script will generate the .conf from the JSON.
         hasGroupsConfig = true;
+        audioConfigChanged = true;
     } else if (usePipeWireBackend && !runningInDocker && FileExists(groupsConfDest)) {
         // JSON config was deleted but stale conf remains — clean up
         if (!FileExists(groupsJsonPath)) {
             unlink(groupsConfDest.c_str());
+            audioConfigChanged = true;
         }
     }
     if (usePipeWireBackend && !runningInDocker && FileExists(igConfCache)) {
-        printf("FPP - Restoring PipeWire input groups config\n");
-        exec("/bin/cp " + igConfCache + " " + igConfDest);
+        if (!FileExists(igConfDest) || GetFileContents(igConfCache) != GetFileContents(igConfDest)) {
+            printf("FPP - Restoring PipeWire input groups config\n");
+            exec("/bin/cp " + igConfCache + " " + igConfDest);
+            audioConfigChanged = true;
+        }
     }
 
     // --- AES67 cleanup ---
@@ -2244,39 +2259,47 @@ static void setupAudio() {
     exec("pkill -f fpp_aes67_sap 2>/dev/null || true");
     exec("pkill -f 'ptp4l.*ptp4l-fpp' 2>/dev/null || true");
 
-    // Single PipeWire restart after all configs are written.
-    // systemctl restart is synchronous — it waits for the service to be
-    // active before returning. fpp-pipewire-pulse has After=/Requires=
-    // on the other two, so restarting fpp-pipewire triggers a cascade.
-    // We restart all three explicitly to ensure clean state.
+    // PipeWire is already running (started at boot with the persisted configs),
+    // so only restart it when the config actually changed. A restart is
+    // synchronous and triggers an expensive pipewire-pulse/WirePlumber/
+    // session-bus cascade, so skipping it on an unchanged boot (always the case
+    // on a no-soundcard board) saves ~10-15s on a single-core SBC.
     if (usePipeWireBackend && !runningInDocker) {
-        // Pre-start validation: regenerate audio group configs BEFORE starting
-        // PipeWire so that adapters for unplugged ALSA devices are removed.
-        // The cached config may reference devices that were present when it was
-        // last generated but have since been disconnected — PipeWire crashes
-        // fatally if it tries to open a missing ALSA device via context.objects.
-        // This regeneration runs without pw-dump (PipeWire isn't up yet) and
-        // relies on stored nodeTargets + ALSA card presence checks.
-        if (hasGroupsConfig && FileExists(groupsConfDest)) {
+        // Pre-start validation: regenerate audio group configs BEFORE a restart
+        // so adapters for unplugged ALSA devices are removed -- the cached config
+        // may reference a device that has since disconnected, and PipeWire
+        // crashes fatally if it tries to open a missing ALSA device. It also
+        // reports (exit 2) when it had to change anything, e.g. a card-number
+        // shift, which is itself a reason to restart. Skip this on a no-soundcard
+        // board with an unchanged config: no cards means no shifts to resolve and
+        // nothing stale to strip, and the running config already loaded fine.
+        if (hasGroupsConfig && FileExists(groupsConfDest) && (!noRealSoundcard || audioConfigChanged)) {
             printf("FPP - Validating PipeWire audio group config against current hardware...\n");
-            system("/usr/bin/php /opt/fpp/scripts/regenerate_pipewire_groups --force");
+            int rc = system("/usr/bin/php /opt/fpp/scripts/regenerate_pipewire_groups --force");
+            if (WEXITSTATUS(rc) == 2) {
+                audioConfigChanged = true;
+            }
         }
 
-        exec("/usr/bin/systemctl restart fpp-pipewire.service fpp-wireplumber.service fpp-pipewire-pulse.service");
+        if (!audioConfigChanged) {
+            // Config matches what PipeWire loaded at boot -- restarting would
+            // change nothing (and the volume-restore below only exists to undo a
+            // restart's reset of WirePlumber state, so it's unneeded too).
+            printf("FPP - PipeWire audio config unchanged since boot; skipping restart\n");
+        } else if (hasGroupsConfig && noRealSoundcard) {
+            // Config changed but there's no real sound card: a restart is needed
+            // to load it, but there are no USB cards to enumerate and no
+            // card-number shifts to resolve, so skip the enumerate/regen dance.
+            exec("/usr/bin/systemctl restart fpp-pipewire.service fpp-wireplumber.service fpp-pipewire-pulse.service");
+            printf("FPP - No real sound card present; skipping PipeWire device enumeration/regeneration\n");
+        } else {
+            exec("/usr/bin/systemctl restart fpp-pipewire.service fpp-wireplumber.service fpp-pipewire-pulse.service");
+        }
 
         // Wait for WirePlumber to enumerate ALSA devices before regenerating
         // configs.  WirePlumber needs a moment to discover USB sound cards
         // and create their PipeWire sink nodes.
-        //
-        // Fast path: when the only device is the synthetic snd-dummy there are
-        // no USB cards to discover and no card-number shifts to resolve, so the
-        // enumerate-wait + regenerate (+ possible restart) + volume-restore is
-        // pure waste -- ~25-30s of PHP and fixed sleeps on a single-core
-        // BeagleBone. The pre-start validation regen above already stripped any
-        // stale references, and the dummy sink is stable, so skip all of it.
-        if (hasGroupsConfig && noRealSoundcard) {
-            printf("FPP - No real sound card present; skipping PipeWire device enumeration/regeneration\n");
-        } else if (hasGroupsConfig) {
+        if (audioConfigChanged && hasGroupsConfig && !noRealSoundcard) {
             printf("FPP - Waiting for WirePlumber to enumerate devices...\n");
             std::this_thread::sleep_for(std::chrono::seconds(3));
 

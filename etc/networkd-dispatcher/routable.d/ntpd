@@ -1,4 +1,16 @@
 #!/bin/sh
+# During initial boot, fppinit's postNetwork step does a fast SNTP clock set, so
+# the heavy stop-ntp / ntpd -gq / start-ntp dance here is redundant and just
+# piles contention onto the boot critical path (and restarts ntpsec mid-boot).
+# Only force a re-sync once we're past boot -- i.e. this is a later network
+# change (ethernet cable inserted, flaky wifi reconnecting). "Still booting" =
+# uptime under 120s AND fppd not yet running; either condition being false means
+# this is a runtime reconnect and we should resync.
+UPTIME=$(awk '{print int($1)}' /proc/uptime 2>/dev/null)
+if [ -n "$UPTIME" ] && [ "$UPTIME" -lt 120 ] && ! /usr/bin/pgrep -x fppd >/dev/null 2>&1; then
+    exit 0
+fi
+
 # Wait a moment for DNS to be fully available
 sleep 2
 
