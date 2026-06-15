@@ -2200,9 +2200,16 @@ static void setupAudio() {
     // missing (e.g. OS upgrade, fresh flash, or settings migrated without an explicit
     // UI save) synthesise it now from the current AudioOutput/VideoOutput settings so
     // PipeWireSinkName is populated before fppd starts.
+    // Regenerate the simple groups config when it's missing OR when it
+    // references a sound card that's no longer present. The latter is the
+    // card-changed case (e.g. a USB card added to a previously dummy-only board,
+    // or removed): the stale config would otherwise leave an unresolved device,
+    // producing a "# WARNING:" conf that (a) is wrong and (b) defeats the
+    // skip-regen fast path, forcing the full regen+restart dance on every boot.
+    // Regenerating here re-points it at the current AudioOutput card.
     if (usePipeWireBackend && !runningInDocker && mediaBackendLower == "pipewire-simple"
-        && !FileExists(simpleGroupsJsonPath)) {
-        printf("FPP - pipewire-simple: no simple groups config found, generating from AudioOutput setting...\n");
+        && (!FileExists(simpleGroupsJsonPath) || !pipewireConfigCardsPresent(simpleGroupsJsonPath))) {
+        printf("FPP - pipewire-simple: simple groups config missing or references an absent card; regenerating from AudioOutput setting...\n");
         system("/usr/bin/php /opt/fpp/scripts/apply_pipewire_simple_config");
     }
 

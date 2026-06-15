@@ -20,7 +20,15 @@ Conflicts=shutdown.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/udevadm trigger --action=add --subsystem-match=block --subsystem-match=sound --settle
+# Block first, WITH --settle: fppoled/fppinit and the local mounts need these
+# resolved right now, so wait for them. The settle is fast because only block
+# is queued at this point. Then trigger sound WITHOUT --settle: we don't need
+# the card resolved until fpp_postnetwork (much later), so don't block the
+# critical path on it -- just enqueue it ahead of the full coldplug so it
+# processes early and is ready by then. (Order matters: settling block before
+# enqueuing sound keeps the settle from waiting on sound.)
+ExecStart=/usr/bin/udevadm trigger --action=add --subsystem-match=block --settle
+ExecStart=/usr/bin/udevadm trigger --action=add --subsystem-match=sound
 
 [Install]
 WantedBy=sysinit.target
