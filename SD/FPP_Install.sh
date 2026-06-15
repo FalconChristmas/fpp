@@ -780,6 +780,12 @@ EOF
             systemctl disable e2scrub_reap.service || true
             systemctl disable systemd-pstore.service || true
             systemctl disable wtmpdb-update-boot.service || true
+            # gpio-manager: the libgpiod 2.x D-Bus GPIO daemon (Debian 13's gpiod
+            # package). FPP drives GPIO via the libgpiod *library* directly and
+            # never uses this daemon. It's idle by default, but since GPIO line
+            # requests are exclusive it's a latent EBUSY risk if anything ever
+            # makes it claim a line -- so disable it (also saves a boot service).
+            systemctl disable gpio-manager.service || true
 
             echo "FPP - Enabling systemd-networkd"
             # clean out the links to /dev/null so that we can enable systemd-networkd
@@ -1411,6 +1417,25 @@ EOF
 echo "FPP - Deferring exim4 startup until after the network is up"
 mkdir -p /etc/systemd/system/exim4.service.d
 cat > /etc/systemd/system/exim4.service.d/fpp-defer.conf <<'EOF'
+[Unit]
+After=fpp_postnetwork.service
+EOF
+
+# exim4-base.service is the daily exim queue/db housekeeping oneshot, triggered
+# by exim4-base.timer. With Persistent=true it fires a catch-up run on every
+# boot of a power-cycled appliance -- and it's slow there (DNS not ready yet),
+# just like exim4 was. Turn Persistent off so it only runs at the next daily
+# tick (when DNS is up and the near-empty queue makes it trivial), and order the
+# service after fpp_postnetwork for the rare case the daily timer fires during a
+# boot window.
+echo "FPP - Keeping exim4-base housekeeping off the boot path"
+mkdir -p /etc/systemd/system/exim4-base.timer.d
+cat > /etc/systemd/system/exim4-base.timer.d/fpp.conf <<'EOF'
+[Timer]
+Persistent=false
+EOF
+mkdir -p /etc/systemd/system/exim4-base.service.d
+cat > /etc/systemd/system/exim4-base.service.d/fpp-defer.conf <<'EOF'
 [Unit]
 After=fpp_postnetwork.service
 EOF

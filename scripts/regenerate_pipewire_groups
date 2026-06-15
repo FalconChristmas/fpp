@@ -77,7 +77,9 @@ $force = in_array('--force', $argv);
 // pipewire-audio-groups-simple.json (a single auto-generated group based on
 // the selected AudioOutput card).  Use that file instead of the advanced
 // JSON so the cached .conf reflects the simple group at boot.
-$mediaBackend = isset($settings['MediaBackend']) ? strtolower(trim($settings['MediaBackend'])) : 'alsa';
+// FPP10 always uses a PipeWire backend (the ALSA backend is being retired), so
+// default to pipewire-simple when the setting is absent rather than 'alsa'.
+$mediaBackend = isset($settings['MediaBackend']) ? strtolower(trim($settings['MediaBackend'])) : 'pipewire-simple';
 $isSimplePipeWire = ($mediaBackend === 'pipewire-simple');
 
 if ($isSimplePipeWire) {

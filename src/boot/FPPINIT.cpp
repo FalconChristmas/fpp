@@ -1408,23 +1408,17 @@ static bool waitForInterfacesUp(bool flite, int timeOut) {
     } else {
         printf("FPP - Waited for %0.1f seconds for IP address\n", (((float)count) * 0.2f));
         if (!getRawSettingInt("disableIPAnnouncement", 0) && FileExists("/usr/bin/flite") && flite) {
-            // When PipeWire is the audio backend, flite (an ALSA client) needs
-            // the PipeWire environment variables so the ALSA-PipeWire plugin in
-            // .asoundrc can locate the PipeWire socket.  Without these, flite
-            // silently fails to produce any audio output.
-            std::string mediaBackend;
-            getRawSetting("MediaBackend", mediaBackend);
-            std::string abLower = mediaBackend;
-            std::transform(abLower.begin(), abLower.end(), abLower.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
-            std::string fliteCmd;
-            if (abLower == "pipewire" || abLower == "pipewire-simple") {
-                fliteCmd = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp "
-                           "XDG_RUNTIME_DIR=/run/pipewire-fpp "
-                           "/usr/bin/flite -voice awb -t \"" + announce + "\" &";
-            } else {
-                fliteCmd = "/usr/bin/flite -voice awb -t \"" + announce + "\" &";
-            }
+            // flite is an ALSA client, so playing directly (flite -t) would route
+            // through the pipewire-alsa plugin + /root/.asoundrc -- the fragile
+            // ALSA chain we're retiring. Instead render to a WAV and play it
+            // through PipeWire natively with pw-play. pw-play needs the runtime
+            // env vars to find FPP's PipeWire instance at /run/pipewire-fpp.
+            // /run/fppd is created earlier by setupAudio.
+            const std::string announceWav = "/run/fppd/ip-announce.wav";
+            std::string fliteCmd =
+                "/usr/bin/flite -voice awb -t \"" + announce + "\" -o " + announceWav +
+                " && PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp"
+                " /usr/bin/pw-play " + announceWav + " &";
             execbg(fliteCmd);
         }
         return true;
@@ -1689,6 +1683,17 @@ static void setupAudio() {
     std::transform(mediaBackendLower.begin(), mediaBackendLower.end(), mediaBackendLower.begin(), [](unsigned char c) {
         return std::tolower(c);
     });
+    // The ALSA ("Hardware Direct") backend has been retired -- FPP10 always uses
+    // a PipeWire backend. Migrate any device still set to "alsa" to the default
+    // pipewire-simple and persist it, so we never take the (being-removed) ALSA
+    // path and every other MediaBackend reader sees the new value. Done here, the
+    // earliest audio entry point, so the rest of setupAudio runs as PipeWire.
+    if (mediaBackendLower == "alsa") {
+        printf("FPP - MediaBackend 'alsa' is retired; migrating to 'pipewire-simple'\n");
+        setRawSetting("MediaBackend", "pipewire-simple");
+        mediaBackend = "pipewire-simple";
+        mediaBackendLower = "pipewire-simple";
+    }
     bool usePipeWireBackend = (mediaBackendLower == "pipewire" || mediaBackendLower == "pipewire-simple");
     bool runningInDocker = FileExists("/.dockerenv");
     const std::string audioEnvPath = "/run/fppd/fpp-audio.env";
@@ -2265,15 +2270,17 @@ static void setupAudio() {
     // session-bus cascade, so skipping it on an unchanged boot (always the case
     // on a no-soundcard board) saves ~10-15s on a single-core SBC.
     if (usePipeWireBackend && !runningInDocker) {
-        // Pre-start validation: regenerate audio group configs BEFORE a restart
-        // so adapters for unplugged ALSA devices are removed -- the cached config
-        // may reference a device that has since disconnected, and PipeWire
-        // crashes fatally if it tries to open a missing ALSA device. It also
-        // reports (exit 2) when it had to change anything, e.g. a card-number
-        // shift, which is itself a reason to restart. Skip this on a no-soundcard
-        // board with an unchanged config: no cards means no shifts to resolve and
-        // nothing stale to strip, and the running config already loaded fine.
-        if (hasGroupsConfig && FileExists(groupsConfDest) && (!noRealSoundcard || audioConfigChanged)) {
+        // Validate/regenerate the audio group config from the JSON. This is the
+        // authoritative change detector: it (re)writes the cached .conf + the
+        // /etc dest, resolves card numbers, strips references to now-absent ALSA
+        // devices (PipeWire crashes fatally trying to open a missing card), and
+        // returns exit 2 only when it actually changed something (incl. the
+        // first-time creation of the .conf). Run it whenever there's a groups
+        // config -- NOT gated on the dest already existing (chicken-and-egg: the
+        // regen is what creates it) and NOT skipped for no-soundcard (otherwise
+        // the .conf is never cached, so every boot looks "changed" and restarts).
+        // It does not need PipeWire running, so it's cheap when nothing changed.
+        if (hasGroupsConfig) {
             printf("FPP - Validating PipeWire audio group config against current hardware...\n");
             int rc = system("/usr/bin/php /opt/fpp/scripts/regenerate_pipewire_groups --force");
             if (WEXITSTATUS(rc) == 2) {

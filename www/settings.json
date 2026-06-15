@@ -782,7 +782,7 @@
 		"MediaBackend": {
 			"name": "MediaBackend",
 			"description": "Media Backend",
-			"tip": "Select how FPP handles audio and video playback. Simple PipeWire routes media through PipeWire and GStreamer with automatic single-card / single-display selection (recommended for most users). PipeWire (Advanced) exposes the full PipeWire stack with multi-device audio groups, video fan-out, AES67, and routing matrix. Hardware Direct (legacy) talks directly to ALSA and is available in Developer UI mode only.",
+			"tip": "Select how FPP handles audio and video playback. Simple PipeWire routes media through PipeWire and GStreamer with automatic single-card / single-display selection (recommended for most users). PipeWire (Advanced) exposes the full PipeWire stack with multi-device audio groups, video fan-out, AES67, and routing matrix.",
 			"gatherStats": true,
 			"restart": 0,
 			"reboot": 1,
@@ -790,11 +790,7 @@
 			"type": "select",
 			"options": {
 				"Simple PipeWire": "pipewire-simple",
-				"PipeWire (Advanced)": "pipewire",
-				"Hardware Direct (Legacy)": "alsa"
-			},
-			"optionsLevel": {
-				"alsa": 3
+				"PipeWire (Advanced)": "pipewire"
 			},
 			"children": {
 				"pipewire": [
@@ -810,18 +806,6 @@
 				"pipewire-simple": [
 					"ForceHDMIResolution",
 					"ForceHDMIResolutionPort2"
-				],
-				"alsa": [
-					"AudioOutput",
-					"AudioMixerDevice",
-					"AudioBufferSize",
-					"ForceAudioId",
-					"VideoOutput",
-					"ForceHDMI",
-					"EnableBBBHDMI",
-					"ForceHDMIResolution",
-					"ForceHDMIResolutionPort2",
-					"HardwareDecoding"
 				]
 			},
 			"platforms": [

@@ -44,12 +44,6 @@ if (file_exists($settingsFile)) {
 if (!isset($settings['mediaDirectory']))
     $settings['mediaDirectory'] = '/home/fpp/media';
 
-$mediaBackend = isset($settings['MediaBackend']) ? strtolower(trim($settings['MediaBackend'])) : 'alsa';
-if ($mediaBackend !== 'pipewire-simple') {
-    fprintf(STDERR, "FPP - apply_pipewire_simple_config: MediaBackend is '%s', not pipewire-simple — nothing to do\n", $mediaBackend);
-    exit(0);
-}
-
 $fppDir = isset($settings['fppDir']) ? $settings['fppDir'] : '/opt/fpp';
 chdir($fppDir . '/www/api');
 
@@ -66,6 +60,19 @@ ob_start();
 require_once $fppDir . '/www/common.php';
 require_once $fppDir . '/www/api/controllers/pipewire.php';
 ob_end_clean();
+
+// Determine MediaBackend AFTER including common.php so we see the framework's
+// resolved value (it applies the system default of 'pipewire-simple' when the
+// setting is absent), matching regenerate_pipewire_groups. Reading it from the
+// raw settings file beforehand defaulted to 'alsa', so on a fresh image (where
+// MediaBackend is unset) this bailed and never generated the simple groups
+// JSON -- which in turn left regenerate_pipewire_groups with no cached .conf,
+// causing a needless PipeWire restart on every boot.
+$mediaBackend = isset($settings['MediaBackend']) ? strtolower(trim($settings['MediaBackend'])) : 'pipewire-simple';
+if ($mediaBackend !== 'pipewire-simple') {
+    fprintf(STDERR, "FPP - apply_pipewire_simple_config: MediaBackend is '%s', not pipewire-simple — nothing to do\n", $mediaBackend);
+    exit(0);
+}
 
 fprintf(STDERR, "FPP - apply_pipewire_simple_config: generating Simple PipeWire config (AudioOutput=%s)\n",
     isset($settings['AudioOutput']) ? $settings['AudioOutput'] : '0');
