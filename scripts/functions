@@ -29,89 +29,81 @@ cleanCompiledBinaries() {
     done
 }
 populateCCACHE() {
-    FPPBASEVERSION=$(</etc/fpp/rfs_version)
     FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
-    MAJVER=${FPPBASEVERSION:1:1}
-    if [[ ${MAJVER} -eq 2 ]]; then
-        MAJVER=${FPPBASEVERSION:1:4}
-        MINVER=${FPPBASEVERSION:6:2}
-    else
-        MINVER=${FPPBASEVERSION:3:2}
-        if [[ $MINVER == *"-" ]]; then
-            MINVER=${FPPBASEVERSION:3:1}
-        fi
-    fi
-    if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
-        PLAT=Pi
+
+    # Map platform (and arch, for the Pi) to the ccache asset suffix the image
+    # build produces: ccache-<PLAT>.tar.gz (Pi, Pi64, BBB, BB64).
+    if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+        if [ "$(uname -m)" = "aarch64" ]; then PLAT=Pi64; else PLAT=Pi; fi
     elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
         PLAT=BBB
     elif [ "${FPPPLATFORM}" = "BeagleBone 64" ]; then
         PLAT=BB64
     else
-        echo "populateCache stopping, Unknown platform - ${FPPPLATFORM}"
-        MAJVER=0
-        MINVER=0
+        PLAT=""
+        echo "populateCCACHE: unknown platform '${FPPPLATFORM}', skipping cache download"
     fi
-    if [[ ${MAJVER} -gt 3 || ${MAJVER} -eq 3 && ${MINVER} -ge 3 ]]; then
-        #at least v3.3
-        BRANCH=$(sudo git branch --list | grep \* | colrm 1 2)
 
-        FILETOGET="ccache-${PLAT}-${MAJVER}.x-${BRANCH}.tar.gz"
-        FULLURL="https://falconchristmas.github.io/ccache/${FILETOGET}"
+    # The ccache tarballs are GitHub release assets attached to each release
+    # tag (and to the rolling "nightly" pre-release). A custom UpgradeSource
+    # mirror has no such assets, so only fetch when pulling from github.com.
+    SOURCEIP=$(getSetting UpgradeSource)
+    if [ -n "${PLAT}" ] && { [ "x${SOURCEIP}" = "x" ] || [ "${SOURCEIP}" = "github.com" ]; }; then
+        # Most appropriate tag = the nearest release tag at/before HEAD, so
+        # e.g. 10.2 plus a few commits still grabs the 10.2 cache. On master,
+        # or when only a dev tag (e.g. 10.x-master) or no tag is found, fall
+        # back to the rolling nightly cache -- master moves too fast for an
+        # older release cache to help much.
+        BRANCH=$(cd "${FPPDIR}" && sudo git rev-parse --abbrev-ref HEAD 2>/dev/null)
+        TAG=$(cd "${FPPDIR}" && sudo git describe --tags --abbrev=0 2>/dev/null)
+        if [ "${BRANCH}" = "master" ] || [ -z "${TAG}" ] || [ "${TAG%-master}" != "${TAG}" ]; then
+            TAG="nightly"
+        fi
+
+        FILETOGET="ccache-${PLAT}.tar.gz"
+        FULLURL="https://github.com/FalconChristmas/fpp/releases/download/${TAG}/${FILETOGET}"
         ETAG_GIT="/tmp/etag.$$"
-        # ccache 4.12+ uses ~/.cache/ccache as the cache dir (XDG) by
-        # default; previous versions used ~/.ccache.
         ETAG_LOCAL="/root/.cache/ccache/etag"
         NEEDS_UPDATED=0
 
-        echo "Checking CCACHE -  $FILETOGET - $FULLURL"
+        echo "Checking CCACHE - ${FILETOGET} - ${FULLURL}"
 
         sudo test -f "$ETAG_LOCAL"
         ETAG_LOCAL_NOTFOUND=$?
 
-        curl -I $FULLURL | grep -i etag > $ETAG_GIT
-
-        ETAG_SIZE=$(wc -c $ETAG_GIT | awk '{print $1}')
+        # -L: release-download URLs redirect to the asset CDN; follow so we
+        # read the asset's ETag, not the redirect's. Missing asset -> no etag.
+        curl -sIL "$FULLURL" | grep -i '^etag:' | tail -1 > "$ETAG_GIT"
+        ETAG_SIZE=$(wc -c "$ETAG_GIT" | awk '{print $1}')
 
         if (($ETAG_SIZE < 5)); then
-            echo "Updating CCache -- Invalid etag"
+            echo "Updating CCache -- no asset for ${TAG} (building without cache)"
             NEEDS_UPDATED=1
-        elif [ "$ETAG_LOCAL_NOTFOUND" == "1" ] ; then
-            echo "Updating CCache -- not cached"
+        elif [ "$ETAG_LOCAL_NOTFOUND" == "1" ]; then
+            echo "Updating CCache -- not cached locally"
             NEEDS_UPDATED=1
         else
-            sudo diff -q $ETAG_LOCAL $ETAG_GIT
-            rc=$?
-            if [ $rc -ne "0" ]; then
-                echo "Updating CCache - eTag has changed"
+            if ! sudo diff -q "$ETAG_LOCAL" "$ETAG_GIT" >/dev/null 2>&1; then
+                echo "Updating CCache -- eTag has changed"
                 NEEDS_UPDATED=1
             fi
         fi
 
-        if [ $NEEDS_UPDATED -eq "0" ]; then
+        if [ $NEEDS_UPDATED -eq 0 ]; then
             echo "CCache is up to date"
-            rm "$ETAG_GIT" # cleanup
-            return 0
-        fi
-
-
-        curl  -f --fail-early $FULLURL --output "/tmp/$FILETOGET"
-
-        if [ -f "/tmp/$FILETOGET" ]; then
-            sudo cp /root/.config/ccache/ccache.conf /tmp 2>/dev/null || true
-            # Tarballs are built with the legacy .ccache layout at the root;
-            # after extraction, relocate to the new XDG cache path.
-            sudo tar -x -z -C /root -f "/tmp/$FILETOGET"
+            rm -f "$ETAG_GIT"
+        elif curl -f -L --fail-early "$FULLURL" --output "/tmp/$FILETOGET"; then
+            sudo mkdir -p /root/.cache/ccache
+            # Merge, do NOT wipe: overlay the shipped entries on top of whatever
+            # is already cached locally so existing objects survive. Tarball is
+            # XDG layout, so it extracts straight into the cache dir.
+            sudo tar -x -z -C /root/.cache/ccache -f "/tmp/$FILETOGET"
             rm -f "/tmp/$FILETOGET"
-            if [ -d /root/.ccache ]; then
-                sudo mkdir -p /root/.cache
-                sudo rm -rf /root/.cache/ccache
-                sudo mv /root/.ccache /root/.cache/ccache
-            fi
-            sudo mv $ETAG_GIT $ETAG_LOCAL
-            sudo chmod 644 $ETAG_LOCAL
-            sudo mkdir -p /root/.config/ccache
-            sudo cp /tmp/ccache.conf /root/.config/ccache/ccache.conf 2>/dev/null || true
+            sudo mv "$ETAG_GIT" "$ETAG_LOCAL"
+            sudo chmod 644 "$ETAG_LOCAL"
+        else
+            echo "CCache download failed for tag '${TAG}', building without it"
+            rm -f "$ETAG_GIT"
         fi
     fi
 

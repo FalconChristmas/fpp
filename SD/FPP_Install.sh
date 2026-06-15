@@ -670,18 +670,24 @@ install_base_packages() {
                 PACKAGE_LIST="$PACKAGE_LIST libva-dev smartmontools edid-decode kms++-utils"
             fi
             if [ "$FPPPLATFORM" == "BeagleBone Black"  -o "$FPPPLATFORM" == "BeagleBone 64" ]; then
-                # The rcn-ee BeagleBone base images ship Debian's non-free firmware
-                # packages (firmware-realtek, etc.) preinstalled but do NOT enable the
-                # non-free-firmware apt component, so firmware-misc-nonfree has no install
-                # candidate. Enable the component so those drivers can be installed. (On
-                # the Pi OS repos non-free-firmware is already enabled by default.)
-                CODENAME="$(. /etc/os-release; echo "${VERSION_CODENAME:-trixie}")"
-                cat > /etc/apt/sources.list.d/fpp-nonfree-firmware.list <<EOF
+                # firmware-misc-nonfree lives in Debian's non-free-firmware component.
+                # Newer rcn-ee BeagleBone base images already enable non-free-firmware in
+                # /etc/apt/sources.list; older ones did not, leaving firmware-misc-nonfree
+                # with no install candidate. Only drop in our own source when it's actually
+                # missing -- otherwise apt warns about the component being "configured
+                # multiple times". Clean up any stale drop-in from a prior install.
+                FPP_NF_LIST=/etc/apt/sources.list.d/fpp-nonfree-firmware.list
+                if apt-cache policy firmware-misc-nonfree 2>/dev/null | grep -qE 'Candidate: [0-9]'; then
+                    rm -f "$FPP_NF_LIST"
+                else
+                    CODENAME="$(. /etc/os-release; echo "${VERSION_CODENAME:-trixie}")"
+                    cat > "$FPP_NF_LIST" <<EOF
 deb http://deb.debian.org/debian ${CODENAME} non-free-firmware
 deb http://deb.debian.org/debian ${CODENAME}-updates non-free-firmware
 deb http://security.debian.org/debian-security ${CODENAME}-security non-free-firmware
 EOF
-                apt-get update
+                    apt-get update
+                fi
                 PACKAGE_LIST="$PACKAGE_LIST ti-pru-cgt-v2.3"
             fi
         else

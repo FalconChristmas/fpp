@@ -519,6 +519,18 @@ chroot "$ROOT_MNT" /tmp/fpp-chroot-install.sh
 rm -f "$ROOT_MNT/tmp/fpp-chroot-install.sh"
 
 #############################################################################
+# 5b. Capture the populated ccache so the workflow can attach it to the
+# release tag. On upgrade, devices download ccache-<suffix>.tar.gz for the
+# matching release and merge it in to make on-device rebuilds fast. Stored in
+# XDG layout so it extracts straight into /root/.cache/ccache.
+#############################################################################
+if [ -d "$ROOT_MNT/root/.cache/ccache" ]; then
+    echo "Creating ccache tarball: ccache-${PLATFORM_SUFFIX}.tar.gz"
+    tar -czf "$OUTPUT_DIR/ccache-${PLATFORM_SUFFIX}.tar.gz" \
+        -C "$ROOT_MNT/root/.cache/ccache" .
+fi
+
+#############################################################################
 # 6. Mark first-boot expand + strip qemu binary.
 # IMPORTANT: BBB looks for fpp_expand_rootfs in /boot/ (rootfs path), not
 # /boot/firmware/ -- different from Pi/BB64.
