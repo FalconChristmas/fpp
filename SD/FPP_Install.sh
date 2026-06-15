@@ -1977,8 +1977,13 @@ configure_hostapd() {
 #     that handles zram setup automatically. Don't write zram-tools config
 #     on Pi -- it's read by a service we'd be disabling, and would just be
 #     dead clutter.
-#   - On BeagleBone (BBB / BB64) we still drive zram via zram-tools because
-#     rcn-ee Debian doesn't ship the rpi-swap mechanism.
+#   - On BeagleBone (BBB / BB64) we drive zram via zram-tools, set up directly
+#     in fpp_postnetwork (FPPINIT startZRAMSwap) rather than at boot. zram isn't
+#     needed early and setting it up during the boot critical path just adds
+#     contention on the single core. NOTE: the rcn-ee Debian 13 image now ships
+#     systemd-zram-generator (the same systemd-zram-setup@zram0 mechanism Pi
+#     uses), which WOULD otherwise create /dev/zram0 in early boot, so we disable
+#     its vendor config below.
 configure_swap() {
     if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
         # Just sysctl tuning; rpi-swap handles the actual zram device.
@@ -1989,7 +1994,18 @@ configure_swap() {
         # /dev/zram0 at boot (both try to claim the device).
         systemctl disable zramswap 2>/dev/null || true
     else
+        # Disable the systemd-zram-generator vendor config so it does NOT create
+        # /dev/zram0 during early boot. zram-tools (driven by startZRAMSwap in
+        # fpp_postnetwork) sets it up later, off the boot critical path. Per
+        # zram-generator.conf(5), symlinking the vendor config's filename to
+        # /dev/null in /etc disables it.
+        ln -sf /dev/null /etc/systemd/zram-generator.conf
         systemctl disable zramswap
+        # The stock zram-tools config ships PERCENT=50, which (per its own
+        # comment) takes precedence over SIZE -- so our SIZE= below would be
+        # ignored and zram would grab 50% of RAM. Disable PERCENT so our fixed
+        # SIZE actually applies.
+        sed -i 's/^PERCENT=/#PERCENT=/' /etc/default/zramswap
         echo "ALGO=zstd" >> /etc/default/zramswap
         echo "PRIORITY=100" >> /etc/default/zramswap
         if [ "$FPPPLATFORM" == "BeagleBone 64" ]; then

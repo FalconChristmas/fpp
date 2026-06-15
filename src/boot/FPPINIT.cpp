@@ -2407,7 +2407,17 @@ void checkInstallPackages() {
     }
 }
 void startZRAMSwap() {
-    if (!FileExists("/dev/zram0") && FileExists("/usr/sbin/zramswap")) {
+    if (!FileExists("/usr/sbin/zramswap")) {
+        return;
+    }
+    // Gate on whether zram is already ACTIVE as swap, not on whether the device
+    // node exists: kernels built with CONFIG_ZRAM=y (e.g. the BeagleBone) always
+    // present /dev/zram0 even when nothing has configured it, so the old
+    // FileExists("/dev/zram0") check made this a permanent no-op and zram swap
+    // never came up. (On the Pi the systemd-zram-generator/rpi-swap path may
+    // already have set it up, in which case /proc/swaps shows it and we skip.)
+    std::string swaps = GetFileContents("/proc/swaps");
+    if (swaps.find("zram") == std::string::npos) {
         execbg("/usr/sbin/zramswap start 2>/dev/null > /dev/null &");
     }
 }
