@@ -905,6 +905,22 @@ apt_purge_installed() {
     fi
 }
 
+# defer_bb_usb_gadgets
+# The stock BeagleBoard bb-usb-gadgets.service does a *blocking*
+# "systemctl start serial-getty@ttyGS0", which can sit ~35s waiting on the
+# getty/device and stalls the boot critical path -- delaying fppd. The USB
+# gadget (usb0 tether + serial console) is only a setup convenience, not used
+# in normal operation, so order it after fpp_postnetwork. fppd is also
+# After=fpp_postnetwork, so the gadget setup then runs in parallel with fppd
+# instead of holding it up.
+defer_bb_usb_gadgets() {
+    mkdir -p /etc/systemd/system/bb-usb-gadgets.service.d
+    cat > /etc/systemd/system/bb-usb-gadgets.service.d/fpp-defer.conf <<'EOF'
+[Unit]
+After=fpp_postnetwork.service
+EOF
+}
+
 setup_platform_beaglebone_black() {
     # Blacklist gyro/barometer on SanCloud enhanced (conflicts with cape pins).
     cat > /etc/modprobe.d/blacklist-gyro.conf <<'EOF'
@@ -938,6 +954,7 @@ EOF
     systemctl disable samba-ad-dc || true
     # No Bluetooth use on BeagleBone; kept enabled only on the Pi.
     systemctl disable bluetooth || true
+    defer_bb_usb_gadgets
 }
 
 setup_platform_beaglebone_64() {
@@ -950,6 +967,7 @@ setup_platform_beaglebone_64() {
     systemctl disable samba-ad-dc || true
     # No Bluetooth use on BeagleBone; kept enabled only on the Pi.
     systemctl disable bluetooth || true
+    defer_bb_usb_gadgets
 
     echo "FPP - Adding required modules to modules-load to speed up boot"
     cat >> /etc/modules-load.d/modules.conf <<'EOF'
@@ -1382,6 +1400,19 @@ cat > /etc/systemd/system/phpsessionclean.timer.d/fpp.conf <<'EOF'
 OnCalendar=
 OnCalendar=*-*-* 00/2:09:00
 Persistent=false
+EOF
+
+# The exim4 MTA is only used for occasional outbound notification mail, never at
+# boot. Starting it early costs ~25s on a single-core SBC because it does DNS
+# lookups before the network/resolver is ready (so they time out), and it just
+# adds contention on the boot critical path. Order it after fpp_postnetwork:
+# fppd is also After=fpp_postnetwork, so exim starts in parallel with fppd
+# rather than ahead of it, and by then DNS actually resolves so it comes up fast.
+echo "FPP - Deferring exim4 startup until after the network is up"
+mkdir -p /etc/systemd/system/exim4.service.d
+cat > /etc/systemd/system/exim4.service.d/fpp-defer.conf <<'EOF'
+[Unit]
+After=fpp_postnetwork.service
 EOF
 
 if $isimage; then

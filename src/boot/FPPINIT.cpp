@@ -1021,14 +1021,39 @@ static void resizeRootFS() {
     std::string rootPart = execAndReturn("/usr/bin/findmnt -n -o SOURCE /");
     TrimWhiteSpace(rootPart);
     exec("/usr/sbin/resize2fs " + rootPart);
-    exec("systemctl disable fpp-expand-rootfs.service");
+    // --no-reload is important: a bare "systemctl disable" performs an implicit
+    // daemon-reload, which on a single-core SBC (e.g. BeagleBone) takes ~11s and
+    // freezes systemd's entire job queue mid-boot -- stalling dbus, networkd, and
+    // fppinit. The removed symlink takes effect next boot regardless, so there's
+    // no reason to reload now.
+    exec("systemctl disable --no-reload fpp-expand-rootfs.service");
 }
 static void setupTimezone() {
     std::string s;
     getRawSetting("TimeZone", s);
     TrimWhiteSpace(s);
     if (!s.empty()) {
-        std::string c = GetFileContents("/etc/timezone");
+        // Debian 13 (trixie) no longer ships /etc/timezone -- the timezone is
+        // tracked solely by the /etc/localtime symlink. Reading the old file
+        // therefore always returned empty, so this used to run the expensive
+        // `timedatectl set-timezone` (a dbus round-trip to systemd-timedated
+        // that blocks ~15s on a single-core SBC) plus a backgrounded
+        // `dpkg-reconfigure tzdata` on EVERY boot, and twice (fppinit start +
+        // postNetwork). Derive the current zone by reading the /etc/localtime
+        // symlink target (a single syscall, no fork) and only reconfigure when
+        // it actually differs. The target looks like
+        // ".../usr/share/zoneinfo/America/New_York"; the zone is everything
+        // after "zoneinfo/".
+        std::string c;
+        std::error_code ec;
+        std::filesystem::path tzTarget = std::filesystem::read_symlink("/etc/localtime", ec);
+        if (!ec) {
+            std::string t = tzTarget.string();
+            size_t pos = t.find("zoneinfo/");
+            if (pos != std::string::npos) {
+                c = t.substr(pos + 9); // strlen("zoneinfo/")
+            }
+        }
         TrimWhiteSpace(c);
         if (c != s) {
             printf("Resetting timezone from %s to %s\n", c.c_str(), s.c_str());
@@ -1678,7 +1703,13 @@ static void setupAudio() {
             }
         }
     }
-    if (!hasNonHDMI || contains(aplay, "no soundcards")) {
+    // True when the only audio device is the synthetic snd-dummy (no real,
+    // non-HDMI sound card present) -- the common case on a BeagleBone with no
+    // audio cape. Used later to skip the expensive PipeWire device-enumeration
+    // and group-regeneration dance, which only matters for real/hot-pluggable
+    // hardware.
+    bool noRealSoundcard = (!hasNonHDMI || contains(aplay, "no soundcards"));
+    if (noRealSoundcard) {
         printf("FPP - No Soundcard Detected, loading snd-dummy\n");
         modprobe("snd-dummy");
     }
@@ -2208,7 +2239,16 @@ static void setupAudio() {
         // Wait for WirePlumber to enumerate ALSA devices before regenerating
         // configs.  WirePlumber needs a moment to discover USB sound cards
         // and create their PipeWire sink nodes.
-        if (hasGroupsConfig) {
+        //
+        // Fast path: when the only device is the synthetic snd-dummy there are
+        // no USB cards to discover and no card-number shifts to resolve, so the
+        // enumerate-wait + regenerate (+ possible restart) + volume-restore is
+        // pure waste -- ~25-30s of PHP and fixed sleeps on a single-core
+        // BeagleBone. The pre-start validation regen above already stripped any
+        // stale references, and the dummy sink is stable, so skip all of it.
+        if (hasGroupsConfig && noRealSoundcard) {
+            printf("FPP - No real sound card present; skipping PipeWire device enumeration/regeneration\n");
+        } else if (hasGroupsConfig) {
             printf("FPP - Waiting for WirePlumber to enumerate devices...\n");
             std::this_thread::sleep_for(std::chrono::seconds(3));
 
