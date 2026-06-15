@@ -1673,6 +1673,47 @@ static std::string getAlsaCardId(int cardNum) {
     return std::to_string(cardNum);
 }
 
+// Returns true if every ALSA card referenced by the PipeWire audio-groups JSON
+// is currently present (by stable card ID, as listed in /proc/asound/cards).
+// Used to decide whether the cached PipeWire group config is still valid for the
+// current hardware without forking the (expensive) regeneration PHP. A removed
+// or swapped card -> some referenced cardId is absent -> returns false so the
+// regen runs and strips/re-resolves it. The regen resolves by stable card ID
+// (not card number), so a card that's still present but renumbered keeps a valid
+// config -- which is why presence-by-ID is a sufficient check.
+static bool pipewireConfigCardsPresent(const std::string& jsonPath) {
+    if (!FileExists(jsonPath)) {
+        return false;
+    }
+    Json::Value root;
+    if (!LoadJsonFromString(GetFileContents(jsonPath), root)) {
+        return false;
+    }
+    std::vector<std::string> present;
+    std::istringstream iss(GetFileContents("/proc/asound/cards"));
+    std::string line;
+    while (std::getline(iss, line)) {
+        auto b = line.find('[');
+        auto e = line.find(']');
+        if (b != std::string::npos && e != std::string::npos && e > b) {
+            std::string id = line.substr(b + 1, e - b - 1);
+            TrimWhiteSpace(id);
+            if (!id.empty()) {
+                present.push_back(id);
+            }
+        }
+    }
+    for (const auto& grp : root["groups"]) {
+        for (const auto& mbr : grp["members"]) {
+            std::string cid = mbr.get("cardId", "").asString();
+            if (!cid.empty() && std::find(present.begin(), present.end(), cid) == present.end()) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 static void setupAudio() {
     if (!FileExists("/root/.libao")) {
         PutFileContents("/root/.libao", "dev=default");
@@ -2270,21 +2311,52 @@ static void setupAudio() {
     // session-bus cascade, so skipping it on an unchanged boot (always the case
     // on a no-soundcard board) saves ~10-15s on a single-core SBC.
     if (usePipeWireBackend && !runningInDocker) {
-        // Validate/regenerate the audio group config from the JSON. This is the
-        // authoritative change detector: it (re)writes the cached .conf + the
-        // /etc dest, resolves card numbers, strips references to now-absent ALSA
-        // devices (PipeWire crashes fatally trying to open a missing card), and
-        // returns exit 2 only when it actually changed something (incl. the
-        // first-time creation of the .conf). Run it whenever there's a groups
-        // config -- NOT gated on the dest already existing (chicken-and-egg: the
-        // regen is what creates it) and NOT skipped for no-soundcard (otherwise
-        // the .conf is never cached, so every boot looks "changed" and restarts).
-        // It does not need PipeWire running, so it's cheap when nothing changed.
+        // Validate/regenerate the audio group config from the JSON, and use its
+        // exit code (2 == it changed/created the .conf) to decide whether a
+        // restart is needed. Run it whenever there's a groups config -- NOT gated
+        // on the dest already existing (chicken-and-egg: the regen is what creates
+        // it).
+        //
+        // No real sound card: the synthetic snd-dummy can't go missing or shift
+        // cards, so the cached .conf is permanently valid. Run WITHOUT --force so
+        // the regen fast-exits (no pw-dump, no rewrite) when the cache is already
+        // clean -- avoiding a full regenerate + PipeWire restart on every boot.
+        // (--force is non-deterministic and reports "changed" every run, so it
+        // would restart PipeWire every boot.) With a real card we keep --force so
+        // a removed/shifted device is stripped before PipeWire opens it (PipeWire
+        // crashes fatally on a missing ALSA device).
         if (hasGroupsConfig) {
-            printf("FPP - Validating PipeWire audio group config against current hardware...\n");
-            int rc = system("/usr/bin/php /opt/fpp/scripts/regenerate_pipewire_groups --force");
-            if (WEXITSTATUS(rc) == 2) {
-                audioConfigChanged = true;
+            // Decide whether the cached PipeWire group config is still valid in
+            // C++ (cheap file reads) so we only fork the regeneration PHP -- which
+            // costs ~3s of php/common.php startup, ~6s under boot contention --
+            // when something actually changed. This covers BOTH no-soundcard and
+            // real-card boards (e.g. BBB capes with onboard PCM5012A): skip the
+            // PHP when the cached conf is complete (no unresolved-device warning),
+            // matches what PipeWire loaded at boot (dest), and every sound card it
+            // references is still present. The regen only runs on a genuine change
+            // (first boot, settings edit, or a card added/removed), which is rare.
+            bool needRegen = true;
+            if (FileExists(groupsConfCache) && FileExists(groupsConfDest)) {
+                std::string cached = GetFileContents(groupsConfCache);
+                const std::string& activeJson =
+                    (mediaBackendLower == "pipewire-simple") ? simpleGroupsJsonPath : groupsJsonPath;
+                if (cached.find("# WARNING:") == std::string::npos
+                    && cached == GetFileContents(groupsConfDest)
+                    && pipewireConfigCardsPresent(activeJson)) {
+                    needRegen = false;
+                    printf("FPP - PipeWire audio config valid, loaded, and all referenced cards present; skipping regeneration\n");
+                }
+            }
+            if (needRegen) {
+                std::string regenCmd = "/usr/bin/php /opt/fpp/scripts/regenerate_pipewire_groups";
+                if (!noRealSoundcard) {
+                    regenCmd += " --force";
+                }
+                printf("FPP - Validating PipeWire audio group config against current hardware...\n");
+                int rc = system(regenCmd.c_str());
+                if (WEXITSTATUS(rc) == 2) {
+                    audioConfigChanged = true;
+                }
             }
         }
 

@@ -1440,6 +1440,28 @@ cat > /etc/systemd/system/exim4-base.service.d/fpp-defer.conf <<'EOF'
 After=fpp_postnetwork.service
 EOF
 
+# ntpsec: fppinit's postNetwork now does a fast one-shot SNTP clock set, so the
+# ntpsec daemon isn't needed during the boot critical path -- it only refines
+# the clock afterwards. Start it after fpp_postnetwork so it's out of the
+# fppinit/networkd contention window on single-core SBCs.
+echo "FPP - Deferring ntpsec until after the clock is set in postNetwork"
+mkdir -p /etc/systemd/system/ntpsec.service.d
+cat > /etc/systemd/system/ntpsec.service.d/fpp-defer.conf <<'EOF'
+[Unit]
+After=fpp_postnetwork.service
+EOF
+
+# shellinabox: the web terminal is a convenience that's never needed at boot,
+# and its SysV init script takes ~6s (Type=forking) right in the postNetwork
+# window. Defer it until after fppd so it's fully off the critical path.
+# (It's a systemd-sysv-generator unit, but a drop-in still applies.)
+echo "FPP - Deferring shellinabox until after fppd"
+mkdir -p /etc/systemd/system/shellinabox.service.d
+cat > /etc/systemd/system/shellinabox.service.d/fpp-defer.conf <<'EOF'
+[Unit]
+After=fppd.service
+EOF
+
 if $isimage; then
     #######################################
     echo "FPP - Copying rsync daemon config files into place"
