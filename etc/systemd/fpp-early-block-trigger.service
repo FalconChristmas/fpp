@@ -1,14 +1,16 @@
 [Unit]
-Description=FPP - Early coldplug of block devices
+Description=FPP - Early coldplug of block and sound devices
 Documentation=https://github.com/FalconChristmas/fpp
-# The kernel creates the mmc/SD partition nodes very early (~4s), but on a
+# The kernel creates the mmc/SD partition nodes (and, on capes whose audio codec
+# is in the boot device tree, the sound card) very early (~4s), but on a
 # single-core SBC systemd's full udev coldplug processes ~700 AM335x devices
-# serially, so the lightweight block uevents aren't tagged until ~28s. Every
-# local mount (/, /boot/firmware, swap) and thus local-fs.target / swap.target
-# -- and all the FPP services ordered after them -- waits that out. Trigger and
-# settle just the block subsystem first, before the full coldplug, so the
-# partition .device units resolve in ~1s while the rest coldplugs in the
-# background.
+# serially, so those lightweight uevents aren't tagged until ~28s. For block
+# that means every local mount (/, /boot/firmware, swap) -- and the FPP services
+# ordered after local-fs.target/swap.target -- waits it out. For sound it means
+# WirePlumber sees the card late, stalling fpp_postnetwork's audio-device wait.
+# Trigger and settle just these two subsystems first, before the full coldplug,
+# so they resolve in ~1s while the rest coldplugs in the background. (On a
+# no-soundcard board snd-dummy isn't loaded yet, so the sound match is a no-op.)
 DefaultDependencies=no
 Wants=systemd-udevd.service
 After=systemd-udevd-kernel.socket systemd-udevd-control.socket systemd-udevd.service
@@ -18,7 +20,7 @@ Conflicts=shutdown.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/udevadm trigger --action=add --subsystem-match=block --settle
+ExecStart=/usr/bin/udevadm trigger --action=add --subsystem-match=block --subsystem-match=sound --settle
 
 [Install]
 WantedBy=sysinit.target
