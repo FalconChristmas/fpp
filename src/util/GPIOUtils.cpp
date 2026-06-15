@@ -590,6 +590,14 @@ const PinCapabilities& PinCapabilities::getPinByName(const std::string& n) {
             return a;
         }
     }
+    // PIN_PROVIDER is only set once InitGPIO() runs, which must wait until after
+    // cape detection so cape GPIO expanders are registered. Anything that looks
+    // up a pin before then (e.g. fppoled's early display init probing the i2c1
+    // fallback) gets the null pin rather than dereferencing a null provider --
+    // configPin() etc. on it are no-ops, so the lookup is safely skipped.
+    if (PIN_PROVIDER == nullptr) {
+        return NULL_PIN_INSTANCE;
+    }
     return PIN_PROVIDER->getPinByName(n);
 }
 const PinCapabilities& PinCapabilities::getPinByGPIO(int chip, int gpio) {
@@ -598,9 +606,15 @@ const PinCapabilities& PinCapabilities::getPinByGPIO(int chip, int gpio) {
             return a;
         }
     }
+    if (PIN_PROVIDER == nullptr) {
+        return NULL_PIN_INSTANCE;
+    }
     return PIN_PROVIDER->getPinByGPIO(chip, gpio);
 }
 const PinCapabilities& PinCapabilities::getPinByUART(const std::string& n) {
+    if (PIN_PROVIDER == nullptr) {
+        return NULL_PIN_INSTANCE;
+    }
     return PIN_PROVIDER->getPinByUART(n);
 }
 

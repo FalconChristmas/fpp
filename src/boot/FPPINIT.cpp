@@ -38,6 +38,9 @@
 #include "common_mini.h"
 #include <arpa/inet.h>
 #include <net/if.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 #include <systemd/sd-daemon.h>
 #include <ifaddrs.h>
 
@@ -1232,8 +1235,51 @@ static void handleBootDelay() {
     }
 }
 
-// Wait for time to sync via NTP/RTC - called AFTER waitForInterfacesUp
-// so we know if network is available
+// Minimal SNTP (RFC 4330) client: query an NTP server over UDP and step the
+// system clock to its transmit timestamp (second precision). ntpsec on Debian
+// 13 ships no one-shot client (ntpdig was dropped) and "ntpd -gq" takes ~20s to
+// produce a step; this sets the clock in ~1s so boot never blocks on it. The
+// ntpsec daemon refines to sub-millisecond afterwards. Must run as root
+// (clock_settime needs CAP_SYS_TIME). Returns true if the clock was set.
+static bool quickSntpSet(const std::string& host, int timeoutSecs) {
+    struct addrinfo hints {};
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    struct addrinfo* res = nullptr;
+    if (getaddrinfo(host.c_str(), "123", &hints, &res) != 0 || res == nullptr) {
+        return false;
+    }
+    bool ok = false;
+    int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (sock >= 0) {
+        struct timeval tv { timeoutSecs, 0 };
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+        unsigned char pkt[48] = { 0 };
+        pkt[0] = 0x1b; // LI=0, VN=3, Mode=3 (client)
+        if (sendto(sock, pkt, sizeof(pkt), 0, res->ai_addr, res->ai_addrlen) == (ssize_t)sizeof(pkt)
+            && recv(sock, pkt, sizeof(pkt), 0) == (ssize_t)sizeof(pkt)) {
+            int stratum = pkt[1];
+            // Transmit timestamp: 32-bit seconds since 1900, big-endian, at offset 40.
+            uint32_t ntpSecs = ((uint32_t)pkt[40] << 24) | ((uint32_t)pkt[41] << 16) | ((uint32_t)pkt[42] << 8) | (uint32_t)pkt[43];
+            // stratum 0 == "kiss o' death"/invalid; 16+ == unsynchronized.
+            // 2208988800 = seconds between the 1900 (NTP) and 1970 (Unix) epochs.
+            if (stratum > 0 && stratum < 16 && ntpSecs > 2208988800U) {
+                struct timespec ts { (time_t)(ntpSecs - 2208988800U), 0 };
+                ok = (clock_settime(CLOCK_REALTIME, &ts) == 0);
+            }
+        }
+        close(sock);
+    }
+    freeaddrinfo(res);
+    return ok;
+}
+
+// Ensure the clock is sane before fppd starts - called AFTER waitForInterfacesUp
+// so we know network is available. On RTC-less boards the clock boots stale (at
+// the image build date), which would make schedules and logs wrong. Rather than
+// block boot for ~20s waiting for the ntpsec daemon to step the clock, do a
+// quick one-shot SNTP set now and continue; the daemon refines it afterwards.
 static void handleTimeSyncWait() {
     int i = getRawSettingInt("bootDelay", -1);
     if (i != -1) {
@@ -1245,10 +1291,9 @@ static void handleTimeSyncWait() {
     const std::string skipFile = FPP_MEDIA_DIR + "/tmp/boot_delay_skip";
 
     // Check if there are any network interfaces that could get NTP time
-    // If not, skip the time wait - no point waiting for NTP on a device with no network
+    // If not, skip - no point trying NTP on a device with no network
     if (!hasNetworkInterfaceForNTP()) {
-        printf("FPP - No network interface found, skipping NTP time wait\n");
-        // Clean up flag files since we're skipping
+        printf("FPP - No network interface found, skipping NTP time set\n");
         unlink(delayFile.c_str());
         unlink(skipFile.c_str());
         return;
@@ -1259,57 +1304,40 @@ static void handleTimeSyncWait() {
     time_t fileTime = attr.st_ctime;
     time_t currentTime = time(nullptr);
 
-    double diffSecs = difftime(fileTime, currentTime);
-    if (diffSecs > 0) {
-        struct tm tmFile;
-        localtime_r(&fileTime, &tmFile);
-        char buffer[26];
-        strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tmFile);
-        printf("FPP - Waiting until system date is at least %s or 5 minutes\n", buffer);
-        // Create flag file for UI to show warning with timestamp
-        time_t startTime = time(nullptr);
-        std::string flagContent = std::to_string(startTime) + ",auto";
-        PutFileContents(delayFile, flagContent);
-        sd_notify(0, "STATUS=Waiting for valid system time (NTP/RTC)");
+    if (difftime(fileTime, currentTime) <= 0) {
+        // Clock is already at or past the image build date - nothing to do.
+        unlink(delayFile.c_str());
+        unlink(skipFile.c_str());
+        return;
     }
 
-    int count = 0;
-    while (diffSecs > 0 && count < 3000) {
-        // Check for skip request from UI every 500ms (5 iterations)
-        if (count % 5 == 0 && FileExists(skipFile)) {
-            printf("FPP - Boot delay skip requested by user\n");
-            unlink(skipFile.c_str());
-            break;
-        }
+    // Clock is stale (no RTC). Do a fast SNTP set against the configured server
+    // and move on -- do NOT block on full NTP convergence. Use the first
+    // pool/server from ntp.conf so a site-local time server is honoured; fall
+    // back to FPP's pool.
+    std::string ntpHost = execAndReturn(
+        "/usr/bin/awk '/^(pool|server)[[:space:]]/ { print $2; exit }' /etc/ntpsec/ntp.conf 2>/dev/null");
+    TrimWhiteSpace(ntpHost);
+    if (ntpHost.empty()) {
+        ntpHost = "falconplayer.pool.ntp.org";
+    }
 
-        // Exit early if NTP has already synchronized: the clock may still
-        // be catching up via slow adjtimex(), but NTPSynchronized=yes means
-        // the system knows the right time and the ctime comparison becomes
-        // irrelevant. Without this short-circuit, a Pi 5 with no RTC
-        // battery sits here for ~5 minutes every cold boot.
-        if (count % 10 == 0) {
-            std::string ntpSynced = execAndReturn(
-                "/usr/bin/timedatectl show -p NTPSynchronized --value 2>/dev/null");
-            TrimWhiteSpace(ntpSynced);
-            if (ntpSynced == "yes") {
-                printf("FPP - NTP synchronized after %d seconds, time wait done\n",
-                       count / 10);
-                break;
-            }
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    printf("FPP - System clock is stale; doing a quick SNTP set from %s\n", ntpHost.c_str());
+    sd_notify(0, "STATUS=Setting system clock via SNTP");
+    bool set = false;
+    for (int attempt = 0; attempt < 2 && !set; ++attempt) {
+        set = quickSntpSet(ntpHost, 2);
+    }
+    if (set) {
         currentTime = time(nullptr);
-        diffSecs = difftime(fileTime, currentTime);
-        count++;
-
-        // Notify systemd every 10 seconds (100 iterations)
-        if (count % 100 == 0) {
-            // Extend timeout by 30 seconds and send watchdog ping
-            sd_notifyf(0, "EXTEND_TIMEOUT_USEC=%llu\nWATCHDOG=1", (unsigned long long)30000000);
-        }
+        struct tm tmNow;
+        localtime_r(&currentTime, &tmNow);
+        char buffer[26];
+        strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", &tmNow);
+        printf("FPP - Clock set via SNTP to %s; ntpsec will refine it in the background\n", buffer);
+    } else {
+        printf("FPP - Quick SNTP set failed (no time server reachable yet); continuing, ntpsec will sync when available\n");
     }
-    // Remove flag files when delay completes
     unlink(delayFile.c_str());
     unlink(skipFile.c_str());
 }
@@ -2383,6 +2411,17 @@ void startZRAMSwap() {
         execbg("/usr/sbin/zramswap start 2>/dev/null > /dev/null &");
     }
 }
+void startDiskSwap() {
+    // The image ships a disk swap partition (e.g. mmcblk0p2) marked "noauto" in
+    // fstab so systemd does NOT activate it during boot: swapping to eMMC/SD
+    // wears the flash, and waiting for the swap device to be tagged by udev
+    // would otherwise gate swap.target on the slow single-core coldplug. zram is
+    // the primary swap; this larger disk swap is only useful for the occasional
+    // heavy job (e.g. compiling FPP). Bring it up here, late in postNetwork, off
+    // the boot critical path. swapon is harmless/idempotent if already active.
+    exec("/usr/bin/awk '$3 == \"swap\" && $1 !~ /zram/ { print $1 }' /etc/fstab 2>/dev/null "
+         "| while read -r dev; do /sbin/swapon \"$dev\" 2>/dev/null || true; done");
+}
 
 static void setupChannelOutputs() {
 #ifdef PLATFORM_PI
@@ -2617,6 +2656,7 @@ int main(int argc, char* argv[]) {
         setFileOwnership();
         checkInstallPackages();
         startZRAMSwap();
+        startDiskSwap();
         // Notify systemd that post-network setup is complete
         sd_notify(0, "READY=1\nSTATUS=FPP post-network setup complete");
     } else if (action == "bootPre") {

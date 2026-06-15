@@ -1,0 +1,24 @@
+[Unit]
+Description=FPP - Early coldplug of block devices
+Documentation=https://github.com/FalconChristmas/fpp
+# The kernel creates the mmc/SD partition nodes very early (~4s), but on a
+# single-core SBC systemd's full udev coldplug processes ~700 AM335x devices
+# serially, so the lightweight block uevents aren't tagged until ~28s. Every
+# local mount (/, /boot/firmware, swap) and thus local-fs.target / swap.target
+# -- and all the FPP services ordered after them -- waits that out. Trigger and
+# settle just the block subsystem first, before the full coldplug, so the
+# partition .device units resolve in ~1s while the rest coldplugs in the
+# background.
+DefaultDependencies=no
+Wants=systemd-udevd.service
+After=systemd-udevd-kernel.socket systemd-udevd-control.socket systemd-udevd.service
+Before=systemd-udev-trigger.service local-fs-pre.target shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/udevadm trigger --action=add --subsystem-match=block --settle
+
+[Install]
+WantedBy=sysinit.target

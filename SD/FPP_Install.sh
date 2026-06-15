@@ -1685,6 +1685,16 @@ EOF
 
         sed -i 's|tmpfs\s*/tmp\s*tmpfs.*||g' /etc/fstab
         sed -i 's|tmpfs\s*/var/tmp\s*tmpfs.*||g' /etc/fstab
+
+        # Defer the disk swap partition: mark it "noauto" so systemd does not
+        # activate it during boot. Otherwise swap.target waits for the swap
+        # device to be tagged by the slow single-core udev coldplug, and we wear
+        # the eMMC/SD by swapping to it during normal operation. zram remains the
+        # primary swap; fppinit's startDiskSwap() brings this partition up late
+        # (post-network), off the boot critical path, where it's still available
+        # for heavy jobs like compiling FPP. Idempotent: skips lines already
+        # carrying noauto.
+        sed -i -E '/noauto/!s;^([^#]\S+\s+\S+\s+swap\s+)(\S+)(\s+[0-9]+\s+[0-9]+\s*)$;\1\2,noauto\3;' /etc/fstab
     fi
 
     # /home/fpp/media lives on an external drive only when the user explicitly
@@ -1890,9 +1900,17 @@ install_fpp_services() {
     systemctl daemon-reload
 
     local svc
-    for svc in fppinit fpprtc fppoled fppd fpp_postnetwork \
+    for svc in fpp-early-block-trigger fppinit fpprtc fppoled fppd fpp_postnetwork \
                fpp-install-kiosk fpp-reboot \
                fpp-pipewire fpp-wireplumber fpp-pipewire-pulse; do
+        # fpp-install-kiosk sets up the local on-device browser UI shown over
+        # HDMI. BeagleBones run headless with HDMI disabled, so it would never
+        # be used there -- skip it (and disable, in case a prior run enabled it).
+        if [ "$svc" = "fpp-install-kiosk" ] && \
+           { [ "$FPPPLATFORM" = "BeagleBone Black" ] || [ "$FPPPLATFORM" = "BeagleBone 64" ]; }; then
+            systemctl disable ${svc}.service 2>/dev/null || true
+            continue
+        fi
         systemctl enable ${svc}.service
     done
 }

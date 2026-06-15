@@ -7,7 +7,13 @@ ConditionPathIsSymbolicLink=!/tmp
 DefaultDependencies=no
 Conflicts=umount.target
 Before=local-fs.target umount.target
-After=swap.target
+# NOTE: the stock systemd tmp.mount ships "After=swap.target". We deliberately
+# drop it. A tmpfs needs no swap to mount, but swap.target waits for every swap
+# device -- including a disk swap partition (e.g. mmcblk0p2 on the BeagleBone
+# image) that udev doesn't surface until ~28s on a single-core SBC. With the
+# ordering in place, /tmp -- and every FPP service ordered After=tmp.mount
+# (fppinit, fppoled, ...) -- waited out that whole device-settle delay. zram
+# swap covers any real memory pressure; /tmp mounting before swap is harmless.
 
 [Mount]
 What=tmpfs

@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
                 count++;
             }
             if (FileExists("/home/fpp/media/tmp/cape-image.xbm")) {
-                CopyFileContents("/home/fpp/media/tmp/cape-image.xbm", "/tmp/cape-image.xbm");
+                CopyFileContents("/home/fpp/media/tmp/cape-image.xbm", "/var/tmp/cape-image.xbm");
             }
             return 0;
         }
