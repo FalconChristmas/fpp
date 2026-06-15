@@ -97,6 +97,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
     $showOSSecurity = 0;
     if (file_exists('/etc/fpp/platform') && !file_exists('/etc/fpp/container'))
         $showOSSecurity = 1;
+
+    // The initial setup page is shown both on a true first boot and again after an
+    // fppOS update that introduces a new required setup step. The redirect gate
+    // (menuHead.inc) keys off the current completion flag (initialSetup-02); each
+    // time a new step is required the flag name is bumped, so a box that completed
+    // an EARLIER setup generation still carries a previous-generation flag set to 1
+    // while the current one is absent. A true first boot has none of them set.
+    //
+    // When the box was already configured we take a configuration backup BEFORE
+    // applying any changes, so the prior config can be restored if needed. A fresh
+    // box has nothing worth backing up beforehand. Both cases get the single
+    // after-setup backup (see finishSetup()).
+    $previousSetupFlags = array('initialSetup', 'initialSetup-01');
+    $alreadyConfigured = 0;
+    foreach ($previousSetupFlags as $f) {
+        if (isset($settings[$f]) && $settings[$f] == '1') {
+            $alreadyConfigured = 1;
+            break;
+        }
+    }
     ?>
     <script>
         // Store all pending setting changes
@@ -219,6 +239,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             });
         }
 
+        function showSetupProgress(msg) {
+            $('#setupProgress').removeClass('d-none').html('<i class="fas fa-spinner fa-spin"></i> ' + msg);
+        }
+
+        function hideSetupProgress() {
+            $('#setupProgress').addClass('d-none').html('');
+        }
+
         function finishSetup() {
             var passwordEnable = $('#passwordEnable').val();
             if (passwordEnable == '') {
@@ -258,41 +286,203 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 }
             });
 
-            // Save all pending settings
-            var settingsToSave = Object.keys(filteredSettings).length;
-            var settingsSaved = 0;
+            // Enabling the UI password reloads apache with authentication required,
+            // after which the browser's (remote) requests get 401s. So the UI
+            // password settings MUST be applied LAST - after every other setting and
+            // after the completion flag - otherwise those later saves would be
+            // rejected and the user would be bounced back into initial setup. (The
+            // server-side config backup still works after auth is enabled because it
+            // runs over localhost, which the apache rule allows via 'Require local'.)
+            var uiPasswordOrder = ['password', 'passwordEnable']; // write value, then enable
+            // OS (system login) password: applying it runs chpasswd (yescrypt, ~3s).
+            // When both the value and the enable toggle are being saved, write the
+            // value WITHOUT applying it and let the single enable step run chpasswd
+            // once - otherwise it runs twice (value + enable) for ~6s. Order matters:
+            // the value must be written to the settings file before the enable step,
+            // which reads it back to apply it.
+            var osPasswordOrder = ['osPassword', 'osPasswordEnable'];
+            var specialKeys = uiPasswordOrder.concat(osPasswordOrder);
+            var otherKeys = [];
+            var uiPasswordKeys = [];
+            var osPasswordKeys = [];
+            $.each(filteredSettings, function (key) {
+                if (specialKeys.indexOf(key) === -1) {
+                    otherKeys.push(key);
+                }
+            });
+            $.each(uiPasswordOrder, function (i, key) {
+                if (filteredSettings.hasOwnProperty(key)) {
+                    uiPasswordKeys.push(key);
+                }
+            });
+            $.each(osPasswordOrder, function (i, key) {
+                if (filteredSettings.hasOwnProperty(key)) {
+                    osPasswordKeys.push(key);
+                }
+            });
+
             var failedSettings = [];
 
-            function completeSetup() {
-                if (failedSettings.length > 0) {
-                    DialogError('Save Setting', 'Failed to save: ' + failedSettings.join(', '));
-                    return;
-                }
+            // Disable the buttons and show a spinner so the user gets immediate
+            // feedback - on slower devices saving the settings can take a few seconds.
+            var $finishBtn = $('#finishSetupBtn');
+            $finishBtn.prop('disabled', true);
+            $('#restoreSetupBtn').prop('disabled', true);
 
-                Put('api/settings/initialSetup-02', false, '1');
+            function finishWithErrors() {
+                hideSetupProgress();
+                $finishBtn.prop('disabled', false);
+                $('#restoreSetupBtn').prop('disabled', false);
+                DialogError('Save Setting', 'Failed to save: ' + failedSettings.join(', '));
+            }
+
+            function redirectToApp() {
                 var redirectURL = <?= json_encode($_GET['redirect'] ?? '') ?>;
                 location.href = (redirectURL == '') ? 'index.php' : redirectURL;
             }
 
-            if (settingsToSave > 0) {
-                $.each(filteredSettings, function (key, value) {
-                    SetSetting(key, value, 0, 0, false, null, function () {
-                        settingsSaved++;
-                        if (settingsSaved == settingsToSave) {
-                            completeSetup();
-                        }
-                    }, function () {
-                        failedSettings.push(key);
-                        settingsSaved++;
-                        if (settingsSaved == settingsToSave) {
-                            completeSetup();
-                        }
-                    });
+            // Save a single setting via PUT. skipBackup avoids the (expensive)
+            // per-setting configuration backup - exactly one backup is generated by
+            // the final save below so it captures the fully-configured state.
+            // skipApply persists the value without running its apply side effects.
+            function savePut(key, value, skipBackup, done, skipApply) {
+                var params = [];
+                if (skipBackup) { params.push('skipBackup=1'); }
+                if (skipApply) { params.push('skipApply=1'); }
+                $.ajax({
+                    url: 'api/settings/' + key + (params.length ? ('?' + params.join('&')) : ''),
+                    data: '' + value,
+                    method: 'PUT',
+                    success: function () { settings[key] = value; },
+                    error: function () { failedSettings.push(key); },
+                    complete: done
                 });
-            } else {
-                // No settings changed, just set completion flag
-                completeSetup();
             }
+
+            // Save the OS (system login) password settings, then call done(). If both
+            // the value and the enable toggle are present, the value is written with
+            // skipApply so only the enable step runs chpasswd (once).
+            function saveOsPasswordThen(done) {
+                if (failedSettings.length > 0 || osPasswordKeys.length === 0) {
+                    done();
+                    return;
+                }
+                var dedupe = (osPasswordKeys.length > 1);
+                function step(i) {
+                    if (i >= osPasswordKeys.length) {
+                        done();
+                        return;
+                    }
+                    var key = osPasswordKeys[i];
+                    var skipApply = dedupe && (key !== 'osPasswordEnable');
+                    showSetupProgress('Saving OS password...');
+                    savePut(key, filteredSettings[key], true, function () {
+                        step(i + 1);
+                    }, skipApply);
+                }
+                step(0);
+            }
+
+            // Save a list of keys (from filteredSettings) one at a time, async so the
+            // browser can paint the progress indicator (a synchronous loop freezes the
+            // UI). All use skipBackup.
+            function saveSequential(list, i, label, done) {
+                if (i >= list.length) {
+                    done();
+                    return;
+                }
+                var key = list[i];
+                showSetupProgress(label + ' (' + (i + 1) + ' of ' + list.length + ')...');
+                savePut(key, filteredSettings[key], true, function () {
+                    saveSequential(list, i + 1, label, done);
+                });
+            }
+
+            // After the non-password settings are saved: write the completion flag,
+            // then apply the UI password LAST, then redirect.
+            function saveCompletionAndPasswords() {
+                if (failedSettings.length > 0) {
+                    finishWithErrors();
+                    return;
+                }
+
+                if (uiPasswordKeys.length === 0) {
+                    // No UI password change: save the completion flag WITHOUT
+                    // skipBackup so it generates the single configuration backup.
+                    showSetupProgress('Creating configuration backup...');
+                    savePut('initialSetup-02', '1', false, function () {
+                        settings['initialSetup-02'] = '1';
+                        if (failedSettings.length > 0) {
+                            finishWithErrors();
+                            return;
+                        }
+                        redirectToApp();
+                    });
+                    return;
+                }
+
+                // UI password is being applied. Save the completion flag first (with
+                // skipBackup, while the browser is still un-authenticated); it is then
+                // captured by the final backup. Then apply the UI password keys last,
+                // the final one (passwordEnable) without skipBackup so it generates
+                // the single backup AND enables auth as the very last action.
+                showSetupProgress('Finishing setup...');
+                savePut('initialSetup-02', '1', true, function () {
+                    settings['initialSetup-02'] = '1';
+
+                    function savePw(i) {
+                        // Don't enable auth if an earlier (password value) save failed
+                        // - that could lock the user out with an unknown password.
+                        if (failedSettings.length > 0) {
+                            finishWithErrors();
+                            return;
+                        }
+                        var key = uiPasswordKeys[i];
+                        var isLast = (i === uiPasswordKeys.length - 1);
+                        showSetupProgress(isLast ? 'Applying UI password & creating backup...' : 'Saving UI password...');
+                        savePut(key, filteredSettings[key], !isLast, function () {
+                            if (isLast) {
+                                // Auth is now enabled; the browser is locked out of
+                                // further requests, so redirect - index.php will prompt
+                                // for the new credentials.
+                                redirectToApp();
+                            } else {
+                                savePw(i + 1);
+                            }
+                        });
+                    }
+                    savePw(0);
+                });
+            }
+
+            function startSaving() {
+                var afterOthers = function () {
+                    saveOsPasswordThen(saveCompletionAndPasswords);
+                };
+                if (otherKeys.length > 0) {
+                    saveSequential(otherKeys, 0, 'Saving settings', afterOthers);
+                } else {
+                    afterOthers();
+                }
+            }
+
+            // On an already-configured box (initial setup re-run after an fppOS
+            // update), back up the current configuration BEFORE applying any changes
+            // so the prior config can be restored. A fresh first boot skips this.
+            <? if ($alreadyConfigured) { ?>
+                showSetupProgress('Backing up current configuration...');
+                $.ajax({
+                    url: 'api/backups/configuration',
+                    type: 'POST',
+                    data: 'Before FPP Setup (run after update)',
+                    contentType: 'text/plain',
+                    complete: function () {
+                        startSaving();
+                    }
+                });
+            <? } else { ?>
+                startSaving();
+            <? } ?>
         }
 
         var hiddenChildren = {};
@@ -395,10 +585,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                             <h2>Initial Setup</h2>
                         </div>
                         <div class="col-md-auto ms-lg-auto">
-                            <div class="d-flex gap-2">
-                                <input type='button' class='buttons' value='Restore from Backup'
+                            <div class="d-flex gap-2 align-items-center">
+                                <span id='setupProgress' class='d-none text-muted me-2'></span>
+                                <input type='button' id='restoreSetupBtn' class='buttons' value='Restore from Backup'
                                     onClick='openRestoreDialog();'>
-                                <input type='button' class='buttons btn-success' value='Finish Setup'
+                                <input type='button' id='finishSetupBtn' class='buttons btn-success' value='Finish Setup'
                                     onClick='finishSetup();'>
                             </div>
                         </div>

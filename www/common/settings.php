@@ -5,12 +5,18 @@ function SetTimeZone($timezone)
     if (file_exists("/etc/fpp/container")) {
         exec("sudo ln -s -f /usr/share/zoneinfo/$timezone /etc/localtime");
         exec("sudo bash -c \"echo $timezone > /etc/timezone\"");
+        // We wrote /etc/timezone by hand; sync tzdata's caches/symlink.
+        exec("sudo dpkg-reconfigure -f noninteractive tzdata");
     } else if (file_exists('/usr/bin/timedatectl')) {
+        // timedatectl set-timezone already updates /etc/localtime and the system
+        // timezone, so the (slow, ~5s on a BBB) dpkg-reconfigure tzdata step that
+        // used to run here is redundant and just made saving the setting hang.
         exec("sudo timedatectl set-timezone $timezone");
     } else {
         exec("sudo bash -c \"echo $timezone > /etc/timezone\"");
+        // No timedatectl available; dpkg-reconfigure applies /etc/timezone.
+        exec("sudo dpkg-reconfigure -f noninteractive tzdata");
     }
-    exec("sudo dpkg-reconfigure -f noninteractive tzdata");
 }
 
 function SetHWClock()
@@ -115,10 +121,15 @@ function SetUIPassword($value)
         $value = 'falcon';
     }
 
-    // Write a new password file, replacing odl one if exists.
-    // users fpp and admin
-    // BCRYPT requires apache 2.4+
-    $encrypted_password = password_hash($value, PASSWORD_BCRYPT);
+    // Write a new password file, replacing old one if exists; users fpp and admin.
+    //
+    // Apache mod_auth_basic re-verifies the htpasswd hash on EVERY request with no
+    // caching. bcrypt (PHP 8.4 bumped the default to cost 12) takes ~1.4s per verify
+    // on a BBB, so every page - which fires many API/asset requests - stacked up to
+    // ~10s of unresponsiveness. The UI password is a low-value secret on a LAN device
+    // (the plaintext is even kept in the settings file), so use apache's fast
+    // unsalted SHA-1 ({SHA}) htpasswd format, which verifies in microseconds.
+    $encrypted_password = "{SHA}" . base64_encode(sha1($value, true));
     $data = "admin:$encrypted_password\nfpp:$encrypted_password\n";
     $filename = $settings['mediaDirectory'] . "/config/.htpasswd";
 

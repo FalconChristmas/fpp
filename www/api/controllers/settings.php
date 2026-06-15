@@ -89,15 +89,32 @@ function PutSetting()
 
     WriteSettingToFile($setting, $value);
 
-    if (str_starts_with($setting, "LogLevel")) {
+    // Callers can pass ?skipApply=1 to persist the value WITHOUT running the
+    // (sometimes expensive) side effects that apply it. This is used to write a
+    // value that a different setting's apply step will pick up - e.g. the initial
+    // setup page writes osPassword with skipApply so that only the single
+    // osPasswordEnable apply runs chpasswd (yescrypt, ~3s) rather than running it
+    // twice (once for the value, once for the enable).
+    $skipApply = isset($_GET['skipApply']) && $_GET['skipApply'] == '1';
+
+    if ($skipApply) {
+        // Value already written above; the caller will apply it via another setting.
+    } else if (str_starts_with($setting, "LogLevel")) {
         SendCommand("LogLevel,$setting,$value,");
     } else if ($setting == "HostName") {
         $value = preg_replace("/[^-a-zA-Z0-9]/", "", $value);
+        // Run all the hostname updates in a single sudo/bash invocation rather than
+        // four separate sudo calls (each fork+sudo is slow on a BBB). This also
+        // fixes a latent bug: the original had no ';' before "hostname $value", so
+        // sed swallowed "sudo hostname $value" as extra filenames and the running
+        // hostname was never actually updated. $value is sanitized to [-a-zA-Z0-9].
         exec(
-            $SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
-            $SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
-            $SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts " .
-            $SUDO . " hostname $value ; ",
+            $SUDO . " bash -c " . escapeshellarg(
+                "sed -i 's/^.*\$/$value/' /etc/hostname ; " .
+                "sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
+                "sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
+                "hostname $value"
+            ),
             $output,
             $return_val
         );
@@ -240,8 +257,14 @@ function PutSetting()
         SendCommand("SetSetting,$setting,$value,");
     }
 
+    //Callers saving many settings in a row (e.g. the initial setup page) can pass
+    //?skipBackup=1 to avoid generating a full configuration backup on every single
+    //setting - the backup is expensive on slower devices - and instead create one
+    //backup once all the settings have been saved.
+    $skipBackup = isset($_GET['skipBackup']) && $_GET['skipBackup'] == '1';
+
     //If the setting being set isn't the reboot or restart flag (we don't want to trigger a backup on these)
-    if (in_array(ltrim(rtrim($setting)), array('restartFlag', 'rebootFlag', 'currentHeaderSensor')) === false) {
+    if (!$skipBackup && in_array(ltrim(rtrim($setting)), array('restartFlag', 'rebootFlag', 'currentHeaderSensor')) === false) {
         //Make a call to the configuration backup API endpoint so we can generate a backup
         $backup_comment = GenerateBackupComment($setting, $value);
         GenerateBackupViaAPI($backup_comment);
