@@ -426,21 +426,12 @@ function setVolume($vol)
     $status = SendCommand('v,' . $vol . ',');
 
     if ($settings["Platform"] != "MacOS") {
-        $card = 0;
-        if (isset($settings['AudioOutput'])) {
-            $card = $settings['AudioOutput'];
-        } else {
-            exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
-            if ($return_val) {
-                // Should we error here, or just move on?
-                // Technically this should only fail on non-pi
-                // and pre-0.3.0 images
-                $rc = "Error retrieving current sound card, using default of '0'!";
-            } else {
-                $card = $output[0];
-            }
-
-            WriteSettingToFile("AudioOutput", $card);
+        // AudioOutput is stored as a stable ALSA card ID; amixer needs the
+        // numeric card index, so resolve it (legacy numeric values pass through).
+        $cardId = isset($settings['AudioOutput']) ? $settings['AudioOutput'] : '';
+        $card = ResolveAlsaCardIdToNumber($cardId);
+        if ($card === '') {
+            $card = ctype_digit((string) $cardId) ? $cardId : '0';
         }
 
         $mixerDevice = "PCM";

@@ -1210,18 +1210,25 @@ function SetAudioOutput($card)
 
     global $args, $SUDO, $debug, $settings;
 
-    if ($card != 0 && file_exists("/proc/asound/card$card")) {
-        exec($SUDO . " sed -i 's/card [0-9]/card " . $card . "/' /root/.asoundrc", $output, $return_val);
+    // $card is a stable ALSA card ID (legacy callers may still pass a numeric
+    // index). Resolve to the current ALSA card number for the ALSA tools below.
+    $cardNum = ResolveAlsaCardIdToNumber($card);
+    if ($cardNum === '') {
+        $cardNum = ctype_digit((string) $card) ? (string) $card : '0';
+    }
+
+    if ($cardNum != 0 && file_exists("/proc/asound/card$cardNum")) {
+        exec($SUDO . " sed -i 's/card [0-9]/card " . $cardNum . "/' /root/.asoundrc", $output, $return_val);
         unset($output);
         if ($return_val) {
-            error_log("Failed to set audio to card $card!");
+            error_log("Failed to set audio to card $card ($cardNum)!");
             return;
         }
         if ($debug) {
-            error_log("Setting to audio output $card");
+            error_log("Setting to audio output $card ($cardNum)");
         }
-    } else if ($card == 0) {
-        exec($SUDO . " sed -i 's/card [0-9]/card " . $card . "/' /root/.asoundrc", $output, $return_val);
+    } else if ($cardNum == 0) {
+        exec($SUDO . " sed -i 's/card [0-9]/card " . $cardNum . "/' /root/.asoundrc", $output, $return_val);
         unset($output);
         if ($return_val) {
             error_log("Failed to set audio back to default!");
@@ -1233,12 +1240,12 @@ function SetAudioOutput($card)
 
     }
     // need to also reset mixer device
-    $AudioMixerDevice = exec("sudo amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+    $AudioMixerDevice = exec("sudo amixer -c $cardNum scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
     unset($output);
     if ($return_val == 0) {
         WriteSettingToFile("AudioMixerDevice", $AudioMixerDevice);
-        if ($settings['Platform'] == "Raspberry Pi" && $card == 0) {
-            $type = exec("sudo aplay -l | grep \"card $card\"", $output, $return_val);
+        if ($settings['Platform'] == "Raspberry Pi" && $cardNum == 0) {
+            $type = exec("sudo aplay -l | grep \"card $cardNum\"", $output, $return_val);
             if (strpos($type, '[bcm') !== false) {
                 WriteSettingToFile("AudioCard0Type", "bcm");
             } else {

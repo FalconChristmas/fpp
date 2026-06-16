@@ -206,6 +206,65 @@ function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
     fclose($fd);
 }
 
+/**
+ * Resolve a stable ALSA card ID (e.g. "S3", "bcm2835ALSA") to its current ALSA
+ * card number by scanning /proc/asound/cards.  Returns the card number as a
+ * string, or '' if no currently-present card matches that ID.
+ *
+ * Inverse of pipewire.php's ResolveAlsaCardNumberToId().  Lives in common.php so
+ * it is available to every page/controller (e.g. backup.php) and not just the
+ * API controllers, which are auto-loaded together.
+ */
+function ResolveAlsaCardIdToNumber($cardId)
+{
+    $cardId = trim((string) $cardId);
+    if ($cardId === '') {
+        return '';
+    }
+    $cardsFile = @file_get_contents('/proc/asound/cards');
+    if ($cardsFile && preg_match_all('/^\s*(\d+)\s*\[([^\]]+)\]/m', $cardsFile, $m, PREG_SET_ORDER)) {
+        foreach ($m as $row) {
+            if (trim($row[2]) === $cardId) {
+                return $row[1];
+            }
+        }
+    }
+    return '';
+}
+
+/**
+ * Normalize a stored AudioOutput value to a stable ALSA card ID.  AudioOutput is
+ * persisted as a card ID, but legacy installs (and the brief window before
+ * FPPINIT migrates the value at boot) may still hold a numeric card index, so
+ * readers accept either form.
+ *   - empty       -> the first present card's ID (or '' if no cards)
+ *   - all-numeric -> legacy card index, resolved to that card's ID via
+ *                    /proc/asound/cardN/id ('' if the index is no longer present)
+ *   - otherwise   -> already a card ID, returned as-is
+ */
+function NormalizeAudioOutputToCardId($value)
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        $cardsFile = @file_get_contents('/proc/asound/cards');
+        if ($cardsFile && preg_match('/^\s*(\d+)\s*\[([^\]]+)\]/m', $cardsFile, $m)) {
+            return trim($m[2]);
+        }
+        return '';
+    }
+    if (ctype_digit($value)) {
+        $idFile = "/proc/asound/card{$value}/id";
+        if (file_exists($idFile)) {
+            $id = trim(@file_get_contents($idFile));
+            if ($id !== '') {
+                return $id;
+            }
+        }
+        return '';
+    }
+    return $value;
+}
+
 function DeleteSettingFromFile($settingName, $plugin = "")
 {
     global $settingsFile;

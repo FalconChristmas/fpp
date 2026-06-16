@@ -78,6 +78,33 @@ static std::string getAlsaCardId(int cardNum) {
     return std::to_string(cardNum);
 }
 
+// Inverse of getAlsaCardId: resolve a stable ALSA card ID (e.g. "S3",
+// "bcm2835ALSA") to its current card number by scanning /proc/asound/cards.
+// Returns -1 if no currently-present card matches that ID.
+static int getAlsaCardNumForId(const std::string& cardId) {
+    if (cardId.empty()) {
+        return -1;
+    }
+    std::istringstream iss(GetFileContents("/proc/asound/cards"));
+    std::string line;
+    while (std::getline(iss, line)) {
+        auto bracket = line.find('[');
+        auto closeBracket = line.find(']');
+        if (bracket != std::string::npos && closeBracket != std::string::npos && closeBracket > bracket) {
+            std::string id = line.substr(bracket + 1, closeBracket - bracket - 1);
+            TrimWhiteSpace(id);
+            if (id == cardId) {
+                std::string numStr = line.substr(0, bracket);
+                TrimWhiteSpace(numStr);
+                try {
+                    return std::stoi(numStr);
+                } catch (...) {}
+            }
+        }
+    }
+    return -1;
+}
+
 // Returns true if every ALSA card referenced by the PipeWire audio-groups JSON
 // is currently present (by stable card ID, as listed in /proc/asound/cards).
 // Used to decide whether the cached PipeWire group config is still valid for the
@@ -192,7 +219,30 @@ void setupAudio() {
         printf("FPP - No Soundcard Detected, loading snd-dummy\n");
         modprobe("snd-dummy");
     }
-    int card = getRawSettingInt("AudioOutput", 0);
+    // AudioOutput is persisted as a stable ALSA card ID string (e.g. "S3",
+    // "bcm2835ALSA") rather than a card index, so a probe-order change (USB
+    // add/remove, slow-probing cape, kernel update) doesn't repoint us at the
+    // wrong device. Resolve it to the current card number here; everything
+    // below continues to work with the numeric index.
+    //   - empty/unset  -> first present card (index 0), as before
+    //   - all-digits   -> legacy index; used as-is and migrated to an ID below
+    //   - otherwise    -> card ID; matched against /proc/asound/cards
+    std::string audioOutputId;
+    getRawSetting("AudioOutput", audioOutputId);
+    TrimWhiteSpace(audioOutputId);
+    bool legacyNumeric = !audioOutputId.empty() && audioOutputId.find_first_not_of("0123456789") == std::string::npos;
+    int card = 0;
+    if (audioOutputId.empty()) {
+        card = 0;
+    } else if (legacyNumeric) {
+        card = std::stoi(audioOutputId);
+    } else {
+        card = getAlsaCardNumForId(audioOutputId);
+        if (card < 0) {
+            printf("FPP - Audio device '%s' not currently present; falling back to card 0\n", audioOutputId.c_str());
+            card = 0;
+        }
+    }
     std::string cstr = "card " + std::to_string(card);
     bool found = false;
     int count = 0;
@@ -224,11 +274,11 @@ void setupAudio() {
             printf("FPP - Audio device %d has no HDMI connected, switching to card %d (%s)\n",
                    card, fallback, cards["card " + std::to_string(fallback)].c_str());
             card = fallback;
-            setRawSetting("AudioOutput", std::to_string(card));
+            setRawSetting("AudioOutput", getAlsaCardId(card));
         } else {
             card = cards.size();
             found = true;
-            setRawSetting("AudioOutput", std::to_string(card));
+            setRawSetting("AudioOutput", getAlsaCardId(card));
         }
     }
     while (!found && count < 50) {
@@ -243,9 +293,17 @@ void setupAudio() {
     if (!found) {
         printf("FPP - Could not find audio device %d, defaulting to device 0.\n", card);
         CopyFileContents("/opt/fpp/etc/asoundrc.plain", "/root/.asoundrc");
-        setRawSetting("AudioOutput", "0");
+        setRawSetting("AudioOutput", getAlsaCardId(0));
     } else {
         printf("FPP - Waited for %d seconds for audio device\n", (count / 5));
+        // Persist the selection as the stable ALSA card ID. This migrates a
+        // legacy numeric value and canonicalizes the stored ID so the next
+        // boot matches by name regardless of probe order.
+        std::string canonicalId = getAlsaCardId(card);
+        if (!canonicalId.empty() && canonicalId != audioOutputId) {
+            printf("FPP - Persisting selected audio device as ID '%s'\n", canonicalId.c_str());
+            setRawSetting("AudioOutput", canonicalId);
+        }
         // Point ALSA's default at the chosen card so root-context playback
         // (e.g. flite from fppinit) doesn't land on a dead HDMI device.
         std::string arc = GetFileContents("/opt/fpp/etc/asoundrc.plain");

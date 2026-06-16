@@ -3,29 +3,26 @@ $skipJSsettings = 1;
 require_once('common.php');
 
 /////////////////////////////////////////////////////////////////////////////
-// Set a sane audio device if not set already
+// Set a sane audio device if not set already. AudioOutput is stored as a stable
+// ALSA card ID; seed it with the first present card's ID so the dropdown has a
+// selection. (FPPINIT also resolves/migrates this at boot.)
 if (
     (!isset($settings['AudioOutput'])) ||
     ($settings['AudioOutput'] == '')
 ) {
-
-    exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
-    if ($return_val) {
-        error_log("Error getting currently selected alsa card used!");
-    } else {
-        if (isset($output[0]))
-            $settings['AudioOutput'] = $output[0];
-        else
-            $settings['AudioOutput'] = "0";
-    }
-    unset($output);
+    $settings['AudioOutput'] = NormalizeAudioOutputToCardId('');
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // Set a sane audio mixer device if not set already
 if (!isset($settings['AudioMixerDevice'])) {
     if ($settings['BeaglePlatform']) {
-        $settings['AudioMixerDevice'] = exec($SUDO . " amixer -c " . $settings['AudioOutput'] . " scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+        // AudioOutput is a stable ALSA card ID; amixer needs the numeric index.
+        $mixerCardNum = ResolveAlsaCardIdToNumber($settings['AudioOutput']);
+        if ($mixerCardNum === '') {
+            $mixerCardNum = ctype_digit((string) $settings['AudioOutput']) ? $settings['AudioOutput'] : '0';
+        }
+        $settings['AudioMixerDevice'] = exec($SUDO . " amixer -c " . $mixerCardNum . " scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
         if ($return_val) {
             $settings['AudioMixerDevice'] = "PCM";
         }

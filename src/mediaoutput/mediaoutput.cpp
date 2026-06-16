@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include <set>
+#include <sstream>
 #include <string>
 
 #include "MultiSync.h"
@@ -39,6 +40,46 @@ float masterMediaPosition = 0.0;
 std::mutex mediaOutputLock;
 
 static bool firstOutCreate = true;
+
+// AudioOutput is persisted as a stable ALSA card ID string (e.g. "S3",
+// "bcm2835ALSA"); setupAudio() in boot/FPPINIT_Audio.cpp migrates legacy numeric
+// values on boot. Resolve it to the current card number for amixer. Read
+// defensively: an all-numeric value is treated as a legacy card index, otherwise
+// it is matched against /proc/asound/cards by ID. Mirrors getAlsaCardNumForId()
+// in boot/FPPINIT_Audio.cpp (fppd and fppinit are separate binaries and cannot
+// share the static helper).
+static int resolveAudioOutputCardNum() {
+    std::string id = getSetting("AudioOutput");
+    TrimWhiteSpace(id);
+    if (id.empty()) {
+        return 0;
+    }
+    if (id.find_first_not_of("0123456789") == std::string::npos) {
+        try {
+            return std::stoi(id);
+        } catch (...) {
+            return 0;
+        }
+    }
+    std::istringstream iss(GetFileContents("/proc/asound/cards"));
+    std::string line;
+    while (std::getline(iss, line)) {
+        auto b = line.find('[');
+        auto e = line.find(']');
+        if (b != std::string::npos && e != std::string::npos && e > b) {
+            std::string cid = line.substr(b + 1, e - b - 1);
+            TrimWhiteSpace(cid);
+            if (cid == id) {
+                std::string num = line.substr(0, b);
+                TrimWhiteSpace(num);
+                try {
+                    return std::stoi(num);
+                } catch (...) {}
+            }
+        }
+    }
+    return 0; // selected card not present -> default to card 0
+}
 
 MediaOutputStatus mediaOutputStatus = {
     MEDIAOUTPUTSTATUS_IDLE, // status
@@ -85,7 +126,7 @@ void setVolume(int vol) {
         vol = 100;
 
     std::string mixerDevice = getSetting("AudioMixerDevice");
-    int audioOutput = getSettingInt("AudioOutput");
+    int audioOutput = resolveAudioOutputCardNum();
     std::string audio0Type = getSetting("AudioCard0Type");
     std::string mediaBackend = toLowerCopy(getSetting("MediaBackend"));
 

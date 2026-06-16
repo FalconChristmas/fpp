@@ -28,17 +28,14 @@ function GetAudioCurrentCard()
             }
         }
     } else {
-        exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
-        if ($return_val) {
-            error_log("Error getting currently selected alsa card used!");
-        } else {
-            if (isset($output[0])) {
-                $CurrentCard = $output[0];
-            } else {
-                $CurrentCard = "0";
-            }
+        // AudioOutput is persisted as a stable ALSA card ID. Normalize so a
+        // legacy numeric value still resolves to the matching card ID, and an
+        // empty value resolves to the first present card.
+        $stored = isset($settings['AudioOutput']) ? $settings['AudioOutput'] : '';
+        $CurrentCard = NormalizeAudioOutputToCardId($stored);
+        if ($CurrentCard === '') {
+            $CurrentCard = "0";
         }
-        unset($output);
     }
 
     return $CurrentCard;
@@ -59,7 +56,13 @@ function GetOptions_AudioMixerDevice()
     if ($settings["Platform"] == "MacOS") {
         $MixerDevices[$CurrentCard] = $CurrentCard;
     } else {
-        exec($SUDO . " amixer -c $CurrentCard scontrols | cut -f2 -d\"'\"", $output, $return_val);
+        // GetAudioCurrentCard() returns a stable ALSA card ID; amixer needs the
+        // numeric index, so resolve it (fall back to the value if already numeric).
+        $cardNum = ResolveAlsaCardIdToNumber($CurrentCard);
+        if ($cardNum === '') {
+            $cardNum = ctype_digit((string) $CurrentCard) ? $CurrentCard : '0';
+        }
+        exec($SUDO . " amixer -c $cardNum scontrols | cut -f2 -d\"'\"", $output, $return_val);
         if ($return_val || strpos($output[0], "Usage:") === 0) {
             error_log("Error getting mixer devices!");
             $AudioMixerDevice = "PCM";
@@ -149,20 +152,23 @@ function GetOptions_AudioOutputDevice($fulllist = false)
 
             foreach ($output as $card) {
                 $values = explode(':', $card);
+                $cardNum = $values[0];
+                // The stable ALSA card ID is the persisted/selected value now,
+                // so identify "our card" by ID rather than the volatile number.
+                $thisCardId = isset($cardIdMap[$cardNum]) ? $cardIdMap[$cardNum] : '';
 
-                if ($values[0] == $CurrentCard) {
+                if (($thisCardId !== '' && $thisCardId == $CurrentCard) || $cardNum == $CurrentCard) {
                     $foundOurCard = 1;
                 }
 
                 if ($fulllist) {
                     $AlsaCards[] = $card;
                 } else {
-                    $cardNum = $values[0];
                     $cardName = $values[1];
                     // Disambiguate duplicate names by appending ALSA card ID
                     $displayName = $cardName;
                     if (isset($cardNameCounts[$cardName]) && $cardNameCounts[$cardName] > 1) {
-                        $cardId = isset($cardIdMap[$cardNum]) ? $cardIdMap[$cardNum] : $cardNum;
+                        $cardId = $thisCardId !== '' ? $thisCardId : $cardNum;
                         $displayName = $cardName . ' [' . $cardId . ']';
                     }
                     if ($cardName == "bcm2835 ALSA") {
@@ -171,9 +177,11 @@ function GetOptions_AudioOutputDevice($fulllist = false)
                         $displayName = $cardName . " (FM Transmitter)";
                     }
                     // Apply user-defined alias (issue #2586) keyed by ALSA card ID
-                    $thisCardId = isset($cardIdMap[$cardNum]) ? $cardIdMap[$cardNum] : '';
                     $displayName = ApplyAudioCardAlias($thisCardId, $displayName, $audioCardAliases);
-                    $AlsaCards[$displayName] = $cardNum;
+                    // Store the stable card ID as the value so the selection
+                    // survives card-number reordering (fall back to the number
+                    // only when the ID can't be resolved).
+                    $AlsaCards[$displayName] = $thisCardId !== '' ? $thisCardId : $cardNum;
                 }
             }
 

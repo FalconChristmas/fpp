@@ -6424,7 +6424,9 @@ function ResolveAlsaCardNumberToId($cardNum)
 // Returns an array shaped like the contents of pipewire-audio-groups.json.
 function BuildSimpleAudioGroupsData($audioOutput)
 {
-    $cardId = ResolveAlsaCardNumberToId($audioOutput);
+    // $audioOutput is the persisted AudioOutput value (a stable ALSA card ID,
+    // or a legacy numeric index). Normalize either form to a card ID.
+    $cardId = NormalizeAudioOutputToCardId($audioOutput);
     if ($cardId === '') {
         return array("groups" => array());
     }
@@ -6530,7 +6532,7 @@ function ApplyPipeWireSimpleConfig($skipRestart = false)
     ApplyPipeWireVideoGroups($videoData);
     ob_end_clean();
 
-    $cardId = ResolveAlsaCardNumberToId($audioOutput);
+    $cardId = NormalizeAudioOutputToCardId($audioOutput);
     return json(array(
         "status" => "OK",
         "message" => "Simple PipeWire config applied",
