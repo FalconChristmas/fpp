@@ -245,6 +245,14 @@ int main(int argc, char* argv[]) {
         std::thread audioThread([]() {
             try {
                 setupAudio();
+                // The PipeWire services ship disabled and are NOT started at
+                // sound.target -- starting them only now, after setupAudio has
+                // written/validated the config, means PipeWire reads the correct
+                // graph on its first (and only) start instead of starting empty
+                // at boot and needing a restart. Backgrounded so the audio thread
+                // doesn't block on the service bring-up. fpp-pipewire is pulled in
+                // by the other two's Requires=, but list it for clarity.
+                execbg("systemctl start fpp-pipewire.service fpp-wireplumber.service fpp-pipewire-pulse.service &");
             } catch (const std::exception& e) {
                 printf("FPP - setupAudio failed: %s\n", e.what());
             }

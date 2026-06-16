@@ -4,8 +4,15 @@ Description=FPP Announce IP Address
 # flite-rendered announcement can play. Deliberately NOT ordered before fppd:
 # this is fire-and-forget so the (CPU-heavy on single-core boards) flite render
 # no longer competes with the tail of fpp_postnetwork or fppd startup.
+# Ordering only -- intentionally NO Wants=/Requires= on the PipeWire services.
+# A Wants= here would pull them into the boot transaction even when they're
+# disabled (enable/disable only controls a unit's own [Install] symlinks, not
+# Wants= declared by other units), and with only After= to constrain them they'd
+# start at sound.target time, before postNetwork. With After= alone, this just
+# orders the announcement after whatever started PipeWire (the enabled services
+# in the default config, or setupAudio starting them on demand); if PipeWire
+# isn't in the transaction at all, the After= is simply ignored.
 After=fpp_postnetwork.service fpp-pipewire.service fpp-wireplumber.service fpp-pipewire-pulse.service
-Wants=fpp-pipewire.service fpp-wireplumber.service
 
 [Service]
 Type=oneshot

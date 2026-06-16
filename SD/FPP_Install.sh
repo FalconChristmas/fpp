@@ -1989,8 +1989,7 @@ install_fpp_services() {
 
     local svc
     for svc in fpp-early-block-trigger fppinit fpprtc fppoled fppd fpp_postnetwork \
-               fpp-install-kiosk fpp-reboot fpp-announce-ip \
-               fpp-pipewire fpp-wireplumber fpp-pipewire-pulse; do
+               fpp-install-kiosk fpp-reboot fpp-announce-ip; do
         # fpp-install-kiosk sets up the local on-device browser UI shown over
         # HDMI. BeagleBones run headless with HDMI disabled, so it would never
         # be used there -- skip it (and disable, in case a prior run enabled it).
@@ -2001,6 +2000,14 @@ install_fpp_services() {
         fi
         systemctl enable ${svc}.service
     done
+
+    # The PipeWire stack is intentionally NOT enabled. FPPINIT's setupAudio starts
+    # fpp-pipewire/fpp-wireplumber/fpp-pipewire-pulse on demand (from its audio
+    # thread) after it has written/validated the audio config, so PipeWire reads
+    # the correct graph on its first and only start rather than coming up empty at
+    # sound.target and needing a restart. Disable explicitly to undo any prior
+    # enablement.
+    systemctl disable fpp-pipewire.service fpp-wireplumber.service fpp-pipewire-pulse.service 2>/dev/null || true
 }
 
 # Image-only tweaks that happen after FPP services are installed/enabled.

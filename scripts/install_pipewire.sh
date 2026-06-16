@@ -170,10 +170,13 @@ if [ -f "/opt/fpp/etc/systemd/fppd.service" ]; then
 fi
 
 systemctl daemon-reload
-systemctl enable fpp-pipewire.service
-systemctl enable fpp-wireplumber.service
-systemctl enable fpp-pipewire-pulse.service
-echo "    Services enabled."
+# The PipeWire services are intentionally left DISABLED: FPPINIT's setupAudio
+# starts them on demand (from its audio thread) once it has written/validated the
+# audio config, so PipeWire reads the correct graph on its first and only start
+# instead of coming up empty at sound.target and needing a restart. Disable here
+# to undo any enablement from a prior install.
+systemctl disable fpp-pipewire.service fpp-wireplumber.service fpp-pipewire-pulse.service 2>/dev/null || true
+echo "    Services installed (left disabled; started on demand by setupAudio)."
 
 # --- 6. Mask user-session PipeWire services ---
 echo ""
