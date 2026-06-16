@@ -668,7 +668,33 @@ void setupAudio() {
     // generated sink config actually differs (and thus needs a restart below).
     const std::string existingSinkConf = GetFileContents(pipewireSinkConfPath);
     bool sinkConfigChanged = false;
-    if (usePipeWireBackend) {
+    // Cheap pre-check: is the persisted 95-fpp-alsa-sink.conf still valid for the
+    // cards present right now? It is when its fpp_alsa_* sink adapters cover
+    // exactly the present, usable (non-dummy, non-dead-HDMI) cards. When so, skip
+    // the whole per-card ALSA probe below -- aplay/amixer/arecord plus a 2s
+    // hw-params dump each, all via popen, which is the slowest part of audio
+    // setup -- since it only changes anything when a card was added or removed.
+    // The conf persists in /etc across reboots, so the common boot hits this.
+    std::set<std::string> adapterCandidateCids; // present cards that would get an adapter
+    for (const auto& [key, cardName] : cards) {
+        std::string cId = getAlsaCardId(std::stoi(key.substr(5)));
+        if (cId.empty()) cId = cardName;
+        if (cId == "Dummy" || cardIsDeadHDMI(key)) continue;
+        adapterCandidateCids.insert(normalizeCardIdForNode(cId));
+    }
+    std::set<std::string> existingAdapterCids; // fpp_alsa_* sink adapters already in the conf
+    std::regex alsaAdapterRe(R"RE(node\.name = "fpp_alsa_([a-z0-9_]+)")RE");
+    for (auto it = std::sregex_iterator(existingSinkConf.begin(), existingSinkConf.end(), alsaAdapterRe);
+         it != std::sregex_iterator(); ++it) {
+        existingAdapterCids.insert((*it)[1].str());
+    }
+    bool sinkConfStillValid = !existingSinkConf.empty() && existingAdapterCids == adapterCandidateCids;
+    if (usePipeWireBackend && sinkConfStillValid) {
+        printf("FPP - PipeWire: ALSA sink adapters already match present cards; skipping probe\n");
+        // bootAdapterCids must still reflect the conf's adapters for the
+        // Simple-mode group generator below; take them from the existing conf.
+        bootAdapterCids = existingAdapterCids;
+    } else if (usePipeWireBackend) {
         exec("/bin/mkdir -p /etc/pipewire/pipewire.conf.d");
         // Create FPP ALSA adapter nodes for ALL playback-capable cards present
         // at boot.  This ensures consistent naming (fpp_alsa_{cardIdNorm}) and

@@ -223,26 +223,67 @@ int main(int argc, char* argv[]) {
         // Notify systemd that initialization is complete
         sd_notify(0, "READY=1\nSTATUS=FPP initialization complete");
     } else if (action == "postNetwork") {
-        removeDummyInterface();
         handleBootDelay();
-        checkWLANInterface();
-        // turn off blinking cursor
+        // turn off blinking cursor + clean up kiosk leftovers (quick, independent)
         PutFileContents("/sys/class/graphics/fbcon/cursor_blink", "0");
         cleanupChromiumFiles();
-        setupAudio();
-        removeDummyInterface();
-        waitForInterfacesUp(100); // wait for an IP (needed for the time-sync wait below)
-        // Time sync wait happens AFTER interfaces are up so NTP has a chance to sync
-        handleTimeSyncWait();
-        if (!FileExists("/etc/fpp/desktop")) {
-            maybeEnableTethering();
-            detectNetworkModules();
-        }
+
+        // Audio setup and network bring-up no longer depend on each other (the
+        // flite IP announcement moved out to fpp-announce-ip.service), so run
+        // them concurrently. The network thread spends most of its time *waiting*
+        // (DHCP lease, NTP sync), yielding the CPU, while setupAudio does its
+        // CPU/IO work -- so they overlap well even on a single-core board and
+        // shorten postNetwork.
+        //
+        // Thread-safety: the only shared mutable state is /home/fpp/media/settings.
+        // setupAudio() is the SOLE writer; the network functions only read it.
+        // get/setRawSetting go through GetFileContents/PutFileContents, which take
+        // an advisory flock (LOCK_SH / LOCK_EX), so a read never observes a partial
+        // write. Keep the network path settings-read-only to preserve this. Each
+        // thread is wrapped so an exception can't escape and std::terminate the
+        // whole boot.
+        std::thread audioThread([]() {
+            try {
+                setupAudio();
+            } catch (const std::exception& e) {
+                printf("FPP - setupAudio failed: %s\n", e.what());
+            }
+        });
+        std::thread networkThread([]() {
+            try {
+                removeDummyInterface();
+                checkWLANInterface();
+                removeDummyInterface();
+                waitForInterfacesUp(100); // wait for an IP (needed for the time-sync wait)
+                // Time sync wait happens AFTER interfaces are up so NTP can sync
+                handleTimeSyncWait();
+                if (!FileExists("/etc/fpp/desktop")) {
+                    maybeEnableTethering();
+                    detectNetworkModules();
+                }
+            } catch (const std::exception& e) {
+                printf("FPP - network setup failed: %s\n", e.what());
+            }
+        });
+        // setupTimezone and swap setup depend on neither thread, so run them here
+        // -- concurrent with the network thread's DHCP/NTP wait and the audio
+        // thread -- instead of serially after the joins. setupTimezone only READS
+        // settings, which is flock-safe against setupAudio's writes.
         setupTimezone(); // this may not have worked in the init phase, try again
-        setFileOwnership();
-        checkInstallPackages();
         startZRAMSwap();
         startDiskSwap();
+
+        audioThread.join();
+        networkThread.join();
+
+        // Both of these must run after a join:
+        //  - checkInstallPackages may apt-install user packages after an OS
+        //    upgrade, so it needs the network up (network thread joined).
+        //  - setFileOwnership chowns /home/fpp/media, where setupAudio writes its
+        //    PipeWire config as root, so it must follow the audio thread -- run it
+        //    last so it also catches anything checkInstallPackages dropped there.
+        checkInstallPackages();
+        setFileOwnership();
         // Notify systemd that post-network setup is complete
         sd_notify(0, "READY=1\nSTATUS=FPP post-network setup complete");
     } else if (action == "bootPre") {
