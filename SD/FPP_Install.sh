@@ -1451,6 +1451,24 @@ cat > /etc/systemd/system/ntpsec.service.d/fpp-defer.conf <<'EOF'
 After=fpp_postnetwork.service
 EOF
 
+# apache2 + php-fpm back the web UI, which isn't needed before fppd. On a
+# single-core SBC they otherwise start alongside fpp_postnetwork and steal a
+# meaningful slice of CPU during it -- deferring them after fpp_postnetwork
+# measured ~2s off postNetwork and brought fppd up ~3s earlier on a BBB. They
+# then come up in parallel with fppd rather than contending with the network
+# setup. (Use $ACTUAL_PHPVER so this tracks the installed php-fpm version.)
+echo "FPP - Deferring apache2 and php-fpm until after the network setup"
+mkdir -p /etc/systemd/system/apache2.service.d
+cat > /etc/systemd/system/apache2.service.d/fpp-defer.conf <<'EOF'
+[Unit]
+After=fpp_postnetwork.service
+EOF
+mkdir -p /etc/systemd/system/php${ACTUAL_PHPVER}-fpm.service.d
+cat > /etc/systemd/system/php${ACTUAL_PHPVER}-fpm.service.d/fpp-defer.conf <<'EOF'
+[Unit]
+After=fpp_postnetwork.service
+EOF
+
 # shellinabox: the web terminal is a convenience that's never needed at boot,
 # and its SysV init script takes ~6s (Type=forking) right in the postNetwork
 # window. Defer it until after fppd so it's fully off the critical path.
