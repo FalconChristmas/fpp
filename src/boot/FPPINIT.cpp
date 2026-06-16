@@ -473,7 +473,7 @@ static std::string FindTetherWIFIAdapater() {
         for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net/")) {
             std::string dev = entry.path().filename();
             if (startsWith(dev, "wl")) {
-                std::string output = execAndReturn("/usr/sbin/iw " + dev + " link");
+                std::string output = execAndReturn("/usr/sbin/iw dev " + dev + " link");
                 if (contains(output, "Not connected")) {
                     return dev;
                 }
@@ -738,13 +738,17 @@ static void setupNetwork(bool fullReload = false) {
                             wpa.append("\n  priority=90\n  ieee80211w=1\n}\n\n");
                         }
                         filesNeeded["/etc/wpa_supplicant/wpa_supplicant-" + interface + ".conf"] = wpa;
-                        if (!contains(execAndReturn("/usr/bin/systemctl is-active wpa_supplicant@" + interface), "inactive")) {
-                            commandsToRun.emplace_back("systemctl reload-or-restart \"wpa_supplicant@" + interface + ".service\" &");
-                        }
-                        if (!contains(execAndReturn("/usr/bin/systemctl is-enabled wpa_supplicant@" + interface), "enabled")) {
-                            commandsToRun.emplace_back("systemctl enable \"wpa_supplicant@" + interface + ".service\" &");
-                            commandsToRun.emplace_back("systemctl daemon-reload");
-                        }
+                        // Queue these unconditionally rather than gating them on
+                        // `systemctl is-active`/`is-enabled` queries: during early
+                        // boot the systemd manager is saturated (dbus etc. take many
+                        // seconds to come up), so those synchronous queries block for
+                        // ~9s and stall fppinit -- and this wpa_supplicant@ branch
+                        // only runs once a wifi interface exists. The commands run
+                        // only if the wpa config actually changed (see commandsToRun
+                        // handling below), and `enable` + `reload-or-restart` are both
+                        // idempotent, so the pre-checks bought nothing but the stall.
+                        commandsToRun.emplace_back("systemctl enable \"wpa_supplicant@" + interface + ".service\" &");
+                        commandsToRun.emplace_back("systemctl reload-or-restart \"wpa_supplicant@" + interface + ".service\" &");
                         postCommandsToRun.emplace_back("systemctl reload-or-restart \"wpa_supplicant@" + interface + ".service\" &");
                     } else {
                         validConfig = false;

@@ -2,6 +2,9 @@
 Description=PipeWire PulseAudio Compatibility (FPP)
 After=fpp-pipewire.service fpp-wireplumber.service
 Requires=fpp-pipewire.service fpp-wireplumber.service
+# Back off restarts and never give up while PipeWire/the sound device come up
+# late, so we don't crash-loop on the single CPU core. See fpp-pipewire.service.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -18,6 +21,7 @@ ExecStartPre=/bin/chown root:audio /run/pipewire-fpp/pulse
 ExecStartPre=/bin/chmod 0775 /run/pipewire-fpp/pulse
 ExecStart=/usr/bin/pipewire-pulse
 Restart=on-failure
+RestartSec=3
 LimitRTPRIO=95
 LimitRTTIME=infinity
 AmbientCapabilities=CAP_SYS_NICE

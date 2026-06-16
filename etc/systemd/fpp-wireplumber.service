@@ -2,6 +2,9 @@
 Description=WirePlumber Session Manager (FPP)
 After=fpp-pipewire.service
 Requires=fpp-pipewire.service
+# Back off restarts and never give up while PipeWire/the sound device come up
+# late, so we don't crash-loop on the single CPU core. See fpp-pipewire.service.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -14,6 +17,7 @@ Environment=PIPEWIRE_CONFIG_DIR=/etc/pipewire
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
 ExecStart=/usr/bin/wireplumber
 Restart=on-failure
+RestartSec=3
 LimitRTPRIO=95
 LimitRTTIME=infinity
 AmbientCapabilities=CAP_SYS_NICE
