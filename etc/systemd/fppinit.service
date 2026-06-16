@@ -2,7 +2,22 @@
 Description=Inialization routines for FPP
 DefaultDependencies=no
 Before=fpprtc.service fpp_postnetwork.service systemd-networkd.service networking.service networking.target
-After=home-fpp-media.mount tmp.mount haveged.service
+# DefaultDependencies=no strips the implicit "after local filesystems" ordering,
+# so order explicitly after local-fs.target. That guarantees the root fs is
+# remounted read-write (systemd-remount-fs runs before local-fs.target) AND all
+# local mounts -- the vfat boot/config partition and /home/fpp/media -- are
+# present (local-fs.target is also after fpp-early-block-trigger, which coldplugs
+# the block devices) before fppinit reads boot config or writes cape info / sets
+# perms. Without this it floats up before remount/early-block-trigger and fails.
+#
+# Intentionally NOT After=haveged.service: the only entropy consumer here is
+# first-boot SSH host-key generation (checkSSHKeys); cape EEPROM signature checks
+# are verify-only (EVP_DigestVerify) and use no RNG. checkSSHKeys seeds from the
+# hardware RNG when present, and starts haveged itself if it must generate keys
+# on a board without one. (After=haveged was previously load-bearing ORDERING by
+# accident -- haveged starts late in sysinit -- which local-fs.target now
+# provides correctly and intentionally.)
+After=home-fpp-media.mount tmp.mount local-fs.target
 Wants=home-fpp-media.mount tmp.mount systemd-networkd.service networking.target
 
 [Service]

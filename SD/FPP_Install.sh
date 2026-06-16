@@ -1985,6 +1985,13 @@ install_fpp_services() {
     fi
 
     systemctl disable mosquitto
+    # haveged is only needed to seed entropy for first-boot SSH host-key
+    # generation on a board with no hardware RNG. fppinit no longer orders after
+    # it (it orders after local-fs.target) and checkSSHKeys starts it on demand
+    # in that no-RNG case, so it doesn't need to run on every boot -- disable it
+    # to keep its ~entropy-gathering startup off the boot path. Every FPP target
+    # has a hardware RNG (AM335x omap-rng, bcm2835-rng, ...), so it stays idle.
+    systemctl disable haveged.service 2>/dev/null || true
     systemctl daemon-reload
 
     local svc

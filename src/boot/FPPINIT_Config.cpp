@@ -70,6 +70,13 @@ void checkSSHKeys() {
         // if the hwrng exists, use it to seed the urandom generator
         // with some random data
         exec("dd if=/dev/hwrng of=/dev/urandom count=1 bs=4096 status=none");
+    } else {
+        // No hardware RNG to seed from: ssh-keygen's getrandom() can block
+        // waiting for the CRNG to seed on a freshly booted board with little
+        // entropy. fppinit no longer waits for haveged on every boot (it's only
+        // needed right here -- for first-boot key generation on a board without
+        // an RNG), so start it on demand to seed the pool before generating keys.
+        exec("/usr/bin/systemctl start haveged.service");
     }
     execbg("/usr/bin/ssh-keygen -q -N \"\" -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key &");
     execbg("/usr/bin/ssh-keygen -q -N \"\" -t ed25519 -f /etc/ssh/ssh_host_ed25519_key &");
