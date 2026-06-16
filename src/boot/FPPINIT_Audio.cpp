@@ -401,6 +401,10 @@ void setupAudio() {
     }
     PutFileContents("/root/.asoundrc", asoundrc);
     const std::string pipewireSinkConfPath = "/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf";
+    // Snapshot what PipeWire loaded at boot so we can tell whether the freshly
+    // generated sink config actually differs (and thus needs a restart below).
+    const std::string existingSinkConf = GetFileContents(pipewireSinkConfPath);
+    bool sinkConfigChanged = false;
     if (usePipeWireBackend) {
         exec("/bin/mkdir -p /etc/pipewire/pipewire.conf.d");
         // Create FPP ALSA adapter nodes for ALL playback-capable cards present
@@ -422,15 +426,48 @@ void setupAudio() {
                 if (!std::isalnum(static_cast<unsigned char>(ch)) && ch != '_') ch = '_';
             }
 
-            // Probe ALSA HW params — if this fails the device can't be opened
-            // (e.g. HDMI with nothing connected → error 524/ENOMEDIUM).
-            // Also skip cards that only support IEC958/passthrough formats —
-            // PipeWire's adapter can't negotiate those as normal PCM sinks.
+            // Probe ALSA HW params with an exclusive open. This can fail for two
+            // very different reasons that must NOT be conflated:
+            //   1. The device is genuinely dead — e.g. HDMI with nothing
+            //      connected (error 524/ENOMEDIUM). Skip it.
+            //   2. The device is merely busy because PipeWire/WirePlumber already
+            //      grabbed it. This code runs in postNetwork, AFTER
+            //      fpp-pipewire.service has started and opened every card it knows
+            //      about, so the *selected* card is routinely busy here. Skipping
+            //      it would drop the adapter for the very device that's playing
+            //      and (once PipeWire is restarted for any reason) silence it.
+            // A busy device reports EBUSY and, because it is open, exposes its
+            // live negotiated params in /proc; a dead device reports ENOMEDIUM and
+            // its /proc hw_params reads "closed".
             std::string hwParams = execAndReturn("timeout 2 /usr/bin/aplay -D hw:" + cId + " --dump-hw-params /dev/zero 2>&1 | head -40");
             if (!contains(hwParams, "HW Params")) {
-                printf("FPP - PipeWire: skipping card %d (%s) — device cannot be opened\n",
-                       cardNum, cId.c_str());
-                continue;
+                std::string procHw = GetFileContents("/proc/asound/card" + std::to_string(cardNum) + "/pcm0p/sub0/hw_params");
+                bool busy = contains(hwParams, "resource busy") || contains(hwParams, "Resource busy");
+                bool procOpen = !procHw.empty() && !contains(procHw, "closed");
+                if (!busy && !procOpen) {
+                    printf("FPP - PipeWire: skipping card %d (%s) — device cannot be opened\n",
+                           cardNum, cId.c_str());
+                    continue;
+                }
+                // Present but busy: synthesise an aplay-style "HW Params" block
+                // from the live /proc values so the channel/format detection below
+                // works unchanged. /proc reports the format PipeWire actually
+                // negotiated (always a real PCM, never IEC958-only). Fall back to
+                // safe stereo S16_LE if /proc lacks the fields.
+                std::string synthFmt = "S16_LE";
+                std::string synthCh = "2";
+                std::smatch pm;
+                if (std::regex_search(procHw, pm, std::regex(R"(format:\s*(\S+))"))) {
+                    synthFmt = pm[1].str();
+                }
+                if (std::regex_search(procHw, pm, std::regex(R"(channels:\s*(\d+))"))) {
+                    synthCh = pm[1].str();
+                }
+                hwParams = "HW Params of device (busy — synthesised from /proc)\n"
+                           "FORMAT:  " + synthFmt + "\n"
+                           "CHANNELS: " + synthCh + "\n";
+                printf("FPP - PipeWire: card %d (%s) busy (held by PipeWire); using live params FORMAT=%s CHANNELS=%s\n",
+                       cardNum, cId.c_str(), synthFmt.c_str(), synthCh.c_str());
             }
             // Verify card supports at least one standard PCM format
             bool hasPcmFormat = contains(hwParams, "S16_LE") || contains(hwParams, "S24_LE")
@@ -601,9 +638,15 @@ void setupAudio() {
             }
         }
         pipewireSink << "]\n";
-        PutFileContents(pipewireSinkConfPath, pipewireSink.str());
+        if (pipewireSink.str() != existingSinkConf) {
+            PutFileContents(pipewireSinkConfPath, pipewireSink.str());
+            // PipeWire only reads this file at startup; a card add/remove (or a
+            // capability change) rewrites it, so flag a restart below to load it.
+            sinkConfigChanged = true;
+        }
     } else if (FileExists(pipewireSinkConfPath)) {
         unlink(pipewireSinkConfPath.c_str());
+        sinkConfigChanged = true;
     }
     std::string mixers = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " scontrols | cut -f2 -d\"'\"");
     if (mixers.empty()) {
@@ -737,7 +780,10 @@ void setupAudio() {
     // only needed when something actually differs -- otherwise the costly
     // pipewire-pulse/WirePlumber/session-bus restart cascade buys nothing. On a
     // no-soundcard board the config is identical every boot, so this skips it.
-    bool audioConfigChanged = false;
+    // A changed ALSA-sink adapter config (95-fpp-alsa-sink.conf, handled above)
+    // needs the same restart as a changed groups config: PipeWire reads both only
+    // at start. Seed the flag from it so a card add/remove isn't silently ignored.
+    bool audioConfigChanged = sinkConfigChanged;
     if (usePipeWireBackend && !runningInDocker && FileExists(groupsConfCache)) {
         if (!FileExists(groupsConfDest) || GetFileContents(groupsConfCache) != GetFileContents(groupsConfDest)) {
             printf("FPP - Restoring PipeWire audio output groups config\n");
