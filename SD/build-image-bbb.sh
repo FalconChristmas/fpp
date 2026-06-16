@@ -538,7 +538,13 @@ fi
 echo "[6/8] Marking first-boot expand and stripping build artifacts..."
 touch "$ROOT_MNT/boot/fpp_expand_rootfs"
 rm -f "$ROOT_MNT/usr/bin/$QEMU_BIN"
-: > "$ROOT_MNT/etc/resolv.conf" || true
+# Restore the /etc/resolv.conf -> systemd-resolved symlink for the booted
+# image. Leaving it as a static (empty) file means anything that reads
+# /etc/resolv.conf directly gets no nameservers; getaddrinfo() still works via
+# nss-resolve, masking the problem (GitHub #2675). systemd-resolved does NOT
+# create this symlink itself. Matches FPP_Install.sh's finalize_image_post_build().
+rm -f "$ROOT_MNT/etc/resolv.conf"
+ln -sf /run/systemd/resolve/resolv.conf "$ROOT_MNT/etc/resolv.conf"
 
 #############################################################################
 # 7. Drop chroot binds before squashfs

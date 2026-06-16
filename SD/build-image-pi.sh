@@ -585,8 +585,17 @@ fi
 echo "[6/8] Marking first-boot expand and stripping build artifacts..."
 touch "$ROOT_MNT/boot/firmware/fpp_expand_rootfs"
 rm -f "$ROOT_MNT/usr/bin/$QEMU_BIN"
-# Neutralize resolv.conf we injected (systemd-resolved will recreate symlink)
-: > "$ROOT_MNT/etc/resolv.conf" || true
+# Restore the /etc/resolv.conf -> systemd-resolved symlink for the booted
+# image. We injected a real resolv.conf above for the chroot's apt/rpi-update;
+# leaving it as a static (now empty) file means anything that reads
+# /etc/resolv.conf directly (c-ares, node, plugins like PulseMesh) gets no
+# nameservers. getaddrinfo() still works via nss-resolve in nsswitch.conf,
+# which masks the problem (ping/curl/php resolve fine) -- hence GitHub #2675.
+# systemd-resolved does NOT create this symlink itself, so we must. It matches
+# FPP_Install.sh's finalize_image_post_build(). The target is resolved at boot
+# when systemd-resolved populates /run/systemd/resolve/resolv.conf.
+rm -f "$ROOT_MNT/etc/resolv.conf"
+ln -sf /run/systemd/resolve/resolv.conf "$ROOT_MNT/etc/resolv.conf"
 
 #############################################################################
 # 7. Drop chroot bind mounts BEFORE mksquashfs.
