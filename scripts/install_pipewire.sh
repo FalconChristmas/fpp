@@ -137,6 +137,14 @@ else
     echo "    WARNING: /opt/fpp/etc/wireplumber/wireplumber.conf.d not found in repo!"
 fi
 
+# FPP WirePlumber Lua hooks (static, e.g. the combine-stream default-target
+# fallback blocker referenced by 60-fpp-block-combine-fallback.conf).
+if [ -d /opt/fpp/etc/wireplumber/scripts ]; then
+    mkdir -p /usr/share/wireplumber/scripts
+    cp -a /opt/fpp/etc/wireplumber/scripts/. /usr/share/wireplumber/scripts/
+    echo "    Deployed FPP WirePlumber Lua hooks"
+fi
+
 # Remove old WirePlumber 0.4 Lua configs (not supported by WirePlumber 0.5+)
 if [ -d /etc/wireplumber/main.lua.d ]; then
     echo "    Removing old WirePlumber 0.4 Lua configs..."
