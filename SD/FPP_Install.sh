@@ -1590,6 +1590,11 @@ configure_ccache() {
     rm -f /root/.ccache/ccache.conf
     rm -f /root/.cache/ccache/ccache.conf
     mkdir -p /root/.cache/ccache /root/.config/ccache
+    # Pin both the cache dir and the config path explicitly. The image-build
+    # chroot can inherit a CCACHE_DIR pointing elsewhere; pinning it here keeps
+    # the populated cache at /root/.cache/ccache where build-image-*.sh tars it
+    # up for the release artifact, and keeps the config at the XDG path below.
+    export CCACHE_DIR=/root/.cache/ccache
     export CCACHE_CONFIGPATH=/root/.config/ccache/ccache.conf
     ccache -M 500M
     ccache --set-config=temporary_dir=/tmp
@@ -1613,7 +1618,20 @@ configure_ccache() {
     mkdir -p /home/fpp/.config/ccache
     cp /root/.config/ccache/ccache.conf /home/fpp/.config/ccache/ccache.conf
     chown -R fpp:fpp /home/fpp/.config
-    unset CCACHE_CONFIGPATH
+    # Deliberately leave CCACHE_CONFIGPATH exported for the rest of this
+    # installer run so the "make optimized" compile below reads THIS config.
+    # CCACHE_CONFIGPATH is the only config location with higher priority than
+    # everything else; without it, ccache picks its secondary config from
+    # $CCACHE_DIR/ccache.conf whenever CCACHE_DIR is set in the build
+    # environment (the image-build chroot inherits one) -- i.e.
+    # /root/.cache/ccache/ccache.conf, the file we just rm'd -- and NOT the
+    # XDG path we wrote the sloppiness settings to. With no sloppiness in
+    # effect, ccache refuses to cache any compile that pulls in the
+    # precompiled header ("Could not use precompiled header"), so the PCH and
+    # ~250 object files are all uncacheable and the cache shipped in the image
+    # is nearly empty/useless. This env var only lives in the build shell; it
+    # is not baked into the image, so on-device upgrade builds are unaffected
+    # (they read the XDG config by default).
 }
 
 configure_logging
