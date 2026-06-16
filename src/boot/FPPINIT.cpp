@@ -231,7 +231,7 @@ int main(int argc, char* argv[]) {
         cleanupChromiumFiles();
         setupAudio();
         removeDummyInterface();
-        waitForInterfacesUp(true, 100); // call to flite requires audio, so do audio before this
+        waitForInterfacesUp(100); // wait for an IP (needed for the time-sync wait below)
         // Time sync wait happens AFTER interfaces are up so NTP has a chance to sync
         handleTimeSyncWait();
         if (!FileExists("/etc/fpp/desktop")) {
@@ -266,6 +266,10 @@ int main(int argc, char* argv[]) {
         runScripts("postStop", false);
     } else if (action == "setupAudio") {
         setupAudio();
+    } else if (action == "announceIP") {
+        // Run from fpp-announce-ip.service, after fpp_postnetwork + PipeWire, so
+        // the flite synthesis doesn't slow the tail of postNetwork / fppd start.
+        announceIPAddresses();
     } else if (action == "configureBBB") {
         configureBBB();
     } else if (action == "installKiosk") {
@@ -273,7 +277,7 @@ int main(int argc, char* argv[]) {
     } else if (action == "setupNetwork") {
         PutFileContents(networkSetupMut, "1");
         setupNetwork(true);
-        waitForInterfacesUp(false, 70);
+        waitForInterfacesUp(70);
         detectNetworkModules();
         maybeEnableTethering();
         unlink(networkSetupMut.c_str());
@@ -284,7 +288,7 @@ int main(int argc, char* argv[]) {
             if (a.starts_with("active") && argc >= 3) {
                 std::string iface = argv[2];
                 if (iface.starts_with("wlan")) {
-                    waitForInterfacesUp(false, 20);
+                    waitForInterfacesUp(20);
                     maybeEnableTethering();
                     detectNetworkModules();
                 }
@@ -299,7 +303,7 @@ int main(int argc, char* argv[]) {
             TrimWhiteSpace(a);
             if (a.starts_with("active") || e.starts_with("enabled")) {
                 std::string iface = argv[2];
-                if (FindTetherWIFIAdapater() != iface && !iface.starts_with("usb") && !iface.starts_with("lo") && waitForInterfacesUp(false, 10)) {
+                if (FindTetherWIFIAdapater() != iface && !iface.starts_with("usb") && !iface.starts_with("lo") && waitForInterfacesUp(10)) {
                     exec("rm -f /etc/systemd/network/10-" + FindTetherWIFIAdapater() + ".network");
                     exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
                     exec("systemctl stop hostapd.service");

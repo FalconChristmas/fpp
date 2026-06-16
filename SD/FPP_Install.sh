@@ -1971,7 +1971,7 @@ install_fpp_services() {
 
     local svc
     for svc in fpp-early-block-trigger fppinit fpprtc fppoled fppd fpp_postnetwork \
-               fpp-install-kiosk fpp-reboot \
+               fpp-install-kiosk fpp-reboot fpp-announce-ip \
                fpp-pipewire fpp-wireplumber fpp-pipewire-pulse; do
         # fpp-install-kiosk sets up the local on-device browser UI shown over
         # HDMI. BeagleBones run headless with HDMI disabled, so it would never

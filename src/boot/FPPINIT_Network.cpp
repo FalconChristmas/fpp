@@ -811,7 +811,43 @@ void checkWLANInterface() {
     }
 }
 
-bool waitForInterfacesUp(bool flite, int timeOut) {
+// Build the spoken "I Have Found The Following I P Addresses, ..." string from
+// the current non-tether IPv4 addresses. Returns "" if none are present yet.
+static std::string buildIPAnnounceString() {
+    std::string announce = "I Have Found The Following I P Addresses";
+    bool found = false;
+    struct ifaddrs* ifAddrStruct = NULL;
+    struct ifaddrs* ifa = NULL;
+    void* tmpAddrPtr = NULL;
+    getifaddrs(&ifAddrStruct);
+    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) {
+            continue;
+        }
+        std::string nm = ifa->ifa_name;
+        if (startsWith(nm, "usb") || startsWith(nm, "lo")) {
+            continue;
+        }
+        if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
+            // is a valid IP4 Address
+            tmpAddrPtr = &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
+            char addressBuffer[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+            std::string addr = addressBuffer;
+            if (!contains(addr, "192.168.6.2") && !contains(addr, "192.168.7.2") && !contains(addr, "192.168.8.1")) {
+                printf("FPP - Found %s IP Address %s\n", ifa->ifa_name, addressBuffer);
+                announce += ", " + std::string(addressBuffer);
+                found = true;
+            }
+        }
+    }
+    if (ifAddrStruct != NULL) {
+        freeifaddrs(ifAddrStruct);
+    }
+    return found ? announce : "";
+}
+
+bool waitForInterfacesUp(int timeOut) {
     int count = 0;
     // If no network interfaces have carrier/link, don't wait for IP address - likely no network available and no point waiting for DHCP/NTP
     while (!hasNetworkInterfaceForNTP()) {
@@ -823,64 +859,48 @@ bool waitForInterfacesUp(bool flite, int timeOut) {
         ++count;
     }
     printf("FPP - Waited for %0.1f seconds for network interfaces to have link...\n", (((float)count) * 0.2));
-    bool found = false;
     std::string announce;
     do {
-        announce = "I Have Found The Following I P Addresses";
-        struct ifaddrs* ifAddrStruct = NULL;
-        struct ifaddrs* ifa = NULL;
-        void* tmpAddrPtr = NULL;
-        getifaddrs(&ifAddrStruct);
-        for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
-            if (!ifa->ifa_addr) {
-                continue;
-            }
-            std::string nm = ifa->ifa_name;
-            if (startsWith(nm, "usb") || startsWith(nm, "lo")) {
-                continue;
-            }
-            if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
-                // is a valid IP4 Address
-                tmpAddrPtr = &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
-                char addressBuffer[INET_ADDRSTRLEN];
-                inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
-                std::string addr = addressBuffer;
-                if (!contains(addr, "192.168.6.2") && !contains(addr, "192.168.7.2") && !contains(addr, "192.168.8.1")) {
-                    printf("FPP - Found %s IP Address %s\n", ifa->ifa_name, addressBuffer);
-                    announce += ", " + std::string(addressBuffer);
-                    found = true;
-                }
-            }
-        }
-        if (ifAddrStruct != NULL) {
-            freeifaddrs(ifAddrStruct);
-        }
-        if (!found) {
+        announce = buildIPAnnounceString();
+        if (announce.empty()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
             ++count;
         }
-    } while (!found && (count < timeOut));
-    if (!found) {
+    } while (announce.empty() && (count < timeOut));
+    if (announce.empty()) {
         printf("FPP - Could not get a valid IP address\n");
         return false;
-    } else {
-        printf("FPP - Waited for %0.1f seconds for IP address\n", (((float)count) * 0.2f));
-        if (!getRawSettingInt("disableIPAnnouncement", 0) && FileExists("/usr/bin/flite") && flite) {
-            // flite is an ALSA client, so playing directly (flite -t) would route
-            // through the pipewire-alsa plugin + /root/.asoundrc -- the fragile
-            // ALSA chain we're retiring. Instead render to a WAV and play it
-            // through PipeWire natively with pw-play. pw-play needs the runtime
-            // env vars to find FPP's PipeWire instance at /run/pipewire-fpp.
-            // /run/fppd is created earlier by setupAudio.
-            const std::string announceWav = "/run/fppd/ip-announce.wav";
-            std::string fliteCmd =
-                "/usr/bin/flite -voice awb -t \"" + announce + "\" -o " + announceWav +
-                " && PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp"
-                " /usr/bin/pw-play " + announceWav + " &";
-            execbg(fliteCmd);
-        }
-        return true;
     }
+    printf("FPP - Waited for %0.1f seconds for IP address\n", (((float)count) * 0.2f));
+    return true;
+}
+
+// Announce the device's IP address(es) over audio with flite + pw-play. Invoked
+// from fpp-announce-ip.service (ordered after fpp_postnetwork and the PipeWire
+// services) rather than inline in postNetwork, so the CPU-heavy flite synthesis
+// doesn't compete with the tail of postNetwork / fppd startup on single-core
+// boards. Network is already up by the time the service runs.
+void announceIPAddresses() {
+    if (getRawSettingInt("disableIPAnnouncement", 0) || !FileExists("/usr/bin/flite")) {
+        return;
+    }
+    std::string announce = buildIPAnnounceString();
+    if (announce.empty()) {
+        printf("FPP - announceIP: no usable IP address to announce\n");
+        return;
+    }
+    // flite is an ALSA client, so playing directly (flite -t) would route
+    // through the pipewire-alsa plugin + /root/.asoundrc -- the fragile ALSA
+    // chain we're retiring. Instead render to a WAV and play it through PipeWire
+    // natively with pw-play. pw-play needs the runtime env vars to find FPP's
+    // PipeWire instance at /run/pipewire-fpp. /run/fppd is created by setupAudio.
+    const std::string announceWav = "/run/fppd/ip-announce.wav";
+    std::string fliteCmd =
+        "/usr/bin/flite -voice awb -t \"" + announce + "\" -o " + announceWav +
+        " && PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp"
+        " /usr/bin/pw-play " + announceWav;
+    exec(fliteCmd);
+    unlink(announceWav.c_str()); // don't leave the rendered WAV behind in /run
 }
 static void disableWLANPowerManagement() {
     struct ifaddrs* ifAddrStruct = NULL;
