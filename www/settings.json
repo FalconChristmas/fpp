@@ -318,6 +318,10 @@
 			"settings": [
 				"GPIOFan",
 				"GPIOFanTemperature",
+				"Pi5Fan",
+				"Pi5FanTemperature",
+				"Pi5FanSpeed",
+				"Pi5FanHysteresis",
 				"LEDDisplayType",
 				"bootDelay",
 				"FPP_UUID"
@@ -1648,6 +1652,95 @@
 			"default": 70,
 			"min": 30,
 			"max": 85,
+			"step": 1,
+			"suffix": " C"
+		},
+		"Pi5Fan": {
+			"name": "Pi5Fan",
+			"description": "Pi 5 Fan Header",
+			"gatherStats": true,
+			"tip": "Enable the Raspberry Pi 5's dedicated fan header (JST connector). Uses onboard PWM fan control via dtparam=cooling_fan.",
+			"level": 1,
+			"reboot": 1,
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"variants": {
+				"Raspberry Pi": [
+					"Pi 5"
+				]
+			},
+			"children": {
+				"1": [
+					"Pi5FanTemperature",
+					"Pi5FanSpeed",
+					"Pi5FanHysteresis"
+				]
+			},
+			"type": "checkbox"
+		},
+		"Pi5FanTemperature": {
+			"name": "Pi5FanTemperature",
+			"description": "    Fan Temp Target",
+			"gatherStats": true,
+			"tip": "Temperature at which the fan will reach full speed.",
+			"level": 1,
+			"reboot": 1,
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"variants": {
+				"Raspberry Pi": [
+					"Pi 5"
+				]
+			},
+			"type": "number",
+			"default": 50,
+			"min": 30,
+			"max": 85,
+			"step": 1,
+			"suffix": " C"
+		},
+		"Pi5FanSpeed": {
+			"name": "Pi5FanSpeed",
+			"description": "    Fan Speed",
+			"gatherStats": true,
+			"tip": "Fan speed at the target temperature. 0-255, 255 = 100%.",
+			"level": 1,
+			"reboot": 1,
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"variants": {
+				"Raspberry Pi": [
+					"Pi 5"
+				]
+			},
+			"type": "number",
+			"default": 255,
+			"min": 0,
+			"max": 255,
+			"step": 1
+		},
+		"Pi5FanHysteresis": {
+			"name": "Pi5FanHysteresis",
+			"description": "    Fan Hysteresis",
+			"gatherStats": true,
+			"tip": "Temperature hysteresis in degrees C. The fan will turn off when the temperature drops this far below the target.",
+			"level": 1,
+			"reboot": 1,
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"variants": {
+				"Raspberry Pi": [
+					"Pi 5"
+				]
+			},
+			"type": "number",
+			"default": 10,
+			"min": 1,
+			"max": 30,
 			"step": 1,
 			"suffix": " C"
 		},

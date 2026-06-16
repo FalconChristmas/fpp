@@ -283,6 +283,65 @@ function SetGPIOFanProperties()
     }
 }
 
+function SetPi5FanProperties()
+{
+    global $settings;
+
+    if (strpos($settings['SubPlatform'], "Raspberry Pi 5") === false &&
+        strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") === false) {
+        return;
+    }
+
+    $fanOn = ReadSettingFromFile('Pi5Fan');
+    $fanTemp = ReadSettingFromFile('Pi5FanTemperature');
+    $fanSpeed = ReadSettingFromFile('Pi5FanSpeed');
+    $fanHysteresis = ReadSettingFromFile('Pi5FanHysteresis');
+
+    if ($fanTemp == '') { $fanTemp = '50'; }
+    if ($fanSpeed == '') { $fanSpeed = '255'; }
+    if ($fanHysteresis == '') { $fanHysteresis = '10'; }
+
+    $pfx = "";
+    if ($fanOn == '0') {
+        $pfx = "#";
+    }
+
+    $tempMilli = $fanTemp * 1000;
+    $hystMilli = $fanHysteresis * 1000;
+
+    $lines = [
+        "dtparam=cooling_fan=on",
+        "dtparam=fan_temp0=" . $tempMilli,
+        "dtparam=fan_temp0_speed=" . $fanSpeed,
+        "dtparam=fan_temp0_hyst=" . $hystMilli
+    ];
+
+    $bootDir = GetDirSetting('boot');
+    $configFile = $bootDir . "/config.txt";
+
+    $contents = file_get_contents($configFile);
+    $hasCoolingFan = (strpos($contents, "dtparam=cooling_fan") !== false);
+    $hasTempLines = (strpos($contents, "dtparam=fan_temp") !== false);
+
+    if (!$hasCoolingFan && !$hasTempLines) {
+        if ($pfx == "") {
+            exec("echo \"\" | sudo tee -a " . $configFile);
+            exec("echo \"[all]\" | sudo tee -a " . $configFile);
+            foreach ($lines as $line) {
+                exec("echo \"" . $line . "\" | sudo tee -a " . $configFile);
+            }
+            exec("echo \"\" | sudo tee -a " . $configFile);
+        }
+    } else {
+        foreach ($lines as $line) {
+            $escapedLine = str_replace('/', '\/', $line);
+            $sedFile = escapeshellarg($configFile);
+            exec("sudo sed -i -e 's/^dtparam=" . $escapedLine . "$/" . $pfx . $escapedLine . "/g' " . $sedFile, $output, $return_val);
+            exec("sudo sed -i -e 's/^#" . $escapedLine . "$/" . $pfx . $escapedLine . "/g' " . $sedFile, $output, $return_val);
+        }
+    }
+}
+
 function SetupLocalMQTTBroker($value)
 {
     global $settings;
@@ -394,6 +453,12 @@ function ApplySetting($setting, $value)
         case 'GPIOFanTemperature':
         case 'GPIOFan':
             SetGPIOFanProperties();
+            break;
+        case 'Pi5FanTemperature':
+        case 'Pi5FanSpeed':
+        case 'Pi5FanHysteresis':
+        case 'Pi5Fan':
+            SetPi5FanProperties();
             break;
         case 'screensaver':
             SetupScreenBlanking($value);

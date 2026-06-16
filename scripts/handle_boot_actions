@@ -21,6 +21,8 @@ function HandleSettings()
         ApplySetting("ForceHDMIResolutionPort2", $settings["ForceHDMIResolutionPort2"]);
     if (array_key_exists("GPIOFan", $settings))
         ApplySetting("GPIOFan", $settings["GPIOFan"]);
+    if (array_key_exists("Pi5Fan", $settings))
+        ApplySetting("Pi5Fan", $settings["Pi5Fan"]);
     if (array_key_exists("Kiosk", $settings))
         ApplySetting("Kiosk", $settings["Kiosk"]);
     if (array_key_exists("EnableBBBHDMI", $settings))
