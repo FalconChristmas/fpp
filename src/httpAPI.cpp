@@ -260,9 +260,17 @@ APIServer::APIServer() {
  */
 APIServer::~APIServer() {
     drogon::app().quit();
-    // Release our reference. In-flight drogon requests captured m_pr by value
-    // (shared_ptr), so the PlayerResource stays alive until the last request
-    // completes — no use-after-free regardless of when drogon threads finish.
+    // Join the server thread so Drogon is fully stopped before we return.
+    // PluginManager::Cleanup() (called from main() after MainLoop() exits)
+    // will dlclose() plugin libraries; if Drogon IO threads are still running
+    // at that point they may execute or release plugin handler lambdas whose
+    // code is in those libraries -> SEGV_MAPERR. Joining here ensures all
+    // Drogon threads have exited before any dlclose() can happen.
+    if (m_serverThread && m_serverThread->joinable()) {
+        m_serverThread->join();
+    }
+    delete m_serverThread;
+    m_serverThread = nullptr;
     m_pr.reset();
 }
 
@@ -450,9 +458,10 @@ void APIServer::Init(void) {
     m_serverThread = new std::thread([]() {
         drogon::app().run();
     });
-    // Detach so that if exit() is called unexpectedly (e.g., from e131bridge
-    // socket failures), the std::thread destructor won't call std::terminate()
-    m_serverThread->detach();
+    // Do NOT detach: ~APIServer() joins this thread after quit() so Drogon is
+    // fully stopped before PluginManager::Cleanup() calls dlclose() on plugin
+    // libraries. Plugin route handlers are lambdas with code in those libraries;
+    // Drogon IO threads running after dlclose() -> SEGV_MAPERR on the vtable.
 }
 
 /*

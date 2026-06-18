@@ -390,6 +390,12 @@ void PluginManager::Cleanup() {
         delete mPlugins.back();
         mPlugins.pop_back();
     }
+    // Delete any commands that plugins registered but did not remove in
+    // unregisterApis(). Those commands have vtables in the plugin library.
+    // CommandManager::Cleanup() must run before dlclose() so that the virtual
+    // destructor dispatch doesn't hit unmapped memory. The call is idempotent
+    // (guarded by an atomic flag), so the subsequent call in main() is a no-op.
+    CommandManager::INSTANCE.Cleanup();
     for (auto& a : mShlibHandles) {
         dlclose(a);
     }
