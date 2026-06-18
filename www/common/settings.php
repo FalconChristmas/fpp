@@ -294,7 +294,7 @@ function SetupLocalMQTTBroker($value)
             exec("sudo systemctrl disable mosquitto >/dev/null &");
         } else if ($value == '1') {
             //generate mosquitto password file
-            $password = GetSettingValue('osPassword');
+            $password = GetSettingValue('MQTTPassword');
             if ($password == '') {
                 $password = 'fpp';
             }
@@ -400,6 +400,11 @@ function ApplySetting($setting, $value)
             break;
         case 'Service_MQTT_localbroker':
             SetupLocalMQTTBroker($value);
+            break;
+        case 'MQTTPassword':
+            if (GetSettingValue('Service_MQTT_localbroker') == '1') {
+                SetupLocalMQTTBroker('1');
+            }
             break;
         default:
             ApplyServiceSetting($setting, $value, "--now");
