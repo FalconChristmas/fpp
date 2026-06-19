@@ -6,5 +6,5 @@ require_once ("common.php");
 
 DisableOutputBuffering();
 
-system($settings["fppDir"] . "/scripts/healthCheck --php " . $_GET['timestamp']);
+system($settings["fppDir"] . "/scripts/healthCheck --php " . intval($_GET['timestamp']));
 ?>
