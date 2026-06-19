@@ -176,10 +176,10 @@ unsigned short PCA9685Output::PCA9685Port::readValue(unsigned char* channelData,
             DataType dt = m_dataType;
             if (dt == PCA9685Output::DataType::ABSOLUTE_DOUBLE) {
                 z /= 2.0f;
-                dt == PCA9685Output::DataType::ABSOLUTE;
+                dt = PCA9685Output::DataType::ABSOLUTE;
             } else if (dt == PCA9685Output::DataType::ABSOLUTE) {
                 z *= 2.0f;
-                dt == PCA9685Output::DataType::ABSOLUTE;
+                dt = PCA9685Output::DataType::ABSOLUTE;
             }
             if (dt == PCA9685Output::DataType::ABSOLUTE) {
                 z *= frequency;
