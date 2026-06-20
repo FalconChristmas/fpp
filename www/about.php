@@ -10,6 +10,7 @@
     include 'common/menuHead.inc';
     ?>
     <link rel="stylesheet" href="css/fpp-system-design.css?ref=<?php echo filemtime('css/fpp-system-design.css'); ?>">
+    <title><? echo $pageTitle; ?></title>
     <?php
     $fppVersion = getFPPVersion();
     $localGitVersion = get_local_git_version();
