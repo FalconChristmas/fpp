@@ -2259,12 +2259,64 @@ function get_remote_git_version()
 }
 
 /**
+ * Checks whether a release asset filename matches the current device's platform and architecture.
+ *
+ * @param string $name     Asset filename to test (e.g. "Pi-7.0.fppos").
+ * @param array  $settings Global FPP settings array providing OSImagePrefix and Is64Bit.
+ * @return bool True if the filename matches this device; false otherwise.
+ */
+function MatchesDeviceOSImage($name, $settings)
+{
+    if (!str_ends_with($name, ".fppos") || !isset($settings['OSImagePrefix']) || $settings['OSImagePrefix'] == "") {
+        return false;
+    }
+
+    $prefix = $settings['OSImagePrefix'];
+    $is64Bit = !empty($settings['Is64Bit']);
+
+    if ($prefix == "Pi" || $prefix == "Pi64") {
+        if (!(str_starts_with($name, "Pi-") || str_starts_with($name, "Pi64-"))) {
+            return false;
+        }
+    } else if ($prefix == "BBB" || $prefix == "BB64") {
+        if (!(str_starts_with($name, "BBB-") || str_starts_with($name, "BB64-"))) {
+            return false;
+        }
+    } else if (!str_starts_with($name, $prefix . "-")) {
+        return false;
+    }
+
+    // Match explicit architecture markers when they are present.
+    $has64Marker = preg_match('/(^|[-_])(64|64bit|aarch64|arm64)([-_.]|$)/i', $name) === 1;
+    $has32Marker = preg_match('/(^|[-_])(32|32bit|armv7|armv7l|armhf|arm32)([-_.]|$)/i', $name) === 1;
+
+    if ($has64Marker && !$is64Bit) {
+        return false;
+    }
+    if ($has32Marker && $is64Bit) {
+        return false;
+    }
+
+    // Preserve legacy behavior if marker isn't present.
+    if (!$has64Marker && !$has32Marker) {
+        if ($is64Bit && ($prefix == "Pi64" || $prefix == "BB64")) {
+            return str_starts_with($name, $prefix . "-");
+        }
+        if (!$is64Bit && ($prefix == "Pi" || $prefix == "BBB")) {
+            return str_starts_with($name, $prefix . "-");
+        }
+    }
+
+    return true;
+}
+
+/**
  * Check for FPP updates via fppstats API
  * Returns unified update status for both branch upgrades and commit updates
  * @param string $latestReleaseVersion Optional pre-fetched latest release version (from GitHub API)
  * @return array Update status with branchUpgradeAvailable, commitUpdateAvailable, etc.
  */
-function check_fppstats_updates($latestReleaseVersion = null)
+function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasDeviceAsset = true)
 {
     global $settings;
 
@@ -2369,17 +2421,35 @@ function check_fppstats_updates($latestReleaseVersion = null)
         }
     }
 
-    if ($latestReleaseVersion && $result['branchUpgradeAvailable']) {
-        // Ensure the branch upgrade target matches
-        $latestVersionFloat = floatval(ltrim($latestReleaseVersion, 'v'));
-        $targetVersionFloat = floatval($result['branchUpgradeVersion']);
+    // Only notify about a branch upgrade once a full release actually exists.
+    // GitHub's releases/latest endpoint (the source of $latestReleaseVersion)
+    // excludes prereleases and drafts, so it is the newest version that has
+    // published artifacts. fppstats, by contrast, lists git branches, so a
+    // release branch (e.g. v10.0) shows up there before any release is cut.
+    // $latestReleaseHasDeviceAsset additionally confirms that release ships a
+    // downloadable OS image (.fppos) for this specific device.
+    if ($result['branchUpgradeAvailable']) {
+        if (preg_match('/^v?(\d+\.\d+)/', (string) $latestReleaseVersion, $rm)) {
+            $latestReleaseMajorMinor = $rm[1];
+            $latestVersionFloat = floatval($latestReleaseMajorMinor);
 
-        // Only show branch upgrade if target is at or above the official latest release
-        if ($targetVersionFloat < $latestVersionFloat) {
-            // Update to the official latest release instead
-            $result['branchUpgradeTarget'] = 'v' . $latestReleaseVersion;
-            $result['branchUpgradeVersion'] = ltrim($latestReleaseVersion, 'v');
+            if ($latestVersionFloat > $fppVersionFloat && $latestReleaseHasDeviceAsset) {
+                // Point users at the newest released version, even if a newer
+                // (release-less) branch was detected on fppstats.
+                $result['branchUpgradeTarget'] = 'v' . $latestReleaseMajorMinor;
+                $result['branchUpgradeVersion'] = $latestReleaseMajorMinor;
+            } else {
+                // Either the latest published release is not newer than what we
+                // run, or it has no OS image for this device yet, so the
+                // detected branch has nothing to upgrade to.
+                $result['branchUpgradeAvailable'] = false;
+                $result['branchUpgradeTarget'] = '';
+                $result['branchUpgradeVersion'] = '';
+            }
         }
+        // else: could not determine the latest release (e.g. offline); leave
+        // the branch-based detection as-is so notifications still work when
+        // GitHub is unreachable.
     }
 
     return $result;
