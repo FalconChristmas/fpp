@@ -131,7 +131,7 @@ HC_CheckGateways() {
     # get gateway info once, store for HC_PingGateway
     GATEWAY_LINES=$(netstat -rn | grep "^0\.0\.0\.0")
     GATEWAY_COUNT=$(echo "$GATEWAY_LINES" | grep -c .)
-    GATEWAY_IP=$(echo "$GATEWAY_LINES" | head -1 | awk '{print $2}')
+    GATEWAY_IPS=$(echo "$GATEWAY_LINES" | awk '{print $2}')
 
     if [ "${GATEWAY_COUNT}" == "1" ]; then
         status="pass"
@@ -140,33 +140,56 @@ HC_CheckGateways() {
         status="fail"
         message="No gateway found"
     else
-        status="fail"
+        status="warn"
         message="Multiple gateways found"
     fi
 
     emit_event "gateway" "Default Gateway" "fa-network-wired" "$status" "$message"
-    [ "${GATEWAY_COUNT}" == "1" ] && return 0 || return 1
+    # Continue the network checks whenever at least one gateway exists;
+    # multiple gateways is a warning, not a reason to skip the remaining checks.
+    [ "${GATEWAY_COUNT}" -ge 1 ] && return 0 || return 1
 }
 
 HC_PingGateway() {
     local status="pass"
     local message=""
 
-    if [ -n "$GATEWAY_IP" ]; then
-        if ping -c 1 -q -W 2 "$GATEWAY_IP" > /dev/null 2>&1; then
-            status="pass"
-            message="Gateway reachable ($GATEWAY_IP)"
-        else
-            status="fail"
-            message="Cannot reach $GATEWAY_IP"
+    local reachable=0
+    local total=0
+    local ip
+    for ip in $GATEWAY_IPS; do
+        total=$((total + 1))
+        if ping -c 1 -q -W 2 "$ip" > /dev/null 2>&1; then
+            reachable=$((reachable + 1))
         fi
-    else
+    done
+
+    if [ "$total" -eq 0 ]; then
         status="fail"
         message="No gateway configured"
+    elif [ "$total" -eq 1 ]; then
+        if [ "$reachable" -eq 1 ]; then
+            status="pass"
+            message="Gateway reachable ($GATEWAY_IPS)"
+        else
+            status="fail"
+            message="Cannot reach $GATEWAY_IPS"
+        fi
+    else
+        if [ "$reachable" -eq "$total" ]; then
+            status="pass"
+        elif [ "$reachable" -gt 0 ]; then
+            status="warn"
+        else
+            status="fail"
+        fi
+        message="${reachable} of ${total} gateways reachable"
     fi
 
     emit_event "gateway_ping" "Gateway Reachable" "fa-exchange-alt" "$status" "$message"
-    [ "$status" == "pass" ] && return 0 || return 1
+    # Proceed with internet/DNS/time checks as long as at least one gateway
+    # responded; partial reachability is a warning, not a hard stop.
+    [ "$reachable" -ge 1 ] && return 0 || return 1
 }
 
 HC_Internet() {
