@@ -148,6 +148,140 @@ function network_wifi_scan()
 }
 
 /**
+ * Get WiFi connection status / diagnostics
+ *
+ * Returns the wpa_supplicant association state for the given wireless
+ * `{interface}` plus a human-readable reason describing why it is (not)
+ * connected (wrong password, SSID not in range, waiting for DHCP, etc).
+ *
+ * @route GET /api/network/wifi/status/{interface}
+ * @response 200 WiFi connection status
+ * ```json
+ * {"status":"OK","connected":false,"wpa_state":"SCANNING","ssid":"","configuredSSID":"MyNet","ip":"","signal":null,"ssidVisible":false,"reason":"Network 'MyNet' not found in range (or it is hidden)."}
+ * ```
+ */
+function network_wifi_status()
+{
+    global $settings;
+    $interface = params('interface');
+
+    # Validate interface. -- Important because of SUDO
+    $interfaces = json_decode(network_list_interfaces(), true);
+    $found = false;
+    foreach ($interfaces as $row) {
+        if ($row["ifname"] == $interface) {
+            $found = true;
+            break;
+        }
+    }
+    if (!$found) {
+        return json(array("status" => "Invalid Interface"));
+    }
+    $iface = escapeshellarg($interface);
+
+    // Configured SSID from the saved interface config
+    $configuredSSID = "";
+    $cfgFile = $settings['configDirectory'] . "/interface." . $interface;
+    if (file_exists($cfgFile)) {
+        $cfg = parse_ini_file($cfgFile);
+        if (isset($cfg['SSID'])) {
+            $configuredSSID = $cfg['SSID'];
+        }
+    }
+
+    // wpa_supplicant association state via its control socket
+    $wpaState = "";
+    $ssid = "";
+    $ip = "";
+    $out = array();
+    exec("sudo wpa_cli -i $iface status 2>/dev/null", $out);
+    foreach ($out as $line) {
+        if (preg_match('/^wpa_state=(.*)$/', $line, $m)) {
+            $wpaState = trim($m[1]);
+        } else if (preg_match('/^ssid=(.*)$/', $line, $m)) {
+            $ssid = trim($m[1]);
+        } else if (preg_match('/^ip_address=(.*)$/', $line, $m)) {
+            $ip = trim($m[1]);
+        }
+    }
+
+    // Signal strength (only meaningful while associated)
+    $signal = null;
+    $out = array();
+    exec("/sbin/iw dev $iface link 2>/dev/null", $out);
+    foreach ($out as $line) {
+        if (preg_match('/signal:\s*(-?\d+)\s*dBm/', $line, $m)) {
+            $signal = intval($m[1]);
+        }
+        if ($ssid == "" && preg_match('/SSID:\s*(.+)/', $line, $m)) {
+            $ssid = trim($m[1]);
+        }
+    }
+
+    $connected = ($wpaState === "COMPLETED" && $ip !== "" && $ip !== "0.0.0.0");
+
+    // Is the configured SSID currently visible? Use cached scan results
+    // ("scan dump") so we do NOT trigger a disruptive scan on every poll.
+    $ssidVisible = null;
+    if ($configuredSSID !== "") {
+        $scanOut = array();
+        exec("sudo /sbin/iw dev $iface scan dump 2>/dev/null", $scanOut);
+        $ssidVisible = false;
+        foreach ($scanOut as $line) {
+            if (preg_match('/^\s*SSID:\s*(.+)$/', $line, $m) && trim($m[1]) === $configuredSSID) {
+                $ssidVisible = true;
+                break;
+            }
+        }
+    }
+
+    // Recent wpa_supplicant log lines for failure reason codes
+    $jout = array();
+    exec("sudo journalctl -u wpa_supplicant@$iface -n 40 --no-pager 2>/dev/null", $jout);
+    $journal = implode("\n", $jout);
+    $wrongKey = (stripos($journal, "WRONG_KEY") !== false) ||
+        (stripos($journal, "4-Way Handshake failed") !== false) ||
+        (stripos($journal, "pre-shared key may be incorrect") !== false);
+    $authTimeout = ((stripos($journal, "authentication") !== false || stripos($journal, "association") !== false)
+        && stripos($journal, "timed out") !== false);
+
+    // Derive a human-readable reason (most specific first)
+    if ($configuredSSID === "") {
+        $reason = "No wireless network is configured.";
+    } else if ($connected) {
+        $reason = "Connected to " . $ssid . ($ip !== "" ? " (" . $ip . ")" : "");
+    } else if ($wpaState === "COMPLETED") {
+        $reason = "Associated - waiting for an IP address (DHCP).";
+    } else if ($wrongKey || $wpaState === "4WAY_HANDSHAKE") {
+        $reason = "Authentication failed - the WiFi password is likely incorrect.";
+    } else if ($ssidVisible === false) {
+        $reason = "Network '" . $configuredSSID . "' not found in range (or it is hidden).";
+    } else if ($authTimeout) {
+        $reason = "The access point did not respond (out of range or busy).";
+    } else if ($ssidVisible === true) {
+        $reason = "Found '" . $configuredSSID . "' but could not connect - check the password and security type.";
+    } else if ($wpaState === "INACTIVE") {
+        $reason = "WiFi is inactive - no configured network is available.";
+    } else if ($wpaState === "" ) {
+        $reason = "wpa_supplicant is not running for this interface.";
+    } else {
+        $reason = "Connecting to '" . $configuredSSID . "'... (" . $wpaState . ")";
+    }
+
+    return json(array(
+        "status" => "OK",
+        "connected" => $connected,
+        "wpa_state" => $wpaState,
+        "ssid" => $ssid,
+        "configuredSSID" => $configuredSSID,
+        "ip" => $ip,
+        "signal" => $signal,
+        "ssidVisible" => $ssidVisible,
+        "reason" => $reason
+    ));
+}
+
+/**
  * Delete interface persistent names
  *
  * Removes interface persistent names by deleting systemd `.link` files and

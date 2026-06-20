@@ -99,6 +99,7 @@ dispatch_post('/network/presisentNames', 'network_persistentNames_create');
 dispatch_delete('/network/persistentNames', 'network_persistentNames_delete');
 dispatch_post('/network/persistentNames', 'network_persistentNames_create');
 dispatch_get('/network/wifi/scan/:interface', 'network_wifi_scan');
+dispatch_get('/network/wifi/status/:interface', 'network_wifi_status');
 dispatch_get('/network/wifi/strength', 'network_wifi_strength');
 
 dispatch_get('/options/:SettingName', 'GetOptions');

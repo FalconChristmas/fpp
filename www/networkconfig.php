@@ -81,40 +81,7 @@
             color: var(--fpp-text-muted);
         }
 
-        /* Security Badge Styling */
-        .security-badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .security-none {
-            background-color: var(--bs-danger);
-            color: white;
-        }
-
-        .security-wep {
-            background-color: var(--bs-orange);
-            color: white;
-        }
-
-        .security-wpa {
-            background-color: var(--bs-success);
-            color: white;
-        }
-
-        .security-wpa2 {
-            background-color: var(--bs-blue);
-            color: white;
-        }
-
-        .security-wpa3 {
-            background-color: var(--bs-purple);
-            color: white;
-        }
+        /* Security badges use Bootstrap .badge text-bg-* (see LoadSIDSForInterface) */
 
         /* WiFi Network Row :hover/:active handled in fpp.css + fpp-dark.css */
 
@@ -161,33 +128,166 @@
     ?>
     <script>
 
-        function WirelessSettingsVisible(visible) {
-            if (visible == true) {
-                LoadSIDS($('#selInterfaces').val());
-                $("#WirelessSubsection").show();
-                $("#WirelessSettings").show();
-                $("#wifiNetworksRow").show();
-            } else {
-                $("#WirelessSubsection").hide();
-                $("#WirelessSettings").hide();
-                $("#wifiNetworksRow").hide();
+        // ---- IPv4 / subnet validation helpers ----
+        // Returns the IP as an unsigned 32-bit number, or null if not a valid dotted-quad.
+        function ipToLong(ip) {
+            if (typeof ip !== 'string') return null;
+            var parts = ip.split('.');
+            if (parts.length !== 4) return null;
+            var n = 0;
+            for (var i = 0; i < 4; i++) {
+                if (!/^\d{1,3}$/.test(parts[i])) return null;
+                var o = Number(parts[i]);
+                if (o < 0 || o > 255) return null;
+                n = (n * 256) + o;
             }
+            return n >>> 0;
+        }
+        function isValidIPv4(ip) {
+            return ipToLong(ip) !== null;
+        }
+        // A netmask is valid only if it is a contiguous run of 1 bits followed by 0 bits.
+        function isValidNetmask(mask) {
+            var n = ipToLong(mask);
+            if (n === null || n === 0) return false;
+            var inv = (~n) >>> 0;            // host bits
+            return ((inv + 1) & inv) === 0;  // contiguous-ones test
+        }
+        // True if ip and netIp are in the same subnet defined by mask.
+        function ipInSameSubnet(ip, netIp, mask) {
+            var a = ipToLong(ip), b = ipToLong(netIp), m = ipToLong(mask);
+            if (a === null || b === null || m === null) return false;
+            return ((a & m) >>> 0) === ((b & m) >>> 0);
+        }
+        // True if ip is the network or broadcast address for the given mask
+        // (no usable host on /31 or /32 so those are exempted).
+        function isNetworkOrBroadcast(ip, mask) {
+            var a = ipToLong(ip), m = ipToLong(mask);
+            if (a === null || m === null) return false;
+            if (m === 0xFFFFFFFF || m === 0xFFFFFFFE) return false;
+            var network = (a & m) >>> 0;
+            var broadcast = (network | ((~m) >>> 0)) >>> 0;
+            return a === network || a === broadcast;
+        }
+        // Convert a CIDR prefix length (0-32) to a dotted-quad netmask string, or null.
+        function prefixToMask(prefix) {
+            prefix = parseInt(prefix, 10);
+            if (isNaN(prefix) || prefix < 0 || prefix > 32) return null;
+            var m = prefix === 0 ? 0 : ((0xFFFFFFFF << (32 - prefix)) >>> 0);
+            return [(m >>> 24) & 255, (m >>> 16) & 255, (m >>> 8) & 255, m & 255].join('.');
+        }
+        // Number of usable host addresses in a subnet (excludes network+broadcast).
+        // /31 and /32 are treated as having no DHCP-usable hosts.
+        function usableHostCount(mask) {
+            var m = ipToLong(mask);
+            if (m === null) return 0;
+            var hostBits = 0;
+            for (var b = 0; b < 32; b++) {
+                if (!((m >>> b) & 1)) hostBits++; else break;
+            }
+            if (hostBits <= 1) return 0;
+            return Math.pow(2, hostBits) - 2;
+        }
+        // A WPA key is valid as an 8-63 character passphrase or a 64-character hex PMK.
+        function validWpaKey(k) {
+            return (k.length >= 8 && k.length <= 63) || /^[0-9a-fA-F]{64}$/.test(k);
         }
 
         function checkStaticIP() {
-            var ip = $('#eth_ip').val();
+            var iface = currentInterface;
+            if (!iface) return;
+            var safeName = iface.replace(/[^a-zA-Z0-9]/g, '_');
+            var ip = $('#eth_ip_' + safeName).val();
             $("#ipWarning").html('');
             if (ip.startsWith("192.168") || ip.startsWith("10.")) {
-                if ($('#eth_netmask').val() == "") {
-                    $('#eth_netmask').val("255.255.255.0");
+                if ($('#eth_netmask_' + safeName).val() == "") {
+                    $('#eth_netmask_' + safeName).val("255.255.255.0");
                 }
                 // Note: Gateway is now handled globally, not per-interface
             }
             if (ip.startsWith("192.168.6.") || ip.startsWith("192.168.7.") || ip.startsWith("192.168.8.")) {
                 var text = "It is recommended to use subnets other than 192.168.6.x, 192.168.7.x, and 192.168.8.x to avoid issues with tethering."
                 $("#ipWarning").html(text);
-                $.jGrowl(text, { themeState: 'danger' });
+                $.jGrowl(text, { themeState: 'warning' });
             }
+        }
+
+        // Single source of truth for network state. Does ONE api/network/interface
+        // fetch and merges three views per interface:
+        //   - saved config (parse_ini of /config/interface.*)
+        //   - live OS addresses (addr_info, covers DHCP-assigned subnets)
+        //   - currently-entered, possibly unsaved values from loaded interface tabs
+        // "effective proto" = the loaded tab's radio if present, else the saved PROTO.
+        // Callback receives a state object (or null if the API call failed):
+        //   { interfaces, knownSubnets:[{ip,mask}], hasDhcpClient, hasStatic, dhcpUp }
+        function getNetworkState(callback) {
+            $.get("api/network/interface", function (interfaces) {
+                var knownSubnets = [];
+                var hasDhcpClient = false;
+                var hasStatic = false;
+                var dhcpUp = false;
+
+                // Gather unsaved form values from loaded tabs, keyed by interface name.
+                var inForm = {};
+                $('.interface-config-content').each(function () {
+                    var ifn = $(this).attr('data-interface');
+                    if (!ifn) return;
+                    var safe = ifn.replace(/[^a-zA-Z0-9]/g, '_');
+                    var staticRadio = $(this).find('#eth_static_' + safe);
+                    var dhcpRadio = $(this).find('#eth_dhcp_' + safe);
+                    if (!staticRadio.length && !dhcpRadio.length) return; // tab not populated yet
+                    inForm[ifn] = {
+                        proto: staticRadio.is(':checked') ? 'static' : (dhcpRadio.is(':checked') ? 'dhcp' : null),
+                        ip: $(this).find('#eth_ip_' + safe).val(),
+                        mask: $(this).find('#eth_netmask_' + safe).val(),
+                        ssid: $(this).find('#eth_ssid_' + safe).val()
+                    };
+                });
+
+                (interfaces || []).forEach(function (ifaceData) {
+                    var cfg = ifaceData.config || {};
+                    var name = cfg.INTERFACE || ifaceData.ifname;
+                    if (!name) return;
+                    var form = inForm[name] || {};
+
+                    // A wlan interface with no SSID (saved or in-form) is not actually in use.
+                    var wlNoSsid = name.indexOf('wl') === 0 && !cfg.SSID && !form.ssid;
+                    // Effective proto: in-form radio wins over saved config.
+                    var eff = form.proto || cfg.PROTO;
+
+                    if (!wlNoSsid) {
+                        if (eff === 'dhcp') hasDhcpClient = true;
+                        if (eff === 'static') hasStatic = true;
+                    }
+                    if (cfg.PROTO === 'dhcp' && ifaceData.operstate === 'UP') dhcpUp = true;
+
+                    // Known reachable subnets: saved static, in-form static, and live addresses.
+                    if (cfg.PROTO === 'static' && cfg.ADDRESS && cfg.NETMASK) {
+                        knownSubnets.push({ ip: cfg.ADDRESS, mask: cfg.NETMASK });
+                    }
+                    if (form.proto === 'static' && isValidIPv4(form.ip) && isValidNetmask(form.mask)) {
+                        knownSubnets.push({ ip: form.ip, mask: form.mask });
+                    }
+                    if (Array.isArray(ifaceData.addr_info)) {
+                        ifaceData.addr_info.forEach(function (ai) {
+                            if (ai && ai.family === 'inet' && ai.local && typeof ai.prefixlen !== 'undefined') {
+                                var liveMask = prefixToMask(ai.prefixlen);
+                                if (liveMask) knownSubnets.push({ ip: ai.local, mask: liveMask });
+                            }
+                        });
+                    }
+                });
+
+                callback({
+                    interfaces: interfaces || [],
+                    knownSubnets: knownSubnets,
+                    hasDhcpClient: hasDhcpClient,
+                    hasStatic: hasStatic,
+                    dhcpUp: dhcpUp
+                });
+            }).fail(function () {
+                callback(null);
+            });
         }
 
         function validateGlobalGateway(callback) {
@@ -198,34 +298,45 @@
                 return callback(true);
             }
 
-            // If gateway is provided, validate it's a proper IP
-            if (gateway !== "" && validateIPaddress('global_gateway') == false) {
+            // Invalid format is always a hard error, regardless of UI level.
+            if (!isValidIPv4(gateway)) {
                 $.jGrowl("Invalid Gateway. Expect format like 192.168.0.1", { themeState: 'danger' });
                 return callback(false);
             }
 
-            // Check if any interface has DHCP enabled and is UP
-            $.get("api/network/interface", function (interfaces) {
-                var dhcpOperStateUp = false;
+            // Validate against the consolidated network state (saved + live + in-form).
+            getNetworkState(function (state) {
+                if (!state) {
+                    // API failed - allow the gateway to be saved rather than block on a transient error.
+                    return callback(true);
+                }
 
-                interfaces.forEach(function (ifaceData) {
-                    if (ifaceData.config && ifaceData.config.INTERFACE) {
-                        // Check if there's a DHCP interface with operstate UP
-                        if (ifaceData.config.PROTO === "dhcp" && ifaceData.operstate === "UP") {
-                            dhcpOperStateUp = true;
-                        }
-                    }
+                var inSubnet = state.knownSubnets.some(function (s) {
+                    return isValidNetmask(s.mask) && ipInSameSubnet(gateway, s.ip, s.mask);
                 });
 
-                // If DHCP is providing a route and user tries to set manual gateway, warn them
-                if (dhcpOperStateUp && gateway !== "") {
+                if (!inSubnet) {
+                    if (state.dhcpUp) {
+                        // A DHCP interface may supply a subnet/route we can't fully predict - warn, allow.
+                        $.jGrowl("Warning: Gateway " + gateway + " is not within a known static subnet. If it is reached via a DHCP interface this is likely fine.", { themeState: 'warning' });
+                        return callback(true);
+                    }
+                    <? if ($settings['uiLevel'] >= 1) { ?>
+                    // Advanced+: an expert may use policy routing / manual static routes - warn, allow.
+                    $.jGrowl("Warning: Gateway " + gateway + " is not within any interface subnet and may be unreachable.", { themeState: 'warning' });
+                    return callback(true);
+                    <? } else { ?>
+                    // Basic: almost certainly a mistake - block.
+                    $.jGrowl("Gateway " + gateway + " is not within any interface's subnet and will be unreachable.", { themeState: 'danger' });
+                    return callback(false);
+                    <? } ?>
+                }
+
+                // Reachable, but a DHCP interface may also provide its own default route.
+                if (state.dhcpUp) {
                     $.jGrowl("Warning: A DHCP interface is active and may provide its own default route. Manual gateway may conflict.", { themeState: 'warning' });
                 }
 
-                return callback(true);
-
-            }).fail(function () {
-                // If the API call fails, still allow the gateway to be saved
                 return callback(true);
             });
         }
@@ -238,28 +349,100 @@
                 return;
             }
             var safeName = iface.replace(/[^a-zA-Z0-9]/g, '_');
-
-            var eth_ip = $('#eth_ip_' + safeName).val();
             $("#ipWarning").html('');
-            if ($('#eth_static_' + safeName).is(':checked')) {
-                if ((validateIPaddress('eth_ip_' + safeName) == false) || (eth_ip == "")) {
-                    $.jGrowl("Invalid IP Address. Expect format like 192.168.0.101", { themeState: 'danger' });
-                    $("#ipWarning").html('Invalid IP Address. Expect format like 192.168.0.101');
-                    return false;
-                }
 
-                if ((validateIPaddress('eth_netmask_' + safeName) == false) || ($('#eth_netmask_' + safeName).val() == "")) {
-                    $.jGrowl("Invalid Netmask. Expect format like 255.255.255.0", { themeState: 'danger' });
-                    $("#ipWarning").html('Invalid Netmask. Expect format like 255.255.255.0');
-                    return false;
-                }
-
-                // Gateway validation is now handled globally, not per interface
-                return callback(true);
-            } else {
-                // If not in static mode, validation passes
-                return callback(true);
+            // Hard error: show message and signal failure to the caller (always blocks).
+            function fail(msg) {
+                $.jGrowl(msg, { themeState: 'danger' });
+                $("#ipWarning").html(msg);
+                callback(false);
+                return false;
             }
+            // Soft warning: surface the issue but let the save proceed (used for
+            // topology/policy concerns in Advanced+ where experts may know better).
+            function warnOnly(msg) {
+                $.jGrowl(msg, { themeState: 'warning' });
+                $("#ipWarning").html(msg);
+            }
+
+            // --- Static IPv4 addressing (Basic+) ---
+            var isStatic = $('#eth_static_' + safeName).is(':checked');
+            var ip = $('#eth_ip_' + safeName).val();
+            var mask = $('#eth_netmask_' + safeName).val();
+            if (isStatic) {
+                // Format errors are always hard blocks.
+                if (ip == "" || !isValidIPv4(ip)) {
+                    return fail("Invalid IP Address. Expect format like 192.168.0.101");
+                }
+                if (mask == "" || !isValidNetmask(mask)) {
+                    return fail("Invalid Netmask. Expect a contiguous mask like 255.255.255.0");
+                }
+                // Network/broadcast is a topology concern: block in Basic, warn in Advanced+.
+                if (isNetworkOrBroadcast(ip, mask)) {
+                    <? if ($settings['uiLevel'] >= 1) { ?>
+                    warnOnly("Warning: IP " + ip + " is the network or broadcast address for this subnet.");
+                    <? } else { ?>
+                    return fail("IP " + ip + " is the network or broadcast address for this subnet. Choose a host address.");
+                    <? } ?>
+                }
+            }
+
+            // --- DHCP server pool (Advanced+ only) ---
+            <? if ($settings['uiLevel'] >= 1) { ?>
+            if ($('#dhcpServer_' + safeName).is(':checked')) {
+                var offset = parseInt($('#dhcpOffset_' + safeName).val(), 10);
+                var poolSize = parseInt($('#dhcpPoolSize_' + safeName).val(), 10);
+                // Non-numeric / non-positive is a format error - always block.
+                if (isNaN(offset) || offset < 1) {
+                    return fail("DHCP Pool Offset must be a positive number.");
+                }
+                if (isNaN(poolSize) || poolSize < 1) {
+                    return fail("DHCP Pool Size must be a positive number.");
+                }
+                // Pool must fit within the subnet's usable host range (topology -> warn in Advanced+).
+                var hostCap = (isStatic && isValidNetmask(mask)) ? usableHostCount(mask) : 254;
+                if ((offset + poolSize - 1) > hostCap) {
+                    warnOnly("Warning: DHCP pool (offset " + offset + " + size " + poolSize + ") exceeds the " + hostCap + " usable host(s) in this subnet.");
+                }
+            }
+            <? } ?>
+
+            // --- Wireless (Basic+ primary; Advanced+ backup) ---
+            if (iface.substr(0, 2) == "wl") {
+                var psk = $('#eth_psk_' + safeName).val();
+                if (psk != "" && !validWpaKey(psk)) {
+                    return fail("WiFi password (WPA) must be an 8-63 character passphrase or a 64 character hex key.");
+                }
+                <? if ($settings['uiLevel'] >= 1) { ?>
+                var bpsk = $('#backupeth_psk_' + safeName).val();
+                if (bpsk != "" && !validWpaKey(bpsk)) {
+                    return fail("Backup WiFi password (WPA) must be an 8-63 character passphrase or a 64 character hex key.");
+                }
+                <? } ?>
+            }
+
+            // --- Static DHCP leases (Advanced+, only present when DHCP server is on) ---
+            var leaseFormatError = "";
+            var leaseSubnetWarn = "";
+            $('#staticLeasesTable_' + safeName + ' > tbody > tr').each(function () {
+                if (!$(this).find('.static_enabled').is(':checked')) return;
+                var lip = $(this).find('.static_ip').val();
+                if (lip == "" || !isValidIPv4(lip)) {
+                    leaseFormatError = "Static lease IP '" + lip + "' is not a valid IP address.";
+                    return false; // stop: format error takes priority
+                }
+                if (isStatic && isValidIPv4(ip) && isValidNetmask(mask) && !ipInSameSubnet(lip, ip, mask)) {
+                    leaseSubnetWarn = "Static lease IP " + lip + " is not within the interface subnet.";
+                }
+            });
+            if (leaseFormatError != "") {
+                return fail(leaseFormatError); // format error always blocks
+            }
+            if (leaseSubnetWarn != "") {
+                warnOnly("Warning: " + leaseSubnetWarn); // topology -> warn (leases are Advanced+ only)
+            }
+
+            return callback(true);
         }
 
         function validateDNSFields() {
@@ -286,35 +469,38 @@
 
             var gateway = $('#global_gateway').val();
 
-            // If gateway is not empty, validate it first
-            if (gateway !== "" && !validateIPaddress('global_gateway')) {
-                $.jGrowl("Invalid Gateway. Expect format like 192.168.0.1", { themeState: 'danger' });
-                return;
-            }
-
             // Check if gateway value has actually changed
             $.get("api/network/gateway", function (currentData) {
                 var currentGateway = currentData.GATEWAY || "";
                 var newGateway = gateway || "";
 
-                // Only save and show notification if value changed
-                if (currentGateway !== newGateway) {
+                // No change: nothing to validate or save, just resync the UI.
+                if (currentGateway === newGateway) {
+                    LoadGlobalGateway();
+                    return;
+                }
+
+                // Validate the new value (format + reachable from a static subnet) before saving.
+                validateGlobalGateway(function (valid) {
+                    if (!valid) {
+                        // validateGlobalGateway has already shown a specific message
+                        LoadGlobalGateway();
+                        return;
+                    }
+
                     var data = {};
                     data.GATEWAY = newGateway;
-
                     var postData = JSON.stringify(data);
 
                     $.post("api/network/gateway", postData
                     ).done(function (data) {
                         LoadGlobalGateway();
                         $.jGrowl("Global gateway configuration saved", { themeState: 'success' });
+                        $('#btnConfigNetwork').show(); // Gateway is applied on next network restart
                     }).fail(function (xhr, status, error) {
                         DialogError("Save Global Gateway", "Save Failed: " + error);
                     });
-                } else {
-                    // No change, just reload to ensure UI is in sync
-                    LoadGlobalGateway();
-                }
+                });
             }).fail(function (xhr, status, error) {
                 DialogError("Save Global Gateway", "Save Failed: " + error);
             });
@@ -333,27 +519,16 @@
         }
 
         function checkGatewayAvailability() {
-            // Check the saved state of all interfaces
-            $.get("api/network/interface", function (interfaces) {
-                var hasStaticInterface = false;
+            getNetworkState(function (state) {
+                if (!state) {
+                    // If we can't determine state, leave the gateway field usable.
+                    $('#global_gateway').prop('disabled', false);
+                    return;
+                }
 
-                interfaces.forEach(function (ifaceData) {
-                    if (ifaceData.config && ifaceData.config.INTERFACE) {
-                        // Exclude WLAN interfaces without an SSID (they're not actually in use)
-                        if (ifaceData.config.INTERFACE.startsWith('wl') && !ifaceData.config.SSID) {
-                            return;
-                        }
-
-                        // Check if this interface is configured for static IP
-                        if (ifaceData.config.PROTO === "static") {
-                            hasStaticInterface = true;
-                        }
-                    }
-                });
-
-                // If at least one interface uses static IP, enable the gateway field
-                // If all interfaces are DHCP, disable gateway (DHCP provides routing)
-                if (!hasStaticInterface) {
+                // Enable the gateway field if any interface uses static IP.
+                // If everything is DHCP, disable it (DHCP provides default routing).
+                if (!state.hasStatic) {
                     $('#global_gateway').prop('disabled', true);
                     $('#global_gateway').val('');
                     $('#global_gateway').attr('placeholder', 'Disabled - DHCP interfaces provide routing');
@@ -371,9 +546,6 @@
                         'Global gateway for all interfaces. Leave blank if using DHCP on any interface for routing.'
                     );
                 }
-            }).fail(function () {
-                // If we can't check interfaces, enable the gateway field
-                $('#global_gateway').prop('disabled', false);
             });
         }
 
@@ -408,6 +580,7 @@
                     ).done(function (data) {
                         LoadDNSConfig();
                         $.jGrowl(" DNS configuration saved", { themeState: 'success' });
+                        $('#btnConfigNetwork').show(); // DNS is applied on next network restart
                     }).fail(function () {
                         DialogError("Save DNS Config", "Save Failed");
                     });
@@ -455,171 +628,6 @@
                 .replace(/'/g, "&#039;");
         }
 
-        function LoadSIDS(interface) {
-            $("#wifisearch").show();
-            $("#wifiNetworksList").empty();
-
-            $.get("api/network/wifi/scan/" + interface,
-                {
-                    timeout: 30000
-                }
-            ).done(function (data) {
-                var ssids = [];
-                var networksHtml = [];
-                var currentSSID = $('#eth_ssid').val();
-                var uniqueNetworks = {};
-
-                // Process networks and keep only the strongest signal for each SSID
-                data.networks.forEach(function (n) {
-                    if (n.SSID && n.SSID.trim() !== "") {
-                        var ssid = n.SSID.trim();
-                        var signal = parseInt(n.signal) || -100;
-
-                        // Only keep this network if it's the first occurrence or has better signal
-                        if (!uniqueNetworks[ssid] || signal > uniqueNetworks[ssid].signal) {
-                            uniqueNetworks[ssid] = {
-                                SSID: ssid,
-                                signal: signal,
-                                encrypted: n.encrypted || false,
-                                security: n.security || '',
-                                cipher: n.cipher || '',
-                                auth: n.auth || ''
-                            };
-                        }
-                    }
-                });
-
-                // Convert to array and sort by signal strength (strongest first)
-                var networksList = Object.values(uniqueNetworks).sort(function (a, b) {
-                    return b.signal - a.signal;
-                });
-
-                // Build table and SSID list
-                networksList.forEach(function (n) {
-                    ssids.push(n.SSID);
-
-                    // Determine signal strength display
-                    var signalStrength = n.signal;
-                    var signalBars = '';
-                    var signalClass = '';
-
-                    if (signalStrength >= -50) {
-                        signalBars = '▮▮▮▮';
-                        signalClass = 'text-success';
-                    } else if (signalStrength >= -60) {
-                        signalBars = '▮▮▮▯';
-                        signalClass = 'text-success';
-                    } else if (signalStrength >= -70) {
-                        signalBars = '▮▮▯▯';
-                        signalClass = 'text-warning';
-                    } else if (signalStrength >= -80) {
-                        signalBars = '▮▯▯▯';
-                        signalClass = 'text-warning';
-                    } else {
-                        signalBars = '▯▯▯▯';
-                        signalClass = 'text-danger';
-                    }
-
-                    // Determine security type using enhanced API data
-                    var security = 'Open';
-                    var securityDetails = '';
-
-                    if (n.encrypted === true) {
-                        // Network is encrypted, determine the type
-                        if (n.security) {
-                            security = n.security;
-                            securityDetails = n.security;
-
-                            // Add cipher and auth details if available
-                            if (n.cipher) {
-                                securityDetails += ' (' + n.cipher;
-                                if (n.auth) {
-                                    securityDetails += ', ' + n.auth;
-                                }
-                                securityDetails += ')';
-                            }
-                        } else {
-                            // Encrypted but no specific security type detected
-                            security = 'Secured';
-                            securityDetails = 'Encrypted';
-                        }
-                    }
-
-                    // Check if this is the currently configured network
-                    var isSelected = (n.SSID === currentSSID);
-                    var rowClass = isSelected ? 'table-primary' : '';
-                    var selectedIcon = isSelected ? '<i class="fas fa-check text-success" title="Currently configured"></i> ' : '';
-
-                    networksHtml.push(`
-                        <tr class="wifi-network-row ${rowClass}" style="cursor: pointer;" onclick="selectWifiNetwork('${escapeHtml(n.SSID)}', '${security}')">
-                            <td style="padding: 8px;">${selectedIcon}${escapeHtml(n.SSID)}</td>
-                            <td style="padding: 8px; white-space: nowrap;" class="${signalClass}">${signalBars} ${signalStrength}dBm</td>
-                            <td style="padding: 8px;"><span class="badge text-bg-secondary" title="Raw data: ${escapeHtml(securityDetails)}">${security}</span></td>
-                        </tr>
-                    `);
-                });
-
-                // Update datalist for backward compatibility
-                var html = [];
-                ssids.forEach(function (n) {
-                    if (typeof (n) != "undefined") {
-                        html.push("<option value='");
-                        html.push(escapeHtml(n));
-                        html.push("'>");
-                    }
-                });
-                $("#eth_ssids").html(html.join(''));
-
-                // Update networks table
-                if (networksHtml.length > 0) {
-                    $("#wifiNetworksList").html(networksHtml.join(''));
-                    $("#wifiNetworksRow").show();
-                } else {
-                    $("#wifiNetworksList").html('<tr><td colspan="3" class="p-2 text-center text-muted">No WiFi networks found</td></tr>');
-                    $("#wifiNetworksRow").show();
-                }
-
-            }).fail(function () {
-                DialogError("Scan Failed", "Failed to Scan for wifi networks");
-                $("#wifiNetworksList").html('<tr><td colspan="3" class="p-2 text-center text-muted">Scan failed</td></tr>');
-                $("#wifiNetworksRow").show();
-            }).always(function () {
-                $("#wifisearch").hide();
-            });
-        }
-
-        function selectWifiNetwork(ssid, security) {
-            // Update SSID field
-            $('#eth_ssid').val(ssid);
-
-            // Auto-set WPA3 checkbox if network supports it
-            $('#eth_wpa3').prop('checked', security === 'WPA3');
-
-            // Show/hide appropriate password fields based on security type
-            if (security === 'Open') {
-                $('#pskRow').hide();
-                $('#keyRow').hide();
-            } else if (security === 'WEP') {
-                $('#pskRow').hide();
-                $('#keyRow').show();
-                $('#eth_key').focus();
-            } else {
-                // WPA, WPA2, WPA3
-                $('#keyRow').hide();
-                $('#pskRow').show();
-                $('#eth_psk').focus();
-            }
-
-            // Highlight selected row
-            $('.wifi-network-row').removeClass('table-primary');
-            $('.wifi-network-row').find('i.fa-check').remove();
-
-            // Add selection to clicked row
-            event.target.closest('tr').classList.add('table-primary');
-            var firstCell = event.target.closest('tr').querySelector('td:first-child');
-            firstCell.innerHTML = '<i class="fas fa-check text-success" title="Currently configured"></i> ' + firstCell.innerHTML.replace(/^<i[^>]*><\/i>\s*/, '');
-        }
-
         function LoadDNSConfig() {
             var url = "api/network/dns";
             $.get(url, function (data) {
@@ -643,11 +651,23 @@
                         class: 'btn-success', click: function () {
                             CloseModalDialog("applyNetworkConfirm");
                             $.post("api/network/interface/" + $('#selInterfaces').val() + "/apply");
+                            // Network is being applied now - clear the pending-restart banner.
+                            $('#btnConfigNetwork').hide();
+                            // If applying a wireless interface, watch it (re)connect.
+                            if (currentInterface && currentInterface.substr(0, 2) == "wl") {
+                                pollWifiStatus(currentInterface, currentInterface.replace(/[^a-zA-Z0-9]/g, '_'));
+                            }
                         }
                     },
                     "Cancel and apply at next reboot": {
                         click: function () {
                             CloseModalDialog("applyNetworkConfirm");
+                            // Deferring to reboot: clear the restart banner and flag a reboot
+                            // so the change is still surfaced (and will apply on next boot).
+                            // A reboot supersedes a quick fppd restart, so clear that flag too.
+                            $('#btnConfigNetwork').hide();
+                            ClearRestartFlag();
+                            SetRebootFlag();
                         }
                     }
                 }
@@ -657,7 +677,7 @@
         function SaveNetworkConfig() {
             validateNetworkFields(function (isValid) {
                 if (!isValid) {
-                    DialogError("Invalid Network Config", "Save Failed");
+                    // validateNetworkFields has already shown a specific message
                     return;
                 }
 
@@ -746,7 +766,7 @@
                         $.post("api/network/interface/" + iface, postData
                         ).done(function (rc) {
                             if (rc.status == "OK") {
-                                // Reload the specific interface configuration instead of old LoadNetworkConfig
+                                // Reload the specific interface configuration
                                 if (currentInterface) {
                                     loadInterfaceConfiguration(currentInterface);
                                 }
@@ -757,7 +777,7 @@
                                 setTimeout(checkGatewayAvailability, 200);
 
                                 if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
-                                    DialogError("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.<br><br<span style='color: red;'>If you do not do this, your FPP will have no Internet Access</span>");
+                                    DialogError("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.<br><br><span class='text-danger'>If you do not do this, your FPP will have no Internet Access</span>");
                                     return;
                                 }
                             } else {
@@ -779,7 +799,7 @@
                     $.post("api/network/interface/" + iface, postData
                     ).done(function (rc) {
                         if (rc.status == "OK") {
-                            // Reload the specific interface configuration instead of old LoadNetworkConfig
+                            // Reload the specific interface configuration
                             if (currentInterface) {
                                 loadInterfaceConfiguration(currentInterface);
                             }
@@ -790,7 +810,7 @@
                             setTimeout(checkGatewayAvailability, 200);
 
                             if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
-                                DialogError("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.<br><br<span style='color: red;'>If you do not do this, your FPP will have no Internet Access</span>");
+                                DialogError("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.<br><br><span class='text-danger'>If you do not do this, your FPP will have no Internet Access</span>");
                                 return;
                             }
                         } else {
@@ -803,7 +823,9 @@
 
                 SaveDNSConfig();
                 SaveGlobalGateway(); // Save global gateway along with other settings
-                SetRebootFlag();
+                // No reboot needed: "Restart Network" (setupNetwork) applies the OS network
+                // config live. Use a quick fppd restart so outputs rebind to any new address.
+                SetRestartFlag(2);
             });
         }
 
@@ -886,50 +908,21 @@
             });
         }
 
-        function LoadNetworkConfig() {
-            var iface = $('#selInterfaces').val();
-            var url = "api/network/interface/" + iface;
-            var visible = iface.slice(0, 2).toLowerCase() == "wl" ? true : false;
+        // Message shown when DNS is left on "DHCP" but nothing can supply it.
+        var DNS_NO_DHCP_MSG = "No interface uses DHCP, so DNS will not be provided automatically. Set DNS to Manual or this FPP will have no name resolution.";
 
-            $.get(url, GetInterfaceInfo);
-            WirelessSettingsVisible(visible);
-        }
-
-
-        function CheckDNSCallback(data) {
-            var iface = currentInterface;
-            if (!iface) return;
-
-            var safeName = iface.replace(/[^a-zA-Z0-9]/g, '_');
-            if (iface.startsWith('e')) {
-                // FIXME, check the size of #selInterfaces here to be > 1
-                iface = 'wl';
-            } else if (iface.startsWith('wl')) {
-                iface = 'e';
+        function updateDnsWarning(state) {
+            if (!state) return;
+            if ($('#dns_dhcp').is(':checked') && !state.hasDhcpClient) {
+                setDNSWarning(DNS_NO_DHCP_MSG);
+            } else if ($('#dnsWarning').html() === DNS_NO_DHCP_MSG) {
+                // Only clear our own message - don't stomp a DNS format error from validateDNSFields.
+                setDNSWarning("");
             }
-
-            data.forEach(function (i) {
-                if (i.ifname.startsWith(iface)) {
-                    if (i.hasOwnProperty("config")) {
-                        if (i.config.PROTO == "static") {
-                            if (($('#eth_static_' + safeName).is(':checked')) &&
-                                ($('#dns_dhcp').is(':checked'))) {
-                                setDNSWarning("Warning: You must manually configure your DNS Server(s) if all network interfaces use static IPs.");
-                            } else {
-                                setDNSWarning("");
-                            }
-                        } else {
-                            setDNSWarning("");
-                        }
-                    }
-                }
-            });
         }
 
         function CheckDNS() {
-            var url = "api/network/interface";
-
-            $.get(url, CheckDNSCallback);
+            getNetworkState(updateDnsWarning);
         }
 
         function setDNSWarning(msg) {
@@ -1062,9 +1055,10 @@
                 // Now populate the form with the interface data
                 populateInterfaceForm(data, safeName, contentDiv, iface);
 
-                // Load WiFi networks if it's a wireless interface
+                // Load WiFi networks and connection status if it's a wireless interface
                 if (visible) {
                     LoadSIDSForInterface(iface, safeName);
+                    updateWifiStatus(iface, safeName);
                 }
 
                 // Initialize tooltips for the new content
@@ -1244,8 +1238,9 @@
                     $('#dns_dhcp').prop('checked', false);
                     $('#dns_manual').prop('checked', true);
 
-                    // Re-check gateway availability
+                    // Re-check gateway availability and DNS adequacy
                     checkGatewayAvailability();
+                    CheckDNS();
                 }
             });
 
@@ -1267,14 +1262,16 @@
                     contentDiv.find('#eth_ip_' + safeName).val("");
                     contentDiv.find('#eth_netmask_' + safeName).val("");
 
-                    // Re-check gateway availability
+                    // Re-check gateway availability and DNS adequacy
                     checkGatewayAvailability();
+                    CheckDNS();
                 }
             });
 
             // Setup refresh networks button
             contentDiv.find('.refresh-networks-btn').on('click', function () {
                 LoadSIDSForInterface(interfaceName, safeName);
+                updateWifiStatus(interfaceName, safeName);
             });
 
             // Setup ping IP button
@@ -1296,6 +1293,57 @@
             setTimeout(function () {
                 updateInterfaceChildSettings(safeName, contentDiv);
             }, 100);
+        }
+
+        function renderWifiStatus(safeName, data) {
+            var el = $('#wifiStatus_' + safeName);
+            if (!el.length) return;
+
+            function render(variant, icon, text) {
+                el.removeClass().addClass('fpp-alert fpp-alert--compact fpp-alert--' + variant)
+                    .html('<i class="fas ' + icon + '"></i><span>' + $('<span/>').text(text).html() + '</span>');
+            }
+
+            if (!data || data.status !== 'OK') {
+                render('info', 'fa-info-circle', 'Connection status unavailable.');
+                return;
+            }
+            var variant = 'warning';
+            var icon = 'fa-exclamation-triangle';
+            var text = data.reason || '';
+            if (data.connected) {
+                variant = 'success';
+                icon = 'fa-check-circle';
+                if (data.signal !== null && typeof data.signal !== 'undefined') {
+                    text += ' · ' + data.signal + ' dBm';
+                }
+            } else if (data.wpa_state === 'COMPLETED') {
+                variant = 'info';
+                icon = 'fa-info-circle';
+            } else if (/Authentication failed/i.test(text)) {
+                variant = 'danger';
+                icon = 'fa-times-circle';
+            }
+            render(variant, icon, text);
+        }
+
+        function updateWifiStatus(iface, safeName) {
+            if (!$('#wifiStatus_' + safeName).length) return;
+            $.get('api/network/wifi/status/' + encodeURIComponent(iface))
+                .done(function (data) { renderWifiStatus(safeName, data); })
+                .fail(function () {
+                    // Reuse the renderer's error path for consistent theming.
+                    renderWifiStatus(safeName, null);
+                });
+        }
+
+        // Poll a few times so the status settles after a save / network restart.
+        function pollWifiStatus(iface, safeName, times) {
+            if (typeof times === 'undefined') times = 5;
+            updateWifiStatus(iface, safeName);
+            if (times > 1) {
+                setTimeout(function () { pollWifiStatus(iface, safeName, times - 1); }, 3000);
+            }
         }
 
         function LoadSIDSForInterface(iface, safeName) {
@@ -1364,24 +1412,24 @@
 
                         // Determine security type
                         var security = 'Open';
-                        var securityBadge = '<span class="security-badge security-none">Open</span>';
+                        var securityBadge = '<span class="badge text-bg-danger">Open</span>';
 
                         if (n.encrypted === true) {
                             if (n.security) {
                                 security = n.security;
                                 if (security.includes('WPA3')) {
-                                    securityBadge = '<span class="security-badge security-wpa3">WPA3</span>';
+                                    securityBadge = '<span class="badge text-bg-info">WPA3</span>';
                                 } else if (security.includes('WPA2')) {
-                                    securityBadge = '<span class="security-badge security-wpa2">WPA2</span>';
+                                    securityBadge = '<span class="badge text-bg-primary">WPA2</span>';
                                 } else if (security.includes('WPA')) {
-                                    securityBadge = '<span class="security-badge security-wpa">WPA</span>';
+                                    securityBadge = '<span class="badge text-bg-success">WPA</span>';
                                 } else if (security.includes('WEP')) {
-                                    securityBadge = '<span class="security-badge security-wep">WEP</span>';
+                                    securityBadge = '<span class="badge text-bg-warning">WEP</span>';
                                 } else {
-                                    securityBadge = '<span class="security-badge security-wpa">Secured</span>';
+                                    securityBadge = '<span class="badge text-bg-success">Secured</span>';
                                 }
                             } else {
-                                securityBadge = '<span class="security-badge security-wpa">Secured</span>';
+                                securityBadge = '<span class="badge text-bg-success">Secured</span>';
                             }
                         }
 
@@ -1391,9 +1439,9 @@
                         var selectedIcon = isSelected ? '<i class="fas fa-check text-success" title="Currently configured"></i> ' : '';
 
                         html += '<tr class="wifi-network-row ' + rowClass + '" onclick="selectWifiNetworkForInterface(\'' + n.SSID.replace(/'/g, "\\'") + '\', \'' + safeName + '\', \'' + security + '\')" style="cursor: pointer;">' +
-                            '<td style="padding: 6px 8px;">' + selectedIcon + n.SSID + '</td>' +
-                            '<td class="wifi-signal ' + signalClass + '" style="padding: 6px 8px; text-align: center; font-weight: bold; white-space: nowrap;">' + signalBars + ' ' + signalStrength + 'dBm</td>' +
-                            '<td style="padding: 6px 8px;">' + securityBadge + '</td>' +
+                            '<td class="p-2">' + selectedIcon + n.SSID + '</td>' +
+                            '<td class="wifi-signal p-2 text-center fw-bold text-nowrap ' + signalClass + '">' + signalBars + ' ' + signalStrength + 'dBm</td>' +
+                            '<td class="p-2">' + securityBadge + '</td>' +
                             '</tr>';
                     });
                 } else {
@@ -1447,9 +1495,9 @@
                 // Simple validation on change - just check if it's a valid IP when not empty
                 var gateway = $(this).val();
                 if (gateway !== "" && !validateIPaddress('global_gateway')) {
-                    $(this).css('border', '#F00 2px solid');
+                    $(this).addClass('is-invalid');
                 } else {
-                    $(this).css('border', '#D2D2D2 1px solid');
+                    $(this).removeClass('is-invalid');
                 }
             });
 
@@ -1467,6 +1515,7 @@
                 DisableDNSFields(false);
                 $('#dns_dhcp').prop('checked', false);
                 updateDNSInputVisibility();
+                CheckDNS();
             });
 
             $("#dns_dhcp").on("click", function () {
@@ -1475,6 +1524,7 @@
                 $('#dns1').val("");
                 $('#dns2').val("");
                 updateDNSInputVisibility();
+                CheckDNS();
             });
 
             // Initial state on page load
@@ -1484,82 +1534,6 @@
                 updateDNSInputVisibility();
             }, 200);
         });
-
-        function GetInterfaceInfo(data, status) {
-            if (data.PROTO == "static") {
-                $('#eth_static').prop('checked', true);
-                $('#eth_dhcp').prop('checked', false);
-                DisableNetworkFields(false);
-            } else {
-                $('#eth_dhcp').prop('checked', true);
-                $('#eth_static').prop('checked', false);
-                DisableNetworkFields(true);
-            }
-
-            $('#eth_ip').val(data.ADDRESS);
-            $('#eth_netmask').val(data.NETMASK);
-            // Gateway is now handled globally, not per interface
-
-            if (data.INTERFACE && data.INTERFACE.substr(0, 2) == "wl") {
-                $('#eth_ssid').val(data.SSID);
-                $('#eth_psk').val(data.PSK);
-                if (data.HIDDEN == "1") {
-                    $('#eth_hidden').prop('checked', true);
-                } else {
-                    $('#eth_hidden').prop('checked', false);
-                }
-                if (data.WPA3 == "1") {
-                    $('#eth_wpa3').prop('checked', true);
-                } else {
-                    $('#eth_wpa3').prop('checked', false);
-                }
-                $('#backupeth_ssid').val(data.BACKUPSSID);
-                $('#backupeth_psk').val(data.BACKUPPSK);
-                if (data.BACKUPHIDDEN == "1") {
-                    $('#backupeth_hidden').prop('checked', true);
-                } else {
-                    $('#backupeth_hidden').prop('checked', false);
-                }
-                if (data.BACKUPWPA3 == "1") {
-                    $('#backupeth_wpa3').prop('checked', true);
-                } else {
-                    $('#backupeth_wpa3').prop('checked', false);
-                }
-            }
-            <? if ($settings['uiLevel'] >= 1) { ?>
-                // Advanced settings are now populated in populateInterfaceForm
-            <? } ?>
-            CheckDNS();
-
-            // Check gateway availability after interface info is loaded
-            checkGatewayAvailability();
-
-            // Initialize tooltips for newly loaded content
-            setTimeout(function () {
-                initializeTooltips();
-            }, 200);
-        }
-
-        function DisableNetworkFields(disabled) {
-            $('#eth_ip').prop("disabled", disabled);
-            $('#eth_netmask').prop("disabled", disabled);
-
-            // Hide/show IP Address and Netmask rows based on DHCP/Static selection
-            if (disabled) {
-                // DHCP mode - hide IP Address and Netmask rows
-                $('#ipAddressRow').fadeOut(200);
-                $('#netmaskRow').fadeOut(200);
-            } else {
-                // Static mode - show IP Address and Netmask rows
-                $('#ipAddressRow').fadeIn(200);
-                $('#netmaskRow').fadeIn(200);
-            }
-
-            // Gateway is now global, not per interface
-            <? if ($settings['uiLevel'] >= 1) { ?>
-                $('#dhcpServer').prop('disabled', disabled);
-            <? } ?>
-        }
 
         function DisableDNSFields(disabled) {
             $('#dns1').prop("disabled", disabled);
@@ -1636,19 +1610,24 @@
         <div class="mainContainer">
             <h1 class="title">Network Configuration</h1>
             <div class="pageContent">
+                <div id="btnConfigNetwork" class="alert detract" style="display: none;"><span
+                        class='inlineBlock'>Network settings have changed. Restart Required</span><span
+                        class='inlineBlock'><button name="btnRestartNetwork" type="button"
+                            onClick="ApplyNetworkConfig();" class="buttons btn-outline-light"><i
+                                class='fas fa-fw fa-sync fa-nbsp'></i>Restart Network</button></span></div>
                 <ul class="nav nav-pills pageContent-tabs" role="tablist">
-                    <li class="nav-item">
-                        <a class="nav-link" id="tab-global-network-tab" data-bs-toggle="tab"
-                            data-bs-target="#tab-global-network" href="#tab-global-network" role="tab"
-                            aria-controls="tab-global-network" aria-selected="false">
-                            Global Network Settings
-                        </a>
-                    </li>
                     <li class="nav-item">
                         <a class="nav-link active" id="interface-settings-tab" data-bs-toggle="tab"
                             data-bs-target="#tab-interface-settings" href="#tab-interface-settings" role="tab"
                             aria-controls="interface-settings" aria-selected="true">
                             Interface Settings
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="tab-global-network-tab" data-bs-toggle="tab"
+                            data-bs-target="#tab-global-network" href="#tab-global-network" role="tab"
+                            aria-controls="tab-global-network" aria-selected="false">
+                            Global Network Settings
                         </a>
                     </li>
 
@@ -1668,9 +1647,8 @@
                                 <h2>Interface Settings</h2>
 
                                 <!-- Interface Sub-tabs -->
-                                <div class="interface-tabs-container" style="margin-bottom: 20px;">
-                                    <div
-                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <div class="interface-tabs-container mb-4">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
                                         <ul class="nav nav-tabs interface-tabs" id="interfaceTabs" role="tablist">
                                             <!-- Interface tabs will be populated by JavaScript -->
                                         </ul>
@@ -1680,11 +1658,8 @@
                                                     style="font-size: 12px; padding: 4px 8px; white-space: nowrap;"
                                                     value="Add New Interface" onClick="AddInterface();">
                                             <? } ?>
-                                            <input name="btnSetInterface" type="button" class="buttons btn-success"
-                                                value="Update Interface" onClick="SaveNetworkConfig();"
-                                                style="margin-left: 10px;">
-                                            <input id="btnConfigNetwork" type="button" style="display: none;"
-                                                class="buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
+                                            <input name="btnSetInterface" type="button" class="buttons btn-success ms-2"
+                                                value="Update Interface" onClick="SaveNetworkConfig();">
                                         </div>
                                     </div>
 
@@ -1708,6 +1683,18 @@
                                     <div class="container-fluid settingsTable settingsGroupTable" id="WirelessSettings"
                                         style="display: none;">
 
+                                        <!-- Connection Status -->
+                                        <div class="row" id="wifiStatusRow">
+                                            <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                <div class="description">Connection Status</div>
+                                            </div>
+                                            <div class="printSettingFieldCol col-md">
+                                                <div id="wifiStatus" class="fpp-alert fpp-alert--compact fpp-alert--info">
+                                                    <i class="fas fa-info-circle"></i><span>Checking connection
+                                                        status&hellip;</span></div>
+                                            </div>
+                                        </div>
+
                                         <!-- WiFi Networks Table -->
                                         <div class="row" id="wifiNetworksRow" style="display: none;">
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
@@ -1717,14 +1704,14 @@
                                                 <div class="warning-text" style="display: none;" id="wifisearch">
                                                     Scanning
                                                     for WiFi networks...</div>
-                                                <div id="wifiNetworksTable"
-                                                    style="max-height: 200px; overflow-y: auto; border: 1px solid var(--bs-gray-700); border-radius: 4px; margin-bottom: 10px;">
-                                                    <table class="table table-sm table-hover" style="margin: 0;">
+                                                <div id="wifiNetworksTable" class="border rounded mb-2"
+                                                    style="max-height: 200px; overflow-y: auto;">
+                                                    <table class="table table-sm table-hover m-0">
                                                         <thead style="background-color: var(--bs-tertiary-bg);">
                                                             <tr>
-                                                                <th style="padding: 8px;">Network Name (SSID)</th>
-                                                                <th style="padding: 8px; width: 100px;">Signal</th>
-                                                                <th style="padding: 8px; width: 80px;">Security</th>
+                                                                <th class="p-2">Network Name (SSID)</th>
+                                                                <th class="p-2" style="width: 100px;">Signal</th>
+                                                                <th class="p-2" style="width: 80px;">Security</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody id="wifiNetworksList">
@@ -1732,8 +1719,8 @@
                                                         </tbody>
                                                     </table>
                                                 </div>
-                                                <button type="button" class="btn btn-sm btn-secondary"
-                                                    class="refresh-networks-btn">
+                                                <button type="button"
+                                                    class="btn btn-sm btn-secondary refresh-networks-btn">
                                                     <i class="fas fa-sync"></i> Refresh Networks
                                                 </button>
                                             </div>
@@ -1781,7 +1768,7 @@
                                                     id='eth_keyHideShow'
                                                     onClick='TogglePasswordHideShow("eth_key");'></i></div>
                                         </div>
-                                        <? if ($settings['uiLevel'] >= 2) { ?>
+                                        <? if ($settings['uiLevel'] >= 1) { ?>
                                             <div class="row" id="backupessidRow">
                                                 <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
                                                     <div class="description">
@@ -1869,10 +1856,10 @@
 
                                         <div class="row">
                                             <div class="col-md-6"> <b>
-                                                    <font color='#ff0000'><span id='ipWarning'></span></font>
+                                                    <span id='ipWarning' class='text-danger'></span>
                                                 </b>
                                                 <b>
-                                                    <font color='#ff0000'><span id='dnsWarning'></span></font>
+                                                    <span id='dnsWarning' class='text-danger'></span>
                                                 </b>
                                             </div>
                                         </div>
@@ -2067,7 +2054,7 @@
                             <h3 class="network-subsection">
                                 <i class="fas fa-desktop"></i> Host Configuration
                             </h3>
-                            <div class="warning-text" style="margin-bottom: 15px;">
+                            <div class="warning-text mb-3">
                                 <b>Changing the Host Name from FPP will cause http://fpp.local/ to change and you will
                                     need to
                                     use the new Host Name eg http://&lt;Host Name&gt;.local/</b>
@@ -2192,7 +2179,7 @@
                                 ?>
                             </div>
 
-                            <div class="callout callout-warning" style="margin-top: 15px;">
+                            <div class="callout callout-warning mt-3">
                                 <h4>Warning:</h4>
                                 <p>Turning on tethering may make FPP unavailable. The WIFI adapter will be
                                     used for tethering and will thus not be usable for normal network operations. The
@@ -2222,17 +2209,17 @@
 
 
                 <div id="dialog-confirm" class="hidden">
-                    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Reconfiguring
+                    <p><span class="ui-icon ui-icon-alert" style="margin: 0 7px 20px 0;"></span>Reconfiguring
                         the network will cause you to lose your connection and have to reconnect if you have changed the
                         IP address. Do you wish to proceed?</p>
                 </div>
                 <div id="dialog-clear-persistent" class="hidden">
-                    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Clearing out
+                    <p><span class="ui-icon ui-icon-alert" style="margin: 0 7px 20px 0;"></span>Clearing out
                         persistent device names can cause interfaces to use different configuration and become
                         unavailable. Do you wish to proceed?</p>
                 </div>
                 <div id="dialog-create-persistent" class="hidden">
-                    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating
+                    <p><span class="ui-icon ui-icon-alert" style="margin: 0 7px 20px 0;"></span>Creating
                         persistent device names can make it harder to add new network devices or replace existing
                         devices in the future. Do you wish to proceed?</p>
                 </div>
