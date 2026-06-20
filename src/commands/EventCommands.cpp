@@ -232,7 +232,7 @@ std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector
 
 StopEffectCommand::StopEffectCommand() :
     Command("Effect Stop", "Stop the specified effect.") {
-    args.push_back(CommandArg("effect", "datalist", "Effect Name").setContentListUrl("api/effects/ALL"));
+    args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects"));
 }
 std::unique_ptr<Command::Result> StopEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
