@@ -261,7 +261,6 @@ if (isset($_GET['cpu'])) {
         }
 
         function updateUptimeDisplay() {
-            uptimeSeconds++;
             var days = Math.floor(uptimeSeconds / 86400);
             var hours = Math.floor((uptimeSeconds % 86400) / 3600);
             var minutes = Math.floor((uptimeSeconds % 3600) / 60);
@@ -332,7 +331,7 @@ if (isset($_GET['cpu'])) {
                     uptimeSeconds = parseInt(data.systemUptimeTotalSeconds);
                     updateUptimeDisplay();
                     if (!uptimeInterval) {
-                        uptimeInterval = setInterval(updateUptimeDisplay, 1000);
+                        uptimeInterval = setInterval(function () { uptimeSeconds++; updateUptimeDisplay(); }, 1000);
                     }
                 }
 
