@@ -1892,11 +1892,31 @@
                 var origInitBody = bt.initBody;
                 bt.initBody = function (fixedScroll, updatedUid) {
                     var $body = this.$el.find('>tbody');
-                    var $childRows = $body.length
-                        ? $body.find('>tr.child-row').detach() : $();
+                    // Capture log <textarea> scroll positions BEFORE detaching the
+                    // child rows.  Detaching an element from the DOM destroys its
+                    // layout, so a detached textarea reports zero metrics and loses
+                    // its scrollTop.  Without this, every status-poll re-render (every
+                    // ~2 s) during a mass update reset the streaming upgrade logs back
+                    // to the top, so the windows stopped following the latest command.
+                    var $liveChildRows = $body.length ? $body.find('>tr.child-row') : $();
+                    var scrollState = {};
+                    $liveChildRows.find('textarea').each(function () {
+                        if (!this.id) return;
+                        var atBottom = (this.scrollHeight - this.scrollTop - this.clientHeight) <= 2;
+                        scrollState[this.id] = { top: this.scrollTop, atBottom: atBottom };
+                    });
+                    var $childRows = $liveChildRows.detach();
                     origInitBody.call(this, fixedScroll, updatedUid);
                     if ($childRows.length) {
                         reattachChildRows($tbl, $childRows);
+                        // Restore scroll position once the rows are back in the layout.
+                        // Textareas pinned to the bottom stay pinned so the latest
+                        // streamed line remains in view.
+                        $childRows.find('textarea').each(function () {
+                            var s = scrollState[this.id];
+                            if (!s) return;
+                            this.scrollTop = s.atBottom ? this.scrollHeight : s.top;
+                        });
                     }
                 };
             }
