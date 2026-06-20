@@ -82,9 +82,9 @@ function list_plugin_entries($menu)
                 }
                 ?>
             </a>
-            <a href='system-upgrade.php' class='nonULLink headerLink versionHead'><?php echo $fpp_head_version; ?></a>
+            <a href='about.php' class='nonULLink headerLink versionHead'><?php echo $fpp_head_version; ?></a>
             <div id="navbarUpdateAvail">
-                &nbsp;<a href="system-upgrade.php" role="button">
+                &nbsp;<a href="about.php" role="button">
                     <i class="fa-solid fa-download" id="navbarUpdateAvailIcon"></i>
                 </a>
             </div>
@@ -442,7 +442,7 @@ function list_plugin_entries($menu)
                             </a>
                             <div class="dropdown-menu dropdown-with-icons dropdown-menu-end"
                                 aria-labelledby="navbarDropdownMenuLinkHelp">
-                                <a class="dropdown-item" href="system-upgrade.php"><i class="fas fa-info-circle"></i> System Upgrade</a>
+                                <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> System Upgrade</a>
                                 <?php
                                 $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
                                 if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {

@@ -98,7 +98,7 @@ if ($return_val === 0) {
 if (!$wrapped) {
   ?>
         <a href='index.php'>Go to FPP Main Status Page</a><br>
-        <a href='system-upgrade.php'>Go back to FPP Upgrade page</a><br>
+        <a href='about.php'>Go back to FPP Upgrade page</a><br>
 
         </body>
         </html>

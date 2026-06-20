@@ -1850,7 +1850,7 @@ function get_server_memory_info()
 }
 
 /**
- * Returns current memory usage as a percentage for system-upgrade.php 
+ * Returns current memory usage as a percentage for about.php 
  *
  * @deprecated Use get_server_memory_info() for detailed memory breakdown
  *             including used, free, buffer/cache, and percentages.

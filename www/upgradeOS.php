@@ -165,7 +165,7 @@ if (!$wrapped) {
         ==========================================================================
         <b>Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot</b>
         <a href='index.php'>Go to FPP Main Status Page</a><br>
-        <a href='system-upgrade.php'>Go back to FPP Upgrade page</a><br>
+        <a href='about.php'>Go back to FPP Upgrade page</a><br>
     </body>
 
     </html>

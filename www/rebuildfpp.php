@@ -82,7 +82,7 @@ Rebuild Complete.
 if (!$wrapped) {
     ?>
             <a href='index.php'>Go to FPP Main Status Page</a><br>
-            <a href='system-upgrade.php'>Go back to FPP Upgrade page</a><br>
+            <a href='about.php'>Go back to FPP Upgrade page</a><br>
         <script>
             // Ensure we scroll to bottom on page load
             window.scrollTo(0, document.body.scrollHeight);

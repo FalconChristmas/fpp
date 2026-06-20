@@ -47,7 +47,7 @@ if (!$wrapped) {
 </pre>
 Switch complete, you may need to reload the page for changes to be visible.<br>
 <a href='index.php'>Go to FPP Main Status Page</a><br>
-<a href='system-upgrade.php'>Go back to FPP System Upgrade page</a><br>
+<a href='about.php'>Go back to FPP System Upgrade page</a><br>
 </body>
 </html>
 <?
