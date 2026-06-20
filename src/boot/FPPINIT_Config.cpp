@@ -475,11 +475,40 @@ void installKiosk() {
     }
 }
 
-void installPackagesFromJson(const std::string& filePath) {
+// Run "apt-get <args>" synchronously and return true only if it exited 0.
+static bool runAptGet(const std::vector<std::string>& args) {
+    pid_t pid = fork();
+    if (pid == -1) {
+        printf("Error: Failed to fork process\n");
+        return false;
+    } else if (pid == 0) {
+        std::vector<char*> argv;
+        argv.push_back(const_cast<char*>("apt-get"));
+        for (const auto& a : args) {
+            argv.push_back(const_cast<char*>(a.c_str()));
+        }
+        argv.push_back(nullptr);
+        execvp("apt-get", argv.data());
+        // If execvp fails, exit the child directly (don't fall back into the
+        // parent's control flow).
+        printf("Error: Failed to execute apt-get\n");
+        _exit(127);
+    }
+    int status = 0;
+    waitpid(pid, &status, 0);
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+// Returns true if there is nothing to do or every package installed; false only
+// when an apt failure occurred that is worth retrying on the next boot. The
+// DPkg::Lock::Timeout option lets apt wait for a concurrent install at boot
+// instead of failing immediately.
+bool installPackagesFromJson(const std::string& filePath) {
     std::ifstream file(filePath, std::ifstream::binary);
     if (!file) {
-        printf("Error: Could not open %s\n", filePath.c_str());
-        return;
+        // No user package list -> nothing to install, don't keep retrying.
+        printf("No user package list at %s, nothing to install\n", filePath.c_str());
+        return true;
     }
 
     Json::Value root;
@@ -487,43 +516,69 @@ void installPackagesFromJson(const std::string& filePath) {
     std::string errs;
 
     if (!Json::parseFromStream(reader, file, &root, &errs)) {
+        // Malformed config won't fix itself on retry; consume the trigger.
         printf("Error: Failed to parse JSON - %s\n", errs.c_str());
-        return;
+        return true;
     }
 
     if (!root.isArray()) {
         printf("Error: JSON is not an array\n");
-        return;
+        return true;
     }
 
+    bool anyPackages = false;
+    for (const auto& item : root) {
+        if (item.isString()) {
+            anyPackages = true;
+            break;
+        }
+    }
+    if (!anyPackages) {
+        return true;
+    }
+
+    // Refresh the package lists first. A freshly flashed OS may ship stale/empty
+    // lists, and this can run at boot before the network is fully up, so retry a
+    // few times before giving up.
+    bool updated = false;
+    for (int i = 1; i <= 3; i++) {
+        if (runAptGet({ "-o", "DPkg::Lock::Timeout=60", "update" })) {
+            updated = true;
+            break;
+        }
+        printf("Warning: apt-get update failed (attempt %d), retrying...\n", i);
+        sleep(5);
+    }
+    if (!updated) {
+        printf("Error: apt-get update never succeeded - will retry user packages on next boot\n");
+        return false;
+    }
+
+    bool allOk = true;
     for (const auto& item : root) {
         if (item.isString()) {
             printf("Installing: %s\n", item.asString().c_str());
-            pid_t pid = fork();
-            if (pid == -1) {
-                printf("Error: Failed to fork process\n");
-                return;
-            } else if (pid == 0) {
-                execlp("apt-get", "apt-get", "install", "-y", item.asString().c_str(), nullptr);
-                // If execlp fails
-                printf("Error: Failed to execute apt-get for %s\n", item.asString().c_str());
-                return;
-            } else {
-                int status;
-                waitpid(pid, &status, 0);
-                if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-                    printf("Warning: Package installation failed for %s\n", item.asString().c_str());
-                }
+            if (!runAptGet({ "-o", "DPkg::Lock::Timeout=60", "install", "-y", item.asString() })) {
+                printf("Warning: Package installation failed for %s\n", item.asString().c_str());
+                allOk = false;
             }
         }
     }
+    return allOk;
 }
 
 void checkInstallPackages() {
     if (FileExists("/fppos_upgraded")) {
-        unlink("/fppos_upgraded");
         printf("Installing User Packages\n");
-        installPackagesFromJson("/home/fpp/media/config/userpackages.json");
+        // Only consume the upgrade marker once the packages actually installed.
+        // If the install can't complete (e.g. no network yet at boot), leave
+        // /fppos_upgraded in place so it is retried on the next boot rather than
+        // silently never reinstalling the user's packages.
+        if (installPackagesFromJson("/home/fpp/media/config/userpackages.json")) {
+            unlink("/fppos_upgraded");
+        } else {
+            printf("User package install incomplete - leaving /fppos_upgraded set to retry next boot\n");
+        }
     }
 }
 void startZRAMSwap() {
