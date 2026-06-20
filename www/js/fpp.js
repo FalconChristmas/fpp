@@ -2022,6 +2022,13 @@ function VerbosePlaylistItemDetailsToggled () {
 		$('.psiDataSimple').show();
 		$('.psiData').hide();
 	}
+
+	// The Randomised / Global Pause indicators are tied to this setting too.
+	if (typeof window.updateMainPageGlobalPauseIndicator === 'function') {
+		window.updateMainPageGlobalPauseIndicator();
+	}
+	// And the Randomize / Global Pause rows in the playlist details header.
+	UpdatePlaylistHeaderDetailVisibility();
 }
 
 function GetPlaylistDurationDiv (entry) {
@@ -2950,6 +2957,14 @@ function updateAddGlobalPauseIndicator () {
 
 // Function to manually check and update the main page global pause indicator
 window.updateMainPageGlobalPauseIndicator = function () {
+	// Only show the Randomised / Global Pause indicators when the user has
+	// enabled Verbose Playlist Item Details.
+	if (!$('#verbosePlaylistItemDetails').is(':checked')) {
+		$('#globalPauseIndicator').hide();
+		$('#randomizeIndicator').hide();
+		return;
+	}
+
 	// Check if a playlist is currently selected (not sequence or media)
 	var selectedValue = $('#playlistSelect').val();
 	var isPlaylistSelected = false;
@@ -5413,8 +5428,14 @@ function parseStatus (jsonStatus) {
 				$('#chkRepeat').prop('checked', false);
 			}
 
+			// Randomised / Global Pause indicators are only shown when the user
+			// has enabled Verbose Playlist Item Details.
+			var showPlaylistIndicators = $('#verbosePlaylistItemDetails').is(
+				':checked'
+			);
+
 			// Update randomize indicator - only show when enabled
-			if (jsonStatus.random && jsonStatus.random > 0) {
+			if (showPlaylistIndicators && jsonStatus.random && jsonStatus.random > 0) {
 				$('#randomizeIndicator').show();
 				if (jsonStatus.random == 1) {
 					$('#randomizeStatus').text('Once at load time');
@@ -5426,7 +5447,11 @@ function parseStatus (jsonStatus) {
 			}
 
 			// Update global pause indicator - only show for playlists
-			if (jsonStatus.global_pause && jsonStatus.global_pause.configured) {
+			if (
+				showPlaylistIndicators &&
+				jsonStatus.global_pause &&
+				jsonStatus.global_pause.configured
+			) {
 				$('#globalPauseIndicator').show();
 				if (jsonStatus.global_pause.active) {
 					$('#globalPauseStatus')
@@ -6189,7 +6214,13 @@ function PopulatePlaylists (sequencesAlso, options) {
 			sequenceArray = sequences[0];
 			mediaArray = media[0];
 
-			if (sequencesAlso) playlistOptionsText += "<optgroup label='Playlists'>";
+			if (sequencesAlso) {
+				// Default to a placeholder rather than auto-selecting the first
+				// playlist (whose details aren't loaded on page load anyway).
+				playlistOptionsText +=
+					'<option value="" selected>&lt;Select Playlist or Sequence&gt;</option>';
+				playlistOptionsText += "<optgroup label='Playlists'>";
+			}
 			for (let j = 0; j < playListArray.length; j++) {
 				playlistOptionsText +=
 					'<option value="' +
@@ -6725,9 +6756,37 @@ function UpgradePlaylist (data, editMode) {
 	return data;
 }
 
+// Tracks whether the playlist details were last rendered for the editor (1) or
+// the read-only status page (0), so the shared verbose toggle handler knows the
+// current context.
+var gblPlaylistDetailsEditMode = 0;
+
+// Show/hide the Randomize & Global Pause rows in the Main Playlist header.
+// In the playlist editor they are always shown when configured. On the status
+// page they only appear when Verbose Playlist Item Details is enabled.
+function UpdatePlaylistHeaderDetailVisibility () {
+	var allowed =
+		gblPlaylistDetailsEditMode == 1 ||
+		$('#verbosePlaylistItemDetails').length == 0 ||
+		$('#verbosePlaylistItemDetails').is(':checked');
+	$('#playlistRandomizeDetails').toggle(
+		allowed && $('#playlistRandomizeDetails').data('hasValue') === true
+	);
+	$('#playlistMainGlobalPauseDetails').toggle(
+		allowed && $('#playlistMainGlobalPauseDetails').data('hasValue') === true
+	);
+
+	// Update rounded corner on last visible detail field
+	$('.tblPlaylistHeaderDetails').each(function () {
+		$(this).children('div').removeClass('lastVisibleDetail');
+		$(this).children('div:visible:last').addClass('lastVisibleDetail');
+	});
+}
+
 function PopulatePlaylistDetails (data, editMode, name = '') {
 	var innerHTML = '';
 	var entries = 0;
+	gblPlaylistDetailsEditMode = editMode ? 1 : 0;
 	data = UpgradePlaylist(data, editMode);
 
 	if (!editMode) $('#deprecationWarning').hide(); // will re-show if we find any
@@ -6807,14 +6866,14 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 		$('#randomizePlaylist').val(data.random);
 	}
 	if (data.random == 1) {
-		$('#playlistRandomizeDetails').show();
 		$('#txtRandomize').html('Once at load time');
+		$('#playlistRandomizeDetails').data('hasValue', true);
 	} else if (data.random == 2) {
-		$('#playlistRandomizeDetails').show();
 		$('#txtRandomize').html('Once per iteration');
+		$('#playlistRandomizeDetails').data('hasValue', true);
 	} else {
-		$('#playlistRandomizeDetails').hide();
 		$('#txtRandomize').html('Off');
+		$('#playlistRandomizeDetails').data('hasValue', false);
 	}
 
 	// Update main playlist view global pause indicator
@@ -6822,24 +6881,21 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 		typeof data.globalPauseBetweenSequencesMS !== 'undefined' &&
 		data.globalPauseBetweenSequencesMS > 0
 	) {
-		$('#playlistMainGlobalPauseDetails').show();
 		$('#txtGlobalPause').html(
 			'<span class="btn btn-sm btn-info" style="padding: 2px 6px; font-size: 10px;">' +
 				data.globalPauseBetweenSequencesMS +
 				'ms</span>'
 		);
+		$('#playlistMainGlobalPauseDetails').data('hasValue', true);
 	} else {
-		$('#playlistMainGlobalPauseDetails').hide();
 		$('#txtGlobalPause').html(
 			'<span class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 10px;">Disabled</span>'
 		);
+		$('#playlistMainGlobalPauseDetails').data('hasValue', false);
 	}
 
-	// Update rounded corner on last visible detail field
-	$('.tblPlaylistHeaderDetails').each(function () {
-		$(this).children('div').removeClass('lastVisibleDetail');
-		$(this).children('div:visible:last').addClass('lastVisibleDetail');
-	});
+	// Show/hide the Randomize & Global Pause rows (respects verbose setting)
+	UpdatePlaylistHeaderDetailVisibility();
 
 	// Load global pause between sequences setting
 	if (typeof data.globalPauseBetweenSequencesMS === 'undefined') {
@@ -6870,6 +6926,10 @@ function PopulatePlaylistDetailsEntries (playselected, playList) {
 	var url = '';
 
 	if (playselected == true) {
+		// Nothing selected (the placeholder option) - nothing to load.
+		if (!$('#playlistSelect').val()) {
+			return;
+		}
 		pl = $('#playlistSelect :selected').text();
 		url = 'api/playlist/' + pl + '?mergeSubs=1';
 	} else {
