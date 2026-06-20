@@ -12,7 +12,7 @@ if (!isset($_GET['ip'])) {
 $ip = $_GET['ip'];
 
 if (isset($_GET['mode'])) {
-    echo "Setting FPPD mode @ " . htmlspecialchars($ip) . " to " . $mode . "\n";
+    echo "Setting FPPD mode @ " . htmlspecialchars($ip) . " to " . htmlspecialchars($_GET['mode']) . "\n";
     $mode = $_GET['mode'];
     $curl = curl_init('http://' . $ip . '/api/settings/fppMode');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);

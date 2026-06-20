@@ -1404,7 +1404,7 @@ function StreamURL (
 					outputArea.nodeName == 'PRE' ||
 					outputArea.nodeName == 'SPAN'
 				) {
-					if (outputArea.nodename != 'PRE' && raw == false) {
+					if (outputArea.nodeName != 'PRE' && raw == false) {
 						this_response = this_response.replace(/(?:\r\n|\r|\n)/g, '<br>');
 					}
 
@@ -5495,7 +5495,7 @@ function parseStatus (jsonStatus) {
 			if (fppStatus == STATUS_PAUSED) {
 				playerStatusText = 'Paused ';
 			}
-			playerStatusTest =
+			playerStatusText =
 				"<strong>'" + jsonStatus.current_sequence + "'</strong>";
 			SetButtonState('#btnPlay', 'disable');
 			SetButtonState('#btnPrev', 'enable');

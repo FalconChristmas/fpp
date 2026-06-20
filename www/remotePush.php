@@ -85,7 +85,7 @@ if (!(isset($_GET['filename']) && isset($_GET['remoteHost']) && isset($_GET['dir
         $result = curl_exec($ch);
 
         if ($result === false) {
-            echo "Error sending" . $fname . " " . curl_error($ch);
+            echo "Error sending" . $filename . " " . curl_error($ch);
             curl_close($ch);
         } else {
             curl_close($ch);
