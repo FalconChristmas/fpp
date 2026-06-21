@@ -124,6 +124,7 @@ int SPInRF24L01Output::Init(Json::Value config) {
             ss = RF24_2MBPS;
         } else {
             LogErr(VB_CHANNELOUT, "Invalid speed '%s' from config\n", i);
+            WarningHolder::AddWarning(40, "nRF24 radio output: invalid speed in configuration");
             return 0;
         }
     }
@@ -137,12 +138,14 @@ int SPInRF24L01Output::Init(Json::Value config) {
 
     if (chanNum < 0 || chanNum > 125) {
         LogErr(VB_CHANNELOUT, "Invalid channel '%d'\n", chanNum);
+        WarningHolder::AddWarning(40, "nRF24 radio output: invalid channel " + std::to_string(chanNum) + " (must be 0-125)");
         return 0;
     }
 
     RF24* radio = new RF24(RPI_V2_GPIO_P1_15, RPI_V2_GPIO_P1_26, BCM2835_SPI_SPEED_8MHZ);
     if (!radio) {
         LogErr(VB_CHANNELOUT, "Failed to create our radio instance, unable to continue!\n");
+        WarningHolder::AddWarning(40, "nRF24 radio output: could not create radio instance");
         return 0;
     }
     data = new SPInRF24L01PrivData();
@@ -159,6 +162,7 @@ int SPInRF24L01Output::Init(Json::Value config) {
     radio->setDataRate(RF24_250KBPS);
     if (radio->getDataRate() != RF24_250KBPS) {
         LogErr(VB_CHANNELOUT, "Failed to detect nRF Radio by setting speed to 250k!\n");
+        WarningHolder::AddWarning(40, "nRF24 radio output: radio not detected (check wiring/SPI)");
         delete data;
         data = nullptr;
         return 0;

@@ -125,6 +125,7 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
     if (!FileExists(virtualDisplayMapFilename)) {
         LogErr(VB_CHANNELOUT, "Error: %s does not exist\n",
                virtualDisplayMapFilename.c_str());
+        WarningHolder::AddWarning(41, "Virtual Display map file is missing: " + virtualDisplayMapFilename);
         return 0;
     }
 
@@ -133,6 +134,7 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
     if (file == NULL) {
         LogErr(VB_CHANNELOUT, "Error: unable to open %s: %s\n",
                virtualDisplayMapFilename.c_str(), strerror(errno));
+        WarningHolder::AddWarning(41, "Virtual Display map file could not be opened: " + virtualDisplayMapFilename);
         return 0;
     }
 

@@ -104,6 +104,7 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
 
     if (strlen(mode) != 3) {
         LogErr(VB_CHANNELOUT, "%s: Invalid Serial Port Mode: %s\n", device, mode);
+        WarningHolder::AddWarning(38, std::string(device) + ": invalid serial port mode '" + mode + "'");
         return -1;
     }
 
@@ -113,18 +114,21 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
 
     if (ioctl(fd, TIOCEXCL) == -1) {
         LogErr(VB_CHANNELOUT, "%s: Error setting port to exclusive mode\n", device);
+        WarningHolder::AddWarning(38, std::string(device) + ": could not set serial port to exclusive mode (in use by another process?)");
         close(fd);
         return -1;
     }
 
     if (tcgetattr(fd, &tty) == -1) {
         LogErr(VB_CHANNELOUT, "%s: Error getting port attributes\n", device);
+        WarningHolder::AddWarning(38, std::string(device) + ": could not read serial port attributes");
         close(fd);
         return -1;
     }
 
     if (cfsetspeed(&tty, adjustedBaud) == -1) {
         LogErr(VB_CHANNELOUT, "%s: Error setting port speed\n", device);
+        WarningHolder::AddWarning(38, std::string(device) + ": could not set serial port speed");
         close(fd);
         return -1;
     }
@@ -178,6 +182,7 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
 
     if (tcsetattr(fd, TCSANOW, &tty) == -1) {
         LogErr(VB_CHANNELOUT, "%s: Error setting port attributes\n", device);
+        WarningHolder::AddWarning(38, std::string(device) + ": could not set serial port attributes");
         close(fd);
         return -1;
     }
@@ -208,6 +213,7 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
 
         if (ioctl(fd, TCSETS2, &tio) < 0) {
             LogErr(VB_CHANNELOUT, "%s: Error setting custom baud rate\n", device);
+            WarningHolder::AddWarning(38, std::string(device) + ": could not set custom baud rate");
             close(fd);
             return -1;
         }

@@ -123,6 +123,7 @@ int PlaylistEntryURL::StartPlaying(void) {
     status = curl_easy_perform(m_curl);
     if (status != CURLE_OK) {
         LogErr(VB_PLAYLIST, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
+        WarningHolder::AddWarningTimeout(60, 32, "Playlist URL request failed (" + m_url + "): " + curl_easy_strerror(status));
         FinishPlay();
         return 0;
     }

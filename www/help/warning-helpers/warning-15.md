@@ -11,3 +11,4 @@ How to fix:
 2. Replace thin or long USB power cables — they drop voltage under load and are the most common cause.
 3. Do not power pixels, relays, or other peripherals from the Pi's 5V rail; use a dedicated supply for them.
 4. Check for a loose or worn power connector at the Pi.
+5. To confirm it at the hardware level, open **Help → [Troubleshooting Commands](../../troubleshooting.php)** and run **RPI Utils → RPI vclog util** (or **RPI Info**); look for under-voltage / throttled messages.

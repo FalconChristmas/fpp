@@ -28,12 +28,14 @@ X11FrameBuffer::~X11FrameBuffer() {
 int X11FrameBuffer::InitializeFrameBuffer(void) {
     if ((m_width == 0) || (m_height == 0)) {
         LogErr(VB_CHANNELOUT, "Invalid X11 FrameBuffer width/height of %dx%d\n", m_width, m_height);
+        WarningHolder::AddWarning(36, "X11 virtual display has invalid width/height");
         return 0;
     }
 
     m_display = XOpenDisplay(getenv("DISPLAY"));
     if (!m_display) {
         LogErr(VB_CHANNELOUT, "Unable to connect to X Server\n");
+        WarningHolder::AddWarning(36, "X11 virtual display: could not connect to the X server");
         return 0;
     }
 

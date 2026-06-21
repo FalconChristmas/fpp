@@ -107,16 +107,19 @@ int VirtualDisplayOutput::Init(Json::Value config) {
                 modelCreated = true;
             } else {
                 LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
+                WarningHolder::AddWarning(35, "Virtual Matrix output has an empty Pixel Overlay Model name");
                 return 0;
             }
         } else {
             LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
+            WarningHolder::AddWarning(35, "Virtual Matrix output has an empty Pixel Overlay Model name");
             return 0;
         }
     }
 
     if (m_modelName == "") {
         LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
+        WarningHolder::AddWarning(35, "Virtual Matrix output has an empty Pixel Overlay Model name");
         return 0;
     }
 
@@ -124,6 +127,7 @@ int VirtualDisplayOutput::Init(Json::Value config) {
 
     if (!m_model) {
         LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
+        WarningHolder::AddWarning(35, "Invalid Pixel Overlay Model: '" + m_modelName + "'");
         return 0;
     }
 

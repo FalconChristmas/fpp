@@ -251,9 +251,9 @@
                     <br>
                     <b>NOTE:</b> If the 3D Virtual Display is not working, you need to add the HTTP Virtual Display Channel
                     Output on the
-                    'Other' tab of the Channel Outputs config page. Your pixel map must be copied to FPP's configuration
-                    directory from xLights
-                    as a file called 'virtualdisplaymap'.
+                    'Other' tab of the Channel Outputs config page. Your pixel map is uploaded from xLights via FPP
+                    Connect by ticking the 'Models' checkbox for this device (it is saved as 'virtualdisplaymap' in
+                    FPP's configuration directory).
                     <br><br>
                     <b>Warning:</b> If your tree models appear tilted or off-vertical inside the 3D view, recreate those
                     trees in the current version of xLights. Older xLights releases generated tree model data with

@@ -171,6 +171,7 @@ int GStreamerOutput::GetSharedDrmFd(const std::string& cardPath) {
     if (fd < 0) {
         LogErr(VB_MEDIAOUT, "GStreamer: Failed to open DRM device %s: %s\n",
                cardPath.c_str(), strerror(errno));
+        WarningHolder::AddWarning(31, "Video output: could not open DRM device " + cardPath);
         return -1;
     }
 
@@ -364,6 +365,7 @@ int GStreamerOutput::Start(int msTime) {
     }
     if (!FileExists(fullPath)) {
         LogErr(VB_MEDIAOUT, "GStreamer: media file not found: %s\n", m_mediaFilename.c_str());
+        WarningHolder::AddWarningTimeout(60, 30, "Media file not found: " + m_mediaFilename);
         return 0;
     }
 
@@ -859,6 +861,7 @@ int GStreamerOutput::Start(int msTime) {
             m_kmssink = gst_element_factory_make("kmssink", "kmsvideosink");
             if (!m_kmssink) {
                 LogErr(VB_MEDIAOUT, "GStreamer: kmssink element not available — is gstreamer1.0-plugins-bad installed?\n");
+                WarningHolder::AddWarning(31, "Video output unavailable: kmssink element missing (install gstreamer1.0-plugins-bad)");
                 gst_object_unref(m_pipeline);
                 m_pipeline = nullptr;
                 return 0;
@@ -1128,6 +1131,7 @@ int GStreamerOutput::Start(int msTime) {
 
     if (!m_pipeline) {
         LogErr(VB_MEDIAOUT, "Failed to create GStreamer pipeline\n");
+        WarningHolder::AddWarning(31, "Failed to create GStreamer media pipeline");
         return 0;
     }
 
@@ -1231,6 +1235,7 @@ int GStreamerOutput::Start(int msTime) {
             LogWarn(VB_MEDIAOUT, "GStreamer: set_state returned %d\n", ret);
             if (ret == GST_STATE_CHANGE_FAILURE) {
                 LogErr(VB_MEDIAOUT, "Failed to set GStreamer pipeline to PLAYING\n");
+                WarningHolder::AddWarningTimeout(60, 30, "Could not start media playback (pipeline failed to start)");
                 m_playing = false;
                 gst_object_unref(m_pipeline);
                 return;

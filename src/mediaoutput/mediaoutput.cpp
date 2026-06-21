@@ -465,6 +465,7 @@ int OpenMediaOutput(const std::string& filename) {
         LogWarn(VB_MEDIAOUT, "OpenMediaOutput: CreateMediaOutput returned %p\n", mediaOutput);
         if (!mediaOutput) {
             LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
+            WarningHolder::AddWarningTimeout(60, 30, "No media output handler for " + tmpFile + " (unsupported file type?)");
             return 0;
         }
 
@@ -493,6 +494,7 @@ int OpenMediaOutput(const std::string& filename) {
         return 1;
     } catch (const std::system_error& e) {
         LogErr(VB_MEDIAOUT, "System exception starting media for %s.  Code: %d   What: %s\n", filename.c_str(), e.code().value(), e.what());
+        WarningHolder::AddWarningTimeout(60, 30, "Error starting media " + filename + ": " + e.what());
         return 0;
     }
 }
@@ -536,6 +538,7 @@ int StartMediaOutput(const std::string& filename, int msTime) {
     LogWarn(VB_MEDIAOUT, "StartMediaOutput: Calling Start(%d) on mediaOutput=%p\n", msTime, mediaOutput);
     if (!mediaOutput->Start(msTime)) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", mediaOutput->m_mediaFilename.c_str());
+        WarningHolder::AddWarningTimeout(60, 30, "Could not start media " + mediaOutput->m_mediaFilename);
         delete mediaOutput;
         mediaOutput = 0;
         return 0;

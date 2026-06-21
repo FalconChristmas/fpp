@@ -33,8 +33,8 @@
         ?>
         <br>NOTE: If the Virtual Display is not working, you need to add the HTTP Virtual Display Channel Output on the
         'Other' tab of the Channel Outputs config page. Your background image must be uploaded as a file called
-        'virtualdisplaybackground.jpg' and your pixel map must be copied to FPP's configuration directory from xLights
-        as a file called 'virtualdisplaymap'.
+        'virtualdisplaybackground.jpg' and your pixel map is uploaded from xLights via FPP Connect by ticking the
+        'Models' checkbox for this device (it is saved as 'virtualdisplaymap' in FPP's configuration directory).
       </div>
     </div>
 

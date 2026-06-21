@@ -139,6 +139,7 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
 
     if (!InitializePixelMap()) {
         LogErr(VB_CHANNELOUT, "Error, unable to initialize pixel map\n");
+        WarningHolder::AddWarning(37, "Virtual Display preview: could not initialize pixel map");
         return 0;
     }
 
@@ -153,6 +154,7 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
     m_socket = socket(AF_INET6, SOCK_STREAM, 0);
     if (m_socket < 0) {
         LogErr(VB_CHANNELOUT, "Could not create socket: %s\n", strerror(errno));
+        WarningHolder::AddWarning(37, "Virtual Display preview: could not create socket");
         return 0;
     }
 
@@ -175,12 +177,14 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
     int rc = bind(m_socket, (struct sockaddr*)&addr, sizeof(addr));
     if (rc < 0) {
         LogErr(VB_CHANNELOUT, "Could not bind socket: %s\n", strerror(errno));
+        WarningHolder::AddWarning(37, "Virtual Display preview: could not bind to its port (already in use?)");
         return 0;
     }
 
     rc = listen(m_socket, 5);
     if (rc < 0) {
         LogErr(VB_CHANNELOUT, "Could not listen on socket: %s\n", strerror(errno));
+        WarningHolder::AddWarning(37, "Virtual Display preview: could not listen on its socket");
         return 0;
     }
 

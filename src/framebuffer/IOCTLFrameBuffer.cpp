@@ -83,6 +83,7 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
     m_fbFd = open(devString.c_str(), O_RDWR);
     if (!m_fbFd) {
         LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
+        WarningHolder::AddWarning(36, "Framebuffer output: could not open device " + devString);
         return 0;
     }
 
@@ -102,6 +103,7 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
 
     if ((m_bpp != 24) && (m_bpp != 16)) {
         LogErr(VB_CHANNELOUT, "Do not know how to handle %d BPP\n", m_bpp);
+        WarningHolder::AddWarning(36, "Framebuffer output: unsupported color depth (" + std::to_string(m_bpp) + " bpp)");
         close(m_fbFd);
         return 0;
     }
@@ -207,6 +209,7 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
     if ((char*)m_buffer == (char*)-1) {
         m_buffer = nullptr;
         LogErr(VB_CHANNELOUT, "Error, unable to map framebuffer device %s\n", devString.c_str());
+        WarningHolder::AddWarning(36, "Framebuffer output: could not map device " + devString);
         DestroyFrameBuffer();
         return 0;
     }

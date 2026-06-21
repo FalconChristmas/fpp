@@ -79,6 +79,7 @@ int PlaylistEntryImage::Init(Json::Value& config) {
 
     if (m_modelName == "") {
         LogErr(VB_PLAYLIST, "Empty Pixel Overlay Model name\n");
+        WarningHolder::AddWarning(35, "Playlist image entry has an empty Pixel Overlay Model name");
         return 0;
     }
 
@@ -86,6 +87,7 @@ int PlaylistEntryImage::Init(Json::Value& config) {
 
     if (!m_model) {
         LogErr(VB_PLAYLIST, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
+        WarningHolder::AddWarning(35, "Invalid Pixel Overlay Model: '" + m_modelName + "'");
         return 0;
     }
     m_width = m_model->getWidth();
@@ -97,6 +99,7 @@ int PlaylistEntryImage::Init(Json::Value& config) {
 
     if (!config.isMember("imagePath")) {
         LogErr(VB_PLAYLIST, "Missing imagePath\n");
+        WarningHolder::AddWarningTimeout(60, 34, "Playlist image entry is missing the image path");
         return 0;
     }
 
@@ -327,6 +330,7 @@ void PlaylistEntryImage::PrepImage(void) {
     } catch (Exception& error_) {
         LogErr(VB_PLAYLIST, "GraphicsMagick exception reading %s: %s\n",
                nextFile.c_str(), error_.what());
+        WarningHolder::AddWarningTimeout(60, 34, "Could not read playlist image file: " + nextFile);
     }
 
     m_bufferLock.unlock();
@@ -344,6 +348,7 @@ void PlaylistEntryImage::Draw(void) {
 
     if (!m_model) {
         LogErr(VB_PLAYLIST, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
+        WarningHolder::AddWarning(35, "Invalid Pixel Overlay Model: '" + m_modelName + "'");
         return;
     }
 

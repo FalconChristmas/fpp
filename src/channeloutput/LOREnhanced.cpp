@@ -202,24 +202,28 @@ void LOREnhancedOutput::SendUnitData(unsigned char* channelData, LOREnhancedOutp
     if (unit->lorStartPixel < 0 || (unit->lorStartPixel * 3) > 510) {
         LogErr(VB_CHANNELOUT, "Invalid LOR Start Pixel. Unit %d, Start Pixel %d\n",
                unit->unitId, unit->lorStartPixel);
+        WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit->unitId) + ": invalid start pixel");
         return;
     }
 
     if ((unit->lorStartPixel - 1) * 3 + unit->numOfPixels * 3 > 510) {
         LogErr(VB_CHANNELOUT, "More than 510 Channels, ie 170 pixels, per unit. Unit %d, Total channels: %d\n",
                unit->unitId, (unit->lorStartPixel - 1) * 3 + unit->numOfPixels * 3);
+        WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit->unitId) + ": more than 510 channels (170 pixels) per unit");
         return;
     }
 
     if ((unit->lorStartPixel - 1) * 3 + unit->numOfPixels * 3 + unit->fppStartAddr - 1 > m_channelCount) {
         LogErr(VB_CHANNELOUT, "Invalid FPP Channel Range. Unit %d\n",
                unit->unitId);
+        WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit->unitId) + ": channel range exceeds the configured channel count");
         return;
     }
 
     if (unit->unitId < 1 || unit->unitId > 240) {
         LogErr(VB_CHANNELOUT, "Invalid Unit ID. Unit %d\n",
                unit->unitId);
+        WarningHolder::AddWarningTimeout(120, 39, "LOR: invalid unit ID " + std::to_string(unit->unitId) + " (must be 1-240)");
         return;
     }
 

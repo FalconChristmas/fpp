@@ -87,6 +87,7 @@ int PlaylistEntryMedia::Init(Json::Value& config) {
         } else {
             LogErr(VB_PLAYLIST, "Error, no files found when trying to play random file in %s mode\n",
                    m_fileMode.c_str());
+            WarningHolder::AddWarningTimeout(60, 30, "No media files found to play in '" + m_fileMode + "' mode");
             return 0;
         }
     }
@@ -128,6 +129,7 @@ int PlaylistEntryMedia::PreparePlay() {
             } else {
                 LogErr(VB_PLAYLIST, "Error, no files found when trying to play random file in %s mode\n",
                        m_fileMode.c_str());
+                WarningHolder::AddWarningTimeout(60, 30, "No media files found to play in '" + m_fileMode + "' mode");
                 return 0;
             }
         }
@@ -188,6 +190,7 @@ int PlaylistEntryMedia::StartPlaying(void) {
     ResetChannelOutputFrameNumber();
     if (!m_mediaOutput->Start()) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", m_mediaOutput->m_mediaFilename.c_str());
+        WarningHolder::AddWarningTimeout(60, 30, "Could not start media " + m_mediaOutput->m_mediaFilename);
         delete m_mediaOutput;
         m_mediaOutput = 0;
         pthread_mutex_unlock(&m_mediaOutputLock);
@@ -505,6 +508,7 @@ void PlaylistEntryMedia::Resume() {
 
         if (!m_mediaOutput->Start(m_pausedTime)) {
             LogErr(VB_MEDIAOUT, "Could not start media %s\n", m_mediaOutput->m_mediaFilename.c_str());
+            WarningHolder::AddWarningTimeout(60, 30, "Could not start media " + m_mediaOutput->m_mediaFilename);
             delete m_mediaOutput;
             m_mediaOutput = nullptr;
             pthread_mutex_unlock(&m_mediaOutputLock);

@@ -225,6 +225,90 @@
             "HelpTxt": "",
             "HelpPageType": "md",
             "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 30,
+            "Title": "Media File Could Not Be Played",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 31,
+            "Title": "Video Output Pipeline Failed",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 32,
+            "Title": "Playlist URL Request Failed",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Network_Warnings"
+        },
+        {
+            "id": 33,
+            "Title": "Dynamic Playlist Data Invalid",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 34,
+            "Title": "Playlist Image Could Not Be Displayed",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 35,
+            "Title": "Invalid Pixel Overlay Model",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 36,
+            "Title": "Display Output Failed To Start",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 37,
+            "Title": "Virtual Display Preview Unavailable",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 38,
+            "Title": "Serial Output Port Error",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 39,
+            "Title": "LOR Output Configuration Error",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 40,
+            "Title": "nRF24 Radio Output Error",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Device_Warnings"
+        },
+        {
+            "id": 41,
+            "Title": "Virtual Display Map Missing",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
         }
     ]
 }

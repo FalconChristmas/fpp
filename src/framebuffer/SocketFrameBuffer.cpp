@@ -71,6 +71,7 @@ int SocketFrameBuffer::InitializeFrameBuffer(void) {
     m_fbFd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (m_fbFd < 0) {
         LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
+        WarningHolder::AddWarning(36, "Framebuffer output: could not open device " + devString);
         return 0;
     }
 

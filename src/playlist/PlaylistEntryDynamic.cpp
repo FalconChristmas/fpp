@@ -255,6 +255,7 @@ int PlaylistEntryDynamic::ReadFromFile(void) {
 
     if (!FileExists(m_data.c_str())) {
         LogErr(VB_PLAYLIST, "Filename %s does not exist\n", m_data.c_str());
+        WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist source file does not exist: " + m_data);
         return 0;
     }
 
@@ -306,6 +307,7 @@ int PlaylistEntryDynamic::ReadFromURL(std::string url) {
     status = curl_easy_perform(m_curl);
     if (status != CURLE_OK) {
         LogErr(VB_PLAYLIST, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
+        WarningHolder::AddWarningTimeout(60, 32, "Dynamic playlist URL request failed (" + url + "): " + curl_easy_strerror(status));
         return 0;
     }
 
@@ -328,6 +330,7 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr) {
 
     if (!LoadJsonFromString(jsonStr, root)) {
         LogErr(VB_PLAYLIST, "Error parsing JSON: %s\n", jsonStr.c_str());
+        WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist data is not valid JSON");
         return 0;
     }
 
@@ -369,12 +372,14 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr) {
             playlistEntry = new PlaylistEntryURL(m_parentPlaylist);
         else {
             LogErr(VB_PLAYLIST, "Invalid Playlist Entry Type: %s\n", pe["type"].asString().c_str());
+            WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist contains an invalid entry type: " + pe["type"].asString());
             ClearPlaylistEntries();
             return 0;
         }
 
         if (!playlistEntry->Init(pe)) {
             LogErr(VB_PLAYLIST, "Error initializing %s Playlist Entry\n", pe["type"].asString().c_str());
+            WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist entry failed to initialize: " + pe["type"].asString());
             ClearPlaylistEntries();
             return 0;
         }
@@ -384,6 +389,7 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr) {
 
     if (!m_playlistEntries.size()) {
         LogErr(VB_PLAYLIST, "Error, no valid playlistEntries in dynamic data!\n");
+        WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist data contained no valid entries");
         return 0;
     }
 

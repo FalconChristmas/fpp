@@ -137,6 +137,7 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart
                     LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadOut"], 0, tmpMax);
             } else {
                 LogErr(VB_PLAYLIST, "Error, recursive playlist.  Sub-playlist depth exceeded 5 trying to include '%s'\n", entries[c]["name"].asString().c_str());
+                WarningHolder::AddWarningTimeout(60, 24, "Recursive playlist: sub-playlist depth exceeded trying to include '" + entries[c]["name"].asString() + "'");
             }
 
             m_subPlaylistDepth--;
@@ -497,6 +498,7 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry) {
         result = new PlaylistEntryCommand(this);
     else {
         LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", entry["type"].asString().c_str());
+        WarningHolder::AddWarningTimeout(60, 24, "Unknown playlist entry type: " + entry["type"].asString());
         return NULL;
     }
 

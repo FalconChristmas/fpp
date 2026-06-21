@@ -552,6 +552,7 @@ bool VideoOutputManager::StartHdmiConsumerGroup(const std::vector<size_t>& indic
     if (!pipeline) {
         LogErr(VB_MEDIAOUT, "VideoOutputManager: Group pipeline creation failed: %s\n",
                error ? error->message : "unknown");
+        WarningHolder::AddWarning(31, "Video output group pipeline creation failed");
         if (error) g_error_free(error);
         return false;
     }
@@ -906,6 +907,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     if (!consumer.pipeline) {
         LogErr(VB_MEDIAOUT, "VideoOutputManager: Failed to create pipeline for '%s': %s\n",
                consumer.name.c_str(), error ? error->message : "unknown error");
+        WarningHolder::AddWarning(31, "Video output pipeline creation failed for '" + consumer.name + "'");
         if (error) g_error_free(error);
         return false;
     }

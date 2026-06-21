@@ -47,26 +47,31 @@ int PlaylistEntryRemap::Init(Json::Value& config) {
 
     if (!config.isMember("action")) {
         LogErr(VB_PLAYLIST, "Missing action entry\n");
+        WarningHolder::AddWarningTimeout(60, 24, "Playlist channel-remap entry is missing the 'action' field");
         return 0;
     }
 
     if (!config.isMember("source")) {
         LogErr(VB_PLAYLIST, "Missing source entry\n");
+        WarningHolder::AddWarningTimeout(60, 24, "Playlist channel-remap entry is missing the 'source' field");
         return 0;
     }
 
     if (!config.isMember("destination")) {
         LogErr(VB_PLAYLIST, "Missing destination entry\n");
+        WarningHolder::AddWarningTimeout(60, 24, "Playlist channel-remap entry is missing the 'destination' field");
         return 0;
     }
 
     if (!config.isMember("count")) {
         LogErr(VB_PLAYLIST, "Missing count entry\n");
+        WarningHolder::AddWarningTimeout(60, 24, "Playlist channel-remap entry is missing the 'count' field");
         return 0;
     }
 
     if (!config.isMember("loops")) {
         LogErr(VB_PLAYLIST, "Missing loops entry\n");
+        WarningHolder::AddWarningTimeout(60, 24, "Playlist channel-remap entry is missing the 'loops' field");
         return 0;
     }
 
