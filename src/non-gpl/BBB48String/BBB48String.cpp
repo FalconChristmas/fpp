@@ -263,8 +263,8 @@ int BBB48StringOutput::Init(Json::Value config) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n",
                    m_subType.c_str(), verPostf.c_str());
             WarningHolder::AddWarning(
-                "BBB48String: Could not read pin configuration for " + m_subType +
-                verPostf);
+                13, "BBB48String: Could not read pin configuration for " + m_subType +
+                        verPostf);
             return 0;
         }
     }

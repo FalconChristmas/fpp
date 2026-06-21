@@ -418,7 +418,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
     fb = FrameBuffer::createFrameBuffer(fbConfig);
     if (fb == nullptr) {
         LogErr(VB_CHANNELOUT, "Error: cannot open FrameBuffer device for %s.\n", device.c_str());
-        WarningHolder::AddWarning("DPIPixels: Could not open FrameBuffer device for " + device);
+        WarningHolder::AddWarning(13, "DPIPixels: Could not open FrameBuffer device for " + device);
         return 0;
     }
 
