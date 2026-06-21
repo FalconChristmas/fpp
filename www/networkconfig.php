@@ -1234,9 +1234,15 @@
                         contentDiv.find('#eth_netmask_' + safeName).val(originalNetmask);
                     }
 
-                    // Update DNS settings (global)
+                    // Update DNS settings (global). Setting .prop('checked') does not
+                    // fire the #dns_manual click handler, so enable and reveal the DNS
+                    // input rows here too - otherwise the fields stay disabled/hidden
+                    // and there is nowhere to type a DNS server.
                     $('#dns_dhcp').prop('checked', false);
                     $('#dns_manual').prop('checked', true);
+                    DisableDNSFields(false);
+                    $('#dns1Row').show();
+                    $('#dns2Row').show();
 
                     // Re-check gateway availability and DNS adequacy
                     checkGatewayAvailability();
