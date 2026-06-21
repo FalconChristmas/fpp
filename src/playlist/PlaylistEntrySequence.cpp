@@ -25,6 +25,19 @@
 
 #include "Events.h"
 
+#include <chrono>
+
+// Monotonic millisecond stopwatch used for sequence frame-timing sync.
+// Must NOT use wall-clock time (gettimeofday/GetTimeMS): RTC-less boards (e.g. a
+// Pi with no RTC) start a playlist via FPPD_STARTED with an incorrect clock, and
+// the NTP correction that lands mid-playback would jump the wall clock and wedge
+// the channel output thread into a permanent hold/skip (see issue #2678).
+static inline long long SeqMonotonicMS() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+
 PlaylistEntrySequence::PlaylistEntrySequence(Playlist* playlist, PlaylistEntryBase* parent) :
     PlaylistEntryBase(playlist, parent),
     m_duration(0),
@@ -84,7 +97,7 @@ int PlaylistEntrySequence::StartPlaying(void) {
     m_pausedFrame = -1;
     ResetChannelOutputFrameNumber();
     sequence->StartSequence();
-    m_startTme = GetTimeMS();
+    m_startTme = SeqMonotonicMS();
     LogDebug(VB_PLAYLIST, "Started Sequence, ID: %s\n", m_sequenceName.c_str());
 
     Events::Publish("playlist/sequence/status", m_sequenceName);
@@ -108,7 +121,7 @@ int PlaylistEntrySequence::Process(void) {
         Events::Publish("playlist/sequence/status", "");
         Events::Publish("playlist/sequence/secondsTotal", "");
     } else if (m_adjustTiming) {
-        long long now = GetTimeMS();
+        long long now = SeqMonotonicMS();
         int total = (now - m_startTme);
         int frame = total / sequence->GetSeqStepTime();
         CalculateNewChannelOutputDelayForFrame(frame);
@@ -216,7 +229,7 @@ void PlaylistEntrySequence::Resume() {
     if (m_pausedFrame >= 0) {
         PreparePlay(m_pausedFrame);
         sequence->StartSequence();
-        m_startTme = GetTimeMS() - m_pausedFrame * sequence->GetSeqStepTime();
+        m_startTme = SeqMonotonicMS() - m_pausedFrame * sequence->GetSeqStepTime();
         LogDebug(VB_PLAYLIST, "Started Sequence, ID: %s\n", m_sequenceName.c_str());
         m_pausedFrame = -1;
         Events::Publish("playlist/sequence/status", m_sequenceName);
