@@ -273,6 +273,18 @@ if (isset($settings["cape-info"])) {
         var eepromList = [];
         var hasPhysicalEEPROM = <? echo $eepromFile == '' ? "false" : "true" ?>;
 
+        // The currently-installed cape (from /home/fpp/media/tmp/cape-info.json) so the EEPROM
+        // upgrade dropdowns can default to it.  See issue #2564.
+        var currentCapeName = "<?= htmlspecialchars($currentCapeInfo['name'] ?? '', ENT_QUOTES) ?>";
+        var currentCapeVendor = "<?= htmlspecialchars($currentCapeInfo['vendor']['name'] ?? '', ENT_QUOTES) ?>";
+        // In Basic UI Level the hardware (vendor/cape) is locked to the installed cape; only the
+        // firmware version may be changed.  Advanced+ (uiLevel >= 1) allows changing the hardware.
+        var eepromHardwareLocked = (parseInt(settings['uiLevel']) || 0) < 1;
+        // Tracks whether we managed to auto-select the installed vendor+cape; if not we leave the
+        // dropdowns fully selectable so the user is never locked out of an unknown/older cape.
+        var eepromCurrentVendorSelected = false;
+        var eepromCurrentCapeSelected = false;
+
         function GetDownloadableEEPROMList() {
             $.get('https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromVendors.json', function (eepromVendors) {
                 if (typeof eepromVendors === 'string') {
@@ -293,6 +305,13 @@ if (isset($settings["cape-info"])) {
                             $('#eepromVendorList').append(options);
                             $('#eepromVendorList').removeAttr('disabled');
                             $('#eepromVendorList').show();
+                            // Default the dropdowns to the currently-installed cape (issue #2564).
+                            // Vendor files load asynchronously, so attempt the match as each arrives.
+                            if (!eepromCurrentVendorSelected && currentCapeVendor != ''
+                                && eepromjson.name == currentCapeVendor) {
+                                eepromCurrentVendorSelected = true;
+                                $('#eepromVendorList').val(vendName).trigger("change");
+                            }
                         });
                     }
                 }
@@ -305,6 +324,7 @@ if (isset($settings["cape-info"])) {
                 var eepromVendorCape = $('#eepromVendorCapes');
                 eepromVendorCape.empty();
                 var capes = eepromList[vendor];
+                var matchedCurrentCape = false;
                 for (cape in capes) {
                     var capeObj = capes[cape];
                     var valid = true;
@@ -337,7 +357,16 @@ if (isset($settings["cape-info"])) {
                         var option = "<option value='" + cape + "'>" + cape + "</option>";
                         eepromVendorCape.append(option);
                         eepromVendorCape.removeAttr('disabled');
+                        if (cape == currentCapeName) {
+                            matchedCurrentCape = true;
+                        }
                     }
+                }
+                // Default the Cape/Hat dropdown to the installed cape (issue #2564).
+                if (!eepromCurrentCapeSelected && currentCapeName != '' && matchedCurrentCape) {
+                    eepromCurrentCapeSelected = true;
+                    eepromVendorCape.val(currentCapeName);
+                    UpdateEEPROMHardwareLock();
                 }
             } else {
                 $('#eepromVendorCapes').empty();
@@ -345,6 +374,16 @@ if (isset($settings["cape-info"])) {
                 $('#eepromVendorCapes').prop('disabled', true);
             }
             eepromVendorCapeChanged();
+        }
+        // Once the installed vendor+cape have been auto-selected, lock the hardware dropdowns in
+        // Basic UI Level so only the firmware version can be changed.  Advanced+ leaves them
+        // editable, and an unmatched/unknown cape stays fully selectable (never locked out).
+        function UpdateEEPROMHardwareLock() {
+            if (eepromHardwareLocked && eepromCurrentVendorSelected && eepromCurrentCapeSelected) {
+                $('#eepromVendorList').prop('disabled', true);
+                $('#eepromVendorCapes').prop('disabled', true);
+                $('#eepromHardwareLockedNote').show();
+            }
         }
         function eepromVendorCapeChanged() {
             var vendor = $('#eepromVendorList').val();
@@ -1247,7 +1286,13 @@ if (isset($settings["cape-info"])) {
                                                                         <td><select id='eepromVendorCapes' disabled
                                                                                 onChange='eepromVendorCapeChanged();'>
                                                                                 <option value=''>-- Select Cape --</option>
-                                                                            </select></td>
+                                                                            </select>
+                                                                            <div id='eepromHardwareLockedNote'
+                                                                                style='display: none; font-style: italic;'>
+                                                                                Locked to the installed cape. Set UI Level
+                                                                                to Advanced to change the cape hardware.
+                                                                            </div>
+                                                                        </td>
                                                                     </tr>
                                                                     <tr>
                                                                         <td><b>Version:</b></td>
