@@ -574,7 +574,7 @@ if (isset($_GET['cpu'])) {
 <body>
     <div id="bodyWrapper">
         <?php
-        $activeParentMenuItem = 'status';
+        $activeParentMenuItem = 'help';
         include 'menu.inc';
         ?>
         <div class="mainContainer">
