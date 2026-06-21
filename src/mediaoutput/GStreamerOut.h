@@ -21,6 +21,7 @@
 #include <array>
 #include <atomic>
 #include <list>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -99,6 +100,12 @@ private:
     int m_volumeAdjust = 0;
     std::atomic<bool> m_playing{false};     // written from GStreamer thread (BusSyncHandler), read from main loop
     std::atomic<bool> m_shutdownFlag{false};  // guards callbacks during teardown
+    // Cancellation token for the detached Start() PLAYING-transition thread.
+    // Shared (shared_ptr) so the thread can safely outlive this object: Stop()
+    // sets it to abort the volume ramp / deferred attach early, and the thread
+    // captures only this token (never `this`), eliminating use-after-free if it
+    // is still running when the object is torn down.
+    std::shared_ptr<std::atomic<bool>> m_startThreadCancel;
     gulong m_appsinkSignalId = 0;            // audio appsink signal handler ID
     gulong m_videoAppsinkSignalId = 0;       // video appsink signal handler ID
 

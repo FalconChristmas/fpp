@@ -1228,37 +1228,69 @@ int GStreamerOutput::Start(int msTime) {
     {
         int seekMs = msTime;
         bool videoPW = m_videoPipeWireRouting;
-        gst_object_ref(m_pipeline);
-        std::thread([this, seekMs, videoPW, targetVolume]() {
+        int streamSlot = m_streamSlot;
+        int hdmiConnectorId = m_hdmiConnectorId;
+        // Whether a kmssink (primary or consumer) paces the video clock.
+        bool kmsPaces = m_kmssink || !m_directConnectorIds.empty();
+        // Final consumer connector set (primary HDMI included), captured by value.
+        std::set<int> directConnectorIds = m_directConnectorIds;
+        if (hdmiConnectorId >= 0)
+            directConnectorIds.insert(hdmiConnectorId);
+
+        // The thread must NOT capture `this`: it may still be running (blocked in
+        // gst_element_set_state / pipewiresink) when this GStreamerOutput is torn
+        // down and freed, and any `this->member` access would be a use-after-free.
+        // Capture owning refs on the GStreamer objects we touch (pipeline already
+        // ref'd above; volume ref'd here) plus a shared cancellation token; Stop()
+        // sets the token so a fast stop aborts the ramp/attach early.
+        m_startThreadCancel = std::make_shared<std::atomic<bool>>(false);
+        std::shared_ptr<std::atomic<bool>> cancel = m_startThreadCancel;
+        GstElement* pipeline = m_pipeline;
+        gst_object_ref(pipeline);
+        GstElement* volume = m_volume ? GST_ELEMENT(gst_object_ref(m_volume)) : nullptr;
+        std::thread([pipeline, volume, cancel, seekMs, videoPW, targetVolume,
+                     streamSlot, hdmiConnectorId, kmsPaces, directConnectorIds]() {
+            // Releases our owning refs on exit no matter which path we return on.
+            struct RefGuard {
+                GstElement* pipeline;
+                GstElement* volume;
+                ~RefGuard() {
+                    if (volume) gst_object_unref(volume);
+                    gst_object_unref(pipeline);
+                }
+            } refGuard{pipeline, volume};
+
             LogWarn(VB_MEDIAOUT, "GStreamer: Setting pipeline to PLAYING...\n");
-            GstStateChangeReturn ret = gst_element_set_state(m_pipeline, GST_STATE_PLAYING);
+            GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
             LogWarn(VB_MEDIAOUT, "GStreamer: set_state returned %d\n", ret);
             if (ret == GST_STATE_CHANGE_FAILURE) {
+                // Don't touch the (possibly freed) object — failure is reported
+                // to the rest of FPP via the GStreamer bus ERROR message
+                // (ProcessMessages clears m_playing) and the stall watchdog.
                 LogErr(VB_MEDIAOUT, "Failed to set GStreamer pipeline to PLAYING\n");
                 WarningHolder::AddWarningTimeout(60, 30, "Could not start media playback (pipeline failed to start)");
-                m_playing = false;
-                gst_object_unref(m_pipeline);
                 return;
             }
 
             // If starting at a non-zero position, seek after state change
             if (seekMs > 0) {
-                gst_element_seek_simple(m_pipeline, GST_FORMAT_TIME,
+                gst_element_seek_simple(pipeline, GST_FORMAT_TIME,
                                         (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
                                         (gint64)seekMs * GST_MSECOND);
             }
 
             // Fade volume from 0 to target over ~50ms to eliminate startup
             // clicks from sink initialisation transients.
-            if (m_volume && m_playing) {
+            if (volume && !cancel->load()) {
                 constexpr int kRampSteps = 10;
                 constexpr int kRampStepUs = 5000; // 5ms per step = 50ms total
-                for (int i = 1; i <= kRampSteps && m_playing; i++) {
+                for (int i = 1; i <= kRampSteps && !cancel->load(); i++) {
                     double v = targetVolume * ((double)i / kRampSteps);
-                    g_object_set(m_volume, "volume", v, NULL);
+                    g_object_set(volume, "volume", v, NULL);
                     std::this_thread::sleep_for(std::chrono::microseconds(kRampStepUs));
                 }
-                g_object_set(m_volume, "volume", targetVolume, NULL);
+                if (!cancel->load())
+                    g_object_set(volume, "volume", targetVolume, NULL);
             }
 
             // Deferred: attach pipewiresink to video tee and start consumer
@@ -1267,35 +1299,28 @@ int GStreamerOutput::Start(int msTime) {
             // on a new element during a pending state transition can stall.
             if (videoPW) {
                 GstState state;
-                gst_element_get_state(m_pipeline, &state, nullptr, 10 * GST_SECOND);
-                if (state < GST_STATE_PLAYING || !m_playing) {
+                gst_element_get_state(pipeline, &state, nullptr, 10 * GST_SECOND);
+                if (state < GST_STATE_PLAYING || cancel->load()) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: Pipeline not PLAYING (state=%d), skipping pipewiresink\n", state);
-                    gst_object_unref(m_pipeline);
                     return;
                 }
 
-                GstElement* vtee = gst_bin_get_by_name(GST_BIN(m_pipeline), "vtee");
+                GstElement* vtee = gst_bin_get_by_name(GST_BIN(pipeline), "vtee");
                 if (!vtee) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: vtee not found, cannot attach pipewiresink\n");
-                    gst_object_unref(m_pipeline);
                     return;
                 }
-
-                std::set<int> directConnectorIds = m_directConnectorIds;
-                if (m_hdmiConnectorId >= 0)
-                    directConnectorIds.insert(m_hdmiConnectorId);
 
                 GstElement* pwvideosink = gst_element_factory_make("pipewiresink", "pwvideosink");
                 if (!pwvideosink) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: pipewiresink not available\n");
                     gst_object_unref(vtee);
-                    gst_object_unref(m_pipeline);
-                    VideoOutputManager::Instance().StartConsumers("", m_hdmiConnectorId, directConnectorIds);
+                    VideoOutputManager::Instance().StartConsumers("", hdmiConnectorId, directConnectorIds);
                     return;
                 }
 
-                std::string videoNodeName = StreamSlotManager::GetVideoNodeName(m_streamSlot);
-                std::string videoNodeDesc = StreamSlotManager::GetVideoNodeDescription(m_streamSlot);
+                std::string videoNodeName = StreamSlotManager::GetVideoNodeName(streamSlot);
+                std::string videoNodeDesc = StreamSlotManager::GetVideoNodeDescription(streamSlot);
                 GstStructure* vprops = gst_structure_new("props",
                     "media.class", G_TYPE_STRING, "Stream/Output/Video",
                     "node.name", G_TYPE_STRING, videoNodeName.c_str(),
@@ -1306,7 +1331,6 @@ int GStreamerOutput::Start(int msTime) {
                 g_object_set(pwvideosink, "stream-properties", vprops, NULL);
                 gst_structure_free(vprops);
 
-                bool kmsPaces = m_kmssink || !m_directConnectorIds.empty();
                 if (kmsPaces) {
                     g_object_set(pwvideosink, "async", FALSE, "sync", FALSE, NULL);
                     LogInfo(VB_MEDIAOUT, "GStreamer: pipewiresink sync=FALSE (kmssink paces)\n");
@@ -1331,7 +1355,7 @@ int GStreamerOutput::Start(int msTime) {
                                  NULL);
                 }
 
-                gst_bin_add_many(GST_BIN(m_pipeline), pwQueue, pwvideosink, NULL);
+                gst_bin_add_many(GST_BIN(pipeline), pwQueue, pwvideosink, NULL);
                 if (!gst_element_link(pwQueue, pwvideosink)) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: failed to link vpwq → pwvideosink\n");
                 }
@@ -1362,10 +1386,9 @@ int GStreamerOutput::Start(int msTime) {
 
                 gst_object_unref(vtee);
 
-                VideoOutputManager::Instance().StartConsumers(videoNodeName, m_hdmiConnectorId, directConnectorIds);
+                VideoOutputManager::Instance().StartConsumers(videoNodeName, hdmiConnectorId, directConnectorIds);
             }
-
-            gst_object_unref(m_pipeline);
+            // Owning refs on pipeline/volume released by refGuard on scope exit.
         }).detach();
     }
 
@@ -1413,6 +1436,14 @@ int GStreamerOutput::Stop(void) {
         // during teardown — without this, the streaming thread can deadlock
         // with gst_element_set_state(NULL) due to malloc arena locks.
         m_shutdownFlag.store(true);
+
+        // Tell the detached Start() PLAYING-transition thread (if still running)
+        // to abort its volume ramp / deferred pipewiresink attach.  It captures
+        // only this token plus owning GStreamer refs, so it is safe even after
+        // this object is freed.
+        if (m_startThreadCancel) {
+            m_startThreadCancel->store(true);
+        }
 
         // Disconnect appsink signals BEFORE state change to prevent
         // callbacks firing during pipeline teardown.
