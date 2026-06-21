@@ -20,7 +20,7 @@ else
 fi
 
 FPPBOOTDIR=/boot
-if [ -d "/boot/firmware" ]
+if [ -f "/boot/firmware/config.txt" ] || [ -f "/boot/firmware/uEnv.txt" ] || [ -f "/boot/firmware/armbianEnv.txt" ]
 then
     FPPBOOTDIR=/boot/firmware
 fi
