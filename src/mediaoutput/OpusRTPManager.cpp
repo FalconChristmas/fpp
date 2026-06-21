@@ -360,6 +360,7 @@ bool OpusRTPManager::CreateSendPipeline(const OpusRTPInstance& inst) {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         LogErr(VB_MEDIAOUT, "Opus RTP send pipeline [%d] failed to start\n", inst.id);
+        WarningHolder::AddWarning(44, "Opus RTP: audio send stream failed to start");
         gst_object_unref(bus);
         gst_object_unref(pipeline);
         return false;
@@ -458,6 +459,7 @@ bool OpusRTPManager::CreateRecvPipeline(const OpusRTPInstance& inst) {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         LogErr(VB_MEDIAOUT, "Opus RTP recv pipeline [%d] failed to start\n", inst.id);
+        WarningHolder::AddWarning(44, "Opus RTP: audio receive stream failed to start");
         gst_object_unref(bus);
         gst_object_unref(pipeline);
         return false;

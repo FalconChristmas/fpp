@@ -337,6 +337,7 @@ bool AES67Manager::InitPTP() {
     // Check if ptp4l binary exists
     if (!FileExists("/usr/sbin/ptp4l")) {
         LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l not found — install linuxptp package\n");
+        WarningHolder::AddWarning(45, "AES67: ptp4l not found — install the linuxptp package");
         return false;
     }
 
@@ -347,6 +348,7 @@ bool AES67Manager::InitPTP() {
         if (!conf.is_open()) {
             LogErr(VB_MEDIAOUT, "AES67Manager: Cannot write PTP config to %s\n",
                    m_ptpConfPath.c_str());
+            WarningHolder::AddWarning(45, "AES67: could not write PTP configuration file");
             return false;
         }
         // AES67 PTP profile: domain 0, two-step, high announce/sync rate
@@ -378,6 +380,7 @@ bool AES67Manager::InitPTP() {
     pid_t pid = fork();
     if (pid < 0) {
         LogErr(VB_MEDIAOUT, "AES67Manager: fork() failed for ptp4l: %s\n", strerror(errno));
+        WarningHolder::AddWarning(45, "AES67: could not start the ptp4l clock-sync process");
         return false;
     }
     if (pid == 0) {
@@ -450,6 +453,7 @@ bool AES67Manager::InitPTP() {
         usleep(500000);
         if (!IsPtp4lRunning()) {
             LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l failed even with software timestamping\n");
+            WarningHolder::AddWarning(45, "AES67: PTP clock sync (ptp4l) could not start on the configured interface");
             m_ptp4lPid = -1;
             return false;
         }
@@ -634,6 +638,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         LogErr(VB_MEDIAOUT, "AES67 send pipeline [%d] failed to start\n", inst.id);
+        WarningHolder::AddWarning(44, "AES67: audio send stream failed to start");
         gst_object_unref(bus);
         gst_object_unref(pipeline);
         return false;
@@ -729,6 +734,7 @@ bool AES67Manager::CreateRecvPipeline(const AES67Instance& inst) {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         LogErr(VB_MEDIAOUT, "AES67 recv pipeline [%d] failed to start\n", inst.id);
+        WarningHolder::AddWarning(44, "AES67: audio receive stream failed to start");
         gst_object_unref(bus);
         gst_object_unref(pipeline);
         return false;

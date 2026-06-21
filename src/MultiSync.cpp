@@ -1824,6 +1824,7 @@ int MultiSync::OpenBroadcastSocket(void) {
 
     if (m_broadcastSock < 0) {
         LogErr(VB_SYNC, "Error opening MultiSync broadcast socket\n");
+        WarningHolder::AddWarning(42, "MultiSync: could not open broadcast socket");
         return 0;
     }
 
@@ -1856,6 +1857,7 @@ int MultiSync::OpenControlSockets() {
 
     if (m_controlSock < 0) {
         LogErr(VB_SYNC, "Error opening MultiSync socket\n");
+        WarningHolder::AddWarning(42, "MultiSync: could not open control socket");
         return 0;
     }
 
@@ -2155,6 +2157,7 @@ int MultiSync::OpenReceiveSocket(void) {
     m_receiveSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
     if (m_receiveSock < 0) {
         LogErr(VB_SYNC, "Error opening Receive socket; %s\n", strerror(errno));
+        WarningHolder::AddWarning(42, "MultiSync: could not open receive socket");
         return 0;
     }
     LogDebug(VB_SYNC, "Receive socket: %d\n", m_receiveSock);
@@ -2173,6 +2176,7 @@ int MultiSync::OpenReceiveSocket(void) {
     // Bind the socket to address/port
     if (bind(m_receiveSock, (struct sockaddr*)&m_receiveSrcAddr, sizeof(m_receiveSrcAddr)) < 0) {
         LogErr(VB_SYNC, "Error binding socket; %s\n", strerror(errno));
+        WarningHolder::AddWarning(42, "MultiSync: could not bind receive socket (port in use?)");
         return 0;
     }
 

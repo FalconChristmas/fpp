@@ -196,6 +196,7 @@ int StartFSEQAsEffect(const std::string& fseqName, int loop, bool bg) {
     FSEQFile* fseq = FSEQFile::openFSEQFile(filename);
     if (!fseq) {
         LogErr(VB_EFFECT, "Unable to open effect: %s\n", filename.c_str());
+        WarningHolder::AddWarningTimeout(60, 49, "Effect could not be started: cannot open " + filename);
         return -1;
     }
     return StartEffect(fseq, fseqName, loop, bg);
@@ -212,17 +213,20 @@ int StartEffect(const std::string& effectName, int startChannel, int loop, bool 
     FSEQFile* fseq = FSEQFile::openFSEQFile(filename);
     if (!fseq) {
         LogErr(VB_EFFECT, "Unable to open effect: %s\n", filename.c_str());
+        WarningHolder::AddWarningTimeout(60, 49, "Effect could not be started: cannot open " + filename);
         return -1;
     }
     V2FSEQFile* v2fseq = dynamic_cast<V2FSEQFile*>(fseq);
     if (!v2fseq) {
         delete fseq;
         LogErr(VB_EFFECT, "Effect file not a correct eseq file: %s\n", filename.c_str());
+        WarningHolder::AddWarningTimeout(60, 49, "Effect could not be started: " + filename + " is not a valid eseq file");
         return -1;
     }
 
     if (v2fseq->m_sparseRanges.size() == 0) {
         LogErr(VB_EFFECT, "eseq file must have at least one model range.");
+        WarningHolder::AddWarningTimeout(60, 49, "Effect could not be started: " + filename + " has no model range");
         delete fseq;
         return -1;
     }

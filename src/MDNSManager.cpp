@@ -281,6 +281,7 @@ static void client_callback(AvahiClient* c, AvahiClientState state, void* userda
         if (!sb) {
             LogErr(VB_SYNC, "Failed to create Avahi service browser for _fppd._udp: %s\n",
                    avahi_strerror(avahi_client_errno(c)));
+            WarningHolder::AddWarning(43, "Network discovery: could not browse for FPP devices (_fppd._udp)");
         } else {
             mgr->SetServiceBrowser(sb);
         }
@@ -292,11 +293,13 @@ static void client_callback(AvahiClient* c, AvahiClientState state, void* userda
         if (!wsb) {
             LogErr(VB_SYNC, "Failed to create Avahi service browser for _wled._tcp: %s\n",
                    avahi_strerror(avahi_client_errno(c)));
+            WarningHolder::AddWarning(43, "Network discovery: could not browse for WLED devices (_wled._tcp)");
         } else {
             mgr->SetWLEDServiceBrowser(wsb);
         }
     } else if (state == AVAHI_CLIENT_FAILURE) {
         LogErr(VB_SYNC, "Avahi client failure: %s\n", avahi_strerror(avahi_client_errno(c)));
+        WarningHolder::AddWarning(43, "Network discovery: mDNS/Avahi client failure (is avahi-daemon running?)");
     }
 }
 #endif

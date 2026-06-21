@@ -164,7 +164,7 @@ int GPIODCapabilities::configPin(const std::string& mode,
             } catch (const std::exception& ex) {
                 std::string w = "Could not open GPIO chip " + (gpioName.empty() ? std::to_string(gpioIdx) : gpioName) +
                                 " (" + ex.what() + ")";
-                WarningHolder::AddWarning(w);
+                WarningHolder::AddWarning(51, w);
                 LogWarn(VB_GPIO, "%s\n", w.c_str());
                 return -1;
             }
@@ -208,7 +208,7 @@ int GPIODCapabilities::configPin(const std::string& mode,
         lastRequestType = directionOut ? 1 : 0;
     } catch (const std::exception& ex) {
         std::string w = "Could not configure pin " + name + "(" + desc + ") as " + mode + " (" + ex.what() + ")";
-        WarningHolder::AddWarning(w);
+        WarningHolder::AddWarning(51, w);
         LogWarn(VB_GPIO, "%s\n", w.c_str());
         lastRequestType = 0;
     }
@@ -254,7 +254,7 @@ int GPIODCapabilities::configPin(const std::string& mode,
             lastRequestFlags = req.flags;
         } catch (const std::exception& ex) {
             std::string w = "Could not configure pin " + name + "(" + desc + ") as " + mode + " (" + ex.what() + ")";
-            WarningHolder::AddWarning(w);
+            WarningHolder::AddWarning(51, w);
             LogWarn(VB_GPIO, "%s\n", w.c_str());
             lastRequestType = 0;
             lastRequestFlags = 0;
@@ -327,7 +327,7 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
             } catch (const std::exception& ex) {
                 std::string w = "Could not open GPIO chip " + (gpioName.empty() ? std::to_string(gpioIdx) : gpioName) +
                                 " for event request (" + ex.what() + ")";
-                WarningHolder::AddWarning(w);
+                WarningHolder::AddWarning(51, w);
                 LogWarn(VB_GPIO, "%s\n", w.c_str());
                 return -1;
             }
@@ -341,7 +341,7 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
         lastDesc = desc;
 
         if (!chip) {
-            WarningHolder::AddWarning("Could not configure pin " + name + " for events: chip pointer is null");
+            WarningHolder::AddWarning(51, "Could not configure pin " + name + " for events: chip pointer is null");
             return -1;
         }
 
@@ -372,7 +372,7 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
 
         fd = request->fd();
         if (fd < 0) {
-            WarningHolder::AddWarning("Could not get event file descriptor for pin " + name);
+            WarningHolder::AddWarning(51, "Could not get event file descriptor for pin " + name);
             request = nullptr;
         }
     } catch (const std::exception& ex) {
@@ -417,23 +417,23 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
         line.request(req, 0);
     } catch (const std::exception& ex) {
         if (!wasRequested) {
-            WarningHolder::AddWarning("Could not configure pin " + name + " for events (" + ex.what() + ") for edges Rising:" +
+            WarningHolder::AddWarning(51, "Could not configure pin " + name + " for events (" + ex.what() + ") for edges Rising:" +
                                       std::to_string(risingEdge) + "   Falling:" + std::to_string(fallingEdge));
         }
     }
     if (line.is_requested()) {
         fd = line.event_get_fd();
         if (fd < 0) {
-            WarningHolder::AddWarning("Could not get event file descriptor for pin " + name);
+            WarningHolder::AddWarning(51, "Could not get event file descriptor for pin " + name);
         }
     } else if (wasRequested) {
         req.request_type = lastRequestType;
         line.request(req, 0);
         if (!line.is_requested()) {
-            WarningHolder::AddWarning("Could not re-request pin " + name + " after failing to request events");
+            WarningHolder::AddWarning(51, "Could not re-request pin " + name + " after failing to request events");
         }
     } else {
-        WarningHolder::AddWarning("Could not request event for pin " + name);
+        WarningHolder::AddWarning(51, "Could not request event for pin " + name);
     }
 #endif
 #endif

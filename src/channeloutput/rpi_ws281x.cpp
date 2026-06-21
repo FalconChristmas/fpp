@@ -207,7 +207,7 @@ int RPIWS281xOutput::Init(Json::Value config) {
     int res = ws2811_init(&ledstring);
     if (res) {
         LogErr(VB_CHANNELOUT, "ws2811_init() failed with error: %d\n", res);
-        WarningHolder::AddWarning("RPIWS281x: ws2811_init() failed.  Error code: " + std::to_string(res));
+        WarningHolder::AddWarning(26, "RPIWS281x: ws2811_init() failed.  Error code: " + std::to_string(res));
         return 0;
     }
     PixelString::AutoCreateOverlayModels(m_strings, m_autoCreatedModelNames);

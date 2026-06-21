@@ -604,7 +604,7 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
             pi->eFuseInterruptPin = PinCapabilities::getPinByName(eFuseInterruptPin).ptr();
             if (!pi->eFuseInterruptPin) {
                 LogWarn(VB_CHANNELOUT, "Could not find pin " + eFuseInterruptPin + " to handle fuse interrupts for output " + name + "\n");
-                WarningHolder::AddWarning("Could not find pin " + eFuseInterruptPin + " to handle fuse interrupts for output " + name);
+                WarningHolder::AddWarning(51, "Could not find pin " + eFuseInterruptPin + " to handle fuse interrupts for output " + name);
             } else {
                 hasInfo = true;
                 if (fusePins[eFuseInterruptPin] == nullptr) {
@@ -654,7 +654,7 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         pi->eFuseOKValue = eFuseHigh ? 1 : 0;
         if (pi->eFusePin == nullptr) {
             LogWarn(VB_CHANNELOUT, "Could not find pin " + eFusePin + " to handle fuse for output " + name + "\n");
-            WarningHolder::AddWarning("Could not find pin " + eFusePin + " to handle fuse for output " + name);
+            WarningHolder::AddWarning(51, "Could not find pin " + eFusePin + " to handle fuse for output " + name);
         } else {
             pi->eFusePin->configPin("gpio" + postFix, false, "eFuse" + std::to_string(port + 1));
             if (pi->eFuseInterruptPin == nullptr) {
@@ -762,7 +762,7 @@ const PinCapabilities* OutputMonitor::AddOutputPin(const std::string& name, cons
     const PinCapabilities* pc = PinCapabilities::getPinByName(pin).ptr();
     if (!pc) {
         LogWarn(VB_CHANNELOUT, "Could not find pin " + pin + " to enable output " + name + "\n");
-        WarningHolder::AddWarning("Could not find pin " + pin + " to enable output " + name);
+        WarningHolder::AddWarning(51, "Could not find pin " + pin + " to enable output " + name);
         return nullptr;
     }
     std::unique_lock<std::mutex> lock(gpioLock);

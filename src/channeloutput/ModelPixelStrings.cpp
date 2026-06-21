@@ -74,7 +74,7 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
 
     if (modelName == "") {
         LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
-        WarningHolder::AddWarning("ModelPixelStringsOutput: Empty Pixel Overlay Model name");
+        WarningHolder::AddWarning(35, "ModelPixelStringsOutput: Empty Pixel Overlay Model name");
         return 0;
     }
 
@@ -82,7 +82,7 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
 
     if (!model) {
         LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", modelName.c_str());
-        WarningHolder::AddWarning("ModelPixelStringsOutput: Invalid Pixel Overlay Model: " + modelName);
+        WarningHolder::AddWarning(35, "ModelPixelStringsOutput: Invalid Pixel Overlay Model: " + modelName);
         return 0;
     }
 

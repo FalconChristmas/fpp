@@ -210,12 +210,12 @@ int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
                 addr.sin_port = htons(0); // let OS pick port
                 if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
                     LogWarn(VB_E131BRIDGE, "ArtNet bind failed even after port change: %s", strerror(errno));
-                    WarningHolder::AddWarning("Socket bind failed for ArtNet");
+                    WarningHolder::AddWarning(54, "Socket bind failed for ArtNet");
                     return -1;
                 }
             } else {
                 LogWarn(VB_E131BRIDGE, "ArtNet bind failed: %s", strerror(errno));
-                WarningHolder::AddWarning("Socket bind failed for ArtNet");
+                WarningHolder::AddWarning(54, "Socket bind failed for ArtNet");
                 return -1;
             }
         }
@@ -1141,7 +1141,7 @@ static void BridgeReloadDMXInputs() {
                             EPollManager::INSTANCE.addFileDescriptor(dmxIn, f);
                             hasDMX = true;
                         } else {
-                            WarningHolder::AddWarning("Could not open DMX input device " + device);
+                            WarningHolder::AddWarning(54, "Could not open DMX input device " + device);
                         }
                     }
                 }

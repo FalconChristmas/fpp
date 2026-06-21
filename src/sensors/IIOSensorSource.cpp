@@ -78,7 +78,7 @@ IIOSensorSource::IIOSensorSource(Json::Value& config) :
             values[x] = 0;
         }
     } else {
-        WarningHolder::AddWarning("Could not enable IIOSensorSource");
+        WarningHolder::AddWarning(53, "Could not enable IIOSensorSource");
     }
 }
 IIOSensorSource::~IIOSensorSource() {

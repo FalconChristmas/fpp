@@ -420,7 +420,7 @@ void Sensors::addSensorSources(Json::Value& config) {
         if (ss && ss->isOK()) {
             sensorSources.push_back(ss);
         } else if (ss) {
-            WarningHolder::AddWarning("Could not create SensorSource: " + ss->getID());
+            WarningHolder::AddWarning(53, "Could not create SensorSource: " + ss->getID());
             delete ss;
         }
     }
@@ -445,7 +445,7 @@ SensorSource* Sensors::getSensorSource(const std::string& name) {
         if (ss->isOK()) {
             sensorSources.push_back(ss);
         } else {
-            WarningHolder::AddWarning("Could not create SensorSource: " + ss->getID());
+            WarningHolder::AddWarning(53, "Could not create SensorSource: " + ss->getID());
             delete ss;
             ss = nullptr;
         }

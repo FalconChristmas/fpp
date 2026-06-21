@@ -309,6 +309,111 @@
             "HelpTxt": "",
             "HelpPageType": "md",
             "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 42,
+            "Title": "MultiSync Network Socket Error",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Network_Warnings"
+        },
+        {
+            "id": 43,
+            "Title": "Network Discovery (mDNS) Unavailable",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Network_Warnings"
+        },
+        {
+            "id": 44,
+            "Title": "Network Audio Stream Failed",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 45,
+            "Title": "AES67 PTP Clock Sync Failed",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 46,
+            "Title": "WLED Audio Sync Error",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Network_Warnings"
+        },
+        {
+            "id": 47,
+            "Title": "Invalid Schedule Entry",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 48,
+            "Title": "Schedule Location Not Set",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 49,
+            "Title": "Effect Could Not Be Started",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 50,
+            "Title": "LED Panel Output Failed",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 51,
+            "Title": "GPIO Pin Configuration Error",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 52,
+            "Title": "WLED Sound Reactive Input Failed",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Device_Warnings"
+        },
+        {
+            "id": 53,
+            "Title": "Sensor Initialization Failed",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Device_Warnings"
+        },
+        {
+            "id": 54,
+            "Title": "Network/DMX Input Error",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Network_Warnings"
+        },
+        {
+            "id": 55,
+            "Title": "System Clock Not Set",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 56,
+            "Title": "Video Input Source Failed",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
         }
     ]
 }

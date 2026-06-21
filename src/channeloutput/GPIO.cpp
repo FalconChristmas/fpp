@@ -68,7 +68,7 @@ int GPIOOutput::Init(Json::Value config) {
         m_GPIOPin = PinCapabilities::getPinByName(pinName).ptr();
         if (m_GPIOPin == nullptr) {
             LogErr(VB_CHANNELOUT, "GPIO Pin '%s' not found\n", pinName.c_str());
-            WarningHolder::AddWarning("GPIO Pin '" + pinName + "' not found");
+            WarningHolder::AddWarning(51, "GPIO Pin '" + pinName + "' not found");
             return 0;
         }
         m_usedGPIOS.push_back(pinName);
@@ -77,7 +77,7 @@ int GPIOOutput::Init(Json::Value config) {
         m_GPIOPin = PinCapabilities::getPinByGPIO(0, gpio).ptr();
         if (m_GPIOPin == nullptr) {
             LogErr(VB_CHANNELOUT, "GPIO %d not found\n", gpio);
-            WarningHolder::AddWarning("GPIO " + std::to_string(gpio) + " not found");
+            WarningHolder::AddWarning(51, "GPIO " + std::to_string(gpio) + " not found");
             return 0;
         }
         m_usedGPIOS.push_back(m_GPIOPin->name);
@@ -140,7 +140,7 @@ int GPIOOutput::SendData(unsigned char* channelData) {
         warning = std::string("Exception in GPIO output");
     }
     if (!warning.empty() && warning != lastWarning) {
-        WarningHolder::AddWarning(warning);
+        WarningHolder::AddWarning(51, warning);
     }
 
     return m_channelCount;

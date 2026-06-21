@@ -95,11 +95,13 @@ int RGBMatrixOutput::Init(Json::Value config) {
     if (startsWith(model, "Raspberry Pi 5") ||
         startsWith(model, "Raspberry Pi Compute Module 5")) {
         LogErr(VB_CHANNELOUT, "RGBMatrix does work on Raspberry Pi 5\n");
+        WarningHolder::AddWarning(50, "LED panel output: not supported on the Raspberry Pi 5 / CM5");
         return 0;
     }
     if (m_channelCount > FPPD_MAX_CHANNELS) {
         LogErr(VB_CHANNELOUT, "RGBMatrixOutput::Init: channelCount %u exceeds maximum of %u\n",
                m_channelCount, FPPD_MAX_CHANNELS);
+        WarningHolder::AddWarning(50, "LED panel output: channel count exceeds the maximum supported");
         return 0;
     }
 
@@ -118,7 +120,7 @@ int RGBMatrixOutput::Init(Json::Value config) {
         std::string nvresults;
         urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
         std::string errStr = "RGBMatrix cannot run with snd_bcm2835 enabled.   Please reboot.";
-        WarningHolder::AddWarning(errStr);
+        WarningHolder::AddWarning(50, errStr);
         errStr += "\n";
         LogErr(VB_CHANNELOUT, errStr.c_str());
         return false;
@@ -274,7 +276,7 @@ int RGBMatrixOutput::Init(Json::Value config) {
     m_rgbmatrix = RGBMatrix::CreateFromOptions(options, runtimeOptions);
     if (!m_rgbmatrix) {
         LogErr(VB_CHANNELOUT, "Unable to create RGBMatrix instance\n");
-        WarningHolder::AddWarning("Unable to create RGBMatrix instance from options");
+        WarningHolder::AddWarning(50, "LED panel output: unable to create RGBMatrix instance from options");
         return 0;
     }
 

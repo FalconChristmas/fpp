@@ -327,6 +327,7 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday) {
                 CalculateHinduDiwali(year, month, day);
             } else {
                 LogErr(VB_SCHEDULE, "Unknown lunar calendar type %s\n", calendar.c_str());
+                WarningHolder::AddWarning(47, "Schedule: unknown lunar calendar type '" + calendar + "'");
                 return "0000-00-00";
             }
             
@@ -351,6 +352,7 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday) {
             }
         } else {
             LogErr(VB_SCHEDULE, "Unknown holiday calculation type %s\n", type.c_str());
+            WarningHolder::AddWarning(47, "Schedule: unknown holiday calculation type '" + type + "'");
             return "0000-00-00";
         }
 
@@ -393,6 +395,7 @@ int ScheduleEntry::LoadFromString(std::string entryStr) {
     if (elems.size() < 10) {
         LogErr(VB_SCHEDULE, "Invalid Schedule Entry: '%s', %d elements\n",
                entryStr.c_str(), elems.size());
+        WarningHolder::AddWarning(47, "Schedule: incomplete entry (missing fields)");
         return 0;
     }
 
@@ -511,6 +514,10 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
         lonStr = "-104.600945";
 
         LogErr(VB_SCHEDULE, "Error, Latitude/Longitude not filled in, using Falcon, Colorado coordinates!\n");
+        WarningHolder::AddWarning(48, "Schedule: Latitude/Longitude not set — dawn/dusk times use default coordinates");
+    } else {
+        // Coordinates are now set — clear the warning if it was previously raised.
+        WarningHolder::RemoveWarning(48, "Schedule: Latitude/Longitude not set — dawn/dusk times use default coordinates");
     }
 
     std::string::size_type sz;
@@ -628,6 +635,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     if (!entry.isMember("startTime") || (entry["startTime"].asString() == "")) {
         LogErr(VB_SCHEDULE, "Missing or invalid startTime for playlist %s\n",
                playlist.c_str());
+        WarningHolder::AddWarning(47, "Schedule: missing or invalid start time for playlist '" + playlist + "'");
         return 0;
     }
     startTimeStr = entry["startTime"].asString();
@@ -638,6 +646,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     if (!entry.isMember("endTime") || (entry["endTime"].asString() == "")) {
         LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
                playlist.c_str());
+        WarningHolder::AddWarning(47, "Schedule: missing or invalid end time for playlist '" + playlist + "'");
         return 0;
     }
     endTimeStr = entry["endTime"].asString();

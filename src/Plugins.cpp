@@ -538,12 +538,14 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName)
     *(void**)(&vfptr) = dlsym(handle, "fpp_plugin_api_version");
     if (vfptr == nullptr) {
         LogErr(VB_PLUGIN, "Plugin %s was compiled against an older FPP API and is not compatible. Please update and rebuild the plugin.\n", shlibName.c_str());
+        WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (built against an older FPP API - rebuild required)");
         dlclose(handle);
         return nullptr;
     }
     int pluginVersion = vfptr();
     if (pluginVersion != FPP_PLUGIN_API_VERSION) {
         LogErr(VB_PLUGIN, "Plugin %s API version %d does not match FPP API version %d. Please update and rebuild the plugin.\n", shlibName.c_str(), pluginVersion, FPP_PLUGIN_API_VERSION);
+        WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (API version mismatch - rebuild required)");
         dlclose(handle);
         return nullptr;
     }
@@ -552,12 +554,14 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName)
     *(void**)(&fptr) = dlsym(handle, "createPlugin");
     if (fptr == nullptr) {
         LogErr(VB_PLUGIN, "Failed to find  createPlugin() function in shlib %s\n", shlibName.c_str());
+        WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (missing createPlugin entry point)");
         dlclose(handle);
         return nullptr;
     }
     FPPPlugins::Plugin* p = fptr();
     if (p == nullptr) {
         LogErr(VB_PLUGIN, "Failed to create plugin from shlib %s\n", shlibName.c_str());
+        WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (createPlugin returned no plugin)");
         dlclose(handle);
         return nullptr;
     }

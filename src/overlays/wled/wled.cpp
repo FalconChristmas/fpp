@@ -199,7 +199,7 @@ public:
         GError* error = nullptr;
         gstPipeline = gst_parse_launch(pipelineStr.c_str(), &error);
         if (error) {
-            WarningHolder::AddWarning("WLED Sound Reactive - GStreamer pipeline error: " + std::string(error->message));
+            WarningHolder::AddWarning(52, "WLED Sound Reactive - GStreamer pipeline error: " + std::string(error->message));
             LogErr(VB_MEDIAOUT, "WLED GStreamer capture pipeline error: %s\n", error->message);
             g_error_free(error);
             return;
@@ -207,7 +207,7 @@ public:
 
         GstElement* appsink = gst_bin_get_by_name(GST_BIN(gstPipeline), "wledsink");
         if (!appsink) {
-            WarningHolder::AddWarning("WLED Sound Reactive - Could not find appsink in pipeline");
+            WarningHolder::AddWarning(52, "WLED Sound Reactive - Could not find appsink in pipeline");
             gst_object_unref(gstPipeline);
             gstPipeline = nullptr;
             return;
@@ -217,7 +217,7 @@ public:
 
         GstStateChangeReturn ret = gst_element_set_state(gstPipeline, GST_STATE_PLAYING);
         if (ret == GST_STATE_CHANGE_FAILURE) {
-            WarningHolder::AddWarning("WLED Sound Reactive - Could not start GStreamer capture pipeline for: " + dev);
+            WarningHolder::AddWarning(52, "WLED Sound Reactive - Could not start GStreamer capture pipeline for: " + dev);
             LogErr(VB_MEDIAOUT, "WLED GStreamer capture: failed to start pipeline for %s\n", dev.c_str());
             gst_object_unref(appsink);
             gstAppsink = nullptr;
@@ -272,7 +272,7 @@ public:
         GError* error = nullptr;
         gstPipeline = gst_parse_launch(pipelineStr.c_str(), &error);
         if (error) {
-            WarningHolder::AddWarning("WLED Sound Reactive - Could not open Audio Input Device: " + dev + "  Error: " + std::string(error->message));
+            WarningHolder::AddWarning(52, "WLED Sound Reactive - Could not open Audio Input Device: " + dev + "  Error: " + std::string(error->message));
             LogErr(VB_MEDIAOUT, "WLED GStreamer ALSA capture pipeline error: %s\n", error->message);
             g_error_free(error);
             return;
@@ -280,7 +280,7 @@ public:
 
         GstElement* appsink = gst_bin_get_by_name(GST_BIN(gstPipeline), "wledsink");
         if (!appsink) {
-            WarningHolder::AddWarning("WLED Sound Reactive - Could not find appsink in pipeline");
+            WarningHolder::AddWarning(52, "WLED Sound Reactive - Could not find appsink in pipeline");
             gst_object_unref(gstPipeline);
             gstPipeline = nullptr;
             return;
@@ -290,7 +290,7 @@ public:
 
         GstStateChangeReturn ret = gst_element_set_state(gstPipeline, GST_STATE_PLAYING);
         if (ret == GST_STATE_CHANGE_FAILURE) {
-            WarningHolder::AddWarning("WLED Sound Reactive - Could not start ALSA capture for: " + dev);
+            WarningHolder::AddWarning(52, "WLED Sound Reactive - Could not start ALSA capture for: " + dev);
             LogErr(VB_MEDIAOUT, "WLED GStreamer ALSA capture: failed to start pipeline for %s\n", dev.c_str());
             gst_object_unref(appsink);
             gstAppsink = nullptr;
@@ -315,7 +315,7 @@ public:
         // ALSA mode — use GStreamer alsasrc
         openGStreamerAlsaCapture(dev);
 #else
-        WarningHolder::AddWarning("WLED Sound Reactive - Audio capture requires GStreamer");
+        WarningHolder::AddWarning(52, "WLED Sound Reactive - Audio capture requires GStreamer");
 #endif
     }
 

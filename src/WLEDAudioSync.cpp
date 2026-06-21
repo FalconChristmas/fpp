@@ -120,6 +120,13 @@ void WLEDAudioSync::Reconfigure() {
     // and unambiguous; sockets reopen in <50 ms.
     StopAllThreads();
 
+    // Threads are stopped, so nothing can re-raise these — clear any stale
+    // warnings from a previous configuration. The (re)attempt below re-raises
+    // the relevant one if it still fails.
+    WarningHolder::RemoveWarning(46, "WLED Audio Sync: could not open the send socket");
+    WarningHolder::RemoveWarning(46, "WLED Audio Sync: could not open the receive socket");
+    WarningHolder::RemoveWarning(46, "WLED Audio Sync: invalid destination address");
+
     m_mode = newMode;
     m_port = newPort;
     m_destAddr = newDest;
@@ -135,6 +142,7 @@ void WLEDAudioSync::Reconfigure() {
     if (m_mode == Send) {
         if (!OpenSendSocket()) {
             LogErr(VB_GENERAL, "WLEDAudioSync: send socket open failed\n");
+            WarningHolder::AddWarning(46, "WLED Audio Sync: could not open the send socket");
             m_mode = Off;
             m_running = false;
             return;
@@ -148,6 +156,7 @@ void WLEDAudioSync::Reconfigure() {
     } else if (m_mode == Receive) {
         if (!OpenReceiveSocket()) {
             LogErr(VB_GENERAL, "WLEDAudioSync: receive socket open failed\n");
+            WarningHolder::AddWarning(46, "WLED Audio Sync: could not open the receive socket");
             m_mode = Off;
             m_running = false;
             return;
@@ -273,6 +282,7 @@ void WLEDAudioSync::SendLoop() {
     if (inet_pton(AF_INET, m_destAddr.c_str(), &dst.sin_addr) != 1) {
         LogErr(VB_GENERAL, "WLEDAudioSync: invalid destination '%s'\n",
                m_destAddr.c_str());
+        WarningHolder::AddWarning(46, "WLED Audio Sync: invalid destination address");
         return;
     }
 

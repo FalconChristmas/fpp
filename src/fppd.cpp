@@ -742,6 +742,7 @@ int main(int argc, char* argv[]) {
 
         if (!mqtt || !mqtt->Init(getSetting("MQTTUsername").c_str(), getSetting("MQTTPassword").c_str(), getSetting("MQTTCaFile").c_str())) {
             LogWarn(VB_CONTROL, "MQTT Init failed. Starting without MQTT. -- Maybe MQTT host doesn't resolve\n");
+            WarningHolder::AddWarning(4, "MQTT init failed at startup - check the MQTT host/port settings");
         } else {
             Events::AddEventHandler(mqtt);
         }
@@ -1039,6 +1040,7 @@ void MainLoop(void) {
         }
     }
     std::time_t minValidTime = std::mktime(&minValidDate);
+    bool clockWarningAdded = false;
 
     StartChannelOutputThread();
     if (!getSettingInt("restarted")) {
@@ -1055,8 +1057,10 @@ void MainLoop(void) {
             scheduler->CheckIfShouldBePlayingNow();
         } else {
             struct tm* timeinfo = localtime(&now);
-            LogWarn(VB_SCHEDULE, "Clock appears incorrect (date %04d-%02d-%02d before release), delaying scheduler start until time sync\n", 
+            LogWarn(VB_SCHEDULE, "Clock appears incorrect (date %04d-%02d-%02d before release), delaying scheduler start until time sync\n",
                     timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday);
+            WarningHolder::AddWarning(55, "System clock not set - scheduler start delayed until time sync");
+            clockWarningAdded = true;
         }
     }
     if (CommandManager::INSTANCE.HasPreset("FPPD_STARTED")) {
@@ -1154,6 +1158,11 @@ void MainLoop(void) {
         // Only run scheduler if clock appears valid (same check as initial scheduler start)
         std::time_t now = time(nullptr);
         if (now >= minValidTime) {
+            if (clockWarningAdded) {
+                // clock was corrected (time sync) since startup — clear the warning
+                WarningHolder::RemoveWarning(55, "System clock not set - scheduler start delayed until time sync");
+                clockWarningAdded = false;
+            }
             scheduler->ScheduleProc();
         }
 

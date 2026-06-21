@@ -42,7 +42,7 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
     }
     if (m_deviceName == "UNKNOWN") {
         LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown device.\n");
-        WarningHolder::AddWarning("SerialChannelOutput: Invalid Config.  Unknown device.");
+        WarningHolder::AddWarning(26, "SerialChannelOutput: Invalid Config.  Unknown device.");
         return false;
     }
     std::string desc = "";
