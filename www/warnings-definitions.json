@@ -106,6 +106,13 @@
             "HelpTxt": "Boot delay is in progress. FPPD will start automatically when the configured delay completes or valid system time is received.",
             "HelpPageType": "",
             "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 13,
+            "Title": "Pixel String Cape Configuration References Missing Hardware",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
         }
     ]
 }

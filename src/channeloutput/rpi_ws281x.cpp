@@ -125,12 +125,12 @@ int RPIWS281xOutput::Init(Json::Value config) {
     }
     if (!FileExists(filename)) {
         LogErr(VB_CHANNELOUT, "No output pin configuration for %s%s\n", subType.c_str(), verPostf.c_str());
-        WarningHolder::AddWarning("RPIWS281x: No output pin configuration for: " + subType + verPostf);
+        WarningHolder::AddWarning(13, "RPIWS281x: No output pin configuration for: " + subType + verPostf);
         return 0;
     }
     if (!LoadJsonFromFile(filename, root)) {
         LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", subType.c_str(), verPostf.c_str());
-        WarningHolder::AddWarning("RPIWS281x: Could not read pin configuration for: " + subType + verPostf);
+        WarningHolder::AddWarning(13, "RPIWS281x: Could not read pin configuration for: " + subType + verPostf);
         return 0;
     }
 

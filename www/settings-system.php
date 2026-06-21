@@ -43,7 +43,7 @@ function UploadAuthorizedKeys() {
 }
 
 var resetAreas = ['config', 'network', 'media', 'sequences', 'effects', 'playlists',
-    'channeloutputs', 'schedule', 'settings', 'uploads', 'logs', 'plugins',
+    'channeloutputs', 'eeprom', 'schedule', 'settings', 'uploads', 'logs', 'plugins',
     'pluginConfigs', 'user', 'caches', 'scripts', 'backups', 'audiobackend'];
 function AllButtonClicked() {
     for (var i = 0; i < resetAreas.length; i++) {
@@ -210,6 +210,11 @@ You can individually select what settings you want to reset." src="images/redesi
                 <div class="col-md"><input type='checkbox' id='rc_channeloutputs'>&nbsp;Channel Outputs</div>
                 <div class="col-md"><input type='checkbox' id='rc_effects'>&nbsp;Effects</div>
                 <div class="col-md"><b>OS</b></div>
+            </div>
+            <div class="row">
+                <div class="col-md"><input type='checkbox' id='rc_eeprom'>&nbsp;EEPROM / String Config</div>
+                <div class="col-md"></div>
+                <div class="col-md"></div>
             </div>
             <div class="row">
                 <div class="col-md"><input type='checkbox' id='rc_logs'>&nbsp;Logs</div>

@@ -60,6 +60,12 @@ $files['channeloutputs'] = array(
     'config/co-universes.json',
     'config/co-pwm.json',
 );
+$files['eeprom'] = array(
+    'config/cape-eeprom.bin',
+    'config/co-pixelStrings.json',
+    'config/co-bbbStrings.json',
+    'tmp/cape-info.json',
+);
 $files['schedule'] = array(
     'config/schedule.json',
 );
