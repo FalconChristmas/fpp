@@ -514,7 +514,7 @@ bool MatchesRunningMediaFilename(const std::string& filename) {
     return false;
 }
 
-int StartMediaOutput(const std::string& filename) {
+int StartMediaOutput(const std::string& filename, int msTime) {
     if (!MatchesRunningMediaFilename(filename)) {
         CloseMediaOutput();
     }
@@ -533,8 +533,8 @@ int StartMediaOutput(const std::string& filename) {
         multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename);
     }
 
-    LogWarn(VB_MEDIAOUT, "StartMediaOutput: Calling Start() on mediaOutput=%p\n", mediaOutput);
-    if (!mediaOutput->Start()) {
+    LogWarn(VB_MEDIAOUT, "StartMediaOutput: Calling Start(%d) on mediaOutput=%p\n", msTime, mediaOutput);
+    if (!mediaOutput->Start(msTime)) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", mediaOutput->m_mediaFilename.c_str());
         delete mediaOutput;
         mediaOutput = 0;
@@ -601,7 +601,8 @@ void UpdateMasterMediaPosition(const std::string& filename, float seconds) {
         return;
     } else {
         OpenMediaOutput(filename);
-        StartMediaOutput(filename);
+        int msTime = (seconds > 0.0f) ? (int)(seconds * 1000.0f) : 0;
+        StartMediaOutput(filename, msTime);
         masterMediaPosition = seconds;
         std::unique_lock<std::mutex> lock(mediaOutputLock);
         if (!mediaOutput) {

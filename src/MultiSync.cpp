@@ -2539,12 +2539,13 @@ void MultiSync::OpenSyncedMedia(const std::string& filename) {
     OpenMediaOutput(filename);
 }
 
-void MultiSync::StartSyncedMedia(const std::string& filename) {
-    LogDebug(VB_SYNC, "StartSyncedMedia(%s)\n", filename.c_str());
+void MultiSync::StartSyncedMedia(const std::string& filename, float secondsElapsed) {
+    LogDebug(VB_SYNC, "StartSyncedMedia(%s, %.2f)\n", filename.c_str(), secondsElapsed);
     for (auto a : m_plugins) {
         a->ReceivedMediaSyncStartPacket(filename);
     }
-    StartMediaOutput(filename);
+    int msTime = (secondsElapsed > 0.0f) ? (int)(secondsElapsed * 1000.0f) : 0;
+    StartMediaOutput(filename, msTime);
 }
 
 /*
@@ -2630,7 +2631,11 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
             stats->pktSyncMedOpen++;
             break;
         case SYNC_PKT_START:
-            StartSyncedMedia(spkt->filename);
+            secondsElapsed = spkt->secondsElapsed - m_remoteOffset;
+            if (secondsElapsed < 0)
+                secondsElapsed = 0.0;
+
+            StartSyncedMedia(spkt->filename, secondsElapsed);
             stats->pktSyncMedStart++;
             break;
         case SYNC_PKT_STOP:

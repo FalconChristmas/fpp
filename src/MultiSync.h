@@ -295,7 +295,7 @@ public:
     void SyncSyncedSequence(const std::string& filename, int frameNumber, float secondsElapsed);
 
     void OpenSyncedMedia(const std::string& filename);
-    void StartSyncedMedia(const std::string& filename);
+    void StartSyncedMedia(const std::string& filename, float secondsElapsed = 0.0f);
     void StopSyncedMedia(const std::string& filename);
     void SyncSyncedMedia(const std::string& filename, int frameNumber, float secondsElapsed);
 

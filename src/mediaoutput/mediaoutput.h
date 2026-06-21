@@ -25,7 +25,7 @@ void CleanupMediaOutput(void);
 
 bool MatchesRunningMediaFilename(const std::string& filename);
 int OpenMediaOutput(const std::string& filename);
-int StartMediaOutput(const std::string& filename);
+int StartMediaOutput(const std::string& filename, int msTime = 0);
 void UpdateMasterMediaPosition(const std::string& filename, float seconds);
 void CloseMediaOutput();
 
