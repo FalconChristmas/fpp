@@ -760,7 +760,7 @@ void UDPOutput::PingControllers(bool failedOnly) {
                     o->failCount = 0;
                 }
                 if (i > 0 && !o->valid) {
-                    WarningHolder::RemoveWarning(createWarning(o->ipAddress, o->GetOutputTypeString(), o->description));
+                    WarningHolder::RemoveWarning(27, createWarning(o->ipAddress, o->GetOutputTypeString(), o->description));
                     LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n", o->ipAddress.c_str());
                     o->failCount = 0;
                     o->valid = true;
@@ -778,7 +778,7 @@ void UDPOutput::PingControllers(bool failedOnly) {
                                 if (!o->valid) {
                                     --failedCount;
                                     o->valid = true;
-                                    WarningHolder::RemoveWarning(createWarning(o->ipAddress, o->GetOutputTypeString(), o->description));
+                                    WarningHolder::RemoveWarning(27, createWarning(o->ipAddress, o->GetOutputTypeString(), o->description));
                                     LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
                                             o->ipAddress.c_str());
                                 }
@@ -787,7 +787,7 @@ void UDPOutput::PingControllers(bool failedOnly) {
                     } else if (o->failCount >= 3) {
                         // three pings an HEAD request failed, mark invalid
                         if (o->valid) {
-                            WarningHolder::AddWarning(createWarning(o->ipAddress, o->GetOutputTypeString(), o->description));
+                            WarningHolder::AddWarning(27, createWarning(o->ipAddress, o->GetOutputTypeString(), o->description));
                             LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n", o->ipAddress.c_str());
                             o->valid = false;
                         }
@@ -922,7 +922,7 @@ bool UDPOutput::InitNetwork() {
     if (needsBroadcast) {
         if (rv) {
             LogErr(VB_CHANNELOUT, "Invalid interface %s\n", outInterface.c_str());
-            WarningHolder::AddWarning("Invalid interface for UDP broadcast/multicast: " + outInterface);
+            WarningHolder::AddWarning(22, "Invalid interface for UDP broadcast/multicast: " + outInterface);
             return -1;
         }
 

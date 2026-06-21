@@ -292,7 +292,7 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
             }
             if (!LoadJsonFromFile(cfgFile, root)) {
                 std::string warning = "Could not parse " + cfgFile + ". Some outputs may not work.";    
-                WarningHolder::AddWarning(warning);
+                WarningHolder::AddWarning(26, warning);
                 outputLoadWarnings[cfgFile].insert(warning);
                 LogErr(VB_CHANNELOUT, "Error parsing %s\n", cfgFile.c_str());
                 return false;
@@ -340,7 +340,7 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
         delete inst;
     }
     for (auto& warning : outputLoadWarnings[cfgFile]) {
-        WarningHolder::RemoveWarning(warning);
+        WarningHolder::RemoveWarning(26, warning);
     }
     outputLoadWarnings.erase(cfgFile);
     if (FileExists(cfgFile)) {
@@ -366,7 +366,7 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                 // we have a negative channel number, but actually are supposed to be outputting data
                 // Skip this output as that's not valid
                 std::string warning = "Could not initialize output type " + type + ". Invalid start channel.";
-                WarningHolder::AddWarning(warning);
+                WarningHolder::AddWarning(26, warning);
                 outputLoadWarnings[cfgFile].insert(warning);
                 LogInfo(VB_CHANNELOUT, "%s\n", warning.c_str());
                 continue;
@@ -407,7 +407,7 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                         changed = true;
                     } else {
                         std::string warning = "Could not initialize output type " + type + ". Check logs for details.";
-                        WarningHolder::AddWarning(warning);
+                        WarningHolder::AddWarning(26, warning);
                         LogErr(VB_CHANNELOUT, warning.c_str());
                         outputLoadWarnings[cfgFile].insert(warning);
                         delete channelOutput->output;
@@ -415,13 +415,13 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                     }
                 } else {
                     std::string warning = "Could not create output type " + type + ". Check logs for details.";
-                    WarningHolder::AddWarning(warning);
+                    WarningHolder::AddWarning(26, warning);
                     outputLoadWarnings[cfgFile].insert(warning);
                     LogErr(VB_CHANNELOUT, warning.c_str());
                 }
             } catch (const std::exception& ex) {
                 std::string warning = "Could not initialize output type " + type + ". (" + ex.what() + ")";
-                WarningHolder::AddWarning(warning);
+                WarningHolder::AddWarning(26, warning);
                 LogErr(VB_CHANNELOUT, warning.c_str());
                 outputLoadWarnings[cfgFile].insert(warning);
                 if (channelOutput && channelOutput->output) {

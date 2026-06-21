@@ -1409,7 +1409,7 @@ void PlayerResource::periodicWork() {
             if (piPowerBad) {
                 piPowerWarningCount++;
                 if (piPowerWarningCount > 5 && !piPowerWarningAdded) {
-                    WarningHolder::AddWarning("Raspberry Pi Voltage Too Low");
+                    WarningHolder::AddWarning(15, "Raspberry Pi Voltage Too Low");
                     piPowerWarningAdded = true;
                 }
             } else {

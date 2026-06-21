@@ -239,7 +239,7 @@ int BBBSerialOutput::Init(Json::Value config) {
     m_serialData->response = 0;
     if (!m_pru->run(pru_program)) {
         LogErr(VB_CHANNELOUT, "BBBSerial: Unable to start PRU. May require a reboot.\n");
-        WarningHolder::AddWarning("BBBSerial: Unable to start PRU. May require a reboot.");
+        WarningHolder::AddWarning(20, "BBBSerial: Unable to start PRU. May require a reboot.");
         return 0;
     }
 

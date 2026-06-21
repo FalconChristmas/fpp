@@ -64,7 +64,7 @@ UDMXOutput::UDMXOutput(unsigned int startChannel, unsigned int channelCount) :
 
     if (libusb_init(&m_ctx) != 0) {
         LogErr(VB_CHANNELOUT, "Error Starting LibUSB\n");
-        WarningHolder::AddWarning("USBDMX: Error Starting LibUSB");
+        WarningHolder::AddWarning(28, "USBDMX: Error Starting LibUSB");
         return;
     }
 
@@ -91,7 +91,7 @@ UDMXOutput::UDMXOutput(unsigned int startChannel, unsigned int channelCount) :
 
     if (nullptr == m_device) {
         LogErr(VB_CHANNELOUT, "No UDMX Device Found\n");
-        WarningHolder::AddWarning("USBDMX: No UDMX Device Found");
+        WarningHolder::AddWarning(28, "USBDMX: No UDMX Device Found");
     }
 }
 
@@ -111,14 +111,14 @@ int UDMXOutput::Init(Json::Value config) {
             LogErr(VB_CHANNELOUT, "Error Opening USB Device (bus %d, device %d)",
                    libusb_get_bus_number(m_device), libusb_get_device_address(m_device));
 
-            WarningHolder::AddWarning("USBDMX: Error Opening USB Device");
+            WarningHolder::AddWarning(28, "USBDMX: Error Opening USB Device");
             return 0;
         }
     }
 
     if (nullptr == m_handle) {
         LogErr(VB_CHANNELOUT, "USBDMX: Error Opening uDMX Device\n");
-        WarningHolder::AddWarning("USBDMX: Error Opening uDMX Device");
+        WarningHolder::AddWarning(28, "USBDMX: Error Opening uDMX Device");
         return 0;
     }
     return ThreadedChannelOutput::Init(config);

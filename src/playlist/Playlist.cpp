@@ -292,7 +292,7 @@ Json::Value Playlist::LoadJSON(const std::string& filename) {
     if (!LoadJsonFromFile(filename, root)) {
         std::string warn = "Could not load playlist ";
         warn += filename;
-        WarningHolder::AddWarningTimeout(warn, 30);
+        WarningHolder::AddWarningTimeout(30, 24, warn);
         LogErr(VB_PLAYLIST, "Error loading %s\n", filename.c_str());
         return root;
     }
@@ -390,7 +390,7 @@ int Playlist::Load(const std::string& filename) {
                         if (tmpMedia == "") {
                             std::string warn = "fseq \"" + tmpFilename + "\" lists a media file of \"" + mediaName + "\" but it can not be found";
 
-                            WarningHolder::AddWarningTimeout(warn, 60);
+                            WarningHolder::AddWarningTimeout(60, 24, warn);
                             LogDebug(VB_PLAYLIST, "%s\n", warn.c_str());
                             mediaName = "";
                         }
@@ -456,7 +456,7 @@ int Playlist::Load(const std::string& filename) {
     } catch (std::exception& er) {
         std::string warn = "Playlist " + GetPlaylistName() + " is invalid: " + er.what();
         LogWarn(VB_PLAYLIST, "%s\n", warn.c_str());
-        WarningHolder::AddWarningTimeout(warn, 60);
+        WarningHolder::AddWarningTimeout(60, 24, warn);
         return 0;
     }
 }
@@ -594,7 +594,7 @@ int Playlist::Start(void) {
         (!m_mainPlaylist.size()) &&
         (!m_leadOut.size())) {
         std::string warn = "Playlist " + GetPlaylistName() + " is empty. Nothing to play.";
-        WarningHolder::AddWarningTimeout(warn, 30);
+        WarningHolder::AddWarningTimeout(30, 24, warn);
 
         SetIdle();
         return 0;

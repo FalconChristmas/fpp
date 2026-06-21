@@ -60,7 +60,7 @@ Scheduler::Scheduler() :
     m_schedulerDisabled = getSettingInt("DisableScheduler") == 1;
 
     if ((m_schedulerDisabled) && (getFPPmode() == PLAYER_MODE)) {
-        WarningHolder::AddWarning("FPP Scheduler is disabled");
+        WarningHolder::AddWarning(19, "FPP Scheduler is disabled");
         LogWarn(VB_SCHEDULE, "Scheduler is disabled!\n");
     }
 
@@ -204,9 +204,9 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         warning += entry->playlist + "' does not exist";
 
         if (FileExists(playlistFile)) {
-            WarningHolder::RemoveWarning(warning);
+            WarningHolder::RemoveWarning(23, warning);
         } else {
-            WarningHolder::AddWarning(warning);
+            WarningHolder::AddWarning(23, warning);
             entry->enabled = false;
             return;
         }
@@ -718,7 +718,7 @@ void Scheduler::LoadScheduleFromFile(void) {
             std::string warning = std::string("Playlist '") + scheduleEntry.playlist +
                                   "' was scheduled but system is running in Remote mode.";
             LogWarn(VB_SCHEDULE, "%s\n", warning.c_str());
-            WarningHolder::AddWarning(warning);
+            WarningHolder::AddWarning(29, warning);
             continue;
         }
 
@@ -728,10 +728,10 @@ void Scheduler::LoadScheduleFromFile(void) {
             LogErr(VB_SCHEDULE, "ERROR: Scheduled %s '%s' does not exist\n",
                    scheduleEntry.sequence ? "Sequence" : "Playlist",
                    scheduleEntry.playlist.c_str());
-            WarningHolder::AddWarning(warning);
+            WarningHolder::AddWarning(23, warning);
             continue;
         } else {
-            WarningHolder::RemoveWarning(warning);
+            WarningHolder::RemoveWarning(23, warning);
         }
 
         m_Schedule.push_back(scheduleEntry);

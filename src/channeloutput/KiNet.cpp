@@ -71,7 +71,7 @@ KiNetOutputData::KiNetOutputData(const Json::Value& config) :
     if (active) {
         kinetAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
         if (!valid) {
-            WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
+            WarningHolder::AddWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
             active = false;
         }
     }

@@ -789,7 +789,7 @@ int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr>& msgsToSend) 
         m_slowCount++;
         if (m_slowCount > 3) {
             LogWarn(VB_CHANNELOUT, "Repeated frames taking more than 20ms to send to ColorLight");
-            WarningHolder::AddWarningTimeout("Repeated frames taking more than 20ms to send to ColorLight", 30);
+            WarningHolder::AddWarningTimeout(30, 21, "Repeated frames taking more than 20ms to send to ColorLight");
         }
     } else {
         m_slowCount = 0;

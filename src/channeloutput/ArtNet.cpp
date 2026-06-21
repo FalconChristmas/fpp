@@ -119,7 +119,7 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value& config) :
     } else if (active) {
         anAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
         if (!valid) {
-            WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
+            WarningHolder::AddWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
             active = false;
         }
     }

@@ -423,11 +423,11 @@ void OutputMonitor::checkPixelCounts(const std::string& portList, const std::str
                 }
                 if (action == "Warn" && newWarn != p->receivers[x].warning) {
                     if (!p->receivers[x].warning.empty()) {
-                        WarningHolder::RemoveWarning(p->receivers[x].warning);
+                        WarningHolder::RemoveWarning(16, p->receivers[x].warning);
                     }
                     p->receivers[x].warning = newWarn;
                     if (!p->receivers[x].warning.empty()) {
-                        WarningHolder::AddWarning(p->receivers[x].warning);
+                        WarningHolder::AddWarning(16, p->receivers[x].warning);
                     }
                 } else if (action == "Log") {
                     LogInfo(VB_CHANNELOUT, "%s\n", newWarn.c_str());
@@ -849,7 +849,7 @@ void OutputMonitor::addEFuseWarning(PortPinInfo* pi, int rec) {
 
             LogWarn(VB_CHANNELOUT, warn + "\n");
             // Output SHOULD be on, but the fuse triggered.  That's a warning.
-            WarningHolder::AddWarning(warn);
+            WarningHolder::AddWarning(16, warn);
             pi->receivers[rec].warning = warn;
 
             std::map<std::string, std::string> keywords;
@@ -863,7 +863,7 @@ void OutputMonitor::addEFuseWarning(PortPinInfo* pi, int rec) {
 void OutputMonitor::clearEFuseWarning(PortPinInfo* port, int rec) {
     if (port && rec < 6) {
         if (!port->receivers[rec].warning.empty()) {
-            WarningHolder::RemoveWarning(port->receivers[rec].warning);
+            WarningHolder::RemoveWarning(16, port->receivers[rec].warning);
             port->receivers[rec].warning.clear();
         }
         port->receivers[rec].retryCount = 0;

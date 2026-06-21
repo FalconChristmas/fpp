@@ -73,7 +73,7 @@ static void SetThreadName(const std::string& name) {
 #include "Warnings.h"
 #include "log.h"
 inline void AddSlowStorageWarning() {
-    WarningHolder::AddWarningTimeout("FSEQ Data Block not available - Likely slow storage", 90);
+    WarningHolder::AddWarningTimeout(90, 18, "FSEQ Data Block not available - Likely slow storage");
 }
 #else
 // compiling within xLights, use log4cpp

@@ -643,13 +643,13 @@ int BBBMatrix::Init(Json::Value config) {
     if (!m_singlePRU) {
         if (!m_pruCopy->run("/tmp/FalconMatrixPRUCpy.out")) {
             LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to start PRU. May require a reboot.\n");
-            WarningHolder::AddWarning("BBBMatrix: Unable to start PRU. May require a reboot.");
+            WarningHolder::AddWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
             return 0;
         }
     }
     if (!m_pru->run(pru_program)) {
         LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to start PRU. May require a reboot.\n");
-        WarningHolder::AddWarning("BBBMatrix: Unable to start PRU. May require a reboot.");
+        WarningHolder::AddWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
         return 0;
     }
 

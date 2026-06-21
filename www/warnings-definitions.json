@@ -48,7 +48,7 @@
             "id": 4,
             "Title": "MQTT Disconnected.",
             "HelpTxt": "",
-            "HelpPageType": "",
+            "HelpPageType": "md",
             "WarningGroup": "Network_Warnings"
         },
         {
@@ -113,6 +113,118 @@
             "HelpTxt": "",
             "HelpPageType": "md",
             "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 14,
+            "Title": "Could Not Resolve Host Name",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 15,
+            "Title": "Raspberry Pi Voltage Too Low",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Device_Warnings"
+        },
+        {
+            "id": 16,
+            "Title": "Smart Receiver Warning",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 17,
+            "Title": "Frame Skips - Likely Slow Network",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Network_Warnings"
+        },
+        {
+            "id": 18,
+            "Title": "FSEQ Data Block Not Available - Slow Storage",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Disk_Warnings"
+        },
+        {
+            "id": 19,
+            "Title": "FPP Scheduler Is Disabled",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 20,
+            "Title": "Unable To Start PRU - Reboot Required",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 21,
+            "Title": "ColorLight Output Too Slow",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 22,
+            "Title": "Invalid Interface For UDP Broadcast/Multicast",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Network_Warnings"
+        },
+        {
+            "id": 23,
+            "Title": "Scheduled Playlist Or Sequence Does Not Exist",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 24,
+            "Title": "Playlist Could Not Be Loaded",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 25,
+            "Title": "Sequence File Does Not Exist",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 26,
+            "Title": "Channel Output Configuration Error",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 27,
+            "Title": "Cannot Reach Output Controller",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 28,
+            "Title": "USB DMX Adapter Problem",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Device_Warnings"
+        },
+        {
+            "id": 29,
+            "Title": "Schedule Will Not Run In Remote Mode",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "FPPD_Warnings"
         }
     ]
 }

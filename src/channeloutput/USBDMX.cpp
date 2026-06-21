@@ -54,7 +54,7 @@ USBDMXOutput::USBDMXOutput(unsigned int startChannel, unsigned int channelCount)
     m_dataOffset = 1;
     memset(m_outputData, 0, sizeof(m_outputData));
     if (m_channelCount > DMX_MAX_CHANNELS) {
-        WarningHolder::AddWarning("USBDMX: Invalid Config.  Channel count of " + std::to_string(m_channelCount) + " exceeds the DMX universe size of 512");
+        WarningHolder::AddWarning(28, "USBDMX: Invalid Config.  Channel count of " + std::to_string(m_channelCount) + " exceeds the DMX universe size of 512");
         m_channelCount = DMX_MAX_CHANNELS;
     }
 }
@@ -88,7 +88,7 @@ int USBDMXOutput::Init(Json::Value config) {
         }
     } else {
         LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown dongle type.\n");
-        WarningHolder::AddWarning("USBDMX: Invalid Config.  Unknown dongle type.");
+        WarningHolder::AddWarning(28, "USBDMX: Invalid Config.  Unknown dongle type.");
         return 0;
     }
 

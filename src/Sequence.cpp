@@ -326,7 +326,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
             if (!FileExists(tmpFilename)) {
                 LogDebug(VB_SEQUENCE, "Fallback Sequence file %s does not exist\n", tmpFilename);
-                WarningHolder::AddWarningTimeout(warning, 60);
+                WarningHolder::AddWarningTimeout(60, 25, warning);
                 m_seqStarting = 0;
                 return 0;
 
@@ -337,7 +337,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
         } else {
             LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
-            WarningHolder::AddWarningTimeout(warning, 60);
+            WarningHolder::AddWarningTimeout(60, 25, warning);
             m_seqStarting = 0;
             return 0;
         }
@@ -503,7 +503,7 @@ void Sequence::SeekSequenceFile(int frameNumber) {
         if ((frameNumber < 100) && (getFPPmode() == REMOTE_MODE)) {
             m_numSeek++;
             if (m_numSeek > 6) {
-                WarningHolder::AddWarning("Multiple Frame Skips During Playback - Likely Slow Network");
+                WarningHolder::AddWarning(17, "Multiple Frame Skips During Playback - Likely Slow Network");
             }
         }
     }

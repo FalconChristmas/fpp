@@ -5,7 +5,7 @@ This commonly happens after a cape or hat that contains an EEPROM (for example a
 physically removed.  The string configuration it created is left behind on disk, so FPP keeps
 trying to drive the output that is no longer present.
 
-To clear the leftover configuration, open the [System](/settings.php#settings-system) settings page.
+To clear the leftover configuration, open the [System](../../settings.php#settings-system) settings page.
 The **Reset FPP Config** button is only shown when **User Interface Level** (near the top of that
 page) is set to **Advanced** or higher, so change it if you are in **Basic** mode.  Then click
 **Reset FPP Config**, tick **EEPROM / String Config**, and press **Reset**.  FPP will reboot.
