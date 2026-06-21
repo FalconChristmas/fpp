@@ -108,8 +108,121 @@ function GetMetaDataFromFFProbe($filename)
         return $result;
     }
 
-    $cmd = 'ffprobe -hide_banner -loglevel fatal -show_error -show_format -show_streams -show_programs -show_chapters -show_private_data -print_format json ' . escapeshellarg($filename);
+    $result = ProbeMediaWithFFProbe($filename);
+
+    //Fall back to GStreamer's discoverer when ffprobe is unavailable or could
+    //not determine the duration. This keeps duration/metadata working on
+    //gstreamer-based installs that do not ship the ffmpeg/ffprobe CLI binary.
+    if (!isset($result['format']['duration'])) {
+        $gstResult = ProbeMediaWithGstDiscoverer($filename);
+        if (isset($gstResult['format']['duration'])) {
+            $result = $gstResult;
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Probe a media file with ffprobe and return the decoded JSON structure.
+ *
+ * @param string $filename absolute path to the media file
+ * @return array ffprobe's format/streams structure, or empty array on failure
+ */
+function ProbeMediaWithFFProbe($filename)
+{
+    $binary = MediaProbeFindBinary('ffprobe');
+    if ($binary === null) {
+        return array();
+    }
+
+    $cmd = escapeshellarg($binary) . ' -hide_banner -loglevel fatal -show_error -show_format -show_streams -show_programs -show_chapters -show_private_data -print_format json ' . escapeshellarg($filename) . ' 2>/dev/null';
+    $output = array();
     exec($cmd, $output);
-    $jsonStr = join(' ', $output);
-    return json_decode($jsonStr, true);
+    $decoded = json_decode(join(' ', $output), true);
+    return is_array($decoded) ? $decoded : array();
+}
+
+/**
+ * Probe a media file with GStreamer's gst-discoverer-1.0 tool and map the
+ * output into an ffprobe-like structure (format.duration + streams[]) so that
+ * existing callers and the "Video Info" modal keep working unchanged.
+ *
+ * @param string $filename absolute path to the media file
+ * @return array format/streams structure, or empty array on failure
+ */
+function ProbeMediaWithGstDiscoverer($filename)
+{
+    $binary = MediaProbeFindBinary('gst-discoverer-1.0');
+    if ($binary === null) {
+        return array();
+    }
+
+    $cmd = escapeshellarg($binary) . ' -v ' . escapeshellarg($filename) . ' 2>/dev/null';
+    $output = array();
+    exec($cmd, $output);
+    if (empty($output)) {
+        return array();
+    }
+
+    $result = array('format' => array('filename' => $filename), 'streams' => array());
+
+    foreach ($output as $line) {
+        $trim = trim($line);
+
+        // Duration: 0:03:46.010000000
+        if (preg_match('/^Duration:\s*(\d+):(\d{2}):(\d{2})(?:\.(\d+))?/', $trim, $m)) {
+            $seconds = ($m[1] * 3600) + ($m[2] * 60) + $m[3];
+            if (isset($m[4]) && $m[4] !== '') {
+                $seconds += floatval('0.' . $m[4]);
+            }
+            $result['format']['duration'] = (string) $seconds;
+        }
+
+        // Topology lines, e.g.:
+        //   "container #0: video/quicktime, variant=(string)iso"
+        //   "video #1: video/x-h264, stream-format=(string)avc, ..."
+        //   "audio #2: audio/mpeg, mpegversion=(int)4, ..."
+        // The caps string is comma-separated; the first segment is the media
+        // type which makes a reasonable codec name for display.
+        if (preg_match('/^(container|audio|video|subtitle|text)(?:\s*#\d+)?:\s*(.+)$/', $trim, $m)) {
+            $type = $m[1];
+            $caps = explode(',', trim($m[2]));
+            $codec = trim($caps[0]);
+            if ($type === 'container') {
+                $result['format']['format_long_name'] = $codec;
+            } else {
+                $result['streams'][] = array(
+                    'codec_type' => $type,
+                    'codec_name' => $codec,
+                );
+            }
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Locate a media probe helper binary, checking PATH first and then a few
+ * common install locations (covers cases where the web server's PATH is
+ * minimal, e.g. apache/php-fpm).
+ *
+ * @param string $name binary name to locate
+ * @return string|null absolute path to the binary, or null if not found
+ */
+function MediaProbeFindBinary($name)
+{
+    $path = trim((string) shell_exec('command -v ' . escapeshellarg($name) . ' 2>/dev/null'));
+    if ($path !== '' && is_executable($path)) {
+        return $path;
+    }
+
+    foreach (array('/usr/bin/', '/usr/local/bin/', '/opt/homebrew/bin/', '/bin/') as $dir) {
+        if (is_executable($dir . $name)) {
+            return $dir . $name;
+        }
+    }
+
+    return null;
 }
