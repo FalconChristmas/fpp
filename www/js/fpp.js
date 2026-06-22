@@ -7596,7 +7596,15 @@ function CommandToJSON (commandSelect, tblCommand, json, addArgTypes = false) {
 		json['multisyncCommand'] = $('#' + tblCommand + '_multisync').is(
 			':checked'
 		);
-		json['multisyncHosts'] = $('#' + tblCommand + '_multisyncHosts').val();
+		json['multisyncHosts'] = ($('#' + tblCommand + '_multisyncHosts').val() || '')
+			.split(',')
+			.map(function (h) {
+				return h.trim();
+			})
+			.filter(function (h) {
+				return h != '';
+			})
+			.join(',');
 		for (var x = 1; x < 20; x++) {
 			var inp = $('#' + tblCommand + '_arg_' + x);
 			var val = inp.val();
@@ -7748,18 +7756,102 @@ function OnMultisyncChanged (mscheck, tblCommand) {
 		$('#' + tblCommand + '_multisyncHosts_row').show();
 	} else {
 		$('#' + tblCommand + '_multisyncHosts_row').hide();
+		// Clear the host list so a hidden, stale value isn't saved with the command.
+		$('#' + tblCommand + '_multisyncHosts').val('');
+	}
+}
+// Repopulate one command argument's content list from the remote host(s).
+// "datalist" args (e.g. the Preset Name field on "Trigger Command Preset")
+// keep their contentListUrl on the <datalist> element (id _arg_x_list) rather
+// than on the input itself, so handle both shapes.
+function ReloadArgContentList (tblCommand, x, baseUrl) {
+	var inp = $('#' + tblCommand + '_arg_' + x);
+	if (inp.data('contentlisturl') != null) {
+		ReloadContentList(baseUrl, inp);
+	} else {
+		var list = $('#' + tblCommand + '_arg_' + x + '_list');
+		if (list.data('contentlisturl') != null) {
+			ReloadContentList(baseUrl, list);
+		}
 	}
 }
 function OnMultisyncHostsChanged (hosts, tblCommand) {
 	var baseURL = $(hosts).val();
-	if (baseURL != undefined && !baseURL.includes(',')) {
+	if (baseURL != undefined && baseURL != '') {
 		for (var x = 1; x < 20; x++) {
-			var inp = $('#' + tblCommand + '_arg_' + x);
-			if (inp.data('contentlisturl') != null && baseURL != '') {
-				ReloadContentList(baseURL, inp);
-			}
+			ReloadArgContentList(tblCommand, x, baseURL);
 		}
 	}
+}
+
+// Turn the Multisync "Hosts" field into a jQuery-UI multi-value autocomplete:
+// discovered hosts are suggested per comma-separated term and arbitrary
+// hosts can still be typed. Falls back to the native datalist if jQuery-UI
+// isn't loaded on the page.
+function InitMultisyncHostsAutocomplete (tblCommand) {
+	var input = $('#' + tblCommand + '_multisyncHosts');
+	if (input.length == 0 || typeof input.autocomplete !== 'function') {
+		return;
+	}
+
+	var available = [];
+	$.each(GetRemotes(), function (k, v) {
+		available.push({ label: v, value: k });
+	});
+
+	// Drop the native datalist so two suggestion popups don't show at once.
+	input.removeAttr('list');
+
+	function split (val) {
+		return val.split(/,\s*/);
+	}
+	function extractLast (term) {
+		return split(term).pop();
+	}
+
+	input
+		.on('keydown', function (event) {
+			// Don't let Tab move focus while a menu item is highlighted.
+			if (
+				event.keyCode === $.ui.keyCode.TAB &&
+				$(this).autocomplete('instance').menu.active
+			) {
+				event.preventDefault();
+			}
+		})
+		.on('focus', function () {
+			$(this).autocomplete('search', extractLast(this.value));
+		})
+		.autocomplete({
+			minLength: 0,
+			open: function () {
+				// The command editor often lives inside a Bootstrap modal
+				// (z-index ~1050); the jQuery-UI menu defaults to z-index 100
+				// and would render behind it. Lift it above the modal.
+				$(this).autocomplete('widget').css('z-index', 100000);
+			},
+			source: function (request, response) {
+				var term = extractLast(request.term).toLowerCase();
+				response(
+					available.filter(function (item) {
+						return item.label.toLowerCase().indexOf(term) !== -1;
+					})
+				);
+			},
+			focus: function () {
+				// Keep the typed value while arrowing through the menu.
+				return false;
+			},
+			select: function (event, ui) {
+				var terms = split(this.value);
+				terms.pop(); // remove the term being completed
+				terms.push(ui.item.value); // add the selected host
+				terms.push(''); // trailing delimiter so the next host can be typed
+				this.value = terms.join(',');
+				OnMultisyncHostsChanged(this, tblCommand);
+				return false;
+			}
+		});
 }
 
 var remoteIpList = null;
@@ -7846,6 +7938,8 @@ function CommandSelectChanged (
 	line += '</datalist></td></tr>';
 
 	$('#' + tblCommand).append(line);
+
+	InitMultisyncHostsAutocomplete(tblCommand);
 
 	argPrintFunc(tblCommand, configAdjustable, co['args']);
 }
@@ -8498,12 +8592,28 @@ function ReloadContentList (baseUrl, inp) {
 	}
 	var url = arg.data('contentlisturl');
 	var allowblank = arg.data('allowblanks');
-	arg.empty();
+
+	// Remember the current selection so we can restore it after repopulating.
+	var selectedValue = arg.val();
 
 	// Get current browser IP (assumes http://IP/...)
 	var currentHost = window.location.hostname;
 
-	baseUrl.split(',').forEach(function (burl) {
+	var hosts = baseUrl
+		.split(',')
+		.map(function (h) {
+			return h.trim();
+		})
+		.filter(function (h) {
+			return h != '';
+		});
+	var numHosts = hosts.length;
+
+	// Tally how many of the selected hosts have each value. Use a Map to keep
+	// first-seen order. An unreachable host simply contributes nothing, so its
+	// items end up with a lower count.
+	var items = new Map();
+	hosts.forEach(function (burl) {
 		let requestUrl;
 		if (burl !== currentHost) {
 			// Rewrite to proxy path
@@ -8514,29 +8624,78 @@ function ReloadContentList (baseUrl, inp) {
 		$.ajax({
 			dataType: 'json',
 			async: false,
+			timeout: 2000,
 			url: requestUrl,
 			success: function (data) {
-				var firstToRemove = 0;
-				if (arg.find('options[0]').value == '' || allowblank) {
-					arg.append("<option value=''></option>");
-				}
-
+				var addItem = function (value, label) {
+					var existing = items.get(value);
+					if (existing) {
+						existing.count++;
+					} else {
+						items.set(value, { label: label, count: 1 });
+					}
+				};
 				if (Array.isArray(data)) {
 					$.each(data, function (key, v) {
-						var line = '<option value="' + v + '"';
-						line += '>' + v + '</option>';
-						arg.append(line);
+						addItem(v, v);
 					});
 				} else {
 					$.each(data, function (key, v) {
-						var line = '<option value="' + key + '"';
-						line += '>' + v + '</option>';
-						arg.append(line);
+						addItem(key, v);
 					});
 				}
 			}
 		});
 	});
+
+	arg.empty();
+	if (allowblank) {
+		arg.append("<option value=''></option>");
+	}
+	// Match the HTML escaping the initial (local) population uses so names
+	// containing &, <, or " do not break the option markup.
+	var escapeAttr = function (s) {
+		return String(s)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/"/g, '&quot;');
+	};
+	var escapeText = function (s) {
+		return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+	};
+	items.forEach(function (info, value) {
+		var label = escapeText(info.label);
+		var title = '';
+		// When more than one host is selected, annotate items that are not present
+		// on every host with a "(present/total)" count rather than hiding them.
+		if (numHosts > 1) {
+			label += ' (exists on ' + info.count + '/' + numHosts + ' Hosts)';
+			title = ' title="Exists on ' + info.count + ' of ' + numHosts + ' selected hosts"';
+		}
+		arg.append(
+			'<option value="' +
+				escapeAttr(value) +
+				'"' +
+				title +
+				'>' +
+				label +
+				'</option>'
+		);
+	});
+
+	// Restore the previous selection if it is still available. Compare option
+	// values directly rather than via a selector to stay safe with quotes.
+	if (selectedValue != null) {
+		var stillAvailable = false;
+		arg.find('option').each(function () {
+			if (this.value === selectedValue) {
+				stillAvailable = true;
+			}
+		});
+		if (stillAvailable) {
+			arg.val(selectedValue);
+		}
+	}
 }
 
 function PopulateExistingCommand (
@@ -8563,7 +8722,7 @@ function PopulateExistingCommand (
 				$('#' + tblCommand + '_multisync').prop('checked', val);
 				if (val) {
 					val = json['multisyncHosts'];
-					if (val !== undefined && !val.includes(',')) {
+					if (val !== undefined) {
 						baseUrl = val;
 					}
 					$('#' + tblCommand + '_multisyncHosts_row').show();
@@ -8579,8 +8738,8 @@ function PopulateExistingCommand (
 			var count = 1;
 			$.each(json['args'], function (key, v) {
 				var inp = $('#' + tblCommand + '_arg_' + count);
-				if (inp.data('contentlisturl') != null && baseUrl != '') {
-					ReloadContentList(baseUrl, inp);
+				if (baseUrl != '') {
+					ReloadArgContentList(tblCommand, count, baseUrl);
 				}
 
 				var multattr = inp.attr('multiple');
@@ -8858,6 +9017,19 @@ function FillInCommandTemplate (row, data) {
 	}
 
 	row.find('.cmdTmplJSON').html(JSON.stringify(command));
+
+	// Surface the multisync target hosts in the row preview (the
+	// .cmdTmplMulticastInfo span was previously left empty). An empty host
+	// list means the command is sent to all hosts.
+	if (data.multisyncCommand) {
+		var hostsText =
+			data.hasOwnProperty('multisyncHosts') && data.multisyncHosts != ''
+				? data.multisyncHosts
+				: 'All hosts';
+		row.find('.cmdTmplMulticastInfo').html('<b>Multisync:</b> ' + hostsText);
+	} else {
+		row.find('.cmdTmplMulticastInfo').html('');
+	}
 
 	var json = JSON.stringify(command);
 	var tip = 'No command selected.';

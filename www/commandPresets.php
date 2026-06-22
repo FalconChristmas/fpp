@@ -272,6 +272,24 @@
                         </div>
                     </div>
                     <hr>
+                    <style>
+                        /* Keep the Preset Name, FPP Command and Preset Slot
+                           inputs aligned at the top of each row even when the
+                           command cell grows taller (the multisync host line
+                           and/or the args table). The drag grip stays centered. */
+                        #tblCommandsBody > tr > td {
+                            vertical-align: top;
+                        }
+                        #tblCommandsBody > tr > td:first-child {
+                            vertical-align: middle;
+                        }
+                        .cmdTmplMulticastInfo {
+                            display: block;
+                            font-size: 0.875em;
+                            color: var(--fpp-text-secondary);
+                            margin-top: 4px;
+                        }
+                    </style>
                     <div class='fppTableWrapper fppTableWrapperAsTable'>
                         <div class='fppTableContents' role="region" aria-labelledby="tblUniversesHead" tabindex="0">
                             <table class='fppTableRowTemplate template-tblCommandsBody'>
