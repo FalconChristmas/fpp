@@ -36,8 +36,6 @@
 
             //Setup Bootstrap Table on Sync Stats Table (shown on E1.31/DDP Input)
             $('#syncStatsTable').bootstrapTable({
-                sortName: 'host',
-                sortOrder: 'asc',
                 striped: true,
                 showColumns: false,
                 undefinedText: ''

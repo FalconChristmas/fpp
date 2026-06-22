@@ -5594,17 +5594,19 @@ function ShowMultiSyncStats (data) {
 	var now = new Date().getTime();
 	var rows = [];
 
-	// Sort so the syncing player (master) appears at the top of the list
+	// Sort: 127.0.0.1 first, then the syncing player (master), then the rest
 	var systems = data.systems.slice();
-	if (data.masterIP) {
-		systems.sort(function (a, b) {
-			if (a.sourceIP === data.masterIP && b.sourceIP !== data.masterIP)
-				return -1;
-			if (b.sourceIP === data.masterIP && a.sourceIP !== data.masterIP)
-				return 1;
-			return 0;
-		});
-	}
+	systems.sort(function (a, b) {
+		var aIs127 = a.sourceIP === '127.0.0.1';
+		var bIs127 = b.sourceIP === '127.0.0.1';
+		if (aIs127 !== bIs127) return aIs127 ? -1 : 1;
+		if (data.masterIP) {
+			var aIsMaster = a.sourceIP === data.masterIP;
+			var bIsMaster = b.sourceIP === data.masterIP;
+			if (aIsMaster !== bIsMaster) return aIsMaster ? -1 : 1;
+		}
+		return 0;
+	});
 
 	for (var i = 0; i < systems.length; i++) {
 		var s = systems[i];
