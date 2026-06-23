@@ -5162,31 +5162,34 @@ var firstStatusLoad = 1;
 function updateSensorStatus () {
 	jsonStatus = lastStatusJSON;
 	if (jsonStatus.hasOwnProperty('sensors')) {
+		var nonFanSensors = jsonStatus.sensors.filter(function(s) {
+			return s.valueType !== 'FanSpeed';
+		});
 		var sensorText = "<table id='sensorTable'>";
 		var outPos = 0;
 		var sensorType = '';
-		if (jsonStatus.sensors.length > 0) {
-			sensorType = jsonStatus.sensors[0].valueType;
+		if (nonFanSensors.length > 0) {
+			sensorType = nonFanSensors[0].valueType;
 		}
-		for (var i = 0; i < jsonStatus.sensors.length; i++) {
+		for (var i = 0; i < nonFanSensors.length; i++) {
 			if (
-				jsonStatus.sensors[i].valueType != sensorType &&
-				jsonStatus.sensors.length > 3 &&
+				nonFanSensors[i].valueType != sensorType &&
+				nonFanSensors.length > 3 &&
 				outPos % 2 == 1
 			) {
 				sensorText += '</tr>';
 				outPos++;
 			}
-			sensorType = jsonStatus.sensors[i].valueType;
-			if (jsonStatus.sensors.length < 4 || outPos % 2 == 0) {
+			sensorType = nonFanSensors[i].valueType;
+			if (nonFanSensors.length < 4 || outPos % 2 == 0) {
 				sensorText += '<tr>';
 			}
 			sensorText += '<td>';
-			sensorText += jsonStatus.sensors[i].label;
+			sensorText += nonFanSensors[i].label;
 			sensorText += '</td><td style="padding-right: 15px;"';
-			if (jsonStatus.sensors[i].valueType == 'Temperature') {
+			if (nonFanSensors[i].valueType == 'Temperature') {
 				sensorText += " onclick='changeTemperatureUnit()'>";
-				var val = jsonStatus.sensors[i].value;
+				var val = nonFanSensors[i].value;
 				if (temperatureUnit) {
 					val *= 1.8;
 					val += 32;
@@ -5198,11 +5201,11 @@ function updateSensorStatus () {
 				}
 			} else {
 				sensorText += '>';
-				sensorText += jsonStatus.sensors[i].formatted;
+				sensorText += nonFanSensors[i].formatted;
 			}
 			sensorText += '</td>';
 
-			if (jsonStatus.sensors.length > 4 && outPos % 2 == 1) {
+			if (nonFanSensors.length > 4 && outPos % 2 == 1) {
 				sensorText += '<tr>';
 			}
 			outPos++;
@@ -9417,14 +9420,25 @@ function RefreshHeaderBar () {
 	}
 
 	if (data.sensors != undefined) {
+		var nonFanSensors = data.sensors.filter(function(s) {
+			return s.valueType !== 'FanSpeed';
+		});
 		var sensors = [];
 		var tooltip = '';
+		// Tooltip shows all sensors (including fans)
 		data.sensors.forEach(function (e) {
+			var tv = e.formatted;
+			if (e.valueType === 'Temperature' && typeof temperatureUnit !== 'undefined' && temperatureUnit) {
+				tv = (parseFloat(e.value) * 1.8 + 32).toFixed(2) + '&deg;F';
+			}
+			tooltip += '<b>' + e.label + '</b>' + tv + '<br/>';
+		});
+		// Header rotating display excludes fan speed sensors
+		nonFanSensors.forEach(function (e) {
 			var icon = 'bolt';
 			var val = e.formatted;
 			if (e.valueType == 'Temperature') {
 				icon = 'thermometer-half';
-				// Use the same global variable as the main sensor display
 				if (typeof temperatureUnit !== 'undefined' && temperatureUnit) {
 					val = val * 1.8 + 32;
 					val = parseFloat(val).toFixed(2);
@@ -9433,7 +9447,6 @@ function RefreshHeaderBar () {
 					val += '&deg;C';
 				}
 			}
-			tooltip += '<b>' + e.label + '</b>' + val + '<br/>';
 			row =
 				'<span class="sensorSpan hiddenSensor" onclick="RotateHeaderSensor(' +
 				(sensors.length + 1) +
