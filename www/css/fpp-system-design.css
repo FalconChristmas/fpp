@@ -2413,3 +2413,32 @@
 		font-size: var(--fpp-fs-xl);
 	}
 }
+
+/* Fan Monitoring */
+.fan-data-container {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--fpp-sp-md);
+}
+
+.fan-entry {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--fpp-sp-sm) var(--fpp-sp-md);
+	background: var(--fpp-surface-secondary);
+	border-radius: var(--fpp-radius-sm);
+	min-width: 200px;
+	flex: 1 1 auto;
+}
+
+.fan-label {
+	font-size: var(--fpp-fs-sm);
+	color: var(--fpp-text-secondary);
+}
+
+.fan-value {
+	font-size: var(--fpp-fs-lg);
+	font-weight: var(--fpp-fw-bold);
+	color: var(--fpp-text-primary);
+}

@@ -315,8 +315,9 @@ if (isset($_GET['cpu'])) {
             updateCpuGauge();
             $.get('api/system/status', function (data) {
                 // Temperature
-                if (data.sensors && data.sensors.length > 0) {
-                    var temp = parseFloat(data.sensors[0].value);
+                var tempSensor = data.sensors && data.sensors.find(function (s) { return s.valueType === 'Temperature'; });
+                if (tempSensor) {
+                    var temp = parseFloat(tempSensor.value);
                     <?php if (isset($settings['temperatureInF']) && $settings['temperatureInF'] == 1) { ?>
                         temp = (temp * 9 / 5) + 32;
                         // Fahrenheit thresholds: 140°F (60°C), 176°F (80°C), max 212°F (100°C)
@@ -325,6 +326,9 @@ if (isset($_GET['cpu'])) {
                         // Celsius thresholds: 60°C, 80°C, max 100°C
                         updateGauge('tempGauge', temp, { yellow: 60, red: 80, max: 100, unit: '°C' });
                     <?php } ?>
+                }
+                if (data.sensors) {
+                    updateFanData(data.sensors);
                 }
 
                 // Uptime
@@ -499,6 +503,24 @@ if (isset($_GET['cpu'])) {
             }
             statusEl.innerHTML = '<i class="fas ' + icon + ' ' + cls + '"></i> ' + text;
             statusEl.className = 'busyness-status ' + cls;
+        }
+
+        function updateFanData(sensors) {
+            var fans = sensors.filter(function (s) { return s.valueType === 'FanSpeed'; });
+            if (fans.length === 0) {
+                $('#fan-monitoring-row').hide();
+                return;
+            }
+            $('#fan-monitoring-row').show();
+            var html = '';
+            fans.forEach(function (fan) {
+                var rpm = parseFloat(fan.value).toFixed(0);
+                html += '<div class="fan-entry">' +
+                    '<span class="fan-label">' + fan.label + '</span>' +
+                    '<span class="fan-value">' + rpm + ' RPM</span>' +
+                    '</div>';
+            });
+            $('#fan-data').html(html);
         }
 
         function updatePlayerStats() {
@@ -752,6 +774,20 @@ if (isset($_GET['cpu'])) {
                                 <div class="fpp-gauge__label" id="tempLabel">CPU Temperature
                                     (<?php echo (isset($settings['temperatureInF']) && $settings['temperatureInF'] == 1) ? '°F' : '°C'; ?>)
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fan Monitoring -->
+                <div class="row" id="fan-monitoring-row" style="display: none;">
+                    <div class="col-12">
+                        <div class="card compact-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-fan"></i> Fan Monitoring</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="fan-data" class="fan-data-container"></div>
                             </div>
                         </div>
                     </div>
