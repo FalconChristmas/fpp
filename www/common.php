@@ -732,6 +732,15 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
                 $step = isset($s['step']) ? $s['step'] : 1;
                 $default = isset($s['default']) ? $s['default'] : "0";
 
+                if ($setting == 'GPIOFanTemperature' && isset($settings['temperatureInF']) && $settings['temperatureInF'] == 1) {
+                    $origVal = isset($settings[$setting]) ? $settings[$setting] : $default;
+                    $settings[$setting] = round(($origVal * 9 / 5) + 32);
+                    $min = round(($min * 9 / 5) + 32);
+                    $max = round(($max * 9 / 5) + 32);
+                    $default = round(($default * 9 / 5) + 32);
+                    $suffix = ' F';
+                }
+
                 PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, $plugin, $default, $callback, '', 'number', $s);
                 break;
             case 'modal':
