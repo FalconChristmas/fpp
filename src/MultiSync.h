@@ -345,9 +345,16 @@ private:
     void ProcessPluginPacket(ControlPkt* pkt, int len, MultiSyncStats* stats);
     void ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* stats);
 
+    // Scans known systems for a System UUID shared by more than one device and
+    // raises/clears warning #57 accordingly.
+    void CheckForDuplicateUUIDs();
+
     std::recursive_mutex m_systemsLock;
     std::vector<MultiSyncSystem> m_localSystems;
     std::vector<MultiSyncSystem> m_remoteSystems;
+    // The duplicate-UUID warning message currently raised (empty if none), so
+    // it can be cleared/replaced when the set of duplicates changes.
+    std::string m_duplicateUUIDWarning;
 
     std::map<std::string, NetInterfaceInfo> m_interfaces;
     bool m_sendMulticast;

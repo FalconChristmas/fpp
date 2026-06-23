@@ -559,6 +559,13 @@ rm -f /var/log/* 2>/dev/null || true
 rm -f /var/swap
 rm -f /etc/ssh/*key*
 rm -f /root/.bash_history
+# machine-id is FPP's last-resort fallback UUID source (used only when no
+# hardware serial exists), so it must be unique per device. systemd seeds it from
+# /var/lib/dbus/machine-id when that's a real file, so a baked-in value would be
+# shared by every device flashed from the image; symlink the dbus id and reset
+# /etc/machine-id so a fresh, unique one is generated on each first boot.
+rm -f /var/lib/dbus/machine-id
+ln -sf /etc/machine-id /var/lib/dbus/machine-id
 echo "uninitialized" > /etc/machine-id
 CHROOT_EOF
 chmod +x "$ROOT_MNT/tmp/fpp-chroot-install.sh"

@@ -324,6 +324,68 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
         sys.lastSeen = t;
         m_remoteSystems.push_back(sys);
     }
+
+    CheckForDuplicateUUIDs();
+}
+
+void MultiSync::CheckForDuplicateUUIDs() {
+    // m_systemsLock is a recursive_mutex; safe to lock again if a caller (e.g.
+    // UpdateSystem/PingRemotes) already holds it on this thread.
+    std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+
+    auto isValid = [](const std::string& u) {
+        return !u.empty() && u != "Unknown";
+    };
+
+    // Map each valid UUID to the set of distinct devices (hostname or address)
+    // seen advertising it.  Remote UUIDs are only populated for peers discovered
+    // via HTTP/mDNS; ping-only peers report "Unknown" and are skipped here.
+    std::map<std::string, std::set<std::string>> seen;
+
+    std::string localUUID = getSetting("SystemUUID");
+    if (isValid(localUUID)) {
+        seen[localUUID].insert(m_hostname.empty() ? "localhost" : m_hostname);
+    }
+    for (const auto& sys : m_remoteSystems) {
+        if (isValid(sys.uuid)) {
+            seen[sys.uuid].insert(sys.hostname.empty() ? sys.address : sys.hostname);
+        }
+    }
+
+    std::string dupMsg;
+    for (const auto& [u, hosts] : seen) {
+        if (hosts.size() > 1) {
+            std::string hostList;
+            for (const auto& h : hosts) {
+                if (!hostList.empty()) {
+                    hostList += ", ";
+                }
+                hostList += h;
+            }
+            if (!dupMsg.empty()) {
+                dupMsg += "; ";
+            }
+            dupMsg += "UUID " + u + " is shared by " + hostList;
+        }
+    }
+
+    if (dupMsg.empty()) {
+        // No duplicates - clear any previously raised warning.
+        if (!m_duplicateUUIDWarning.empty()) {
+            WarningHolder::RemoveWarning(57, m_duplicateUUIDWarning);
+            m_duplicateUUIDWarning.clear();
+        }
+        return;
+    }
+
+    std::string msg = "Duplicate System UUID detected: " + dupMsg;
+    if (msg != m_duplicateUUIDWarning) {
+        if (!m_duplicateUUIDWarning.empty()) {
+            WarningHolder::RemoveWarning(57, m_duplicateUUIDWarning);
+        }
+        WarningHolder::AddWarning(57, msg);
+        m_duplicateUUIDWarning = msg;
+    }
 }
 
 /*
@@ -1320,6 +1382,9 @@ void MultiSync::PeriodicPing() {
                 ++it;
             }
         }
+        // Re-evaluate after stale systems are removed so the warning clears
+        // when a duplicate device drops off the network.
+        CheckForDuplicateUUIDs();
     }
     if (superLongGap) {
         Ping(1);
