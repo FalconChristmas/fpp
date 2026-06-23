@@ -375,7 +375,38 @@ public:
             if (i > 0) {
                 buffer[i] = 0;
                 d = std::atof(buffer);
-                d /= 1000; // 12 bit a2d
+                d /= 1000;
+            }
+            return d;
+        }
+
+        return 0.0;
+    }
+
+    volatile int file;
+    std::string path;
+};
+
+class FanSensor : public Sensor {
+public:
+    explicit FanSensor(Json::Value& s) :
+        Sensor(s),
+        path(s["path"].asString()) {
+        file = open(path.c_str(), O_RDONLY);
+    }
+    virtual ~FanSensor() {
+        if (file != -1) close(file);
+    }
+
+    virtual double getValue() override {
+        if (file != -1) {
+            lseek(file, 0, SEEK_SET);
+            char buffer[20];
+            int i = read(file, buffer, 20);
+            double d = 0;
+            if (i > 0) {
+                buffer[i] = 0;
+                d = std::atof(buffer);
             }
             return d;
         }
@@ -510,6 +541,45 @@ void Sensors::DetectHWSensors() {
         sensors.push_back(new ThermalSensor(v));
         i++;
         snprintf(path, sizeof(path), "/sys/class/thermal/thermal_zone%d/temp", i);
+    }
+    DetectFanSensors();
+}
+void Sensors::DetectFanSensors() {
+    for (int h = 0; h < 32; h++) {
+        char hwmonPath[256];
+        snprintf(hwmonPath, sizeof(hwmonPath), "/sys/class/hwmon/hwmon%d", h);
+        if (!DirectoryExists(hwmonPath)) {
+            break;
+        }
+
+        char namePath[256];
+        snprintf(namePath, sizeof(namePath), "%s/name", hwmonPath);
+        std::string deviceName = "hwmon" + std::to_string(h);
+        if (FileExists(namePath)) {
+            int f = open(namePath, O_RDONLY);
+            if (f != -1) {
+                char buf[64] = {0};
+                int r = read(f, buf, 63);
+                if (r > 0) {
+                    if (buf[r - 1] == '\n') buf[r - 1] = 0;
+                    deviceName = buf;
+                }
+                close(f);
+            }
+        }
+
+        for (int fan = 1; fan <= 8; fan++) {
+            char fanPath[256];
+            snprintf(fanPath, sizeof(fanPath), "%s/fan%d_input", hwmonPath, fan);
+            if (FileExists(fanPath)) {
+                Json::Value v;
+                v["path"] = fanPath;
+                v["valueType"] = "FanSpeed";
+                v["label"] = deviceName + " Fan " + std::to_string(fan) + ": ";
+                v["postfix"] = " RPM";
+                sensors.push_back(new FanSensor(v));
+            }
+        }
     }
 }
 void Sensors::Close() {

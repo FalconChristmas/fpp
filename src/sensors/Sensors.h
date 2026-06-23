@@ -47,6 +47,7 @@ public:
     void Close();
 
     void DetectHWSensors();
+    void DetectFanSensors();
     void addSensors(Json::Value& config);
     void reportSensors(Json::Value& root);
 
