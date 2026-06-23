@@ -262,6 +262,9 @@ public:
     GStreamerPlayData(const std::string& file, int l, int vol, int slot = 1);
     virtual ~GStreamerPlayData();
     virtual void Stopped() override;
+    // Declared first so it is destroyed last, remaining valid throughout ~GStreamerPlayData()
+    // even if the GStreamer bus fires a second Stopped() callback during our destruction.
+    std::atomic<bool> m_stoppedOnce{ false };
     std::string filename;
     int volumeAdjust = 0;
     int streamSlot = 1;
@@ -286,6 +289,9 @@ GStreamerPlayData::~GStreamerPlayData() {
 }
 
 void GStreamerPlayData::Stopped() {
+    if (m_stoppedOnce.exchange(true)) {
+        return;
+    }
     GStreamerOutput::Stopped();
     RemoveRunningMedia(filename, this);
 }
