@@ -1009,7 +1009,7 @@ if (is_dir($stringsDir)) {
                                     </div>
                                     <div class="col-12 d-none" id="gpioLEDTriggerParamRow">
                                         <label class="form-label fw-semibold" id="gpioLEDTriggerParamLabel">Number of
-                                            flashes <span id="gpioLEDTriggerParamTip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="auto" data-bs-container="body" data-bs-title=""><img src="images/redesign/help-icon.svg" class="icon-help" alt="help icon"></span></label>
+                                            flashes <span id="gpioLEDTriggerParamTip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="auto" data-bs-container="body" data-bs-title="How many times the LED flashes after the button is pressed. Each flash is 150 ms on followed by 150 ms off."><img src="images/redesign/help-icon.svg" class="icon-help" alt="help icon"></span></label>
                                         <input class="form-control" type="number" id="gpioModalLedTriggerParam" min="1"
                                             max="20" value="3">
                                         <div class="form-text" id="gpioLEDTriggerParamHelp"></div>

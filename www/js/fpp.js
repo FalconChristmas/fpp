@@ -1542,7 +1542,17 @@ function SetupToolTips (delay = 100) {
 		'[data-bs-toggle="tooltip"]'
 	);
 	const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => {
-		let tooltipInstance = new bootstrap.Tooltip(tooltipTriggerEl);
+		let tooltipInstance;
+		try {
+			// Bootstrap treats an empty data-bs-title attribute as null and
+			// throws while type-checking the config. A single bad tooltip
+			// must not abort the loop (and with it the rest of page setup,
+			// such as binding the mobile nav menu), so guard each one.
+			tooltipInstance = new bootstrap.Tooltip(tooltipTriggerEl);
+		} catch (e) {
+			console.warn('Skipping invalid tooltip', tooltipTriggerEl, e);
+			return null;
+		}
 
 		// Auto-hide tooltip after 3 seconds if mouse is not hovering
 		tooltipTriggerEl.addEventListener('mouseenter', () => {
