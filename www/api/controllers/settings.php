@@ -87,6 +87,10 @@ function PutSetting()
     $value = file_get_contents('php://input');
     $setting = params('SettingName');
 
+    if ($setting == 'GPIOFanTemperature' && isset($settings['temperatureInF']) && $settings['temperatureInF'] == 1) {
+        $value = round(($value - 32) * 5 / 9);
+    }
+
     WriteSettingToFile($setting, $value);
 
     // Callers can pass ?skipApply=1 to persist the value WITHOUT running the
