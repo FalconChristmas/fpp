@@ -5162,47 +5162,45 @@ var firstStatusLoad = 1;
 function updateSensorStatus () {
 	jsonStatus = lastStatusJSON;
 	if (jsonStatus.hasOwnProperty('sensors')) {
+		var tempSensors = jsonStatus.sensors.filter(function(s) {
+			return s.valueType === 'Temperature';
+		});
 		var sensorText = "<table id='sensorTable'>";
 		var outPos = 0;
 		var sensorType = '';
-		if (jsonStatus.sensors.length > 0) {
-			sensorType = jsonStatus.sensors[0].valueType;
+		if (tempSensors.length > 0) {
+			sensorType = tempSensors[0].valueType;
 		}
-		for (var i = 0; i < jsonStatus.sensors.length; i++) {
+		for (var i = 0; i < tempSensors.length; i++) {
 			if (
-				jsonStatus.sensors[i].valueType != sensorType &&
-				jsonStatus.sensors.length > 3 &&
+				tempSensors[i].valueType != sensorType &&
+				tempSensors.length > 3 &&
 				outPos % 2 == 1
 			) {
 				sensorText += '</tr>';
 				outPos++;
 			}
-			sensorType = jsonStatus.sensors[i].valueType;
-			if (jsonStatus.sensors.length < 4 || outPos % 2 == 0) {
+			sensorType = tempSensors[i].valueType;
+			if (tempSensors.length < 4 || outPos % 2 == 0) {
 				sensorText += '<tr>';
 			}
 			sensorText += '<td>';
-			sensorText += jsonStatus.sensors[i].label;
+			sensorText += tempSensors[i].label;
 			sensorText += '</td><td style="padding-right: 15px;"';
-			if (jsonStatus.sensors[i].valueType == 'Temperature') {
-				sensorText += " onclick='changeTemperatureUnit()'>";
-				var val = jsonStatus.sensors[i].value;
-				if (temperatureUnit) {
-					val *= 1.8;
-					val += 32;
-					sensorText += val.toFixed(1);
-					sensorText += 'F';
-				} else {
-					sensorText += val.toFixed(1);
-					sensorText += 'C';
-				}
+			sensorText += " onclick='changeTemperatureUnit()'>";
+			var val = tempSensors[i].value;
+			if (temperatureUnit) {
+				val *= 1.8;
+				val += 32;
+				sensorText += val.toFixed(1);
+				sensorText += 'F';
 			} else {
-				sensorText += '>';
-				sensorText += jsonStatus.sensors[i].formatted;
+				sensorText += val.toFixed(1);
+				sensorText += 'C';
 			}
 			sensorText += '</td>';
 
-			if (jsonStatus.sensors.length > 4 && outPos % 2 == 1) {
+			if (tempSensors.length > 4 && outPos % 2 == 1) {
 				sensorText += '<tr>';
 			}
 			outPos++;
@@ -9417,23 +9415,30 @@ function RefreshHeaderBar () {
 	}
 
 	if (data.sensors != undefined) {
+		var tempSensors = data.sensors.filter(function(s) {
+			return s.valueType === 'Temperature';
+		});
 		var sensors = [];
 		var tooltip = '';
+		// Tooltip shows all sensors (temperature + fans)
 		data.sensors.forEach(function (e) {
-			var icon = 'bolt';
-			var val = e.formatted;
-			if (e.valueType == 'Temperature') {
-				icon = 'thermometer-half';
-				// Use the same global variable as the main sensor display
-				if (typeof temperatureUnit !== 'undefined' && temperatureUnit) {
-					val = val * 1.8 + 32;
-					val = parseFloat(val).toFixed(2);
-					val += '&deg;F';
-				} else {
-					val += '&deg;C';
-				}
+			var tv = e.formatted;
+			if (e.valueType === 'Temperature' && typeof temperatureUnit !== 'undefined' && temperatureUnit) {
+				tv = (parseFloat(e.value) * 1.8 + 32).toFixed(2) + '&deg;F';
 			}
-			tooltip += '<b>' + e.label + '</b>' + val + '<br/>';
+			tooltip += '<b>' + e.label + '</b>' + tv + '<br/>';
+		});
+		// Header shows only temperature sensors
+		tempSensors.forEach(function (e) {
+			var icon = 'thermometer-half';
+			var val = e.formatted;
+			if (typeof temperatureUnit !== 'undefined' && temperatureUnit) {
+				val = val * 1.8 + 32;
+				val = parseFloat(val).toFixed(2);
+				val += '&deg;F';
+			} else {
+				val += '&deg;C';
+			}
 			row =
 				'<span class="sensorSpan hiddenSensor" onclick="RotateHeaderSensor(' +
 				(sensors.length + 1) +
