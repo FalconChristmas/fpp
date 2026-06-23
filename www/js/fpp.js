@@ -8625,6 +8625,9 @@ function ReloadContentList (baseUrl, inp) {
 			dataType: 'json',
 			async: false,
 			timeout: 2000,
+			// An unreachable host, or an endpoint the host doesn't support
+			// (e.g. a 404 on older firmware), just contributes nothing.
+			error: function () {},
 			url: requestUrl,
 			success: function (data) {
 				var addItem = function (value, label) {
