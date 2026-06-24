@@ -5607,12 +5607,9 @@ function ShowMultiSyncStats (data) {
 	var now = new Date().getTime();
 	var rows = [];
 
-	// Sort: 127.0.0.1 first, then the syncing player (master), then the rest
+	// Sort the syncing player (master) first, then the rest.
 	var systems = data.systems.slice();
 	systems.sort(function (a, b) {
-		var aIs127 = a.sourceIP === '127.0.0.1';
-		var bIs127 = b.sourceIP === '127.0.0.1';
-		if (aIs127 !== bIs127) return aIs127 ? -1 : 1;
 		if (data.masterIP) {
 			var aIsMaster = a.sourceIP === data.masterIP;
 			var bIsMaster = b.sourceIP === data.masterIP;
@@ -5623,6 +5620,8 @@ function ShowMultiSyncStats (data) {
 
 	for (var i = 0; i < systems.length; i++) {
 		var s = systems[i];
+		// Hide the local host's own loopback stats row.
+		if (s.sourceIP === '127.0.0.1') continue;
 		var hostText = s.sourceIP;
 		if (s.hostname != '') hostText += '&nbsp;(' + s.hostname + ')';
 		if (s.sourceIP === data.masterIP) hostText += ' <b>(Player)</b>';

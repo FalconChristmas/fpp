@@ -13,6 +13,7 @@
 #include <cstring>
 #include <dirent.h>
 #include <vector>
+#include <net/if.h>
 #include <unistd.h>
 #include <sys/time.h>
 
@@ -194,6 +195,19 @@ static void resolve_callback(AvahiServiceResolver* r,
         char addr_buf[AVAHI_ADDRESS_STR_MAX];
         avahi_address_snprint(addr_buf, sizeof(addr_buf), a);
         std::string ip(addr_buf);
+        // An IPv6 link-local address (fe80::/10) is only usable together with the
+        // interface it was discovered on, so carry the zone id ("%eth0") along.
+        // Without it curl can't pick an interface and the address can't be reached
+        // on IPv6-only networks.  The zone is harmless to the IPv4-only ping paths
+        // (they already can't parse a v6 address).
+        if (a->proto == AVAHI_PROTO_INET6 && interface != AVAHI_IF_UNSPEC &&
+            ip.rfind("fe80", 0) == 0 && ip.find('%') == std::string::npos) {
+            char ifname[IF_NAMESIZE] = {0};
+            if (if_indextoname(interface, ifname)) {
+                ip += "%";
+                ip += ifname;
+            }
+        }
         // WLED nodes (and FPP's own _wled._tcp advertisement) are probed over
         // HTTP rather than the FPP ping protocol.
         bool isWled = (type != nullptr && strstr(type, "_wled._tcp") != nullptr);

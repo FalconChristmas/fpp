@@ -72,6 +72,11 @@ std::string getSimpleHTMLTTag(const std::string& html, const std::string& search
 std::string getSimpleXMLTag(const std::string& xml, const std::string& tag);
 
 // URL Helpers
+// Build an "http://host[path]" URL from a raw address.  IPv6 literals are
+// wrapped in brackets and any link-local zone id ("%iface") is percent-encoded
+// so curl accepts them; IPv4 addresses and hostnames are passed through
+// unchanged.  This is what makes discovery work on IPv6-only networks.
+std::string buildHttpURL(const std::string& address, const std::string& path = "");
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const std::list<std::string>& headers, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, std::string& resp, const unsigned int timeout = 30);

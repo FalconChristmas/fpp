@@ -82,7 +82,7 @@ bool NetworkController::DetectFPP(const std::string& ip, const std::string& html
     if (html.find("Falcon Player - FPP") == std::string::npos) {
         return false;
     }
-    std::string url = "http://" + ip + "/api/system/info?simple=1";
+    std::string url = buildHttpURL(ip, "/api/system/info?simple=1");
     std::string resp;
 
     if (urlGet(url, resp)) {
@@ -143,7 +143,7 @@ bool NetworkController::DetectFalconController(const std::string& ip,
     vendor = "Falcon";
     vendorURL = "https://pixelcontroller.com";
 
-    std::string url = "http://" + ip + "/status.xml";
+    std::string url = buildHttpURL(ip, "/status.xml");
     std::string resp;
 
     if (urlGet(url, resp)) {
@@ -303,7 +303,7 @@ bool NetworkController::DetectBaldrickController(const std::string& ip,
     typeStr = "Baldrick";
     systemMode = BRIDGE_MODE;
 
-    std::string url = "http://" + ip + "/system_state";
+    std::string url = buildHttpURL(ip, "/system_state");
     std::string resp;
 
     if (urlGet(url, resp)) {
@@ -444,7 +444,7 @@ bool NetworkController::DetectWLEDController(const std::string& ip, const std::s
     if (html.find("WLED UI") == std::string::npos) {
         return false;
     }
-    std::string url = "http://" + ip + "/json/info";
+    std::string url = buildHttpURL(ip, "/json/info");
     std::string resp;
 
     if (urlGet(url, resp)) {

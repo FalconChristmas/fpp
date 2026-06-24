@@ -1610,7 +1610,14 @@
                 var star = "";
                 var ip = data[i].address;
 
-                if (ip.indexOf('169.254') == 0)
+                // Hide addresses that aren't useful here: loopback (127.x / ::1)
+                // and link-local — IPv4 APIPA (169.254/16) and IPv6 (fe80::/10).
+                // These aren't routable from the browser (the IPv6 zone id is
+                // specific to the FPP host), and loopback is just the local box
+                // discovering itself, so skip the entry entirely.
+                var ipl = ip.toLowerCase();
+                if (ip.indexOf('169.254') == 0 || ipl.indexOf('fe80') == 0 ||
+                    ip.indexOf('127.') == 0 || ipl == '::1')
                     continue;
 
                 if ((settings.hasOwnProperty('MultiSyncHide10')) &&

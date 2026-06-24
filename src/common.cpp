@@ -439,6 +439,21 @@ size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
     return size * nmemb;
 }
 
+std::string buildHttpURL(const std::string& address, const std::string& path) {
+    std::string host = address;
+    // An IPv6 literal contains ':' (hostnames and IPv4 never do).  curl requires
+    // it bracketed, and a link-local zone id ("fe80::1%eth0") must have its '%'
+    // percent-encoded as "%25" inside a URL.
+    if (host.find(':') != std::string::npos) {
+        std::string::size_type pct = host.find('%');
+        if (pct != std::string::npos) {
+            host = host.substr(0, pct) + "%25" + host.substr(pct + 1);
+        }
+        host = "[" + host + "]";
+    }
+    return "http://" + host + path;
+}
+
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout) {
     return urlHelper(method, url, data, resp, std::list<std::string>(), timeout);
 }

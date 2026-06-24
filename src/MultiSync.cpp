@@ -134,7 +134,10 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
     }
 
     std::vector<std::string> parts = split(address, '.');
-    if (parts.size() != 4) {
+    // ipa-ipd hold the legacy IPv4 octets used in the (IPv4-only) ping packet.
+    // An IPv6 peer has no such octets, so skip the IPv4 hostname lookup that
+    // would only fail and log an error; the octets stay zeroed below.
+    if (parts.size() != 4 && address.find(':') == std::string::npos) {
         if (!GetIPForHost(this->address)) {
             LogErr(VB_SYNC, "Error looking up hostname: %s\n", address.c_str());
         } else {
@@ -1392,10 +1395,8 @@ void MultiSync::PeriodicPing() {
 }
 
 void MultiSync::PingSingleRemoteViaHTTP(const std::string& address) {
-    std::string url("http://");
+    std::string url = buildHttpURL(address);
     std::string resp;
-
-    url += address;
 
     if (urlHelper("GET", url, resp, 1)) {
         if (resp != "") {
