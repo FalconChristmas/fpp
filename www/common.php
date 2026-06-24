@@ -1947,18 +1947,28 @@ function file_cache($cache_name, $data_function, $cache_time = 90, $grace_time =
         }
         if ($fdLock !== false && flock($fdLock, $flags)) {
             $data = $data_function();
-            $fd = @fopen($file_path, "c+");
-            if ($fd !== false) {
-                flock($fd, LOCK_EX);
-                ftruncate($fd, 0);
-                fputs($fd, $data);
-                flock($fd, LOCK_UN);
-                fclose($fd);
+            // Only persist a usable result.  A null/false return signals the
+            // computation failed (e.g. a network timeout) -- in that case we
+            // leave the existing cache intact and fall through to the read
+            // path below to serve the last-known-good value, rather than
+            // poisoning the cache with a failure sentinel for the rest of the
+            // cache window.
+            if ($data !== null && $data !== false) {
+                $fd = @fopen($file_path, "c+");
+                if ($fd !== false) {
+                    flock($fd, LOCK_EX);
+                    ftruncate($fd, 0);
+                    fputs($fd, $data);
+                    flock($fd, LOCK_UN);
+                    fclose($fd);
+                }
+                flock($fdLock, LOCK_UN);
+                fclose($fdLock);
+                unlink($file_path_lock);
+                return $data;
             }
             flock($fdLock, LOCK_UN);
-            fclose($fdLock);
             unlink($file_path_lock);
-            return $data;
         }
         if ($fdLock !== false) {
             fclose($fdLock);
@@ -1969,7 +1979,10 @@ function file_cache($cache_name, $data_function, $cache_time = 90, $grace_time =
         return '';
     }
     flock($fd, LOCK_SH);
-    $data = trim(fgets($fd));
+    // Read the entire cached payload.  fgets() returns only the first line,
+    // which silently truncates multi-line cached values (e.g. JSON responses)
+    // and breaks json_decode().
+    $data = trim(stream_get_contents($fd));
     flock($fd, LOCK_UN);
     fclose($fd);
     return $data;
@@ -2261,8 +2274,18 @@ function get_remote_git_version()
                 //Google DNS Ping fail - return unknown
                 $git_remote_version = "Unknown";
             }
+            // A failed lookup returns null so file_cache() keeps the previous
+            // cached value rather than persisting the failure for the cache
+            // window.  The "Unknown" default is re-applied below when no cached
+            // value exists yet.
+            if ($git_remote_version === "Unknown" || $git_remote_version === "") {
+                return null;
+            }
             return $git_remote_version;
         }, $cache_age, 30);
+        if ($git_remote_version === "") {
+            $git_remote_version = "Unknown";
+        }
     }
     return $git_remote_version;
 }
@@ -2367,7 +2390,9 @@ function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasD
         if ($response && $httpCode === 200) {
             return $response;
         }
-        return '';
+        // Signal failure with null so file_cache() preserves the last good
+        // response instead of caching an empty failure for the cache window.
+        return null;
     }, 90, 30);
 
     if (!empty($fppstatsData)) {

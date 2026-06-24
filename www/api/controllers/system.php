@@ -355,6 +355,14 @@ function GetUpdateStatus()
                 }
             }
         }
+        // If we couldn't determine a release version (network failure or bad
+        // response), return null so file_cache() keeps the last good result
+        // instead of caching an empty release for the cache window.  A real
+        // release with no device asset yet still has a version, so it is
+        // cached normally.
+        if ($result['version'] === '') {
+            return null;
+        }
         return json_encode($result);
     }, 300, 60);
 
