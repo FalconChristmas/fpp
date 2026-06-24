@@ -1170,26 +1170,59 @@ function StartSyncCalibration()
 
     $clickFile = $settings['mediaDirectory'] . "/music/fpp_sync_click.wav";
     if (!file_exists($clickFile)) {
-        // Generate a 60-second WAV with alternating high/low clicks for easier sync matching
-        $cmd = "ffmpeg -y -f lavfi -i \"sine=frequency=1000:duration=0.02,apad=pad_dur=0.98\""
-            . " -f lavfi -i \"sine=frequency=600:duration=0.02,apad=pad_dur=0.98\""
-            . " -filter_complex \"[0][1]concat=n=2:v=0:a=1,aloop=loop=29:size=88200\""
-            . " -t 60 " . escapeshellarg($clickFile) . " 2>&1";
-        exec($cmd, $genOutput, $genRet);
-        if ($genRet !== 0) {
-            $cmd = "sox -n " . escapeshellarg($clickFile) . " synth 60 sine 1000 pad 0 0.98 repeat 59 2>&1";
-            exec($cmd, $genOutput2, $genRet2);
-            if ($genRet2 !== 0) {
-                return json(array("status" => "ERROR", "message" => "Failed to generate click track (tried ffmpeg and sox)"));
-            }
+        // Synthesize the click track in pure PHP (no ffmpeg/sox) — see
+        // GenerateSyncClickTrack, which reproduces the original alternating
+        // high/low click waveform bit-for-bit.
+        if (!GenerateSyncClickTrack($clickFile)) {
+            return json(array("status" => "ERROR", "message" => "Failed to generate click track"));
         }
     }
 
     return StartSyncCalibrationPlayback($sinkName, $clickFile, true);
 }
 
-// Spawn pw-cat (fed by ffmpeg for non-WAV files) targeted at the group sink.
-// $loop: if true, restart playback indefinitely until stopped.
+// Synthesize the sync calibration click track as a 16-bit mono 44100 Hz WAV.
+// Pattern, per 2-second block repeated 30x => 60s:
+//   [20ms @ 1000Hz][980ms silence][20ms @ 600Hz][980ms silence]
+// This is identical to the track the old ffmpeg pipeline produced
+// (sine 0.02s + apad 0.98s, concat high/low, looped to 60s) but needs no
+// external tools.
+function GenerateSyncClickTrack($path)
+{
+    $rate = 44100;
+    $clickSamples = (int) round(0.02 * $rate);          // 882 samples (20 ms)
+    $silenceSamples = $rate - $clickSamples;            // remainder of the 1s window
+    $amplitude = 32767;
+
+    // Build the two 20 ms click bursts, sample by sample.
+    $click1000 = '';
+    $click600 = '';
+    for ($i = 0; $i < $clickSamples; $i++) {
+        $t = $i / $rate;
+        $v1 = (int) round($amplitude * sin(2 * M_PI * 1000 * $t));
+        $v6 = (int) round($amplitude * sin(2 * M_PI * 600 * $t));
+        // signed 16-bit little-endian
+        $click1000 .= pack('v', $v1 & 0xFFFF);
+        $click600 .= pack('v', $v6 & 0xFFFF);
+    }
+    $silence = str_repeat("\x00\x00", $silenceSamples);
+
+    // One 2-second block (high click + silence + low click + silence), x30.
+    $block = $click1000 . $silence . $click600 . $silence;
+    $pcm = str_repeat($block, 30);
+
+    $dataLen = strlen($pcm);
+    $byteRate = $rate * 2;   // mono, 16-bit => 2 bytes/sample
+    $header = 'RIFF' . pack('V', 36 + $dataLen) . 'WAVE'
+        . 'fmt ' . pack('V', 16) . pack('v', 1) . pack('v', 1)
+        . pack('V', $rate) . pack('V', $byteRate) . pack('v', 2) . pack('v', 16)
+        . 'data' . pack('V', $dataLen);
+
+    return @file_put_contents($path, $header . $pcm) !== false;
+}
+
+// Spawn a GStreamer pipeline (decodebin -> pipewiresink) targeted at the
+// group sink.  $loop: if true, restart playback indefinitely until stopped.
 function StartSyncCalibrationPlayback($sinkName, $absFile, $loop)
 {
     global $SUDO;
@@ -1201,13 +1234,25 @@ function StartSyncCalibrationPlayback($sinkName, $absFile, $loop)
     $sinkArg = escapeshellarg($sinkName);
     $fileArg = escapeshellarg($absFile);
 
-    // Decode any container/codec via ffmpeg, pipe raw WAV into pw-cat targeted
-    // at the group's combine sink.  Wrap in a shell loop for indefinite repeat.
-    $playOnce = "ffmpeg -hide_banner -loglevel error -nostdin -i $fileArg -f wav - 2>>" . escapeshellarg($logFile)
-        . " | $env pw-cat --playback --target $sinkArg - 2>>" . escapeshellarg($logFile);
+    // Decode any container/codec with GStreamer and route straight to the
+    // group's combine sink via pipewiresink (matches fppd's media engine; no
+    // ffmpeg/pw-cat).
+    $playOnce = "$env gst-launch-1.0 -q filesrc location=$fileArg ! decodebin ! audioconvert ! audioresample"
+        . " ! pipewiresink target-object=$sinkArg 2>>" . escapeshellarg($logFile);
 
+    $runFile = null;
     if ($loop) {
-        $inner = "while [ -f " . escapeshellarg($pidFile) . " ]; do $playOnce; sleep 0.1; done";
+        // Repeat indefinitely via a shell loop gated on a per-session guard
+        // file.  The guard MUST be created before launch — otherwise the loop's
+        // first `[ -f ... ]` test can win the race against the write below and
+        // the loop exits before ever playing (this happens reliably under the
+        // sudo'd web context, which is why the click track "wouldn't restart").
+        // It is also uniquely named per session so a stale loop can never be
+        // revived by a later start re-creating a shared file.
+        $token = bin2hex(random_bytes(6));
+        $runFile = "/tmp/fpp_sync_cal.{$token}.run";
+        @file_put_contents($runFile, "1");
+        $inner = "while [ -f " . escapeshellarg($runFile) . " ]; do $playOnce; sleep 0.1; done";
     } else {
         $inner = $playOnce;
     }
@@ -1218,6 +1263,9 @@ function StartSyncCalibrationPlayback($sinkName, $absFile, $loop)
 
     $pid = trim(shell_exec($cmd));
     if (!ctype_digit($pid)) {
+        if ($runFile !== null) {
+            @unlink($runFile);
+        }
         return json(array("status" => "ERROR", "message" => "Failed to start playback to sink '$sinkName'"));
     }
     @file_put_contents($pidFile, $pid);
@@ -1245,8 +1293,12 @@ function StopSyncCalibrationInternal()
 
     $pidFile = "/tmp/fpp_sync_cal.pid";
 
-    // Remove PID file first so the loop script exits its `while` after the
-    // current iteration even if signals race.
+    // Invalidate every loop guard first so any running loop exits after its
+    // current iteration even if the PID-group kill below misses it.
+    foreach (glob("/tmp/fpp_sync_cal.*.run") as $runFile) {
+        @unlink($runFile);
+    }
+
     $pid = null;
     if (file_exists($pidFile)) {
         $pid = intval(trim(@file_get_contents($pidFile)));
@@ -1254,14 +1306,14 @@ function StopSyncCalibrationInternal()
     }
 
     if ($pid > 0) {
-        // Kill the entire process group (setsid'd) — supervisor + ffmpeg + pw-cat.
+        // Kill the entire process group (setsid'd) — supervisor + gst-launch.
         @exec($SUDO . " kill -TERM -" . $pid . " 2>/dev/null");
         usleep(150000);
         @exec($SUDO . " kill -KILL -" . $pid . " 2>/dev/null");
     }
 
-    // Belt-and-suspenders: nuke any straggler pw-cat/ffmpeg fed by us.
-    @exec($SUDO . " pkill -f 'pw-cat --playback --target fpp_group_' 2>/dev/null");
+    // Belt-and-suspenders: nuke any straggler gst-launch playback fed by us.
+    @exec($SUDO . " pkill -f 'gst-launch-1.0.*target-object=fpp_' 2>/dev/null");
 
     // Also stop any legacy fppd-driven click track in case an older session
     // started one before this fix shipped.
