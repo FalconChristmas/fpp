@@ -394,7 +394,7 @@
             if (isProxied(ip)) {
                 return 'proxy/' + ip + path;
             }
-            return 'http://' + ip + path;
+            return buildHttpURL(ip, path);
         }
 
         function ipLink(ip) {
@@ -1343,7 +1343,7 @@
                                 let wstr = data.warnings[i];
                                 let idx = wstr.indexOf("href=");
                                 if (idx > 0) {
-                                    wstr = wstr.substr(0, idx + 6) + "http://" + ip + "/" + wstr.substr(idx + 6);
+                                    wstr = wstr.substr(0, idx + 6) + buildHttpURL(ip, "/") + wstr.substr(idx + 6);
                                 }
                                 wHTML += "<span class='warning-text'>" + wstr + "</span><br>";
                             }
@@ -1533,8 +1533,12 @@
                                 var changed = false;
                                 var extra = item._extraIpHtml || '';
                                 data.advancedView.IPs.forEach(function(avIp) {
-                                    // Skip link-local (169.254.x.x) — APIPA addresses have no DHCP lease
-                                    if (avIp.indexOf('169.254.') === 0) return;
+                                    // Skip addresses not reachable from the browser: IPv4 APIPA
+                                    // (169.254/16, no DHCP lease), IPv6 link-local (fe80::/10, the
+                                    // zone id is host-specific), and loopback (127.x / ::1).
+                                    var avl = avIp.toLowerCase();
+                                    if (avIp.indexOf('169.254.') === 0 || avl.indexOf('fe80') === 0 ||
+                                        avIp.indexOf('127.') === 0 || avl === '::1') return;
                                     if ((item._baseIpHtml || '').indexOf(avIp) === -1 &&
                                             extra.indexOf(avIp) === -1) {
                                         extra += '<br>' + ipLink(avIp);

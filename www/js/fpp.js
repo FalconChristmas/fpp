@@ -46,6 +46,17 @@ var FPP_UPDATE_STATE = {
 	checked: false
 };
 
+// Build "http://host" + path. IPv6 literals (contain ':') must be bracketed;
+// IPv4 and hostnames never contain ':' so they pass through unchanged.
+// No zone-id ("%eth0") handling on purpose: a link-local address can't be
+// reached from the browser regardless of how it's encoded, so callers filter
+// those out instead of building a URL that can never work.
+function buildHttpURL(ip, path) {
+	path = path || '';
+	var host = ip.indexOf(':') !== -1 ? '[' + ip + ']' : ip;
+	return 'http://' + host + path;
+}
+
 /* jQuery Colpick activation */
 var fppCommandColorPicker_fppDialogIntervalTimer = null;
 var fppCommandColorPicker_fppDialogIsOpen = false;
@@ -5599,7 +5610,7 @@ function niceDuration (ms) {
 
 function ShowMultiSyncStats (data) {
 	var master =
-		"<a href='http://" + data.masterIP + "'>" + data.masterIP + '</a>';
+		"<a href='" + buildHttpURL(data.masterIP, '') + "'>" + data.masterIP + '</a>';
 	if (data.masterHostname != '') master += ' (' + data.masterHostname + ')';
 
 	$('#syncMaster').html(master);
@@ -8629,9 +8640,9 @@ function ReloadContentList (baseUrl, inp) {
 		let requestUrl;
 		if (burl !== currentHost) {
 			// Rewrite to proxy path
-			requestUrl = 'http://' + currentHost + '/proxy/' + burl + '/' + url;
+			requestUrl = buildHttpURL(currentHost, '/proxy/' + burl + '/' + url);
 		} else {
-			requestUrl = 'http://' + burl + '/' + url;
+			requestUrl = buildHttpURL(burl, '/' + url);
 		}
 		$.ajax({
 			dataType: 'json',
