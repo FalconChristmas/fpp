@@ -1583,6 +1583,32 @@
             // UUID → rowID. Each unique UUID = one physical device = one row.
             var seenUuids = {};
 
+            // Canonical UUID per hostname+mode, gathered from any entry that does
+            // report one. A device can advertise some addresses without a UUID
+            // (e.g. a sync master, or an address discovered via ping) while other
+            // addresses carry it; without this, the UUID-less address would key by
+            // hostname and split off into a duplicate row. Borrowing the device's
+            // canonical UUID keeps every address on one row.
+            //
+            // If two DIFFERENT UUIDs share a hostname+mode (e.g. several devices
+            // left on the default hostname), the mapping is ambiguous: store null
+            // so UUID-less addresses fall back to the hostname key instead of being
+            // glued onto whichever same-named device happened to be seen first.
+            var canonicalUuid = {};
+            for (var ci = 0; ci < data.length; ci++) {
+                if (data[ci].uuid && data[ci].uuid !== '') {
+                    var cHost = data[ci].hostname || '';
+                    if (cHost !== '') {
+                        var cKey = cHost + ':' + (data[ci].fppModeString || '');
+                        if (!canonicalUuid.hasOwnProperty(cKey)) {
+                            canonicalUuid[cKey] = data[ci].uuid;
+                        } else if (canonicalUuid[cKey] !== data[ci].uuid) {
+                            canonicalUuid[cKey] = null; // hostname shared by >1 UUID
+                        }
+                    }
+                }
+            }
+
             var fppIpAddresses = [];
             var wledIpAddresses = [];
             var geniusIpAddresses = [];
@@ -1649,14 +1675,25 @@
 
                 var hostname = data[i].hostname || ip;
 
-                // Stable row ID: UUID when present, then hostname+mode, then IP.
-                // UUID guarantees one physical device = one row. For older devices
-                // without UUID, hostname+mode deduplicates multi-IP entries without
-                // the version-string mismatch that broke the original hostKey approach.
+                // Stable row ID: the entry's own UUID, else the device's canonical
+                // UUID (borrowed by hostname+mode), else hostname+mode, else IP.
+                // UUID guarantees one physical device = one row; the canonical
+                // fallback keeps UUID-less addresses of a UUID-bearing device on
+                // that same row instead of producing a duplicate.
                 var rawHostname = data[i].hostname || '';
-                var uuid = (data[i].uuid && data[i].uuid !== '')
-                    ? data[i].uuid
-                    : (rawHostname !== '' ? 'host:' + rawHostname + ':' + (data[i].fppModeString || '') : 'ip:' + ip);
+                var hostModeKey = rawHostname + ':' + (data[i].fppModeString || '');
+                var uuid;
+                if (data[i].uuid && data[i].uuid !== '') {
+                    uuid = data[i].uuid;
+                } else if (rawHostname !== '' && canonicalUuid[hostModeKey]) {
+                    // Unambiguous canonical UUID (truthy = exactly one device owns
+                    // this hostname); null/undefined falls through to the host key.
+                    uuid = canonicalUuid[hostModeKey];
+                } else if (rawHostname !== '') {
+                    uuid = 'host:' + rawHostname + ':' + (data[i].fppModeString || '');
+                } else {
+                    uuid = 'ip:' + ip;
+                }
                 var rowID = uuid.replace(/[^a-zA-Z0-9]/g, '_');
                 var hostRowKey = ip.replace(/\./g, '_');
 
