@@ -44,7 +44,7 @@ IMG_SIZE_MB="${IMG_SIZE_MB:-7000}"
 
 # FPP-patched kernel deb (the rcn-ee base ships a stock kernel; FPP requires
 # its PRU/cape patches). Override env vars to point at a different build.
-FPP_KERNEL_VER="${FPP_KERNEL_VER:-6.18.8-fpp18_1}"
+FPP_KERNEL_VER="${FPP_KERNEL_VER:-6.18.36-fpp40_1}"
 FPP_KERNEL_URL="${FPP_KERNEL_URL:-https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${FPP_KERNEL_VER}_armhf.deb}"
 SKIP_KERNEL_UPDATE="${SKIP_KERNEL_UPDATE:-0}"
 
