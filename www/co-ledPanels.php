@@ -2259,6 +2259,32 @@
         }
     }
 
+    function RestorePanelTestPatternState() {
+        if (verboseDebug) {
+            console.trace("RestorePanelTestPatternState called");
+        }
+
+        // Query the backend for any test that is currently running. A panel
+        // test is reported with mode "Outputs" and a numeric "type" matching the
+        // values in the #PanelTestPatternType dropdown. Without this, the dropdown
+        // always reloads as "Off" while the test keeps running, and re-selecting
+        // "Off" fires no change event so the test can't be stopped in one click.
+        $.ajax({
+            url: "api/testmode",
+            async: true,
+            dataType: 'json',
+            success: function (data) {
+                if (data && data.enabled && data.mode == "Outputs" &&
+                    data.hasOwnProperty('type')) {
+                    var val = String(data.type);
+                    if ($("#PanelTestPatternType option[value='" + val + "']").length) {
+                        $("#PanelTestPatternType").val(val);
+                    }
+                }
+            }
+        });
+    }
+
     function findNextAvailableId(obj) {
         if (verboseDebug) {
             console.trace("findNextAvailableId called with obj: ", obj);
@@ -2815,6 +2841,10 @@
 
             // Check for old config versions that need upgrading
             CheckForOldConfigVersion();
+
+            // Restore the Testing dropdown to reflect any test still running on
+            // the backend so the user can simply select "Off" to stop it.
+            RestorePanelTestPatternState();
         <? } else { ?> //No Panel Matrices Defined
             channelOutputsLookup["LEDPanelMatrices"] = {};
         <? } ?>
@@ -2823,6 +2853,10 @@
 
 
     $(document).on("change input", "#divLEDPanelMatrices select, #divLEDPanelMatrices input, #divLEDPanelMatrices textarea", function (event) {
+        // The Testing pattern dropdown is a transient control, not part of the
+        // saved channel-output config, so it must not trigger change detection
+        // (otherwise toggling it shows a bogus "unsaved changes" warning).
+        if (this.id === "PanelTestPatternType") return;
         if ($(this).is("input[type='text'], textarea") && event.type === "change") return;
         if ($(this).is("input[type='checkbox']") && event.type !== "change") return;
         console.log(`Changed: ${$(this).attr("class")} -> ${this.value}`);
