@@ -2969,11 +2969,15 @@ function network_list_interfaces_obj()
         $rc = json_decode(join(" ", $output), true);
 
         foreach ($rc as &$rec) {
-            // Filter only ipv4 addresses
+            // Keep IPv4 (inet) and IPv6 (inet6) addresses, drop any other
+            // families. Consumers that only want IPv4 already filter on
+            // $ai['family'] == 'inet' themselves (networkconfig.php, fpp.js,
+            // wled_common.inc.php); multisync.php uses the IPv6 entries to mark
+            // the wifi icon on a wireless interface's IPv6 address.
             $addrInfo = $rec['addr_info'];
             $newAddrInfo = array();
             foreach ($addrInfo as $ai) {
-                if ($ai['family'] == 'inet') {
+                if ($ai['family'] == 'inet' || $ai['family'] == 'inet6') {
                     array_push($newAddrInfo, $ai);
                 }
 

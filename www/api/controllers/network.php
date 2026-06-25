@@ -19,7 +19,8 @@ require_once "../common.php";
  *     "mtu": 1500,
  *     "operstate": "UP",
  *     "addr_info": [
- *       {"family": "inet", "local": "192.168.50.146", "prefixlen": 24}
+ *       {"family": "inet", "local": "192.168.50.146", "prefixlen": 24},
+ *       {"family": "inet6", "local": "2001:db8::146", "prefixlen": 64}
  *     ],
  *     "wifi": {
  *       "interface": "wlan0",
