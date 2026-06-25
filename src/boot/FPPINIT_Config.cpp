@@ -255,7 +255,34 @@ inline const std::string& mapBBBLedValue(const std::string& v) {
 void configureBBB() {
 #ifdef PLATFORM_BBB
     if (FileExists("/dev/mmcblk1")) {
-        // full size beagle, check the bootloader
+        // full size beagle, configure U-Boot overlays and check bootloader
+        // (PocketBeagle has no /dev/mmcblk1 so it takes the else-branch below)
+
+        // Configure uEnv.txt overlays at runtime so PocketBeagle is not
+        // affected by BBB-specific overlay loading (cape_eeprom, RTC, and
+        // wkup_m3 nodes don't exist in PocketBeagle's device tree, causing
+        // U-Boot to crash during phandle resolution).
+        int r = system(
+            "grep -qs '^enable_uboot_overlays=1' /boot/uEnv.txt 2>/dev/null"
+            " && exit 0;"
+            " sed -i"
+            " -e 's/^#enable_uboot_overlays=.*/enable_uboot_overlays=1/'"
+            " -e 's/^#disable_uboot_overlay_video=.*/disable_uboot_overlay_video=1/'"
+            " -e 's+#uboot_overlay_addr0=.*+uboot_overlay_addr0=/lib/firmware/fpp-base-overlay.dtb+'"
+            " -e 's+#uboot_overlay_addr1=.*+uboot_overlay_addr1=/lib/firmware/fpp-cape-overlay.dtb+'"
+            " -e 's/ quiet/ quiet rootwait/'"
+            " -e 's/ net\\.ifnames=.//'"
+            " -e 's/^uboot_overlay_pru=/#uboot_overlay_pru=/'"
+            " /boot/uEnv.txt 2>/dev/null || exit 0;"
+            " grep -q '^bootdelay=0' /boot/uEnv.txt 2>/dev/null"
+            " || echo 'bootdelay=0' >> /boot/uEnv.txt;"
+            " grep -q 'cmdline=init=/opt/fpp/SD/BBB-AutoFlash.sh' /boot/uEnv.txt 2>/dev/null"
+            " || echo '#cmdline=init=/opt/fpp/SD/BBB-AutoFlash.sh' >> /boot/uEnv.txt;"
+            " exit 1");
+        if (r != -1 && WIFEXITED(r) && WEXITSTATUS(r) == 1) {
+            setRawSetting("rebootFlag", "1");
+        }
+
         int fd = open("/dev/mmcblk1", O_RDONLY);
         lseek(fd, 393488, SEEK_SET);
         uint8_t buf[25];

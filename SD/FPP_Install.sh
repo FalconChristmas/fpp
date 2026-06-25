@@ -1918,16 +1918,9 @@ finalize_platform_beaglebone_black() {
 
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
 
-    # adjust a bunch of settings in /boot/uEnv.txt
-    sed -i -e "s+^#enable_uboot_overlays=\(.*\)+enable_uboot_overlays=1+g"  /boot/uEnv.txt
-    sed -i -e "s+^#disable_uboot_overlay_video=\(.*\)+disable_uboot_overlay_video=1+g"  /boot/uEnv.txt
-    sed -i -e "s+#uboot_overlay_addr0=\(.*\)+uboot_overlay_addr0=/lib/firmware/fpp-base-overlay.dtb+g"  /boot/uEnv.txt
-    sed -i -e "s+#uboot_overlay_addr1=\(.*\)+uboot_overlay_addr1=/lib/firmware/fpp-cape-overlay.dtb+g"  /boot/uEnv.txt
-    sed -i -e "s+ quiet+ quiet rootwait+g"  /boot/uEnv.txt
-    sed -i -e "s+ net.ifnames=.+ +g"  /boot/uEnv.txt
-    sed -i -e "s+^uboot_overlay_pru=+#uboot_overlay_pru=+g"  /boot/uEnv.txt
-    echo "bootdelay=0" >> /boot/uEnv.txt
-    echo "#cmdline=init=/opt/fpp/SD/BBB-AutoFlash.sh" >> /boot/uEnv.txt
+    # uEnv.txt overlay configuration moved to configureBBB() in
+    # FPPINIT_Config.cpp so it can detect PocketBeagle at runtime
+    # and skip BBB-specific overlay loading.
 
     # remove the udev rules that create the SoftAp interface on the bbbw and bbggw
     rm -f /etc/udev/rules.d/*SoftAp*
