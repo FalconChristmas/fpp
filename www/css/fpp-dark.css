@@ -53,7 +53,10 @@
 [data-bs-theme="dark"] input[type='range']::-webkit-slider-thumb,
 [data-bs-theme="dark"] input[type='range']::-moz-range-thumb,
 [data-bs-theme="dark"] input[type='range']::-ms-thumb {
-    background-color: var(--bs-secondary-bg);
+    /* A dark thumb (var(--bs-secondary-bg) = #343a40) is nearly invisible
+       against the dark track/card, especially on mobile. Keep it light like
+       the desktop/light theme so the slider position stays readable. */
+    background-color: #fff;
     border-color: var(--bs-border-color);
 }
 
@@ -64,12 +67,41 @@
 }
 
 /* ------------------------------------------------------------- */
+/* Page background                                               */
+/* ------------------------------------------------------------- */
+
+/* The shared #20222e page background reads quite bright in dark mode
+   (especially on phones), so use a darker shade. This covers the status page
+   (body) as well as the box-shadow that fakes the page background on
+   single-card pages and the footer. The status cards (#programControl
+   .pageContent) keep their borderless look via the higher-specificity rule in
+   fpp.css, so they are unaffected by the .pageContent box-shadow override. */
+[data-bs-theme="dark"] body {
+    background-color: #0f0f17;
+}
+
+[data-bs-theme="dark"] .pageContent {
+    box-shadow: 5px 0px 0px 10000px #0f0f17, -1000px 100px 0px 0px #0f0f17,
+        1000px 100px 0px 0px #0f0f17;
+}
+
+[data-bs-theme="dark"] #footer {
+    background-color: #0f0f17;
+    box-shadow: 2000px 100px 0px 0px #0f0f17, -2000px 100px 0px 0px #0f0f17,
+        0px 100px 0px 0px #0f0f17;
+}
+
+/* ------------------------------------------------------------- */
 /* Main page content area                                        */
 /* ------------------------------------------------------------- */
 
 [data-bs-theme="dark"] .pageContent {
     background-color: #171720;
     color: var(--bs-body-color);
+    /* The card vs. page background contrast is low in dark mode, so add an
+       explicit border to restore the bounding box that the lighter surround
+       provides in light mode. */
+    border: 1px solid var(--bs-border-color);
 }
 
 /* Touch scroll-fade gradient for tab bars */
@@ -108,6 +140,17 @@
     background-color: var(--bs-body-bg);
     box-shadow: 0px 5px 4px -5px rgba(0, 0, 0, 0.5),
         5px 0px 0px 0px var(--bs-body-bg);
+}
+
+/* Zebra_Pin pins #controlsSection (the player buttons + volume) and adds the
+   Zebra_Pin class to it, but the rule above targets .controlsSectionToPin /
+   #playerControls, which are never the pinned element — so the pinned bar had
+   no background and the page showed through it. Give it the card background so
+   it stays opaque and blends with the #playerModeInfo card it came from. */
+[data-bs-theme="dark"] #controlsSection.Zebra_Pin {
+    background-color: #171720;
+    box-shadow: 0px 5px 4px -5px rgba(0, 0, 0, 0.5),
+        5px 0px 0px 0px #171720;
 }
 
 /* ------------------------------------------------------------- */

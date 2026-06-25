@@ -6,6 +6,14 @@ html {
 	forced-color-adjust: none;
 }
 
+/* The dark "page" background behind the content cards. Historically this was
+   faked by a 10000px-spread box-shadow on every .pageContent, which breaks
+   when two cards stack (the lower card's shadow paints over the upper one).
+   Setting a real background here lets individual cards stand on their own. */
+body {
+	background-color: #20222e;
+}
+
 /* Fix dark border on datalist inputs (SSID fields) */
 
 [data-bs-theme='light'] input[list] {
@@ -1159,6 +1167,16 @@ body.is-loading #schedulerInfo .labelValue:before {
 	color: #fff;
 }
 
+/* The status page stacks multiple .pageContent cards (playerModeInfo,
+   bridgeModeInfo, etc.). The default 10000px box-shadow makes each card try to
+   paint the whole page background, so a lower card's shadow covers the card
+   above it and that card loses its bounding box (most visible in dark mode).
+   Since body now provides the page background, render these as real cards. */
+#programControl .pageContent {
+	box-shadow: none;
+	border: 1px solid var(--fpp-border);
+}
+
 .statusDivTopRow {
 	color: #fff;
 	display: flex;
@@ -1322,12 +1340,16 @@ body.is-loading #schedulerInfo .labelValue:before {
 	padding-right: 10px;
 }
 
-[data-bs-theme='light'] .controlsSectionToPin.Zebra_Pin {
+[data-bs-theme='light'] .controlsSectionToPin.Zebra_Pin,
+[data-bs-theme='light'] #controlsSection.Zebra_Pin {
 	background-color: #fff;
 	box-shadow: 0px 5px 4px -5px rgba(0, 0, 0, 0.2), 5px 0px 0px 0px #fff;
 }
 
-.controlsSectionToPin.Zebra_Pin {
+/* #controlsSection is the element Zebra_Pin actually pins (see fpp-dark.css);
+   keep its pinned padding consistent with the legacy .controlsSectionToPin. */
+.controlsSectionToPin.Zebra_Pin,
+#controlsSection.Zebra_Pin {
 	padding-top: 0.5em;
 	margin-left: 0%;
 }

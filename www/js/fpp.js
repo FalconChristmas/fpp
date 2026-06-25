@@ -4808,6 +4808,27 @@ function SetupUIForMode (fppMode) {
 	}
 }
 
+// When the device is bridging, #bridgeModeInfo is shown and SetupUIForMode
+// leaves #playerModeInfo alone, so its visibility is decided here: the player
+// controls are only relevant when there is content to play (a playlist or a
+// sequence) and we are not in remote mode. This is re-run after the playlist
+// and sequence arrays finish loading so a slow load can't leave the section
+// hidden until a manual refresh. When not bridging, visibility is owned by
+// SetupUIForMode, so do nothing.
+function UpdatePlayerModeInfoVisibility () {
+	if ($('#bridgeModeInfo').length == 0 || $('#bridgeModeInfo').is(':hidden')) {
+		return;
+	}
+	if (
+		(playListArray.length == 0 && sequenceArray.length == 0) ||
+		GetFPPDmodeLocal() == 8
+	) {
+		$('#playerModeInfo').hide();
+	} else {
+		$('#playerModeInfo').show();
+	}
+}
+
 // Initialize temperature unit variable
 var temperatureUnit = false;
 if (
@@ -5758,14 +5779,7 @@ function GetUniverseBytesReceived () {
 					$('#bridgeStatistics3').html('');
 				}
 
-				if (
-					(playListArray.length == 0 && sequenceArray.length == 0) ||
-					GetFPPDmodeLocal() == 8
-				) {
-					$('#playerModeInfo').hide();
-				} else {
-					$('#playerModeInfo').show();
-				}
+				UpdatePlayerModeInfoVisibility();
 			} else {
 				// data.status != OK
 				$('#bridgeStatistics1').html(
@@ -6279,6 +6293,12 @@ function PopulatePlaylists (sequencesAlso, options) {
 
 			// Call callback if provided
 			onPlaylistArrayLoaded();
+
+			// Now that the playlist/sequence arrays are populated, re-evaluate
+			// whether the player controls should be shown. This corrects the
+			// race where a bridging device's first status update hides
+			// #playerModeInfo because these arrays had not loaded yet.
+			UpdatePlayerModeInfoVisibility();
 		})
 		.fail(function () {
 			$('#playlistSelect').html('<option>Error loading playlists</option>');
