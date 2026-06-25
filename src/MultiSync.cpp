@@ -80,13 +80,31 @@ NetInterfaceInfo::~NetInterfaceInfo() {
 }
 
 static bool GetIPForHost(std::string& target) {
-    struct hostent* uhost = gethostbyname(target.c_str());
-    if (uhost) {
-        struct in_addr add = *((struct in_addr*)uhost->h_addr);
-        target = inet_ntoa(add);
-        return true;
+    // gethostbyname()/inet_ntoa() return pointers into static, per-process
+    // buffers and are not thread-safe. MultiSync resolves hosts from several
+    // threads concurrently (e.g. PingSingleRemoteViaHTTP and the main-loop
+    // ProcessControlPacket path), and a concurrent call could corrupt the
+    // static hostent, leaving h_addr dangling and crashing here. getaddrinfo()
+    // and inet_ntop() are reentrant. We still resolve to the first IPv4 address
+    // and rewrite target as a dotted-quad, because callers depend on that form
+    // (split(target, '.') and inet_addr(target)).
+    struct addrinfo hints{};
+    hints.ai_family = AF_INET;      // IPv4 only -- callers expect a dotted-quad
+    hints.ai_socktype = SOCK_DGRAM; // one result per address, not one per socktype
+
+    struct addrinfo* res = nullptr;
+    if (getaddrinfo(target.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
+        return false;
     }
-    return false;
+    char buf[INET_ADDRSTRLEN] = {0};
+    struct sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
+    const char* str = inet_ntop(AF_INET, &addr->sin_addr, buf, sizeof(buf));
+    freeaddrinfo(res);
+    if (!str) {
+        return false;
+    }
+    target = buf;
+    return true;
 }
 
 void MultiSyncSystem::update(MultiSyncSystemType type,
@@ -1104,7 +1122,6 @@ void MultiSync::DiscoverIPViaHTTP(const std::string& ip, bool allowUnknown) {
 
     NetworkController* nc = nullptr;
 
-    struct hostent* uhost = gethostbyname(ip.c_str());
     std::string address2 = ip;
     GetIPForHost(address2);
 
