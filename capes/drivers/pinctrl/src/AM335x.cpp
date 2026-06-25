@@ -41,22 +41,35 @@ static Ball& addBall(const std::string& n, uint32_t d, uint32_t o, int32_t pruOu
 void InitAM335xBalls() {
     constexpr uint32_t MEMLOCATIONS[] = { 0x44e10000, 0 };
     constexpr uint32_t MAX_OFFSET = 0x0B00;
-    int mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
-    int d = 0;
 
-    while (MEMLOCATIONS[d]) {
-        uint8_t* gpio_map = (uint8_t*)mmap(
-            nullptr,                /* Any address in our space will do */
-            MAX_OFFSET,             /* Map length */
-            PROT_READ | PROT_WRITE, /* Enable reading & writing */
-            MAP_SHARED,             /* Shared with other processes */
-            mem_fd,                 /* File to map */
-            MEMLOCATIONS[d]         /* Offset to GPIO peripheral */
-        );
-        Ball::setDomainAddress(d, gpio_map);
-        ++d;
+    // The AM335x control-module pinmux registers are hardware-protected: they
+    // only accept writes from kernel mode, so poking them from userspace via
+    // /dev/mem silently does nothing (the legacy path relied on the
+    // cape-universal pinmux-helper for the real mux change). If the custom
+    // kernel provides /dev/am335xpm, route register access through it so the
+    // driver performs the privileged write in kernel mode. fd offset 0 maps to
+    // physical 0x44e10800, i.e. ball offset 0x800. Otherwise fall back to the
+    // legacy /dev/mem mapping.
+    int pm_fd = open("/dev/am335xpm", O_RDWR | O_SYNC);
+    if (pm_fd >= 0) {
+        Ball::setDomainFd(MAIN_DOMAIN, pm_fd, 0x800); // keep fd open for register access
+    } else {
+        int mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
+        int d = 0;
+        while (MEMLOCATIONS[d]) {
+            uint8_t* gpio_map = (uint8_t*)mmap(
+                nullptr,                /* Any address in our space will do */
+                MAX_OFFSET,             /* Map length */
+                PROT_READ | PROT_WRITE, /* Enable reading & writing */
+                MAP_SHARED,             /* Shared with other processes */
+                mem_fd,                 /* File to map */
+                MEMLOCATIONS[d]         /* Offset to control module */
+            );
+            Ball::setDomainAddress(d, gpio_map);
+            ++d;
+        }
+        close(mem_fd);
     }
-    close(mem_fd);
 
     addBall("GPMC_AD0", MAIN_DOMAIN, 0x800);
     addBall("GPMC_AD1", MAIN_DOMAIN, 0x804);
