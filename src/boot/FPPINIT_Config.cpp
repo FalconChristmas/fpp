@@ -189,14 +189,16 @@ void createDirectories() {
                                              "upload", "videos", "plugins", "plugindata", "exim4", "images", "cache",
                                              "backups", "tmp", "virtualdisplay_assets" };
     printf("FPP - Checking for required directories\n");
-    struct passwd* pwd = getpwnam("fpp");
+    uid_t fppUid = 0;
+    gid_t fppGid = 0;
+    bool haveFppUser = GetUserIds("fpp", &fppUid, &fppGid);
     for (auto& d : DIRS) {
         std::string dir = FPP_MEDIA_DIR + "/" + d;
         if (!DirectoryExists(dir)) {
             printf("    Creating directory %s\n", dir.c_str());
             mkdir(dir.c_str(), 0775);
-            if (pwd) {
-                chown(dir.c_str(), pwd->pw_uid, pwd->pw_gid);
+            if (haveFppUser) {
+                chown(dir.c_str(), fppUid, fppGid);
             }
         }
     }

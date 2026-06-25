@@ -240,7 +240,8 @@ int main(int argc, char* argv[]) {
         removeI2CDevice(dev, getBus());
     }
     auto t = std::time(nullptr);
-    auto tm = *std::localtime(&t);
+    struct tm tm;
+    localtime_r(&t, &tm);
     std::stringstream sstr;
     sstr << std::put_time(&tm, "%a %b %d %H:%M:%S %Z %Y");
     std::string str = sstr.str();

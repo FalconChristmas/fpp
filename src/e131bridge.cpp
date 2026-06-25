@@ -181,7 +181,7 @@ int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
     if (artnetSock < 0) {
         int artnetSockT = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
         if (artnetSockT < 0) {
-            LogWarn(VB_E131BRIDGE, "ArtNet socket failed: %s", strerror(errno));
+            LogWarn(VB_E131BRIDGE, "ArtNet socket failed: %s", FPPstrerror(errno));
             WarningHolder::AddWarning("Socket creation failed for ArtNet");
             exit(1);
         }
@@ -209,12 +209,12 @@ int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
             if (allowPortChange) {
                 addr.sin_port = htons(0); // let OS pick port
                 if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-                    LogWarn(VB_E131BRIDGE, "ArtNet bind failed even after port change: %s", strerror(errno));
+                    LogWarn(VB_E131BRIDGE, "ArtNet bind failed even after port change: %s", FPPstrerror(errno));
                     WarningHolder::AddWarning(54, "Socket bind failed for ArtNet");
                     return -1;
                 }
             } else {
-                LogWarn(VB_E131BRIDGE, "ArtNet bind failed: %s", strerror(errno));
+                LogWarn(VB_E131BRIDGE, "ArtNet bind failed: %s", FPPstrerror(errno));
                 WarningHolder::AddWarning(54, "Socket bind failed for ArtNet");
                 return -1;
             }
@@ -353,7 +353,7 @@ static void ChangeE131MulticastMembership(int universe, int op) {
                 mreq.imr_interface.s_addr = inet_addr(address);
                 if (setsockopt(bridgeSock, IPPROTO_IP, op, &mreq, sizeof(mreq)) < 0) {
                     LogWarn(VB_E131BRIDGE, "   %s multicast group %s failed on interface %s: %s\n",
-                            action, strMulticastGroup, tmp->ifa_name, strerror(errno));
+                            action, strMulticastGroup, tmp->ifa_name, FPPstrerror(errno));
                 }
                 multicastJoined = 1;
             }
@@ -457,7 +457,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
     if (enabled || !disableFakeBridges) {
         ddpSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
         if (ddpSock < 0) {
-            LogDebug(VB_E131BRIDGE, "e131bridge DDP socket failed: %s", strerror(errno));
+            LogDebug(VB_E131BRIDGE, "e131bridge DDP socket failed: %s", FPPstrerror(errno));
             exit(1);
         }
         memset((char*)&addr, 0, sizeof(addr));
@@ -467,7 +467,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
         addrlen = sizeof(addr);
         // Bind the socket to address/port
         if (bind(ddpSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LogDebug(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", strerror(errno));
+            LogDebug(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", FPPstrerror(errno));
             exit(1);
         }
         int bufSize = 512 * 1024;
@@ -493,7 +493,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
         /* set up socket */
         bridgeSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
         if (bridgeSock < 0) {
-            LogDebug(VB_E131BRIDGE, "e131bridge socket failed: %s", strerror(errno));
+            LogDebug(VB_E131BRIDGE, "e131bridge socket failed: %s", FPPstrerror(errno));
             exit(1);
         }
 
@@ -509,7 +509,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
         addrlen = sizeof(addr);
         // Bind the socket to address/port
         if (bind(bridgeSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LogDebug(VB_E131BRIDGE, "e131bridge bind failed: %s", strerror(errno));
+            LogDebug(VB_E131BRIDGE, "e131bridge bind failed: %s", FPPstrerror(errno));
             exit(1);
         }
 
@@ -1047,7 +1047,9 @@ bool AddWarningForProtocol(int sock, const std::string& protocol) {
                 continue;
             }
             if (errrors[at] == "") {
-                std::string ne = "Received " + protocol + " data from " + inet_ntoa(inAddress[x].sin_addr);
+                char abuf[INET_ADDRSTRLEN] = {0};
+                inet_ntop(AF_INET, &inAddress[x].sin_addr, abuf, sizeof(abuf));
+                std::string ne = "Received " + protocol + " data from " + abuf;
                 LogDebug(VB_E131BRIDGE, "%s\n", ne.c_str());
                 WarningHolder::AddWarningTimeout(ne, 10);
                 errrors[at] = ne;

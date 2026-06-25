@@ -224,9 +224,10 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
             continue;
         }
         Json::Value model;
+        char* saveptr = nullptr; // for thread-safe strtok_r below
 
         // Name
-        s = strtok(buf, ",");
+        s = strtok_r(buf, ",", &saveptr);
         if (s) {
             std::string modelName = s;
             model["Name"] = modelName;
@@ -235,7 +236,7 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
         }
 
         // Start Channel
-        s = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
         if (!s)
             continue;
         startChannel = strtol(s, NULL, 10);
@@ -245,7 +246,7 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
         model["StartChannel"] = startChannel;
 
         // Channel Count
-        s = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
         if (!s)
             continue;
         channelCount = strtol(s, NULL, 10);
@@ -255,25 +256,25 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
         model["ChannelCount"] = channelCount;
 
         // Orientation
-        s = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
         if (!s)
             continue;
         model["Orientation"] = !strcmp(s, "vertical") ? "vertical" : "horizontal";
 
         // Start Corner
-        s = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
         if (!s)
             continue;
         model["StartCorner"] = s;
 
         // String Count
-        s = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
         if (!s)
             continue;
         model["StringCount"] = (int)strtol(s, NULL, 10);
 
         // Strands Per String
-        s = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
         if (!s)
             continue;
         model["StrandsPerString"] = (int)strtol(s, NULL, 10);

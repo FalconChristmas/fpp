@@ -49,6 +49,7 @@
 #include <map>
 #include <netdb.h>
 #include <pwd.h>
+#include <random>
 #include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,7 +81,8 @@ long long GetTimeMS(void) {
 
 std::string GetTimeStr(std::string fmt) {
     auto t = std::time(nullptr);
-    auto tm = *std::localtime(&t);
+    struct tm tm;
+    localtime_r(&t, &tm);
     std::stringstream sstr;
     sstr << std::put_time(&tm, fmt.c_str());
 
@@ -89,11 +91,57 @@ std::string GetTimeStr(std::string fmt) {
 
 std::string GetDateStr(std::string fmt) {
     auto t = std::time(nullptr);
-    auto tm = *std::localtime(&t);
+    struct tm tm;
+    localtime_r(&t, &tm);
     std::stringstream sstr;
     sstr << std::put_time(&tm, fmt.c_str());
 
     return sstr.str();
+}
+
+// strerror_r() comes in two flavours: the GNU version returns char* while the
+// XSI/POSIX version returns int and fills the supplied buffer.  These overloads
+// pick the right behaviour at compile time via the return type.
+static inline const char* fppStrerrorResult(char* gnuResult, char* /*buf*/) {
+    return gnuResult;
+}
+static inline const char* fppStrerrorResult(int xsiResult, char* buf) {
+    return xsiResult == 0 ? buf : "Unknown error";
+}
+const char* FPPstrerror(int errnum) {
+    static thread_local char buf[256];
+    buf[0] = '\0';
+    return fppStrerrorResult(strerror_r(errnum, buf, sizeof(buf)), buf);
+}
+
+int FPPrand() {
+    static thread_local std::mt19937 engine(std::random_device{}());
+    static thread_local std::uniform_int_distribution<int> dist(0, RAND_MAX);
+    return dist(engine);
+}
+
+bool GetUserIds(const std::string& username, uid_t* uid, gid_t* gid, std::string* homedir) {
+    long bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    if (bufsize <= 0) {
+        bufsize = 16384;
+    }
+    std::vector<char> buf(bufsize);
+    struct passwd pwd;
+    struct passwd* result = nullptr;
+    int rc = getpwnam_r(username.c_str(), &pwd, buf.data(), buf.size(), &result);
+    if (rc != 0 || result == nullptr) {
+        return false;
+    }
+    if (uid) {
+        *uid = result->pw_uid;
+    }
+    if (gid) {
+        *gid = result->pw_gid;
+    }
+    if (homedir && result->pw_dir) {
+        *homedir = result->pw_dir;
+    }
+    return true;
 }
 
 /*
@@ -165,7 +213,7 @@ int GetInterfaceAddress(const char* interface, char* addr, char* mask, char* gw)
             strcpy(addr, "127.0.0.1");
             retVal = 1;
         } else {
-            strcpy(addr, inet_ntoa(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
+            inet_ntop(AF_INET, &((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr, addr, INET_ADDRSTRLEN);
         }
     }
 
@@ -173,7 +221,7 @@ int GetInterfaceAddress(const char* interface, char* addr, char* mask, char* gw)
         if (ioctl(fd, SIOCGIFNETMASK, &ifr))
             strcpy(mask, "255.255.255.255");
         else
-            strcpy(mask, inet_ntoa(((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr));
+            inet_ntop(AF_INET, &((struct sockaddr_in*)&ifr.ifr_addr)->sin_addr, mask, INET_ADDRSTRLEN);
     }
 
     if (gw) {
@@ -201,7 +249,7 @@ int GetInterfaceAddress(const char* interface, char* addr, char* mask, char* gw)
                     int ng = strtol(route, &end, 16);
                     struct in_addr addr;
                     addr.s_addr = ng;
-                    strcpy(gw, inet_ntoa(addr));
+                    inet_ntop(AF_INET, &addr, gw, INET_ADDRSTRLEN);
                 }
             }
             fclose(f);
@@ -534,9 +582,10 @@ bool SetFilePerms(const std::string& filename, bool exBit) {
     }
     chmod(filename.c_str(), mode);
 #ifndef PLATFORM_OSX
-    struct passwd* pwd = getpwnam("fpp");
-    if (pwd) {
-        chown(filename.c_str(), pwd->pw_uid, pwd->pw_gid);
+    uid_t uid;
+    gid_t gid;
+    if (GetUserIds("fpp", &uid, &gid)) {
+        chown(filename.c_str(), uid, gid);
     }
 #endif
 

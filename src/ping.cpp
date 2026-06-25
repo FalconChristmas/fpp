@@ -109,15 +109,22 @@ public:
         if (to.sin_addr.s_addr != (u_int)-1)
             hostname = target;
         else {
-            struct hostent* hp;
-            hp = gethostbyname(target.c_str());
-            if (!hp) {
+            // gethostbyname() is not thread-safe (shared static hostent); the
+            // ping loop runs on its own thread, so use the reentrant
+            // getaddrinfo() instead.
+            struct addrinfo hints{};
+            hints.ai_family = AF_INET;
+            hints.ai_socktype = SOCK_DGRAM;
+            struct addrinfo* res = nullptr;
+            if (getaddrinfo(target.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
                 valid = false;
                 cb(-1);
                 return;
             }
-            to.sin_family = hp->h_addrtype;
-            bcopy(hp->h_addr, (caddr_t)&to.sin_addr, hp->h_length);
+            struct sockaddr_in* a = (struct sockaddr_in*)res->ai_addr;
+            to.sin_family = a->sin_family;
+            to.sin_addr = a->sin_addr;
+            freeaddrinfo(res);
         }
 
         icp = (struct icmp*)outpack;
@@ -129,7 +136,7 @@ public:
         ipad >>= 16;
         ipad &= 0xFFFF;
         icp->icmp_seq = ipad; /* seq and id must be reflected */
-        icp->icmp_id = std::rand() & 0xFF;
+        icp->icmp_id = FPPrand() & 0xFF;
 
         int cc = DEFDATALEN + ICMP_MINLEN;
         in_cksum(icp, cc);
@@ -141,11 +148,14 @@ public:
     }
     void revalidate() {
         if (!valid) {
-            struct hostent* hp;
-            hp = gethostbyname(hostname.c_str());
-            if (!hp) {
+            struct addrinfo hints{};
+            hints.ai_family = AF_INET;
+            hints.ai_socktype = SOCK_DGRAM;
+            struct addrinfo* res = nullptr;
+            if (getaddrinfo(hostname.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
                 callback(-1);
             } else {
+                freeaddrinfo(res);
                 valid = true;
             }
         }

@@ -170,7 +170,7 @@ int GStreamerOutput::GetSharedDrmFd(const std::string& cardPath) {
     int fd = open(cardPath.c_str(), O_RDWR | O_CLOEXEC);
     if (fd < 0) {
         LogErr(VB_MEDIAOUT, "GStreamer: Failed to open DRM device %s: %s\n",
-               cardPath.c_str(), strerror(errno));
+               cardPath.c_str(), FPPstrerror(errno));
         WarningHolder::AddWarning(31, "Video output: could not open DRM device " + cardPath);
         return -1;
     }
@@ -178,7 +178,7 @@ int GStreamerOutput::GetSharedDrmFd(const std::string& cardPath) {
     // Become DRM master — required for modesetting (kmssink needs this)
     if (ioctl(fd, DRM_IOCTL_SET_MASTER, 0) < 0) {
         LogWarn(VB_MEDIAOUT, "GStreamer: DRM_IOCTL_SET_MASTER failed for %s: %s (another master may exist)\n",
-                cardPath.c_str(), strerror(errno));
+                cardPath.c_str(), FPPstrerror(errno));
         // Continue anyway — kmssink may still work if we're root
     }
 

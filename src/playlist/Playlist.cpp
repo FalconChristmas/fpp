@@ -214,7 +214,7 @@ int Playlist::Load(Json::Value& config) {
             // random single item
             int l = playlist.size();
             if (l > 1) {
-                startPos = std::rand() % l;
+                startPos = FPPrand() % l;
                 maxEntries = 1;
             }
         } else {
@@ -302,7 +302,8 @@ Json::Value Playlist::LoadJSON(const std::string& filename) {
         struct stat attr;
         stat(filename.c_str(), &attr);
 
-        LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
+        char timeBuf[32];
+        LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime_r(&attr.st_mtime, timeBuf));
 
         m_fileTime = attr.st_mtime;
     }
@@ -785,7 +786,8 @@ int Playlist::FileHasBeenModified(void) {
     struct stat attr;
     stat(m_filename.c_str(), &attr);
 
-    LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
+    char timeBuf[32];
+    LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime_r(&attr.st_mtime, timeBuf));
 
     if (attr.st_mtime > m_fileTime)
         return 1;
@@ -1261,7 +1263,7 @@ int Playlist::Play(const std::string& filename, const int position, const int re
         // random
         int l = m_mainPlaylist.size();
         if (l > 1) {
-            p = std::rand() % l;
+            p = FPPrand() % l;
             p = p + m_leadIn.size();
         }
     }
@@ -1321,7 +1323,7 @@ void Playlist::RandomizeMainPlaylist() {
     while (tmpPlaylist.size()) {
         int l = tmpPlaylist.size();
         if (l > 1) {
-            int p = std::rand() % l;
+            int p = FPPrand() % l;
 
             // If this is the first item found and it is the last
             // item in the previous list then try again unless our playlist is only 2 items long

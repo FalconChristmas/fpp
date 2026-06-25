@@ -68,12 +68,20 @@ std::string getFPPMediaDir(const std::string& path) {
         }
         if (FPP_MEDIA_DIR == "") {
 #ifdef PLATFORM_OSX
-            const char* homedir;
-            if ((homedir = getenv("HOME")) == NULL) {
-                homedir = getpwuid(getuid())->pw_dir;
+            // getpwuid() is not thread-safe; use getpwuid_r().  Also guards
+            // against a NULL deref when neither $HOME nor the passwd entry exist.
+            const char* homedir = getenv("HOME");
+            struct passwd pwd;
+            struct passwd* pwres = nullptr;
+            char pbuf[16384];
+            if (homedir == NULL &&
+                getpwuid_r(getuid(), &pwd, pbuf, sizeof(pbuf), &pwres) == 0 && pwres) {
+                homedir = pwres->pw_dir;
             }
-            FPP_MEDIA_DIR = homedir;
-            FPP_MEDIA_DIR += "/Documents/fpp";
+            if (homedir) {
+                FPP_MEDIA_DIR = homedir;
+                FPP_MEDIA_DIR += "/Documents/fpp";
+            }
 #else
             FPP_MEDIA_DIR = "/home/fpp/media";
 #endif
@@ -411,7 +419,8 @@ int SettingsConfig::LoadSettings(const std::string& base, bool logChanges) {
                                              // run through trimwhitespace which means they
                                              // must be freed before we are done.
 
-            char* token = strtok(line, "=");
+            char* saveptr = nullptr;
+            char* token = strtok_r(line, "=", &saveptr);
             if (!token) {
                 if (line) {
                     free(line);
@@ -425,7 +434,7 @@ int SettingsConfig::LoadSettings(const std::string& base, bool logChanges) {
                 continue;
             }
 
-            token = strtok(NULL, "=");
+            token = strtok_r(NULL, "=", &saveptr);
             if (!token) {
                 fprintf(stderr, "Error tokenizing value for %s setting\n", key);
                 free(key);

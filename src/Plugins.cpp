@@ -63,7 +63,8 @@ namespace FPPPlugins
                     // run through trimwhitespace which means they
                     // must be freed before we are done.
 
-                    char* token = strtok(line, "=");
+                    char* saveptr = nullptr;
+                    char* token = strtok_r(line, "=", &saveptr);
                     if (!token) {
                         continue;
                     }
@@ -74,7 +75,7 @@ namespace FPPPlugins
                         continue;
                     }
 
-                    token = strtok(NULL, "=");
+                    token = strtok_r(NULL, "=", &saveptr);
                     if (!token) {
                         fprintf(stderr, "Error tokenizing value for %s setting\n", key);
                         free(key);
@@ -307,7 +308,7 @@ public:
 
             execve(eventScript.c_str(), (char* const*)&sargs[0], (char* const*)&envs[0]);
 
-            LogErr(VB_PLUGIN, "We failed to exec our command callback:  %s\n", strerror(errno));
+            LogErr(VB_PLUGIN, "We failed to exec our command callback:  %s\n", FPPstrerror(errno));
             for (auto a : sargs) {
                 LogErr(VB_PLUGIN, "  %s\n", a);
             }
@@ -369,7 +370,7 @@ void PluginManager::loadUserPlugins() {
         }
         closedir(dp);
     } else {
-        LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", FPP_DIR_PLUGIN("").c_str(), errno, strerror(errno));
+        LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", FPP_DIR_PLUGIN("").c_str(), errno, FPPstrerror(errno));
     }
 
     return;

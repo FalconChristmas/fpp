@@ -59,7 +59,8 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
         CloseOpenFiles(getSettingInt("daemonize"));
 
         char* args[128];
-        char* token = strtok(userScript, " ");
+        char* saveptr = nullptr;
+        char* token = strtok_r(userScript, " ", &saveptr);
         int i = 1;
 
         args[0] = strdup(userScript);
@@ -67,7 +68,7 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
             args[i] = strdup(token);
             i++;
 
-            token = strtok(NULL, " ");
+            token = strtok_r(NULL, " ", &saveptr);
         }
 
         std::vector<std::string> parts = split(scriptArgs, ' ');
@@ -127,7 +128,7 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 
         if (chdir(FPP_DIR_SCRIPT("").c_str())) {
             LogErr(VB_COMMAND, "Unable to change directory to %s: %s\n",
-                   FPP_DIR_SCRIPT("").c_str(), strerror(errno));
+                   FPP_DIR_SCRIPT("").c_str(), FPPstrerror(errno));
             exit(EXIT_FAILURE);
         }
         for (int x = 0; x < i; x++) {
@@ -137,7 +138,7 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 
         LogErr(VB_COMMAND, "RunScript(), ERROR, we shouldn't be here, "
                            "this means that execvp() failed trying to run '%s %s': %s\n",
-               eventScript, args[0], strerror(errno));
+               eventScript, args[0], FPPstrerror(errno));
         exit(EXIT_FAILURE);
     }
     return pid;

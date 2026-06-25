@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "../common_mini.h" // FPPstrerror() -- needed directly for NOPCH builds
+
 #include "SocketFrameBuffer.h"
 #ifdef USE_FRAMEBUFFER_SOCKET
 
@@ -78,7 +80,7 @@ int SocketFrameBuffer::InitializeFrameBuffer(void) {
     std::string shmFile = "/fpp/" + m_device + "-buffer";
     shmemFile = shm_open(shmFile.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
     if (shmemFile == -1) {
-        LogErr(VB_CHANNELOUT, "Error creating shared memory buffer: %s   %s\n", shmFile.c_str(), strerror(errno));
+        LogErr(VB_CHANNELOUT, "Error creating shared memory buffer: %s   %s\n", shmFile.c_str(), FPPstrerror(errno));
         close(m_fbFd);
         m_fbFd = -1;
         return 0;
@@ -91,7 +93,7 @@ int SocketFrameBuffer::InitializeFrameBuffer(void) {
     }
     m_buffer = (uint8_t*)mmap(NULL, m_bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, shmemFile, 0);
     if (m_buffer == MAP_FAILED) {
-        LogErr(VB_CHANNELOUT, "Error mmap buffer: %s    %s\n", shmFile.c_str(), strerror(errno));
+        LogErr(VB_CHANNELOUT, "Error mmap buffer: %s    %s\n", shmFile.c_str(), FPPstrerror(errno));
         close(m_fbFd);
         m_fbFd = -1;
         close(shmemFile);

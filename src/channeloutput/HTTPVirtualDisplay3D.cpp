@@ -176,7 +176,7 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
     // is reachable on both IPv4 and IPv6 clients without two listeners.
     m_socket = socket(AF_INET6, SOCK_STREAM, 0);
     if (m_socket < 0) {
-        LogErr(VB_CHANNELOUT, "Could not create socket: %s\n", strerror(errno));
+        LogErr(VB_CHANNELOUT, "Could not create socket: %s\n", FPPstrerror(errno));
         WarningHolder::AddWarning(37, "3D Virtual Display preview: could not create socket");
         return 0;
     }
@@ -185,7 +185,7 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
 
     int optval = 1;
     if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
-        LogErr(VB_CHANNELOUT, "Error turning on SO_REUSEPORT; %s\n", strerror(errno));
+        LogErr(VB_CHANNELOUT, "Error turning on SO_REUSEPORT; %s\n", FPPstrerror(errno));
         return 0;
     }
     int v6only = 0;
@@ -199,7 +199,7 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
 
     int rc = bind(m_socket, (struct sockaddr*)&addr, sizeof(addr));
     if (rc < 0) {
-        LogErr(VB_CHANNELOUT, "Could not bind socket: %s\n", strerror(errno));
+        LogErr(VB_CHANNELOUT, "Could not bind socket: %s\n", FPPstrerror(errno));
         WarningHolder::AddWarning(37, "3D Virtual Display preview: could not bind to its port (already in use?)");
         return 0;
     }
@@ -207,7 +207,7 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
     // Increase listen backlog to handle rapid reconnections (hard refresh)
     rc = listen(m_socket, 32);
     if (rc < 0) {
-        LogErr(VB_CHANNELOUT, "Could not listen on socket: %s\n", strerror(errno));
+        LogErr(VB_CHANNELOUT, "Could not listen on socket: %s\n", FPPstrerror(errno));
         WarningHolder::AddWarning(37, "3D Virtual Display preview: could not listen on its socket");
         return 0;
     }
@@ -247,7 +247,8 @@ void HTTPVirtualDisplay3DOutput::ConnectionThread(void) {
             fcntl(client, F_SETFL, O_NONBLOCK);
             
             auto t = std::time(nullptr);
-            auto tm = *std::localtime(&t);
+            struct tm tm;
+            localtime_r(&t, &tm);
             std::stringstream sstr;
             sstr << std::put_time(&tm, "%a %b %d %H:%M:%S %Z %Y");
 
@@ -378,10 +379,10 @@ int HTTPVirtualDisplay3DOutput::WriteSSEPacket(int fd, std::string data) {
     // Check for write errors (broken connection)
     if (written < 0) {
         if (errno == EPIPE || errno == ECONNRESET || errno == ENOTCONN) {
-            LogDebug(VB_CHANNELOUT, "3D SSE write failed (connection closed): %s\n", strerror(errno));
+            LogDebug(VB_CHANNELOUT, "3D SSE write failed (connection closed): %s\n", FPPstrerror(errno));
             return -1;  // Signal caller to remove this connection
         }
-        LogDebug(VB_CHANNELOUT, "3D SSE write error: %s\n", strerror(errno));
+        LogDebug(VB_CHANNELOUT, "3D SSE write error: %s\n", FPPstrerror(errno));
         return -1;
     }
 

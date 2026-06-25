@@ -516,7 +516,7 @@ bool MultiSync::FillLocalSystemInfo(void) {
                     memset(addressBuf, 0, sizeof(addressBuf));
 
                     struct sockaddr_in* sa = (struct sockaddr_in*)(tmp->ifa_addr);
-                    strcpy(addressBuf, inet_ntoa(sa->sin_addr));
+                    inet_ntop(AF_INET, &sa->sin_addr, addressBuf, INET_ADDRSTRLEN);
                     if (isSupportedForMultisync(addressBuf, tmp->ifa_name)) {
                         addresses.push_back(addressBuf);
                     }
@@ -1042,7 +1042,7 @@ void MultiSync::PerformHTTPDiscovery() {
                     char ip[16];
                     for (int i = 0; i < ips; i++) {
                         ia.s_addr = ntohl(firstIP + i);
-                        strcpy(ip, inet_ntoa(ia));
+                        inet_ntop(AF_INET, &ia, ip, sizeof(ip));
                         subnets.insert(ip);
                     }
                 } else {
@@ -1914,13 +1914,13 @@ int MultiSync::OpenBroadcastSocket(void) {
     char loopch = 0;
     if (setsockopt(m_broadcastSock, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&loopch, sizeof(loopch)) < 0) {
         LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP: \n",
-               strerror(errno));
+               FPPstrerror(errno));
         return 0;
     }
 
     int broadcast = 1;
     if (setsockopt(m_broadcastSock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
-        LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
+        LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", FPPstrerror(errno));
         return 0;
     }
 
@@ -1947,7 +1947,7 @@ int MultiSync::OpenControlSockets() {
     char loopch = 0;
     if (setsockopt(m_controlSock, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&loopch, sizeof(loopch)) < 0) {
         LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP: \n",
-               strerror(errno));
+               FPPstrerror(errno));
         return 0;
     }
 
@@ -1992,14 +1992,20 @@ int MultiSync::OpenControlSockets() {
         bool isAlpha = std::find_if(s.begin(), s.end(), [](char c) { return (isalpha(c) || (c == ' ')); }) == s.end();
         bool valid = true;
         if (isAlpha) {
-            struct hostent* uhost = gethostbyname(s.c_str());
-            if (!uhost) {
+            // Use the reentrant getaddrinfo() rather than gethostbyname(), which
+            // shares a single static hostent across the process.
+            struct addrinfo hints{};
+            hints.ai_family = AF_INET;
+            hints.ai_socktype = SOCK_DGRAM;
+            struct addrinfo* res = nullptr;
+            if (getaddrinfo(s.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
                 LogErr(VB_SYNC,
                        "Error looking up Remote hostname: %s\n",
                        s.c_str());
                 valid = false;
             } else {
-                newRemote.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
+                newRemote.sin_addr = ((struct sockaddr_in*)res->ai_addr)->sin_addr;
+                freeaddrinfo(res);
             }
         } else {
             newRemote.sin_addr.s_addr = inet_addr(s.c_str());
@@ -2057,7 +2063,7 @@ void MultiSync::SendControlPacket(void* outBuf, int len) {
             }
         }
         if (outputCount != msgCount) {
-            LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s   (%d/%d)\n", strerror(errno), outputCount, msgCount);
+            LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s   (%d/%d)\n", FPPstrerror(errno), outputCount, msgCount);
         }
     }
     if (m_sendMulticast) {
@@ -2081,7 +2087,7 @@ void MultiSync::SendBroadcastPacket(void* outBuf, int len) {
         bda.sin_addr.s_addr = a.second.broadcastAddress;
 
         if (sendto(m_broadcastSock, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
-            LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
+            LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", FPPstrerror(errno));
     }
 }
 void MultiSync::SendMulticastPacket(void* outBuf, int len) {
@@ -2102,16 +2108,16 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
             } else {
                 char loopch = 0;
                 if (setsockopt(a.second.multicastSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&loopch, sizeof(loopch)) < 0) {
-                    LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
+                    LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP for %s: %s\n", a.second.interfaceName.c_str(), FPPstrerror(errno));
                 }
 #ifdef PLATFORM_OSX
                 int idx = if_nametoindex(a.second.interfaceName.c_str());
                 if (setsockopt(a.second.multicastSocket, IPPROTO_IP, IP_BOUND_IF, &idx, sizeof(idx)) < 0) {
-                    LogErr(VB_SYNC, "Error setting IP_MULTICAST Device for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
+                    LogErr(VB_SYNC, "Error setting IP_MULTICAST Device for %s: %s\n", a.second.interfaceName.c_str(), FPPstrerror(errno));
                 }
 #else
                 if (setsockopt(a.second.multicastSocket, SOL_SOCKET, SO_BINDTODEVICE, a.second.interfaceName.c_str(), a.second.interfaceName.size()) < 0) {
-                    LogErr(VB_SYNC, "Error setting IP_MULTICAST Device for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
+                    LogErr(VB_SYNC, "Error setting IP_MULTICAST Device for %s: %s\n", a.second.interfaceName.c_str(), FPPstrerror(errno));
                 }
 #endif
             }
@@ -2119,7 +2125,7 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
 
         if (a.second.multicastSocket >= 0) {
             if (sendto(a.second.multicastSocket, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
-                LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
+                LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", FPPstrerror(errno));
         }
     }
 }
@@ -2180,7 +2186,9 @@ bool MultiSync::FillInInterfaces() {
                 change |= info.interfaceName == "";
                 change |= info.interfaceAddress == "";
                 info.interfaceName = tmp->ifa_name;
-                info.interfaceAddress = inet_ntoa(sa->sin_addr);
+                char abuf[INET_ADDRSTRLEN] = {0};
+                inet_ntop(AF_INET, &sa->sin_addr, abuf, sizeof(abuf));
+                info.interfaceAddress = abuf;
                 info.address = sa->sin_addr.s_addr;
                 info.broadcastAddress = ba->sin_addr.s_addr;
             }
@@ -2239,7 +2247,7 @@ int MultiSync::OpenReceiveSocket(void) {
     /* set up socket */
     m_receiveSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
     if (m_receiveSock < 0) {
-        LogErr(VB_SYNC, "Error opening Receive socket; %s\n", strerror(errno));
+        LogErr(VB_SYNC, "Error opening Receive socket; %s\n", FPPstrerror(errno));
         WarningHolder::AddWarning(42, "MultiSync: could not open receive socket");
         return 0;
     }
@@ -2252,19 +2260,19 @@ int MultiSync::OpenReceiveSocket(void) {
 
     int optval = 1;
     if (setsockopt(m_receiveSock, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
-        LogErr(VB_SYNC, "Error turning on SO_REUSEPORT; %s\n", strerror(errno));
+        LogErr(VB_SYNC, "Error turning on SO_REUSEPORT; %s\n", FPPstrerror(errno));
         return 0;
     }
 
     // Bind the socket to address/port
     if (bind(m_receiveSock, (struct sockaddr*)&m_receiveSrcAddr, sizeof(m_receiveSrcAddr)) < 0) {
-        LogErr(VB_SYNC, "Error binding socket; %s\n", strerror(errno));
+        LogErr(VB_SYNC, "Error binding socket; %s\n", FPPstrerror(errno));
         WarningHolder::AddWarning(42, "MultiSync: could not bind receive socket (port in use?)");
         return 0;
     }
 
     if (setsockopt(m_receiveSock, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval)) < 0) {
-        LogErr(VB_SYNC, "Error calling setsockopt; %s\n", strerror(errno));
+        LogErr(VB_SYNC, "Error calling setsockopt; %s\n", FPPstrerror(errno));
         return 0;
     }
 
@@ -2358,7 +2366,7 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
         for (int msg = 0; msg < msgcnt; msg++) {
             int len = rcvMsgs[msg].msg_len;
             if (len <= 0) {
-                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", strerror(errno));
+                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", FPPstrerror(errno));
                 continue;
             }
             unsigned char* inBuf = rcvBuffers[msg];
@@ -2369,7 +2377,7 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
         for (int msg = 0; msg < msgcnt; msg++) {
             int len = rcvMsgs[msg].msg_len;
             if (len <= 0) {
-                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", strerror(errno));
+                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", FPPstrerror(errno));
                 continue;
             }
             unsigned char* inBuf = rcvBuffers[msg];
@@ -2462,7 +2470,9 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                     break;
                 case CTRL_PKT_PING: {
                     struct sockaddr_in* inAddr = (struct sockaddr_in*)(&rcvSrcAddr[msg]);
-                    std::string ip = inet_ntoa(inAddr->sin_addr);
+                    char ipbuf[INET_ADDRSTRLEN] = {0};
+                    inet_ntop(AF_INET, &inAddr->sin_addr, ipbuf, sizeof(ipbuf));
+                    std::string ip = ipbuf;
                     ProcessPingPacket(pkt, len, sourceIP, stats, ip);
                     break;
                 }
@@ -2865,11 +2875,10 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
         if ((hostname != m_hostname) && !isLocal) {
             // very slight random delay so all the remotes don't send
             // packets out at the same time
-            std::srand(std::time(nullptr));
-            int rand = std::rand() % 5000;
+            int rand = FPPrand() % 5000;
             std::this_thread::sleep_for(std::chrono::microseconds(rand));
             multiSync->Ping();
-            rand = std::rand() % 1000;
+            rand = FPPrand() % 1000;
             std::this_thread::sleep_for(std::chrono::microseconds(rand));
             multiSync->PingSingleRemote(address.c_str(), 0);
             if (address != srcIp) {

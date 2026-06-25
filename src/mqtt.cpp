@@ -29,6 +29,7 @@
 #include "Events.h"
 #include "Timers.h"
 #include "Warnings.h"
+#include "common_mini.h" // FPPstrerror(), FPPrand() -- needed directly for NOPCH builds
 #include "log.h"
 #include "mqtt.h"
 #include "settings.h"
@@ -169,7 +170,7 @@ int MosquittoClient::Init(const std::string& username, const std::string& passwo
         }
         clientId.append("_");
         for (int i = 0; i < 4; i++) {
-            int digit = rand() % 10;
+            int digit = FPPrand() % 10;
             char digitc = '0' + digit;
             clientId.append(1, digitc);
         }
@@ -215,7 +216,7 @@ int MosquittoClient::Init(const std::string& username, const std::string& passwo
     if (rc) {
         LogErr(VB_CONTROL, "Error, unable to connect to Mosquitto Broker at %s: %d\n",
                m_host.c_str(), rc);
-        LogErr(VB_CONTROL, "MQTT Error: %s\n", strerror(rc));
+        LogErr(VB_CONTROL, "MQTT Error: %s\n", FPPstrerror(rc));
         return 0;
     }
 

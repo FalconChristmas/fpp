@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include "../Warnings.h"
+#include "../common_mini.h" // FPPstrerror() -- needed directly for NOPCH builds
 #include "../log.h"
 
 #include "SerialChannelOutput.h"
@@ -137,7 +138,7 @@ int USBRenardOutput::Init(Json::Value config) {
     data->outputData = new char[USBRenard_MaxChannels(data)];
     if (data->outputData == NULL) {
         LogErr(VB_CHANNELOUT, "Error %d allocating channel memory: %s\n",
-               errno, strerror(errno));
+               errno, FPPstrerror(errno));
 
         return 0;
     }

@@ -175,7 +175,7 @@ void CopyFileToMappedBlock(const std::string& blockName, char* inputFilename) {
 
     if (fd < 0) {
         printf("ERROR: Unable to open input file %s: %s",
-               inputFilename, strerror(errno));
+               inputFilename, FPPstrerror(errno));
         return;
     }
 

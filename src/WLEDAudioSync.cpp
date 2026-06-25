@@ -230,7 +230,7 @@ bool WLEDAudioSync::OpenReceiveSocket() {
     addr.sin_port = htons(m_port);
     if (::bind(m_recvSocket, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
         LogErr(VB_GENERAL, "WLEDAudioSync: bind(%d) failed: %s\n",
-               m_port, strerror(errno));
+               m_port, FPPstrerror(errno));
         ::close(m_recvSocket);
         m_recvSocket = -1;
         return false;
@@ -248,7 +248,7 @@ bool WLEDAudioSync::OpenReceiveSocket() {
         if (::setsockopt(m_recvSocket, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                          &mreq, sizeof(mreq)) < 0) {
             LogWarn(VB_GENERAL, "WLEDAudioSync: IP_ADD_MEMBERSHIP %s failed: %s\n",
-                    m_destAddr.c_str(), strerror(errno));
+                    m_destAddr.c_str(), FPPstrerror(errno));
         }
     }
     return true;

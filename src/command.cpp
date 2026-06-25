@@ -121,8 +121,9 @@ char* ProcessCommand(char* command, char* response) {
     std::string NextPlaylist = "No playlist scheduled.";
     std::string NextPlaylistStart = "";
     char CommandStr[64];
+    char* saveptr = nullptr; // for thread-safe strtok_r below
     LogExcess(VB_COMMAND, "CMD: %s\n", command);
-    s = strtok(command, ",");
+    s = strtok_r(command, ",", &saveptr);
     strncpy(CommandStr, s, sizeof(CommandStr)); // s can be 256 bytes long
     CommandStr[sizeof(CommandStr) - 1] = '\0';
 
@@ -144,7 +145,7 @@ char* ProcessCommand(char* command, char* response) {
         scheduler->ReloadScheduleFile();
         snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Reloading Schedule,,,,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS);
     } else if (!strcmp(CommandStr, "v")) {
-        s = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
         if (s) {
             setVolume(atoi(s));
             snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Setting Volume,,,,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS);
@@ -177,10 +178,10 @@ char* ProcessCommand(char* command, char* response) {
                      COMMAND_SUCCESS);
         }
     } else if (!strcmp(CommandStr, "LogLevel")) {
-        s = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
         s2 = NULL;
         if (s != NULL)
-            s2 = strtok(NULL, ",");
+            s2 = strtok_r(NULL, ",", &saveptr);
 
         if (FPPLogger::INSTANCE.SetLevel(s, s2)) {
             snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Log Level Updated,%s,%s,,,,,,,,,\n",
@@ -199,7 +200,7 @@ char* ProcessCommand(char* command, char* response) {
         }
         /*
     } else if (!strcmp(CommandStr, "LogMask")) {
-        s = strtok(NULL,",");
+        s = strtok_r(NULL,",", &saveptr);
 
         if ((s && SetLogMask(s)) || SetLogMask("")) {
             snprintf(response,MAX_RESPONSE_SIZE-1,"%d,%d,Log Mask Updated,%d,%d,,,,,,,,,\n",
@@ -218,18 +219,18 @@ char* ProcessCommand(char* command, char* response) {
     } else if (!strcmp(CommandStr, "SetSetting")) {
         char name[128];
 
-        s = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
         if (s) {
             strcpy(name, s);
-            s = strtok(NULL, ",");
+            s = strtok_r(NULL, ",", &saveptr);
             if (s)
                 SetSetting(name, s);
         }
     } else if (!strcmp(CommandStr, "StartSequence")) {
         if ((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) &&
             (!sequence->IsSequenceRunning())) {
-            s = strtok(NULL, ",");
-            s2 = strtok(NULL, ",");
+            s = strtok_r(NULL, ",", &saveptr);
+            s2 = strtok_r(NULL, ",", &saveptr);
             if (s && s2) {
                 i = atoi(s2);
                 sequence->OpenSequenceFile(s, 0, i);
@@ -275,8 +276,8 @@ char* ProcessCommand(char* command, char* response) {
         //        }
     } else if (!strcmp(CommandStr, "SetupExtGPIO")) {
         // Configure the given GPIO to the given mode
-        s = strtok(NULL, ",");
-        s2 = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
+        s2 = strtok_r(NULL, ",", &saveptr);
         if (s && s2) {
             const PinCapabilities* pin = PinCapabilities::getPinByName(s).ptr();
             if (!pin) {
@@ -306,9 +307,9 @@ char* ProcessCommand(char* command, char* response) {
             }
         }
     } else if (!strcmp(CommandStr, "ExtGPIO")) {
-        s = strtok(NULL, ",");
-        s2 = strtok(NULL, ",");
-        s3 = strtok(NULL, ",");
+        s = strtok_r(NULL, ",", &saveptr);
+        s2 = strtok_r(NULL, ",", &saveptr);
+        s3 = strtok_r(NULL, ",", &saveptr);
         if (s && s2 && s3) {
             const PinCapabilities* pin = PinCapabilities::getPinByName(s).ptr();
             if (!pin) {
@@ -372,14 +373,14 @@ void CommandProc() {
         if (response2) {
             bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                                 (struct sockaddr*)&(client_address), sizeof(struct sockaddr_un));
-            LogDebug(VB_COMMAND, "%s - (%d %d %s) %s", &command[0], bytes_sent, errno, strerror(errno), response2);
+            LogDebug(VB_COMMAND, "%s - (%d %d %s) %s", &command[0], bytes_sent, errno, FPPstrerror(errno), response2);
             free(response2);
             response2 = NULL;
         } else {
             bytes_sent = sendto(socket_fd, &response[0], strlen(&response[0]), 0,
                                 (struct sockaddr*)&(client_address), sizeof(struct sockaddr_un));
             LogDebug(VB_COMMAND, "%s - (%d %d %s) %s",
-                     &command[0], bytes_sent, errno, strerror(errno), &response[0]);
+                     &command[0], bytes_sent, errno, FPPstrerror(errno), &response[0]);
         }
 
         memset(&command[0], 0, MAX_COMMAND_SIZE);

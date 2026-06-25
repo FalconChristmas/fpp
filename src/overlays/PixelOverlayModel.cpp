@@ -59,7 +59,7 @@ static uint8_t* createChannelDataMemory(const std::string& dataName, uint32_t si
     int f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
     int flags = MAP_SHARED;
     if (f == -1) {
-        LogWarn(VB_CHANNELOUT, "Could not create shared memory block for %s:  %s\n", dataName.c_str(), strerror(errno));
+        LogWarn(VB_CHANNELOUT, "Could not create shared memory block for %s:  %s\n", dataName.c_str(), FPPstrerror(errno));
         // we couldn't create the shared memory block.  Most of the time,
         // we are fine with non-shared memory and this at least prevents a crash
         flags = MAP_ANON;
@@ -787,7 +787,7 @@ uint8_t* PixelOverlayModel::getOverlayBuffer() {
         int size = width * height * bytesPerPixel + sizeof(OverlayBufferData);
         int flags = MAP_SHARED;
         if (f == -1) {
-            LogWarn(VB_CHANNELOUT, "Could not create shared memory for overlay buffer %s: %s\n", name.c_str(), strerror(errno));
+            LogWarn(VB_CHANNELOUT, "Could not create shared memory for overlay buffer %s: %s\n", name.c_str(), FPPstrerror(errno));
             flags = MAP_ANON;
         } else {
             ftruncate(f, size);

@@ -198,7 +198,7 @@ int bindBPFSocket(const std::string iface) {
         }
     }
     if (m_fd == -1) {
-        LogErr(VB_CHANNELOUT, "Error opening bpf file: %s\n", strerror(errno));
+        LogErr(VB_CHANNELOUT, "Error opening bpf file: %s\n", FPPstrerror(errno));
         return -1;
     }
 
@@ -435,7 +435,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     }
 
     if (ifstate != "up") {
-        LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s does not have link %s\n", m_ifName.c_str(), strerror(errno));
+        LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s does not have link %s\n", m_ifName.c_str(), FPPstrerror(errno));
         WarningHolder::AddWarning(7, "ColorLight: Configured interface " + m_ifName + " does not have link");
         if (m_colorlightDisable) {
             return 0;
@@ -454,7 +454,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     }
 
     if (ifspeed > 0 && ifspeed < 1000) {
-        LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s is not 1000Mbps Capable: %s\n", m_ifName.c_str(), strerror(errno));
+        LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s is not 1000Mbps Capable: %s\n", m_ifName.c_str(), FPPstrerror(errno));
         WarningHolder::AddWarning(8, "ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
         if (m_colorlightDisable) {
             return 0;
@@ -465,7 +465,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
 
     // Open our raw socket
     if ((m_fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
-        LogErr(VB_CHANNELOUT, "Error creating raw socket: %s\n", strerror(errno));
+        LogErr(VB_CHANNELOUT, "Error creating raw socket: %s\n", FPPstrerror(errno));
         return 0;
     }
 
@@ -474,7 +474,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     strcpy(m_if_idx.ifr_name, m_ifName.c_str());
     if (ioctl(m_fd, SIOCGIFINDEX, &m_if_idx) < 0) {
         LogErr(VB_CHANNELOUT, "Error getting index of %s interface: %s\n",
-               m_ifName.c_str(), strerror(errno));
+               m_ifName.c_str(), FPPstrerror(errno));
         return 0;
     }
 
@@ -785,7 +785,7 @@ int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr>& msgsToSend) 
     if (outputCount != msgCount) {
         int tti = (int)totalTime;
         LogWarn(VB_CHANNELOUT, "sendmmsg() failed for ColorLight output (Socket: %d   output count: %d/%d   time: %dms) with error: %d   %s, errorcount: %d\n",
-                m_fd, outputCount, msgCount, tti, errno, strerror(errno), errCount);
+                m_fd, outputCount, msgCount, tti, errno, FPPstrerror(errno), errCount);
         m_slowCount++;
         if (m_slowCount > 3) {
             LogWarn(VB_CHANNELOUT, "Repeated frames taking more than 20ms to send to ColorLight");

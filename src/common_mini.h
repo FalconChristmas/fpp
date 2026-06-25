@@ -12,6 +12,7 @@
  */
 
 #include <stdint.h>
+#include <sys/types.h>
 
 #include <functional>
 #include <list>
@@ -30,6 +31,27 @@ long long GetTimeMicros();
 long long GetTimeMS();
 std::string GetTimeStr(std::string fmt);
 std::string GetDateStr(std::string fmt);
+
+// Thread-safe replacements for non-reentrant POSIX APIs.  Several of the C
+// library functions (strerror, rand, getpwnam, ...) return pointers into
+// shared per-process static buffers or use shared global state and are not
+// safe to call from multiple threads.  FPP is heavily threaded (main loop,
+// ping thread, HTTP server pool, channel output thread, ...) so these
+// wrappers should be preferred everywhere.
+
+// Thread-safe strerror(): wraps strerror_r() using a per-thread buffer.  The
+// returned pointer is valid until the next FPPstrerror() call on the same
+// thread, which matches how strerror() was already being used (formatted
+// immediately into a log message), so it is a drop-in replacement.
+const char* FPPstrerror(int errnum);
+
+// Thread-safe rand(): each thread gets its own PRNG, so no global state is
+// shared and no srand() seeding is required.  Returns a value in [0, RAND_MAX].
+int FPPrand();
+
+// Thread-safe getpwnam()/getpwuid(): wraps getpwnam_r().  Returns false if the
+// user does not exist.  Any of the out pointers may be null if not needed.
+bool GetUserIds(const std::string& username, uid_t* uid, gid_t* gid, std::string* homedir = nullptr);
 
 int DirectoryExists(const char* Directory);
 int DirectoryExists(const std::string& Directory);

@@ -379,7 +379,7 @@ bool AES67Manager::InitPTP() {
     // Fork and exec ptp4l
     pid_t pid = fork();
     if (pid < 0) {
-        LogErr(VB_MEDIAOUT, "AES67Manager: fork() failed for ptp4l: %s\n", strerror(errno));
+        LogErr(VB_MEDIAOUT, "AES67Manager: fork() failed for ptp4l: %s\n", FPPstrerror(errno));
         WarningHolder::AddWarning(45, "AES67: could not start the ptp4l clock-sync process");
         return false;
     }
@@ -435,7 +435,7 @@ bool AES67Manager::InitPTP() {
 
         pid = fork();
         if (pid < 0) {
-            LogErr(VB_MEDIAOUT, "AES67Manager: fork() failed for ptp4l retry: %s\n", strerror(errno));
+            LogErr(VB_MEDIAOUT, "AES67Manager: fork() failed for ptp4l retry: %s\n", FPPstrerror(errno));
             return false;
         }
         if (pid == 0) {
@@ -464,7 +464,7 @@ bool AES67Manager::InitPTP() {
     if (FileExists("/dev/ptp0") && FileExists("/usr/sbin/phc2sys")) {
         pid_t phcPid = fork();
         if (phcPid < 0) {
-            LogWarn(VB_MEDIAOUT, "AES67Manager: fork() failed for phc2sys: %s\n", strerror(errno));
+            LogWarn(VB_MEDIAOUT, "AES67Manager: fork() failed for phc2sys: %s\n", FPPstrerror(errno));
         } else if (phcPid == 0) {
             // phc2sys -s /dev/ptp0 -c CLOCK_REALTIME -O 0 -m
             // -s: source clock (PTP hardware clock)
@@ -1161,7 +1161,7 @@ void AES67Manager::SAPAnnounceLoop() {
     // Create UDP socket for SAP multicast
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
-        LogErr(VB_MEDIAOUT, "AES67 SAP: Failed to create socket: %s\n", strerror(errno));
+        LogErr(VB_MEDIAOUT, "AES67 SAP: Failed to create socket: %s\n", FPPstrerror(errno));
         return;
     }
 
@@ -1224,7 +1224,7 @@ void AES67Manager::SAPAnnounceLoop() {
             ssize_t sent = sendto(sock, entry.announcePacket.data(), entry.announcePacket.size(), 0,
                    (struct sockaddr*)&sapAddr, sizeof(sapAddr));
             if (sent < 0) {
-                LogErr(VB_MEDIAOUT, "AES67 SAP: sendto failed: %s\n", strerror(errno));
+                LogErr(VB_MEDIAOUT, "AES67 SAP: sendto failed: %s\n", FPPstrerror(errno));
             }
         }
 
@@ -1275,7 +1275,7 @@ void AES67Manager::SAPReceiveLoop() {
 
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
-        LogErr(VB_MEDIAOUT, "AES67 SAP recv: Failed to create socket: %s\n", strerror(errno));
+        LogErr(VB_MEDIAOUT, "AES67 SAP recv: Failed to create socket: %s\n", FPPstrerror(errno));
         return;
     }
 
@@ -1291,7 +1291,7 @@ void AES67Manager::SAPReceiveLoop() {
     bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if (bind(sock, (struct sockaddr*)&bindAddr, sizeof(bindAddr)) < 0) {
-        LogErr(VB_MEDIAOUT, "AES67 SAP recv: bind failed: %s\n", strerror(errno));
+        LogErr(VB_MEDIAOUT, "AES67 SAP recv: bind failed: %s\n", FPPstrerror(errno));
         close(sock);
         return;
     }
@@ -1308,7 +1308,7 @@ void AES67Manager::SAPReceiveLoop() {
     }
 
     if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-        LogWarn(VB_MEDIAOUT, "AES67 SAP recv: join multicast failed: %s\n", strerror(errno));
+        LogWarn(VB_MEDIAOUT, "AES67 SAP recv: join multicast failed: %s\n", FPPstrerror(errno));
     }
 
     // Set receive timeout so we can check the shutdown flag

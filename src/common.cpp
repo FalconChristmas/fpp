@@ -192,7 +192,7 @@ char* FindInterfaceForIP(char* ip) {
 
     if (getifaddrs(&ifaddr) == -1) {
         LogErr(VB_SETTING, "Error getting interfaces list: %s\n",
-               strerror(errno));
+               FPPstrerror(errno));
         return interface;
     }
 

@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "../Warnings.h"
+#include "../common_mini.h" // FPPstrerror() -- needed directly for NOPCH builds
 #include "../log.h"
 
 #include "USBDMX.h"
@@ -95,7 +96,7 @@ int USBDMXOutput::Init(Json::Value config) {
     if (m_dongleType == DMX_DVC_OPEN) {
         if (SerialResetRTS(m_fd) != 0) {
             LogErr(VB_CHANNELOUT, "Error %d resetting RTS on %s: %s\n",
-                   errno, m_deviceName.c_str(), strerror(errno));
+                   errno, m_deviceName.c_str(), FPPstrerror(errno));
             return 0;
         }
         m_dataLen = m_channelCount + 1;

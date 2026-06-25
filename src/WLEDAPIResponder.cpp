@@ -190,7 +190,7 @@ void WLEDAPIResponder::Initialize() {
 
     m_socket = ::socket(AF_INET, SOCK_STREAM, 0);
     if (m_socket < 0) {
-        LogErr(VB_GENERAL, "WLEDAPIResponder: socket() failed: %s\n", strerror(errno));
+        LogErr(VB_GENERAL, "WLEDAPIResponder: socket() failed: %s\n", FPPstrerror(errno));
         return;
     }
 
@@ -204,12 +204,12 @@ void WLEDAPIResponder::Initialize() {
     addr.sin_port = htons(m_port);
 
     if (::bind(m_socket, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
-        LogErr(VB_GENERAL, "WLEDAPIResponder: bind(%d) failed: %s\n", m_port, strerror(errno));
+        LogErr(VB_GENERAL, "WLEDAPIResponder: bind(%d) failed: %s\n", m_port, FPPstrerror(errno));
         closeFd(m_socket);
         return;
     }
     if (::listen(m_socket, 8) < 0) {
-        LogErr(VB_GENERAL, "WLEDAPIResponder: listen() failed: %s\n", strerror(errno));
+        LogErr(VB_GENERAL, "WLEDAPIResponder: listen() failed: %s\n", FPPstrerror(errno));
         closeFd(m_socket);
         return;
     }
@@ -263,7 +263,7 @@ void WLEDAPIResponder::AcceptLoop() {
     while (m_running) {
         int client = ::accept(m_socket, nullptr, nullptr);
         if (client < 0) {
-            if (m_running) LogWarn(VB_GENERAL, "WLEDAPIResponder: accept failed: %s\n", strerror(errno));
+            if (m_running) LogWarn(VB_GENERAL, "WLEDAPIResponder: accept failed: %s\n", FPPstrerror(errno));
             continue;
         }
         // Hand off to a per-connection thread. WebSocket streams are

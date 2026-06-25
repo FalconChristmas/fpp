@@ -71,10 +71,13 @@ int main(int argc, char* argv[]) {
         }
         CapeUtils::INSTANCE.initCape(readonly, forceDefaults);
         if (!noperms) {
-            struct passwd* pwd = getpwnam("fpp");
-            if (pwd) {
+            // getpwnam_r() is the thread-safe form of getpwnam().
+            char pbuf[16384];
+            struct passwd pwd;
+            struct passwd* pwres = nullptr;
+            if (getpwnam_r("fpp", &pwd, pbuf, sizeof(pbuf), &pwres) == 0 && pwres) {
                 for (const auto& entry : std::filesystem::directory_iterator("/home/fpp/media/tmp/")) {
-                    chown(entry.path().c_str(), pwd->pw_uid, pwd->pw_gid);
+                    chown(entry.path().c_str(), pwres->pw_uid, pwres->pw_gid);
                 }
             }
         }

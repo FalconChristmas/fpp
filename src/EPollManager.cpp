@@ -56,12 +56,12 @@ EPollManager::EPollManager() {
         event.events = EPOLLIN;
         event.data.fd = timerFd;
         if (epoll_ctl(epollf, EPOLL_CTL_ADD, timerFd, &event) == -1) {
-            LogWarn(VB_GENERAL, "Failed to add timerfd to epoll: %s\n", strerror(errno));
+            LogWarn(VB_GENERAL, "Failed to add timerfd to epoll: %s\n", FPPstrerror(errno));
             close(timerFd);
             timerFd = -1;
         }
     } else {
-        LogWarn(VB_GENERAL, "Failed to create timerfd: %s\n", strerror(errno));
+        LogWarn(VB_GENERAL, "Failed to create timerfd: %s\n", FPPstrerror(errno));
     }
 #endif
 }
@@ -102,7 +102,7 @@ void EPollManager::addFileDescriptor(int fd, std::function<bool(int)>& callback)
     int rc = epoll_ctl(epollf, EPOLL_CTL_ADD, fd, &event);
 #endif
     if (rc == -1) {
-        LogWarn(VB_GENERAL, "Failed to add descriptor: %d  %s\n", fd, strerror(errno));
+        LogWarn(VB_GENERAL, "Failed to add descriptor: %d  %s\n", fd, FPPstrerror(errno));
     } else {
         callbacks[fd] = std::move(callback);
     }
@@ -126,7 +126,7 @@ void EPollManager::removeFileDescriptor(int fd) {
     int rc = epoll_ctl(epollf, EPOLL_CTL_DEL, fd, &event);
 #endif
     if (rc == -1) {
-        LogWarn(VB_GENERAL, "Failed to remove descriptor: %d  %s\n", fd, strerror(errno));
+        LogWarn(VB_GENERAL, "Failed to remove descriptor: %d  %s\n", fd, FPPstrerror(errno));
     } else {
         callbacks.erase(fd);
     }
@@ -198,7 +198,7 @@ void EPollManager::updateFileDescriptorEvents(int fd, uint32_t events) {
     event.events = events;
     event.data.fd = fd;
     if (epoll_ctl(epollf, EPOLL_CTL_MOD, fd, &event) == -1) {
-        LogWarn(VB_GENERAL, "Failed to update descriptor events: %d  %s\n", fd, strerror(errno));
+        LogWarn(VB_GENERAL, "Failed to update descriptor events: %d  %s\n", fd, FPPstrerror(errno));
     }
 #endif
 }

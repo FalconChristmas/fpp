@@ -1395,7 +1395,7 @@ void VideoOutputManager::SAPAnnounceLoop() {
 
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
-        LogErr(VB_MEDIAOUT, "VideoOutputManager SAP: Failed to create socket: %s\n", strerror(errno));
+        LogErr(VB_MEDIAOUT, "VideoOutputManager SAP: Failed to create socket: %s\n", FPPstrerror(errno));
         return;
     }
 
@@ -1448,7 +1448,7 @@ void VideoOutputManager::SAPAnnounceLoop() {
             ssize_t sent = sendto(sock, entry.announcePacket.data(), entry.announcePacket.size(), 0,
                                   (struct sockaddr*)&sapAddr, sizeof(sapAddr));
             if (sent < 0) {
-                LogErr(VB_MEDIAOUT, "VideoOutputManager SAP: sendto failed: %s\n", strerror(errno));
+                LogErr(VB_MEDIAOUT, "VideoOutputManager SAP: sendto failed: %s\n", FPPstrerror(errno));
             }
         }
 

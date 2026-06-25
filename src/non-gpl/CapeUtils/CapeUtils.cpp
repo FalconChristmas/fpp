@@ -58,6 +58,20 @@
 #define I2C_DEV 0
 #endif
 
+// Thread-safe lookup of the "fpp" user's uid/gid.  getpwnam() returns a pointer
+// into a shared static buffer and is not reentrant, so use getpwnam_r().
+static bool getFppUserIds(uid_t& uid, gid_t& gid) {
+    char buf[16384];
+    struct passwd pwd;
+    struct passwd* result = nullptr;
+    if (getpwnam_r("fpp", &pwd, buf, sizeof(buf), &result) != 0 || result == nullptr) {
+        return false;
+    }
+    uid = result->pw_uid;
+    gid = result->pw_gid;
+    return true;
+}
+
 unsigned char fp_pub_pem[] = {
     0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x50,
     0x55, 0x42, 0x4c, 0x49, 0x43, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d,
@@ -249,8 +263,11 @@ static void put_file_contents(const std::string& path, const uint8_t* data, int 
     fwrite(data, 1, len, f);
     fclose(f);
 
-    struct passwd* pwd = getpwnam("fpp");
-    chown(path.c_str(), pwd->pw_uid, pwd->pw_gid);
+    uid_t fppUid = 0;
+    gid_t fppGid = 0;
+    if (getFppUserIds(fppUid, fppGid)) {
+        chown(path.c_str(), fppUid, fppGid);
+    }
 
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
     chmod(path.c_str(), mode);
@@ -546,9 +563,10 @@ static void removeIfExist(const std::string& src) {
     }
 }
 void setOwnerGroup(const std::string& filename) {
-    static struct passwd* pwd = getpwnam("fpp");
-    if (pwd) {
-        chown(filename.c_str(), pwd->pw_uid, pwd->pw_gid);
+    uid_t fppUid = 0;
+    gid_t fppGid = 0;
+    if (getFppUserIds(fppUid, fppGid)) {
+        chown(filename.c_str(), fppUid, fppGid);
     }
 }
 bool setFilePerms(const std::string& filename) {
@@ -849,9 +867,10 @@ private:
             printf("Copying eeprom %s -> %s\n", EEPROM.c_str(), "/home/fpp/media/tmp/eeprom.bin");
             removeIfExist("/home/fpp/media/tmp/eeprom.bin");
             copyEEPROM(EEPROM, "/home/fpp/media/tmp/eeprom.bin");
-            struct passwd* pwd = getpwnam("fpp");
-            if (pwd) {
-                chown("/home/fpp/media/tmp/eeprom.bin", pwd->pw_uid, pwd->pw_gid);
+            uid_t fppUid = 0;
+            gid_t fppGid = 0;
+            if (getFppUserIds(fppUid, fppGid)) {
+                chown("/home/fpp/media/tmp/eeprom.bin", fppUid, fppGid);
             }
             ORIGEEPROM = EEPROM;
             put_file_contents("/home/fpp/media/tmp/eeprom_location.txt", (uint8_t*)ORIGEEPROM.c_str(), ORIGEEPROM.size());

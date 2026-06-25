@@ -163,7 +163,8 @@ int Player::AdjustPlaylistStopTime(const int seconds) {
 
     stopTime += seconds;
 
-    LogDebug(VB_PLAYLIST, "New end time is now: %s", ctime(&stopTime));
+    char timeBuf[32];
+    LogDebug(VB_PLAYLIST, "New end time is now: %s", ctime_r(&stopTime, timeBuf));
 
     return 1;
 }

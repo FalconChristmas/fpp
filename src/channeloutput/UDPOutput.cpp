@@ -185,16 +185,22 @@ in_addr_t UDPOutputData::toInetAddr(const std::string& ipAddress, bool& valid) {
     }
 
     if (isAlpha) {
-        struct hostent* uhost = gethostbyname(ipAddress.c_str());
-        if (!uhost) {
+        // getaddrinfo() is thread-safe; gethostbyname() returns a shared static
+        // hostent and can be corrupted by concurrent resolves on other threads.
+        struct addrinfo hints{};
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_DGRAM;
+        struct addrinfo* res = nullptr;
+        if (getaddrinfo(ipAddress.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
             LogErr(VB_CHANNELOUT,
                    "Error looking up hostname: %s\n",
                    ipAddress.c_str());
             valid = false;
             return 0;
-        } else {
-            return *((unsigned long*)uhost->h_addr);
         }
+        in_addr_t addr = ((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr;
+        freeaddrinfo(res);
+        return addr;
     }
     return inet_addr(ipAddress.c_str());
 }
@@ -577,7 +583,7 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
                    HexToIP(socketKey).c_str(), sendSocket,
                    outputCount, msgCount,
                    errno,
-                   strerror(errno));
+                   FPPstrerror(errno));
             return outputCount;
         }
         errno = 0;
@@ -621,7 +627,7 @@ void UDPOutput::BackgroundOutputWork() {
                        blockingOutput ? "sendmsg" : "sendmmsg", HexToIP(i.id).c_str(),
                        outputCount, i.msgs.size(), diff, i.socketInfo->errCount,
                        errno,
-                       strerror(errno));
+                       FPPstrerror(errno));
             } else {
                 i.socketInfo->errCount = 0;
             }
@@ -697,7 +703,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
                                    HexToIP(msgs.first).c_str(),
                                    outputCount, msgs.second.size(), diff, socketInfo->errCount,
                                    errno,
-                                   strerror(errno));
+                                   FPPstrerror(errno));
                         } else {
                             socketInfo->errCount = 0;
                         }
@@ -727,7 +733,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
                        HexToIP(msgs.first).c_str(),
                        outputCount, msgs.second.size(), diff, socketInfo->errCount,
                        errno,
-                       strerror(errno));
+                       FPPstrerror(errno));
 
                 if (socketInfo->errCount >= 3) {
                     // we'll ping the controllers and rebuild the valid message list, this could take time
@@ -875,7 +881,7 @@ int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
     if (broadCast) {
         int broadcast = 1;
         if (setsockopt(sendSocket, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
-            LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
+            LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", FPPstrerror(errno));
             exit(1);
         }
 #ifndef PLATFORM_OSX
@@ -894,7 +900,7 @@ int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
         memcpy(&address, &localAddress, sizeof(localAddress));
         address.sin_port = ntohs(port);
         if (bind(sendSocket, (struct sockaddr*)&address, sizeof(struct sockaddr_in)) == -1) {
-            LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
+            LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, FPPstrerror(errno));
         }
 #ifndef PLATFORM_OSX
         if (connect(sendSocket, (struct sockaddr*)&address, sizeof(address)) < 0) {

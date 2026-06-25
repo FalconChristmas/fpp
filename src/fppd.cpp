@@ -347,8 +347,9 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             char tbuffer[32];
             time_t rawtime;
             time(&rawtime);
-            const auto timeinfo = localtime(&rawtime);
-            strftime(tbuffer, sizeof(tbuffer), "%Y-%m-%d_%H-%M-%S", timeinfo);
+            struct tm timeinfo;
+            localtime_r(&rawtime, &timeinfo);
+            strftime(tbuffer, sizeof(tbuffer), "%Y-%m-%d_%H-%M-%S", &timeinfo);
 #ifdef PLATFORM_ARMBIAN
             char sysType[] = "Armbian";
 #elif defined(PLATFORM_BBB)
@@ -733,7 +734,7 @@ int main(int argc, char* argv[]) {
     PLAT_GPIO_CLASS* gpioUtil = new PLAT_GPIO_CLASS();
     PinCapabilities::InitGPIO("FPPD", gpioUtil);
 
-    std::srand(std::time(nullptr));
+    // No srand() needed: FPPrand() seeds a per-thread PRNG on first use.
 
     CommandManager::INSTANCE.Init();
     if (getSetting("MQTTHost") != "") {
@@ -1056,9 +1057,10 @@ void MainLoop(void) {
         if (now >= minValidTime) {
             scheduler->CheckIfShouldBePlayingNow();
         } else {
-            struct tm* timeinfo = localtime(&now);
+            struct tm timeinfo;
+            localtime_r(&now, &timeinfo);
             LogWarn(VB_SCHEDULE, "Clock appears incorrect (date %04d-%02d-%02d before release), delaying scheduler start until time sync\n",
-                    timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday);
+                    timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday);
             WarningHolder::AddWarning(55, "System clock not set - scheduler start delayed until time sync");
             clockWarningAdded = true;
         }
@@ -1098,7 +1100,7 @@ void MainLoop(void) {
             continue;
         }
         if (epollresult == EPollManager::WaitResult::FAILED) {
-            LogErr(VB_GENERAL, "Main epoll() failed: %s\n", strerror(errno));
+            LogErr(VB_GENERAL, "Main epoll() failed: %s\n", FPPstrerror(errno));
             runMainFPPDLoop = 0;
             continue;
         }

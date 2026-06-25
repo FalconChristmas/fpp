@@ -419,7 +419,8 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
 }
 
 void Scheduler::DumpScheduledItem(const std::time_t itemTime, const ScheduledItem& item) {
-    std::string timeStr = ctime(&itemTime);
+    char timeBuf[32];
+    std::string timeStr = ctime_r(&itemTime, timeBuf);
 
     std::string argStr;
     for (int i = 0; i < item.args.size(); i++) {
