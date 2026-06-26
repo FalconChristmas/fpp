@@ -252,12 +252,12 @@ function SetupBuildEnv() {
 
     if [ -n "${hosts}" ]; then
         export DISTCC_HOSTS="${hosts}"
-        # distcc keeps its lock/state in ~/.distcc, but compileBinaries() unsets
-        # HOME (so ccache uses /root), which would leave distcc with "HOME is not
-        # set; can't find distcc directory" -> "failed to lock". Pin DISTCC_DIR
-        # now (while HOME is still set) so distcc has a fixed directory.
-        export DISTCC_DIR="${DISTCC_DIR:-${HOME:-/root}/.distcc}"
-        mkdir -p "${DISTCC_DIR}" 2>/dev/null
+        # DISTCC_DIR (distcc's lock/state dir) is pinned by src/makefiles, not
+        # here: it defaults to $HOME/.distcc, but HOME is unreliable across the
+        # PHP -> sudo build chain (it can be /home/fpp -- root-owned and NOT
+        # writable by the apache "fpp" user -- /root, or unset). The makefile
+        # sets a fixed, HOME-independent DISTCC_DIR keyed to the uid that runs
+        # the compiler, which is the only place that uid is known.
         BUILD_CPUS=$(ComputeDistccParallelism "${hosts}")
         echo "Building with distcc: DISTCC_HOSTS='${DISTCC_HOSTS}', -j ${BUILD_CPUS} (PCH disabled; makefile selects the triplet compiler)"
     else

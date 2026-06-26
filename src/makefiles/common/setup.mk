@@ -14,6 +14,17 @@ ifeq ($(DISTCC_HOSTS),)
 	CCACHE = ccache
 else
 	CCACHE = ccache distcc
+	# distcc keeps its per-slot lock files (mode 0600) under DISTCC_DIR, which
+	# defaults to $HOME/.distcc. FPP reaches distcc through a PHP -> sudo chain
+	# where HOME is unreliable: the "Update FPP Now" button runs as the apache
+	# "fpp" user (HOME=/home/fpp, which is root-owned and NOT writable by fpp),
+	# other paths unset HOME or reset it to /root. So the default lands distcc
+	# in an unwritable/nonexistent directory and every compile fails to lock,
+	# falling back to local-only. Pin a fixed, HOME-independent directory keyed
+	# to the uid actually running make -- which IS the distcc client -- so root
+	# and fpp never collide on each other's 0600 lock files.
+	export DISTCC_DIR := /tmp/.fpp-distcc-$(shell id -u)
+	$(shell mkdir -p $(DISTCC_DIR))
 endif
 endif
 
