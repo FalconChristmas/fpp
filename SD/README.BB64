@@ -17,29 +17,41 @@ Output:
     output/FPP-v10.0-dev-BB64.img.zip
     output/BB64-10.0-dev_2026-04.fppos
 
-Default base image
-------------------
+Base image (auto-discovered)
+----------------------------
 
-The script's defaults compose this URL:
+rcn-ee keeps only the ~5 most recent dated builds online (a rolling window),
+so the script no longer pins a date. At run time it parses the directory
+listing and selects the newest build automatically:
 
-    https://rcn-ee.net/rootfs/debian-arm64-13-iot-v6.18-k3/2026-06-03/pocketbeagle2-debian-13.5-iot-v6.18-k3-arm64-2026-06-03-8gb.img.xz
+    Listing: https://rcn-ee.net/rootfs/debian-arm64-13-iot-v6.18-k3/
+    Picks:   the latest YYYY-MM-DD/ subdir, then the image whose filename
+             starts with "pocketbeagle2-debian-" (e.g.
+             pocketbeagle2-debian-13.5-iot-v6.18-k3-arm64-<date>-8gb.img.xz)
 
-When upstream rev's the date or filename, override:
+The matching .img.xz.sha256sum published alongside the image is fetched and
+verified automatically -- no need to hardcode a checksum.
 
-    --base-image-date 2026-MM-DD
-    --base-image-debver 13.X
-    --base-image-kernel v6.18-kN
-    --base-image-size 8gb
-    --base-image-name <full-filename>     # if naming changes
-    --base-image-url  <full-url>          # full override
+To override the auto-selection (most specific wins):
+
+    --base-image-date 2026-MM-DD          # pin a specific dated build
+    --base-image-board pocketbeagle2      # board filename prefix
+    --base-image-kernel v6.18-kN          # kernel path segment of the listing
+    --base-image-name <full-filename>     # exact filename within the date dir
+    --base-image-url  <full-url>          # full override, skips discovery
 
 The base image already ships a 6.18 kernel, so there is no kernel-update
-step (unlike the Pi build).
+step (unlike the Pi build). Because each nightly grabs the latest rcn-ee
+build, the kernel stays current without any apt kernel-unhold dance.
+
+The resolved base image filename is recorded in the device's
+/etc/fpp/base_image_name (alongside /etc/fpp/rfs_version) for traceability.
 
 What the script does
 --------------------
 
-1. Downloads (and caches) the rcn-ee pocketbeagle2 base image.
+1. Resolves + downloads (and caches) the latest rcn-ee pocketbeagle2 base
+   image from the directory listing, verifying its published sha256sum.
 2. Loop-mounts it, grows partition 3 (BB layout: p1=boot, p2=unused,
    p3=rootfs) to fill the target image size, and resize2fs's the rootfs.
 3. Pre-boot tweaks:
@@ -56,7 +68,8 @@ What the script does
      - SD/FPP_Install.sh --img --yes --branch ${FPPBRANCH}
        with FPPPLATFORM_OVERRIDE="BeagleBone 64"
      - Cleanup (apt clean, logs, keys, machine-id reset)
-5. Touches /boot/firmware/fpp_expand_rootfs.
+5. Touches /boot/firmware/fpp_expand_rootfs and writes the resolved base
+   image filename to /etc/fpp/base_image_name.
 6. Drops the chroot binds, mksquashfs's the .fppos, zerofree, zip, move
    to output/.
 

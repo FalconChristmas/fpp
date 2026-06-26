@@ -29,15 +29,26 @@ set -euo pipefail
 VERSION="${VERSION:-}"
 OSVERSION="${OSVERSION:-$(date +%Y-%m)}"
 FPPBRANCH="${FPPBRANCH:-master}"
-# Default base image: latest pocketbeagle2 IoT arm64 build referenced in
-# SD/README.BB64. The directory listing lives at
-# https://rcn-ee.net/rootfs/debian-arm64-13-iot-v6.18-k3/${BASE_IMAGE_DATE}/
-# When upstream rev'd, update BASE_IMAGE_DATE or pass --base-image-url.
-BASE_IMAGE_DATE="${BASE_IMAGE_DATE:-2026-06-03}"
-BASE_IMAGE_DEBVER="${BASE_IMAGE_DEBVER:-13.5}"
+# Base image: rcn-ee Debian arm64 IoT rootfs (PocketBeagle 2 etc.), already on
+# a 6.18 kernel. rcn-ee keeps only the ~5 most recent dated builds online (a
+# rolling window), so a hardcoded date rots within weeks. Instead we DISCOVER
+# the latest build at run time by parsing the directory listing:
+#
+#   Listing: https://rcn-ee.net/rootfs/debian-arm64-13-iot-${BASE_IMAGE_KERNEL}/
+#   Each dated subdir holds per-board images; we pick the one whose filename
+#   starts with "${BASE_IMAGE_BOARD}-debian-" (anchored so the pocketbeagle2
+#   image is chosen, not pocketbeagle2-workshop).
+#
+# Override knobs, most specific first:
+#   --base-image-url URL    full image URL (skips all discovery)
+#   --base-image-name NAME  exact filename within the (latest/pinned) date dir
+#   --base-image-date DATE  pin a specific dated build instead of the latest
+#   --base-image-board STR  board filename prefix (default: pocketbeagle2)
 BASE_IMAGE_KERNEL="${BASE_IMAGE_KERNEL:-v6.18-k3}"
-BASE_IMAGE_SIZE="${BASE_IMAGE_SIZE:-8gb}"
-BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-pocketbeagle2-debian-${BASE_IMAGE_DEBVER}-iot-${BASE_IMAGE_KERNEL}-arm64-${BASE_IMAGE_DATE}-${BASE_IMAGE_SIZE}.img.xz}"
+BASE_IMAGE_BOARD="${BASE_IMAGE_BOARD:-pocketbeagle2}"
+BASE_IMAGE_DATE="${BASE_IMAGE_DATE:-}"      # empty => latest available
+BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-}"      # empty => discover within date dir
+BASE_IMAGE_LISTING="${BASE_IMAGE_LISTING:-https://rcn-ee.net/rootfs/debian-arm64-13-iot-${BASE_IMAGE_KERNEL}/}"
 BASE_IMAGE_URL="${BASE_IMAGE_URL:-}"
 BASE_IMAGE_SHA256="${BASE_IMAGE_SHA256:-}"
 IMG_SIZE_MB="${IMG_SIZE_MB:-0}"      # 0 = use base image size as-is
@@ -60,10 +71,15 @@ Options:
   --version VER            FPP version string (required, e.g. 10.0)
   --os-version VER         OS version tag for .fppos (default: YYYY-MM)
   --branch BRANCH          FPP git branch to install (default: master)
-  --base-image-url URL     Override base image URL (full path to .img.xz)
-  --base-image-date DATE   rcn-ee build date (default: ${BASE_IMAGE_DATE})
-  --base-image-name NAME   rcn-ee image filename (default derived from date)
-  --base-image-sha256 HEX  Optional sha256 of the .img.xz to verify
+  --base-image-url URL     Override base image URL (full path to .img.xz;
+                           skips directory-listing discovery entirely)
+  --base-image-date DATE   Pin a specific rcn-ee build date (YYYY-MM-DD)
+                           instead of auto-selecting the latest available
+  --base-image-name NAME   Exact rcn-ee image filename within the date dir
+                           (default: auto-discovered from the listing)
+  --base-image-board STR   Board filename prefix to match (default: ${BASE_IMAGE_BOARD})
+  --base-image-sha256 HEX  sha256 of the .img.xz to verify (default: fetched
+                           from rcn-ee's published .sha256sum)
   --img-size-mb N          Raw output image size in MiB (default: base image size)
   --work-dir DIR           Scratch dir (default: ./build)
   --output-dir DIR         Artifact dir (default: ./output)
@@ -85,6 +101,8 @@ while [ $# -gt 0 ]; do
         --base-image-url)    BASE_IMAGE_URL="$2"; shift 2 ;;
         --base-image-date)   BASE_IMAGE_DATE="$2"; shift 2 ;;
         --base-image-name)   BASE_IMAGE_NAME="$2"; shift 2 ;;
+        --base-image-board)  BASE_IMAGE_BOARD="$2"; shift 2 ;;
+        --base-image-listing) BASE_IMAGE_LISTING="$2"; shift 2 ;;
         --base-image-sha256) BASE_IMAGE_SHA256="$2"; shift 2 ;;
         --img-size-mb)       IMG_SIZE_MB="$2"; shift 2 ;;
         --work-dir)          WORK_DIR="$2"; shift 2 ;;
@@ -112,8 +130,55 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# Resolve the base image URL by parsing rcn-ee's directory listing. Echoes the
+# full .img.xz URL on stdout; diagnostics + non-zero on failure. Args:
+#   $1 listing parent URL   $2 board prefix   $3 pinned date (or "")   $4 name (or "")
+resolve_rcn_image_url() {
+    local listing="$1" board="$2" date_dir="$3" name="$4"
+    case "$listing" in */) ;; *) listing="${listing}/" ;; esac
+
+    if [ -z "$date_dir" ]; then
+        # Newest dated subdir (rcn-ee keeps ~5). Listing rows look like
+        # <a href="2026-06-24/">.
+        date_dir="$(wget -qO- "$listing" \
+            | grep -oE '"[0-9]{4}-[0-9]{2}-[0-9]{2}/"' \
+            | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' \
+            | sort -V | uniq | tail -n1)"
+        [ -n "$date_dir" ] || { echo "resolve: no dated build under $listing" >&2; return 1; }
+    fi
+
+    if [ -z "$name" ]; then
+        # Pick the board image. Anchoring on "<board>-debian-" excludes both the
+        # *.sha256sum sidecars and the pocketbeagle2-workshop variant.
+        name="$(wget -qO- "${listing}${date_dir}/" \
+            | grep -oE 'href="[^"]+\.img\.xz"' \
+            | sed -E 's/^href="//; s/"$//' \
+            | grep -E "^${board}-debian-.*\.img\.xz$" \
+            | sort -V | uniq | tail -n1)"
+        [ -n "$name" ] || { echo "resolve: no ${board}-debian-*.img.xz under ${listing}${date_dir}/" >&2; return 1; }
+    fi
+
+    echo "${listing}${date_dir}/${name}"
+}
+
 if [ -z "$BASE_IMAGE_URL" ]; then
-    BASE_IMAGE_URL="https://rcn-ee.net/rootfs/debian-arm64-13-iot-${BASE_IMAGE_KERNEL}/${BASE_IMAGE_DATE}/${BASE_IMAGE_NAME}"
+    echo "Resolving rcn-ee base image ($( [ -n "$BASE_IMAGE_DATE" ] && echo "date $BASE_IMAGE_DATE" || echo "latest available" ))..."
+    BASE_IMAGE_URL="$(resolve_rcn_image_url "$BASE_IMAGE_LISTING" "$BASE_IMAGE_BOARD" "$BASE_IMAGE_DATE" "$BASE_IMAGE_NAME")" || {
+        echo "ERROR: failed to resolve base image from $BASE_IMAGE_LISTING" >&2
+        echo "       Pass --base-image-url to specify the full image URL directly." >&2
+        exit 1
+    }
+fi
+
+# When no sha was supplied, fetch rcn-ee's published checksum so the download is
+# still integrity-verified even though the exact image was discovered at runtime.
+if [ -z "$BASE_IMAGE_SHA256" ]; then
+    FETCHED_SHA="$(wget -qO- "${BASE_IMAGE_URL}.sha256sum" 2>/dev/null | awk 'NR==1{print $1}')"
+    if [ "${#FETCHED_SHA}" -eq 64 ]; then
+        BASE_IMAGE_SHA256="$FETCHED_SHA"
+    else
+        echo "(warning: could not fetch ${BASE_IMAGE_URL}.sha256sum; download will be unverified)"
+    fi
 fi
 
 LOCAL_INSTALLER="${FPP_SRC_DIR}/SD/FPP_Install.sh"
@@ -154,6 +219,7 @@ FPP Image Build (BB64 / PocketBeagle 2)
   OS version   : $OSVERSION
   Branch       : $FPPBRANCH
   Base image   : $BASE_IMAGE_URL
+  Base sha256  : $( [ -n "$BASE_IMAGE_SHA256" ] && echo "$BASE_IMAGE_SHA256" || echo "(unverified)" )
   Local installer: $LOCAL_INSTALLER
   Local src    : $( [ "$USE_LOCAL_SRC" = "1" ] && echo "$FPP_SRC_DIR (seeded into /opt/fpp)" || echo "(not used; installer clones from github)" )
   Image size   : $( [ "$IMG_SIZE_MB" -gt 0 ] && echo "${IMG_SIZE_MB} MiB" || echo "(base image size)" )
@@ -368,7 +434,19 @@ fi
 export LANG=en_US.UTF-8
 
 apt-get update
-apt-get -y upgrade
+# rcn-ee/bbbio's gpiod postinst has a buggy guard: it tests
+#   getent passwd gpio-monitor   (a typo -- no such user)
+# and then unconditionally runs \`useradd ... gpio-manager\`, which aborts with
+# exit 9 on UPGRADE because gpio-manager already exists in the base image. That
+# kills \`apt-get upgrade\` mid-run. Catch that one failure, drop the stale user,
+# and let dpkg reconfigure gpiod (its postinst recreates gpio-manager) so the
+# upgrade completes. Remove once bbbio ships a fixed gpiod.
+if ! apt-get -y upgrade; then
+    echo "FPP - apt upgrade failed; applying gpiod gpio-manager workaround"
+    userdel gpio-manager 2>/dev/null || true
+    dpkg --configure -a
+    apt-get -y upgrade
+fi
 apt-get -y install wget ca-certificates locales
 locale-gen en_US.UTF-8 || true
 update-locale LANG=en_US.UTF-8 || true
@@ -471,6 +549,11 @@ fi
 echo "[6/8] Marking first-boot expand and stripping build artifacts..."
 touch "$ROOT_MNT/boot/firmware/fpp_expand_rootfs"
 rm -f "$ROOT_MNT/usr/bin/$QEMU_BIN"
+# Record the base image this was built from. The rcn-ee filename is no longer a
+# fixed value in this script (it is discovered from the rolling listing), so
+# stamp it next to /etc/fpp/rfs_version for traceability on the device.
+mkdir -p "$ROOT_MNT/etc/fpp"
+echo "$BASE_XZ" > "$ROOT_MNT/etc/fpp/base_image_name"
 # Restore the /etc/resolv.conf -> systemd-resolved symlink for the booted
 # image. Leaving it as a static (empty) file means anything that reads
 # /etc/resolv.conf directly gets no nameservers; getaddrinfo() still works via

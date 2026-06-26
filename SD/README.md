@@ -67,10 +67,12 @@ Output lands in `output/`:
 | `--branch BRANCH` | `master` | FPP git branch to install. With `--use-local-src`, defaults to your local checkout's current branch. |
 | `--use-local-src` | off | rsync your local FPP working tree into `/opt/fpp` inside the image and pass `--skip-clone` to the installer. Lets you iterate on FPP source without committing/pushing. |
 | `--fpp-src-dir DIR` | parent of script | Path to your local FPP checkout. |
-| `--base-image-url URL` | platform default | Override the base OS image download URL (when upstream rev'd). |
-| `--base-image-date DATE` | platform default | Compose the default URL with this build date. On Pi this is the date in the image *filename*. |
+| `--base-image-url URL` | platform default | Override the base OS image download URL. On Pi this skips the date logic; on BB it skips rcn-ee listing discovery entirely. |
+| `--base-image-date DATE` | Pi: filename date; BB: latest available | On Pi, the date in the image *filename*. On BB, pins a specific rcn-ee dated build instead of auto-selecting the newest. |
 | `--base-image-dir-date DATE` | same as `--base-image-date` | Pi only. Date in the download *directory* name, for releases (e.g. 2026-06) where RPi dated the directory differently from the file. |
-| `--base-image-sha256 HEX` | known sum for the default Pi image | Optional sha256 to verify the download. Pi ships a built-in default for its stock base image. |
+| `--base-image-board STR` | BB only (`pocketbeagle2` / `am335x`) | BB only. Board filename prefix used to pick the image within an rcn-ee dated dir. |
+| `--base-image-name NAME` | auto | BB only. Exact rcn-ee image filename within the (latest/pinned) date dir, bypassing filename discovery. |
+| `--base-image-sha256 HEX` | Pi: built-in; BB: fetched | sha256 to verify the download. Pi ships a built-in sum for its stock image; BB fetches rcn-ee's published `.img.xz.sha256sum`. |
 | `--img-size-mb N` | platform default | Output raw image size in MiB. Must be ≥ the decompressed base image size. |
 | `--work-dir DIR` | `./build` | Scratch area (decompressed base images, work image). Caches the base image between runs. |
 | `--output-dir DIR` | `./output` | Where the final `.img.zip` and `.fppos` land. |
@@ -87,6 +89,7 @@ Output lands in `output/`:
 - **`build-image-bbb.sh`** also takes `--fpp-kernel-ver VER` and `--fpp-kernel-url URL` to override the FPP-patched kernel `.deb` (default pulled from `FalconChristmas/fpp-linux-kernel`).
 - **`build-image-pi.sh`** skips the `rpi-update` kernel step by default — the 2026-06 Raspberry Pi OS Trixie base already ships Linux 6.18 LTS. Pass `--kernel-update` to force it back on (e.g. when a future base image lags the required LTS kernel).
 - **`build-image-bb64.sh`** has no kernel-update flag — the rcn-ee base image already ships a 6.18 kernel.
+- **BB builds auto-discover the base image.** rcn-ee keeps only the ~5 most recent dated builds online (rolling window), so `build-image-bb64.sh` / `build-image-bbb.sh` parse the rcn-ee directory listing at run time, select the newest build, and verify its published `.sha256sum`. Pin a specific one with `--base-image-date`, or override fully with `--base-image-url`. The resolved filename is recorded in `/etc/fpp/base_image_name` on the device.
 
 ## Iteration workflow
 

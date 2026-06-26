@@ -660,6 +660,10 @@ fi
 echo "[6/8] Marking first-boot expand and stripping build artifacts..."
 touch "$ROOT_MNT/boot/firmware/fpp_expand_rootfs"
 rm -f "$ROOT_MNT/usr/bin/$QEMU_BIN"
+# Record the base image this was built from, next to /etc/fpp/rfs_version, for
+# traceability on the device (matches the BB image builders).
+mkdir -p "$ROOT_MNT/etc/fpp"
+echo "$BASE_XZ" > "$ROOT_MNT/etc/fpp/base_image_name"
 # Restore the /etc/resolv.conf -> systemd-resolved symlink for the booted
 # image. We injected a real resolv.conf above for the chroot's apt/rpi-update;
 # leaving it as a static (now empty) file means anything that reads

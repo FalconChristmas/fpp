@@ -17,24 +17,37 @@ Output:
     output/FPP-v10.0-dev-BBB.img.zip
     output/BBB-10.0-dev_2026-04.fppos
 
-Default base image
-------------------
+Base image (auto-discovered)
+----------------------------
 
-    https://rcn-ee.net/rootfs/debian-armhf-13-base-v6.18/2026-06-03/am335x-debian-13.5-base-v6.18-armhf-2026-06-03-4gb.img.xz
+rcn-ee keeps only the ~5 most recent dated builds online (a rolling window),
+so the script no longer pins a date. At run time it parses the directory
+listing and selects the newest build automatically:
 
-When upstream rev's, override:
+    Listing: https://rcn-ee.net/rootfs/debian-armhf-13-base-v6.18/
+    Picks:   the latest YYYY-MM-DD/ subdir, then the image whose filename
+             starts with "am335x-debian-" (e.g.
+             am335x-debian-13.5-base-v6.18-armhf-<date>-4gb.img.xz)
 
-    --base-image-date 2026-MM-DD
-    --base-image-debver 13.X
-    --base-image-kernel v6.18
-    --base-image-size 4gb
-    --base-image-name <full-filename>
-    --base-image-url  <full-url>
+The matching .img.xz.sha256sum is fetched and verified automatically. Note
+that FPP replaces the kernel with its patched .deb regardless, so the base
+image's stock kernel version doesn't matter -- only that it is current.
+
+To override the auto-selection (most specific wins):
+
+    --base-image-date 2026-MM-DD          # pin a specific dated build
+    --base-image-board am335x             # board filename prefix
+    --base-image-kernel v6.18             # kernel path segment of the listing
+    --base-image-name <full-filename>     # exact filename within the date dir
+    --base-image-url  <full-url>          # full override, skips discovery
+
+The resolved base image filename is recorded in the device's
+/etc/fpp/base_image_name (alongside /etc/fpp/rfs_version) for traceability.
 
 BBB-specific flags
 ------------------
 
-  --fpp-kernel-ver VER         FPP-patched kernel version. Default: 6.18.8-fpp18_1.
+  --fpp-kernel-ver VER         FPP-patched kernel version. Default: 6.18.36-fpp40_1.
                                Pulled from FalconChristmas/fpp-linux-kernel.
 
   --fpp-kernel-url URL         Full override of the kernel .deb URL.
@@ -47,9 +60,10 @@ BBB-specific flags
 What the script does
 --------------------
 
-1. Downloads (and caches) the rcn-ee am335x base image AND the FPP-patched
-   kernel .deb from FalconChristmas/fpp-linux-kernel. The kernel is fetched
-   on the host (TLS in qemu-arm chroots is unreliable).
+1. Resolves + downloads (and caches) the latest rcn-ee am335x base image
+   from the directory listing (verifying its published sha256sum), plus the
+   FPP-patched kernel .deb from FalconChristmas/fpp-linux-kernel. The kernel
+   is fetched on the host (TLS in qemu-arm chroots is unreliable).
 2. Loop-mounts the base, grows partition 3 (BB layout) to fill, resize2fs.
 3. Pre-boot tweaks (same as BB64 plus a bluetooth blacklist for BBGW/BBBW):
      - Disable growpart, install FPP network config, write sysconf.txt
@@ -61,14 +75,16 @@ What the script does
      - apt-get remove rcn-ee bloat (code-server, rust, docker, nginx,
        unused u-boots, vendor firmware blobs)
      - rm -rf /opt/source/dtb-*  (old DTB packages)
-     - dpkg -i the FPP kernel; identify and remove old kernel modules via
-       /lib/modules snapshot (uname -r is wrong under qemu)
      - SD/FPP_Install.sh --img --yes --branch ${FPPBRANCH}
        with FPPPLATFORM_OVERRIDE="BeagleBone Black"
-     - Re-purge any old kernel headers FPP_Install.sh may have re-pulled
+     - dpkg -i the FPP kernel as the LAST step (after FPP_Install.sh's apt
+       activity, so package deps can't silently reinstate a stock kernel);
+       identify and remove old kernel modules via /lib/modules snapshot
+       (uname -r is wrong under qemu)
      - Cleanup
 6. Touches /boot/fpp_expand_rootfs (note: /boot/, NOT /boot/firmware/ --
-   different from Pi/BB64).
+   different from Pi/BB64) and writes the resolved base image filename to
+   /etc/fpp/base_image_name.
 7. Drops the chroot binds, mksquashfs, zerofree, zip, move to output/.
 
 Notes
@@ -79,8 +95,10 @@ Notes
   iteration (won't produce a release-quality image but exercises the path).
 - FPPPLATFORM_OVERRIDE belt-and-suspenders: detection now also checks
   /etc/bbb.io/templates/bb-boot and /boot/firmware/ID.txt.
-- The custom kernel install runs BEFORE FPP_Install.sh so kernel failures
-  fail fast (~minutes vs hours after the FPP compile).
+- The custom kernel .deb is pre-fetched on the host up front (so a bad URL
+  fails fast, before the long chroot), but is dpkg-installed as the very
+  LAST chroot step -- after FPP_Install.sh -- so nothing it apt-installs can
+  drag a stock kernel back in via dependencies.
 
 eMMC AutoFlash
 --------------
