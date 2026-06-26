@@ -36,6 +36,23 @@
     status = "disabled";
 };
 
+/*
+ * i2c2 is the standard cape i2c bus (EEPROM at 0x50, plus cape RTCs, GPIO
+ * expanders, etc.). The bone-pinmux-helper used to mux it at boot via its
+ * "default" state; with the helper removed we mux it persistently here so the
+ * whole cape bus stays available with no runtime help. am335xpm can still
+ * re-mux these pins for the rare cape that repurposes them (it bypasses the
+ * pinctrl-single claim), so this does not lock them.
+ */
+&am33xx_pinmux {
+	i2c2_pins: pinmux_i2c2_pins {
+		pinctrl-single,pins = <
+			UART1_CTSN(PIN_OUTPUT_PULLUP | INPUT_EN | MUX_MODE3)  /* P9_20 i2c2_sda */
+			UART1_RTSN(PIN_OUTPUT_PULLUP | INPUT_EN | MUX_MODE3)  /* P9_19 i2c2_scl */
+		>;
+	};
+};
+
 &i2c1 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -48,7 +65,7 @@
 &i2c2 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <>;
+	pinctrl-0 = <&i2c2_pins>;
 
 	clock-frequency = <400000>;
 	symlink = "bone/i2c/2";
