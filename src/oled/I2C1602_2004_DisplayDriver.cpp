@@ -1,4 +1,5 @@
 #include "fpp-pch.h"
+#include <cstring>
 
 #include <fcntl.h>
 #include <thread>

@@ -11,6 +11,8 @@
  */
 
 #include "fpp-pch.h"
+#include <cstdio>
+#include <cstring>
 
 #include <fcntl.h>
 #include <unistd.h>

@@ -11,6 +11,7 @@
  */
 
 #include "fpp-pch.h"
+#include <cstring>
 
 #include <arpa/inet.h>
 #include <sys/file.h>

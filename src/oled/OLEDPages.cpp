@@ -1,4 +1,5 @@
 #include "fpp-pch.h"
+#include <memory>
 
 #include <fstream>
 

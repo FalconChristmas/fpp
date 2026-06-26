@@ -15,6 +15,7 @@
 #include "../log.h"
 
 #include "Matrix.h"
+#include <cstring> // memcpy -- needed directly for NOPCH builds
 
 /*
  *

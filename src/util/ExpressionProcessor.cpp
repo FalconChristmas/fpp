@@ -11,6 +11,8 @@
  */
 
 #include "fpp-pch.h"
+#include <vector>
+#include <cstring>
 
 #include <list>
 #include <map>

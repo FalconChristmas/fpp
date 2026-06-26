@@ -1,4 +1,6 @@
 #include "fpp-pch.h"
+#include <cstdint>
+#include <cstring>
 
 #include "DisplayDriver.h"
 #include "I2C.h"
