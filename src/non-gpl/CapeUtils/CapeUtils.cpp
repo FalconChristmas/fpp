@@ -662,7 +662,43 @@ bool isPocketBeagle() {
     }
     return ret;
 }
+// Query a pin's current pinmux mode name via the pinctrl tool. Reads work on
+// both am335xpm and older /dev/mem kernels. Returns "" if unavailable.
+static std::string PinCurrentMode(const std::string& pin) {
+    if (!file_exists("/usr/bin/pinctrl")) {
+        return "";
+    }
+    std::string out;
+    std::string cmd = "/usr/bin/pinctrl -q " + pin + " 2>/dev/null";
+    FILE* p = popen(cmd.c_str(), "r");
+    if (p) {
+        char buf[256];
+        while (fgets(buf, sizeof(buf), p)) {
+            out += buf;
+        }
+        pclose(p);
+    }
+    // pinctrl -q prints "<pin>:\n\t<BALL>:  <hex>    <mode>"; take the last token
+    size_t end = out.find_last_not_of(" \t\r\n");
+    if (end == std::string::npos) {
+        return "";
+    }
+    size_t start = out.find_last_of(" \t\r\n", end);
+    return out.substr(start == std::string::npos ? 0 : start + 1,
+                      end - (start == std::string::npos ? 0 : start));
+}
 void ConfigurePin(const char* pin, const char* mode) {
+    // Prefer the pinctrl tool: it writes via /dev/am335xpm on am335xpm kernels
+    // (where direct userspace register writes are silently dropped) and via the
+    // bone-pinmux-helper sysfs on older kernels. Fall back to the helper sysfs
+    // directly only if the tool is absent (keeps pre-pinctrl images working).
+    if (file_exists("/usr/bin/pinctrl") && pin[0] == 'P' && (pin[2] == '_' || pin[2] == '-')) {
+        char cmd[256];
+        snprintf(cmd, sizeof(cmd), "/usr/bin/pinctrl -s %s %s", pin, mode);
+        if (system(cmd) == 0) {
+            return;
+        }
+    }
     char dir_name[255];
     snprintf(dir_name, sizeof(dir_name),
              "/sys/devices/platform/ocp/ocp:%s_pinmux/state",
@@ -822,6 +858,20 @@ private:
     }
 
     void findCapeEEPROM() {
+        // The cape EEPROM is normally on i2c2 (UART1_RTSN/CTSN). On am335xpm
+        // kernels with the trimmed overlay, the bone-pinmux-helper no longer
+        // muxes those pins to i2c2 at boot, so do it here. Query first so we can
+        // restore the original mode if the EEPROM turns out not to be on i2c2.
+        // No-op on older kernels (helper already set i2c2; query reports "i2c").
+        std::string i2c2_o1, i2c2_o2;
+#ifdef PLATFORM_BBB
+        if (!isPocketBeagle()) {
+            i2c2_o1 = PinCurrentMode("P9_19");
+            i2c2_o2 = PinCurrentMode("P9_20");
+            if (i2c2_o1 != "i2c") ConfigurePin("P9_19", "i2c");
+            if (i2c2_o2 != "i2c") ConfigurePin("P9_20", "i2c");
+        }
+#endif
         waitForI2CBus(bus);
         if (bus == 2 && !HasI2CDevice(0x50, bus)) {
             printf("Did not find 0x50 on i2c2, trying i2c1.\n");
@@ -831,6 +881,11 @@ private:
             } else {
                 ConfigureI2C1BusPins(false);
             }
+        }
+        // If we forced i2c on the i2c2 pins but the EEPROM isn't on i2c2, restore.
+        if (bus != 2) {
+            if (!i2c2_o1.empty() && i2c2_o1 != "i2c") ConfigurePin("P9_19", i2c2_o1.c_str());
+            if (!i2c2_o2.empty() && i2c2_o2 != "i2c") ConfigurePin("P9_20", i2c2_o2.c_str());
         }
         if (HasI2CDevice(0x50, bus)) {
             EEPROM = string_sprintf("/sys/bus/i2c/devices/%d-0050/eeprom", bus);
