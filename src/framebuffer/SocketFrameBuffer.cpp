@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+
 #include "../common_mini.h" // FPPstrerror() -- needed directly for NOPCH builds
 
 #include "SocketFrameBuffer.h"

@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+
 #include "AES67Manager.h"
 
 #ifdef HAS_AES67_GSTREAMER

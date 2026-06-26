@@ -11,6 +11,8 @@
  */
 
 #include "fpp-pch.h"
+
+#include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 #include <cmath>
 
 #include "GStreamerOut.h"

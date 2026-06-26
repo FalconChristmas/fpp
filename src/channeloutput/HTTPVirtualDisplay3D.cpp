@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <fcntl.h>

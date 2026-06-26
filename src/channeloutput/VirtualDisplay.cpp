@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <cmath>

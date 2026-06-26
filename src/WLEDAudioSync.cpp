@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
