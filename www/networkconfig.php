@@ -2228,6 +2228,12 @@
                     <p><span class="ui-icon ui-icon-alert" style="margin: 0 7px 20px 0;"></span>Creating
                         persistent device names can make it harder to add new network devices or replace existing
                         devices in the future. Do you wish to proceed?</p>
+                    <div class="fpp-alert fpp-alert--warning fpp-alert--compact" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Note: In FPP 10, interface names are no longer changed to
+                            "enx&lt;mac&gt;" style names when persistent names are enabled &mdash; they
+                            keep their existing eth0 / eth1 names.</strong>
+                    </div>
                 </div>
                 <div id="dialog-addinterface" title="Add New Interface" class="hidden">
                     <span>Enter name for the new interface (eg wlan0 or eth0 etc):</span>
