@@ -30,8 +30,8 @@ RF24_CCFLAGS += -Wno-parentheses -Wno-unused-value -Wno-misleading-indentation
 ../external/RF24/librf24-bcm.so: ../external/RF24/.git $(PCH_FILE)
 	@echo "Building RF24 library"
 	@CC="ccache gcc" CXX="ccache g++" $(MAKE) -C ../external/RF24/ CCFLAGS="$(RF24_CCFLAGS)"
-	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
-	@ln -s librf24-bcm.so.1 ../external/RF24/librf24-bcm.so
+	@ln -sf librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
+	@ln -sf librf24-bcm.so.1 ../external/RF24/librf24-bcm.so
 
 #############################################################################
 # RGBMatrix library on the Pi
