@@ -12,7 +12,7 @@
  */
 
 #include "ThreadedChannelOutput.h"
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include "util/GPIOUtils.h"
 
 class GPIO595Output : public ThreadedChannelOutput {

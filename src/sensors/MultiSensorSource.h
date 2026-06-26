@@ -12,7 +12,7 @@
  */
 
 #include "Sensors.h"
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include "../util/GPIOUtils.h"
 #include <array>
 #include <mutex>

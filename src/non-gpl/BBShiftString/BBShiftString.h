@@ -13,7 +13,7 @@
  */
 
 #include <string>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include <vector>
 
 #include "../FalconV5Support/FalconV5Support.h"

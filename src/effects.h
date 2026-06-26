@@ -13,7 +13,7 @@
 
 // Effect Sequence file format and header definition
 #include <string>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 
 int GetRunningEffects(char* msg, char** result);
 Json::Value GetRunningEffectsJson();

@@ -12,7 +12,7 @@
  */
 
 #include <ctime>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include "fpphttp_types.h"
 #include <map>
 

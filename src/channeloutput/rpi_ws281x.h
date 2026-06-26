@@ -13,7 +13,7 @@
 
 extern "C" {
 #include "../../external/rpi_ws281x/clk.h"
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include "../../external/rpi_ws281x/dma.h"
 #include "../../external/rpi_ws281x/gpio.h"
 #include "../../external/rpi_ws281x/pwm.h"

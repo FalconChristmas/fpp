@@ -12,7 +12,7 @@
  */
 
 #include "ChannelOutput.h"
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 
 /*
  * This DebugOutput Channel Output driver is provided for debugging

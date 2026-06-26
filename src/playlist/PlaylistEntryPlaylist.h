@@ -12,7 +12,7 @@
  */
 
 #include "Playlist.h"
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryPlaylist : public PlaylistEntryBase {

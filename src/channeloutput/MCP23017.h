@@ -12,7 +12,7 @@
  */
 
 #include "ChannelOutput.h"
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include "util/I2CUtils.h"
 
 class MCP23017Output : public ChannelOutput {

@@ -28,7 +28,7 @@ __attribute__((weak, visibility("default"))) int fpp_plugin_api_version() { retu
 }
 #endif
 
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 
 class MediaDetails;
 class ChannelOutput;

@@ -15,7 +15,7 @@
 #include <mutex>
 #include <string>
 
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 
 #include "MediaOutputStatus.h"
 

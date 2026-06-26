@@ -13,7 +13,7 @@
  */
 
 #include <functional>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include <list>
 #include <map>
 

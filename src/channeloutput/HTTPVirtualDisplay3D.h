@@ -12,7 +12,7 @@
  */
 
 #include <mutex>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include <thread>
 #include <vector>
 

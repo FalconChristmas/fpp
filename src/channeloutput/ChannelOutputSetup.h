@@ -12,7 +12,7 @@
  */
 
 #include <pthread.h>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include <set>
 #include <stdint.h>
 #include <string>

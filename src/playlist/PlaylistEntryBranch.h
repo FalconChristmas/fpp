@@ -12,7 +12,7 @@
  */
 
 #include <string>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 
 #include "Playlist.h"
 #include "PlaylistEntryBase.h"

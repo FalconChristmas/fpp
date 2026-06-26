@@ -12,7 +12,7 @@
  */
 
 #include "UDPOutput.h"
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include <list>
 
 #define KINET_PORT 6038

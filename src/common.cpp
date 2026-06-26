@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif

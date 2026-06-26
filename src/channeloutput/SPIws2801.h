@@ -12,7 +12,7 @@
  */
 
 #include "ThreadedChannelOutput.h"
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include "util/SPIUtils.h"
 
 class SPIws2801Output : public ThreadedChannelOutput {

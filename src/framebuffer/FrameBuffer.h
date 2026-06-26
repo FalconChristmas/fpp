@@ -12,7 +12,7 @@
  */
 
 #include <atomic>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include <condition_variable>
 #include <list>
 #include <mutex>

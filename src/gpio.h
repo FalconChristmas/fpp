@@ -11,7 +11,7 @@
  * included LICENSE.LGPL file.
  */
 #include <functional>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include <map>
 #include <vector>
 #include "fpphttp_types.h"

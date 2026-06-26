@@ -12,7 +12,7 @@
  */
 
 #include <map>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include <list>
 
 #include "ChannelOutput.h"

@@ -12,10 +12,11 @@
  */
 
 #include <netinet/in.h>
-#include "fpp-json.h"
+#include "fpp-json-fwd.h"
 #include <sys/types.h>
 #include <mutex>
 #include <pthread.h>
+#include <map>
 #include <set>
 
 #include "SysSocket.h"
