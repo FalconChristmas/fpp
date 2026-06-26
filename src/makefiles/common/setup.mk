@@ -24,7 +24,10 @@ else
 	# to the uid actually running make -- which IS the distcc client -- so root
 	# and fpp never collide on each other's 0600 lock files.
 	export DISTCC_DIR := /tmp/.fpp-distcc-$(shell id -u)
-	$(shell mkdir -p $(DISTCC_DIR))
+	# Assign the mkdir to a throwaway var: a bare $(shell ...) on a tab-indented
+	# line is parsed as a recipe ("recipe commences before first target"); an
+	# assignment is not.
+	DISTCC_DIR_MKDIR := $(shell mkdir -p $(DISTCC_DIR))
 endif
 endif
 
