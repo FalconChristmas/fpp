@@ -50,9 +50,10 @@
 #   sudo ./setup_distcc_host.sh                 # auto-detect LAN, install, start
 #   sudo ./setup_distcc_host.sh 192.168.7.0/24  # force the allowed network(s)
 #   sudo ALLOWEDNETS="10.0.0.0/24 10.0.1.0/24" ./setup_distcc_host.sh
-#   sudo MDNS=1 ./setup_distcc_host.sh          # also advertise via mDNS/Zeroconf
-#                                               #   (pairs with the client's
-#                                               #   "Discover distcc Hosts via mDNS")
+#   sudo MDNS=0 ./setup_distcc_host.sh          # do NOT advertise via mDNS/Zeroconf
+#                                               #   (mDNS is ON by default; it pairs
+#                                               #   with the client's "Discover
+#                                               #   distcc Hosts via mDNS" setting)
 #   sudo ./setup_distcc_host.sh disable         # stop & disable the helper
 #####################################
 
@@ -141,12 +142,13 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y distcc
 ensure_triplet arm-linux-gnueabihf   # 32-bit ARM: BBB, Pi Zero W, 32-bit Pis
 ensure_triplet aarch64-linux-gnu     # 64-bit ARM: PocketBeagle2, 64-bit Pis
 
-# ---- mDNS/Zeroconf advertising (opt-in) ------------------------------------
-# When enabled, clients can auto-discover this helper with DISTCC_HOSTS="+zeroconf"
-# (the FPP "Discover distcc Hosts via mDNS" developer setting) instead of listing
-# it explicitly. Opt in with MDNS=1; needs avahi, which FPP already ships.
+# ---- mDNS/Zeroconf advertising (on by default) -----------------------------
+# Advertise this helper via mDNS so clients can auto-discover it with the FPP
+# "Discover distcc Hosts via mDNS" developer setting instead of listing it
+# explicitly. There's little reason to leave it off, so it's ON by default;
+# opt out with MDNS=0. Needs avahi, which FPP already ships.
 ZEROCONF="false"
-if [ "${MDNS:-0}" = "1" ]; then
+if [ "${MDNS:-1}" = "1" ]; then
     ZEROCONF="true"
     command -v avahi-daemon >/dev/null 2>&1 || \
         DEBIAN_FRONTEND=noninteractive apt-get install -y avahi-daemon

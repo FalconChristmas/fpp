@@ -89,8 +89,9 @@ sudo /opt/fpp/scripts/setup_distcc_host.sh
 ```
 
 This installs distcc plus the aarch64 and armhf GCC toolchains, restricts access to your
-LAN (auto-detected; override with a CIDR argument or `ALLOWEDNETS="..."`), and starts the
-daemon. Add `MDNS=1` to also advertise the helper via Zeroconf/mDNS. Turn it back off with
+LAN (auto-detected; override with a CIDR argument or `ALLOWEDNETS="..."`), advertises the
+helper via Zeroconf/mDNS so clients can auto-discover it, and starts the daemon. mDNS is on
+by default; pass `MDNS=0` to disable the advertising. Turn the helper back off with
 `sudo /opt/fpp/scripts/setup_distcc_host.sh disable`.
 
 > The stock Debian distccd systemd unit mishandles multiple networks: it passes them all to
@@ -105,14 +106,14 @@ On the client, go to **Status/Control > FPP Settings > Developer** (UI level 3) 
 
 * enable **Use distcc for Compiles** and set **Distcc Hosts** to your helper, e.g.
   `fpppi5:3632/6,lzo` (each entry is `host[:port][/jobs][,options]`; space-separate several), or
-* enable **Use distcc for Compiles** and check **Discover distcc Hosts via mDNS** (and run
-  the helper setup with `MDNS=1`).
+* enable **Use distcc for Compiles** and check **Discover distcc Hosts via mDNS** (the helper
+  advertises itself by default, so nothing extra is needed on it).
 
 > **mDNS discovery works across architectures.** FPP browses the advertised `_distcc._tcp`
 > services with avahi and feeds them as *explicit* hosts, so a 64-bit Pi helper can serve a
 > 32-bit BeagleBone. (It deliberately avoids distcc's built-in `+zeroconf`, which filters
 > helpers by CPU architecture and would silently ignore a cross-arch helper.) The helper
-> just needs to be advertising — run its setup with `MDNS=1`.
+> just needs to be advertising, which `setup_distcc_host.sh` does by default.
 
 A **Rebuild FPP** from the Developer tab, or a branch change, then builds through distcc.
 
