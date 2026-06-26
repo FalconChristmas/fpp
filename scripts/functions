@@ -205,6 +205,28 @@ function ComputeDistccParallelism() {
     echo "${total}"
 }
 
+# Discover distcc helpers advertised on the LAN via mDNS and emit a DISTCC_HOSTS
+# list ("addr:port/jobs,lzo ..."). We browse _distcc._tcp with avahi ourselves
+# instead of using distcc's built-in "+zeroconf" because distcc's zeroconf
+# discovery filters helpers by CPU architecture and silently drops a cross-arch
+# helper (an aarch64 Pi advertises "aarch64", so an armhf BeagleBone ignores it).
+# Feeding the discovered helpers as EXPLICIT hosts skips that filter; helpers set
+# up via setup_distcc_host.sh carry both the native and the armhf cross
+# toolchains, so any of them can serve any client. Empty if avahi or no helper
+# is found.
+function DiscoverDistccHosts() {
+    command -v avahi-browse >/dev/null 2>&1 || return 0
+    local out="" marker iface proto name typ domain host addr port rest jobs
+    while IFS=';' read -r marker iface proto name typ domain host addr port rest; do
+        [ "${marker}" = "=" ] && [ "${proto}" = "IPv4" ] || continue
+        [ -n "${addr}" ] && [ -n "${port}" ] || continue
+        jobs=$(echo "${rest}" | grep -oE 'jobs=[0-9]+' | head -1 | cut -d= -f2)
+        [ -n "${jobs}" ] || jobs=4
+        out="${out} ${addr}:${port}/${jobs},lzo"
+    done < <(timeout 4 avahi-browse -rp _distcc._tcp 2>/dev/null)
+    echo "${out# }"
+}
+
 # Prepare the environment for a source rebuild based on the FPP distcc settings.
 # MUST be called directly (not in a $(...) subshell) so the DISTCC_HOSTS export
 # survives into the make that follows. Sets these globals:
@@ -219,7 +241,10 @@ function SetupBuildEnv() {
     enabled=$(getSetting DistccEnabled)
     if [ "${enabled}" = "1" ]; then
         if [ "$(getSetting DistccUseMDNS)" = "1" ]; then
-            hosts="+zeroconf"
+            # Browse the LAN for advertised helpers ourselves (works cross-arch,
+            # unlike distcc's "+zeroconf" -- see DiscoverDistccHosts).
+            hosts=$(DiscoverDistccHosts)
+            [ -z "${hosts}" ] && echo "distcc: mDNS enabled but no helpers were discovered on the network"
         else
             hosts=$(getSetting DistccHosts)
         fi
@@ -246,7 +271,12 @@ compileBinaries() {
     export LANG=en_US.UTF-8
     export TERM=linux
 
-    CPUS=$(ComputeMakeParallelism)
+    # Honor the distcc developer settings: SetupBuildEnv exports DISTCC_HOSTS
+    # (which ${SUDO} == "sudo -E" then passes to make) and sizes -j; the
+    # makefiles switch to ccache distcc + NOPCH + the triplet compiler. No-op
+    # when distcc is disabled (BUILD_CPUS == ComputeMakeParallelism).
+    SetupBuildEnv
+    CPUS=${BUILD_CPUS}
 
     # Need to unset HOME so that ccache will user /root instead of /home/fpp
     unset HOME

@@ -82,10 +82,6 @@ ifeq '$(findstring clang,$(CXXCOMPILER))' ''
 			refs/remotes/origin/master refs/remotes/origin/main \
 			2>/dev/null | head -1 | sed 's|^origin/||')
 	endif
-	ifeq ($(FPPBRANCH),master)
-	OPTIMIZE_FLAGS=-g1
-	endif
-    GCCVERSIONGTEQ12:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 12)
     # Common CFLAGS
 ifeq ($(DISTCC_HOSTS),)
     PCH_FILE=fpp-pch.h.gch
@@ -93,7 +89,7 @@ ifeq ($(DISTCC_HOSTS),)
 else
 	CFLAGS+=-DNOPCH
 endif
-    OPTIMIZE_FLAGS+=-O3 -Wno-psabi
+    OPTIMIZE_FLAGS+=-g1 -O3 -Wno-psabi
     debug: OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
 	ifeq '$(FPPDEBUG)' '1'
 	    OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
@@ -102,11 +98,7 @@ endif
     asan: LDFLAGS+=-fsanitize=address
     tsan: OPTIMIZE_FLAGS=-g -O1 -Wno-psabi -fsanitize=thread -fno-omit-frame-pointer
     tsan: LDFLAGS+=-fsanitize=thread
-    ifeq "$(GCCVERSIONGTEQ12)" "1"
-        CXXFLAGS += -std=gnu++23
-    else
-        CXXFLAGS += -std=gnu++2a
-    endif
+    CXXFLAGS += -std=gnu++23
 else
     OPTIMIZE_FLAGS=-O3
     debug: OPTIMIZE_FLAGS=-g -DDEBUG

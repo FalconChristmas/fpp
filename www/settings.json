@@ -1763,7 +1763,7 @@
 		"DistccUseMDNS": {
 			"name": "DistccUseMDNS",
 			"description": "Discover distcc Hosts via mDNS",
-			"tip": "Automatically discover distcc helper hosts on the local network using Zeroconf/mDNS instead of listing them below. The helper must advertise itself (run setup_distcc_host.sh with MDNS=1). When enabled, the Distcc Hosts field below is ignored.",
+			"tip": "Automatically discover distcc helper hosts on the local network via mDNS instead of listing them below (FPP browses the advertised _distcc._tcp services with avahi). The helper must advertise itself (run setup_distcc_host.sh with MDNS=1). Works across CPU architectures, e.g. a 64-bit Pi compiling for a 32-bit BeagleBone. When enabled, the Distcc Hosts field below is ignored.",
 			"level": 3,
 			"restart": 0,
 			"reboot": 0,

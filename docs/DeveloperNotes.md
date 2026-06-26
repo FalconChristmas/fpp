@@ -108,6 +108,12 @@ On the client, go to **Status/Control > FPP Settings > Developer** (UI level 3) 
 * enable **Use distcc for Compiles** and check **Discover distcc Hosts via mDNS** (and run
   the helper setup with `MDNS=1`).
 
+> **mDNS discovery works across architectures.** FPP browses the advertised `_distcc._tcp`
+> services with avahi and feeds them as *explicit* hosts, so a 64-bit Pi helper can serve a
+> 32-bit BeagleBone. (It deliberately avoids distcc's built-in `+zeroconf`, which filters
+> helpers by CPU architecture and would silently ignore a cross-arch helper.) The helper
+> just needs to be advertising — run its setup with `MDNS=1`.
+
 A **Rebuild FPP** from the Developer tab, or a branch change, then builds through distcc.
 
 ## Using it from the command line
