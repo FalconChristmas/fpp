@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <X11/Xutil.h>
 
 #include "../log.h"

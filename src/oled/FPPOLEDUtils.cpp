@@ -1,5 +1,7 @@
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>

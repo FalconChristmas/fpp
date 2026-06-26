@@ -12,6 +12,7 @@
  */
 
 #include "UDPOutput.h"
+#include "fpp-json.h"
 #include <list>
 
 #define DDP_PORT 4048

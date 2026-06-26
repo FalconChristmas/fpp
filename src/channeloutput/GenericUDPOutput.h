@@ -12,6 +12,7 @@
  */
 
 #include "ChannelOutput.h"
+#include "fpp-json.h"
 
 class GenericUDPOutput : public ChannelOutput {
 public:

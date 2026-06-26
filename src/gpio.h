@@ -11,9 +11,10 @@
  * included LICENSE.LGPL file.
  */
 #include <functional>
+#include "fpp-json.h"
 #include <map>
 #include <vector>
-#include "fpphttp.h"
+#include "fpphttp_types.h"
 #include "config.h"
 
 constexpr uint32_t DEFAULT_GPIO_DEBOUNCE_TIME = 100000;

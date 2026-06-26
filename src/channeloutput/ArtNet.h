@@ -12,6 +12,7 @@
  */
 
 #include <netinet/in.h>
+#include "fpp-json.h"
 #include <sys/uio.h>
 #include <vector>
 

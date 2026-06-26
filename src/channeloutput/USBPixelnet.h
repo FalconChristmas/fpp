@@ -12,6 +12,7 @@
  */
 
 #include <string>
+#include "fpp-json.h"
 
 #include "SerialChannelOutput.h"
 #include "ThreadedChannelOutput.h"

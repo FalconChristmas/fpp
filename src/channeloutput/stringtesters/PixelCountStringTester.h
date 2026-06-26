@@ -12,6 +12,8 @@
  */
 
 #include "PixelStringTester.h"
+#include <cstdint>
+#include <vector>
 
 class PixelCountPixelStringTester : public PixelStringTester {
 protected:

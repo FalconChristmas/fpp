@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <cstring>

@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include "MultiSensorSource.h"
 
 MultiSensorSource::MultiSensorSource(Json::Value& config) :

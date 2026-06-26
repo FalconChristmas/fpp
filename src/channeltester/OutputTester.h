@@ -12,6 +12,7 @@
  */
 
 #include <set>
+#include "fpp-json.h"
 #include <string>
 
 #include "TestPatternBase.h"

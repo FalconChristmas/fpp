@@ -13,6 +13,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <algorithm>
 #include <vector>
 

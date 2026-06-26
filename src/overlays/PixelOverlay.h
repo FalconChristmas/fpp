@@ -12,8 +12,9 @@
  */
 
 #include <atomic>
+#include "fpp-json.h"
 #include <condition_variable>
-#include "fpphttp.h"
+#include "fpphttp_types.h"
 #include <list>
 #include <map>
 #include <mutex>

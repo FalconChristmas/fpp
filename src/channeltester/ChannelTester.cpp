@@ -12,8 +12,12 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+#include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
+
 #include "../common.h"
 #include "../log.h"
+#include <unistd.h> // usleep -- needed directly for NOPCH builds
 
 #include "ChannelTester.h"
 #include "channeloutput/ChannelOutputSetup.h"

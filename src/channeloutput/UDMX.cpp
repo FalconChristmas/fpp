@@ -11,6 +11,7 @@
  */
 
 #include "fpp-pch.h"
+#include "fpp-json.h"
 
 #include <fcntl.h>
 #include <termios.h>

@@ -12,6 +12,7 @@
  */
 
 #include "ThreadedChannelOutput.h"
+#include "fpp-json.h"
 
 class ILI9488Output : public ThreadedChannelOutput {
 public:

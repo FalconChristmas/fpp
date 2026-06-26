@@ -12,6 +12,7 @@
  */
 
 #include <stdint.h>
+#include "fpp-json.h"
 
 #include <functional>
 #include <list>

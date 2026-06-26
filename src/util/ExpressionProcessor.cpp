@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 
 #include <list>
+#include <map>
 
 #include "ExpressionProcessor.h"
 

@@ -12,6 +12,7 @@
  */
 
 #include <string>
+#include "fpp-json.h"
 #include <time.h>
 #include <utility>
 

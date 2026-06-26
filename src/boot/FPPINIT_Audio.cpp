@@ -11,6 +11,7 @@
  */
 
 #include <algorithm>
+#include "fpp-json.h"
 #include <chrono>
 #include <climits>
 #include <cstdio>

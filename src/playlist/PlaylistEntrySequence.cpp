@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include "../common.h"
 #include "../log.h"
 #include "../settings.h"

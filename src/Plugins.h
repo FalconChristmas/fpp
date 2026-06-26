@@ -12,6 +12,7 @@
  */
 
 #include <atomic>
+#include "fpp-json.h"
 #include <functional>
 #include <set>
 #include <string>

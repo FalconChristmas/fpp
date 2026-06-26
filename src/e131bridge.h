@@ -12,6 +12,7 @@
  */
 
 #include <functional>
+#include "fpp-json.h"
 #include <map>
 
 void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks);

@@ -5,11 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#if __has_include(<jsoncpp/json/json.h>)
-#include <jsoncpp/json/json.h>
-#elif __has_include(<json/json.h>)
-#include <json/json.h>
-#endif
+#include "fpp-json.h"
 
 #include "FPPOLEDUtils.h"
 #include "OLEDPages.h"

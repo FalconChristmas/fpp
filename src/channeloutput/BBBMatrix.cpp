@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include "BBBMatrix.h"
 #include <sys/mman.h>
 #include <sys/wait.h>

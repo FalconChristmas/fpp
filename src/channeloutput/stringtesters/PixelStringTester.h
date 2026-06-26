@@ -11,6 +11,8 @@
  * included LICENSE.GPL file.
  */
 
+#include <cstdint>
+
 class PixelString;
 class VirtualString;
 

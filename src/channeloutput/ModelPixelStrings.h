@@ -12,6 +12,7 @@
  */
 
 #include <vector>
+#include "fpp-json.h"
 
 #include "PixelString.h"
 #include "ThreadedChannelOutput.h"

@@ -24,13 +24,15 @@
 // old libhttpserver-based API. See CLAUDE.md.
 #define HTTP_RESPONSE_CONST
 
-#if __has_include(<jsoncpp/json/json.h>)
-#include <jsoncpp/json/json.h>
-#elif __has_include(<json/json.h>)
-#include <json/json.h>
-#endif
-
 #ifndef NOPCH
+// jsoncpp pulls in a large chunk of the C++ standard library, so it is no longer
+// force-included into every translation unit. Under a normal (PCH) build it is
+// still precompiled here; under NOPCH/distcc builds each file that uses Json::
+// includes "fpp-json.h" itself. (FPPWarning no longer derives from Json::Value
+// -- see Warnings.h -- which is what frees the many files that only touch the
+// warnings API from having to preprocess jsoncpp.)
+#include "fpp-json.h"
+
 #include <algorithm>
 #include <array>
 #include <atomic>

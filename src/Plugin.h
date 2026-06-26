@@ -15,7 +15,7 @@
 #include <map>
 #include <string>
 
-#include "fpphttp.h"
+#include "fpphttp_types.h"
 
 // Increment this when the plugin ABI changes (e.g. virtual method signatures)
 #define FPP_PLUGIN_API_VERSION 3
@@ -28,11 +28,7 @@ __attribute__((weak, visibility("default"))) int fpp_plugin_api_version() { retu
 }
 #endif
 
-#if __has_include(<jsoncpp/json/json.h>)
-#include <jsoncpp/json/json.h>
-#elif __has_include(<json/json.h>)
-#include <json/json.h>
-#endif
+#include "fpp-json.h"
 
 class MediaDetails;
 class ChannelOutput;

@@ -12,7 +12,8 @@
  */
 
 #include <ctime>
-#include "fpphttp.h"
+#include "fpp-json.h"
+#include "fpphttp_types.h"
 
 #define FPP_HTTP_PORT 32322
 #define FPP_BIND_ADDRESS "127.0.0.1"

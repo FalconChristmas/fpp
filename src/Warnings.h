@@ -16,23 +16,37 @@
 #include <map>
 #include <string>
 
-#if __has_include(<jsoncpp/json/json.h>)
-#include <jsoncpp/json/json.h>
-#elif __has_include(<json/json.h>)
-#include <json/json.h>
-#endif
+// Forward declaration only -- FPPWarning no longer derives from Json::Value, so
+// this header does not need the (heavy) jsoncpp include. Code that serializes a
+// warning calls toJsonValue(), whose definition (in Warnings.cpp) includes the
+// real jsoncpp header.
+namespace Json {
+class Value;
+}
 
 constexpr int UNKNOWN_WARNING_ID = 0;
 
-class FPPWarning : public Json::Value {
+class FPPWarning {
 public:
-    FPPWarning(int i, const std::string& m, const std::string& p);
+    FPPWarning(int id, const std::string& message, const std::string& plugin);
 
-    std::string message() const;
-    std::string plugin() const;
-    int id() const;
+    int id() const { return m_id; }
+    const std::string& message() const { return m_message; }
+    const std::string& plugin() const { return m_plugin; }
+
+    // Extra key/value pairs attached to the warning (formerly the json "data"
+    // object). Kept as an ordered map so the serialized output is stable.
+    std::map<std::string, std::string> data;
 
     std::chrono::steady_clock::time_point timeout;
+
+    // JSON representation written to warnings_full.json / published to events.
+    Json::Value toJsonValue() const;
+
+private:
+    int m_id;
+    std::string m_message;
+    std::string m_plugin;
 };
 
 class WarningListener {

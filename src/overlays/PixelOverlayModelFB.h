@@ -12,6 +12,7 @@
  */
 
 #include "PixelOverlayModel.h"
+#include "fpp-json.h"
 #include "framebuffer/FrameBuffer.h"
 
 class PixelOverlayModelFB : public PixelOverlayModel {

@@ -12,9 +12,11 @@
  */
 
 #include <atomic>
-#include "fpphttp.h"
+#include "fpp-json.h"
+#include "fpphttp_types.h"
 #include <list>
 #include <map>
+#include <set>
 #include <span>
 #include <string>
 #include <vector>

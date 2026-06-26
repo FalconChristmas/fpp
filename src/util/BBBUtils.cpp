@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include "BBBUtils.h"
 #include <sys/mman.h>
 #include <dirent.h>

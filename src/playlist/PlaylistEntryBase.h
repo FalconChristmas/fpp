@@ -12,6 +12,7 @@
  */
 
 #include <pthread.h>
+#include "fpp-json.h"
 
 #include <string>
 

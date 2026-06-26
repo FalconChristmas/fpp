@@ -12,6 +12,7 @@
  */
 
 #include "OutputProcessor.h"
+#include "fpp-json.h"
 
 class FoldOutputProcessor : public OutputProcessor {
 public:

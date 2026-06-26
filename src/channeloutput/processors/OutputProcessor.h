@@ -12,6 +12,7 @@
  */
 
 #include "../../Sequence.h"
+#include "fpp-json.h"
 #include <functional>
 
 class OutputProcessor {

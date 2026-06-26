@@ -12,6 +12,7 @@
  */
 
 #include "ChannelOutput.h"
+#include "fpp-json.h"
 #include "util/I2CUtils.h"
 #include "commands/Commands.h"
 

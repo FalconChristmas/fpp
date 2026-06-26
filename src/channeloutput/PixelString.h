@@ -12,6 +12,7 @@
  */
 
 #include <cmath>
+#include "fpp-json.h"
 #include <list>
 #include <stdint.h>
 #include <string>

@@ -12,6 +12,7 @@
  */
 
 #include "VirtualDisplayBase.h"
+#include "fpp-json.h"
 #include "overlays/PixelOverlayModel.h"
 
 class VirtualDisplayOutput : public VirtualDisplayBaseOutput {

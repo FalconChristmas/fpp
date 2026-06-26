@@ -12,6 +12,7 @@
  */
 
 #include <map>
+#include "fpp-json.h"
 #include <mutex>
 #include <vector>
 

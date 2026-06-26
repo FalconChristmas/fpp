@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #if __has_include(<byteswap.h>)
 #include <byteswap.h>
 #else

@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include <vector>
+
 #include "PixelStringTester.h"
 
 #include "PixelCountStringTester.h"

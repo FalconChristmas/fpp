@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <Magick++/Blob.h>
 #include <Magick++/Color.h>
 #include <Magick++/Geometry.h>

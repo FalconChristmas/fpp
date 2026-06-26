@@ -24,11 +24,7 @@
 #include <fstream>
 #include <sstream>
 
-#if __has_include(<jsoncpp/json/json.h>)
-#include <jsoncpp/json/json.h>
-#elif __has_include(<json/json.h>)
-#include <json/json.h>
-#endif
+#include "fpp-json.h"
 
 // pipewiresink mode=provide enum value (GST_PIPEWIRE_SINK_MODE_PROVIDE)
 static constexpr int PIPEWIRE_SINK_MODE_PROVIDE = 2;

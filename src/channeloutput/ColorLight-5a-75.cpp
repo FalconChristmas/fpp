@@ -158,6 +158,8 @@
  */
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #ifndef PLATFORM_OSX
 #include <linux/if_packet.h>
 #include <netinet/ether.h>
@@ -167,6 +169,7 @@
 
 #include "../SysSocket.h"
 #include <arpa/inet.h>
+#include <unistd.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>

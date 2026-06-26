@@ -12,10 +12,14 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+#include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
+
 #include <sys/stat.h>
 #include <dirent.h>
 
 #include <fcntl.h>
+#include <unistd.h> // write -- needed directly for NOPCH builds
 
 #include <Magick++.h>
 

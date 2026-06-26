@@ -30,7 +30,7 @@
 
 #include <gst/gst.h>
 
-#include "fpphttp.h"
+#include "fpphttp_types.h"
 
 #include <atomic>
 #include <functional>

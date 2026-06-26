@@ -18,6 +18,9 @@
 #undef LOG_DEBUG
 
 #include "fpp-pch.h"
+
+#include "fpp-json.h"
+#include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
 #include <fcntl.h>
 
 // Defined in fppd.cpp; setting it to 0 breaks the main loop and triggers
@@ -190,7 +193,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
     Sensors::INSTANCE.reportSensors(result);
     for (auto& warn : WarningHolder::GetWarnings()) {
         result["warnings"].append(warn.message());
-        result["warningInfo"].append(warn);
+        result["warningInfo"].append(warn.toJsonValue());
     }
     if (mode == 1) {
         // bridge mode only returns the base information
@@ -666,7 +669,7 @@ HttpResponsePtr PlayerResource::render_GET(const HttpRequestPtr& req) {
     } else if (url == "warnings_full") {
         result = Json::Value(Json::ValueType::arrayValue);
         for (auto& warn : WarningHolder::GetWarnings()) {
-            result.append(warn);
+            result.append(warn.toJsonValue());
         }
     } else if (url == "e131stats") {
         GetE131BytesReceived(result);

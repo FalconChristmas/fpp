@@ -16,11 +16,7 @@
 
 #include "common_mini.h"
 
-#if __has_include(<jsoncpp/json/json.h>)
-#include <jsoncpp/json/json.h>
-#elif __has_include(<json/json.h>)
-#include <json/json.h>
-#endif
+#include "fpp-json.h"
 
 #ifdef PLATFORM_BB64
 inline const std::string SD_CARD_DEVICE = "/dev/mmcblk1";

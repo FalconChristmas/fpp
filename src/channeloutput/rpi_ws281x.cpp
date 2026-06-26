@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <fcntl.h>
 #include <signal.h>
 #include <stdint.h>

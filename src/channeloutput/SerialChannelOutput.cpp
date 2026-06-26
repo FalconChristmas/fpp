@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include "../Warnings.h"
 #include "../config.h"
 #include "../log.h"

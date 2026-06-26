@@ -12,6 +12,7 @@
  */
 
 #include <mutex>
+#include "fpp-json.h"
 
 class LocaleHolder {
 public:

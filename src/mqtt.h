@@ -12,6 +12,7 @@
  */
 
 #include <functional>
+#include "fpp-json.h"
 #include <map>
 #include <mutex>
 #include <pthread.h>

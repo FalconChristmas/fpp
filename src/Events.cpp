@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <algorithm>
 #include <chrono>
 #include <climits>
@@ -104,7 +106,7 @@ public:
         if (Events::HasEventHandlers()) {
             Json::Value rc = Json::Value(Json::arrayValue);
             for (auto& w : warnings) {
-                rc.append(w);
+                rc.append(w.toJsonValue());
             }
             std::string msg = SaveJsonToString(rc);
             LogDebug(VB_CONTROL, "Sending warning message: %s\n", msg.c_str());

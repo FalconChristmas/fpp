@@ -12,6 +12,7 @@
  */
 
 #include <cstdint>
+#include "fpp-json.h"
 #include <string>
 #include <vector>
 

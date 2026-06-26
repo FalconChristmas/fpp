@@ -14,6 +14,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include "PixelOverlay.h"
 #include "PixelOverlayModel.h"
 #include "WLEDEffects.h"

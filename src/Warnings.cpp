@@ -22,6 +22,8 @@
 #include <thread>
 #include <utility>
 
+#include "fpp-json.h" // Json::Value -- the serialization side of FPPWarning lives here
+
 #include "Warnings.h"
 #include "common.h"
 #include "log.h"
@@ -43,27 +45,24 @@ namespace
 
 static void PruneWarnings();
 
-FPPWarning::FPPWarning(int i, const std::string& m, const std::string& p) {
-    (*this)["id"] = i;
-    (*this)["message"] = m;
-    if (!p.empty()) {
-        (*this)["plugin"] = p;
-    }
+FPPWarning::FPPWarning(int i, const std::string& m, const std::string& p) :
+    m_id(i),
+    m_message(m),
+    m_plugin(p) {
     timeout = steady_clock::time_point::max();
 }
 
-std::string FPPWarning::message() const {
-    return (*this)["message"].asString();
-}
-std::string FPPWarning::plugin() const {
-    if (this->isMember("plugin")) {
-        return (*this)["plugin"].asString();
+Json::Value FPPWarning::toJsonValue() const {
+    Json::Value v;
+    v["id"] = m_id;
+    v["message"] = m_message;
+    if (!m_plugin.empty()) {
+        v["plugin"] = m_plugin;
     }
-    return "";
-}
-
-int FPPWarning::id() const {
-    return (*this)["id"].asInt();
+    for (auto& kv : data) {
+        v["data"][kv.first] = kv.second;
+    }
+    return v;
 }
 
 void WarningHolder::AddWarningListener(WarningListener* l) {
@@ -105,7 +104,7 @@ void WarningHolder::WriteWarningsFile() {
     Json::Value resultFull = Json::Value(Json::ValueType::arrayValue);
     for (auto& warn : warnings) {
         result.append(warn.message());
-        resultFull.append(warn);
+        resultFull.append(warn.toJsonValue());
     }
     SaveJsonToFile(result, getFPPDDir("/www/warnings.json"));
     SaveJsonToFile(resultFull, getFPPDDir("/www/warnings_full.json"));
@@ -166,11 +165,7 @@ void WarningHolder::AddWarningTimeout(int sec, int id, const std::string& w, con
     }
 
     auto& ref = warnings.emplace_back(id, w, plugin);
-    if (!data.empty()) {
-        for (auto& i : data) {
-            ref["data"][i.first] = i.second;
-        }
-    }
+    ref.data = data;
 
     ref.timeout = timeoutTime;
     if (timeoutTime < wakeUpTime) {

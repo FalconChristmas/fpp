@@ -12,12 +12,13 @@
  */
 
 #include <functional>
+#include "fpp-json.h"
 #include <list>
 #include <map>
 #include <mutex>
 #include <string>
 
-#include "fpphttp.h"
+#include "fpphttp_types.h"
 
 #include "util/GPIOUtils.h"
 

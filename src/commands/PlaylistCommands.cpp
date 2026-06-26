@@ -14,6 +14,7 @@
 
 #include "../common.h"
 #include "../log.h"
+#include <thread> // std::this_thread::sleep_for -- needed directly for NOPCH builds
 
 #include "Player.h"
 #include "PlaylistCommands.h"

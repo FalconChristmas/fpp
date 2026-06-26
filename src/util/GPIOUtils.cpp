@@ -11,12 +11,16 @@
  */
 
 #include "fpp-pch.h"
+
+#include "fpp-json.h"
 #include "common.h"
 
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <set>
 #include <thread>
+#include <unistd.h> // ftruncate -- needed directly for NOPCH builds
 
 #include "GPIOUtils.h"
 #include "../Warnings.h"

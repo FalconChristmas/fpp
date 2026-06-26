@@ -13,6 +13,7 @@
 
 #include <mutex>
 #include <list>
+#include <map>
 #include <regex>
 
 class RegExCache {

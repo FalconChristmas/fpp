@@ -12,6 +12,7 @@
  */
 
 #include <vector>
+#include "fpp-json.h"
 
 #include "../../external/spixels/include/led-strip.h"
 

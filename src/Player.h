@@ -12,7 +12,8 @@
  */
 
 #include <ctime>
-#include "fpphttp.h"
+#include "fpp-json.h"
+#include "fpphttp_types.h"
 #include <map>
 
 #include "playlist/Playlist.h"

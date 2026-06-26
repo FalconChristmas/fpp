@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>

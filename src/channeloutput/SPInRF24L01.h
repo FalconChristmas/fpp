@@ -12,6 +12,7 @@
  */
 
 #include "ChannelOutput.h"
+#include "fpp-json.h"
 
 class SPInRF24L01PrivData;
 

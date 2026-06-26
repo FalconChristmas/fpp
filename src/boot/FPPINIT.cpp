@@ -11,6 +11,7 @@
  */
 
 #include <array>
+#include "fpp-json.h"
 #include <chrono>
 #include <cstdio>
 #include <cstring>

@@ -12,6 +12,7 @@
  */
 
 #include <array>
+#include "fpp-json.h"
 #include <mutex>
 
 #include "Sensors.h"

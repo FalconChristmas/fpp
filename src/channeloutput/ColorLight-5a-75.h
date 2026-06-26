@@ -12,6 +12,7 @@
  */
 
 #include <arpa/inet.h>
+#include "fpp-json.h"
 #include <net/if.h>
 #include <netinet/in.h>
 #include <sys/uio.h>

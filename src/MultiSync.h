@@ -12,6 +12,7 @@
  */
 
 #include <netinet/in.h>
+#include "fpp-json.h"
 #include <sys/types.h>
 #include <mutex>
 #include <pthread.h>

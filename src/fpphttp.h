@@ -16,6 +16,11 @@
 // Only include the minimal drogon headers to avoid DrObject auto-registration
 // in translation units that don't need the full framework.
 
+// HttpRequestPtr/HttpResponsePtr/HttpCallback aliases and the (drogon-free)
+// httpserver::webserver shim live here so declaration-only headers can use them
+// without the heavy drogon include below. See fpphttp_types.h.
+#include "fpphttp_types.h"
+
 #include <drogon/HttpRequest.h>
 #include <drogon/HttpResponse.h>
 
@@ -36,10 +41,8 @@
 #include <string>
 #include <vector>
 
-// Type aliases to simplify handler signatures
-using HttpRequestPtr = drogon::HttpRequestPtr;
-using HttpResponsePtr = drogon::HttpResponsePtr;
-using HttpCallback = std::function<void(const HttpResponsePtr&)>;
+// HttpRequestPtr / HttpResponsePtr / HttpCallback are defined in fpphttp_types.h
+// (included above), so they are also available to lightweight headers.
 
 // Helper to split a URL path into pieces (equivalent to libhttpserver's get_path_pieces())
 inline std::vector<std::string> getPathPieces(const std::string& path) {
@@ -175,26 +178,8 @@ public:
     }
 };
 
-// Shim for httpserver::webserver. Passed to old-style registerApis(webserver*)
-// overrides so they can call register_resource() and have routes land in drogon.
-class webserver {
-public:
-    void setPluginName(const std::string& name) { pluginName = name; }
-
-    // Registers an http_resource for the given path with drogon.
-    // If 'family' is true, also registers a regex catch-all for all subpaths.
-    // Implemented in fpphttp_compat.cpp to avoid pulling in HttpAppFramework.h here.
-    void register_resource(const std::string& path, http_resource* resource,
-                           bool family = false);
-
-    // Zeros the atomic slot for this path so in-flight and future drogon
-    // dispatches return 410 Gone instead of calling into freed plugin memory.
-    // Implemented in fpphttp_compat.cpp alongside register_resource.
-    void unregister_resource(const std::string& path, http_resource*);
-    void unregister_resource(const std::string& path);
-
-    std::string pluginName;
-};
+// Note: the httpserver::webserver shim is defined in fpphttp_types.h (it does
+// not depend on drogon), and is available here via the include above.
 
 } // namespace httpserver
 

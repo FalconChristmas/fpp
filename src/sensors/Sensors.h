@@ -12,6 +12,7 @@
  */
 
 #include <functional>
+#include "fpp-json.h"
 #include <list>
 #include <map>
 #include <string>

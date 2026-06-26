@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <dlfcn.h>
 #include <errno.h>
 #include <pthread.h>

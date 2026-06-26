@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <sys/time.h>
 #include <cstring>
 #include <ctime>

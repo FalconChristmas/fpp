@@ -12,6 +12,7 @@
  */
 
 #include <string>
+#include "fpp-json.h"
 
 #include "Matrix.h"
 #include "PanelMatrix.h"

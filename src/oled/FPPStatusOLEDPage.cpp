@@ -1,4 +1,6 @@
 #include "fpp-pch.h"
+
+#include "fpp-json.h"
 #include <fstream>
 
 #include <linux/nl80211.h>

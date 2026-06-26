@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <cinttypes>
 #include <cmath>
 #include <thread>

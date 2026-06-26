@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <cmath>
 #include <fcntl.h>
 #include <unistd.h>

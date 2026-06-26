@@ -2,7 +2,7 @@
 
 #include "OLEDPages.h"
 #include <curl/curl.h>
-#include <jsoncpp/json/json.h>
+#include "fpp-json.h"
 
 class MenuOLEDPage;
 

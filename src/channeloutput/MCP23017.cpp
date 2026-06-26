@@ -44,6 +44,8 @@
  */
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include "../log.h"
 
 #include "MCP23017.h"

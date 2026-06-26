@@ -11,6 +11,9 @@
  */
 
 #include "fpp-pch.h"
+
+#include "fpp-json.h"
+#include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
 #include "Events.h"
 
 #include <array>

@@ -13,6 +13,7 @@
  */
 
 #include <queue>
+#include "fpp-json.h"
 #include <string>
 #include <vector>
 

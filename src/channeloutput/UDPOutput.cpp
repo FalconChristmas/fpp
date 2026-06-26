@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #ifndef PLATFORM_OSX
 #include <linux/sockios.h>
 #include <sys/ioctl.h>

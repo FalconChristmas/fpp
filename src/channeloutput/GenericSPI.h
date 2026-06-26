@@ -12,6 +12,7 @@
  */
 
 #include "ThreadedChannelOutput.h"
+#include "fpp-json.h"
 #include "util/SPIUtils.h"
 
 class GenericSPIOutput : public ThreadedChannelOutput {

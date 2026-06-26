@@ -12,12 +12,13 @@
  */
 
 #include <string>
+#include "fpp-json.h"
 
 #include <pthread.h>
 
 #include "TestPatternBase.h"
 
-#include "fpphttp.h"
+#include "fpphttp_types.h"
 
 class ChannelTester {
 public:

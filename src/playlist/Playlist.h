@@ -12,6 +12,7 @@
  */
 
 #include <atomic>
+#include "fpp-json.h"
 #include <list>
 #include <mutex>
 #include <string>

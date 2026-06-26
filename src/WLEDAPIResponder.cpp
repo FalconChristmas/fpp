@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <errno.h>

@@ -12,6 +12,7 @@
  */
 
 #include "PixelOverlayModel.h"
+#include "fpp-json.h"
 
 class PixelOverlayModelSub : public PixelOverlayModel {
 public:

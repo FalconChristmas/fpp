@@ -12,6 +12,7 @@
  */
 
 #include "OutputProcessor.h"
+#include "fpp-json.h"
 
 class ColorOrderOutputProcessor : public OutputProcessor {
 public:

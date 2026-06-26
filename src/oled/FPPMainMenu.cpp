@@ -1,5 +1,7 @@
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include <net/if.h>
 #include <unistd.h>
 

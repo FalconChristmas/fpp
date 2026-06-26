@@ -1,5 +1,7 @@
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #include "../Warnings.h"
 #include "../log.h"
 

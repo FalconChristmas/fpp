@@ -12,6 +12,7 @@
  */
 
 #include <X11/Xlib.h>
+#include "fpp-json.h"
 
 #include "ThreadedChannelOutput.h"
 

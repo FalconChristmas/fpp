@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include "fpp-json.h"
+
 #ifdef PLATFORM_OSX
 #include <sys/event.h>
 #define USE_KQUEUE

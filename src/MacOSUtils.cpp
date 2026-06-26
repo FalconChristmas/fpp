@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 
 #include <getopt.h>
+#include <map>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

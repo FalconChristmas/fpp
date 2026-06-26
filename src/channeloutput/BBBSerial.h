@@ -12,6 +12,7 @@
  */
 
 #include <string>
+#include "fpp-json.h"
 #include <vector>
 
 using namespace ::std;

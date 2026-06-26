@@ -15,6 +15,8 @@
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
 #include "../common_mini.h" // FPPstrerror() -- needed directly for NOPCH builds
+#include "../settings.h" // getSetting -- needed directly for NOPCH builds
+#include "../log.h" // LogErr/VB_CHANNELOUT -- needed directly for NOPCH builds
 
 #include "SocketFrameBuffer.h"
 #ifdef USE_FRAMEBUFFER_SOCKET

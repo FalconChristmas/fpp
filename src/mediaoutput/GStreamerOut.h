@@ -23,6 +23,7 @@
 #include <list>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <vector>
 
 #include "AES67Manager.h"

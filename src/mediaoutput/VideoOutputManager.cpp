@@ -38,11 +38,7 @@
 #include <gst/app/gstappsink.h>
 #endif
 
-#if __has_include(<jsoncpp/json/json.h>)
-#include <jsoncpp/json/json.h>
-#elif __has_include(<json/json.h>)
-#include <json/json.h>
-#endif
+#include "fpp-json.h"
 
 // SAP (Session Announcement Protocol) constants — RFC 2974
 static constexpr const char* SAP_MCAST_ADDR = "239.255.255.255";

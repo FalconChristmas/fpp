@@ -47,3 +47,38 @@ fallbacks above keep older images working through normal master updates.
 but **not enabled** (`CONFIG_GPIO_OF_HELPER` is unset in `patches/defconfig`, so the
 driver isn't built). They can be dropped from the kernel patch set entirely at the
 next convenient kernel rebase.
+
+## libhttpserver compatibility shims (`httpserver::` namespace)
+
+**Status:** FPP's HTTP layer migrated from libhttpserver to **Drogon**. The
+`httpserver::` shims emulate the old libhttpserver request/response/resource API
+on top of Drogon so external plugins written against it can be recompiled against
+current FPP with little or no source change. They are gated behind
+`FPP_NO_HTTP_COMPAT_SHIMS` (define it before including `fpphttp.h` to opt out).
+
+**Still here for un-ported plugins:**
+
+1. The `httpserver::` shim classes:
+   - `src/fpphttp.h` — `http_request`, `http_response`, `string_response`,
+     `http_resource` (the Drogon-backed shims; these pull in the full Drogon
+     headers).
+   - `src/fpphttp_types.h` — the `webserver` shim (the Drogon-free part, split out
+     so lightweight headers can name it cheaply).
+   - `src/fpphttp_compat.cpp` — `webserver::register_resource()` /
+     `unregister_resource()`, which route the old API's resources into Drogon.
+2. The deprecated plugin entry points in `src/Plugin.h`:
+   - `FPPPlugins::APIProviderPlugin::registerApis(httpserver::webserver*)` and
+     `unregisterApis(httpserver::webserver*)` (both marked `[[deprecated]]`). The
+     modern API is the no-argument `registerApis()` / `unregisterApis()`; their
+     default implementations construct a shim `webserver` and call the deprecated
+     overload so old plugin source keeps working.
+
+**Removal condition:** all supported external plugins (`/media/plugins`) have been
+ported to override the no-argument `registerApis()` (using `drogon::app()` or the
+`fpphttp.h` helpers — `makeStringResponse()`, `getRequestArg()`, etc. — directly)
+rather than `registerApis(httpserver::webserver*)`. A `FPP_PLUGIN_API_VERSION` bump
+(`Plugin.h`) plus a deprecation window is the natural trigger. When removing: delete
+the `httpserver::` blocks from `fpphttp.h`/`fpphttp_types.h`, the impls in
+`fpphttp_compat.cpp`, and the deprecated overloads in `Plugin.h`. The modern
+`HttpRequestPtr`/`HttpResponsePtr`/`HttpCallback` aliases and the inline helpers
+stay — those are the current API, not deprecated.

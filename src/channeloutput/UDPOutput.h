@@ -12,6 +12,7 @@
  */
 
 #include <atomic>
+#include "fpp-json.h"
 #include <condition_variable>
 #include <list>
 #include <map>
