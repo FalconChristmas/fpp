@@ -2593,6 +2593,10 @@
                                     type = "BBB";
                                 } else if (f.name.startsWith("BB64-")) {
                                     type = "BB64";
+                                } else if (f.name.startsWith("Pi64-")) {
+                                    // 64-bit Pi images; remotes report Platform
+                                    // "Raspberry Pi" -> osType "PI", so match PI.
+                                    type = "PI";
                                 } else if (f.name.startsWith("Pi-")) {
                                     type = "PI";
                                 }
