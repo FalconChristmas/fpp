@@ -863,8 +863,8 @@ private:
         // muxes those pins to i2c2 at boot, so do it here. Query first so we can
         // restore the original mode if the EEPROM turns out not to be on i2c2.
         // No-op on older kernels (helper already set i2c2; query reports "i2c").
-        std::string i2c2_o1, i2c2_o2;
 #ifdef PLATFORM_BBB
+        std::string i2c2_o1, i2c2_o2;
         if (!isPocketBeagle()) {
             i2c2_o1 = PinCurrentMode("P9_19");
             i2c2_o2 = PinCurrentMode("P9_20");
@@ -883,10 +883,12 @@ private:
             }
         }
         // If we forced i2c on the i2c2 pins but the EEPROM isn't on i2c2, restore.
+#ifdef PLATFORM_BBB
         if (bus != 2) {
             if (!i2c2_o1.empty() && i2c2_o1 != "i2c") ConfigurePin("P9_19", i2c2_o1.c_str());
             if (!i2c2_o2.empty() && i2c2_o2 != "i2c") ConfigurePin("P9_20", i2c2_o2.c_str());
         }
+#endif
         if (HasI2CDevice(0x50, bus)) {
             EEPROM = string_sprintf("/sys/bus/i2c/devices/%d-0050/eeprom", bus);
             if (!file_exists(EEPROM)) {
