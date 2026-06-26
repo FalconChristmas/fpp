@@ -321,6 +321,48 @@
     }
     ?>
 
+    var UDMXDevices = new Array();
+    <?
+    // Enumerate connected uDMX USB devices.  uDMX clones share VID/PID and
+    // usually have no serial number, so identify each device by its serial
+    // number when present, otherwise by its stable USB bus/port path (the
+    // sysfs device name, e.g. "1-1.2").
+    $udmxIds = array(
+        array('vendor' => '16c0', 'product' => '05dc'), // VOTI shared / genuine uDMX
+        array('vendor' => '03eb', 'product' => '8888'), // AVLdiy D512 clone
+    );
+    $usbBase = "/sys/bus/usb/devices";
+    if (is_dir($usbBase)) {
+        foreach (scandir($usbBase) as $dev) {
+            $vidFile = "$usbBase/$dev/idVendor";
+            $pidFile = "$usbBase/$dev/idProduct";
+            if (!is_file($vidFile) || !is_file($pidFile)) {
+                continue;
+            }
+            $vid = strtolower(trim(file_get_contents($vidFile)));
+            $pid = strtolower(trim(file_get_contents($pidFile)));
+            $match = false;
+            foreach ($udmxIds as $id) {
+                if ($vid == $id['vendor'] && $pid == $id['product']) {
+                    $match = true;
+                    break;
+                }
+            }
+            if (!$match) {
+                continue;
+            }
+            $serial = "";
+            if (is_file("$usbBase/$dev/serial")) {
+                $serial = trim(file_get_contents("$usbBase/$dev/serial"));
+            }
+            // $dev is the sysfs name which equals the bus-port path used by fppd.
+            $value = ($serial !== "") ? $serial : $dev;
+            $label = ($serial !== "") ? "uDMX (serial $serial)" : "uDMX @ $dev";
+            echo "UDMXDevices['" . addslashes($value) . "'] = '" . addslashes($label) . "';\n";
+        }
+    }
+    ?>
+
     var I2CDevices = new Array();
     <?
     $hasI2C = false;
@@ -817,22 +859,33 @@
         }
     }
 
-    class UDMX extends OtherBase {
+    class UDMX extends OtherBaseDevice {
 
         constructor(name = "UDMX", friendlyName = "uDMX", maxChannels = 512, fixedStart = false, fixedChans = false, config = {}) {
-            super(name, friendlyName, maxChannels, fixedStart, fixedChans, config);
+            super(name, friendlyName, maxChannels, fixedStart, fixedChans, UDMXDevices, config);
         }
 
         PopulateHTMLRow(config) {
-            var result = super.PopulateHTMLRow(config);
-
+            var description = (config.description != null) ? config.description : "";
+            var result = "Description:&nbsp;<input class='description' type='text' size=30 maxlength=128 style='width: 6em; margin-right: 1em' value='" + description + "'/>";
+            // Coerce an unset device to '' so CreateSelect renders the
+            // "-- Port --" auto-select entry instead of a literal "undefined".
+            result += DeviceSelect(UDMXDevices, config.device || '') + "&nbsp;";
             return result;
         }
 
         GetOutputConfig(result, cell) {
-            result = super.GetOutputConfig(result, cell);
-
+            // The device is optional: when left unset, fppd auto-selects the
+            // first uDMX it finds (preserving legacy single-device behaviour).
+            result.device = cell.find("select.device").val();
+            result.description = cell.find("input.description").val();
             return result;
+        }
+
+        CanAddNewOutput() {
+            // Allow adding a uDMX output even when no device is currently
+            // detected (e.g. configuring before the adapter is plugged in).
+            return true;
         }
     }
 
