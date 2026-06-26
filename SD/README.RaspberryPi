@@ -4,6 +4,12 @@ FPP Raspberry Pi Image Build
 The Raspberry Pi image builder produces flashable .img.zip files for both
 32-bit (armhf / "Pi") and 64-bit (arm64 / "Pi64") Raspbian Trixie Lite.
 
+The base image is the 2026-06 Raspberry Pi OS Trixie Lite release, which ships
+Linux 6.18 LTS out of the box -- so unlike earlier builds there is no longer a
+kernel-update step by default (see --kernel-update below). Note the base image
+URL uses two dates: the file is named 2026-06-18 but lives in a 2026-06-19
+directory; the script handles this via --base-image-dir-date.
+
 See SD/README.md for host requirements (qemu binfmt setup, build packages)
 and the full common-flag reference.
 
@@ -29,10 +35,15 @@ Pi-specific flags
                                armhf -> FPP-vX-Pi.img.zip
                                arm64 -> FPP-vX-Pi64.img.zip
 
-  --skip-kernel-update         Skip rpi-update of the kernel. The base image's
-                               stock kernel will be used. Useful for fast
-                               iteration; do NOT use for release builds --
-                               FPP10 requires kernel 6.18+.
+  --skip-kernel-update         Skip rpi-update of the kernel. This is now the
+                               DEFAULT: the 2026-06 Trixie base image already
+                               ships Linux 6.18 LTS (kernel 6.18.34), which is
+                               what FPP10 requires. Flag kept for explicitness.
+
+  --kernel-update              Force the rpi-update kernel step back ON. The
+                               whole rpi-update path is retained (just disabled)
+                               for the next time RPi ships a base image whose
+                               stock kernel predates the LTS FPP needs.
 
 What the script does
 --------------------
@@ -43,16 +54,19 @@ What the script does
    resize2fs's the rootfs.
 3. Disables Raspbian's first-boot mechanism in cmdline.txt (FPP creates the
    fpp user itself; first-boot would prompt the user instead).
-4. Pre-stages a fresh rpi-update from upstream (the in-chroot self-update
-   over qemu-arm hits TLS issues), then resolves the firmware branch ->
-   commit SHA on the host.
+4. (Only with --kernel-update) Pre-stages a fresh rpi-update from upstream
+   (the in-chroot self-update over qemu-arm hits TLS issues), then resolves
+   the firmware branch -> commit SHA on the host. Skipped by default now that
+   the base image already ships 6.18 LTS.
 5. Bind-mounts dev/proc/sys, fresh tmpfs at /run, copies qemu-user-static
    into the image, then chroots and runs:
      - apt-get update + upgrade
-     - rpi-update <SHA> with PRUNE_MODULES=1 WANT_PI5=1 SKIP_BACKUP=1
-       SKIP_BOOTLOADER=1 SKIP_VCLIBS=1 SKIP_SDK=1
      - SD/FPP_Install.sh --img --yes --branch ${FPPBRANCH}
-     - Old kernel cleanup (modules + headers + 16K-page kernel image)
+     - (Only with --kernel-update) rpi-update <SHA> with PRUNE_MODULES=1
+       WANT_PI5=1 SKIP_BACKUP=1 SKIP_BOOTLOADER=1 SKIP_VCLIBS=1 SKIP_SDK=1,
+       followed by old-kernel cleanup (modules + headers)
+     - 16K-page Pi5 kernel removal (kernel_2712.img + its modules) so the Pi5
+       boots the 4K kernel8.img -- always done, FPP libs dislike 16K pages
      - apt clean, log/key/machine-id reset, etc.
 6. Touches /boot/firmware/fpp_expand_rootfs (FPP first-boot expand marker).
 7. Drops the chroot bind mounts, mksquashfs's the rootfs into a .fppos.

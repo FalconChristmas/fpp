@@ -28,7 +28,18 @@ ARCH="${ARCH:-armhf}"                        # armhf => Pi, arm64 => Pi64
 VERSION="${VERSION:-}"                       # FPP version, e.g. 10.0
 OSVERSION="${OSVERSION:-$(date +%Y-%m)}"     # Tag embedded in .fppos name
 FPPBRANCH="${FPPBRANCH:-master}"
-BASE_IMAGE_DATE="${BASE_IMAGE_DATE:-2025-12-04}"
+# Raspberry Pi OS "Trixie" Lite base image. As of the 2026-06 release the
+# image ships Linux 6.18 LTS out of the box (kernel 6.18.34), which is the
+# kernel FPP10 requires -- so the rpi-update kernel step below is now disabled
+# by default (see SKIP_KERNEL_UPDATE).
+#
+# Two dates are involved: Raspberry Pi dated the 2026-06 release's *directory*
+# (raspios_lite_*-2026-06-19) one day later than the date embedded in the
+# image *filename* (2026-06-18-raspios-trixie-...). Every prior release used
+# the same date for both, so BASE_IMAGE_DIR_DATE defaults to BASE_IMAGE_DATE
+# and only needs overriding when the two diverge (as they do here).
+BASE_IMAGE_DATE="${BASE_IMAGE_DATE:-2026-06-18}"      # date embedded in the filename
+BASE_IMAGE_DIR_DATE="${BASE_IMAGE_DIR_DATE:-}"        # date in the directory name (blank => same as file)
 BASE_IMAGE_URL="${BASE_IMAGE_URL:-}"
 BASE_IMAGE_SHA256="${BASE_IMAGE_SHA256:-}"
 IMG_SIZE_MB="${IMG_SIZE_MB:-7200}"           # Final raw image size
@@ -39,7 +50,10 @@ SKIP_FPPOS="${SKIP_FPPOS:-0}"                # 1 => skip squashfs generation
 SKIP_ZIP="${SKIP_ZIP:-0}"                    # 1 => leave raw .img only, no zip
 USE_LOCAL_SRC="${USE_LOCAL_SRC:-0}"          # 1 => seed /opt/fpp from local tree
 FPP_SRC_DIR="${FPP_SRC_DIR:-$(readlink -f "$(dirname "$(readlink -f "$0")")/..")}"
-SKIP_KERNEL_UPDATE="${SKIP_KERNEL_UPDATE:-0}"    # 1 => skip rpi-update next
+# Default ON (skip): the 2026-06 Trixie base ships 6.18 LTS already. The whole
+# rpi-update path below is retained (just gated off) for the next time RPi lags
+# behind a new LTS kernel -- re-enable with --kernel-update or SKIP_KERNEL_UPDATE=0.
+SKIP_KERNEL_UPDATE="${SKIP_KERNEL_UPDATE:-1}"    # 1 => skip rpi-update next
 
 usage() {
     cat <<EOF
@@ -53,15 +67,23 @@ Options:
   --os-version VER         OS version tag for .fppos (default: YYYY-MM)
   --branch BRANCH          FPP git branch to install (default: master)
   --base-image-url URL     Override base image URL
-  --base-image-date DATE   Raspbian release date (default: 2025-12-04)
-  --base-image-sha256 HEX  Optional sha256 of the .img.xz to verify
+  --base-image-date DATE   Raspbian release date embedded in the image
+                           FILENAME (default: 2026-06-18)
+  --base-image-dir-date DATE  Date in the download DIRECTORY name, if it
+                           differs from --base-image-date (default: same as
+                           --base-image-date)
+  --base-image-sha256 HEX  Optional sha256 of the .img.xz to verify (defaults
+                           to the known sum for the default 2026-06-18 image)
   --img-size-mb N          Raw output image size in MiB (default: 7200)
   --work-dir DIR           Scratch dir (default: ./build)
   --output-dir DIR         Artifact dir (default: ./output)
-  --skip-kernel-update     Skip rpi-update of the kernel (faster iteration;
-                           image will boot on whatever kernel the base image
-                           shipped with — fine for installer-flow testing,
-                           NOT a release-quality image)
+  --skip-kernel-update     Skip rpi-update of the kernel. This is now the
+                           DEFAULT: the 2026-06 Trixie base image already
+                           ships Linux 6.18 LTS, the kernel FPP10 requires.
+                           Flag retained for explicitness / scripting.
+  --kernel-update          Force the rpi-update kernel step back ON. Needed
+                           in the future if RPi ships a base image whose stock
+                           kernel predates the next LTS that FPP requires.
   --skip-fppos             Do not produce .fppos squashfs
   --skip-zip               Do not zip the raw .img (faster iteration when
                            you're flashing the raw image directly to an SD
@@ -89,11 +111,13 @@ while [ $# -gt 0 ]; do
         --branch)            FPPBRANCH="$2"; shift 2 ;;
         --base-image-url)    BASE_IMAGE_URL="$2"; shift 2 ;;
         --base-image-date)   BASE_IMAGE_DATE="$2"; shift 2 ;;
+        --base-image-dir-date) BASE_IMAGE_DIR_DATE="$2"; shift 2 ;;
         --base-image-sha256) BASE_IMAGE_SHA256="$2"; shift 2 ;;
         --img-size-mb)       IMG_SIZE_MB="$2"; shift 2 ;;
         --work-dir)          WORK_DIR="$2"; shift 2 ;;
         --output-dir)        OUTPUT_DIR="$2"; shift 2 ;;
         --skip-kernel-update) SKIP_KERNEL_UPDATE=1; shift ;;
+        --kernel-update)     SKIP_KERNEL_UPDATE=0; shift ;;
         --skip-fppos)        SKIP_FPPOS=1; shift ;;
         --skip-zip)          SKIP_ZIP=1; shift ;;
         --use-local-src)     USE_LOCAL_SRC=1; shift ;;
@@ -113,6 +137,29 @@ case "$ARCH" in
     *) echo "ARCH must be armhf or arm64 (got: $ARCH)" >&2; exit 2 ;;
 esac
 
+# Directory date. For most releases it equals the filename date, but the default
+# 2026-06-18 image lives under a 2026-06-19 directory (RPi dated the dir a day
+# after the image), so special-case that. Any other date falls back to assuming
+# dir == file date unless --base-image-dir-date overrides it.
+if [ -z "$BASE_IMAGE_DIR_DATE" ]; then
+    if [ "$BASE_IMAGE_DATE" = "2026-06-18" ]; then
+        BASE_IMAGE_DIR_DATE="2026-06-19"
+    else
+        BASE_IMAGE_DIR_DATE="$BASE_IMAGE_DATE"
+    fi
+fi
+
+# Known sha256 of the default 2026-06-18 Trixie Lite images. Used only when the
+# caller neither supplied a sha nor overrode the URL (a custom image won't match
+# these). Bump these whenever BASE_IMAGE_DATE changes.
+if [ -z "$BASE_IMAGE_SHA256" ] && [ -z "$BASE_IMAGE_URL" ] \
+        && [ "$BASE_IMAGE_DATE" = "2026-06-18" ]; then
+    case "$ARCH" in
+        arm64) BASE_IMAGE_SHA256="acff736ca7945e3b305f07cda4abdb870910e12634991da69783611756e381b3" ;;
+        armhf) BASE_IMAGE_SHA256="ea4e84c501d6dd4f4b1d04eb84df133a03f90a05ee2e8ab849185c17c2b0707b" ;;
+    esac
+fi
+
 if [ -z "$VERSION" ]; then
     echo "--version is required (e.g. --version 10.0)" >&2
     exit 2
@@ -124,7 +171,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 if [ -z "$BASE_IMAGE_URL" ]; then
-    BASE_IMAGE_URL="https://downloads.raspberrypi.com/raspios_lite_${ARCH}/images/raspios_lite_${ARCH}-${BASE_IMAGE_DATE}/${BASE_IMAGE_DATE}-raspios-trixie-${ARCH}-lite.img.xz"
+    BASE_IMAGE_URL="https://downloads.raspberrypi.com/raspios_lite_${ARCH}/images/raspios_lite_${ARCH}-${BASE_IMAGE_DIR_DATE}/${BASE_IMAGE_DATE}-raspios-trixie-${ARCH}-lite.img.xz"
 fi
 
 LOCAL_INSTALLER="${FPP_SRC_DIR}/SD/FPP_Install.sh"
@@ -173,7 +220,7 @@ FPP Image Build
   Base image   : $BASE_IMAGE_URL
   Local installer: $LOCAL_INSTALLER
   Local src    : $( [ "$USE_LOCAL_SRC" = "1" ] && echo "$FPP_SRC_DIR (seeded into /opt/fpp)" || echo "(not used; installer clones from github)" )
-  Kernel update: $( [ "$SKIP_KERNEL_UPDATE" = "1" ] && echo "SKIPPED (--skip-kernel-update)" || echo "rpi-update next (PRUNE_MODULES=1 WANT_PI5=1)" )
+  Kernel update: $( [ "$SKIP_KERNEL_UPDATE" = "1" ] && echo "SKIPPED (base image ships 6.18 LTS; pass --kernel-update to force)" || echo "rpi-update next (PRUNE_MODULES=1 WANT_PI5=1)" )
   Image size   : ${IMG_SIZE_MB} MiB
   Work dir     : $WORK_DIR
   Output dir   : $OUTPUT_DIR
@@ -356,6 +403,13 @@ if [ "$USE_LOCAL_SRC" = "1" ]; then
     INSTALLER_EXTRA_ARGS="--skip-clone"
 fi
 
+# NOTE: This entire rpi-update kernel block (host pre-stage here + the in-chroot
+# step further down) is DISABLED BY DEFAULT as of the 2026-06 Trixie base, which
+# already ships Linux 6.18 LTS. It is deliberately retained, gated behind
+# SKIP_KERNEL_UPDATE, so it can be switched back on (--kernel-update) the next
+# time RPi lags behind a new LTS kernel that FPP requires. None of it runs while
+# SKIP_KERNEL_UPDATE=1 (the default).
+#
 # Pre-stage a fresh rpi-update from upstream so the in-chroot run doesn't
 # need to TLS-fetch its own self-update (which hangs hard under qemu-arm).
 # Also resolve the firmware branch -> commit SHA on the host: rpi-update's
@@ -543,6 +597,20 @@ if [ "${SKIP_KERNEL_UPDATE}" != "1" ]; then
         "linux-headers-\${NEW_KV_BASE}-v8" 2>/dev/null || true
     rm -rf /usr/src/linux-*
 fi
+
+# Drop the 16K-page Pi5 kernel image + its modules, and purge kernel headers.
+# This runs UNCONDITIONALLY (not just when rpi-update ran): the stock Trixie
+# base ships kernel_2712.img -- the 16K-page kernel a Pi5/CM5 boots by default
+# -- and some FPP libs are incompatible with 16K pages. With kernel_2712.img
+# gone the Pi5 firmware falls back to the 4K kernel8.img (v8 modules). Glob both
+# the stock module name (*+rpt-rpi-2712) and rpi-update's (*-16k) so either path
+# is covered. (The rpi-update branch above also strips its own kernel's 16K
+# variant; the duplication is intentional so each path is self-contained.)
+rm -f /boot/firmware/kernel_2712.img
+rm -rf /lib/modules/*-2712 /lib/modules/*-16k*
+apt-get remove -y --purge --autoremove \\
+    linux-headers-rpi-v6 linux-headers-rpi-v7 linux-headers-rpi-v8 2>/dev/null || true
+rm -rf /usr/src/linux-*
 
 # Finalization (mirrors SD/README.RaspberryPi post-install cleanup)
 apt-get clean

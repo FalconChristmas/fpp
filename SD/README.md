@@ -68,14 +68,16 @@ Output lands in `output/`:
 | `--use-local-src` | off | rsync your local FPP working tree into `/opt/fpp` inside the image and pass `--skip-clone` to the installer. Lets you iterate on FPP source without committing/pushing. |
 | `--fpp-src-dir DIR` | parent of script | Path to your local FPP checkout. |
 | `--base-image-url URL` | platform default | Override the base OS image download URL (when upstream rev'd). |
-| `--base-image-date DATE` | platform default | Compose the default URL with this build date. |
-| `--base-image-sha256 HEX` | (none) | Optional sha256 to verify the download. |
+| `--base-image-date DATE` | platform default | Compose the default URL with this build date. On Pi this is the date in the image *filename*. |
+| `--base-image-dir-date DATE` | same as `--base-image-date` | Pi only. Date in the download *directory* name, for releases (e.g. 2026-06) where RPi dated the directory differently from the file. |
+| `--base-image-sha256 HEX` | known sum for the default Pi image | Optional sha256 to verify the download. Pi ships a built-in default for its stock base image. |
 | `--img-size-mb N` | platform default | Output raw image size in MiB. Must be ≥ the decompressed base image size. |
 | `--work-dir DIR` | `./build` | Scratch area (decompressed base images, work image). Caches the base image between runs. |
 | `--output-dir DIR` | `./output` | Where the final `.img.zip` and `.fppos` land. |
 | `--skip-fppos` | off | Skip the squashfs generation. Saves 10–30 min per iteration when you only care about the `.img`. |
 | `--skip-zip` | off | Skip the final `zip -9` of the raw `.img`. Saves a few minutes when you're flashing the raw image directly to an SD card for local testing. |
-| `--skip-kernel-update` | off (Pi / BBB) | Skip the kernel update step (`rpi-update` on Pi, FPP-patched kernel `.deb` on BBB). Faster iteration, but image will boot whatever kernel the base image shipped with — do NOT use for release builds. |
+| `--skip-kernel-update` | **on** (Pi), off (BBB) | Skip the kernel update step (`rpi-update` on Pi, FPP-patched kernel `.deb` on BBB). On Pi this is now the default — the 2026-06 Trixie base already ships Linux 6.18 LTS — so the flag is mostly informational there. On BBB, skipping boots whatever kernel the base image shipped with; do NOT use for BBB release builds. |
+| `--kernel-update` | — | Pi only. Force the `rpi-update` kernel step back on (the path is retained but disabled by default). Needed if a future RPi base image lags behind the LTS kernel FPP requires. |
 | `--keep-work` | off | Don't delete the work image on success (useful for inspecting the output before zipping). |
 | `-h`, `--help` | — | Show full per-script help. |
 
@@ -83,6 +85,7 @@ Output lands in `output/`:
 
 - **`build-image-pi.sh`** also takes `--arch {armhf|arm64}` (required-ish; default `armhf`).
 - **`build-image-bbb.sh`** also takes `--fpp-kernel-ver VER` and `--fpp-kernel-url URL` to override the FPP-patched kernel `.deb` (default pulled from `FalconChristmas/fpp-linux-kernel`).
+- **`build-image-pi.sh`** skips the `rpi-update` kernel step by default — the 2026-06 Raspberry Pi OS Trixie base already ships Linux 6.18 LTS. Pass `--kernel-update` to force it back on (e.g. when a future base image lags the required LTS kernel).
 - **`build-image-bb64.sh`** has no kernel-update flag — the rcn-ee base image already ships a 6.18 kernel.
 
 ## Iteration workflow
