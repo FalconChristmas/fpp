@@ -435,7 +435,7 @@ void MDNSManager::HandleResolveIP(const std::string& ip, bool isWled) {
     // request doesn't stall the main event loop. The FPP discover-ping does not
     // carry the remote's System UUID, so without this probe an FPP peer's UUID
     // stays empty in the systems list - HTTP controller detection populates it
-    // (needed for duplicate-UUID detection and device identification). This runs
+    // (needed for device identification). This runs
     // only once per newly discovered host. Harmless for a pure WLED node;
     // detection just identifies it as WLED. PingSingleRemoteViaHTTP calls
     // UpdateSystem itself.
