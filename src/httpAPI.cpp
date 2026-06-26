@@ -40,7 +40,6 @@ extern volatile int runMainFPPDLoop;
 #include <cstdlib>
 #include <ctime>
 #include <cxxabi.h>
-#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <list>

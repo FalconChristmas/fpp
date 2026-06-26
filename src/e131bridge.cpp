@@ -26,7 +26,6 @@
 #include <algorithm>
 #include <cstdlib>
 #include <errno.h>
-#include <fstream>
 #include <ifaddrs.h>
 #include <inttypes.h>
 #include <map>

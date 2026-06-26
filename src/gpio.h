@@ -12,6 +12,7 @@
  */
 #include <functional>
 #include "fpp-json-fwd.h"
+#include <list>
 #include <map>
 #include <vector>
 #include "fpphttp_types.h"

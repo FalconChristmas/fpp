@@ -11,6 +11,8 @@
  * included LICENSE.GPL file.
  */
 
+#include <cstdint>
+
 typedef struct {
     uint32_t active;
     uint32_t universe;

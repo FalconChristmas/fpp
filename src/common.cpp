@@ -41,7 +41,6 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <fstream>
 #include <ifaddrs.h>
 #include <iomanip>
 #include <list>

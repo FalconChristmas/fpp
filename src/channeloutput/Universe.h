@@ -11,6 +11,8 @@
  * included LICENSE.GPL file.
  */
 
+#include <cstdint>
+
 #define E131_TYPE_MULTICAST 0
 #define E131_TYPE_UNICAST 1
 #define ARTNET_TYPE_BROADCAST 2

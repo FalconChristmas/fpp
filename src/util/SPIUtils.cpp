@@ -13,7 +13,6 @@
 #include "fpp-pch.h"
 
 #include <fcntl.h>
-#include <thread>
 #include <unistd.h>
 
 #include "../config.h"
