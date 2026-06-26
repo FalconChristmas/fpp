@@ -642,7 +642,7 @@ install_base_packages() {
                       apache2 apache2-bin apache2-data apache2-utils libavahi-client-dev util-linux-extra \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
                       fbi fbset file flite ca-certificates lshw gettext wget iproute2 fswatch \
-                      build-essential ffmpeg gcc g++ gdb vim vim-common bison flex device-tree-compiler dh-autoreconf \
+                      build-essential ffmpeg gcc g++ gdb mold vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git hdparm i2c-tools jq less tcpdump time usbutils usb-modeswitch \
                       samba rsync sudo shellinabox dnsmasq hostapd vsftpd sqlite3 at haveged samba samba-common-bin \
                       mp3info exim4 mailutils dhcp-helper parprouted bridge-utils libiio-utils libhidapi-dev \
@@ -2090,7 +2090,7 @@ configure_swap() {
     if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
         # Just sysctl tuning; rpi-swap handles the actual zram device.
         echo "vm.swappiness=1" >> /etc/sysctl.d/10-swap.conf
-        echo "vm.vfs_cache_pressure=50" >> /etc/sysctl.d/10-swap.conf
+        echo "vm.vfs_cache_pressure=90" >> /etc/sysctl.d/10-swap.conf
         # RPi OS ships zram-tools enabled by default. Disable it so it
         # doesn't race with rpi-swap's systemd-zram-setup@zram0 over
         # /dev/zram0 at boot (both try to claim the device).
@@ -2112,15 +2112,14 @@ configure_swap() {
         echo "PRIORITY=100" >> /etc/default/zramswap
         if [ "$FPPPLATFORM" == "BeagleBone 64" ]; then
             echo "SIZE=125" >> /etc/default/zramswap
-            echo "vm.swappiness=100" >> /etc/sysctl.d/10-swap.conf
-            echo "vm.vfs_cache_pressure=100" >> /etc/sysctl.d/10-swap.conf
-            echo "vm.dirty_background_ratio=1" >> /etc/sysctl.d/10-swap.conf
-            echo "vm.dirty_ratio=50" >> /etc/sysctl.d/10-swap.conf
+            echo "vm.swappiness=10" >> /etc/sysctl.d/10-swap.conf
         else
-            echo "SIZE=75" >> /etc/default/zramswap
-            echo "vm.swappiness=1" >> /etc/sysctl.d/10-swap.conf
-            echo "vm.vfs_cache_pressure=50" >> /etc/sysctl.d/10-swap.conf
+            echo "SIZE=96" >> /etc/default/zramswap
+            echo "vm.swappiness=5" >> /etc/sysctl.d/10-swap.conf
         fi
+        echo "vm.vfs_cache_pressure=90" >> /etc/sysctl.d/10-swap.conf
+        echo "vm.dirty_background_ratio=5" >> /etc/sysctl.d/10-swap.conf
+        echo "vm.dirty_ratio=10" >> /etc/sysctl.d/10-swap.conf
     fi
 }
 

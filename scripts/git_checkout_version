@@ -83,12 +83,16 @@ ${SUDO} git log | head -10
 echo "======================================================================"
 echo "Rebuilding binaries"
 # Embed this code here instead of using a script because we may
-# revert to an older version that doesn't have that script
+# revert to an older version that doesn't have that script.
+# SetupBuildEnv was sourced (from functions) at the top of this script, so it
+# stays defined in memory even after the checkout above swapped the files on
+# disk. ${SUDO} is "sudo -E", so the exported DISTCC_HOSTS reaches make, which
+# then handles ccache/distcc, NOPCH, and the triplet compiler itself.
 ${SUDO} make clean
 
-CPUS=$(ComputeMakeParallelism)
+SetupBuildEnv
 
-${SUDO} make -j ${CPUS} optimized
+${SUDO} make -j ${BUILD_CPUS} optimized
 
 echo "======================================================================"
 echo "Restarting fppd"

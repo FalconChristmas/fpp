@@ -49,38 +49,86 @@ and thus is must be build from source.
 
 # distcc
 
-On the slow, single core, armv7 SBC's such as the BeagleBone's, it can take a long time to
-fully rebuild FPP if a change is made that changes a common header.  Using distcc to
-have the compile part run on a faster Pi4 can dramatically speed things up.   A full
-rebuild can drop from 45m to about 15m.  To set this up, you need to install distcc
-on both the Pi and Beagle:
+On the slow, single-core, armv7 SBCs such as the BeagleBones, a full rebuild of FPP can
+take a very long time -- especially when a common header changes and the ccache can no
+longer help. distcc offloads the actual compilation to a faster machine (a Pi 5, a
+desktop, ...), which can cut a from-scratch BeagleBone rebuild from well over an hour down
+to a fraction of that. The client preprocesses each file locally, ships it to a helper to
+compile, and does the final link locally.
+
+### What FPP does automatically when `DISTCC_HOSTS` is set
+
+The makefiles detect `DISTCC_HOSTS` and, without any further flags:
+
+* use `ccache distcc` instead of plain `ccache`,
+* **disable the precompiled header** (distcc and the PCH don't mix), and
+* invoke the **target-triplet** compiler (e.g. `arm-linux-gnueabihf-g++`) instead of plain
+  `g++`. distcc runs whatever compiler *name* it's given on the helper, so the triplet name
+  is what lets a 64-bit aarch64 helper cross-compile for a 32-bit armhf BeagleBone.
+
+Two things to know:
+
+1. **The helper needs the matching cross-compiler** for every client ABI it serves -- the
+   `arm-linux-gnueabihf` toolchain for 32-bit boards and the native `aarch64-linux-gnu`
+   compiler for 64-bit boards. `setup_distcc_host.sh` installs both. (Only the
+   cross-*compiler* is needed -- not a target sysroot -- because preprocessing and linking
+   happen on the client.)
+2. **The compiler major version must match** between client and helper (e.g. both GCC 14).
+   The simplest way to guarantee that is to run the same FPP OS image everywhere.
+
+Because the PCH is disabled under distcc, every `.cpp` must directly `#include` the headers
+it uses. A file that fails *only* under distcc with errors like `'WarningHolder' has not
+been declared` is missing a direct include -- add it to that source file.
+
+## Setting up the helper
+
+On the fast machine that will do the compiling:
 
 ```
-sudo apt-get install distcc
+sudo /opt/fpp/scripts/setup_distcc_host.sh
 ```
 
-On the Pi, you need to run something similar to:
-sudo distccd -a 192.168.0.0/16 -j 6 --daemon
-but use the network/mask that works for you network.   If you want it setup to start
-automatically with all the proper settings, edit /etc/default/distcc and set:
+This installs distcc plus the aarch64 and armhf GCC toolchains, restricts access to your
+LAN (auto-detected; override with a CIDR argument or `ALLOWEDNETS="..."`), and starts the
+daemon. Add `MDNS=1` to also advertise the helper via Zeroconf/mDNS. Turn it back off with
+`sudo /opt/fpp/scripts/setup_distcc_host.sh disable`.
+
+> The stock Debian distccd systemd unit mishandles multiple networks: it passes them all to
+> a single `--allow`, which only honors the *first* one (so other clients get
+> "denied by access list"). The setup script installs a drop-in that emits one `--allow`
+> per network. If you configure distccd by hand, give each network its own `--allow`, e.g.
+> `distccd --allow 127.0.0.1 --allow 192.168.2.0/24 --daemon`.
+
+## Using it from the web UI
+
+On the client, go to **Status/Control > FPP Settings > Developer** (UI level 3) and either:
+
+* enable **Use distcc for Compiles** and set **Distcc Hosts** to your helper, e.g.
+  `fpppi5:3632/6,lzo` (each entry is `host[:port][/jobs][,options]`; space-separate several), or
+* enable **Use distcc for Compiles** and check **Discover distcc Hosts via mDNS** (and run
+  the helper setup with `MDNS=1`).
+
+A **Rebuild FPP** from the Developer tab, or a branch change, then builds through distcc.
+
+## Using it from the command line
+
+On the client, export `DISTCC_HOSTS` and build. **No compiler flags are needed** -- the
+makefiles select the right triplet compiler automatically:
 
 ```
-STARTDISTCC="true"
-ALLOWEDNETS="192.168.0.0/16"
+export DISTCC_HOSTS="192.168.3.71"     # your helper's IP/host; space-separate several
+cd /opt/fpp/src
+make -j6                               # a bit above the helper's total job slots
 ```
 
-and comment out the listener line.   Then run "systemctl enable distcc".
+Use the IP/hostname of your helper; to use several, space-separate them (optionally with
+`/jobs` and `,lzo` per host). `-jN` should be a little higher than the helper's total job
+count so the client keeps it fed while it preprocesses locally. Watch the live distribution
+with `DISTCC_VERBOSE=0 distccmon-text 1`.
 
-On the Beagle, before running make, run:
-
-```export
-export DISTCC_HOSTS="192.168.3.71"
-```
-
-but use the IP for you pi.   If you have multiple Pi's, you can add them all to the
-HOSTS by space separating them.   Then run "make -j4" or similar to have it compile
-multiple files in parallel. The Beagle will do the precompile step, send it to the
-Pi to be compiled, and then the Beagle will do all the linking.
+> On a memory-tight board, be conservative with `-jN`: if the helper becomes unreachable
+> mid-build, distcc falls back to compiling **locally**, and too many parallel local
+> compiles can exhaust RAM and thrash the board.
 
 # zero-md
 

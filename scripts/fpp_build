@@ -7,8 +7,12 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 cd ${FPPDIR}/src/
 
-make clean
-CPUS=$(ComputeMakeParallelism)
+# Exports DISTCC_HOSTS and sets BUILD_CPUS from the distcc developer settings;
+# a no-op (normal local build) when distcc is disabled. With DISTCC_HOSTS set,
+# the makefiles handle ccache/distcc, NOPCH, and the triplet compiler.
+SetupBuildEnv
 
-make -j ${CPUS} optimized
+make clean
+
+make -j ${BUILD_CPUS} optimized
 

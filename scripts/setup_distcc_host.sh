@@ -50,6 +50,9 @@
 #   sudo ./setup_distcc_host.sh                 # auto-detect LAN, install, start
 #   sudo ./setup_distcc_host.sh 192.168.7.0/24  # force the allowed network(s)
 #   sudo ALLOWEDNETS="10.0.0.0/24 10.0.1.0/24" ./setup_distcc_host.sh
+#   sudo MDNS=1 ./setup_distcc_host.sh          # also advertise via mDNS/Zeroconf
+#                                               #   (pairs with the client's
+#                                               #   "Discover distcc Hosts via mDNS")
 #   sudo ./setup_distcc_host.sh disable         # stop & disable the helper
 #####################################
 
@@ -138,9 +141,21 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y distcc
 ensure_triplet arm-linux-gnueabihf   # 32-bit ARM: BBB, Pi Zero W, 32-bit Pis
 ensure_triplet aarch64-linux-gnu     # 64-bit ARM: PocketBeagle2, 64-bit Pis
 
+# ---- mDNS/Zeroconf advertising (opt-in) ------------------------------------
+# When enabled, clients can auto-discover this helper with DISTCC_HOSTS="+zeroconf"
+# (the FPP "Discover distcc Hosts via mDNS" developer setting) instead of listing
+# it explicitly. Opt in with MDNS=1; needs avahi, which FPP already ships.
+ZEROCONF="false"
+if [ "${MDNS:-0}" = "1" ]; then
+    ZEROCONF="true"
+    command -v avahi-daemon >/dev/null 2>&1 || \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y avahi-daemon
+    systemctl enable --now avahi-daemon >/dev/null 2>&1 || true
+fi
+
 # ---- write /etc/default/distcc ---------------------------------------------
 JOBS="$(nproc)"
-echo "==> Writing /etc/default/distcc (jobs=${JOBS}, nice=10)"
+echo "==> Writing /etc/default/distcc (jobs=${JOBS}, nice=10, zeroconf=${ZEROCONF})"
 cat > /etc/default/distcc <<EOF
 # Managed by FPP scripts/setup_distcc_host.sh
 STARTDISTCC="true"
@@ -152,13 +167,31 @@ LISTENER="0.0.0.0"
 JOBS="${JOBS}"
 # Keep the box responsive (fppd etc.) -- compiles run at low priority.
 NICE="10"
-# We hand out hosts explicitly via DISTCC_HOSTS on clients, not mDNS.
-ZEROCONF="false"
+# mDNS/Zeroconf advertising; clients can then use DISTCC_HOSTS="+zeroconf".
+ZEROCONF="${ZEROCONF}"
 EOF
 
-# ---- enable + (re)start -----------------------------------------------------
+# ---- fix the systemd unit's multi-network --allow --------------------------
+# The stock Debian unit runs "distccd --allow $ALLOWEDNETS": a single --allow
+# that only honors the FIRST network and silently denies the rest. (The shipped
+# /etc/init.d/distcc loops over the networks correctly, but on a systemd box the
+# .service unit is what runs.) distcc 3.x has no DISTCCD_OPTS hook, so override
+# ExecStart with a drop-in that expands ALLOWEDNETS to one --allow per network.
+# The $$ keeps systemd from expanding the shell loop variables -- it passes a
+# literal $ through to /bin/sh, which expands them from the EnvironmentFile.
 UNIT="$(distcc_unit)"
+DROPIN_DIR="/etc/systemd/system/${UNIT}.service.d"
+echo "==> Writing ${DROPIN_DIR}/fpp-allow.conf (one --allow per network)"
+mkdir -p "${DROPIN_DIR}"
+cat > "${DROPIN_DIR}/fpp-allow.conf" <<'DROPIN'
+[Service]
+ExecStart=
+ExecStart=/bin/sh -c 'ALLOW=""; for net in $$ALLOWEDNETS; do ALLOW="$$ALLOW --allow $$net"; done; if [ "$$ZEROCONF" = "true" ]; then exec /usr/bin/distccd --daemon --no-detach $$ALLOW --zeroconf --jobs $$JOBS --nice $$NICE; else exec /usr/bin/distccd --daemon --no-detach $$ALLOW --listen $$LISTENER --jobs $$JOBS --nice $$NICE; fi'
+DROPIN
+
+# ---- enable + (re)start -----------------------------------------------------
 echo "==> Enabling and starting ${UNIT}"
+systemctl daemon-reload
 systemctl enable "${UNIT}" >/dev/null 2>&1 || true
 systemctl restart "${UNIT}"
 
@@ -201,6 +234,15 @@ echo "  Setting DISTCC_HOSTS makes FPP use 'ccache distcc' and disables the"
 echo "  PCH automatically.  -jN should be a little above this host's job count"
 echo "  so the client keeps the helper fed while it pre-processes locally."
 echo "  Watch live distribution with:  DISTCC_VERBOSE=0 distccmon-text 1"
+echo
+echo "  Easier: on the client's web UI, Status/Control > FPP Settings >"
+echo "  Developer (UI level 3): enable 'Use distcc for Compiles' and set"
+echo "  'Distcc Hosts' to '${HOSTNAME_S}:3632/${JOBS},lzo'.  Rebuild FPP / a"
+echo "  branch change then uses distcc with the right triplet compiler."
+if [ "${ZEROCONF}" = "true" ]; then
+echo "  This host advertises via mDNS, so clients may instead check 'Discover"
+echo "  distcc Hosts via mDNS' and leave the hosts field blank."
+fi
 echo
 echo "To turn the helper back off:  sudo $0 disable"
 echo "============================================================"

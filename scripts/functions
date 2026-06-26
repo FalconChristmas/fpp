@@ -181,6 +181,60 @@ function ComputeMakeParallelism() {
     echo "$CPUS"
 }
 
+# Recommended make -j for a distcc build. The heavy compiles run on the helper,
+# so we feed roughly the sum of the helper job slots (the "/N" in DISTCC_HOSTS)
+# plus a little local headroom for preprocessing and the final link. With an
+# mDNS/zeroconf host list the slot count is unknown, so fall back to a default.
+function ComputeDistccParallelism() {
+    local hosts="$1" total=0 tok n
+    if [ -z "${hosts}" ] || echo "${hosts}" | grep -qi "zeroconf"; then
+        echo 8
+        return
+    fi
+    for tok in ${hosts}; do
+        n=$(echo "${tok}" | sed -n 's@^[^/]*/\([0-9][0-9]*\).*@\1@p')
+        if [ -n "${n}" ]; then
+            total=$((total + n))
+        else
+            total=$((total + 4))
+        fi
+    done
+    total=$((total + 2))
+    [ "${total}" -lt 2 ] && total=2
+    [ "${total}" -gt 24 ] && total=24
+    echo "${total}"
+}
+
+# Prepare the environment for a source rebuild based on the FPP distcc settings.
+# MUST be called directly (not in a $(...) subshell) so the DISTCC_HOSTS export
+# survives into the make that follows. Sets these globals:
+#   DISTCC_HOSTS   exported (or unset). When set, src/makefiles automatically
+#                  switch to "ccache distcc", disable the PCH, and select the
+#                  target-triplet compiler so the helper cross-compiles -- no
+#                  CXXCOMPILER override needed here.
+#   BUILD_CPUS     the -j value to pass to make
+function SetupBuildEnv() {
+    local enabled hosts
+    hosts=""
+    enabled=$(getSetting DistccEnabled)
+    if [ "${enabled}" = "1" ]; then
+        if [ "$(getSetting DistccUseMDNS)" = "1" ]; then
+            hosts="+zeroconf"
+        else
+            hosts=$(getSetting DistccHosts)
+        fi
+    fi
+
+    if [ -n "${hosts}" ]; then
+        export DISTCC_HOSTS="${hosts}"
+        BUILD_CPUS=$(ComputeDistccParallelism "${hosts}")
+        echo "Building with distcc: DISTCC_HOSTS='${DISTCC_HOSTS}', -j ${BUILD_CPUS} (PCH disabled; makefile selects the triplet compiler)"
+    else
+        unset DISTCC_HOSTS
+        BUILD_CPUS=$(ComputeMakeParallelism)
+    fi
+}
+
 compileBinaries() {
 
     cleanCompiledBinaries

@@ -43,7 +43,29 @@ ifeq '$(SRCDIR)' ''
     SRCDIR=/opt/fpp/src
 endif
 
-ifeq '$(CXXCOMPILER)' 'g++'
+# When building through distcc, invoke the target-triplet compiler (e.g.
+# arm-linux-gnueabihf-g++) instead of plain "g++". distcc runs whatever compiler
+# NAME we hand it on the helper, so the triplet name makes the helper select the
+# matching (cross-)compiler -- letting an aarch64 Pi cross-build for a 32-bit
+# BeagleBone. Doing it here means a manual build is just "DISTCC_HOSTS=host make"
+# with no compiler override. Skipped for clang (macOS) and if the triplet
+# compiler is not installed.
+ifneq ($(DISTCC_HOSTS),)
+ifeq '$(findstring clang,$(CXXCOMPILER))' ''
+DISTCC_TRIPLET := $(shell $(CCOMPILER) -dumpmachine 2>/dev/null)
+ifneq ($(wildcard /usr/bin/$(DISTCC_TRIPLET)-g++),)
+CXXCOMPILER := $(DISTCC_TRIPLET)-g++
+CCOMPILER := $(DISTCC_TRIPLET)-gcc
+CC := $(DISTCC_TRIPLET)-g++
+endif
+endif
+endif
+
+# Treat any non-clang compiler as g++. This matches plain "g++" as well as
+# target-triplet names like "arm-linux-gnueabihf-g++" used for cross-distcc.
+# We test for the absence of "clang" rather than the presence of "g++" because
+# "clang++" contains the substring "g++" ($(findstring g++,clang++) -> g++).
+ifeq '$(findstring clang,$(CXXCOMPILER))' ''
 	# Build branch detection -- drives the -g1 release flag below.
 	# Resolved in three steps so detached-HEAD checkouts (CI ref builds,
 	# tag builds) don't silently drop -g1 and bust the ccache:
@@ -99,8 +121,8 @@ else
 endif
 
 # If the mold or gold linker is availabe and we're using g++, we'll
-# go ahead and use it as it's MUCH faster
-ifeq '$(CXXCOMPILER)' 'g++'
+# go ahead and use it as it's MUCH faster (non-clang == g++, see note above)
+ifeq '$(findstring clang,$(CXXCOMPILER))' ''
 ifneq ($(wildcard /usr/bin/ld.mold),)
 LDFLAGS += -fuse-ld=mold
 else ifneq ($(wildcard /usr/bin/ld.gold),)

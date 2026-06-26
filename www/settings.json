@@ -1744,6 +1744,44 @@
 			"size": 48,
 			"maxlength": 256
 		},
+		"DistccEnabled": {
+			"name": "DistccEnabled",
+			"description": "Use distcc for Compiles",
+			"tip": "Distribute FPP source compiles to a distcc helper host to speed up full rebuilds (e.g. after switching branches or a header change that invalidates the ccache). The helper must be set up with scripts/setup_distcc_host.sh and run the same compiler version. Enabling distcc disables the precompiled header.",
+			"level": 3,
+			"restart": 0,
+			"reboot": 0,
+			"default": 0,
+			"type": "checkbox",
+			"children": {
+				"1": [
+					"DistccUseMDNS",
+					"DistccHosts"
+				]
+			}
+		},
+		"DistccUseMDNS": {
+			"name": "DistccUseMDNS",
+			"description": "Discover distcc Hosts via mDNS",
+			"tip": "Automatically discover distcc helper hosts on the local network using Zeroconf/mDNS instead of listing them below. The helper must advertise itself (run setup_distcc_host.sh with MDNS=1). When enabled, the Distcc Hosts field below is ignored.",
+			"level": 3,
+			"restart": 0,
+			"reboot": 0,
+			"default": 0,
+			"type": "checkbox"
+		},
+		"DistccHosts": {
+			"name": "DistccHosts",
+			"description": "Distcc Hosts",
+			"tip": "Space separated list of distcc helper hosts, e.g. 'fpppi5:3632/6,lzo'. Each entry is host[:port][/jobs][,options]. Ignored when mDNS discovery is enabled above.",
+			"level": 3,
+			"restart": 0,
+			"reboot": 0,
+			"default": "",
+			"type": "text",
+			"size": 60,
+			"maxlength": 256
+		},
 		"gitBranch": {
 			"name": "gitBranch",
 			"description": "Git Branch",
