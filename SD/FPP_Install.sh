@@ -1548,6 +1548,13 @@ fi
 
 #######################################
 echo "FPP - Populating ${FPPHOME}"
+# adduser only chowns the home directory when it CREATES it; if the base image
+# already shipped /home/fpp (or a stock UID-1000 user's home was reused) it is
+# left root-owned, which breaks anything fpp runs from its home (e.g. distcc's
+# ~/.distcc lock dir). Make sure the home dir itself belongs to fpp before we
+# start populating it; a recursive sweep at the end of image creation catches
+# everything the root-run install steps drop in afterward.
+chown ${FPPUSER}:${FPPUSER} ${FPPHOME}
 mkdir ${FPPHOME}/.ssh
 chown ${FPPUSER}:${FPPUSER} ${FPPHOME}/.ssh
 chmod 700 ${FPPHOME}/.ssh
@@ -2207,3 +2214,13 @@ print_install_complete
 
 cp /root/FPP_Install.* ${FPPHOME}/
 chown fpp:fpp ${FPPHOME}/FPP_Install.*
+
+if $isimage; then
+    # Final safety net: many install steps above run as root and create files or
+    # directories under ${FPPHOME} (the apache CSP config, .config, the copied
+    # FPP_Install.*, etc.), and adduser leaves /home/fpp itself root-owned if the
+    # base image pre-created it. Guarantee the whole home tree is fpp-owned so
+    # the shipped image never hands the fpp user a directory it can't write.
+    echo "FPP - Ensuring ${FPPHOME} is owned by ${FPPUSER}"
+    chown -R ${FPPUSER}:${FPPUSER} ${FPPHOME}
+fi
