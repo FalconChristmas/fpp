@@ -33,7 +33,6 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <algorithm>
 #include <cstdint>
 #include <ctime>
 #include <ctype.h>

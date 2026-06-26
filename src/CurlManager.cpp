@@ -12,7 +12,6 @@
 
 #include "fpp-pch.h"
 
-#include <algorithm>
 #include <cstring>
 #include <list>
 #include <mutex>

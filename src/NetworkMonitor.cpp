@@ -24,7 +24,6 @@
 #include <map>
 #include <string>
 #include <unistd.h>
-#include <utility>
 
 #include "log.h"
 #include "commands/Commands.h"
