@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include <thread>
 #include <unistd.h>
+#include <cstring>
 
 #include "../common.h"
 #include "../log.h"
