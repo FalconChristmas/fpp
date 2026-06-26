@@ -29,6 +29,23 @@
 #include <memory>
 #include <string>
 
+// Trantor (a Drogon dependency) #defines LOG_WARN / LOG_INFO / LOG_DEBUG as
+// macros that shadow FPP's LogLevel enum values used by log.h's LogWarn/
+// LogInfo/LogDebug. Plugins that include <drogon/...> directly and then an FPP
+// header (Plugin.h / Commands.h include this file) need those macros cleared so
+// their LogWarn() calls still compile. fpphttp.h does the same after its drogon
+// include; this restores the cleanup for the lightweight path. Undef of a
+// non-macro is a no-op, so this is harmless when trantor was not included.
+#ifdef LOG_WARN
+#undef LOG_WARN
+#endif
+#ifdef LOG_INFO
+#undef LOG_INFO
+#endif
+#ifdef LOG_DEBUG
+#undef LOG_DEBUG
+#endif
+
 namespace drogon {
 class HttpRequest;
 class HttpResponse;
