@@ -189,14 +189,43 @@ jobs:
           ls /proc/sys/fs/binfmt_misc/qemu-arm 2>/dev/null || \
             echo "WARNING: qemu-arm still not registered; armhf chroot will fail"
 
+      - name: Resolve base image cache id
+        # The BB builders discover the latest rcn-ee image at run time (rcn-ee
+        # keeps only a rolling window of dated builds), so the base filename --
+        # not the script -- is what changes week to week. Ask the script which
+        # image it would download and key the cache on that, so the ~6 of 7
+        # nightly runs where the base is unchanged get a cache hit instead of
+        # re-downloading ~1GB. Pi pins its base in-script, so its hash is stable.
+        id: baseid
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          case "${{ matrix.platform }}" in
+            bb64|bbb)
+              URL="$(bash ./${{ matrix.script }} --print-base-image-url 2>/dev/null || true)"
+              if [ -n "$URL" ]; then
+                ID="$(basename "$URL")"
+              else
+                echo "WARNING: base-image resolve failed; using script hash" >&2
+                ID="fallback-${{ hashFiles(matrix.script) }}"
+              fi
+              ;;
+            *)
+              ID="${{ hashFiles(matrix.script) }}"
+              ;;
+          esac
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+          echo "Base image cache id: $ID"
+
       - name: Cache base image download
         if: steps.gate.outputs.skip == 'false'
         uses: actions/cache@v5
         with:
           path: build/*.img.xz
-          # Base image URL/name is baked into the platform script; cache
-          # across runs until the defaults change in the script itself.
-          key: base-image-${{ matrix.platform }}-${{ hashFiles(matrix.script) }}
+          # Keyed on the resolved base-image filename (BB) or script hash (Pi)
+          # so the cache tracks the actual image, not just the script source.
+          # No restore-keys: an exact miss means a new base, which should be
+          # downloaded fresh rather than restoring a stale prior week's image.
+          key: base-image-${{ matrix.platform }}-${{ steps.baseid.outputs.id }}
 
       - name: Build image
         if: steps.gate.outputs.skip == 'false'

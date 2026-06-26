@@ -68,6 +68,9 @@ SKIP_FPPOS="${SKIP_FPPOS:-0}"
 SKIP_ZIP="${SKIP_ZIP:-0}"
 USE_LOCAL_SRC="${USE_LOCAL_SRC:-0}"
 FPP_SRC_DIR="${FPP_SRC_DIR:-$(readlink -f "$(dirname "$(readlink -f "$0")")/..")}"
+# Resolve the base image URL, print it on stdout, and exit. Used by CI to key
+# the base-image download cache on the discovered filename (no root / build).
+PRINT_BASE_IMAGE_URL="${PRINT_BASE_IMAGE_URL:-0}"
 
 PLATFORM_SUFFIX="BBB"
 QEMU_BIN="qemu-arm-static"
@@ -101,6 +104,8 @@ Options:
   --use-local-src          Seed /opt/fpp from local FPP working tree
   --fpp-src-dir DIR        Path to local FPP checkout
   --keep-work              Keep working directory on success
+  --print-base-image-url   Resolve the base image, print its URL, and exit
+                           (no root needed; used by CI to key the download cache)
   -h, --help               Show this help
 EOF
 }
@@ -127,6 +132,7 @@ while [ $# -gt 0 ]; do
         --use-local-src)      USE_LOCAL_SRC=1; shift ;;
         --fpp-src-dir)        FPP_SRC_DIR="$(readlink -f "$2")"; shift 2 ;;
         --keep-work)          KEEP_WORK=1; shift ;;
+        --print-base-image-url) PRINT_BASE_IMAGE_URL=1; shift ;;
         -h|--help)            usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -135,16 +141,6 @@ done
 #############################################################################
 # Validate + derive
 #############################################################################
-if [ -z "$VERSION" ]; then
-    echo "--version is required (e.g. --version 10.0)" >&2
-    exit 2
-fi
-
-if [ "$(id -u)" -ne 0 ]; then
-    echo "This script must be run as root (needs losetup, mount, chroot)." >&2
-    exit 1
-fi
-
 # Resolve the base image URL by parsing rcn-ee's directory listing. Echoes the
 # full .img.xz URL on stdout; diagnostics + non-zero on failure. Args:
 #   $1 listing parent URL   $2 board prefix   $3 pinned date (or "")   $4 name (or "")
@@ -174,13 +170,31 @@ resolve_rcn_image_url() {
     echo "${listing}${date_dir}/${name}"
 }
 
+# Diagnostics go to stderr so --print-base-image-url emits ONLY the URL on stdout.
 if [ -z "$BASE_IMAGE_URL" ]; then
-    echo "Resolving rcn-ee base image ($( [ -n "$BASE_IMAGE_DATE" ] && echo "date $BASE_IMAGE_DATE" || echo "latest available" ))..."
+    echo "Resolving rcn-ee base image ($( [ -n "$BASE_IMAGE_DATE" ] && echo "date $BASE_IMAGE_DATE" || echo "latest available" ))..." >&2
     BASE_IMAGE_URL="$(resolve_rcn_image_url "$BASE_IMAGE_LISTING" "$BASE_IMAGE_BOARD" "$BASE_IMAGE_DATE" "$BASE_IMAGE_NAME")" || {
         echo "ERROR: failed to resolve base image from $BASE_IMAGE_LISTING" >&2
         echo "       Pass --base-image-url to specify the full image URL directly." >&2
         exit 1
     }
+fi
+
+# CI cache-key helper: with the URL resolved, print it and exit. Deliberately
+# before the root / --version checks so CI can call it cheaply and unprivileged.
+if [ "$PRINT_BASE_IMAGE_URL" = "1" ]; then
+    echo "$BASE_IMAGE_URL"
+    exit 0
+fi
+
+if [ -z "$VERSION" ]; then
+    echo "--version is required (e.g. --version 10.0)" >&2
+    exit 2
+fi
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "This script must be run as root (needs losetup, mount, chroot)." >&2
+    exit 1
 fi
 
 # When no sha was supplied, fetch rcn-ee's published checksum so the download is
@@ -190,7 +204,7 @@ if [ -z "$BASE_IMAGE_SHA256" ]; then
     if [ "${#FETCHED_SHA}" -eq 64 ]; then
         BASE_IMAGE_SHA256="$FETCHED_SHA"
     else
-        echo "(warning: could not fetch ${BASE_IMAGE_URL}.sha256sum; download will be unverified)"
+        echo "(warning: could not fetch ${BASE_IMAGE_URL}.sha256sum; download will be unverified)" >&2
     fi
 fi
 
