@@ -377,6 +377,29 @@ int BBBPinCapabilities::configPin(const std::string& m,
         pinName[2] = '_';
     }
 
+    if (m == "gpio_od") {
+        // Open-drain GPIO for bit-banged I2C. Mux the pad ONCE as bidirectional
+        // GPIO with pull-up: gpio_pu keeps the receiver (RXACTIVE / INPUT_EN)
+        // enabled so a released open-drain line stays readable. The open-drain
+        // drive itself lives in the gpiod layer. Do NOT use gpio_out here (it
+        // disables the receiver and breaks ACK/reads) and do NOT re-mux per bit.
+#ifdef PLATFORM_BBB
+        snprintf(dir_name, sizeof(dir_name),
+                 "/sys/devices/platform/ocp/ocp:%s_pinmux/state", pinName);
+        FILE* sdir = fopen(dir_name, "w");
+        if (sdir) {
+            fprintf(sdir, "gpio_pu\n");
+            fclose(sdir);
+        }
+#endif
+        if (FileExists("/usr/bin/pinctrl") && pinName[0] == 'P' && pinName[2] == '_') {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "/usr/bin/pinctrl -s %s gpio_pu", pinName);
+            system(buf);
+        }
+        return GPIODCapabilities::configPin("gpio_od", false, desc);
+    }
+
 #ifdef PLATFORM_BBB
     // On the AM335x beagles, each pin is only attached to one PRU
     if (mode == "pru0out" || mode == "pru1out") {

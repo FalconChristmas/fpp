@@ -89,6 +89,15 @@ public:
             system(buf);
             return 0;
         }
+        if (mode == "gpio_od") {
+            // Open-drain (bit-banged I2C): set the pad to GPIO function with the
+            // input buffer + pull-up enabled via pinctrl, then create the
+            // open-drain gpiod request that actually drives/senses the line.
+            char buf[256];
+            snprintf(buf, 256, "/usr/bin/pinctrl set %d ip pu", gpio);
+            system(buf);
+            return GPIODCapabilities::configPin("gpio_od", false, desc);
+        }
         if (startsWith(mode, "gpio") && (resetMode == "a0" || resetMode == "no" || resetMode == "a3")) {
             char buf[256];
             snprintf(buf, 256, "/usr/bin/pinctrl set %d %s", gpio, directionOut ? "op" : "ip");

@@ -179,7 +179,16 @@ int GPIODCapabilities::configPin(const std::string& mode,
     try {
         gpiod::line_settings settings;
 
-        if (directionOut) {
+        openDrain = (mode == "gpio_od");
+        if (openDrain) {
+            // Open-drain output for bit-banged I2C: setValue(0) drives low,
+            // setValue(1) releases (high-Z, pulled up). The released line stays
+            // readable, so ACK/read bits work with no direction flipping.
+            settings.set_direction(gpiod::line::direction::OUTPUT);
+            settings.set_drive(gpiod::line::drive::OPEN_DRAIN);
+            settings.set_bias(gpiod::line::bias::PULL_UP);
+            lastBias = gpiod::line::bias::PULL_UP;
+        } else if (directionOut) {
             settings.set_direction(gpiod::line::direction::OUTPUT);
         } else {
             settings.set_direction(gpiod::line::direction::INPUT);
@@ -209,7 +218,7 @@ int GPIODCapabilities::configPin(const std::string& mode,
             request = nullptr;
         }
         request = std::make_shared<gpiod::line_request>(builder.do_request());
-        lastRequestType = directionOut ? 1 : 0;
+        lastRequestType = (directionOut || openDrain) ? 1 : 0;
     } catch (const std::exception& ex) {
         std::string w = "Could not configure pin " + name + "(" + desc + ") as " + mode + " (" + ex.what() + ")";
         WarningHolder::AddWarning(51, w);
@@ -236,7 +245,11 @@ int GPIODCapabilities::configPin(const std::string& mode,
         req.consumer += "-" + desc;
     }
     lastDesc = req.consumer;
-    if (directionOut) {
+    openDrain = (mode == "gpio_od");
+    if (openDrain) {
+        req.request_type = gpiod::line_request::DIRECTION_OUTPUT;
+        req.flags |= gpiod::line_request::FLAG_OPEN_DRAIN | gpiod::line_request::FLAG_BIAS_PULL_UP;
+    } else if (directionOut) {
         req.request_type = gpiod::line_request::DIRECTION_OUTPUT;
     } else {
         req.request_type = gpiod::line_request::DIRECTION_INPUT;
@@ -446,9 +459,11 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
 
 bool GPIODCapabilities::getValue() const {
 #ifdef HASGPIOD
-    if (lastRequestType == 1) { // OUTPUT
+    if (lastRequestType == 1 && !openDrain) { // push-pull OUTPUT: value is what we drove
         return lastValue;
     }
+    // open-drain (or input): read the actual line level so a released open-drain
+    // line reflects what the slave is driving (needed for I2C ACK/read bits).
 #ifdef IS_GPIOD_CXX_V2
     if (!request) {
         return 0;

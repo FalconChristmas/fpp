@@ -174,6 +174,7 @@ public:
 #endif
     mutable int lastRequestType = 0;
     mutable bool lastValue = false;
+    mutable bool openDrain = false;
     mutable std::string lastDesc;
 #endif
 };
