@@ -51,6 +51,11 @@
 #include "../util/RegExCache.h"
 
 static std::list<Playlist*> PL_CLEANUPS;
+// Entries deleted while one of their own methods may still be on the
+// call stack (e.g. a "Start Playlist" command entry that reloads this
+// playlist from inside StartPlaying) are parked here and freed at the
+// top of Process(), after the stack has unwound.  Mirrors PL_CLEANUPS.
+static std::list<PlaylistEntryBase*> PL_ENTRY_CLEANUPS;
 Playlist* playlist = NULL;
 /*
  *
@@ -818,6 +823,10 @@ int Playlist::Process(void) {
             PL_CLEANUPS.pop_front();
         }
     }
+    while (!PL_ENTRY_CLEANUPS.empty()) {
+        delete PL_ENTRY_CLEANUPS.front();
+        PL_ENTRY_CLEANUPS.pop_front();
+    }
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (m_currentSectionStr == "New") {
         return 0;
@@ -1146,19 +1155,19 @@ int Playlist::Cleanup(void) {
     while (m_leadIn.size()) {
         PlaylistEntryBase* entry = m_leadIn.back();
         m_leadIn.pop_back();
-        delete entry;
+        PL_ENTRY_CLEANUPS.push_back(entry);
     }
 
     while (m_mainPlaylist.size()) {
         PlaylistEntryBase* entry = m_mainPlaylist.back();
         m_mainPlaylist.pop_back();
-        delete entry;
+        PL_ENTRY_CLEANUPS.push_back(entry);
     }
 
     while (m_leadOut.size()) {
         PlaylistEntryBase* entry = m_leadOut.back();
         m_leadOut.pop_back();
-        delete entry;
+        PL_ENTRY_CLEANUPS.push_back(entry);
     }
     return 1;
 }
