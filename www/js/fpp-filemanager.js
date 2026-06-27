@@ -1,10 +1,10 @@
 // Global storage for file data to calculate total sizes
 var fileData = {};
 
-function GetFiles (dir) {
+function GetFiles (dir, extraParams) {
 	$.ajax({
 		dataType: 'json',
-		url: 'api/files/' + dir,
+		url: 'api/files/' + dir + (extraParams ? '?' + extraParams : ''),
 		success: function (data) {
 			let i = 0;
 
@@ -324,9 +324,53 @@ function ButtonHandler (table, button) {
 		$('#tbl' + table + ' tr.selectedEntry').each(function () {
 			DeleteFile(table, $(this), $(this).find('td:first').text());
 		});
+	} else if (button == 'deleteConfig') {
+		// Developer-mode Config tab: confirm before deleting since these are
+		// FPP's internal configuration files.
+		var rows = $('#tbl' + table + ' tr.selectedEntry');
+		if (rows.length == 0) {
+			return;
+		}
+		var files = [];
+		rows.each(function () {
+			files.push($(this).find('td:first').text());
+		});
+		var plural = files.length > 1 ? 's' : '';
+		var listHtml =
+			'<ul>' +
+			files
+				.map(function (f) {
+					return (
+						'<li>' + f.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</li>'
+					);
+				})
+				.join('') +
+			'</ul>';
+		DisplayConfirmationDialog(
+			'confirmDeleteConfig',
+			'Delete Configuration File' + plural,
+			'Are you sure you want to delete the following configuration file' +
+				plural +
+				'? This cannot be undone and may break your system.' +
+				listHtml,
+			function () {
+				rows.each(function () {
+					DeleteFile(table, $(this), $(this).find('td:first').text());
+				});
+			}
+		);
 	} else if (button == 'editScript') {
 		if (selectedCount == 1) {
 			EditScript(filename);
+		} else {
+			DialogError(
+				'Error',
+				'Error, unable to edit multiple files at the same time.'
+			);
+		}
+	} else if (button == 'editConfig') {
+		if (selectedCount == 1) {
+			EditConfigFile(filename);
 		} else {
 			DialogError(
 				'Error',
@@ -508,6 +552,11 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 
 	$('#tblBackups').on('mousedown', 'tbody tr', function (event, ui) {
 		HandleMouseClick(event, $(this), 'Backups');
+	});
+
+	// Developer-mode only Config tab (only present when uiLevel >= 3)
+	$('#tblConfig').on('mousedown', 'tbody tr', function (event, ui) {
+		HandleMouseClick(event, $(this), 'Config');
 	});
 	// there is a bug/issue with FilePond and Safari that causes it to stop when uploading large files, stopping after the first
 	// chunk. This is a workaround to increase the chunk size to 512MB so at least files up to 512MB can be uploaded.
@@ -838,6 +887,81 @@ function SaveScript (scriptName) {
 
 function AbortScriptChange () {
 	CloseModalDialog('scriptEditorDialog');
+}
+
+// Developer-mode only: edit a file in the config directory. Uses the generic
+// file API (api/file/Config/...) for both reading and saving so no script-only
+// endpoints are involved.
+function EditConfigFile (fileName) {
+	var options = {
+		id: 'configEditorDialog',
+		title: 'Config Editor : ' + fileName,
+		body: "<div id='fileEditText' class='fileText'>Loading...</div>",
+		footer: '',
+		class: 'modal-dialog-scrollable',
+		keyboard: true,
+		backdrop: true,
+		buttons: {
+			Save: {
+				id: 'configEditorSaveButton',
+				class: 'btn-success',
+				click: function () {
+					SaveConfigFile($('#configText').data('fileName'));
+				}
+			},
+			Cancel: {
+				click: function () {
+					CloseModalDialog('configEditorDialog');
+				}
+			}
+		}
+	};
+	DoModalDialog(options);
+
+	var url =
+		'api/file/Config/' + encodeURIComponent(fileName).replaceAll('%2F', '/');
+	$.ajax({
+		url: url,
+		dataType: 'text',
+		success: function (text) {
+			$('#fileEditText').html(
+				"<textarea style='width: 100%' rows='25' id='configText'></textarea>"
+			);
+			$('#configText').val(text).data('fileName', fileName);
+		},
+		error: function () {
+			$('#fileEditText').html('Error loading file.');
+		}
+	});
+}
+
+function SaveConfigFile (fileName) {
+	var contents = $('#configText').val();
+	var url =
+		'api/file/Config/' + encodeURIComponent(fileName).replaceAll('%2F', '/');
+
+	$.ajax({
+		url: url,
+		type: 'POST',
+		data: contents,
+		contentType: 'text/plain',
+		processData: false
+	})
+		.done(function (data) {
+			if (data && data.status == 'OK') {
+				CloseModalDialog('configEditorDialog');
+				$.jGrowl('Config file saved.', { themeState: 'success' });
+				GetFiles('Config', 'maxdepth=1');
+			} else {
+				DialogError(
+					'Save Failed',
+					'Save Failed: ' + (data && data.status ? data.status : 'unknown error')
+				);
+			}
+		})
+		.fail(function () {
+			DialogError('Save Failed', 'Save Failed!');
+		});
 }
 
 function SetupTableSorter (tableName) {

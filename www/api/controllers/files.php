@@ -167,11 +167,21 @@ function GetFilesHelper($dirName, $prefix = '')
         $doSudo = "";
     }
 
+    // Optional ?maxdepth=N limits how far down the tree we recurse. Default
+    // behavior (no param) is unchanged: a full recursive listing.
+    $depthArg = "";
+    if (isset($_GET['maxdepth'])) {
+        $maxDepth = intval($_GET['maxdepth']);
+        if ($maxDepth > 0) {
+            $depthArg = " -maxdepth $maxDepth";
+        }
+    }
+
     // if ?nameOnly=1 was passed, then just array of names
     if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
         $rc = array();
         $filelist = array();
-        exec("$doSudo find $dirName -type f -follow -printf \"%P\n\"", $filelist);
+        exec("$doSudo find $dirName$depthArg -type f -follow -printf \"%P\n\"", $filelist);
         foreach ($filelist as $fileName) {
             if ($fileName != '.' && $fileName != '..') {
                 if (!preg_match("//u", $fileName)) {
@@ -190,7 +200,7 @@ function GetFilesHelper($dirName, $prefix = '')
     } else {
         $files = array();
         $subDirList = array();
-        exec("$doSudo find $dirName -type d -follow -printf \"%P|||%T@\n\" | sort", $subDirList);
+        exec("$doSudo find $dirName$depthArg -type d -follow -printf \"%P|||%T@\n\" | sort", $subDirList);
         foreach ($subDirList as $dirDetails) {
             $Details = explode("|||", $dirDetails);
             $fileName = $Details[0];
@@ -209,7 +219,7 @@ function GetFilesHelper($dirName, $prefix = '')
         }
 
         $filelist = array();
-        exec("$doSudo find $dirName -type f -follow -printf \"%P|||%s|||%T@\n\" | sort", $filelist);
+        exec("$doSudo find $dirName$depthArg -type f -follow -printf \"%P|||%s|||%T@\n\" | sort", $filelist);
 
         foreach ($filelist as $fileDetails) {
             $Details = explode("|||", $fileDetails);

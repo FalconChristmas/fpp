@@ -56,6 +56,9 @@
     <script>
         const pluginFileExtensions = [ <? echo implode(", ", array_map(fn($arg) => "'$arg'", $fileExtensions)); ?>];
         GetAllFiles();
+        <?php if (isset($settings['uiLevel']) && $settings['uiLevel'] >= 3) { ?>
+            GetFiles('Config', 'maxdepth=1');
+        <?php } ?>
     </script>
 
     <?php
@@ -187,6 +190,15 @@
                                 Backups
                             </a>
                         </li>
+                        <?php if (isset($settings['uiLevel']) && $settings['uiLevel'] >= 3) { ?>
+                            <li class="nav-item">
+                                <a class="nav-link " id="tab-config-tab" data-bs-toggle="pill"
+                                    data-bs-target="#tab-config" href="#tab-config" role="tab"
+                                    aria-controls="tab-config">
+                                    Config
+                                </a>
+                            </li>
+                        <?php } ?>
                     </ul>
 
 
@@ -790,6 +802,65 @@
                             </div>
 
                         </div>
+                        <?php if (isset($settings['uiLevel']) && $settings['uiLevel'] >= 3) { ?>
+                            <div class="tab-pane fade" id="tab-config" role="tabpanel"
+                                aria-labelledby="tab-config-tab">
+                                <div id="divConfig">
+                                    <div class="backdrop">
+                                        <div class="row justify-content-between fileDetailsHeader">
+                                            <div class="col-auto">
+                                                <h2>Configuration Files</h2>
+                                            </div>
+                                            <div class="col-auto fileCountDetails">
+                                                <div class="row">
+                                                    <div class="col-auto fileCountlabelHeading">Items</div>
+                                                    <div class="col-auto fileCountlabelValue"><span
+                                                            id="fileCount_Config"
+                                                            class='badge text-bg-secondary'>0</span></div>
+                                                    <div class="col-auto fileCountlabelHeading">Size</div>
+                                                    <div class="col-auto fileCountlabelValue"><span id="fileSize_Config"
+                                                            class='badge text-bg-secondary'>0 B</span></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="note"><strong>Developer mode: these are FPP's internal configuration
+                                                files in the config folder. Editing them incorrectly can break your
+                                                system.</strong></div>
+                                        <div id="divConfigData" class="fileManagerDivData">
+                                            <table id="tblConfig">
+                                                <thead>
+                                                    <tr>
+                                                        <th data-field="filename">File</th>
+                                                        <th data-field="size">Size</th>
+                                                        <th data-field="dateModified">Date Modified</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div class='form-actions'>
+                                            <input onclick="ClearSelections('Config');" class="buttons" type="button"
+                                                value="Clear" />
+                                            <input onclick="ButtonHandler('Config', 'viewFile');"
+                                                class="disableButtons noDirButton singleConfigButton" type="button"
+                                                value="View" />
+                                            <input onclick="ButtonHandler('Config', 'editConfig');"
+                                                class="disableButtons noDirButton singleConfigButton" type="button"
+                                                value="Edit" />
+                                            <input onclick="ButtonHandler('Config', 'download');"
+                                                class="disableButtons noDirButton singleConfigButton multiConfigButton"
+                                                type="button" value="Download" />
+                                            <input onclick="ButtonHandler('Config', 'deleteConfig');"
+                                                class="disableButtons noDirButton singleConfigButton multiConfigButton"
+                                                type="button" value="Delete" />
+                                        </div>
+                                        <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php } ?>
                         <div id='fileponduploader' class='fileponduploader ui-tabs-panel'>
                             <input type="file" class="filepond" id="filepondInput" multiple>
                         </div>
