@@ -114,9 +114,7 @@ Sequence::~Sequence() {
     }
     SetLastFrameData(nullptr);
     clearCaches();
-    if (m_seqFile) {
-        delete m_seqFile;
-    }
+    m_seqFile.store(nullptr);
     if (m_bridgeData) {
         free(m_bridgeData);
     }
@@ -187,20 +185,21 @@ void Sequence::ReadFramesLoop() {
             return;
         }
         int cacheSize = frameCache.size();
-        if (frameCache.size() < SEQUENCE_CACHE_FRAMECOUNT && m_seqStarting < 2 && m_seqFile && !m_doneRead) {
+        std::shared_ptr<FSEQFile> seqFilePtr = m_seqFile.load();
+        if (frameCache.size() < SEQUENCE_CACHE_FRAMECOUNT && m_seqStarting < 2 && seqFilePtr && !m_doneRead) {
             uint32_t frame = (m_lastFrameRead + 1);
-            if (frame < m_seqFile->getNumFrames()) {
+            if (frame < seqFilePtr->getNumFrames()) {
                 lock.unlock();
 
                 long long start = GetTimeMS();
                 std::unique_lock<std::mutex> readlock(readFileLock);
                 long long lockt = GetTimeMS();
-                FSEQFile* file = m_seqFile;
+                std::shared_ptr<FSEQFile> file = m_seqFile.load();
                 FSEQFile::FrameData* fd = nullptr;
                 if (m_doneRead || file == nullptr) {
                     // memset(fd->data, 0, maxChanToRead);
                 } else {
-                    fd = m_seqFile->getFrame(frame);
+                    fd = file->getFrame(frame);
                 }
                 long long unlock = GetTimeMS();
                 readlock.unlock();
@@ -263,7 +262,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     size_t bytesRead = 0;
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
 
-    if (m_seqFile) {
+    if (m_seqFile.load()) {
         if (m_seqFilename == filename && m_seqStarting) {
             // same filename AND we haven't started yet, we can continue
             return 1;
@@ -273,18 +272,15 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     if (IsSequenceRunning())
         CloseSequenceFile();
 
-    // Tear down any existing m_seqFile while holding readFileLock (in addition to
-    // frameCacheLock).  The ReadFramesLoop thread calls m_seqFile->getFrame() holding
-    // only readFileLock, so deleting the file here without it can free the file out
-    // from under an in-flight getFrame() (when the previous sequence is still in the
-    // "starting" state, the safe CloseSequenceFile() path above is skipped), corrupting
-    // the heap.  This mirrors the lock discipline in CloseSequenceFile().
+    // Tear down any existing m_seqFile.  m_seqFile is an atomic<shared_ptr<FSEQFile>>, so
+    // resetting it here cannot free the file out from under an in-flight getFrame() in the
+    // ReadFramesLoop thread: that thread holds its own shared_ptr copy and the FSEQFile is
+    // only destroyed once the last holder releases it.
     std::unique_lock<std::mutex> readLock(readFileLock);
     std::unique_lock<std::mutex> lock(frameCacheLock);
-    if (m_seqFile) {
-        std::string fn = m_seqFile->getFilename();
-        delete m_seqFile;
-        m_seqFile = nullptr;
+    if (std::shared_ptr<FSEQFile> old = m_seqFile.load()) {
+        std::string fn = old->getFilename();
+        m_seqFile.store(nullptr);
         commandPresets.clear();
         effectsOn.clear();
         effectsOff.clear();
@@ -357,7 +353,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
         seqLock.lock();
     }
 
-    m_seqFile = nullptr;
+    m_seqFile.store(nullptr);
     FSEQFile* seqFile = FSEQFile::openFSEQFile(tmpFilename);
     if (seqFile == NULL) {
         LogErr(VB_SEQUENCE, "Error opening sequence file: %s. FSEQFile::openFSEQFile returned NULL\n",
@@ -386,7 +382,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     // start reading frames
     lock.lock();
-    m_seqFile = seqFile;
+    m_seqFile.store(std::shared_ptr<FSEQFile>(seqFile));
     lock.unlock();
     m_seqStarting = 1; // beyond header, read loop can start reading frames
     frameLoadSignal.notify_all();
@@ -406,7 +402,11 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     return 1;
 }
 void Sequence::ProcessVariableHeaders() {
-    for (auto& vh : m_seqFile->getVariableHeaders()) {
+    std::shared_ptr<FSEQFile> seqFile = m_seqFile.load();
+    if (!seqFile) {
+        return;
+    }
+    for (auto& vh : seqFile->getVariableHeaders()) {
         if (vh.code[0] == 'F') {
             if (vh.code[1] == 'C' || vh.code[1] == 'E') {
                 const std::vector<uint8_t>& vhd = vh.getData();
@@ -448,7 +448,7 @@ void Sequence::ProcessVariableHeaders() {
 }
 
 void Sequence::StartSequence() {
-    if (!IsSequenceRunning() && m_seqFile) {
+    if (!IsSequenceRunning() && m_seqFile.load()) {
         if (multiSync->isMultiSyncEnabled()) {
             ResetChannelOutputFrameNumber();
             multiSync->SendSeqSyncStartPacket(m_seqFilename);
@@ -520,7 +520,7 @@ void Sequence::SeekSequenceFile(int frameNumber) {
 }
 
 int Sequence::IsSequenceRunning(void) {
-    if (m_seqFile && !m_seqStarting)
+    if (m_seqFile.load() && !m_seqStarting)
         return 1;
 
     return 0;
@@ -830,11 +830,10 @@ void Sequence::CloseSequenceFile(void) {
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
 
     std::unique_lock<std::mutex> readLock(readFileLock);
-    if (m_seqFile) {
-        std::string fn = m_seqFile->getFilename();
+    if (std::shared_ptr<FSEQFile> old = m_seqFile.load()) {
+        std::string fn = old->getFilename();
         std::unique_lock<std::mutex> fclock(frameCacheLock);
-        delete m_seqFile;
-        m_seqFile = nullptr;
+        m_seqFile.store(nullptr);
         fclock.unlock();
         checkForReplacementFile(fn);
 

@@ -714,16 +714,26 @@ public:
 };
 
 void V1FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>>& ranges, uint32_t startFrame) {
-    m_rangesToRead = ranges;
+    m_rangesToRead.clear();
     m_dataBlockSize = 0;
-    for (auto& rng : m_rangesToRead) {
-        // make sure we don't read beyond the end of the sequence data
+    for (auto rng : ranges) {
+        // make sure we don't read beyond the end of the sequence data.
+        // Skip any range that starts past the channels present in the file; without
+        // this guard "m_seqChannelCount - rng.first" underflows (unsigned), producing a
+        // huge length that later overruns a buffer.  Mirrors V2FSEQFile::prepareRead.
         int toRead = rng.second;
-        if ((rng.first + toRead) > m_seqChannelCount) {
-            toRead = m_seqChannelCount - rng.first;
-            rng.second = toRead;
+        if (rng.first < m_seqChannelCount) {
+            if ((rng.first + toRead) > m_seqChannelCount) {
+                toRead = m_seqChannelCount - rng.first;
+                rng.second = toRead;
+            }
+            m_dataBlockSize += toRead;
+            m_rangesToRead.push_back(rng);
         }
-        m_dataBlockSize += toRead;
+    }
+    if (m_dataBlockSize == 0) {
+        m_rangesToRead.push_back(std::pair<uint32_t, uint32_t>(0, getMaxChannel()));
+        m_dataBlockSize = getMaxChannel();
     }
     FrameData* f = getFrame(startFrame);
     if (f) {

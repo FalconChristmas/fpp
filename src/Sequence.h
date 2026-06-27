@@ -18,6 +18,7 @@
 #include <condition_variable>
 #include <list>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -91,7 +92,7 @@ private:
     std::mutex m_bridgeRangesLock;
     uint8_t* m_bridgeData;
 
-    FSEQFile* m_seqFile;
+    std::atomic<std::shared_ptr<FSEQFile>> m_seqFile;
 
     volatile int m_seqStarting;
     int m_seqPaused;
