@@ -32,7 +32,18 @@ if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
     # need this to initialize the GPU on the Pi5
     apt-get $APT_OPTS install -y gldriver-test
 fi
-apt-get $APT_OPTS install -y --no-install-recommends xserver-xorg x11-xserver-utils xinit openbox xserver-xorg-legacy
+# Install the full functional X stack. Do NOT add --no-install-recommends
+# here: Debian expresses the pieces that make X actually usable -- the setuid
+# console wrapper (xserver-xorg-legacy), the input drivers (libinput, via
+# xserver-xorg-input-all) and GL/DRI (libgl1-mesa-dri) -- as Recommends or
+# alternative Depends on xserver-xorg. The Trixie FPP base image ships no X at
+# all, so stripping recommends here leaves a half-working X: no console
+# wrapper (startx is refused), no touch/keyboard/mouse, no GL. We also name
+# the must-haves explicitly so an upstream packaging change cannot silently
+# drop them out from under us.
+apt-get $APT_OPTS install -y \
+    xserver-xorg xserver-xorg-legacy xserver-xorg-input-libinput \
+    x11-xserver-utils xinit openbox libgl1-mesa-dri
 # Try chromium first (Debian Trixie+), fall back to chromium-browser (older versions)
 apt-get $APT_OPTS install -y --no-install-recommends chromium || apt-get $APT_OPTS install -y --no-install-recommends chromium-browser
 apt-get clean
@@ -51,6 +62,19 @@ if ! command -v chromium > /dev/null 2>&1 && ! command -v chromium-browser > /de
 fi
 if ! command -v xinit > /dev/null 2>&1 || ! command -v openbox > /dev/null 2>&1; then
     echo "ERROR: xinit/openbox failed to install - leaving kiosk uninstalled so it retries on next boot"
+    exit 1
+fi
+# These come via Recommends/alternative-Depends and have silently gone missing
+# before. Without the setuid wrapper, non-root startx from the console is
+# refused; without an input driver, X comes up with no touch/keyboard/mouse.
+# Treat either as a failed install so it retries rather than leaving a
+# half-working kiosk marked as installed.
+if [ ! -e /usr/lib/xorg/Xorg.wrap ]; then
+    echo "ERROR: xserver-xorg-legacy (Xorg.wrap) missing - leaving kiosk uninstalled so it retries on next boot"
+    exit 1
+fi
+if ! ls /usr/lib/xorg/modules/input/*.so > /dev/null 2>&1; then
+    echo "ERROR: no X input driver installed - leaving kiosk uninstalled so it retries on next boot"
     exit 1
 fi
 
