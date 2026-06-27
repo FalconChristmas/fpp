@@ -90,7 +90,9 @@ if (!(isset($_GET['filename']) && isset($_GET['remoteHost']) && isset($_GET['dir
         } else {
             curl_close($ch);
             echo "Complete:" . $result . "\n";
-            move($remoteHost, $filename);
+            if (move($remoteHost, $filename)) {
+                echo "File Copy Complete\n";
+            }
         }
         echo("\n");
     }
@@ -131,16 +133,16 @@ function move($remoteHost, $file) {
     curl_setopt($ch, CURLOPT_FAILONERROR, true);
 
     $result = curl_exec($ch);
+    curl_close($ch);
 
+    // This finalizes the file that was just uploaded; it is never a standalone
+    // move. Success is part of the overall copy, so the caller prints the single
+    // user-facing completion message. Only surface a failure here.
     if ($result === false) {
-        echo "ERROR calling move URL";
-        curl_close($ch);
-    } else {
-        curl_close($ch);
-        echo "File Move Complete";
+        echo "ERROR finalizing copied file on remote\n";
+        return false;
     }
-
-    echo("\n");
+    return true;
 }
 
 global $raw;
