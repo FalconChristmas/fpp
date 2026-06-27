@@ -504,6 +504,16 @@
             mp.ledPanelsPanelsPerOutput ||= LEDPanelDefaults.LEDPanelsPanelsPerOutput;
             mp.LEDPanelAddressing ||= LEDPanelDefaults.LEDPanelAddressing;
             mp.gamma ||= LEDPanelDefaults.LEDPanelGamma;
+            // Upgrade pre-v3 (8.5) configs that stored the panel grid only in panels[] (with
+            // per-panel row/col) and never had a ledPanelsLayout. Without this the layout would
+            // fall back to the 2x2 default below, dropping panels on display and overwriting the
+            // saved panels[] on Save. Reconstruct cols/rows from the panel grid coordinates.
+            if (!mp.ledPanelsLayout && Array.isArray(mp.panels) && mp.panels.length > 0 &&
+                mp.panels.every(p => Number.isFinite(p.row) && Number.isFinite(p.col))) {
+                const cols = Math.max(...mp.panels.map(p => p.col)) + 1;
+                const rows = Math.max(...mp.panels.map(p => p.row)) + 1;
+                mp.ledPanelsLayout = `${cols}x${rows}`;
+            }
             mp.ledPanelsLayout ||= LEDPanelDefaults.ledPanelsLayout;
             mp.gpioSlowdown ||= LEDPanelDefaults.gpioSlowdown;
             mp.LEDPanelCanvasUIPixelsHigh ||= LEDPanelDefaults.LEDPanelCanvasUIPixelsHigh;
