@@ -273,6 +273,13 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     if (IsSequenceRunning())
         CloseSequenceFile();
 
+    // Tear down any existing m_seqFile while holding readFileLock (in addition to
+    // frameCacheLock).  The ReadFramesLoop thread calls m_seqFile->getFrame() holding
+    // only readFileLock, so deleting the file here without it can free the file out
+    // from under an in-flight getFrame() (when the previous sequence is still in the
+    // "starting" state, the safe CloseSequenceFile() path above is skipped), corrupting
+    // the heap.  This mirrors the lock discipline in CloseSequenceFile().
+    std::unique_lock<std::mutex> readLock(readFileLock);
     std::unique_lock<std::mutex> lock(frameCacheLock);
     if (m_seqFile) {
         std::string fn = m_seqFile->getFilename();
@@ -292,6 +299,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     }
     clearCaches();
     lock.unlock();
+    readLock.unlock();
 
     m_seqPaused = 0;
     m_seqMSDuration = 0;
