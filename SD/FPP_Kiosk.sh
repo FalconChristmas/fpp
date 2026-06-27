@@ -32,7 +32,7 @@ if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
     # need this to initialize the GPU on the Pi5
     apt-get $APT_OPTS install -y gldriver-test
 fi
-apt-get $APT_OPTS install -y --no-install-recommends xserver-xorg x11-xserver-utils xinit openbox
+apt-get $APT_OPTS install -y --no-install-recommends xserver-xorg x11-xserver-utils xinit openbox xserver-xorg-legacy
 # Try chromium first (Debian Trixie+), fall back to chromium-browser (older versions)
 apt-get $APT_OPTS install -y --no-install-recommends chromium || apt-get $APT_OPTS install -y --no-install-recommends chromium-browser
 apt-get clean
@@ -64,7 +64,7 @@ mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
 [Service]
 ExecStart=
-ExecStart=-/sbin/agetty --autologin fpp --noclear %I $$TERM
+ExecStart=-/sbin/agetty --autologin fpp --noclear %I \$TERM
 
 EOF
 

@@ -1555,6 +1555,18 @@ echo "FPP - Populating ${FPPHOME}"
 # start populating it; a recursive sweep at the end of image creation catches
 # everything the root-run install steps drop in afterward.
 chown ${FPPUSER}:${FPPUSER} ${FPPHOME}
+
+# adduser only copies /etc/skel into the home dir when it CREATES it. When
+# /home/fpp already exists (see above) the skel dotfiles are skipped, leaving
+# the user without ~/.profile -- and a bash *login* shell then never sources
+# ~/.bashrc (which loads /opt/fpp/scripts/common and, on a kiosk, fires startx).
+# Seed any skel dotfiles that are missing before we append to .bashrc below.
+for skelfile in /etc/skel/.profile /etc/skel/.bashrc /etc/skel/.bash_logout; do
+    if [ -f "${skelfile}" ] && [ ! -e "${FPPHOME}/$(basename "${skelfile}")" ]; then
+        cp "${skelfile}" "${FPPHOME}/"
+        chown ${FPPUSER}:${FPPUSER} "${FPPHOME}/$(basename "${skelfile}")"
+    fi
+done
 mkdir ${FPPHOME}/.ssh
 chown ${FPPUSER}:${FPPUSER} ${FPPHOME}/.ssh
 chmod 700 ${FPPHOME}/.ssh
