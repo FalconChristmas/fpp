@@ -164,21 +164,6 @@ LIBS_fpp_so += -ldrm
 endif
 endif
 
-ifneq ($(wildcard /usr/include/xf86drm.h),)
-CFLAGS += -I/usr/include/libdrm
-LIBS_fpp_so += -ldrm
-endif
-
-# SDL support — prefer SDL3 when available, fall back to SDL2.
-# Plugins (e.g. gamepad input) link against whichever version is found.
-ifeq ($(shell pkg-config --exists sdl3 2>/dev/null && echo yes),yes)
-CFLAGS += $(shell pkg-config --cflags sdl3)
-LIBS_fpp_so += $(shell pkg-config --libs sdl3)
-else ifeq ($(shell pkg-config --exists sdl2 2>/dev/null && echo yes),yes)
-CFLAGS += $(shell pkg-config --cflags sdl2)
-LIBS_fpp_so += $(shell pkg-config --libs sdl2)
-endif
-
 
 util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk $(PCH_FILE)
 	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
