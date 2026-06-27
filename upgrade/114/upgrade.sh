@@ -29,6 +29,7 @@ if [ "${FPPPLATFORM}" = "MacOS" ]; then
     exit 0
 fi
 
+RESTORED_PROFILE=0
 for skelfile in /etc/skel/.profile /etc/skel/.bash_logout; do
     base=$(basename "${skelfile}")
     if [ ! -f "${skelfile}" ]; then
@@ -41,6 +42,17 @@ for skelfile in /etc/skel/.profile /etc/skel/.bash_logout; do
     echo "  Restoring ${FPPHOME}/${base} from /etc/skel"
     cp "${skelfile}" "${FPPHOME}/"
     chown ${FPPUSER}:${FPPGROUP} "${FPPHOME}/${base}"
+    if [ "${base}" = ".profile" ]; then
+        RESTORED_PROFILE=1
+    fi
 done
+
+if [ "${RESTORED_PROFILE}" -eq 1 ]; then
+    # ~/.profile was missing, so login shells were not sourcing ~/.bashrc and
+    # Kiosk mode's autologin -> startx never ran.  Flag a reboot so the corrected
+    # login flow (and the kiosk) takes effect.
+    echo "  Restored ${FPPHOME}/.profile - flagging reboot so the login/kiosk flow re-runs"
+    setSetting rebootFlag 1
+fi
 
 exit 0
