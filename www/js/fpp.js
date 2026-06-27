@@ -7865,6 +7865,11 @@ function InitMultisyncHostsAutocomplete (tblCommand) {
 		.on('focus', function () {
 			$(this).autocomplete('search', extractLast(this.value));
 		})
+		.on('click', function () {
+			// The field keeps focus after a host is picked, so a focus event
+			// won't fire on the next click. Reopen the suggestions on click too.
+			$(this).autocomplete('search', extractLast(this.value));
+		})
 		.autocomplete({
 			minLength: 0,
 			open: function () {
