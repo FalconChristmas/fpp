@@ -130,7 +130,10 @@ endif
 # go ahead and use it as it's MUCH faster (non-clang == g++, see note above)
 ifeq '$(findstring clang,$(CXXCOMPILER))' ''
 ifneq ($(wildcard /usr/bin/ld.mold),)
-LDFLAGS += -fuse-ld=mold
+# Use a wrapper ld.mold (via -B) that strips a harmless, un-suppressible
+# mimalloc over-allocation warning printed by mold's bundled allocator.
+MOLD_WRAPPER_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))/mold-wrapper
+LDFLAGS += -fuse-ld=mold -B$(MOLD_WRAPPER_DIR)
 else ifneq ($(wildcard /usr/bin/ld.gold),)
 LDFLAGS += -fuse-ld=gold
 endif

@@ -1,0 +1,8 @@
+#!/bin/bash
+# Wrapper around the real mold linker that drops a harmless, un-suppressible
+# mimalloc warning printed by mold's bundled allocator on some kernels:
+#   "mimalloc: warning: unable to allocate aligned OS memory directly, fall back to over-allocation"
+# The fallback succeeds and the link is correct; this only removes the noise.
+# All other linker output (including real errors) passes through unchanged.
+exec -a ld.mold /usr/bin/mold "$@" \
+  2> >(grep -v 'mimalloc: warning: unable to allocate aligned OS memory' >&2)
