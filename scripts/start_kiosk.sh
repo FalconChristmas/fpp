@@ -17,6 +17,20 @@ else
     xset +dpms
     xset dpms "$TIMEOUT" "$TIMEOUT" "$TIMEOUT"
 fi
+# Pick which display the kiosk renders on.  On the modesetting (KMS) driver the
+# server can select a DPI connector as primary -- the FPP cape's vc4-kms-dpi
+# overlay exposes one for LED/pixel output, not as a viewable monitor -- which
+# leaves the real HDMI/DSI panel with no signal (the monitor drops to standby).
+# Choose the first *connected* output that is not a DPI output and make it
+# primary, restoring the pre-Trixie behaviour where HDMI/DSI installs just work.
+KIOSK_OUTPUT=$(xrandr 2>/dev/null | awk '$2=="connected" && $1 !~ /^DPI/ {print $1; exit}')
+if [ -n "$KIOSK_OUTPUT" ]; then
+    echo "$(date) Using $KIOSK_OUTPUT as the kiosk display" >> "$LOGFILE"
+    xrandr --output "$KIOSK_OUTPUT" --auto --primary
+else
+    echo "$(date) WARNING: no non-DPI connected output found; leaving X default display" >> "$LOGFILE"
+fi
+
 # Determine which chromium binary is available (Trixie+ uses 'chromium', older uses 'chromium-browser')
 if command -v chromium > /dev/null 2>&1; then
     CHROMIUM_BIN="chromium"
