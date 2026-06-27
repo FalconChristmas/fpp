@@ -176,18 +176,30 @@ int GPIODCapabilities::configPin(const std::string& mode,
         chip = GPIOChipHolder::INSTANCE.chips[gpioIdx];
     }
 
-    try {
-        gpiod::line_settings settings;
+    openDrain = (mode == "gpio_od");
 
-        openDrain = (mode == "gpio_od");
+    std::string consumer = PROCESS_NAME;
+    if (!desc.empty()) {
+        consumer += "-" + desc;
+    }
+    lastDesc = consumer;
+
+    // Build line settings for the requested mode. For open-drain, withBias
+    // controls whether we request an internal pull-up.
+    auto makeSettings = [&](bool withBias) {
+        gpiod::line_settings settings;
         if (openDrain) {
             // Open-drain output for bit-banged I2C: setValue(0) drives low,
             // setValue(1) releases (high-Z, pulled up). The released line stays
             // readable, so ACK/read bits work with no direction flipping.
             settings.set_direction(gpiod::line::direction::OUTPUT);
             settings.set_drive(gpiod::line::drive::OPEN_DRAIN);
-            settings.set_bias(gpiod::line::bias::PULL_UP);
-            lastBias = gpiod::line::bias::PULL_UP;
+            if (withBias) {
+                settings.set_bias(gpiod::line::bias::PULL_UP);
+                lastBias = gpiod::line::bias::PULL_UP;
+            } else {
+                lastBias = gpiod::line::bias::AS_IS;
+            }
         } else if (directionOut) {
             settings.set_direction(gpiod::line::direction::OUTPUT);
         } else {
@@ -203,27 +215,39 @@ int GPIODCapabilities::configPin(const std::string& mode,
                 lastBias = gpiod::line::bias::DISABLED;
             }
         }
+        return settings;
+    };
 
-        std::string consumer = PROCESS_NAME;
-        if (!desc.empty()) {
-            consumer += "-" + desc;
+    // Open-drain: try with an internal pull-up, then without -- some
+    // controllers (e.g. an i2c GPIO expander exposed as a kernel gpiochip)
+    // don't support bias config and reject the request; an external pull-up
+    // is then required. Other modes are a single attempt.
+    int attempts = openDrain ? 2 : 1;
+    for (int attempt = 0; attempt < attempts; ++attempt) {
+        try {
+            gpiod::line_settings settings = makeSettings(attempt == 0);
+            gpiod::request_builder builder = chip->prepare_request();
+            builder.add_line_settings(gpio, settings);
+            builder.set_consumer(consumer);
+            if (request) {
+                request->release();
+                request = nullptr;
+            }
+            request = std::make_shared<gpiod::line_request>(builder.do_request());
+            lastRequestType = (directionOut || openDrain) ? 1 : 0;
+            if (openDrain && attempt == 1) {
+                LogInfo(VB_GPIO, "Pin %s: open-drain configured without an internal pull-up; an external pull-up is required\n", name.c_str());
+            }
+            break;
+        } catch (const std::exception& ex) {
+            if (openDrain && attempt == 0) {
+                continue;  // retry without the (unsupported) pull-up bias
+            }
+            std::string w = "Could not configure pin " + name + "(" + desc + ") as " + mode + " (" + ex.what() + ")";
+            WarningHolder::AddWarning(51, w);
+            LogWarn(VB_GPIO, "%s\n", w.c_str());
+            lastRequestType = 0;
         }
-        lastDesc = consumer;
-
-        gpiod::request_builder builder = chip->prepare_request();
-        builder.add_line_settings(gpio, settings);
-        builder.set_consumer(consumer);
-        if (request) {
-            request->release();
-            request = nullptr;
-        }
-        request = std::make_shared<gpiod::line_request>(builder.do_request());
-        lastRequestType = (directionOut || openDrain) ? 1 : 0;
-    } catch (const std::exception& ex) {
-        std::string w = "Could not configure pin " + name + "(" + desc + ") as " + mode + " (" + ex.what() + ")";
-        WarningHolder::AddWarning(51, w);
-        LogWarn(VB_GPIO, "%s\n", w.c_str());
-        lastRequestType = 0;
     }
 #else
     // printf("Configuring %s %d %d %s\n", name.c_str(), gpioIdx, gpio, mode.c_str());
