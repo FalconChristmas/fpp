@@ -545,6 +545,16 @@ void GPIOManager::addState(GPIOState* state) {
         // Request events for any edge that has actions or is needed for hold detection.
         bool wantRising = !state->risingActions.empty() || !state->holdActions.empty();
         bool wantFalling = !state->fallingActions.empty() || !state->holdActions.empty();
+        // Edge detection is stateful: doAction() only fires when the read value
+        // differs from lastValue. If we only listen for one edge, lastValue latches
+        // after the first trigger and is never reset (the opposite edge never
+        // arrives), so the input fires exactly once and then goes dead until fppd
+        // restarts. Whenever a command-action pin wants either edge, monitor BOTH so
+        // lastValue stays in sync; doAction() already no-ops the edge with no actions.
+        // Raw callback registrations (no actions) keep their prior behavior.
+        if (wantRising || wantFalling) {
+            wantRising = wantFalling = true;
+        }
         state->file = state->pin->requestEventFile(wantRising, wantFalling);
     } else {
         state->file = -1;
