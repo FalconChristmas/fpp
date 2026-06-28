@@ -125,7 +125,7 @@ void Timers::fireTimersInternal(long long t) {
     bool fired = false;
     for (int x = 0; x < m; ++x) {
         auto a = timers[x];
-        if (a && (a->fireTimeMS < t)) {
+        if (a && (a->fireTimeMS <= t)) {
             toFire.push_back(a);
             if (a->periodicRate) {
                 a->fireTimeMS = GetTimeMS() + a->periodicRate;
@@ -135,7 +135,7 @@ void Timers::fireTimersInternal(long long t) {
             }
         }
     }
-    lock.unlock();
+    l.unlock();
     for (auto& a : toFire) {
         fireTimer(a);
         fired = true;
@@ -144,7 +144,7 @@ void Timers::fireTimersInternal(long long t) {
         delete a;
     }
     if (fired) {
-        lock.lock();
+        l.lock();
         updateTimers();
     }
 }
