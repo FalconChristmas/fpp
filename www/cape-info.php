@@ -285,6 +285,25 @@ if (isset($settings["cape-info"])) {
         var eepromCurrentVendorSelected = false;
         var eepromCurrentCapeSelected = false;
 
+        // Normalize a vendor name for loose matching: lowercase, alphanumerics only.  The vendor
+        // name baked into a cape's EEPROM is often a fuller form than the vendor-list name -- e.g.
+        // "Kulp Lights LLC" vs "Kulp Lights", or "Wired Watts" vs the list's "Wired Watts.com" --
+        // and the same vendor has shipped capes under both spellings, so an exact compare misses
+        // them.  See issue #2564.
+        function normalizeEEPROMVendorName(name) {
+            return (name || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+        // Match if the names are equal or one is a prefix of the other.  The real-world differences
+        // are all trailing suffixes ("LLC", ".com"), so prefix matching catches them without the
+        // false positives that arbitrary substring matching could cause.
+        function eepromVendorNamesMatch(listName, capeVendor) {
+            var a = normalizeEEPROMVendorName(listName);
+            var b = normalizeEEPROMVendorName(capeVendor);
+            if (a == '' || b == '') {
+                return false;
+            }
+            return a == b || a.indexOf(b) === 0 || b.indexOf(a) === 0;
+        }
         function GetDownloadableEEPROMList() {
             $.get('https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromVendors.json', function (eepromVendors) {
                 if (typeof eepromVendors === 'string') {
@@ -308,7 +327,7 @@ if (isset($settings["cape-info"])) {
                             // Default the dropdowns to the currently-installed cape (issue #2564).
                             // Vendor files load asynchronously, so attempt the match as each arrives.
                             if (!eepromCurrentVendorSelected && currentCapeVendor != ''
-                                && eepromjson.name == currentCapeVendor) {
+                                && eepromVendorNamesMatch(eepromjson.name, currentCapeVendor)) {
                                 eepromCurrentVendorSelected = true;
                                 $('#eepromVendorList').val(vendName).trigger("change");
                             }
