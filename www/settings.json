@@ -2351,6 +2351,20 @@
 				"MultiSyncEnabled": 1
 			}
 		},
+		"MultiSyncUnicast": {
+			"name": "MultiSyncUnicast",
+			"gatherStats": true,
+			"description": "Send MultiSync to ALL KNOWN remotes via Unicast",
+			"tip": "Unicast MultiSync messages individually to every known FPP remote that is running in Remote mode.  Remotes are added to the list automatically as they are discovered (via mDNS or the normal FPP discovery).  Non-FPP devices (WLED, ESPixelStick, Falcon controllers, etc.) and FPP instances not in Remote mode are skipped.  Useful when multicast/broadcast is unreliable across your network.",
+			"type": "checkbox",
+			"restart": 2,
+			"fppModes": [
+				"player"
+			],
+			"settingValues": {
+				"MultiSyncEnabled": 1
+			}
+		},
 		"MultiSyncCopyEffects": {
 			"name": "MultiSyncCopyEffects",
 			"gatherStats": true,

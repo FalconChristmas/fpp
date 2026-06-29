@@ -177,6 +177,18 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
         this->ipc = 0;
         this->ipd = 0;
     }
+
+    // A system is a valid target for "Send MultiSync to ALL KNOWN remotes via
+    // Unicast" only if it's a full FPP instance (type below the 0x80 boundary
+    // that separates full-FPP systems from external controllers) running in
+    // Remote mode.  This deliberately excludes WLED, ESPixelStick, Falcon and
+    // Experience controllers, xSchedule, and any FPP instance acting as a
+    // player/master.  We intentionally do NOT require that the system was
+    // learned via the UDP MultiSync protocol so that FPP remotes discovered
+    // via HTTP (e.g. on a network segment where multicast is blocked - the
+    // very case this mode exists for) are still targeted.
+    this->supportsUnicast = (this->type < kSysTypeFalconController) &&
+                            (this->fppMode == REMOTE_MODE);
 }
 
 Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
@@ -322,15 +334,18 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
 
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
     bool found = false;
+    bool unicastChanged = false;
     for (auto& sys : m_remoteSystems) {
         if ((address == sys.address || ipForAddress == sys.address) &&
             ((hostname == sys.hostname) ||
              (address == sys.hostname) ||
              (hostname == sys.address))) {
             found = true;
+            bool wasUnicast = sys.supportsUnicast;
             sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync, sendingMultiSync);
             sys.lastSeenStr = timeStr;
             sys.lastSeen = t;
+            unicastChanged |= (wasUnicast != sys.supportsUnicast);
         }
     }
     for (auto& sys : m_localSystems) {
@@ -347,7 +362,16 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
         sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync, sendingMultiSync);
         sys.lastSeenStr = timeStr;
         sys.lastSeen = t;
+        unicastChanged |= sys.supportsUnicast;
         m_remoteSystems.push_back(sys);
+    }
+
+    // If a remote became (or stopped being) a unicast target, refresh the
+    // cached "all known remotes" destination list.  We still hold m_systemsLock
+    // here; UpdateUnicastDestinations() acquires m_socketLock, preserving the
+    // m_systemsLock -> m_socketLock ordering used elsewhere.
+    if (m_sendUnicast && unicastChanged) {
+        UpdateUnicastDestinations();
     }
 }
 
@@ -1326,13 +1350,15 @@ void MultiSync::PeriodicPing() {
         // updated and new timestamps
         unsigned long timeoutRePingAll = (unsigned long)t - 60 * 600;
         std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+        bool unicastChanged = false;
         for (auto it = m_remoteSystems.begin(); it != m_remoteSystems.end();) {
             if (it->lastSeen < timeoutRemove) {
                 LogInfo(VB_SYNC, "Have not seen %s in over 2 hours, removing\n", it->address.c_str());
-                m_remoteSystems.erase(it);
                 if (it->lastSeen < timeoutRePingAll) {
                     superLongGap = true;
                 }
+                unicastChanged |= it->supportsUnicast;
+                it = m_remoteSystems.erase(it);
             } else if (it->lastSeen < timeoutRePing) {
                 if (it->multiSync) {
                     PingSingleRemote(*it, 1);
@@ -1343,6 +1369,10 @@ void MultiSync::PeriodicPing() {
             } else {
                 ++it;
             }
+        }
+        // Drop any removed remotes from the cached unicast destination list.
+        if (m_sendUnicast && unicastChanged) {
+            UpdateUnicastDestinations();
         }
     }
     if (superLongGap) {
@@ -1917,7 +1947,11 @@ int MultiSync::OpenControlSockets() {
     if (getSettingInt("MultiSyncMulticast")) {
         m_sendMulticast = true;
     }
-    if (remotesString == "" && m_multiSyncEnabled) {
+    if (getSettingInt("MultiSyncUnicast")) {
+        m_sendUnicast = true;
+    }
+    if (remotesString == "" && !m_sendBroadcast && !m_sendMulticast && !m_sendUnicast && m_multiSyncEnabled) {
+        // No explicit remotes or send method configured; default to multicast.
         m_sendMulticast = true;
     }
 
@@ -1968,7 +2002,48 @@ int MultiSync::OpenControlSockets() {
     LogDebug(VB_SYNC, "%d Remote Sync systems configured\n",
              m_destAddr.size());
     FillInInterfaces();
+
+    // Seed the "all known remotes" unicast list from anything already known.
+    // (Typically empty at startup; it fills in as remotes are discovered.)
+    if (m_sendUnicast) {
+        UpdateUnicastDestinations();
+    }
     return 1;
+}
+
+void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, struct iovec& iovec, void* outBuf, int len) {
+    // The msgs vector (and the sockaddrs its entries point at) may be rebuilt
+    // concurrently by UpdateUnicastDestinations(), so read its size, point the
+    // shared iovec at our buffer, and send all while holding m_socketLock.
+    std::unique_lock<std::mutex> lock(m_socketLock);
+    int msgCount = msgs.size();
+    if (msgCount == 0) {
+        return;
+    }
+    iovec.iov_base = outBuf;
+    iovec.iov_len = len;
+
+    int oc = sendmmsg(m_controlSock, &msgs[0], msgCount, MSG_DONTWAIT);
+    int outputCount = oc;
+    long long startTime = GetTimeMS();
+    while (oc >= 0 && outputCount != msgCount) {
+        int oc = sendmmsg(m_controlSock, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+        if (oc > 0) {
+            outputCount += oc;
+        } else {
+            long long tm = GetTimeMS();
+            long long totalTime = tm - startTime;
+            if (totalTime < 10) {
+                // we'll keep trying for up to 15ms, but give the network stack some time to flush some buffers
+                std::this_thread::sleep_for(std::chrono::microseconds(250));
+            } else {
+                oc = -1;
+            }
+        }
+    }
+    if (outputCount != msgCount) {
+        LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s   (%d/%d)\n", FPPstrerror(errno), outputCount, msgCount);
+    }
 }
 
 void MultiSync::SendControlPacket(void* outBuf, int len) {
@@ -1977,33 +2052,12 @@ void MultiSync::SendControlPacket(void* outBuf, int len) {
         HexDump("Sending Control packet with contents:", outBuf, len, VB_SYNC);
     }
 
-    int msgCount = m_destMsgs.size();
-    if (msgCount != 0) {
-        m_destIovec.iov_base = outBuf;
-        m_destIovec.iov_len = len;
+    // Statically-configured unicast remotes (MultiSyncRemotes/ExtraRemotes).
+    SendControlPacketViaMsgs(m_destMsgs, m_destIovec, outBuf, len);
 
-        std::unique_lock<std::mutex> lock(m_socketLock);
-        int oc = sendmmsg(m_controlSock, &m_destMsgs[0], msgCount, MSG_DONTWAIT);
-        int outputCount = oc;
-        long long startTime = GetTimeMS();
-        while (oc >= 0 && outputCount != msgCount) {
-            int oc = sendmmsg(m_controlSock, &m_destMsgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
-            if (oc > 0) {
-                outputCount += oc;
-            } else {
-                long long tm = GetTimeMS();
-                long long totalTime = tm - startTime;
-                if (totalTime < 10) {
-                    // we'll keep trying for up to 15ms, but give the network stack some time to flush some buffers
-                    std::this_thread::sleep_for(std::chrono::microseconds(250));
-                } else {
-                    oc = -1;
-                }
-            }
-        }
-        if (outputCount != msgCount) {
-            LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s   (%d/%d)\n", FPPstrerror(errno), outputCount, msgCount);
-        }
+    // All known FPP remotes in Remote mode (MultiSyncUnicast setting).
+    if (m_sendUnicast) {
+        SendControlPacketViaMsgs(m_unicastDestMsgs, m_unicastDestIovec, outBuf, len);
     }
     if (m_sendMulticast) {
         SendMulticastPacket(outBuf, len);
@@ -2011,6 +2065,72 @@ void MultiSync::SendControlPacket(void* outBuf, int len) {
     if (m_sendBroadcast) {
         SendBroadcastPacket(outBuf, len);
     }
+}
+
+void MultiSync::UpdateUnicastDestinations() {
+    // Build the new sockaddr list while holding m_systemsLock (recursive, so
+    // safe even when a caller already holds it), then swap it into place under
+    // m_socketLock.  We never hold m_socketLock while taking m_systemsLock,
+    // matching the m_systemsLock -> m_socketLock order used by Ping().
+    std::vector<struct sockaddr_in> newAddrs;
+    {
+        std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+        for (auto& sys : m_remoteSystems) {
+            if (!sys.supportsUnicast) {
+                continue;
+            }
+            struct sockaddr_in addr;
+            memset(&addr, 0, sizeof(addr));
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(FPP_CTRL_PORT);
+
+            std::string ipAd = sys.address;
+            if (GetIPForHost(ipAd)) {
+                addr.sin_addr.s_addr = inet_addr(ipAd.c_str());
+            } else {
+                addr.sin_addr.s_addr = inet_addr(sys.address.c_str());
+            }
+            // Skip anything that didn't resolve to a usable IPv4 address
+            // (e.g. an IPv6-only peer); sockaddr_in can't represent it.
+            if (addr.sin_addr.s_addr == INADDR_NONE || addr.sin_addr.s_addr == 0) {
+                continue;
+            }
+            newAddrs.push_back(addr);
+        }
+    }
+
+    std::unique_lock<std::mutex> lock(m_socketLock);
+    // Skip any address already covered by the statically-configured remote list
+    // (m_destAddr, built once in OpenControlSockets and immutable thereafter) so
+    // a remote that is both individually selected for unicast AND picked up by
+    // "all known remotes" only receives each packet once.  The same set also
+    // dedupes the all-known list against itself (e.g. a remote known under both
+    // a hostname and an IP).
+    std::set<uint32_t> seen;
+    for (auto& s : m_destAddr) {
+        seen.insert(s.sin_addr.s_addr);
+    }
+    m_unicastDestAddr.clear();
+    m_unicastDestAddr.reserve(newAddrs.size());
+    for (auto& addr : newAddrs) {
+        if (seen.insert(addr.sin_addr.s_addr).second) {
+            m_unicastDestAddr.push_back(addr);
+        }
+    }
+    m_unicastDestMsgs.clear();
+    m_unicastDestMsgs.reserve(m_unicastDestAddr.size());
+    for (size_t x = 0; x < m_unicastDestAddr.size(); x++) {
+        struct mmsghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        msg.msg_hdr.msg_name = &m_unicastDestAddr[x];
+        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+        msg.msg_hdr.msg_iov = &m_unicastDestIovec;
+        msg.msg_hdr.msg_iovlen = 1;
+        msg.msg_len = 0;
+        m_unicastDestMsgs.push_back(msg);
+    }
+    LogDebug(VB_SYNC, "%d unicast MultiSync destinations (all known remotes)\n",
+             (int)m_unicastDestMsgs.size());
 }
 void MultiSync::SendBroadcastPacket(void* outBuf, int len) {
     if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {

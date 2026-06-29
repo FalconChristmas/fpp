@@ -2555,14 +2555,27 @@
         function syncModeUpdated(setting = '') {
             var multicastChecked = $('#MultiSyncMulticast').is(":checked");
             var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
+            var unicastAllChecked = $('#MultiSyncUnicast').is(":checked");
 
-            if (setting == 'MultiSyncMulticast') {
-                if (multicastChecked && broadcastChecked)
-                    $('#MultiSyncBroadcast').prop('checked', false).trigger('change');
-            } else if (setting == 'MultiSyncBroadcast') {
-                if (multicastChecked && broadcastChecked)
-                    $('#MultiSyncMulticast').prop('checked', false).trigger('change');
+            // The three "send to ALL remotes" modes (Multicast, Broadcast and
+            // Unicast-to-all-known) are mutually exclusive; turning one on turns
+            // the other two off.  The triggered 'change' events re-enter this
+            // function but won't recurse since the just-cleared box is now off.
+            if (setting == 'MultiSyncMulticast' && multicastChecked) {
+                if (broadcastChecked) $('#MultiSyncBroadcast').prop('checked', false).trigger('change');
+                if (unicastAllChecked) $('#MultiSyncUnicast').prop('checked', false).trigger('change');
+            } else if (setting == 'MultiSyncBroadcast' && broadcastChecked) {
+                if (multicastChecked) $('#MultiSyncMulticast').prop('checked', false).trigger('change');
+                if (unicastAllChecked) $('#MultiSyncUnicast').prop('checked', false).trigger('change');
+            } else if (setting == 'MultiSyncUnicast' && unicastAllChecked) {
+                if (multicastChecked) $('#MultiSyncMulticast').prop('checked', false).trigger('change');
+                if (broadcastChecked) $('#MultiSyncBroadcast').prop('checked', false).trigger('change');
             }
+
+            // Re-read after any of the above may have changed.
+            multicastChecked = $('#MultiSyncMulticast').is(":checked");
+            broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
+            unicastAllChecked = $('#MultiSyncUnicast').is(":checked");
 
             var anyUnicast = 0;
             $('input.syncCheckbox').each(function () {
@@ -2571,7 +2584,7 @@
                 }
             });
 
-            if (!anyUnicast && !multicastChecked && !broadcastChecked) {
+            if (!anyUnicast && !multicastChecked && !broadcastChecked && !unicastAllChecked) {
                 $('#MultiSyncMulticast').prop('checked', true).trigger('change');
                 alert('FPP will use multicast if no other sync methods are chosen.');
             }
@@ -3350,6 +3363,7 @@
         function validateMultiSyncSettings() {
             var multicastChecked = $('#MultiSyncMulticast').is(":checked");
             var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
+            var unicastAllChecked = $('#MultiSyncUnicast').is(":checked");
             // Remove any Multisync warnings
             $(document).find(".multisync-warning").remove();
 
@@ -3370,7 +3384,7 @@
 
             // If these are unchecked, than each remote can be set either way
             // no need to check anything
-            if (!(multicastChecked || broadcastChecked)) {
+            if (!(multicastChecked || broadcastChecked || unicastAllChecked)) {
                 return;
             }
 
@@ -3380,8 +3394,10 @@
                     let msg = "";
                     if (multicastChecked) {
                         msg = "Having Unicast checked when Multicast is enabled (view options below) is discouraged: " + name;
-                    } else {
+                    } else if (broadcastChecked) {
                         msg = "Having Unicast checked when Broadcast is enabled (view options below) is discouraged: " + name;
+                    } else {
+                        msg = "Individual Unicast remotes are redundant when 'Send MultiSync to ALL KNOWN remotes via Unicast' is enabled: " + name;
                     }
                     msg = '<div class="warning-text multisync-warning">' + msg + '</div>';
                     $(this).closest('.systemRow').next(".warning-row").each(function () {
@@ -3765,6 +3781,7 @@
                                 PrintSetting('MultiSyncExternalIPAddress');
                                 PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
                                 PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
+                                PrintSetting('MultiSyncUnicast', 'syncModeUpdated');
                                 PrintSetting('MultiSyncExtraRemotes');
                                 PrintSetting('MultiSyncHTTPSubnets');
                                 PrintSetting('MultiSyncHide10', 'getFPPSystems');
@@ -3860,6 +3877,7 @@
 
             $("#MultiSyncBroadcast").on("change", validateMultiSyncSettings);
             $("#MultiSyncMulticast").on("change", validateMultiSyncSettings);
+            $("#MultiSyncUnicast").on("change", validateMultiSyncSettings);
 
             // Custom IP sorter for Bootstrap Table - numeric IP comparison
             window.ipSorter = function (a, b) {

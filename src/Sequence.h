@@ -23,6 +23,7 @@
 #include <thread>
 #include <vector>
 
+#include "AtomicSharedPtr.h"
 #include "fseq/FSEQFile.h"
 
 #define FPPD_MAX_CHANNELS (8192 * 1024)
@@ -92,7 +93,7 @@ private:
     std::mutex m_bridgeRangesLock;
     uint8_t* m_bridgeData;
 
-    std::atomic<std::shared_ptr<FSEQFile>> m_seqFile;
+    AtomicSharedPtr<FSEQFile> m_seqFile;
 
     volatile int m_seqStarting;
     int m_seqPaused;

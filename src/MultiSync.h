@@ -133,6 +133,11 @@ public:
     unsigned int minorVersion = 0;
     FPPMode fppMode = FPPMode::PLAYER_MODE;
     bool sendingMultiSync = false;
+    // True if this is a full FPP instance running in Remote mode and is therefore
+    // a valid target for "Send MultiSync to ALL KNOWN remotes via Unicast".  This
+    // excludes non-FPP devices (WLED, ESPixelStick, Falcon controllers, etc.) and
+    // FPP instances not in Remote mode.  Computed in update().
+    bool supportsUnicast = false;
     std::string address;
     std::string hostname;
     std::string version;
@@ -328,8 +333,13 @@ private:
     int OpenBroadcastSocket(void);
     void SendBroadcastPacket(void* outBuf, int len);
     void SendControlPacket(void* outBuf, int len);
+    void SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, struct iovec& iovec, void* outBuf, int len);
     void SendMulticastPacket(void* outBuf, int len);
     void SendUnicastPacket(const std::string& address, void* outBuf, int len);
+    // Rebuild the cached "all known remotes" unicast destination list from the
+    // currently-known remote systems that support unicast.  Only used when the
+    // MultiSyncUnicast ("send to ALL known remotes") setting is enabled.
+    void UpdateUnicastDestinations();
     bool FillInInterfaces();
     bool RemoveInterface(const std::string& interface);
 
@@ -354,6 +364,7 @@ private:
     std::map<std::string, NetInterfaceInfo> m_interfaces;
     bool m_sendMulticast;
     bool m_sendBroadcast;
+    bool m_sendUnicast = false;
 
     int m_broadcastSock;
     int m_controlSock;
@@ -375,6 +386,13 @@ private:
     struct iovec m_destIovec;
     std::vector<struct mmsghdr> m_destMsgs;
     std::vector<struct sockaddr_in> m_destAddr;
+
+    // Dynamic destination list for the "send to ALL KNOWN remotes via Unicast"
+    // mode.  Rebuilt by UpdateUnicastDestinations() as remotes are discovered,
+    // change mode, or time out.  Guarded by m_socketLock (same as the send path).
+    struct iovec m_unicastDestIovec;
+    std::vector<struct mmsghdr> m_unicastDestMsgs;
+    std::vector<struct sockaddr_in> m_unicastDestAddr;
 
     std::vector<MultiSyncPlugin*> m_plugins;
 
