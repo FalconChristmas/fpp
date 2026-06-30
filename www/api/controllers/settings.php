@@ -42,8 +42,40 @@ function GetSetting()
 {
     global $settings;
 
-    $sInfos = ReadSettingsJSON();
     $settingName = params('SettingName');
+
+    // If ?ip= is provided, return this setting from that remote FPP instance via
+    // a server-side curl, so the browser stays same-origin (no per-remote CSP
+    // entries needed). Used e.g. by the backup page to read a remote's
+    // Service_rsync. Accepts IPv4 and IPv6 (bracketed in the URL).
+    if (isset($_GET['ip'])) {
+        $ip = $_GET['ip'];
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+            http_response_code(400);
+            return json(array('error' => 'Invalid IP address'));
+        }
+        $hostForUrl = (strpos($ip, ':') !== false) ? '[' . $ip . ']' : $ip;
+        $curl = curl_init('http://' . $hostForUrl . '/api/settings/' . rawurlencode($settingName));
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+        curl_setopt($curl, CURLOPT_TIMEOUT_MS, 8000);
+        $body = curl_exec($curl);
+        $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        curl_close($curl);
+        if ($body === false || $responseCode != 200) {
+            http_response_code(502);
+            return json(array('error' => 'Could not reach remote system ' . $ip));
+        }
+        $data = json_decode($body, true);
+        if ($data === null) {
+            http_response_code(502);
+            return json(array('error' => 'Invalid response from remote system ' . $ip));
+        }
+        return json($data);
+    }
+
+    $sInfos = ReadSettingsJSON();
 
     if (isset($sInfos['settings'][$settingName])) {
         $sInfo = $sInfos['settings'][$settingName];

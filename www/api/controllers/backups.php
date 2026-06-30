@@ -1,6 +1,63 @@
 <?
 
 /**
+ * Proxy a backups API request to a remote FPP instance.
+ *
+ * The backup page lets the user list/copy backups to and from other FPP systems.
+ * Rather than have the browser make cross-origin requests to every remote (which
+ * required adding every remote IP to the Apache Content-Security-Policy header --
+ * see the now-removed CSP_AllowRemoteSystems()), the browser calls the local
+ * endpoint with ?ip=<address> and the local instance makes the call server-side.
+ * This matches how the MultiSync page reaches remotes (see channel.php's ?ip=
+ * handling and remoteAction()).
+ *
+ * @param string $remotePath Path after "/api/backups/" on the remote (already URL-safe).
+ * @param string $method     'GET' or 'POST'.
+ * @return mixed json() response: the remote's decoded body, or an error object.
+ */
+function ProxyBackupToRemote($remotePath, $method = 'GET')
+{
+	$ip = $_GET['ip'];
+
+	// Accept IPv4 and IPv6 (the latter is common on residential networks where
+	// remotes have globally-routable addresses).
+	if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+		http_response_code(400);
+		return json(array('Status' => 'Error', 'Message' => 'Invalid IP address'));
+	}
+
+	// IPv6 literals must be bracketed in a URL.
+	$hostForUrl = (strpos($ip, ':') !== false) ? '[' . $ip . ']' : $ip;
+	$url = 'http://' . $hostForUrl . '/api/backups/' . $remotePath;
+
+	$curl = curl_init($url);
+	curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+	curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+	curl_setopt($curl, CURLOPT_TIMEOUT_MS, 15000);
+	if ($method === 'POST') {
+		curl_setopt($curl, CURLOPT_POST, true);
+		curl_setopt($curl, CURLOPT_POSTFIELDS, '');
+	}
+	$body = curl_exec($curl);
+	$responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+	curl_close($curl);
+
+	if ($body === false || $responseCode != 200) {
+		http_response_code(502);
+		return json(array('Status' => 'Error', 'Message' => 'Could not reach remote system ' . $ip));
+	}
+
+	$data = json_decode($body, true);
+	if ($data === null) {
+		http_response_code(502);
+		return json(array('Status' => 'Error', 'Message' => 'Invalid response from remote system ' . $ip));
+	}
+
+	return json($data);
+}
+
+/**
  * Get available backups from subdir
  *
  * Returns a list of full system backup directories within the given path,
@@ -60,6 +117,9 @@ function GetAvailableBackupsFromDir($backupDir)
 function GetAvailableBackups()
 {
 	global $settings;
+	if (isset($_GET['ip'])) {
+		return ProxyBackupToRemote('list');
+	}
 	return json(GetAvailableBackupsFromDir($settings['mediaDirectory'] . '/backups/'));
 }
 
@@ -83,6 +143,9 @@ function GetAvailableBackups()
  */
 function RetrieveAvailableBackupsDevices()
 {
+	if (isset($_GET['ip'])) {
+		return ProxyBackupToRemote('devices');
+	}
 	$devices = GetAvailableBackupsDevices();
 
 	return json($devices);
@@ -103,6 +166,9 @@ function GetAvailableBackupsOnDevice()
 {
 	global $SUDO;
 	$deviceName = params('DeviceName');
+	if (isset($_GET['ip'])) {
+		return ProxyBackupToRemote('list/' . rawurlencode($deviceName));
+	}
 	$dirs = array();
 
 	$dirs = DriveMountHelper($deviceName, 'GetAvailableBackupsFromDir', array('/mnt/tmp/'));
@@ -274,6 +340,9 @@ function UnmountDevice()
 	//get the device name
 	$deviceName = params('DeviceName');
 	$mountLocation = params('MountLocation');
+	if (isset($_GET['ip'])) {
+		return ProxyBackupToRemote('devices/unmount/' . rawurlencode($deviceName) . '/' . rawurlencode($mountLocation), 'POST');
+	}
 	//If a mount location was supplied, adjust the drive mount location to latch it
 	if (isset($mountLocation) && !empty($mountLocation)) {
 		$drive_mount_location = "/mnt/" . $mountLocation;

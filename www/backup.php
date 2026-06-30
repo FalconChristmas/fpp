@@ -195,59 +195,13 @@ if (!$settings['BeaglePlatform']) {
     unset($system_config_areas['channelOutputs']['file']['bbb_strings']);
 }
 
-/**
- * Add FPP remotes to CSP connect-src to allow access to API for backup operations
- * @return void
- */
-function CSP_AllowRemoteSystems()
-{
-    global $mediaDirectory, $fppDir;
-    $backupHosts = getKnownFPPSystems();
-    $http_backupHostsAdded = 0;
-    $csp_config_path = $mediaDirectory . "/config/csp_allowed_domains.json";
-    $apache_csp_update_script_path = $fppDir . "/scripts/ManageApacheContentPolicy.sh";
-
-    if (!file_exists($csp_config_path)) {
-        //Run the apache shell script and let it create a blank csp_allowed_domains.json file
-        shell_exec("sudo bash $apache_csp_update_script_path regenerate-norestart 2>&1");
-    }
-
-    $csp_allowed_domains = json_decode(file_get_contents($csp_config_path), true);
-
-    //Insert known FPP systems into csp_config
-    foreach ($backupHosts as $csp_backupHost) {
-        $csp_hostToAdd = "http://" . $csp_backupHost;
-
-        if (!in_array($csp_hostToAdd, $csp_allowed_domains['connect-src'])) {
-            $csp_allowed_domains['connect-src'][] = $csp_hostToAdd;
-            $http_backupHostsAdded++;
-        }
-    }
-
-    //If we have hosts to add
-    if ($http_backupHostsAdded > 0) {
-        if (file_put_contents($csp_config_path, json_encode($csp_allowed_domains, JSON_PRETTY_PRINT)) !== false) {
-            //Regenerate CSP
-            // Make sure the script has execute permissions
-            if (shell_exec("sudo bash $apache_csp_update_script_path regenerate 2>&1") !== NULL) {
-                //Cause page refresh to get new content policy
-                echo "<script>location.reload();</script>";
-            }
-        }
-    }
-}
-
-// CSP_AllowRemoteSystems() rewrites the browser Content-Security-Policy so the
-// interactive backup page can reach known remotes' APIs. It queries the
-// multiSync system list (and can regenerate the Apache CSP config), which is
-// pure overhead for headless callers -- notably the config backup generated on
-// every settings change goes through the backups API. $skipHTMLCodeOutput is set
-// by checkDirectScriptExecution() whenever this file is included by the API or
-// another script rather than served as the backup page itself, so only do the
-// CSP work in that interactive case.
-if (!$skipHTMLCodeOutput) {
-    CSP_AllowRemoteSystems();
-}
+// NOTE: The backup page used to call CSP_AllowRemoteSystems() here, which added
+// every known remote's IP to the Apache Content-Security-Policy connect-src so
+// the browser could make cross-origin requests to those remotes. That bloated the
+// CSP header without bound on larger sites (and couldn't even express IPv6
+// remotes). The backup page now reaches remotes through the local backups API
+// using ?ip=<address> (see ProxyBackupToRemote() in api/controllers/backups.php),
+// keeping the browser same-origin, so no per-remote CSP entries are needed.
 
 /**
  * Handle POST for download or restore
@@ -2362,8 +2316,9 @@ if ($skipHTMLCodeOutput === false) {
 
                 if (typeof (cd_remoteHost) !== "undefined" && typeof (cd_remoteStorage) !== "undefined") {
                     //Run a Unmount against the remote storage to make sure it's unmounted, this helps when there is a issue with the copy_settings_to_storeage.sh script and it doesn't unmount the specified device at the remote host
-                    //We don't do anything with the returned output
-                    $.post("http://" + cd_remoteHost + "/api/backups/devices/unmount/" + cd_remoteStorage + "/remote_filecopy");
+                    //We don't do anything with the returned output. Proxied through
+                    //the local API (?ip=) so the browser stays same-origin.
+                    $.post("api/backups/devices/unmount/" + encodeURIComponent(cd_remoteStorage) + "/remote_filecopy?ip=" + encodeURIComponent(cd_remoteHost));
 
                 }
 
@@ -2889,9 +2844,15 @@ if ($skipHTMLCodeOutput === false) {
                 $('#backup\\.PathSelect').html('<option>Loading...</option>');
 
                 //Build a different URL if a storage device has been specified
-                var url = "http://" + host + "/api/backups/list";
-                if (remoteStorageSelected !== '' || remoteStorageSelected !== false) {
-                    url = "http://" + host + "/api/backups/list/" + remoteStorageSelected;
+                var url = "api/backups/list";
+                if (remoteStorageSelected !== '' && remoteStorageSelected !== false && remoteStorageSelected !== 'none') {
+                    url = "api/backups/list/" + encodeURIComponent(remoteStorageSelected);
+                }
+                // When a *remote* host is selected, proxy through the local API via
+                // ?ip= so the browser stays same-origin (no per-remote CSP entry).
+                // For this instance itself, call the local API directly.
+                if (host && host !== window.location.host) {
+                    url += (url.indexOf('?') === -1 ? '?' : '&') + "ip=" + encodeURIComponent(host);
                 }
 
                 //Add a loading spinner to show the user something is happening
@@ -2993,10 +2954,12 @@ if ($skipHTMLCodeOutput === false) {
             }
 
             function CheckRemoteHasRsyncdEnabled(host) {
-                //Read the the setting value for whether the Rsync Daemon is enabled on the host
-                //if it isn't prompt the user that this needs to be enabled before copy TO or FROM the remote host can happen
+                //Read the setting value for whether the Rsync Daemon is enabled on the
+                //*remote* host (proxied through the local API via ?ip= so the browser
+                //stays same-origin). If it isn't, prompt the user that this needs to be
+                //enabled before copy TO or FROM the remote host can happen.
                 $.ajax({
-                    url: 'api/settings/Service_rsync',
+                    url: 'api/settings/Service_rsync?ip=' + encodeURIComponent(host),
                     type: 'GET',
                     success: function (data) {
                         if (typeof (data) !== "undefined") {
@@ -3029,7 +2992,9 @@ if ($skipHTMLCodeOutput === false) {
             function GetRemoteHostUSBStorage() {
                 //Very similar to GetBackupDevices() but adapted to collect storage info from a remote system
                 var host = document.getElementById("backup.Host").value;
-                var requestUrl = "http://" + host + "/" + "api/backups/devices";
+                // Proxy through the local API (?ip=) so the browser stays
+                // same-origin instead of calling the remote directly.
+                var requestUrl = "api/backups/devices?ip=" + encodeURIComponent(host);
                 var default_none_selected_option = "<option value='none' selected>Default FPP Storage</option>";
 
                 // $('#backup\\.USBDevice').html('<option>Loading...</option>');

@@ -166,8 +166,29 @@ extract_multisync_ips() {
   done
 }
 
+# Remove bare IP-literal "http://<ip>" entries from connect-src in the override
+# JSON.  Older versions of the backup page appended every known remote's IP here
+# so the browser could make cross-origin requests to those remotes; on large
+# sites this bloated the CSP header without bound (and could not express IPv6
+# remotes).  The backup page now proxies through the local API instead (see
+# ProxyBackupToRemote() in www/api/controllers/backups.php), so these entries are
+# obsolete.  Pruning them on every regenerate lets existing installs self-heal.
+# Non-IP domains (e.g. plugin domains a user added) are left untouched.
+prune_remote_ip_entries() {
+    [ -f "$JSON_FILE" ] || return
+    jq '
+      ."connect-src" = ((."connect-src" // [])
+        | map(select(
+            test("^http://(\\[[0-9a-fA-F:]+\\]|[0-9]{1,3}(\\.[0-9]{1,3}){3}|[0-9a-fA-F]*:[0-9a-fA-F:]+)(:[0-9]+)?/?$") | not
+          )))
+    ' "$JSON_FILE" > "${JSON_FILE}.tmp" 2>/dev/null && mv "${JSON_FILE}.tmp" "$JSON_FILE" || rm -f "${JSON_FILE}.tmp"
+}
+
 # Function to generate the CSP header
 generate_csp() {
+    # Drop obsolete per-remote IP entries before building the header.
+    prune_remote_ip_entries
+
     # Initialize an associative array to store the combined values
     declare -A combined_values
 
