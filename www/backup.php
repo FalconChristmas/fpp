@@ -237,7 +237,17 @@ function CSP_AllowRemoteSystems()
     }
 }
 
-CSP_AllowRemoteSystems();
+// CSP_AllowRemoteSystems() rewrites the browser Content-Security-Policy so the
+// interactive backup page can reach known remotes' APIs. It queries the
+// multiSync system list (and can regenerate the Apache CSP config), which is
+// pure overhead for headless callers -- notably the config backup generated on
+// every settings change goes through the backups API. $skipHTMLCodeOutput is set
+// by checkDirectScriptExecution() whenever this file is included by the API or
+// another script rather than served as the backup page itself, so only do the
+// CSP work in that interactive case.
+if (!$skipHTMLCodeOutput) {
+    CSP_AllowRemoteSystems();
+}
 
 /**
  * Handle POST for download or restore

@@ -330,6 +330,10 @@ private:
     bool FillLocalSystemInfo(void);
     std::string GetHardwareModel(void);
 
+    // Rebuild m_configuredOutputRanges from co-universes.json. Called once at
+    // startup and again whenever the file changes (via a FileMonitor watch).
+    void ReloadConfiguredOutputRanges();
+
     int OpenBroadcastSocket(void);
     void SendBroadcastPacket(void* outBuf, int len);
     void SendControlPacket(void* outBuf, int len);
@@ -360,6 +364,15 @@ private:
     std::recursive_mutex m_systemsLock;
     std::vector<MultiSyncSystem> m_localSystems;
     std::vector<MultiSyncSystem> m_remoteSystems;
+
+    // Channel-output ranges parsed from co-universes.json, keyed by each output
+    // target's configured address and its resolved IP. Used to backfill the
+    // advertised channel range of non-FPP remotes that don't report their own
+    // range via MultiSync. Rebuilt only when co-universes.json changes (see
+    // ReloadConfiguredOutputRanges()) so the frequently-polled GetSystems() path
+    // is just a map lookup with no file IO or DNS resolution. Guarded by
+    // m_systemsLock.
+    std::map<std::string, std::string> m_configuredOutputRanges;
 
     std::map<std::string, NetInterfaceInfo> m_interfaces;
     bool m_sendMulticast;

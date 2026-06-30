@@ -46,6 +46,7 @@
 #include <utility>
 #include <vector>
 
+#include "FileMonitor.h"
 #include "NetworkController.h"
 #include "NetworkMonitor.h"
 #include "Player.h"
@@ -271,6 +272,16 @@ int MultiSync::Init(void) {
 
     FillInInterfaces();
     FillLocalSystemInfo();
+
+    // Keep the configured-output-range cache (used to backfill ranges for
+    // non-FPP remotes in GetSystems()) in sync with co-universes.json. Watching
+    // the file confines the file read + hostname resolution to actual config
+    // changes instead of every GetSystems() call. TriggerFileChanged() does the
+    // initial load now.
+    std::string coUniversesFile = FPP_DIR_CONFIG("/co-universes.json");
+    FileMonitor::INSTANCE.AddFile("MultiSync/co-universes.json", coUniversesFile,
+                                  [this]() { ReloadConfiguredOutputRanges(); })
+        .TriggerFileChanged(coUniversesFile);
 
     if (!OpenReceiveSocket())
         return 0;
@@ -834,6 +845,16 @@ static std::map<std::string, std::string> GetConfiguredOutputRanges() {
     return result;
 }
 
+void MultiSync::ReloadConfiguredOutputRanges() {
+    // Build the map outside the lock: GetConfiguredOutputRanges() reads
+    // co-universes.json and may run blocking DNS lookups to resolve configured
+    // output hostnames. Then swap it in under the lock that guards GetSystems().
+    // This runs once at startup and again only when co-universes.json changes.
+    std::map<std::string, std::string> ranges = GetConfiguredOutputRanges();
+    std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+    m_configuredOutputRanges = std::move(ranges);
+}
+
 Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps) {
     Json::Value result;
     Json::Value systems(Json::arrayValue);
@@ -847,37 +868,27 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps) {
         systems.append(sys.toJSON(true, timestamps));
     }
     if (!localOnly) {
-        std::map<std::string, std::string> configuredRanges = GetConfiguredOutputRanges();
-        auto findConfiguredRange = [&](const std::string& a) -> const std::string* {
-            if (a.empty()) {
-                return nullptr;
-            }
-            auto it = configuredRanges.find(a);
-            if (it != configuredRanges.end()) {
-                return &it->second;
-            }
-            std::string ip = a;
-            if (GetIPForHost(ip) && ip != a) {
-                it = configuredRanges.find(ip);
-                if (it != configuredRanges.end()) {
-                    return &it->second;
-                }
-            }
-            return nullptr;
-        };
+        // m_configuredOutputRanges is rebuilt only when co-universes.json changes
+        // (see ReloadConfiguredOutputRanges()), so this is a plain in-memory map
+        // lookup -- no per-call file read and, crucially, no blocking DNS. (This
+        // endpoint is polled frequently by the UI and is also invoked indirectly
+        // by the config backup generated on every settings change, so the old
+        // resolve-per-remote-per-call cost was very visible.) We only backfill a
+        // range for remotes that didn't advertise one of their own, and we do it
+        // in the emitted JSON rather than mutating the stored system so a later
+        // co-universes.json change is still reflected.
         for (auto& sys : m_remoteSystems) {
-            // Only backfill when the controller didn't report a real range of
-            // its own, so we never clobber ranges from FPP remotes.
-            if (sys.ranges.empty() || sys.ranges == "0-0") {
-                const std::string* r = findConfiguredRange(sys.address);
-                if (!r) {
-                    r = findConfiguredRange(sys.hostname);
+            Json::Value sysJson = sys.toJSON(false, timestamps);
+            if ((sys.ranges.empty() || sys.ranges == "0-0") && !m_configuredOutputRanges.empty()) {
+                auto it = m_configuredOutputRanges.find(sys.address);
+                if (it == m_configuredOutputRanges.end()) {
+                    it = m_configuredOutputRanges.find(sys.hostname);
                 }
-                if (r) {
-                    sys.ranges = *r;
+                if (it != m_configuredOutputRanges.end()) {
+                    sysJson["channelRanges"] = it->second;
                 }
             }
-            systems.append(sys.toJSON(false, timestamps));
+            systems.append(sysJson);
         }
     }
     result["systems"] = systems;
