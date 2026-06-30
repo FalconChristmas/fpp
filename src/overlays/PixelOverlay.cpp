@@ -182,6 +182,10 @@ void PixelOverlayManager::loadModelMap() {
     }
     models.clear();
     modelNames.clear();
+    // Drop the lazy submodel index so a re-uploaded xlights-submodels.json is
+    // picked up on the next reference.
+    subModelConfigs.clear();
+    subModelIndexLoaded = false;
     ConvertCMMFileToJSON();
 
     std::string filename(FPP_DIR_CONFIG("/model-overlays.json"));
@@ -368,10 +372,79 @@ PixelOverlayModel* PixelOverlayManager::getModel(const std::string& name) {
 }
 PixelOverlayModel* PixelOverlayManager::getModelLocked(const std::string& name) {
     auto a = models.find(name);
-    if (a == models.end()) {
+    if (a != models.end()) {
+        return a->second.model;
+    }
+    // Not a loaded model -- it may be a lazily-loaded xLights submodel.
+    return materializeSubModelLocked(name);
+}
+
+// Parse config/xlights-submodels.json once into a lightweight name -> compact
+// config index.  Never called at boot; only on the first submodel reference or
+// discovery request, so systems that never use submodels pay nothing.
+void PixelOverlayManager::loadSubModelIndex() {
+    if (subModelIndexLoaded) {
+        return;
+    }
+    subModelIndexLoaded = true; // set regardless so a missing file isn't re-stat'd repeatedly
+
+    std::string filename(FPP_DIR_CONFIG("/xlights-submodels.json"));
+    if (!FileExists(filename)) {
+        return;
+    }
+    Json::Value root;
+    if (!LoadJsonFromFile(filename, root)) {
+        LogErr(VB_CHANNELOUT, "Error parsing xlights-submodels.json.\n");
+        return;
+    }
+    Json::Value subs = root["submodels"];
+    for (int c = 0; c < subs.size(); c++) {
+        if (subs[c].isMember("Name")) {
+            std::string nm = subs[c]["Name"].asString();
+            replaceAll(nm, "/", "_"); // match PixelOverlayModel name sanitization
+            subModelConfigs[nm] = SaveJsonToString(subs[c], "");
+        }
+    }
+
+    // Model groups share the same lazy index and the same "Sub" materialization
+    // path (they are channelgrid Subs spanning multiple members).
+    std::string groupFile(FPP_DIR_CONFIG("/xlights-modelgroups.json"));
+    if (FileExists(groupFile)) {
+        Json::Value groot;
+        if (LoadJsonFromFile(groupFile, groot)) {
+            Json::Value groups = groot["modelgroups"];
+            for (int c = 0; c < groups.size(); c++) {
+                if (groups[c].isMember("Name")) {
+                    std::string nm = groups[c]["Name"].asString();
+                    replaceAll(nm, "/", "_");
+                    subModelConfigs[nm] = SaveJsonToString(groups[c], "");
+                }
+            }
+        } else {
+            LogErr(VB_CHANNELOUT, "Error parsing xlights-modelgroups.json.\n");
+        }
+    }
+    LogDebug(VB_CHANNELOUT, "Loaded xLights submodel/group index: %d entries\n", (int)subModelConfigs.size());
+}
+
+// Materialize a single submodel (build the live PixelOverlayModelSub) the first
+// time it is referenced.  Returns nullptr if the name is not a known submodel.
+PixelOverlayModel* PixelOverlayManager::materializeSubModelLocked(const std::string& name) {
+    if (!subModelIndexLoaded) {
+        loadSubModelIndex();
+    }
+    auto it = subModelConfigs.find(name);
+    if (it == subModelConfigs.end()) {
         return nullptr;
     }
-    return a->second.model;
+    Json::Value config;
+    if (!LoadJsonFromString(it->second, config)) {
+        LogErr(VB_CHANNELOUT, "Error parsing cached submodel config for %s\n", name.c_str());
+        return nullptr;
+    }
+    addModel(config);
+    auto a = models.find(name);
+    return (a != models.end()) ? a->second.model : nullptr;
 }
 void PixelOverlayManager::addModelListener(const std::string& name, const std::string& id, std::function<void(PixelOverlayModel*)> listener) {
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
@@ -567,6 +640,12 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
             if (getRequestArg(req, "all") == "true") {
                 result.append("--All Models--");
             }
+            bool includeSubs = getRequestArg(req, "submodels") == "true";
+            if (includeSubs) {
+                // Listing submodels for discovery: load the index (without
+                // materializing every submodel) so their names are selectable.
+                loadSubModelIndex();
+            }
             for (auto& mn : modelNames) {
                 if (simple) {
                     result.append(mn);
@@ -578,13 +657,23 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
                     empty = false;
                 }
             }
+            if (includeSubs && simple) {
+                // Append submodel names that are not already materialized. Only
+                // names are listed here to avoid materializing every submodel.
+                for (auto& sc : subModelConfigs) {
+                    if (models.find(sc.first) == models.end()) {
+                        result.append(sc.first);
+                        empty = false;
+                    }
+                }
+            }
         } else {
             std::string model = parts[1];
             std::string type;
             std::unique_lock<std::recursive_mutex> lock(modelsLock);
-            auto it = models.find(model);
-            if (it != models.end() && it->second.model) {
-                it->second.model->toJson(result);
+            PixelOverlayModel* m = getModelLocked(model); // resolves lazy submodels too
+            if (m) {
+                m->toJson(result);
             } else {
                 return makeStringResponse("Model not found: " + parts[1], 404);
             }
@@ -633,8 +722,7 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
             }
         } else if (p2 == "model") {
             std::unique_lock<std::recursive_mutex> lock(modelsLock);
-            auto mit = models.find(p3);
-            auto m = (mit != models.end()) ? mit->second.model : nullptr;
+            auto m = getModelLocked(p3); // resolves lazy submodels too
             if (m) {
                 std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
                 if (p4 == "data") {

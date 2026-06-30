@@ -85,6 +85,15 @@ private:
     void RegisterCommands();
     PixelOverlayModel* getModelLocked(const std::string& name);
 
+    // Lazy xLights submodel support.  The submodel index (name -> serialized
+    // compact config) is parsed from config/xlights-submodels.json on first
+    // reference only; individual submodels are materialized into `models` on
+    // demand via getModelLocked().  See docs/PixelOverlaySubModels.md.
+    void loadSubModelIndex();
+    PixelOverlayModel* materializeSubModelLocked(const std::string& name);
+    std::map<std::string, std::string> subModelConfigs;
+    bool subModelIndexLoaded = false;
+
     std::atomic_int numActive;
     std::list<PixelOverlayModel*> activeModels;
     std::list<OverlayRange> activeRanges;

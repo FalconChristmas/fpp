@@ -93,8 +93,89 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
         }
         ?>
 
+        var xlightsSubModels = {};
+        <?
+        // Lightweight per-parent submodel list (names/dims only, no grids) from
+        // the digested xlights-submodels.json.  Full grid data is fetched on
+        // demand via the API so the page stays light.  See
+        // docs/PixelOverlaySubModels.md.
+        $subFile = $settings['configDirectory'] . '/xlights-submodels.json';
+        if (file_exists($subFile)) {
+            $subData = json_decode(file_get_contents($subFile), true);
+            if (isset($subData['submodels']) && is_array($subData['submodels'])) {
+                $byParent = [];
+                foreach ($subData['submodels'] as $sm) {
+                    if (!isset($sm['Parent'])) {
+                        continue;
+                    }
+                    $byParent[$sm['Parent']][] = [
+                        'Name' => $sm['Name'],
+                        'DisplayName' => isset($sm['DisplayName']) ? $sm['DisplayName'] : $sm['Name'],
+                        'Width' => isset($sm['Width']) ? (int) $sm['Width'] : 0,
+                        'Height' => isset($sm['Height']) ? (int) $sm['Height'] : 0,
+                    ];
+                }
+                foreach ($byParent as $parent => $list) {
+                    echo "xlightsSubModels[" . json_encode($parent) . "] = " . json_encode($list) . ";\n";
+                }
+            }
+        }
+        ?>
+
         function normalizeModelName(name) {
             return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        function getSubModels(modelName) {
+            if (xlightsSubModels.hasOwnProperty(modelName)) {
+                return xlightsSubModels[modelName];
+            }
+            return null;
+        }
+
+        var xlightsModelGroups = [];
+        <?
+        // Lightweight model-group list from the digested xlights-modelgroups.json
+        // (no grids inline). See docs/PixelOverlaySubModels.md.
+        $grpFile = $settings['configDirectory'] . '/xlights-modelgroups.json';
+        if (file_exists($grpFile)) {
+            $grpData = json_decode(file_get_contents($grpFile), true);
+            if (isset($grpData['modelgroups']) && is_array($grpData['modelgroups'])) {
+                $glist = [];
+                foreach ($grpData['modelgroups'] as $g) {
+                    $glist[] = [
+                        'Name' => $g['Name'],
+                        'DisplayName' => isset($g['DisplayName']) ? $g['DisplayName'] : $g['Name'],
+                        'MemberCount' => isset($g['MemberCount']) ? (int) $g['MemberCount'] : 0,
+                        'PixelCount' => isset($g['PixelCount']) ? (int) $g['PixelCount'] : 0,
+                        'Width' => isset($g['Width']) ? (int) $g['Width'] : 0,
+                        'Height' => isset($g['Height']) ? (int) $g['Height'] : 0,
+                    ];
+                }
+                echo "xlightsModelGroups = " . json_encode($glist) . ";\n";
+            }
+        }
+        ?>
+
+        function PopulateModelGroups() {
+            if (!xlightsModelGroups || xlightsModelGroups.length == 0) {
+                return;
+            }
+            var $tbody = $('#modelGroupsTable tbody');
+            var html = "";
+            for (var i = 0; i < xlightsModelGroups.length; i++) {
+                var g = xlightsModelGroups[i];
+                html += "<tr>"
+                    + "<td style='text-align:left;'>" + g.DisplayName + "</td>"
+                    + "<td style='text-align:center;'>" + g.MemberCount + "</td>"
+                    + "<td style='text-align:center;'>" + g.PixelCount + "</td>"
+                    + "<td style='text-align:center;'>" + g.Width + " x " + g.Height + "</td>"
+                    + "<td><code style='font-size:0.85em;'>" + g.Name + "</code></td>"
+                    + "</tr>";
+            }
+            $tbody.html(html);
+            $('#modelGroupsCount').text("(" + xlightsModelGroups.length + ")");
+            $('#modelGroupsSection').show();
         }
 
         function getModelPreviewPixels(modelName) {
@@ -253,6 +334,11 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                         if (model.xLights && previewPixels && previewPixels.length > 0) {
                             postr += " <i class='fas fa-eye' style='cursor:pointer; color:#5bc0de;' title='Preview model layout' onclick='showModelPreview(" + JSON.stringify(model.Name) + ")'></i>";
                         }
+                        var subModels = getSubModels(model.Name);
+                        if (subModels && subModels.length > 0) {
+                            postr += " <i class='fas fa-sitemap' style='cursor:pointer; color:#9b59b6;' title='" + subModels.length + " submodel(s)' onclick='toggleSubModels(this," + JSON.stringify(model.Name) + ")'></i>"
+                                + " <span style='color:#9b59b6;font-size:0.85em;'>" + subModels.length + "</span>";
+                        }
                         postr += "</td><td>"
                         break;
                     case "FB":
@@ -314,6 +400,88 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                     $('#channelMemMaps tbody').append(postr + "</td></tr>");
                 }
             }
+        }
+
+        // Toggle the collapsible detail row listing a model's xLights submodels.
+        // The detail row (which can hold hundreds of submodels) is built lazily
+        // on first expand so the main table stays fast to render. Submodels are
+        // first-class overlay models: they can be targeted by name through the
+        // standard overlay commands (e.g. "Overlay Model Effect").
+        function toggleSubModels(iconEl, modelName) {
+            var rowId = "subrow_" + normalizeModelName(modelName);
+            var $existing = $('#' + rowId);
+            if ($existing.length) {
+                $existing.toggle();
+                return;
+            }
+            var subModels = getSubModels(modelName);
+            if (!subModels || subModels.length == 0) {
+                return;
+            }
+            var html = "<tr id='" + rowId + "' class='submodelDetail'>"
+                + "<td colspan='12' style='background:#1c1c1c;padding:8px 16px;'>"
+                + "<b style='color:#9b59b6;'>Submodels of " + modelName + "</b>"
+                + "<table style='width:100%;margin-top:6px;' class='submodelList'>"
+                + "<thead><tr><th style='text-align:left;'>Name</th><th>Size</th><th>Overlay Model Name</th><th>Preview</th></tr></thead><tbody>";
+            for (var i = 0; i < subModels.length; i++) {
+                var sm = subModels[i];
+                html += "<tr>"
+                    + "<td>" + sm.DisplayName + "</td>"
+                    + "<td style='text-align:center;'>" + sm.Width + " x " + sm.Height + "</td>"
+                    + "<td><code style='font-size:0.85em;'>" + sm.Name + "</code></td>"
+                    + "<td style='text-align:center;'><i class='fas fa-eye' style='cursor:pointer;color:#5bc0de;' title='Preview submodel' onclick='showSubModelPreview(" + JSON.stringify(modelName) + "," + JSON.stringify(sm.Name) + ")'></i></td>"
+                    + "</tr>";
+            }
+            html += "</tbody></table></td></tr>";
+            $(iconEl).closest('tr').after(html);
+        }
+
+        // Preview a submodel by highlighting its nodes over the parent's preview
+        // pixels.  The submodel's grid (parent node numbers) is fetched on demand
+        // from the API so the page stays light; the parent's per-pixel coords
+        // come from the already-loaded virtualdisplaymap.
+        function showSubModelPreview(parentName, subModelName) {
+            var parentPixels = getModelPreviewPixels(parentName);
+            if (!parentPixels || parentPixels.length == 0) {
+                alert('No preview data available for parent model: ' + parentName);
+                return;
+            }
+            $.get("api/overlays/model/" + encodeURIComponent(subModelName), function (sm) {
+                if (!sm || !sm.Grid) {
+                    alert('No grid data returned for submodel "' + subModelName + '".\n\n'
+                        + 'This usually means fppd has not been restarted since submodel '
+                        + 'support was added. Restart fppd and try again.');
+                    return;
+                }
+                var nodes = parseGridNodes(sm.Grid);
+                var highlight = {};
+                for (var i = 0; i < nodes.length; i++) {
+                    highlight[nodes[i]] = true; // 1-based parent node index
+                }
+                showModelPreview(parentName, highlight, subModelName);
+            }).fail(function () {
+                alert('Could not load submodel: ' + subModelName);
+            });
+        }
+
+        // Parse a serialized submodel grid string ("n,n;n,n;..." with ""=hole)
+        // into a flat list of 1-based parent node numbers.
+        function parseGridNodes(grid) {
+            var out = [];
+            if (!grid) {
+                return out;
+            }
+            var rows = String(grid).split(';');
+            for (var r = 0; r < rows.length; r++) {
+                var cells = rows[r].split(',');
+                for (var c = 0; c < cells.length; c++) {
+                    var v = parseInt(cells[c]);
+                    if (!isNaN(v) && v > 0) {
+                        out.push(v);
+                    }
+                }
+            }
+            return out;
         }
 
         function GetChannelMemMaps() {
@@ -543,7 +711,11 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             common_ViewPortChange();
         }
 
-        function showModelPreview(modelName) {
+        // highlightNodes (optional): map of 1-based parent node index -> true.
+        // When provided, those pixels (by node order in the preview list) are
+        // drawn highlighted and the rest dimmed, so a submodel can be shown in
+        // the context of its parent.  subModelName (optional) adjusts the title.
+        function showModelPreview(modelName, highlightNodes, subModelName) {
             $('#modelPreviewModal').remove();
 
             var pixels = getModelPreviewPixels(modelName);
@@ -551,6 +723,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                 alert('No preview data available for model: ' + modelName);
                 return;
             }
+            var hasHighlight = highlightNodes && typeof highlightNodes === 'object';
 
             var minX = Infinity, maxX = -Infinity;
             var minY = Infinity, maxY = -Infinity;
@@ -572,12 +745,18 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             if (canvasW < 80) canvasW = 80;
 
             var $canvas = $('<canvas></canvas>').attr({ width: canvasW, height: canvasH }).css({ background: '#111', display: 'block', margin: '0 auto' });
-            var $info = $('<p>').css({ 'text-align': 'center', 'margin-bottom': '8px' }).text(pixels.length + ' pixels  |  W: ' + rangeX + '  H: ' + rangeY);
+            var infoText = pixels.length + ' pixels  |  W: ' + rangeX + '  H: ' + rangeY;
+            if (hasHighlight) {
+                var hcount = 0;
+                for (var k in highlightNodes) { if (highlightNodes.hasOwnProperty(k)) hcount++; }
+                infoText += '  |  submodel nodes: ' + hcount;
+            }
+            var $info = $('<p>').css({ 'text-align': 'center', 'margin-bottom': '8px' }).text(infoText);
             var $body = $('<div>').append($info).append($canvas);
 
             DoModalDialog({
                 id: 'modelPreviewModal',
-                title: 'Model Preview: ' + modelName,
+                title: hasHighlight ? ('Submodel Preview: ' + (subModelName || '')) : ('Model Preview: ' + modelName),
                 body: $body,
                 class: 'modal-lg',
                 backdrop: true,
@@ -589,10 +768,15 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                     var scaleX = (canvasW - 2 * margin) / rangeX;
                     var scaleY = (canvasH - 2 * margin) / rangeY;
                     var dotSize = Math.max(1, Math.min(6, Math.floor(Math.min(scaleX, scaleY) * 0.8)));
-                    ctx.fillStyle = '#00aaff';
-                    pixels.forEach(function (p) {
+                    pixels.forEach(function (p, idx) {
                         var cx = margin + (p[0] - minX) * scaleX;
                         var cy = canvasH - margin - (p[1] - minY) * scaleY;
+                        if (hasHighlight) {
+                            // preview pixels are in node order; node index is 1-based
+                            ctx.fillStyle = highlightNodes[idx + 1] ? '#ff3b6b' : '#2a3a44';
+                        } else {
+                            ctx.fillStyle = '#00aaff';
+                        }
                         ctx.fillRect(cx - dotSize / 2, cy - dotSize / 2, dotSize, dotSize);
                     });
                 },
@@ -605,6 +789,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
         function pageSpecific_PageLoad_DOM_Setup() {
             SetupSelectableTableRow(tableInfo);
             GetChannelMemMaps();
+            PopulateModelGroups();
         }
 
         function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup() {
@@ -719,6 +904,34 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                             <tbody>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <div id="modelGroupsSection" style="display:none;">
+                    <div class="row tableHeader">
+                        <div class="col-md">
+                            <h2>xLights Model Groups <span id="modelGroupsCount"
+                                    style="font-size:0.6em;color:#9b59b6;"></span></h2>
+                            <p style="font-size:0.85em;color:#aaa;margin:0;">Groups are first-class overlay models
+                                (addressable by name through the standard overlay commands, e.g. "Overlay Model
+                                Effect"). An effect runs across the group's combined world-position buffer.</p>
+                        </div>
+                    </div>
+                    <div class='fppTableWrapper fppTableWrapperAsTable'>
+                        <div class='fppTableContents fppFThScrollContainer' tabindex="0">
+                            <table id="modelGroupsTable" class="fppSelectableRowTable fppStickyTheadTable">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left;">Group Name</th>
+                                        <th>Members</th>
+                                        <th>Pixels</th>
+                                        <th>Buffer</th>
+                                        <th>Overlay Model Name</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
