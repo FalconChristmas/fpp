@@ -18,6 +18,7 @@
 
 #include "../Sequence.h" // FPPD_OFF_CHANNEL
 #include "../log.h"
+#include "../common_mini.h"
 
 #include "PixelOverlay.h"
 #include "PixelOverlayModelSub.h"
