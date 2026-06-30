@@ -570,6 +570,34 @@ void Sensors::DetectFanSensors() {
             }
         }
 
+        // Pick the nicest available base name for the label:
+        //   1. a cape-supplied DT override:  of_node/fpp,fan-label   (e.g. "K16-Pro Fan")
+        //   2. the DT node name:             of_node/name            (e.g. Pi5 "cooling_fan")
+        //   3. the hwmon device name:        e.g. "pwmfan"
+        auto readDTString = [](const std::string& path) {
+            std::string s = FileExists(path) ? GetFileContents(path) : "";
+            // device-tree strings are NUL-terminated; trim NUL/whitespace
+            while (!s.empty() && (s.back() == '\0' || isspace((unsigned char)s.back())))
+                s.pop_back();
+            return s;
+        };
+        std::string baseName = readDTString(std::string(hwmonPath) + "/of_node/fpp,fan-label");
+        if (baseName.empty()) {
+            std::string nodeName = readDTString(std::string(hwmonPath) + "/of_node/name");
+            if (nodeName != "pwm-fan" && nodeName != "pwm_fan" && nodeName != "fan") {
+                // prettify, e.g. "cooling_fan" -> "Cooling Fan"
+                bool up = true;
+                for (auto& c : nodeName) {
+                    if (c == '_' || c == '-') { c = ' '; up = true; }
+                    else if (up && islower((unsigned char)c)) { c = toupper((unsigned char)c); up = false; }
+                    else up = false;
+                }
+                baseName = nodeName;
+            }
+        }
+        if (baseName.empty())
+            baseName = deviceName;
+
         for (int fan = 1; fan <= 8; fan++) {
             char fanPath[256];
             snprintf(fanPath, sizeof(fanPath), "%s/fan%d_input", hwmonPath, fan);
@@ -577,7 +605,12 @@ void Sensors::DetectFanSensors() {
                 Json::Value v;
                 v["path"] = fanPath;
                 v["valueType"] = "FanSpeed";
-                v["label"] = deviceName + " Fan " + std::to_string(fan) + ": ";
+                // append the fan index; skip the redundant "Fan" if the base already ends in it
+                std::string label = baseName;
+                if (!(endsWith(label, "fan") || endsWith(label, "Fan") || endsWith(label, "FAN")))
+                    label += " Fan";
+                label += " " + std::to_string(fan);
+                v["label"] = label + ": ";
                 v["postfix"] = " RPM";
                 sensors.push_back(new FanSensor(v));
             }
