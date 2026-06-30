@@ -229,11 +229,25 @@ foreach ($groupsRaw as $nn => $g) {
         $rowStrs[] = implode(',', $colStrs);
     }
 
+    // Classify: a "submodel" group has only submodel members ("Model/SubModel");
+    // anything containing a whole model (or nested group) is a "model" group.
+    // Lets consumers split Model Groups vs Sub Model Groups without re-parsing
+    // rgbeffects.xml.
+    $subMembers = 0;
+    foreach ($g['members'] as $ref) {
+        if (strpos($ref, '/') !== false) {
+            $subMembers++;
+        }
+    }
+    $groupType = ($subMembers > 0 && $subMembers === count($g['members']))
+        ? 'submodel' : 'model';
+
     $out[] = [
         'Name' => sanitizeName($g['name']),
         'DisplayName' => $g['name'],
         'Type' => 'Sub',
         'SubType' => 'channelgrid',
+        'GroupType' => $groupType,
         'IsGroup' => true,
         'ChannelCountPerNode' => 3,
         'Width' => $W,
