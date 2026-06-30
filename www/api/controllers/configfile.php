@@ -118,29 +118,27 @@ function UploadConfigFile()
 
 	$fileName = $settings['configDirectory'] . '/' . $baseFile;
 
+	// Read the full contents (multipart upload or raw POST body) and write them
+	// atomically. The old code truncated the destination in place and streamed
+	// into it, leaving a window where a reader (e.g. fppd reloading channel
+	// outputs when co-universes.json changes) could see an empty/partial file and
+	// fail to parse it. WriteFileAtomic() writes a temp file then rename()s it
+	// over the destination so readers only ever see the complete old or new file.
 	if (isset($_FILES['file']) && isset($_FILES['file']['tmp_name'])) {
-		if (rename($_FILES["file"]["tmp_name"], $fileName)) {
-			$result['Status'] = 'OK';
-			$result['Message'] = '';
-		} else {
-			$result['Status'] = 'Error';
-			$result['Message'] = 'Unable to rename uploaded file';
-		}
-	} else if ($f = fopen($fileName, "c")) {
-		flock($f, LOCK_EX); // Lock the file for writing
-		ftruncate($f, 0); // Clear the file before writing
-		$postdata = fopen("php://input", "r");
-		while ($data = fread($postdata, 1024 * 16)) {
-			fwrite($f, $data);
-		}
-		fclose($postdata);
-		fclose($f);
+		$data = @file_get_contents($_FILES['file']['tmp_name']);
+	} else {
+		$data = @file_get_contents("php://input");
+	}
 
+	if ($data === false) {
+		$result['Status'] = 'Error';
+		$result['Message'] = 'Unable to read uploaded data';
+	} else if (WriteFileAtomic($fileName, $data)) {
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
 	} else {
 		$result['Status'] = 'Error';
-		$result['Message'] = 'Unable to open file for writing';
+		$result['Message'] = 'Unable to write file';
 	}
 
 	if ($result['Status'] == 'OK') {

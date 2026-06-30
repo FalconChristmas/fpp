@@ -142,7 +142,8 @@ function channel_save_output_processors()
     $data = file_get_contents('php://input');
     $data = prettyPrintJSON(stripslashes($data));
 
-    file_put_contents($settings['outputProcessorsFile'], $data);
+    // Atomic write so a reader never observes a truncated/partial file mid-save.
+    WriteFileAtomic($settings['outputProcessorsFile'], $data);
 
     //Trigger a JSON Configuration Backup
     GenerateBackupViaAPI('Channel Output Processor was modified.');
@@ -237,7 +238,10 @@ function channel_save_output()
     if (isset($settings[$file])) {
         $data = file_get_contents('php://input');
         $data = prettyPrintJSON(stripslashes($data));
-        file_put_contents($settings[$file], $data);
+        // Atomic write so fppd's inotify-driven reload (and any other reader)
+        // never sees a truncated/partial file -- e.g. co-universes.json, which
+        // ChannelOutputSetup and MultiSync both watch.
+        WriteFileAtomic($settings[$file], $data);
 
         //Trigger a JSON Configuration Backup
         GenerateBackupViaAPI('Channel output ' . $file . ' was modified.');

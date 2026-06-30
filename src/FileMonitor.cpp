@@ -98,7 +98,11 @@ FileMonitor& FileMonitor::AddFile(const std::string& id, const std::string& file
         std::string dir = file.substr(0, file.find_last_of("/") + 1);
         auto dit = files_.find(dir);
         if (dit == files_.end()) {
-            int inotify_watch_fd = inotify_add_watch(inotify_fd_, dir.c_str(), IN_CREATE | IN_DELETE);
+            // IN_MOVED_TO catches files that appear via an atomic rename
+            // (write-temp-then-rename), which is how config files are written so
+            // a reader never sees a partially-written file. Without it, watchers
+            // on rename-replaced files would silently stop firing.
+            int inotify_watch_fd = inotify_add_watch(inotify_fd_, dir.c_str(), IN_CREATE | IN_DELETE | IN_MOVED_TO);
             fileMapping_[inotify_watch_fd] = dir;
             files_[dir].inotify_watch_fd = inotify_watch_fd;
             files_[dir].isDirectory = true; // Mark as directory for create/delete events
@@ -171,15 +175,48 @@ void FileMonitor::fileChangedEvent() {
         // printf("%d) %s: (%s)    id: %d   mask: %X\n", buffer_i, path.c_str(), pevent->name, pevent->wd, pevent->mask);
 
         if (pevent->mask & IN_IGNORED) {
-            // The watch was removed, ignore this event
+            // The kernel auto-removed this watch -- e.g. the file was deleted, or
+            // it was replaced via an atomic rename (write-temp-then-rename), which
+            // unlinks the old inode. Drop our stale wd mapping and clear the
+            // file's watch descriptor so a subsequent IN_CREATE/IN_MOVED_TO for
+            // the same name re-arms an inode watch on the new file.
+            auto mit = fileMapping_.find(pevent->wd);
+            if (mit != fileMapping_.end()) {
+                auto fit = files_.find(mit->second);
+                if (fit != files_.end() && fit->second.inotify_watch_fd == pevent->wd) {
+                    fit->second.inotify_watch_fd = -1;
+                }
+                fileMapping_.erase(mit);
+            }
             continue;
-        } else if (pevent->mask & IN_CREATE) {
+        } else if (pevent->mask & (IN_CREATE | IN_MOVED_TO)) {
+            // A watched file appeared: either created in place (IN_CREATE) or
+            // atomically renamed into place (IN_MOVED_TO). For a rename over an
+            // existing file the previous inode watch is gone (its IN_IGNORED is
+            // handled above or still queued), so re-arm an IN_MODIFY watch on the
+            // current inode before notifying.
             path += pevent->name;
             auto it = files_.find(path);
             if (it != files_.end()) {
+                bool notify = false;
+                if (pevent->mask & IN_MOVED_TO) {
+                    // New inode in place: drop any stale watch on the replaced
+                    // inode (the kernel auto-removes it) and always notify.
+                    if (it->second.inotify_watch_fd >= 0) {
+                        fileMapping_.erase(it->second.inotify_watch_fd);
+                        it->second.inotify_watch_fd = -1;
+                    }
+                    notify = true;
+                }
                 if (it->second.inotify_watch_fd < 0) {
-                    it->second.inotify_watch_fd = inotify_add_watch(inotify_fd_, path.c_str(), IN_MODIFY);
-                    fileMapping_[it->second.inotify_watch_fd] = path;
+                    int wd = inotify_add_watch(inotify_fd_, path.c_str(), IN_MODIFY);
+                    if (wd >= 0) {
+                        it->second.inotify_watch_fd = wd;
+                        fileMapping_[wd] = path;
+                    }
+                    notify = true;
+                }
+                if (notify) {
                     for (const auto& callback : it->second.callbacks) {
                         callback.second();
                     }

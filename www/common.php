@@ -207,6 +207,68 @@ function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
 }
 
 /**
+ * Atomically write $data to $path.
+ *
+ * Writes to a temp file in the SAME directory, flushes it, then rename()s it over
+ * the destination.  Because rename() is atomic within a single filesystem, any
+ * concurrent reader -- or fppd's inotify-driven config reload -- always sees
+ * either the complete old file or the complete new file, never a truncated or
+ * partially-written one.  This replaces in-place truncate+write (file_put_contents
+ * / ftruncate+fwrite), which exposes a window where the file is empty or partial
+ * and produces intermittent JSON parse errors in readers that fire on the write.
+ *
+ * Returns true on success, false (and logs) on any failure, leaving the existing
+ * destination untouched.
+ *
+ * @param string $path Destination file path.
+ * @param string $data Full contents to write.
+ * @return bool
+ */
+function WriteFileAtomic($path, $data)
+{
+    // The temp file MUST live in the same directory as $path so the rename stays
+    // within one filesystem (a cross-filesystem rename is not atomic).
+    $tmp = $path . '.tmp.' . getmypid() . '.' . bin2hex(random_bytes(4));
+
+    $f = @fopen($tmp, 'xb'); // exclusive create; never clobber an existing temp
+    if ($f === false) {
+        error_log("WriteFileAtomic: unable to create temp file $tmp");
+        return false;
+    }
+
+    $len = strlen($data);
+    $ok = (@fwrite($f, $data) === $len);
+    if ($ok) {
+        fflush($f);
+        // fsync() (PHP 8.1+) flushes to disk so a crash can't leave a 0-length
+        // file in place after the rename.  Best-effort: skip if unavailable.
+        if (function_exists('fsync')) {
+            @fsync($f);
+        }
+    }
+    fclose($f);
+
+    if (!$ok) {
+        @unlink($tmp);
+        error_log("WriteFileAtomic: failed writing temp file for $path");
+        return false;
+    }
+
+    // fopen() created the temp 0600 (minus umask); match the destination's
+    // existing permissions, or a sane group-writable default for a new file.
+    $perms = @fileperms($path);
+    @chmod($tmp, ($perms !== false) ? ($perms & 0777) : 0664);
+
+    if (!@rename($tmp, $path)) {
+        @unlink($tmp);
+        error_log("WriteFileAtomic: unable to rename temp into place for $path");
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Resolve a stable ALSA card ID (e.g. "S3", "bcm2835ALSA") to its current ALSA
  * card number by scanning /proc/asound/cards.  Returns the card number as a
  * string, or '' if no currently-present card matches that ID.
