@@ -1050,8 +1050,9 @@ EOF
         cat >> ${BOOTDIR}/config.txt <<'EOF'
 [all]
 
-# Enable SPI in device tree
+# Enable SPI in device tree, but keep the cs pins free
 dtparam=spi=on
+dtoverlay=spi0-0cs
 
 # Enable PCIe for NVME storage (Gen2 is the Pi 5's certified speed; Gen3
 # is an overclock that some NVMe HATs/drives fail to train reliably at)

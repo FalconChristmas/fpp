@@ -14,7 +14,6 @@
 
 #include "MCP23x17Utils.h"
 #include "PiFaceUtils.h"
-#include "SPIUtils.h"
 
 // PiFace is just a strangely configured MCP23x17
 //  the first 8 pins on the MCP23x17 are outputs
