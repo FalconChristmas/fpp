@@ -81,6 +81,14 @@ ENV FPPBRANCH=${FPPBRANCH}
 COPY ./ /opt/fpp/
 COPY SD/FPP_Install.sh /root/FPP_Install.sh
 RUN ( yes | bash /root/FPP_Install.sh $EXTRA_INSTALL_FLAG --branch ${FPPBRANCH:-master} --skip-apt-install )
+
+# nocc (distributed C++ compiler) is not a Debian package, so it can't live in
+# PACKAGE_LIST. FPP_Install configured FPP's apt repo + keyring above (under
+# --skip-apt-install it sets up the repo but leaves the install to us); pull it
+# here so it lands in its own cached layer.
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq nocc \
+    || echo "WARNING: nocc install skipped (FPP apt repo unreachable)"
+
 RUN rm -rf /tmp/*
 RUN cp /opt/fpp/etc/asoundrc.plain /root/.asoundrc
 RUN echo "docker" > /etc/fpp/container

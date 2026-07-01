@@ -1675,6 +1675,47 @@ configure_ccache() {
 configure_logging
 configure_ccache
 
+#############################################################################
+# configure_fpp_apt_repo
+#
+# nocc (FPP's distributed C++ compiler) is not in Debian, so FPP serves it from
+# its own signed apt repo. We trust the keyring BUNDLED in the FPP source tree
+# (reviewed-in-source, not fetched over the wire) and install nocc. Gated on
+# FPP_APT_REPO_URL so it is trivial to disable (set empty) or point elsewhere.
+# Best-effort: a transient repo outage must never fail the whole install.
+#############################################################################
+FPP_APT_REPO_URL="${FPP_APT_REPO_URL:-https://falconchristmas.github.io/fpp-apt}"
+FPP_APT_REPO_SUITE="${FPP_APT_REPO_SUITE:-trixie}"
+configure_fpp_apt_repo() {
+    [ -n "${FPP_APT_REPO_URL}" ] || return 0
+    local keysrc=/opt/fpp/etc/apt/fpp-archive-keyring.gpg
+    if [ ! -f "${keysrc}" ]; then
+        echo "FPP - WARNING: ${keysrc} missing; skipping FPP apt repo / nocc"
+        return 0
+    fi
+    echo "FPP - Configuring FPP apt repository (${FPP_APT_REPO_URL})"
+    install -d -m 0755 /usr/share/keyrings
+    install -m 0644 "${keysrc}" /usr/share/keyrings/fpp-archive-keyring.gpg
+    cat > /etc/apt/sources.list.d/fpp.sources <<EOF
+Types: deb
+URIs: ${FPP_APT_REPO_URL}
+Suites: ${FPP_APT_REPO_SUITE}
+Components: main
+Signed-By: /usr/share/keyrings/fpp-archive-keyring.gpg
+EOF
+    # Docker passes --skip-apt-install and installs nocc from its Dockerfile so
+    # the package lands in a cached layer; there we just leave the repo set up.
+    if $skip_apt_install; then
+        echo "FPP - (skip-apt-install) FPP repo configured; 'nocc' left to caller"
+        return 0
+    fi
+    apt-get update || echo "FPP - WARNING: apt-get update failed for FPP repo"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y nocc \
+        || echo "FPP - WARNING: 'apt-get install nocc' failed (repo unreachable?)"
+}
+
+configure_fpp_apt_repo
+
 configure_samba_ftp() {
     echo "FPP - Configuring FTP server"
     sed -i -e "s/.*anonymous_enable.*/anonymous_enable=NO/" /etc/vsftpd.conf
