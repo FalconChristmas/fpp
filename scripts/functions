@@ -268,43 +268,81 @@ function DiscoverDistccHosts() {
     echo "${out# }"
 }
 
-# Prepare the environment for a source rebuild based on the FPP distcc settings.
-# MUST be called directly (not in a $(...) subshell) so the DISTCC_HOSTS export
-# survives into the make that follows. Sets these globals:
-#   DISTCC_HOSTS   exported (or unset). When set, src/makefiles automatically
-#                  switch to "ccache distcc", disable the PCH, and select the
-#                  target-triplet compiler so the helper cross-compiles -- no
-#                  CXXCOMPILER override needed here.
+# Prepare the environment for a source rebuild based on the "Distributed Compile"
+# developer setting (off | distcc | distcc-zeroconf | nocc). MUST be called
+# directly (not in a $(...) subshell) so the exports survive into the make that
+# follows. Sets these globals:
+#   DISTCC_HOSTS / NOCC_SERVERS / CCACHE_PREFIX / CCACHE_DEPEND / NOCC_GO_EXECUTABLE
+#                  exported as appropriate. When distcc OR nocc is active,
+#                  src/makefiles disable the PCH and select the target-triplet
+#                  compiler so the helper cross-compiles -- no CXXCOMPILER
+#                  override needed here. nocc is injected in front of the compiler
+#                  via CCACHE_PREFIX so ccache (incl. the shared cache) still
+#                  works, and CCACHE_DEPEND avoids preprocessing locally.
 #   BUILD_CPUS     the -j value to pass to make
 function SetupBuildEnv() {
-    local enabled hosts
-    hosts=""
-    enabled=$(getSetting DistccEnabled)
-    if [ "${enabled}" = "1" ]; then
-        if [ "$(getSetting DistccUseMDNS)" = "1" ]; then
-            # Browse the LAN for advertised helpers ourselves (works cross-arch,
-            # unlike distcc's "+zeroconf" -- see DiscoverDistccHosts).
-            hosts=$(DiscoverDistccHosts)
-            [ -z "${hosts}" ] && echo "distcc: mDNS enabled but no helpers were discovered on the network"
+    local mode hosts
+
+    mode=$(getSetting DistributedCompile)
+    # Back-compat: derive from the pre-dropdown checkbox settings until the
+    # config migration (upgrade/116) runs or the user picks a value.
+    if [ -z "${mode}" ]; then
+        if [ "$(getSetting DistccEnabled)" = "1" ]; then
+            if [ "$(getSetting DistccUseMDNS)" = "1" ]; then
+                mode="distcc-zeroconf"
+            else
+                mode="distcc"
+            fi
         else
-            hosts=$(getSetting DistccHosts)
+            mode="off"
         fi
     fi
 
-    if [ -n "${hosts}" ]; then
-        export DISTCC_HOSTS="${hosts}"
-        # DISTCC_DIR (distcc's lock/state dir) is pinned by src/makefiles, not
-        # here: it defaults to $HOME/.distcc, but HOME is unreliable across the
-        # PHP -> sudo build chain (it can be /home/fpp -- root-owned and NOT
-        # writable by the apache "fpp" user -- /root, or unset). The makefile
-        # sets a fixed, HOME-independent DISTCC_DIR keyed to the uid that runs
-        # the compiler, which is the only place that uid is known.
-        BUILD_CPUS=$(ComputeDistccParallelism "${hosts}")
-        echo "Building with distcc: DISTCC_HOSTS='${DISTCC_HOSTS}', -j ${BUILD_CPUS} (PCH disabled; makefile selects the triplet compiler)"
-    else
-        unset DISTCC_HOSTS
-        BUILD_CPUS=$(ComputeMakeParallelism)
-    fi
+    # Clear anything a previous invocation exported.
+    unset DISTCC_HOSTS NOCC_SERVERS NOCC_GO_EXECUTABLE CCACHE_PREFIX CCACHE_DEPEND
+
+    case "${mode}" in
+        distcc|distcc-zeroconf)
+            if [ "${mode}" = "distcc-zeroconf" ]; then
+                # Browse the LAN for advertised helpers ourselves (works
+                # cross-arch, unlike distcc's "+zeroconf" -- see DiscoverDistccHosts).
+                hosts=$(DiscoverDistccHosts)
+                [ -z "${hosts}" ] && echo "distcc: mDNS enabled but no helpers were discovered on the network"
+            else
+                hosts=$(getSetting DistccHosts)
+            fi
+            if [ -n "${hosts}" ]; then
+                # DISTCC_DIR (distcc's lock dir) is pinned by src/makefiles (HOME
+                # is unreliable across the PHP -> sudo build chain), not here.
+                export DISTCC_HOSTS="${hosts}"
+                BUILD_CPUS=$(ComputeDistccParallelism "${hosts}")
+                echo "Building with distcc: DISTCC_HOSTS='${DISTCC_HOSTS}', -j ${BUILD_CPUS} (PCH disabled; makefile selects the triplet compiler)"
+            else
+                echo "distcc selected but no Compile Hosts configured -- building locally"
+                BUILD_CPUS=$(ComputeMakeParallelism)
+            fi
+            ;;
+        nocc)
+            hosts=$(getSetting DistccHosts)
+            if [ -n "${hosts}" ]; then
+                # Keep ccache in front (CCACHE_PREFIX=nocc) so the shared/global
+                # ccache still works, and use depend mode so nothing is
+                # preprocessed locally (nocc's whole advantage on slow boards).
+                export NOCC_SERVERS="${hosts}"
+                export NOCC_GO_EXECUTABLE=/usr/bin/nocc-daemon
+                export CCACHE_PREFIX=nocc
+                export CCACHE_DEPEND=true
+                BUILD_CPUS=$(ComputeDistccParallelism "${hosts}")
+                echo "Building with nocc: NOCC_SERVERS='${NOCC_SERVERS}', -j ${BUILD_CPUS} (PCH disabled; makefile selects the triplet compiler)"
+            else
+                echo "nocc selected but no Compile Hosts configured -- building locally"
+                BUILD_CPUS=$(ComputeMakeParallelism)
+            fi
+            ;;
+        *)
+            BUILD_CPUS=$(ComputeMakeParallelism)
+            ;;
+    esac
 }
 
 compileBinaries() {

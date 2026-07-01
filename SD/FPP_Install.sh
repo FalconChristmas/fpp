@@ -1685,7 +1685,22 @@ configure_ccache
 # Best-effort: a transient repo outage must never fail the whole install.
 #############################################################################
 FPP_APT_REPO_URL="${FPP_APT_REPO_URL:-https://falconchristmas.github.io/fpp-apt}"
-FPP_APT_REPO_SUITE="${FPP_APT_REPO_SUITE:-trixie}"
+# apt suites the FPP repo publishes, oldest -> newest. Add a Debian codename here
+# (and publish that suite) as each new release goes live -- e.g. append "forky".
+FPP_APT_REPO_SUITES="${FPP_APT_REPO_SUITES:-trixie}"
+# Use THIS device's OS codename when we publish a matching suite; otherwise fall
+# back to the newest published suite. Safe because nocc's binaries are portable
+# across Debian releases (static Go daemons + a wrapper built against older
+# glibc), so an as-yet-unserved codename (Ubuntu 'noble', or 'forky' before its
+# suite exists) still gets working packages instead of a 404.
+FPP_APT_REPO_SUITE="${FPP_APT_REPO_SUITE:-}"
+if [ -z "${FPP_APT_REPO_SUITE}" ]; then
+    _fpprepo_codename="$(. /etc/os-release 2>/dev/null; echo "${VERSION_CODENAME}")"
+    for _fpprepo_s in ${FPP_APT_REPO_SUITES}; do
+        [ "${_fpprepo_s}" = "${_fpprepo_codename}" ] && FPP_APT_REPO_SUITE="${_fpprepo_s}"
+    done
+    [ -z "${FPP_APT_REPO_SUITE}" ] && FPP_APT_REPO_SUITE="${FPP_APT_REPO_SUITES##* }"
+fi
 configure_fpp_apt_repo() {
     [ -n "${FPP_APT_REPO_URL}" ] || return 0
     local keysrc=/opt/fpp/etc/apt/fpp-archive-keyring.gpg

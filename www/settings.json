@@ -1744,36 +1744,34 @@
 			"size": 48,
 			"maxlength": 256
 		},
-		"DistccEnabled": {
-			"name": "DistccEnabled",
-			"description": "Use distcc for Compiles",
-			"tip": "Distribute FPP source compiles to a distcc helper host to speed up full rebuilds (e.g. after switching branches or a header change that invalidates the ccache). The helper must be set up with scripts/setup_distcc_host.sh and run the same compiler version. Enabling distcc disables the precompiled header.",
+		"DistributedCompile": {
+			"name": "DistributedCompile",
+			"description": "Distributed Compile",
+			"tip": "Distribute FPP source compiles to a helper host to speed up full rebuilds (e.g. after a branch switch or a header change that invalidates ccache). Set up the helper with scripts/setup_distcc_host.sh (distcc) or scripts/setup_nocc_host.sh (nocc), running the same compiler major version. Any distributed mode disables the precompiled header. 'nocc' does NOT preprocess locally, so it is far faster on slow single-core boards (BeagleBone Black, Pi Zero); 'distcc' preprocesses locally then compiles on the helper; 'distcc + zeroconf' auto-discovers distcc helpers on the LAN via mDNS.",
 			"level": 3,
 			"restart": 0,
 			"reboot": 0,
-			"default": 0,
-			"type": "checkbox",
+			"default": "off",
+			"type": "select",
+			"options": {
+				"Off": "off",
+				"distcc": "distcc",
+				"distcc + zeroconf": "distcc-zeroconf",
+				"nocc": "nocc"
+			},
 			"children": {
-				"1": [
-					"DistccUseMDNS",
+				"distcc": [
+					"DistccHosts"
+				],
+				"nocc": [
 					"DistccHosts"
 				]
 			}
 		},
-		"DistccUseMDNS": {
-			"name": "DistccUseMDNS",
-			"description": "Discover distcc Hosts via mDNS",
-			"tip": "Automatically discover distcc helper hosts on the local network via mDNS instead of listing them below (FPP browses the advertised _distcc._tcp services with avahi). The helper must advertise itself (run setup_distcc_host.sh with MDNS=1). Works across CPU architectures, e.g. a 64-bit Pi compiling for a 32-bit BeagleBone. When enabled, the Distcc Hosts field below is ignored.",
-			"level": 3,
-			"restart": 0,
-			"reboot": 0,
-			"default": 0,
-			"type": "checkbox"
-		},
 		"DistccHosts": {
 			"name": "DistccHosts",
-			"description": "Distcc Hosts",
-			"tip": "Space separated list of distcc helper hosts, e.g. 'fpppi5:3632/6,lzo'. Each entry is host[:port][/jobs][,options]. Ignored when mDNS discovery is enabled above.",
+			"description": "Compile Hosts",
+			"tip": "Space separated list of helper hosts. distcc: host[:port][/jobs][,options], e.g. 'fpppi5:3632/6,lzo'. nocc: host[:port] (default port 43210), e.g. 'fpppi5'. Not used for 'distcc + zeroconf' (helpers are discovered via mDNS).",
 			"level": 3,
 			"restart": 0,
 			"reboot": 0,

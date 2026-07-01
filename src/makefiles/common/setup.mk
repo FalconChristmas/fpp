@@ -57,14 +57,27 @@ ifeq '$(SRCDIR)' ''
     SRCDIR=/opt/fpp/src
 endif
 
-# When building through distcc, invoke the target-triplet compiler (e.g.
-# arm-linux-gnueabihf-g++) instead of plain "g++". distcc runs whatever compiler
-# NAME we hand it on the helper, so the triplet name makes the helper select the
-# matching (cross-)compiler -- letting an aarch64 Pi cross-build for a 32-bit
-# BeagleBone. Doing it here means a manual build is just "DISTCC_HOSTS=host make"
-# with no compiler override. Skipped for clang (macOS) and if the triplet
-# compiler is not installed.
+# A "distributed compile" is active when either distcc (DISTCC_HOSTS) or nocc
+# (NOCC_SERVERS) is configured. Both disable the PCH and use the target-triplet
+# compiler; nocc is injected in front of the compiler via CCACHE_PREFIX (set by
+# scripts/functions SetupBuildEnv), so the ccache launcher above stays plain.
+DISTRIBUTED_COMPILE :=
 ifneq ($(DISTCC_HOSTS),)
+DISTRIBUTED_COMPILE := 1
+endif
+ifneq ($(NOCC_SERVERS),)
+DISTRIBUTED_COMPILE := 1
+endif
+
+# When building distributed, invoke the target-triplet compiler (e.g.
+# arm-linux-gnueabihf-g++) instead of plain "g++". distcc/nocc run whatever
+# compiler NAME we hand them on the helper, so the triplet name makes the helper
+# select the matching (cross-)compiler -- letting an aarch64 Pi cross-build for a
+# 32-bit BeagleBone. Doing it here means a manual build is just
+# "DISTCC_HOSTS=host make" (or "NOCC_SERVERS=host CCACHE_PREFIX=nocc make") with
+# no compiler override. Skipped for clang (macOS) and if the triplet compiler is
+# not installed.
+ifneq ($(DISTRIBUTED_COMPILE),)
 ifeq '$(findstring clang,$(CXXCOMPILER))' ''
 DISTCC_TRIPLET := $(shell $(CCOMPILER) -dumpmachine 2>/dev/null)
 ifneq ($(wildcard /usr/bin/$(DISTCC_TRIPLET)-g++),)
@@ -97,7 +110,7 @@ ifeq '$(findstring clang,$(CXXCOMPILER))' ''
 			2>/dev/null | head -1 | sed 's|^origin/||')
 	endif
     # Common CFLAGS
-ifeq ($(DISTCC_HOSTS),)
+ifeq ($(DISTRIBUTED_COMPILE),)
     PCH_FILE=fpp-pch.h.gch
 	CFLAGS+=-fpch-preprocess
 else

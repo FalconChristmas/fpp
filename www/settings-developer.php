@@ -151,8 +151,7 @@ function PrintGitBranchOptions()
     PrintSetting('gitRemote');
     PrintSetting('gitHubUser');
     PrintSetting('gitHubPAT');
-    PrintSetting('DistccEnabled');
-    PrintSetting('DistccUseMDNS');
+    PrintSetting('DistributedCompile');
     PrintSetting('DistccHosts');
     ?>
     <div class="row">
