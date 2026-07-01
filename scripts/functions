@@ -281,7 +281,7 @@ function DiscoverDistccHosts() {
 #                  works, and CCACHE_DEPEND avoids preprocessing locally.
 #   BUILD_CPUS     the -j value to pass to make
 function SetupBuildEnv() {
-    local mode hosts
+    local mode hosts _nh _h
 
     mode=$(getSetting DistributedCompile)
     # Back-compat: derive from the pre-dropdown checkbox settings until the
@@ -325,10 +325,21 @@ function SetupBuildEnv() {
         nocc)
             hosts=$(getSetting DistccHosts)
             if [ -n "${hosts}" ]; then
+                # nocc wants a ';'-delimited list of host:port and REQUIRES the
+                # port (unlike distcc's space-delimited host[:port][/jobs,opts]).
+                # Normalise the shared Compile Hosts field: drop any distcc
+                # "/jobs,opts" suffix, append the default nocc port (43210) to a
+                # bare host, and join with ';'.
+                _nh=""
+                for _h in ${hosts}; do
+                    _h="${_h%%/*}"
+                    case "${_h}" in *:*) : ;; *) _h="${_h}:43210" ;; esac
+                    _nh="${_nh:+${_nh};}${_h}"
+                done
                 # Keep ccache in front (CCACHE_PREFIX=nocc) so the shared/global
                 # ccache still works, and use depend mode so nothing is
                 # preprocessed locally (nocc's whole advantage on slow boards).
-                export NOCC_SERVERS="${hosts}"
+                export NOCC_SERVERS="${_nh}"
                 export NOCC_GO_EXECUTABLE=/usr/bin/nocc-daemon
                 export CCACHE_PREFIX=nocc
                 export CCACHE_DEPEND=true
