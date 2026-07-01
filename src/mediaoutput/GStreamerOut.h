@@ -117,7 +117,16 @@ private:
     uint64_t m_stallStartMs = 0;
     uint64_t m_wallStartMs = 0;
     uint64_t m_lastWallLogMs = 0;
+    uint64_t m_playStartMs = 0;   // wall time Start() set m_playing=true — anchors the preroll watchdog
     static constexpr int STALL_TIMEOUT_MS = 5000; // 5 seconds before declaring stall
+    // Preroll watchdog: if the pipeline is set to PLAYING but never produces a
+    // valid position (never actually starts), it is wedged in preroll/PAUSED —
+    // e.g. the Pi's V4L2 hardware decoder can stop producing frames after a very
+    // long video-only loop (issue #2695), so the video sink never prerolls and
+    // the pipeline stays PAUSED forever.  The regular stall watchdog can't catch
+    // this because it only runs once a position is available.  Generous timeout:
+    // normal preroll completes in well under 1s even on slow HW decoders.
+    static constexpr int PREROLL_TIMEOUT_MS = 15000;
 
     void ProcessMessages();
     static GstBusSyncReply BusSyncHandler(GstBus* bus, GstMessage* msg, gpointer userData);

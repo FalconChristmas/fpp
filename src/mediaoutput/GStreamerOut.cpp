@@ -1231,6 +1231,9 @@ int GStreamerOutput::Start(int msTime) {
     // target PipeWire node doesn't exist yet, which would hang the calling
     // HTTP handler thread and make the entire fppd API unresponsive.
     m_playing = true;
+    // Anchor the preroll watchdog (Process()): if the pipeline never reaches a
+    // playing position, this is the reference point for declaring it wedged.
+    m_playStartMs = GetTimeMS();
 
     {
         int seekMs = msTime;
@@ -1741,6 +1744,31 @@ int GStreamerOutput::Process(void) {
                 }
             }
         } else {
+            // Preroll watchdog: position query keeps failing because the
+            // pipeline never reached PLAYING.  Normal startup clears this within
+            // a fraction of a second (m_wallStartMs gets set on the first valid
+            // position).  If we're still here after PREROLL_TIMEOUT_MS the
+            // pipeline is wedged in preroll — e.g. the V4L2 HW decoder stopped
+            // producing frames after a long video-only loop (issue #2695) so the
+            // video sink never prerolls and the whole pipeline stays PAUSED.
+            // The regular stall watchdog above can't catch this (it lives inside
+            // the havePos branch), so without this check m_playing stays true
+            // forever, the playlist never advances, and only a reboot recovers.
+            // Force a stop so FinishPlay()/CloseMediaOutput() tears the pipeline
+            // down and the playlist can move on to the next item.
+            if (m_wallStartMs == 0 && m_playStartMs > 0 &&
+                (GetTimeMS() - m_playStartMs) > PREROLL_TIMEOUT_MS) {
+                LogWarn(VB_MEDIAOUT, "GStreamer pipeline failed to preroll within %dms "
+                        "(stuck in PAUSED — HW decoder may have wedged, see issue #2695). "
+                        "Forcing stop so the playlist advances.\n", PREROLL_TIMEOUT_MS);
+                m_playing = false;
+                if (m_mediaOutputStatus) {
+                    m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+                }
+                Stopping();
+                Stopped();
+                return 0;
+            }
             LogExcess(VB_MEDIAOUT, "GStreamer position query pending (pipeline not yet PLAYING)\n");
         }
     }
