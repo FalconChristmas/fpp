@@ -348,6 +348,9 @@ int GStreamerOutput::Start(int msTime) {
     // before audio actually starts flowing.
     FlushPipeWireDelayBuffers();
 
+    // Fresh pipeline — allow Stop()'s teardown to run for this track
+    m_teardownComplete = false;
+
     // Reset MultiSync rate-matching state for the new track
     m_currentRate = 1.0f;
     m_diffsSize = 0;
@@ -1428,7 +1431,13 @@ int GStreamerOutput::Start(int msTime) {
 
 int GStreamerOutput::Stop(void) {
     LogDebug(VB_MEDIAOUT, "GStreamerOutput::Stop()\n");
-    if (m_pipeline) {
+    // Idempotency guard: Stop() is invoked both directly (e.g. from
+    // CloseMediaOutput() when the media is still playing) and again via the
+    // destructor's Close().  The teardown below includes a 250ms audio-silence
+    // flush and a 150ms DRM-release sleep; running it twice adds ~400ms of
+    // dead time to every clip transition, which on a multisync remote pushes
+    // playback progressively behind the master.  Run the teardown once only.
+    if (m_pipeline && !m_teardownComplete) {
         // Detach AES67 zero-hop RTP branches BEFORE pipeline goes NULL —
         // this resumes the standalone send pipeline so AES67 keeps working
         // between tracks.
@@ -1524,6 +1533,7 @@ int GStreamerOutput::Stop(void) {
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
         }
         Stopped();
+        m_teardownComplete = true;
     }
     return 1;
 }

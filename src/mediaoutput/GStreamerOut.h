@@ -101,6 +101,7 @@ private:
     int m_volumeAdjust = 0;
     std::atomic<bool> m_playing{false};     // written from GStreamer thread (BusSyncHandler), read from main loop
     std::atomic<bool> m_shutdownFlag{false};  // guards callbacks during teardown
+    bool m_teardownComplete = false;        // makes Stop() idempotent — the expensive pipeline teardown (silence flush + DRM release sleeps) must run only once even when Stop() is called both directly and via Close()/dtor
     // Cancellation token for the detached Start() PLAYING-transition thread.
     // Shared (shared_ptr) so the thread can safely outlive this object: Stop()
     // sets it to abort the volume ramp / deferred attach early, and the thread
