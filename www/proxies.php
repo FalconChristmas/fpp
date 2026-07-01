@@ -305,6 +305,11 @@
                         }
                     }
                     initialProxiesState = getCurrentProxiesState();
+
+                    // Rows were populated asynchronously after the sticky thead was
+                    // first floated on the (then empty) table, so re-float now that the
+                    // real rows exist to avoid a duplicated header until the first scroll.
+                    float_fppStickyThead();
                 },
                 error: function () {
                     $.jGrowl('Error: Unable to get list of proxies', { themeState: 'danger' });
