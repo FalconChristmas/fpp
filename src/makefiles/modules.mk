@@ -18,7 +18,11 @@ ifneq ($(findstring aarch64,$(RF24_TRIPLE)),)
 else ifneq ($(findstring arm-linux-gnueabihf,$(RF24_TRIPLE)),)
     # armhf: armv6zk baseline keeps compatibility with every Pi ever shipped
     # (Pi 1 / Zero). Pi2+ supports more but armhf images are one-size-fits-all.
-    RF24_CCFLAGS := -Ofast -mfpu=vfp -mfloat-abi=hard -march=armv6zk -mtune=arm1176jzf-s
+    # -marm: ARMv6 has no Thumb-2 and Thumb-1 + hard-float VFP is unsupported.
+    # RF24 builds locally today (native, ARM-mode-default gcc) so it doesn't
+    # strictly need this, but -marm keeps it safe if it is ever built with a
+    # -mthumb-default toolchain (e.g. offloaded), matching pi.mk's main build.
+    RF24_CCFLAGS := -Ofast -mfpu=vfp -mfloat-abi=hard -march=armv6zk -marm -mtune=arm1176jzf-s
 else ifneq ($(findstring arm,$(RF24_TRIPLE)),)
     # Generic arm (non-Debian triple) -- use armv7+neon.
     RF24_CCFLAGS := -Ofast -mfpu=neon-vfpv4 -mfloat-abi=hard -march=armv7-a

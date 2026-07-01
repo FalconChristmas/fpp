@@ -14,6 +14,15 @@ CFLAGS += \
 # actual target triple, which is what we care about.
 ifneq ($(findstring aarch64,$(shell $(CXX) -dumpmachine 2>/dev/null)),)
 CFLAGS += -DPLATFORM_PI64
+else
+# 32-bit Raspberry Pi OS targets ARMv6 (Pi Zero/W, Pi 1) so one armhf image runs
+# on every Pi. RPiOS's gcc only DEFAULTS to that arch -- make it EXPLICIT so a
+# distcc/nocc offloaded build (whose helper compiler defaults to ARMv7) still
+# produces ARMv6 objects that run on a Pi Zero. -marm is required because ARMv6
+# has no Thumb-2 and Thumb-1 + hard-float VFP is unsupported (the helper's gcc
+# defaults to -mthumb). Mirrors the RF24 armhf flags in modules.mk, which build
+# locally with the native (ARM-mode-default) gcc and so don't need -marm.
+CFLAGS += -march=armv6zk -mfpu=vfp -mfloat-abi=hard -marm -mtune=arm1176jzf-s
 endif
 
 SUBMODULES += \
