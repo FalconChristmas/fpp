@@ -39,6 +39,12 @@ endif
 # so nothing heavy runs on the (often single-core) client.
 ifneq ($(NOCC_SERVERS),)
 CCACHE = nocc
+# nocc also requires the daemon path in NOCC_GO_EXECUTABLE -- it errors out even
+# when just running a local link if it is unset. FPP's SetupBuildEnv exports it,
+# but default it here (only if unset) so a manual "NOCC_SERVERS=host:port make"
+# works too; the nocc deb installs the daemon at /usr/bin/nocc-daemon.
+NOCC_GO_EXECUTABLE ?= /usr/bin/nocc-daemon
+export NOCC_GO_EXECUTABLE
 endif
 
 

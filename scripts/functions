@@ -222,19 +222,19 @@ function ComputeMakeParallelism() {
     echo "$CPUS"
 }
 
-# Recommended make -j for a distcc/nocc build. The heavy compiles run on the
-# helper, so we'd like roughly the sum of the helper job slots (the "/N" in
-# DISTCC_HOSTS) plus a little headroom. BUT make uses one -j for everything, and
-# the LINK steps run LOCALLY: mold/gold load every object of a target at once,
-# so N parallel links means N heavyweight processes on the client. On a low-RAM
-# SBC (a 480MB BeagleBone especially) that drives the box deep into swap in the
-# link tail and can stall the live controller. So we cap the job count at the
-# LOCAL core count + 2 -- enough to keep a few offloaded compiles in flight and
-# overlap a couple of links, but never so many links that we thrash -- no matter
-# how many compile slots the helper advertises. With an mDNS/zeroconf host list
-# the helper slot count is unknown, so we start from a default and still cap.
+# Recommended make -j for a distcc/nocc build. Start from the helper compile
+# capacity (sum of the "/N" job slots in the host list, default 4/host, +2), then
+# clamp by what the LOCAL box can sustain -- make uses ONE -j for the whole build
+# and the local bottleneck differs by mode:
+#   * distcc preprocesses every file LOCALLY, so the local cores bound throughput
+#     -> cap at nCPU + 2 (e.g. -j3 on a single-core BeagleBone).
+#   * nocc offloads compile AND preprocessing, so locally we only run the LINKs.
+#     With the mold linker (memory-light) even a ~480MB BeagleBone sustains ~6
+#     parallel links, so size the ceiling by RAM, not cores. Without mold (the
+#     heavier ld/gold load every object at once) fall back to the core-based cap.
+# $1 = host list, $2 = mode ("distcc" | "nocc").
 function ComputeDistccParallelism() {
-    local hosts="$1" total=0 tok n ncpu cap
+    local hosts="$1" mode="$2" total=0 tok n ncpu cap mem
     if [ -z "${hosts}" ] || echo "${hosts}" | grep -qi "zeroconf"; then
         total=8
     else
@@ -248,14 +248,25 @@ function ComputeDistccParallelism() {
         done
         total=$((total + 2))
     fi
-    # Local core count (+2) is the hard ceiling -- protects the link phase.
     ncpu=1
     if [ -f /proc/cpuinfo ]; then
         ncpu=$(grep -c "^processor" /proc/cpuinfo)
     elif command -v sysctl >/dev/null 2>&1; then
         ncpu=$(sysctl -n hw.ncpu 2>/dev/null || echo 1)
     fi
-    cap=$((ncpu + 2))
+    # -e /usr/bin/ld.mold mirrors src/makefiles/common/setup.mk's mold selection.
+    if [ "${mode}" = "nocc" ] && [ -e /usr/bin/ld.mold ]; then
+        # Only mold links run locally; size the link ceiling by RAM.
+        mem=$(grep MemTot /proc/meminfo 2>/dev/null | awk '{print $2}')
+        if   [ -n "${mem}" ] && [ "${mem}" -ge 2000000 ]; then cap=16
+        elif [ -n "${mem}" ] && [ "${mem}" -ge 1000000 ]; then cap=12
+        elif [ -n "${mem}" ] && [ "${mem}" -ge 512000  ]; then cap=8
+        else cap=6   # <512MB (BeagleBone): measured good at -j6 with mold+nocc
+        fi
+    else
+        # distcc (local preprocessing) or nocc without mold (heavy local links).
+        cap=$((ncpu + 2))
+    fi
     [ "${total}" -gt "${cap}" ] && total=${cap}
     [ "${total}" -lt 2 ] && total=2
     [ "${total}" -gt 24 ] && total=24
@@ -331,7 +342,7 @@ function SetupBuildEnv() {
                 # DISTCC_DIR (distcc's lock dir) is pinned by src/makefiles (HOME
                 # is unreliable across the PHP -> sudo build chain), not here.
                 export DISTCC_HOSTS="${hosts}"
-                BUILD_CPUS=$(ComputeDistccParallelism "${hosts}")
+                BUILD_CPUS=$(ComputeDistccParallelism "${hosts}" distcc)
                 echo "Building with distcc: DISTCC_HOSTS='${DISTCC_HOSTS}', -j ${BUILD_CPUS} (PCH disabled; makefile selects the triplet compiler)"
             else
                 echo "distcc selected but no Compile Hosts configured -- building locally"
@@ -364,7 +375,7 @@ function SetupBuildEnv() {
                 # Give the nocc daemon a logfile so build issues are diagnosable
                 # (otherwise it warns "logs won't be available").
                 export NOCC_LOG_FILENAME=/tmp/nocc-build.log
-                BUILD_CPUS=$(ComputeDistccParallelism "${hosts}")
+                BUILD_CPUS=$(ComputeDistccParallelism "${hosts}" nocc)
                 echo "Building with nocc: NOCC_SERVERS='${NOCC_SERVERS}', -j ${BUILD_CPUS} (PCH disabled; makefile selects the triplet compiler)"
             else
                 echo "nocc selected but no Compile Hosts configured -- building locally"
