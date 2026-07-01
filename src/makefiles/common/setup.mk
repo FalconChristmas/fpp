@@ -31,6 +31,16 @@ else
 endif
 endif
 
+# nocc: use it as the compiler launcher DIRECTLY (override the ccache set above,
+# if any). Do NOT wrap it as "ccache nocc": ccache would run the preprocessor
+# LOCALLY (cc1plus -E) to compute its cache key -- exactly the bottleneck nocc
+# exists to remove -- and a NOPCH build never matches the PCH-built global ccache
+# anyway. nocc does a light include scan and preprocesses+compiles on the helper,
+# so nothing heavy runs on the (often single-core) client.
+ifneq ($(NOCC_SERVERS),)
+CCACHE = nocc
+endif
+
 
 TARGETS =
 SUBMODULES =
@@ -59,8 +69,9 @@ endif
 
 # A "distributed compile" is active when either distcc (DISTCC_HOSTS) or nocc
 # (NOCC_SERVERS) is configured. Both disable the PCH and use the target-triplet
-# compiler; nocc is injected in front of the compiler via CCACHE_PREFIX (set by
-# scripts/functions SetupBuildEnv), so the ccache launcher above stays plain.
+# compiler. distcc runs behind ccache ("ccache distcc"); nocc replaces ccache as
+# the launcher entirely (CCACHE=nocc, set above) so nothing is preprocessed
+# locally to build a ccache key.
 DISTRIBUTED_COMPILE :=
 ifneq ($(DISTCC_HOSTS),)
 DISTRIBUTED_COMPILE := 1
@@ -74,9 +85,9 @@ endif
 # compiler NAME we hand them on the helper, so the triplet name makes the helper
 # select the matching (cross-)compiler -- letting an aarch64 Pi cross-build for a
 # 32-bit BeagleBone. Doing it here means a manual build is just
-# "DISTCC_HOSTS=host make" (or "NOCC_SERVERS=host CCACHE_PREFIX=nocc make") with
-# no compiler override. Skipped for clang (macOS) and if the triplet compiler is
-# not installed.
+# "DISTCC_HOSTS=host make" (or "NOCC_SERVERS=host:43210 make") with no compiler
+# override. Skipped for clang (macOS) and if the triplet compiler is not
+# installed.
 ifneq ($(DISTRIBUTED_COMPILE),)
 ifeq '$(findstring clang,$(CXXCOMPILER))' ''
 DISTCC_TRIPLET := $(shell $(CCOMPILER) -dumpmachine 2>/dev/null)

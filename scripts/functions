@@ -222,25 +222,41 @@ function ComputeMakeParallelism() {
     echo "$CPUS"
 }
 
-# Recommended make -j for a distcc build. The heavy compiles run on the helper,
-# so we feed roughly the sum of the helper job slots (the "/N" in DISTCC_HOSTS)
-# plus a little local headroom for preprocessing and the final link. With an
-# mDNS/zeroconf host list the slot count is unknown, so fall back to a default.
+# Recommended make -j for a distcc/nocc build. The heavy compiles run on the
+# helper, so we'd like roughly the sum of the helper job slots (the "/N" in
+# DISTCC_HOSTS) plus a little headroom. BUT make uses one -j for everything, and
+# the LINK steps run LOCALLY: mold/gold load every object of a target at once,
+# so N parallel links means N heavyweight processes on the client. On a low-RAM
+# SBC (a 480MB BeagleBone especially) that drives the box deep into swap in the
+# link tail and can stall the live controller. So we cap the job count at the
+# LOCAL core count + 2 -- enough to keep a few offloaded compiles in flight and
+# overlap a couple of links, but never so many links that we thrash -- no matter
+# how many compile slots the helper advertises. With an mDNS/zeroconf host list
+# the helper slot count is unknown, so we start from a default and still cap.
 function ComputeDistccParallelism() {
-    local hosts="$1" total=0 tok n
+    local hosts="$1" total=0 tok n ncpu cap
     if [ -z "${hosts}" ] || echo "${hosts}" | grep -qi "zeroconf"; then
-        echo 8
-        return
+        total=8
+    else
+        for tok in ${hosts}; do
+            n=$(echo "${tok}" | sed -n 's@^[^/]*/\([0-9][0-9]*\).*@\1@p')
+            if [ -n "${n}" ]; then
+                total=$((total + n))
+            else
+                total=$((total + 4))
+            fi
+        done
+        total=$((total + 2))
     fi
-    for tok in ${hosts}; do
-        n=$(echo "${tok}" | sed -n 's@^[^/]*/\([0-9][0-9]*\).*@\1@p')
-        if [ -n "${n}" ]; then
-            total=$((total + n))
-        else
-            total=$((total + 4))
-        fi
-    done
-    total=$((total + 2))
+    # Local core count (+2) is the hard ceiling -- protects the link phase.
+    ncpu=1
+    if [ -f /proc/cpuinfo ]; then
+        ncpu=$(grep -c "^processor" /proc/cpuinfo)
+    elif command -v sysctl >/dev/null 2>&1; then
+        ncpu=$(sysctl -n hw.ncpu 2>/dev/null || echo 1)
+    fi
+    cap=$((ncpu + 2))
+    [ "${total}" -gt "${cap}" ] && total=${cap}
     [ "${total}" -lt 2 ] && total=2
     [ "${total}" -gt 24 ] && total=24
     echo "${total}"
@@ -272,13 +288,13 @@ function DiscoverDistccHosts() {
 # developer setting (off | distcc | distcc-zeroconf | nocc). MUST be called
 # directly (not in a $(...) subshell) so the exports survive into the make that
 # follows. Sets these globals:
-#   DISTCC_HOSTS / NOCC_SERVERS / CCACHE_PREFIX / CCACHE_DEPEND / NOCC_GO_EXECUTABLE
+#   DISTCC_HOSTS / NOCC_SERVERS / NOCC_GO_EXECUTABLE / NOCC_LOG_FILENAME
 #                  exported as appropriate. When distcc OR nocc is active,
 #                  src/makefiles disable the PCH and select the target-triplet
 #                  compiler so the helper cross-compiles -- no CXXCOMPILER
-#                  override needed here. nocc is injected in front of the compiler
-#                  via CCACHE_PREFIX so ccache (incl. the shared cache) still
-#                  works, and CCACHE_DEPEND avoids preprocessing locally.
+#                  override needed here. distcc runs behind ccache; nocc becomes
+#                  the launcher itself (CCACHE=nocc in src/makefiles) so nothing
+#                  is preprocessed locally to compute a ccache key.
 #   BUILD_CPUS     the -j value to pass to make
 function SetupBuildEnv() {
     local mode hosts _nh _h
@@ -336,13 +352,18 @@ function SetupBuildEnv() {
                     case "${_h}" in *:*) : ;; *) _h="${_h}:43210" ;; esac
                     _nh="${_nh:+${_nh};}${_h}"
                 done
-                # Keep ccache in front (CCACHE_PREFIX=nocc) so the shared/global
-                # ccache still works, and use depend mode so nothing is
-                # preprocessed locally (nocc's whole advantage on slow boards).
+                # nocc is the compiler launcher DIRECTLY (src/makefiles sets
+                # CCACHE=nocc), NOT wrapped as "ccache nocc": ccache would run the
+                # preprocessor locally (cc1plus -E) to compute its cache key --
+                # exactly the single-core bottleneck nocc removes -- and a NOPCH
+                # build never matches the PCH-built shared ccache anyway. nocc does
+                # a light include scan and preprocesses+compiles on the helper, and
+                # keeps its own object cache on the helper.
                 export NOCC_SERVERS="${_nh}"
                 export NOCC_GO_EXECUTABLE=/usr/bin/nocc-daemon
-                export CCACHE_PREFIX=nocc
-                export CCACHE_DEPEND=true
+                # Give the nocc daemon a logfile so build issues are diagnosable
+                # (otherwise it warns "logs won't be available").
+                export NOCC_LOG_FILENAME=/tmp/nocc-build.log
                 BUILD_CPUS=$(ComputeDistccParallelism "${hosts}")
                 echo "Building with nocc: NOCC_SERVERS='${NOCC_SERVERS}', -j ${BUILD_CPUS} (PCH disabled; makefile selects the triplet compiler)"
             else
@@ -403,9 +424,16 @@ compileBinaries() {
         fi
     fi
 
+	# nocc-daemon is a persistent process on a fixed socket (/tmp/nocc.sock) that
+	# caches NOCC_SERVERS from its FIRST start and ignores later changes -- a
+	# daemon left running from a prior build (different/no hosts) would serve this
+	# one with stale config (e.g. dialing a host with no port). Stop it so make
+	# spawns a fresh daemon with the current NOCC_SERVERS. No-op when nocc is off.
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+		${SUDO} pkill -x nocc-daemon 2>/dev/null || true
 		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} -E make -j ${CPUS} optimized
 	else
+		sudo -u ${FPPUSER} pkill -x nocc-daemon 2>/dev/null || true
 		cd ${FPPDIR}/src && sudo -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make -j ${CPUS} optimized
 	fi
 
