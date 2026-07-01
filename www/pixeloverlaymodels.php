@@ -860,6 +860,128 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             });
         }
 
+        // ── Running effects summary ───────────────────────────────────────
+        // A single view of every overlay effect running across models,
+        // submodels and model groups (GET /api/overlays/running), so you don't
+        // have to expand each model to find what's active. Auto-refreshes while
+        // open and offers per-row / stop-all controls.
+        var _runningFxTimer = null;
+        var _mgNameSet = null;
+
+        function isModelGroupName(name) {
+            if (_mgNameSet === null) {
+                _mgNameSet = {};
+                (xlightsModelGroups || []).forEach(function (g) {
+                    if (g.Name) _mgNameSet[normalizeModelName(g.Name)] = 1;
+                });
+            }
+            return !!_mgNameSet[normalizeModelName(name)];
+        }
+
+        function runningEffectType(m) {
+            if (m.Type !== 'Sub') return 'Model';
+            return isModelGroupName(m.Name) ? 'Model Group' : 'Submodel';
+        }
+
+        function ShowRunningEffectsModal() {
+            $('#runningFxModal').remove();
+            var $body = $("<div id='runningFxBody'><div style='color:#888;'>Loading&hellip;</div></div>");
+            DoModalDialog({
+                id: 'runningFxModal',
+                title: 'Running Overlay Effects',
+                body: $body,
+                class: 'modal-lg',
+                backdrop: true,
+                keyboard: true,
+                open: function () {
+                    RefreshRunningEffects();
+                    _runningFxTimer = setInterval(RefreshRunningEffects, 2000);
+                },
+                buttons: {
+                    "Stop All": function () { StopAllRunningEffects(); },
+                    Close: function () {
+                        if (_runningFxTimer) { clearInterval(_runningFxTimer); _runningFxTimer = null; }
+                        CloseModalDialog('runningFxModal');
+                    }
+                }
+            });
+        }
+
+        function RefreshRunningEffects() {
+            // Self-cancel if the modal was dismissed via Esc / backdrop.
+            if ($('#runningFxBody').length === 0) {
+                if (_runningFxTimer) { clearInterval(_runningFxTimer); _runningFxTimer = null; }
+                return;
+            }
+            $.get('api/overlays/running', function (data) {
+                RenderRunningEffects(Array.isArray(data) ? data : []);
+            }).fail(function () {
+                $('#runningFxBody').html("<div style='color:#c0392b;'>Could not load running effects &mdash; is fppd running?</div>");
+            });
+        }
+
+        function RenderRunningEffects(list) {
+            // Dedupe by overlay model name (the endpoint can list a model once
+            // per active layer).
+            var seen = {}, rows = [];
+            list.forEach(function (m) {
+                if (!m || !m.Name || seen[m.Name]) return;
+                seen[m.Name] = 1;
+                rows.push(m);
+            });
+
+            if (rows.length === 0) {
+                $('#runningFxBody').html("<div style='color:#888;padding:8px 0;'>No overlay effects are currently running.</div>");
+                return;
+            }
+
+            rows.sort(function (a, b) {
+                return String(a.DisplayName || a.Name).localeCompare(String(b.DisplayName || b.Name));
+            });
+
+            var badge = { 'Model': '#1d3a5a', 'Submodel': '#3a2d1d', 'Model Group': '#2d1d3a' };
+            var html = "<div style='margin-bottom:8px;color:#888;'>" + rows.length + " effect(s) running</div>"
+                + "<table class='fppTable' style='width:100%;'><thead><tr>"
+                + "<th style='text-align:left;'>Model</th><th>Type</th>"
+                + "<th style='text-align:left;'>Effect</th><th></th></tr></thead><tbody>";
+            rows.forEach(function (m) {
+                var type = runningEffectType(m);
+                var fx = (m.effect && m.effect.name) ? m.effect.name : '';
+                html += "<tr>"
+                    + "<td style='text-align:left;'>" + (m.DisplayName || m.Name)
+                    + "<br><code style='font-size:0.8em;color:#888;'>" + m.Name + "</code></td>"
+                    + "<td style='text-align:center;'><span style='background:" + (badge[type] || '#333')
+                    + ";color:#fff;padding:2px 8px;border-radius:3px;font-size:0.8em;white-space:nowrap;'>" + type + "</span></td>"
+                    + "<td style='text-align:left;'><span style='color:#4caf50;'><i class='fas fa-circle' style='font-size:0.6em;vertical-align:middle;'></i> "
+                    + fx + "</span></td>"
+                    + "<td style='text-align:center;'><button class='buttons btn-outline-danger' style='padding:2px 10px;'"
+                    + " onclick='StopRunningEffect(" + JSON.stringify(m.Name) + ")'>Stop</button></td>"
+                    + "</tr>";
+            });
+            html += "</tbody></table>";
+            $('#runningFxBody').html(html);
+        }
+
+        function StopOverlayEffectByName(name) {
+            return $.ajax({
+                url: 'api/command', method: 'POST', contentType: 'application/json',
+                data: JSON.stringify({ command: 'Overlay Model Effect', args: [name, 'Enabled', 'Stop Effects'] })
+            });
+        }
+
+        function StopRunningEffect(name) {
+            StopOverlayEffectByName(name).always(function () { setTimeout(RefreshRunningEffects, 250); });
+        }
+
+        function StopAllRunningEffects() {
+            $.get('api/overlays/running', function (data) {
+                (Array.isArray(data) ? data : []).forEach(function (m) {
+                    if (m && m.Name) StopOverlayEffectByName(m.Name);
+                });
+                setTimeout(RefreshRunningEffects, 400);
+            });
+        }
+
         function pageSpecific_PageLoad_DOM_Setup() {
             SetupSelectableTableRow(tableInfo);
             GetChannelMemMaps();
@@ -903,6 +1025,8 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                     <div class="col-md-auto ms-lg-auto">
                         <div class="form-actions">
 
+                            <input type=button value='Running Effects' onClick='ShowRunningEffectsModal();'
+                                id='btnRunningEffects' class='buttons btn-outline-info'>
                             <input type=button value='Delete' onClick='DeleteSelectedMemMap();'
                                 data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>
                             <input type=button value='Delete xLights Generated' onClick='DeleteXlightsModels();'
