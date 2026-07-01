@@ -598,6 +598,14 @@ void Sensors::DetectFanSensors() {
         if (baseName.empty())
             baseName = deviceName;
 
+        // count fans on this device so we only append an index when there's more than one
+        int fanCount = 0;
+        for (int f = 1; f <= 8; f++) {
+            char fp[256];
+            snprintf(fp, sizeof(fp), "%s/fan%d_input", hwmonPath, f);
+            if (FileExists(fp)) fanCount++;
+        }
+
         for (int fan = 1; fan <= 8; fan++) {
             char fanPath[256];
             snprintf(fanPath, sizeof(fanPath), "%s/fan%d_input", hwmonPath, fan);
@@ -605,11 +613,13 @@ void Sensors::DetectFanSensors() {
                 Json::Value v;
                 v["path"] = fanPath;
                 v["valueType"] = "FanSpeed";
-                // append the fan index; skip the redundant "Fan" if the base already ends in it
+                // "<base> Fan", skipping a redundant trailing "Fan", and adding the
+                // index only when the device actually has more than one fan
                 std::string label = baseName;
                 if (!(endsWith(label, "fan") || endsWith(label, "Fan") || endsWith(label, "FAN")))
                     label += " Fan";
-                label += " " + std::to_string(fan);
+                if (fanCount > 1)
+                    label += " " + std::to_string(fan);
                 v["label"] = label + ": ";
                 v["postfix"] = " RPM";
                 sensors.push_back(new FanSensor(v));

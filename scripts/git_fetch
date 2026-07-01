@@ -20,11 +20,14 @@ fi
 if curl --silent --head https://github.com | grep -i "Content-Type: text/html; charset=utf-8" >/dev/null; then
 	GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
 
+	# Hold the shared git repo lock so this background fetch can't write
+	# FETCH_HEAD (or contend on ref locks) while an upgrade's fetch/rebase is
+	# running -- see runGitLocked in scripts/functions.
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
-		cd ${FPPDIR} && $SUDO git fetch -p -P && $SUDO git fetch --tags -f && $SUDO git submodule foreach git fetch -p -P
+		runGitLocked "cd ${FPPDIR} && git fetch -p -P && git fetch --tags -f && git submodule foreach git fetch -p -P"
 	else
-		cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch  -p -P && sudo -u ${FPPUSER} git submodule foreach git fetch -p -P
+		runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch -p -P && sudo -u ${FPPUSER} git submodule foreach git fetch -p -P"
 	fi
 
 else

@@ -4,6 +4,47 @@
 
 
 #############################################################################
+# Serialize git operations that mutate the ${FPPDIR} repository.
+#
+# The FPP clone is configured with pull.rebase=true, so a plain "git pull"
+# rebases. A rebasing pull picks its target from FETCH_HEAD, and if a second
+# "git fetch" writes FETCH_HEAD at the same instant (e.g. the About page's
+# pending-changes panel runs scripts/git_fetch while the user clicks Upgrade)
+# FETCH_HEAD can momentarily hold more than one "for-merge" line -- at which
+# point git aborts the upgrade with:
+#     fatal: Cannot rebase onto multiple branches.
+# The pull paths below now fetch and then rebase onto the remote-tracking ref
+# (git rebase origin/<branch> does NOT consult FETCH_HEAD, so it is immune to
+# that race and to any stray multi-value branch.<name>.merge config). As an
+# extra guard, every repo-mutating git call is serialized through this lock so
+# concurrent fetches cannot collide on ref locks either.
+#
+# The lock lives under the media dir (NOT /tmp) so it is shared across apache
+# and the shell even when the web server runs with systemd PrivateTmp.
+gitRepoLockFile() {
+    echo "${MEDIADIR}/tmp/fpp-git-repo.lock"
+}
+
+# runGitLocked "<sh command string>"
+#   Run the command string (via sh -c) while holding an exclusive lock on the
+#   FPP git repo, waiting up to 300s for the lock rather than failing outright.
+#   The whole thing runs under ${SUDO} so the lock file is always opened by the
+#   same (root) user; falls back to running unlocked when flock is unavailable
+#   (e.g. macOS). Returns the wrapped command's exit status.
+runGitLocked() {
+    local lock
+    lock="$(gitRepoLockFile)"
+    mkdir -p "$(dirname "${lock}")" 2>/dev/null || true
+    # Exec bash explicitly rather than flock's "-c" form: the latter runs the
+    # command via $SHELL, which for the apache user can be /usr/sbin/nologin.
+    if [ -x /usr/bin/flock ]; then
+        ${SUDO} flock -w 300 -x "${lock}" bash -c "$1"
+    else
+        ${SUDO} bash -c "$1"
+    fi
+}
+
+#############################################################################
 # Functions for compiling and cleaning up compiled binaries
 BINARIES="fppd fpp fppmm"
 cleanCompiledBinaries() {

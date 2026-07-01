@@ -37,11 +37,14 @@ echo "Cleaning up any compiled binaries"
 cleanCompiledBinaries
 
 echo "Switching git branch to $1 from remote $REMOTE"
+# Serialize the whole switch under the shared git repo lock so a background
+# git_fetch can't race on FETCH_HEAD / ref locks mid-switch. rebase onto the
+# tracking ref rather than a bare pull -- see runGitLocked in scripts/functions.
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
-	cd ${FPPDIR} && $SUDO git clean -df && $SUDO git reset --hard &&  $SUDO git submodule foreach git reset --hard && $SUDO git fetch $REMOTE && $SUDO git checkout -B $1 $REMOTE/$1 && $SUDO git pull $REMOTE $1 && git fetch --tags -f && $SUDO git submodule sync && $SUDO git submodule update --init
+	runGitLocked "cd ${FPPDIR} && git clean -df && git reset --hard && git submodule foreach git reset --hard && git fetch $REMOTE && git checkout -B $1 $REMOTE/$1 && git rebase $REMOTE/$1 && git fetch --tags -f && git submodule sync && git submodule update --init"
 else
-	cd ${FPPDIR} && sudo git clean -df && sudo -u ${FPPUSER} git reset --hard && $SUDO -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git fetch $REMOTE && sudo -u ${FPPUSER} git checkout -B $1 $REMOTE/$1 && sudo -u ${FPPUSER} git pull $REMOTE $1 && sudo -u ${FPPUSER} git submodule sync && sudo git submodule update --init
+	runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git clean -df && sudo -u ${FPPUSER} git reset --hard && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git fetch $REMOTE && sudo -u ${FPPUSER} git checkout -B $1 $REMOTE/$1 && sudo -u ${FPPUSER} git rebase $REMOTE/$1 && sudo -u ${FPPUSER} git fetch --tags -f && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init"
 fi
 
 ${SUDO} ${SCRIPTDIR}/upgrade_config

@@ -39,16 +39,20 @@ if ! git remote get-url newfeatures > /dev/null 2>&1; then
 fi
 
 echo "Switching git branch to $1"
+# Checkout the target branch, then fetch its configured upstream and rebase
+# onto the tracking ref (@{u}) rather than a bare "git pull" -- the latter
+# rebases off FETCH_HEAD and can abort with "Cannot rebase onto multiple
+# branches." See runGitLocked in scripts/functions.
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
-	cd ${FPPDIR} && $SUDO git submodule foreach git reset --hard && $SUDO git checkout $1 && $SUDO git pull
+	runGitLocked "cd ${FPPDIR} && git submodule foreach git reset --hard && git checkout $1 && git fetch && git rebase @{u}"
     if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
         cd ${FPPDIR} && $SUDO git submodule sync && $SUDO git submodule update --init
     fi
 
     $SUDO ${SCRIPTDIR}/upgrade_config
 else
-	cd ${FPPDIR} && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git pull
+	runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git fetch && sudo -u ${FPPUSER} git rebase @{u}"
     if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
         cd ${FPPDIR} && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
     fi

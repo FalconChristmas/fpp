@@ -32,14 +32,21 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
     else
         $SUDO git remote set-url origin "http://${SOURCEIP}/git/"
     fi
-    GITBRANCH=$(cd ${FPPDIR} && sudo git branch | grep "^\*" | sed -e "s/\*\s//")
+    # rev-parse gives the plain branch name (and "HEAD" for a detached checkout)
+    # -- unlike "git branch | grep '^\*'" it never returns "(HEAD detached...)".
+    GITBRANCH=$(cd ${FPPDIR} && $SUDO git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
     echo "Upgrading git revision from branch ${GITBRANCH}"
 
     if [ "x${FPPDIR}" = "x/opt/fpp" ]
     then
         cd ${FPPDIR}
-		$SUDO git pull
+		# Fetch, then rebase onto this branch's configured upstream (@{u})
+		# rather than a bare "git pull". @{u} follows whatever remote the
+		# branch tracks (origin, newfeatures, a custom mirror) and, unlike a
+		# rebasing pull, never consults FETCH_HEAD -- so it can't hit
+		# "Cannot rebase onto multiple branches." See scripts/functions.
+		runGitLocked "cd ${FPPDIR} && git fetch && git rebase @{u}"
 		if [ $? -ne 0 ]; then
 		  exit 1
 		fi
@@ -68,7 +75,7 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
         fi
     else
         cd ${FPPDIR}
-		sudo -u ${FPPUSER} git pull
+		runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch && sudo -u ${FPPUSER} git rebase @{u}"
 		if [ $? -ne 0 ]; then
 		  exit 1
 		fi

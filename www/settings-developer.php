@@ -27,7 +27,7 @@ function filterBranch($branch)
 
 function PrintGitBranchOptions()
 {
-    global $git_branch, $SUDO, $settings;
+    global $git_branch, $SUDO, $settings, $mediaDirectory;
 
     $branches = array();
     // Get remote from settings, default to 'origin' if not set
@@ -41,7 +41,17 @@ function PrintGitBranchOptions()
         }
     }
 
-    exec("$SUDO git fetch -p --all && sudo git remote prune $remote");
+    // Serialize this fetch through the same lock the upgrade scripts use so it
+    // can't race on FETCH_HEAD / ref locks with a running upgrade (which would
+    // otherwise show up as "Cannot rebase onto multiple branches"). See
+    // runGitLocked in scripts/functions.
+    $gitLock = escapeshellarg($mediaDirectory . "/tmp/fpp-git-repo.lock");
+    $fetchCmd = escapeshellarg("git fetch -p --all && git remote prune " . escapeshellarg($remote));
+    if (is_executable("/usr/bin/flock")) {
+        exec("$SUDO flock -w 300 -x $gitLock bash -c $fetchCmd");
+    } else {
+        exec("$SUDO bash -c $fetchCmd");
+    }
 
     // Get all remote branches
     exec("$SUDO git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ branch -r", $all_branches);

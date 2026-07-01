@@ -52,9 +52,10 @@ DIFF=$(git show ${VERS} 2> /dev/null)
 
 if [ "x${DIFF}" = "x" ]
 then
-    # we need to do a pull to find this version
-    echo "${VERS} not found, running 'git pull' to sync with origin repository"
-    ${SUDO} git pull
+    # we need to fetch to find this version (a checkout of a specific SHA
+    # follows, so a fetch -- not a rebasing pull -- is all that is needed here)
+    echo "${VERS} not found, running 'git fetch' to sync with origin repository"
+    runGitLocked "cd ${FPPDIR} && git fetch -p -P && git fetch --tags -f"
 fi
 
 DIFF=$(git show ${VERS} 2> /dev/null)
@@ -69,9 +70,10 @@ echo "======================================================================"
 if [ "x${VERS}" = "xHEAD" ]
 then
     echo "Checking out HEAD version"
-    ${SUDO} git checkout ${BRANCH}
     echo "Pulling in latest changes"
-    ${SUDO} git pull
+    # rebase onto the branch's upstream tracking ref rather than a bare pull
+    # (see runGitLocked in scripts/functions).
+    runGitLocked "cd ${FPPDIR} && git checkout ${BRANCH} && git fetch && git rebase @{u}"
 else
     echo "Checking out SHA1 ${VERS}"
     ${SUDO} git checkout ${VERS}
