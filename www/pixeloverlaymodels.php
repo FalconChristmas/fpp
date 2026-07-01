@@ -133,6 +133,26 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             return null;
         }
 
+        // xLights submodels and model groups are lazily materialized when an
+        // effect runs on them, which makes them show up in /api/overlays/models.
+        // They are NOT standalone overlay models — they're listed (read-only) in
+        // their own tables below — so keep them out of the main editable table.
+        var _xlOverlayNames = null;
+        function isXlightsOverlayName(name) {
+            if (_xlOverlayNames === null) {
+                _xlOverlayNames = {};
+                Object.keys(xlightsSubModels).forEach(function (parent) {
+                    (xlightsSubModels[parent] || []).forEach(function (sm) {
+                        _xlOverlayNames[normalizeModelName(sm.Name)] = true;
+                    });
+                });
+                (xlightsModelGroups || []).forEach(function (g) {
+                    _xlOverlayNames[normalizeModelName(g.Name)] = true;
+                });
+            }
+            return !!_xlOverlayNames[normalizeModelName(name)];
+        }
+
         var xlightsModelGroups = [];
         <?
         // Lightweight model-group list from the digested xlights-modelgroups.json
@@ -161,16 +181,32 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             if (!xlightsModelGroups || xlightsModelGroups.length == 0) {
                 return;
             }
+            // Pull fresh running-effect status first (this runs at page load,
+            // before GetChannelMemMaps' async fetch has populated the map), so
+            // effects active on a group — e.g. started from a cue — are shown.
+            $.get("api/overlays/models", function (data) {
+                updateOverlayEffectMap(data);
+            }).always(function () {
+                renderModelGroups();
+            });
+        }
+
+        function renderModelGroups() {
             var $tbody = $('#modelGroupsTable tbody');
             var html = "";
             for (var i = 0; i < xlightsModelGroups.length; i++) {
                 var g = xlightsModelGroups[i];
+                var fx = overlayEffectByName[g.Name];
+                var fxCell = fx
+                    ? "<span style='color:#4caf50;'><i class='fas fa-circle' style='font-size:0.6em;vertical-align:middle;'></i> " + fx + "</span>"
+                    : "<span style='color:#666;'>&mdash;</span>";
                 html += "<tr>"
                     + "<td style='text-align:left;'>" + g.DisplayName + "</td>"
                     + "<td style='text-align:center;'>" + g.MemberCount + "</td>"
                     + "<td style='text-align:center;'>" + g.PixelCount + "</td>"
                     + "<td style='text-align:center;'>" + g.Width + " x " + g.Height + "</td>"
                     + "<td><code style='font-size:0.85em;'>" + g.Name + "</code></td>"
+                    + "<td style='text-align:center;'>" + fxCell + "</td>"
                     + "</tr>";
             }
             $tbody.html(html);
@@ -292,6 +328,11 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
 
             for (var i = 0; i < data.length; i++) {
                 var model = data[i];
+                // Skip lazily-materialized xLights submodels / model groups —
+                // they belong to their own tables, not the editable model list.
+                if (isXlightsOverlayName(model.Name)) {
+                    continue;
+                }
                 var ChannelCountPerNode = model.ChannelCountPerNode;
                 if (ChannelCountPerNode == undefined) {
                     ChannelCountPerNode = 3;
@@ -392,7 +433,9 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                 }
 
                 if (model.effectRunning) {
-                    postr += model.effectName;
+                    postr += "<span style='color:#4caf50;'><i class='fas fa-circle' style='font-size:0.6em;vertical-align:middle;'></i> " + model.effectName + "</span>";
+                } else {
+                    postr += "<span style='color:#666;'>&mdash;</span>";
                 }
                 if (model.autoCreated) {
                     $('#channelMemMapsAutoCreate tbody').append(postr + "</td></tr>");
@@ -418,17 +461,32 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             if (!subModels || subModels.length == 0) {
                 return;
             }
+            // Refresh running-effect status so effects started after page load
+            // (e.g. from a cue) show up, then build the detail table.
+            $.get("api/overlays/models", function (data) {
+                updateOverlayEffectMap(data);
+            }).always(function () {
+                renderSubModelDetail(iconEl, modelName, rowId, subModels);
+            });
+        }
+
+        function renderSubModelDetail(iconEl, modelName, rowId, subModels) {
             var html = "<tr id='" + rowId + "' class='submodelDetail'>"
                 + "<td colspan='12' style='background:#1c1c1c;padding:8px 16px;'>"
                 + "<b style='color:#9b59b6;'>Submodels of " + modelName + "</b>"
                 + "<table style='width:100%;margin-top:6px;' class='submodelList'>"
-                + "<thead><tr><th style='text-align:left;'>Name</th><th>Size</th><th>Overlay Model Name</th><th>Preview</th></tr></thead><tbody>";
+                + "<thead><tr><th style='text-align:left;'>Name</th><th>Size</th><th>Overlay Model Name</th><th>Running Effect</th><th>Preview</th></tr></thead><tbody>";
             for (var i = 0; i < subModels.length; i++) {
                 var sm = subModels[i];
+                var fx = overlayEffectByName[sm.Name];
+                var fxCell = fx
+                    ? "<span style='color:#4caf50;'><i class='fas fa-circle' style='font-size:0.6em;vertical-align:middle;'></i> " + fx + "</span>"
+                    : "<span style='color:#666;'>&mdash;</span>";
                 html += "<tr>"
                     + "<td>" + sm.DisplayName + "</td>"
                     + "<td style='text-align:center;'>" + sm.Width + " x " + sm.Height + "</td>"
                     + "<td><code style='font-size:0.85em;'>" + sm.Name + "</code></td>"
+                    + "<td style='text-align:center;'>" + fxCell + "</td>"
                     + "<td style='text-align:center;'><i class='fas fa-eye' style='cursor:pointer;color:#5bc0de;' title='Preview submodel' onclick='showSubModelPreview(" + JSON.stringify(modelName) + "," + JSON.stringify(sm.Name) + ")'></i></td>"
                     + "</tr>";
             }
@@ -484,8 +542,24 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             return out;
         }
 
+        // Running overlay effects by model name, from /api/overlays/models.
+        // Includes lazily-materialized submodels/groups (an active effect
+        // materializes them), so the submodel table can show what's running.
+        var overlayEffectByName = {};
+        function updateOverlayEffectMap(data) {
+            overlayEffectByName = {};
+            if (Array.isArray(data)) {
+                data.forEach(function (m) {
+                    if (m && m.effectRunning && m.Name) {
+                        overlayEffectByName[m.Name] = m.effectName || 'Effect';
+                    }
+                });
+            }
+        }
+
         function GetChannelMemMaps() {
             $.get("api/overlays/models", function (data) {
+                updateOverlayEffectMap(data);
                 PopulateChannelMemMapTable(data);
             }).fail(function () {
                 DialogError("Load Pixel Overlay Models", "Load Failed, is fppd running?");
@@ -927,6 +1001,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                                         <th>Pixels</th>
                                         <th>Buffer</th>
                                         <th>Overlay Model Name</th>
+                                        <th>Running Effect</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
