@@ -13,8 +13,9 @@
 # actually gets fed. Measured ~3x faster full builds on a BBB.
 #
 # This is OPT-IN. A client only uses the helper when its build env points at it
-# (NOCC_SERVERS=thishost:43210, with CCACHE_PREFIX=nocc). The nocc binaries and
-# the (disabled) nocc-server unit come from the FPP apt repo:  apt-get install nocc
+# (NOCC_SERVERS=thishost:43210; FPP's makefiles then run nocc as the compiler
+# launcher directly). The nocc binaries and the (disabled) nocc-server unit come
+# from the FPP apt repo:  apt-get install nocc
 #
 # ---------------------------------------------------------------------------
 # Serving both 32-bit and 64-bit clients: YES, one host.
