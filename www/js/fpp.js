@@ -8020,6 +8020,19 @@ function SubCommandChanged (
 		}
 	});
 }
+
+// Overlay-model command pickers (api/models?simple=true...) list only top-level
+// models by default. FPP resolves xLights submodels and model groups by name
+// too, so append submodels=true to have the endpoint include them in the
+// suggestion list. Idempotent; leaves non-model content lists untouched.
+function OverlayModelContentListUrl (url) {
+	var u = String(url || '');
+	if (/api\/models\b/.test(u) && /simple=true/.test(u) && !/submodels=true/.test(u)) {
+		return u + '&submodels=true';
+	}
+	return u;
+}
+
 function PrintArgsInputsForEditable (
 	tblCommand,
 	configAdjustable,
@@ -8156,7 +8169,7 @@ function PrintArgsInputsForEditable (
 			var selId = '#' + tblCommand + '_arg_' + count + contentListPostfix;
 			$.ajax({
 				dataType: 'json',
-				url: val['contentListUrl'],
+				url: OverlayModelContentListUrl(val['contentListUrl']),
 				async: false,
 				success: function (data) {
 					if (Array.isArray(data)) {
@@ -8256,7 +8269,7 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 					ID +
 					"'";
 				if (typeof val['contentListUrl'] != 'undefined') {
-					line += " data-contentlisturl='" + val['contentListUrl'] + "'";
+					line += " data-contentlisturl='" + OverlayModelContentListUrl(val['contentListUrl']) + "'";
 				}
 				if (val['type'] == 'multistring') {
 					line += ' multiple';
@@ -8349,7 +8362,7 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 					line += ' multiple';
 				}
 				if (typeof val['contentListUrl'] != 'undefined') {
-					line += " data-contentlisturl='" + val['contentListUrl'] + "'";
+					line += " data-contentlisturl='" + OverlayModelContentListUrl(val['contentListUrl']) + "'";
 				}
 				if (val['allowBlanks']) {
 					line += " data-allowblanks='true'";
@@ -8397,7 +8410,7 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				"_list'></input>";
 			line += "<datalist id='" + ID + "_list'";
 			if (typeof val['contentListUrl'] != 'undefined') {
-				line += " data-contentlisturl='" + val['contentListUrl'] + "'";
+				line += " data-contentlisturl='" + OverlayModelContentListUrl(val['contentListUrl']) + "'";
 			}
 			line += '>';
 			$.each(val['contents'], function (key, v) {
