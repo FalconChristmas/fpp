@@ -1206,23 +1206,44 @@ void MultiSync::PeriodicPing() {
         // updated and new timestamps
         unsigned long timeoutRePingAll = (unsigned long)t - 60 * 600;
         std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+        // Two independent ways this loop corrupted its own iterator:
+        //
+        // 1. erase(it) invalidates `it`, but the old code then read
+        //    it->lastSeen through it and never reassigned from erase()'s
+        //    return, so the loop continued walking freed elements -- the
+        //    it->address.c_str() handed to LogInfo on a later pass is then a
+        //    dangling pointer, which is how this surfaced: a strlen fault
+        //    under _LogWrite/vfprintf rather than anything resembling a
+        //    MultiSync bug.
+        // 2. PingSingleRemoteViaHTTP -> UpdateSystem can push_back onto
+        //    m_remoteSystems (the recursive mutex does not protect against our
+        //    own thread), reallocating the vector mid-loop.
+        //
+        // Read before erasing, take erase()'s return, and collect the HTTP
+        // probe addresses by value to run after the loop and outside the lock
+        // -- they are blocking curl calls anyway.
+        std::vector<std::string> httpPingAddresses;
         for (auto it = m_remoteSystems.begin(); it != m_remoteSystems.end();) {
             if (it->lastSeen < timeoutRemove) {
                 LogInfo(VB_SYNC, "Have not seen %s in over 2 hours, removing\n", it->address.c_str());
-                m_remoteSystems.erase(it);
                 if (it->lastSeen < timeoutRePingAll) {
                     superLongGap = true;
                 }
+                it = m_remoteSystems.erase(it);
             } else if (it->lastSeen < timeoutRePing) {
                 if (it->multiSync) {
                     PingSingleRemote(*it, 1);
                 } else {
-                    PingSingleRemoteViaHTTP(it->address);
+                    httpPingAddresses.push_back(it->address);
                 }
                 ++it;
             } else {
                 ++it;
             }
+        }
+        lock.unlock();
+        for (auto& address : httpPingAddresses) {
+            PingSingleRemoteViaHTTP(address);
         }
     }
     if (superLongGap) {

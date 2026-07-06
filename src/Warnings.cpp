@@ -37,7 +37,13 @@ namespace
     std::set<WarningListener*> listenerList;
     steady_clock::time_point wakeUpTime = steady_clock::time_point::max();
     std::atomic_bool runNotifyThread{ false };
-    std::thread notifyThread;
+    // Intentionally leaked: if this were a plain static, __cxa_finalize would
+    // run ~thread() on ANY exit() call (early startup failures call exit(1)
+    // long before the orderly _exit(0) at the end of main()), and destroying
+    // a still-joinable std::thread calls std::terminate. Leaking the object
+    // means the destructor never runs; StopNotifyThread still joins it on the
+    // orderly shutdown path.
+    std::thread& notifyThread = *new std::thread();
     std::binary_semaphore sema{ 0 };
 }
 

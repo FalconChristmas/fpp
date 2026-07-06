@@ -353,7 +353,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
     if (enabled || !disableFakeBridges) {
         ddpSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
         if (ddpSock < 0) {
-            LogDebug(VB_E131BRIDGE, "e131bridge DDP socket failed: %s", strerror(errno));
+            LogErr(VB_E131BRIDGE, "e131bridge DDP socket failed: %s", strerror(errno));
             exit(1);
         }
         memset((char*)&addr, 0, sizeof(addr));
@@ -363,7 +363,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
         addrlen = sizeof(addr);
         // Bind the socket to address/port
         if (bind(ddpSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LogDebug(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", strerror(errno));
+            LogErr(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", strerror(errno));
             exit(1);
         }
         int bufSize = 512 * 1024;
@@ -389,7 +389,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
         /* set up socket */
         bridgeSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
         if (bridgeSock < 0) {
-            LogDebug(VB_E131BRIDGE, "e131bridge socket failed: %s", strerror(errno));
+            LogErr(VB_E131BRIDGE, "e131bridge socket failed: %s", strerror(errno));
             exit(1);
         }
 
@@ -405,7 +405,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
         addrlen = sizeof(addr);
         // Bind the socket to address/port
         if (bind(bridgeSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LogDebug(VB_E131BRIDGE, "e131bridge bind failed: %s", strerror(errno));
+            LogErr(VB_E131BRIDGE, "e131bridge bind failed: %s", strerror(errno));
             exit(1);
         }
 

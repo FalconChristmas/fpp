@@ -41,7 +41,13 @@ using namespace std::chrono_literals;
 
 static std::list<EventHandler*> EVENT_HANDLERS;
 static std::map<std::string, std::function<void(const std::string& topic, const std::string& payload)>> EVENT_CALLBACKS;
-static std::thread EVENT_PUBLISH_THREAD;
+// Intentionally leaked: if this were a plain file-static, __cxa_finalize would
+// run ~thread() on ANY exit() call (early startup failures like a bridge-port
+// bind error call exit(1) long before the orderly _exit(0) at the end of
+// main()), and destroying a still-joinable std::thread calls std::terminate.
+// Leaking the object means the destructor never runs; the orderly shutdown
+// path still stops and joins the thread explicitly.
+static std::thread& EVENT_PUBLISH_THREAD = *new std::thread();
 static std::binary_semaphore EVENT_PUBLISH_THREAD_STOP{ 0 };
 static std::vector<std::unique_ptr<EventNotifier>> eventNotifiers;
 
