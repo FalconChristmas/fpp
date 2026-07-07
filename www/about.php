@@ -93,6 +93,152 @@
             return hasNewerOS;
         }
 
+        var osImagePrefix = '<?= $settings['OSImagePrefix'] ?>';
+        var is64BitDevice = <?= !empty($settings['Is64Bit']) ? 'true' : 'false' ?>;
+
+        function matchesDeviceOSBuild(filename) {
+            var name = filename || '';
+            var has64Marker = /(^|[-_])(64|64bit|aarch64|arm64)([-_.]|$)/i.test(name);
+            var has32Marker = /(^|[-_])(32|32bit|armv7|armv7l|armhf|arm32)([-_.]|$)/i.test(name);
+
+            if ((osImagePrefix === 'Pi' || osImagePrefix === 'Pi64') && !/^(Pi|Pi64)-/i.test(name)) {
+                return false;
+            }
+            if ((osImagePrefix === 'BBB' || osImagePrefix === 'BB64') && !/^(BBB|BB64)-/i.test(name)) {
+                return false;
+            }
+            if (osImagePrefix !== 'Pi' && osImagePrefix !== 'Pi64' && osImagePrefix !== 'BBB' && osImagePrefix !== 'BB64' && !name.startsWith(osImagePrefix + '-')) {
+                return false;
+            }
+
+            if (has64Marker && !is64BitDevice) {
+                return false;
+            }
+            if (has32Marker && is64BitDevice) {
+                return false;
+            }
+
+            if (!has64Marker && !has32Marker) {
+                if (is64BitDevice && (osImagePrefix === 'Pi64' || osImagePrefix === 'BB64')) {
+                    return name.startsWith(osImagePrefix + '-');
+                }
+                if (!is64BitDevice && (osImagePrefix === 'Pi' || osImagePrefix === 'BBB')) {
+                    return name.startsWith(osImagePrefix + '-');
+                }
+            }
+
+            return true;
+        }
+
+        /**
+         * Parse an FPPOS filename into sortable components.
+         * Handles patterns like:
+         *   Pi64-10.0-beta2_2025-07.fppos
+         *   Pi-9.5.3_2025-07.fppos
+         *   BBB-9.0_2025-07b.fppos
+         *   Pi64-nightly-20250706.fppos
+         * The optional " (download)" suffix is stripped before parsing.
+         */
+        function parseOSFilename(filename) {
+            var name = filename.replace(/\s*\(download\)\s*$/i, '');
+            var result = {
+                platform: '',
+                nightly: false,
+                major: 0,
+                minor: 0,
+                patch: null,
+                prereleaseType: null,
+                prereleaseNum: null,
+                rebuild: false,
+                dateNum: 0,
+                raw: name
+            };
+
+            var platMatch = name.match(/^(Pi64|Pi|BB64|BBB)-/i);
+            if (!platMatch) {
+                result.platform = name.split('-')[0] || 'zzz';
+                return result;
+            }
+            result.platform = platMatch[1];
+
+            var rest = name.substring(platMatch[0].length).replace(/\.fppos$/i, '');
+
+            if (/nightly/i.test(rest)) {
+                result.nightly = true;
+                var ndm = rest.match(/(\d{4})-?(\d{2})(\d{2})?/);
+                if (ndm) {
+                    result.dateNum = parseInt(ndm[1] + (ndm[3] || ndm[2]));
+                }
+                return result;
+            }
+
+            var verMatch = rest.match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
+            if (!verMatch) return result;
+            result.major = parseInt(verMatch[1]);
+            result.minor = parseInt(verMatch[2]);
+            if (verMatch[3] !== undefined) {
+                result.patch = parseInt(verMatch[3]);
+            }
+
+            var afterVersion = rest.substring(verMatch[0].length);
+            var preMatch = afterVersion.match(/^-(alpha|beta|rc)(\d*)/i);
+            if (preMatch) {
+                result.prereleaseType = preMatch[1].toLowerCase();
+                result.prereleaseNum = preMatch[2] !== '' ? parseInt(preMatch[2]) : 0;
+            }
+
+            var dateMatch = rest.match(/_(\d{4})-?(\d{2})(\d{2})?/);
+            if (dateMatch) {
+                result.dateNum = parseInt(dateMatch[1] + (dateMatch[3] || dateMatch[2]));
+            }
+
+            result.rebuild = /b\.fppos$/i.test(name);
+
+            return result;
+        }
+
+        /**
+         * Compare two FPPOS filenames for sorting.
+         * Order: nightly first, then by version (desc), final > prerelease,
+         * rebuild > original, then Pi64 > Pi > BB64 > BBB, then date desc.
+         */
+        function compareOSFilenames(a, b) {
+            var infoA = parseOSFilename(a);
+            var infoB = parseOSFilename(b);
+
+            if (infoA.nightly && !infoB.nightly) return -1;
+            if (!infoA.nightly && infoB.nightly) return 1;
+            if (infoA.nightly && infoB.nightly) {
+                return infoB.dateNum - infoA.dateNum;
+            }
+
+            if (infoA.major !== infoB.major) return infoB.major - infoA.major;
+            if (infoA.minor !== infoB.minor) return infoB.minor - infoA.minor;
+
+            var patchA = infoA.patch !== null ? infoA.patch : -1;
+            var patchB = infoB.patch !== null ? infoB.patch : -1;
+            if (patchA !== patchB) return patchB - patchA;
+
+            var prereleaseOrder = { 'alpha': 3, 'beta': 2, 'rc': 1 };
+            var preA = infoA.prereleaseType ? (prereleaseOrder[infoA.prereleaseType] || 99) : -1;
+            var preB = infoB.prereleaseType ? (prereleaseOrder[infoB.prereleaseType] || 99) : -1;
+            if (preA !== preB) return preA - preB;
+
+            if (infoA.prereleaseNum !== infoB.prereleaseNum) {
+                return (infoB.prereleaseNum || 0) - (infoA.prereleaseNum || 0);
+            }
+
+            if (infoA.rebuild && !infoB.rebuild) return -1;
+            if (!infoA.rebuild && infoB.rebuild) return 1;
+
+            var platformOrder = { 'Pi64': 0, 'Pi': 1, 'BB64': 2, 'BBB': 3 };
+            var platA = platformOrder[infoA.platform] !== undefined ? platformOrder[infoA.platform] : 99;
+            var platB = platformOrder[infoB.platform] !== undefined ? platformOrder[infoB.platform] : 99;
+            if (platA !== platB) return platA - platB;
+
+            return infoB.dateNum - infoA.dateNum;
+        }
+
         // Cached git origin log data
         var gitOriginLogCache = null;
 
@@ -666,43 +812,6 @@
                 //cleanup previous load values
                 $('#osSelect option').filter(function () { return parseInt(this.value) > 0; }).remove();
 
-                var osImagePrefix = '<?= $settings['OSImagePrefix'] ?>';
-                var is64BitDevice = <?= !empty($settings['Is64Bit']) ? 'true' : 'false' ?>;
-
-                function matchesDeviceOSBuild(filename) {
-                    var name = filename || '';
-                    var has64Marker = /(^|[-_])(64|64bit|aarch64|arm64)([-_.]|$)/i.test(name);
-                    var has32Marker = /(^|[-_])(32|32bit|armv7|armv7l|armhf|arm32)([-_.]|$)/i.test(name);
-
-                    if ((osImagePrefix === 'Pi' || osImagePrefix === 'Pi64') && !/^(Pi|Pi64)-/i.test(name)) {
-                        return false;
-                    }
-                    if ((osImagePrefix === 'BBB' || osImagePrefix === 'BB64') && !/^(BBB|BB64)-/i.test(name)) {
-                        return false;
-                    }
-                    if (osImagePrefix !== 'Pi' && osImagePrefix !== 'Pi64' && osImagePrefix !== 'BBB' && osImagePrefix !== 'BB64' && !name.startsWith(osImagePrefix + '-')) {
-                        return false;
-                    }
-
-                    if (has64Marker && !is64BitDevice) {
-                        return false;
-                    }
-                    if (has32Marker && is64BitDevice) {
-                        return false;
-                    }
-
-                    if (!has64Marker && !has32Marker) {
-                        if (is64BitDevice && (osImagePrefix === 'Pi64' || osImagePrefix === 'BB64')) {
-                            return name.startsWith(osImagePrefix + '-');
-                        }
-                        if (!is64BitDevice && (osImagePrefix === 'Pi' || osImagePrefix === 'BBB')) {
-                            return name.startsWith(osImagePrefix + '-');
-                        }
-                    }
-
-                    return true;
-                }
-
                 $.get(allPlatforms, function (data) {
                     var devMode = (settings['uiLevel'] && (parseInt(settings['uiLevel']) == 3));
                     var isAdvanced = (settings['uiLevel'] && (parseInt(settings['uiLevel']) >= 1));
@@ -716,6 +825,8 @@
                         $('#legacyOSWarning').hide();
                     }
 
+                    var options = [];
+
                     if ("files" in data) {
                         for (const file of data["files"]) {
                             osAssetMap[file["asset_id"]] = {
@@ -724,7 +835,8 @@
                             };
 
                             var isLegacyVersion = legacyVersionRegex.test(file['filename']);
-                            if (isLegacyVersion && !showLegacy && !devMode) {
+                            var isAllPlatforms = $('#allPlatforms').is(':checked');
+                            if (isLegacyVersion && (isAllPlatforms || !showLegacy)) {
                                 continue;
                             }
 
@@ -741,35 +853,34 @@
                                 continue;
                             }
 
+                            var label = file["filename"];
                             if (!file["downloaded"]) {
-                                $('#osSelect').append($('<option>', {
-                                    value: file["asset_id"],
-                                    text: file["filename"] + " (download)"
-                                }));
+                                label += " (download)";
                             }
-                            if (file["downloaded"]) {
-                                $('#osSelect').append($('<option>', {
-                                    value: file["asset_id"],
-                                    text: file["filename"]
-                                }));
-                            }
+                            options.push({
+                                value: file["asset_id"],
+                                text: label
+                            });
                         }
                     }
 
                     //only show alpha and beta images in Advanced ui
-                    if (settings['uiLevel'] && (parseInt(settings['uiLevel']) >= 1)) {
-                        //leave all avail options in place
-                    } else {
-                        $('#osSelect option').filter(function () { return (/beta/i.test(this.text)); }).remove();
-                        $('#osSelect option').filter(function () { return (/alpha/i.test(this.text)); }).remove();
+                    if (!isAdvanced) {
+                        options = options.filter(function (o) {
+                            return !/beta/i.test(o.text) && !/alpha/i.test(o.text);
+                        });
                     }
 
                     //insert files already downloaded if we haven't got them from the git api call
                     var osUpdateFiles = <?php echo json_encode($osUpdateFiles); ?>;
-                    var select = $('#osSelect');
                     osUpdateFiles.forEach(element => {
+                        var isDuplicate = options.some(function (o) {
+                            return o.text.toLowerCase().indexOf(element.toLowerCase()) !== -1;
+                        });
+                        if (isDuplicate) return;
                         var isLegacyVersion = legacyVersionRegex.test(element);
-                        if (isLegacyVersion && !showLegacy && !devMode) {
+                        var isAllPlatforms = $('#allPlatforms').is(':checked');
+                        if (isLegacyVersion && (isAllPlatforms || !showLegacy)) {
                             return;
                         }
                         if (/nightly/i.test(element) && !devMode) {
@@ -778,12 +889,20 @@
                         if (!matchesDeviceOSBuild(element)) {
                             return;
                         }
-                        if (select.has('option:contains("' + element + '")').length == 0) {
-                            $('#osSelect').append($('<option>', {
-                                value: element,
-                                text: element
-                            }));
-                        }
+                        options.push({
+                            value: element,
+                            text: element
+                        });
+                    });
+
+                    // Sort options using version-aware sorting
+                    options.sort(function (a, b) {
+                        return compareOSFilenames(a.text, b.text);
+                    });
+
+                    // Append sorted options
+                    options.forEach(function (o) {
+                        $('#osSelect').append($('<option>', o));
                     });
 
                     if (!forceOsUpgradeTest) {
@@ -1003,7 +1122,13 @@
                 $('#osDownloadButton').attr('disabled', 'disabled');
                 $('#osReleaseNotesButton').attr('disabled', 'disabled');
             } else {
-                $('#osUpgradeButton').removeAttr('disabled');
+                var selectedText = $('#osSelect option:selected').text();
+                var platformMatches = matchesDeviceOSBuild(selectedText);
+                if (platformMatches) {
+                    $('#osUpgradeButton').removeAttr('disabled');
+                } else {
+                    $('#osUpgradeButton').attr('disabled', 'disabled');
+                }
                 $('#osReleaseNotesButton').removeAttr('disabled');
                 if (os in osAssetMap) {
                     $('#osDownloadButton').removeAttr('disabled');
@@ -1393,7 +1518,7 @@
                                 </div>
                             </div>
 
-                            <?php if ($advancedInfoCollapse) { ?><details class="fpp-info-collapsible" open>
+                            <?php if ($advancedInfoCollapse) { ?><details class="fpp-info-collapsible">
                                 <summary class="fpp-info-collapsible__summary">
                                     <span><i class="fas fa-info-circle"></i> When to use &amp; What it does</span>
                                     <i class="fas fa-chevron-down fpp-info-collapsible__chevron"></i>
