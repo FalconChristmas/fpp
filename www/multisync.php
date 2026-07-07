@@ -2542,7 +2542,6 @@
         }
 
         function MultiSyncEnableToggled() {
-            SetRestartFlag();
         }
 
 
