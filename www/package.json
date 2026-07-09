@@ -10,7 +10,7 @@
     "@popperjs/core": "^2.11.8",
     "browser-sync": "^3.0.3",
     "debug": "^4.3.7",
-    "engine.io": "^6.6.3",
+    "engine.io": "^6.6.9",
     "glob-parent": "^6.0.2",
     "gulp": "^5.0.0",
     "gulp-plumber": "^1.2.1",
