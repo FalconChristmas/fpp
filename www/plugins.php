@@ -521,7 +521,13 @@
             var untestedVersion = versionSel.untested;
             var compatibleVersionClass = (compatibleVersion == -1) ? " has-previous-compatible-version" : '';
             html += '<div id="row-' + data.repoName + '" class="fppPluginEntry' + compatibleVersionClass + '"><div class="backdrop fppPluginEntryBackdrop"><div class="row">';
-            html += '<div class="col-lg-3"><h3 class="pluginTitle">' + data.name + '</h3>';
+            var avatarHtml = '';
+            if (data.icon && data.icon !== '') {
+                avatarHtml = '<img class="fppPluginAvatar fppPluginAvatarImg" src="' + data.icon + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+            } else {
+                avatarHtml = '<div class="fppPluginAvatar fppPluginAvatarInitial" style="background-color: ' + PluginColor(data.repoName) + '">' + PluginInitial(data.name) + '</div>';
+            }
+            html += '<div class="col-lg-3"><div class="d-flex align-items-center">' + avatarHtml + '<h3 class="pluginTitle">' + data.name + '</h3></div>';
 
             if (installed) {
                 html += '<div class="text-success fppPluginEntryInstallStatus"><i class="far fa-check-circle"></i> <b>Installed</b></div>';
@@ -532,8 +538,8 @@
             }
 
             html += '</div>';
-            html += '<div class="col-lg-2"><div class="labelHeading text-secondary">Author:</div><div class="text-primary">' + data.author + '</div></div>';
-            html += '<div class="col-lg"><div class="labelHeading text-secondary">Description:</div><div class="text-primary">' + data.description + '</div>';
+            html += '<div class="col-lg-2"><div class="labelHeading text-secondary">Author:</div><div class="text-primary pluginAuthor">' + data.author + '</div></div>';
+            html += '<div class="col-lg"><div class="labelHeading text-secondary">Description:</div><div class="text-primary pluginDescription">' + data.description + '</div>';
 
             html += '</div>';
             html += '<div class="col-lg-auto fppPluginEntryActions">';
@@ -712,7 +718,7 @@
                         success: function (data) {
                             $('html,body').css('cursor', 'auto');
                             LoadPlugin(data);
-                            $('#pluginInput').on('input', FilterPlugins);
+                            $('#pluginInput').off('input.pluginFilter').on('input.pluginFilter', function () { clearTimeout(filterDebounceTimer); filterDebounceTimer = setTimeout(FilterPlugins, 150); });
                             FilterPlugins();
 
                         },
@@ -789,6 +795,36 @@
                 alert('Invalid pluginInfo.json URL');
             }
         }
+        // Generate a consistent color from a plugin name for the avatar
+        function PluginColor(name) {
+            var hash = 0;
+            for (var i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            var hue = Math.abs(hash) % 360;
+            return 'hsl(' + hue + ', 50%, 48%)';
+        }
+
+        function PluginInitial(name) {
+            return name.charAt(0);
+        }
+
+        function UpdatePluginSectionCounts() {
+            $('.fppPluginSection').each(function () {
+                var visible = $(this).find('.fppPluginEntry.pluginFilterVisible').length;
+                var total = $(this).find('.fppPluginEntry').length;
+                var badge = $(this).find('.pluginSectionCount');
+                if (badge.length === 0 && total > 0) {
+                    badge = $('<span class="pluginSectionCount"></span>');
+                    $(this).find('.pluginsHeader h2').append(badge);
+                }
+                if (total > 0) {
+                    badge.text(visible + '/' + total);
+                }
+            });
+        }
+
+        var filterDebounceTimer = null;
         function FilterPlugins() {
             if ($('#pluginInput').val().indexOf('://') > -1) {
                 $('.fppPluginInput').addClass('is-url');
@@ -804,7 +840,10 @@
                     $('.fppPluginSection').each(function () {
                         var filterMatchesInSection = 0;
                         $(this).children('.fppPluginEntry').each(function (index) {
-                            if ($(".pluginTitle", this).text().toLowerCase().indexOf(value) > -1) {
+                            var title = $(".pluginTitle", this).text().toLowerCase();
+                            var author = $(this).find('.pluginAuthor').text().toLowerCase();
+                            var desc = $(this).find('.pluginDescription').text().toLowerCase();
+                            if (title.indexOf(value) > -1 || author.indexOf(value) > -1 || desc.indexOf(value) > -1) {
                                 $(this).addClass('pluginFilterVisible');
                                 filterMatchesInSection++;
                             } else {
@@ -819,8 +858,25 @@
                     });
                 }
             }
-
+            UpdatePluginSectionCounts();
         }
+
+        function SetPluginView(view) {
+            if (view === 'grid') {
+                $('.plugindiv').addClass('fppPluginGridView');
+                $('#pluginViewList').removeClass('active');
+                $('#pluginViewGrid').addClass('active');
+            } else {
+                $('.plugindiv').removeClass('fppPluginGridView');
+                $('#pluginViewList').addClass('active');
+                $('#pluginViewGrid').removeClass('active');
+            }
+            try { localStorage.setItem('fppPluginView', view); } catch (e) {}
+        }
+
+        $(document).on('click', '#pluginViewList', function () { SetPluginView('list'); });
+        $(document).on('click', '#pluginViewGrid', function () { SetPluginView('grid'); });
+
         $(document).ready(function () {
             // Uninstall All and Reinstall All are bulk destructive actions, so only
             // expose them in Advanced UI mode or higher.
@@ -828,6 +884,11 @@
                 $('#uninstallAllBtn').removeClass('d-none');
                 $('#reinstallAllBtn').removeClass('d-none');
             }
+            // Restore last-used view
+            try {
+                var savedView = localStorage.getItem('fppPluginView');
+                if (savedView === 'grid') SetPluginView('grid');
+            } catch (e) {}
             GetInstalledPlugins();
 
         });
@@ -853,7 +914,6 @@
                                 <input type="text" id="pluginInput"
                                     class="form-control form-control-lg form-control-rounded has-shadow"
                                     placeholder="Find a Plugin or Enter a plugininfo.json URL" />
-
                             </div>
                             <div class="col-auto fppPluginInputActionCol">
                                 <div class="buttons btn-lg btn-rounded btn-outline-success" onClick='ManualLoadInfo();'>
@@ -862,6 +922,13 @@
                             </div>
                         </div>
 
+                    </div>
+                    <div class="d-flex justify-content-end gap-1 mt-2 mb-1">
+                        <span class="fppPluginViewLabel">View:</span>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="buttons btn-outline-secondary active" id="pluginViewList" title="List view"><i class="fas fa-list"></i></button>
+                            <button type="button" class="buttons btn-outline-secondary" id="pluginViewGrid" title="Grid view"><i class="fas fa-th-large"></i></button>
+                        </div>
                     </div>
                     <div class='plugindiv'>
 
