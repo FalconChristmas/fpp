@@ -466,6 +466,30 @@ void setupNetwork(bool fullReload) {
         }
     }
 
+    // Auto-detect default gateway as a fallback NTP server so that ntpsec has
+    // a reachable peer when internet pool servers are blocked (e.g. behind
+    // double NAT). LAN traffic to the gateway does not cross any NAT boundary.
+    // ntpsec gracefully ignores non-responsive servers, so this is safe even
+    // if the gateway does not run NTP.
+    {
+        std::string gw = execAndReturn(
+            "/usr/bin/ip route show default 2>/dev/null | /usr/bin/awk '{print $3}'");
+        TrimWhiteSpace(gw);
+        if (!gw.empty()) {
+            struct sockaddr_in sa;
+            if (inet_pton(AF_INET, gw.c_str(), &(sa.sin_addr)) == 1) {
+                std::string ntpConf = GetFileContents("/etc/ntpsec/ntp.conf");
+                if (ntpConf.find("server " + gw) == std::string::npos) {
+                    ntpConf += "\n# Auto-detected default gateway fallback\nserver "
+                            + gw + " minpoll 10 maxpoll 12 iburst\n";
+                    PutFileContents("/etc/ntpsec/ntp.conf", ntpConf);
+                    execbg("/usr/bin/systemctl reload-or-restart ntpsec.service &");
+                    printf("FPP - Added default gateway %s as fallback NTP server\n",
+                           gw.c_str());
+                }
+            }
+        }
+    }
     bool changed = false;
     for (auto& ftc : filesToConsider) {
         if (filesNeeded.find(ftc) == filesNeeded.end()) {

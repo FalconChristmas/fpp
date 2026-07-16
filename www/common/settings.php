@@ -61,6 +61,18 @@ function SetNTPServer($value)
         exec("sudo sed -i -e 's/minsane 1/minsane 3/' $ntpConfigFile");
     }
 
+    // Add default gateway as a fallback NTP server reachable on the local
+    // subnet (no NAT boundary). Safe even if the gateway does not run NTP;
+    // ntpsec simply marks it as unreachable.
+    $gateway = exec("ip route show default 2>/dev/null | awk '{print \$3}'");
+    if (!empty($gateway) && filter_var($gateway, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        $gwInConf = exec("grep -c 'server $gateway' $ntpConfigFile 2>/dev/null");
+        if ($gwInConf == 0) {
+            exec("sudo sh -c \"echo >> $ntpConfigFile\"");
+            exec("sudo sh -c \"echo '# Auto-detected default gateway fallback' >> $ntpConfigFile\"");
+            exec("sudo sh -c \"echo server $gateway minpoll 10 maxpoll 12 iburst >> $ntpConfigFile\"");
+        }
+    }
     // Note: Assume NTP is always enabled now.
     RestartNTPD();
 }
