@@ -2118,18 +2118,42 @@ function GetPlaylistDurationDiv (entry) {
 	);
 }
 
-function GetPlaylistRowHTML (ID, entry, editMode) {
+function GetPlaylistRowHTML (ID, entry, editMode, invalidNames = {}) {
 	var HTML = '';
 	var rowNum = ID + 1;
 
+	var warningClass = '';
+	var warningTitle = '';
+	if (entry.type == 'sequence' && entry.sequenceName && invalidNames[entry.sequenceName]) {
+		warningClass = ' playlistRowWarning';
+		warningTitle = ' title="Missing sequence: ' + entry.sequenceName.replace(/'/g, '&#39;') + '"';
+	} else if (entry.type == 'both') {
+		if (entry.sequenceName && invalidNames[entry.sequenceName]) {
+			warningClass = ' playlistRowWarning';
+			warningTitle = ' title="Missing sequence: ' + entry.sequenceName.replace(/'/g, '&#39;') + '"';
+		} else if (entry.mediaName && invalidNames[entry.mediaName]) {
+			warningClass = ' playlistRowWarning';
+			warningTitle = ' title="Missing media: ' + entry.mediaName.replace(/'/g, '&#39;') + '"';
+		}
+	} else if (entry.type == 'media' && entry.mediaName && invalidNames[entry.mediaName]) {
+		warningClass = ' playlistRowWarning';
+		warningTitle = ' title="Missing media: ' + entry.mediaName.replace(/'/g, '&#39;') + '"';
+	} else if (entry.type == 'playlist' && entry.name && invalidNames[entry.name]) {
+		warningClass = ' playlistRowWarning';
+		warningTitle = ' title="Missing playlist: ' + entry.name.replace(/'/g, '&#39;') + '"';
+	} else if (entry.type == 'image' && entry.imagePath && invalidNames[entry.imagePath]) {
+		warningClass = ' playlistRowWarning';
+		warningTitle = ' title="Missing image: ' + entry.imagePath.replace(/'/g, '&#39;') + '"';
+	}
+
 	if (editMode) {
-		HTML += "<tr class='playlistRow'>";
+		HTML += "<tr class='playlistRow" + warningClass + "'" + warningTitle + ">";
 		HTML +=
 			"<td class='playlistRowCheckCell'><input type='checkbox' class='playlistEntryCheckbox' onchange='UpdatePlaylistSelectCount()' /></td>";
 		HTML +=
 			"<td class='center' valign='middle'> <div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>";
 	} else {
-		HTML += "<tr id='playlistRow" + rowNum + "' class='playlistRow'>";
+		HTML += "<tr id='playlistRow" + rowNum + "' class='playlistRow" + warningClass + "'" + warningTitle + ">";
 	}
 
 	HTML += "<td class='colPlaylistNumber";
@@ -2158,6 +2182,7 @@ function GetPlaylistRowHTML (ID, entry, editMode) {
 		PlaylistEntryTypeToString(entry.type) +
 		':' +
 		deprecated +
+		(warningClass ? "<span class='playlistEntryWarningIcon'>&#x26a0;</span>" : "") +
 		"<span style='display: none;' class='entryType'>" +
 		entry.type +
 		"</span></div><div class='psiData'>";
@@ -2329,10 +2354,28 @@ function PlaylistNameOK (name) {
 function LoadPlaylistDetails (name) {
 	$.get('api/playlist/' + name)
 		.done(function (data) {
-			// Use setTimeout to allow UI to update before heavy DOM manipulation
+			var invalidNames = {};
+			for (var i = 0; i < playListArray.length; i++) {
+				if (playListArray[i].name == name) {
+					var msgs = playListArray[i].messages;
+					for (var m = 0; m < msgs.length; m++) {
+						var msg = msgs[m];
+						var match;
+						if ((match = msg.match(/^Invalid Sequence (.+)$/))) {
+							invalidNames[match[1]] = true;
+						} else if ((match = msg.match(/^Invalid mediaName (.+)$/))) {
+							invalidNames[match[1]] = true;
+						} else if ((match = msg.match(/^Invalid Playlist (.+)$/))) {
+							invalidNames[match[1]] = true;
+						} else if ((match = msg.match(/^Invalid Image (.+)$/))) {
+							invalidNames[match[1]] = true;
+						}
+					}
+					break;
+				}
+			}
 			setTimeout(function () {
-				PopulatePlaylistDetails(data, 1, name);
-				//$("#tblPlaylistLeadInHeader").get(0).scrollIntoView();
+				PopulatePlaylistDetails(data, 1, name, invalidNames);
 			}, 0);
 		})
 		.fail(function () {
@@ -7009,7 +7052,7 @@ function UpdatePlaylistHeaderDetailVisibility () {
 	});
 }
 
-function PopulatePlaylistDetails (data, editMode, name = '') {
+function PopulatePlaylistDetails (data, editMode, name = '', invalidNames = {}) {
 	var innerHTML = '';
 	var entries = 0;
 	gblPlaylistDetailsEditMode = editMode ? 1 : 0;
@@ -7027,7 +7070,7 @@ function PopulatePlaylistDetails (data, editMode, name = '') {
 			let sectionData = data[sections[s]];
 			innerHTML = '';
 			for (var i = 0; i < sectionData.length; i++) {
-				innerHTML += GetPlaylistRowHTML(entries, sectionData[i], editMode);
+				innerHTML += GetPlaylistRowHTML(entries, sectionData[i], editMode, invalidNames);
 				entries++;
 			}
 			$('#tblPlaylist' + idPart).html(innerHTML);

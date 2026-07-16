@@ -1812,6 +1812,18 @@ body.is-loading #schedulerInfo .labelValue:before {
 	margin-left: 0.8em;
 }
 
+.playlistRowWarning {
+	background-color: var(--bs-warning-bg-subtle) !important;
+}
+.playlistEntryWarningIcon {
+	color: var(--bs-warning);
+	font-family: 'Font Awesome 5 Free';
+	font-weight: 900;
+	font-size: 1.1em;
+	margin-left: 0.4em;
+	vertical-align: middle;
+}
+
 .playlistCard {
 	margin-top: 0.5em;
 	cursor: pointer;
