@@ -15,6 +15,7 @@
 #include "fpp-json.h"
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+#include "Timers.h"   // periodic audio-device presence monitor
 
 #include <pthread.h>
 #include <stdlib.h>
@@ -85,6 +86,85 @@ static int resolveAudioOutputCardNum() {
     return 0; // selected card not present -> default to card 0
 }
 
+#ifndef PLATFORM_OSX
+// Warning ID for "configured audio output card is missing". Kept distinct so
+// the warning can be added/removed idempotently as the card comes and goes.
+static constexpr int AUDIO_CARD_MISSING_WARNING_ID = 58;
+
+// Is the given stable ALSA card ID currently listed in /proc/asound/cards?
+static bool alsaCardIdPresent(const std::string& id) {
+    std::istringstream iss(GetFileContents("/proc/asound/cards"));
+    std::string line;
+    while (std::getline(iss, line)) {
+        auto b = line.find('[');
+        auto e = line.find(']');
+        if (b != std::string::npos && e != std::string::npos && e > b) {
+            std::string cid = line.substr(b + 1, e - b - 1);
+            TrimWhiteSpace(cid);
+            if (cid == id) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Periodically verify the configured audio output card is still present. USB
+// sound cards can be unplugged (or drop off the bus) while fppd is running; when
+// that happens PipeWire/ALSA fall back to the default device and audio silently
+// plays somewhere unexpected -- and, historically, PipeWire's ALSA layer would
+// also spam syslog retrying the dead device. Surface a UI warning so the user
+// knows, and clear it automatically once the card returns.
+//
+// Only named cards (stable IDs like "S3", "ICUSBAUDIO7D") are monitored: an
+// empty or all-numeric setting means the default/legacy card index, which we
+// can't meaningfully test for presence by ID. A short debounce avoids flapping
+// on transient enumeration gaps.
+static void CheckAudioOutputCardPresence() {
+    static int missCount = 0;
+    static bool warningActive = false;
+
+    std::string id = getSetting("AudioOutput");
+    TrimWhiteSpace(id);
+    if (id.empty() || id.find_first_not_of("0123456789") == std::string::npos) {
+        // Nothing monitorable by ID; make sure any stale warning is cleared.
+        if (warningActive) {
+            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID,
+                                         "Audio output card is not present");
+            warningActive = false;
+        }
+        missCount = 0;
+        return;
+    }
+
+    if (alsaCardIdPresent(id)) {
+        missCount = 0;
+        if (warningActive) {
+            LogInfo(VB_MEDIAOUT, "Audio output card '%s' is present again; clearing warning.\n", id.c_str());
+            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID,
+                                         "Audio output card is not present");
+            warningActive = false;
+        }
+        return;
+    }
+
+    // Absent. Require two consecutive misses (~20s) before warning to ride out
+    // brief re-enumeration during resume/hotplug.
+    if (missCount < 2) {
+        ++missCount;
+        return;
+    }
+    if (!warningActive) {
+        LogWarn(VB_MEDIAOUT, "Configured audio output card '%s' is no longer present.\n", id.c_str());
+        WarningHolder::AddWarning(AUDIO_CARD_MISSING_WARNING_ID,
+                                  "Audio output card '" + id + "' is not present - it may have been unplugged. "
+                                  "Audio will fall back to the default output device until it is reconnected.",
+                                  "pipewire-audio.php", "Audio Settings");
+        warningActive = true;
+    }
+}
+#endif
+
 MediaOutputStatus mediaOutputStatus = {
     MEDIAOUTPUTSTATUS_IDLE, // status
 };
@@ -99,6 +179,12 @@ void InitMediaOutput(void) {
         vol = 70;
     }
     setVolume(vol);
+
+    // Watch for the configured audio output card disappearing at runtime
+    // (e.g. a USB sound card unplugged mid-show) and surface a UI warning.
+    Timers::INSTANCE.addPeriodicTimer("AudioCardPresence", 10000, []() {
+        CheckAudioOutputCardPresence();
+    });
 #endif
 }
 

@@ -1620,6 +1620,24 @@ configure_logging() {
     fi
     if [ -f /etc/logrotate.d/rsyslog ]; then
         sed -i -e "s/weekly/daily/" /etc/logrotate.d/rsyslog
+        # Size backstop: rotate syslog & friends once they cross 200M even
+        # between the daily cron runs, so a mid-day flood can't grow unbounded.
+        # (Belt-and-braces with the rsyslog rate limit below; logrotate only
+        # runs on cron, so the rate limit is the real-time guard.)
+        if ! grep -q "maxsize" /etc/logrotate.d/rsyslog; then
+            sed -i -e "0,/^\tdaily$/s//\tdaily\n\tmaxsize 200M/" /etc/logrotate.d/rsyslog
+        fi
+    fi
+
+    # Rate-limit the local system log socket. Without this, a process that
+    # spams stderr in a tight loop -- e.g. PipeWire's ALSA layer retrying an
+    # unplugged USB sound card ("spa.alsa: ... No such device") -- writes
+    # unbounded lines into /var/log/syslog and can fill the whole disk between
+    # daily log rotations (observed: 400+ GB of syslog from one missing card).
+    # 1000 messages / 5s (~200 msg/s) is well above normal boot/runtime chatter
+    # but caps a runaway logger. Applied to the imuxsock module load line.
+    if [ -f /etc/rsyslog.conf ] && ! grep -q "SysSock.RateLimit" /etc/rsyslog.conf; then
+        sed -i -e 's|^module(load="imuxsock").*|module(load="imuxsock" SysSock.RateLimit.Interval="5" SysSock.RateLimit.Burst="1000") # FPP: throttle runaway loggers|' /etc/rsyslog.conf
     fi
 
     # Disable duplicate logging to save on disk space

@@ -421,6 +421,13 @@
             "HelpTxt": "",
             "HelpPageType": "",
             "WarningGroup": "Plugin_Warnings"
+        },
+        {
+            "id": 58,
+            "Title": "Audio Output Card Not Present",
+            "HelpTxt": "The configured audio output sound card is no longer present - it may have been unplugged or dropped off the USB bus. Audio will fall back to the default output device until the card is reconnected.",
+            "HelpPageType": "",
+            "WarningGroup": "Device_Warnings"
         }
     ]
 }
