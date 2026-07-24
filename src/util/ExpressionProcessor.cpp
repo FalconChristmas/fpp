@@ -26,8 +26,8 @@
 // tinyexpr's own tokenizer (next_token() in tinyexpr.c) only starts an
 // identifier on a lowercase a-z (not '_', not uppercase - see the
 // `s->next[0] >= 'a' && s->next[0] <= 'z'` check), then allows a-z/0-9/_.
-// Not true of names like "fpp-uptime_seconds" or "mqtt-some/topic" (hyphens,
-// slashes), nor of an uppercase/underscore-led User Variable name. The
+// Not true of names like "mqtt-some/topic" (hyphens, slashes), nor of an
+// uppercase-led User Variable name. The
 // "%%name%%" substitution form below is a plain map lookup and never cares
 // about any of this; only the tinyexpr ("=..."/"==...==") math forms do.
 static bool isValidExprIdentifier(const std::string& name) {

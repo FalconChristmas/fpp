@@ -1419,26 +1419,58 @@ void PlayerResource::GetRecurringTasks(Json::Value& result) {
 }
 
 /**
- * Preview a single If/Conditional Check leaf's current raw value - the same
- * lookup evaluate() uses internally (Variable/Expression/Setting/Time/MQTT/
- * GPIO Pin/Sensor/Sun), before any comparator/Value is applied. Backs the
- * If condition editor's "Show Current Value" button, so picking the right
- * Value to compare against isn't guesswork.
+ * Preview a single If/Conditional Check leaf - the same lookup evaluate()
+ * uses internally (Variable/Expression/Time/GPIO Pin/Sun), before any
+ * comparator/Value is applied. Backs the If condition editor's "Show Current
+ * Value" button, so picking the right Value to compare against isn't
+ * guesswork.
+ *
+ * When a "comparator" param is also supplied (the consolidated eye-preview
+ * modal's full-leaf mode), also evaluates Value the same way Value is
+ * unconditionally evaluated at runtime and applies the comparator, returning
+ * the RHS value and the boolean result too - reuses
+ * ConditionNode::PreviewLeafResult(), the exact same evaluation path a real
+ * saved leaf's evaluate() takes, so this can never drift from runtime
+ * behavior.
  *
  * @route GET /api/fppd/condition/preview
  * @param string source One of the If Check "Source" dropdown values (e.g. "Variable", "GPIO Pin").
  * @param string name The Name/Expression field for that source.
- * @response 200 {"found": true, "value": "..."} or {"found": false} if the source/name doesn't currently resolve.
+ * @param string comparator Optional - one of the Check "Comparator" values. Enables full-leaf mode.
+ * @param string value Optional - the Value field, only used when "comparator" is also given.
+ * @param string not Optional - "true" to negate the result, only used when "comparator" is also given.
+ * @response 200 {"found": true, "value": "..."} (source/name-only mode) or
+ *           {"found": true, "value": "...", "rhsValue": "...", "result": true} (full-leaf mode) or
+ *           {"found": false} if the source/name doesn't currently resolve.
  */
 void PlayerResource::GetConditionPreview(const HttpRequestPtr& req, Json::Value& result) {
     std::string source = getRequestArg(req, "source");
     std::string name = getRequestArg(req, "name");
-    LogDebug(VB_HTTP, "API - Getting condition preview for source \"%s\" name \"%s\"\n", source.c_str(), name.c_str());
-    bool found = false;
-    std::string value = ConditionNode::PreviewSourceValue(source, name, found);
-    result["found"] = found;
-    if (found) {
-        result["value"] = value;
+    if (req->getParameter("comparator").empty()) {
+        LogDebug(VB_HTTP, "API - Getting condition preview for source \"%s\" name \"%s\"\n", source.c_str(), name.c_str());
+        bool found = false;
+        std::string value = ConditionNode::PreviewSourceValue(source, name, found);
+        result["found"] = found;
+        if (found) {
+            result["value"] = value;
+        }
+        SetOKResult(result, "");
+        return;
+    }
+    std::string comparator = getRequestArg(req, "comparator");
+    std::string value = getRequestArg(req, "value");
+    bool negate = getRequestArg(req, "not") == "true";
+    LogDebug(VB_HTTP, "API - Getting full condition preview for source \"%s\" name \"%s\" %s%s \"%s\"\n",
+             source.c_str(), name.c_str(), negate ? "NOT " : "", comparator.c_str(), value.c_str());
+    bool lhsFound = false;
+    std::string lhsValue, rhsValue;
+    bool leafResult = false;
+    ConditionNode::PreviewLeafResult(source, name, comparator, value, negate, lhsFound, lhsValue, rhsValue, leafResult);
+    result["found"] = lhsFound;
+    if (lhsFound) {
+        result["value"] = lhsValue;
+        result["rhsValue"] = rhsValue;
+        result["result"] = leafResult;
     }
     SetOKResult(result, "");
 }

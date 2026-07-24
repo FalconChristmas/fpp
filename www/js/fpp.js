@@ -8694,26 +8694,39 @@ function MoveCommandListRow (id, idx, dir) {
 // ---------------------------------------------------------------------
 
 var conditionListState = {};
-var CONDITION_SOURCES = [
-	'Variable',
-	'Expression',
-	'Setting',
-	'Time',
-	'MQTT',
-	'GPIO Pin',
-	'Sensor',
-	'Sun'
-];
+// "Variable" was removed entirely (not kept as a choice) - merged into
+// "Expression", which now auto-detects: an exact match to a real variable
+// name is a plain lookup (old "Variable" behavior), anything that looks like
+// a formula is computed, and anything else is literal text - see
+// Condition.cpp's EvaluateNameOrExpression for the exact rules. Any existing
+// saved condition using "source":"Variable" now reads as not-found.
+var CONDITION_SOURCES = ['Expression', 'Time', 'GPIO Pin', 'Sun'];
 // Name-field label per source, matching Condition.cpp's readSource() use of
 // `name` - Time ignores `name` entirely (currentTimeHHMM()), so it gets no
 // Name field at all rather than a placeholder that would just be confusing.
 var CONDITION_NAME_LABELS = {
-	Variable: 'Variable Name',
-	Setting: 'Setting Name',
-	MQTT: 'MQTT Topic',
 	'GPIO Pin': 'GPIO Pin Name',
-	Sensor: 'Sensor Label',
 	Sun: 'Sunrise or Sunset'
+};
+
+// Always-visible explanation of the selected Source, shown at the bottom of
+// the Edit Condition dialog (see RenderConditionFields) - what "Name" means
+// varies a lot per Source (a lookup key vs. a tinyexpr expression vs. an
+// ignored field), so a quick example beats making the user guess or read
+// Condition.cpp themselves. Keep in sync with ReadConditionSourceValue()
+// there (~line 125), which is the actual source of truth for this behavior.
+var CONDITION_SOURCE_HELP = {
+	// Merged with the old, separate "Variable" Source (removed entirely) -
+	// also covers what a dedicated "MQTT" source used to do (a cached
+	// mqtt-<topic> message is just a read-only Variable, per
+	// Variables::getVariable()'s own IsMqttVariableName() branch). Auto-
+	// detects intent (Condition.cpp's EvaluateNameOrExpression): type just a
+	// real variable's exact name for a plain lookup, or a formula to compute
+	// one - no need to type "=" or wrap anything in "%%...%%" by hand.
+	Expression: 'Type a Variable\'s exact name for a plain lookup, or a formula to compute one - detected automatically. Example (plain lookup): Name = "myCounter", Value = "5". Example (formula): Name = "myCounter * 2", Comparator = greater than, Value = "10". Example (MQTT variable): Name = "mqtt-homeassistant/sensor/outside_temperature/state", Value = "20".',
+	Time: 'Always the current wall-clock time as HH:MM - there’s no Name field for this source. Example: Comparator = greater than, Value = "18:00" (after 6pm).',
+	'GPIO Pin': 'Reads a GPIO pin’s last commanded output value, falling back to its live input reading if it hasn’t been commanded. Example: Name = "P1-3", Comparator = equal to, Value = "1".',
+	Sun: 'Always today’s sunrise or sunset time as HH:MM, based on FPP’s configured location - pick Sunrise or Sunset below instead of typing a Name. Example: Sunset, Comparator = greater than, Value = "20:30".'
 };
 
 // Suggests real, currently-known names for the Name field via a <datalist>,
@@ -8735,10 +8748,14 @@ function FetchConditionNameOptions (source, callback) {
 		callback(names);
 	}
 	if (source === 'Variable') {
-		// Three sources of names, all valid targets for the same "Variable"
-		// condition source (Condition.cpp's readSource() reads all of them
-		// through the same Variables::getVariable() call): User Variables
-		// (api/variables), the read-only fpp- status variables
+		// 'Variable' here is just an internal cache key for "the full list of
+		// real variable names" - used by the insert-variable-arrow datalist
+		// (RenderSharedExpressionValueHelper/PopulateExpressionVarHelpers),
+		// not a Source dropdown choice (that separate "Variable" Source was
+		// removed entirely, merged into "Expression" - see CONDITION_SOURCES).
+		// Three sources of names, all read through the same
+		// Variables::getVariable() call (Condition.cpp): User Variables
+		// (api/variables), the read-only fpp_ status variables
 		// (api/variables?fpp=true), and the read-only mqtt-<topic> variables
 		// (api/variables?mqtt=true). Grouped rather than one flat
 		// alphabetical sort (bypasses the shared done() helper below, which
@@ -8766,25 +8783,6 @@ function FetchConditionNameOptions (source, callback) {
 			});
 		return;
 	}
-	if (source === 'Setting') {
-		$.ajax({
-			url: 'api/settings',
-			dataType: 'json',
-			success: function (data) {
-				var names = [];
-				$.each((data && data.settingGroups) || {}, function (g, grp) {
-					$.each(grp.settings || [], function (i, s) {
-						names.push(s);
-					});
-				});
-				done(names);
-			},
-			error: function () {
-				done([]);
-			}
-		});
-		return;
-	}
 	if (source === 'GPIO Pin') {
 		// Same list the "GPIO" Command's own Pin arg uses (gpio.cpp) - these
 		// are the exact names GPIOManager::fppCommandLastValue is keyed by.
@@ -8793,43 +8791,6 @@ function FetchConditionNameOptions (source, callback) {
 			dataType: 'json',
 			success: function (data) {
 				done(Object.keys(data || {}));
-			},
-			error: function () {
-				done([]);
-			}
-		});
-		return;
-	}
-	if (source === 'Sensor') {
-		$.ajax({
-			url: 'api/fppd/status',
-			dataType: 'json',
-			success: function (data) {
-				done(((data && data.sensors) || []).map(function (s) {
-					return s.label;
-				}));
-			},
-			error: function () {
-				done([]);
-			}
-		});
-		return;
-	}
-	if (source === 'MQTT') {
-		// Topics FPP has actually seen a message on (mqtt->CacheCheckMessage's
-		// own cache) - a suggestion, not the full space of possible topics,
-		// since MQTT topics aren't otherwise enumerable.
-		$.ajax({
-			url: 'api/fppd/mqtt/cache',
-			dataType: 'json',
-			success: function (data) {
-				var names = [];
-				$.each(data || {}, function (k) {
-					if (k !== 'Status' && k !== 'respCode' && k !== 'Message') {
-						names.push(k);
-					}
-				});
-				done(names);
 			},
 			error: function () {
 				done([]);
@@ -8863,7 +8824,7 @@ function BuildInlineSelect (options, selected, onChange) {
 }
 
 function NewCondition () {
-	return { type: 'condition', source: 'Variable', name: '', comparator: 'equal to', value: '' };
+	return { type: 'condition', source: 'Expression', name: '', comparator: 'equal to', value: '' };
 }
 function NewGroup () {
 	return { type: 'group', op: 'AND', items: [], label: '' };
@@ -8900,7 +8861,7 @@ function BackendJSONToTree (json) {
 	}
 	return {
 		type: 'condition',
-		source: json.source || 'Variable',
+		source: json.source || 'Expression',
 		name: json.name || '',
 		comparator: json.comparator || 'equal to',
 		value: json.value || ''
@@ -9013,28 +8974,82 @@ function RefreshConditionFormula (id) {
 		$out.text('No conditions configured yet.');
 		return;
 	}
-	$out.text(BuildConditionFormula(tree));
+	$out.html(BuildConditionFormula(tree));
 }
 
-// Recursively builds a plain-English one-line summary of the whole tree,
+// $('<div>').text(s).html() is the standard jQuery-only-toolkit idiom for
+// HTML-escaping arbitrary text - was previously repeated inline at every
+// datalist-option call site rather than named; consolidated here since
+// BuildConditionFormula also needs it, at several points, to stay safe
+// against Source/Name/Value text that itself contains "<", "&", etc. Not the
+// same as EscapeMultisyncHost (below) - that one's a narrower, incomplete
+// (only &/'/< ) regex escape purpose-built for a single-quoted HTML
+// attribute context, kept separate rather than merged in here.
+function EscapeHtml (s) {
+	return $('<div>').text(String(s == null ? '' : s)).html();
+}
+
+// Recursively builds a color-coded HTML one-line summary of the whole tree,
 // shown above the Check section and reused for the outer preset/task row
 // list's summary (FillInCommandTemplate) so neither place shows raw JSON.
-// Leaves reuse SummarizeConditionItem's leaf text as-is; a group joins its
-// children with its own AND/OR, wraps in parens once there's more than one
-// child (so nesting precedence reads unambiguously), and prefixes its own
-// label if the user named it.
+// Color is the main readability aid once a condition mixes Expression
+// sources/values with plain ones - AND/OR (structure) vs. what's being
+// compared vs. the value it's compared against otherwise all read as the
+// same undifferentiated wall of text. A group joins its children with its
+// own AND/OR, wraps in parens once there's more than one child (so nesting
+// precedence reads unambiguously), and prefixes its own label if the user
+// named it.
 function BuildConditionFormula (item) {
 	if (item.type !== 'group') {
-		return SummarizeConditionItem(item);
+		return SummarizeConditionItemHtml(item);
 	}
 	if (!item.items.length) {
-		return (item.label || 'Group') + ': (empty)';
+		return (item.label ? '<span class="text-muted">' + EscapeHtml(item.label) + ':</span> ' : '') + '(empty)';
 	}
-	var joined = item.items.map(BuildConditionFormula).join(' ' + item.op + ' ');
+	var opHtml = ' <span class="text-warning fw-semibold">' + item.op + '</span> ';
+	var joined = item.items.map(BuildConditionFormula).join(opHtml);
 	if (item.items.length > 1) {
-		joined = '(' + joined + ')';
+		joined = '<span class="text-muted">(</span>' + joined + '<span class="text-muted">)</span>';
 	}
-	return item.label ? item.label + ': ' + joined : joined;
+	return item.label ? '<span class="text-muted">' + EscapeHtml(item.label) + ':</span> ' + joined : joined;
+}
+
+// Same leaf text as SummarizeConditionItem (plain-text, used for the
+// collapsed per-row label in the tree editor itself - that one stays plain
+// since it's set via .text(), not .html()) but as color-coded, escaped HTML
+// for the formula preview/outer summary above. Source == "Expression" is
+// shown as "Expression(...)" - function-call notation - rather than
+// "Expression <text>", since parens make it visually obvious the contents
+// are evaluated as one unit instead of reading like a literal Name (this
+// matters more now that Value is unconditionally expression-capable too,
+// see RenderConditionFields).
+function SummarizeConditionItemHtml (item) {
+	if (item.type === 'group') {
+		var n = item.items.length;
+		var base = 'Group (' + item.op + ', ' + n + (n === 1 ? ' condition' : ' conditions') + ')';
+		return item.label ? '<span class="text-muted">' + EscapeHtml(item.label) + ':</span> ' + base : base;
+	}
+	var lhs =
+		item.source === 'Expression'
+			? 'Expression(' + EscapeHtml(item.name || '') + ')'
+			: EscapeHtml(item.source || 'Expression') + (item.name ? ' ' + EscapeHtml(item.name) : '');
+	var s = '<span class="text-info">' + lhs + '</span>';
+	s += ' <span class="text-muted">' + EscapeHtml(item.comparator || 'equal to') + '</span>';
+	if (item.value !== '') {
+		// Value is unconditionally run through the same expression evaluator
+		// as an Expression Source (Condition.cpp's LeafNode::evaluate() calls
+		// EvaluateConditionExpression() on it regardless of Source) - shown as
+		// "Expression(...)" here too, not quoted like a literal, so the
+		// summary doesn't imply Value is somehow just fixed text while the
+		// left side is "the real expression". Comparator stays outside both -
+		// lhs and rhs are evaluated independently and then compared in C++,
+		// not combined into one bigger expression the way merging them into a
+		// single Expression(...) would wrongly suggest. The closing paren
+		// delimits it unambiguously against surrounding " AND "/" OR " text
+		// without needing quotes for that anymore.
+		s += ' <span class="text-success">Expression(' + EscapeHtml(item.value) + ')</span>';
+	}
+	return s;
 }
 
 // Renders one group's contents ($container is emptied and rebuilt): the
@@ -9262,7 +9277,7 @@ function SummarizeConditionItem (item) {
 		var base = 'Group (' + item.op + ', ' + n + (n === 1 ? ' condition' : ' conditions') + ')';
 		return item.label ? item.label + ': ' + base : base;
 	}
-	var s = (item.source || 'Variable') + (item.name ? ' ' + item.name : '') + ' ' + (item.comparator || 'equal to');
+	var s = (item.source || 'Expression') + (item.name ? ' ' + item.name : '') + ' ' + (item.comparator || 'equal to');
 	if (item.value !== '') {
 		// Quoted (double quotes, since values can themselves contain an
 		// apostrophe) so a value is never ambiguous with surrounding text -
@@ -9287,6 +9302,106 @@ var conditionFieldIdSeq = 0;
 function RenderConditionFields ($container, cond, onChange) {
 	$container.empty();
 
+	// Live, color-coded preview of this condition exactly as it'll appear in
+	// the formula preview/summary elsewhere (reuses SummarizeConditionItemHtml,
+	// the same renderer BuildConditionFormula uses for a leaf) - shown above
+	// the fields for every Source, not just Expression, so the user can see
+	// what they're building without having to save/close first. Wrapping
+	// onChange (rather than adding a call at every individual field's own
+	// input/change handler below) means every existing onChange() call in
+	// this function already refreshes it for free, including the full
+	// re-render on Source change.
+	var $preview = $("<div class='mb-2'></div>");
+	function RefreshConditionPreview () {
+		$preview.html(SummarizeConditionItemHtml(cond));
+	}
+	RefreshConditionPreview();
+	$container.append($preview);
+
+	// Catches the one remaining way to get a silently-useless condition now
+	// that Condition.cpp's EvaluateNameOrExpression auto-detects a bare
+	// variable name (exact match -> plain lookup) and a bare formula
+	// referencing one (LooksLikeFormula -> auto math) with no wrapping
+	// needed - see that function's own comment for the full rules. This is
+	// a JS mirror of the SAME rules, not a separate/looser heuristic: it
+	// used to just flag any bare "mqtt-"/"fpp-" text, which made it fire on
+	// cases the backend already handles correctly (an exact variable name
+	// alone, or "name+1" as a formula) - false positives that told the user
+	// to add wrapping they didn't need, and for the formula case suggested
+	// wrapping that would have actively broken it (%%name+1%% looks up a
+	// variable literally named "name+1", which doesn't exist). Only warns
+	// for what's still genuinely broken: a real variable name embedded in
+	// otherwise-literal, non-formula text (e.g. "Status: fpp_mode_name"),
+	// where nothing auto-substitutes it.
+	function FindUnwrappedVariableReference (text) {
+		if (!text) {
+			return null;
+		}
+		var trimmed = text.trim();
+		var knownNames = CONDITION_NAME_OPTIONS_CACHE['Variable'] || [];
+		if (knownNames.indexOf(trimmed) !== -1) {
+			return null; // exact match - EvaluateNameOrExpression does a plain lookup, no wrapping needed
+		}
+		if (text.indexOf('=') === 0 || text.indexOf('%%') !== -1 || text.indexOf('==') !== -1) {
+			return null; // already using explicit syntax
+		}
+		// Mirrors Condition.cpp's LooksLikeFormula(): strip every known
+		// variable name out as a substring (longest-first), then check
+		// what's left for a math/comparison operator character.
+		var remaining = text;
+		var sortedNames = knownNames.slice().sort(function (a, b) {
+			return b.length - a.length;
+		});
+		for (var i = 0; i < sortedNames.length; i++) {
+			var n = sortedNames[i];
+			if (!n) {
+				continue;
+			}
+			var idx;
+			while ((idx = remaining.indexOf(n)) !== -1) {
+				remaining = remaining.slice(0, idx) + remaining.slice(idx + n.length);
+			}
+		}
+		if (/[+\-*/()<>=!^]/.test(remaining)) {
+			return null; // looks like a formula - auto-prepended "=" handles it, no wrapping needed
+		}
+		var m = text.match(/\bmqtt-\S+|\bfpp_\S+/);
+		return m ? m[0] : null;
+	}
+	var $warning = $("<div class='text-warning small mb-2' style='display:none'></div>");
+	function RefreshConditionWarning () {
+		// Name is only expression-evaluated when Source == "Expression" - for
+		// every other Source (Variable, GPIO Pin, Sun) it's a plain exact-match
+		// lookup key (Variables::getVariable(name, "") etc.), so a bare
+		// "fpp-..."/"mqtt-..." there is completely correct, not a mistake.
+		// Value is unconditionally expression-evaluated regardless of Source,
+		// so it's always worth checking.
+		var hit = (cond.source === 'Expression' ? FindUnwrappedVariableReference(cond.name) : null) || FindUnwrappedVariableReference(cond.value);
+		if (!hit) {
+			$warning.hide();
+			return;
+		}
+		$warning
+			.html(
+				"<i class='fas fa-triangle-exclamation me-1'></i>Contains \"" +
+					EscapeHtml(hit) +
+					'" which looks like a Variable name, but isn\'t wrapped in <code>%%...%%</code> - it will be compared as literal ' +
+					'text, not that Variable\'s actual value. Wrap the variable name itself, e.g. <code>%%' +
+					EscapeHtml(hit) +
+					'%%</code>.'
+			)
+			.show();
+	}
+	RefreshConditionWarning();
+	$container.append($warning);
+
+	var innerOnChange = onChange;
+	onChange = function () {
+		RefreshConditionPreview();
+		RefreshConditionWarning();
+		innerOnChange();
+	};
+
 	// $row holds Source/Name/is/Comparator/Value/eye on one line via flex, with
 	// align-items-start so a two-line $nameWrap (Expression source, see below)
 	// doesn't stretch/recenter the single-line controls beside it. For
@@ -9299,9 +9414,16 @@ function RenderConditionFields ($container, cond, onChange) {
 
 	var sourceSel = BuildInlineSelect(CONDITION_SOURCES, cond.source, function (v) {
 		cond.source = v;
-		// A Value typed against the old source (e.g. a GPIO "1"/"0", or a
-		// Sensor's numeric reading) is generally meaningless once Source
-		// changes, so don't leave it looking like it still applies.
+		// Name/Comparator/Value typed against the old source (e.g. a GPIO
+		// pin name where a Variable name now belongs, or a "1"/"0" that was
+		// only meaningful for a GPIO/Sensor-style reading) are generally
+		// meaningless once Source changes, so don't leave them looking like
+		// they still apply - reset the whole row back to defaults rather
+		// than just Value. Each Source's own branch below still fills in
+		// its own default where one makes sense (e.g. Sun defaults Name to
+		// "Sunrise").
+		cond.name = '';
+		cond.comparator = 'equal to';
 		cond.value = '';
 		RenderConditionFields($container, cond, onChange); // re-render so Name's widget can swap for Expression
 		onChange();
@@ -9328,13 +9450,13 @@ function RenderConditionFields ($container, cond, onChange) {
 			});
 		var validIcon = $("<span id='" + fieldId + "_validIcon' class='expressionValidIcon ms-1'></span>");
 		// Fixed width (rather than d-inline-block/w-auto) so the insert-variable
-		// helper directly below (also w-100, see RenderVarInsertHelper) lines up
-		// under the SAME left/right edges as the expression input, instead of two
+		// helper (appended below, once $row's full layout - including whether
+		// Value is also an Expression - is known) lines up under the SAME
+		// left/right edges as the expression input, instead of two
 		// independently-sized boxes that only coincidentally share a left edge.
 		$nameWrap = $("<div class='d-flex flex-column' style='width:260px'></div>");
 		var $inputLine = $("<div class='d-flex align-items-center'></div>").append(nameInp, validIcon);
-		var $expressionHelperInline = $("<div class='expressionVarHelper text-muted small mt-1' data-target='" + fieldId + "'></div>");
-		$nameWrap.append($inputLine, $expressionHelperInline);
+		$nameWrap.append($inputLine);
 		if (cond.name) {
 			DebounceValidateExpression(nameInp[0], fieldId + '_validIcon');
 		}
@@ -9354,7 +9476,9 @@ function RenderConditionFields ($container, cond, onChange) {
 	} else {
 		var nameFieldId = 'condName_' + ++conditionFieldIdSeq;
 		var plainNameInp = $(
-			"<input type='text' list='" +
+			"<input type='text' id='" +
+				nameFieldId +
+				"' list='" +
 				nameFieldId +
 				"_list' class='form-control form-control-sm d-inline-block w-auto' placeholder='" +
 				(CONDITION_NAME_LABELS[cond.source] || 'Name') +
@@ -9369,7 +9493,7 @@ function RenderConditionFields ($container, cond, onChange) {
 		$nameWrap.append(plainNameInp, nameDatalist);
 		FetchConditionNameOptions(cond.source, function (names) {
 			$.each(names, function (i, n) {
-				nameDatalist.append("<option value='" + $('<div>').text(n).html() + "'>");
+				nameDatalist.append("<option value='" + EscapeHtml(n) + "'>");
 			});
 		});
 	}
@@ -9378,40 +9502,305 @@ function RenderConditionFields ($container, cond, onChange) {
 		cond.comparator = v;
 		onChange();
 	});
-	var valInp = $("<input type='text' class='form-control form-control-sm d-inline-block w-auto' placeholder='Value'>")
+
+	// Value is always run through the same tinyexpr engine as Source ==
+	// "Expression" (Condition.cpp's LeafNode::evaluate() now calls
+	// EvaluateConditionExpression() unconditionally) - a plain literal like
+	// "1" or "ON" compiles to itself unchanged, so this is a strict superset
+	// of the old fixed-Value behavior, not a separate mode needing its own
+	// toggle. Same input+validIcon layout as $nameWrap's Expression case so
+	// the two fields look like siblings.
+	var valueFieldId = 'condValue_' + ++conditionFieldIdSeq;
+	var valInp = $(
+		"<input type='text' id='" +
+			valueFieldId +
+			"' class='form-control form-control-sm flex-grow-1' placeholder='Value or Expression'>"
+	)
 		.val(cond.value)
 		.on('input', function () {
 			cond.value = $(this).val();
+			DebounceValidateExpression(this, valueFieldId + '_validIcon');
 			onChange();
 		});
+	var valueValidIcon = $("<span id='" + valueFieldId + "_validIcon' class='expressionValidIcon ms-1'></span>");
+	var $valueWrap = $("<div class='d-flex flex-column' style='width:260px'></div>");
+	$valueWrap.append($("<div class='d-flex align-items-center'></div>").append(valInp, valueValidIcon));
+	if (cond.value) {
+		DebounceValidateExpression(valInp[0], valueFieldId + '_validIcon');
+	}
 
-	var showValueBtn = $(
-		"<button type='button' class='buttons reallySmallButton ms-1' title='Show the current value for this Source/Name'><i class='fas fa-eye'></i></button>"
+	// One consolidated eye button (was two, one per side) - opens a modal
+	// with three views of the WHOLE leaf at once: the raw formula, the same
+	// formula with each side's current value substituted in, and the actual
+	// LHS/Comparator/RHS/result evaluation - see ShowConditionEvaluationPopup.
+	var showEvalBtn = $(
+		"<button type='button' class='buttons reallySmallButton ms-1' title='Show how this condition currently evaluates'><i class='fas fa-eye'></i></button>"
 	).on('click', function () {
-		ShowConditionCurrentValuePopup(cond, valInp);
+		ShowConditionEvaluationPopup(cond);
 	});
 
-	$row.append(sourceSel, $nameWrap, ' is ', compSel, valInp, showValueBtn);
+	// Small muted label above each control - reuses CONDITION_NAME_LABELS
+	// (already the placeholder text) as the Name column's label too, so
+	// "what goes here" is contextual (e.g. "GPIO Pin Name") rather than a
+	// generic "Name" that doesn't say what kind of name. Time gets no Name
+	// label since it has no Name field at all to label.
+	function LabeledField (label, $control) {
+		if (!label) {
+			return $control;
+		}
+		return $("<div class='d-flex flex-column'></div>").append(
+			$("<span class='text-muted text-center' style='font-size:0.8rem'></span>").text(label),
+			$control
+		);
+	}
+	// The eye buttons sit beside labeled columns (each a label span stacked
+	// above its control), so a bare button would render shorter and land a
+	// row higher than the controls beside it. Give it the same invisible
+	// label spacer (via a non-breaking space, so the muted span still takes
+	// up a line instead of collapsing to zero height) so its own control
+	// row lines up with the inputs/selects next to it.
+	function EyeButtonField ($btn) {
+		return $("<div class='d-flex flex-column'></div>").append($("<span style='font-size:0.8rem'> </span>"), $btn);
+	}
+	var nameLabelText = cond.source === 'Time' ? null : CONDITION_NAME_LABELS[cond.source] || 'Name';
+	$row.append(
+		LabeledField('Source', sourceSel),
+		LabeledField(nameLabelText, $nameWrap),
+		// "Comparator" doubles as the "is" connector now (e.g. "Variable
+		// myVar" / "Comparator: equal to" reads the same as "myVar is equal
+		// to" did before) - a separate literal " is " text plus a
+		// "Comparator" label above the dropdown was saying the same thing
+		// twice.
+		LabeledField('Is', compSel),
+		LabeledField('Value', $valueWrap),
+		EyeButtonField(showEvalBtn)
+	);
 	$container.append($row);
+
+	// Value is always expression-capable, and Name is too whenever Source is
+	// "Expression" (which now also covers what the old, separate "Variable"
+	// Source did - merged/removed, see CONDITION_SOURCES) - share a single
+	// insert box between the two fields with an up-arrow on either side,
+	// rather than stacking two separate "insert variable" boxes. Every other
+	// Source's Name field is either absent (Time) or a fixed picker (Sun)/
+	// lookup key that isn't meaningfully "insert a variable into" (GPIO
+	// Pin), so those still just get Value's own single-target helper, same
+	// as before. Inserting always wraps in "%%...%%" (see
+	// RenderSharedExpressionValueHelper) - correct regardless of whether the
+	// field ends up being just that one variable's name (an exact-match
+	// %%wrapped%% name still resolves via template-mode substitution, same
+	// result as an unwrapped exact match) or part of a larger formula.
 	if (cond.source === 'Expression') {
+		RenderSharedExpressionValueHelper($container, nameInp, valInp, fieldId, valueFieldId, 'Expression');
+	} else {
+		var $valueOnlyHelper = $("<div class='expressionVarHelper text-muted small mt-1' data-target='" + valueFieldId + "'></div>");
+		$valueWrap.append($valueOnlyHelper);
 		PopulateExpressionVarHelpers();
 	}
+
+	// Always-visible (not hover-only) explanation of the selected Source,
+	// appended last so it lands at the bottom of the dialog body - between
+	// the fields above and the Close button, which ShowConditionSubEditor
+	// renders into a separate sibling "_footer" element.
+	$container.append(
+		$("<div class='text-muted small mt-2'></div>").html(
+			"<i class='fas fa-circle-info me-1'></i>" + EscapeHtml(CONDITION_SOURCE_HELP[cond.source] || '')
+		)
+	);
 }
 
-// "Show Current Value" (the "?" button next to Value) - previews what
-// cond.source/cond.name currently resolves to via the same lookup evaluate()
-// itself uses (Condition.cpp's ConditionNode::PreviewSourceValue(), exposed
-// at api/fppd/condition/preview), so picking the right Value to compare
-// against isn't guesswork. Offers to copy the result straight into the
-// Value field rather than just displaying it, since that's the whole point.
+// The two-field ("Expression" Source + Value, both expression-capable)
+// insert-variable helper: a single box shared between them with an up-arrow
+// on each side, positioned so each arrow sits directly under the actual
+// horizontal center of the field it targets - not just at the left/right
+// edges of the row, which pointed at nothing whenever the row's other
+// controls (Source select, "is", Comparator) made the two fields
+// asymmetric. Measures real DOM positions via getBoundingClientRect() rather
+// than guessing from flex order, so it stays correct regardless of
+// Comparator/label width. Falls back to a plain non-pointing row when the
+// two fields have wrapped onto separate lines (narrow modal/mobile) - there
+// no single horizontal position can point at both at once.
+function RenderSharedExpressionValueHelper ($container, nameInp, valInp, nameFieldId, valueFieldId, leftLabel) {
+	leftLabel = leftLabel || 'Expression';
+	var $helperRow = $("<div class='mt-1' style='position:relative;height:34px'></div>");
+	var $leftArrow = $(
+		"<button type='button' class='buttons reallySmallButton varInsertArrow' title='Insert into the " + leftLabel + " field above'><i class='fas fa-arrow-up'></i></button>"
+	);
+	var $rightArrow = $(
+		"<button type='button' class='buttons reallySmallButton varInsertArrow' title='Insert into the Value field above'><i class='fas fa-arrow-up'></i></button>"
+	);
+	// A field .focus()ed programmatically keeps whatever selection range it
+	// already had - 0,0 for one that's never been clicked into, since
+	// selectionStart defaults to 0, not null (InsertAtCursor's null check
+	// only catches inputs that don't support selection at all). Without
+	// explicitly moving the caret to the end first, every insert via an
+	// arrow lands back at position 0 - each one *prepending*, silently
+	// mashing values together with no separator in reverse order instead of
+	// appending like a user typing normally would expect.
+	function focusAtEnd (el) {
+		el.focus();
+		var len = el.value.length;
+		el.setSelectionRange(len, len);
+	}
+	var activeTarget = nameFieldId;
+	var $input = $(
+		"<input type='text' list='" +
+			VAR_INSERT_DATALIST_ID +
+			"' class='form-control form-control-sm' placeholder='Insert variable…' style='position:absolute'>"
+	);
+	function insertPendingValue (targetId) {
+		var name = $input.val();
+		if (!name) {
+			return;
+		}
+		// Clear BEFORE calling InsertAtCursor, not after: InsertAtCursor calls
+		// .focus() on the target field, which synchronously blurs $input right
+		// here mid-call - re-firing $input's own 'change' handler below before
+		// this call returns. If $input still held "name" at that point, the
+		// reentrant call would insert the exact same text a second time
+		// (this was a real bug: clicking an arrow after picking a variable
+		// inserted it twice). Clearing first makes the reentrant call's
+		// $input.val() empty, so it's a no-op.
+		$input.val('');
+		// Inserted bare, NOT wrapped in "%%...%%": Condition.cpp's
+		// EvaluateNameOrExpression() already auto-detects a bare real
+		// variable name (exact match -> plain lookup) and a bare formula
+		// referencing one (LooksLikeFormula -> auto math, via
+		// ExpressionProcessor's own aliasExpr substring substitution) with
+		// no wrapping needed. Wrapping used to be applied here defensively,
+		// but that's actively WRONG for combining two inserted variables
+		// with a math operator (e.g. "%%a%%+%%b%%") - the "%%" forces
+		// template mode, which does STRING CONCATENATION ("3"+"4" ->
+		// "3+4"), not arithmetic. Bare "a+b" correctly triggers pure math
+		// mode instead. "%%...%%" is still valid syntax for embedding a
+		// variable's value inside other literal text (not a formula) - just
+		// type it by hand for that case, this helper no longer does it
+		// automatically.
+		InsertAtCursor(document.getElementById(targetId), name);
+	}
+	// mousedown, not click, with preventDefault - a plain click handler here
+	// runs too late: clicking a button blurs whatever input was previously
+	// focused FIRST (firing $input's own 'change' below with the stale
+	// activeTarget from before this click), and only THEN does the button's
+	// click handler fire. That race is exactly what sent a just-picked
+	// variable into the wrong field after switching targets. preventDefault()
+	// on mousedown stops the browser's default focus-shift entirely, so
+	// $input never blurs/changes here - this handler alone decides where the
+	// currently-typed/selected value goes.
+	$leftArrow.on('mousedown', function (e) {
+		e.preventDefault();
+		activeTarget = nameFieldId;
+		insertPendingValue(nameFieldId);
+		focusAtEnd(nameInp[0]);
+	});
+	$rightArrow.on('mousedown', function (e) {
+		e.preventDefault();
+		activeTarget = valueFieldId;
+		insertPendingValue(valueFieldId);
+		focusAtEnd(valInp[0]);
+	});
+	// Still needed for the case where the user picks/types a value and just
+	// tabs away or presses Enter without touching an arrow at all - inserts
+	// into whichever target is currently active.
+	$input.on('change', function () {
+		insertPendingValue(activeTarget);
+	});
+	$helperRow.append($leftArrow, $input, $rightArrow);
+	$container.append($helperRow);
+
+	if (!$('#' + VAR_INSERT_DATALIST_ID).length) {
+		var $datalist = $("<datalist id='" + VAR_INSERT_DATALIST_ID + "'></datalist>").appendTo('body');
+		FetchConditionNameOptions('Variable', function (names) {
+			$.each(names, function (i, n) {
+				$datalist.append("<option value='" + EscapeHtml(n) + "'>");
+			});
+		});
+	}
+
+	function position () {
+		if (!document.body.contains(nameInp[0]) || !document.body.contains(valInp[0])) {
+			$(window).off('.' + resizeNS);
+			return;
+		}
+		var containerLeft = $container[0].getBoundingClientRect().left;
+		var nameRect = nameInp[0].getBoundingClientRect();
+		var valueRect = valInp[0].getBoundingClientRect();
+		var sameRow = Math.abs(nameRect.top - valueRect.top) < 5;
+		if (!sameRow) {
+			// Stacked (narrow layout) - nothing to point at sideways, just show
+			// a plain row. justify-content-center (not just align-items-center,
+			// which only centers cross-axis/vertically) actually centers the
+			// left-arrow/input/right-arrow trio horizontally within the full
+			// row width, instead of it defaulting to flex's normal
+			// left-aligned packing.
+			$helperRow.css({ height: 'auto', position: 'static', width: '100%' });
+			$leftArrow.css({ position: 'static', left: '' });
+			$rightArrow.css({ position: 'static', left: '' });
+			$input.css({ position: 'static', left: '', width: '200px' });
+			$helperRow.removeClass().addClass('mt-1 d-flex align-items-center justify-content-center gap-1');
+			return;
+		}
+		$helperRow.removeClass().addClass('mt-1');
+		$helperRow.css({ position: 'relative', height: '34px' });
+		var nameCenter = nameRect.left + nameRect.width / 2 - containerLeft;
+		var valueCenter = valueRect.left + valueRect.width / 2 - containerLeft;
+		$leftArrow.css({ position: 'absolute', left: nameCenter + 'px', transform: 'translateX(-50%)' });
+		$rightArrow.css({ position: 'absolute', left: valueCenter + 'px', transform: 'translateX(-50%)' });
+		// Gap past each arrow's own half-width (~21px, a reallySmallButton
+		// with an icon) plus visible breathing room, so the box reads as
+		// clearly separate from the arrows on either side rather than
+		// crowding them.
+		var inputLeft = nameCenter + 50;
+		var inputRight = valueCenter - 50;
+		$input.css({ position: 'absolute', left: inputLeft + 'px', width: Math.max(60, inputRight - inputLeft) + 'px' });
+	}
+	// Calling position() synchronously here can measure a zero-sized
+	// container: this helper is built while ShowConditionSubEditor's nested
+	// dialog is still being opened, and jQuery UI's dialog widget doesn't
+	// finish laying out/positioning itself before this render call returns -
+	// a getBoundingClientRect() taken this early comes back all zeros (seen
+	// live: editing a condition nested inside a group, one dialog stacked on
+	// another - a plain double requestAnimationFrame still measured zero
+	// there, so the dialog settles later than "next paint"). Poll via rAF
+	// until $container actually has real width instead of guessing a fixed
+	// frame count, bounded so a container that's genuinely still zero-width
+	// (shouldn't happen, but don't hang forever) still gets one final
+	// best-effort position() call rather than none.
+	(function waitForLayout (attemptsLeft) {
+		if ($container[0].getBoundingClientRect().width > 0 || attemptsLeft <= 0) {
+			position();
+			return;
+		}
+		requestAnimationFrame(function () {
+			waitForLayout(attemptsLeft - 1);
+		});
+	})(30);
+
+	// Re-measure on window resize (e.g. browser resized while the dialog is
+	// open) - self-unsubscribes the first time it finds these fields gone
+	// (RenderConditionFields re-rendered this row), so re-editing the same
+	// condition repeatedly doesn't pile up dead listeners on window.
+	var resizeNS = 'conditionExprHelper_' + nameFieldId;
+	$(window).on('resize.' + resizeNS, position);
+}
+
+// Consolidated eye-preview modal (replaces the old two-button "show LHS" /
+// "show RHS" pair) - one request to api/fppd/condition/preview in its
+// full-leaf mode (comparator+value params supplied, see GetConditionPreview
+// in httpAPI.cpp) gets everything needed for three views of the SAME leaf at
+// once: the raw formula, that formula with each side's current value
+// substituted in, and the actual LHS/Comparator/RHS/result evaluation.
+// Reuses ConditionNode::PreviewLeafResult() server-side, the exact same
+// evaluation path a real saved leaf's evaluate() takes, so "result" here can
+// never drift from what actually happens at runtime.
 var conditionValuePreviewSeq = 0;
-function ShowConditionCurrentValuePopup (cond, valInp) {
+function ShowConditionEvaluationPopup (cond) {
 	var domId = 'condValuePreview_' + (++conditionValuePreviewSeq);
 	var $popup = $("<div id='" + domId + "'><div class='condValuePreviewBody'>Loading...</div></div>").appendTo('body');
 	$popup.fppDialog({
 		height: 'auto',
-		width: 400,
-		title: cond.source + (cond.name ? ': ' + cond.name : ''),
+		width: 500,
+		title: 'How this condition evaluates',
 		modal: true,
 		open: function () {
 			$popup.parent().find('.ui-dialog-titlebar-close').hide();
@@ -9425,30 +9814,114 @@ function ShowConditionCurrentValuePopup (cond, valInp) {
 			}
 		}
 	});
-	$.ajax({
+	var mainPreview = $.ajax({
 		url: 'api/fppd/condition/preview',
-		data: { source: cond.source, name: cond.name || '' },
-		dataType: 'json',
-		success: function (data) {
-			var $body = $popup.find('.condValuePreviewBody');
-			$body.empty();
-			if (!data || !data.found) {
-				$body.append("<span class='text-muted'>No current value - not set/seen yet, or Name doesn't match anything.</span>");
-				return;
-			}
-			var valSpan = $("<code></code>").text(data.value);
-			$body.append($('<div class="mb-2"></div>').append('Current value: ', valSpan));
-			$('<input type="button" class="buttons btn-sm" value="Use as Value">')
-				.on('click', function () {
-					valInp.val(data.value).trigger('input');
-					$popup.fppDialog('close');
-				})
-				.appendTo($body);
-		},
-		error: function () {
-			$popup.find('.condValuePreviewBody').html("<span class='text-danger'>Failed to fetch current value.</span>");
-		}
+		data: { source: cond.source, name: cond.name || '', comparator: cond.comparator || 'equal to', value: cond.value || '', not: cond.negate ? 'true' : 'false' },
+		dataType: 'json'
 	});
+	// Resolves with {varName: value} for every real variable name referenced
+	// in Name/Value, so "Values substituted" can replace each NAME with its
+	// own VALUE directly inside the "Expression(...)" text (e.g.
+	// "Expression(fpp_mode_name*3)" -> "Expression("player"*3)"), not just
+	// report the final post-computation LHS/RHS number, which doesn't say
+	// what fed into it.
+	var varValues = $.Deferred();
+	FetchConditionNameOptions('Variable', function (knownNames) {
+		var refs = FindReferencedVariableNames((cond.name || '') + ' ' + (cond.value || ''), knownNames);
+		if (!refs.length) {
+			varValues.resolve({});
+			return;
+		}
+		$.when
+			.apply(
+				$,
+				refs.map(function (varName) {
+					return $.ajax({ url: 'api/fppd/condition/preview', data: { source: 'Expression', name: varName }, dataType: 'json' });
+				})
+			)
+			.done(function () {
+				var results = refs.length === 1 ? [arguments[0]] : Array.prototype.slice.call(arguments).map(function (r) {
+					return r[0];
+				});
+				var map = {};
+				refs.forEach(function (varName, i) {
+					var r = results[i];
+					map[varName] = r && r.found ? r.value : null;
+				});
+				varValues.resolve(map);
+			});
+	});
+	// Longest-name-first substring replace of each known variable name with
+	// its own quoted value (or an explicit "(not found)" marker) - same
+	// longest-first rationale as ExpressionProcessor's own aliasExpr(), so a
+	// name that's a substring of a longer one can't get partially replaced
+	// first and corrupt the longer match.
+	function SubstituteVariableValues (text, valueMap) {
+		var names = Object.keys(valueMap).sort(function (a, b) {
+			return b.length - a.length;
+		});
+		var result = text;
+		names.forEach(function (n) {
+			var replacement = valueMap[n] == null ? '(not found)' : '"' + valueMap[n] + '"';
+			result = result.split(n).join(replacement);
+		});
+		return result;
+	}
+	$.when(mainPreview, varValues).done(function (previewResult, valueMap) {
+		var data = previewResult[0];
+		var $body = $popup.find('.condValuePreviewBody');
+		$body.empty();
+
+		$body.append($("<div class='mb-3'></div>").append($("<div class='text-muted small mb-1'>Formula</div>"), $("<div></div>").html(SummarizeConditionItemHtml(cond))));
+
+		if (!data || !data.found) {
+			$body.append("<div class='text-muted'>LHS has no current value - not set/seen yet, or Name doesn't match anything. Nothing further to evaluate.</div>");
+			return;
+		}
+
+		var lhsSubstituted = cond.source === 'Expression' ? SubstituteVariableValues(cond.name || '', valueMap) : cond.name || '';
+		var rhsSubstituted = SubstituteVariableValues(cond.value || '', valueMap);
+		var lhsDisplay = cond.source === 'Expression' ? 'Expression(' + EscapeHtml(lhsSubstituted) + ')' : EscapeHtml(cond.source) + (cond.name ? ' ' + EscapeHtml(lhsSubstituted) : '');
+		var substituted =
+			'<span class="text-info">' + lhsDisplay + '</span>' +
+			' <span class="text-muted">' + EscapeHtml(cond.comparator || 'equal to') + '</span>' +
+			' <span class="text-success">Expression(' + EscapeHtml(rhsSubstituted) + ')</span>';
+		$body.append($("<div class='mb-3'></div>").append($("<div class='text-muted small mb-1'>Values substituted</div>"), $("<div></div>").html(substituted)));
+
+		var resultLine =
+			'<code>"' + EscapeHtml(data.value) + '"</code> <span class="text-muted">' + EscapeHtml(cond.comparator || 'equal to') +
+			'</span> <code>"' + EscapeHtml(data.rhsValue || '') + '"</code> &rarr; <span class="' + (data.result ? 'text-success' : 'text-danger') + ' fw-semibold">' +
+			(data.result ? 'true' : 'false') + '</span>';
+		$body.append($("<div></div>").append($("<div class='text-muted small mb-1'>Result</div>"), $("<div></div>").html(resultLine)));
+	});
+	$.when(mainPreview).fail(function () {
+		$popup.find('.condValuePreviewBody').html("<span class='text-danger'>Failed to fetch condition evaluation.</span>");
+	});
+}
+
+// Finds which real, currently-known variable names appear as substrings in
+// `text` (longest-first, so e.g. a name that's a substring of a longer one
+// doesn't get double-reported) - used by ShowConditionEvaluationPopup to
+// show each referenced variable's own value, not just the final computed
+// LHS/RHS.
+function FindReferencedVariableNames (text, knownNames) {
+	var found = [];
+	var sorted = knownNames.slice().sort(function (a, b) {
+		return b.length - a.length;
+	});
+	var remaining = text;
+	for (var i = 0; i < sorted.length; i++) {
+		var n = sorted[i];
+		if (!n || remaining.indexOf(n) === -1) {
+			continue;
+		}
+		found.push(n);
+		var idx;
+		while ((idx = remaining.indexOf(n)) !== -1) {
+			remaining = remaining.slice(0, idx) + remaining.slice(idx + n.length);
+		}
+	}
+	return found;
 }
 
 // Lightweight dedicated modal for editing one condition or group - not
@@ -9471,7 +9944,7 @@ function ShowConditionSubEditor (title, renderBodyFn) {
 	// tree on the very next edit (reported: "close button disappears").
 	var $popup = $(
 		"<div id='" + domId + "'><div id='" + domId + "_body'></div>" +
-			"<div id='" + domId + "_footer'></div></div>"
+			"<div id='" + domId + "_footer' class='mt-2'></div></div>"
 	).appendTo('body');
 	$popup.fppDialog({
 		height: 'auto',
@@ -9539,12 +10012,12 @@ function DebounceValidateExpression (inputEl, iconId) {
 }
 
 // Populates every not-yet-populated .expressionVarHelper div with a
-// datalist-backed "insert variable" input - the same widget the condition
-// editor's own Name field uses for source == "Variable" (see
-// FetchConditionNameOptions('Variable', ...) a few hundred lines up), just
-// reused here instead of custom-built: it already fetches and groups all
-// three Variable namespaces (User, read-only fpp- status, read-only mqtt-
-// cache) and, being a native <datalist>, the browser itself handles matching/
+// datalist-backed "insert variable" input - reused across the If Check
+// editor's fields and the generic "expression" CommandArg type (e.g. Set
+// Variable's Expression mode), rather than custom-built per caller: it
+// already fetches and groups all three Variable namespaces (User, read-only
+// fpp_ status, read-only mqtt- cache) via FetchConditionNameOptions('Variable',
+// ...) and, being a native <datalist>, the browser itself handles matching/
 // scrolling even at the thousands of mqtt- entries a busy broker can produce
 // - no manual filter box, size cap, or "+N more" bookkeeping required.
 var VAR_INSERT_DATALIST_ID = 'variableInsertHelperDatalist';
@@ -9559,12 +10032,12 @@ function PopulateExpressionVarHelpers () {
 		$datalist = $("<datalist id='" + VAR_INSERT_DATALIST_ID + "'></datalist>").appendTo('body');
 		FetchConditionNameOptions('Variable', function (names) {
 			$.each(names, function (i, n) {
-				$datalist.append("<option value='" + $('<div>').text(n).html() + "'>");
+				$datalist.append("<option value='" + EscapeHtml(n) + "'>");
 			});
 		});
 	}
 	$helpers.each(function () {
-		RenderVarInsertHelper($(this), $(this).data('target'));
+		RenderVarInsertHelper($(this), $(this).data('target'), $(this).attr('data-wrap') === 'true');
 	});
 }
 
@@ -9573,8 +10046,26 @@ function PopulateExpressionVarHelpers () {
 // as the Name field's own datalist input a few hundred lines up never
 // needed a "Set" button either. The placeholder text alone explains the
 // action, so there's no accompanying label to keep visually tied to the
-// right expression field once this sits directly under it.
-function RenderVarInsertHelper ($helper, targetId) {
+// right expression field once this sits directly under it. The two-field
+// case (both Source == "Expression" and Value are expression-capable at
+// once) is handled separately by RenderSharedExpressionValueHelper, which
+// needs real DOM measurements to point its arrows at the right fields -
+// not a fit for this generic single-target helper.
+// shouldWrap distinguishes the two contexts this generic helper is shared
+// between:
+//  - If Check editor fields (shouldWrap=false, the default): Condition.cpp's
+//    EvaluateNameOrExpression() auto-detects a bare real variable name
+//    (exact match) or a bare formula referencing one, no wrapping needed -
+//    and wrapping here would actively break combining two inserted
+//    variables with a math operator (forces string concatenation instead of
+//    arithmetic - see RenderSharedExpressionValueHelper's own
+//    insertPendingValue for the full explanation).
+//  - The generic "expression" CommandArg type, e.g. Set Variable's
+//    Expression mode (shouldWrap=true, see data-wrap='true' at this div's
+//    creation site): evaluates via a bare ExpressionProcessor::compile()
+//    call with no auto-detection at all, so an inserted bare name would
+//    just land as literal text unless wrapped.
+function RenderVarInsertHelper ($helper, targetId, shouldWrap) {
 	$helper.empty();
 	var $input = $(
 		"<input type='text' list='" +
@@ -9583,7 +10074,7 @@ function RenderVarInsertHelper ($helper, targetId) {
 	).on('change', function () {
 		var name = $(this).val();
 		if (name) {
-			InsertAtCursor(document.getElementById(targetId), name);
+			InsertAtCursor(document.getElementById(targetId), shouldWrap ? '%%' + name + '%%' : name);
 		}
 		$(this).val('');
 	});
@@ -10346,10 +10837,19 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 					// Click-to-insert variable name helper - simpler than true
 					// inline autocomplete (no existing FPP pattern for that),
 					// populated once after render by PopulateExpressionVarHelpers().
+					// data-wrap='true': this generic "expression" CommandArg
+					// type (e.g. Set Variable's Expression mode) evaluates via
+					// a bare ExpressionProcessor::compile() call with no
+					// "=" prefix typed by default - unlike the If Check
+					// editor's fields, it does NOT auto-detect a bare
+					// variable name/formula (that's Condition.cpp's
+					// EvaluateNameOrExpression, specific to If), so an
+					// inserted name here needs "%%...%%" wrapping to actually
+					// take effect instead of landing as literal text.
 					line +=
 						"<div class='expressionVarHelper text-muted small' data-target='" +
 						ID +
-						"'></div>";
+						"' data-wrap='true'></div>";
 					initFuncs.push('PopulateExpressionVarHelpers');
 				}
 				if (configAdjustable && val['adjustable']) {

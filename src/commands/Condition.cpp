@@ -19,8 +19,6 @@
 #include "../Variables.h"
 #include "../gpio.h"
 #include "../log.h"
-#include "../mqtt.h"
-#include "../sensors/Sensors.h"
 #include "../settings.h"
 #include "../util/ExpressionProcessor.h"
 #include "../util/GPIOUtils.h"
@@ -85,6 +83,93 @@ static std::string EvaluateConditionExpression(const std::string& expr) {
     return proc.evaluate("string");
 }
 
+// Does `text` contain a math/comparison operator character that ISN'T
+// wholly explained by being part of a real variable name? Removes every
+// real variable name found as a substring (longest-first, same rationale as
+// ExpressionProcessor's own aliasExpr()) before checking what's left - so
+// "mqtt-homeassistant/sensor/outside_temperature/state" alone (the whole variable
+// name, hyphen/slashes and all) doesn't look like a formula, but
+// "fpp_next_playlist_start+1" does (the "+1" left over after removing the
+// real name is the actual signal).
+// Deliberately conservative: plain non-matching literal text like "ON" or
+// "5-star-review" that happens to contain '-' with no real variable name
+// nearby will also be flagged - see EvaluateNameOrExpression's caller
+// comment for why that's an accepted, documented trade-off rather than a
+// silent bug.
+static bool LooksLikeFormula(const std::string& text) {
+    std::vector<std::string> names = Variables::INSTANCE.getAllVariableNames();
+    std::sort(names.begin(), names.end(), [](const std::string& a, const std::string& b) { return a.size() > b.size(); });
+    std::string remaining = text;
+    for (auto& n : names) {
+        if (n.empty()) {
+            continue;
+        }
+        size_t pos;
+        while ((pos = remaining.find(n)) != std::string::npos) {
+            remaining.erase(pos, n.size());
+        }
+    }
+    return remaining.find_first_of("+-*/()<>=!^") != std::string::npos;
+}
+
+// The merged "Variable"/"Expression" behavior: a naive "does this contain
+// math-operator characters" heuristic doesn't work as the PRIMARY signal
+// here, because real variable names on this system already contain '-' and
+// '/' - both of which are also math operators (subtract, divide).
+// "fpp_next_playlist_start" and "mqtt-homeassistant/sensor/outside_temperature/state"
+// are both completely ordinary variable names. The reliable primary signal
+// is exact match against the live variable list; LooksLikeFormula() above is
+// only a secondary check, applied after a whole-string exact match has
+// already been ruled out:
+//
+//   1. Trimmed text exactly matches a real, currently-known variable name ->
+//      plain literal lookup (Variables::getVariable), exactly the old
+//      "Variable" Source behavior. Keeps arbitrary content (blobs, JSON,
+//      anything) reaching the comparator completely unmangled - never
+//      routed through the expression engine when the whole field is just
+//      naming one real variable.
+//   2. Text already starts with '=', or already contains a "%%...%%"/
+//      "==...=="  marker -> hand to EvaluateConditionExpression() unchanged
+//      (old "Expression" Source behavior, advanced/manual syntax keeps
+//      working exactly as before).
+//   3. LooksLikeFormula(text) -> prepend '=' and hand to
+//      EvaluateConditionExpression(). Routes through the pure-math branch,
+//      whose ExpressionProcessor::compile() already aliases any embedded
+//      real variable name (see aliasExpr() there) via plain substring
+//      find/replace BEFORE tinyexpr ever tokenizes the string - so
+//      "fpp_next_playlist_start+1" typed bare (no %%/=) correctly computes
+//      "that variable's value, plus one" instead of comparing against the
+//      literal text, with no new aliasing code needed here.
+//   4. Otherwise -> hand to EvaluateConditionExpression() unchanged, which
+//      is template mode: safe literal passthrough for ordinary non-formula
+//      text like "ON" that doesn't match any real variable and doesn't look
+//      like a formula. Without this step, forcing '=' on every non-matching
+//      string would break any plain literal Value that isn't purely
+//      numeric/formula-shaped (compile failure -> empty result, not a
+//      crash, but silently wrong).
+static std::string EvaluateNameOrExpression(const std::string& text) {
+    size_t start = text.find_first_not_of(" \t");
+    if (start != std::string::npos) {
+        size_t end = text.find_last_not_of(" \t");
+        std::string trimmed = text.substr(start, end - start + 1);
+        for (auto const& varName : Variables::INSTANCE.getAllVariableNames()) {
+            if (varName == trimmed) {
+                return Variables::INSTANCE.getVariable(trimmed, "");
+            }
+        }
+    }
+    if (!text.empty() && text[0] == '=') {
+        return EvaluateConditionExpression(text);
+    }
+    if (text.find("%%") != std::string::npos || text.find("==") != std::string::npos) {
+        return EvaluateConditionExpression(text);
+    }
+    if (LooksLikeFormula(text)) {
+        return EvaluateConditionExpression("=" + text);
+    }
+    return EvaluateConditionExpression(text);
+}
+
 static std::string CurrentTimeHHMM() {
     std::time_t t = std::time(nullptr);
     struct tm local;
@@ -123,22 +208,22 @@ static std::string SunTimeHHMM(const std::string& which) {
 // preview button) - a single source of truth for what each Check source
 // actually reads.
 static std::string ReadConditionSourceValue(const std::string& source, const std::string& name, bool& found) {
-    if (source == "Variable") {
-        return Variables::INSTANCE.getVariable(name, "");
-    } else if (source == "Expression") {
-        return EvaluateConditionExpression(name);
-    } else if (source == "Setting") {
-        return getSetting(name.c_str());
+    if (source == "Expression") {
+        // The old, separate "Variable" Source was fully removed (per
+        // explicit direction, not kept as a backward-compatible alias) - its
+        // behavior lives here now, handled by EvaluateNameOrExpression()'s
+        // own exact-match check: a plain literal lookup for anything that's
+        // an exact match to a real variable name (old "Variable" behavior,
+        // including what a dedicated "MQTT" source used to do -
+        // Variables::getVariable() already reads a cached mqtt-<topic>
+        // message transparently), falling through to expression evaluation
+        // otherwise (old "Expression" behavior, now also reachable without
+        // typing '=' or "%%...%%" by hand - see EvaluateNameOrExpression's
+        // own comment). Any existing saved condition still using
+        // "source":"Variable" now reads as not-found until re-edited.
+        return EvaluateNameOrExpression(name);
     } else if (source == "Time") {
         return CurrentTimeHHMM();
-    } else if (source == "MQTT") {
-        std::string topic = name;
-        std::string message;
-        if (!mqtt || !mqtt->CacheCheckMessage(topic, message)) {
-            found = false;
-            return "";
-        }
-        return message;
     } else if (source == "GPIO Pin") {
         // fppCommandLastValue only tracks pins explicitly set via the "GPIO"
         // command/API (an output) - it knows nothing about a configured
@@ -155,16 +240,6 @@ static std::string ReadConditionSourceValue(const std::string& source, const std
         }
         found = false;
         return "";
-    } else if (source == "Sensor") {
-        Json::Value report;
-        Sensors::INSTANCE.reportSensors(report);
-        for (auto& s : report["sensors"]) {
-            if (s["label"].asString() == name) {
-                return s["value"].asString();
-            }
-        }
-        found = false;
-        return "";
     } else if (source == "Sun") {
         return SunTimeHHMM(name); // name: "Sunrise" or "Sunset"
     }
@@ -175,6 +250,98 @@ static std::string ReadConditionSourceValue(const std::string& source, const std
 std::string ConditionNode::PreviewSourceValue(const std::string& source, const std::string& name, bool& found) {
     found = true;
     return ReadConditionSourceValue(source, name, found);
+}
+
+// std::stod() alone isn't a valid "is this string a number" check - it
+// happily parses a leading numeric prefix and silently ignores the rest
+// (e.g. std::stod("18:15") == 18.0, no exception), which previously made
+// LeafNode::compare()'s numeric comparators do the wrong thing for anything
+// that merely starts with digits, most notably HH:MM values (Time/Sun) being
+// compared by hour only. Require the ENTIRE string to have been consumed.
+static bool ParseFullyNumeric(const std::string& s, double& out) {
+    if (s.empty()) {
+        return false;
+    }
+    size_t pos = 0;
+    try {
+        out = std::stod(s, &pos);
+    } catch (...) {
+        return false;
+    }
+    return pos == s.size();
+}
+
+// Hoisted out of LeafNode (was a private member function there) so both
+// LeafNode::evaluate() and ConditionNode::PreviewLeafResult() (the Check
+// editor's consolidated eye-preview modal) share exactly one implementation
+// instead of a second copy risking drift.
+static bool CompareValues(const std::string& comparatorStr, const std::string& lhs, const std::string& rhs) {
+    if (comparatorStr == "equal to") {
+        return lhs == rhs;
+    }
+    if (comparatorStr == "not equal to") {
+        return lhs != rhs;
+    }
+    if (comparatorStr == "contains") {
+        return lhs.find(rhs) != std::string::npos;
+    }
+    if (comparatorStr == "between") {
+        auto commaPos = rhs.find(',');
+        if (commaPos == std::string::npos) {
+            return false;
+        }
+        double mn, mx, v;
+        if (!ParseFullyNumeric(rhs.substr(0, commaPos), mn) ||
+            !ParseFullyNumeric(rhs.substr(commaPos + 1), mx) ||
+            !ParseFullyNumeric(lhs, v)) {
+            return false;
+        }
+        if (mx < mn) {
+            std::swap(mn, mx);
+        }
+        return v >= mn && v <= mx;
+    }
+    // Numeric comparators. ParseFullyNumeric (not a bare std::stod) is
+    // what actually makes HH:MM values (Time/Sun) fall through to the
+    // string-compare branch below - std::stod alone does NOT throw on
+    // "18:15", it silently parses just the "18" prefix and stops at the
+    // colon, so a bare try/stod/catch here would (and, before this fix,
+    // did) compare HH:MM values by HOUR ONLY, discarding minutes: e.g.
+    // "18:20" vs "18:15" both truncate to 18, so "greater than" wrongly
+    // returned false for a time that genuinely is later. Falling through
+    // to plain string comparison instead is not just a safe fallback -
+    // it's the CORRECT comparison for this format, since Time/Sun always
+    // emit zero-padded HH:MM, which sorts identically to chronological
+    // order as plain text.
+    double a, b;
+    if (ParseFullyNumeric(lhs, a) && ParseFullyNumeric(rhs, b)) {
+        if (comparatorStr == "greater than") {
+            return a > b;
+        }
+        if (comparatorStr == "greater or equal") {
+            return a >= b;
+        }
+        if (comparatorStr == "less than") {
+            return a < b;
+        }
+        if (comparatorStr == "less or equal") {
+            return a <= b;
+        }
+    } else {
+        if (comparatorStr == "greater than") {
+            return lhs > rhs;
+        }
+        if (comparatorStr == "greater or equal") {
+            return lhs >= rhs;
+        }
+        if (comparatorStr == "less than") {
+            return lhs < rhs;
+        }
+        if (comparatorStr == "less or equal") {
+            return lhs <= rhs;
+        }
+    }
+    return false;
 }
 
 class LeafNode : public ConditionNode {
@@ -194,79 +361,46 @@ public:
                      result ? "true" : "false");
             return result;
         }
-        bool cmp = compare(lhs, value);
+        // Same auto-detecting path as the merged Variable/Expression Source
+        // (EvaluateNameOrExpression, above): an exact match to a real
+        // variable name is a plain lookup, a bare formula like
+        // "fpp_next_playlist_start+1" is computed automatically, and
+        // anything else (e.g. a fixed literal like "1" or "ON") passes
+        // through unchanged - so Value can reference variables/math (e.g.
+        // comparing one computed value against another) without needing any
+        // manual "=" or "%%...%%" syntax.
+        std::string rhs = EvaluateNameOrExpression(value);
+        bool cmp = CompareValues(comparatorStr, lhs, rhs);
         bool result = negate ? !cmp : cmp;
-        // lhs/value are unbounded (e.g. a Variable can hold an entire fetched
+        // lhs/rhs are unbounded (e.g. a Variable can hold an entire fetched
         // web page) - truncate before logging, see TruncateForLog() (log.h).
         LogDebug(VB_COMMAND, "If: Leaf[%s:%s] = \"%s\" %s%s \"%s\" -> %s\n", source.c_str(), name.c_str(),
                  TruncateForLog(lhs).c_str(), negate ? "NOT " : "", comparatorStr.c_str(),
-                 TruncateForLog(value).c_str(), result ? "true" : "false");
+                 TruncateForLog(rhs).c_str(), result ? "true" : "false");
         return result;
     }
-
-private:
-    bool compare(const std::string& lhs, const std::string& rhs) const {
-        if (comparatorStr == "equal to") {
-            return lhs == rhs;
-        }
-        if (comparatorStr == "not equal to") {
-            return lhs != rhs;
-        }
-        if (comparatorStr == "contains") {
-            return lhs.find(rhs) != std::string::npos;
-        }
-        if (comparatorStr == "between") {
-            auto commaPos = rhs.find(',');
-            if (commaPos == std::string::npos) {
-                return false;
-            }
-            try {
-                double mn = std::stod(rhs.substr(0, commaPos));
-                double mx = std::stod(rhs.substr(commaPos + 1));
-                double v = std::stod(lhs);
-                if (mx < mn) {
-                    std::swap(mn, mx);
-                }
-                return v >= mn && v <= mx;
-            } catch (...) {
-                return false;
-            }
-        }
-        // Numeric comparators - HH:MM strings also compare correctly here
-        // since std::stod will fail on them; fall back to string compare
-        // for the Time/Sun sources' "HH:MM" lhs/rhs specifically.
-        try {
-            double a = std::stod(lhs);
-            double b = std::stod(rhs);
-            if (comparatorStr == "greater than") {
-                return a > b;
-            }
-            if (comparatorStr == "greater or equal") {
-                return a >= b;
-            }
-            if (comparatorStr == "less than") {
-                return a < b;
-            }
-            if (comparatorStr == "less or equal") {
-                return a <= b;
-            }
-        } catch (...) {
-            if (comparatorStr == "greater than") {
-                return lhs > rhs;
-            }
-            if (comparatorStr == "greater or equal") {
-                return lhs >= rhs;
-            }
-            if (comparatorStr == "less than") {
-                return lhs < rhs;
-            }
-            if (comparatorStr == "less or equal") {
-                return lhs <= rhs;
-            }
-        }
-        return false;
-    }
 };
+
+// Full ad-hoc-leaf evaluation for the Check editor's consolidated eye-preview
+// modal (see Part 3 of the source-merge plan): given the same
+// Source/Name/Comparator/Value/Not a saved leaf would have, returns the LHS
+// and RHS values it currently resolves to and the comparator's result -
+// reuses ReadConditionSourceValue/EvaluateNameOrExpression/CompareValues, the
+// exact same functions LeafNode::evaluate() itself calls, so this can never
+// drift from what an actual saved condition would do.
+void ConditionNode::PreviewLeafResult(const std::string& source, const std::string& name,
+                                       const std::string& comparatorStr, const std::string& value, bool negate,
+                                       bool& lhsFound, std::string& lhsValue, std::string& rhsValue, bool& result) {
+    lhsFound = true;
+    lhsValue = ReadConditionSourceValue(source, name, lhsFound);
+    rhsValue = EvaluateNameOrExpression(value);
+    if (!lhsFound) {
+        result = negate;
+        return;
+    }
+    bool cmp = CompareValues(comparatorStr, lhsValue, rhsValue);
+    result = negate ? !cmp : cmp;
+}
 
 std::unique_ptr<ConditionNode> ConditionNode::FromJSON(const Json::Value& j) {
     if (!j.isObject()) {

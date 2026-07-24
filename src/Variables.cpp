@@ -85,41 +85,48 @@ static std::string JsonToStr(const Json::Value& v) {
     return "";
 }
 
-// Computes the current value of every "fpp-" read-only status variable.
+// Computes the current value of every "fpp_" read-only status variable.
 // Cheap (a handful of in-memory reads, no I/O) so recomputed fresh on every
 // call rather than cached - avoids any staleness question.
+//
+// Underscore, not the old hyphen ("fpp_") this family used previously: a
+// bare "fpp_next_playlist_start" is directly usable in pure-math mode
+// (lowercase-led, a-z0-9_ only - see ExpressionProcessor's
+// isValidExprIdentifier()) with no aliasing needed, unlike the old
+// hyphenated form. Renamed outright, not kept as a dual-registered alias -
+// per explicit direction, no old "fpp-*" references remain anywhere.
 static std::map<std::string, std::string> ComputeFppStatusVariables() {
     std::map<std::string, std::string> vars;
 
     int status = (int)Player::INSTANCE.GetStatus();
-    vars["fpp-status"] = std::to_string(status);
-    vars["fpp-status_name"] = PlaylistStatusName(status);
-    vars["fpp-mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
-    vars["fpp-volume"] = std::to_string(getVolume());
-    vars["fpp-multisync"] = (multiSync && multiSync->isMultiSyncEnabled()) ? "1" : "0";
-    vars["fpp-uptime_seconds"] = std::to_string((long long)(std::time(nullptr) - FPP_STARTUP_TIME));
-    vars["fpp-warning_count"] = std::to_string(WarningHolder::GetWarnings().size());
+    vars["fpp_status"] = std::to_string(status);
+    vars["fpp_status_name"] = PlaylistStatusName(status);
+    vars["fpp_mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
+    vars["fpp_volume"] = std::to_string(getVolume());
+    vars["fpp_multisync"] = (multiSync && multiSync->isMultiSyncEnabled()) ? "1" : "0";
+    vars["fpp_uptime_seconds"] = std::to_string((long long)(std::time(nullptr) - FPP_STARTUP_TIME));
+    vars["fpp_warning_count"] = std::to_string(WarningHolder::GetWarnings().size());
     if (scheduler) {
-        vars["fpp-next_playlist"] = scheduler->GetNextPlaylistName();
-        vars["fpp-next_playlist_start"] = scheduler->GetNextPlaylistStartStr();
+        vars["fpp_next_playlist"] = scheduler->GetNextPlaylistName();
+        vars["fpp_next_playlist_start"] = scheduler->GetNextPlaylistStartStr();
     } else {
-        vars["fpp-next_playlist"] = "";
-        vars["fpp-next_playlist_start"] = "";
+        vars["fpp_next_playlist"] = "";
+        vars["fpp_next_playlist_start"] = "";
     }
 
     Json::Value pl;
     Player::INSTANCE.GetCurrentStatus(pl);
-    vars["fpp-current_playlist"] = JsonToStr(pl["current_playlist"]["playlist"]);
-    vars["fpp-current_playlist_count"] = JsonToStr(pl["current_playlist"]["count"]);
-    vars["fpp-current_playlist_index"] = JsonToStr(pl["current_playlist"]["index"]);
-    vars["fpp-current_sequence"] = JsonToStr(pl["current_sequence"]);
-    vars["fpp-current_song"] = JsonToStr(pl["current_song"]);
-    vars["fpp-seconds_played"] = JsonToStr(pl["seconds_played"]);
-    vars["fpp-seconds_remaining"] = JsonToStr(pl["seconds_remaining"]);
-    vars["fpp-time_elapsed"] = JsonToStr(pl["time_elapsed"]);
-    vars["fpp-time_remaining"] = JsonToStr(pl["time_remaining"]);
-    vars["fpp-repeat_mode"] = JsonToStr(pl["repeat_mode"]);
-    vars["fpp-random"] = JsonToStr(pl["random"]);
+    vars["fpp_current_playlist"] = JsonToStr(pl["current_playlist"]["playlist"]);
+    vars["fpp_current_playlist_count"] = JsonToStr(pl["current_playlist"]["count"]);
+    vars["fpp_current_playlist_index"] = JsonToStr(pl["current_playlist"]["index"]);
+    vars["fpp_current_sequence"] = JsonToStr(pl["current_sequence"]);
+    vars["fpp_current_song"] = JsonToStr(pl["current_song"]);
+    vars["fpp_seconds_played"] = JsonToStr(pl["seconds_played"]);
+    vars["fpp_seconds_remaining"] = JsonToStr(pl["seconds_remaining"]);
+    vars["fpp_time_elapsed"] = JsonToStr(pl["time_elapsed"]);
+    vars["fpp_time_remaining"] = JsonToStr(pl["time_remaining"]);
+    vars["fpp_repeat_mode"] = JsonToStr(pl["repeat_mode"]);
+    vars["fpp_random"] = JsonToStr(pl["random"]);
 
     return vars;
 }
@@ -170,13 +177,17 @@ void Variables::save() {
 }
 
 bool Variables::IsFppStatusVariableName(const std::string& name) {
-    return name.rfind("fpp-", 0) == 0;
+    // "fpp_" (underscore) - a bare "fpp_next_playlist_start" is directly
+    // usable in pure-math mode with no aliasing needed (lowercase-led,
+    // a-z0-9_ only - see ExpressionProcessor's isValidExprIdentifier()),
+    // unlike the old hyphenated "fpp-" form this replaced.
+    return name.rfind("fpp_", 0) == 0;
 }
 
 // "mqtt-<topic>" is a live, read-only variable backed directly by
 // MosquittoClient's own last-message-per-topic cache (mqtt.h's
 // messageCache) rather than the persisted m_variables map - same shape as
-// the "fpp-" branch above. <topic> is the raw MQTT topic string (may
+// the "fpp_" branch above. <topic> is the raw MQTT topic string (may
 // contain '/'), so it's only usable where the value is looked up by name
 // (variable condition leaf, %VAR:name% substitution) - it won't parse as
 // an ExpressionProcessor/tinyexpr identifier, which requires alnum/underscore.
@@ -264,7 +275,7 @@ std::vector<std::string> Variables::getAllVariableNames() {
 
 void Variables::setVariable(const std::string& name, const std::string& value, bool persist) {
     if (IsFppStatusVariableName(name)) {
-        LogWarn(VB_GENERAL, "Variables::setVariable(): \"%s\" starts with the reserved \"fpp-\" prefix "
+        LogWarn(VB_GENERAL, "Variables::setVariable(): \"%s\" starts with the reserved \"fpp_\" prefix "
                             "(read-only computed status) and cannot be set\n",
                 name.c_str());
         return;
@@ -434,7 +445,7 @@ void Variables::reportVariables(Json::Value& root) {
     }
 }
 
-// fpp-* status variables are computed fresh from live Player/system state on
+// fpp_* status variables are computed fresh from live Player/system state on
 // every call (ComputeFppStatusVariables() above) - there's no persisted
 // "last updated" the way User/MQTT Variables have. Approximate one by
 // tracking each name's last-seen value here and only stamping a new time
@@ -479,7 +490,7 @@ void Variables::reportMqttVariables(Json::Value& root) {
  * List all User Variables and their current values. Pass ?validateExpression
  * instead to syntax-check an expression (for the Set Variable "Expression"
  * field) against currently-known variables, without setting anything. Pass
- * ?fpp=true instead to list the read-only "fpp-" status variables (current
+ * ?fpp=true instead to list the read-only "fpp_" status variables (current
  * playlist/sequence, play state, volume, etc.) instead of User Variables.
  *
  * @route GET /api/variables

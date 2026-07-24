@@ -39,4 +39,14 @@ public:
     // set false if source/name doesn't currently resolve to anything (e.g.
     // an MQTT topic never seen, or an unset Variable).
     static std::string PreviewSourceValue(const std::string& source, const std::string& name, bool& found);
+
+    // Full ad-hoc-leaf evaluation for the Check editor's consolidated
+    // eye-preview modal: given the same Source/Name/Comparator/Value/Not a
+    // saved leaf would have, returns the LHS/RHS values it currently
+    // resolves to and the comparator's result - reuses the exact same
+    // evaluation path a real saved leaf's evaluate() does, so this preview
+    // can never drift from what actually happens at runtime.
+    static void PreviewLeafResult(const std::string& source, const std::string& name, const std::string& comparatorStr,
+                                   const std::string& value, bool negate, bool& lhsFound, std::string& lhsValue,
+                                   std::string& rhsValue, bool& result);
 };

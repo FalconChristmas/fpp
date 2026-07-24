@@ -34,7 +34,7 @@ public:
     double getVariableDouble(const std::string& name, double def = 0.0);
     bool getVariableBool(const std::string& name, bool def = false);
     std::vector<std::string> getVariableNames();
-    // getVariableNames() plus the read-only "fpp-"/"mqtt-<topic>" names -
+    // getVariableNames() plus the read-only "fpp_"/"mqtt-<topic>" names -
     // everything that can be *read* in an Expression field (only the plain
     // User Variables from getVariableNames() can be written by "Set Variable").
     std::vector<std::string> getAllVariableNames();
@@ -54,14 +54,14 @@ public:
 
     void reportVariables(Json::Value& root);
 
-    // Live-computed, read-only status variables (name starts with "fpp-"),
+    // Live-computed, read-only status variables (name starts with "fpp_"),
     // backed directly by Player/system state rather than the persisted
-    // m_variables map - see the "fpp-" branch in getVariable() and
+    // m_variables map - see the "fpp_" branch in getVariable() and
     // Variables.cpp's ComputeFppStatusVariables(). Curated from the fields
     // FPP already publishes on its "fppd_status"/"playlist_details" MQTT
     // topics, since those are exactly the status values useful in an If
     // condition (current playlist/sequence, play state, volume, etc.).
-    // setVariable() refuses to write an "fpp-" name - it would silently
+    // setVariable() refuses to write an "fpp_" name - it would silently
     // never be readable back through getVariable() otherwise, since that
     // checks the live computation first.
     void reportFppVariables(Json::Value& root);
@@ -69,7 +69,7 @@ public:
 
     // "mqtt-<topic>" variables: live, read-only, backed by MQTT's own
     // last-message-per-topic cache (MosquittoClient::messageCache) instead
-    // of m_variables - same shape as the "fpp-" status variables above.
+    // of m_variables - same shape as the "fpp_" status variables above.
     // See the IsMqttVariableName definition in Variables.cpp for the
     // reasoning (topic must be known exactly). Usable inside Expression
     // fields same as anything else - ExpressionProcessor aliases any

@@ -94,8 +94,8 @@ std::unique_ptr<Command::Result> SetVariableCommand::run(const std::vector<std::
     } else if (type == "Expression") {
         ExpressionProcessor proc;
         // Bind every currently-known Variable by name - User Variables plus
-        // the read-only fpp-/mqtt- ones - so the expression can reference
-        // any of them directly (e.g. "=temp*1.8+32" or "=fpp-volume+10").
+        // the read-only fpp_/mqtt- ones - so the expression can reference
+        // any of them directly (e.g. "=temp*1.8+32" or "=fpp_volume+10").
         // ExpressionVariable objects must stay alive and at a stable address
         // until evaluate() returns, since tinyexpr compiles against their
         // raw address (ExpressionProcessor.h) -- std::map is node-based, so
