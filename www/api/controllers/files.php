@@ -192,8 +192,12 @@ function GetFilesHelper($dirName, $prefix = '')
         }
 
         if (strtolower(params("DirName")) == "logs") {
-            array_push($rc, "/var/log/messages");
-            array_push($rc, "/var/log/syslog");
+            // glob() rather than the bare filename so logrotate's rotated
+            // copies (syslog.1, syslog.2.gz, ...) show up too, not just the
+            // live file.
+            foreach (array_merge(glob("/var/log/messages*"), glob("/var/log/syslog*")) as $f) {
+                array_push($rc, $f);
+            }
         }
         sort($rc);
         return $rc;
@@ -273,14 +277,12 @@ function GetFilesHelper($dirName, $prefix = '')
         }
 
         if (strtolower(params("DirName")) == "logs") {
-            if (file_exists("/var/log/messages")) {
-                GetFileInfo($files, "", "/var/log/messages");
+            // glob() rather than the bare filename so logrotate's rotated
+            // copies (syslog.1, syslog.2.gz, ...) show up too, not just the
+            // live file.
+            foreach (array_merge(glob("/var/log/messages*"), glob("/var/log/syslog*")) as $f) {
+                GetFileInfo($files, "", $f);
             }
-
-            if (file_exists("/var/log/syslog")) {
-                GetFileInfo($files, "", "/var/log/syslog");
-            }
-
         }
 
         return $files;
@@ -973,12 +975,18 @@ function ZipLogs($zip)
         $zip->addFile($logDirectory . '/' . $file, "logs/" . $file);
     }
 
-    if (is_readable("/var/log/messages")) {
-        $zip->addFile("/var/log/messages", "logs/messages.log");
-    }
-
-    if (is_readable("/var/log/syslog")) {
-        $zip->addFile("/var/log/syslog", "logs/syslog.log");
+    // glob() rather than the bare filename so logrotate's rotated copies
+    // (syslog.1, syslog.2.gz, ...) get bundled too, not just the live file.
+    // Only the bare name (no rotation suffix) gets the ".log" rename - it's
+    // there so an extensionless file is still recognizable/openable once
+    // unzipped; the rotated names already carry their own suffix (.1, .2.gz).
+    foreach (array_merge(glob("/var/log/messages*"), glob("/var/log/syslog*")) as $f) {
+        if (!is_readable($f)) {
+            continue;
+        }
+        $base = basename($f);
+        $zipName = (strpos($base, '.') === false) ? $base . ".log" : $base;
+        $zip->addFile($f, "logs/" . $zipName);
     }
 
     exec("/usr/bin/git --work-tree=" . gitBaseDirectory() . "/ status", $output, $return_val);
