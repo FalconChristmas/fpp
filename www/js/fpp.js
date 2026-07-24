@@ -49,6 +49,13 @@ var _wsWarnings = [];
 var _wsWarningInfo = [];
 var _systemWarnings = [];
 var _systemWarningInfo = [];
+
+// Track fppd running state across status callbacks to detect a restart
+// transition (not-running → running), at which point we re-fetch the
+// command list and refresh the page if it has changed (e.g. plugin
+// commands added/removed).
+var _fppdWasRunning = null;
+var _savedCommandListJSON = '';
 var zebraPinSubContentTop = 0;
 var VolumeChangeInProgress = false;
 var VolumeChangeAPIInProgress = false;
@@ -142,9 +149,24 @@ function loadPageReadyActions () {
 	setViewPortControl();
 }
 
+// Status-change callback that detects an fppd restart (transition from
+// not-running to running).  When that happens, re-fetch the command list
+// and reload the page if the list has changed.
+function OnFPPDRestart () {
+	var isRunning = lastStatusJSON &&
+		'fppd' in lastStatusJSON &&
+		lastStatusJSON.fppd === 'running';
+	if (_fppdWasRunning === false && isRunning) {
+		checkCommandListChanged();
+	}
+	_fppdWasRunning = isRunning;
+}
+
 function common_PageLoad_DOM_Setup () {
 	OnSystemStatusChange(RefreshHeaderBar);
 	OnSystemStatusChange(IsFPPDrunning);
+	OnSystemStatusChange(OnFPPDRestart);
+	captureCommandListJSON();
 	// If status was pre-populated server-side, fire callbacks immediately so
 	// the header/footer render without waiting for the first AJAX round-trip.
 	if (lastStatusJSON) {
@@ -8240,6 +8262,36 @@ function PopulateCommandListCache () {
 			$.each(commandList, function (key, val) {
 				commandListByName[val['name']] = val;
 			});
+		}
+	});
+}
+
+// Eagerly capture the command list fingerprint once on page load so we can
+// detect changes after an fppd restart.
+function captureCommandListJSON () {
+	$.ajax({
+		dataType: 'json',
+		url: 'api/commands',
+		async: true,
+		success: function (data) {
+			_savedCommandListJSON = JSON.stringify(data);
+		}
+	});
+}
+
+// Called after an fppd restart transition.  Re-fetches the command list and
+// hard-reloads the page if it differs from the pre-restart snapshot.
+function checkCommandListChanged () {
+	if (!_savedCommandListJSON) return;
+	$.ajax({
+		dataType: 'json',
+		url: 'api/commands',
+		async: true,
+		success: function (data) {
+			var hash = JSON.stringify(data);
+			if (hash !== _savedCommandListJSON) {
+				location.reload();
+			}
 		}
 	});
 }
