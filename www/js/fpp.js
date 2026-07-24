@@ -9287,6 +9287,16 @@ var conditionFieldIdSeq = 0;
 function RenderConditionFields ($container, cond, onChange) {
 	$container.empty();
 
+	// $row holds Source/Name/is/Comparator/Value/eye on one line via flex, with
+	// align-items-start so a two-line $nameWrap (Expression source, see below)
+	// doesn't stretch/recenter the single-line controls beside it. For
+	// Expression specifically, $nameWrap itself becomes a flex-column - the
+	// expression input on its own line, with the insert-variable helper
+	// directly beneath it (same left edge, same width) rather than spanning
+	// the whole row's width as an unrelated-looking sibling underneath
+	// everything.
+	var $row = $("<div class='d-flex align-items-start flex-wrap gap-1'></div>");
+
 	var sourceSel = BuildInlineSelect(CONDITION_SOURCES, cond.source, function (v) {
 		cond.source = v;
 		// A Value typed against the old source (e.g. a GPIO "1"/"0", or a
@@ -9308,7 +9318,7 @@ function RenderConditionFields ($container, cond, onChange) {
 		var nameInp = $(
 			"<input type='text' id='" +
 				fieldId +
-				"' class='form-control form-control-sm d-inline-block w-auto' placeholder='Expression'>"
+				"' class='form-control form-control-sm flex-grow-1' placeholder='Expression'>"
 		)
 			.val(cond.name)
 			.on('input', function () {
@@ -9317,8 +9327,14 @@ function RenderConditionFields ($container, cond, onChange) {
 				onChange();
 			});
 		var validIcon = $("<span id='" + fieldId + "_validIcon' class='expressionValidIcon ms-1'></span>");
-		var helper = $("<div class='expressionVarHelper text-muted small' data-target='" + fieldId + "'></div>");
-		$nameWrap.append(nameInp, validIcon, helper);
+		// Fixed width (rather than d-inline-block/w-auto) so the insert-variable
+		// helper directly below (also w-100, see RenderVarInsertHelper) lines up
+		// under the SAME left/right edges as the expression input, instead of two
+		// independently-sized boxes that only coincidentally share a left edge.
+		$nameWrap = $("<div class='d-flex flex-column' style='width:260px'></div>");
+		var $inputLine = $("<div class='d-flex align-items-center'></div>").append(nameInp, validIcon);
+		var $expressionHelperInline = $("<div class='expressionVarHelper text-muted small mt-1' data-target='" + fieldId + "'></div>");
+		$nameWrap.append($inputLine, $expressionHelperInline);
 		if (cond.name) {
 			DebounceValidateExpression(nameInp[0], fieldId + '_validIcon');
 		}
@@ -9375,7 +9391,8 @@ function RenderConditionFields ($container, cond, onChange) {
 		ShowConditionCurrentValuePopup(cond, valInp);
 	});
 
-	$container.append(sourceSel, $nameWrap, ' is ', compSel, valInp, showValueBtn);
+	$row.append(sourceSel, $nameWrap, ' is ', compSel, valInp, showValueBtn);
+	$container.append($row);
 	if (cond.source === 'Expression') {
 		PopulateExpressionVarHelpers();
 	}
@@ -9521,40 +9538,56 @@ function DebounceValidateExpression (inputEl, iconId) {
 	}, 400);
 }
 
-// Populates every not-yet-populated .expressionVarHelper div with clickable
-// buttons for each current Variable name; clicking one inserts it at the
-// cursor position of the input named in the div's data-target.
+// Populates every not-yet-populated .expressionVarHelper div with a
+// datalist-backed "insert variable" input - the same widget the condition
+// editor's own Name field uses for source == "Variable" (see
+// FetchConditionNameOptions('Variable', ...) a few hundred lines up), just
+// reused here instead of custom-built: it already fetches and groups all
+// three Variable namespaces (User, read-only fpp- status, read-only mqtt-
+// cache) and, being a native <datalist>, the browser itself handles matching/
+// scrolling even at the thousands of mqtt- entries a busy broker can produce
+// - no manual filter box, size cap, or "+N more" bookkeeping required.
+var VAR_INSERT_DATALIST_ID = 'variableInsertHelperDatalist';
 function PopulateExpressionVarHelpers () {
 	var $helpers = $('.expressionVarHelper').not('[data-populated]');
 	if (!$helpers.length) {
 		return;
 	}
 	$helpers.attr('data-populated', '1');
-	$.ajax({
-		dataType: 'json',
-		url: 'api/variables',
-		success: function (data) {
-			var names = Object.keys(data || {});
-			$helpers.each(function () {
-				var $helper = $(this);
-				var targetId = $helper.data('target');
-				if (!names.length) {
-					$helper.text('(no variables defined yet)');
-					return;
-				}
-				$helper.text('Insert variable: ');
-				$.each(names, function (i, name) {
-					var $btn = $('<a href="#" class="me-1"></a>')
-						.text(name)
-						.on('click', function (e) {
-							e.preventDefault();
-							InsertAtCursor(document.getElementById(targetId), name);
-						});
-					$helper.append($btn);
-				});
+	var $datalist = $('#' + VAR_INSERT_DATALIST_ID);
+	if (!$datalist.length) {
+		$datalist = $("<datalist id='" + VAR_INSERT_DATALIST_ID + "'></datalist>").appendTo('body');
+		FetchConditionNameOptions('Variable', function (names) {
+			$.each(names, function (i, n) {
+				$datalist.append("<option value='" + $('<div>').text(n).html() + "'>");
 			});
-		}
+		});
+	}
+	$helpers.each(function () {
+		RenderVarInsertHelper($(this), $(this).data('target'));
 	});
+}
+
+// No separate "Insert" button - typing/picking a name and tabbing or
+// pressing Enter (both fire native 'change') inserts it immediately, same
+// as the Name field's own datalist input a few hundred lines up never
+// needed a "Set" button either. The placeholder text alone explains the
+// action, so there's no accompanying label to keep visually tied to the
+// right expression field once this sits directly under it.
+function RenderVarInsertHelper ($helper, targetId) {
+	$helper.empty();
+	var $input = $(
+		"<input type='text' list='" +
+			VAR_INSERT_DATALIST_ID +
+			"' class='form-control form-control-sm w-100' placeholder='Insert variable to expression field…'>"
+	).on('change', function () {
+		var name = $(this).val();
+		if (name) {
+			InsertAtCursor(document.getElementById(targetId), name);
+		}
+		$(this).val('');
+	});
+	$helper.append($input);
 }
 
 // Inserts text at the current cursor position of a text input (replacing any
@@ -9866,7 +9899,15 @@ function OverlayModelContentListUrl (url) {
 // the same way internally) to get, for each arg, whether drawing a divider
 // immediately before it is warranted.
 function ComputeArgGroupBoundaries (args) {
-	var included = args.filter(function (val) {
+	// args is an array for generic Command args (commandEditor.php, GPIO's
+	// command picker, etc.) but a plain object keyed by arg name for
+	// playlistEntryTypes.json's per-entry-type args (see PlaylistTypeChanged) -
+	// PrintArgInputs' own render loop uses $.each() so it tolerates both, but
+	// .filter()/.map() below need a real array.
+	var argList = Array.isArray(args) ? args : Object.keys(args).map(function (k) {
+		return args[k];
+	});
+	var included = argList.filter(function (val) {
 		if (val['type'] == 'args') return false;
 		if (val.hasOwnProperty('statusOnly') && val.statusOnly == true) return false;
 		if (val.hasOwnProperty('hidden') && val.hidden == true) return false;

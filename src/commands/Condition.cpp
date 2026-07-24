@@ -67,7 +67,11 @@ public:
 static std::string EvaluateConditionExpression(const std::string& expr) {
     ExpressionProcessor proc;
     std::map<std::string, ExpressionProcessor::ExpressionVariable> boundVars;
-    for (auto const& varName : Variables::INSTANCE.getVariableNames()) {
+    // getAllVariableNames() (User + read-only fpp-/mqtt- vars), matching what
+    // GET /api/variables?validateExpression binds (Variables.cpp) - otherwise
+    // an expression referencing an fpp-/mqtt- variable validates as green in
+    // the editor but silently evaluates as unbound at runtime.
+    for (auto const& varName : Variables::INSTANCE.getAllVariableNames()) {
         auto inserted = boundVars.try_emplace(varName, varName);
         inserted.first->second.setValue(Variables::INSTANCE.getVariable(varName));
         proc.bindVariable(&inserted.first->second);
