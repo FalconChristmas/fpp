@@ -210,6 +210,19 @@ if [ "$USE_LOCAL_SRC" = "1" ] && [ "$FPPBRANCH" = "master" ]; then
     LOCAL_BRANCH="$(git -C "$FPP_SRC_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
     if [ -n "$LOCAL_BRANCH" ] && [ "$LOCAL_BRANCH" != "HEAD" ]; then
         FPPBRANCH="$LOCAL_BRANCH"
+    elif [ "$LOCAL_BRANCH" = "HEAD" ]; then
+        # Detached HEAD -- rev-parse can't name a branch. This is exactly the
+        # state actions/checkout leaves a release-tag build in, and CI run
+        # 30107796268 shipped every 10.0-beta image checked out on "master"
+        # because this fallback used to just give up here and leave FPPBRANCH
+        # at its "master" default. Resolve the tag name instead of guessing.
+        LOCAL_TAG="$(git -C "$FPP_SRC_DIR" describe --tags --exact-match 2>/dev/null || true)"
+        if [ -n "$LOCAL_TAG" ]; then
+            FPPBRANCH="$LOCAL_TAG"
+        else
+            echo "ERROR: --use-local-src tree at $FPP_SRC_DIR is a detached HEAD not on any tag, and no --branch was given -- refusing to silently default to 'master'." >&2
+            exit 1
+        fi
     fi
 fi
 
