@@ -23,6 +23,7 @@
 #include <thread>
 
 #include "../Timers.h"
+#include "../fppversion.h"
 #include "../log.h"
 #include "../settings.h"
 

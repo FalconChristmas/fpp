@@ -22,6 +22,7 @@
 #include "Variables.h"
 #include "common.h"
 #include "log.h"
+#include "settings.h"
 #include "util/RegExCache.h"
 
 // A single async task's Result shouldn't be allowed to accumulate forever if

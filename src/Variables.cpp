@@ -20,6 +20,7 @@
 #include "Scheduler.h"
 #include "Variables.h"
 #include "Warnings.h"
+#include "common.h"
 #include "log.h"
 #include "mqtt.h"
 #include "settings.h"

@@ -17,6 +17,7 @@
 #include "Condition.h"
 #include "../SunRise.h"
 #include "../Variables.h"
+#include "../common.h"
 #include "../gpio.h"
 #include "../log.h"
 #include "../settings.h"
