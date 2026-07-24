@@ -247,10 +247,18 @@ jobs:
 
       - name: Build image
         if: steps.gate.outputs.skip == 'false'
+        # Pass --branch explicitly rather than relying on the FPPBRANCH env var
+        # (set by the "Set FPPBRANCH from ref" step above) surviving into this
+        # `sudo` invocation. Plain `sudo` drops the calling shell's environment,
+        # so FPPBRANCH silently reverted to build-image-pi.sh's own "master"
+        # default here -- confirmed via CI run 30107796268, which shipped every
+        # 10.0-beta image checked out on master instead of the release tag. A
+        # CLI arg isn't subject to that env-stripping at all.
         run: |
           sudo ./${{ matrix.script }} \
             --version "${{ needs.prep.outputs.version }}" \
             --os-version "$(date -u +%Y-%m)" \
+            --branch "${{ github.ref_name }}" \
             --use-local-src \
             ${{ matrix.extra_args }}
 
