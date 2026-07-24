@@ -83,6 +83,22 @@ void GPIOManager::Initialize(std::map<int, std::function<bool(int)>>& callbacks)
     }
 }
 
+bool GPIOManager::GetInputPinValue(const std::string& name, int& value) const {
+    for (auto* s : eventStates) {
+        if (s->pin && s->pin->name == name) {
+            value = s->lastValue;
+            return true;
+        }
+    }
+    for (auto* s : pollStates) {
+        if (s->pin && s->pin->name == name) {
+            value = s->lastValue;
+            return true;
+        }
+    }
+    return false;
+}
+
 // Poll-based pins: detect edges each main loop iteration.
 // Non-debounced edges fire immediately. Debounced edges schedule a
 // timer via Timers to re-read and confirm after the settle window.

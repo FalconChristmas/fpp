@@ -50,10 +50,12 @@ extern volatile int runMainFPPDLoop;
 
 #include "MultiSync.h"
 #include "OutputMonitor.h"
+#include "RecurringTasks.h"
 #include "Player.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "Sequence.h"
+#include "Variables.h"
 #include "Warnings.h"
 #include "common.h"
 #include "e131bridge.h"
@@ -63,15 +65,16 @@ extern volatile int runMainFPPDLoop;
 #include "log.h"
 #include "mqtt.h"
 #include "settings.h"
-#include "channeloutput/channeloutputthread.h"
 #include "channeloutput/ChannelOutputSetup.h"
+#include "channeloutput/channeloutputthread.h"
 #include "channeltester/ChannelTester.h"
 #include "commands/Commands.h"
+#include "commands/Condition.h"
 #include "mediaoutput/AES67Manager.h"
 #include "mediaoutput/AudioSourceRegistry.h"
-#include "mediaoutput/OpusRTPManager.h"
 #include "mediaoutput/MediaOutputBase.h"
 #include "mediaoutput/MediaOutputStatus.h"
+#include "mediaoutput/OpusRTPManager.h"
 #include "mediaoutput/StreamSlotManager.h"
 #include "mediaoutput/mediaoutput.h"
 #include "overlays/PixelOverlay.h"
@@ -432,6 +435,24 @@ void APIServer::Init(void) {
     app.registerHandler("/gpio", copyHandler(handleGpio), {drogon::Get, drogon::Post, drogon::Head});
     app.registerHandlerViaRegex("/gpio/.*", copyHandler(handleGpio), {drogon::Get, drogon::Post, drogon::Head});
 
+    // Variables (/variables/*, reachable externally as /api/variables/* via the
+    // Apache proxy whitelist in etc/apache2.site — same pattern as /gpio above)
+    auto handleVariables = [](const HttpRequestPtr& req,
+                              std::function<void(const HttpResponsePtr&)>&& callback) {
+        HttpResponsePtr resp;
+        if (req->method() == drogon::Get || req->isHead())
+            resp = Variables::INSTANCE.render_GET(req);
+        else if (req->method() == drogon::Post)
+            resp = Variables::INSTANCE.render_POST(req);
+        else if (req->method() == drogon::Delete)
+            resp = Variables::INSTANCE.render_DELETE(req);
+        else
+            resp = makeStringResponse("Method Not Allowed", 405);
+        callback(resp);
+    };
+    app.registerHandler("/variables", copyHandler(handleVariables), { drogon::Get, drogon::Post, drogon::Delete, drogon::Head });
+    app.registerHandlerViaRegex("/variables/.*", copyHandler(handleVariables), { drogon::Get, drogon::Post, drogon::Delete, drogon::Head });
+
     // Player (/player/*)
     auto handlePlayer = [](const HttpRequestPtr& req,
                            std::function<void(const HttpResponsePtr&)>&& callback) {
@@ -669,7 +690,9 @@ PlayerResource::~PlayerResource() {
  * Dump the cached MQTT messages.
  *
  * @route GET /api/fppd/mqtt/cache
- * @response 200 Cached MQTT messages.
+ * @response 200 Object keyed by topic, each value the topic's last cached message as a plain string.
+ *   Per-topic last-updated timestamps are exposed separately via
+ *   `GET /api/variables?mqtt=true` (`mqtt-<topic>` entries), not on this route.
  * @response 400 MQTT is not initialized.
  */
 HttpResponsePtr PlayerResource::render_GET(const HttpRequestPtr& req) {
@@ -727,6 +750,10 @@ HttpResponsePtr PlayerResource::render_GET(const HttpRequestPtr& req) {
         GetPlaylistFileTime(result);
     } else if (url == "playlist/config") {
         GetPlaylistConfig(result);
+    } else if (url == "recurringtasks") {
+        GetRecurringTasks(result);
+    } else if (url == "condition/preview") {
+        GetConditionPreview(req, result);
     } else if (url == "schedule") {
         result["schedule"] = scheduler->GetSchedule();
         SetOKResult(result, "");
@@ -1078,6 +1105,8 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
             replaceEnd(url, "/stop", "");
             LogDebug(VB_HTTP, "API - Stopping playlist '%s' w/ content '%s'\n", url.c_str(), getRequestContent(req).c_str());
         }
+    } else if (url == "recurringtasks") {
+        PostRecurringTasks(data, result);
     } else if (url == "schedule") {
         PostSchedule(data, result);
     } else if (url.find("volume/") == 0) {
@@ -1376,6 +1405,44 @@ void PlayerResource::GetPlaylistConfig(Json::Value& result) {
     SetOKResult(result, "");
 }
 
+/**
+ * Report the configured Recurring Tasks merged with last-run status, for the
+ * Recurring Tasks admin page (www/recurringtasks.php).
+ *
+ * @route GET /api/recurringtasks
+ * @response 200 {"tasks": [...]}
+ */
+void PlayerResource::GetRecurringTasks(Json::Value& result) {
+    result["tasks"] = Json::Value(Json::arrayValue);
+    RecurringTasks::INSTANCE.reportStatus(result["tasks"]);
+    SetOKResult(result, "");
+}
+
+/**
+ * Preview a single If/Conditional Check leaf's current raw value - the same
+ * lookup evaluate() uses internally (Variable/Expression/Setting/Time/MQTT/
+ * GPIO Pin/Sensor/Sun), before any comparator/Value is applied. Backs the
+ * If condition editor's "Show Current Value" button, so picking the right
+ * Value to compare against isn't guesswork.
+ *
+ * @route GET /api/fppd/condition/preview
+ * @param string source One of the If Check "Source" dropdown values (e.g. "Variable", "GPIO Pin").
+ * @param string name The Name/Expression field for that source.
+ * @response 200 {"found": true, "value": "..."} or {"found": false} if the source/name doesn't currently resolve.
+ */
+void PlayerResource::GetConditionPreview(const HttpRequestPtr& req, Json::Value& result) {
+    std::string source = getRequestArg(req, "source");
+    std::string name = getRequestArg(req, "name");
+    LogDebug(VB_HTTP, "API - Getting condition preview for source \"%s\" name \"%s\"\n", source.c_str(), name.c_str());
+    bool found = false;
+    std::string value = ConditionNode::PreviewSourceValue(source, name, found);
+    result["found"] = found;
+    if (found) {
+        result["value"] = value;
+    }
+    SetOKResult(result, "");
+}
+
 /*
  *
  */
@@ -1444,6 +1511,39 @@ void PlayerResource::PostOutputsRemap(const Json::Value& data, Json::Value& resu
         // FIXME, need to fix this function to lock the remap array
         // LoadChannelRemapData();
         SetOKResult(result, "channel remaps reloaded");
+    }
+}
+
+/**
+ * Re-read config/recurringtasks.json and re-schedule all Recurring Task
+ * timers to match, so a save on www/recurringtasks.php (which writes that
+ * file via the generic api/configfile endpoint) takes effect without an
+ * fppd restart. Also handles an immediate "Test Run" of one task, run
+ * synchronously against the posted task definition (not a saved name), so
+ * the admin page can preview unsaved edits.
+ *
+ * @route POST /api/recurringtasks
+ * @body {"command": "reload"}
+ * @body {"command": "test", "task": {"name": "...", "type": "command", "command": "URL", "args": [...], "filterType": "json", "filterJsonPath": "data.temp"}}
+ * @response 200 Recurring tasks reloaded, or {"ok":bool,"raw":string,"filtered":string,"error":string} for "test".
+ * @response 400 'command' field not specified.
+ */
+void PlayerResource::PostRecurringTasks(const Json::Value& data, Json::Value& result) {
+    if (!data.isMember("command")) {
+        SetErrorResult(result, 400, "'command' field not specified");
+        return;
+    }
+
+    std::string command = data["command"].asString();
+    if (command == "reload") {
+        RecurringTasks::INSTANCE.Reload();
+        SetOKResult(result, "Recurring tasks reloaded");
+    } else if (command == "test") {
+        Json::Value testResult = RecurringTasks::INSTANCE.TestRunTask(data["task"]);
+        for (auto const& key : testResult.getMemberNames()) {
+            result[key] = testResult[key];
+        }
+        SetOKResult(result, "");
     }
 }
 

@@ -40,6 +40,7 @@ CPP_SOURCES = [
     REPO_ROOT / 'src' / 'commands' / 'Commands.cpp',            # CommandManager      /command(s), /commandPresets
     REPO_ROOT / 'src' / 'gpio.cpp',                             # GPIOManager         /gpio/*
     REPO_ROOT / 'src' / 'Player.cpp',                           # Player              /player/*
+    REPO_ROOT / 'src' / 'Variables.cpp',                        # Variables           /variables/*
 ]
 
 # Both PHP controllers and C++ daemon sources are parsed for @route docblocks.

@@ -88,6 +88,25 @@ function buildHttpURL(ip, path) {
 	return 'http://' + host + path;
 }
 
+// navigator.clipboard only exists in a secure context (HTTPS or localhost) -
+// FPP's web UI is normally reached over plain HTTP on a LAN IP, where it's
+// simply undefined and calling .writeText() on it throws. Falls back to the
+// classic hidden-<textarea> + execCommand('copy') trick there.
+function CopyTextToClipboard (text) {
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		return navigator.clipboard.writeText(text);
+	}
+	var $ta = $('<textarea readonly>').val(text).css({ position: 'fixed', top: '-1000px', left: '-1000px' }).appendTo('body');
+	$ta[0].select();
+	try {
+		document.execCommand('copy');
+	} catch (e) {
+		// nothing more we can do
+	}
+	$ta.remove();
+	return Promise.resolve();
+}
+
 /* jQuery Colpick activation */
 var fppCommandColorPicker_fppDialogIntervalTimer = null;
 var fppCommandColorPicker_fppDialogIsOpen = false;
@@ -8373,6 +8392,1188 @@ function UpdateChildVisibility () {
 	fppCommandColorPicker();
 }
 
+// Same show/hide-by-parent-value behavior as UpdateChildVisibility(), but for
+// generic Command-args tables (commandEditor.php, GPIO's command picker,
+// etc.) that render straight from a Command's getDescription() JSON instead
+// of the global playlistEntryTypes structure - so the children map travels on
+// the element itself (data-children) rather than being looked up globally.
+function UpdateGenericArgChildVisibility (el) {
+	var $el = $(el);
+	var childrenMap;
+	try {
+		childrenMap = JSON.parse($el.attr('data-children'));
+	} catch (e) {
+		return;
+	}
+	var val = $el.val();
+	var shownNames = childrenMap.hasOwnProperty(val) ? childrenMap[val] : [];
+	var allNames = [];
+	$.each(childrenMap, function (k, names) {
+		allNames = allNames.concat(names);
+	});
+	$.each(allNames, function (i, name) {
+		if (shownNames.includes(name)) {
+			// Rows can start hidden via the server-rendered inline
+			// "visibility:collapse" (see initiallyHiddenChildren above) -
+			// jQuery's show() only ever touches `display`, never
+			// `visibility`, so a row hidden that way would otherwise never
+			// reappear. Clear it explicitly before show().
+			$('.arg_row_' + name).css('visibility', '').show();
+		} else {
+			$('.arg_row_' + name).hide();
+		}
+	});
+}
+
+// Activates Bootstrap tooltips for any CommandArg's "help" text - same
+// mechanism already used for the command-preset preview icon elsewhere in
+// this file (data-bs-toggle="tooltip" + .tooltip()), just newly wired into
+// the generic per-arg renderer (PrintArgInputs).
+function InitArgHelpTooltips () {
+	$('.argHelpIcon').tooltip();
+}
+
+// ---------------------------------------------------------------------
+// "commandlist" arg type - a repeatable list of {command, args} rows,
+// backing the If command's Then/Else Run fields. Ported from gpio.php's
+// GPIO-edge command list (renderModalList/cmdSummary/editModalCmd/
+// moveModalCmd/removeModalCmd, gpio.php ~line 531-780) rather than
+// invented fresh - same proven pattern: an in-memory array per list,
+// one-line summaries, Edit opens the existing ShowCommandEditor modal
+// (so a row's own args get the full generic command-args UI for free,
+// including any subcommand/commandlist/expression fields it has),
+// Up/Down swap array entries, Delete splices. See PrintArgInputs'
+// val['type'] == 'commandlist' branch for the markup this drives.
+// ---------------------------------------------------------------------
+
+var commandListState = {}; // id -> array of {command, args}
+
+function CommandListSummary (cmd) {
+	if (!cmd || !cmd.command) {
+		return '(none)';
+	}
+	var s = cmd.command;
+	if (cmd.args && cmd.args.length) {
+		s +=
+			': ' +
+			cmd.args
+				.map(function (a) {
+					return a !== '' ? a : '—';
+				})
+				.join(', ');
+	}
+	return s;
+}
+
+// Parses each not-yet-initialized commandListRoot hidden field's saved JSON
+// value into commandListState and renders it - called once per render via
+// initFuncs, same as PopulateExpressionVarHelpers.
+function InitCommandLists () {
+	$('.commandListRoot')
+		.not('[data-initialized]')
+		.each(function () {
+			$(this).attr('data-initialized', '1');
+			LoadCommandListFromHiddenField(this.id);
+		});
+}
+
+function LoadCommandListFromHiddenField (id) {
+	var raw = $('#' + id).val();
+	try {
+		commandListState[id] = JSON.parse(raw || '[]');
+	} catch (e) {
+		commandListState[id] = [];
+	}
+	RenderCommandListRows(id);
+}
+
+// PopulateExistingCommand() (used when reopening a command editor prefilled
+// with previously-saved values, e.g. editing an existing "If" or reopening
+// the outer editor after a nested commandlist pick) sets this hidden
+// field's real value *after* the form has already rendered and
+// InitCommandLists has already run once against the schema default -
+// via plain inp.val(v).change() (fpp.js PopulateExistingCommand). Nothing
+// was listening for that change, so the real saved value never made it
+// into commandListState; catch it here instead of only at initial render.
+$(document).on('change', '.commandListRoot', function () {
+	LoadCommandListFromHiddenField(this.id);
+});
+
+function RenderCommandListRows (id) {
+	var list = commandListState[id] || [];
+	var $c = $('#' + id + '_container').empty();
+	if (!list.length) {
+		$c.append("<div class='text-muted small mb-2'>No commands — click Add Command to configure.</div>");
+	}
+	$.each(list, function (i, cmd) {
+		var row = $("<div class='cmdListRow d-flex align-items-center gap-1 mb-1'></div>");
+		var label = $("<span class='cmdListLabel flex-fill'></span>").text(CommandListSummary(cmd));
+		var edit = $(
+			"<button type='button' class='buttons btn-sm' title='Edit'><i class='fas fa-pencil-alt'></i></button>"
+		).on('click', function () {
+			EditCommandListRow(id, i);
+		});
+		var up = $(
+			"<button type='button' class='buttons btn-sm' title='Move up'" +
+				(i === 0 ? ' disabled' : '') +
+				"><i class='fas fa-arrow-up'></i></button>"
+		).on('click', function () {
+			MoveCommandListRow(id, i, -1);
+		});
+		var dn = $(
+			"<button type='button' class='buttons btn-sm' title='Move down'" +
+				(i === list.length - 1 ? ' disabled' : '') +
+				"><i class='fas fa-arrow-down'></i></button>"
+		).on('click', function () {
+			MoveCommandListRow(id, i, 1);
+		});
+		var del = $(
+			"<button type='button' class='buttons btn-sm' title='Remove'><i class='fas fa-trash'></i></button>"
+		).on('click', function () {
+			RemoveCommandListRow(id, i);
+		});
+		row.append(label, edit, up, dn, del);
+		$c.append(row);
+	});
+	$('#' + id).val(JSON.stringify(list));
+
+	// A toggleStyle arg (e.g. the If command's Sequential/Parallel "Order:")
+	// can register itself as pairing with this commandlist via
+	// data-pairs-with (see PrintArgInputs) - only meaningful once there are
+	// 2+ commands to actually order, same rationale as the condition
+	// editor's own Match ALL/ANY toggle only showing for 2+ conditions.
+	$("tr[data-pairs-with='" + id + "']").toggle(list.length > 1);
+}
+
+// ShowCommandEditor's dialog (#commandEditorPopup/#commandEditorDiv) is a
+// singleton, not stackable - opening it again while an outer command editor
+// (e.g. the If command's own "FPP Command Editor" dialog) is already open
+// doesn't layer a second dialog on top, it *replaces* the outer one's DOM
+// content in place, silently discarding whatever the user had entered in
+// the outer form. commandEditor.php's own ids (#editorCommand etc.) aren't
+// parameterized for multiple simultaneous instances, so true nesting isn't
+// available without changing that shared file - not worth the risk to a
+// file GPIO's own editor also depends on.
+//
+// Instead: capture the outer editor's current in-progress state (via the
+// same CommandToJSON() the outer Save button itself uses, plus the global
+// commandEditorTarget/Callback/CancelCallback commandEditor.php's own
+// script already tracks) right before opening the nested picker, then
+// restore it - by literally reopening the same outer editor with that
+// captured state as its data - once the nested pick is saved OR cancelled.
+var commandListPendingOuterReopen = null;
+
+function CaptureOuterEditorAndOpenNested (nestedTarget, nestedData, title, saveButton) {
+	commandListPendingOuterReopen = {
+		target: commandEditorTarget,
+		data: CommandToJSON('editorCommand', 'tblCommandEditor', {}),
+		callback: commandEditorCallback,
+		cancelCallback: commandEditorCancelCallback
+	};
+	ShowCommandEditor(nestedTarget, nestedData, 'CommandListRowSavedThenReopen', 'CommandListRowCancelledThenReopen', {
+		title: title,
+		saveButton: saveButton,
+		cancelButton: 'Cancel',
+		showPresetSelect: true
+	});
+}
+
+function ReopenOuterCommandEditorAfterCommandListPick () {
+	var outer = commandListPendingOuterReopen;
+	commandListPendingOuterReopen = null;
+	if (!outer) {
+		return;
+	}
+	function doReopen () {
+		// Re-render the outer form exactly as it was, including whatever
+		// commandlist state was already accumulated in commandListState -
+		// InitCommandLists reads the (unchanged) hidden field value again,
+		// so rows added/edited before this nested pick are still there.
+		ShowCommandEditor(outer.target, outer.data, outer.callback, outer.cancelCallback, {
+			title: 'FPP Command Editor',
+			saveButton: 'Accept Changes',
+			cancelButton: 'Cancel Edit',
+			showPresetSelect: false
+		});
+	}
+	// fppDialog (fpp.js ~line 705) is a Bootstrap-modal wrapper, not jQuery
+	// UI - "close" maps to .modal('hide'), an async CSS-transition teardown.
+	// The nested picker's own Save/Cancel handler (commandEditor.php) calls
+	// that hide immediately before invoking our callback, so the hide is
+	// still in flight here. Reopening synchronously (or after a guessed
+	// timeout) races that teardown: the new content loads correctly but the
+	// modal chrome itself doesn't reliably become visible. Wait for
+	// Bootstrap's own "fully hidden" event instead of guessing a duration.
+	$('#commandEditorPopup').one('hidden.bs.modal', doReopen);
+}
+
+function AddCommandListRow (id) {
+	CaptureOuterEditorAndOpenNested(id + '||-1', {}, 'Add Command', 'Add Command');
+}
+
+function EditCommandListRow (id, idx) {
+	CaptureOuterEditorAndOpenNested(id + '||' + idx, (commandListState[id] || [])[idx] || {}, 'Edit Command', 'Save Command');
+}
+
+// ShowCommandEditor's "target" param is free-form and comes back verbatim
+// to the save callback, so it carries both which commandlist and which row
+// index this edit was for - no extra global state needed for a widget that
+// may have several independent instances on one page (e.g. If's
+// thenCommands and elseCommands at once).
+function CommandListRowSavedThenReopen (target, data) {
+	if (data && data.command) {
+		var parts = target.split('||');
+		var id = parts[0];
+		var idx = parseInt(parts[1], 10);
+		if (!commandListState[id]) {
+			commandListState[id] = [];
+		}
+		if (idx === -1) {
+			commandListState[id].push(data);
+		} else {
+			commandListState[id][idx] = data;
+		}
+		// commandListPendingOuterReopen.data was captured via CommandToJSON
+		// *before* this nested pick happened, so it still holds the old
+		// pre-edit commandlist JSON in this arg's slot. Patch that slot with
+		// the freshly updated array now, or the reopened outer form (which
+		// rebuilds entirely from this captured data) would show the stale
+		// list instead of what was just added/edited. ID encodes its own
+		// position as "..._arg_N" (see PrintArgInputs), which is exactly the
+		// index CommandToJSON's positional args array uses.
+		if (commandListPendingOuterReopen) {
+			var m = id.match(/_arg_(\d+)$/);
+			if (m) {
+				var argIndex = parseInt(m[1], 10) - 1;
+				commandListPendingOuterReopen.data.args = commandListPendingOuterReopen.data.args || [];
+				commandListPendingOuterReopen.data.args[argIndex] = JSON.stringify(commandListState[id]);
+			}
+		}
+	}
+	ReopenOuterCommandEditorAfterCommandListPick();
+}
+
+function CommandListRowCancelledThenReopen () {
+	ReopenOuterCommandEditorAfterCommandListPick();
+}
+
+function RemoveCommandListRow (id, idx) {
+	(commandListState[id] || []).splice(idx, 1);
+	RenderCommandListRows(id);
+}
+
+function MoveCommandListRow (id, idx, dir) {
+	var list = commandListState[id] || [];
+	var t2 = idx + dir;
+	if (t2 < 0 || t2 >= list.length) {
+		return;
+	}
+	var tmp = list[idx];
+	list[idx] = list[t2];
+	list[t2] = tmp;
+	RenderCommandListRows(id);
+}
+
+// ---------------------------------------------------------------------
+// "conditionlist" arg type - the If command's Check field, and its only
+// way to specify a condition. A tree of conditions and groups, each
+// sharing one AND/OR: a single plain condition renders inline (no modal -
+// matches the old single-condition case exactly); once there's more than
+// one item at a level, or a Group is added, every item becomes a one-line
+// summary with Edit/Up/Down/Delete, and Edit opens a small dedicated
+// modal - the same "summary + modal" shape already proven for Then/Else
+// Run (~8440), just via a lightweight modal of our own (fppDialog
+// directly) instead of the Command-specific ShowCommandEditor. A Group's
+// own modal renders this same tree logic recursively, so nesting - e.g.
+// (A AND B) OR C - falls out of the architecture instead of needing
+// bespoke recursive inline rendering.
+//
+// Must stay in sync with Condition.cpp's LeafNode::compare()/readSource()
+// comparator and source vocabulary - there's no shared source of truth
+// for these on the frontend.
+// ---------------------------------------------------------------------
+
+var conditionListState = {};
+var CONDITION_SOURCES = [
+	'Variable',
+	'Expression',
+	'Setting',
+	'Time',
+	'MQTT',
+	'GPIO Pin',
+	'Sensor',
+	'Sun'
+];
+// Name-field label per source, matching Condition.cpp's readSource() use of
+// `name` - Time ignores `name` entirely (currentTimeHHMM()), so it gets no
+// Name field at all rather than a placeholder that would just be confusing.
+var CONDITION_NAME_LABELS = {
+	Variable: 'Variable Name',
+	Setting: 'Setting Name',
+	MQTT: 'MQTT Topic',
+	'GPIO Pin': 'GPIO Pin Name',
+	Sensor: 'Sensor Label',
+	Sun: 'Sunrise or Sunset'
+};
+
+// Suggests real, currently-known names for the Name field via a <datalist>,
+// so the user isn't guessing exact spelling/case against Condition.cpp's
+// exact-match readSource() lookups. Fetched once per source per page load
+// and cached - these lists (variable names, setting names, GPIO pin names,
+// sensor labels) don't change often enough to justify refetching on every
+// row render, and RenderConditionFields() re-renders on every source-dropdown
+// change.
+var CONDITION_NAME_OPTIONS_CACHE = {};
+function FetchConditionNameOptions (source, callback) {
+	if (CONDITION_NAME_OPTIONS_CACHE[source]) {
+		callback(CONDITION_NAME_OPTIONS_CACHE[source]);
+		return;
+	}
+	function done (names) {
+		names.sort();
+		CONDITION_NAME_OPTIONS_CACHE[source] = names;
+		callback(names);
+	}
+	if (source === 'Variable') {
+		// Three sources of names, all valid targets for the same "Variable"
+		// condition source (Condition.cpp's readSource() reads all of them
+		// through the same Variables::getVariable() call): User Variables
+		// (api/variables), the read-only fpp- status variables
+		// (api/variables?fpp=true), and the read-only mqtt-<topic> variables
+		// (api/variables?mqtt=true). Grouped rather than one flat
+		// alphabetical sort (bypasses the shared done() helper below, which
+		// would otherwise re-sort everything together) - User Variables are
+		// the ones actually worth typing by hand and there are usually only
+		// a few of them, while mqtt-<topic> alone can run into the
+		// thousands on a busy broker and would otherwise bury them
+		// alphabetically. Browsers show <datalist> suggestions in source
+		// order when filtering by what's typed so far (verified in Chrome/
+		// Firefox), so this grouping survives into what the user sees.
+		$.when(
+			$.ajax({ url: 'api/variables', dataType: 'json' }),
+			$.ajax({ url: 'api/variables?fpp=true', dataType: 'json' }),
+			$.ajax({ url: 'api/variables?mqtt=true', dataType: 'json' })
+		)
+			.done(function (r1, r2, r3) {
+				var names = Object.keys(r1[0] || {}).sort()
+					.concat(Object.keys(r2[0] || {}).sort())
+					.concat(Object.keys(r3[0] || {}).sort());
+				CONDITION_NAME_OPTIONS_CACHE[source] = names;
+				callback(names);
+			})
+			.fail(function () {
+				done([]);
+			});
+		return;
+	}
+	if (source === 'Setting') {
+		$.ajax({
+			url: 'api/settings',
+			dataType: 'json',
+			success: function (data) {
+				var names = [];
+				$.each((data && data.settingGroups) || {}, function (g, grp) {
+					$.each(grp.settings || [], function (i, s) {
+						names.push(s);
+					});
+				});
+				done(names);
+			},
+			error: function () {
+				done([]);
+			}
+		});
+		return;
+	}
+	if (source === 'GPIO Pin') {
+		// Same list the "GPIO" Command's own Pin arg uses (gpio.cpp) - these
+		// are the exact names GPIOManager::fppCommandLastValue is keyed by.
+		$.ajax({
+			url: 'api/options/GPIOLIST',
+			dataType: 'json',
+			success: function (data) {
+				done(Object.keys(data || {}));
+			},
+			error: function () {
+				done([]);
+			}
+		});
+		return;
+	}
+	if (source === 'Sensor') {
+		$.ajax({
+			url: 'api/fppd/status',
+			dataType: 'json',
+			success: function (data) {
+				done(((data && data.sensors) || []).map(function (s) {
+					return s.label;
+				}));
+			},
+			error: function () {
+				done([]);
+			}
+		});
+		return;
+	}
+	if (source === 'MQTT') {
+		// Topics FPP has actually seen a message on (mqtt->CacheCheckMessage's
+		// own cache) - a suggestion, not the full space of possible topics,
+		// since MQTT topics aren't otherwise enumerable.
+		$.ajax({
+			url: 'api/fppd/mqtt/cache',
+			dataType: 'json',
+			success: function (data) {
+				var names = [];
+				$.each(data || {}, function (k) {
+					if (k !== 'Status' && k !== 'respCode' && k !== 'Message') {
+						names.push(k);
+					}
+				});
+				done(names);
+			},
+			error: function () {
+				done([]);
+			}
+		});
+		return;
+	}
+	done([]);
+}
+
+var CONDITION_COMPARATORS = [
+	'equal to',
+	'not equal to',
+	'greater than',
+	'greater or equal',
+	'less than',
+	'less or equal',
+	'contains',
+	'between'
+];
+
+function BuildInlineSelect (options, selected, onChange) {
+	var $sel = $("<select class='form-select form-select-sm d-inline-block w-auto me-1'></select>");
+	$.each(options, function (i, o) {
+		$sel.append("<option value='" + o + "'" + (o === selected ? ' selected' : '') + '>' + o + '</option>');
+	});
+	$sel.on('change', function () {
+		onChange($(this).val());
+	});
+	return $sel;
+}
+
+function NewCondition () {
+	return { type: 'condition', source: 'Variable', name: '', comparator: 'equal to', value: '' };
+}
+function NewGroup () {
+	return { type: 'group', op: 'AND', items: [], label: '' };
+}
+
+function InitConditionLists () {
+	$('.conditionListRoot')
+		.not('[data-initialized]')
+		.each(function () {
+			$(this).attr('data-initialized', '1');
+			LoadConditionListFromHiddenField(this.id);
+		});
+}
+
+// Backend JSON shape (ConditionNode::FromJSON, Condition.cpp): a group is
+// {"op":"AND"|"OR","conditions":[...]}, a leaf is
+// {"source":...,"name":...,"comparator":...,"value":...} - already
+// naturally recursive (a "conditions" entry can itself be a group), so no
+// backend changes were needed to support nesting, only a frontend that can
+// build/read that shape as a tree instead of a flat list. "label" (below) is
+// a frontend-only optional display name for a group - FromJSON reads only
+// the keys it knows about and silently ignores unrecognized ones, so this
+// is a safe additive field; old saved conditions simply have no label.
+function BackendJSONToTree (json) {
+	if (!json || typeof json !== 'object') {
+		return NewGroup();
+	}
+	if (json.op) {
+		var group = { type: 'group', op: json.op === 'OR' ? 'OR' : 'AND', items: [], label: json.label || '' };
+		if (Array.isArray(json.conditions)) {
+			group.items = json.conditions.map(BackendJSONToTree);
+		}
+		return group;
+	}
+	return {
+		type: 'condition',
+		source: json.source || 'Variable',
+		name: json.name || '',
+		comparator: json.comparator || 'equal to',
+		value: json.value || ''
+	};
+}
+
+function TreeToBackendJSON (item) {
+	if (item.type === 'group') {
+		var out = { op: item.op, conditions: item.items.map(TreeToBackendJSON) };
+		// Only emit "label" when set, so an unnamed group round-trips to the
+		// exact same minimal shape as before this field existed.
+		if (item.label) {
+			out.label = item.label;
+		}
+		return out;
+	}
+	return { source: item.source, name: item.name || '', comparator: item.comparator, value: item.value || '' };
+}
+
+function LoadConditionListFromHiddenField (id) {
+	var raw = $('#' + id).val();
+	var tree;
+	if (raw) {
+		try {
+			tree = BackendJSONToTree(JSON.parse(raw));
+		} catch (e) {
+			tree = NewGroup();
+		}
+	} else {
+		// Brand-new/unconfigured If - default to one condition, same as if
+		// the user had clicked "+ Add Condition" themselves. Safe to default
+		// to non-empty now that a single condition renders collapsed (a
+		// summary row + Edit button, same as the 2+ case - see
+		// RenderConditionTree) rather than an already-expanded
+		// Source/Name/Comparator/Value box, so this doesn't reintroduce an
+		// unconfigured If that looks "ready" without the user choosing
+		// anything - they still have to click Edit to fill it in.
+		tree = { type: 'group', op: 'AND', items: [NewCondition()], label: '' };
+	}
+	conditionListState[id] = tree;
+	RenderConditionTree($('#' + id + '_container'), tree, function () {
+		OnConditionTreeChanged(id);
+	});
+	OnConditionTreeChanged(id);
+}
+
+// Same rationale as the .commandListRoot change listener above -
+// PopulateExistingCommand() sets this hidden field's real saved value via
+// inp.val(v).change() *after* the initial render/InitConditionLists pass.
+$(document).on('change', '.conditionListRoot', function () {
+	LoadConditionListFromHiddenField(this.id);
+});
+
+// A toggleStyle 2-option arg (see PrintArgInputs) keeps its real value in a
+// hidden mirror input, id-addressed the same way CommandToJSON/
+// PopulateExistingCommand read/write every other arg. This listener is what
+// keeps the visible btn-check radio pair showing the right selection
+// whenever that hidden value changes from either direction - a user
+// clicking a radio (below), or a saved value being loaded via
+// PopulateExistingCommand's inp.val(v).change().
+$(document).on('change', '.toggleStyleRoot', function () {
+	var v = $(this).val();
+	// .find() (not .nextAll()) since the toggle sits inside its own label
+	// wrapper div, not as a direct sibling of the hidden field - both live
+	// in the same <td> cell regardless.
+	$(this).closest('td').find('.toggleStyleGroup input[type=radio]').each(function () {
+		$(this).prop('checked', $(this).val() === v);
+	});
+});
+
+// Clicking a toggleStyle radio just updates its hidden mirror field (which
+// re-fires the listener above to reflect the click back into the radios -
+// harmless, since setting the same checked state again doesn't re-trigger
+// anything). Delegated since these radios are created dynamically per arg.
+// Scoped to .toggleStyleGroup specifically (not the generic .btn-group the
+// condition-tree's own Match ALL/ANY toggle also uses) so the two don't
+// cross-talk.
+$(document).on('change', '.toggleStyleGroup input[type=radio]', function () {
+	var $hidden = $(this).closest('td').find('.toggleStyleRoot');
+	if ($hidden.length) {
+		$hidden.val($(this).val()).trigger('change');
+	}
+});
+
+function SerializeConditionList (id) {
+	var tree = conditionListState[id];
+	// No items yet -> write an empty string, not an empty AND-group. An
+	// empty AND-group would evaluate to true unconditionally (the loop
+	// never runs), silently matching before the user configures anything.
+	if (!tree || !tree.items.length) {
+		$('#' + id).val('');
+		return;
+	}
+	$('#' + id).val(JSON.stringify(TreeToBackendJSON(tree)));
+}
+
+// Wraps SerializeConditionList so the live formula preview (below) refreshes
+// alongside serialization - every mutation in the tree already funnels
+// through one onChange closure passed down from LoadConditionListFromHiddenField,
+// so wrapping it here is the only place this needs to be threaded.
+function OnConditionTreeChanged (id) {
+	SerializeConditionList(id);
+	RefreshConditionFormula(id);
+}
+
+function RefreshConditionFormula (id) {
+	var tree = conditionListState[id];
+	var $out = $('#' + id + '_formula');
+	if (!tree || !tree.items.length) {
+		$out.text('No conditions configured yet.');
+		return;
+	}
+	$out.text(BuildConditionFormula(tree));
+}
+
+// Recursively builds a plain-English one-line summary of the whole tree,
+// shown above the Check section and reused for the outer preset/task row
+// list's summary (FillInCommandTemplate) so neither place shows raw JSON.
+// Leaves reuse SummarizeConditionItem's leaf text as-is; a group joins its
+// children with its own AND/OR, wraps in parens once there's more than one
+// child (so nesting precedence reads unambiguously), and prefixes its own
+// label if the user named it.
+function BuildConditionFormula (item) {
+	if (item.type !== 'group') {
+		return SummarizeConditionItem(item);
+	}
+	if (!item.items.length) {
+		return (item.label || 'Group') + ': (empty)';
+	}
+	var joined = item.items.map(BuildConditionFormula).join(' ' + item.op + ' ');
+	if (item.items.length > 1) {
+		joined = '(' + joined + ')';
+	}
+	return item.label ? item.label + ': ' + joined : joined;
+}
+
+// Renders one group's contents ($container is emptied and rebuilt): the
+// ALL/ANY match toggle (only for 2+ items, meaningless for exactly one),
+// each item - a leaf condition as a collapsed summary+Edit row (unchanged
+// from before), or a nested group rendered fully inline/recursively as its
+// own bordered, indented card (never behind a modal - this is what makes the
+// whole tree's shape visible in one view instead of requiring a chain of
+// modals to see nested groups) - and the Add Condition/Add Group buttons.
+// onChange() runs after every mutation so the caller can reserialize and
+// refresh the formula preview.
+function RenderConditionTree ($container, tree, onChange, depth) {
+	depth = depth || 0;
+	$container.empty();
+
+	if (tree.items.length > 1) {
+		$container.append(RenderMatchToggle(tree, onChange));
+	}
+
+	$.each(tree.items, function (i, item) {
+		var row = (item.type === 'group')
+			? RenderConditionGroupRow($container, tree, item, i, onChange, depth + 1)
+			: RenderConditionLeafRow($container, tree, item, i, onChange);
+		$container.append(row);
+	});
+
+	$container.append(RenderAddButtons(tree, $container, onChange, depth));
+}
+
+// ALL/ANY toggle - a Bootstrap btn-check radio pair rather than a bare
+// AND/OR <select>, so the plain-English word and the technical term (still
+// what fppd.log's debug trace prints) are both visible at once. Needs a
+// unique radio "name" per call since - unlike the old modal-per-group flow -
+// multiple groups can now be visible/interactive on the page simultaneously;
+// reusing one name across groups would let clicking one group's toggle
+// visually affect a same-named radio in a sibling group.
+var conditionMatchToggleSeq = 0;
+function RenderMatchToggle (tree, onChange) {
+	var seq = ++conditionMatchToggleSeq;
+	var name = 'condOp_' + seq;
+	var allId = 'condOpAll_' + seq;
+	var anyId = 'condOpAny_' + seq;
+	var $wrap = $(
+		"<div class='mb-2 d-flex align-items-center gap-2'>" +
+			"<span class='text-muted'>Match:</span>" +
+			"<div class='btn-group btn-group-sm' role='group'>" +
+			"<input type='radio' class='btn-check' name='" + name + "' id='" + allId + "' autocomplete='off'" +
+			(tree.op !== 'OR' ? ' checked' : '') + ">" +
+			"<label class='btn btn-outline-secondary' for='" + allId + "'>Match ALL (AND)</label>" +
+			"<input type='radio' class='btn-check' name='" + name + "' id='" + anyId + "' autocomplete='off'" +
+			(tree.op === 'OR' ? ' checked' : '') + ">" +
+			"<label class='btn btn-outline-secondary' for='" + anyId + "'>Match ANY (OR)</label>" +
+			'</div>' +
+			'</div>'
+	);
+	$wrap.find('#' + allId).on('change', function () {
+		tree.op = 'AND';
+		onChange();
+	});
+	$wrap.find('#' + anyId).on('change', function () {
+		tree.op = 'OR';
+		onChange();
+	});
+	return $wrap;
+}
+
+// A nested group's row: a bordered, indented "card" rendered directly
+// inline (never behind a modal, unlike a leaf's Edit button) so its entire
+// contents - down to any further-nested groups - are visible without
+// clicking anything. Groups have no Edit button; Move up/down/Remove act on
+// $parentContainer/parentTree directly, same as a leaf row's equivalents.
+function RenderConditionGroupRow ($parentContainer, parentTree, group, i, onChange, depth) {
+	// Cycle 3 depth-shades regardless of how deep the tree goes (see
+	// fpp-system-design.css - --fpp-border-medium is dark-theme-only, so
+	// only 3 tokens are safe to reuse across both themes).
+	var shade = ((depth - 1) % 3) + 1;
+	var indent = Math.min(depth, 3);
+	var $card = $(
+		"<div class='condGroupCard rounded p-2 mb-2 ms-" + indent + " d-flex flex-column gap-1' data-depth='" + shade + "'></div>"
+	);
+	var $header = $("<div class='d-flex align-items-center gap-1'></div>");
+	var $toggle = $(
+		"<button type='button' class='buttons btn-sm' title='Collapse/expand'><i class='fas fa-chevron-down'></i></button>"
+	);
+	var $body = $("<div class='condGroupBody'></div>");
+	$toggle.on('click', function () {
+		$body.toggle();
+		$toggle.find('i').toggleClass('fa-chevron-down fa-chevron-right');
+	});
+	var $name = $(
+		"<input type='text' class='form-control form-control-sm w-auto flex-fill condGroupLabel' placeholder='Group name (optional)'>"
+	).val(group.label || '');
+	// input (not just change) for live formula-preview feedback while
+	// typing, without re-rendering the tree (which would steal focus).
+	$name.on('input', function () {
+		group.label = $(this).val();
+		onChange();
+	});
+	var up = $(
+		"<button type='button' class='buttons btn-sm' title='Move up'" +
+			(i === 0 ? ' disabled' : '') +
+			"><i class='fas fa-arrow-up'></i></button>"
+	).on('click', function () {
+		if (i === 0) {
+			return;
+		}
+		var tmp = parentTree.items[i - 1];
+		parentTree.items[i - 1] = parentTree.items[i];
+		parentTree.items[i] = tmp;
+		RenderConditionTree($parentContainer, parentTree, onChange, depth - 1);
+		onChange();
+	});
+	var down = $(
+		"<button type='button' class='buttons btn-sm' title='Move down'" +
+			(i === parentTree.items.length - 1 ? ' disabled' : '') +
+			"><i class='fas fa-arrow-down'></i></button>"
+	).on('click', function () {
+		if (i === parentTree.items.length - 1) {
+			return;
+		}
+		var tmp = parentTree.items[i + 1];
+		parentTree.items[i + 1] = parentTree.items[i];
+		parentTree.items[i] = tmp;
+		RenderConditionTree($parentContainer, parentTree, onChange, depth - 1);
+		onChange();
+	});
+	var del = $(
+		"<button type='button' class='buttons btn-sm' title='Remove group'><i class='fas fa-trash'></i></button>"
+	).on('click', function () {
+		parentTree.items.splice(i, 1);
+		RenderConditionTree($parentContainer, parentTree, onChange, depth - 1);
+		onChange();
+	});
+	$header.append($toggle, $name, up, down, del);
+	$card.append($header, $body);
+	RenderConditionTree($body, group, onChange, depth);
+	return $card;
+}
+
+// A leaf condition's row - unchanged from before this redesign: a collapsed
+// one-line summary + Edit/Up/Down/Delete, Edit opening the existing small
+// ShowConditionSubEditor modal with RenderConditionFields inside.
+function RenderConditionLeafRow ($container, tree, item, i, onChange) {
+	var row = $("<div class='condListRow border rounded p-2 mb-2 d-flex align-items-center gap-1'></div>");
+	var label = $("<span class='flex-fill'></span>").text(SummarizeConditionItem(item));
+	var edit = $(
+		"<button type='button' class='buttons btn-sm' title='Edit'><i class='fas fa-pencil-alt'></i></button>"
+	).on('click', function () {
+		ShowConditionSubEditor('Edit Condition', function ($body) {
+			RenderConditionFields($body, item, function () {
+				label.text(SummarizeConditionItem(item));
+				onChange();
+			});
+		});
+	});
+	var up = $(
+		"<button type='button' class='buttons btn-sm' title='Move up'" +
+			(i === 0 ? ' disabled' : '') +
+			"><i class='fas fa-arrow-up'></i></button>"
+	).on('click', function () {
+		if (i === 0) {
+			return;
+		}
+		var tmp = tree.items[i - 1];
+		tree.items[i - 1] = tree.items[i];
+		tree.items[i] = tmp;
+		RenderConditionTree($container, tree, onChange);
+		onChange();
+	});
+	var down = $(
+		"<button type='button' class='buttons btn-sm' title='Move down'" +
+			(i === tree.items.length - 1 ? ' disabled' : '') +
+			"><i class='fas fa-arrow-down'></i></button>"
+	).on('click', function () {
+		if (i === tree.items.length - 1) {
+			return;
+		}
+		var tmp = tree.items[i + 1];
+		tree.items[i + 1] = tree.items[i];
+		tree.items[i] = tmp;
+		RenderConditionTree($container, tree, onChange);
+		onChange();
+	});
+	var del = $(
+		"<button type='button' class='buttons btn-sm' title='Remove'><i class='fas fa-trash'></i></button>"
+	).on('click', function () {
+		tree.items.splice(i, 1);
+		RenderConditionTree($container, tree, onChange);
+		onChange();
+	});
+	row.append(label, edit, up, down, del);
+	return row;
+}
+
+// Deeply nested AND/OR trees are hard for a human to reason about
+// regardless of how clean the UI is - the depth-shading CSS itself only
+// cycles 3 distinct colors and indentation caps at 3 levels (see
+// RenderConditionGroupRow), so nesting further stops being visually
+// distinguishable anyway. "+ Add Group" is hidden (not just disabled) once
+// a group is already 3 levels deep, since a 4th level would be invisible in
+// the UI as well as hard to reason about. "+ Add Condition" has no such
+// limit - a flat list of conditions inside one group doesn't have this
+// problem, only nesting groups within groups does.
+var CONDITION_MAX_GROUP_DEPTH = 3;
+function RenderAddButtons (tree, $container, onChange, depth) {
+	var addCond = $('<input type="button" class="buttons btn-sm me-1" value="+ Add Condition">').on('click', function () {
+		tree.items.push(NewCondition());
+		RenderConditionTree($container, tree, onChange, depth);
+		onChange();
+	});
+	if (depth >= CONDITION_MAX_GROUP_DEPTH) {
+		return [addCond];
+	}
+	var addGroup = $('<input type="button" class="buttons btn-sm" value="+ Add Group">').on('click', function () {
+		tree.items.push(NewGroup());
+		RenderConditionTree($container, tree, onChange, depth);
+		onChange();
+	});
+	return [addCond, addGroup];
+}
+
+function SummarizeConditionItem (item) {
+	if (item.type === 'group') {
+		var n = item.items.length;
+		var base = 'Group (' + item.op + ', ' + n + (n === 1 ? ' condition' : ' conditions') + ')';
+		return item.label ? item.label + ': ' + base : base;
+	}
+	var s = (item.source || 'Variable') + (item.name ? ' ' + item.name : '') + ' ' + (item.comparator || 'equal to');
+	if (item.value !== '') {
+		// Quoted (double quotes, since values can themselves contain an
+		// apostrophe) so a value is never ambiguous with surrounding text -
+		// this matters most once BuildConditionFormula joins several
+		// conditions with literal " AND "/" OR ", where an unquoted value
+		// containing those words could be misread as tree structure rather
+		// than data.
+		s += ' "' + item.value + '"';
+	}
+	return s;
+}
+
+// Renders the Source/Name/Comparator/Value fields for one condition into
+// $container - used both for the sole-inline-condition case and inside a
+// per-condition modal. When Source is "Expression", Name gets the same
+// live-validation + variable-insert-helper treatment as the dedicated
+// "expression" CommandArg type (Set Variable's own Expression mode) -
+// reusing DebounceValidateExpression/PopulateExpressionVarHelpers as-is;
+// they only need an input element plus a couple of target ids/classes,
+// nothing tying them specifically to the generic command-args renderer.
+var conditionFieldIdSeq = 0;
+function RenderConditionFields ($container, cond, onChange) {
+	$container.empty();
+
+	var sourceSel = BuildInlineSelect(CONDITION_SOURCES, cond.source, function (v) {
+		cond.source = v;
+		// A Value typed against the old source (e.g. a GPIO "1"/"0", or a
+		// Sensor's numeric reading) is generally meaningless once Source
+		// changes, so don't leave it looking like it still applies.
+		cond.value = '';
+		RenderConditionFields($container, cond, onChange); // re-render so Name's widget can swap for Expression
+		onChange();
+	});
+
+	var $nameWrap = $("<span class='d-inline-block'></span>");
+	if (cond.source === 'Time') {
+		// currentTimeHHMM() in Condition.cpp ignores `name` entirely - nothing
+		// to fill in, so don't show a field that would look meaningful but do
+		// nothing.
+		cond.name = '';
+	} else if (cond.source === 'Expression') {
+		var fieldId = 'condExpr_' + ++conditionFieldIdSeq;
+		var nameInp = $(
+			"<input type='text' id='" +
+				fieldId +
+				"' class='form-control form-control-sm d-inline-block w-auto' placeholder='Expression'>"
+		)
+			.val(cond.name)
+			.on('input', function () {
+				cond.name = $(this).val();
+				DebounceValidateExpression(this, fieldId + '_validIcon');
+				onChange();
+			});
+		var validIcon = $("<span id='" + fieldId + "_validIcon' class='expressionValidIcon ms-1'></span>");
+		var helper = $("<div class='expressionVarHelper text-muted small' data-target='" + fieldId + "'></div>");
+		$nameWrap.append(nameInp, validIcon, helper);
+		if (cond.name) {
+			DebounceValidateExpression(nameInp[0], fieldId + '_validIcon');
+		}
+	} else if (cond.source === 'Sun') {
+		// Only two valid values (Condition.cpp's sunTimeHHMM: anything that
+		// isn't literally "Sunrise" falls through to sunset) - a free-text
+		// field here is pure typo risk for zero benefit, so use a real
+		// dropdown instead of a suggested-values datalist.
+		var sunSel = BuildInlineSelect(['Sunrise', 'Sunset'], cond.name || 'Sunrise', function (v) {
+			cond.name = v;
+			onChange();
+		});
+		if (!cond.name) {
+			cond.name = 'Sunrise';
+		}
+		$nameWrap.append(sunSel);
+	} else {
+		var nameFieldId = 'condName_' + ++conditionFieldIdSeq;
+		var plainNameInp = $(
+			"<input type='text' list='" +
+				nameFieldId +
+				"_list' class='form-control form-control-sm d-inline-block w-auto' placeholder='" +
+				(CONDITION_NAME_LABELS[cond.source] || 'Name') +
+				"'>"
+		)
+			.val(cond.name)
+			.on('input', function () {
+				cond.name = $(this).val();
+				onChange();
+			});
+		var nameDatalist = $("<datalist id='" + nameFieldId + "_list'></datalist>");
+		$nameWrap.append(plainNameInp, nameDatalist);
+		FetchConditionNameOptions(cond.source, function (names) {
+			$.each(names, function (i, n) {
+				nameDatalist.append("<option value='" + $('<div>').text(n).html() + "'>");
+			});
+		});
+	}
+
+	var compSel = BuildInlineSelect(CONDITION_COMPARATORS, cond.comparator, function (v) {
+		cond.comparator = v;
+		onChange();
+	});
+	var valInp = $("<input type='text' class='form-control form-control-sm d-inline-block w-auto' placeholder='Value'>")
+		.val(cond.value)
+		.on('input', function () {
+			cond.value = $(this).val();
+			onChange();
+		});
+
+	var showValueBtn = $(
+		"<button type='button' class='buttons reallySmallButton ms-1' title='Show the current value for this Source/Name'><i class='fas fa-eye'></i></button>"
+	).on('click', function () {
+		ShowConditionCurrentValuePopup(cond, valInp);
+	});
+
+	$container.append(sourceSel, $nameWrap, ' is ', compSel, valInp, showValueBtn);
+	if (cond.source === 'Expression') {
+		PopulateExpressionVarHelpers();
+	}
+}
+
+// "Show Current Value" (the "?" button next to Value) - previews what
+// cond.source/cond.name currently resolves to via the same lookup evaluate()
+// itself uses (Condition.cpp's ConditionNode::PreviewSourceValue(), exposed
+// at api/fppd/condition/preview), so picking the right Value to compare
+// against isn't guesswork. Offers to copy the result straight into the
+// Value field rather than just displaying it, since that's the whole point.
+var conditionValuePreviewSeq = 0;
+function ShowConditionCurrentValuePopup (cond, valInp) {
+	var domId = 'condValuePreview_' + (++conditionValuePreviewSeq);
+	var $popup = $("<div id='" + domId + "'><div class='condValuePreviewBody'>Loading...</div></div>").appendTo('body');
+	$popup.fppDialog({
+		height: 'auto',
+		width: 400,
+		title: cond.source + (cond.name ? ': ' + cond.name : ''),
+		modal: true,
+		open: function () {
+			$popup.parent().find('.ui-dialog-titlebar-close').hide();
+		},
+		close: function () {
+			$popup.remove();
+		},
+		buttons: {
+			Close: function () {
+				$popup.fppDialog('close');
+			}
+		}
+	});
+	$.ajax({
+		url: 'api/fppd/condition/preview',
+		data: { source: cond.source, name: cond.name || '' },
+		dataType: 'json',
+		success: function (data) {
+			var $body = $popup.find('.condValuePreviewBody');
+			$body.empty();
+			if (!data || !data.found) {
+				$body.append("<span class='text-muted'>No current value - not set/seen yet, or Name doesn't match anything.</span>");
+				return;
+			}
+			var valSpan = $("<code></code>").text(data.value);
+			$body.append($('<div class="mb-2"></div>').append('Current value: ', valSpan));
+			$('<input type="button" class="buttons btn-sm" value="Use as Value">')
+				.on('click', function () {
+					valInp.val(data.value).trigger('input');
+					$popup.fppDialog('close');
+				})
+				.appendTo($body);
+		},
+		error: function () {
+			$popup.find('.condValuePreviewBody').html("<span class='text-danger'>Failed to fetch current value.</span>");
+		}
+	});
+}
+
+// Lightweight dedicated modal for editing one condition or group - not
+// ShowCommandEditor, which is specific to Commands (a fixed arg schema
+// from getDescription()); conditions/groups are plain in-memory objects
+// mutated live as the user edits, with no separate Save/Cancel state to
+// reconcile, so a single Close button is enough. A fresh, uniquely-id'd
+// dialog element per call - not a shared singleton like
+// commandEditorPopup - so editing a condition *inside* an already-open
+// group modal genuinely stacks (Bootstrap handles multiple independent
+// modal instances stacking correctly) instead of replacing the parent,
+// the same class of bug already fixed once for the nested commandlist
+// editor - avoided here by construction instead of by capture/restore.
+var conditionSubEditorSeq = 0;
+function ShowConditionSubEditor (title, renderBodyFn) {
+	var domId = 'conditionSubEditor_' + ++conditionSubEditorSeq;
+	// Body and footer are separate containers: renderBodyFn (RenderConditionTree)
+	// re-renders "_body" on every Add Group/Add Condition, so the Close button
+	// lives in "_footer" instead - otherwise it gets wiped out along with the
+	// tree on the very next edit (reported: "close button disappears").
+	var $popup = $(
+		"<div id='" + domId + "'><div id='" + domId + "_body'></div>" +
+			"<div id='" + domId + "_footer'></div></div>"
+	).appendTo('body');
+	$popup.fppDialog({
+		height: 'auto',
+		width: 500,
+		title: title,
+		modal: true,
+		// Match ShowCommandEditor's own convention (fpp.js ~10660): FPP's editor
+		// dialogs don't use a title-bar close X at all, only a bottom Cancel/Close
+		// button - hide the titlebar close here too instead of trying to make it
+		// visible, so this dialog looks and behaves like the rest of the app.
+		open: function () {
+			$popup.parent().find('.ui-dialog-titlebar-close').hide();
+		},
+		close: function () {
+			$popup.remove();
+		}
+	});
+	renderBodyFn($('#' + domId + '_body'));
+	$('<input type="button" class="buttons wideButton" value="Close">')
+		.on('click', function () {
+			$popup.fppDialog('close');
+		})
+		.appendTo('#' + domId + '_footer');
+}
+
+// Live valid/invalid indicator for an "expression" arg field, debounced so
+// it validates against api/variables?validateExpression=... only after the
+// user pauses typing, not on every keystroke.
+var expressionValidateTimers = {};
+var expressionValidateSeq = {};
+function DebounceValidateExpression (inputEl, iconId) {
+	var value = inputEl.value;
+	clearTimeout(expressionValidateTimers[iconId]);
+	if (!value) {
+		$('#' + iconId).html('');
+		return;
+	}
+	$('#' + iconId).html('<i class="fas fa-ellipsis-h text-muted" title="Validating..."></i>');
+	expressionValidateTimers[iconId] = setTimeout(function () {
+		// Guard against an earlier, slower request resolving after a later
+		// one and clobbering the icon with a stale result.
+		var seq = (expressionValidateSeq[iconId] || 0) + 1;
+		expressionValidateSeq[iconId] = seq;
+		$.ajax({
+			dataType: 'json',
+			url: 'api/variables?validateExpression=' + encodeURIComponent(value),
+			success: function (data) {
+				if (expressionValidateSeq[iconId] !== seq) {
+					return;
+				}
+				if (data && data.valid) {
+					$('#' + iconId).html('<i class="fas fa-check text-success" title="Valid expression"></i>');
+				} else {
+					$('#' + iconId).html('<i class="fas fa-times text-danger" title="Invalid expression"></i>');
+				}
+			},
+			error: function () {
+				if (expressionValidateSeq[iconId] !== seq) {
+					return;
+				}
+				$('#' + iconId).html('<i class="fas fa-question text-muted" title="Could not validate"></i>');
+			}
+		});
+	}, 400);
+}
+
+// Populates every not-yet-populated .expressionVarHelper div with clickable
+// buttons for each current Variable name; clicking one inserts it at the
+// cursor position of the input named in the div's data-target.
+function PopulateExpressionVarHelpers () {
+	var $helpers = $('.expressionVarHelper').not('[data-populated]');
+	if (!$helpers.length) {
+		return;
+	}
+	$helpers.attr('data-populated', '1');
+	$.ajax({
+		dataType: 'json',
+		url: 'api/variables',
+		success: function (data) {
+			var names = Object.keys(data || {});
+			$helpers.each(function () {
+				var $helper = $(this);
+				var targetId = $helper.data('target');
+				if (!names.length) {
+					$helper.text('(no variables defined yet)');
+					return;
+				}
+				$helper.text('Insert variable: ');
+				$.each(names, function (i, name) {
+					var $btn = $('<a href="#" class="me-1"></a>')
+						.text(name)
+						.on('click', function (e) {
+							e.preventDefault();
+							InsertAtCursor(document.getElementById(targetId), name);
+						});
+					$helper.append($btn);
+				});
+			});
+		}
+	});
+}
+
+// Inserts text at the current cursor position of a text input (replacing any
+// current selection), leaving the cursor positioned right after the insert.
+function InsertAtCursor (input, text) {
+	if (!input) {
+		return;
+	}
+	var start = input.selectionStart != null ? input.selectionStart : input.value.length;
+	var end = input.selectionEnd != null ? input.selectionEnd : input.value.length;
+	input.value = input.value.slice(0, start) + text + input.value.slice(end);
+	var newPos = start + text.length;
+	input.focus();
+	input.setSelectionRange(newPos, newPos);
+	// Setting .value directly doesn't fire a native input event, so kick the
+	// expression validator by hand if this input has one wired up.
+	$(input).trigger('input');
+}
+
 function CommandArgChanged () {
 	$('#playlistEntryCommandOptions').html('');
 	CommandSelectChanged(
@@ -8564,7 +9765,7 @@ function CommandSelectChanged (
 	}
 
 	var line = "<tr id='" + tblCommand + "_multisync_row' ";
-	if (!allowMultisyncCommands || command == '') {
+	if (!allowMultisyncCommands || command == '' || co['disallowMultisync']) {
 		line += "style='display:none'";
 	}
 	line +=
@@ -8654,6 +9855,36 @@ function OverlayModelContentListUrl (url) {
 	return u;
 }
 
+// A row's description repeated across 2+ CONSECUTIVE args (e.g. the If
+// command's "Then Run" on both thenCommands and thenMode) marks them as one
+// logical group - only THOSE boundaries get a divider. Naively drawing one
+// on every "description changed from the previous row" would fire on
+// virtually every row of any ordinary multi-arg command, since two adjacent
+// args almost always have two different, unique labels (e.g. GPIO's "Pin"
+// then "Action") without being a "group" at all. Pass the full args array in
+// registration order (before any hidden/statusOnly filtering - this filters
+// the same way internally) to get, for each arg, whether drawing a divider
+// immediately before it is warranted.
+function ComputeArgGroupBoundaries (args) {
+	var included = args.filter(function (val) {
+		if (val['type'] == 'args') return false;
+		if (val.hasOwnProperty('statusOnly') && val.statusOnly == true) return false;
+		if (val.hasOwnProperty('hidden') && val.hidden == true) return false;
+		return true;
+	});
+	var isGrouped = included.map(function (val, i) {
+		var prevDesc = i > 0 ? included[i - 1]['description'] : null;
+		var nextDesc = i < included.length - 1 ? included[i + 1]['description'] : null;
+		return val['description'] === prevDesc || val['description'] === nextDesc;
+	});
+	var boundaries = included.map(function (val, i) {
+		if (i === 0) return false;
+		var descChanged = val['description'] !== included[i - 1]['description'];
+		return descChanged && (isGrouped[i] || isGrouped[i - 1]);
+	});
+	return { included: included, boundaries: boundaries };
+}
+
 function PrintArgsInputsForEditable (
 	tblCommand,
 	configAdjustable,
@@ -8665,6 +9896,8 @@ function PrintArgsInputsForEditable (
 	var haveTime = 0;
 	var haveDate = 0;
 	var children = [];
+	var argGroups = ComputeArgGroupBoundaries(args);
+	var groupIndex = 0;
 
 	//    $.each( args,
 	var valFunc = function (key, val) {
@@ -8679,8 +9912,10 @@ function PrintArgsInputsForEditable (
 			return;
 		}
 		var ID = tblCommand + '_arg_' + count;
+		var isNewGroup = argGroups.boundaries[groupIndex];
+		groupIndex++;
 		var line =
-			"<tr id='" + ID + "_row' class='arg_row_" + val['name'] + "'><td>";
+			"<tr id='" + ID + "_row' class='arg_row_" + val['name'] + (isNewGroup ? ' argRowGroupStart' : '') + "'><td>";
 		var subCommandInitFunc = null;
 		if (children.includes(val['name']))
 			line += '&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;';
@@ -8838,6 +10073,35 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 	var haveDate = 0;
 	var children = [];
 	var timeOptions = new Map();
+	var argGroups = ComputeArgGroupBoundaries(args);
+	var groupIndex = 0;
+	// Args listed as a "children" value of some OTHER arg start hidden unless
+	// that parent arg's default value is the one that reveals them - keeps
+	// initial render consistent with UpdateGenericArgChildVisibility(), which
+	// takes over once the user changes the parent dropdown. A child name can
+	// legitimately appear under several sibling values (e.g. If's "name" is
+	// listed for every Check source except Time) - it must only be hidden
+	// when it's absent from the CURRENT default's own list, not merely
+	// because some other, non-matching value's list happens to include it.
+	var initiallyHiddenChildren = {};
+	$.each(args, function (key, val) {
+		if (typeof val['children'] !== 'object') return;
+		var parentDefault = typeof val['default'] != 'undefined' ? val['default'] : '';
+		var shownForDefault = val['children'][parentDefault] || [];
+		var allChildNames = [];
+		$.each(val['children'], function (forValue, names) {
+			$.each(names, function (i, name) {
+				if (allChildNames.indexOf(name) === -1) {
+					allChildNames.push(name);
+				}
+			});
+		});
+		$.each(allChildNames, function (i, name) {
+			if (shownForDefault.indexOf(name) === -1) {
+				initiallyHiddenChildren[name] = true;
+			}
+		});
+	});
 
 	$.each(args, function (key, val) {
 		if (val['type'] == 'args') return;
@@ -8851,19 +10115,23 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 
 		var rowStyle = '';
 		if (
-			val.hasOwnProperty('advanced') &&
-			val.advanced == true &&
-			settings['uiLevel'] < 1
+			(val.hasOwnProperty('advanced') &&
+				val.advanced == true &&
+				settings['uiLevel'] < 1) ||
+			initiallyHiddenChildren[val['name']]
 		) {
 			rowStyle = " style='display:hidden; visibility:collapse'";
 		}
 
 		var ID = tblCommand + '_arg_' + count;
+		var isNewGroup = argGroups.boundaries[groupIndex];
+		groupIndex++;
 		var line =
 			"<tr id='" +
 			ID +
 			"_row' class='arg_row_" +
 			val['name'] +
+			(isNewGroup ? ' argRowGroupStart' : '') +
 			"'" +
 			rowStyle +
 			'><td>';
@@ -8872,13 +10140,20 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 		if (children.includes(val['name']))
 			line += '&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;';
 
-		line += val['description'] + ':';
-		if (typeof val['help'] === 'string' && val['help'] !== '') {
-			line +=
-				" <i class='fas fa-question-circle argHelpIcon' data-bs-toggle='tooltip' data-bs-placement='top' title='" +
-				val['help'].replace(/'/g, '&apos;') +
-				"'></i>";
-			initFuncs.push('InitArgHelpTooltips');
+		// A toggleStyle arg (see below) shows its own inline "Order:" label
+		// next to the toggle itself (matching the condition-tree's own
+		// "Match:" toggle), not a separate left-column description - it sits
+		// directly above the row it modifies (e.g. Then Run's command list),
+		// so a second copy of that row's own label here would just repeat it.
+		if (!val['toggleStyle']) {
+			line += val['description'] + ':';
+			if (typeof val['help'] === 'string' && val['help'] !== '') {
+				line +=
+					" <i class='fas fa-question-circle argHelpIcon' data-bs-toggle='tooltip' data-bs-placement='top' title='" +
+					val['help'].replace(/'/g, '&apos;') +
+					"'></i>";
+				initFuncs.push('InitArgHelpTooltips');
+			}
 		}
 		line += '</td><td>';
 
@@ -8890,13 +10165,52 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 		if (
 			val['type'] == 'string' ||
 			val['type'] == 'file' ||
-			val['type'] == 'multistring'
+			val['type'] == 'multistring' ||
+			val['type'] == 'expression'
 		) {
 			if (typeof val['init'] === 'string') {
 				initFuncs.push(val['init']);
 			}
 
-			if (typeof val['contents'] !== 'undefined') {
+			if (typeof val['contents'] !== 'undefined' && val['toggleStyle'] && Array.isArray(val['contents']) && val['contents'].length === 2) {
+				// Opt-in 2-option toggle (e.g. the If command's Sequential/
+				// Parallel mode, matching its own Match ALL/ANY condition
+				// toggle) instead of a <select>. CommandToJSON/
+				// PopulateExistingCommand both read/write a single element
+				// addressed by id="ID" via .val() - so the toggle's real
+				// value lives in a hidden mirror input with that id (same
+				// "hidden field is the source of truth" pattern already used
+				// for conditionListRoot/commandListRoot), and the visible
+				// btn-check pair only drives that hidden field. A delegated
+				// change listener (see toggleStyleRoot below) keeps a
+				// radio's checked state in sync whenever the hidden field's
+				// value changes from either direction (a user's click, or
+				// PopulateExistingCommand's inp.val(v).change() on load).
+				var opt0 = val['contents'][0];
+				var opt1 = val['contents'][1];
+				var toggleLabel = (typeof val['toggleLabel'] === 'string' && val['toggleLabel'] !== '') ? val['toggleLabel'] : val['description'];
+				var toggleHelp = '';
+				if (typeof val['help'] === 'string' && val['help'] !== '') {
+					toggleHelp =
+						" <i class='fas fa-question-circle argHelpIcon' data-bs-toggle='tooltip' data-bs-placement='top' title='" +
+						val['help'].replace(/'/g, '&apos;') +
+						"'></i>";
+					initFuncs.push('InitArgHelpTooltips');
+				}
+				line +=
+					"<input type='hidden' id='" + ID + "' class='arg_" + val['name'] + " toggleStyleRoot' value='" + dv + "'>" +
+					"<div class='d-flex align-items-center gap-2'>" +
+					"<span class='text-muted'>" + toggleLabel + ':' + toggleHelp + '</span>' +
+					"<div class='btn-group btn-group-sm toggleStyleGroup' role='group'>" +
+					"<input type='radio' class='btn-check' name='" + ID + "_toggle' id='" + ID + "_opt0' autocomplete='off'" +
+					(dv === opt0 ? ' checked' : '') + " value='" + opt0 + "'>" +
+					"<label class='btn btn-outline-secondary' for='" + ID + "_opt0'>" + opt0 + '</label>' +
+					"<input type='radio' class='btn-check' name='" + ID + "_toggle' id='" + ID + "_opt1' autocomplete='off'" +
+					(dv === opt1 ? ' checked' : '') + " value='" + opt1 + "'>" +
+					"<label class='btn btn-outline-secondary' for='" + ID + "_opt1'>" + opt1 + '</label>' +
+					'</div>' +
+					'</div>';
+			} else if (typeof val['contents'] !== 'undefined') {
 				line +=
 					"<select class='playlistDetailsSelect arg_" +
 					val['name'] +
@@ -8918,6 +10232,15 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 						tblCommand == 'playlistEntryOptions'
 					) {
 						line += " onChange='UpdateChildVisibility();";
+					} else {
+						// Generic Command-args tables (commandEditor.php, GPIO's
+						// command picker, etc.) - not driven by the global
+						// playlistEntryTypes structure UpdateChildVisibility()
+						// reads, so ship the children map on the element itself.
+						line +=
+							" data-children='" +
+							JSON.stringify(val['children']).replace(/'/g, '&apos;') +
+							"' onChange='UpdateGenericArgChildVisibility(this);";
 					}
 					if (typeof val['onChange'] === 'string') {
 						line += ' ' + val['onChange'] + '();';
@@ -8967,7 +10290,27 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 					line += " placeholder='" + val['placeholder'] + "'";
 				}
 
+				if (val['type'] == 'expression') {
+					line +=
+						" oninput='DebounceValidateExpression(this, \"" +
+						ID +
+						"_validIcon\");'";
+				}
+
 				line += '></input>';
+				if (val['type'] == 'expression') {
+					// Live valid/invalid indicator, debounced so it doesn't
+					// fire an API call on every keystroke.
+					line += " <span id='" + ID + "_validIcon' class='expressionValidIcon'></span>";
+					// Click-to-insert variable name helper - simpler than true
+					// inline autocomplete (no existing FPP pattern for that),
+					// populated once after render by PopulateExpressionVarHelpers().
+					line +=
+						"<div class='expressionVarHelper text-muted small' data-target='" +
+						ID +
+						"'></div>";
+					initFuncs.push('PopulateExpressionVarHelpers');
+				}
 				if (configAdjustable && val['adjustable']) {
 					line +=
 						"&nbsp;<input type='checkbox' id='" +
@@ -9034,6 +10377,43 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				}
 				line += '</select>';
 			}
+		} else if (val['type'] == 'commandlist') {
+			// A repeatable, user-growable list of {command, args} entries -
+			// ported from gpio.php's GPIO-edge command list (renderModalList
+			// et al): one-line summaries, Edit opens the existing
+			// ShowCommandEditor modal, Up/Down/Delete manage an in-memory
+			// array (commandListState), synced into this hidden field.
+			line +=
+				"<input type='hidden' id='" +
+				ID +
+				"' class='arg_" +
+				val['name'] +
+				" commandListRoot' value='" +
+				(dv ? dv.replace(/'/g, '&apos;') : '[]') +
+				"'>";
+			line += "<div id='" + ID + "_container' class='commandListContainer'></div>";
+			line +=
+				"<input type='button' class='buttons btn-sm' value='+ Add Command' onclick='AddCommandListRow(\"" +
+				ID +
+				"\");'>";
+			initFuncs.push('InitCommandLists');
+		} else if (val['type'] == 'conditionlist') {
+			// The If command's compound Rules field - an AND/OR tree of
+			// conditions and nested groups, rendered fully inline/recursively
+			// (see RenderConditionTree) rather than behind a chain of modals,
+			// plus a live plain-English formula preview above it.
+			line +=
+				"<div id='" + ID + "_formula' class='conditionFormulaPreview small text-muted mb-2 fst-italic'></div>";
+			line +=
+				"<input type='hidden' id='" +
+				ID +
+				"' class='arg_" +
+				val['name'] +
+				" conditionListRoot' value='" +
+				(dv ? dv.replace(/'/g, '&apos;') : '') +
+				"'>";
+			line += "<div id='" + ID + "_container' class='conditionListContainer'></div>";
+			initFuncs.push('InitConditionLists');
 		} else if (val['type'] == 'datalist') {
 			line +=
 				"<input class='arg_" +
@@ -9205,7 +10585,38 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 		}
 
 		line += '</td></tr>';
-		$('#' + tblCommand).append(line);
+		// A toggleStyle arg renders directly above the row it modifies (e.g.
+		// Then Run's command-list row, registered immediately before this
+		// one) rather than appended at the end - purely a DOM position
+		// change, the underlying args[] positional order (what actually gets
+		// saved/loaded) is untouched, since count/CommandToJSON never look
+		// at DOM order, only at #tblCommand_arg_N ids.
+		var $precedingRow = val['toggleStyle'] ? $('#' + tblCommand + '_arg_' + (count - 1) + '_row') : null;
+		if ($precedingRow && $precedingRow.length) {
+			var $toggleRow = $(line);
+			// Lets RenderCommandListRows(id) (fpp.js) find this toggle row
+			// and show/hide it based on how many commands are in the list it
+			// pairs with - Sequential/Parallel is meaningless with 0 or 1
+			// commands, same rationale as the Match ALL/ANY toggle only
+			// showing for 2+ conditions.
+			$toggleRow.attr('data-pairs-with', $precedingRow.attr('id').replace(/_row$/, ''));
+			// The divider (argRowGroupStart, drawn as a border-top - see
+			// PrintArgInputs' isNewGroup logic above) was computed against
+			// registration order, so it landed on $precedingRow (e.g. Then
+			// Run's command-list row). This toggle row is being moved to sit
+			// above it - and is itself hidden until there are 2+ commands
+			// (see RenderCommandListRows), so it can't be the ONLY row
+			// carrying the divider (a hidden row renders no border at all).
+			// Put it on both rows instead of moving it - only one of the two
+			// is ever visible at a time, so whichever one is showing renders
+			// the divider correctly.
+			if ($precedingRow.hasClass('argRowGroupStart')) {
+				$toggleRow.addClass('argRowGroupStart');
+			}
+			$toggleRow.insertBefore($precedingRow);
+		} else {
+			$('#' + tblCommand).append(line);
+		}
 		if (typeof val['contentListUrl'] != 'undefined') {
 			var selId = '#' + tblCommand + '_arg_' + count + contentListPostfix;
 
@@ -9271,6 +10682,29 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 			subCommandInitFunc();
 		}
 		count = count + 1;
+	});
+
+	// A little breathing room above each divider (argRowGroupStart) - table
+	// cells don't respect margin, so this adds bottom padding to the row(s)
+	// immediately before it instead. Tags a small bounded window (not just
+	// the single nearest sibling) since the row right before a divider can
+	// itself be conditionally hidden (Multisync's Hosts row when Multisync
+	// is off; a toggleStyle Order row when its command list has 0/1 items) -
+	// padding-bottom on a hidden row has no visual effect, so whichever one
+	// in the window actually ends up visible is what shows the gap. Done as
+	// its own pass over the finished table (not computed inline during the
+	// loop above) since a toggleStyle row can get moved via insertBefore
+	// after the fact - only the real, final DOM order reliably answers
+	// "what rows are actually right before this divider".
+	$('#' + tblCommand + ' tr.argRowGroupStart').each(function () {
+		var $r = $(this);
+		for (var k = 0; k < 3; k++) {
+			$r = $r.prev('tr');
+			if (!$r.length) {
+				break;
+			}
+			$r.addClass('argRowGroupEnd');
+		}
 	});
 
 	if (haveTime) {
@@ -9659,7 +11093,7 @@ function EditCommandTemplateSaved (row, data) {
 	FillInCommandTemplate(row, data);
 }
 
-function EditCommandTemplate (row) {
+function EditCommandTemplate (row, onReady = null) {
 	var command = $(row).find('.cmdTmplCommand').val();
 	var json = $(row).find('.cmdTmplJSON').text();
 
@@ -9683,7 +11117,9 @@ function EditCommandTemplate (row) {
 		row,
 		cmd,
 		'EditCommandTemplateSaved',
-		'EditCommandTemplateCanceled'
+		'EditCommandTemplateCanceled',
+		'',
+		onReady
 	);
 }
 
@@ -9753,6 +11189,29 @@ function FillInCommandTemplate (row, data) {
 		if (data.command == 'Run Script') {
 			if (data.args.length > 1) args = data.args[0] + ' | ' + data.args[1];
 			else args = data.args[0];
+		} else if (data.command == 'If') {
+			// args are [conditions, thenCommands, thenMode, elseCommands,
+			// elseMode] - showing that raw (the generic branch below) is
+			// unreadable. Reuse the same formula-builder the condition-tree
+			// editor uses for its own live preview for the check, plus a
+			// short summary of what actually runs (CommandListSummary,
+			// already used by the commandlist widget's own rows) - a
+			// condition with no visible actions would otherwise look like
+			// the preset does nothing at all.
+			try {
+				var condTree = BackendJSONToTree(JSON.parse(data.args[0] || '{}'));
+				var formula = condTree.items.length ? BuildConditionFormula(condTree) : 'No conditions configured';
+				var summarizeCmdList = function (jsonStr) {
+					var cmds = JSON.parse(jsonStr || '[]');
+					return cmds.length ? cmds.map(CommandListSummary).join(', ') : '(none)';
+				};
+				args =
+					'If ' + formula +
+					' → Then: ' + summarizeCmdList(data.args[1]) +
+					' | Otherwise: ' + summarizeCmdList(data.args[3]);
+			} catch (e) {
+				args = data.args.join(' | ');
+			}
 		} else {
 			args = data.args.join(' | ');
 		}
@@ -9904,7 +11363,8 @@ function ShowCommandEditor (
 	data,
 	callback,
 	cancelCallback = '',
-	args = ''
+	args = '',
+	onReady = null
 ) {
 	if (typeof args === 'string') {
 		args = {};
@@ -9942,6 +11402,17 @@ function ShowCommandEditor (
 		//
 		// Add the colour picker to any color elements
 		fppCommandColorPicker();
+
+		// Lets a caller append extra content into the SAME singleton dialog
+		// once the command editor's own fields have finished loading -
+		// recurringtasks.php uses this to add a Result Variable/Filter
+		// section below the command fields, in one dialog instead of
+		// nesting a second one (nesting a dialog inside this singleton
+		// corrupts it - see cerebrum Do-Not-Repeat). No other caller passes
+		// this, so existing behavior is unaffected.
+		if (typeof onReady === 'function') {
+			onReady();
+		}
 	});
 }
 

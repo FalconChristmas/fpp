@@ -42,6 +42,8 @@ private:
     void GetMultiSyncStats(Json::Value& result, bool reset = false);
     void GetPlaylistFileTime(Json::Value& result);
     void GetPlaylistConfig(Json::Value& result);
+    void GetRecurringTasks(Json::Value& result);
+    void GetConditionPreview(const HttpRequestPtr& req, Json::Value& result);
 
     void PostEffects(const std::string& effectName, const Json::Value& data,
                      Json::Value& result);
@@ -49,6 +51,7 @@ private:
     void PostGPIOExt(const Json::Value& data, Json::Value& result);
     void PostOutputs(const Json::Value& data, Json::Value& result);
     void PostOutputsRemap(const Json::Value& data, Json::Value& result);
+    void PostRecurringTasks(const Json::Value& data, Json::Value& result);
     void PostSchedule(const Json::Value data, Json::Value& result);
 
     void SetOKResult(Json::Value& result, const std::string& msg);

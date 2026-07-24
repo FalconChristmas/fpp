@@ -29,6 +29,17 @@ public:
 
     virtual Json::Value getDescription();
     virtual bool hidden() const { return false; }
+    // Multisync broadcasts this command's args verbatim to other FPP
+    // instances, which then execute it independently - coherent for a plain
+    // action, but not for a command whose whole job is evaluating *local*
+    // state (a GPIO pin, a local Variable, a local sensor reading) and
+    // reacting to it, since "multisync the check" silently becomes "every
+    // instance re-evaluates the same check against its own, possibly
+    // different, local state" rather than propagating the result of one
+    // evaluation. Override to true for that kind of command (see IfCommand);
+    // the way to actually multisync the *outcome* of a check is to put a
+    // Multisync-enabled command inside its Then/Else branch instead.
+    virtual bool disallowMultisync() const { return false; }
 
     class Result {
     public:
@@ -70,7 +81,8 @@ public:
             min(-1),
             max(-1),
             allowBlanks(false),
-            adjustable(false) {}
+            adjustable(false),
+            advanced(false) {}
 
         CommandArg& setRange(int mn, int mx) {
             min = mn;
@@ -106,6 +118,23 @@ public:
             adjustable = true;
             return *this;
         }
+        // Maps a value of this arg to the names of other args that are only
+        // relevant when this arg has that value (e.g. "type" == "Random" ->
+        // show "min"/"max"). Frontend hides every listed child arg's row
+        // until its parent's value matches, mirroring the same mechanism
+        // already used by the playlist-entry-type editor (fpp.js
+        // UpdateChildVisibility) for CommandArg-driven UIs generally.
+        CommandArg& setChildren(std::map<std::string, std::vector<std::string>> c) {
+            children = std::move(c);
+            return *this;
+        }
+        // Hides this arg's row unless FPP's global UI Level setting is
+        // "Advanced" (frontend: fpp.js PrintArgInputs already checks
+        // val.advanced, this was simply never set from any Command until now).
+        CommandArg& setAdvanced(bool a = true) {
+            advanced = a;
+            return *this;
+        }
         // Extra explanatory text shown as a hover tooltip next to the label -
         // for when the short description isn't enough room to explain a
         // field properly. Reuses the same Bootstrap tooltip mechanism
@@ -114,6 +143,25 @@ public:
         // the generic per-arg renderer.
         CommandArg& setHelp(const std::string& h) {
             help = h;
+            return *this;
+        }
+        // Renders a 2-option contentList as a Bootstrap btn-check pill toggle
+        // (matching the If command's own Match ALL/ANY condition toggle)
+        // instead of the generic <select> - opt-in only, so every other
+        // contentList-backed arg elsewhere in the app keeps its existing
+        // dropdown rendering unchanged.
+        CommandArg& setToggleStyle(bool t = true) {
+            toggleStyle = t;
+            return *this;
+        }
+        // Overrides the label shown next to a toggleStyle arg's own toggle
+        // (fpp.js renders it inline, e.g. "Order:", matching the condition
+        // editor's own "Match:" label) instead of reusing this arg's
+        // description - the description is still what labels the row this
+        // toggle is rendered directly above (e.g. "Then Run"), so reusing it
+        // here too would just repeat the same text twice.
+        CommandArg& setToggleLabel(const std::string& l) {
+            toggleLabel = l;
             return *this;
         }
 
@@ -132,7 +180,11 @@ public:
         std::string defaultValue;
         std::string adjustableGetValueURL;
         bool adjustable;
+        bool advanced;
         std::string help;
+        std::map<std::string, std::vector<std::string>> children;
+        bool toggleStyle = false;
+        std::string toggleLabel;
     };
 
     std::string name;

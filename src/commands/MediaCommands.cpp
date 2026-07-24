@@ -99,6 +99,7 @@ public:
     CURLResult(const std::vector<std::string>& args) :
         Command::Result() {
         std::string url = args[0];
+        m_url = url;
         LogDebug(VB_COMMAND, "URL: \"%s\"\n", url.c_str());
 
         std::string method = "GET";
@@ -114,6 +115,18 @@ public:
         }
         m_curl = curl_easy_init();
         curl_easy_setopt(m_curl, CURLOPT_NOSIGNAL, 1);
+        // Without these, a plain-HTTP URL that 301/302s to HTTPS (extremely
+        // common) captures the redirect response instead of the real page -
+        // typically an empty body - and reports success with no error, since
+        // isError()/isDone() below only look at handle setup and CURLMSG_DONE,
+        // not the HTTP status or transfer result. A missing User-Agent also
+        // gets flatly blocked (empty body, no redirect) by some sites/WAFs
+        // that tolerate the same request with one set (e.g. Akamai-fronted
+        // sites) - same "FPP/<version>" string used by CurlManager/MultiSync.
+        static const std::string userAgent = std::string("FPP/") + getFPPVersionTriplet();
+        curl_easy_setopt(m_curl, CURLOPT_USERAGENT, userAgent.c_str());
+        curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(m_curl, CURLOPT_MAXREDIRS, 10L);
 
         CURLcode status;
         status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
@@ -158,35 +171,47 @@ public:
         }
         cleanupCurl();
     }
-    virtual bool isError() override { return m_curl == nullptr || m_curlm == nullptr; }
+    // m_curl/m_curlm only go null on setup failure (cleanupCurl()); a transfer
+    // that completes but failed (DNS/connect/timeout/etc, msg->data.result !=
+    // CURLE_OK below) left both non-null, so isError() alone previously never
+    // caught it - callers like RecurringTasks::finish() treat !isError() as
+    // "ok" and write get()'s (empty, on a failed transfer) result straight
+    // into the target Variable with no visible error.
+    virtual bool isError() override { return m_curl == nullptr || m_curlm == nullptr || m_transferFailed; }
     virtual bool isDone() override {
-        if (!isError()) {
-            if (m_isDone) {
-                return true;
-            }
-            int handleCount;
-            CURLMcode mstatus = curl_multi_perform(m_curlm, &handleCount);
-            if (mstatus != CURLM_OK) {
-                cleanupCurl();
-                return true;
-            }
+        if (m_curl == nullptr || m_curlm == nullptr) {
+            return true;
+        }
+        if (m_isDone) {
+            return true;
+        }
+        int handleCount;
+        CURLMcode mstatus = curl_multi_perform(m_curlm, &handleCount);
+        if (mstatus != CURLM_OK) {
+            cleanupCurl();
+            return true;
+        }
 
-            if (handleCount == 0) {
-                int messagesLeft = 0;
-                CURLMsg* msg = curl_multi_info_read(m_curlm, &messagesLeft);
-                if (msg && msg->msg == CURLMSG_DONE) {
+        if (handleCount == 0) {
+            int messagesLeft = 0;
+            CURLMsg* msg = curl_multi_info_read(m_curlm, &messagesLeft);
+            if (msg && msg->msg == CURLMSG_DONE) {
+                if (msg->data.result != CURLE_OK) {
+                    m_transferFailed = true;
+                    m_result = curl_easy_strerror(msg->data.result);
+                    LogErr(VB_COMMAND, "URL \"%s\" failed: %s\n", m_url.c_str(), m_result.c_str());
+                } else {
                     char* ct = nullptr;
                     if (CURLE_OK == curl_easy_getinfo(m_curl, CURLINFO_CONTENT_TYPE, &ct)) {
                         if (ct != nullptr) {
                             m_contentType = ct;
                         }
                     }
-                    m_isDone = true;
                 }
+                m_isDone = true;
             }
-            return m_isDone;
         }
-        return true;
+        return m_isDone;
     }
 
     void cleanupCurl() {
@@ -207,6 +232,8 @@ private:
     CURL* m_curl;
     CURLM* m_curlm;
     bool m_isDone;
+    bool m_transferFailed = false;
+    std::string m_url;
 };
 
 URLCommand::URLCommand() :

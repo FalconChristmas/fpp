@@ -17,6 +17,7 @@
 
 #include <thread>
 
+#include "../Variables.h"
 #include "../common.h"
 #include "../log.h"
 
@@ -24,9 +25,11 @@
 
 #include "EventCommands.h"
 #include "FileMonitor.h"
+#include "IfCommand.h"
 #include "MediaCommands.h"
 #include "MultiSync.h"
 #include "PlaylistCommands.h"
+#include "VariableCommands.h"
 
 CommandManager CommandManager::INSTANCE;
 Command::Command(const std::string& n) :
@@ -44,6 +47,9 @@ Json::Value Command::getDescription() {
     cmd["name"] = name;
     if (!description.empty()) {
         cmd["description"] = description;
+    }
+    if (disallowMultisync()) {
+        cmd["disallowMultisync"] = true;
     }
     for (auto& ar : args) {
         Json::Value a;
@@ -73,8 +79,24 @@ Json::Value Command::getDescription() {
                 a["adjustableGetValueURL"] = ar.adjustableGetValueURL;
             }
         }
+        if (ar.advanced) {
+            a["advanced"] = true;
+        }
         if (!ar.help.empty()) {
             a["help"] = ar.help;
+        }
+        if (ar.toggleStyle) {
+            a["toggleStyle"] = true;
+        }
+        if (!ar.toggleLabel.empty()) {
+            a["toggleLabel"] = ar.toggleLabel;
+        }
+        if (!ar.children.empty()) {
+            for (auto& kv : ar.children) {
+                for (auto& childName : kv.second) {
+                    a["children"][kv.first].append(childName);
+                }
+            }
         }
 
         cmd["args"].append(a);
@@ -146,6 +168,8 @@ void CommandManager::Init() {
     addCategorizedCommand(new AllLightsOffCommand(), "Effects", 0);
     addCategorizedCommand(new SwitchToPlayerModeCommand(), "System", 1);
     addCategorizedCommand(new SwitchToRemoteModeCommand(), "System", 1);
+    addCategorizedCommand(new SetVariableCommand(), "Events", 2);
+    addCategorizedCommand(new IfCommand(), "Events", 2);
 
     std::function<void(const std::string&, const std::string&)> f =
         [](const std::string& topic, const std::string& payload) {
@@ -299,7 +323,9 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
                 if (!argString.empty()) {
                     argString += ",";
                 }
-                argString += a;
+                // args are unbounded (e.g. could carry a Variable's full
+                // value) - truncate before logging, see TruncateForLog().
+                argString += TruncateForLog(a);
             }
             LogDebug(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), argString.c_str());
         }
@@ -314,7 +340,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         payload["trigger"] = "ui";
         std::string topic = "command/run";
         std::string payloadStr = SaveJsonToString(payload);
-        LogWarn(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), payloadStr.c_str());
+        LogWarn(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
         Events::Publish(topic, payloadStr);
 
         return f->second->run(args);
@@ -350,7 +376,10 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
 /**
  * List all available commands and their argument descriptions. Each entry
  * also carries "category" (e.g. "Playlist", "Media", "Plugins") and "level"
- * (0 Basic / 1 Advanced / 3 Developer) for UI grouping and filtering.
+ * (0 Basic / 1 Advanced / 3 Developer) for UI grouping and filtering, plus
+ * "disallowMultisync" (true) on a command whose Multisync option should stay
+ * hidden - e.g. "If", since multisyncing it would broadcast the raw check to
+ * other instances rather than propagate the result of evaluating it.
  *
  * @route GET /api/commands
  * @response 200 Array of command descriptions.
@@ -459,7 +488,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             payload["trigger"] = "api-get";
             std::string topic = "command/run";
             std::string payloadStr = SaveJsonToString(payload);
-            LogWarn(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), payloadStr.c_str());
+            LogWarn(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
             Events::Publish(topic, payloadStr);
 
             std::unique_ptr<Command::Result> r = f->second->run(args);
@@ -524,7 +553,7 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                 payload["trigger"] = "api-post";
                 std::string topic = "command/run";
                 std::string payloadStr = SaveJsonToString(payload);
-                LogWarn(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), payloadStr.c_str());
+                LogWarn(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
                 Events::Publish(topic, payloadStr);
 
                 std::unique_ptr<Command::Result> r = f->second->run(args);
@@ -544,7 +573,7 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
             }
         } else {
             std::string command(getRequestContent(req));
-            LogDebug(VB_COMMAND, "Received command: \"%s\"\n", command.c_str());
+            LogDebug(VB_COMMAND, "Received command: \"%s\"\n", TruncateForLog(command, 2000).c_str());
             Json::Value val = LoadJsonFromString(command);
             std::unique_ptr<Command::Result> r = run(val);
             int count = 0;
@@ -566,6 +595,27 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
     return makeStringResponse("Not Found", 404, "text/plain");
 }
 
+// %VAR:name% - substitute a named User Variable's current value. Explicit
+// "VAR:" prefix (rather than bare %name%) avoids colliding with unrelated
+// existing usages of %word% patterns that happen to match a variable name.
+// Scoped to command args specifically (not the shared ReplaceKeywords() in
+// common.cpp) so the Variables dependency doesn't spread into the small
+// standalone CLI helpers that link common.o directly (fpp, fppoled, fsequtils).
+static std::string ReplaceVariableKeywords(std::string str) {
+    std::size_t varPos = 0;
+    while ((varPos = str.find("%VAR:", varPos)) != std::string::npos) {
+        std::size_t varEnd = str.find('%', varPos + 5);
+        if (varEnd == std::string::npos) {
+            break;
+        }
+        std::string varName = str.substr(varPos + 5, varEnd - varPos - 5);
+        std::string varValue = Variables::INSTANCE.getVariable(varName, "");
+        str.replace(varPos, varEnd - varPos + 1, varValue);
+        varPos += varValue.length();
+    }
+    return str;
+}
+
 Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string>& keywords) {
     if (!cmd.isMember("args"))
         return cmd;
@@ -573,7 +623,7 @@ Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std
     for (int i = 0; i < cmd["args"].size(); i++) {
         std::string arg = cmd["args"][i].asString();
 
-        cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
+        cmd["args"][i] = ReplaceVariableKeywords(ReplaceKeywords(cmd["args"][i].asString(), keywords));
     }
 
     return cmd;

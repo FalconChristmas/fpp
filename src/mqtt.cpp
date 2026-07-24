@@ -518,7 +518,7 @@ void MosquittoClient::CacheSetMessage(std::string& topic, std::string& message) 
 
     LogDebug(VB_CONTROL, "MosquittoClient::CacheSetMessage('%s', '%s')\n", topic.c_str(), message.c_str());
 
-    messageCache[topic] = message;
+    messageCache[topic] = { message, time(nullptr) };
 }
 
 bool MosquittoClient::CacheCheckMessage(std::string& topic, std::string& message) {
@@ -526,16 +526,38 @@ bool MosquittoClient::CacheCheckMessage(std::string& topic, std::string& message
 
     auto search = messageCache.find(topic);
     if (search != messageCache.end())
-        return messageCache[topic] == message;
+        return search->second.value == message;
 
     return false;
 }
 
-void MosquittoClient::dumpMessageCache(Json::Value& result) {
+bool MosquittoClient::GetCachedMessage(const std::string& topic, std::string& message) {
+    time_t lastUpdated;
+    return GetCachedMessage(topic, message, lastUpdated);
+}
+
+bool MosquittoClient::GetCachedMessage(const std::string& topic, std::string& message, time_t& lastUpdated) {
+    std::unique_lock<std::mutex> lock(messageCacheLock);
+
+    auto search = messageCache.find(topic);
+    if (search == messageCache.end())
+        return false;
+
+    message = search->second.value;
+    lastUpdated = search->second.lastUpdated;
+    return true;
+}
+
+void MosquittoClient::dumpMessageCache(Json::Value& result, bool includeMetadata) {
     // NOTE: This assumes that result is an Array
     std::unique_lock<std::mutex> lock(messageCacheLock);
 
     for (const auto& pair : messageCache) {
-        result[pair.first] = pair.second;
+        if (includeMetadata) {
+            result[pair.first]["value"] = pair.second.value;
+            result[pair.first]["lastUpdated"] = (Json::Int64)pair.second.lastUpdated;
+        } else {
+            result[pair.first] = pair.second.value;
+        }
     }
 }

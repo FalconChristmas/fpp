@@ -33,6 +33,13 @@ public:
     void Cleanup();
     void AddGPIOCallback(const PinCapabilities* pin, const std::function<bool(int)>& cb);
     void RemoveGPIOCallback(const PinCapabilities* pin);
+    // Live value of a configured GPIO Input pin (rising/falling/hold actions),
+    // by pin name - distinct from fppCommandLastValue, which only tracks
+    // pins explicitly set via the "GPIO" command/API and knows nothing about
+    // input-only pins. Used by the If command's "GPIO Pin" condition source
+    // (Condition.cpp) so checking an input's current state actually works,
+    // not just a previously-commanded output.
+    bool GetInputPinValue(const std::string& name, int& value) const;
 private:
     class GPIOState {
     public:

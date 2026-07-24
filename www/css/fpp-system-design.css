@@ -2815,3 +2815,53 @@
 	border-color: var(--fpp-border-dark);
 	text-decoration: none;
 }
+
+/* ==========================================================================
+   Condition-tree editor - nested Group cards (fpp.js RenderConditionGroupRow)
+   ========================================================================== */
+/* Depth-indexed left border so a nested AND/OR group's boundary is visually
+   distinct from its parent - no Bootstrap utility can do this (no
+   "nth-ancestor" selector), and it's the mechanism that communicates tree
+   structure, not a cosmetic nudge. Cycles 3 values via data-depth (JS
+   computes depth % 3) regardless of actual nesting depth. Only
+   --fpp-border/-light/-dark are used - --fpp-border-medium is defined only
+   in fpp-dark.css's dark-theme override, not in this file's light :root,
+   so referencing it here would leave light-mode borders undefined.
+   Supplies its own full border (rather than pairing with Bootstrap's
+   .border utility) since that utility's border shorthand is !important and
+   would otherwise silently win over just a border-left override. */
+.condGroupCard {
+	border: 1px solid var(--fpp-border-light);
+	border-left-width: 3px;
+}
+.condGroupCard[data-depth='1'] {
+	border-left-color: var(--fpp-border-dark);
+}
+.condGroupCard[data-depth='2'] {
+	border-left-color: var(--fpp-border);
+}
+.condGroupCard[data-depth='0'] {
+	border-left-color: var(--fpp-border-light);
+}
+
+/* ==========================================================================
+   Command Editor - visual divider between logical arg groups
+   ========================================================================== */
+/* PrintArgsInputsForEditable (fpp.js) adds this class to the first row of a
+   new "description" group (e.g. the If command's args go Check -> Then Run
+   (x2 rows) -> Otherwise Run (x2 rows) - each transition gets one divider,
+   not one per row) - a generic mechanism, not specific to any one command,
+   for any command whose args repeat a description label across several rows
+   to represent one logical section. No Bootstrap utility reaches into a
+   dynamically-built <table>'s rows this way. */
+.argRowGroupStart > td {
+	border-top: 1px solid var(--fpp-border-light);
+	padding-top: 0.75rem;
+}
+/* Table cells don't respect margin, so the "space above the divider" side
+   of the gap is bottom-padding on whichever row actually precedes a
+   .argRowGroupStart row (see PrintArgInputs' post-render pass in fpp.js) -
+   this is that row, not the divider row itself. */
+.argRowGroupEnd > td {
+	padding-bottom: 0.75rem;
+}

@@ -62,11 +62,13 @@
 #include "MultiSync.h"
 #include "NetworkMonitor.h"
 #include "OutputMonitor.h"
+#include "RecurringTasks.h"
 #include "Player.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "Sequence.h"
 #include "Timers.h"
+#include "Variables.h"
 #include "Warnings.h"
 #include "command.h"
 #include "e131bridge.h"
@@ -79,6 +81,7 @@
 #include "channeloutput/channeloutputthread.h"
 #include "channeltester/ChannelTester.h"
 #include "commands/Commands.h"
+#include "commands/IfCommand.h"
 #include "mediaoutput/AES67Manager.h"
 #include "mediaoutput/OpusRTPManager.h"
 #include "mediaoutput/MediaOutputBase.h"
@@ -948,6 +951,8 @@ int main(int argc, char* argv[]) {
     delete sequence;
     runMainFPPDLoop = -1;
     Sensors::INSTANCE.Close();
+    RecurringTasks::INSTANCE.Close();
+    Variables::INSTANCE.Close();
 
     WarningHolder::StopNotifyThread();
 
@@ -1088,6 +1093,8 @@ void MainLoop(void) {
     PluginManager::INSTANCE.addControlCallbacks(callbacks);
     NetworkMonitor::INSTANCE.Init(callbacks);
     Sensors::INSTANCE.Init(callbacks);
+    Variables::INSTANCE.Init();
+    RecurringTasks::INSTANCE.Init();
     FileMonitor::INSTANCE.Initialize(callbacks);
     MDNSManager::INSTANCE.Initialize(callbacks);
     
@@ -1305,6 +1312,8 @@ void MainLoop(void) {
         }
         Timers::INSTANCE.fireTimers();
         CurlManager::INSTANCE.processCurls();
+        RecurringTasks::INSTANCE.tick();
+        IfCommand::tick();
         GPIOManager::INSTANCE.CheckGPIOInputs();
     }
     FileMonitor::INSTANCE.Cleanup();

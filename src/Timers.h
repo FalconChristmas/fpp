@@ -36,7 +36,14 @@ public:
     void addTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback);
     void addTimer(const std::string& name, long long fireTimeMS, const std::string& preset);
 
-    void addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback);
+    // initialDelayMS lets the FIRST fire land somewhere other than exactly
+    // fireTimeMS from now, without changing the recurring rate (periodicRate
+    // stays fireTimeMS regardless) - e.g. RecurringTasks::startTimers() uses
+    // this to stagger tasks that share the same interval so they don't all
+    // fire in lockstep forever. Defaults to fireTimeMS (original behavior)
+    // when omitted.
+    void addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback,
+                           long long initialDelayMS = -1);
     void stopPeriodicTimer(const std::string& name);
 
 private:

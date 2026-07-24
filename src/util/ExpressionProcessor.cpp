@@ -13,6 +13,8 @@
 #include "fpp-pch.h"
 #include <vector>
 #include <cstring>
+#include <cctype>
+#include <algorithm>
 
 #include <list>
 #include <map>
@@ -20,6 +22,25 @@
 #include "ExpressionProcessor.h"
 
 #include "tinyexpr.h"
+
+// tinyexpr's own tokenizer (next_token() in tinyexpr.c) only starts an
+// identifier on a lowercase a-z (not '_', not uppercase - see the
+// `s->next[0] >= 'a' && s->next[0] <= 'z'` check), then allows a-z/0-9/_.
+// Not true of names like "fpp-uptime_seconds" or "mqtt-some/topic" (hyphens,
+// slashes), nor of an uppercase/underscore-led User Variable name. The
+// "%%name%%" substitution form below is a plain map lookup and never cares
+// about any of this; only the tinyexpr ("=..."/"==...==") math forms do.
+static bool isValidExprIdentifier(const std::string& name) {
+    if (name.empty() || name[0] < 'a' || name[0] > 'z') {
+        return false;
+    }
+    for (char c : name) {
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) {
+            return false;
+        }
+    }
+    return true;
+}
 
 ExpressionProcessor::ExpressionVariable::ExpressionVariable(const std::string& n) :
     name(n) {
@@ -55,6 +76,8 @@ public:
             te_free(expr);
         }
     }
+
+    bool ok() const { return expr != nullptr; }
 
     virtual std::string eval() override {
         if (expr) {
@@ -125,17 +148,53 @@ public:
     }
     bool compile(const std::string& s) {
         exprVars.resize(variables.size());
+        // Names that aren't valid tinyexpr identifiers get a safe alias for
+        // tinyexpr's benefit only - the real name is still what "%%name%%"
+        // and bind()/variables map use.
+        std::map<std::string, std::string> aliasForName;
         int cur = 0;
         for (auto& a : variables) {
-            exprVars[cur].name = strdup(a.second->getName().c_str());
+            const std::string& name = a.second->getName();
+            std::string boundName = name;
+            if (!isValidExprIdentifier(name)) {
+                // Must itself satisfy isValidExprIdentifier() - lowercase-led.
+                boundName = "ev" + std::to_string(cur);
+                aliasForName[name] = boundName;
+            }
+            exprVars[cur].name = strdup(boundName.c_str());
             exprVars[cur].address = &a.second->dValue;
             exprVars[cur].type = TE_VARIABLE;
             cur++;
         }
 
+        // Longest-name-first so aliasing one name can't be clobbered by a
+        // shorter name that happens to be a substring of it.
+        std::vector<std::string> aliasedNames;
+        aliasedNames.reserve(aliasForName.size());
+        for (auto& kv : aliasForName) {
+            aliasedNames.push_back(kv.first);
+        }
+        std::sort(aliasedNames.begin(), aliasedNames.end(),
+                  [](const std::string& a, const std::string& b) { return a.size() > b.size(); });
+        auto aliasExpr = [&](std::string expr) {
+            for (auto& name : aliasedNames) {
+                const std::string& alias = aliasForName[name];
+                std::size_t pos = 0;
+                while ((pos = expr.find(name, pos)) != std::string::npos) {
+                    expr.replace(pos, name.size(), alias);
+                    pos += alias.size();
+                }
+            }
+            return expr;
+        };
+
+        bool success = true;
+
         if (s.size() > 1 && s[0] == '=' && s[1] != '=') {
             // simple math expression
-            steps.push_back(new TinyExprEvalStep(s.substr(1), exprVars));
+            auto step = new TinyExprEvalStep(aliasExpr(s.substr(1)), exprVars);
+            success = step->ok();
+            steps.push_back(step);
         } else {
             std::string cur = s;
             for (int x = 1; x < cur.size(); x++) {
@@ -150,9 +209,16 @@ public:
                                 }
                                 std::string expr = cur.substr(x + 1, y - x - 2);
                                 if (key == '%') {
+                                    if (variables.find(expr) == variables.end()) {
+                                        success = false;
+                                    }
                                     steps.push_back(new VariableEvalStep(variables[expr]));
                                 } else if (key == '=') {
-                                    steps.push_back(new TinyExprEvalStep(expr, exprVars));
+                                    auto step = new TinyExprEvalStep(aliasExpr(expr), exprVars);
+                                    if (!step->ok()) {
+                                        success = false;
+                                    }
+                                    steps.push_back(step);
                                 } else {
                                     steps.push_back(new TextEvalStep(expr));
                                 }
@@ -168,7 +234,7 @@ public:
                 steps.push_back(new TextEvalStep(cur));
             }
         }
-        return false;
+        return success;
     }
 
     std::string evaluate(const std::string& type) {

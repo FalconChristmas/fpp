@@ -40,6 +40,9 @@ OBJECTS_fpp_so += \
 	commands/PlaylistCommands.o \
     commands/EventCommands.o \
     commands/MediaCommands.o \
+    commands/VariableCommands.o \
+    commands/IfCommand.o \
+    commands/Condition.o \
 	common.o \
 	common_mini.o \
 	CurlManager.o \
@@ -129,6 +132,8 @@ OBJECTS_fpp_so += \
 	settings.o \
 	SunRise.o \
 	Timers.o \
+	RecurringTasks.o \
+	Variables.o \
 	Warnings.o \
     util/GPIOUtils.o \
     util/I2CUtils.o \

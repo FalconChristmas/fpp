@@ -405,6 +405,12 @@ function list_plugin_entries($menu)
                                 <? if ($uiLevel >= 1) { ?>
                                     <a class="dropdown-item" href="packages.php"><i class="fas fa-box"></i> Packages </a>
                                 <? } ?>
+                                <? if ($uiLevel >= 2) { ?>
+                                    <a class="dropdown-item" href="variables.php"><i class="fas fa-tags"></i>
+                                        Variables</a>
+                                    <a class="dropdown-item" href="recurringtasks.php"><i class="fas fa-clock"></i>
+                                        Recurring Tasks</a>
+                                <? } ?>
                                 <?php list_plugin_entries("content"); ?>
                             </div>
                         </li>

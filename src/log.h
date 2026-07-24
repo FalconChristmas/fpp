@@ -109,6 +109,16 @@ void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facilit
 void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const std::string &str, ...);
 bool WillLog(int level, FPPLoggerInstance& facility);
 
+// Truncates a value before it goes into a log line - use for anything whose
+// length isn't bounded by code (a Variable's value, a condition/command-list
+// JSON blob, raw command output), as opposed to things like names/paths that
+// are inherently short. Without this, e.g. an If condition checking a
+// Variable that happens to hold a fetched web page can turn a single log
+// line into hundreds of KB (found in practice: a 450KB Variable value logged
+// in full from Condition.cpp's per-leaf trace). Appends a size marker when
+// truncated so it's obvious data was cut, not silently dropped.
+std::string TruncateForLog(const std::string& s, size_t maxLen = 200);
+
 void SetLogFile(const char* filename, bool toStdOut = true);
 int loggingToFile(void);
 void logVersionInfo(void);

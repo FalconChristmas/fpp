@@ -100,6 +100,9 @@
       "name": "proxy"
     },
     {
+      "name": "recurringtasks"
+    },
+    {
       "name": "remoteAction"
     },
     {
@@ -128,6 +131,9 @@
     },
     {
       "name": "time"
+    },
+    {
+      "name": "variables"
     }
   ],
   "paths": {
@@ -1394,7 +1400,7 @@
           "commands"
         ],
         "summary": "commands",
-        "description": "List all available commands and their argument descriptions. Each entry also carries \"category\" (e.g. \"Playlist\", \"Media\", \"Plugins\") and \"level\" (0 Basic / 1 Advanced / 3 Developer) for UI grouping and filtering.",
+        "description": "List all available commands and their argument descriptions. Each entry also carries \"category\" (e.g. \"Playlist\", \"Media\", \"Plugins\") and \"level\" (0 Basic / 1 Advanced / 3 Developer) for UI grouping and filtering, plus \"disallowMultisync\" (true) on a command whose Multisync option should stay hidden - e.g. \"If\", since multisyncing it would broadcast the raw check to other instances rather than propagate the result of evaluating it.",
         "responses": {
           "200": {
             "description": "Array of command descriptions."
@@ -2388,6 +2394,40 @@
         }
       }
     },
+    "/api/fppd/condition/preview": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/condition/preview",
+        "description": "Preview a single If/Conditional Check leaf's current raw value - the same lookup evaluate() uses internally (Variable/Expression/Setting/Time/MQTT/ GPIO Pin/Sensor/Sun), before any comparator/Value is applied. Backs the If condition editor's \"Show Current Value\" button, so picking the right Value to compare against isn't guesswork.",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "One of the If Check \"Source\" dropdown values (e.g. \"Variable\", \"GPIO Pin\")."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Name/Expression field for that source."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"found\": true, \"value\": \"...\"} or {\"found\": false} if the source/name doesn't currently resolve."
+          }
+        }
+      }
+    },
     "/api/fppd/e131stats": {
       "delete": {
         "tags": [
@@ -2539,7 +2579,7 @@
         "description": "Dump the cached MQTT messages.",
         "responses": {
           "200": {
-            "description": "Cached MQTT messages."
+            "description": "Object keyed by topic, each value the topic's last cached message as a plain string."
           },
           "400": {
             "description": "MQTT is not initialized."
@@ -7123,6 +7163,47 @@
         }
       }
     },
+    "/api/recurringtasks": {
+      "get": {
+        "tags": [
+          "recurringtasks"
+        ],
+        "summary": "recurringtasks",
+        "description": "Report the configured Recurring Tasks merged with last-run status, for the Recurring Tasks admin page (www/recurringtasks.php).",
+        "responses": {
+          "200": {
+            "description": "{\"tasks\": [...]}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "recurringtasks"
+        ],
+        "summary": "recurringtasks",
+        "description": "Re-read config/recurringtasks.json and re-schedule all Recurring Task timers to match, so a save on www/recurringtasks.php (which writes that file via the generic api/configfile endpoint) takes effect without an fppd restart. Also handles an immediate \"Test Run\" of one task, run synchronously against the posted task definition (not a saved name), so the admin page can preview unsaved edits.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "command": "reload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recurring tasks reloaded, or {\"ok\":bool,\"raw\":string,\"filtered\":string,\"error\":string} for \"test\"."
+          },
+          "400": {
+            "description": "'command' field not specified."
+          }
+        }
+      }
+    },
     "/api/remoteAction": {
       "get": {
         "tags": [
@@ -8652,6 +8733,124 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/variables": {
+      "get": {
+        "tags": [
+          "variables"
+        ],
+        "summary": "variables",
+        "description": "List all User Variables and their current values. Pass ?validateExpression instead to syntax-check an expression (for the Set Variable \"Expression\" field) against currently-known variables, without setting anything. Pass ?fpp=true instead to list the read-only \"fpp-\" status variables (current playlist/sequence, play state, volume, etc.) instead of User Variables.",
+        "parameters": [
+          {
+            "name": "validateExpression",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "If set, validate this expression instead of listing variables."
+          },
+          {
+            "name": "fpp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "If \"true\", list the read-only fpp- status variables instead of User Variables."
+          },
+          {
+            "name": "mqtt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "If \"true\", list the read-only mqtt-<topic> variables (MQTT's own last-message-"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Object keyed by variable name, each with `value`, `truncated`,"
+          }
+        }
+      }
+    },
+    "/api/variables/{name}": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "variables"
+        ],
+        "summary": "variables/{name}",
+        "description": "Delete a User Variable entirely - unlike POSTing an empty body (the UI's \"Clear\"), which only resets its value/persist flag and leaves the row behind, this removes the name from the list altogether.",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Missing variable name in the path, or name is a read-only"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "variables"
+        ],
+        "summary": "variables/{name}",
+        "description": "Read a single User Variable's current value.",
+        "responses": {
+          "200": {
+            "description": "The variable's value as plain text (empty string if unset)."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "variables"
+        ],
+        "summary": "variables/{name}",
+        "description": "Set a User Variable's value. Body is the raw new value (plain text, not JSON). Add ?persist=true to save it to config/variables.json so it survives an fppd restart; omitted or any other value means the variable is in-memory only.",
+        "parameters": [
+          {
+            "name": "persist",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Persist the value to disk so it survives a restart."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "new-value-goes-here"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Missing variable name in the path."
           }
         }
       }

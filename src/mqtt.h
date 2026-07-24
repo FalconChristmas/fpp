@@ -52,7 +52,12 @@ public:
 
     void CacheSetMessage(std::string& topic, std::string& message);
     bool CacheCheckMessage(std::string& topic, std::string& message);
-    void dumpMessageCache(Json::Value& result);
+    bool GetCachedMessage(const std::string& topic, std::string& message);
+    bool GetCachedMessage(const std::string& topic, std::string& message, time_t& lastUpdated);
+    // Default shape is {topic: "value"} for backward compatibility with the
+    // public GET /api/fppd/mqtt/cache route. Pass includeMetadata=true for
+    // {topic: {value, lastUpdated}} (used internally by Variables::reportMqttVariables).
+    void dumpMessageCache(Json::Value& result, bool includeMetadata = false);
 
     std::string GetBaseTopic() { return m_baseTopic; }
 
@@ -71,8 +76,12 @@ private:
 
     std::list<std::string> callbackTopics;
 
+    struct CachedMqttMessage {
+        std::string value;
+        time_t lastUpdated = 0;
+    };
     std::mutex messageCacheLock;
-    std::map<std::string, std::string> messageCache;
+    std::map<std::string, CachedMqttMessage> messageCache;
 };
 
 extern MosquittoClient* mqtt;

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <?php
+    require_once 'common/htmlMeta.inc';
+    require_once 'config.php';
+    require_once 'common/menuHead.inc';
+    require_once 'common.php';
+    ?>
+    <title><? echo $pageTitle; ?></title>
+    <script>
+
+        function AddTask (task = {}) {
+            var row = AddTableRowFromTemplate('tblTasksBody');
+            FillInTaskRow(row, task);
+        }
+
+        function TaskTypeChanged (row) {
+            var type = row.find('.ptTmplType').val();
+            if (type === 'preset') {
+                row.find('.ptTmplPresetCell').show();
+                row.find('.ptTmplCommandCell').hide();
+            } else {
+                row.find('.ptTmplPresetCell').hide();
+                row.find('.ptTmplCommandCell').show();
+            }
+        }
+
+        function FilterTypeChanged (row) {
+            var type = row.find('.ptTmplFilterType').val();
+            row.find('.ptTmplFilterJsonRow').toggleClass('d-none', type !== 'json');
+            row.find('.ptTmplFilterBetweenRow').toggleClass('d-none', type !== 'between');
+            row.find('.ptTmplFilterRegexRow').toggleClass('d-none', type !== 'regex');
+        }
+
+        function FillInTaskRow (row, data) {
+            row.find('.ptTmplEnabled').prop('checked', data.enabled !== false);
+            row.find('.ptTmplName').val(data.name || '');
+
+            var sec = data.intervalMS ? Math.round(data.intervalMS / 1000) : 60;
+            row.find('.ptTmplIntervalSec').val(sec);
+
+            row.find('.ptTmplType').val(data.type === 'command' ? 'command' : 'preset');
+            row.find('.ptTmplPreset').val(data.preset || '');
+            row.find('.ptTmplResultVariable').val(data.resultVariable || '');
+            row.find('.ptTmplPersist').prop('checked', !!data.persistResult);
+            row.find('.ptTmplFilterType').val(data.filterType || 'none');
+            row.find('.ptTmplFilterJsonPath').val(data.filterJsonPath || '');
+            row.find('.ptTmplFilterBetweenStart').val(data.filterBetweenStart || '');
+            row.find('.ptTmplFilterBetweenEnd').val(data.filterBetweenEnd || '');
+            row.find('.ptTmplFilterRegex').val(data.filterRegex || '');
+
+            // FillInCommandTemplate/GetCommandTemplateData are the same
+            // helpers commandPresets.php and gpio.php use for their command
+            // rows (www/js/fpp.js) - reused as-is here for the "FPP Command"
+            // task type, including the Edit modal and args preview.
+            FillInCommandTemplate(row, { command: data.command || '', args: data.args || [] });
+
+            TaskTypeChanged(row);
+            FilterTypeChanged(row);
+            UpdateTaskAdvancedSummary(row);
+        }
+
+        // One-line stand-in for the Result Variable/Persist/Filter fields
+        // (edited via the same popup as the command itself - see
+        // EditTaskCommandAndSettings) so a task row stays a single compact
+        // line instead of the ~5-line stack those fields used to always
+        // show inline.
+        function UpdateTaskAdvancedSummary (row) {
+            var resultVar = row.find('.ptTmplResultVariable').val().trim();
+            var filterType = row.find('.ptTmplFilterType').val();
+            var parts = [];
+            parts.push(resultVar
+                ? ('&rarr; <code>' + $('<div>').text(resultVar).html() + '</code>')
+                : 'no result variable');
+            if (filterType && filterType !== 'none') {
+                parts.push('filter: ' + filterType);
+            }
+            row.find('.ptTmplAdvancedSummary').html(parts.join(', '));
+        }
+
+        // Opens the shared FPP Command editor (ShowCommandEditor, the same
+        // singleton dialog commandPresets.php/gpio.php use) via
+        // EditCommandTemplate, and - once its own fields have loaded -
+        // appends our Result Variable/Persist/Filter fields as a second
+        // section in that SAME dialog rather than nesting a separate one.
+        // Nesting a dialog inside this singleton is a documented past bug
+        // (silently corrupts the outer dialog's state - see cerebrum
+        // Do-Not-Repeat), so this only works because it's one dialog with
+        // extra appended content, never two stacked dialogs.
+        function EditTaskCommandAndSettings (row) {
+            EditCommandTemplate(row, function () {
+                AppendTaskAdvancedSectionToCommandEditor(row);
+            });
+        }
+
+        // The fields aren't cloned/duplicated - they're the exact same real
+        // <input>s GetTaskRowData()/SaveTasks() already read via
+        // row.find(...), just temporarily moved into the command editor
+        // dialog and moved back (to td.ptTmplCommandTd, their original home)
+        // when it closes. Safe to move out of the row's DOM subtree because
+        // a modal dialog blocks interaction with the rest of the page -
+        // nothing else can call row.find('.ptTmplResultVariable') etc.
+        // while they're relocated.
+        function AppendTaskAdvancedSectionToCommandEditor (row) {
+            var $fields = row.find('.ptTmplAdvancedFields');
+            var $section = $(
+                "<div class='ptTmplAdvancedSectionWrapper border-top mt-3 pt-3'>" +
+                "<h5 class='mb-2'>Result Variable / Filter</h5></div>"
+            );
+            $section.append($fields.removeClass('d-none'));
+            // commandEditor.php's own markup is: ...command fields table...
+            // <hr> <button row>. Insert before that <hr> (found as the
+            // button row's previous sibling), not before the button row
+            // itself, so the existing <hr> stays doing its one job -
+            // separating all the editable content above it from the
+            // buttons - instead of ending up sandwiched between our
+            // section and the buttons.
+            $('#btnSaveEditorCommand').closest('div').prev('hr').before($section);
+
+            // CommandEditorSave()/Cancel() both close #commandEditorPopup
+            // regardless of which was clicked - one listener on the dialog's
+            // own close event covers both paths, same as a Save/Cancel pair.
+            $('#commandEditorPopup').one('hidden.bs.modal', function () {
+                row.find('td.ptTmplCommandTd .ptTmplCommandCell').append($fields.addClass('d-none'));
+                $section.remove();
+                UpdateTaskAdvancedSummary(row);
+            });
+        }
+
+        function GetTaskRowData (row) {
+            var task = {};
+            task.name = row.find('.ptTmplName').val().trim();
+            task.enabled = row.find('.ptTmplEnabled').is(':checked');
+
+            var sec = parseInt(row.find('.ptTmplIntervalSec').val(), 10);
+            task.intervalMS = (isNaN(sec) || sec < 30) ? 60000 : sec * 1000;
+
+            task.type = row.find('.ptTmplType').val();
+            if (task.type === 'preset') {
+                task.preset = row.find('.ptTmplPreset').val().trim();
+                task.command = '';
+                task.args = [];
+                task.resultVariable = '';
+                task.persistResult = false;
+            } else {
+                var cmd = GetCommandTemplateData(row);
+                task.preset = '';
+                task.command = cmd.command;
+                task.args = cmd.args;
+                task.resultVariable = row.find('.ptTmplResultVariable').val().trim();
+                task.persistResult = row.find('.ptTmplPersist').is(':checked');
+                var filterType = row.find('.ptTmplFilterType').val();
+                task.filterType = filterType === 'none' ? '' : filterType;
+                task.filterJsonPath = row.find('.ptTmplFilterJsonPath').val().trim();
+                task.filterBetweenStart = row.find('.ptTmplFilterBetweenStart').val();
+                task.filterBetweenEnd = row.find('.ptTmplFilterBetweenEnd').val();
+                task.filterRegex = row.find('.ptTmplFilterRegex').val().trim();
+            }
+            return task;
+        }
+
+        function TestRunTask (row) {
+            var task = GetTaskRowData(row);
+            if (task.type === 'command' && task.command === '') {
+                alert('Select an FPP Command first.');
+                return;
+            }
+            if (task.type === 'preset' && task.preset === '') {
+                alert('Select a Command Preset first.');
+                return;
+            }
+            // Runs against the row's current (possibly unsaved) data, not a
+            // saved task by name - see TestRunTask() in RecurringTasks.cpp.
+            // Searches the whole row (not just .ptTmplCommandCell) since
+            // Command Preset-type rows have their own Test Run button in
+            // .ptTmplPresetCell instead.
+            var $btn = row.find("input[value='Test Run']:visible");
+            var origVal = $btn.val();
+            $btn.val('Running...').prop('disabled', true);
+            $.ajax({
+                type: 'POST',
+                url: 'api/fppd/recurringtasks',
+                contentType: 'application/json',
+                data: JSON.stringify({ command: 'test', task: task }),
+                dataType: 'json',
+                success: function (data) {
+                    ShowTestRunPopup(task.name || '(unnamed task)', data);
+                    LoadTaskStatus();
+                },
+                error: function (...args) {
+                    DialogError('Test Run failed', 'api/fppd/recurringtasks call failed' + show_details(args));
+                },
+                complete: function () {
+                    $btn.val(origVal).prop('disabled', false);
+                }
+            });
+        }
+
+        var testRunPopupSeq = 0;
+        function ShowTestRunPopup (name, data) {
+            var domId = 'testRunPopup_' + (++testRunPopupSeq);
+            var body = '';
+            if (data.note) {
+                body += "<div class='text-muted mb-2'>" + $('<div>').text(data.note).html() + '</div>';
+            }
+            if (!data.ok) {
+                body += "<div class='text-danger mb-2'><b>Error:</b> " + $('<div>').text(data.error || 'unknown error').html() + '</div>';
+            } else {
+                body += "<b>Raw result:</b><pre class='testRunRaw text-break border overflow-auto p-1' style='white-space:pre-wrap;max-height:150px;'></pre>";
+                body += "<b>Filtered (&rarr; Variable):</b><pre class='testRunFiltered text-break border overflow-auto p-1' style='white-space:pre-wrap;max-height:150px;'></pre>";
+            }
+            var $popup = $("<div id='" + domId + "'>" + body + '</div>').appendTo('body');
+            if (data.ok) {
+                $popup.find('.testRunRaw').text(data.raw || '(empty)');
+                $popup.find('.testRunFiltered').text(data.filtered || '(empty)');
+            }
+            $popup.fppDialog({
+                height: 'auto',
+                maxHeight: 500,
+                width: 500,
+                title: 'Test Run: ' + name,
+                modal: true,
+                open: function () {
+                    $popup.parent().find('.ui-dialog-titlebar-close').hide();
+                },
+                close: function () {
+                    $popup.remove();
+                },
+                buttons: {
+                    'Close': function () {
+                        $popup.fppDialog('close');
+                    }
+                }
+            });
+        }
+
+        // Status only ever shows OK/Error + a timestamp - never what the
+        // task actually wrote, so confirming the data pump produces what
+        // you expect meant leaving this page for variables.php. The eye
+        // icon next to Status (shown whenever the task has a resultVariable
+        // configured) fetches straight from the same GET api/variables/{name}
+        // variables.php's own View button uses.
+        var viewTaskVarPopupSeq = 0;
+        function ViewTaskResultVariable (name) {
+            $.ajax({
+                dataType: 'text',
+                url: 'api/variables/' + encodeURIComponent(name),
+                success: function (value) {
+                    ShowTaskVariablePopup(name, value);
+                },
+                error: function () {
+                    ShowTaskVariablePopup(name, '');
+                }
+            });
+        }
+
+        function ShowTaskVariablePopup (name, value) {
+            var domId = 'taskVarPopup_' + (++viewTaskVarPopupSeq);
+            var $popup = $(
+                "<div id='" + domId + "'><pre class='text-break m-0' style='white-space:pre-wrap;'></pre></div>"
+            ).appendTo('body');
+            $popup.find('pre').text(value);
+            $popup.fppDialog({
+                height: 'auto',
+                maxHeight: 500,
+                width: 500,
+                title: name,
+                modal: true,
+                open: function () {
+                    $popup.parent().find('.ui-dialog-titlebar-close').hide();
+                },
+                close: function () {
+                    $popup.remove();
+                },
+                buttons: {
+                    'Copy to Clipboard': function () {
+                        navigator.clipboard.writeText(value);
+                    },
+                    'Close': function () {
+                        $popup.fppDialog('close');
+                    }
+                }
+            });
+        }
+
+        function LoadTasks () {
+            $.ajax({
+                dataType: 'json',
+                url: 'api/configfile/recurringtasks.json',
+                success: function (data) {
+                    $('#tblTasksBody').empty();
+                    if (Array.isArray(data)) {
+                        $.each(data, function (i, t) {
+                            AddTask(t);
+                        });
+                    }
+                    LoadTaskStatus();
+                },
+                error: function () {
+                    // No recurringtasks.json saved yet - start with an empty table.
+                    $('#tblTasksBody').empty();
+                }
+            });
+        }
+
+        function LoadTaskStatus () {
+            $.ajax({
+                dataType: 'json',
+                url: 'api/fppd/recurringtasks',
+                success: function (data) {
+                    var tasks = (data && data.tasks) || [];
+                    var byName = {};
+                    $.each(tasks, function (i, t) {
+                        byName[t.name] = t;
+                    });
+                    $('#tblTasksBody > tr').each(function () {
+                        var name = $(this).find('.ptTmplName').val();
+                        var $status = $(this).find('.ptTmplStatus');
+                        var $eye = $(this).find('.ptTmplViewVar');
+                        var t = byName[name];
+
+                        // Shown whenever the task targets a Variable at all,
+                        // regardless of hasRun - lets you check what's
+                        // currently there even before/without ever running
+                        // this task (e.g. another task/preset already wrote
+                        // to the same Variable).
+                        if (t && t.resultVariable) {
+                            $eye.removeClass('d-none').attr('data-varname', t.resultVariable);
+                        } else {
+                            $eye.addClass('d-none');
+                        }
+
+                        if (!t || !t.hasRun) {
+                            $status.removeClass('text-success text-danger').addClass('text-muted').text('never run').attr('title', '');
+                            return;
+                        }
+                        var when = new Date(t.lastRunMS).toLocaleString();
+                        if (t.lastOk) {
+                            $status.removeClass('text-muted text-danger').addClass('text-success').text('OK @ ' + when).attr('title', '');
+                        } else {
+                            $status.removeClass('text-muted text-success').addClass('text-danger')
+                                .text('Error @ ' + when)
+                                .attr('title', t.lastError || '');
+                        }
+                    });
+                }
+            });
+        }
+
+        function SaveTasks () {
+            var tasks = [];
+            var errors = [];
+            var names = {};
+
+            $('#tblTasksBody > tr').each(function () {
+                var task = GetTaskRowData($(this));
+                if (task.name === '') {
+                    errors.push('A task is missing a Name and will not be saved.');
+                    return;
+                }
+                if (names.hasOwnProperty(task.name)) {
+                    errors.push('Task name "' + task.name + '" is used more than once - names must be unique.');
+                    return;
+                }
+                if (task.type === 'preset' && task.preset === '') {
+                    errors.push('Task "' + task.name + '" has no Command Preset selected.');
+                    return;
+                }
+                if (task.type === 'command' && task.command === '') {
+                    errors.push('Task "' + task.name + '" has no FPP Command selected.');
+                    return;
+                }
+                names[task.name] = true;
+                tasks.push(task);
+            });
+
+            if (errors.length > 0) {
+                alert(errors.join('\n'));
+                return;
+            }
+
+            var json = JSON.stringify(tasks, null, 2);
+            var result = Post('api/configfile/recurringtasks.json', false, json);
+
+            if (!result.hasOwnProperty('Status') || (result['Status'] != 'OK')) {
+                alert('Error saving recurring tasks!');
+                return;
+            }
+
+            // Config-driven timers only get (re-)scheduled at fppd startup or
+            // on an explicit reload - ask fppd to pick up the just-saved file
+            // now so the change is live without a restart.
+            $.ajax({
+                type: 'POST',
+                url: 'api/fppd/recurringtasks',
+                contentType: 'application/json',
+                data: JSON.stringify({ command: 'reload' }),
+                complete: function () {
+                    $.jGrowl('Recurring tasks saved and reloaded.', { themeState: 'success' });
+                    LoadTaskStatus();
+                }
+            });
+        }
+
+        function ReloadTasksNow () {
+            $.ajax({
+                type: 'POST',
+                url: 'api/fppd/recurringtasks',
+                contentType: 'application/json',
+                data: JSON.stringify({ command: 'reload' }),
+                complete: function () {
+                    $.jGrowl('Recurring tasks reloaded from disk.', { themeState: 'success' });
+                    LoadTaskStatus();
+                }
+            });
+        }
+
+        $(document).ready(function () {
+            $('#tblTasksBody').on('mousedown', 'tr', function (event, ui) {
+                HandleTableRowMouseClick(event, $(this));
+
+                if ($('#tblTasksBody > tr.selectedEntry').length > 0) {
+                    EnableButtonClass('deleteTaskButton');
+                } else {
+                    DisableButtonClass('deleteTaskButton');
+                }
+            });
+            $('#tblTasksBody').on('click', '.ptTmplViewVar', function (event) {
+                event.stopPropagation(); // don't also trigger the row's own mousedown-select handler
+                ViewTaskResultVariable($(this).attr('data-varname'));
+            });
+        });
+
+        // Only real (writable) User Variables belong here - fpp-/mqtt-
+        // names are read-only and would be rejected if actually used as a
+        // Result Variable target, so suggesting them would be misleading.
+        function LoadResultVariableNames () {
+            $.ajax({
+                url: 'api/variables',
+                dataType: 'json',
+                success: function (data) {
+                    var names = Object.keys(data || {}).sort();
+                    var $list = $('#ptResultVariableNames').empty();
+                    $.each(names, function (i, name) {
+                        $list.append("<option value='" + $('<div>').text(name).html() + "'>");
+                    });
+                }
+            });
+        }
+
+        function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
+            // Populates the shared commandListByName cache (www/js/fpp.js)
+            // used by FillInCommandTemplate's "is this command still
+            // available" check - same call commandPresets.php makes, just
+            // against a throwaway select since this page doesn't otherwise
+            // need one.
+            LoadCommandList($('<select>'));
+            LoadResultVariableNames();
+            LoadTasks();
+        }
+
+    </script>
+</head>
+
+<body>
+    <div id="bodyWrapper">
+        <?php
+        $activeParentMenuItem = 'content';
+        include 'menu.inc'; ?>
+        <div class="mainContainer">
+            <h1 class="title">Recurring Tasks</h1>
+            <div class="pageContent">
+                <div class="callout">
+                    Recurring Tasks are the "data pump" for <a href="variables.php">User Variables</a>: each
+                    one runs a Command Preset, or any single FPP Command, on a fixed interval - keeping I/O
+                    like a URL fetch or a script off the time-critical player loop. A <b>FPP Command</b> task
+                    can optionally land its result into a Variable, which the <code>If</code> command or a
+                    <code>Conditional</code> playlist entry can then read instantly. Saving reloads the
+                    running tasks immediately - no fppd restart needed.
+                </div>
+                <div id="recurringTasks" class="settings">
+                    <div class="row tablePageHeader">
+                        <div class="col">
+                            <div class="form-actions form-actions-secondary">
+                                <input class="buttons" type="button" value="Clear Selection"
+                                    onClick="$('#tblTasksBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteTaskButton');" />
+                            </div>
+                        </div>
+                        <div class="col-auto ms-auto">
+                            <div class="form-actions form-actions-primary">
+                                <div><button class="disableButtons deleteTaskButton"
+                                        data-btn-enabled-class="btn-outline-danger" type="button" value="Delete"
+                                        onClick="DeleteSelectedEntries('tblTasksBody'); DisableButtonClass('deleteTaskButton');">Delete</button>
+                                </div>
+                                <div><button class="buttons" type="button" value="Reload Now"
+                                        onClick="ReloadTasksNow();">Reload Now</button></div>
+                                <div><button class="buttons btn-outline-success form-actions-button-primary ms-1"
+                                        type="button" onClick="AddTask();"><i class="fas fa-plus"></i>
+                                        Add</button></div>
+                                <div><button class="buttons btn-success form-actions-button-primary" type='button'
+                                        value="Save" onClick='SaveTasks();'>Save</button></div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <style>
+                        #tblTasksBody > tr > td {
+                            vertical-align: top;
+                        }
+                        .ptTmplResultVariableRow {
+                            display: block;
+                            margin-top: 4px;
+                        }
+                        /* Matches #tblCommandEditor's own label-column rule
+                           (commandEditor.php) so the Result Variable/Filter
+                           section lines up the same way as the command
+                           fields above it in the same popup. */
+                        .ptTmplAdvancedTable td:first-child {
+                            padding-right: 8px;
+                            width: 25%;
+                        }
+                    </style>
+                    <div class='fppTableWrapper fppTableWrapperAsTable'>
+                        <div class='fppTableContents' role="region" aria-labelledby="tblTasksHead" tabindex="0">
+                            <table class='fppTableRowTemplate template-tblTasksBody'>
+                                <tr>
+                                    <td class='center'><input type='checkbox' class='ptTmplEnabled' checked></td>
+                                    <td><input type='text' size='20' maxlength='64' class='ptTmplName'></td>
+                                    <td><input type='number' min='30' step='1' size='6' value='60'
+                                            class='ptTmplIntervalSec'></td>
+                                    <td>
+                                        <select class='ptTmplType'
+                                            onChange='TaskTypeChanged($(this).parent().parent());'>
+                                            <option value='preset'>Command Preset</option>
+                                            <option value='command'>FPP Command</option>
+                                        </select>
+                                    </td>
+                                    <td class='ptTmplCommandTd'>
+                                    <span class='ptTmplPresetCell'>
+                                        <input type='text' size='24' class='ptTmplPreset' list='ptPresetNames'>
+                                        <input type='button' class='buttons smallButton' value='Test Run'
+                                            onClick='TestRunTask($(this).closest("tr"));'>
+                                    </span>
+                                    <span class='ptTmplCommandCell' style='display:none;'>
+                                        <select class='cmdTmplCommand'
+                                            onChange='EditTaskCommandAndSettings($(this).closest("tr"));'></select>
+                                        <input type='button' class='buttons reallySmallButton' value='Edit'
+                                            onClick='EditTaskCommandAndSettings($(this).closest("tr"));'>
+                                        <input type='button' class='buttons smallButton' value='Test Run'
+                                            onClick='TestRunTask($(this).closest("tr"));'>
+                                        <img class='cmdTmplTooltipIcon' data-bs-html='true' data-bs-toggle='tooltip'
+                                            title='' src='images/redesign/help-icon.svg' width=22 height=22>
+                                        <table class='cmdTmplArgsTable'>
+                                            <tr>
+                                                <th class='left'>Args:</th>
+                                                <td><span class='cmdTmplArgs'></span></td>
+                                            </tr>
+                                        </table>
+                                        <span class='cmdTmplJSON' style='display: none;'></span>
+                                        <div class='ptTmplResultVariableRow'>
+                                            <span class='ptTmplAdvancedSummary text-muted'></span>
+                                        </div>
+                                        <div class='ptTmplAdvancedFields d-none'>
+                                            <table width='100%' class='ptTmplAdvancedTable settingsTable'>
+                                                <tr>
+                                                    <td>Result &rarr; Variable:</td>
+                                                    <td><input type='text' size='16' class='ptTmplResultVariable'
+                                                            placeholder='(optional)' list='ptResultVariableNames'></td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Persist:</td>
+                                                    <td><input type='checkbox' class='ptTmplPersist'> persist across
+                                                        restarts</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Filter:</td>
+                                                    <td><select class='ptTmplFilterType'
+                                                            onChange='FilterTypeChanged($(this).closest(".ptTmplAdvancedFields"));'>
+                                                            <option value='none'>None (use raw result)</option>
+                                                            <option value='json'>JSON Field</option>
+                                                            <option value='between'>Between Markers</option>
+                                                            <option value='regex'>Regex (advanced)</option>
+                                                        </select></td>
+                                                </tr>
+                                                <tr class='ptTmplFilterJsonRow d-none'>
+                                                    <td>Field path:</td>
+                                                    <td><input type='text' size='20' class='ptTmplFilterJsonPath'
+                                                            placeholder='e.g. data.temperature'></td>
+                                                </tr>
+                                                <tr class='ptTmplFilterBetweenRow d-none'>
+                                                    <td>After:</td>
+                                                    <td><input type='text' size='14' class='ptTmplFilterBetweenStart'
+                                                            placeholder='(optional)'></td>
+                                                </tr>
+                                                <tr class='ptTmplFilterBetweenRow d-none'>
+                                                    <td>Before:</td>
+                                                    <td><input type='text' size='14' class='ptTmplFilterBetweenEnd'
+                                                            placeholder='(optional)'></td>
+                                                </tr>
+                                                <tr class='ptTmplFilterRegexRow d-none'>
+                                                    <td>Pattern:</td>
+                                                    <td><input type='text' size='20' class='ptTmplFilterRegex'
+                                                            placeholder='e.g. Temp: ([0-9.]+)'></td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </span>
+                                    </td>
+                                    <td><span class='ptTmplStatus text-muted'>never run</span>
+                                        <button type='button' class='buttons btn-sm ptTmplViewVar d-none' title='View current value'><i class='fas fa-eye'></i></button>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table id="taskTable" class="fppSelectableRowTable fppStickyTheadTable">
+                                <thead>
+                                    <tr>
+                                        <th>Enabled</th>
+                                        <th>Name</th>
+                                        <th>Interval (sec)</th>
+                                        <th>Type</th>
+                                        <th>Preset / Command</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tblTasksBody" width="100%">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php include 'common/footer.inc'; ?>
+    </div>
+
+    <datalist id='ptPresetNames'>
+        <?php
+        $presetsJSON = @file_get_contents($settings['configDirectory'] . '/commandPresets.json');
+        $presets = $presetsJSON ? json_decode($presetsJSON, true) : null;
+        if ($presets && isset($presets['commands'])) {
+            foreach ($presets['commands'] as $preset) {
+                if (!empty($preset['name'])) {
+                    echo "<option value='" . htmlspecialchars($preset['name']) . "'>";
+                }
+            }
+        }
+        ?>
+    </datalist>
+
+    <!-- Populated in JS (LoadResultVariableNames), not server-side like
+         ptPresetNames above - unlike presets, Variables are created/renamed
+         constantly at runtime (Set Variable, MQTT, recurring tasks
+         themselves), so a page-load-time PHP snapshot would go stale
+         immediately. -->
+    <datalist id='ptResultVariableNames'></datalist>
+
+</body>
+
+</html>

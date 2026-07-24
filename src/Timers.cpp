@@ -79,12 +79,14 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, const std::
     updateTimers();
 }
 
-void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback) {
+void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback,
+                               long long initialDelayMS) {
+    long long firstDelay = initialDelayMS < 0 ? fireTimeMS : initialDelayMS;
     std::unique_lock<std::mutex> l(lock);
     if (!name.empty()) {
         for (auto& a : timers) {
             if (a && a->id == name) {
-                a->fireTimeMS = GetTimeMS() + fireTimeMS;
+                a->fireTimeMS = GetTimeMS() + firstDelay;
                 a->periodicRate = fireTimeMS;
                 a->callback = callback;
                 a->commandPreset = "";
@@ -96,7 +98,7 @@ void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std
     TimerInfo* i = new TimerInfo;
     i->id = name;
     i->callback = callback;
-    i->fireTimeMS = GetTimeMS() + fireTimeMS;
+    i->fireTimeMS = GetTimeMS() + firstDelay;
     i->periodicRate = fireTimeMS;
     timers.push_back(i);
     updateTimers();

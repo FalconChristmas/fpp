@@ -289,6 +289,32 @@ void FPPLogger::SetAllLevel(LogLevel level) {
     }
 }
 
+std::string TruncateForLog(const std::string& s, size_t maxLen) {
+    // Escape embedded newlines first (on the ORIGINAL string, not just the
+    // truncated slice) - formatLogLines() below re-prefixes every physical
+    // line it's given (deliberately, for attribution in this merged log
+    // file), so an unescaped \n in otherwise-unbounded data (a Variable's
+    // value, raw command output, etc.) turns one logical log entry into
+    // several prefixed-but-uncorrelated-looking lines. A short multi-line
+    // value is just as confusing as a long one, so this isn't gated behind
+    // the length check below.
+    std::string escaped;
+    escaped.reserve(s.size());
+    for (char c : s) {
+        if (c == '\n') {
+            escaped += "\\n";
+        } else if (c == '\r') {
+            escaped += "\\r";
+        } else {
+            escaped += c;
+        }
+    }
+    if (escaped.size() <= maxLen) {
+        return escaped;
+    }
+    return escaped.substr(0, maxLen) + "...(" + std::to_string(s.size()) + " bytes total)";
+}
+
 bool WillLog(int level, FPPLoggerInstance& facility) {
     // Don't log if we're not concerned about anything at this level
     if (facility.level < level)

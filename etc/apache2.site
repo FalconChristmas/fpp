@@ -8,6 +8,18 @@ ServerTokens Prod
 <VirtualHost *:80>
 	ServerAdmin webmaster@localhost
 
+	# mqtt-<topic> Variables use '/' inside the name (an MQTT topic path),
+	# reaching this server pre-encoded as %2F from encodeURIComponent().
+	# Without this, Apache 404s any GET/POST api/variables/mqtt-<topic>
+	# whose topic contains a slash instead of passing it through to fppd.
+	# Must be "On" (decode), not "NoDecode" - NoDecode keeps the %2F as
+	# literal text, which then gets re-percent-encoded (%2F -> %252F) when
+	# proxied to the backend; Drogon's single decode pass on that leaves a
+	# literal "%2F" string in the path instead of a real '/', so the
+	# variable name never matches anything and the response is silently
+	# empty (200 OK, zero-length body) instead of erroring visibly.
+	AllowEncodedSlashes On
+
 	DocumentRoot /opt/fpp/www
 
 	<Directory />
@@ -95,6 +107,7 @@ ServerTokens Prod
     RewriteRule ^command(.*)$ http://localhost:32322/command$1 [P]
     RewriteRule ^player(.*)$ http://localhost:32322/player$1 [P]
     RewriteRule ^gpio(.*)$ http://localhost:32322/gpio$1 [P]
+    RewriteRule ^variables(.*)$ http://localhost:32322/variables$1 [P]
     RewriteRule ^plugin-apis/(.*)$ http://localhost:32322/$1 [P]
 
     # SSE endpoints - use dedicated proxy rules with immediate flushing
