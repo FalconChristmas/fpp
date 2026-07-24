@@ -33,6 +33,9 @@ $files['config'] = array(
     'fpp-info.json',
     'exim4/*',
     'config/cape-eeprom.bin',
+    'config/variables.json',
+    'config/recurringtasks.json',
+    'config/commandPresets.json',
 );
 $files['network'] = array(
     'config/interface.*',
