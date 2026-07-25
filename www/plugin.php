@@ -2,9 +2,19 @@
 $pluginName = "";
 $activeParentMenuItem = "status";
 if (!isset($_GET['nopage'])):
+    // The DOCTYPE has to be the first thing on the wire: config.php emits the
+    // "Falcon Player - FPP" discovery comment and the settings <script> block as
+    // soon as it is required, and any markup ahead of the DOCTYPE puts the
+    // browser into Quirks Mode. Open the document first and pull the includes in
+    // from inside <head>, the same way index.php and the other core pages do.
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
 
-    require_once "config.php";
-    require_once "common.php";
+    <head>
+        <?php
+        require_once "config.php";
+        require_once "common.php";
 
     $pluginSettings = array();
     $pluginSettingInfos = array();
@@ -27,13 +37,6 @@ if (!isset($_GET['nopage'])):
         $pluginInfo["name"] = "Unknown";
     }
 
-    ?>
-
-    <!DOCTYPE html>
-    <html lang="en">
-
-    <head>
-        <?php
         include 'common/htmlMeta.inc';
         include 'common/menuHead.inc'; ?>
         <title><? echo $pageTitle; ?></title>
