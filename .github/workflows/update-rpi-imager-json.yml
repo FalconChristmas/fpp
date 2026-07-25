@@ -87,10 +87,10 @@ jobs:
           # "Pi64" too).
           for SUFFIX in Pi Pi64 BB64 BBB; do
             NAME=$(jq -r --arg s "$SUFFIX" \
-              '.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$")) | .name' \
+              '[.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$"))] | sort_by(.updated_at) | last | .name // empty' \
               release.json)
             URL=$(jq -r --arg s "$SUFFIX" \
-              '.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$")) | .browser_download_url' \
+              '[.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$"))] | sort_by(.updated_at) | last | .browser_download_url // empty' \
               release.json)
 
             if [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
