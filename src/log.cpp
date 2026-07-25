@@ -40,6 +40,16 @@ FPPLogger FPPLogger::INSTANCE = FPPLogger();
 char logFileName[1024] = "";
 bool logToStdOut = true;
 
+// True when stdout is an interactive terminal (a person ran `fppd -f` in a
+// shell) rather than a pipe to journald (how systemd runs `fppd -f`). Used to
+// decide whether the stdout copy of a line already written to the log file is
+// a useful on-screen echo or a pure journald duplicate. Cached: fppd's stdout
+// is not reassigned after startup, and isatty() is a syscall per log line.
+static bool stdoutIsInteractive() {
+    static const bool interactive = isatty(fileno(stdout)) != 0;
+    return interactive;
+}
+
 // Program name for the syslog-style program field. fppd.log is a merged,
 // sequential record -- fppd itself, the fppd_start/stop/restart scripts, and
 // operation breadcrumbs all append to it -- so every line has to say who wrote
@@ -456,7 +466,13 @@ void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facilit
     //
     // `fppd -l stdout` still logs to stdout, and nothing suppresses stdout when
     // no real log file is in use (early startup, before SetLogFile).
-    if (strcmp(logFileName, "stdout") && logToStdOut && !wroteLogFile) {
+    //
+    // The duplicate-suppression only applies when stdout is a pipe to journald.
+    // When a person runs `fppd -f` in a terminal, stdout is a TTY and the copy
+    // is a genuine on-screen echo of the log file, not a journald duplicate, so
+    // keep echoing every line -- that is the interactive foreground behavior.
+    if (strcmp(logFileName, "stdout") && logToStdOut &&
+        (!wroteLogFile || stdoutIsInteractive())) {
         fwrite(out.data(), 1, out.size(), stdout);
     }
 }
