@@ -29,17 +29,17 @@ public:
 
     virtual Json::Value getDescription();
     virtual bool hidden() const { return false; }
-    // Multisync broadcasts this command's args verbatim to other FPP
-    // instances, which then execute it independently - coherent for a plain
-    // action, but not for a command whose whole job is evaluating *local*
-    // state (a GPIO pin, a local Variable, a local sensor reading) and
-    // reacting to it, since "multisync the check" silently becomes "every
-    // instance re-evaluates the same check against its own, possibly
-    // different, local state" rather than propagating the result of one
-    // evaluation. Override to true for that kind of command (see IfCommand);
-    // the way to actually multisync the *outcome* of a check is to put a
-    // Multisync-enabled command inside its Then/Else branch instead.
-    virtual bool disallowMultisync() const { return false; }
+
+    // ABI RULE: do NOT add new virtual methods to Command, and do NOT make any
+    // Command method call a virtual that older objects might lack. External
+    // channel-output/event plugins subclass Command and are compiled separately
+    // against these headers; inserting a virtual shifts the vtable so FPP
+    // dispatches a base-class call into the wrong slot of a pre-built plugin's
+    // object. (A mid-vtable disallowMultisync() once did exactly this:
+    // Command::getDescription() ended up calling the plugin's run() -> crash.)
+    // To add per-command metadata, emit it from an override of the existing
+    // getDescription() virtual, ideally via an FPP-internal intermediate class
+    // (see LocalOnlyCommand) that plugins never subclass.
 
     class Result {
     public:
