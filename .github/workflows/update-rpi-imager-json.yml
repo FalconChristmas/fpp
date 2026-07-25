@@ -213,6 +213,26 @@ jobs:
           PLATFORM_SUFFIXES = ("Pi64", "Pi", "BB64", "BBB")
           name_re = re.compile(r"^FPP\s+v(\S+)\s+(.*)$")
 
+          # A platform with no existing JSON entry at all is skipped by
+          # default (see below) rather than guessing its "devices" list --
+          # guessing that field has bitten this file before (2024's
+          # "pi4-64bit" experiment was reverted a month later for possibly
+          # breaking flashing for users). Pi64 is a deliberate, verified
+          # exception: cross-checked against both the official rpi-imager
+          # schema example (doc/os-sublist-example.json) and the live
+          # production os_list, which use "<board>-64bit" tags (no suffix on
+          # pi1/pi2 entries since those chips are 32-bit only) -- e.g.
+          # Raspberry Pi OS (64-bit) ships devices: ["pi5-64bit", "pi4-64bit",
+          # "pi3-64bit"]. Mirrors this file's existing "Pi" entry's
+          # "-32bit"-suffixed convention exactly.
+          NEW_PLATFORM_TEMPLATES = {
+              "Pi64": {
+                  "label": "Pi64",
+                  "description": "Falcon Player for 64-bit capable RPi models",
+                  "devices": ["pi5-64bit", "pi4-64bit", "pi3-64bit"],
+              },
+          }
+
           def entry_platform(o):
               for suffix in PLATFORM_SUFFIXES:
                   if re.search(rf"-{re.escape(suffix)}\.img\.zip$", o["url"]):
@@ -265,20 +285,40 @@ jobs:
                       data["os_list"].remove(dupe)
                       removed_dupes.append(dupe.get("name", suffix))
                   updated.append(suffix)
-              else:
+              elif same_platform:
                   # First release ever seen in this channel for this platform
                   # (e.g. the very first *-beta build). Clone devices/icon/
-                  # website/init_format from any existing same-platform entry
-                  # so those don't have to be guessed; skip entirely if this
-                  # platform has never been published under any channel.
-                  template = same_platform[0] if same_platform else None
-                  if template is None:
-                      skipped.append(suffix)
-                      continue
+                  # website/init_format from the existing same-platform entry
+                  # so those don't have to be guessed.
+                  template = same_platform[0]
                   entry = dict(template)
                   entry["devices"] = list(template["devices"])
                   data["os_list"].append(entry)
                   added.append(suffix)
+              elif suffix in NEW_PLATFORM_TEMPLATES:
+                  # Platform has never had a JSON entry in any channel, but
+                  # it's on the verified allowlist above -- build a fresh
+                  # entry from a same-repo sibling for the generic fields
+                  # (icon/website/init_format never vary between platforms
+                  # here) plus the verified description/devices.
+                  spec = NEW_PLATFORM_TEMPLATES[suffix]
+                  sibling = data["os_list"][0] if data["os_list"] else {}
+                  entry = {
+                      "name": f"FPP v{version} {spec['label']}",
+                      "description": spec["description"],
+                      "url": url,
+                      "icon": sibling.get("icon", ""),
+                      "init_format": sibling.get("init_format", "none"),
+                      "website": sibling.get("website", "https://www.falconplayer.com/"),
+                      "devices": list(spec["devices"]),
+                  }
+                  data["os_list"].append(entry)
+                  added.append(suffix)
+              else:
+                  # Genuinely unknown platform with no template and no
+                  # verified device list -- skip rather than guess.
+                  skipped.append(suffix)
+                  continue
 
               m = name_re.match(entry.get("name", ""))
               label = m.group(2) if m else suffix
