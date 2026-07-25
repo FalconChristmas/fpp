@@ -2194,7 +2194,10 @@ int GStreamerOutput::Process(void) {
             float remaining = (effectiveDur > pos) ? (float)(effectiveDur - pos) / GST_SECOND : 0.0f;
             setMediaElapsed(elapsed, remaining);
 
-            if (multiSync->isMultiSyncEnabled()) {
+            // Only the primary slot represents the show's synced position;
+            // companion streams (slot > 1, e.g. extraMedia) play locally on
+            // each device and must not broadcast themselves as the master.
+            if (m_streamSlot == 1 && multiSync->isMultiSyncEnabled()) {
                 multiSync->SendMediaSyncPacket(m_mediaFilename, m_mediaOutputStatus->mediaSeconds);
             }
             CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
