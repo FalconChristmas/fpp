@@ -112,6 +112,21 @@ jobs:
             case "$V" in
               v[0-9]*) V="${V#v}" ;;
             esac
+            # Guard rail: the ref actually built is whatever's picked in the
+            # "Use workflow from" branch/tag selector at the top of the Run
+            # workflow form -- a control separate from the "version" text
+            # input below, defaults to "master", and is easy to leave
+            # unchanged. Refuse to silently turn a forgotten default into a
+            # release named "master"/"dev"/etc; require something that
+            # actually looks like a release ref (starts with a digit, same
+            # shape the tag-push trigger requires).
+            case "$V" in
+              [0-9]*) : ;;
+              *)
+                echo "::error::make_release is checked but the ref actually built ('${{ github.ref_name }}') doesn't look like a release branch/tag (expected e.g. 10.0-beta or v10.0-beta). This is controlled by the 'Use workflow from' picker at the top of the Run workflow form, NOT the 'version' text box -- it defaults to 'master', so it's easy to leave unchanged by mistake. Refusing to create a release named '${{ github.ref_name }}'."
+                exit 1
+                ;;
+            esac
             echo "is_release=true" >> "$GITHUB_OUTPUT"
             echo "is_nightly=false" >> "$GITHUB_OUTPUT"
           # Manual dispatch with explicit version -> one-off build
