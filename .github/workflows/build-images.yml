@@ -2,7 +2,13 @@
 # Build FPP SD card images for Pi, Pi64, BBB, and BB64.
 #
 # Runs:
-#   - workflow_dispatch: manual trigger with optional version string
+#   - workflow_dispatch: manual trigger. Pick the branch/tag to build from the
+#                        "Use workflow from" dropdown. Options: build a subset
+#                        of platforms (for quickly testing this workflow), and
+#                        optionally check "make_release" to create/update a
+#                        release for that ref (name = ref, "v" prefix stripped)
+#                        -- add "overwrite_existing" to replace an existing
+#                        release's assets in place instead of failing.
 #   - schedule:          nightly at 04:00 UTC
 #   - push (release tag): release build (major version >= 10 only); results are
 #                        attached to a GitHub release named from the tag. Tags
@@ -24,13 +30,32 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'FPP version string (blank = nightly-YYYYMMDD)'
+        description: 'One-off build version string (ignored if "Create/update a release" is checked; blank = nightly-YYYYMMDD)'
         required: false
         default: ''
       platforms:
-        description: 'Comma-separated subset of platforms to build (blank = all)'
+        description: 'Platforms to build (use a subset to test this workflow quickly)'
+        type: choice
         required: false
-        default: ''
+        default: 'all'
+        options:
+          - 'all'
+          - 'pi'
+          - 'pi64'
+          - 'bb64'
+          - 'bbb'
+          - 'pi,pi64'
+          - 'bb64,bbb'
+      make_release:
+        description: 'Create/update a release from the branch or tag picked above ("Use workflow from"). Release name always matches that ref (leading "v" stripped).'
+        type: boolean
+        required: false
+        default: false
+      overwrite_existing:
+        description: 'If a release already exists for that ref, replace its assets in place instead of failing'
+        type: boolean
+        required: false
+        default: false
   schedule:
     - cron: '0 4 * * *'
   push:
@@ -74,6 +99,34 @@ jobs:
           # strip anything.
           if [ "${{ github.event_name }}" = "push" ] && [[ "$GITHUB_REF" == refs/tags/* ]]; then
             V="${GITHUB_REF#refs/tags/}"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+            echo "is_nightly=false" >> "$GITHUB_OUTPUT"
+          # Manual dispatch, "make_release" checked -> release build from
+          # whatever branch/tag was picked in the "Use workflow from" dropdown.
+          # The release name always matches that ref (never the free-typed
+          # "version" input), same as the tag-push path above; a leading "v"
+          # is stripped since branches follow "vX.Y" but tags/releases/
+          # fppversion.sh all use the bare "X.Y" form (see header comment).
+          elif [ "${{ github.event.inputs.make_release }}" = "true" ]; then
+            V="${{ github.ref_name }}"
+            case "$V" in
+              v[0-9]*) V="${V#v}" ;;
+            esac
+            # Guard rail: the ref actually built is whatever's picked in the
+            # "Use workflow from" branch/tag selector at the top of the Run
+            # workflow form -- a control separate from the "version" text
+            # input below, defaults to "master", and is easy to leave
+            # unchanged. Refuse to silently turn a forgotten default into a
+            # release named "master"/"dev"/etc; require something that
+            # actually looks like a release ref (starts with a digit, same
+            # shape the tag-push trigger requires).
+            case "$V" in
+              [0-9]*) : ;;
+              *)
+                echo "::error::make_release is checked but the ref actually built ('${{ github.ref_name }}') doesn't look like a release branch/tag (expected e.g. 10.0-beta or v10.0-beta). This is controlled by the 'Use workflow from' picker at the top of the Run workflow form, NOT the 'version' text box -- it defaults to 'master', so it's easy to leave unchanged by mistake. Refusing to create a release named '${{ github.ref_name }}'."
+                exit 1
+                ;;
+            esac
             echo "is_release=true" >> "$GITHUB_OUTPUT"
             echo "is_nightly=false" >> "$GITHUB_OUTPUT"
           # Manual dispatch with explicit version -> one-off build
@@ -129,7 +182,7 @@ jobs:
         id: gate
         run: |
           REQ="${{ github.event.inputs.platforms }}"
-          if [ -n "$REQ" ]; then
+          if [ -n "$REQ" ] && [ "$REQ" != "all" ]; then
             case ",$REQ," in
               *",${{ matrix.platform }},"*) echo "skip=false" >> "$GITHUB_OUTPUT" ;;
               *) echo "skip=true" >> "$GITHUB_OUTPUT" ;;
@@ -319,13 +372,54 @@ jobs:
           ls -la release-files/
 
       - name: Create draft release
+        # Skipped for manual "overwrite_existing" runs: this step always
+        # creates fresh, so it would fail with "already_exists" whenever the
+        # release we're meant to be replacing assets on is already there.
+        if: github.event.inputs.overwrite_existing != 'true'
         uses: softprops/action-gh-release@v2
         with:
           draft: true
           name: "FPP ${{ needs.prep.outputs.version }}"
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.prep.outputs.version }}
           files: release-files/*
           fail_on_unmatched_files: true
+
+      - name: Create or update release (overwrite existing assets)
+        # Manual-dispatch-only path (overwrite_existing is only ever set via
+        # workflow_dispatch inputs; a tag push leaves it unset/false). Moves
+        # the release's tag to the commit that was just built -- needed when
+        # re-releasing from a branch dropdown pick rather than a fresh tag
+        # push -- then upserts the release and replaces its assets in place,
+        # mirroring the nightly_release job's non-destructive pattern.
+        if: github.event.inputs.overwrite_existing == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.prep.outputs.version }}"
+          TITLE="FPP ${{ needs.prep.outputs.version }}"
+
+          if gh api "repos/${{ github.repository }}/git/refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Moving '$TAG' tag to ${{ github.sha }}..."
+            gh api -X PATCH "repos/${{ github.repository }}/git/refs/tags/$TAG" \
+              -f sha="${{ github.sha }}" -F force=true >/dev/null
+          else
+            echo "Creating '$TAG' tag at ${{ github.sha }}..."
+            gh api -X POST "repos/${{ github.repository }}/git/refs" \
+              -f ref="refs/tags/$TAG" -f sha="${{ github.sha }}" >/dev/null
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release '$TAG' already exists; replacing its assets in place."
+            gh release upload "$TAG" release-files/* --clobber
+          else
+            echo "No existing release for '$TAG'; creating a new draft."
+            gh release create "$TAG" release-files/* \
+              --draft \
+              --title "$TITLE" \
+              --verify-tag
+          fi
 
   nightly_release:
     # Runs on schedule + schedule-like manual dispatch. Publishes / replaces
