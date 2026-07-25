@@ -6731,7 +6731,7 @@
           "plugin"
         ],
         "summary": "Get plugin information",
-        "description": "Get `pluginInfo.json` for installed plugin `{RepoName}`. An additional `updatesAvailable` field indicates whether the plugin has commits that have been fetched but not yet merged.",
+        "description": "Get `pluginInfo.json` for installed plugin `{RepoName}`. Additional `updatesAvailable`, `hasIcon`, `pageUrl`, and `pageType` fields are computed server-side. `pageUrl` points to the best status/config page for the plugin, derived from its menu files.",
         "responses": {
           "200": {
             "description": "Plugin information",
@@ -6746,6 +6746,9 @@
                   "author": "Chris Pinkham (CaptainMurdoch)",
                   "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git",
                   "updatesAvailable": 0,
+                  "hasIcon": false,
+                  "pageUrl": "plugin.php?plugin=fpp-matrixtools&page=status.php",
+                  "pageType": "status",
                   "versions": [
                     {
                       "minFPPVersion": 0,
@@ -6784,6 +6787,42 @@
           },
           "404": {
             "description": "No icon available"
+          }
+        }
+      }
+    },
+    "/api/plugin/{RepoName}/page": {
+      "parameters": [
+        {
+          "name": "RepoName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Get plugin page URL",
+        "description": "Scans the plugin's menu files and returns the best page URL, preferring the Status/Control page over Content Setup.",
+        "responses": {
+          "200": {
+            "description": "Plugin page info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "url": "plugin.php?plugin=fpp-matrixtools&page=status.php",
+                  "page": "status.php",
+                  "found": true
+                }
+              }
+            }
           }
         }
       }

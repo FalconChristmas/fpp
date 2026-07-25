@@ -1298,6 +1298,9 @@
 
             var buttons = {};
             if (installed) {
+                if (data.pageUrl) {
+                    buttons['Open'] = function () { CloseModalDialog('pluginDetailDialog'); window.open(data.pageUrl, 'pluginContent'); };
+                }
                 buttons['Check for Updates'] = function () { CheckPluginForUpdates(repo); };
                 buttons['Uninstall'] = function () { CloseModalDialog('pluginDetailDialog'); ShowUninstallPluginPopup(repo, data.name); };
             } else if (compatibleVersion >= 0 || untestedVersion >= 0) {
@@ -1409,6 +1412,9 @@
                     actions += "<span class='updatesAvailable' style='display: none;'>";
                     actions += "<button class='btn btn-sm btn-success' onclick='event.stopPropagation();UpgradePlugin(\"" + data.repoName + "\");'><i class='far fa-arrow-alt-circle-down'></i> Update</button>";
                     actions += "</span>";
+                }
+                if (data.pageUrl) {
+                    actions += "<a class='btn btn-sm btn-outline-primary' href='" + data.pageUrl + "' target='pluginContent'><i class='fas fa-external-link-alt'></i> Open</a>";
                 }
                 actions += "<button class='btn btn-sm btn-outline-danger' onclick='event.stopPropagation();ShowUninstallPluginPopup(\"" + data.repoName + "\");'><i class='far fa-trash-alt'></i> Uninstall</button>";
             } else if (compatibleVersion >= 0 || untestedVersion >= 0) {
@@ -1530,6 +1536,9 @@
                         dataType: 'json',
                         success: function (data) {
                             $('html,body').css('cursor', 'auto');
+                            if (data && data.repoName && PluginIsInstalled(data.repoName)) {
+                                return;
+                            }
                             if (pluginList[index] && pluginList[index].length > 2 && pluginList[index][2])
                                 data.__category = pluginList[index][2];
                             LoadPlugin(data);
