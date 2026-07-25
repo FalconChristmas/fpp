@@ -31,7 +31,14 @@ GITREPOPATH="exported"
 cd ${GITTREEDIR}
 
 git status > /dev/null 2>&1
-SOURCE_VERSION=$(git describe --tags --dirty || git describe --tags || echo Unknown)
+# --tags is required so release tags created by CI are seen: the workflow makes
+# them via `gh api .../git/refs`, which produces LIGHTWEIGHT tags that plain
+# `git describe` ignores. --match then restricts describe to release-shaped
+# tags (same "starts with a digit" rule as the on.push.tags filter in
+# .github/workflows/build-images.yml), so the lightweight 'nightly' tag the
+# nightly job moves onto the master tip can never be picked up here -- it would
+# make MAJOR_VERSION below literally "nightly" and break every version check.
+SOURCE_VERSION=$(git describe --tags --match='[0-9]*' --dirty || git describe --tags --match='[0-9]*' || echo Unknown)
 MAJOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d\.)
 MINOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f2 -d\.)
 PATCH_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f3 -d\.)
