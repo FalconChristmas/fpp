@@ -171,6 +171,39 @@ static std::string EvaluateNameOrExpression(const std::string& text) {
     return EvaluateConditionExpression(text);
 }
 
+// Same branch order as EvaluateNameOrExpression() above (kept as a separate
+// function rather than refactored into one, so a classify-only caller like
+// GET /api/variables?validateExpression doesn't need a live Variables value
+// snapshot round-tripped through it) - compileOk only means something for
+// Formula (a real ExpressionProcessor::compile() happened); it's always true
+// for Variable/Literal since neither one runs the compiler at all.
+ConditionNode::ExpressionKind ConditionNode::ClassifyNameOrExpression(const std::string& text, bool& compileOk) {
+    compileOk = true;
+    size_t start = text.find_first_not_of(" \t");
+    if (start != std::string::npos) {
+        size_t end = text.find_last_not_of(" \t");
+        std::string trimmed = text.substr(start, end - start + 1);
+        for (auto const& varName : Variables::INSTANCE.getAllVariableNames()) {
+            if (varName == trimmed) {
+                return ExpressionKind::Variable;
+            }
+        }
+    }
+    bool explicitExpr = (!text.empty() && text[0] == '=') || text.find("%%") != std::string::npos || text.find("==") != std::string::npos;
+    if (explicitExpr || LooksLikeFormula(text)) {
+        ExpressionProcessor proc;
+        std::map<std::string, ExpressionProcessor::ExpressionVariable> boundVars;
+        for (auto const& varName : Variables::INSTANCE.getAllVariableNames()) {
+            auto inserted = boundVars.try_emplace(varName, varName);
+            inserted.first->second.setValue(Variables::INSTANCE.getVariable(varName));
+            proc.bindVariable(&inserted.first->second);
+        }
+        compileOk = proc.compile(explicitExpr ? text : ("=" + text));
+        return ExpressionKind::Formula;
+    }
+    return ExpressionKind::Literal;
+}
+
 static std::string CurrentTimeHHMM() {
     std::time_t t = std::time(nullptr);
     struct tm local;

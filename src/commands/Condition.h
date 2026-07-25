@@ -49,4 +49,21 @@ public:
     static void PreviewLeafResult(const std::string& source, const std::string& name, const std::string& comparatorStr,
                                    const std::string& value, bool negate, bool& lhsFound, std::string& lhsValue,
                                    std::string& rhsValue, bool& result);
+
+    // How a Name/Value field's raw text will actually be treated at
+    // evaluate() time - same priority order as the private
+    // EvaluateNameOrExpression() in Condition.cpp: an exact match against a
+    // real variable name always wins first, before any '='/%%/formula
+    // detection ever runs. Exposed for GET /api/variables?validateExpression
+    // (Variables.cpp) so the Check editor's valid/invalid icon can tell "this
+    // matches a real variable" and "this compiles as a formula" apart from
+    // "this is just inert literal text" (Condition.cpp's own documented,
+    // non-error passthrough for unmatched plain text) - the raw
+    // ExpressionProcessor::compile() the icon used before always reported
+    // "valid" for the literal case too, so a typo'd variable name (e.g.
+    // missing/extra characters) looked identical to a real match.
+    enum class ExpressionKind { Variable,
+                                 Formula,
+                                 Literal };
+    static ExpressionKind ClassifyNameOrExpression(const std::string& text, bool& compileOk);
 };

@@ -20,6 +20,7 @@
 #include "Scheduler.h"
 #include "Variables.h"
 #include "Warnings.h"
+#include "commands/Condition.h"
 #include "common.h"
 #include "log.h"
 #include "mqtt.h"
@@ -521,13 +522,17 @@ void Variables::reportMqttVariables(Json::Value& root) {
  *
  * @route GET /api/variables
  * @param string validateExpression If set, validate this expression instead of listing variables.
+ * @param boolean conditionExpr If "true" alongside validateExpression, classify it the way the If
+ *   Check editor's Name/Value fields actually evaluate it (exact variable match / formula / inert
+ *   literal text) instead of a bare compile check.
  * @param boolean fpp If "true", list the read-only fpp- status variables instead of User Variables.
  * @param boolean mqtt If "true", list the read-only mqtt-<topic> variables (MQTT's own last-message-
  *   per-topic cache) instead of User Variables.
  * @response 200 Object keyed by variable name, each with `value`, `truncated`,
  *   `persist`, `lastUpdated` (unix timestamp) and `used` (true if referenced
  *   anywhere in config/commandPresets.json, either as a Set Variable target or
- *   via %VAR:name%). If `validateExpression` was passed, `{"valid": true|false}`
+ *   via %VAR:name%). If `validateExpression` was passed, `{"valid": true|false}` (or, with
+ *   `conditionExpr=true`, `{"valid": true|false, "kind": "variable"|"formula"|"literal"}`)
  *   instead. If `fpp=true`, each entry has `value`/`truncated`/`lastUpdated`
  *   (no persist/used - these are live-computed, not stored; `lastUpdated` is
  *   approximated as the last time this endpoint observed the value actually
@@ -572,16 +577,35 @@ HttpResponsePtr Variables::render_GET(const HttpRequestPtr& req) {
     // nonexistent one is correctly flagged invalid.
     std::string exprArg = getRequestArg(req, "validateExpression");
     if (!exprArg.empty()) {
-        ExpressionProcessor proc;
-        std::map<std::string, ExpressionProcessor::ExpressionVariable> boundVars;
-        for (auto const& varName : getAllVariableNames()) {
-            auto inserted = boundVars.try_emplace(varName, varName);
-            inserted.first->second.setValue(getVariable(varName));
-            proc.bindVariable(&inserted.first->second);
-        }
-        bool valid = proc.compile(exprArg);
         Json::Value result;
-        result["valid"] = valid;
+        // conditionExpr=true: the If Check editor's Name/Value fields, which
+        // go through ConditionNode::ClassifyNameOrExpression's auto-detect at
+        // runtime (Condition.cpp's EvaluateNameOrExpression) rather than a
+        // bare ExpressionProcessor::compile() - a raw compile() call always
+        // "succeeds" on ordinary unmatched text (it's just treated as inert
+        // literal, per that function's own documented behavior), so it can't
+        // tell a real variable match, an actual formula, and a typo'd/
+        // unmatched name apart the way the Check editor's icon needs to.
+        if (getRequestArg(req, "conditionExpr") == "true") {
+            bool compileOk = true;
+            auto kind = ConditionNode::ClassifyNameOrExpression(exprArg, compileOk);
+            result["valid"] = compileOk;
+            result["kind"] = kind == ConditionNode::ExpressionKind::Variable ? "variable" : (kind == ConditionNode::ExpressionKind::Formula ? "formula" : "literal");
+        } else {
+            // Set Variable's "Expression" field (VariableCommands.cpp's
+            // SetVariableCommand::run(), type=="Expression" branch) really is
+            // just a bare ExpressionProcessor::compile() call with no
+            // auto-detect - so validating it the same way here is correct,
+            // not a shortcut.
+            ExpressionProcessor proc;
+            std::map<std::string, ExpressionProcessor::ExpressionVariable> boundVars;
+            for (auto const& varName : getAllVariableNames()) {
+                auto inserted = boundVars.try_emplace(varName, varName);
+                inserted.first->second.setValue(getVariable(varName));
+                proc.bindVariable(&inserted.first->second);
+            }
+            result["valid"] = proc.compile(exprArg);
+        }
         std::string resultStr = SaveJsonToString(result);
         return makeStringResponse(resultStr, 200, "application/json");
     }

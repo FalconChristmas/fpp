@@ -1440,8 +1440,10 @@ void PlayerResource::GetRecurringTasks(Json::Value& result) {
  * @param string value Optional - the Value field, only used when "comparator" is also given.
  * @param string not Optional - "true" to negate the result, only used when "comparator" is also given.
  * @response 200 {"found": true, "value": "..."} (source/name-only mode) or
- *           {"found": true, "value": "...", "rhsValue": "...", "result": true} (full-leaf mode) or
- *           {"found": false} if the source/name doesn't currently resolve.
+ *           {"found": true, "value": "...", "rhsValue": "...", "result": true} (full-leaf mode, LHS resolved) or
+ *           {"found": false, "rhsValue": "...", "result": true} (full-leaf mode, LHS not found - rhsValue/result
+ *           are still evaluated, since Value always evaluates and a missing LHS just yields `negate`) or
+ *           {"found": false} if the source/name doesn't currently resolve (source/name-only mode).
  */
 void PlayerResource::GetConditionPreview(const HttpRequestPtr& req, Json::Value& result) {
     std::string source = getRequestArg(req, "source");
@@ -1469,9 +1471,14 @@ void PlayerResource::GetConditionPreview(const HttpRequestPtr& req, Json::Value&
     result["found"] = lhsFound;
     if (lhsFound) {
         result["value"] = lhsValue;
-        result["rhsValue"] = rhsValue;
-        result["result"] = leafResult;
     }
+    // rhsValue/result are always resolvable (Value is unconditionally
+    // evaluated, and a not-found LHS still yields a definite result of
+    // `negate`), so return them regardless of lhsFound - lets the eye-preview
+    // modal show what Value evaluates to instead of stopping cold when only
+    // the LHS side is missing.
+    result["rhsValue"] = rhsValue;
+    result["result"] = leafResult;
     SetOKResult(result, "");
 }
 

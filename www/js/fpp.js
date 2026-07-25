@@ -8762,16 +8762,31 @@ var CONDITION_SOURCE_HELP = {
 	// detects intent (Condition.cpp's EvaluateNameOrExpression): type just a
 	// real variable's exact name for a plain lookup, or a formula to compute
 	// one - no need to type "=" or wrap anything in "%%...%%" by hand.
-	Expression: 'Type a Variable\'s exact name for a plain lookup, or a formula to compute one - detected automatically. Example (plain lookup): Name = "myCounter", Value = "5". Example (formula): Name = "myCounter * 2", Comparator = greater than, Value = "10". Example (MQTT variable): Name = "mqtt-homeassistant/sensor/outside_temperature/state", Value = "20". Tip: every dedicated Source below (Time, Day, Player Status, etc.) is really just a shortcut for one of the read-only fpp_ variables on the Variables page - anything not listed as its own Source (fpp_volume, fpp_warning_count, and more) is still reachable this way, by name.',
-	Time: 'Always the current wall-clock time as HH:MM - there’s no Name field for this source. Example: Comparator = greater than, Value = "18:00" (after 6pm).',
-	Day: 'Always today’s day of the week - there’s no Name field for this source. Example: Comparator = equal to, Value = "Saturday".',
-	Month: 'Always the current month - there’s no Name field for this source. Example: Comparator = equal to, Value = "December".',
-	'GPIO Pin': 'Reads a GPIO pin’s last commanded output value, falling back to its live input reading if it hasn’t been commanded. The suggested names below are only pins currently enabled as GPIO Inputs; a pin can still be typed manually if it was disabled after this condition was set up. Example: Name = "P1-3", Comparator = equal to, Value = "1".',
-	Sun: 'Always today’s sunrise or sunset time as HH:MM, based on FPP’s configured location - pick Sunrise or Sunset below instead of typing a Name. Example: Sunset, Comparator = greater than, Value = "20:30".',
-	'Player Status': 'Always the player’s current status as text - there’s no Name field for this source. Example: Comparator = equal to, Value = "playing".',
-	'Is Playing': 'Always "1" if a playlist is currently playing, "0" otherwise - there’s no Name field for this source. Example: Comparator = equal to, Value = "1".',
-	'Current Playlist': 'Always the name of the currently loaded playlist (empty if none) - there’s no Name field for this source. Example: Comparator = equal to, Value = "Halloween Show".',
-	'Current Song': 'Always the filename of the currently playing media (empty if none) - there’s no Name field for this source. Example: Comparator = contains, Value = "Jingle".'
+	// HTML, not plain text (see the html-vs-EscapeHtml branch in
+	// RenderConditionFields below) - broken into bullets since this is the
+	// one help entry dense enough (3 examples + a tip) that a single
+	// run-on sentence was hard to scan.
+	Expression: 'Type a Variable\'s exact name for a plain lookup, or a formula to compute one.' +
+		'<ul class="mb-1 ps-3">' +
+		'<li>Plain lookup: Name = "myCounter", Is = equal to, Value = "5"</li>' +
+		'<li>Formula: Name = "myCounter * 2", Is = greater than, Value = "10"</li>' +
+		'<li>MQTT variable: Name = "mqtt-homeassistant/sensor/outside_temperature/state", Is = equal to, Value = "20"</li>' +
+		'</ul>' +
+		'Tip: every dedicated Source below (Time, Day, Player Status, etc.) is really just a shortcut for one of the read-only fpp_ variables on the Variables page - anything not listed as its own Source (fpp_volume, fpp_warning_count, and more) is still reachable this way, by name.',
+	Time: 'Compares the current wall-clock time (HH:MM). Example: Is = greater than, Value = "18:00" (after 6pm).',
+	Day: 'Compares today’s day of the week. Example: Is = equal to, Value = "Saturday".',
+	Month: 'Compares the current month. Example: Is = equal to, Value = "December".',
+	'GPIO Pin': 'Reads a GPIO pin’s current value.' +
+		'<ul class="mb-1 ps-3">' +
+		'<li>Uses the pin’s last commanded output value, falling back to its live input reading if it hasn’t been commanded</li>' +
+		'<li>Suggested names below are only pins currently enabled as GPIO Inputs - a pin can still be typed manually if it was disabled after this condition was set up</li>' +
+		'<li>Example: Name = "P1-3", Is = equal to, Value = "1"</li>' +
+		'</ul>',
+	Sun: 'Compares today’s sunrise or sunset time (HH:MM), based on FPP’s configured location - pick Sunrise or Sunset below. Example: Sunset, Is = greater than, Value = "20:30".',
+	'Player Status': 'Compares the player’s current status (as text). Example: Is = equal to, Value = "playing".',
+	'Is Playing': 'Compares whether a playlist is currently playing ("1") or not ("0"). Example: Is = equal to, Value = "1".',
+	'Current Playlist': 'Compares the name of the currently loaded playlist (empty if none). Example: Is = equal to, Value = "Halloween Show".',
+	'Current Song': 'Compares the filename of the currently playing media (empty if none). Example: Is = contains, Value = "Jingle".'
 };
 
 // Suggests real, currently-known names for the Name field via a <datalist>,
@@ -9505,20 +9520,22 @@ function RenderConditionFields ($container, cond, onChange) {
 			.val(cond.name)
 			.on('input', function () {
 				cond.name = $(this).val();
-				DebounceValidateExpression(this, fieldId + '_validIcon');
+				DebounceValidateExpression(this, fieldId + '_kindBadge', true);
 				onChange();
 			});
-		var validIcon = $("<span id='" + fieldId + "_validIcon' class='expressionValidIcon ms-1'></span>");
+		// No trailing valid/invalid icon here anymore - see the matching
+		// comment on Value below; the badge lives next to the field's own
+		// label instead (LabeledField's badgeId param).
 		// Fixed width (rather than d-inline-block/w-auto) so the insert-variable
 		// helper (appended below, once $row's full layout - including whether
 		// Value is also an Expression - is known) lines up under the SAME
 		// left/right edges as the expression input, instead of two
 		// independently-sized boxes that only coincidentally share a left edge.
 		$nameWrap = $("<div class='d-flex flex-column' style='width:260px'></div>");
-		var $inputLine = $("<div class='d-flex align-items-center'></div>").append(nameInp, validIcon);
+		var $inputLine = $("<div class='d-flex align-items-center'></div>").append(nameInp);
 		$nameWrap.append($inputLine);
 		if (cond.name) {
-			DebounceValidateExpression(nameInp[0], fieldId + '_validIcon');
+			DebounceValidateExpression(nameInp[0], fieldId + '_kindBadge', true);
 		}
 	} else if (cond.source === 'Sun') {
 		// Only two valid values (Condition.cpp's sunTimeHHMM: anything that
@@ -9568,8 +9585,7 @@ function RenderConditionFields ($container, cond, onChange) {
 	// EvaluateConditionExpression() unconditionally) - a plain literal like
 	// "1" or "ON" compiles to itself unchanged, so this is a strict superset
 	// of the old fixed-Value behavior, not a separate mode needing its own
-	// toggle. Same input+validIcon layout as $nameWrap's Expression case so
-	// the two fields look like siblings.
+	// toggle.
 	var valueFieldId = 'condValue_' + ++conditionFieldIdSeq;
 	// textarea for the same reason as Name/Expression above - this field is
 	// unconditionally expression-capable for every Source, not just
@@ -9582,14 +9598,18 @@ function RenderConditionFields ($container, cond, onChange) {
 		.val(cond.value)
 		.on('input', function () {
 			cond.value = $(this).val();
-			DebounceValidateExpression(this, valueFieldId + '_validIcon');
+			DebounceValidateExpression(this, valueFieldId + '_kindBadge', true);
 			onChange();
 		});
-	var valueValidIcon = $("<span id='" + valueFieldId + "_validIcon' class='expressionValidIcon ms-1'></span>");
+	// No trailing valid/invalid icon here anymore - what kind of thing this
+	// text currently resolves to (Variable/Formula/Text/Invalid) is shown as
+	// a badge next to the "Value" label itself instead (see LabeledField's
+	// badgeId param below), which also means the textarea's own right edge
+	// now actually lines up with the insert-variable arrow underneath it.
 	var $valueWrap = $("<div class='d-flex flex-column' style='width:260px'></div>");
-	$valueWrap.append($("<div class='d-flex align-items-center'></div>").append(valInp, valueValidIcon));
+	$valueWrap.append($("<div class='d-flex align-items-center'></div>").append(valInp));
 	if (cond.value) {
-		DebounceValidateExpression(valInp[0], valueFieldId + '_validIcon');
+		DebounceValidateExpression(valInp[0], valueFieldId + '_kindBadge', true);
 	}
 	// Day/Month/Player Status only have a handful of valid answers - a
 	// <datalist> would be the usual way to suggest them (see the Name
@@ -9631,14 +9651,22 @@ function RenderConditionFields ($container, cond, onChange) {
 	// "what goes here" is contextual (e.g. "GPIO Pin Name") rather than a
 	// generic "Name" that doesn't say what kind of name. Time gets no Name
 	// label since it has no Name field at all to label.
-	function LabeledField (label, $control) {
+	// badgeId, when given, adds an empty pill right after the label text -
+	// DebounceValidateExpression (conditionExpr=true mode) fills it in with
+	// what the field's current text resolves to (Variable/Formula/Text/
+	// Invalid). Replaces the old per-field check/X/amber icon: a label like
+	// "Value [Invalid]" reads on its own, no hovering for a tooltip needed,
+	// and it stops competing with the insert-variable arrow for space right
+	// next to the textarea.
+	function LabeledField (label, $control, badgeId) {
 		if (!label) {
 			return $control;
 		}
-		return $("<div class='d-flex flex-column'></div>").append(
-			$("<span class='text-muted text-center' style='font-size:0.8rem'></span>").text(label),
-			$control
-		);
+		var $label = $("<span class='text-muted text-center' style='font-size:0.8rem'></span>").text(label);
+		if (badgeId) {
+			$label.append(' ', $("<span id='" + badgeId + "'></span>"));
+		}
+		return $("<div class='d-flex flex-column'></div>").append($label, $control);
 	}
 	// The eye buttons sit beside labeled columns (each a label span stacked
 	// above its control), so a bare button would render shorter and land a
@@ -9652,14 +9680,19 @@ function RenderConditionFields ($container, cond, onChange) {
 	var nameLabelText = CONDITION_SOURCES_NO_NAME_FIELD.indexOf(cond.source) !== -1 ? null : CONDITION_NAME_LABELS[cond.source] || 'Name';
 	$row.append(
 		LabeledField('Source', sourceSel),
-		LabeledField(nameLabelText, $nameWrap),
+		// Only the Expression source's Name field runs through
+		// DebounceValidateExpression at all (every other source's Name is
+		// either absent or a fixed picker/lookup key, not expression text) -
+		// fieldId only exists in that branch above, so the badge is only
+		// wired up there.
+		LabeledField(nameLabelText, $nameWrap, cond.source === 'Expression' ? fieldId + '_kindBadge' : null),
 		// "Comparator" doubles as the "is" connector now (e.g. "Variable
 		// myVar" / "Comparator: equal to" reads the same as "myVar is equal
 		// to" did before) - a separate literal " is " text plus a
 		// "Comparator" label above the dropdown was saying the same thing
 		// twice.
 		LabeledField('Is', compSel),
-		LabeledField('Value', $valueWrap),
+		LabeledField('Value', $valueWrap, valueFieldId + '_kindBadge'),
 		EyeButtonField(showEvalBtn)
 	);
 	$container.append($row);
@@ -9689,9 +9722,13 @@ function RenderConditionFields ($container, cond, onChange) {
 	// appended last so it lands at the bottom of the dialog body - between
 	// the fields above and the Close button, which ShowConditionSubEditor
 	// renders into a separate sibling "_footer" element.
+	// Entries are static, developer-authored strings (never user input), so
+	// they're trusted HTML - not run through EscapeHtml - which lets the
+	// Expression entry above use <ul>/<li> bullets instead of one run-on
+	// sentence.
 	$container.append(
 		$("<div class='text-muted small mt-2'></div>").html(
-			"<i class='fas fa-circle-info me-1'></i>" + EscapeHtml(CONDITION_SOURCE_HELP[cond.source] || '')
+			"<i class='fas fa-circle-info me-1'></i>" + (CONDITION_SOURCE_HELP[cond.source] || '')
 		)
 	);
 }
@@ -9914,7 +9951,18 @@ function ShowConditionEvaluationPopup (cond) {
 	// what fed into it.
 	var varValues = $.Deferred();
 	FetchConditionNameOptions('Variable', function (knownNames) {
-		var refs = FindReferencedVariableNames((cond.name || '') + ' ' + (cond.value || ''), knownNames);
+		// Classified per field, not concatenated together - an exact-match
+		// check (see FindReferencedVariableNames) needs to see each field's
+		// own trimmed text alone, not Name+Value glued together with a
+		// space, which would never equal any real variable name and would
+		// always fall through to the (less precise) substring scan instead.
+		var nameRefs = FindReferencedVariableNames(cond.name || '', knownNames);
+		var valueRefs = FindReferencedVariableNames(cond.value || '', knownNames);
+		var refs = nameRefs.concat(
+			valueRefs.filter(function (r) {
+				return nameRefs.indexOf(r) === -1;
+			})
+		);
 		if (!refs.length) {
 			varValues.resolve({});
 			return;
@@ -9961,30 +10009,39 @@ function ShowConditionEvaluationPopup (cond) {
 
 		$body.append($("<div class='mb-3'></div>").append($("<div class='text-muted small mb-1'>Formula</div>"), $("<div></div>").html(SummarizeConditionItemHtml(cond))));
 
-		if (!data || !data.found) {
-			// Describe the Source+Name side specifically (e.g. "GPIO Pin P1-3"),
-			// not the Value field - Value is never looked up, only compared
-			// against, so it's never the reason nothing was found.
-			var missingLabel = cond.source === 'Expression'
-				? 'Expression(' + EscapeHtml(cond.name || '') + ')'
-				: EscapeHtml(cond.source) + (cond.name ? ' ' + EscapeHtml(cond.name) : '');
-			$body.append("<div class='text-muted'>" + missingLabel + " has no current value - not set/seen yet, or the Name doesn't match anything. Nothing further to evaluate.</div>");
+		if (!data) {
+			$body.append("<div class='text-danger'>Failed to fetch condition evaluation.</div>");
 			return;
 		}
 
+		// LHS not found no longer stops the popup cold - the API now always
+		// returns rhsValue/result too (a not-found LHS still yields a
+		// definite runtime result of `negate`), so every item below still
+		// gets evaluated and shown; only the LHS side falls back to a
+		// "(not found)" placeholder instead of its actual value.
+		var lhsFound = !!data.found;
 		var lhsSubstituted = cond.source === 'Expression' ? SubstituteVariableValues(cond.name || '', valueMap) : cond.name || '';
 		var rhsSubstituted = SubstituteVariableValues(cond.value || '', valueMap);
 		var lhsDisplay = cond.source === 'Expression' ? 'Expression(' + EscapeHtml(lhsSubstituted) + ')' : EscapeHtml(cond.source) + (cond.name ? ' ' + EscapeHtml(lhsSubstituted) : '');
+
+		if (!lhsFound) {
+			var missingLabel = cond.source === 'Expression'
+				? 'Expression(' + EscapeHtml(cond.name || '') + ')'
+				: EscapeHtml(cond.source) + (cond.name ? ' ' + EscapeHtml(cond.name) : '');
+			$body.append("<div class='text-muted mb-3'>" + missingLabel + " has no current value - not set/seen yet, or the Name doesn't match anything.</div>");
+		}
+
 		var substituted =
 			'<span class="text-info">' + lhsDisplay + '</span>' +
 			' <span class="text-muted">' + EscapeHtml(cond.comparator || 'equal to') + '</span>' +
 			' <span class="text-success">Expression(' + EscapeHtml(rhsSubstituted) + ')</span>';
 		$body.append($("<div class='mb-3'></div>").append($("<div class='text-muted small mb-1'>Values substituted</div>"), $("<div></div>").html(substituted)));
 
+		var lhsValueDisplay = lhsFound ? '"' + EscapeHtml(data.value) + '"' : '(not found)';
 		var resultLine =
-			'<code>"' + EscapeHtml(data.value) + '"</code> <span class="text-muted">' + EscapeHtml(cond.comparator || 'equal to') +
+			'<code>' + lhsValueDisplay + '</code> <span class="text-muted">' + EscapeHtml(cond.comparator || 'equal to') +
 			'</span> <code>"' + EscapeHtml(data.rhsValue || '') + '"</code> &rarr; <span class="' + (data.result ? 'text-success' : 'text-danger') + ' fw-semibold">' +
-			(data.result ? 'true' : 'false') + '</span>';
+			(data.result ? 'true' : 'false') + (lhsFound ? '' : ' <span class="text-muted fw-normal">(no current value, so nothing was actually compared)</span>') + '</span>';
 		$body.append($("<div></div>").append($("<div class='text-muted small mb-1'>Result</div>"), $("<div></div>").html(resultLine)));
 	});
 	$.when(mainPreview).fail(function () {
@@ -9998,6 +10055,19 @@ function ShowConditionEvaluationPopup (cond) {
 // show each referenced variable's own value, not just the final computed
 // LHS/RHS.
 function FindReferencedVariableNames (text, knownNames) {
+	// An exact whole-field match takes priority over any substring scan -
+	// mirrors Condition.cpp's EvaluateNameOrExpression, which returns that
+	// variable's raw value for an exact trimmed match and never even runs
+	// the formula-reference heuristic in that case. Skipping this check let
+	// a short real variable name (e.g. "state") that happens to appear as a
+	// substring inside a longer, unrelated field (a typo'd variable name
+	// that isn't actually an exact match to anything) steal a false
+	// substitution below - two unrelated variables' values getting spliced
+	// together with no separator in the "Values substituted" line.
+	var trimmed = (text || '').trim();
+	if (trimmed && knownNames.indexOf(trimmed) !== -1) {
+		return [trimmed];
+	}
 	var found = [];
 	var sorted = knownNames.slice().sort(function (a, b) {
 		return b.length - a.length;
@@ -10068,40 +10138,98 @@ function ShowConditionSubEditor (title, renderBodyFn) {
 // user pauses typing, not on every keystroke.
 var expressionValidateTimers = {};
 var expressionValidateSeq = {};
-function DebounceValidateExpression (inputEl, iconId) {
+// conditionExpr=true (only passed by the If Check editor's Name/Value
+// fields - see the DebounceValidateExpression calls in
+// RenderConditionFields) asks the server to classify the text the same way
+// it's actually evaluated at runtime (ConditionNode::ClassifyNameOrExpression)
+// instead of a bare compile check, and renders the result as a small pill
+// badge next to the field's own label (id passed as targetId - see
+// LabeledField's badgeId param) rather than a check/X icon next to the
+// field itself: "Value [Invalid]" reads on its own with no hovering for a
+// tooltip needed, distinguishes a real variable match / working formula /
+// inert unmatched literal text from each other (a bare compile check alone
+// can't - unwrapped, unmatched plain text always "compiles" as a literal
+// passthrough, so a typo'd variable name used to look identical to a real
+// match), and stops competing with the insert-variable arrow for space
+// right next to the textarea. The plain icon-in-targetId path below is only
+// still used by the generic "expression" CommandArg widget (e.g. Set
+// Variable's Expression field), which validates via a bare
+// ExpressionProcessor::compile() call with no such classification.
+function DebounceValidateExpression (inputEl, targetId, conditionExpr) {
 	var value = inputEl.value;
-	clearTimeout(expressionValidateTimers[iconId]);
+	clearTimeout(expressionValidateTimers[targetId]);
 	if (!value) {
-		$('#' + iconId).html('');
+		$('#' + targetId).empty();
 		return;
 	}
-	$('#' + iconId).html('<i class="fas fa-ellipsis-h text-muted" title="Validating..."></i>');
-	expressionValidateTimers[iconId] = setTimeout(function () {
+	if (conditionExpr) {
+		$('#' + targetId).text('…').removeClass().addClass('badge rounded-pill text-bg-secondary');
+	} else {
+		$('#' + targetId).html('<i class="fas fa-ellipsis-h text-muted" title="Validating..."></i>');
+	}
+	expressionValidateTimers[targetId] = setTimeout(function () {
 		// Guard against an earlier, slower request resolving after a later
-		// one and clobbering the icon with a stale result.
-		var seq = (expressionValidateSeq[iconId] || 0) + 1;
-		expressionValidateSeq[iconId] = seq;
+		// one and clobbering the badge/icon with a stale result.
+		var seq = (expressionValidateSeq[targetId] || 0) + 1;
+		expressionValidateSeq[targetId] = seq;
 		$.ajax({
 			dataType: 'json',
-			url: 'api/variables?validateExpression=' + encodeURIComponent(value),
+			url: 'api/variables?validateExpression=' + encodeURIComponent(value) + (conditionExpr ? '&conditionExpr=true' : ''),
 			success: function (data) {
-				if (expressionValidateSeq[iconId] !== seq) {
+				if (expressionValidateSeq[targetId] !== seq) {
+					return;
+				}
+				if (conditionExpr) {
+					RenderExpressionKindBadge(targetId, data);
 					return;
 				}
 				if (data && data.valid) {
-					$('#' + iconId).html('<i class="fas fa-check text-success" title="Valid expression"></i>');
+					$('#' + targetId).html('<i class="fas fa-check text-success" title="Valid expression"></i>');
 				} else {
-					$('#' + iconId).html('<i class="fas fa-times text-danger" title="Invalid expression"></i>');
+					$('#' + targetId).html('<i class="fas fa-times text-danger" title="Invalid expression"></i>');
 				}
 			},
 			error: function () {
-				if (expressionValidateSeq[iconId] !== seq) {
+				if (expressionValidateSeq[targetId] !== seq) {
 					return;
 				}
-				$('#' + iconId).html('<i class="fas fa-question text-muted" title="Could not validate"></i>');
+				if (conditionExpr) {
+					$('#' + targetId).text('?').removeClass().addClass('badge rounded-pill text-bg-secondary').attr('title', 'Could not validate');
+					return;
+				}
+				$('#' + targetId).html('<i class="fas fa-question text-muted" title="Could not validate"></i>');
 			}
 		});
 	}, 400);
+}
+
+// Fills in one "Value [Formula]" / "Value [Invalid]" style label badge -
+// see the DebounceValidateExpression comment above for why this exists.
+// data.kind is only present when the request was ?conditionExpr=true.
+function RenderExpressionKindBadge (badgeId, data) {
+	var $badge = $('#' + badgeId);
+	var text, danger, title;
+	if (!data) {
+		text = '?';
+		title = 'Could not validate';
+	} else if (data.kind === 'variable') {
+		text = 'Variable';
+		title = 'Matches a real, currently-known variable name';
+	} else if (data.kind === 'formula') {
+		text = data.valid ? 'Formula' : 'Invalid';
+		title = data.valid ? 'A formula that currently compiles' : "Looks like a formula, but doesn't compile (e.g. references an unknown variable)";
+	} else if (data.kind === 'literal') {
+		text = 'Text';
+		title = "Doesn't match any known variable and isn't a formula - will be compared as literal text";
+	} else {
+		text = data.valid ? '' : 'Invalid';
+		title = data.valid ? '' : 'Invalid expression';
+	}
+	danger = text === 'Invalid' || text === '?';
+	$badge.text(text)
+		.attr('title', title)
+		.removeClass()
+		.addClass('badge rounded-pill ' + (danger ? 'text-bg-danger' : 'text-bg-secondary'));
 }
 
 // Populates every not-yet-populated .expressionVarHelper div with a
@@ -10180,11 +10308,33 @@ function RenderVarInsertHelper ($helper, targetId, shouldWrap) {
 	// center - but still a real, focusable button rather than decoration
 	// only, so it's an equally obvious click target. Trailing (not leading)
 	// by request, so the input box itself sits flush left.
+	//
+	// Clicking the arrow with a name already typed/picked actually inserts
+	// it now - previously it only re-focused $input (a no-op if $input was
+	// already focused, which it always is right after typing), so clicking
+	// the arrow right after typing a name silently did nothing; only Tab/
+	// Enter/picking a datalist option (which fire native 'change') actually
+	// inserted. Matches RenderSharedExpressionValueHelper's arrows, which
+	// have always inserted on click - same focusAtEnd-before-insert fix for
+	// the same reason (a never-focused target field's selectionStart is 0,
+	// not null, so skipping this would insert at position 0/prepend instead
+	// of appending), and same clear-before-insert ordering to avoid
+	// double-inserting via the reentrant blur this triggers on $input.
 	var $arrow = $(
 		"<button type='button' class='buttons reallySmallButton varInsertArrow ms-1' title='Insert into the field above'><i class='fas fa-arrow-up'></i></button>"
 	).on('mousedown', function (e) {
 		e.preventDefault();
-		$input.trigger('focus');
+		var name = $input.val();
+		if (!name) {
+			$input.trigger('focus');
+			return;
+		}
+		$input.val('');
+		var targetEl = document.getElementById(targetId);
+		var len = targetEl.value.length;
+		targetEl.focus();
+		targetEl.setSelectionRange(len, len);
+		InsertAtCursor(targetEl, shouldWrap ? '%%' + name + '%%' : name);
 	});
 	$helper.append($("<div class='d-flex align-items-center'></div>").append($input, $arrow));
 }
