@@ -243,6 +243,18 @@ static std::string ReadConditionSourceValue(const std::string& source, const std
         return "";
     } else if (source == "Sun") {
         return SunTimeHHMM(name); // name: "Sunrise" or "Sunset"
+    } else if (source == "Day") {
+        return Variables::INSTANCE.getVariable("fpp_day_of_week");
+    } else if (source == "Month") {
+        return Variables::INSTANCE.getVariable("fpp_current_month");
+    } else if (source == "Player Status") {
+        return Variables::INSTANCE.getVariable("fpp_status_name");
+    } else if (source == "Is Playing") {
+        return Variables::INSTANCE.getVariable("fpp_is_playing");
+    } else if (source == "Current Playlist") {
+        return Variables::INSTANCE.getVariable("fpp_current_playlist");
+    } else if (source == "Current Song") {
+        return Variables::INSTANCE.getVariable("fpp_current_song");
     }
     found = false;
     return "";

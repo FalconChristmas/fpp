@@ -4582,3 +4582,14 @@ pre.testData,
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 }
+
+/* Generic utility: centers only an input/textarea's placeholder text,
+   leaving an actual typed/picked value left-aligned via the field's own
+   default text-align - not achievable with a Bootstrap utility class, since
+   ::placeholder can't be targeted that way. Not component-specific -
+   apply to any field whose placeholder reads better centered (e.g. a
+   "-- Select X --" prompt). First used by the insert-variable helpers in
+   RenderSharedExpressionValueHelper/RenderVarInsertHelper (fpp.js). */
+.placeholder-center::placeholder {
+	text-align: center;
+}

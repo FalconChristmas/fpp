@@ -8700,13 +8700,52 @@ var conditionListState = {};
 // a formula is computed, and anything else is literal text - see
 // Condition.cpp's EvaluateNameOrExpression for the exact rules. Any existing
 // saved condition using "source":"Variable" now reads as not-found.
-var CONDITION_SOURCES = ['Expression', 'Time', 'GPIO Pin', 'Sun'];
+// Expression pinned first (the general-purpose default/fallback - anything
+// not covered by its own dedicated Source is still reachable through it),
+// everything else alphabetical - now that the list has grown past a small
+// handful, alphabetical is easier to scan than an ad-hoc grouping.
+var CONDITION_SOURCES = [
+	'Expression', 'Current Playlist', 'Current Song', 'Day', 'GPIO Pin',
+	'Is Playing', 'Month', 'Player Status', 'Sun', 'Time'
+];
+// Sources with exactly one live current value to read, same as Time - no
+// "which thing to read" choice (unlike Sun's Sunrise/Sunset, or GPIO Pin's
+// pin name), so there's nothing meaningful to put in a Name field at all.
+// Matches Condition.cpp's ReadConditionSourceValue() one-for-one: every
+// entry here just returns Variables::INSTANCE.getVariable("fpp_...")
+// directly, ignoring `name` entirely.
+var CONDITION_SOURCES_NO_NAME_FIELD = [
+	'Time', 'Day', 'Month', 'Player Status', 'Is Playing',
+	'Current Playlist', 'Current Song'
+];
 // Name-field label per source, matching Condition.cpp's readSource() use of
-// `name` - Time ignores `name` entirely (currentTimeHHMM()), so it gets no
-// Name field at all rather than a placeholder that would just be confusing.
+// `name` - Time (and the rest of CONDITION_SOURCES_NO_NAME_FIELD) ignores
+// `name` entirely, so those get no Name field at all rather than a
+// placeholder that would just be confusing.
 var CONDITION_NAME_LABELS = {
 	'GPIO Pin': 'GPIO Pin Name',
 	Sun: 'Sunrise or Sunset'
+};
+// Small fixed-choice Value suggestions (via <datalist>, same mechanism as
+// the Name field's own suggested-values list) for the new no-Name sources
+// whose Value really only has a handful of valid answers - Day/Month/Player
+// Status/Is Playing/GPIO Pin. Current Playlist/Current Song have no such
+// fixed set (playlist/media names are arbitrary), so they get no entry.
+// An entry is either a plain string (shown as-is, and is the Value it sets)
+// or a {value, label} object for when the underlying Value needs to stay a
+// literal ("0"/"1") but the label should read as something more meaningful -
+// GPIO Pin deliberately says "Low"/"High" rather than "Not Triggered"/
+// "Triggered": whether 1 means triggered depends on that specific pin's own
+// wiring/pull config (pull-up vs pull-down, NO vs NC), which FPP has no way
+// to know, so a "Triggered" label could be flat-out backwards for a given
+// pin. Is Playing has no such ambiguity - 1 always means "yes, playing" -
+// so it gets the more readable label without caveat.
+var CONDITION_VALUE_SUGGESTIONS = {
+	Day: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+	Month: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+	'Player Status': ['idle', 'playing', 'stopping gracefully', 'stopping gracefully after loop', 'stopping now', 'paused'],
+	'Is Playing': [{ value: '0', label: '0 - Not Playing' }, { value: '1', label: '1 - Playing' }],
+	'GPIO Pin': [{ value: '0', label: '0 - Low' }, { value: '1', label: '1 - High' }]
 };
 
 // Always-visible explanation of the selected Source, shown at the bottom of
@@ -8723,10 +8762,16 @@ var CONDITION_SOURCE_HELP = {
 	// detects intent (Condition.cpp's EvaluateNameOrExpression): type just a
 	// real variable's exact name for a plain lookup, or a formula to compute
 	// one - no need to type "=" or wrap anything in "%%...%%" by hand.
-	Expression: 'Type a Variable\'s exact name for a plain lookup, or a formula to compute one - detected automatically. Example (plain lookup): Name = "myCounter", Value = "5". Example (formula): Name = "myCounter * 2", Comparator = greater than, Value = "10". Example (MQTT variable): Name = "mqtt-homeassistant/sensor/outside_temperature/state", Value = "20".',
+	Expression: 'Type a Variable\'s exact name for a plain lookup, or a formula to compute one - detected automatically. Example (plain lookup): Name = "myCounter", Value = "5". Example (formula): Name = "myCounter * 2", Comparator = greater than, Value = "10". Example (MQTT variable): Name = "mqtt-homeassistant/sensor/outside_temperature/state", Value = "20". Tip: every dedicated Source below (Time, Day, Player Status, etc.) is really just a shortcut for one of the read-only fpp_ variables on the Variables page - anything not listed as its own Source (fpp_volume, fpp_warning_count, and more) is still reachable this way, by name.',
 	Time: 'Always the current wall-clock time as HH:MM - there’s no Name field for this source. Example: Comparator = greater than, Value = "18:00" (after 6pm).',
-	'GPIO Pin': 'Reads a GPIO pin’s last commanded output value, falling back to its live input reading if it hasn’t been commanded. Example: Name = "P1-3", Comparator = equal to, Value = "1".',
-	Sun: 'Always today’s sunrise or sunset time as HH:MM, based on FPP’s configured location - pick Sunrise or Sunset below instead of typing a Name. Example: Sunset, Comparator = greater than, Value = "20:30".'
+	Day: 'Always today’s day of the week - there’s no Name field for this source. Example: Comparator = equal to, Value = "Saturday".',
+	Month: 'Always the current month - there’s no Name field for this source. Example: Comparator = equal to, Value = "December".',
+	'GPIO Pin': 'Reads a GPIO pin’s last commanded output value, falling back to its live input reading if it hasn’t been commanded. The suggested names below are only pins currently enabled as GPIO Inputs; a pin can still be typed manually if it was disabled after this condition was set up. Example: Name = "P1-3", Comparator = equal to, Value = "1".',
+	Sun: 'Always today’s sunrise or sunset time as HH:MM, based on FPP’s configured location - pick Sunrise or Sunset below instead of typing a Name. Example: Sunset, Comparator = greater than, Value = "20:30".',
+	'Player Status': 'Always the player’s current status as text - there’s no Name field for this source. Example: Comparator = equal to, Value = "playing".',
+	'Is Playing': 'Always "1" if a playlist is currently playing, "0" otherwise - there’s no Name field for this source. Example: Comparator = equal to, Value = "1".',
+	'Current Playlist': 'Always the name of the currently loaded playlist (empty if none) - there’s no Name field for this source. Example: Comparator = equal to, Value = "Halloween Show".',
+	'Current Song': 'Always the filename of the currently playing media (empty if none) - there’s no Name field for this source. Example: Comparator = contains, Value = "Jingle".'
 };
 
 // Suggests real, currently-known names for the Name field via a <datalist>,
@@ -8784,13 +8829,22 @@ function FetchConditionNameOptions (source, callback) {
 		return;
 	}
 	if (source === 'GPIO Pin') {
-		// Same list the "GPIO" Command's own Pin arg uses (gpio.cpp) - these
-		// are the exact names GPIOManager::fppCommandLastValue is keyed by.
+		// Unlike the "GPIO" Command's own Pin arg (api/options/GPIOLIST, every
+		// physical pin on the board), a condition can only ever see a value
+		// for pins actually configured as GPIO Inputs (Condition.cpp falls
+		// back to GPIOManager::GetInputPinValue, which only knows about pins
+		// SetupGPIOInput registered from config/gpio.json's enabled entries -
+		// see gpio.cpp). So list only those, read the same way gpio.php reads
+		// its own trigger list, and apply the same "enabled" default (missing
+		// enabled = active) used there.
 		$.ajax({
-			url: 'api/options/GPIOLIST',
+			url: 'api/configfile/gpio.json',
 			dataType: 'json',
 			success: function (data) {
-				done(Object.keys(data || {}));
+				var names = (Array.isArray(data) ? data : [])
+					.filter(function (t) { return t.enabled !== false && t.pin; })
+					.map(function (t) { return t.pin; });
+				done(names);
 			},
 			error: function () {
 				done([]);
@@ -9430,17 +9484,23 @@ function RenderConditionFields ($container, cond, onChange) {
 	});
 
 	var $nameWrap = $("<span class='d-inline-block'></span>");
-	if (cond.source === 'Time') {
-		// currentTimeHHMM() in Condition.cpp ignores `name` entirely - nothing
-		// to fill in, so don't show a field that would look meaningful but do
+	if (CONDITION_SOURCES_NO_NAME_FIELD.indexOf(cond.source) !== -1) {
+		// These all ignore `name` entirely in Condition.cpp - nothing to fill
+		// in, so don't show a field that would look meaningful but do
 		// nothing.
 		cond.name = '';
 	} else if (cond.source === 'Expression') {
 		var fieldId = 'condExpr_' + ++conditionFieldIdSeq;
+		// textarea, not a single-line input: a formula long enough to need
+		// the horizontal scrolling a single-line box would force is common
+		// enough here (and for Value below) that seeing more of it at once,
+		// wrapped, is worth the extra vertical space - resize:vertical (the
+		// browser default for a textarea) still lets it be dragged taller
+		// still for anything even longer.
 		var nameInp = $(
-			"<input type='text' id='" +
+			"<textarea id='" +
 				fieldId +
-				"' class='form-control form-control-sm flex-grow-1' placeholder='Expression'>"
+				"' rows='2' class='form-control form-control-sm flex-grow-1' placeholder='Expression'></textarea>"
 		)
 			.val(cond.name)
 			.on('input', function () {
@@ -9511,10 +9571,13 @@ function RenderConditionFields ($container, cond, onChange) {
 	// toggle. Same input+validIcon layout as $nameWrap's Expression case so
 	// the two fields look like siblings.
 	var valueFieldId = 'condValue_' + ++conditionFieldIdSeq;
+	// textarea for the same reason as Name/Expression above - this field is
+	// unconditionally expression-capable for every Source, not just
+	// Expression, so it's just as likely to hold something long.
 	var valInp = $(
-		"<input type='text' id='" +
+		"<textarea id='" +
 			valueFieldId +
-			"' class='form-control form-control-sm flex-grow-1' placeholder='Value or Expression'>"
+			"' rows='2' class='form-control form-control-sm flex-grow-1' placeholder='Value or Expression'></textarea>"
 	)
 		.val(cond.value)
 		.on('input', function () {
@@ -9527,6 +9590,30 @@ function RenderConditionFields ($container, cond, onChange) {
 	$valueWrap.append($("<div class='d-flex align-items-center'></div>").append(valInp, valueValidIcon));
 	if (cond.value) {
 		DebounceValidateExpression(valInp[0], valueFieldId + '_validIcon');
+	}
+	// Day/Month/Player Status only have a handful of valid answers - a
+	// <datalist> would be the usual way to suggest them (see the Name
+	// field's own datalist a bit above), but datalist/list= only works on
+	// <input>, not the <textarea> Value now is. A small "quick pick" select
+	// that just fills Value in on choice gets the same one-click result.
+	var valueSuggestions = CONDITION_VALUE_SUGGESTIONS[cond.source];
+	if (valueSuggestions) {
+		var $quickPick = $("<select class='form-select form-select-sm mt-1'><option value=''>-- Quick pick --</option></select>");
+		$.each(valueSuggestions, function (i, v) {
+			var optValue = typeof v === 'object' ? v.value : v;
+			var optLabel = typeof v === 'object' ? v.label : v;
+			$quickPick.append("<option value='" + EscapeHtml(optValue) + "'>" + EscapeHtml(optLabel) + '</option>');
+		});
+		$quickPick.on('change', function () {
+			var v = $(this).val();
+			if (v) {
+				cond.value = v;
+				valInp.val(v);
+				onChange();
+			}
+			$(this).val('');
+		});
+		$valueWrap.append($quickPick);
 	}
 
 	// One consolidated eye button (was two, one per side) - opens a modal
@@ -9562,7 +9649,7 @@ function RenderConditionFields ($container, cond, onChange) {
 	function EyeButtonField ($btn) {
 		return $("<div class='d-flex flex-column'></div>").append($("<span style='font-size:0.8rem'> </span>"), $btn);
 	}
-	var nameLabelText = cond.source === 'Time' ? null : CONDITION_NAME_LABELS[cond.source] || 'Name';
+	var nameLabelText = CONDITION_SOURCES_NO_NAME_FIELD.indexOf(cond.source) !== -1 ? null : CONDITION_NAME_LABELS[cond.source] || 'Name';
 	$row.append(
 		LabeledField('Source', sourceSel),
 		LabeledField(nameLabelText, $nameWrap),
@@ -9646,7 +9733,7 @@ function RenderSharedExpressionValueHelper ($container, nameInp, valInp, nameFie
 	var $input = $(
 		"<input type='text' list='" +
 			VAR_INSERT_DATALIST_ID +
-			"' class='form-control form-control-sm' placeholder='Insert variable…' style='position:absolute'>"
+			"' class='form-control form-control-sm placeholder-center position-absolute' placeholder='-- Select Variable to Insert --'>"
 	);
 	function insertPendingValue (targetId) {
 		var name = $input.val();
@@ -9875,7 +9962,13 @@ function ShowConditionEvaluationPopup (cond) {
 		$body.append($("<div class='mb-3'></div>").append($("<div class='text-muted small mb-1'>Formula</div>"), $("<div></div>").html(SummarizeConditionItemHtml(cond))));
 
 		if (!data || !data.found) {
-			$body.append("<div class='text-muted'>LHS has no current value - not set/seen yet, or Name doesn't match anything. Nothing further to evaluate.</div>");
+			// Describe the Source+Name side specifically (e.g. "GPIO Pin P1-3"),
+			// not the Value field - Value is never looked up, only compared
+			// against, so it's never the reason nothing was found.
+			var missingLabel = cond.source === 'Expression'
+				? 'Expression(' + EscapeHtml(cond.name || '') + ')'
+				: EscapeHtml(cond.source) + (cond.name ? ' ' + EscapeHtml(cond.name) : '');
+			$body.append("<div class='text-muted'>" + missingLabel + " has no current value - not set/seen yet, or the Name doesn't match anything. Nothing further to evaluate.</div>");
 			return;
 		}
 
@@ -10070,7 +10163,7 @@ function RenderVarInsertHelper ($helper, targetId, shouldWrap) {
 	var $input = $(
 		"<input type='text' list='" +
 			VAR_INSERT_DATALIST_ID +
-			"' class='form-control form-control-sm w-100' placeholder='Insert variable to expression field…'>"
+			"' class='form-control form-control-sm w-100 placeholder-center' placeholder='-- Select Variable to Insert --'>"
 	).on('change', function () {
 		var name = $(this).val();
 		if (name) {
@@ -10078,7 +10171,22 @@ function RenderVarInsertHelper ($helper, targetId, shouldWrap) {
 		}
 		$(this).val('');
 	});
-	$helper.append($input);
+	// Same visual language as RenderSharedExpressionValueHelper's dual arrows
+	// (the Expression Source's Name+Value case) - without it, this plain
+	// text box gave no hint that picking a name here does anything, let
+	// alone that it lands in the single field directly above. Only one
+	// target here (unlike the dual-arrow case), so it's a simple trailing
+	// icon, not an absolutely-positioned pointer aimed at a measured field
+	// center - but still a real, focusable button rather than decoration
+	// only, so it's an equally obvious click target. Trailing (not leading)
+	// by request, so the input box itself sits flush left.
+	var $arrow = $(
+		"<button type='button' class='buttons reallySmallButton varInsertArrow ms-1' title='Insert into the field above'><i class='fas fa-arrow-up'></i></button>"
+	).on('mousedown', function (e) {
+		e.preventDefault();
+		$input.trigger('focus');
+	});
+	$helper.append($("<div class='d-flex align-items-center'></div>").append($input, $arrow));
 }
 
 // Inserts text at the current cursor position of a text input (replacing any

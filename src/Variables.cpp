@@ -106,6 +106,31 @@ static std::map<std::string, std::string> ComputeFppStatusVariables() {
     vars["fpp_volume"] = std::to_string(getVolume());
     vars["fpp_multisync"] = (multiSync && multiSync->isMultiSyncEnabled()) ? "1" : "0";
     vars["fpp_uptime_seconds"] = std::to_string((long long)(std::time(nullptr) - FPP_STARTUP_TIME));
+    vars["fpp_is_playing"] = Player::INSTANCE.IsPlaying() ? "1" : "0";
+    vars["fpp_was_scheduled"] = Player::INSTANCE.WasScheduled() ? "1" : "0";
+    vars["fpp_scheduler_enabled"] = (scheduler && scheduler->IsEnabled()) ? "1" : "0";
+    {
+        // Same "HH:MM" convention as the "Time" Condition source
+        // (Condition.cpp's CurrentTimeHHMM()) so a plain fpp_current_time
+        // comparison lines up with what that source's Value examples show.
+        // Date is ISO 8601 (YYYY-MM-DD) - unambiguous and sorts/compares
+        // correctly as a plain string. Day name matches strftime's locale-
+        // independent full weekday name (English), same as the rest of this
+        // list rather than the system locale.
+        static const char* kDayNames[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        static const char* kMonthNames[12] = { "January", "February", "March", "April", "May", "June",
+                                                "July", "August", "September", "October", "November", "December" };
+        std::time_t now = std::time(nullptr);
+        struct tm local;
+        localtime_r(&now, &local);
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%02d:%02d", local.tm_hour, local.tm_min);
+        vars["fpp_current_time"] = buf;
+        snprintf(buf, sizeof(buf), "%04d-%02d-%02d", local.tm_year + 1900, local.tm_mon + 1, local.tm_mday);
+        vars["fpp_current_date"] = buf;
+        vars["fpp_day_of_week"] = kDayNames[local.tm_wday];
+        vars["fpp_current_month"] = kMonthNames[local.tm_mon];
+    }
     vars["fpp_warning_count"] = std::to_string(WarningHolder::GetWarnings().size());
     if (scheduler) {
         vars["fpp_next_playlist"] = scheduler->GetNextPlaylistName();
