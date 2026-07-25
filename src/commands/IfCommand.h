@@ -11,9 +11,17 @@
  * included LICENSE.LGPL file.
  */
 
-#include "Commands.h"
+#include "LocalOnlyCommand.h"
 
-class IfCommand : public Command {
+// An If evaluates local state, so it is a LocalOnlyCommand: multisyncing it
+// would broadcast the raw condition check to other instances, which each
+// independently re-evaluate it against their own local state
+// (GPIO/Variable/Sensor/etc.) - not what "Multisync" means for any other
+// command. Put a Multisync-enabled command inside Then/Else instead to
+// propagate the *result* of a check. (LocalOnlyCommand emits the
+// "disallowMultisync" UI flag; see its header for why that route, not a
+// Command virtual.)
+class IfCommand : public LocalOnlyCommand {
 public:
     IfCommand();
     virtual ~IfCommand() {}
@@ -27,10 +35,4 @@ public:
     // call CommandManager::run() synchronously on threads a lighting
     // player can't afford to stall.
     static void tick();
-    // Multisyncing an If would broadcast the raw condition check to other
-    // instances, which each independently re-evaluate it against their own
-    // local state (GPIO/Variable/Sensor/etc.) - not what "Multisync" means
-    // for any other command. Put a Multisync-enabled command inside Then/
-    // Else instead to propagate the *result* of a check.
-    virtual bool disallowMultisync() const override { return true; }
 };

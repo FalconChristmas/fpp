@@ -21,7 +21,7 @@
 #include <mutex>
 
 IfCommand::IfCommand() :
-    Command("If") {
+    LocalOnlyCommand("If") {
     // One condition-tree editor, not two competing ways to say the same
     // thing - a single Check/Is/Value field pair alongside a separate,
     // Advanced-only "Rules" box that could add more conditions was

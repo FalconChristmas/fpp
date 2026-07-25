@@ -48,9 +48,6 @@ Json::Value Command::getDescription() {
     if (!description.empty()) {
         cmd["description"] = description;
     }
-    if (disallowMultisync()) {
-        cmd["disallowMultisync"] = true;
-    }
     for (auto& ar : args) {
         Json::Value a;
         a["name"] = ar.name;
