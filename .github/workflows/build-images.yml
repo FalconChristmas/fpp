@@ -207,17 +207,62 @@ jobs:
           # (b) ship a credential we should never be publishing.
           persist-credentials: false
 
-      - name: Set FPPBRANCH from ref
-        # actions/checkout leaves the tree in detached HEAD, so
-        # `git rev-parse --abbrev-ref HEAD` returns "HEAD" and the
-        # makefile's branch check fails to add -g1 to release builds --
-        # which both ships unstripped binaries and busts the ccache by
-        # changing compile flags vs. local dev builds on master.
-        # Pass the ref name through explicitly so every step (including
-        # FPP_Install.sh inside the chroot, which exports FPPBRANCH) sees
-        # the right value.
+      - name: Resolve release branch to build from
+        # A release IMAGE must ship /opt/fpp on a real tracking BRANCH, never a
+        # detached tag. Two runtime paths depend on it:
+        #   * scripts/git_pull updates via `git rebase @{u}` -- an upstream only
+        #     exists on a branch, so a detached-tag checkout fails every user's
+        #     "Check for Updates" with "HEAD does not point to a branch".
+        #   * www/common.php keys version display + upgrade offers off a
+        #     `v<major>.<minor>` branch name; a detached HEAD reads back garbage.
+        # actions/checkout leaves a tag build in detached HEAD, and the branch
+        # usually has fixes PAST the tag, so we must check out the branch, not
+        # the tagged commit.
+        #
+        # Mapping (FPP convention, one branch per minor series): tag 10.1.2 ->
+        # branch v10.1. The 10.0 beta is the exception -- its branch is literally
+        # v10.0-beta -- so when v<major>.<minor> is absent, fall back to the
+        # single origin/v* branch that contains the tagged commit. A
+        # workflow_dispatch run already picks the branch in "Use workflow from",
+        # so its ref_name is used verbatim.
         if: steps.gate.outputs.skip == 'false'
-        run: echo "FPPBRANCH=${{ github.ref_name }}" >> "$GITHUB_ENV"
+        id: relbranch
+        run: |
+          set -euo pipefail
+          # Ensure every origin branch is present -- needed both to resolve here
+          # and because the rsynced .git is what FPP_Install.sh (--skip-clone)
+          # checks out inside the image. Unauthenticated fetch is fine (public
+          # repo; persist-credentials:false scrubbed the token).
+          git fetch --no-tags --quiet origin '+refs/heads/*:refs/remotes/origin/*' || true
+          if [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+            TAG_SHA="$(git rev-list -n1 "$TAG")"
+            CONV="v$(printf '%s' "$TAG" | sed -E 's/^([0-9]+\.[0-9]+).*/\1/')"
+            BRANCH=""
+            if git show-ref --verify --quiet "refs/remotes/origin/$CONV" \
+               && git merge-base --is-ancestor "$TAG_SHA" "origin/$CONV"; then
+              BRANCH="$CONV"
+            else
+              CANDS="$(git branch -r --contains "$TAG_SHA" --list 'origin/v[0-9]*' | sed 's#^[* ]*origin/##' | sort -u)"
+              N="$(printf '%s\n' "$CANDS" | grep -c . || true)"
+              if [ "$N" = "1" ]; then
+                BRANCH="$CANDS"
+              elif [ "$N" -gt 1 ]; then
+                echo "::error::Tag '$TAG' is contained in multiple release branches ($(echo $CANDS)); refusing to guess. Expected $CONV."
+                exit 1
+              fi
+            fi
+            if [ -z "$BRANCH" ]; then
+              echo "::error::No release branch found for tag '$TAG' (expected origin/$CONV, or exactly one origin/v* branch containing the tag). Push the release branch before tagging so images can track it."
+              exit 1
+            fi
+          else
+            # workflow_dispatch / schedule: build the branch that was checked out.
+            BRANCH="${{ github.ref_name }}"
+          fi
+          echo "Resolved release branch: $BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "FPPBRANCH=$BRANCH" >> "$GITHUB_ENV"
 
       - name: Maximize disk space
         # Default GH runners have ~14 GB free; BBB / Pi builds easily use
@@ -300,18 +345,18 @@ jobs:
 
       - name: Build image
         if: steps.gate.outputs.skip == 'false'
-        # Pass --branch explicitly rather than relying on the FPPBRANCH env var
-        # (set by the "Set FPPBRANCH from ref" step above) surviving into this
-        # `sudo` invocation. Plain `sudo` drops the calling shell's environment,
-        # so FPPBRANCH silently reverted to build-image-pi.sh's own "master"
-        # default here -- confirmed via CI run 30107796268, which shipped every
-        # 10.0-beta image checked out on master instead of the release tag. A
-        # CLI arg isn't subject to that env-stripping at all.
+        # Pass the RESOLVED release branch (see "Resolve release branch" above),
+        # never github.ref_name: on a tag push ref_name is the tag, and building
+        # that leaves the image's /opt/fpp detached (broken self-update). Passing
+        # it as a --branch CLI arg -- not the FPPBRANCH env var -- is also
+        # required because plain `sudo` strips the environment, which is how CI
+        # run 30107796268 silently fell back to the script's "master" default
+        # and shipped every 10.0-beta image on master.
         run: |
           sudo ./${{ matrix.script }} \
             --version "${{ needs.prep.outputs.version }}" \
             --os-version "$(date -u +%Y-%m)" \
-            --branch "${{ github.ref_name }}" \
+            --branch "${{ steps.relbranch.outputs.branch }}" \
             --use-local-src \
             ${{ matrix.extra_args }}
 
