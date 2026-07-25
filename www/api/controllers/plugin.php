@@ -754,6 +754,10 @@ function GetPluginInfo()
 		$iconFile = $settings['pluginDirectory'] . '/' . $plugin . '/icon.png';
 		$result['hasIcon'] = file_exists($iconFile) || !empty($result['iconURL']);
 
+		$pageInfo = _PluginGetBestPageUrl($plugin);
+		$result['pageUrl'] = $pageInfo['url'];
+		$result['pageType'] = $pageInfo['page'];
+
 		return json($result);
 	}
 
@@ -1428,6 +1432,258 @@ function PluginSetSetting()
 	WriteSettingToFile($setting, $value, $plugin);
 
 	return PluginGetSetting();
+}
+
+/**
+ * Get plugin page URL
+ *
+ * Scans the plugin's menu files (menu.inc, status_menu.inc, etc.) and returns
+ * the best page URL for the plugin.  Prefers the Status/Control page; falls
+ * back to the Content Setup (config) page if no status page is found.
+ *
+ * @route GET /api/plugin/{RepoName}/page
+ * @response 200 Plugin page info
+ * ```json
+ * {"url": "plugin.php?plugin=fpp-matrixtools&page=status.php", "page": "status.php", "found": true}
+ * ```
+ */
+function GetPluginPageUrl()
+{
+	$plugin = params('RepoName');
+	return json(_PluginGetBestPageUrl($plugin));
+}
+
+/**
+ * Helper: compute the "best" page URL for a plugin by scanning its menu files.
+ * Returns ['url' => ..., 'page' => ..., 'found' => true/false].
+ *
+ * Strategy – scan raw menu file content rather than PHP-including it, so we
+ * are immune to PHP errors, missing variables, side effects, and unusual
+ * execution contexts that would make @include produce empty or broken output:
+ *
+ *   1. Look for `'page' => 'xxx.php'` inside a PHP array (the template
+ *      pattern: $menuEntries = [ ['page' => 'status.php', ...], ...]).
+ *      When a `'type' => 'status'` / `'type' => 'content'` key precedes
+ *      the page entry we can rank by menu section.
+ *
+ *   2. Look for `page=xxx.php` inside an href (old-style *_menu.inc or
+ *      inline HTML in menu.inc).
+ *
+ *   3. Also try the PHP-include approach and merge results, so dynamically
+ *      constructed URLs that cannot be found via raw-text scan are still
+ *      captured (e.g. $page from a variable).  The raw-text scan runs
+ *      first, so it wins for the common cases; the include outcome is a
+ *      silent fallback that adds entries without replacing the raw ones.
+ */
+function _PluginGetBestPageUrl($plugin)
+{
+	global $pluginDirectory;
+	$dir = $pluginDirectory . '/' . $plugin;
+
+	// Gather candidate page names keyed by menu type (status, content, …).
+	// _RawScan returns [pageName => true] for that menu type; a page that
+	// appears under multiple types is recorded under each.
+	$byType = [];
+
+	// List of menu types in priority order (raw+include for each).
+	foreach (['status', 'content', 'output', 'help'] as $type) {
+		$names = _PluginScanMenuPagesRaw($dir, $plugin, $type);
+		$byType[$type] = [];
+
+		// Deduplicate while preserving the order they were found in.
+		$seen = [];
+		foreach ($names as $name) {
+			if (!isset($seen[$name])) {
+				$seen[$name] = true;
+				$byType[$type][] = $name;
+			}
+		}
+	}
+
+	// Return the first page from the highest-priority menu type.
+	foreach (['status', 'content', 'output', 'help'] as $type) {
+		if (!empty($byType[$type])) {
+			$page = $byType[$type][0];
+			return [
+				'url'   => 'plugin.php?plugin=' . urlencode($plugin) . '&page=' . urlencode($page),
+				'page'  => $page,
+				'found' => true,
+			];
+		}
+	}
+
+	return ['url' => null, 'page' => null, 'found' => false];
+}
+
+/**
+ * Scan raw content of the plugin's menu files for a given menu type,
+ * returning an array of page-file names (e.g. ['status.php', …]).
+ *
+ * Both file conventions are checked:
+ *   – unified  menu.inc       (new pattern, PHP array-driven)
+ *   – per-type  ${type}_menu.inc  (old pattern, static HTML)
+ *
+ * Inside each file two extractors run:
+ *   a) PHP-include (fallback) – captures links constructed dynamically
+ *      that a raw-text scan cannot see.
+ *   b) Raw-text scan (primary) – immune to execution-context issues.
+ */
+function _PluginScanMenuPagesRaw($dir, $plugin, $type)
+{
+	$pages = [];
+	$files = [];
+
+	if (file_exists($dir . '/menu.inc')) {
+		$files[] = ['path' => $dir . '/menu.inc', 'unified' => true];
+	}
+	$specific = $dir . '/' . $type . '_menu.inc';
+	if (file_exists($specific)) {
+		$files[] = ['path' => $specific, 'unified' => false];
+	}
+
+	foreach ($files as $info) {
+		$path = $info['path'];
+
+		// ---- (a) PHP-include fallback -----------------------------------
+		// Executes the file with $menu/$plugin in scope so that PHP-built
+		// hrefs are captured when the raw-text scan misses them. Failure
+		// is silent and does NOT block the raw-text scan below.
+		// IMPORTANT: Save/restore $pages around the include because the
+		// included file may define its own $pages variable (e.g. with
+		// 'name', 'type', 'page' keys) which would corrupt our array.
+		$pagesBefore = $pages;
+		$html = '';
+		try {
+			$menu = $type;
+			ob_start();
+			@include $path;
+			$html = ob_get_clean();
+		} catch (\Throwable $_) {
+			$html = '';
+		}
+		$pages = $pagesBefore;
+		if ($html !== '') {
+			_PluginExtractPageFromHtml($html, $pages);
+		}
+
+		// ---- (b) Raw-text scan (primary) --------------------------------
+		$src = @file_get_contents($path);
+		if ($src === false || $src === '') {
+			continue;
+		}
+
+		_PluginExtractPageFromRaw($src, $info['unified'], $type, $pages);
+	}
+
+	return $pages;
+}
+
+/**
+ * Extract page names from HTML output (the include fallback).
+ *
+ * Populates $pages (by reference) with page-file names found in
+ * href="plugin.php?plugin=…&page=…" or href='…' attributes.
+ */
+function _PluginExtractPageFromHtml($html, array &$pages)
+{
+	if (preg_match_all('/href=(["\'])(?:[^"\']*plugin\.php[^"\']*page=([^"&\'&]+)|([^"\']*page=[^"&\'&]+[^"\']*plugin\.php[^"\']*))\1/i', $html, $m)) {
+		foreach ($m[2] as $i => $page) {
+			$v = trim($page !== '' ? $page : $m[3][$i]);
+			if ($v !== '') {
+				$pages[] = htmlspecialchars_decode($v);
+			}
+		}
+	}
+}
+
+/**
+ * Extract page names from raw PHP source code.
+ *
+ * Patterns (checked in order; first that matches wins):
+ *
+ *   1. PHP array entries:  'page' => 'xxx.php'
+ *      When inside a unified menu.inc, also looks for a preceding
+ *      'type' => '{type}' key to filter by the requested menu type.
+ *
+ *   2. page= in HTML attributes:  page="xxx.php"
+ *
+ *   3. page= in unquoted URL contexts:  page=xxx.php
+ *
+ *   4. Any .php filename inside quotes (broad catch-all for
+ *      variable assignments like $statusPage = 'advancedstats.php').
+ *
+ *   5. Any .php filename that could be a page, even without
+ *      surrounding quotes (aggressive fallback).
+ *
+ * Populates $pages (by reference).
+ */
+function _PluginExtractPageFromRaw($src, $unified, $type, array &$pages)
+{
+	$skipFiles = ['plugin.php'];
+
+	// ---- Pattern 1: PHP array entries ----------------------------------
+	$p1matchedAny = false;
+	if ($unified && preg_match_all("/['\"]((?:type|page))['\"]\s*=>\s*['\"]([^'\"]+)['\"]/i", $src, $entryM, PREG_SET_ORDER)) {
+		$lastType = null;
+		foreach ($entryM as $em) {
+			$key = strtolower($em[1]);
+			$val = $em[2];
+			$p1matchedAny = true;
+			if ($key === 'type') {
+				$lastType = $val;
+			} elseif ($key === 'page' && preg_match('/\.php$/i', $val)) {
+				if ($lastType === null || $lastType === $type) {
+					$pages[] = $val;
+				}
+				$lastType = null;
+			}
+		}
+		// If Pattern 1 found any array-style entries, stop here.
+		// Even if none matched the requested type, we must not fall
+		// through to the broader patterns which lack type filtering.
+		if ($p1matchedAny) {
+			return;
+		}
+	}
+
+	// ---- Pattern 2: page= in HTML attributes ---------------------------
+	if (preg_match_all('/page\s*=\s*["\']([a-zA-Z0-9_\-\.\/]+\.php)["\']/i', $src, $m)) {
+		foreach ($m[1] as $v) {
+			if (!in_array(strtolower($v), $skipFiles)) {
+				$pages[] = $v;
+			}
+		}
+		if (!empty($pages)) { return; }
+	}
+
+	// ---- Pattern 3: page= in unquoted URL contexts ---------------------
+	if (preg_match_all('/page\s*=\s*([a-zA-Z0-9_\-\.\/]+\.php)/i', $src, $m)) {
+		foreach ($m[1] as $v) {
+			if (!in_array(strtolower($v), $skipFiles)) {
+				$pages[] = $v;
+			}
+		}
+		if (!empty($pages)) { return; }
+	}
+
+	// ---- Pattern 4: any .php filename in quotes (broad) ---------------
+	if (preg_match_all('/["\']([a-zA-Z0-9_\-]+\.php)["\']/i', $src, $m)) {
+		foreach ($m[1] as $v) {
+			if (!in_array(strtolower($v), $skipFiles)) {
+				$pages[] = $v;
+			}
+		}
+		if (!empty($pages)) { return; }
+	}
+
+	// ---- Pattern 5: any .php filename after variable assignment -------
+	if (preg_match_all('/=\s*["\']([a-zA-Z0-9_\-]+\.php)["\']/i', $src, $m)) {
+		foreach ($m[1] as $v) {
+			if (!in_array(strtolower($v), $skipFiles)) {
+				$pages[] = $v;
+			}
+		}
+	}
 }
 
 ?>

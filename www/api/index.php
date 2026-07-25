@@ -208,6 +208,7 @@ dispatch_get('/plugin/popularity', 'GetPluginPopularity'); // keep above /plugin
 dispatch_get('/plugin/fetchImage', 'PluginFetchImage'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/:RepoName', 'GetPluginInfo');
 dispatch_get('/plugin/:RepoName/icon', 'PluginServeIcon');
+dispatch_get('/plugin/:RepoName/page', 'GetPluginPageUrl');
 dispatch_delete('/plugin/:RepoName', 'UninstallPlugin');
 dispatch_get('/plugin/:RepoName/settings/:SettingName', 'PluginGetSetting');
 dispatch_put('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');
