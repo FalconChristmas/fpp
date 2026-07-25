@@ -54,11 +54,15 @@ jobs:
           if [ -n "${{ inputs.tag }}" ]; then
             gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${{ inputs.tag }}" > release.json
           else
-            # /releases/latest is GitHub's own definition of "latest": the
-            # most recent non-draft, non-prerelease release. Build releases
-            # are created as drafts (see build-images.yml's "release" job),
-            # so an unpublished draft is never picked up here by accident.
-            gh api "repos/${GITHUB_REPOSITORY}/releases/latest" > release.json
+            # /releases/latest excludes prereleases entirely by GitHub's own
+            # definition -- that hid 10.0-beta (published, prerelease=true)
+            # behind the older 9.5 stable release. List all releases instead,
+            # drop drafts (build releases start as drafts -- see
+            # build-images.yml's "release" job -- so an unpublished one is
+            # still never picked up by accident), and take whichever
+            # published release is newest, prerelease or not.
+            gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+              | jq -s 'add | map(select(.draft == false)) | sort_by(.published_at) | last' > release.json
           fi
 
           TAG=$(jq -r '.tag_name' release.json)
@@ -66,16 +70,16 @@ jobs:
             echo "::error::Could not resolve a release (tag input: '${{ inputs.tag }}')." >&2
             exit 1
           fi
-          # FPP release tags carry no 'v' prefix (10.0-beta, 9.5.3); asset
-          # filenames add it back (FPP-v10.0-beta-Pi.img.zip) -- see
-          # SD/build-image-pi.sh's OUT_IMG and build-images.yml's version step.
-          VERSION="$TAG"
-          PUBLISHED=$(jq -r '.published_at // .created_at' release.json | cut -d'T' -f1)
-
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "release_date=$PUBLISHED" >> "$GITHUB_OUTPUT"
-          echo "Resolved release: $TAG (published $PUBLISHED)"
+          echo "Resolved release: $TAG"
+
+          # NOTE: this repo reuses one release/tag across patch bumps -- the
+          # "9.5" release carries FPP-v9.5-Pi.img.zip, FPP-v9.5.1-*, ...,
+          # FPP-v9.5.3-*, uploaded on different dates, all under tag_name
+          # "9.5". So the per-platform VERSION and release date must come
+          # from the *matched asset itself*, never from this release object's
+          # tag_name/published_at -- using those here previously overwrote
+          # correct "9.5.3" entries back down to "9.5" (PR #2772).
 
       - name: Download platform images and compute hashes
         id: hashes
@@ -86,19 +90,30 @@ jobs:
           # filename exactly (a plain substring match would let "Pi" match
           # "Pi64" too).
           for SUFFIX in Pi Pi64 BB64 BBB; do
-            NAME=$(jq -r --arg s "$SUFFIX" \
-              '[.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$"))] | sort_by(.updated_at) | last | .name // empty' \
-              release.json)
-            URL=$(jq -r --arg s "$SUFFIX" \
-              '[.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$"))] | sort_by(.updated_at) | last | .browser_download_url // empty' \
+            MATCH=$(jq -c --arg s "$SUFFIX" \
+              '[.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$"))] | sort_by(.updated_at) | last // empty' \
               release.json)
 
-            if [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
+            if [ -z "$MATCH" ]; then
               echo "No .img.zip asset for platform $SUFFIX in this release -- skipping."
               continue
             fi
 
-            echo "=== $SUFFIX: $NAME ==="
+            NAME=$(jq -r '.name' <<<"$MATCH")
+            URL=$(jq -r '.browser_download_url' <<<"$MATCH")
+            # Per-asset, not per-release: this repo re-uploads patch bumps
+            # (9.5, 9.5.1, ..., 9.5.3) onto the SAME release/tag over time,
+            # so the release object's own tag_name/published_at are stale
+            # for anything past the first upload (see the note above).
+            ASSET_DATE=$(jq -r '(.updated_at // .created_at)' <<<"$MATCH" | cut -d'T' -f1)
+            # Asset filenames are FPP-v<VERSION>-<SUFFIX>.img.zip (see
+            # SD/build-image-pi.sh's OUT_IMG); strip the fixed prefix/suffix
+            # to recover VERSION even though it can differ from the release
+            # tag_name (FPP-v9.5.3-Pi.img.zip on tag "9.5").
+            ASSET_VERSION="${NAME#FPP-v}"
+            ASSET_VERSION="${ASSET_VERSION%-${SUFFIX}.img.zip}"
+
+            echo "=== $SUFFIX: $NAME (version $ASSET_VERSION, $ASSET_DATE) ==="
             ZIP="work/$NAME"
             curl -fL --retry 3 -o "$ZIP" "$URL"
 
@@ -125,6 +140,8 @@ jobs:
 
             {
               echo "${SUFFIX}_url=$URL"
+              echo "${SUFFIX}_version=$ASSET_VERSION"
+              echo "${SUFFIX}_release_date=$ASSET_DATE"
               echo "${SUFFIX}_image_download_size=$ZIP_SIZE"
               echo "${SUFFIX}_image_download_sha256=$ZIP_SHA"
               echo "${SUFFIX}_extract_size=$IMG_SIZE"
@@ -136,24 +153,30 @@ jobs:
         id: update
         env:
           TAG: ${{ steps.release.outputs.tag }}
-          VERSION: ${{ steps.release.outputs.version }}
-          RELEASE_DATE: ${{ steps.release.outputs.release_date }}
           Pi_url: ${{ steps.hashes.outputs.Pi_url }}
+          Pi_version: ${{ steps.hashes.outputs.Pi_version }}
+          Pi_release_date: ${{ steps.hashes.outputs.Pi_release_date }}
           Pi_image_download_size: ${{ steps.hashes.outputs.Pi_image_download_size }}
           Pi_image_download_sha256: ${{ steps.hashes.outputs.Pi_image_download_sha256 }}
           Pi_extract_size: ${{ steps.hashes.outputs.Pi_extract_size }}
           Pi_extract_sha256: ${{ steps.hashes.outputs.Pi_extract_sha256 }}
           Pi64_url: ${{ steps.hashes.outputs.Pi64_url }}
+          Pi64_version: ${{ steps.hashes.outputs.Pi64_version }}
+          Pi64_release_date: ${{ steps.hashes.outputs.Pi64_release_date }}
           Pi64_image_download_size: ${{ steps.hashes.outputs.Pi64_image_download_size }}
           Pi64_image_download_sha256: ${{ steps.hashes.outputs.Pi64_image_download_sha256 }}
           Pi64_extract_size: ${{ steps.hashes.outputs.Pi64_extract_size }}
           Pi64_extract_sha256: ${{ steps.hashes.outputs.Pi64_extract_sha256 }}
           BB64_url: ${{ steps.hashes.outputs.BB64_url }}
+          BB64_version: ${{ steps.hashes.outputs.BB64_version }}
+          BB64_release_date: ${{ steps.hashes.outputs.BB64_release_date }}
           BB64_image_download_size: ${{ steps.hashes.outputs.BB64_image_download_size }}
           BB64_image_download_sha256: ${{ steps.hashes.outputs.BB64_image_download_sha256 }}
           BB64_extract_size: ${{ steps.hashes.outputs.BB64_extract_size }}
           BB64_extract_sha256: ${{ steps.hashes.outputs.BB64_extract_sha256 }}
           BBB_url: ${{ steps.hashes.outputs.BBB_url }}
+          BBB_version: ${{ steps.hashes.outputs.BBB_version }}
+          BBB_release_date: ${{ steps.hashes.outputs.BBB_release_date }}
           BBB_image_download_size: ${{ steps.hashes.outputs.BBB_image_download_size }}
           BBB_image_download_sha256: ${{ steps.hashes.outputs.BBB_image_download_sha256 }}
           BBB_extract_size: ${{ steps.hashes.outputs.BBB_extract_size }}
@@ -167,9 +190,6 @@ jobs:
           path = "rpi-imager/rpi-imager_falcon_player.json"
           with open(path) as f:
               data = json.load(f)
-
-          version = os.environ["VERSION"]
-          release_date = os.environ["RELEASE_DATE"]
 
           # FPP tags are plain numeric for stable releases (9.5.3, 9.6) and
           # carry a letter suffix for anything else (10.0-beta, 10.0-beta2,
@@ -188,9 +208,6 @@ jobs:
               m = re.match(r"^(\d+\.\d+)", v)
               return m.group(1) if m else v
 
-          new_channel = channel_of(version)
-          new_family = family_of(version)
-
           # Longest suffix first: "Pi64" must be checked before "Pi", since
           # "Pi" is a substring of "Pi64" and would otherwise match both.
           PLATFORM_SUFFIXES = ("Pi64", "Pi", "BB64", "BBB")
@@ -207,11 +224,21 @@ jobs:
               return channel_of(m.group(1)) if m else "stable"
 
           added, updated, removed_dupes, superseded, skipped = [], [], [], [], []
+          channels_seen = set()
 
           for suffix in PLATFORM_SUFFIXES:
               url = os.environ.get(f"{suffix}_url", "")
               if not url:
                   continue  # no asset for this platform in the release
+
+              # Per-platform, not per-release: see the note by the "Resolve
+              # release" step -- a single release/tag can carry several
+              # differently-versioned assets uploaded over time.
+              version = os.environ[f"{suffix}_version"]
+              release_date = os.environ[f"{suffix}_release_date"]
+              new_channel = channel_of(version)
+              new_family = family_of(version)
+              channels_seen.add(new_channel)
 
               same_platform = [o for o in data["os_list"] if entry_platform(o) == suffix]
               same_slot = [o for o in same_platform if entry_channel(o) == new_channel]
@@ -266,8 +293,8 @@ jobs:
           with open(path, "w") as f:
               f.write(json.dumps(data, indent=4) + "\n")
 
-          print("Added new", new_channel, "entry:", ", ".join(added) or "(none)")
-          print("Updated existing", new_channel, "entry:", ", ".join(updated) or "(none)")
+          print("Added new entries:", ", ".join(added) or "(none)")
+          print("Updated existing entries:", ", ".join(updated) or "(none)")
           if superseded:
               print("Removed superseded prerelease entries:", ", ".join(superseded))
           if removed_dupes:
@@ -280,7 +307,7 @@ jobs:
               f.write(f"updated={','.join(updated)}\n")
               f.write(f"superseded={','.join(superseded)}\n")
               f.write(f"changed={'1' if (added or updated or superseded) else ''}\n")
-              f.write(f"channel={new_channel}\n")
+              f.write(f"channel={'+'.join(sorted(channels_seen))}\n")
           PY
 
       - name: Show diff
