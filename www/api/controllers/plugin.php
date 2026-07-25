@@ -1544,13 +1544,24 @@ function _PluginScanMenuPagesRaw($dir, $plugin, $type)
 	foreach ($files as $info) {
 		$path = $info['path'];
 
-		// ---- (a) PHP-include fallback -----------------------------------
+		// ---- (a) Raw-text scan (primary) --------------------------------
+		// Runs first so its results take precedence over the include
+		// fallback below: the raw scan reads the declared 'page' => value
+		// directly and is immune to quirks in the rendered HTML (e.g. a
+		// 'nopage=1' suffix whose "page=" substring can mislead the href
+		// parser).
+		$src = @file_get_contents($path);
+		if ($src !== false && $src !== '') {
+			_PluginExtractPageFromRaw($src, $info['unified'], $type, $pages);
+		}
+
+		// ---- (b) PHP-include fallback -----------------------------------
 		// Executes the file with $menu/$plugin in scope so that PHP-built
 		// hrefs are captured when the raw-text scan misses them. Failure
-		// is silent and does NOT block the raw-text scan below.
-		// IMPORTANT: Save/restore $pages around the include because the
-		// included file may define its own $pages variable (e.g. with
-		// 'name', 'type', 'page' keys) which would corrupt our array.
+		// is silent. IMPORTANT: Save/restore $pages around the include
+		// because the included file may define its own $pages variable
+		// (e.g. with 'name', 'type', 'page' keys) which would corrupt our
+		// array.
 		$pagesBefore = $pages;
 		$html = '';
 		try {
@@ -1565,14 +1576,6 @@ function _PluginScanMenuPagesRaw($dir, $plugin, $type)
 		if ($html !== '') {
 			_PluginExtractPageFromHtml($html, $pages);
 		}
-
-		// ---- (b) Raw-text scan (primary) --------------------------------
-		$src = @file_get_contents($path);
-		if ($src === false || $src === '') {
-			continue;
-		}
-
-		_PluginExtractPageFromRaw($src, $info['unified'], $type, $pages);
 	}
 
 	return $pages;
@@ -1586,7 +1589,11 @@ function _PluginScanMenuPagesRaw($dir, $plugin, $type)
  */
 function _PluginExtractPageFromHtml($html, array &$pages)
 {
-	if (preg_match_all('/href=(["\'])(?:[^"\']*plugin\.php[^"\']*page=([^"&\'&]+)|([^"\']*page=[^"&\'&]+[^"\']*plugin\.php[^"\']*))\1/i', $html, $m)) {
+	// NOTE: anchor "page=" on a ?/& boundary so it does not match the "page="
+	// substring inside "nopage=1" (added for menu entries with 'wrap' => 0).
+	// Without the [?&] anchor the greedy [^"']* backtracks to the last "page="
+	// and captures the nopage value (e.g. "1") instead of the real page name.
+	if (preg_match_all('/href=(["\'])(?:[^"\']*plugin\.php[^"\']*[?&]page=([^"&\'&]+)|([^"\']*[?&]page=[^"&\'&]+[^"\']*plugin\.php[^"\']*))\1/i', $html, $m)) {
 		foreach ($m[2] as $i => $page) {
 			$v = trim($page !== '' ? $page : $m[3][$i]);
 			if ($v !== '') {
