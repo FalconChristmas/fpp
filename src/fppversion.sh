@@ -31,7 +31,7 @@ GITREPOPATH="exported"
 cd ${GITTREEDIR}
 
 git status > /dev/null 2>&1
-SOURCE_VERSION=$(git describe --dirty || git describe || echo Unknown)
+SOURCE_VERSION=$(git describe --tags --dirty || git describe --tags || echo Unknown)
 MAJOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d\.)
 MINOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f2 -d\.)
 PATCH_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f3 -d\.)
