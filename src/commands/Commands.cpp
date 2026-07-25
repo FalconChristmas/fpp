@@ -275,8 +275,26 @@ Json::Value CommandManager::describeCommand(Command* cmd) {
 Json::Value CommandManager::getDescriptions() {
     Json::Value ret;
     for (auto& a : commands) {
-        if (!a.second->hidden()) {
-            ret.append(describeCommand(a.second));
+        // Isolate each command's description: a single command that throws while
+        // being described (e.g. a stale external plugin whose Command/CommandArg
+        // layout no longer matches these headers, so getDescription() reads a
+        // garbage std::string and jsoncpp rejects its length) must not take out
+        // the whole /commands endpoint - and the UI that depends on it - for
+        // every other command. Log and skip the offender instead. The map key
+        // (a.first) is FPP's own string, safe to read even when the command
+        // object behind it is not. (This only catches C++ exceptions; a hard
+        // memory fault in a plugin is a separate failure the vtable/ABI rules
+        // in Commands.h exist to prevent.)
+        try {
+            if (!a.second->hidden()) {
+                ret.append(describeCommand(a.second));
+            }
+        } catch (const std::exception& e) {
+            LogWarn(VB_COMMAND, "Skipping command \"%s\" in /commands: %s\n",
+                    a.first.c_str(), e.what());
+        } catch (...) {
+            LogWarn(VB_COMMAND, "Skipping command \"%s\" in /commands: unknown exception\n",
+                    a.first.c_str());
         }
     }
     return ret;
