@@ -79,6 +79,11 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, const std::
     updateTimers();
 }
 
+void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback) {
+    // Kept as a distinct overload (rather than a default argument) so the original
+    // 3-arg mangled symbol remains in libfpp.so for pre-built external plugins.
+    addPeriodicTimer(name, fireTimeMS, std::move(callback), -1);
+}
 void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback,
                                long long initialDelayMS) {
     long long firstDelay = initialDelayMS < 0 ? fireTimeMS : initialDelayMS;

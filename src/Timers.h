@@ -42,8 +42,9 @@ public:
     // this to stagger tasks that share the same interval so they don't all
     // fire in lockstep forever. Defaults to fireTimeMS (original behavior)
     // when omitted.
+    void addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback);
     void addPeriodicTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback,
-                           long long initialDelayMS = -1);
+                           long long initialDelayMS);
     void stopPeriodicTimer(const std::string& name);
 
 private:
