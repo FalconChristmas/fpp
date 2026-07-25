@@ -1,0 +1,324 @@
+#############################################################################
+# Update rpi-imager/rpi-imager_falcon_player.json from a published release.
+#
+# Manual only (workflow_dispatch). Downloads each platform's .img.zip asset
+# from a GitHub release, computes the four hash/size fields Raspberry Pi
+# Imager needs (compressed zip size+sha256, and the raw .img's extracted
+# size+sha256), updates the matching entry in the JSON, and opens a PR --
+# it never pushes straight to master.
+#
+# Only platforms that already have an entry in the JSON are updated (Pi,
+# BBB/PB, BB64/PB2 as of this writing). A release asset with no matching
+# existing entry (e.g. Pi64, which isn't published to rpi-imager today) is
+# skipped with a warning rather than guessing at a new entry's "devices"
+# list, icon, etc.
+#############################################################################
+
+name: Update RPi Imager JSON
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to use (blank = latest published release)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Compute and show the diff but do not open a PR'
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: update-rpi-imager-json
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v5
+        with:
+          ref: master
+
+      - name: Resolve release
+        id: release
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${{ inputs.tag }}" > release.json
+          else
+            # /releases/latest is GitHub's own definition of "latest": the
+            # most recent non-draft, non-prerelease release. Build releases
+            # are created as drafts (see build-images.yml's "release" job),
+            # so an unpublished draft is never picked up here by accident.
+            gh api "repos/${GITHUB_REPOSITORY}/releases/latest" > release.json
+          fi
+
+          TAG=$(jq -r '.tag_name' release.json)
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "::error::Could not resolve a release (tag input: '${{ inputs.tag }}')." >&2
+            exit 1
+          fi
+          # FPP release tags carry no 'v' prefix (10.0-beta, 9.5.3); asset
+          # filenames add it back (FPP-v10.0-beta-Pi.img.zip) -- see
+          # SD/build-image-pi.sh's OUT_IMG and build-images.yml's version step.
+          VERSION="$TAG"
+          PUBLISHED=$(jq -r '.published_at // .created_at' release.json | cut -d'T' -f1)
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_date=$PUBLISHED" >> "$GITHUB_OUTPUT"
+          echo "Resolved release: $TAG (published $PUBLISHED)"
+
+      - name: Download platform images and compute hashes
+        id: hashes
+        run: |
+          set -euo pipefail
+          mkdir -p work
+          # Suffix must match the trailing "-<suffix>.img.zip" of the asset
+          # filename exactly (a plain substring match would let "Pi" match
+          # "Pi64" too).
+          for SUFFIX in Pi Pi64 BB64 BBB; do
+            NAME=$(jq -r --arg s "$SUFFIX" \
+              '.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$")) | .name' \
+              release.json)
+            URL=$(jq -r --arg s "$SUFFIX" \
+              '.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$")) | .browser_download_url' \
+              release.json)
+
+            if [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
+              echo "No .img.zip asset for platform $SUFFIX in this release -- skipping."
+              continue
+            fi
+
+            echo "=== $SUFFIX: $NAME ==="
+            ZIP="work/$NAME"
+            curl -fL --retry 3 -o "$ZIP" "$URL"
+
+            ZIP_SIZE=$(stat -c%s "$ZIP")
+            ZIP_SHA=$(sha256sum "$ZIP" | awk '{print $1}')
+
+            IMG_DIR="work/extract-$SUFFIX"
+            rm -rf "$IMG_DIR"
+            mkdir -p "$IMG_DIR"
+            unzip -q "$ZIP" -d "$IMG_DIR"
+            IMG_FILE=$(find "$IMG_DIR" -maxdepth 1 -name '*.img' | head -n1)
+            if [ -z "$IMG_FILE" ]; then
+              echo "::error::No .img found inside $NAME" >&2
+              exit 1
+            fi
+
+            IMG_SIZE=$(stat -c%s "$IMG_FILE")
+            IMG_SHA=$(sha256sum "$IMG_FILE" | awk '{print $1}')
+
+            # Free the extracted .img right away -- these are multi-GB and
+            # four platforms in a row will exhaust the runner's disk otherwise.
+            rm -rf "$IMG_DIR"
+            rm -f "$ZIP"
+
+            {
+              echo "${SUFFIX}_url=$URL"
+              echo "${SUFFIX}_image_download_size=$ZIP_SIZE"
+              echo "${SUFFIX}_image_download_sha256=$ZIP_SHA"
+              echo "${SUFFIX}_extract_size=$IMG_SIZE"
+              echo "${SUFFIX}_extract_sha256=$IMG_SHA"
+            } >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Update JSON
+        id: update
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_DATE: ${{ steps.release.outputs.release_date }}
+          Pi_url: ${{ steps.hashes.outputs.Pi_url }}
+          Pi_image_download_size: ${{ steps.hashes.outputs.Pi_image_download_size }}
+          Pi_image_download_sha256: ${{ steps.hashes.outputs.Pi_image_download_sha256 }}
+          Pi_extract_size: ${{ steps.hashes.outputs.Pi_extract_size }}
+          Pi_extract_sha256: ${{ steps.hashes.outputs.Pi_extract_sha256 }}
+          Pi64_url: ${{ steps.hashes.outputs.Pi64_url }}
+          Pi64_image_download_size: ${{ steps.hashes.outputs.Pi64_image_download_size }}
+          Pi64_image_download_sha256: ${{ steps.hashes.outputs.Pi64_image_download_sha256 }}
+          Pi64_extract_size: ${{ steps.hashes.outputs.Pi64_extract_size }}
+          Pi64_extract_sha256: ${{ steps.hashes.outputs.Pi64_extract_sha256 }}
+          BB64_url: ${{ steps.hashes.outputs.BB64_url }}
+          BB64_image_download_size: ${{ steps.hashes.outputs.BB64_image_download_size }}
+          BB64_image_download_sha256: ${{ steps.hashes.outputs.BB64_image_download_sha256 }}
+          BB64_extract_size: ${{ steps.hashes.outputs.BB64_extract_size }}
+          BB64_extract_sha256: ${{ steps.hashes.outputs.BB64_extract_sha256 }}
+          BBB_url: ${{ steps.hashes.outputs.BBB_url }}
+          BBB_image_download_size: ${{ steps.hashes.outputs.BBB_image_download_size }}
+          BBB_image_download_sha256: ${{ steps.hashes.outputs.BBB_image_download_sha256 }}
+          BBB_extract_size: ${{ steps.hashes.outputs.BBB_extract_size }}
+          BBB_extract_sha256: ${{ steps.hashes.outputs.BBB_extract_sha256 }}
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import re
+
+          path = "rpi-imager/rpi-imager_falcon_player.json"
+          with open(path) as f:
+              data = json.load(f)
+
+          version = os.environ["VERSION"]
+          release_date = os.environ["RELEASE_DATE"]
+
+          # FPP tags are plain numeric for stable releases (9.5.3, 9.6) and
+          # carry a letter suffix for anything else (10.0-beta, 10.0-beta2,
+          # 10.0-rc1) -- see build-images.yml's tag-shape comment. Use that
+          # to sort entries into (at most) one "stable" slot and one
+          # "prerelease" slot per platform, so e.g. releasing 10.0-beta2
+          # replaces 10.0-beta1 in place, and releasing 9.6 replaces 9.5 --
+          # while a prerelease never touches the stable entry and vice versa.
+          def channel_of(v):
+              return "prerelease" if re.search(r"[A-Za-z]", v) else "stable"
+
+          # major.minor family, e.g. "10.0-beta2" / "10.0-rc1" / "10.0" -> "10.0",
+          # "9.5.3" -> "9.5". Used so a stable GA release (10.0) supersedes every
+          # prerelease of that same family (10.0-beta, 10.0-beta2, 10.0-rc1, ...).
+          def family_of(v):
+              m = re.match(r"^(\d+\.\d+)", v)
+              return m.group(1) if m else v
+
+          new_channel = channel_of(version)
+          new_family = family_of(version)
+
+          # Longest suffix first: "Pi64" must be checked before "Pi", since
+          # "Pi" is a substring of "Pi64" and would otherwise match both.
+          PLATFORM_SUFFIXES = ("Pi64", "Pi", "BB64", "BBB")
+          name_re = re.compile(r"^FPP\s+v(\S+)\s+(.*)$")
+
+          def entry_platform(o):
+              for suffix in PLATFORM_SUFFIXES:
+                  if re.search(rf"-{re.escape(suffix)}\.img\.zip$", o["url"]):
+                      return suffix
+              return None
+
+          def entry_channel(o):
+              m = name_re.match(o.get("name", ""))
+              return channel_of(m.group(1)) if m else "stable"
+
+          added, updated, removed_dupes, superseded, skipped = [], [], [], [], []
+
+          for suffix in PLATFORM_SUFFIXES:
+              url = os.environ.get(f"{suffix}_url", "")
+              if not url:
+                  continue  # no asset for this platform in the release
+
+              same_platform = [o for o in data["os_list"] if entry_platform(o) == suffix]
+              same_slot = [o for o in same_platform if entry_channel(o) == new_channel]
+
+              if new_channel == "stable":
+                  # A stable release supersedes every prerelease build of the
+                  # same major.minor family: 10.0 GA removes 10.0-beta,
+                  # 10.0-beta2, 10.0-rc1, etc. for this platform. Prereleases
+                  # of an *unrelated* family (e.g. an 11.0-beta already in
+                  # flight when 10.0 ships) are left alone.
+                  for stale in [o for o in same_platform
+                                if entry_channel(o) == "prerelease"
+                                and family_of(name_re.match(o.get("name", "")).group(1)) == new_family]:
+                      data["os_list"].remove(stale)
+                      superseded.append(stale.get("name", suffix))
+
+              if same_slot:
+                  entry = same_slot[0]
+                  for dupe in same_slot[1:]:
+                      # Shouldn't normally happen -- more than one existing
+                      # entry in the same (platform, channel) slot. Collapse
+                      # to the first and drop the rest rather than leaving
+                      # ambiguous duplicates behind.
+                      data["os_list"].remove(dupe)
+                      removed_dupes.append(dupe.get("name", suffix))
+                  updated.append(suffix)
+              else:
+                  # First release ever seen in this channel for this platform
+                  # (e.g. the very first *-beta build). Clone devices/icon/
+                  # website/init_format from any existing same-platform entry
+                  # so those don't have to be guessed; skip entirely if this
+                  # platform has never been published under any channel.
+                  template = same_platform[0] if same_platform else None
+                  if template is None:
+                      skipped.append(suffix)
+                      continue
+                  entry = dict(template)
+                  entry["devices"] = list(template["devices"])
+                  data["os_list"].append(entry)
+                  added.append(suffix)
+
+              m = name_re.match(entry.get("name", ""))
+              label = m.group(2) if m else suffix
+              entry["name"] = f"FPP v{version} {label}"
+              entry["url"] = url
+              entry["image_download_size"] = int(os.environ[f"{suffix}_image_download_size"])
+              entry["image_download_sha256"] = os.environ[f"{suffix}_image_download_sha256"]
+              entry["extract_size"] = int(os.environ[f"{suffix}_extract_size"])
+              entry["extract_sha256"] = os.environ[f"{suffix}_extract_sha256"]
+              entry["release_date"] = release_date
+
+          with open(path, "w") as f:
+              f.write(json.dumps(data, indent=4) + "\n")
+
+          print("Added new", new_channel, "entry:", ", ".join(added) or "(none)")
+          print("Updated existing", new_channel, "entry:", ", ".join(updated) or "(none)")
+          if superseded:
+              print("Removed superseded prerelease entries:", ", ".join(superseded))
+          if removed_dupes:
+              print("Removed duplicate stale entries:", ", ".join(removed_dupes))
+          if skipped:
+              print("Skipped (platform never published, no template entry to clone):", ", ".join(skipped))
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"added={','.join(added)}\n")
+              f.write(f"updated={','.join(updated)}\n")
+              f.write(f"superseded={','.join(superseded)}\n")
+              f.write(f"changed={'1' if (added or updated or superseded) else ''}\n")
+              f.write(f"channel={new_channel}\n")
+          PY
+
+      - name: Show diff
+        run: git diff -- rpi-imager/rpi-imager_falcon_player.json
+
+      - name: Open PR
+        if: ${{ inputs.dry_run != true && steps.update.outputs.changed != '' }}
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          CHANNEL: ${{ steps.update.outputs.channel }}
+          ADDED: ${{ steps.update.outputs.added }}
+          UPDATED: ${{ steps.update.outputs.updated }}
+          SUPERSEDED: ${{ steps.update.outputs.superseded }}
+        run: |
+          if git diff --quiet -- rpi-imager/rpi-imager_falcon_player.json; then
+            echo "No changes -- JSON already up to date with $TAG."
+            exit 0
+          fi
+
+          BRANCH="update-rpi-imager-json-${TAG}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add rpi-imager/rpi-imager_falcon_player.json
+          git commit -m "chore(rpi-imager): update to release ${TAG}"
+          git push -f origin "$BRANCH"
+
+          BODY="Automated update of \`rpi-imager_falcon_player.json\` to release [${TAG}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}) (${CHANNEL} channel)."
+          [ -n "$ADDED" ] && BODY="${BODY}
+          - Added new entries: ${ADDED}"
+          [ -n "$UPDATED" ] && BODY="${BODY}
+          - Replaced previous ${CHANNEL} entries in place: ${UPDATED}"
+          [ -n "$SUPERSEDED" ] && BODY="${BODY}
+          - Removed superseded prerelease entries (same major.minor family): ${SUPERSEDED}"
+
+          gh pr create \
+            --title "chore(rpi-imager): update to release ${TAG}" \
+            --body "$BODY" \
+            --base master \
+            --head "$BRANCH" \
+            || echo "PR create failed or already exists for $BRANCH"
