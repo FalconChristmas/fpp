@@ -309,6 +309,15 @@
                     if (data.Status == 'OK') {
                         if (data.updatesAvailable) {
                             $('#row-' + plugin).addClass('fppHasUpdate').find('.updatesAvailable').show();
+                            var $modal = $('#pluginDetailDialog');
+                            if ($modal.length && $modal.is(':visible')) {
+                                var $checkBtn = $modal.find('#pluginDetailCheckBtn');
+                                if ($checkBtn.length) {
+                                    $checkBtn.replaceWith(
+                                        $('<button class="btn btn-success" onclick="CloseModalDialog(\'pluginDetailDialog\');UpgradePlugin(\'' + plugin + '\');"><i class="far fa-arrow-alt-circle-down"></i> Update</button>')
+                                    );
+                                }
+                            }
                         } else {
                             $('#row-' + plugin).removeClass('fppHasUpdate');
                             $.jGrowl('No updates available for ' + plugin, { themeState: 'detract' });
@@ -1301,7 +1310,7 @@
                 if (data.pageUrl) {
                     buttons['Open'] = function () { CloseModalDialog('pluginDetailDialog'); window.open(data.pageUrl, 'pluginContent'); };
                 }
-                buttons['Check for Updates'] = function () { CheckPluginForUpdates(repo); };
+                buttons['Check for Updates'] = { id: 'pluginDetailCheckBtn', click: function () { CheckPluginForUpdates(repo); } };
                 buttons['Uninstall'] = function () { CloseModalDialog('pluginDetailDialog'); ShowUninstallPluginPopup(repo, data.name); };
             } else if (compatibleVersion >= 0 || untestedVersion >= 0) {
                 var idx = compatibleVersion < 0 ? untestedVersion : compatibleVersion;
