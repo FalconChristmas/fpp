@@ -2079,8 +2079,20 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         result["global_pause"]["remaining_seconds"] = static_cast<Json::Int64>((remaining + 999) / 1000); // Round up
     }
 
-    auto ple = m_currentSection->at(m_sectionPosition);
-    std::string type = ple->GetType();
+    // m_sectionPosition is allowed to sit at exactly m_currentSection->size()
+    // while the playlist is between items -- Process() sets it to size() when
+    // advancing past the end of a section, and checks for that state rather
+    // than treating it as invalid.  Using at() unguarded here therefore throws
+    // std::out_of_range out of the /api/fppd/status handler on a drogon I/O
+    // thread, which aborts fppd.  Every other at() on this vector is guarded
+    // the same way; treat "no current entry" as the null case the code below
+    // already handles.
+    PlaylistEntryBase* ple = nullptr;
+    std::string type;
+    if (m_sectionPosition < m_currentSection->size()) {
+        ple = m_currentSection->at(m_sectionPosition);
+        type = ple->GetType();
+    }
 
     while (type == "dynamic") {
         PlaylistEntryDynamic* dyn = dynamic_cast<PlaylistEntryDynamic*>(ple);
@@ -2151,6 +2163,16 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
             result["time_elapsed"] = secondsToTime(secsElapsed);
             result["time_remaining"] = secondsToTime(secsRemaining);
         }
+    } else {
+        // No current entry (between items, or a dynamic entry with nothing
+        // resolved).  Emit the same placeholders the idle branch above uses so
+        // the status JSON keeps a stable shape for API consumers.
+        result["current_sequence"] = "";
+        result["current_song"] = "";
+        result["seconds_played"] = "0";
+        result["seconds_remaining"] = "0";
+        result["time_elapsed"] = "00:00";
+        result["time_remaining"] = "00:00";
     }
 
     std::list<std::string> parents;
