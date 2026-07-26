@@ -17,8 +17,18 @@
 
 #include "fpphttp_types.h"
 
-// Increment this when the plugin ABI changes (e.g. virtual method signatures)
-#define FPP_PLUGIN_API_VERSION 3
+// Increment this when the plugin ABI changes. "ABI" is not just virtual method
+// signatures - it is anything that changes the layout of a type a plugin can
+// construct, destroy, or subclass. Adding a data member to Command::CommandArg
+// counts, because plugins push_back into Command::args with the old sizeof while
+// FPP destroys those nodes with the new one; adding a virtual to Command counts,
+// because it shifts every later vtable slot.
+//
+// Version 4 (FPP 10.0): Command::CommandArg gained advanced/help/children/
+// toggleStyle/toggleLabel, and Command briefly gained a mid-vtable
+// disallowMultisync(). Plugins built against version 3 headers corrupt the heap
+// in Command::~Command and misdispatch getDescription() into the plugin's run().
+#define FPP_PLUGIN_API_VERSION 4
 
 // Plugins compiled with these headers will export their API version.
 // weak linkage allows multiple TUs to define this; visibility ensures .so export.
