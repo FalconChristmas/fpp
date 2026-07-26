@@ -44,6 +44,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <string>
 
 namespace httpserver {
@@ -57,6 +58,17 @@ using ResourceSlot = std::shared_ptr<std::atomic<http_resource*>>;
 static std::mutex             s_registryMutex;
 static std::map<std::string, ResourceSlot> s_registry;
 
+// Held shared for the duration of a handler's render_*() call, and exclusively
+// by clearSlot() once the slot has been nulled.  Nulling the slot alone is not
+// enough: a handler that already loaded the pointer is about to make a virtual
+// call into the plugin, and PluginManager::Cleanup() dlclose()s the .so right
+// after unregisterApis() returns -- unmapping the vtable out from under the
+// in-flight request.  Taking this exclusively makes unregister_resource() wait
+// until no handler is inside the plugin before it returns, so the subsequent
+// dlclose() is safe.  (A plugin that unregistered its own route from inside
+// its own render_*() would self-deadlock, but nothing does that.)
+static std::shared_mutex      s_dispatchMutex;
+
 static ResourceSlot getOrCreateSlot(const std::string& path) {
     std::lock_guard<std::mutex> lock(s_registryMutex);
     auto it = s_registry.find(path);
@@ -68,10 +80,16 @@ static ResourceSlot getOrCreateSlot(const std::string& path) {
 }
 
 static void clearSlot(const std::string& path) {
-    std::lock_guard<std::mutex> lock(s_registryMutex);
-    auto it = s_registry.find(path);
-    if (it != s_registry.end())
-        it->second->store(nullptr);
+    {
+        std::lock_guard<std::mutex> lock(s_registryMutex);
+        auto it = s_registry.find(path);
+        if (it != s_registry.end())
+            it->second->store(nullptr);
+    }
+    // Null first (so newly arriving requests bail at the null check rather than
+    // queueing behind us), then drain: this blocks until every handler already
+    // inside a render_*() call has returned.  See s_dispatchMutex.
+    std::unique_lock<std::shared_mutex> drain(s_dispatchMutex);
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +112,8 @@ void webserver::register_resource(const std::string& path, http_resource* resour
     // concurrent unregister_resource() call is safe.
     auto handler = [slot](const HttpRequestPtr& req,
                           std::function<void(const HttpResponsePtr&)>&& callback) {
+        // Keeps the plugin mapped for the duration of the call - see s_dispatchMutex.
+        std::shared_lock<std::shared_mutex> dispatchLock(s_dispatchMutex);
         http_resource* res = slot->load();
         if (!res) {
             callback(makeStringResponse("Plugin not loaded", 410, "text/plain"));
@@ -128,6 +148,8 @@ void webserver::register_resource(const std::string& path, http_resource* resour
 
         auto subHandler = [subSlot](const HttpRequestPtr& req,
                                     std::function<void(const HttpResponsePtr&)>&& callback) {
+            // Keeps the plugin mapped for the duration of the call - see s_dispatchMutex.
+            std::shared_lock<std::shared_mutex> dispatchLock(s_dispatchMutex);
             http_resource* res = subSlot->load();
             if (!res) {
                 callback(makeStringResponse("Plugin not loaded", 410, "text/plain"));
