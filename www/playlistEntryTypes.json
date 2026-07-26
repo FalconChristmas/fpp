@@ -6,6 +6,7 @@
 			"branchTest": {
 				"name": "branchTest",
 				"description": "Test Condition",
+				"help": "What decides which way this entry branches: the time of day, the playlist's loop count, or an MQTT message.",
 				"type": "string",
 				"contents": {
 					"Time": "Time",
@@ -31,6 +32,7 @@
 			"startTime": {
 				"name": "startTime",
 				"description": "Start Time",
+				"help": "Start of the time window that counts as True. Outside the window the test is False.",
 				"type": "time",
 				"optional": false,
 				"simpleUI": true
@@ -38,6 +40,7 @@
 			"endTime": {
 				"name": "endTime",
 				"description": "End Time",
+				"help": "End of the time window that counts as True.",
 				"type": "time",
 				"optional": false,
 				"simpleUI": true
@@ -45,6 +48,7 @@
 			"loopTest": {
 				"name": "loopTest",
 				"description": "Loop Test",
+				"help": "How the playlist's loop count is tested. Iteration matches particular times round the playlist.",
 				"type": "string",
 				"default": "iteration",
 				"contents": {
@@ -62,6 +66,7 @@
 			"iterationStart": {
 				"name": "iterationStart",
 				"description": "Starting iteration",
+				"help": "The first time round the playlist at which the test can be True.",
 				"type": "int",
 				"default": 1,
 				"min": 1,
@@ -72,6 +77,7 @@
 			"iterationCount": {
 				"name": "iterationCount",
 				"description": "Every",
+				"help": "How often, in loops, the test is True after the starting iteration - for example every 2 loops.",
 				"type": "int",
 				"default": 2,
 				"min": 1,
@@ -83,6 +89,7 @@
 			"mqttTopic": {
 				"name": "mqttTopic",
 				"description": "MQTT Topic",
+				"help": "MQTT topic watched for a message. The test is True while the topic's last message matches the text below.",
 				"type": "string",
 				"placeholder": "MQTT Topic",
 				"optional": true,
@@ -91,6 +98,7 @@
 			"mqttMessage": {
 				"name": "mqttMessage",
 				"description": "MQTT Message",
+				"help": "Message text that has to match for the test to be True.",
 				"type": "string",
 				"placeholder": "MQTT Message",
 				"optional": true,
@@ -99,6 +107,7 @@
 			"trueNextBranchType": {
 				"name": "trueNextBranchType",
 				"description": "If True",
+				"help": "What happens when the test passes: carry on as normal, jump to a fixed entry, jump a number of entries, or run another playlist.",
 				"type": "string",
 				"default": "Offset",
 				"onChange": "BranchTypeChanged",
@@ -125,6 +134,7 @@
 			"trueNextSection": {
 				"name": "trueNextSection",
 				"description": "Section",
+				"help": "Section of this playlist the jump lands in. '** Same **' stays in the section this entry is in.",
 				"type": "string",
 				"optional": false,
 				"contents": {
@@ -137,6 +147,7 @@
 			"trueNextItem": {
 				"name": "trueNextItem",
 				"description": "Item",
+				"help": "Entry to jump to - the entry number for Jump to Index, or how many entries to move for Jump to Offset (negative moves backwards).",
 				"type": "int",
 				"min": -99,
 				"max": 99,
@@ -146,6 +157,7 @@
 			"trueBranchPlaylist": {
 				"name": "trueBranchPlaylist",
 				"description": "Playlist",
+				"help": "The playlist to run when the test passes.",
 				"type": "string",
 				"contentListUrl": "api/playlists",
 				"optional": false
@@ -153,6 +165,7 @@
 			"falseNextBranchType": {
 				"name": "falseNextBranchType",
 				"description": "If False",
+				"help": "What happens when the test fails: carry on as normal, jump to a fixed entry, jump a number of entries, or run another playlist.",
 				"type": "string",
 				"default": "Offset",
 				"onChange": "BranchTypeChanged",
@@ -179,6 +192,7 @@
 			"falseNextSection": {
 				"name": "falseNextSection",
 				"description": "Section",
+				"help": "Section of this playlist the jump lands in. '** Same **' stays in the section this entry is in.",
 				"type": "string",
 				"optional": false,
 				"contents": {
@@ -191,6 +205,7 @@
 			"falseNextItem": {
 				"name": "falseNextItem",
 				"description": "Item",
+				"help": "Entry to jump to - the entry number for Jump to Index, or how many entries to move for Jump to Offset (negative moves backwards).",
 				"type": "int",
 				"default": 1,
 				"min": -99,
@@ -200,20 +215,25 @@
 			"falseBranchPlaylist": {
 				"name": "falseBranchPlaylist",
 				"description": "Playlist",
+				"help": "The playlist to run when the test fails.",
 				"type": "string",
 				"contentListUrl": "api/playlists",
 				"optional": false
 			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -233,6 +253,7 @@
 			"subType": {
 				"name": "subType",
 				"description": "Source Type",
+				"help": "Where the list of entries to play is fetched from: a JSON file on this player, a plugin, or a URL.",
 				"type": "string",
 				"contents": {
 					"File": "file",
@@ -258,6 +279,7 @@
 			"dataFile": {
 				"name": "dataFile",
 				"description": "File",
+				"help": "Full name of the JSON file, in the media directory, holding the playlist entries to play.",
 				"type": "string",
 				"placeholder": "Full File Name of JSON file",
 				"optional": true,
@@ -266,6 +288,7 @@
 			"pluginName": {
 				"name": "pluginName",
 				"description": "Plugin",
+				"help": "The plugin asked to supply the playlist entries to play.",
 				"type": "string",
 				"contentListUrl": "api/plugin",
 				"optional": true,
@@ -274,6 +297,7 @@
 			"pluginHost": {
 				"name": "pluginHost",
 				"description": "Plugin Host",
+				"help": "Which FPP instance the plugin is asked on. Leave as the local host to use the plugin running on this player.",
 				"type": "string",
 				"contentListUrl": "api/remotes",
 				"optional": true
@@ -281,6 +305,7 @@
 			"url": {
 				"name": "url",
 				"description": "URL",
+				"help": "URL returning JSON playlist entries. It is fetched each time this entry is reached.",
 				"type": "string",
 				"placeholder": "URL to JSON data",
 				"optional": true,
@@ -289,19 +314,24 @@
 			"drainQueue": {
 				"name": "drainQueue",
 				"description": "Drain Queue",
+				"help": "If checked, every entry supplied is played before moving on. If unchecked, only the first is played and the rest are left for the next time round.",
 				"type": "bool",
 				"optional": false
 			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -321,6 +351,7 @@
 			"command": {
 				"name": "command",
 				"description": "Command",
+				"help": "The FPP command to run at this point in the playlist. The arguments below change to match the command you pick.",
 				"type": "string",
 				"init": "LoadCommandArg",
 				"onChange": "CommandArgChanged",
@@ -330,6 +361,7 @@
 			"multisyncCommand": {
 				"name": "multisyncCommand",
 				"description": "Multisync",
+				"help": "Also send this command to other FPP instances instead of running it only on this player.",
 				"type": "bool",
 				"optional": true,
 				"hidden": true
@@ -337,6 +369,7 @@
 			"multisyncHosts": {
 				"name": "multisyncHosts",
 				"description": "Multicast Hosts",
+				"help": "Which remote FPP instances receive the command. Leave empty to broadcast to all of them.",
 				"type": "string",
 				"optional": true,
 				"hidden": true
@@ -344,19 +377,24 @@
 			"args": {
 				"name": "args",
 				"description": "Args",
+				"help": "Arguments for the selected command.",
 				"type": "args",
 				"optional": false
 			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -376,6 +414,7 @@
 			"imagePath": {
 				"name": "imagePath",
 				"description": "Image",
+				"help": "The image file to display, from the images directory.",
 				"type": "file",
 				"directory": "images",
 				"optional": false,
@@ -384,6 +423,7 @@
 			"imageFilename": {
 				"name": "imageFilename",
 				"description": "File",
+				"help": "Name of the image file currently being displayed.",
 				"type": "string",
 				"optional": true,
 				"statusOnly": true
@@ -391,20 +431,25 @@
 			"modelName": {
 				"name": "modelName",
 				"description": "Pixel Overlay Model",
+				"help": "The Pixel Overlay Model the image is drawn onto. Models are defined under Content Setup > Pixel Overlay Models.",
 				"contentListUrl": "api/models?simple=true",
 				"type": "string",
 				"optional": false
 			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -424,7 +469,9 @@
 		"args": {
 			"fileMode": {
 				"name": "fileMode",
+				"section": "Primary Media",
 				"description": "File Mode",
+				"help": "Play one specific file, or pick a random video / audio file from the media directory each time this entry runs.",
 				"type": "string",
 				"default": "single",
 				"contents": {
@@ -448,7 +495,9 @@
 			},
 			"mediaName": {
 				"name": "mediaName",
+				"section": "Primary Media",
 				"description": "Media",
+				"help": "The audio or video file to play. The list comes from the media directory - upload files under Content Setup > File Manager.",
 				"contentListUrl": "api/media",
 				"type": "string",
 				"onChange": "MediaChanged",
@@ -457,30 +506,61 @@
 			},
 			"mediaPrefix": {
 				"name": "mediaPrefix",
+				"section": "Primary Media",
 				"description": "Play files starting with this prefix only",
+				"help": "In random mode, only files whose name starts with this text are considered. Leave blank to allow any media file.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"videoOut": {
 				"name": "videoOut",
+				"section": "Primary Media",
 				"description": "Video Out",
+				"help": "Where video from this entry is sent (HDMI, a Pixel Overlay Model, etc). '--Default--' uses the global Video Output setting from Settings > Playback.",
 				"type": "string",
 				"contentListUrl": "api/options/PlaylistVideoOutput",
 				"optional": true
 			},
+			"streamSlot": {
+				"name": "streamSlot",
+				"section": "Primary Media",
+				"description": "Stream Slot",
+				"help": "Stream slot (1-5) this entry's media plays on. Entries on different slots can play at the same time; entries sharing a slot interrupt each other.",
+				"type": "int",
+				"min": 1,
+				"max": 5,
+				"default": 1,
+				"optional": true,
+				"simpleUI": false
+			},
 			"extraMediaName": {
 				"name": "extraMediaName",
+				"section": "Extra Media",
 				"description": "Extra Media",
+				"help": "Optional second media file played at the same time as the main media, for example a second audio track for another zone or a separate video output.",
 				"type": "string",
 				"contentListUrl": "api/media",
 				"optional": true,
 				"simpleUI": false,
 				"advanced": true
 			},
+			"extraMediaOut": {
+				"name": "extraMediaOut",
+				"section": "Extra Media",
+				"description": "Extra Media Video Out",
+				"help": "Where video from the extra media file is sent. '--Default--' uses the global Video Output setting.",
+				"type": "string",
+				"contentListUrl": "api/options/PlaylistVideoOutput",
+				"optional": true,
+				"simpleUI": false,
+				"advanced": true
+			},
 			"extraMediaSlot": {
 				"name": "extraMediaSlot",
+				"section": "Extra Media",
 				"description": "Extra Media Slot",
+				"help": "Stream slot (2-5) the extra media plays on. It must differ from the main media's Stream Slot so the two play together instead of interrupting each other.",
 				"type": "string",
 				"contents": {
 					"2": "2",
@@ -493,25 +573,20 @@
 				"simpleUI": false,
 				"advanced": true
 			},
-			"extraMediaOut": {
-				"name": "extraMediaOut",
-				"description": "Extra Media Video Out",
-				"type": "string",
-				"contentListUrl": "api/options/PlaylistVideoOutput",
-				"optional": true,
-				"simpleUI": false,
-				"advanced": true
-			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -524,7 +599,9 @@
 			},
 			"timecode": {
 				"name": "timecode",
+				"section": "Entry Properties",
 				"description": "Time Code",
+				"help": "This entry's position on the show's master time code (HH:MM:SS), used when playback position is driven by an external time code or sync source. 'Default' works the position out from the length of the entries before it.",
 				"type": "time",
 				"optional": true,
 				"simpleUI": false,
@@ -540,17 +617,6 @@
 						}
 					]
 				}
-			},
-			"streamSlot": {
-				"name": "streamSlot",
-				"description": "Stream Slot",
-				"type": "int",
-				"min": 1,
-				"max": 5,
-				"default": 1,
-				"optional": true,
-				"simpleUI": false,
-				"tooltip": "PipeWire stream slot (1-5). Entries on different slots can play simultaneously."
 			}
 		}
 	},
@@ -561,6 +627,7 @@
 			"duration": {
 				"name": "duration",
 				"description": "Duration",
+				"help": "How long to pause, in seconds, before moving on to the next entry. Outputs keep sending their last values during the pause.",
 				"type": "float",
 				"min": 0,
 				"max": 9999,
@@ -572,14 +639,18 @@
 			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -599,6 +670,7 @@
 			"name": {
 				"name": "name",
 				"description": "Playlist",
+				"help": "The playlist to run at this point. When it finishes, this playlist carries on with the next entry.",
 				"type": "string",
 				"contentListUrl": "api/playlists",
 				"optional": false,
@@ -606,14 +678,18 @@
 			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -633,6 +709,7 @@
 			"action": {
 				"name": "action",
 				"description": "Action",
+				"help": "Add starts remapping channels from this point in the playlist; Remove stops a remap that was added earlier.",
 				"type": "string",
 				"contents": {
 					"Add": "add",
@@ -644,6 +721,7 @@
 			"source": {
 				"name": "source",
 				"description": "Source",
+				"help": "First channel number that is copied from.",
 				"type": "int",
 				"min": 1,
 				"max": 99999999,
@@ -652,6 +730,7 @@
 			"destination": {
 				"name": "destination",
 				"description": "Destination",
+				"help": "First channel number that is copied to.",
 				"type": "int",
 				"min": 1,
 				"max": 99999999,
@@ -660,6 +739,7 @@
 			"count": {
 				"name": "count",
 				"description": "Count",
+				"help": "How many consecutive channels are copied, starting at Source.",
 				"type": "int",
 				"min": 1,
 				"max": 99999999,
@@ -668,6 +748,7 @@
 			"loops": {
 				"name": "loops",
 				"description": "Loops",
+				"help": "How many times the block of channels is repeated, each repeat landing after the previous one.",
 				"type": "int",
 				"default": 1,
 				"min": 1,
@@ -677,19 +758,24 @@
 			"reverse": {
 				"name": "reverse",
 				"description": "Reverse",
+				"help": "Copy the block of channels in reverse order, so the last source channel maps to the first destination channel.",
 				"type": "bool",
 				"optional": false
 			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -709,6 +795,7 @@
 			"scriptName": {
 				"name": "scriptName",
 				"description": "Script",
+				"help": "The script to run, from the scripts directory (Content Setup > File Manager > Scripts).",
 				"type": "string",
 				"contentListUrl": "api/scripts",
 				"optional": false,
@@ -717,6 +804,7 @@
 			"scriptArgs": {
 				"name": "scriptArgs",
 				"description": "Args",
+				"help": "Arguments passed to the script on its command line. Leave blank if the script takes none.",
 				"type": "string",
 				"optional": false,
 				"simpleUI": true
@@ -724,19 +812,24 @@
 			"blocking": {
 				"name": "blocking",
 				"description": "Blocking",
+				"help": "If checked, the playlist waits for the script to finish before moving on. If unchecked, the script runs in the background and the playlist continues immediately.",
 				"type": "bool",
 				"optional": false
 			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -756,7 +849,9 @@
 		"args": {
 			"sequenceName": {
 				"name": "sequenceName",
+				"section": "Sequence",
 				"description": "Sequence",
+				"help": "The FSEQ sequence file that drives the lights for this entry. It is played in sync with the media file selected below.",
 				"contentListUrl": "api/files/sequences?nameOnly=1",
 				"type": "string",
 				"onChange": "SequenceChanged",
@@ -765,7 +860,9 @@
 			},
 			"mediaName": {
 				"name": "mediaName",
+				"section": "Primary Media",
 				"description": "Media",
+				"help": "Audio or video file played in sync with the sequence. The list comes from the media directory - upload files under Content Setup > File Manager.",
 				"contentListUrl": "api/media",
 				"type": "string",
 				"onChange": "MediaChanged",
@@ -774,23 +871,52 @@
 			},
 			"videoOut": {
 				"name": "videoOut",
+				"section": "Primary Media",
 				"description": "Video Out",
+				"help": "Where video from this entry is sent (HDMI, a Pixel Overlay Model, etc). '--Default--' uses the global Video Output setting from Settings > Playback.",
 				"type": "string",
 				"contentListUrl": "api/options/PlaylistVideoOutput",
 				"optional": true
 			},
+			"streamSlot": {
+				"name": "streamSlot",
+				"section": "Primary Media",
+				"description": "Stream Slot",
+				"help": "Stream slot (1-5) this entry's media plays on. Entries on different slots can play at the same time; entries sharing a slot interrupt each other.",
+				"type": "int",
+				"min": 1,
+				"max": 5,
+				"default": 1,
+				"optional": true,
+				"simpleUI": false
+			},
 			"extraMediaName": {
 				"name": "extraMediaName",
+				"section": "Extra Media",
 				"description": "Extra Media",
+				"help": "Optional second media file played at the same time as the main media, for example a second audio track for another zone or a separate video output.",
 				"type": "string",
 				"contentListUrl": "api/media",
 				"optional": true,
 				"simpleUI": false,
 				"advanced": true
 			},
+			"extraMediaOut": {
+				"name": "extraMediaOut",
+				"section": "Extra Media",
+				"description": "Extra Media Video Out",
+				"help": "Where video from the extra media file is sent. '--Default--' uses the global Video Output setting.",
+				"type": "string",
+				"contentListUrl": "api/options/PlaylistVideoOutput",
+				"optional": true,
+				"simpleUI": false,
+				"advanced": true
+			},
 			"extraMediaSlot": {
 				"name": "extraMediaSlot",
+				"section": "Extra Media",
 				"description": "Extra Media Slot",
+				"help": "Stream slot (2-5) the extra media plays on. It must differ from the main media's Stream Slot so the two play together instead of interrupting each other.",
 				"type": "string",
 				"contents": {
 					"2": "2",
@@ -803,25 +929,20 @@
 				"simpleUI": false,
 				"advanced": true
 			},
-			"extraMediaOut": {
-				"name": "extraMediaOut",
-				"description": "Extra Media Video Out",
-				"type": "string",
-				"contentListUrl": "api/options/PlaylistVideoOutput",
-				"optional": true,
-				"simpleUI": false,
-				"advanced": true
-			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -834,7 +955,9 @@
 			},
 			"timecode": {
 				"name": "timecode",
+				"section": "Entry Properties",
 				"description": "Time Code",
+				"help": "This entry's position on the show's master time code (HH:MM:SS), used when playback position is driven by an external time code or sync source. 'Default' works the position out from the length of the entries before it.",
 				"type": "time",
 				"optional": true,
 				"simpleUI": false,
@@ -850,17 +973,6 @@
 						}
 					]
 				}
-			},
-			"streamSlot": {
-				"name": "streamSlot",
-				"description": "Stream Slot",
-				"type": "int",
-				"min": 1,
-				"max": 5,
-				"default": 1,
-				"optional": true,
-				"simpleUI": false,
-				"tooltip": "PipeWire stream slot (1-5). Entries on different slots can play simultaneously."
 			}
 		}
 	},
@@ -871,7 +983,9 @@
 		"args": {
 			"sequenceName": {
 				"name": "sequenceName",
+				"section": "Sequence",
 				"description": "Sequence",
+				"help": "The FSEQ sequence file to play. Sequences are uploaded under Content Setup > File Manager.",
 				"contentListUrl": "api/files/sequences?nameOnly=1",
 				"type": "string",
 				"onChange": "SequenceChanged",
@@ -880,14 +994,18 @@
 			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {
@@ -900,7 +1018,9 @@
 			},
 			"timecode": {
 				"name": "timecode",
+				"section": "Entry Properties",
 				"description": "Time Code",
+				"help": "This entry's position on the show's master time code (HH:MM:SS), used when playback position is driven by an external time code or sync source. 'Default' works the position out from the length of the entries before it.",
 				"type": "time",
 				"optional": true,
 				"simpleUI": false,
@@ -926,6 +1046,7 @@
 			"method": {
 				"name": "method",
 				"description": "Method",
+				"help": "HTTP method used for the request. Choose POST to send a body with the request.",
 				"type": "string",
 				"contents": {
 					"GET": "GET",
@@ -942,6 +1063,7 @@
 			"url": {
 				"name": "url",
 				"description": "URL",
+				"help": "Full URL to request, including http:// or https://. The playlist moves on as soon as the request has been sent.",
 				"type": "string",
 				"optional": false,
 				"simpleUI": true
@@ -949,19 +1071,24 @@
 			"data": {
 				"name": "data",
 				"description": "POST Data",
+				"help": "Body sent with a POST request, for example JSON or form-encoded data.",
 				"type": "string",
 				"optional": false
 			},
 			"note": {
 				"name": "note",
+				"section": "Entry Properties",
 				"description": "Note",
+				"help": "Free-form note about this entry, for your own reference. Whether it is shown in the playlist list is controlled by Display Mode; it has no effect on playback.",
 				"type": "string",
 				"optional": true,
 				"simpleUI": false
 			},
 			"displayMode": {
 				"name": "displayMode",
+				"section": "Entry Properties",
 				"description": "Display Mode",
+				"help": "What this entry shows in the playlist list: its settings (Args Only), its note (Just Note), or both.",
 				"type": "string",
 				"default": "argsOnly",
 				"contents": {

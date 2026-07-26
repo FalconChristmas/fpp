@@ -2372,6 +2372,7 @@ function PlaylistTypeChanged () {
 
 	$('#playlistEntryOptions').html('');
 	$('#playlistEntryCommandOptions').html('');
+	$('#playlistEntryPropertiesOptions').html('');
 	PrintArgInputs('playlistEntryOptions', true, playlistEntryTypes[type].args);
 
 	if (oldPlaylistEntryType == '') {
@@ -2417,6 +2418,7 @@ function PlaylistTypeChanged () {
 
 	oldPlaylistEntryType = type;
 	UpdateChildVisibility();
+	MoveEntryPropertiesToBottom();
 }
 
 function PlaylistNameOK (name) {
@@ -2872,7 +2874,7 @@ function AddPlaylistEntry (mode) {
 	for (var i = 0; i < keys.length; i++) {
 		var a = pet.args[keys[i]];
 
-		var style = $('#playlistEntryOptions')
+		var style = PlaylistEntryArgScope()
 			.find('.arg_' + a.name)
 			.parent()
 			.parent()
@@ -2883,30 +2885,30 @@ function AddPlaylistEntry (mode) {
 
 		if (a.type == 'int') {
 			pe[a.name] = parseInt(
-				$('#playlistEntryOptions')
+				PlaylistEntryArgScope()
 					.find('.arg_' + a.name)
 					.val()
 			);
 		} else if (a.type == 'float') {
 			pe[a.name] = parseFloat(
-				$('#playlistEntryOptions')
+				PlaylistEntryArgScope()
 					.find('.arg_' + a.name)
 					.val()
 			);
 		} else if (a.type == 'bool') {
-			pe[a.name] = $('#playlistEntryOptions')
+			pe[a.name] = PlaylistEntryArgScope()
 				.find('.arg_' + a.name)
 				.is(':checked')
 				? 'true'
 				: 'false';
 		} else if (a.type == 'time' || a.type == 'date') {
-			pe[a.name] = $('#playlistEntryOptions')
+			pe[a.name] = PlaylistEntryArgScope()
 				.find('.arg_' + a.name)
 				.val();
 		} else if (a.type == 'array') {
 			var f = {};
 			for (x = 0; x < a.keys; x++) {
-				f[a.keys[x]] = $('#playlistEntryOptions')
+				f[a.keys[x]] = PlaylistEntryArgScope()
 					.find('.arg_' + a.name + '_' + a.keys[x])
 					.val();
 			}
@@ -2938,13 +2940,13 @@ function AddPlaylistEntry (mode) {
 			}
 			pe[a.name] = arr;
 		} else if (a.type == 'string' || a.type == 'file') {
-			var inp = $('#playlistEntryOptions').find('.arg_' + a.name);
+			var inp = PlaylistEntryArgScope().find('.arg_' + a.name);
 			var val = inp.val();
 			if (val !== undefined) {
 				pe[a.name] = val;
 			}
 		} else {
-			pe[a.name] = $('#playlistEntryOptions')
+			pe[a.name] = PlaylistEntryArgScope()
 				.find('.arg_' + a.name)
 				.html();
 		}
@@ -3635,7 +3637,7 @@ function RevealAdvancedArgsWithValues (pet) {
 		var a = pet.args[keys[i]];
 		if (!a.advanced) continue;
 
-		var inp = $('#playlistEntryOptions').find('.arg_' + a.name);
+		var inp = PlaylistEntryArgScope().find('.arg_' + a.name);
 		if (!inp.length) continue;
 
 		var set;
@@ -8425,14 +8427,6 @@ function UpdateGenericArgChildVisibility (el) {
 	});
 }
 
-// Activates Bootstrap tooltips for any CommandArg's "help" text - same
-// mechanism already used for the command-preset preview icon elsewhere in
-// this file (data-bs-toggle="tooltip" + .tooltip()), just newly wired into
-// the generic per-arg renderer (PrintArgInputs).
-function InitArgHelpTooltips () {
-	$('.argHelpIcon').tooltip();
-}
-
 // ---------------------------------------------------------------------
 // "commandlist" arg type - a repeatable list of {command, args} rows,
 // backing the If command's Then/Else Run fields. Ported from gpio.php's
@@ -10551,7 +10545,9 @@ function CommandSelectChanged (
 		line += "style='display:none'";
 	}
 	line +=
-		"><td>Multisync: <i class='fas fa-question-circle argHelpIcon' data-bs-toggle='tooltip' data-bs-placement='top' title='Send this command to multiple FPP instances'></i></td><td><input type='checkbox' id='" +
+		'><td>Multisync:' +
+		ArgHelpIcon('Send this command to multiple FPP instances') +
+		"</td><td><input type='checkbox' id='" +
 		tblCommand +
 		"_multisync' class='arg_multisync' onChange='OnMultisyncChanged(this, \"" +
 		tblCommand +
@@ -10594,7 +10590,48 @@ function CommandSelectChanged (
 	$('#' + tblCommand).append(line);
 
 	argPrintFunc(tblCommand, configAdjustable, co['args']);
+
+	// The command's own args have just been appended below the entry's rows -
+	// put the Entry Properties block back at the bottom of the form.
+	if (tblCommand == 'playlistEntryCommandOptions') {
+		MoveEntryPropertiesToBottom();
+	}
 }
+
+// The playlist entry editor renders an entry's own args (#playlistEntryOptions)
+// and, for an "FPP Command" entry, the selected command's args
+// (#playlistEntryCommandOptions) into two separate <tbody>s of one table, so
+// the command's args always land BELOW the entry's own rows. The Entry
+// Properties block (Note / Display Mode / Time Code) belongs at the bottom of
+// the form for every entry type, so move it into a third, trailing tbody. It
+// gets its own rather than being parked in the command one because
+// CommandArgChanged() empties that tbody every time the command changes.
+// Reading the form back stays correct because PlaylistEntryArgScope() (used by
+// GetPlaylistEntry) covers both entry tbodies.
+function MoveEntryPropertiesToBottom () {
+	var $tail = $('#playlistEntryPropertiesOptions');
+	if (!$tail.length) {
+		return;
+	}
+	// Both the heading row and its arg rows carry data-arg-section, so the
+	// whole block is found wherever it currently sits.
+	var $rows = PlaylistEntryArgScope().find(
+		"tr[data-arg-section='Entry Properties']"
+	);
+	if (!$rows.length) {
+		return;
+	}
+	$tail.append($rows);
+}
+
+// Where an entry's own arg inputs live: the main tbody plus the trailing one
+// holding the relocated Entry Properties block. Deliberately excludes
+// #playlistEntryCommandOptions - a selected command's args are read separately
+// (CommandToJSON) and could otherwise shadow an entry arg of the same name.
+function PlaylistEntryArgScope () {
+	return $('#playlistEntryOptions, #playlistEntryPropertiesOptions');
+}
+
 function SubCommandChanged (
 	subCommandV,
 	configAdjustable = false,
@@ -10848,12 +10885,48 @@ function PrintArgsInputsForEditable (
 	$.each(args, valFunc);
 }
 
-// Activates Bootstrap tooltips for any CommandArg's "help" text - same
-// mechanism already used for the command-preset preview icon elsewhere in
-// this file (data-bs-toggle="tooltip" + .tooltip()), just newly wired into
-// the generic per-arg renderer (PrintArgInputs).
+// The standard FPP help affordance, as emitted by PrintToolTip() in
+// common.php for settings pages (networkconfig.php et al): the help-icon.svg
+// glyph wrapped in a Bootstrap tooltip trigger. Used by the generic per-arg
+// renderers so a Command/playlist-entry arg's "help" text looks and behaves
+// exactly like a setting's tooltip rather than being its own one-off style.
+// Args tables are built as HTML strings and injected long after page load, so
+// the markup carries data-bs-title (not title - SetupToolTips' page-load sweep
+// never sees these elements) and InitArgHelpTooltips() does the wiring.
+function ArgHelpIcon (text) {
+	if (typeof text !== 'string' || text === '') {
+		return '';
+	}
+	var t = text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/'/g, '&apos;');
+	return (
+		" <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='" +
+		t +
+		"'><img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>"
+	);
+}
+
+// Activates Bootstrap tooltips for any CommandArg's "help" text. Disposes any
+// existing instance first (same pattern as networkconfig.php's
+// initializeTooltips) since the args table is re-rendered in place whenever
+// the command / playlist entry type changes.
 function InitArgHelpTooltips () {
-	$('.argHelpIcon').tooltip();
+	if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+		return;
+	}
+	$('.argHelpIcon').each(function () {
+		var existing = bootstrap.Tooltip.getInstance(this);
+		if (existing) {
+			existing.dispose();
+		}
+		try {
+			new bootstrap.Tooltip(this);
+		} catch (e) {
+			console.warn('Skipping invalid arg help tooltip', this, e);
+		}
+	});
 }
 
 function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
@@ -10865,6 +10938,8 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 	var timeOptions = new Map();
 	var argGroups = ComputeArgGroupBoundaries(args);
 	var groupIndex = 0;
+	var currentSection = null;
+	var sectionRowCounts = {};
 	// Args listed as a "children" value of some OTHER arg start hidden unless
 	// that parent arg's default value is the one that reveals them - keeps
 	// initial render consistent with UpdateGenericArgChildVisibility(), which
@@ -10903,18 +10978,55 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 			return;
 		}
 
+		var advancedHidden =
+			val.hasOwnProperty('advanced') &&
+			val.advanced == true &&
+			settings['uiLevel'] < 1;
 		var rowStyle = '';
-		if (
-			(val.hasOwnProperty('advanced') &&
-				val.advanced == true &&
-				settings['uiLevel'] < 1) ||
-			initiallyHiddenChildren[val['name']]
-		) {
+		if (advancedHidden || initiallyHiddenChildren[val['name']]) {
 			rowStyle = " style='display:hidden; visibility:collapse'";
 		}
 
+		// An arg's optional "section" groups consecutive args under a named
+		// heading (e.g. the playlist entry editor's Primary Media / Extra
+		// Media / Entry Properties) instead of one flat run of rows. Purely
+		// presentational - the heading is a row of its own, so nothing about
+		// how args are read back (by .arg_<name> class / _arg_N id) changes.
+		var section = typeof val['section'] === 'string' ? val['section'] : '';
+		var sectionHeader = '';
+		if (section !== '' && section !== currentSection) {
+			currentSection = section;
+			var esc = section
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/'/g, '&apos;');
+			sectionHeader =
+				"<tr class='argSectionHeaderRow' data-arg-section='" +
+				esc +
+				"'><td colspan='2' class='pt-3 pb-1'><div class='fw-bold text-uppercase small text-secondary border-bottom pb-1'>" +
+				esc +
+				'</div></td></tr>';
+		}
+		if (section !== '') {
+			// A section that ends up with no visible rows at all (e.g. Extra
+			// Media, whose args are all advanced:true, at UI level Basic)
+			// must not leave a dangling heading behind - see the post-render
+			// cleanup after this loop.
+			if (!sectionRowCounts.hasOwnProperty(section)) {
+				sectionRowCounts[section] = 0;
+			}
+			if (!advancedHidden) {
+				// A row hidden only because its parent arg's current value
+				// doesn't reveal it still counts - UpdateChildVisibility can
+				// show it again without a re-render.
+				sectionRowCounts[section]++;
+			}
+		}
+
 		var ID = tblCommand + '_arg_' + count;
-		var isNewGroup = argGroups.boundaries[groupIndex];
+		// A heading already separates this row from what came before, so the
+		// generic group divider on the same row would just double it up.
+		var isNewGroup = argGroups.boundaries[groupIndex] && sectionHeader === '';
 		groupIndex++;
 		var line =
 			"<tr id='" +
@@ -10923,6 +11035,14 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 			val['name'] +
 			(isNewGroup ? ' argRowGroupStart' : '') +
 			"'" +
+			// Tags the row with the section it belongs to so a whole section can
+			// be found (and, for Entry Properties, repositioned) later without
+			// relying on where it currently sits in the table.
+			(section !== ''
+				? " data-arg-section='" +
+					section.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/'/g, '&apos;') +
+					"'"
+				: '') +
 			rowStyle +
 			'><td>';
 		var subCommandInitFunc = null;
@@ -10937,11 +11057,9 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 		// so a second copy of that row's own label here would just repeat it.
 		if (!val['toggleStyle']) {
 			line += val['description'] + ':';
-			if (typeof val['help'] === 'string' && val['help'] !== '') {
-				line +=
-					" <i class='fas fa-question-circle argHelpIcon' data-bs-toggle='tooltip' data-bs-placement='top' title='" +
-					val['help'].replace(/'/g, '&apos;') +
-					"'></i>";
+			var helpIcon = ArgHelpIcon(val['help']);
+			if (helpIcon !== '') {
+				line += helpIcon;
 				initFuncs.push('InitArgHelpTooltips');
 			}
 		}
@@ -10979,12 +11097,8 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				var opt0 = val['contents'][0];
 				var opt1 = val['contents'][1];
 				var toggleLabel = (typeof val['toggleLabel'] === 'string' && val['toggleLabel'] !== '') ? val['toggleLabel'] : val['description'];
-				var toggleHelp = '';
-				if (typeof val['help'] === 'string' && val['help'] !== '') {
-					toggleHelp =
-						" <i class='fas fa-question-circle argHelpIcon' data-bs-toggle='tooltip' data-bs-placement='top' title='" +
-						val['help'].replace(/'/g, '&apos;') +
-						"'></i>";
+				var toggleHelp = ArgHelpIcon(val['help']);
+				if (toggleHelp !== '') {
 					initFuncs.push('InitArgHelpTooltips');
 				}
 				line +=
@@ -11412,8 +11526,14 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 			if ($precedingRow.hasClass('argRowGroupStart')) {
 				$toggleRow.addClass('argRowGroupStart');
 			}
+			if (sectionHeader !== '') {
+				$(sectionHeader).insertBefore($precedingRow);
+			}
 			$toggleRow.insertBefore($precedingRow);
 		} else {
+			if (sectionHeader !== '') {
+				$('#' + tblCommand).append(sectionHeader);
+			}
 			$('#' + tblCommand).append(line);
 		}
 		if (typeof val['contentListUrl'] != 'undefined') {
@@ -11503,6 +11623,20 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				break;
 			}
 			$r.addClass('argRowGroupEnd');
+		}
+	});
+
+	// Drop the heading of any section whose rows are all hidden at the current
+	// UI level (see sectionRowCounts above) so it can't render as a label with
+	// nothing under it.
+	$('#' + tblCommand + ' tr.argSectionHeaderRow').each(function () {
+		var name = $(this).attr('data-arg-section');
+		// Only headings this call rendered are ours to remove: the playlist
+		// entry editor parks the Entry Properties block in the command-args
+		// tbody (see MoveEntryPropertiesToBottom), so a heading found here may
+		// belong to the entry, not to the command being rendered.
+		if (sectionRowCounts.hasOwnProperty(name) && !sectionRowCounts[name]) {
+			$(this).remove();
 		}
 	});
 

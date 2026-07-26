@@ -3454,6 +3454,18 @@ pre.testData,
 	width: 100%;
 }
 
+/* The playlist entry editor (playlists.php "New Entry" / "Edit Entry") lays its
+   args out in a 2-column table that is sized by its content, so a single very
+   long media or sequence filename in a <select> stretches the value column
+   until every label - and its help icon - is squeezed into 2-3 wrapped lines.
+   Capping the controls keeps the label column readable. Functional layout
+   constraint, not a cosmetic tweak: no Bootstrap utility caps at a px/rem
+   width. */
+#playlistEntryProperties select,
+#playlistEntryProperties input[type='text'] {
+	max-width: 32rem;
+}
+
 .fppSystemsUiSettings {
 	padding: 1.2em;
 }

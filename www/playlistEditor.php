@@ -290,6 +290,14 @@ if (!isset($simplifiedPlaylist)) {
             </tbody>
             <tbody id='playlistEntryCommandOptions'>
             </tbody>
+            <!-- The entry's own "Entry Properties" rows (note / display mode /
+                 time code) are rendered into playlistEntryOptions and then moved
+                 here by MoveEntryPropertiesToBottom() so they sit below an FPP
+                 Command entry's command args, which render into the tbody above.
+                 Kept separate from playlistEntryCommandOptions because
+                 CommandArgChanged() empties that one on every command change. -->
+            <tbody id='playlistEntryPropertiesOptions'>
+            </tbody>
         </table>
 
 
