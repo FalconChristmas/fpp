@@ -374,6 +374,9 @@ std::vector<VideoOutputManager::HdmiConsumerInfo> VideoOutputManager::GetHdmiCon
         // back to the stored values if the connector can't be found now.
         // Done before the skipConnectorIds test because the caller's skip list
         // is built from live lookups, so it must be compared against a live id.
+        // Without GStreamer there is no DRM resolver, so the stored values
+        // assigned above stand as-is.
+#ifdef HAS_GSTREAMER
         if (!c.connector.empty()) {
             auto live = GStreamerOutput::ResolveDrmConnector(c.connector);
             if (!live.cardPath.empty()) {
@@ -387,6 +390,7 @@ std::vector<VideoOutputManager::HdmiConsumerInfo> VideoOutputManager::GetHdmiCon
             if (live.connectorId > 0)
                 info.connectorId = live.connectorId;
         }
+#endif
 
         if (skipConnectorIds.count(info.connectorId))
             continue;
