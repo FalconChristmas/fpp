@@ -562,10 +562,35 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName)
         LogErr(VB_PLUGIN, "Failed to load shlib: %s\n", er);
         return nullptr;
     }
-    // Check plugin API version to prevent crashes from ABI-incompatible plugins
+    FPPPlugins::Plugin* (*fptr)();
+    *(void**)(&fptr) = dlsym(handle, "createPlugin");
+    if (fptr == nullptr) {
+        LogErr(VB_PLUGIN, "Failed to find  createPlugin() function in shlib %s\n", shlibName.c_str());
+        WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (missing createPlugin entry point)");
+        dlclose(handle);
+        return nullptr;
+    }
+
+    // Check plugin API version to prevent crashes from ABI-incompatible plugins.
+    //
+    // dlsym() on a handle searches the object AND its DT_NEEDED dependencies, and
+    // every plugin links -lfpp. libfpp.so also defines this weak symbol (Plugin.h
+    // emits it into every TU that includes it), so a plugin predating the version
+    // mechanism resolves straight through to FPP's own copy and reports a version
+    // that trivially matches. Verified on Debian 13/aarch64: without the
+    // provenance check below, a .so defining no version symbol is accepted.
+    // So confirm the symbol actually lives in the plugin by comparing the shared
+    // object it was found in against the one createPlugin() came from - that entry
+    // point is never defined by libfpp, so it identifies the plugin itself.
     int (*vfptr)();
     *(void**)(&vfptr) = dlsym(handle, "fpp_plugin_api_version");
-    if (vfptr == nullptr) {
+    Dl_info versionInfo;
+    Dl_info pluginInfo;
+    bool ownVersionSymbol = vfptr != nullptr &&
+                            dladdr((void*)vfptr, &versionInfo) != 0 &&
+                            dladdr((void*)fptr, &pluginInfo) != 0 &&
+                            versionInfo.dli_fbase == pluginInfo.dli_fbase;
+    if (!ownVersionSymbol) {
         LogErr(VB_PLUGIN, "Plugin %s was compiled against an older FPP API and is not compatible. Please update and rebuild the plugin.\n", shlibName.c_str());
         WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (built against an older FPP API - rebuild required)");
         dlclose(handle);
@@ -575,15 +600,6 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName)
     if (pluginVersion != FPP_PLUGIN_API_VERSION) {
         LogErr(VB_PLUGIN, "Plugin %s API version %d does not match FPP API version %d. Please update and rebuild the plugin.\n", shlibName.c_str(), pluginVersion, FPP_PLUGIN_API_VERSION);
         WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (API version mismatch - rebuild required)");
-        dlclose(handle);
-        return nullptr;
-    }
-
-    FPPPlugins::Plugin* (*fptr)();
-    *(void**)(&fptr) = dlsym(handle, "createPlugin");
-    if (fptr == nullptr) {
-        LogErr(VB_PLUGIN, "Failed to find  createPlugin() function in shlib %s\n", shlibName.c_str());
-        WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (missing createPlugin entry point)");
         dlclose(handle);
         return nullptr;
     }
