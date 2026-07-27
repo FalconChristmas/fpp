@@ -31,6 +31,15 @@
 #include "PlaylistCommands.h"
 #include "VariableCommands.h"
 
+// %VAR:name% - substitute a named User Variable's current value. Applied
+// once, centrally, inside CommandManager::run() (the one chokepoint every
+// caller funnels through - api/command, presets, GPIO, MultiSync, playlist
+// "FPP Command" entries, If, recurring tasks, ...) rather than at each
+// individual call site, so it works the same way no matter how a command
+// gets run. Defined further down (needs Variables.h); forward-declared here
+// since run() is used well above that point in the file.
+static std::string ReplaceVariableKeywords(std::string str);
+
 CommandManager CommandManager::INSTANCE;
 Command::Command(const std::string& n) :
     name(n),
@@ -307,18 +316,24 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     if (f != commands.end()) {
         LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
 
+        std::vector<std::string> resolvedArgs;
+        resolvedArgs.reserve(args.size());
+        for (auto const& arg : args) {
+            resolvedArgs.push_back(ReplaceVariableKeywords(arg));
+        }
+
         // Publish MQTT event for command execution
         Json::Value payload;
         payload["command"] = command;
         payload["args"] = Json::Value(Json::arrayValue);
-        for (const auto& arg : args) {
+        for (const auto& arg : resolvedArgs) {
             payload["args"].append(arg);
         }
         payload["trigger"] = "internal";
         std::string topic = "command/run";
         Events::Publish(topic, SaveJsonToString(payload));
 
-        return f->second->run(args);
+        return f->second->run(resolvedArgs);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
@@ -332,7 +347,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
             if (argsArray[x].isNull()) {
                 args.push_back("");
             } else {
-                args.push_back(argsArray[x].asString());
+                args.push_back(ReplaceVariableKeywords(argsArray[x].asString()));
             }
         }
         if (WillLog(LOG_DEBUG, VB_COMMAND)) {
@@ -377,7 +392,12 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
                 if (cmd["args"][x].isNull()) {
                     args.push_back("");
                 } else {
-                    args.push_back(cmd["args"][x].asString());
+                    // Resolved against THIS host's Variables before sending -
+                    // a remote host has no way to resolve %VAR:name% itself
+                    // (and may not even have a same-named Variable), so it
+                    // must go out already substituted, unlike the
+                    // non-multisync path below where run() does this.
+                    args.push_back(ReplaceVariableKeywords(cmd["args"][x].asString()));
                 }
             }
             MultiSync::INSTANCE.SendFPPCommandPacket(hosts, command, args);
@@ -616,9 +636,13 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
 // %VAR:name% - substitute a named User Variable's current value. Explicit
 // "VAR:" prefix (rather than bare %name%) avoids colliding with unrelated
 // existing usages of %word% patterns that happen to match a variable name.
-// Scoped to command args specifically (not the shared ReplaceKeywords() in
-// common.cpp) so the Variables dependency doesn't spread into the small
-// standalone CLI helpers that link common.o directly (fpp, fppoled, fsequtils).
+// Applied centrally in CommandManager::run() (see the forward declaration
+// near the top of this file) rather than at each call site, so every way a
+// command can run - api/command, a preset trigger, GPIO, MultiSync, a
+// playlist "FPP Command" entry, If, a recurring task, ... - resolves it the
+// same way. Kept out of the shared ReplaceKeywords() in common.cpp so the
+// Variables dependency doesn't spread into the small standalone CLI helpers
+// that link common.o directly (fpp, fppoled, fsequtils).
 static std::string ReplaceVariableKeywords(std::string str) {
     std::size_t varPos = 0;
     while ((varPos = str.find("%VAR:", varPos)) != std::string::npos) {
@@ -634,14 +658,15 @@ static std::string ReplaceVariableKeywords(std::string str) {
     return str;
 }
 
+// %VAR: substitution isn't done here - it's applied once, centrally, by
+// CommandManager::run() itself (see ReplaceVariableKeywords above), which
+// every caller of this function's result eventually goes through.
 Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string>& keywords) {
     if (!cmd.isMember("args"))
         return cmd;
 
     for (int i = 0; i < cmd["args"].size(); i++) {
-        std::string arg = cmd["args"][i].asString();
-
-        cmd["args"][i] = ReplaceVariableKeywords(ReplaceKeywords(cmd["args"][i].asString(), keywords));
+        cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
     }
 
     return cmd;
