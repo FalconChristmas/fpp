@@ -10,11 +10,17 @@
 
 version=2.0.22
 
+# FPP: boot config directory -- see the matching block in scripts/common.  Probe for
+# the config file rather than the directory: a /boot/firmware directory can exist on
+# systems that do not boot from it.
 FPPBOOTDIR=/boot
-if [ -d "/boot/firmware" ]
-then
-    FPPBOOTDIR=/boot/firmware
-fi
+for __d in /boot/firmware /boot; do
+    if [ -f "${__d}/config.txt" ] || [ -f "${__d}/uEnv.txt" ] || [ -f "${__d}/extlinux/extlinux.conf" ]; then
+        FPPBOOTDIR="${__d}"
+        break
+    fi
+done
+unset __d
 
 # setup trusted paths for dependancies (like rsync, grub, fdisk, etc)
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
