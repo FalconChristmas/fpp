@@ -11259,6 +11259,16 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				}
 				if (val['allowBlanks']) {
 					line += " data-allowblanks='true'";
+					// An unlabelled blank option reads as an empty row in the
+					// list; blankLabel names what picking it means (e.g.
+					// "-- None --" for an optional file). Carried on the element
+					// so ReloadContentList can rebuild the same placeholder.
+					if (typeof val['blankLabel'] === 'string' && val['blankLabel'] !== '') {
+						line +=
+							" data-blanklabel='" +
+							val['blankLabel'].replace(/'/g, '&apos;') +
+							"'";
+					}
 				}
 
 				if (typeof val['children'] === 'object') {
@@ -11286,7 +11296,12 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 
 				line += '>';
 				if (val['allowBlanks']) {
-					line += "<option value=''></option>";
+					line +=
+						"<option value=''>" +
+						(typeof val['blankLabel'] === 'string'
+							? val['blankLabel'].replace(/&/g, '&amp;').replace(/</g, '&lt;')
+							: '') +
+						'</option>';
 				}
 				line += '</select>';
 			}
@@ -11769,7 +11784,14 @@ function ReloadContentList (baseUrl, inp) {
 
 	arg.empty();
 	if (allowblank) {
-		arg.append("<option value=''></option>");
+		var blankLabel = arg.data('blanklabel');
+		arg.append(
+			"<option value=''>" +
+				(typeof blankLabel === 'string'
+					? String(blankLabel).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+					: '') +
+				'</option>'
+		);
 	}
 	// Match the HTML escaping the initial (local) population uses so names
 	// containing &, <, or " do not break the option markup.

@@ -541,6 +541,9 @@
 				"help": "Optional second media file played at the same time as the main media, for example a second audio track for another zone or a separate video output.",
 				"type": "string",
 				"contentListUrl": "api/media",
+				"allowBlanks": true,
+				"blankLabel": "-- None --",
+				"default": "",
 				"optional": true,
 				"simpleUI": false,
 				"advanced": true
@@ -897,6 +900,9 @@
 				"help": "Optional second media file played at the same time as the main media, for example a second audio track for another zone or a separate video output.",
 				"type": "string",
 				"contentListUrl": "api/media",
+				"allowBlanks": true,
+				"blankLabel": "-- None --",
+				"default": "",
 				"optional": true,
 				"simpleUI": false,
 				"advanced": true
