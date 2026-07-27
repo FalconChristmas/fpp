@@ -2199,6 +2199,55 @@ function GetPlaylistDurationDiv (entry) {
 	);
 }
 
+// A media / sequence+media entry can carry a companion file that plays on its
+// own stream slot at the same time as the entry's main media (see
+// PlaylistEntryMedia's ExtraMedia). Nothing else in a playlist row says so, so
+// one row would silently be playing two different files. Flags it inline, with
+// the file and slot in the badge (and the full detail on hover).
+function psiExtraMediaBadge (entry) {
+	var extras = [];
+	if (typeof entry.extraMediaName == 'string' && entry.extraMediaName != '') {
+		extras.push({
+			name: entry.extraMediaName,
+			slot: entry.extraMediaSlot ? entry.extraMediaSlot : 2
+		});
+	}
+	// Hand-authored playlists can list several companions in an array instead;
+	// the editor only ever writes the single flat form above.
+	if (Array.isArray(entry.extraMedia)) {
+		for (var i = 0; i < entry.extraMedia.length; i++) {
+			var e = entry.extraMedia[i];
+			if (e && typeof e.mediaName == 'string' && e.mediaName != '') {
+				extras.push({ name: e.mediaName, slot: e.slot ? e.slot : 2 });
+			}
+		}
+	}
+	if (!extras.length) {
+		return '';
+	}
+
+	var labels = [];
+	var titles = [];
+	for (var x = 0; x < extras.length; x++) {
+		labels.push(extras[x].name + ' (slot ' + extras[x].slot + ')');
+		titles.push(
+			'Also plays ' + extras[x].name + ' on stream slot ' + extras[x].slot
+		);
+	}
+
+	// The pill carries the label only - .badge is uppercased site-wide, which
+	// would mangle a filename - so the file itself sits next to it in its own
+	// case.
+	return (
+		"<span class='psiExtraMedia ms-2' title='" +
+		titles.join(' | ').replace(/'/g, '&#39;') +
+		"'><span class='badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle'>" +
+		"<i class='fas fa-layer-group me-1'></i>Extra Media</span> <span class='small'>" +
+		labels.join(', ').replace(/&/g, '&amp;').replace(/</g, '&lt;') +
+		'</span></span>'
+	);
+}
+
 function GetPlaylistRowHTML (ID, entry, editMode, invalidNames = {}) {
 	var HTML = '';
 	var rowNum = ID + 1;
@@ -2318,6 +2367,9 @@ function GetPlaylistRowHTML (ID, entry, editMode, invalidNames = {}) {
 			HTML += psiDetailsForEntrySimple(entry, editMode);
 		}
 	}
+	// Outside the display-mode branches: a companion file is playing whatever
+	// the row chooses to show, including in Just Note mode.
+	HTML += psiExtraMediaBadge(entry);
 	HTML += '</div>';
 
 	HTML += GetPlaylistDurationDiv(entry);
