@@ -24,7 +24,7 @@ libfpp_capeutils.so: $(OBJECTS_libfpp_capeutils_so)
 fppcapedetect: $(OBJECTS_fppcapedetect) libfpp_capeutils.so
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -o $@
 	
-CapeUtils.o: CapeUtils.cpp CapeUtils.h fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
+CapeUtils.o: CapeUtils.cpp CapeUtils.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 fppcapedetect.o: fppcapedetect.cpp fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk

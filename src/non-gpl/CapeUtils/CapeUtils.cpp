@@ -12,7 +12,6 @@
  */
 
 #include "CapeUtils.h"
-#include "fppversion_defines.h"
 
 #include <array>
 #include <cstdio>
@@ -357,16 +356,32 @@ static void disableOutputs(Json::Value& disables) {
         }
     }
 }
+// The boot partition is mounted at /boot on some platforms and /boot/firmware on
+// others, and that can differ between images of the same OS release, so it cannot
+// be baked in at build time.  Debian 12 on the BBB eMMC is the awkward case: it
+// keeps uEnv.txt in /boot but still mounts an empty FAT filesystem on
+// /boot/firmware, so the existence of the directory tells us nothing.  Locate the
+// boot config by looking for the file itself, newest layout first.  Returns an
+// empty string if it isn't found in either location.
+[[maybe_unused]] static std::string findBootConfigFile(const std::string& filename) {
+    for (const char* dir : { "/boot/firmware", "/boot" }) {
+        std::string path = std::string(dir) + "/" + filename;
+        if (file_exists(path)) {
+            return path;
+        }
+    }
+    return "";
+}
 static bool processBootConfig(Json::Value& bootConfig) {
 #if defined(PLATFORM_PI)
-    const std::string fileName = FPP_BOOT_DIR "/config.txt";
+    const std::string fileName = findBootConfigFile("config.txt");
 #elif defined(PLATFORM_BBB)
-    const std::string fileName = FPP_BOOT_DIR "/uEnv.txt";
+    const std::string fileName = findBootConfigFile("uEnv.txt");
 #elif defined(PLATFORM_BB64)
     // TODO - booting is VERY different on BB64
     const std::string fileName;
 #elif defined(PLATFORM_ARMBIAN)
-    const std::string fileName = FPP_BOOT_DIR "/armbianEnv.txt";
+    const std::string fileName = findBootConfigFile("armbianEnv.txt");
 #else
     // unknown platform
     const std::string fileName;
