@@ -19,12 +19,6 @@ else
     exit 0
 fi
 
-FPPBOOTDIR=/boot
-if [ -f "/boot/firmware/config.txt" ] || [ -f "/boot/firmware/uEnv.txt" ] || [ -f "/boot/firmware/armbianEnv.txt" ]
-then
-    FPPBOOTDIR=/boot/firmware
-fi
-
 GITTREEDIR=$1
 GITREPOPATH="exported"
 
@@ -198,5 +192,4 @@ cat > ./fppversion_defines.h <<EOF
 #define FPP_SOURCE_VERSION_STR "${SOURCE_VERSION}"
 #define FPP_BRANCH ${BRANCH}
 #define FPP_BRANCH_STR "${BRANCH}"
-#define FPP_BOOT_DIR "${FPPBOOTDIR}"
 EOF
