@@ -27,7 +27,7 @@
         .variables-aligned-table .varcol-value { width: 380px; }
         .variables-aligned-table .varcol-eye { width: 46px; }
         .variables-aligned-table .varcol-updated { width: 110px; }
-        .variables-aligned-table .varcol-storage { width: 60px; }
+        .variables-aligned-table .varcol-storage { width: 100px; }
         /* table-layout:fixed enforces column widths but doesn't clip
            overflowing cell content on its own (.text-nowrap only stops
            wrapping) - without this, a value cell's appended "(N bytes)" note
@@ -186,7 +186,7 @@
         // re-fetching, so it stays instant and survives the 3s auto-refresh
         // (each Load*Table() re-applies it after rebuilding its rows).
         var VARIABLE_SEARCH_TABLES = [
-            { tbody: '#variablesTableBody', colspan: 7 },
+            { tbody: '#variablesTableBody', colspan: 6 },
             { tbody: '#fppVariablesTableBody', colspan: 5 },
             { tbody: '#mqttVariablesTableBody', colspan: 5 }
         ];
@@ -314,7 +314,7 @@
                     var names = SortNames(Object.keys(data || {}), data, 'user');
                     if (!names.length) {
                         $tbody.append(
-                            "<tr><td colspan='7' class='text-muted'>No variables defined yet. Use the " +
+                            "<tr><td colspan='6' class='text-muted'>No variables defined yet. Use the " +
                             "<b>Set Variable</b> command from a preset, GPIO input, MQTT topic, the API, or " +
                             "a <a href='recurringtasks.php'>Recurring Task</a> to create one.</td></tr>"
                         );
@@ -336,8 +336,7 @@
                             "<td class='ps-4 text-nowrap'>" + valueCell + "</td>" +
                             "<td class='text-center'>" + eyeCell + "</td>" +
                             "<td>" + FormatVariableTimestamp(v.lastUpdated) + "</td>" +
-                            "<td class='text-center'>" + persistIcon + "</td>" +
-                            "<td class='ps-4'>" +
+                            "<td class='text-center text-nowrap'>" + persistIcon + " " +
                             "<button type='button' class='buttons btn-sm' title='Clear (reset value)' onclick='ClearVariable(\"" + escName + "\");'><i class='fas fa-eraser'></i></button> " +
                             "<button type='button' class='buttons btn-sm' title='Delete (remove entirely)' onclick='DeleteVariable(\"" + escName + "\");'><i class='fas fa-trash text-danger'></i></button>" +
                             "</td>" +
@@ -347,7 +346,7 @@
                     ApplyVariableSearchFilter();
                 },
                 error: function () {
-                    $('#variablesTableBody').html("<tr><td colspan='7' class='text-danger'>Error loading variables.</td></tr>");
+                    $('#variablesTableBody').html("<tr><td colspan='6' class='text-danger'>Error loading variables.</td></tr>");
                 }
             });
         }
@@ -622,7 +621,7 @@
                 </div>
                 <table class="table table-striped variables-aligned-table">
                     <colgroup>
-                        <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col class="varcol-updated"><col class="varcol-storage"><col>
+                        <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col class="varcol-updated"><col class="varcol-storage">
                     </colgroup>
                     <thead>
                         <tr>
@@ -631,13 +630,12 @@
                             <th class="ps-4"><a href="javascript:void(0)" class="text-decoration-none text-reset sortableHeader" data-table="user" data-field="value">Value<span class="sortIndicator"></span></a></th>
                             <th></th>
                             <th><a href="javascript:void(0)" class="text-decoration-none text-reset sortableHeader" data-table="user" data-field="lastUpdated">Last Updated<span class="sortIndicator"></span></a></th>
-                            <th class="text-center">Storage</th>
-                            <th></th>
+                            <th class="text-center"></th>
                         </tr>
                     </thead>
                     <tbody id="variablesTableBody">
                         <tr>
-                            <td colspan="7" class="text-muted">Loading...</td>
+                            <td colspan="6" class="text-muted">Loading...</td>
                         </tr>
                     </tbody>
                 </table>
