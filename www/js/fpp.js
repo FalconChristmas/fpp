@@ -10749,7 +10749,11 @@ function ComputeArgGroupBoundaries (args) {
 	// playlistEntryTypes.json's per-entry-type args (see PlaylistTypeChanged) -
 	// PrintArgInputs' own render loop uses $.each() so it tolerates both, but
 	// .filter()/.map() below need a real array.
-	var argList = Array.isArray(args) ? args : Object.keys(args).map(function (k) {
+	// A command with zero registered args (e.g. "All Lights Off") has no
+	// "args" key at all in api/commands' JSON (Commands.cpp only creates
+	// cmd["args"] once it appends at least one entry), so args can be
+	// undefined here - treat that the same as an empty arg list.
+	var argList = Array.isArray(args) ? args : Object.keys(args || {}).map(function (k) {
 		return args[k];
 	});
 	var included = argList.filter(function (val) {
