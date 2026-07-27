@@ -1496,6 +1496,7 @@
                 } else if (untestedVersion >= 0) {
                     if (uiLevel < 1) return;
                 } else {
+					if (uiLevel < 1) return;
                     InsertCardSorted('incompatibleGrid', data.name, html, sortRank);
                     var $wrap = $('#incompatiblePluginsWrap');
                     $('#incompatiblePluginsCount').text($wrap.find('.pluginCard').length);
