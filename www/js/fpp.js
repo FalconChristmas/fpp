@@ -8568,7 +8568,8 @@ function CaptureOuterEditorAndOpenNested (nestedTarget, nestedData, title, saveB
 		title: title,
 		saveButton: saveButton,
 		cancelButton: 'Cancel',
-		showPresetSelect: true
+		showPresetSelect: true,
+		presetInsertsReference: true
 	});
 }
 
@@ -10513,6 +10514,12 @@ function CommandSelectChanged (
 	$('#' + tblCommand + '_multisync_row').remove();
 	$('#' + tblCommand + '_multisyncHosts_row').remove();
 	$('#' + tblCommand + '_description_row').remove();
+	// Section headings (e.g. If's "When Check is True"/"When Check is False")
+	// have no numbered _arg_N_row id, so the removal loop above never catches
+	// them - a stale one from a previous render (e.g. the command picker's
+	// initial default before the real command is applied) would otherwise be
+	// left orphaned above the freshly re-rendered rows.
+	$('#' + tblCommand + ' tr.argSectionHeaderRow').remove();
 	var command = $('#' + commandSelect).val();
 	if (typeof command == 'undefined' || command == null) {
 		return;
@@ -11044,7 +11051,13 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 					"'"
 				: '') +
 			rowStyle +
-			'><td>';
+			'>' +
+			// commandlist's content column stacks a taller block (rows/placeholder
+			// plus the Add Command button) below the label's single line of text -
+			// default middle valign centers the label against that whole stack
+			// instead of its top line, so it visibly drifts away from "Then Run:"/
+			// "Otherwise Run:". Pin it to the top so it lines up with the first line.
+			(val['type'] == 'commandlist' ? "<td class='align-top'>" : '<td>');
 		var subCommandInitFunc = null;
 
 		if (children.includes(val['name']))

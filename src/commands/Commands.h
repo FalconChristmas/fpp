@@ -145,6 +145,14 @@ public:
             help = h;
             return *this;
         }
+        // Groups this arg under a named heading alongside any other
+        // consecutive args sharing the same section (fpp.js PrintArgInputs -
+        // ported from the playlist-entry-editor's Primary Media / Extra
+        // Media / Entry Properties sections). Purely presentational.
+        CommandArg& setSection(const std::string& s) {
+            section = s;
+            return *this;
+        }
         // Renders a 2-option contentList as a Bootstrap btn-check pill toggle
         // (matching the If command's own Match ALL/ANY condition toggle)
         // instead of the generic <select> - opt-in only, so every other
@@ -182,6 +190,7 @@ public:
         bool adjustable;
         bool advanced;
         std::string help;
+        std::string section;
         std::map<std::string, std::vector<std::string>> children;
         bool toggleStyle = false;
         std::string toggleLabel;

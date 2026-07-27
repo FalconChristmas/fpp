@@ -31,21 +31,31 @@ IfCommand::IfCommand() :
     // RenderConditionListRows only shows the AND/OR toggle once there are
     // 2+ rows, so the single-condition case still looks simple) - it's
     // always visible now, not gated behind UI Level.
-    args.push_back(CommandArg("conditions", "conditionlist", "Check"));
-    args.push_back(CommandArg("thenCommands", "commandlist", "Then Run"));
+    args.push_back(CommandArg("conditions", "conditionlist", "Check")
+                       .setHelp("What to test. With more than one condition, choose whether ALL or ANY of them must be true."));
+    args.push_back(CommandArg("thenCommands", "commandlist", "Then Run")
+                       .setSection("When Check is True")
+                       .setHelp("Commands run when the check above is True."));
     args.push_back(CommandArg("thenMode", "string", "Then Run")
+                       .setSection("When Check is True")
                        .setContentList({ "Sequential", "Parallel" })
                        .setDefaultValue("Sequential")
                        .setToggleStyle()
                        .setToggleLabel("Order")
                        .setHelp("Sequential waits for each command to finish before starting the next. "
                                 "Parallel fires them all together without waiting."));
-    args.push_back(CommandArg("elseCommands", "commandlist", "Otherwise Run").setDefaultValue(""));
+    args.push_back(CommandArg("elseCommands", "commandlist", "Otherwise Run")
+                       .setDefaultValue("")
+                       .setSection("When Check is False")
+                       .setHelp("Commands run when the check above is False. Leave empty to do nothing."));
     args.push_back(CommandArg("elseMode", "string", "Otherwise Run")
+                       .setSection("When Check is False")
                        .setContentList({ "Sequential", "Parallel" })
                        .setDefaultValue("Sequential")
                        .setToggleStyle()
-                       .setToggleLabel("Order"));
+                       .setToggleLabel("Order")
+                       .setHelp("Sequential waits for each command to finish before starting the next. "
+                                "Parallel fires them all together without waiting."));
 }
 
 namespace

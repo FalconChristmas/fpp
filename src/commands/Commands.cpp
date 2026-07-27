@@ -82,6 +82,9 @@ Json::Value Command::getDescription() {
         if (!ar.help.empty()) {
             a["help"] = ar.help;
         }
+        if (!ar.section.empty()) {
+            a["section"] = ar.section;
+        }
         if (ar.toggleStyle) {
             a["toggleStyle"] = true;
         }

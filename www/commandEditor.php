@@ -4,12 +4,14 @@
     var commandEditorCallback = '';
     var commandEditorCancelCallback = '';
     var commandEditorPresets = '';
+    var commandEditorArgs = {};
 
     function CommandEditorSetup(target, data, callback, cancelCallback, args) {
         commandEditorTarget = target;
         commandEditorData = data;
         commandEditorCallback = callback;
         commandEditorCancelCallback = cancelCallback;
+        commandEditorArgs = args;
 
         $('.presetSelect').hide();
         if (args.showPresetSelect) {
@@ -29,6 +31,15 @@
                     }
                     $('#presetNames').html(options);
                     $('.presetSelect').show();
+                    if (args.presetInsertsReference) {
+                        // Picking a preset here inserts a live reference to it
+                        // (Trigger Command Preset), not an editable snapshot of
+                        // its underlying command's fields - so "Save Preset"
+                        // (which overwrites *this* preset's own definition)
+                        // doesn't apply, and would risk saving a preset that
+                        // triggers itself.
+                        $('#btnSaveDirectEditorCommand').hide();
+                    }
                 }
             });
         }
@@ -65,7 +76,18 @@
             }
             for (var i = 0; i < commandEditorPresets.commands.length; i++) {
                 if (commandEditorPresets.commands[i].name == presetName) {
-                    PopulateExistingCommand(commandEditorPresets.commands[i], 'editorCommand', 'tblCommandEditor');
+                    if (commandEditorArgs.presetInsertsReference) {
+                        // Callers that persist this row into a list (If's Then
+                        // Run/Otherwise Run, a GPIO edge's command list) want a
+                        // live reference to the preset, not a frozen copy of
+                        // whatever the preset's underlying command/args happen
+                        // to be right now - so editing the preset later is
+                        // reflected everywhere it's used, instead of only in
+                        // presets picked after the edit.
+                        PopulateExistingCommand({ command: 'Trigger Command Preset', args: [presetName] }, 'editorCommand', 'tblCommandEditor');
+                    } else {
+                        PopulateExistingCommand(commandEditorPresets.commands[i], 'editorCommand', 'tblCommandEditor');
+                    }
                     $('#btnSaveDirectEditorCommand').prop('disabled', false);
                 }
             }
@@ -305,7 +327,7 @@
     </tr>
 </table>
 <hr class="mt-4">
-<div class="text-center pb-3">
+<div class="text-center pt-2 pb-3">
     <input id="btnSaveEditorCommand" type="button" class="buttons wideButton" value="Accept Changes"
         onClick="CommandEditorSave();">
     <input id="btnRunEditorCommand" type="button" class="buttons wideButton" value="Run Now"
