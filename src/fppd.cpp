@@ -1058,6 +1058,221 @@ void ShutdownFPPDCallback(bool restart) {
     runMainFPPDLoop = 0;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Main-loop stall watchdog (issue #2727).
+//
+// The main loop services the MultiSync control socket, the `fpp` command socket
+// and (in remote mode) media processing.  The HTTP API answers on its own
+// threads, so when something blocks the main loop the box looks alive from the
+// outside while doing nothing: the UI keeps reporting the last status it saw
+// ("playing" forever), the received-sync-packet counters stop moving because
+// ProcessControlPacket() never runs again, and "Restart FPPD" is a no-op
+// because that command is delivered through the same unserviced command
+// socket.  That combination is exactly what a wedged remote looks like, and
+// nothing short of a power cycle recovers it.
+//
+// So heartbeat the loop and supervise it from a thread it cannot block: once
+// the loop goes quiet, dump a backtrace of every thread (the diagnostic that
+// has been missing from every report of this), tell the UI that the status it
+// is showing is stale, and if the loop never comes back, exit so systemd
+// (Restart=always) starts a clean process.  Exiting rather than re-exec'ing is
+// deliberate: a stalled loop normally means a wedged decoder/DRM fd, and open
+// fds without CLOEXEC survive exec — only a fresh process gets them back from
+// the kernel.
+//
+// The show is restarted through the same resume path a wedge restart uses.
+// The snapshot lives in tmpfs so it can never resurrect a playlist after a
+// reboot, and it is taken by the main loop (never read out of Player from the
+// watchdog thread, which would race with whatever the stalled thread is doing).
+// ──────────────────────────────────────────────────────────────────────────────
+static constexpr const char* STALL_RESUME_STATE_FILE = "/run/fppd/stall_resume";
+static std::atomic<long long> s_mainLoopHeartbeat{ 0 };
+static std::atomic<bool> s_mainLoopWatchdogRunning{ false };
+
+static std::mutex s_mainLoopShowLock;
+static std::string s_mainLoopShowPlaylist;
+static int s_mainLoopShowPosition = 0;
+static int s_mainLoopShowRepeat = 0;
+static bool s_mainLoopShowScheduled = false;
+
+static long long MonotonicMS() {
+    // Deliberately not GetTimeMS(): that is wall clock, and an NTP step would
+    // read as a multi-second "stall".
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+
+// Called from the main loop only.
+static void RecordMainLoopShowSnapshot() {
+    std::unique_lock<std::mutex> lock(s_mainLoopShowLock, std::try_to_lock);
+    if (!lock.owns_lock()) {
+        return;
+    }
+    if (Player::INSTANCE.GetStatus() == FPP_STATUS_PLAYLIST_PLAYING) {
+        s_mainLoopShowPlaylist = Player::INSTANCE.GetPlaylistName();
+        s_mainLoopShowPosition = Player::INSTANCE.GetPosition() - 1;
+        s_mainLoopShowRepeat = Player::INSTANCE.GetRepeat();
+        s_mainLoopShowScheduled = Player::INSTANCE.WasScheduled();
+    } else if (!s_mainLoopShowPlaylist.empty()) {
+        s_mainLoopShowPlaylist.clear();
+    }
+}
+
+// Last act before the watchdog exits the process: leave behind whatever the
+// show was doing so the fresh process picks it back up.
+static void WriteStallResumeState() {
+    std::unique_lock<std::mutex> lock(s_mainLoopShowLock, std::try_to_lock);
+    if (!lock.owns_lock() || s_mainLoopShowPlaylist.empty()) {
+        return;
+    }
+    std::ofstream out(STALL_RESUME_STATE_FILE, std::ios::trunc);
+    if (!out) {
+        return; // no /run/fppd (macOS, docker) -- nothing to resume from
+    }
+    out << s_mainLoopShowPlaylist << "\n"
+        << s_mainLoopShowPosition << "\n"
+        << s_mainLoopShowRepeat << "\n"
+        << (s_mainLoopShowScheduled ? 1 : 0) << "\n";
+}
+
+// Startup counterpart: turn a stall-restart snapshot into the same settings a
+// self-restart would have passed on the command line, then consume the file.
+static void ApplyStallResumeState() {
+    if (!FileExists(STALL_RESUME_STATE_FILE)) {
+        return;
+    }
+    std::string playlist;
+    int position = 0, repeat = 0, scheduled = 0;
+    {
+        std::ifstream in(STALL_RESUME_STATE_FILE);
+        std::string line;
+        if (std::getline(in, playlist) && std::getline(in, line)) {
+            position = atoi(line.c_str());
+            if (std::getline(in, line)) {
+                repeat = atoi(line.c_str());
+            }
+            if (std::getline(in, line)) {
+                scheduled = atoi(line.c_str());
+            }
+        }
+    }
+    (void)remove(STALL_RESUME_STATE_FILE);
+    if (playlist.empty()) {
+        return;
+    }
+    LogWarn(VB_GENERAL, "Previous fppd was killed by the main-loop watchdog while playing '%s' — resuming at position %d\n",
+            playlist.c_str(), position);
+    SetSetting("resumePlaylist", playlist);
+    SetSetting("resumePosition", position);
+    if (!scheduled) {
+        // Same rule as a wedge restart: the scheduler restores a scheduled
+        // playlist itself (and is window-aware about it); an unscheduled show
+        // has to be force-started or every synced remote is stranded.
+        SetSetting("resumeUnscheduled", 1);
+        SetSetting("resumeRepeat", repeat);
+    }
+}
+
+// Kill the process now, leaving the show behind for the next one.  Used for
+// both a stalled loop and a stalled shutdown.
+static void WatchdogExit(const char* why, long long stalledMS) {
+    // Everything below can block if the stalled thread happens to hold a
+    // libc/log lock, so make sure the process dies either way first (both
+    // calls are async-signal-safe; the crash handler uses the same trick).
+    struct sigaction almAct;
+    memset(&almAct, 0, sizeof(almAct));
+    almAct.sa_handler = SIG_DFL;
+    sigemptyset(&almAct.sa_mask);
+    sigaction(SIGALRM, &almAct, nullptr);
+    alarm(20);
+
+    LogErr(VB_GENERAL, "Main loop watchdog: %s for %lld seconds — exiting so a clean fppd is started\n",
+           why, stalledMS / 1000);
+    WriteStallResumeState();
+    WarningHolder::WriteWarningsFile();
+    fflush(nullptr);
+    _Exit(1);
+}
+
+static void MainLoopWatchdog(int warnSec, int restartSec, int shutdownSec) {
+    SetThreadName("FPP-LoopWatchdog");
+    bool warned = false;
+    long long shutdownStarted = 0;
+    while (s_mainLoopWatchdogRunning) {
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        if (!s_mainLoopWatchdogRunning) {
+            break;
+        }
+        if (!runMainFPPDLoop) {
+            // Teardown is underway.  It ends in _exit()/execlp(), so this
+            // thread simply stops existing on a healthy shutdown; if it is
+            // still here much later, the shutdown itself wedged and systemd
+            // will never see the process go away.
+            if (shutdownSec <= 0) {
+                break;
+            }
+            long long nowMS = MonotonicMS();
+            if (!shutdownStarted) {
+                shutdownStarted = nowMS;
+            } else if ((nowMS - shutdownStarted) >= (long long)shutdownSec * 1000) {
+                dumpstack_gdb();
+                WatchdogExit("shutdown did not complete", nowMS - shutdownStarted);
+            }
+            continue;
+        }
+        long long hb = s_mainLoopHeartbeat.load();
+        if (hb == 0) {
+            continue;
+        }
+        long long stalledMS = MonotonicMS() - hb;
+        if (stalledMS < (long long)warnSec * 1000) {
+            if (warned) {
+                LogWarn(VB_GENERAL, "Main loop watchdog: loop resumed\n");
+                WarningHolder::RemoveWarning(59, "fppd main loop is stalled - the status shown may be stale and sync packets are not being processed");
+                warned = false;
+            }
+            continue;
+        }
+
+        if (!warned) {
+            warned = true;
+            LogErr(VB_GENERAL, "Main loop watchdog: no main loop iteration for %lld seconds — dumping all thread stacks\n",
+                   stalledMS / 1000);
+            WarningHolder::AddWarning(59, "fppd main loop is stalled - the status shown may be stale and sync packets are not being processed");
+            WarningHolder::WriteWarningsFile();
+            // The one diagnostic that says *where* it is stuck.  gdb stops the
+            // process briefly; it is already doing nothing.
+            dumpstack_gdb();
+        }
+
+        if (restartSec > 0 && stalledMS >= (long long)restartSec * 1000) {
+            WatchdogExit("main loop stalled", stalledMS);
+        }
+    }
+}
+
+static void StartMainLoopWatchdog() {
+    // 0 disables the watchdog entirely; a stall shorter than the warn time is
+    // normal (a large sequence load, a slow media start).
+    int warnSec = getSettingInt("MainLoopStallTimeout", 30);
+    int restartSec = getSettingInt("MainLoopStallRestartTimeout", 180);
+    int shutdownSec = getSettingInt("ShutdownStallTimeout", 120);
+    if (warnSec <= 0) {
+        return;
+    }
+    if (restartSec > 0 && restartSec < warnSec) {
+        restartSec = warnSec;
+    }
+    s_mainLoopHeartbeat.store(MonotonicMS());
+    s_mainLoopWatchdogRunning = true;
+    // Detached on purpose: it outlives the main loop to supervise the shutdown
+    // that follows it, and every exit path from there is _exit()/execlp(),
+    // which takes the thread with it.  (A joinable file-static std::thread
+    // reaching static destruction is its own crash -- see ShutdownFPPD.)
+    std::thread(MainLoopWatchdog, warnSec, restartSec, shutdownSec).detach();
+}
+
 void MainLoop(void) {
     RegisterShutdownHandler(ShutdownFPPDCallback);
 
@@ -1140,6 +1355,13 @@ void MainLoop(void) {
         sequence->SendBlankingData();
     }
     bool alwaysTransmit = (bool)getSettingInt("alwaysTransmit");
+
+    // A process killed by the main-loop watchdog leaves its show behind in
+    // tmpfs instead of on the command line (there is no orderly re-exec to put
+    // it there) -- fold it into the same resume settings a restart would have
+    // set, before either resume path below reads them (issue #2727).
+    ApplyStallResumeState();
+
     if (getFPPmode() & PLAYER_MODE) {
         // Don't start scheduler if clock is obviously wrong (date before last release)
         // This prevents scheduling issues on systems without RTC that boot with incorrect time
@@ -1203,7 +1425,10 @@ void MainLoop(void) {
 
     int idleCount = 0;
 
+    StartMainLoopWatchdog();
+
     while (runMainFPPDLoop) {
+        s_mainLoopHeartbeat.store(MonotonicMS());
         EPollManager::WaitResult epollresult = EPollManager::INSTANCE.waitForEvents(sleepms);
         bool pushBridgeData = epollresult == EPollManager::WaitResult::SOME_TRUE;
         if (epollresult == EPollManager::WaitResult::INTERRUPTED) {
@@ -1225,6 +1450,10 @@ void MainLoop(void) {
         }
 
         if (getFPPmode() & PLAYER_MODE) {
+            // Keep the watchdog's idea of what is playing current -- it cannot
+            // read this out of Player itself once the loop is stalled.
+            RecordMainLoopShowSnapshot();
+
             if (Player::INSTANCE.IsPlaying()) {
                 if (prevFPPstatus == FPP_STATUS_IDLE) {
                     sleepms = 10;
