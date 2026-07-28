@@ -97,3 +97,15 @@ public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
+class RebootCommand : public Command {
+public:
+    RebootCommand();
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+
+class ShutdownCommand : public Command {
+public:
+    ShutdownCommand();
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+

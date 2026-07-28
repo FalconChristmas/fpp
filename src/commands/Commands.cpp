@@ -177,6 +177,8 @@ void CommandManager::Init() {
     addCategorizedCommand(new AllLightsOffCommand(), "Effects", 0);
     addCategorizedCommand(new SwitchToPlayerModeCommand(), "System", 1);
     addCategorizedCommand(new SwitchToRemoteModeCommand(), "System", 1);
+    addCategorizedCommand(new RebootCommand(), "System", 1);
+    addCategorizedCommand(new ShutdownCommand(), "System", 1);
     addCategorizedCommand(new SetVariableCommand(), "Events", 2);
     addCategorizedCommand(new IfCommand(), "Events", 2);
 
