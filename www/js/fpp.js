@@ -3499,7 +3499,9 @@ function RandomizePlaylistEntries () {
 }
 
 function GetTimeZone () {
-	$.get('https://ipapi.co/json/')
+	// Server-side proxy (api/geoip) - ipapi.co doesn't send
+	// Access-Control-Allow-Origin, so the browser can't call it directly.
+	$.get('api/geoip')
 		.done(function (data) {
 			$('#TimeZone').val(data.timezone).change();
 		})
@@ -3509,7 +3511,7 @@ function GetTimeZone () {
 }
 
 function GetGeoLocation () {
-	$.get('https://ipapi.co/json/')
+	$.get('api/geoip')
 		.done(function (data) {
 			$('#Latitude').val(data.latitude).change();
 			$('#Longitude').val(data.longitude).change();
