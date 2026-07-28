@@ -36,6 +36,7 @@
 #include <execinfo.h>
 #include <fcntl.h>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <getopt.h>
 #include <iostream>
