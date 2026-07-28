@@ -243,50 +243,50 @@ if ($settings['Platform'] == "Raspberry Pi") {
 
     if (preg_match('/Pi Model A Rev/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Model A";
-        $settings['Logo'] = "Raspberry_Pi_A.png";
+        $settings['Logo'] = "Raspberry_Pi_A.svg";
     } else if (preg_match('/Pi Model B Rev/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Model B";
-        $settings['Logo'] = "Raspberry_Pi_B.png";
+        $settings['Logo'] = "Raspberry_Pi_B.svg";
     } else if (preg_match('/Pi Model A Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Model A+";
-        $settings['Logo'] = "Raspberry_Pi_A+.png";
+        $settings['Logo'] = "Raspberry_Pi_A+.svg";
     } else if (preg_match('/Pi Model B Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Model B+";
-        $settings['Logo'] = "Raspberry_Pi_B+.png";
+        $settings['Logo'] = "Raspberry_Pi_B+.svg";
     } else if (preg_match('/Pi 2 Model B/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 2 Model B";
-        $settings['Logo'] = "Raspberry_Pi_2.png";
+        $settings['Logo'] = "Raspberry_Pi_2.svg";
     } else if (preg_match('/Pi 3 Model B Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model B+";
-        $settings['Logo'] = "Raspberry_Pi_3B+.png";
+        $settings['Logo'] = "Raspberry_Pi_3B+.svg";
     } else if (preg_match('/Pi 3 Model A Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model A+";
-        $settings['Logo'] = "Raspberry_Pi_3A+.png";
+        $settings['Logo'] = "Raspberry_Pi_3A+.svg";
     } else if (preg_match('/Pi 3 Model B/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model B";
-        $settings['Logo'] = "Raspberry_Pi_3.png";
+        $settings['Logo'] = "Raspberry_Pi_3.svg";
     } else if (preg_match('/Pi 4/', $settings['SubPlatform']) || preg_match('/Pi Compute Module 4/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 4";
-        $settings['Logo'] = "Raspberry_Pi_4.png";
+        $settings['Logo'] = "Raspberry_Pi_4.svg";
     } else if (preg_match('/Pi 5/', $settings['SubPlatform']) || preg_match('/Pi Compute Module 5/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 5";
-        $settings['Logo'] = "Raspberry_Pi_5.png";
+        $settings['Logo'] = "Raspberry_Pi_5.svg";
     } else if (preg_match('/Pi Zero 2/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PiZero 2";
-        $settings['Logo'] = "Raspberry_Pi_Zero2.png";
+        $settings['Logo'] = "Raspberry_Pi_Zero2.svg";
     } else if (preg_match('/Pi Zero W/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PiZero W";
-        $settings['Logo'] = "Raspberry_Pi_ZeroW.png";
+        $settings['Logo'] = "Raspberry_Pi_ZeroW.svg";
     } else if (preg_match('/Pi Zero/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PiZero";
-        $settings['Logo'] = "Raspberry_Pi_Zero.png";
+        $settings['Logo'] = "Raspberry_Pi_Zero.svg";
     } else if ($settings['SubPlatform'] == "V2P-CA15") {
         $settings['Variant'] = "qemu";
         $settings['Logo'] = "QEMU_Logo.png";
         $settings['LogoLink'] = "http://qemu.org/";
     } else {
         $settings['Variant'] = "UNKNOWN";
-        $settings['Logo'] = "Raspberry_Pi_Logo.png";
+        $settings['Logo'] = "Raspberry_Pi_Logo.svg";
     }
 } else if ($settings['Platform'] == "BeagleBone 64") {
     $settings['OSImagePrefix'] = "BB64";

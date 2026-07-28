@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="140" viewBox="0 0 180 140">
+  <title>Raspberry Pi 3A+</title>
+  <g id="raspberry-pi-logo">
+    <path d="M88 29 C72 10,49 10,35 18 C50 19,67 29,82 42 Z" fill="#75b843"/>
+<path d="M92 29 C108 10,131 10,145 18 C130 19,113 29,98 42 Z" fill="#75b843"/>
+<path d="M86 31 C88 19,90 14,90 9 C94 14,95 20,94 31 Z" fill="#75b843"/>
+<ellipse cx="90" cy="47" rx="18" ry="13" fill="#c51a4a"/>
+<ellipse cx="63" cy="53" rx="14" ry="13" fill="#c51a4a"/>
+<ellipse cx="117" cy="53" rx="14" ry="13" fill="#c51a4a"/>
+<ellipse cx="48" cy="69" rx="11" ry="16" fill="#c51a4a"/>
+<ellipse cx="75" cy="68" rx="17" ry="15" fill="#c51a4a"/>
+<ellipse cx="105" cy="68" rx="17" ry="15" fill="#c51a4a"/>
+<ellipse cx="132" cy="69" rx="11" ry="16" fill="#c51a4a"/>
+<ellipse cx="62" cy="88" rx="15" ry="15" fill="#c51a4a"/>
+<ellipse cx="90" cy="88" rx="18" ry="16" fill="#c51a4a"/>
+<ellipse cx="118" cy="88" rx="15" ry="15" fill="#c51a4a"/>
+<ellipse cx="76" cy="107" rx="16" ry="12" fill="#c51a4a"/>
+<ellipse cx="104" cy="107" rx="16" ry="12" fill="#c51a4a"/>
+<ellipse cx="90" cy="122" rx="16" ry="8" fill="#c51a4a"/>
+  </g>
+  <text x="90" y="84" text-anchor="middle" dominant-baseline="middle" font-family="DejaVu Sans, Arial, Helvetica, sans-serif" font-weight="700" font-size="50" fill="#ffffff">3A+</text>
+</svg>
