@@ -1496,7 +1496,14 @@
                 } else if (untestedVersion >= 0) {
                     if (uiLevel < 1) return;
                 } else {
-                    if (uiLevel < 3) return;
+					if (uiLevel < 1) return;
+                    InsertCardSorted('incompatibleGrid', data.name, html, sortRank);
+                    var $wrap = $('#incompatiblePluginsWrap');
+                    $('#incompatiblePluginsCount').text($wrap.find('.pluginCard').length);
+                    $wrap.removeClass('d-none');
+                    FilterPlugins();
+                    ScheduleSettle();
+                    return;
                 }
                 InsertCardSorted('pluginGrid', data.name, html, sortRank);
             }
@@ -1977,6 +1984,18 @@
                                     "<b class="fppUrlSchemeErrorTerm"></b>" must contain http:// or https://.
                                     Clear the search box to see all plugins.
                                 </div>
+                            </div>
+
+                            <div id="incompatiblePluginsWrap" class="mt-4 d-none">
+                                <details>
+                                    <summary class="text-secondary">
+                                        <i class="fas fa-exclamation-triangle"></i> Incompatible Plugins (<span id="incompatiblePluginsCount">0</span>)
+                                    </summary>
+                                    <div class="callout mt-2">
+                                        These plugins are not compatible with this version of FPP.
+                                    </div>
+                                    <div id='incompatibleGrid' class="row row-cols-1 row-cols-md-2 row-cols-xxl-3 g-3 mt-1"></div>
+                                </details>
                             </div>
                         </div>
 
