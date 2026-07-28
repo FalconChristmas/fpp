@@ -685,6 +685,15 @@ void RegisterShutdownHandler(const std::function<void(bool)> hook) {
     SHUTDOWN_HOOK = hook;
 }
 
+static std::atomic<const char*> MAIN_LOOP_PHASE_STR{ "startup" };
+void SetMainLoopPhase(const char* phase) {
+    MAIN_LOOP_PHASE_STR.store(phase, std::memory_order_relaxed);
+}
+const char* GetMainLoopPhase() {
+    const char* p = MAIN_LOOP_PHASE_STR.load(std::memory_order_relaxed);
+    return p ? p : "?";
+}
+
 std::string GetFileExtension(const std::string& filename) {
     if (filename.find_last_of(".") != std::string::npos)
         return filename.substr(filename.find_last_of(".") + 1);

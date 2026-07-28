@@ -2050,6 +2050,11 @@ int GStreamerOutput::Process(void) {
     if (!m_pipeline || !m_bus) {
         return 0;
     }
+    // Sub-phases for the main-loop stall watchdog (issue #2727): everything
+    // below runs on the main loop and calls into GStreamer, which takes both
+    // element locks and (via pipewiresink) PipeWire's thread-loop lock, so a
+    // sink that is stuck in preroll can park the main loop right here.
+    SetMainLoopPhase("GStreamer ProcessMessages");
     ProcessMessages();
 
     // Update position
@@ -2071,12 +2076,16 @@ int GStreamerOutput::Process(void) {
             if (posSource) ownPosSource = true;
         }
         if (!posSource) {
+            SetMainLoopPhase("GStreamer get pwsink");
             posSource = gst_bin_get_by_name(GST_BIN(m_pipeline), "pwsink");
             if (posSource) ownPosSource = true;
         }
         if (!posSource) posSource = m_pipeline;
+        SetMainLoopPhase("GStreamer query position");
         bool havePos = gst_element_query_position(posSource, GST_FORMAT_TIME, &pos);
+        SetMainLoopPhase("GStreamer query duration");
         bool haveDur = gst_element_query_duration(m_pipeline, GST_FORMAT_TIME, &dur);
+        SetMainLoopPhase("GStreamer position post-processing");
         if (ownPosSource) gst_object_unref(posSource);
 
         // One-shot: log pipeline clock and sink sync state on first position update

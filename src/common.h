@@ -100,6 +100,13 @@ void RestartFPPDResumingPlaylist();
 bool RestartShouldResumePlaylist();
 void RegisterShutdownHandler(const std::function<void(bool)> hook);
 
+// Breadcrumb for the main-loop stall watchdog (issue #2727): the last call the
+// fppd main loop entered.  Pass a string literal (or any string with static
+// storage) -- the watchdog thread reads the pointer while the main loop is
+// wedged, so it must outlive the call that set it.
+void SetMainLoopPhase(const char* phase);
+const char* GetMainLoopPhase();
+
 void GetCurrentFPPDStatus(Json::Value& result);
 
 std::string getPlatform();

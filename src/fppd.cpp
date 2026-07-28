@@ -1089,6 +1089,14 @@ static constexpr const char* STALL_RESUME_STATE_FILE = "/run/fppd/stall_resume";
 static std::atomic<long long> s_mainLoopHeartbeat{ 0 };
 static std::atomic<bool> s_mainLoopWatchdogRunning{ false };
 
+// Which call the main loop last entered (SetMainLoopPhase, in common.cpp, so
+// code inside libfpp can narrow it further).  Only ever set to string literals,
+// so the watchdog can read the pointer from another thread and print it even
+// while the loop is wedged inside that call.  A stalled loop that gdb cannot
+// unwind (the 2026-07-27 FPPv4-4 capture: the main thread's backtrace stopped
+// at a single bare libc frame) still tells us which call it is in.
+#define MAIN_LOOP_PHASE(p) SetMainLoopPhase(p)
+
 static std::mutex s_mainLoopShowLock;
 static std::string s_mainLoopShowPlaylist;
 static int s_mainLoopShowPosition = 0;
@@ -1174,6 +1182,150 @@ static void ApplyStallResumeState() {
     }
 }
 
+#ifndef PLATFORM_OSX
+// Read a small /proc file into a stack buffer.  Everything in this dump is
+// deliberately heap-free: the whole point of running it is that some thread is
+// stuck, and if what it is stuck on is the malloc arena lock then anything that
+// allocates would wedge the watchdog too.
+static ssize_t ReadProcFile(const char* path, char* buf, size_t bufLen) {
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        return -1;
+    }
+    ssize_t len = read(fd, buf, bufLen - 1);
+    close(fd);
+    if (len < 0) {
+        len = 0;
+    }
+    buf[len] = 0;
+    while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == ' ')) {
+        buf[--len] = 0;
+    }
+    return len;
+}
+
+// Turn a runtime address into "libfoo.so+0x1234" so a PC captured on someone
+// else's Pi can be resolved offline against the matching binary.  gdb prints
+// the raw address only, which is useless once the process is gone.
+static void ResolveAddr(unsigned long addr, char* out, size_t outLen) {
+    snprintf(out, outLen, "0x%lx", addr);
+    int fd = open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        return;
+    }
+    char buf[4096];
+    char line[512];
+    size_t lineLen = 0;
+    ssize_t got;
+    while ((got = read(fd, buf, sizeof(buf))) > 0) {
+        for (ssize_t i = 0; i < got; i++) {
+            if (buf[i] != '\n') {
+                if (lineLen < sizeof(line) - 1) {
+                    line[lineLen++] = buf[i];
+                }
+                continue;
+            }
+            line[lineLen] = 0;
+            lineLen = 0;
+
+            unsigned long start = 0, end = 0, fileOff = 0;
+            char perms[8], path[256];
+            path[0] = 0;
+            if (sscanf(line, "%lx-%lx %7s %lx %*s %*u %255s",
+                       &start, &end, perms, &fileOff, path) >= 4 &&
+                addr >= start && addr < end && path[0] == '/') {
+                const char* base = strrchr(path, '/');
+                snprintf(out, outLen, "%s+0x%lx", base ? base + 1 : path,
+                         addr - start + fileOff);
+                close(fd);
+                return;
+            }
+        }
+    }
+    close(fd);
+}
+
+// One line per thread naming the syscall it is parked in, the kernel wait
+// channel, and the resolved user-space PC.  This is the diagnostic gdb could
+// not give us: on 32-bit ARM the unwinder gives up inside libc's lock/futex
+// stubs, so the one thread that matters -- the stalled one -- comes back as a
+// single unnamed frame.  /proc always answers.
+static void DumpThreadStates(void) {
+    struct LinuxDirent64 {
+        uint64_t d_ino;
+        int64_t d_off;
+        unsigned short d_reclen;
+        unsigned char d_type;
+        char d_name[];
+    };
+
+    int fd = open("/proc/self/task", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (fd < 0) {
+        return;
+    }
+    // glibc futexes on the mutex word itself, which for a std::mutex is offset
+    // 0 -- so a "syscall=98(<addr>,...)" line below whose first argument is one
+    // of these is naming the exact lock the thread is stuck on.  Anything else
+    // means the contended lock is internal to GStreamer/PipeWire/libc.
+    LogErr(VB_GENERAL, "Main loop watchdog: known locks: mediaOutputLock=%p\n",
+           (void*)&mediaOutputLock);
+    LogErr(VB_GENERAL, "Main loop watchdog: thread states (tid name state wchan syscall pc):\n");
+
+    char dirBuf[8192];
+    long n;
+    while ((n = syscall(SYS_getdents64, fd, dirBuf, sizeof(dirBuf))) > 0) {
+        for (long off = 0; off < n;) {
+            LinuxDirent64* d = (LinuxDirent64*)(dirBuf + off);
+            off += d->d_reclen;
+            if (d->d_name[0] < '0' || d->d_name[0] > '9') {
+                continue;
+            }
+
+            char path[128], comm[64] = "?", wchan[64] = "?", sc[256] = "?", stat[512];
+            snprintf(path, sizeof(path), "/proc/self/task/%s/comm", d->d_name);
+            ReadProcFile(path, comm, sizeof(comm));
+            snprintf(path, sizeof(path), "/proc/self/task/%s/wchan", d->d_name);
+            ReadProcFile(path, wchan, sizeof(wchan));
+            snprintf(path, sizeof(path), "/proc/self/task/%s/syscall", d->d_name);
+            ReadProcFile(path, sc, sizeof(sc));
+
+            // /proc/<tid>/stat: the state letter is the field after the
+            // parenthesised comm, which can itself contain spaces/parens.
+            char state = '?';
+            snprintf(path, sizeof(path), "/proc/self/task/%s/stat", d->d_name);
+            if (ReadProcFile(path, stat, sizeof(stat)) > 0) {
+                const char* p = strrchr(stat, ')');
+                if (p && p[1] && p[2]) {
+                    state = p[2];
+                }
+            }
+
+            // "<nr> <arg0..arg5> <sp> <pc>", or "running", or "-1 <sp> <pc>".
+            long nr = -1;
+            unsigned long args[6] = { 0 }, sp = 0, pc = 0;
+            int fields = sscanf(sc, "%ld 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx",
+                                &nr, &args[0], &args[1], &args[2], &args[3], &args[4],
+                                &args[5], &sp, &pc);
+            char pcStr[128] = "-";
+            if (fields == 9) {
+                ResolveAddr(pc, pcStr, sizeof(pcStr));
+                // arg0 of a futex wait is the lock address -- the only way to
+                // tell "two threads fighting over one mutex" from "two threads
+                // idle on their own condvars".
+                LogErr(VB_GENERAL, "  tid %-6s %-16s %c %-24s syscall=%ld(0x%lx,0x%lx,0x%lx) pc=%s\n",
+                       d->d_name, comm, state, wchan, nr, args[0], args[1], args[2], pcStr);
+            } else {
+                LogErr(VB_GENERAL, "  tid %-6s %-16s %c %-24s syscall=%s\n",
+                       d->d_name, comm, state, wchan, sc);
+            }
+        }
+    }
+    close(fd);
+}
+#else
+static void DumpThreadStates(void) {}
+#endif
+
 // Kill the process now, leaving the show behind for the next one.  Used for
 // both a stalled loop and a stalled shutdown.
 static void WatchdogExit(const char* why, long long stalledMS) {
@@ -1187,12 +1339,28 @@ static void WatchdogExit(const char* why, long long stalledMS) {
     sigaction(SIGALRM, &almAct, nullptr);
     alarm(20);
 
-    LogErr(VB_GENERAL, "Main loop watchdog: %s for %lld seconds — exiting so a clean fppd is started\n",
-           why, stalledMS / 1000);
+    LogErr(VB_GENERAL, "Main loop watchdog: %s for %lld seconds in '%s' — exiting so a clean fppd is started\n",
+           why, stalledMS / 1000, GetMainLoopPhase());
     WriteStallResumeState();
     WarningHolder::WriteWarningsFile();
     fflush(nullptr);
     _Exit(1);
+}
+
+// The three timeouts, re-read on every pass.  Reading them once at startup
+// meant a change made while fppd was running was silently ignored -- which is
+// exactly how these get set, since they are hand-edited hidden settings with no
+// UI (2026-07-27: MainLoopStallRestartTimeout="0" was set to keep a stalled
+// remote alive for inspection, and the box restarted itself anyway).  Note a
+// hand edit of /home/fpp/media/settings still needs something to reload the
+// file into fppd; setting it through the UI/API applies immediately.
+static void ReadWatchdogTimeouts(int& warnSec, int& restartSec, int& shutdownSec) {
+    warnSec = getSettingInt("MainLoopStallTimeout", 30);
+    restartSec = getSettingInt("MainLoopStallRestartTimeout", 180);
+    shutdownSec = getSettingInt("ShutdownStallTimeout", 120);
+    if (restartSec > 0 && restartSec < warnSec) {
+        restartSec = warnSec;
+    }
 }
 
 static void MainLoopWatchdog(int warnSec, int restartSec, int shutdownSec) {
@@ -1203,6 +1371,15 @@ static void MainLoopWatchdog(int warnSec, int restartSec, int shutdownSec) {
         std::this_thread::sleep_for(std::chrono::seconds(2));
         if (!s_mainLoopWatchdogRunning) {
             break;
+        }
+        int prevRestartSec = restartSec;
+        ReadWatchdogTimeouts(warnSec, restartSec, shutdownSec);
+        if (restartSec != prevRestartSec) {
+            LogInfo(VB_GENERAL, "Main loop watchdog: restart timeout changed to %d seconds%s\n",
+                    restartSec, restartSec > 0 ? "" : " (restart disabled)");
+        }
+        if (warnSec <= 0) {
+            continue; // disabled at runtime
         }
         if (!runMainFPPDLoop) {
             // Teardown is underway.  It ends in _exit()/execlp(), so this
@@ -1228,7 +1405,8 @@ static void MainLoopWatchdog(int warnSec, int restartSec, int shutdownSec) {
         long long stalledMS = MonotonicMS() - hb;
         if (stalledMS < (long long)warnSec * 1000) {
             if (warned) {
-                LogWarn(VB_GENERAL, "Main loop watchdog: loop resumed\n");
+                LogWarn(VB_GENERAL, "Main loop watchdog: loop resumed (was in '%s')\n",
+                        GetMainLoopPhase());
                 WarningHolder::RemoveWarning(59, "fppd main loop is stalled - the status shown may be stale and sync packets are not being processed");
                 warned = false;
             }
@@ -1237,10 +1415,14 @@ static void MainLoopWatchdog(int warnSec, int restartSec, int shutdownSec) {
 
         if (!warned) {
             warned = true;
-            LogErr(VB_GENERAL, "Main loop watchdog: no main loop iteration for %lld seconds — dumping all thread stacks\n",
-                   stalledMS / 1000);
+            LogErr(VB_GENERAL, "Main loop watchdog: no main loop iteration for %lld seconds, stalled in '%s' — dumping thread state\n",
+                   stalledMS / 1000, GetMainLoopPhase());
             WarningHolder::AddWarning(59, "fppd main loop is stalled - the status shown may be stale and sync packets are not being processed");
             WarningHolder::WriteWarningsFile();
+            // Cheap and always available, so take it first: it names the
+            // syscall and lock address of every thread even when the unwinder
+            // cannot walk the stalled stack.
+            DumpThreadStates();
             // The one diagnostic that says *where* it is stuck.  gdb stops the
             // process briefly; it is already doing nothing.
             dumpstack_gdb();
@@ -1255,15 +1437,16 @@ static void MainLoopWatchdog(int warnSec, int restartSec, int shutdownSec) {
 static void StartMainLoopWatchdog() {
     // 0 disables the watchdog entirely; a stall shorter than the warn time is
     // normal (a large sequence load, a slow media start).
-    int warnSec = getSettingInt("MainLoopStallTimeout", 30);
-    int restartSec = getSettingInt("MainLoopStallRestartTimeout", 180);
-    int shutdownSec = getSettingInt("ShutdownStallTimeout", 120);
+    int warnSec = 0, restartSec = 0, shutdownSec = 0;
+    ReadWatchdogTimeouts(warnSec, restartSec, shutdownSec);
     if (warnSec <= 0) {
+        LogInfo(VB_GENERAL, "Main loop watchdog disabled (MainLoopStallTimeout=%d)\n", warnSec);
         return;
     }
-    if (restartSec > 0 && restartSec < warnSec) {
-        restartSec = warnSec;
-    }
+    // Logged so a soak log answers "which timeouts was it actually using?"
+    // without having to guess at what the settings file said at the time.
+    LogInfo(VB_GENERAL, "Main loop watchdog: warn after %ds, restart after %ds%s, shutdown limit %ds\n",
+            warnSec, restartSec, restartSec > 0 ? "" : " (restart disabled)", shutdownSec);
     s_mainLoopHeartbeat.store(MonotonicMS());
     s_mainLoopWatchdogRunning = true;
     // Detached on purpose: it outlives the main loop to supervise the shutdown
@@ -1288,6 +1471,7 @@ void MainLoop(void) {
     LogDebug(VB_GENERAL, "Command socket: %d\n", sock);
     if (sock >= 0) {
         callbacks[sock] = [](int i) {
+            MAIN_LOOP_PHASE("fpp command socket");
             CommandProc();
             return false;
         };
@@ -1297,6 +1481,7 @@ void MainLoop(void) {
     LogDebug(VB_GENERAL, "Multisync socket: %d\n", sock);
     if (sock >= 0) {
         callbacks[sock] = [](int i) {
+            MAIN_LOOP_PHASE("multisync ProcessControlPacket");
             multiSync->ProcessControlPacket();
             return false;
         };
@@ -1429,6 +1614,7 @@ void MainLoop(void) {
 
     while (runMainFPPDLoop) {
         s_mainLoopHeartbeat.store(MonotonicMS());
+        MAIN_LOOP_PHASE("epoll/callbacks");
         EPollManager::WaitResult epollresult = EPollManager::INSTANCE.waitForEvents(sleepms);
         bool pushBridgeData = epollresult == EPollManager::WaitResult::SOME_TRUE;
         if (epollresult == EPollManager::WaitResult::INTERRUPTED) {
@@ -1441,6 +1627,7 @@ void MainLoop(void) {
             continue;
         }
         // Check to see if we need to start up the output thread.
+        MAIN_LOOP_PHASE("channel output thread check");
         if ((!ChannelOutputThreadIsRunning()) &&
             ((PixelOverlayManager::INSTANCE.hasActiveOverlays()) ||
              (ChannelTester::INSTANCE.Testing()) ||
@@ -1462,6 +1649,7 @@ void MainLoop(void) {
                 // Check again here in case PlayListPlayingInit
                 // didn't find anything and put us back to IDLE
                 if (Player::INSTANCE.IsPlaying()) {
+                    MAIN_LOOP_PHASE("Player::Process");
                     Player::INSTANCE.Process();
                 }
             }
@@ -1472,6 +1660,7 @@ void MainLoop(void) {
                     (prevFPPstatus == FPP_STATUS_PLAYLIST_PAUSED) ||
                     (prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY) ||
                     (prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
+                    MAIN_LOOP_PHASE("Player::Cleanup");
                     Player::INSTANCE.Cleanup();
 
                     if (Player::INSTANCE.GetForceStopped())
@@ -1493,8 +1682,10 @@ void MainLoop(void) {
 
         } else if (getFPPmode() == REMOTE_MODE) {
             if (mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) {
+                MAIN_LOOP_PHASE("Player::ProcessMedia");
                 Player::INSTANCE.ProcessMedia();
             } else {
+                MAIN_LOOP_PHASE("CheckSyncedMediaIdleTimeout");
                 // Media that ran to its end and was never stopped by the
                 // player (issue #2727) -- only checked when not playing, so
                 // free-running through a sync gap is untouched.
@@ -1510,10 +1701,12 @@ void MainLoop(void) {
                 WarningHolder::RemoveWarning(55, "System clock not set - scheduler start delayed until time sync");
                 clockWarningAdded = false;
             }
+            MAIN_LOOP_PHASE("scheduler");
             scheduler->ScheduleProc();
         }
 
         if (pushBridgeData) {
+            MAIN_LOOP_PHASE("ForceChannelOutputNow");
             ForceChannelOutputNow();
         }
         bool doPing = false;
@@ -1532,6 +1725,7 @@ void MainLoop(void) {
         }
         if (doPing) {
             idleCount = 0;
+            MAIN_LOOP_PHASE("multisync PeriodicPing");
             multiSync->PeriodicPing();
             if (--publishCounter < 0) {
                 PublishStatsBackground(publishReason);
@@ -1540,14 +1734,20 @@ void MainLoop(void) {
                 publishReason = "normal";
             }
             // also do the periodic work in the api server while idle
+            MAIN_LOOP_PHASE("apiServer periodicWork");
             apiServer.periodicWork();
         }
+        MAIN_LOOP_PHASE("timers");
         Timers::INSTANCE.fireTimers();
+        MAIN_LOOP_PHASE("curls");
         CurlManager::INSTANCE.processCurls();
+        MAIN_LOOP_PHASE("recurring tasks");
         RecurringTasks::INSTANCE.tick();
         IfCommand::tick();
+        MAIN_LOOP_PHASE("GPIO inputs");
         GPIOManager::INSTANCE.CheckGPIOInputs();
     }
+    MAIN_LOOP_PHASE("loop exited");
     FileMonitor::INSTANCE.Cleanup();
 
     LogInfo(VB_GENERAL, "Stopping channel output thread.\n");
