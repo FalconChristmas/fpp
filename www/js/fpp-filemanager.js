@@ -263,6 +263,7 @@ function GetAllFiles () {
 	GetFiles('Uploads');
 	GetFiles('Crashes');
 	GetFiles('Backups');
+	GetFiles('JsonBackups');
 
 	pluginFileExtensions.forEach(ext => {
 		GetFiles(ext);
@@ -749,6 +750,10 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 
 	$('#tblBackups').on('mousedown', 'tbody tr', function (event, ui) {
 		HandleMouseClick(event, $(this), 'Backups');
+	});
+
+	$('#tblJsonBackups').on('mousedown', 'tbody tr', function (event, ui) {
+		HandleMouseClick(event, $(this), 'JsonBackups');
 	});
 
 	// Developer-mode only Config tab (only present when uiLevel >= 3)

@@ -184,10 +184,17 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link " id="tab-jsonbackups-tab" data-bs-toggle="pill"
+                                data-bs-target="#tab-jsonbackups" href="#tab-jsonbackups" role="tab"
+                                aria-controls="tab-jsonbackups">
+                                JSON Backups
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link " id="tab-backups-tab" data-bs-toggle="pill"
                                 data-bs-target="#tab-backups" href="#tab-backups" role="tab"
                                 aria-controls="tab-backups">
-                                Backups
+                                File Copy Backups
                             </a>
                         </li>
                         <?php if (isset($settings['uiLevel']) && $settings['uiLevel'] >= 3) { ?>
@@ -795,6 +802,58 @@
                                             type="button" value="Download" />
                                         <input onclick="ButtonHandler('Backups', 'delete');"
                                             class="disableButtons singleBackupsButton multiBackupsButton" type="button"
+                                            value="Delete" />
+                                    </div>
+                                    <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
+
+                                </div>
+                            </div>
+
+                        </div>
+                        <div class="tab-pane fade" id="tab-jsonbackups" role="tabpanel" aria-labelledby="tab-jsonbackups-tab">
+                            <div id="divJsonBackups">
+                                <div class="backdrop">
+                                    <div class="row justify-content-between fileDetailsHeader">
+                                        <div class="col-auto">
+                                            <h2>JSON Configuration Backups</h2>
+                                        </div>
+                                        <div class="col-auto fileCountDetails">
+                                            <div class="row">
+                                                <div class="col-auto fileCountlabelHeading">Items</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileCount_JsonBackups"
+                                                        class='badge text-bg-secondary'>0</span></div>
+                                                <div class="col-auto fileCountlabelHeading">Size</div>
+                                                <div class="col-auto fileCountlabelValue"><span id="fileSize_JsonBackups"
+                                                        class='badge text-bg-secondary'>0 B</span></div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                    <div id="divJsonBackupsData" class="fileManagerDivData">
+                                        <table id="tblJsonBackups">
+                                            <thead>
+                                                <tr>
+                                                    <th data-field="filename">File</th>
+                                                    <th data-field="size">Size</th>
+                                                    <th data-field="dateModified">Date Modified</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class='unselectableRow'>
+                                                    <td colspan=8 align='center'>Loading Files...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class='form-actions'>
+                                        <input onclick="ClearSelections('JsonBackups');" class="buttons" type="button"
+                                            value="Clear" />
+                                        <input onclick="ButtonHandler('JsonBackups', 'download');"
+                                            class="disableButtons noDirButton singleJsonBackupsButton multiJsonBackupsButton"
+                                            type="button" value="Download" />
+                                        <input onclick="ButtonHandler('JsonBackups', 'delete');"
+                                            class="disableButtons singleJsonBackupsButton multiJsonBackupsButton" type="button"
                                             value="Delete" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>

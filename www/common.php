@@ -1660,7 +1660,7 @@ function PrintSettingPasswordSaved($setting, $restart = 1, $reboot = 0, $maxleng
             }
         }
     </script>
-    <?
+    <?php
 }
 
 function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginName = "", $callbackName = "")

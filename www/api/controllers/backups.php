@@ -424,7 +424,7 @@ function GetAvailableJSONBackups(){
 	$json_config_backup_filenames = process_jsonbackup_file_data_helper($json_config_backup_filenames, $dir_jsonbackups);
 
 	//See what backups are stored on the selected storage device if it's value is set
-	if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation'])) {
+	if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
 		$dir_jsonbackupsalternate = GetDirSetting('JsonBackupsAlternate');
 
 		//$settings['jsonConfigBackupUSBLocation'] is the selected alternative drive to stop backups to
@@ -690,7 +690,7 @@ function RestoreJsonBackup(){
 				$restore_status['Message'] = 'Backup File ' . $fullPath . ' could not be read.';
 			}
 		} else if ((strtolower($restore_from_directory) === 'jsonbackupsalternate')) {
-			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation'])) {
+			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
 				//Mount and read the json backup from the jsonConfigBackupUSBLocation location
 				$file_contents = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_get_contents', array($fullPath));
 
@@ -775,7 +775,9 @@ function DownloadJsonBackup(){
 		}
 	} elseif (strtolower($dirName) == "jsonbackupsalternate") {
 		//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
+		if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
 		$fileExists = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_exists', array($fullPath));
+		}
 
 		if ($fileExists) {
 			//Content type will always be json so see the header
@@ -786,7 +788,9 @@ function DownloadJsonBackup(){
 			ob_clean();
 			flush();
 
+			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
 			DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'readfile', array($fullPath));
+			}
 		} else {
 			$status = "File Not Found";
 			return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
@@ -834,7 +838,9 @@ function DeleteJsonBackup(){
 		//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
 
 		//Mount the drive and see if the file exists
+		if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
 		$fileExists = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_exists', array($fullPath));
+		}
 	}
 
 	if ($dir == "") {
@@ -849,7 +855,9 @@ function DeleteJsonBackup(){
 		} elseif (strtolower($dirName) == "jsonbackupsalternate") {
 			//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
 			// Mount the drive and delete the file
+			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
 			$fileDeleted = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'unlink', array($fullPath));
+			}
 
 			//ALSO check if the file exists in the /home/fpp/media location, because the backup we're deleting could have been copied to USB from location
 			//and we want to delete it in both

@@ -151,6 +151,7 @@ $backups_verbose_logging = false;
 
 //Hold any backup error messages here
 $backup_errors = array();
+$backup_saved_to_usb = false;
 
 //Array of known plugins - initially empty, populated dynamically
 $system_active_plugins = array();
@@ -207,6 +208,8 @@ if (!$settings['BeaglePlatform']) {
  * Handle POST for download or restore
  * Check which submit button was pressed
  */
+$usbLocation = isset($settings['jsonConfigBackupUSBLocation']) ? $settings['jsonConfigBackupUSBLocation'] : '';
+
 if (isset($_POST['btnDownloadConfig'])) {
     //////
     /// BACKUP
@@ -221,8 +224,25 @@ if (isset($_POST['btnDownloadConfig'])) {
         //this value *SHOULD* directly match a key in $system_config_areas
         $area = $_POST['backuparea'];
 
-        //Do the work to backup settings
-        performBackup($area, true);
+        //Check if a USB backup location is configured
+        $usbConfigured = !empty($usbLocation) && strtolower($usbLocation) !== 'none';
+        $backupToFileManager = isset($_POST['backupToFileManager']);
+
+        if ($usbConfigured) {
+            $backupResult = performBackup($area, false);
+            DoJsonBackupToUSB();
+
+            if ($backupToFileManager) {
+                $backup_saved_to_usb = true;
+            } else {
+                if (is_array($backupResult) && isset($backupResult['backup_file_path'])) {
+                    @unlink($backupResult['backup_file_path']);
+                }
+                $backup_saved_to_usb = true;
+            }
+        } else {
+            performBackup($area, true);
+        }
     }
 
 } else if (isset($_POST['btnRestoreConfig'])) {
@@ -2230,7 +2250,9 @@ if ($skipHTMLCodeOutput === false) {
 
             function GetBackupHostBackupDirs(remoteStorageSelected) {
                 fppFileCopy.getBackupHostBackupDirs(remoteStorageSelected);
-                GetRemoteHostUSBStorage();
+                if (remoteStorageSelected === 'backup.Host') {
+                    GetRemoteHostUSBStorage();
+                }
             }
 
             function PopulateBackupDirs(data, excludeRoot) {
@@ -2925,6 +2947,14 @@ if ($skipHTMLCodeOutput === false) {
                                             <?php
                                         }
                                         ?>
+                                        <?php if ($backup_saved_to_usb) {
+                                            ?>
+                                            <div id="backupToUSBSuccess" style="display: block;"
+                                                class="callout callout-success">Configuration saved to USB device:
+                                                <?php echo htmlspecialchars($usbLocation); ?>
+                                            </div>
+                                            <?php
+                                        } ?>
                                         <?php if ($restore_done == true) {
                                             ?>
                                             <div id="rebootFlag" style="display: block;" class="callout callout-warning">Backup
@@ -3034,6 +3064,19 @@ if ($skipHTMLCodeOutput === false) {
 
                                                         <div class="row">
                                                             <div class="col-md-4">
+                                                                <span>Backup to Local FPP File Manager?</span>
+                                                            </div>
+                                                            <div class="col-md-8">
+                                                                <input id="backupToFileManager" name="backupToFileManager"
+                                                                    type="checkbox" checked="true">
+                                                                <img id="backupToFileManager_img"
+                                                                    title="Backups will also be saved to the config directory (<?php echo $settings['configDirectory'] . "/backups" ?>) and accessible from the JSON Backups tab in the FPP File Manager."
+                                                                    src="images/redesign/help-icon.svg" class="icon-help">
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row">
+                                                            <div class="col-md-4">
                                                                 <span class='jsonConfigUSB'>Copy Backups To Additional
                                                                     Location:</span>
                                                             </div>
@@ -3045,7 +3088,7 @@ if ($skipHTMLCodeOutput === false) {
                                                                     class='buttons refreshBackupDevicesList'
                                                                     onClick='GetBackupDevices();' value='Refresh List'>
                                                                 <img id="jsonConfigUSBUsage_img"
-                                                                    title="Specify an additional storage device where configuration backups will be copied to. Backups will first be saved to the config directory (<?php echo $settings['configDirectory'] . "/backups" ?>), and then copied to the alternative location."
+                                                                    title="Specify an additional storage device where configuration backups will be copied to."
                                                                     src="images/redesign/help-icon.svg" class="icon-help">
                                                             </div>
                                                         </div>
