@@ -401,7 +401,21 @@ FSEQFile::FSEQFile(const std::string& fn, FILE* file, const std::vector<uint8_t>
         m_seqVersionMajor = V1ESEQ_MAJOR_VERSION;
         m_seqChannelCount = read4ByteUInt(&header[8]);
         m_seqStepTime = V1ESEQ_STEP_TIME;
-        m_seqNumFrames = (m_seqFileSize - V1ESEQ_CHANNEL_DATA_OFFSET) / m_seqChannelCount;
+        // Both operands of the frame-count division come straight out of the
+        // file, and openFSEQFile() only validates the 'ESEQ' magic - so a
+        // truncated or corrupt effect file reaches here unfiltered. A zero
+        // channel count divides by zero, which on 32-bit ARM traps in
+        // __aeabi_ldiv0 and takes fppd down from StartEffect(); a file shorter
+        // than the header underflows the unsigned subtraction into a huge frame
+        // count. Report either as an empty sequence and let the caller's
+        // existing zero-frame handling deal with it.
+        if (m_seqChannelCount == 0 || m_seqFileSize < (uint64_t)V1ESEQ_CHANNEL_DATA_OFFSET) {
+            LogErr(VB_SEQUENCE, "Invalid ESEQ file %s: %u channels, %" PRIu64 " bytes\n",
+                   m_filename.c_str(), m_seqChannelCount, m_seqFileSize);
+            m_seqNumFrames = 0;
+        } else {
+            m_seqNumFrames = (m_seqFileSize - V1ESEQ_CHANNEL_DATA_OFFSET) / m_seqChannelCount;
+        }
     } else {
         m_seqChanDataOffset = read2ByteUInt(&header[4]);
         m_seqVersionMinor = header[6];
