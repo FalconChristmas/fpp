@@ -29,6 +29,52 @@
 // pipewiresink mode=provide enum value (GST_PIPEWIRE_SINK_MODE_PROVIDE)
 static constexpr int PIPEWIRE_SINK_MODE_PROVIDE = 2;
 
+// Quote a config-derived value for a gst_parse_launch() description.
+//
+// That description is a grammar, not a format string: space, '!', ',' and '='
+// are all syntax. Splicing a raw config value in lets it reshape the pipeline -
+// an RTSP URI containing a space or a comma turns the rest of the description
+// into something else entirely, and the failure does not surface as the GError
+// the callers already check. It has been observed faulting inside libgstreamer's
+// own parser (gst_value_deserialize <- gst_caps_from_string <-
+// gst_parse_launch_full), which takes fppd down with it and, since the source is
+// re-started on the next reload, crash-loops the daemon.
+//
+// Quoting fixes it: inside quotes the parser takes the value literally, having
+// first un-escaped backslash sequences - so backslashes and quotes in the value
+// must themselves be escaped. Quoting a value that needed no escaping parses to
+// exactly the same string, so this is safe to apply unconditionally.
+static std::string GstQuote(const std::string& value) {
+    std::string out;
+    out.reserve(value.size() + 2);
+    out += '"';
+    for (char c : value) {
+        if (c == '\\' || c == '"') {
+            out += '\\';
+        }
+        out += c;
+    }
+    out += '"';
+    return out;
+}
+
+// Control characters have no representation in the description grammar and
+// never belong in a URI, device path or element name, so reject them up front
+// rather than trying to encode them. Checked once per source in StartSource()
+// instead of at each of the seven splice sites.
+static bool GstValueUsable(const std::string& value, const char* what,
+                           const std::string& sourceName) {
+    for (unsigned char c : value) {
+        if (c < 0x20 || c == 0x7f) {
+            LogWarn(VB_MEDIAOUT, "VideoInputManager: %s for '%s' contains a control character\n",
+                    what, sourceName.c_str());
+            WarningHolder::AddWarning(56, "Video input '" + sourceName + "' has an invalid " + what);
+            return false;
+        }
+    }
+    return true;
+}
+
 VideoInputManager& VideoInputManager::Instance() {
     static VideoInputManager instance;
     return instance;
@@ -265,6 +311,14 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
 
     setenv("PIPEWIRE_RUNTIME_DIR", "/run/pipewire-fpp", 0);
 
+    if (!GstValueUsable(source.uri, "URI", source.name) ||
+        !GstValueUsable(source.device, "capture device path", source.name) ||
+        !GstValueUsable(source.pattern, "test pattern", source.name) ||
+        !GstValueUsable(source.multicastGroup, "multicast group", source.name) ||
+        !GstValueUsable(source.pipeWireNodeName, "node name", source.name)) {
+        return false;
+    }
+
     // Build the source element portion of the pipeline
     std::string srcElement;
     bool useDecodebin = false;
@@ -272,7 +326,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     if (source.type == "videotestsrc") {
         srcElement = "videotestsrc is-live=true";
         if (!source.pattern.empty()) {
-            srcElement += " pattern=" + source.pattern;
+            srcElement += " pattern=" + GstQuote(source.pattern);
         }
     } else if (source.type == "v4l2src") {
         if (source.device.empty()) {
@@ -280,7 +334,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
             WarningHolder::AddWarning(56, "Video input '" + source.name + "' has no capture device path configured");
             return false;
         }
-        srcElement = "v4l2src device=" + source.device;
+        srcElement = "v4l2src device=" + GstQuote(source.device);
     } else if (source.type == "rtspsrc") {
         if (source.uri.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: rtspsrc '%s' has no URI\n", source.name.c_str());
@@ -288,7 +342,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
             return false;
         }
         // rtspsrc → decodebin handles codec negotiation (H.264, H.265, MJPEG, etc.)
-        srcElement = "rtspsrc location=" + source.uri
+        srcElement = "rtspsrc location=" + GstQuote(source.uri)
                    + " latency=" + std::to_string(source.latency)
                    + " protocols=tcp";
         useDecodebin = true;
@@ -388,7 +442,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         // caps="video/x-raw" restricts output to decoded video only —
         // without it, streams containing audio+video (e.g. HLS) will
         // expose an audio pad with no consumer, blocking preroll.
-        srcElement = "uridecodebin uri=\"" + resolvedUri + "\""
+        srcElement = "uridecodebin uri=" + GstQuote(resolvedUri)
                    + " caps=\"video/x-raw\"";
         // uridecodebin already includes decoding — do NOT add another
         // decodebin after it.  Just need videoconvert + videoscale + caps.
@@ -417,7 +471,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         }
         srcElement = "udpsrc port=" + std::to_string(source.port);
         if (!source.multicastGroup.empty()) {
-            srcElement += " multicast-group=" + source.multicastGroup
+            srcElement += " multicast-group=" + GstQuote(source.multicastGroup)
                         + " auto-multicast=true";
         }
         srcElement += " caps=\"" + caps + "\"";
@@ -478,7 +532,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
             + " ! " + capsStr
             + " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0"
             + " ! clocksync"
-            + " ! intervideosink sync=false channel=" + source.pipeWireNodeName;
+            + " ! intervideosink sync=false channel=" + GstQuote(source.pipeWireNodeName);
     } else if (useDecodebin) {
         // RTSP: decodebin handles codec negotiation, videoscale + caps enforce resolution.
         // videorate needed when stream framerate differs from configured value.
@@ -491,13 +545,13 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
             + " ! " + capsStr
             + " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0"
             + " ! clocksync"
-            + " ! intervideosink sync=false channel=" + source.pipeWireNodeName;
+            + " ! intervideosink sync=false channel=" + GstQuote(source.pipeWireNodeName);
     } else {
         pipelineDesc = srcElement
             + " ! " + capsStr
             + " ! videoconvert"
             + " ! queue max-size-buffers=2"
-            + " ! intervideosink sync=false channel=" + source.pipeWireNodeName;
+            + " ! intervideosink sync=false channel=" + GstQuote(source.pipeWireNodeName);
     }
 
     LogInfo(VB_MEDIAOUT, "VideoInputManager: Starting source '%s' (%s): %s\n",
@@ -761,16 +815,6 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
         return false;
     }
 
-    // Escape quotes in URLs for gst_parse_launch
-    auto escapeGst = [](const std::string& s) {
-        std::string out;
-        for (char c : s) {
-            if (c == '"') out += "\\\"";
-            else out += c;
-        }
-        return out;
-    };
-
     // Build a SINGLE combined pipeline for video and audio.
     // Both paths share one pipeline clock and base_time, preventing
     // A/V drift that occurs when separate pipelines pace independently.
@@ -788,7 +832,7 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     // Two independent branches in one GstPipeline: they share the
     // pipeline clock, so both clocksync elements pace identically.
     std::string combinedPipelineDesc =
-        "uridecodebin uri=\"" + escapeGst(videoUrl) + "\" caps=\"video/x-raw\""
+        "uridecodebin uri=" + GstQuote(videoUrl) + " caps=\"video/x-raw\""
         " buffer-duration=" + std::to_string(bufferNs) +
         " ! videoconvert"
         " ! videoscale"
@@ -797,8 +841,8 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
         " ! queue max-size-time=" + std::to_string(bufferNs) +
         " max-size-buffers=0 max-size-bytes=0"
         " ! clocksync"
-        " ! intervideosink sync=false channel=" + source.pipeWireNodeName +
-        " uridecodebin uri=\"" + escapeGst(audioUrl) + "\" caps=\"audio/x-raw\""
+        " ! intervideosink sync=false channel=" + GstQuote(source.pipeWireNodeName) +
+        " uridecodebin uri=" + GstQuote(audioUrl) + " caps=\"audio/x-raw\""
         " ! audioconvert"
         " ! audioresample"
         " ! audio/x-raw,format=F32LE,rate=48000,channels=2,layout=interleaved"
