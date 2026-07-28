@@ -63,41 +63,85 @@ typedef struct {
     } __attribute__((__packed__));
 } __attribute__((__packed__)) BBShiftPanelData;
 
-class BBShiftPanelOutput : public ChannelOutput {
+class BBShiftPanelOutput;
+
+// The PRUSS drives every panel output on the cape as ONE frame: a single
+// buffer whose byte lanes are the cape's data pins, one stride schedule, one
+// shared memory ring, one pair of PRU cores.  So several LED Panel Matrix
+// outputs on the same cape (a two sided display, a column either side of a
+// door) cannot each own that hardware - they share it here and own only their
+// own pixel mapping into the shared frame.  Since the lane for a given output
+// is fixed by the cape pinout (see BBShiftPanelOutput::buildScatterMap),
+// members driving different outputs scatter into disjoint bytes of the shared
+// buffer and one bit-plane pass converts the combined result.
+class BBShiftPanelManager {
 public:
-    BBShiftPanelOutput(unsigned int startChannel, unsigned int channelCount);
-    virtual ~BBShiftPanelOutput();
+    static BBShiftPanelManager INSTANCE;
 
-    virtual std::string GetOutputType() const {
-        return "BB64 Panels";
-    }
+    // Registers a configured output.  The first member fixes the frame
+    // geometry; later ones must match it and must not re-use an output that
+    // is already driven.  Returns false (having warned) if they do not.
+    bool addMember(BBShiftPanelOutput* m, const Json::Value& config, const Json::Value& capeConfig);
+    void removeMember(BBShiftPanelOutput* m);
 
-    virtual int Init(Json::Value config) override;
-    virtual int Close(void) override;
+    // One frame: every member scatters into the shared intermediate, then the
+    // last one to arrive triggers the single bit-plane pass, and the first
+    // SendData of the frame hands the result to the pump.
+    void prepMember(BBShiftPanelOutput* m, unsigned char* channelData);
+    void publishFrame();
 
-    virtual int SendData(unsigned char* channelData) override;
-    virtual void PrepData(unsigned char* channelData) override;
-    virtual void DumpConfig(void) override;
+    void startingOutput();
+    void stoppingOutput();
+    void closeMember();
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
+    void dumpConfig();
 
-    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) override;
-    virtual bool SupportsTesting() const { return true; }
+    bool isPWMPanel() const;
+    uint32_t numOutputSlots() const { return m_numOutputSlots; }
+    uint32_t numOutputRows() const { return numRows; }
+    uint32_t outputRowLen() const { return rowLen; }
+    int longestChain() const { return m_longestChain; }
+    int numOutputs() const { return m_numOutputs; }
+    int colorDepth() const { return m_colorDepth; }
+    int brightness() const { return m_brightness; }
+    uint8_t outputPinFor(int o) const { return outputPin[o]; }
+    uint8_t outputBankFor(int o) const { return outputBank[o]; }
+    uint16_t* intermediate() const { return currentChannelData; }
+    uint32_t intermediateSize() const { return rowLen * m_numOutputSlots * 6 * numRows; }
 
-    virtual void StartingOutput() override;
-    virtual void StoppingOutput() override;
+    // the shared worker pool; members use it for their scatter pass
+    void processTasks(std::atomic<int>& counter);
 
 private:
+    // the frame-shape settings every matrix on the cape has to agree on
+    struct PanelParams {
+        int panelWidth = 0;
+        int panelHeight = 0;
+        int panelScan = 0;
+        int colorDepth = 12;
+        int addressingMode = 0;
+        int panelType = 0;
+        bool pwmDirectRow = false;
+        bool outputByRow = false;
+        bool outputBlankData = false;
+        bool sharedPRUSS = false;
+        std::string panelInterleave;
+    };
+    static PanelParams parsePanelParams(const Json::Value& config, const Json::Value& capeConfig);
+
+    bool parseCapeConfig(const Json::Value& capeConfig);
+    bool adoptPanelParams(const PanelParams& p);
+    bool checkCompatible(const PanelParams& p) const;
+    bool rebuild();
+    void teardownHardware();
+    void teardown();
+    void computeGeometry();
+
     void PrepDataShift();
     void PrepDataPWM();
 
     void StopPRU(bool wait = true);
     int StartPRU();
-
-    bool isPWMPanel();
-
-    void setupGamma(float gamma);
-    bool setupChannelOffsets();
 
     void buildStrideSchedule();
     void sendPanelInitPackets();
@@ -107,12 +151,20 @@ private:
     void setupGCLKConfig();
     void writeFM6373SeqWord(int idx);
 
+    std::vector<BBShiftPanelOutput*> m_members;
+    // members that have arrived in this frame's PrepData; the shared bit-plane
+    // pass runs when the count reaches the member count
+    int m_preppedThisFrame = 0;
+    // set by the bit-plane pass, cleared by the frame publish, so exactly one
+    // member's SendData hands the frame over
+    bool m_framePrepped = false;
+    // balanced Starting/StoppingOutput calls across the members
+    int m_activeMembers = 0;
+    int m_openMembers = 0;
+
     BBBPru* pru = nullptr;
     BBBPru* pwmPru = nullptr;
     BBShiftPanelData* pruData = nullptr;
-
-    Matrix* m_matrix = nullptr;
-    PanelMatrix* m_panelMatrix = nullptr;
 
     int m_panelWidth = 0;
     int m_panelHeight = 0;
@@ -136,35 +188,23 @@ private:
     // SPLIT1 ring, and never clear the shared RAM or the other PRU's memory
     bool m_sharedPRUSS = false;
     int m_longestChain = 0;
-    int m_invertedData = 0;
+    // the OE on-time is a property of the cape, not of one matrix, so the
+    // hardware brightness is the highest any member asked for; a member that
+    // wanted less scales its own gamma table down to reach it (see
+    // BBShiftPanelOutput::setupGamma)
     int m_brightness = 10;
     int m_colorDepth = 12;
 
-    FPPColorOrder m_colorOrder;
-
-    int m_panels = 0;
-    int m_width = 0;
-    int m_height = 0;
-
     bool m_outputByRow = false;
     bool m_outputBlankData = false;
-    int addressingType = 0;
 
-    uint16_t gammaCurve[256];
     int m_numOutputs = 8;      // number of configured outputs (from cape config)
     int m_numOutputSlots = 8;  // 8 or 16 - determines data width per pixel (6 or 12 bytes)
     uint8_t outputPin[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7 };  // PRU pin (0-7) per output
     uint8_t outputBank[16] = { 0 };  // 0=first bank, 1=second bank per output
 
-    uint32_t* channelOffsets = nullptr;
+    // the shared 16 bit intermediate every member scatters into
     uint16_t* currentChannelData = nullptr;
-
-    // The gamma scatter map sorted by destination offset so the prep loop
-    // writes sequentially (streaming writes with random byte reads are much
-    // faster than random writes at panel counts where the data far exceeds
-    // the cache).  Unmapped channels are excluded entirely.
-    std::vector<uint32_t> m_scatterOffsets;
-    std::vector<uint32_t> m_scatterSrc;
 
     // Four output buffers allows for double buffering and extras for the PRU to read from while the next frame is being built
     // With 4MB of memory reserved for transfer to PRU, 12 P5 panels per output with 12bit color depth (total 3.5MB)
@@ -173,6 +213,7 @@ private:
     uint8_t currOutputBuffer = 0;
     uint32_t numRows = 0;
     uint32_t rowLen = 0;
+    uint32_t maxRowLen = 0;
 
     // Schedule of strides within one pass of all rows.  Bits whose on-time is
     // a multiple of the stride shift-out time are split into multiple shorter
@@ -219,13 +260,7 @@ private:
     void runPumpThread();
 
     bool singlePRU = false;
-    std::string m_autoCreatedModelName;
     std::string m_refreshWarning;
-
-    // guards against the output being torn down (config reload) while the
-    // channel output thread is still inside PrepData/SendData
-    std::atomic<bool> m_stopping{ false };
-    std::atomic<int> m_inFlight{ 0 };
 
     std::queue<std::function<void()>> bgTasks;
     volatile bool bgThreadsRunning = false;
@@ -233,5 +268,88 @@ private:
     std::condition_variable bgTaskCondVar;
     std::atomic<int> bgThreadCount;
     void runBackgroundTasks();
-    void processTasks(std::atomic<int>& counter);
+    void startBackgroundThreads();
+    void stopBackgroundThreads();
+
+    friend class BBShiftPanelOutput;
+};
+
+class BBShiftPanelOutput : public ChannelOutput {
+public:
+    BBShiftPanelOutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~BBShiftPanelOutput();
+
+    virtual std::string GetOutputType() const {
+        return "BB64 Panels";
+    }
+
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
+
+    virtual int SendData(unsigned char* channelData) override;
+    virtual void PrepData(unsigned char* channelData) override;
+    virtual void DumpConfig(void) override;
+
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
+
+    virtual void OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) override;
+    virtual bool SupportsTesting() const { return true; }
+
+    virtual void StartingOutput() override;
+    virtual void StoppingOutput() override;
+
+    // called by the manager
+    int longestChain() const { return m_longestChain; }
+    const PanelMatrix* panelMatrix() const { return m_panelMatrix; }
+    bool usesOutput(int o) const;
+    int configuredBrightness() const { return m_brightness; }
+    // (re)builds this member's map into the shared frame; the manager calls
+    // this whenever the shared geometry changes
+    bool buildScatterMap();
+    void setupGamma();
+    void scatterFrame(unsigned char* channelData);
+
+private:
+    void releaseToManager();
+
+    Matrix* m_matrix = nullptr;
+    PanelMatrix* m_panelMatrix = nullptr;
+
+    int m_longestChain = 0;
+    int m_invertedData = 0;
+    int m_brightness = 10;
+    float m_gamma = 2.2;
+
+    FPPColorOrder m_colorOrder;
+
+    int m_panels = 0;
+    int m_width = 0;
+    int m_height = 0;
+
+    uint16_t gammaCurve[256];
+
+    // The gamma scatter map sorted by destination offset so the prep loop
+    // writes sequentially (streaming writes with random byte reads are much
+    // faster than random writes at panel counts where the data far exceeds
+    // the cache).  Unmapped channels are excluded entirely.
+    std::vector<uint32_t> m_scatterOffsets;
+    std::vector<uint32_t> m_scatterSrc;
+
+    std::string m_autoCreatedModelName;
+
+    // set once the manager has accepted this matrix; an output whose Init
+    // failed must never reach the manager's per-frame accounting
+    bool m_registered = false;
+    // the manager releases the cape's pins when its last open member closes,
+    // so each member has to hand its share back exactly once - Close() may be
+    // called without a destructor following, or the object may be destroyed
+    // without Close() ever having run
+    bool m_closed = false;
+
+    // guards against the output being torn down (config reload) while the
+    // channel output thread is still inside PrepData/SendData
+    std::atomic<bool> m_stopping{ false };
+    std::atomic<int> m_inFlight{ 0 };
+
+    friend class BBShiftPanelManager;
 };
