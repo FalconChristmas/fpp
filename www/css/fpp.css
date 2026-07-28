@@ -2761,11 +2761,13 @@ table#fppSystemsTable > thead > tr:last-child > td {
 	margin-top: 5px;
 }
 
-[data-bs-theme='light'] .panelMatrix-tab-content .divLEDPanelsLayoutData {
+[data-bs-theme='light'] .panelMatrix-tab-content .divLEDPanelsLayoutData,
+[data-bs-theme='light'] .panelMatrix-tab-content .divPanelSettingsSection {
 	background-color: whitesmoke;
 }
 
-.panelMatrix-tab-content .divLEDPanelsLayoutData {
+.panelMatrix-tab-content .divLEDPanelsLayoutData,
+.panelMatrix-tab-content .divPanelSettingsSection {
 	border-radius: 10px;
 	padding: 10px;
 	margin-top: 5px;
