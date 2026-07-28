@@ -41,6 +41,23 @@
 static std::string ReplaceVariableKeywords(std::string str);
 
 CommandManager CommandManager::INSTANCE;
+
+// Out-of-line storage for anything added to Command/CommandArg after plugin API
+// version 5. Both hold it by unique_ptr, so growing either struct here is
+// invisible to a plugin's sizeof and cannot desync a std::list node or shift a
+// subclass's members. See the LAYOUT RULE comments in Commands.h.
+struct Command::Data {
+    // (empty - first field added after API version 5 goes here)
+};
+struct Command::CommandArg::Ext {
+    bool advanced = false;
+    std::string help;
+    std::string section;
+    std::map<std::string, std::vector<std::string>> children;
+    bool toggleStyle = false;
+    std::string toggleLabel;
+};
+
 Command::Command(const std::string& n) :
     name(n),
     description("") {
@@ -50,6 +67,99 @@ Command::Command(const std::string& n, const std::string& descript) :
     description(descript) {
 }
 Command::~Command() {}
+
+Command::CommandArg::CommandArg(const std::string& n, const std::string& t, const std::string& d, bool o) :
+    name(n),
+    type(t),
+    description(d),
+    optional(o),
+    min(-1),
+    max(-1),
+    allowBlanks(false),
+    adjustable(false) {
+}
+Command::CommandArg::CommandArg(const CommandArg& o) :
+    name(o.name),
+    type(o.type),
+    description(o.description),
+    optional(o.optional),
+    contentListUrl(o.contentListUrl),
+    contentList(o.contentList),
+    allowBlanks(o.allowBlanks),
+    min(o.min),
+    max(o.max),
+    defaultValue(o.defaultValue),
+    adjustableGetValueURL(o.adjustableGetValueURL),
+    adjustable(o.adjustable),
+    // Deep copy, not a shared handle: the builder pattern returns CommandArg&,
+    // so nearly every args.push_back() in the tree copies from an lvalue and
+    // the temporary is then destroyed. Aliasing ext would leave a dangling one.
+    ext(o.ext ? std::make_unique<Ext>(*o.ext) : nullptr) {
+}
+Command::CommandArg::CommandArg(CommandArg&& o) noexcept = default;
+Command::CommandArg::~CommandArg() = default;
+
+// Ext is allocated on first write; readers fall back to a default so an arg that
+// set none of these still costs nothing. Every accessor pair below follows this
+// shape - copy it when adding a field.
+Command::CommandArg::Ext& Command::CommandArg::mutableExt() {
+    if (!ext) {
+        ext = std::make_unique<Ext>();
+    }
+    return *ext;
+}
+
+Command::CommandArg& Command::CommandArg::setSection(const std::string& s) {
+    mutableExt().section = s;
+    return *this;
+}
+const std::string& Command::CommandArg::getSection() const {
+    static const std::string EMPTY;
+    return ext ? ext->section : EMPTY;
+}
+
+Command::CommandArg& Command::CommandArg::setHelp(const std::string& h) {
+    mutableExt().help = h;
+    return *this;
+}
+const std::string& Command::CommandArg::getHelp() const {
+    static const std::string EMPTY;
+    return ext ? ext->help : EMPTY;
+}
+
+Command::CommandArg& Command::CommandArg::setAdvanced(bool a) {
+    mutableExt().advanced = a;
+    return *this;
+}
+bool Command::CommandArg::isAdvanced() const {
+    return ext && ext->advanced;
+}
+
+Command::CommandArg& Command::CommandArg::setChildren(std::map<std::string, std::vector<std::string>> c) {
+    mutableExt().children = std::move(c);
+    return *this;
+}
+const std::map<std::string, std::vector<std::string>>& Command::CommandArg::getChildren() const {
+    static const std::map<std::string, std::vector<std::string>> EMPTY;
+    return ext ? ext->children : EMPTY;
+}
+
+Command::CommandArg& Command::CommandArg::setToggleStyle(bool t) {
+    mutableExt().toggleStyle = t;
+    return *this;
+}
+bool Command::CommandArg::isToggleStyle() const {
+    return ext && ext->toggleStyle;
+}
+
+Command::CommandArg& Command::CommandArg::setToggleLabel(const std::string& l) {
+    mutableExt().toggleLabel = l;
+    return *this;
+}
+const std::string& Command::CommandArg::getToggleLabel() const {
+    static const std::string EMPTY;
+    return ext ? ext->toggleLabel : EMPTY;
+}
 
 Json::Value Command::getDescription() {
     Json::Value cmd;
@@ -85,23 +195,23 @@ Json::Value Command::getDescription() {
                 a["adjustableGetValueURL"] = ar.adjustableGetValueURL;
             }
         }
-        if (ar.advanced) {
+        if (ar.isAdvanced()) {
             a["advanced"] = true;
         }
-        if (!ar.help.empty()) {
-            a["help"] = ar.help;
+        if (!ar.getHelp().empty()) {
+            a["help"] = ar.getHelp();
         }
-        if (!ar.section.empty()) {
-            a["section"] = ar.section;
+        if (!ar.getSection().empty()) {
+            a["section"] = ar.getSection();
         }
-        if (ar.toggleStyle) {
+        if (ar.isToggleStyle()) {
             a["toggleStyle"] = true;
         }
-        if (!ar.toggleLabel.empty()) {
-            a["toggleLabel"] = ar.toggleLabel;
+        if (!ar.getToggleLabel().empty()) {
+            a["toggleLabel"] = ar.getToggleLabel();
         }
-        if (!ar.children.empty()) {
-            for (auto& kv : ar.children) {
+        if (!ar.getChildren().empty()) {
+            for (auto& kv : ar.getChildren()) {
                 for (auto& childName : kv.second) {
                     a["children"][kv.first].append(childName);
                 }
