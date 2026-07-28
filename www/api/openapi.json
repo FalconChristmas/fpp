@@ -55,6 +55,9 @@
       "name": "fppd"
     },
     {
+      "name": "geoip"
+    },
+    {
       "name": "git"
     },
     {
@@ -2399,8 +2402,8 @@
         "tags": [
           "fppd"
         ],
-        "summary": "fppd/condition/preview",
-        "description": "Preview a single If/Conditional Check leaf's current raw value - the same lookup evaluate() uses internally (Variable/Expression/Setting/Time/MQTT/ GPIO Pin/Sensor/Sun), before any comparator/Value is applied. Backs the If condition editor's \"Show Current Value\" button, so picking the right Value to compare against isn't guesswork.",
+        "summary": "Preview a single If/Conditional Check leaf - the same lookup evaluate() uses internally (Variable/Expression/Time/GPIO Pin/Sun), before any comparator/Value is applied. Backs the If condition editor's \"Show Current Value\" button, so picking the right Value to compare against isn't guesswork.",
+        "description": "When a \"comparator\" param is also supplied (the consolidated eye-preview modal's full-leaf mode), also evaluates Value the same way Value is unconditionally evaluated at runtime and applies the comparator, returning the RHS value and the boolean result too - reuses ConditionNode::PreviewLeafResult(), the exact same evaluation path a real saved leaf's evaluate() takes, so this can never drift from runtime behavior.",
         "parameters": [
           {
             "name": "source",
@@ -2419,11 +2422,38 @@
               "type": "string"
             },
             "description": "The Name/Expression field for that source."
+          },
+          {
+            "name": "comparator",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional - one of the Check \"Comparator\" values. Enables full-leaf mode."
+          },
+          {
+            "name": "value",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional - the Value field, only used when \"comparator\" is also given."
+          },
+          {
+            "name": "not",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional - \"true\" to negate the result, only used when \"comparator\" is also given."
           }
         ],
         "responses": {
           "200": {
-            "description": "{\"found\": true, \"value\": \"...\"} or {\"found\": false} if the source/name doesn't currently resolve."
+            "description": "{\"found\": true, \"value\": \"...\"} (source/name-only mode) or"
           }
         }
       }
@@ -2707,228 +2737,6 @@
         }
       }
     },
-    "/api/fppd/playlists/stop": {
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlists/stop",
-        "description": "Stop all running playlists.",
-        "responses": {
-          "200": {
-            "description": "All playlists stopped."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlists/{name}/item/{item}": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "item",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlists/{name}/item/{item}",
-        "description": "Jump to a specific item index in a playlist.",
-        "responses": {
-          "200": {
-            "description": "Jumped to item."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlists/{name}/nextItem": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlists/{name}/nextItem",
-        "description": "Skip to the next item in a running playlist.",
-        "responses": {
-          "200": {
-            "description": "Advanced to next item."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlists/{name}/prevItem": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlists/{name}/prevItem",
-        "description": "Skip to the previous item in a running playlist.",
-        "responses": {
-          "200": {
-            "description": "Moved to previous item."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlists/{name}/restartItem": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlists/{name}/restartItem",
-        "description": "Restart the current item in a running playlist.",
-        "responses": {
-          "200": {
-            "description": "Current item restarted."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlists/{name}/section/{section}": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "section",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlists/{name}/section/{section}",
-        "description": "Jump to a named section (mainPlaylist, leadIn, leadOut) of a playlist.",
-        "responses": {
-          "200": {
-            "description": "Jumped to section."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlists/{name}/settings": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "put": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlists/{name}/settings",
-        "description": "Update the runtime settings of a running playlist.",
-        "responses": {
-          "200": {
-            "description": "Playlist settings updated."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlists/{name}/start": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlists/{name}/start",
-        "description": "Start a playlist by name.",
-        "responses": {
-          "200": {
-            "description": "Playlist started."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlists/{name}/stop": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlists/{name}/stop",
-        "description": "Stop a running playlist by name.",
-        "responses": {
-          "200": {
-            "description": "Playlist stopped."
-          }
-        }
-      }
-    },
     "/api/fppd/ports": {
       "get": {
         "tags": [
@@ -2993,20 +2801,6 @@
         "responses": {
           "200": {
             "description": "Array of port status objects."
-          }
-        }
-      }
-    },
-    "/api/fppd/restart": {
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/restart",
-        "description": "Restart the fppd daemon.",
-        "responses": {
-          "200": {
-            "description": "fppd restarting."
           }
         }
       }
@@ -3102,164 +2896,6 @@
         "responses": {
           "200": {
             "description": "Running sequences."
-          }
-        }
-      }
-    },
-    "/api/fppd/sequences/{name}/back": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/sequences/{name}/back",
-        "description": "Step a paused sequence backward (optionally by /{frames}).",
-        "responses": {
-          "200": {
-            "description": "Sequence stepped backward."
-          }
-        }
-      }
-    },
-    "/api/fppd/sequences/{name}/pause": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/sequences/{name}/pause",
-        "description": "Toggle pause on a running sequence (append /0 to resume, /1 to pause).",
-        "responses": {
-          "200": {
-            "description": "Pause state toggled."
-          }
-        }
-      }
-    },
-    "/api/fppd/sequences/{name}/start": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/sequences/{name}/start",
-        "description": "Start playing a sequence by name.",
-        "responses": {
-          "200": {
-            "description": "Sequence started."
-          }
-        }
-      }
-    },
-    "/api/fppd/sequences/{name}/step": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/sequences/{name}/step",
-        "description": "Step a paused sequence forward (optionally by /{frames}).",
-        "responses": {
-          "200": {
-            "description": "Sequence stepped forward."
-          }
-        }
-      }
-    },
-    "/api/fppd/sequences/{name}/stop": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/sequences/{name}/stop",
-        "description": "Stop a running sequence by name.",
-        "responses": {
-          "200": {
-            "description": "Sequence stopped."
-          }
-        }
-      }
-    },
-    "/api/fppd/settings/reload": {
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/settings/reload",
-        "description": "Reload all settings from disk.",
-        "responses": {
-          "200": {
-            "description": "Settings reloaded."
-          }
-        }
-      }
-    },
-    "/api/fppd/settings/reload/{setting}": {
-      "parameters": [
-        {
-          "name": "setting",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/settings/reload/{setting}",
-        "description": "Reload a single setting from disk.",
-        "responses": {
-          "200": {
-            "description": "Setting reloaded."
           }
         }
       }
@@ -3498,6 +3134,48 @@
         "responses": {
           "200": {
             "description": "Array of warning objects."
+          }
+        }
+      }
+    },
+    "/api/geoip": {
+      "get": {
+        "tags": [
+          "geoip"
+        ],
+        "summary": "GeoIP lookup",
+        "description": "Server-side proxy for ipapi.co's IP geolocation lookup, used by the Timezone/GeoLocation \"Lookup\"/\"Detect\" buttons on settings.php. ipapi.co does not send Access-Control-Allow-Origin, so the browser can't call it directly from FPP's UI (blocked by the Same Origin Policy) - PHP isn't subject to that, so we fetch it here and hand back the same JSON.",
+        "responses": {
+          "200": {
+            "description": "ipapi.co's JSON response, passed through unmodified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "ip": "1.2.3.4",
+                  "city": "Adelaide",
+                  "region": "South Australia",
+                  "timezone": "Australia/Adelaide",
+                  "latitude": -34.9,
+                  "longitude": 138.6
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Lookup failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "error": "GeoIP lookup failed"
+                }
+              }
+            }
           }
         }
       }
@@ -6731,7 +6409,7 @@
           "plugin"
         ],
         "summary": "Get plugin information",
-        "description": "Get `pluginInfo.json` for installed plugin `{RepoName}`. Additional `updatesAvailable`, `hasIcon`, `pageUrl`, and `pageType` fields are computed server-side. `pageUrl` points to the best status/config page for the plugin, derived from its menu files.",
+        "description": "Get `pluginInfo.json` for installed plugin `{RepoName}`. An additional `updatesAvailable` field indicates whether the plugin has commits that have been fetched but not yet merged.",
         "responses": {
           "200": {
             "description": "Plugin information",
@@ -6746,9 +6424,6 @@
                   "author": "Chris Pinkham (CaptainMurdoch)",
                   "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git",
                   "updatesAvailable": 0,
-                  "hasIcon": false,
-                  "pageUrl": "plugin.php?plugin=fpp-matrixtools&page=status.php",
-                  "pageType": "status",
                   "versions": [
                     {
                       "minFPPVersion": 0,
@@ -6807,7 +6482,7 @@
           "plugin"
         ],
         "summary": "Get plugin page URL",
-        "description": "Scans the plugin's menu files and returns the best page URL, preferring the Status/Control page over Content Setup.",
+        "description": "Scans the plugin's menu files (menu.inc, status_menu.inc, etc.) and returns the best page URL for the plugin.  Prefers the Status/Control page; falls back to the Content Setup (config) page if no status page is found.",
         "responses": {
           "200": {
             "description": "Plugin page info",
@@ -8782,7 +8457,7 @@
           "variables"
         ],
         "summary": "variables",
-        "description": "List all User Variables and their current values. Pass ?validateExpression instead to syntax-check an expression (for the Set Variable \"Expression\" field) against currently-known variables, without setting anything. Pass ?fpp=true instead to list the read-only \"fpp-\" status variables (current playlist/sequence, play state, volume, etc.) instead of User Variables.",
+        "description": "List all User Variables and their current values. Pass ?validateExpression instead to syntax-check an expression (for the Set Variable \"Expression\" field) against currently-known variables, without setting anything. Pass ?fpp=true instead to list the read-only \"fpp_\" status variables (current playlist/sequence, play state, volume, etc.) instead of User Variables.",
         "parameters": [
           {
             "name": "validateExpression",
@@ -8792,6 +8467,15 @@
               "type": "string"
             },
             "description": "If set, validate this expression instead of listing variables."
+          },
+          {
+            "name": "conditionExpr",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "If \"true\" alongside validateExpression, classify it the way the If"
           },
           {
             "name": "fpp",
