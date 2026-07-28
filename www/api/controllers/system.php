@@ -575,6 +575,8 @@ function SystemGetStatus()
                     $curl = curl_init("http://" . $urlHost . "/json/info");
                 } else if ($type == "Baldrick") {
                     $curl = curl_init("http://" . $urlHost . "/system_state");
+                } else if ($type == "JBoards") {
+                    $curl = curl_init("http://" . $urlHost . "/api/system/status");
                 } else if ($type == "FV3") {
                     $curl = curl_init("http://" . $urlHost . "/status.xml");
                 } else if ($type == "FV4") {

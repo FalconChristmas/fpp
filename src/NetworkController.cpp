@@ -62,6 +62,9 @@ NetworkController* NetworkController::DetectControllerViaHTML(const std::string&
     if (nc->DetectBaldrickController(ip, html)) {
         return nc;
     }
+    if (nc->DetectJBoardsController(ip, html)) {
+        return nc;
+    }
     if (nc->DetectAlphaPixController(ip, html)) {
         return nc;
     }
@@ -336,6 +339,72 @@ bool NetworkController::DetectBaldrickController(const std::string& ip,
 
         if (hostname != "") {
             DumpControllerInfo();
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool NetworkController::DetectJBoardsController(const std::string& ip,
+                                                const std::string& html) {
+    LogExcess(VB_SYNC, "Checking if %s is a JBoards controller\n", ip.c_str());
+
+    if (!contains(html, "JBoards - LED Controller"))
+        return false;
+
+    LogExcess(VB_SYNC, "%s is potentially a JBoards controller, checking further\n", ip.c_str());
+
+    vendor = "JBoards";
+    vendorURL = "https://pixelpropshop.com";
+    typeId = kSysTypeJBoards;
+    typeStr = "JBoards";
+    systemMode = BRIDGE_MODE;
+
+    std::string url = buildHttpURL(ip, "/api/system/info");
+    std::string resp;
+
+    if (urlGet(url, resp)) {
+        Json::Value v = LoadJsonFromString(resp);
+
+        hostname = v["HostName"].asString();
+        version = v["Version"].asString();
+
+        std::string variant = v["Variant"].asString();
+        if (variant != "") {
+            typeStr = variant;
+        }
+
+        if (v.isMember("channelRanges")) {
+            ranges = v["channelRanges"].asString();
+        }
+        if (v.isMember("uuid")) {
+            uuid = v["uuid"].asString();
+        }
+
+        std::string md = v["Mode"].asString();
+        if (md == "bridge") {
+            systemMode = BRIDGE_MODE;
+        } else if (md == "player") {
+            systemMode = PLAYER_MODE;
+        } else if (md == "remote") {
+            systemMode = REMOTE_MODE;
+        }
+
+        if (v.isMember("majorVersion")) {
+            majorVersion = v["majorVersion"].asInt();
+            minorVersion = v["minorVersion"].asInt();
+        } else if (version != "") {
+            majorVersion = atoi(version.c_str());
+            std::size_t verDot = version.find(".");
+            if (verDot != std::string::npos) {
+                minorVersion = atoi(version.substr(verDot + 1).c_str());
+            }
+        }
+
+        if (hostname != "") {
+            DumpControllerInfo();
+
             return true;
         }
     }
