@@ -305,7 +305,18 @@ static const std::string PLATFORM_DIR = "";
 const std::string& getPlatformCapeDir() { return PLATFORM_DIR; }
 #endif
 
-static bool LoadJsonFromFile(const std::string& filename, Json::Value& root) {
+// A file that parses but holds the wrong kind of value at its root - an array
+// where an object is expected - is a corrupt config, not usable data: the
+// jsoncpp accessor the caller reaches for next throws Json::LogicError, and
+// nothing here catches it. Callers pass the root they require so that throw
+// stays unreachable. This mirrors the JsonRoot check on FPP's own loader in
+// common.cpp; it is duplicated rather than shared because CapeUtils is a
+// standalone component that does not pull in common.h.
+enum class CapeJsonRoot {
+    Object,
+    Array
+};
+static bool LoadJsonFromFile(const std::string& filename, Json::Value& root, CapeJsonRoot expected) {
     if (!file_exists(filename)) {
         return false;
     }
@@ -322,8 +333,23 @@ static bool LoadJsonFromFile(const std::string& filename, Json::Value& root) {
     free(data);
     if (!success) {
         printf("Failed to parse %s: %s\n", filename.c_str(), errors.c_str());
+        return false;
     }
-    return success;
+
+    // A null root is not a mismatch - jsoncpp treats null as an empty value of
+    // whatever type it is first used as and never throws on it.
+    Json::ValueType expectedType = (expected == CapeJsonRoot::Array) ? Json::arrayValue : Json::objectValue;
+    if (root.isNull()) {
+        root = Json::Value(expectedType);
+        return true;
+    }
+    if (root.type() != expectedType) {
+        printf("Wrong root type in %s: expected %s - treating as empty\n",
+               filename.c_str(), (expectedType == Json::arrayValue) ? "array" : "object");
+        root = Json::Value(expectedType);
+        return false;
+    }
+    return true;
 }
 
 static void disableOutputs(Json::Value& disables) {
@@ -1148,7 +1174,7 @@ private:
         // also put the serialNumber into the cape-info for display
         if (file_exists(outputPath + "/tmp/cape-info.json")) {
             Json::Value result;
-            if (LoadJsonFromFile(outputPath + "/tmp/cape-info.json", result)) {
+            if (LoadJsonFromFile(outputPath + "/tmp/cape-info.json", result, CapeJsonRoot::Object)) {
                 std::set<std::string> removes;
                 if (hasSignature) {
                     result["validEepromLocation"] = validEpromLocation;
@@ -1395,7 +1421,7 @@ private:
             }
         }
         Json::Value csp;
-        if (!LoadJsonFromFile("/home/fpp/media/config/csp_allowed_domains.json", csp)) {
+        if (!LoadJsonFromFile("/home/fpp/media/config/csp_allowed_domains.json", csp, CapeJsonRoot::Object)) {
             csp["default-src"] = Json::Value(Json::arrayValue);
             csp["img-src"] = Json::Value(Json::arrayValue);
             csp["script-src"] = Json::Value(Json::arrayValue);
@@ -1455,7 +1481,7 @@ private:
 #endif
         if (file_exists(stringsConfigFile)) {
             Json::Value root;
-            if (LoadJsonFromFile(stringsConfigFile, root)) {
+            if (LoadJsonFromFile(stringsConfigFile, root, CapeJsonRoot::Object)) {
                 if (root["channelOutputs"][0]["enabled"].asInt()) {
                     std::string type = root["channelOutputs"][0]["type"].asString();
                     std::string subtype = root["channelOutputs"][0]["subType"].asString();

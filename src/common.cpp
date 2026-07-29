@@ -373,6 +373,16 @@ bool LoadJsonFromFile(const std::string& filename, Json::Value& root, JsonRoot e
         return false;
     }
 
+    // A null root is not a mismatch. jsoncpp treats null as an empty value of
+    // whatever type it is first used as and never throws on it, and FPP writes
+    // it itself - Variables::save() stores a default-constructed Json::Value,
+    // so a stock variables.json with nothing persisted is literally "null".
+    // Normalize it and report success, exactly as before this check existed.
+    if (root.isNull()) {
+        root = Json::Value(expectedType);
+        return true;
+    }
+
     if (root.type() != expectedType) {
         LogErr(VB_GENERAL, "JSON File %s has a %s at its root, expected %s - treating as empty\n",
                filename.c_str(), JsonTypeName(root.type()), JsonTypeName(expectedType));
