@@ -2648,6 +2648,23 @@ int GStreamerOutput::AdjustSpeed(float masterMediaPosition) {
     if (!m_pipeline || !m_allowSpeedAdjust)
         return 1;
 
+    // Nothing below may touch a pipeline that has never produced a position:
+    // both branches that act on a large diff issue a *synchronous* seek, and a
+    // seek into a pipeline still stuck in preroll blocks the calling thread
+    // forever inside the wedged sink.  This runs on the main loop (MultiSync
+    // ProcessControlPacket -> UpdateMasterMediaPosition) while holding
+    // mediaOutputLock, so that block takes the whole player down: no sync
+    // packets, no status, no `fpp` commands, and "Restart FPPD" never even gets
+    // read (issue #2727 -- confirmed 2026-07-29 on FPPv4-3, main thread parked
+    // on a PipeWire mutex with the pipeline still ASYNC).  Sitting out the
+    // sync until preroll completes is free: the preroll watchdog in Process()
+    // tears a genuinely wedged pipeline down and the playlist advances.
+    if (m_wallStartMs == 0) {
+        LogDebug(VB_MEDIAOUT, "GStreamer: skipping speed adjust, pipeline has not prerolled yet (master %0.3f)\n",
+                 masterMediaPosition);
+        return 1;
+    }
+
     // Can't adjust speed if not playing yet
     if (m_mediaOutputStatus->mediaSeconds < 0.01f) {
         LogDebug(VB_MEDIAOUT, "GStreamer: Can't adjust speed if not playing yet (%0.3f/%0.3f)\n",
