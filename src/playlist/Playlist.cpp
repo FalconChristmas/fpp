@@ -416,7 +416,7 @@ Json::Value Playlist::LoadJSON(const std::string& filename) {
         return root;
     }
 
-    if (!LoadJsonFromFile(filename, root)) {
+    if (!LoadJsonFromFile(filename, root, JsonRoot::Object)) {
         std::string warn = "Could not load playlist ";
         warn += filename;
         WarningHolder::AddWarningTimeout(30, 24, warn);

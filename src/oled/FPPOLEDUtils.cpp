@@ -89,7 +89,7 @@ const std::string& FPPOLEDUtils::InputAction::checkAction(int i, long long ntime
 bool FPPOLEDUtils::setupControlPin(const std::string& file) {
     if (FileExists(file)) {
         Json::Value root;
-        if (LoadJsonFromFile(file, root)) {
+        if (LoadJsonFromFile(file, root, JsonRoot::Object)) {
             if (root.isMember("controls") && root["controls"].isMember("I2CEnable")) {
                 controlPin = root["controls"]["I2CEnable"].asString();
                 printf("Using control pin %s\n", controlPin.c_str());
@@ -164,7 +164,7 @@ bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string& file) {
     bool needsPolling = false;
     if (FileExists(file)) {
         Json::Value root;
-        if (LoadJsonFromFile(file, root)) {
+        if (LoadJsonFromFile(file, root, JsonRoot::Array)) {
             for (int x = 0; x < root.size(); x++) {
                 if (!root[x]["enabled"].asBool()) {
                     continue;
@@ -224,7 +224,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
     bool needsPolling = false;
     if (FileExists(file)) {
         Json::Value root;
-        if (LoadJsonFromFile(file, root)) {
+        if (LoadJsonFromFile(file, root, JsonRoot::Object)) {
             for (int x = 0; x < root["inputs"].size(); x++) {
                 InputAction* action = new InputAction();
                 std::string pin = root["inputs"][x]["pin"].asString();
@@ -339,7 +339,7 @@ static std::set<std::string> collectConfiguredGpioPins() {
     Json::Value root;
     // cape-inputs.json: { "inputs": [ { "pin", "mode":"gpio*", "type", [chip/actions] } ] }
     if (FileExists("/home/fpp/media/tmp/cape-inputs.json") &&
-        LoadJsonFromFile("/home/fpp/media/tmp/cape-inputs.json", root)) {
+        LoadJsonFromFile("/home/fpp/media/tmp/cape-inputs.json", root, JsonRoot::Object)) {
         for (int x = 0; x < root["inputs"].size(); x++) {
             std::string mode = root["inputs"][x]["mode"].asString();
             if (mode.find("gpio") == std::string::npos) {
@@ -361,7 +361,7 @@ static std::set<std::string> collectConfiguredGpioPins() {
     // gpio.json: [ { "enabled", "pin", "rising"/"falling":{"command":"OLED Navigation"} } ]
     root = Json::Value();
     if (FileExists("/home/fpp/media/config/gpio.json") &&
-        LoadJsonFromFile("/home/fpp/media/config/gpio.json", root)) {
+        LoadJsonFromFile("/home/fpp/media/config/gpio.json", root, JsonRoot::Array)) {
         for (int x = 0; x < root.size(); x++) {
             if (!root[x]["enabled"].asBool()) {
                 continue;

@@ -150,7 +150,7 @@ void RecurringTasks::load() {
         m_tasks = std::move(tasks);
         return;
     }
-    Json::Value root = LoadJsonFromFile(file);
+    Json::Value root = LoadJsonFromFile(file, JsonRoot::Array);
     for (auto const& j : root) {
         RecurringTask task = ParseTask(j);
         if (task.name.empty() || task.intervalMS <= 0) {

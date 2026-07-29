@@ -197,7 +197,7 @@ void SettingsConfig::unregisterSettingsListener(const std::string& id, const std
 void SettingsConfig::LoadSettingsInfo() {
     std::string settingsJson = getFPPDDir("/www/settings.json");
     if (FileExists(settingsJson)) {
-        settingsInfo = LoadJsonFromFile(settingsJson);
+        settingsInfo = LoadJsonFromFile(settingsJson, JsonRoot::Object);
 
         Json::Value s = settingsInfo["settings"];
         Json::Value::Members memberNames = s.getMemberNames();

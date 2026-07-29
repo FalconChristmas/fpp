@@ -592,7 +592,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
         Json::Value allCommands;
         if (FileExists(commandsFile)) {
             // Load new config file
-            allCommands = LoadJsonFromFile(commandsFile);
+            allCommands = LoadJsonFromFile(commandsFile, JsonRoot::Object);
         }
         if (plen > 1) {
             if (allCommands.isMember("commands")) {
@@ -882,7 +882,7 @@ void CommandManager::LoadPresets() {
     if (FileExists(commandsFile)) {
         // Load new config file
         lastPresetTimeStamp = FileTimestamp(commandsFile);
-        allCommands = LoadJsonFromFile(commandsFile);
+        allCommands = LoadJsonFromFile(commandsFile, JsonRoot::Object);
     } else {
         // Convert any old events to new format
         Json::Value commands(Json::arrayValue);
@@ -896,7 +896,7 @@ void CommandManager::LoadPresets() {
                     LogDebug(VB_COMMAND, "Converting old %s event to a Command Preset\n", id);
 
                     Json::Value event;
-                    if (LoadJsonFromFile(filename, event)) {
+                    if (LoadJsonFromFile(filename, event, JsonRoot::Object)) {
                         event.removeMember("majorId");
                         event.removeMember("minorId");
                         event["presetSlot"] = 0;

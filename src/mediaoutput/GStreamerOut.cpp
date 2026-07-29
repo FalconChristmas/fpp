@@ -497,7 +497,7 @@ static int GetMaxPipeWireGroupDelayMs() {
         return 0;
 
     Json::Value root;
-    if (!LoadJsonFromFile(configPath, root) || !root.isMember("groups"))
+    if (!LoadJsonFromFile(configPath, root, JsonRoot::Object) || !root.isMember("groups"))
         return 0;
 
     int maxDelay = 0;
@@ -559,7 +559,7 @@ static bool IsGstPipeWireChannelOrderQuirky() {
     const std::string cachePath = getFPPMediaDir() + "/config/gst-pipewire-quirks.json";
     if (FileExists(cachePath)) {
         Json::Value cache;
-        if (LoadJsonFromFile(cachePath, cache)
+        if (LoadJsonFromFile(cachePath, cache, JsonRoot::Object)
             && cache.get("pluginSig", "").asString() == pluginSig) {
             cachedVerdict = cache.get("channelOrderQuirky", false).asBool() ? 1 : 0;
             LogInfo(VB_MEDIAOUT, "GStreamer: pipewire channel-order quirk (cached): %s\n",
@@ -3204,7 +3204,7 @@ void GStreamerOutput::FlushPipeWireDelayBuffers() {
     }
 
     Json::Value root;
-    if (!LoadJsonFromFile(configPath, root) || !root.isMember("groups")) {
+    if (!LoadJsonFromFile(configPath, root, JsonRoot::Object) || !root.isMember("groups")) {
         return;
     }
 

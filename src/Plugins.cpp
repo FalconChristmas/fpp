@@ -331,7 +331,7 @@ static void LoadPluginCommands(const std::string& dir) {
     std::string commandDir = FPP_DIR_PLUGIN("/" + dir + "/commands/");
     std::string descriptions = commandDir + "/descriptions.json";
     if (FileExists(descriptions)) {
-        Json::Value json = LoadJsonFromFile(descriptions);
+        Json::Value json = LoadJsonFromFile(descriptions, JsonRoot::Array);
         for (int x = 0; x < json.size(); x++) {
             Json::Value jscmd = json[x];
             ScriptCommand* cmd = new ScriptCommand(commandDir, jscmd);

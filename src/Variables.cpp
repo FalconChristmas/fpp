@@ -178,7 +178,7 @@ void Variables::load() {
     if (!FileExists(file)) {
         return;
     }
-    Json::Value root = LoadJsonFromFile(file);
+    Json::Value root = LoadJsonFromFile(file, JsonRoot::Object);
     std::unique_lock<std::mutex> lock(m_lock);
     for (auto const& name : root.getMemberNames()) {
         VariableEntry e;
@@ -410,7 +410,7 @@ std::set<std::string> Variables::getReferencedNamesInConfig() {
     if (!FileExists(presetsFile)) {
         return referenced;
     }
-    Json::Value root = LoadJsonFromFile(presetsFile);
+    Json::Value root = LoadJsonFromFile(presetsFile, JsonRoot::Object);
     if (!root.isMember("commands")) {
         return referenced;
     }

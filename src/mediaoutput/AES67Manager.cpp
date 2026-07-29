@@ -167,7 +167,7 @@ void AES67Manager::Shutdown() {
 // ──────────────────────────────────────────────────────────────────────────────
 bool AES67Manager::LoadConfig() {
     Json::Value root;
-    if (!LoadJsonFromFile(m_configPath, root)) {
+    if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
         LogWarn(VB_MEDIAOUT, "AES67Manager: Failed to load config from %s\n",
                 m_configPath.c_str());
         return false;

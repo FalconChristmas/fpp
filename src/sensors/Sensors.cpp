@@ -556,7 +556,7 @@ void Sensors::DetectFanSensors() {
     // sensor for any fan that probed as absent -- there is nothing useful to
     // show. A missing file or entry means "unknown", so we register as before.
     Json::Value fanProbe;
-    LoadJsonFromFile(FPP_DIR_MEDIA("/tmp/fan_probe.json"), fanProbe);
+    LoadJsonFromFile(FPP_DIR_MEDIA("/tmp/fan_probe.json"), fanProbe, JsonRoot::Object);
 
     for (int h = 0; h < 32; h++) {
         char hwmonPath[256];

@@ -343,6 +343,54 @@ bool LoadJsonFromFile(const char* filename, Json::Value& root) {
     return LoadJsonFromFile(filenameStr, root);
 }
 
+static const char* JsonTypeName(Json::ValueType t) {
+    switch (t) {
+    case Json::nullValue:
+        return "null";
+    case Json::intValue:
+        return "int";
+    case Json::uintValue:
+        return "uint";
+    case Json::realValue:
+        return "real";
+    case Json::stringValue:
+        return "string";
+    case Json::booleanValue:
+        return "boolean";
+    case Json::arrayValue:
+        return "array";
+    case Json::objectValue:
+        return "object";
+    }
+    return "unknown";
+}
+
+bool LoadJsonFromFile(const std::string& filename, Json::Value& root, JsonRoot expected) {
+    Json::ValueType expectedType = (expected == JsonRoot::Array) ? Json::arrayValue : Json::objectValue;
+
+    if (!LoadJsonFromFile(filename, root)) {
+        root = Json::Value(expectedType);
+        return false;
+    }
+
+    if (root.type() != expectedType) {
+        LogErr(VB_GENERAL, "JSON File %s has a %s at its root, expected %s - treating as empty\n",
+               filename.c_str(), JsonTypeName(root.type()), JsonTypeName(expectedType));
+        root = Json::Value(expectedType);
+        return false;
+    }
+
+    return true;
+}
+
+Json::Value LoadJsonFromFile(const std::string& filename, JsonRoot expected) {
+    Json::Value root;
+
+    LoadJsonFromFile(filename, root, expected);
+
+    return root;
+}
+
 std::string SaveJsonToString(const Json::Value& root, const std::string& indentation) {
     Json::StreamWriterBuilder wbuilder;
     wbuilder["indentation"] = indentation;

@@ -508,7 +508,7 @@ bool setupExceptionHandlers() {
 static void initCapeFromFile(const std::string& f) {
     if (FileExists(f)) {
         Json::Value root;
-        if (LoadJsonFromFile(f, root)) {
+        if (LoadJsonFromFile(f, root, JsonRoot::Object)) {
             // if there are sources of sensor data, get them loaded first
             if (root.isMember("sensorSources")) {
                 Sensors::INSTANCE.addSensorSources(root["sensorSources"]);
@@ -875,7 +875,7 @@ int main(int argc, char* argv[]) {
 
     if (FileExists(FPP_DIR_CONFIG("/sensors.json"))) {
         Json::Value root;
-        if (LoadJsonFromFile(FPP_DIR_CONFIG("/sensors.json"), root)) {
+        if (LoadJsonFromFile(FPP_DIR_CONFIG("/sensors.json"), root, JsonRoot::Object)) {
             Sensors::INSTANCE.addSensors(root["sensors"]);
         }
     }
@@ -1510,7 +1510,7 @@ void MainLoop(void) {
     minValidDate.tm_mon = 0;
     minValidDate.tm_mday = 1;
     Json::Value imagerRoot;
-    if (LoadJsonFromFile(getFPPDDir("/rpi-imager/rpi-imager_falcon_player.json"), imagerRoot)) {
+    if (LoadJsonFromFile(getFPPDDir("/rpi-imager/rpi-imager_falcon_player.json"), imagerRoot, JsonRoot::Object)) {
         if (imagerRoot.isMember("os_list") && imagerRoot["os_list"].isArray()) {
             std::time_t latestRelease = 0;
             // Find the latest release date across all OS images

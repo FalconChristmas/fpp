@@ -369,7 +369,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
     std::string file = FPP_DIR_CONFIG("/gpio.json");
     if (FileExists(file)) {
         Json::Value root;
-        if (LoadJsonFromFile(file, root)) {
+        if (LoadJsonFromFile(file, root, JsonRoot::Array)) {
             for (int x = 0; x < root.size(); x++) {
                 Json::Value v = root[x];
                 if (!v["enabled"].asBool()) {

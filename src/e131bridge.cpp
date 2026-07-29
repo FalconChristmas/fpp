@@ -278,7 +278,7 @@ bool LoadInputUniversesFromFile(void) {
     }
 
     Json::Value root;
-    if (!LoadJsonFromFile(filename, root)) {
+    if (!LoadJsonFromFile(filename, root, JsonRoot::Object)) {
         LogErr(VB_E131BRIDGE, "Error parsing %s\n", filename.c_str());
         return false;
     }
@@ -1106,7 +1106,7 @@ static void BridgeReloadDMXInputs() {
     std::string filename = FPP_DIR_CONFIG("/ci-dmx.json");
     if (FileExists(filename)) {
         Json::Value root;
-        if (LoadJsonFromFile(filename, root)) {
+        if (LoadJsonFromFile(filename, root, JsonRoot::Object)) {
             Json::Value outputs = root["channelInputs"];
             for (int c = 0; c < outputs.size(); c++) {
                 if (outputs[c]["type"].asString() == "dmx") {

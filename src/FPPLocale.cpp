@@ -41,14 +41,14 @@ Json::Value LocaleHolder::GetLocale() {
         localeFile = "/opt/fpp/etc/locale/Global.json";
     }
 
-    bool result = LoadJsonFromFile(localeFile, locale);
+    bool result = LoadJsonFromFile(localeFile, locale, JsonRoot::Object);
 
     if (result) {
         // Load user-defined holidays and merge them with locale holidays
         std::string userHolidaysFile = FPP_DIR_CONFIG("/user-holidays.json");
         if (FileExists(userHolidaysFile)) {
             Json::Value userHolidays;
-            if (LoadJsonFromFile(userHolidaysFile, userHolidays)) {
+            if (LoadJsonFromFile(userHolidaysFile, userHolidays, JsonRoot::Array)) {
                 if (userHolidays.isArray() && userHolidays.size() > 0) {
                     // Ensure the locale has a holidays array
                     if (!locale.isMember("holidays")) {
