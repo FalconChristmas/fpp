@@ -39,11 +39,13 @@ echo "Generating crash report in: $TEMP_DIR"
 cp /tmp/fppd_crash.log "$TEMP_DIR/" 2>/dev/null || true
 cp fpp-info.json "$TEMP_DIR/" 2>/dev/null || true
 
-# Playlist state at the fault plus the retained debug-level log ring. Written
-# by the crash handler alongside the stack; kept as a separate file so the
-# stack parser is unaffected. Included at every level -- it is fppd's own
-# state, carries no credentials, and is the context that makes a stack
-# actionable.
+# Playlist state and fault registers at the crash. Included at every level:
+# these are bare scalars (section sizes, register values) that identify
+# nothing, and they are what makes a bare stack actionable.
+#
+# The retained log ring is deliberately NOT copied here -- it is log content,
+# and FPP's logs carry host names, LAN addresses and discovered-device
+# identifiers. It ships further down, at the same level as logs/fppd.log.
 cp /tmp/fppd_crash_context.log "$TEMP_DIR/" 2>/dev/null || true
 
 # Include stats file if the user has opted in to stat collection (provides
@@ -141,6 +143,19 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
         
         # Logs (scrub any passwords that might appear in logs, except Enable flags)
         mkdir -p "$TEMP_DIR/logs"
+
+        # The crash-time log ring belongs with the logs, not with the stack:
+        # it is the same class of content (and often the same lines) as
+        # fppd.log, so it ships only at this level and gets the same scrubbing.
+        if [ -f /tmp/fppd_crash_log_ring.log ]; then
+            sed -E \
+                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
+                -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
+                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
+                -e 's#(https?://)[^:/@]+:[^@]+@#\1**REDACTED**@#gI' \
+                /tmp/fppd_crash_log_ring.log > "$TEMP_DIR/logs/fppd_crash_log_ring.log" 2>/dev/null || true
+        fi
+
         if [ -f "logs/fppd.log" ]; then
             sed -E \
                 -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \

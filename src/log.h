@@ -124,9 +124,18 @@ bool WillLog(int level, FPPLoggerInstance& facility);
 // even though the configured log level would otherwise discard it.
 bool CrashLogRingWillCapture(int level, FPPLoggerInstance& facility);
 
+// Stop accepting new lines.  Called at the top of the crash handler so its own
+// logging does not evict the pre-crash history.
+void CrashLogRingFreeze();
+
 // Write the retained lines to fd, oldest first.  Async-signal-safe: no locks,
 // no allocation, write() only -- so it is usable from a crash handler that may
 // hold the very locks the normal log path needs.
+//
+// PRIVACY: these are log lines, and FPP's logs carry host names, LAN addresses
+// and discovered-device identifiers.  Treat the output as log content -- it
+// belongs in a crash report only at the share level that already ships
+// logs/fppd.log, never at "stack traces only".
 void CrashLogRingDump(int fd);
 
 // Truncates a value before it goes into a log line - use for anything whose

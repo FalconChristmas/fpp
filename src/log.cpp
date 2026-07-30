@@ -67,9 +67,22 @@ static constexpr size_t kCrashRingSlotSize = 240;
 static char s_crashRing[kCrashRingSlots][kCrashRingSlotSize];
 static std::atomic<uint64_t> s_crashRingSeq{ 0 };
 
+// Set once the crash handler starts, so its own output -- the gdb stack, the
+// "Crash handler called" line -- stops evicting the pre-crash history that is
+// the entire reason the ring exists.  That output is already captured in the
+// stack file; duplicating it here would only cost us the lines we want.
+static std::atomic<bool> s_crashRingFrozen{ false };
+
+void CrashLogRingFreeze() {
+    s_crashRingFrozen.store(true, std::memory_order_relaxed);
+}
+
 // Zero-init statics, so this is safe from any point in startup with no
 // dependency on static initialization order.
 static void CrashLogRingPush(const char* line, size_t len) {
+    if (s_crashRingFrozen.load(std::memory_order_relaxed)) {
+        return;
+    }
     uint64_t seq = s_crashRingSeq.fetch_add(1, std::memory_order_relaxed);
     char* slot = s_crashRing[seq % kCrashRingSlots];
     if (len >= kCrashRingSlotSize) {

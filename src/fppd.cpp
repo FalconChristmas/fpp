@@ -422,6 +422,9 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         return;
     }
     inCrashHandler = true;
+    // Everything this handler logs from here on -- the signal line, the gdb
+    // stack -- would otherwise push the pre-crash history out of the ring.
+    CrashLogRingFreeze();
     if (s != SIGQUIT && s != SIGUSR1) {
         // Wedge-proofing: nearly everything below is async-signal-UNSAFE —
         // fork()/gdb, LogErr (malloc), system()/curl.  When the fatal signal
@@ -499,6 +502,14 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
 
     // Context files, written unconditionally (the gdb path above produces only
     // a stack).  Separate files so the stack parser is unaffected.
+    //
+    // Split into two on PRIVACY grounds, and the split must be kept: the
+    // playlist state and the fault registers are bare scalars that identify
+    // nothing, whereas the log ring is log content and FPP's logs are full of
+    // host names, LAN addresses and discovered-device identifiers.  The
+    // bundler therefore ships the first at every share level and the second
+    // only where logs/fppd.log already goes.  Putting them in one file sends a
+    // user's network topology to anyone who selected "stack traces only".
     {
         int cfd = open("/tmp/fppd_crash_context.log", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
         if (cfd >= 0) {
@@ -507,9 +518,12 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             // the thread it happens to unwind, not necessarily the faulting
             // one, and this costs nothing.
             safeWriteFaultRegisters(cfd, ctx);
-            safeWrite(cfd, "\n");
-            CrashLogRingDump(cfd);
             close(cfd);
+        }
+        int rfd = open("/tmp/fppd_crash_log_ring.log", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        if (rfd >= 0) {
+            CrashLogRingDump(rfd);
+            close(rfd);
         }
     }
     if (crashLog >= 1) {
