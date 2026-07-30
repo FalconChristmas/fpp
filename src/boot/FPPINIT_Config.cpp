@@ -25,6 +25,14 @@
 #include <unistd.h>
 #include <vector>
 
+#if __has_include(<gpiod.hpp>)
+#include <gpiod.hpp>
+#define HASGPIOD
+#if __has_include(<gpiodcxx/chip.hpp>)
+#define IS_GPIOD_CXX_V2
+#endif
+#endif
+
 #include "FPPINIT.h"
 
 void DetectCape() {
@@ -1036,6 +1044,65 @@ void setupChannelOutputs() {
 #endif
 }
 
+// Drive a GPIO line, looked up by the name the kernel exposes for it
+// (gpio-line-names in the device tree), to the given value.  Uses libgpiod
+// directly rather than the gpioset/gpioinfo tools whose command line and
+// output format changed incompatibly between libgpiod 1.x and 2.x.
+//
+// Like gpioset, the line is released as soon as the value has been written:
+// the pin keeps the level the driver last wrote to it.
+static bool setNamedGPIO(const std::string& pin, int val) {
+#ifdef HASGPIOD
+    bool found = false;
+    for (const auto& entry : std::filesystem::directory_iterator("/dev")) {
+        if (!entry.path().filename().string().starts_with("gpiochip")) {
+            continue;
+        }
+        std::string path = entry.path().string();
+        try {
+#ifdef IS_GPIOD_CXX_V2
+            gpiod::chip chip(path);
+            int offset = chip.get_line_offset_from_name(pin);
+            if (offset < 0) {
+                continue;
+            }
+            gpiod::line_settings settings;
+            settings.set_direction(gpiod::line::direction::OUTPUT);
+            settings.set_output_value(val ? gpiod::line::value::ACTIVE : gpiod::line::value::INACTIVE);
+            gpiod::line_request request = chip.prepare_request()
+                                              .set_consumer("FPPINIT")
+                                              .add_line_settings(offset, settings)
+                                              .do_request();
+            request.release();
+#else
+            gpiod::chip chip(path, gpiod::chip::OPEN_BY_PATH);
+            gpiod::line line = chip.find_line(pin);
+            if (!line) {
+                continue;
+            }
+            int offset = line.offset();
+            gpiod::line_request request;
+            request.consumer = "FPPINIT";
+            request.request_type = gpiod::line_request::DIRECTION_OUTPUT;
+            line.request(request, val);
+            line.release();
+#endif
+            printf("FPP - Set GPIO %s (%s line %d) to %d\n", pin.c_str(), path.c_str(), offset, val);
+            found = true;
+        } catch (const std::exception& ex) {
+            printf("FPP - Could not set GPIO %s on %s: %s\n", pin.c_str(), path.c_str(), ex.what());
+        }
+    }
+    if (!found) {
+        printf("FPP - Could not find a GPIO line named %s\n", pin.c_str());
+    }
+    return found;
+#else
+    printf("FPP - Cannot set GPIO %s, no libgpiod support\n", pin.c_str());
+    return false;
+#endif
+}
+
 void handleRebootActions() {
     if (FileExists("/home/fpp/media/tmp/cape-info.json")) {
         Json::Value v;
@@ -1044,26 +1111,15 @@ void handleRebootActions() {
                 for (const auto& action : v["rebootActions"]) {
                     if (action["type"].asString() == "gpio") {
                         std::string pin = action["pin"].asString();
+                        if (pin.empty()) {
+                            continue;
+                        }
                         int val = 0;
                         if (pin[0] == '+') {
                             pin = pin.substr(1);
                             val = 1;
                         }
-                        std::string ret = execAndReturn("gpioinfo | grep -e gpioch -e " + pin);
-                        auto lines = split(ret, '\n');
-                        int curChip = 0;
-                        for (const auto& line : lines) {
-                            if (line.find("gpiochip") != std::string::npos) {
-                                curChip = atoi(line.substr(line.find("gpiochip") + 8).c_str());
-                            } else if (line.find("\"" + pin + "\"") != std::string::npos) {
-                                std::string l = line.substr(line.find("line ") + 5);
-                                TrimWhiteSpace(l);
-                                int lineNum = atoi(l.c_str());
-                                std::string cmd = "gpioset " + std::to_string(curChip) + " " + std::to_string(lineNum) + "=" + std::to_string(val);
-                                printf("FPP - Toggling GPIO via: %s\n", cmd.c_str());
-                                exec(cmd);
-                            }
-                        }
+                        setNamedGPIO(pin, val);
                     }
                 }
             }
