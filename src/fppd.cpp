@@ -526,7 +526,7 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             close(rfd);
         }
     }
-    if (crashLog >= 1) {
+    if (crashLog >= 0) {
         std::set<std::string> filenames;
         std::string mediaDir = getFPPMediaDir();
         std::string cdir = mediaDir + "/crashes";
@@ -593,14 +593,16 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
 
             // Use script to generate crash report with passwords redacted
             char scriptCmd[512];
-            snprintf(scriptCmd, sizeof(scriptCmd), "/opt/fpp/scripts/generate_crash_report %d %s", crashLog, zfName);
+            snprintf(scriptCmd, sizeof(scriptCmd), "/opt/fpp/scripts/generate_crash_report %d %s", crashLog == 0 ? 3 : crashLog, zfName);
             system(scriptCmd);
             SetFilePerms(zfName);
             
-            // Upload crash report
-            char uploadCmd[512];
-            snprintf(uploadCmd, sizeof(uploadCmd), "curl https://dankulp.com/crashUpload/index.php -F userfile=@%s", zfName);
-            system(uploadCmd);
+            if (crashLog >= 1) {
+                // Upload crash report
+                char uploadCmd[512];
+                snprintf(uploadCmd, sizeof(uploadCmd), "curl https://dankulp.com/crashUpload/index.php -F userfile=@%s", zfName);
+                system(uploadCmd);
+            }
         } else {
             LogErr(VB_ALL, "Very recent crash report found, not uploading\n");
         }
