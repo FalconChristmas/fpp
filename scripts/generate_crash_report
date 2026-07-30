@@ -39,6 +39,13 @@ echo "Generating crash report in: $TEMP_DIR"
 cp /tmp/fppd_crash.log "$TEMP_DIR/" 2>/dev/null || true
 cp fpp-info.json "$TEMP_DIR/" 2>/dev/null || true
 
+# Playlist state at the fault plus the retained debug-level log ring. Written
+# by the crash handler alongside the stack; kept as a separate file so the
+# stack parser is unaffected. Included at every level -- it is fppd's own
+# state, carries no credentials, and is the context that makes a stack
+# actionable.
+cp /tmp/fppd_crash_context.log "$TEMP_DIR/" 2>/dev/null || true
+
 # Include stats file if the user has opted in to stat collection (provides
 # additional contextual information about the crash)
 cp /tmp/fpp_stats.json "$TEMP_DIR/" 2>/dev/null || true

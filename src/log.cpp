@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 #include <cstring>
 
+#include <atomic>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -39,6 +40,74 @@ FPPLogger FPPLogger::INSTANCE = FPPLogger();
 
 char logFileName[1024] = "";
 bool logToStdOut = true;
+
+// ---------------------------------------------------------------------------
+// Crash-time log ring
+//
+// The most useful line for diagnosing a crash is routinely one nobody kept: the
+// trigger is logged at LogDebug, production runs at info, so it is filtered out
+// before it is ever formatted.  This ring formats and retains those lines in
+// memory without writing them anywhere, and the crash handler dumps it into the
+// report -- debug-level detail at info-level cost on disk.
+//
+// Constraints that shaped it:
+//   * No locking.  The normal log path takes logFileLock, and a crash handler
+//     that blocks on a mutex the faulting thread already holds hangs the
+//     process -- exactly the case (heap corruption inside free()) that most
+//     needs the trace.  A slot may be torn between a writer and the dump; a
+//     smeared line in a crash report is a fine price for never deadlocking.
+//   * No allocation, for the same reason: a fixed array of fixed slots, so the
+//     dump is a bounded series of write() calls and is async-signal-safe.
+//   * LOG_EXCESSIVE is excluded.  It fires per frame in the output path, and
+//     formatting it unconditionally would be a real cost on a single-core BBB;
+//     LOG_DEBUG and coarser covers the state changes worth reconstructing.
+// ---------------------------------------------------------------------------
+static constexpr size_t kCrashRingSlots = 256;
+static constexpr size_t kCrashRingSlotSize = 240;
+static char s_crashRing[kCrashRingSlots][kCrashRingSlotSize];
+static std::atomic<uint64_t> s_crashRingSeq{ 0 };
+
+// Zero-init statics, so this is safe from any point in startup with no
+// dependency on static initialization order.
+static void CrashLogRingPush(const char* line, size_t len) {
+    uint64_t seq = s_crashRingSeq.fetch_add(1, std::memory_order_relaxed);
+    char* slot = s_crashRing[seq % kCrashRingSlots];
+    if (len >= kCrashRingSlotSize) {
+        len = kCrashRingSlotSize - 1;
+    }
+    memcpy(slot, line, len);
+    slot[len] = '\0';
+}
+
+// Two independent filters, both needed:
+//   * facility opt-out excludes the per-frame data facilities outright (see
+//     FPPLoggerInstance::crashRingCapture -- HexDump emits at LogInfo, so a
+//     level test alone would not have caught them);
+//   * LOG_EXCESSIVE is dropped everywhere, since it is the per-frame level by
+//     convention in every facility that has one.
+bool CrashLogRingWillCapture(int level, FPPLoggerInstance& facility) {
+    return facility.crashRingCapture && level <= LOG_DEBUG;
+}
+
+// Async-signal-safe: only write(), no allocation, no locks.
+void CrashLogRingDump(int fd) {
+    uint64_t seq = s_crashRingSeq.load(std::memory_order_relaxed);
+    uint64_t count = seq < kCrashRingSlots ? seq : kCrashRingSlots;
+    static const char hdr[] = "=== recent log lines (ring buffer, oldest first) ===\n";
+    (void)!write(fd, hdr, sizeof(hdr) - 1);
+    if (count == 0) {
+        static const char none[] = "(empty)\n";
+        (void)!write(fd, none, sizeof(none) - 1);
+        return;
+    }
+    for (uint64_t i = seq - count; i < seq; i++) {
+        const char* slot = s_crashRing[i % kCrashRingSlots];
+        size_t len = strnlen(slot, kCrashRingSlotSize);
+        if (len) {
+            (void)!write(fd, slot, len);
+        }
+    }
+}
 
 // True when stdout is an interactive terminal (a person ran `fppd -f` in a
 // shell) rather than a pipe to journald (how systemd runs `fppd -f`). Used to
@@ -334,7 +403,8 @@ bool WillLog(int level, FPPLoggerInstance& facility) {
 }
 
 void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const std::string& str, ...) {
-    if (!(WillLog(level, facility)))
+    // Same gate as the char* overload -- a ring-only line still has to reach it.
+    if (!WillLog(level, facility) && !CrashLogRingWillCapture(level, facility))
         return;
     _LogWrite(file, line, level, facility, str.c_str());
 }
@@ -372,8 +442,12 @@ static void formatLogLines(std::string& out, const char* prefix, const char* msg
 }
 
 void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const char* format, ...) {
-    // Don't log if we're not concerned about anything at this level
-    if (!(WillLog(level, facility)))
+    // A line is formatted if it is either being logged normally OR retained in
+    // the crash ring -- the ring is the whole point of formatting a line the
+    // configured level would discard.
+    const bool willLog = WillLog(level, facility);
+    const bool willRing = CrashLogRingWillCapture(level, facility);
+    if (!willLog && !willRing)
         return;
 
     va_list arg;
@@ -425,6 +499,15 @@ void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facilit
     std::string out;
     out.reserve((msgLen > 0 ? (size_t)msgLen : 0) + 128);
     formatLogLines(out, prefix, msg);
+
+    if (willRing) {
+        CrashLogRingPush(out.data(), out.size());
+    }
+    if (!willLog) {
+        // Retained for the crash report only; the configured level says this
+        // line does not belong in the log file or on stdout.
+        return;
+    }
 
     // One fwrite per log call: it keeps the whole (possibly multi-line) message
     // contiguous, which matters now that shell writers append to this same file.

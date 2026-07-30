@@ -59,6 +59,69 @@ static std::list<PlaylistEntryBase*> PL_ENTRY_CLEANUPS;
 Playlist* playlist = NULL;
 
 // ──────────────────────────────────────────────────────────────────────────
+// Crash snapshot
+//
+// What was playing, and where, at the moment fppd died.  The crash handler
+// already records the sequence file and elapsed ms; the playlist half is the
+// part that explains *why* a given entry was being started -- most usefully
+// the three section sizes, since an empty section that a caller believed was
+// non-empty is the shape of a whole class of bug here.
+//
+// Deliberately plain scalars in file statics, never the live Playlist: see
+// PlaylistDumpCrashState in the header for why the handler cannot lock or
+// walk containers.  Torn reads are accepted.
+// ──────────────────────────────────────────────────────────────────────────
+namespace {
+struct CrashSnapshot {
+    char playlistName[128];
+    char section[24];
+    int sectionPosition;
+    int leadInSize;
+    int mainSize;
+    int leadOutSize;
+    int status;
+    bool everSet;
+};
+CrashSnapshot s_crashSnapshot{};
+
+void copyFixed(char* dst, size_t dstSize, const std::string& src) {
+    size_t n = src.size() < dstSize - 1 ? src.size() : dstSize - 1;
+    memcpy(dst, src.data(), n);
+    dst[n] = '\0';
+}
+} // namespace
+
+void Playlist::UpdateCrashSnapshot(void) {
+    CrashSnapshot& s = s_crashSnapshot;
+    copyFixed(s.playlistName, sizeof(s.playlistName), m_name);
+    copyFixed(s.section, sizeof(s.section), m_currentSectionStr);
+    s.sectionPosition = m_sectionPosition;
+    s.leadInSize = (int)m_leadIn.size();
+    s.mainSize = (int)m_mainPlaylist.size();
+    s.leadOutSize = (int)m_leadOut.size();
+    s.status = (int)m_status;
+    s.everSet = true;
+}
+
+void PlaylistDumpCrashState(int fd) {
+    const CrashSnapshot& s = s_crashSnapshot;
+    char buf[512];
+    int n;
+    if (!s.everSet) {
+        n = snprintf(buf, sizeof(buf), "Playlist state: none (no playlist has run)\n");
+    } else {
+        n = snprintf(buf, sizeof(buf),
+                     "Playlist state: name='%.127s' section=%.23s pos=%d status=%d "
+                     "sizes(leadIn=%d main=%d leadOut=%d)\n",
+                     s.playlistName, s.section, s.sectionPosition, s.status,
+                     s.leadInSize, s.mainSize, s.leadOutSize);
+    }
+    if (n > 0) {
+        (void)!write(fd, buf, (size_t)(n < (int)sizeof(buf) ? n : (int)sizeof(buf) - 1));
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Deferred notifications and deferred re-entrant starts.
 //
 // TriggerPreset() and PluginManager::playlistCallback() run arbitrary code
@@ -686,6 +749,7 @@ void Playlist::SwitchToMainPlaylist(void) {
     LogDebug(VB_PLAYLIST, "Switching to MainPlaylist\n");
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    UpdateCrashSnapshot();
 
     // A caller's "does this section have entries" test can be invalidated
     // before we get here: ReloadIfNeeded() runs Cleanup(), which pops every
@@ -715,6 +779,7 @@ void Playlist::SwitchToLeadOut(void) {
     LogDebug(VB_PLAYLIST, "Switching to LeadOut\n");
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    UpdateCrashSnapshot();
 
     // See SwitchToMainPlaylist() -- a reload between the caller's size check
     // and here can leave this section empty.
@@ -1040,6 +1105,8 @@ int Playlist::Process(void) {
     if (m_currentSectionStr == "New") {
         return 0;
     }
+
+    UpdateCrashSnapshot();
 
     if (m_currentSection == nullptr || m_sectionPosition >= m_currentSection->size()) {
         LogErr(VB_PLAYLIST, "Section position %d is outside of section %s\n",
