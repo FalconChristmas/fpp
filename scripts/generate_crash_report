@@ -39,6 +39,17 @@ echo "Generating crash report in: $TEMP_DIR"
 cp /tmp/fppd_crash.log "$TEMP_DIR/" 2>/dev/null || true
 cp fpp-info.json "$TEMP_DIR/" 2>/dev/null || true
 
+# When fppd fell back from gdb, the stack is raw addresses. Resolve them here,
+# on the box, against the binaries that actually crashed -- see the header of
+# symbolize_crash_frames.py for why this cannot correctly be done elsewhere.
+# No-op when gdb succeeded (that stack already has line numbers) or when the
+# helper/addr2line is missing. Never allowed to fail the report.
+if [ -f /tmp/fppd_crash.log ] && [ -x /opt/fpp/scripts/symbolize_crash_frames.py ]; then
+    timeout 60 /opt/fpp/scripts/symbolize_crash_frames.py \
+        /tmp/fppd_crash.log "$TEMP_DIR/fppd_crash_addr2line.log" >/dev/null 2>&1 || true
+    [ -s "$TEMP_DIR/fppd_crash_addr2line.log" ] || rm -f "$TEMP_DIR/fppd_crash_addr2line.log"
+fi
+
 # Playlist state and fault registers at the crash. Included at every level:
 # these are bare scalars (section sizes, register values) that identify
 # nothing, and they are what makes a bare stack actionable.
