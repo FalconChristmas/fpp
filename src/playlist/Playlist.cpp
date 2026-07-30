@@ -687,6 +687,21 @@ void Playlist::SwitchToMainPlaylist(void) {
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
+    // A caller's "does this section have entries" test can be invalidated
+    // before we get here: ReloadIfNeeded() runs Cleanup(), which pops every
+    // entry into PL_ENTRY_CLEANUPS and then reloads from the file, so a
+    // playlist edited mid-play can come back without this section.  The
+    // vector is empty but keeps its capacity, so [0] hands back a stale
+    // pointer to an entry that Process() is about to delete -- the vtable is
+    // still mapped, the virtual call dispatches, and the fault lands inside
+    // StartPlaying().  Check here, at the one place the section is indexed,
+    // rather than at each call site.
+    if (m_mainPlaylist.empty()) {
+        LogDebug(VB_PLAYLIST, "MainPlaylist is empty, switching to idle.\n");
+        SetIdle();
+        return;
+    }
+
     m_currentSectionStr = "MainPlaylist";
     m_currentSection = &m_mainPlaylist;
     m_sectionPosition = 0;
@@ -700,6 +715,14 @@ void Playlist::SwitchToLeadOut(void) {
     LogDebug(VB_PLAYLIST, "Switching to LeadOut\n");
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+
+    // See SwitchToMainPlaylist() -- a reload between the caller's size check
+    // and here can leave this section empty.
+    if (m_leadOut.empty()) {
+        LogDebug(VB_PLAYLIST, "LeadOut is empty, switching to idle.\n");
+        SetIdle();
+        return;
+    }
 
     m_currentSectionStr = "LeadOut";
     m_currentSection = &m_leadOut;
@@ -1199,8 +1222,11 @@ int Playlist::Process(void) {
                         RandomizeMainPlaylist();
                     }
 
-                    m_sectionPosition = 0;
-                    StartPlayingWithGlobalPause(m_mainPlaylist[0]);
+                    // Goes through SwitchToMainPlaylist() for its empty-section
+                    // guard; we are already in the MainPlaylist section, so the
+                    // section/position it sets are the values this branch wants.
+                    // ReloadIfNeeded() above may have emptied the section.
+                    SwitchToMainPlaylist();
                 } else if (m_leadOut.size()) {
                     ReloadIfNeeded();
 
