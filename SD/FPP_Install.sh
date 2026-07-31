@@ -2152,6 +2152,19 @@ install_fpp_services() {
         cp /usr/share/pipewire/client.conf /etc/pipewire/client.conf
     fi
 
+    # The distro gstreamer1.0-pipewire plugin (1.4.2 on Trixie) crashes in
+    # on_remove_buffer when a consumer disconnects from a mode=provide
+    # pipewiresink, which is exactly how FPP's persistent Video/Source nodes
+    # work.  Build the fixed plugin from source; --if-needed makes this a no-op
+    # once a new enough one is installed, so re-running the installer is cheap.
+    # Never fatal: a box without internet still gets a working install, just
+    # without video input sources.
+    if [ -x /opt/fpp/scripts/build_pipewire_gst_plugin.sh ]; then
+        echo "FPP - Checking PipeWire GStreamer plugin version"
+        /opt/fpp/scripts/build_pipewire_gst_plugin.sh --if-needed || \
+            echo "FPP - WARNING: PipeWire GStreamer plugin build failed; Video Input Sources may crash.  Re-run: sudo /opt/fpp/scripts/build_pipewire_gst_plugin.sh"
+    fi
+
     if $isimage; then
         mkdir -p /etc/networkd-dispatcher/initialized.d
         cp -a /opt/fpp/etc/networkd-dispatcher/* /etc/networkd-dispatcher

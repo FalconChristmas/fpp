@@ -213,21 +213,19 @@ sleep 1
 
 # --- 9. Build PipeWire GStreamer plugin from source (video mode=provide fix) ---
 echo ""
-echo "Step 9: Checking PipeWire GStreamer plugin for mode=provide support..."
-PLUGIN_HAS_PROVIDE=$(PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp \
-    gst-inspect-1.0 pipewiresink 2>/dev/null | grep -c "provide" || true)
-if [ "${PLUGIN_HAS_PROVIDE}" -gt 0 ]; then
-    echo "    GStreamer pipewiresink already supports mode=provide — skipping build."
+echo "Step 9: Checking PipeWire GStreamer plugin version..."
+# The "is it new enough" decision lives in build_pipewire_gst_plugin.sh
+# (--if-needed).  Do not reimplement it here -- this step used to, with
+# `gst-inspect-1.0 pipewiresink | grep -c provide`, which matches "element
+# provides a clock" and the mode enum present in stock 1.4.2, so it always
+# reported the fix as already installed and never built anything.
+if [ -x /opt/fpp/scripts/build_pipewire_gst_plugin.sh ]; then
+    /opt/fpp/scripts/build_pipewire_gst_plugin.sh --if-needed || {
+        echo "    WARNING: Plugin build failed. Video Input Sources (mode=provide) may crash."
+        echo "    Run manually: sudo /opt/fpp/scripts/build_pipewire_gst_plugin.sh"
+    }
 else
-    echo "    Stock plugin lacks mode=provide fix.  Building from source..."
-    if [ -x /opt/fpp/scripts/build_pipewire_gst_plugin.sh ]; then
-        /opt/fpp/scripts/build_pipewire_gst_plugin.sh 1.6.0 || {
-            echo "    WARNING: Plugin build failed. Video Input Sources (mode=provide) may crash."
-            echo "    Run manually: sudo /opt/fpp/scripts/build_pipewire_gst_plugin.sh 1.6.0"
-        }
-    else
-        echo "    WARNING: build_pipewire_gst_plugin.sh not found."
-    fi
+    echo "    WARNING: build_pipewire_gst_plugin.sh not found."
 fi
 
 # --- 10. Verify ---

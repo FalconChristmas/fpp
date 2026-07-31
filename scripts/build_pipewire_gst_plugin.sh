@@ -19,23 +19,59 @@
 # The stock plugin is backed up as libgstpipewire.so.bak-<version>.
 #
 # Usage:
-#   sudo /opt/fpp/scripts/build_pipewire_gst_plugin.sh [TAG]
+#   sudo /opt/fpp/scripts/build_pipewire_gst_plugin.sh [--if-needed] [TAG]
 #
-# TAG defaults to 1.4.2 (the current distro version) — override with
-# any PipeWire git tag, branch, or commit hash, e.g.:
+# TAG defaults to PIPEWIRE_PLUGIN_MIN_VERSION below — override with any
+# PipeWire git tag, branch, or commit hash, e.g.:
 #   sudo /opt/fpp/scripts/build_pipewire_gst_plugin.sh 1.6.0
 #   sudo /opt/fpp/scripts/build_pipewire_gst_plugin.sh master
+#
+# --if-needed compares the *installed* plugin version against
+# PIPEWIRE_PLUGIN_MIN_VERSION and exits 0 without doing anything when it is
+# already new enough.  That is what the install/upgrade paths call, so this
+# script is the single source of truth for "is the plugin new enough" — the
+# callers must not try to answer that themselves.  (They used to: the check was
+# `gst-inspect-1.0 pipewiresink | grep -c provide`, which matches "element
+# provides a clock" and the mode enum that has existed since long before the
+# fix, so it returned non-zero on the stock 1.4.2 plugin and the build was
+# skipped on every device it was ever supposed to fix.)
 #
 # Requires internet access to clone the PipeWire git repository.
 #####################################
 
 set -euo pipefail
 
-PIPEWIRE_TAG="${1:-1.4.2}"
+# Minimum plugin version that carries the mode=provide buffer-lifecycle fix.
+PIPEWIRE_PLUGIN_MIN_VERSION="1.6.0"
+
+IF_NEEDED=false
+if [ "${1:-}" = "--if-needed" ]; then
+    IF_NEEDED=true
+    shift
+fi
+
+PIPEWIRE_TAG="${1:-${PIPEWIRE_PLUGIN_MIN_VERSION}}"
 PIPEWIRE_REPO="https://gitlab.freedesktop.org/pipewire/pipewire.git"
 BUILD_DIR="/tmp/pipewire-gst-build"
 GST_PLUGIN_DIR=$(pkg-config --variable=pluginsdir gstreamer-1.0 2>/dev/null || echo "/usr/lib/arm-linux-gnueabihf/gstreamer-1.0")
 STOCK_VERSION=$(dpkg-query -W -f='${Version}' gstreamer1.0-pipewire 2>/dev/null | cut -d- -f1 || echo "unknown")
+
+# Version of the plugin GStreamer would actually load right now.  gst-inspect
+# reports the plugin's own version, so it reads the locally built .so once one
+# is installed; dpkg is the fallback for when gstreamer1.0-tools is missing.
+installed_plugin_version() {
+    local v=""
+    if command -v gst-inspect-1.0 >/dev/null 2>&1; then
+        v=$(gst-inspect-1.0 pipewiresink 2>/dev/null | awk '/^ *Version/ {print $NF; exit}')
+    fi
+    [ -z "${v}" ] && v="${STOCK_VERSION}"
+    echo "${v}"
+}
+
+# True when $1 is older than $2 (plain semver, no epochs/suffixes).
+version_lt() {
+    [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$1" ]
+}
 
 echo "============================================"
 echo "FPP — Build PipeWire GStreamer Plugin"
@@ -49,6 +85,19 @@ echo ""
 if [ "$(id -u)" -ne 0 ]; then
     echo "ERROR: This script must be run as root (sudo)."
     exit 1
+fi
+
+# --- Skip when already new enough (--if-needed) ---
+if ${IF_NEEDED}; then
+    CURRENT_VERSION=$(installed_plugin_version)
+    echo "  Installed plugin version: ${CURRENT_VERSION} (minimum ${PIPEWIRE_PLUGIN_MIN_VERSION})"
+    if [ "${CURRENT_VERSION}" != "unknown" ] && \
+       ! version_lt "${CURRENT_VERSION}" "${PIPEWIRE_PLUGIN_MIN_VERSION}"; then
+        echo "  Plugin is already >= ${PIPEWIRE_PLUGIN_MIN_VERSION} — nothing to do."
+        exit 0
+    fi
+    echo "  Plugin is older than ${PIPEWIRE_PLUGIN_MIN_VERSION} — building from source."
+    echo ""
 fi
 
 # --- 1. Install build dependencies ---
@@ -146,11 +195,18 @@ INSTALLED_VERSION=$(PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/
 echo "  gst-inspect-1.0 pipewiresink reports: Version ${INSTALLED_VERSION}"
 
 # Check for mode=provide support
-if PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp \
-    gst-inspect-1.0 pipewiresink 2>/dev/null | grep -q "provide"; then
-    echo "  mode=provide: SUPPORTED"
+# Assert on the version, not on the presence of the word "provide": the
+# mode=provide enum exists in the stock 1.4.2 plugin too (as does "element
+# provides a clock"), so a substring check reports success even when nothing
+# was replaced.  That false positive is what kept this script from ever running.
+if [ "${INSTALLED_VERSION}" = "unknown" ]; then
+    echo "  WARNING: could not determine the installed plugin version."
+elif version_lt "${INSTALLED_VERSION}" "${PIPEWIRE_PLUGIN_MIN_VERSION}"; then
+    echo "  ERROR: plugin still reports ${INSTALLED_VERSION}, expected >= ${PIPEWIRE_PLUGIN_MIN_VERSION}."
+    echo "         The new plugin was not picked up -- check ${DEST} and the registry cache."
+    exit 1
 else
-    echo "  WARNING: mode=provide not found in plugin properties"
+    echo "  Plugin version ${INSTALLED_VERSION} >= ${PIPEWIRE_PLUGIN_MIN_VERSION}: OK"
 fi
 
 # --- 7. Clean up ---
@@ -164,6 +220,21 @@ echo "============================================"
 echo "PipeWire GStreamer plugin build complete."
 echo "  Installed version: ${INSTALLED_VERSION}"
 echo "  Stock backup:      ${DEST}.bak-${STOCK_VERSION}"
+
+# This is a GStreamer *client* plugin: it is dlopen'd by fppd, not by the
+# pipewire/wireplumber daemons, so restarting those achieves nothing.  A
+# running fppd still has the old .so mapped and keeps using it until it is
+# restarted.  Not done automatically -- that would stop a running show.  The
+# install and upgrade paths don't need it (nothing is running yet, and an
+# upgrade ends in a reboot); a standalone run on a live box does.
+if systemctl is-active --quiet fppd 2>/dev/null; then
+    echo ""
+    echo "  NOTE: fppd is running and still has the previous plugin loaded."
+    echo "        Restart it to use the new one:  sudo systemctl restart fppd"
+    echo "        (Restarting fpp-pipewire/fpp-wireplumber is NOT needed -- they"
+    echo "         do not load this plugin.)"
+fi
+
 echo ""
 echo "To restore the stock plugin:"
 echo "  sudo cp ${DEST}.bak-${STOCK_VERSION} ${DEST}"
