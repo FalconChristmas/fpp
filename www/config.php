@@ -271,6 +271,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
     } else if (preg_match('/Pi 5/', $settings['SubPlatform']) || preg_match('/Pi Compute Module 5/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 5";
         $settings['Logo'] = "Raspberry_Pi_5.svg";
+    } else if (preg_match('/Pi Zero 2 W/', $settings['SubPlatform'])) {
+        $settings['Variant'] = "PiZero 2 W";
+        $settings['Logo'] = "Raspberry_Pi_Zero2W.svg";
     } else if (preg_match('/Pi Zero 2/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PiZero 2";
         $settings['Logo'] = "Raspberry_Pi_Zero2.svg";
@@ -349,10 +352,10 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $settings['Logo'] = "odroid_logo.gif";
         $settings['LogoLink'] = "http://www.hardkernel.com/main/main.php";
     } else if (preg_match('/Banana/', $settings['SubPlatform'])) {
-        $settings['Logo'] = "debian_logo.png";
+        $settings['Logo'] = "debian_logo.svg";
         $settings['LogoLink'] = "http://www.banana-pi.com/eindex.asp";
     } else if ($settings['Platform'] == "Debian") {
-        $settings['Logo'] = "debian_logo.png";
+        $settings['Logo'] = "debian_logo.svg";
         $settings['LogoLink'] = "https://www.debian.org/";
     } else if ($settings['Platform'] == "Ubuntu") {
         $settings['Logo'] = "ubuntu_logo.png";
@@ -361,7 +364,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $settings['Logo'] = "mint_logo.png";
         $settings['LogoLink'] = "https://linuxmint.com/";
     } else {
-        $settings['Logo'] = "debian_logo.png";
+        $settings['Logo'] = "debian_logo.svg";
         $settings['LogoLink'] = "https://www.armbian.com/";
     }
 } else if ($settings['Platform'] == "PogoPlug") {
@@ -380,10 +383,10 @@ if ($settings['Platform'] == "Raspberry Pi") {
     $settings['SubPlatform'] = $settings['Platform'];
     $settings['Variant'] = $settings['Platform'];
     $settings['Platform'] = "Docker";
-    $settings['Logo'] = "debian_logo.png";
+    $settings['Logo'] = "debian_logo.svg";
     $settings['LogoLink'] = "https://www.debian.org/";
 } else if ($settings['Platform'] == "Fedora") {
-    $settings['Logo'] = "fedora_logo.png";
+    $settings['Logo'] = "fedora_logo.svg";
     $settings['LogoLink'] = "https://getfedora.org/";
 } else if ($settings['Platform'] == "Linux") {
     $settings['Logo'] = "tux_logo.png";
