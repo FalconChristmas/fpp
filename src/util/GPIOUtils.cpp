@@ -233,7 +233,16 @@ bool GPIODCapabilities::getValue() const {
     if (lastRequestType == 0 && !line.is_requested()) {
         return 0;
     }
-    return line.get_value();
+    // libgpiod's line::get_value() throws (std::system_error on a failed ioctl,
+    // std::logic_error on an empty or unrequested line handle) and callers of
+    // PinCapabilities::getValue() are not exception-safe, so a GPIO read failure
+    // must degrade to a warning rather than escape this call.
+    try {
+        return line.get_value();
+    } catch (const std::exception& ex) {
+        LogWarn(VB_GPIO, "Error getting value for pin %s: %s\n", name.c_str(), ex.what());
+        return 0;
+    }
 #else
     return 0;
 #endif
@@ -241,7 +250,17 @@ bool GPIODCapabilities::getValue() const {
 void GPIODCapabilities::setValue(bool i) const {
 #ifdef HASGPIOD
     lastValue = i;
-    line.set_value(i ? 1 : 0);
+    // libgpiod's line::set_value() routes through line_bulk::set_values() and
+    // throws (std::system_error on a failed ioctl, std::logic_error on an empty
+    // or unrequested line handle).  configPin()/requestEventFile() only warn
+    // when a request fails, leaving the line unrequested, so the first
+    // setValue() on such a pin would otherwise escape as an uncaught exception
+    // and std::terminate fppd.
+    try {
+        line.set_value(i ? 1 : 0);
+    } catch (const std::exception& ex) {
+        LogWarn(VB_GPIO, "Error setting value for pin %s: %s\n", name.c_str(), ex.what());
+    }
 #endif
 }
 static std::vector<GPIODCapabilities> GPIOD_PINS;
