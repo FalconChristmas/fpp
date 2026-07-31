@@ -606,6 +606,8 @@ static bool IsGstPipeWireChannelOrderQuirky() {
         if (!LoadJsonFromString(out, dump) || !dump.isArray())
             continue;
         for (const auto& obj : dump) {
+            if (!obj.isObject())
+                continue;
             if (obj.get("type", "").asString() != "PipeWire:Interface:Node")
                 continue;
             if (obj["info"]["props"].get("node.name", "").asString() != "fpp_chorder_probe")

@@ -81,6 +81,11 @@ namespace
             return result;
         }
         for (auto& entry : root) {
+            if (!entry.isObject()) {
+                LogWarn(VB_COMMAND, "If: command list entry was not a JSON object, skipping: %s\n",
+                        TruncateForLog(SaveJsonToString(entry)).c_str());
+                continue;
+            }
             CommandListEntry e;
             e.command = entry.get("command", "").asString();
             if (e.command.empty()) {
