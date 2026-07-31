@@ -1756,7 +1756,7 @@
                 if ((data[i].fppModeString == 'remote') && (star != ""))
                     ipTxt = "<small>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
 
-                var hostTxt = (fppConfig.hideExternalURLs || data[i].local || data[i].address == hostname)
+                var hostTxt = (!isWLED(data[i].typeId) && (fppConfig.hideExternalURLs || data[i].local || data[i].address == hostname))
                     ? hostname
                     : "<a target='host_" + data[i].address + "' href='" + wrapUrlWithProxy(data[i].address, "/") + "'>" + hostname + "</a>";
 
@@ -2360,6 +2360,20 @@
                         item.ipaddress = base.replace(endTag, endTag + wifiIcon) + extra;
                     } else {
                         item.ipaddress = base + wifiIcon + extra;
+                    }
+
+                    if (data.name) {
+                        var ipDash = ip.replace(/\./g, '_');
+                        var spanId = "fpp_" + ipDash + "_hostname";
+                        var spanStart = item.hostname.indexOf("id='" + spanId + "'");
+                        if (spanStart >= 0) {
+                            var tagEnd = item.hostname.indexOf(">", spanStart);
+                            var spanEnd = item.hostname.indexOf("</span>", tagEnd);
+                            if (tagEnd >= 0 && spanEnd >= 0) {
+                                var newContent = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "'>" + data.name + "</a>";
+                                item.hostname = item.hostname.substring(0, tagEnd + 1) + newContent + item.hostname.substring(spanEnd);
+                            }
+                        }
                     }
                 });
                 safeInitBody($tbl);

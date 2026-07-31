@@ -455,6 +455,7 @@ bool NetworkController::DetectWLEDController(const std::string& ip, const std::s
         vendorURL = "https://github.com/Aircoookie/WLED";
 
         version = v["ver"].asString();
+        hostname = v["name"].asString();
         typeStr = v["arch"].asString();
         typeId = kSysTypeWLED;
         systemMode = BRIDGE_MODE;
