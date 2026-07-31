@@ -1080,6 +1080,191 @@
             }, 300);
         }
 
+        // --- GitHub issue/PR counts (Developer UI) ---
+        // In Developer UI mode each plugin card shows its repo's open issue and
+        // open pull request counts in the bottom-right corner. Counts come from
+        // the same-origin backend proxy (api/plugin/githubStats), which groups
+        // repos into ONE GitHub issue-search query per chunk rather than one
+        // request per plugin -- per-repo requests are what produce a flood of
+        // 404s when a repo is gone or the device has no network. The backend
+        // fails soft (stale disk cache, else empty), so when network access is
+        // unavailable the response is empty and we simply never draw the corner.
+        var IS_DEVELOPER_UI = (parseInt(settings["uiLevel"]) || 0) >= 3;
+        var pluginGitHubRepos = {};   // repoName -> "owner/repo" (GitHub srcURL only, lowercase)
+        var pluginGitHubStats = {};   // "owner/repo" -> { openIssues, openPRs } -- ONLY resolved repos
+        var githubStatsRequested = {}; // "owner/repo" -> true once asked, so unresolved repos are not re-requested
+        var pluginDetailDialogRepo = null; // repo shown in the open detail modal, so its footer badge can be patched
+        var githubStatsFetching = false;
+        var githubStatsFailed = false; // latched after a network failure: never retry this session
+
+        // GitHub owner/repo for a plugin's source repo ('' when not a GitHub repo).
+        // Normalized to lowercase so keys match the backend, which lowercases
+        // every repo in its response (GitHub repo names are case-insensitive).
+        function GitHubRepoOf(data) {
+            var u = data && data.srcURL;
+            if (!u) return '';
+            try {
+                var parsed = new URL(u);
+                if (parsed.host.toLowerCase() !== 'github.com') return '';
+                var seg = parsed.pathname.split('/').filter(function (x) { return x.length > 0; });
+                if (seg.length < 2) return '';
+                // srcURL often ends in ".git" (e.g. .../fpp-brightness.git); the
+                // GitHub repo name has no extension, and a ".git" repo in a
+                // search query fails the whole query.
+                return (seg[0] + '/' + seg[1].replace(/\.git$/i, '')).toLowerCase();
+            } catch (e) {
+                return '';
+            }
+        }
+
+        // Corner badge HTML for a repo ('' when we have no data for it).
+        function GitHubStatsBadgeHtml(repo) {
+            var s = repo && pluginGitHubStats[repo];
+            if (!s) return '';
+            var issues = parseInt(s.openIssues, 10) || 0;
+            var prs = parseInt(s.openPRs, 10) || 0;
+            return '<span class="fpp-tag gap-1 pluginGitHubStats" title="' + issues +
+                ' open issue' + (issues === 1 ? '' : 's') + ', ' + prs +
+                ' open pull request' + (prs === 1 ? '' : 's') + '">' +
+                '<i class="fas fa-exclamation-circle"></i> ' + issues +
+                ' <i class="fas fa-code-branch ms-1"></i> ' + prs + '</span>';
+        }
+
+        // The badge, wrapped for inline placement at the right end of the action
+        // button row ('' when we have no data for the repo). ms-auto pushes it to
+        // the far right of the same flex line as the buttons; align-items-center on
+        // the actions row keeps it vertically centered with them.
+        function GitHubStatsRowHtml(repo) {
+            var badge = GitHubStatsBadgeHtml(repo);
+            if (!badge) return '';
+            return '<div class="ms-auto pluginGitHubStatsRow">' + badge + '</div>';
+        }
+
+        // Stamp the counts onto already-rendered cards (called once counts
+        // arrive; cards rendered after that get the corner inline in LoadPlugin).
+        // Only touches cards whose repo we have counts for -- cards without data
+        // keep no corner, which is what hides the feature when offline.
+        function PatchPluginGitHubStats() {
+            if (!IS_DEVELOPER_UI) return;
+            $('#pluginGrid, #installedGrid, #incompatibleGrid').children('.pluginCard').each(function () {
+                var repoName = ($(this).attr('id') || '').replace(/^row-/, '');
+                var repo = pluginGitHubRepos[repoName];
+                if (!repo) return;
+                var badge = GitHubStatsBadgeHtml(repo);
+                var $actions = $(this).find('.pluginCardActions').first();
+                if (!$actions.length) return;
+                var $badge = $actions.find('.pluginGitHubStatsRow').first();
+                if (!$badge.length) {
+                    if (!badge) return;  // nothing to show yet
+                    $badge = $('<div class="ms-auto pluginGitHubStatsRow"></div>');
+                    $actions.append($badge);
+                }
+                $badge.find('.pluginGitHubStats').remove();
+                if (badge) $badge.append(badge);
+                else $badge.remove();
+            });
+
+            // Keep an open detail dialog's footer badge in sync too (a card can be
+            // opened before its counts arrive).
+            if (pluginDetailDialogRepo && $('#pluginDetailDialog').length) {
+                var dRepo = pluginGitHubRepos[pluginDetailDialogRepo];
+                var dBadge = GitHubStatsBadgeHtml(dRepo);
+                var $dBadge = $('#pluginDetailDialog .modal-footer .pluginDetailGitHubStats').first();
+                if (dBadge) {
+                    if (!$dBadge.length) {
+                        $dBadge = $('<span class="pluginDetailGitHubStats me-auto"></span>');
+                        $('#pluginDetailDialog .modal-footer').prepend($dBadge);
+                    }
+                    $dBadge.html(dBadge);
+                } else if ($dBadge.length) {
+                    $dBadge.remove();
+                }
+            }
+        }
+
+        var githubStatsDebounce = null;
+        var githubStatsDebounceStart = 0;
+        // Debounce (idle) vs max-wait: plugins trickle in as their pluginInfo.json
+        // files resolve, but we must not wait for ALL of them -- the first GitHub
+        // query should start while the rest are still loading (the backend cache
+        // makes the follow-up for stragglers cheap). So the timer is never
+        // restarted past GITHUB_STATS_MAX_WAIT from the first pending repo.
+        var GITHUB_STATS_DEBOUNCE = 150;
+        var GITHUB_STATS_MAX_WAIT = 600;
+        function ScheduleGitHubStatsFetch() {
+            if (!IS_DEVELOPER_UI || githubStatsFailed || githubStatsFetching) return;
+            // Nothing left to fetch (every known repo already has counts or was
+            // already requested)? Stop scheduling; LoadPlugin re-arms this for
+            // late-arriving plugins.
+            var needs = false;
+            for (var repoName in pluginGitHubRepos) {
+                if (!pluginGitHubRepos.hasOwnProperty(repoName)) continue;
+                var repo = pluginGitHubRepos[repoName];
+                if (repo && !pluginGitHubStats[repo] && !githubStatsRequested[repo]) { needs = true; break; }
+            }
+            if (!needs) return;
+            var now = Date.now();
+            if (!githubStatsDebounce) githubStatsDebounceStart = now;
+            var elapsed = now - githubStatsDebounceStart;
+            var wait = GITHUB_STATS_DEBOUNCE;
+            if (elapsed >= GITHUB_STATS_MAX_WAIT) {
+                wait = 0;
+            } else if (elapsed + GITHUB_STATS_DEBOUNCE > GITHUB_STATS_MAX_WAIT) {
+                wait = GITHUB_STATS_MAX_WAIT - elapsed;
+            }
+            clearTimeout(githubStatsDebounce);
+            githubStatsDebounce = setTimeout(FetchPluginGitHubStats, wait);
+        }
+
+        function FetchPluginGitHubStats() {
+            githubStatsDebounce = null;
+            githubStatsDebounceStart = 0;
+            if (!IS_DEVELOPER_UI || githubStatsFailed || githubStatsFetching) return;
+            var missing = [];
+            for (var repoName in pluginGitHubRepos) {
+                if (!pluginGitHubRepos.hasOwnProperty(repoName)) continue;
+                var repo = pluginGitHubRepos[repoName];
+                if (repo && !pluginGitHubStats[repo] && !githubStatsRequested[repo] && missing.indexOf(repo) < 0)
+                    missing.push(repo);
+            }
+            if (missing.length === 0) {
+                PatchPluginGitHubStats();
+                return;
+            }
+            // Remember we asked, so a repo the backend can't resolve (offline /
+            // dead repo) is not re-requested this session -- its corner simply
+            // stays hidden rather than being shown as a bogus 0/0.
+            for (var m = 0; m < missing.length; m++)
+                githubStatsRequested[missing[m]] = true;
+            githubStatsFetching = true;
+            $.ajax({
+                url: 'api/plugin/githubStats?repos=' + encodeURIComponent(missing.join(',')),
+                dataType: 'json',
+                success: function (data) {
+                    githubStatsFetching = false;
+                    var repos = (data && data.repos) || {};
+                    for (var k in repos) {
+                        if (!repos.hasOwnProperty(k)) continue;
+                        pluginGitHubStats[k] = {
+                            openIssues: repos[k].openIssues,
+                            openPRs: repos[k].openPRs
+                        };
+                    }
+                    PatchPluginGitHubStats();
+                    // A plugin that finished loading after this fetch started may
+                    // have added a repo; the backend's per-box cache keeps the
+                    // follow-up cheap.
+                    ScheduleGitHubStatsFetch();
+                },
+                error: function () {
+                    // Network unavailable: leave every corner hidden, latch so
+                    // we do not keep firing requests for plugins still loading.
+                    githubStatsFetching = false;
+                    githubStatsFailed = true;
+                }
+            });
+        }
+
         // Top-10 Popular strip for the active category ("All" spans every category).
         // Excludes already-installed plugins and ones that can't be installed on this box
         // (no compatible or untested version) — the strip is a discovery surface for
@@ -1330,7 +1515,19 @@
             }
             buttons['Close'] = function () { CloseModalDialog('pluginDetailDialog'); };
 
-            DoModalDialog({ id: 'pluginDetailDialog', class: 'modal-lg', title: titleIcon + data.name, body: body, backdrop: true, keyboard: true, buttons: buttons });
+            // Developer UI: GitHub issue/PR counts at the far left of the footer,
+            // vertically level with the action buttons (me-auto pushes the buttons
+            // to the right). Passed as the footer's leading content (buttons are
+            // appended after it), so it only appears when we have data -- hidden
+            // offline.
+            var detailStats = '';
+            if (IS_DEVELOPER_UI) {
+                var dBadge = GitHubStatsBadgeHtml(pluginGitHubRepos[repo]);
+                if (dBadge) detailStats = '<span class="pluginDetailGitHubStats me-auto">' + dBadge + '</span>';
+            }
+            pluginDetailDialogRepo = repo;
+
+            DoModalDialog({ id: 'pluginDetailDialog', class: 'modal-lg', title: titleIcon + data.name, body: body, backdrop: true, keyboard: true, footer: detailStats, buttons: buttons });
         }
 
         // Category name/icon for a plugin, validated against the loaded taxonomy so
@@ -1398,6 +1595,16 @@
             var untestedVersion = versionSel.untested;
             var isPrivate = (data.private || pluginInfoUseCredentials[data.repoName]);
             var official = IsOfficialPlugin(data);
+            // Developer UI: record the plugin's GitHub repo so the issue/PR
+            // corner can be filled in. Private repos are skipped (GitHub won't
+            // search them, and a private repo would poison the aggregate query).
+            if (IS_DEVELOPER_UI && !isPrivate) {
+                var ghRepo = GitHubRepoOf(data);
+                if (ghRepo) {
+                    pluginGitHubRepos[data.repoName] = ghRepo;
+                    ScheduleGitHubStatsFetch();
+                }
+            }
             var pcatName = data.__category || pluginCategoryOf[(data.repoName || '').toLowerCase()] || pluginCategoryOf[(data.name || '').toLowerCase()] || 'Other';
             var pcatObj = pluginCategoryByName[pcatName] || OTHER_CATEGORY;
             // Available grid order: usable here first, then "install anyway", then
@@ -1478,7 +1685,8 @@
             var cardAuthorHtml = PluginAuthorHtml(data);
             if (cardAuthorHtml) html += '<div class="text-secondary small mb-1 pluginAuthor"><i class="fas fa-user"></i> ' + cardAuthorHtml + '</div>';
             html += '<p class="card-text pluginCardDesc small flex-grow-1">' + data.description + '</p>';
-            html += '<div class="pluginCardActions d-flex flex-wrap gap-2 mt-2" onclick="event.stopPropagation();">' + actions + '</div>';
+            html += '<div class="pluginCardActions d-flex flex-wrap gap-2 mt-2 align-items-center" onclick="event.stopPropagation();">' +
+                actions + GitHubStatsRowHtml(pluginGitHubRepos[data.repoName]) + '</div>';
             html += '</div></div></div>';
 
             if (installed) {
