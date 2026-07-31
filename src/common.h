@@ -90,6 +90,8 @@ enum class JsonRoot {
 };
 bool LoadJsonFromFile(const std::string& filename, Json::Value& root, JsonRoot expected);
 Json::Value LoadJsonFromFile(const std::string& filename, JsonRoot expected);
+bool LoadJsonFromString(const std::string& str, Json::Value& root, JsonRoot expected);
+Json::Value LoadJsonFromString(const std::string& str, JsonRoot expected);
 std::string SaveJsonToString(const Json::Value& root, const std::string& indentation = "");
 bool SaveJsonToString(const Json::Value& root, std::string& str, const std::string& indentation);
 bool SaveJsonToFile(const Json::Value& root, const std::string& filename, const std::string& indentation = "\t");

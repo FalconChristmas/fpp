@@ -401,6 +401,40 @@ Json::Value LoadJsonFromFile(const std::string& filename, JsonRoot expected) {
     return root;
 }
 
+bool LoadJsonFromString(const std::string& str, Json::Value& root, JsonRoot expected) {
+    Json::ValueType expectedType = (expected == JsonRoot::Array) ? Json::arrayValue : Json::objectValue;
+
+    if (!LoadJsonFromString(str, root)) {
+        root = Json::Value(expectedType);
+        return false;
+    }
+
+    // See LoadJsonFromFile() above - a null root is not a mismatch, it's
+    // normalized to an empty value of the expected shape and reported as
+    // success.
+    if (root.isNull()) {
+        root = Json::Value(expectedType);
+        return true;
+    }
+
+    if (root.type() != expectedType) {
+        LogErr(VB_GENERAL, "JSON string has a %s at its root, expected %s - treating as empty\n",
+               JsonTypeName(root.type()), JsonTypeName(expectedType));
+        root = Json::Value(expectedType);
+        return false;
+    }
+
+    return true;
+}
+
+Json::Value LoadJsonFromString(const std::string& str, JsonRoot expected) {
+    Json::Value root;
+
+    LoadJsonFromString(str, root, expected);
+
+    return root;
+}
+
 std::string SaveJsonToString(const Json::Value& root, const std::string& indentation) {
     Json::StreamWriterBuilder wbuilder;
     wbuilder["indentation"] = indentation;

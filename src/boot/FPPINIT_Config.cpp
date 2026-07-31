@@ -393,11 +393,11 @@ void applyThermalSettings(bool captureDefaults) {
     }
     Json::Value defaults;
     if (FileExists(FAN_TRIP_DEFAULTS_FILE)) {
-        LoadJsonFromString(GetFileContents(FAN_TRIP_DEFAULTS_FILE), defaults);
+        LoadJsonFromString(GetFileContents(FAN_TRIP_DEFAULTS_FILE), defaults, JsonRoot::Object);
     }
     bool defaultsChanged = false;
     forEachActiveTripPoint([&](const std::string& tripFile, const std::string& key) {
-        if (captureDefaults && !defaults.isMember(key)) {
+        if (captureDefaults && !JsonHas(defaults, key)) {
             std::string cur = GetFileContents(tripFile);
             TrimWhiteSpace(cur);
             if (!cur.empty()) {
@@ -437,9 +437,9 @@ void resetThermalSettings() {
     // settings removed above still restore the defaults on the next boot, so
     // warn rather than fail.
     Json::Value defaults;
-    if (FileExists(FAN_TRIP_DEFAULTS_FILE) && LoadJsonFromString(GetFileContents(FAN_TRIP_DEFAULTS_FILE), defaults)) {
+    if (FileExists(FAN_TRIP_DEFAULTS_FILE) && LoadJsonFromString(GetFileContents(FAN_TRIP_DEFAULTS_FILE), defaults, JsonRoot::Object)) {
         forEachActiveTripPoint([&](const std::string& tripFile, const std::string& key) {
-            if (defaults.isMember(key)) {
+            if (JsonHas(defaults, key)) {
                 printf("FPP - Restoring fan trip point %s to %dmC\n", key.c_str(), defaults[key].asInt());
                 PutFileContents(tripFile, std::to_string(defaults[key].asInt()));
             }

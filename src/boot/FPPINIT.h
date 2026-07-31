@@ -39,6 +39,16 @@ void exec(const std::string& cmd);
 int execbg(const std::string& cmd);
 std::string execAndReturn(const std::string& cmd);
 bool LoadJsonFromString(const std::string& str, Json::Value& root);
+
+// Require the parsed root to be the shape the caller expects. A mismatch
+// yields an empty value of the expected shape and returns false, so callers
+// that ignore the return value iterate over nothing instead of aborting.
+enum class JsonRoot {
+    Object,
+    Array
+};
+bool LoadJsonFromString(const std::string& str, Json::Value& root, JsonRoot expected);
+
 std::string SaveJsonToString(const Json::Value& root);
 void modprobe(const char* mod);
 

@@ -87,14 +87,15 @@ bool NetworkController::DetectFPP(const std::string& ip, const std::string& html
     std::string resp;
 
     if (urlGet(url, resp)) {
-        Json::Value v = LoadJsonFromString(resp);
+        Json::Value v;
+        LoadJsonFromString(resp, v, JsonRoot::Object);
         hostname = v["HostName"].asString();
         vendor = "FPP";
         vendorURL = "https://falconchristmas.com/forum/";
-        if (v.isMember("channelRanges")) {
+        if (JsonHas(v, "channelRanges")) {
             ranges = v["channelRanges"].asString();
         }
-        if (v.isMember("uuid")) {
+        if (JsonHas(v, "uuid")) {
             uuid = v["uuid"].asString();
         }
         version = v["Version"].asString();
@@ -272,11 +273,10 @@ bool NetworkController::DetectESPixelStickController(const std::string& ip,
     std::string resp;
 
     if (urlGet(url, resp)) {
-        Json::Value config = LoadJsonFromString(resp);
-        if (config.isMember("network")) {
-            if (config["network"].isMember("hostname")) {
-                hostname = config["network"]["hostname"].asString();
-            }
+        Json::Value config;
+        LoadJsonFromString(resp, config, JsonRoot::Object);
+        if (JsonHas(config, "network") && JsonHas(config["network"], "hostname")) {
+            hostname = config["network"]["hostname"].asString();
         }
 
         if (hostname != "") {
@@ -308,27 +308,26 @@ bool NetworkController::DetectBaldrickController(const std::string& ip,
     std::string resp;
 
     if (urlGet(url, resp)) {
-        Json::Value state = LoadJsonFromString(resp);
-        if (state.isMember("hostname")) {
+        Json::Value state;
+        LoadJsonFromString(resp, state, JsonRoot::Object);
+        if (JsonHas(state, "hostname")) {
             hostname = state["hostname"].asString();
         }
-        if (state.isMember("board_model")) {
+        if (JsonHas(state, "board_model")) {
             typeStr = state["board_model"].asString();
         }
-        if (state.isMember("ota")) {
-            if (state["ota"].isMember("current_firmware_version")) {
-                version = state["ota"]["current_firmware_version"].asString();
-                
-                // Parse version string like "v3.1.0"
-                if (version.length() > 1 && version[0] == 'v') {
-                    std::string verNum = version.substr(1);
-                    std::size_t verDot = verNum.find(".");
-                    if (verDot != std::string::npos) {
-                        majorVersion = atoi(verNum.substr(0, verDot).c_str());
-                        std::size_t verDot2 = verNum.find(".", verDot + 1);
-                        if (verDot2 != std::string::npos) {
-                            minorVersion = atoi(verNum.substr(verDot + 1, verDot2 - (verDot + 1)).c_str());
-                        }
+        if (JsonHas(state, "ota") && JsonHas(state["ota"], "current_firmware_version")) {
+            version = state["ota"]["current_firmware_version"].asString();
+
+            // Parse version string like "v3.1.0"
+            if (version.length() > 1 && version[0] == 'v') {
+                std::string verNum = version.substr(1);
+                std::size_t verDot = verNum.find(".");
+                if (verDot != std::string::npos) {
+                    majorVersion = atoi(verNum.substr(0, verDot).c_str());
+                    std::size_t verDot2 = verNum.find(".", verDot + 1);
+                    if (verDot2 != std::string::npos) {
+                        minorVersion = atoi(verNum.substr(verDot + 1, verDot2 - (verDot + 1)).c_str());
                     }
                 }
             }
@@ -449,7 +448,8 @@ bool NetworkController::DetectWLEDController(const std::string& ip, const std::s
     std::string resp;
 
     if (urlGet(url, resp)) {
-        Json::Value v = LoadJsonFromString(resp);
+        Json::Value v;
+        LoadJsonFromString(resp, v, JsonRoot::Object);
 
         vendor = "WLED";
         vendorURL = "https://github.com/Aircoookie/WLED";

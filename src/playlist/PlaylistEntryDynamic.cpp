@@ -331,7 +331,7 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr) {
         return 0;
     }
 
-    if (!LoadJsonFromString(jsonStr, root)) {
+    if (!LoadJsonFromString(jsonStr, root, JsonRoot::Object)) {
         LogErr(VB_PLAYLIST, "Error parsing JSON: %s\n", jsonStr.c_str());
         WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist data is not valid JSON");
         return 0;
@@ -340,19 +340,30 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr) {
     ClearPlaylistEntries();
 
     Json::Value entries;
-    if (root.isMember("mainPlaylist"))
+    if (JsonHas(root, "mainPlaylist"))
         entries = root["mainPlaylist"];
-    else if (root.isMember("leadIn"))
+    else if (JsonHas(root, "leadIn"))
         entries = root["leadIn"];
-    else if (root.isMember("leadOut"))
+    else if (JsonHas(root, "leadOut"))
         entries = root["leadOut"];
-    else if (root.isMember("playlistEntries"))
+    else if (JsonHas(root, "playlistEntries"))
         entries = root["playlistEntries"];
     else
         return 0;
 
+    if (!entries.isArray()) {
+        LogErr(VB_PLAYLIST, "Expected a JSON array of dynamic playlist entries, got something else\n");
+        WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist data is not valid JSON");
+        return 0;
+    }
+
     for (int i = 0; i < entries.size(); i++) {
         Json::Value pe = entries[i];
+        if (!pe.isObject()) {
+            LogErr(VB_PLAYLIST, "Invalid dynamic playlist entry: expected a JSON object\n");
+            WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist data is not valid JSON");
+            continue;
+        }
         playlistEntry = NULL;
 
         if (pe["type"].asString() == "both")

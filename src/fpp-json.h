@@ -28,3 +28,13 @@
 #elif __has_include(<json/json.h>)
 #include <json/json.h>
 #endif
+
+// isMember() throws Json::LogicError on anything that isn't objectValue/
+// nullValue, same restriction as operator[] and get(). The LoadJsonFromFile/
+// LoadJsonFromString(..., JsonRoot) overloads in common.cpp guarantee the
+// *root* is the expected shape, but a nested field within a well-shaped root
+// can still hold the wrong type (e.g. "ota" present but a string, not an
+// object) - JsonHas() guards that case at the point of use.
+inline bool JsonHas(const Json::Value& v, const std::string& key) {
+    return v.isObject() && v.isMember(key);
+}

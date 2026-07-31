@@ -150,6 +150,39 @@ bool LoadJsonFromString(const std::string& str, Json::Value& root) {
     }
     return true;
 }
+
+// A file that parses cleanly but holds the wrong kind of root - an array where
+// an object is expected, or the reverse - is a corrupt config, not usable data.
+// Every jsoncpp accessor a caller reaches for next (operator[], isMember(),
+// getMemberNames(), get()) throws Json::LogicError on that mismatch, and
+// fppinit has no systemd Restart=, so a bad config file here doesn't restart
+// a daemon, it kills boot. This mirrors the JsonRoot check on FPP's own
+// loader in common.cpp; it is duplicated rather than shared because fppinit
+// does not pull in common.h.
+bool LoadJsonFromString(const std::string& str, Json::Value& root, JsonRoot expected) {
+    Json::ValueType expectedType = (expected == JsonRoot::Array) ? Json::arrayValue : Json::objectValue;
+
+    if (!LoadJsonFromString(str, root)) {
+        root = Json::Value(expectedType);
+        return false;
+    }
+
+    // A null root is not a mismatch - jsoncpp treats null as an empty value of
+    // whatever type it is first used as and never throws on it.
+    if (root.isNull()) {
+        root = Json::Value(expectedType);
+        return true;
+    }
+
+    if (root.type() != expectedType) {
+        printf("JSON string has the wrong root type, expected %s - treating as empty\n",
+               (expectedType == Json::arrayValue) ? "array" : "object");
+        root = Json::Value(expectedType);
+        return false;
+    }
+
+    return true;
+}
 std::string SaveJsonToString(const Json::Value& root) {
     Json::StreamWriterBuilder wbuilder;
     wbuilder["indentation"] = "\t";
