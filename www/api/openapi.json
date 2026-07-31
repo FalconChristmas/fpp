@@ -6370,6 +6370,47 @@
         }
       }
     },
+    "/api/plugin/githubStats": {
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "plugin/githubStats",
+        "description": "Get open issue / open PR counts for a comma-separated list of `owner/name` GitHub repos, proxied + cached from GitHub's issue-search API. Developer UI helper for the plugin cards; fails soft (empty map) when GitHub is unreachable.",
+        "parameters": [
+          {
+            "name": "repos",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated `owner/name` GitHub repositories."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "repos": {
+                    "FalconChristmas/fpp-brightness": {
+                      "openIssues": 7,
+                      "openPRs": 1
+                    }
+                  },
+                  "source": "live|cache|partial|unavailable"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plugin/{RepoName}": {
       "parameters": [
         {
