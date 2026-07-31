@@ -184,6 +184,19 @@ CommandManager::~CommandManager() {
 }
 
 void CommandManager::Cleanup() {
+    // Idempotent: PluginManager::Cleanup() calls this during shutdown (ahead of
+    // dlclose(), see c7e76d920), main() calls it again, and ~CommandManager()
+    // calls it a third time at static-destruction time. The
+    // FileMonitor::INSTANCE.RemoveFile() reach-in below locks a mutex on the
+    // global FileMonitor singleton, which may already be destroyed by then
+    // (cross-TU static destruction order) -- locking a destroyed mutex throws
+    // out of the noexcept dtor -> std::terminate. A function-local guard keeps
+    // the later calls a no-op without changing the (plugin-facing) Commands.h
+    // ABI.
+    static std::atomic<bool> cleanedUp{false};
+    if (cleanedUp.exchange(true)) {
+        return;
+    }
     FileMonitor::INSTANCE.RemoveFile("CommandManager:CommandPresets.json", FPP_DIR_CONFIG("/commandPresets.json"));
     while (!commands.empty()) {
         Command* cmd = commands.begin()->second;
