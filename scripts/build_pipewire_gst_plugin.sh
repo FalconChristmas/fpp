@@ -88,13 +88,16 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # --- Runtime compatibility guard ---
-# The plugin is compiled against the *checked-out* tree's libpipewire headers,
-# but at runtime the loader resolves libpipewire-0.3.so.0 to whatever the
-# distro installed.  Build 1.6.0 against a 1.4.2 runtime and the element loads,
-# reports itself as 1.6.0, connects, links in the graph -- and then never
-# streams: the node stays "suspended" in pw-top, no position is ever produced,
-# and playlists play in total silence with nothing logged anywhere.  Verified
-# by A/B on an FPP dev Pi 2026-07-31.  So refuse the mismatch by default.
+# Not an ABI problem -- upstream states 1.6 is API/ABI compatible with 1.4.x,
+# and the plugin does load.  The problem is behavioural: a newer plugin expects
+# daemon/library behaviour added after the runtime it is talking to (1.6 moved
+# buffer-pool management into the sink and added capability-param negotiation
+# ahead of format/buffer negotiation).  Run 1.6.0's plugin against a 1.4.2
+# runtime and the element loads, reports 1.6.0, connects and links in the graph
+# -- then never streams: the node stays "suspended" in pw-top, no position is
+# ever produced, and playlists play in total silence with nothing logged
+# anywhere.  Verified by A/B on an FPP dev Pi 2026-07-31.  Plugin and
+# libpipewire have to come from the same release, so refuse by default.
 RUNTIME_VERSION=$(pipewire --version 2>/dev/null | awk '/Linked with/ {print $NF; exit}')
 [ -z "${RUNTIME_VERSION}" ] && RUNTIME_VERSION=$(dpkg-query -W -f='${Version}' libpipewire-0.3-0t64 2>/dev/null | cut -d- -f1)
 TAG_SERIES=$(echo "${PIPEWIRE_TAG}"    | cut -d. -f1,2)
