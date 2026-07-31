@@ -87,6 +87,36 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# --- Runtime compatibility guard ---
+# The plugin is compiled against the *checked-out* tree's libpipewire headers,
+# but at runtime the loader resolves libpipewire-0.3.so.0 to whatever the
+# distro installed.  Build 1.6.0 against a 1.4.2 runtime and the element loads,
+# reports itself as 1.6.0, connects, links in the graph -- and then never
+# streams: the node stays "suspended" in pw-top, no position is ever produced,
+# and playlists play in total silence with nothing logged anywhere.  Verified
+# by A/B on an FPP dev Pi 2026-07-31.  So refuse the mismatch by default.
+RUNTIME_VERSION=$(pipewire --version 2>/dev/null | awk '/Linked with/ {print $NF; exit}')
+[ -z "${RUNTIME_VERSION}" ] && RUNTIME_VERSION=$(dpkg-query -W -f='${Version}' libpipewire-0.3-0t64 2>/dev/null | cut -d- -f1)
+TAG_SERIES=$(echo "${PIPEWIRE_TAG}"    | cut -d. -f1,2)
+RUN_SERIES=$(echo "${RUNTIME_VERSION}" | cut -d. -f1,2)
+echo "  Runtime libpipewire  : ${RUNTIME_VERSION:-unknown}"
+if [ -n "${RUN_SERIES}" ] && [ "${TAG_SERIES}" != "${RUN_SERIES}" ]; then
+    echo ""
+    echo "  ERROR: refusing to build plugin ${PIPEWIRE_TAG} against libpipewire ${RUNTIME_VERSION}."
+    echo "         A plugin only works with the libpipewire it was built against."
+    echo "         Mismatched builds load and look correct but produce NO AUDIO:"
+    echo "         the pipewiresink node never leaves 'suspended'."
+    echo ""
+    echo "         To get the upstream fixes you must upgrade libpipewire and the"
+    echo "         daemon to ${TAG_SERIES}.x as well, not just the plugin."
+    echo "         Override at your own risk with FORCE_MISMATCH=1."
+    if [ "${FORCE_MISMATCH:-0}" != "1" ]; then
+        exit 1
+    fi
+    echo "  FORCE_MISMATCH=1 set - continuing anyway."
+    echo ""
+fi
+
 # --- Skip when already new enough (--if-needed) ---
 if ${IF_NEEDED}; then
     CURRENT_VERSION=$(installed_plugin_version)

@@ -1,49 +1,23 @@
 #!/bin/bash
 #####################################
-# Upgrade 124: Build the fixed PipeWire GStreamer plugin on existing installs
+# Upgrade 124: REMOVED - it made things worse, see upgrade/125
 #
-# scripts/build_pipewire_gst_plugin.sh replaces the distro
-# gstreamer1.0-pipewire plugin (1.4.2 on Trixie), which crashes in
-# on_remove_buffer when a consumer disconnects from a mode=provide
-# pipewiresink -- the pattern FPP's persistent Video/Source nodes rely on.
+# This upgrade used to build the PipeWire GStreamer plugin from upstream 1.6.0
+# to pick up the mode=provide buffer-lifecycle fix.  It must not run: a 1.6.0
+# plugin is compiled against 1.6.0's in-tree libpipewire headers but at runtime
+# resolves libpipewire-0.3.so.0 to the distro's 1.4.2 library, and the
+# resulting mismatch breaks audio playback outright -- the pipewiresink stream
+# node never leaves "suspended", GStreamer never reports a position, and the
+# playlist runs silently with seconds_elapsed pinned at 0.  Verified by A/B on
+# an FPP dev Pi: 1.6.0 = silence, restore 1.4.2 = audio back immediately.
 #
-# It has existed for a while but has never actually run on any device.  The
-# only caller, install_pipewire.sh, gated it on
-# `gst-inspect-1.0 pipewiresink | grep -c "provide"`, which matches "element
-# provides a clock" and the `(2): provide` mode enum that stock 1.4.2 already
-# has.  The count was therefore always non-zero, the gate always reported the
-# fix as present, and the build was always skipped.  The gate now lives inside
-# the build script as --if-needed and compares versions properly.
+# Swapping just the plugin is only safe when it matches the libpipewire the
+# process actually loads.  build_pipewire_gst_plugin.sh now refuses to install
+# a mismatched build unless forced, and is manual-only again.
 #
-# The build needs internet access and a few minutes of CPU; it is deliberately
-# not fatal, since an offline box must still finish upgrading.
-#
-# No service restart is done here.  libgstpipewire.so is a GStreamer *client*
-# plugin loaded by fppd, not by the pipewire/wireplumber daemons, so restarting
-# those would achieve nothing; what matters is fppd, and by the time this runs
-# the upgrade is about to rebuild the fppd binary and finish with a reboot.
-# (The build script clears the GStreamer registry cache itself.)
+# upgrade/125 repairs devices that already ran this.
 #####################################
 
-BINDIR=$(cd $(dirname $0) && pwd)
-. ${BINDIR}/../../scripts/common
-
-echo "FPP - Upgrade 124: Check/build the fixed PipeWire GStreamer plugin"
-
-if [[ ! -f /etc/debian_version ]]; then
-    echo "  Not a Debian system - skipping"
-    exit 0
-fi
-
-if [ ! -x /opt/fpp/scripts/build_pipewire_gst_plugin.sh ]; then
-    echo "  build_pipewire_gst_plugin.sh not found - skipping"
-    exit 0
-fi
-
-/opt/fpp/scripts/build_pipewire_gst_plugin.sh --if-needed || {
-    echo "  WARNING: PipeWire GStreamer plugin build failed (no network?)."
-    echo "  Video Input Sources (mode=provide) may crash until this is run:"
-    echo "    sudo /opt/fpp/scripts/build_pipewire_gst_plugin.sh"
-}
+echo "Upgrade 124 was removed - see upgrade/125"
 
 exit 0
