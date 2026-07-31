@@ -98,7 +98,15 @@ public:
             system(buf);
             return GPIODCapabilities::configPin("gpio_od", false, desc);
         }
-        if (startsWith(mode, "gpio") && (resetMode == "a0" || resetMode == "no" || resetMode == "a3")) {
+        // "no" is a releasePin()-only sentinel meaning "leave this pin alone on
+        // release" (used for PWM-capable pins like P1-35/GPIO19 on Pi5, so a blind
+        // reset doesn't clobber an active PWM alt-function). It must NOT be treated
+        // like the real I2C alt-function sentinels "a0"/"a3" here -- doing so skips
+        // GPIODCapabilities::configPin() entirely, so lastBias/lastDesc never get
+        // set and the subsequent requestEventFile() request comes up with no pull-up
+        // bias and a bare consumer name. That's what made the OLED HAT's Down button
+        // (P1-35) come up floating/unresponsive specifically on Pi5.
+        if (startsWith(mode, "gpio") && (resetMode == "a0" || resetMode == "a3")) {
             char buf[256];
             snprintf(buf, 256, "/usr/bin/pinctrl set %d %s", gpio, directionOut ? "op" : "ip");
             system(buf);
