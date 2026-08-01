@@ -32,19 +32,39 @@ static std::string DoubleToCleanString(double v) {
 
 SetVariableCommand::SetVariableCommand() :
     Command("Set Variable") {
-    args.push_back(CommandArg("name", "string", "Variable Name"));
+    args.push_back(CommandArg("name", "string", "Variable Name")
+                       .setHelp("The name this value is stored and looked up under - reference it "
+                                "elsewhere as %VAR:name% (in any command's text fields) or by picking "
+                                "it directly in an If command's Check."));
     args.push_back(CommandArg("type", "string", "Set To")
                        .setContentList({ "Value", "Increment", "Random", "Expression" })
                        .setDefaultValue("Value")
                        .setChildren({ { "Value", { "value" } },
                                       { "Increment", { "delta" } },
                                       { "Random", { "min", "max" } },
-                                      { "Expression", { "expression" } } }));
-    args.push_back(CommandArg("value", "string", "Value"));
-    args.push_back(CommandArg("delta", "string", "Amount").setDefaultValue("1"));
-    args.push_back(CommandArg("min", "string", "Minimum").setDefaultValue("0"));
-    args.push_back(CommandArg("max", "string", "Maximum").setDefaultValue("100"));
-    args.push_back(CommandArg("expression", "expression", "Expression (e.g. =2+3*4, or reference other variables by name e.g. =temp*1.8+32)"));
+                                      { "Expression", { "expression" } } })
+                       .setHelp("<ul class='mb-0 ps-3 text-start'>"
+                                "<li><b>Value</b>: store the text/number below as-is.</li>"
+                                "<li><b>Increment</b>: add Amount to the variable's current value (e.g. "
+                                "a counter).</li>"
+                                "<li><b>Random</b>: pick a whole number between Minimum and Maximum.</li>"
+                                "<li><b>Expression</b>: compute a value from a formula, optionally "
+                                "referencing other variables by name.</li>"
+                                "</ul>"));
+    args.push_back(CommandArg("value", "string", "Value")
+                       .setHelp("The text or number to store."));
+    args.push_back(CommandArg("delta", "string", "Amount")
+                       .setDefaultValue("1")
+                       .setHelp("Added to the variable's current value each time this command runs. Use "
+                                "a negative number to count down instead of up."));
+    args.push_back(CommandArg("min", "string", "Minimum").setDefaultValue("0")
+                       .setHelp("Lowest whole number that can be picked."));
+    args.push_back(CommandArg("max", "string", "Maximum").setDefaultValue("100")
+                       .setHelp("Highest whole number that can be picked."));
+    args.push_back(CommandArg("expression", "expression", "Expression")
+                       .setHelp("A math formula to compute the new value, e.g. =2+3*4. Must start with "
+                                "'=', and can reference other variables by name (e.g. =temp*1.8+32 to "
+                                "convert temp to Fahrenheit)."));
     args.push_back(CommandArg("persist", "bool", "Persist", true)
                        .setDefaultValue("false")
                        .setHelp("If checked, this value is saved to disk and reloaded automatically "
