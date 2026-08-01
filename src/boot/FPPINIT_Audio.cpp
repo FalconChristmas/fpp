@@ -1157,6 +1157,24 @@ void setupAudio() {
     bool simpleConfigStale = !FileExists(simpleGroupsJsonPath)
                           || !pipewireConfigCardsPresent(simpleGroupsJsonPath)
                           || simpleConfigCardId(simpleGroupsJsonPath) != selCid;
+    // Upgrade case for boards with no sound card: an install configured by an
+    // older FPP has a cached config holding the full hw:Dummy adapter ->
+    // filter-chain -> combine-stream graph, which never reaches idle and so
+    // cycles PipeWire at the quantum rate forever (~47 wakeups/s, ~4% of a core
+    // on a single-core PocketBeagle) for audio that can never be heard.
+    // None of the tests above catch it: the cached card ID is still "Dummy" so
+    // it matches selCid, and snd-dummy was modprobed earlier this boot so
+    // /proc/asound/cards lists [Dummy] and the cards-present test passes too.
+    // The config is therefore never regenerated and the board keeps the old
+    // graph on every boot.  Force exactly one regeneration when the active conf
+    // predates the null-sink form.  Self-limiting: the regenerated conf contains
+    // support.null-audio-sink, so this cannot drive a regen/restart loop.
+    if (!simpleConfigStale && selCid == "Dummy" &&
+        GetFileContents("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf")
+                .find("support.null-audio-sink") == std::string::npos) {
+        printf("FPP - No sound card: audio config predates the null sink, regenerating\n");
+        simpleConfigStale = true;
+    }
     if (usePipeWireBackend && !runningInDocker && mediaBackendLower == "pipewire-simple"
         && simpleConfigStale) {
         // The simple config is missing or points at an absent card (fresh flash,
