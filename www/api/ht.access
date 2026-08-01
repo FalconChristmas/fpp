@@ -3,6 +3,13 @@ RewriteEngine on
 
 RewriteBase /api/
 
+RewriteRule ^v1/?$ /api/index.php?uri=/v1/ [NC,L,QSA,B]
+RewriteRule ^v1/api\.html$ /api/index.php?uri=/v1/api.html [NC,L,QSA,B]
+RewriteRule ^v1/openapi\.(json|yaml)$ /api/index.php?uri=/v1/openapi.$1 [NC,L,QSA,B]
+RewriteRule ^v2/?$ /api/index.php?uri=/v2/ [NC,L,QSA,B]
+RewriteRule ^v2/api\.html$ /api/index.php?uri=/v2/api.html [NC,L,QSA,B]
+RewriteRule ^v2/openapi\.(json|yaml)$ /api/index.php?uri=/v2/openapi.$1 [NC,L,QSA,B]
+
 RewriteCond %{SCRIPT_FILENAME} !-f
 RewriteCond %{SCRIPT_FILENAME} !-d
 
@@ -18,8 +25,7 @@ RewriteRule ^index.php - [L,NC]
 RewriteRule ^help ../api/ [R=301,L,NC]
 RewriteRule ^help/.* ../api/ [R=301,L,NC]
 RewriteRule ^endpoints.json - [L,NC]
-RewriteRule ^openapi.json - [L,NC]
-RewriteRule ^api.html - [L,NC]
+RewriteRule ^v2/(.*)$   /api/index.php?uri=/v2/$1  [NC,L,QSA,B]
 RewriteRule ^(.*)$   /api/index.php?uri=/$1    [NC,L,QSA,B]
 
 Header add Access-Control-Allow-Origin "*"

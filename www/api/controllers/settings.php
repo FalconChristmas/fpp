@@ -5,7 +5,7 @@
  *
  * @return array Associative array of settings metadata.
  */
-function ReadSettingsJSON()
+function readSettingsJSON()
 {
     global $settings;
     $json = file_get_contents($settings['fppDir'] . '/www/settings.json');

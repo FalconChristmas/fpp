@@ -33,7 +33,7 @@ require_once "../common.php";
  * ]
  * ```
  */
-function network_list_interfaces()
+function NetworkListInterfaces()
 {
     return json(network_list_interfaces_obj());
 }
@@ -56,7 +56,7 @@ function network_list_interfaces()
  * ]
  * ```
  */
-function network_wifi_strength()
+function NetworkWiFiStrength()
 {
     return json(network_wifi_strength_obj());
 }
@@ -98,7 +98,7 @@ function network_wifi_strength()
  * Each BSS begins a new entry; only entries that yielded at least an SSID or
  * BSSID are kept so a leading/empty block is never returned.
  */
-function network_parse_iw_scan($output)
+function NetworkParseIwScan($output)
 {
     $networks = array();
     $current = array();
@@ -153,7 +153,7 @@ function network_parse_iw_scan($output)
  * shape as network_parse_iw_scan(). Used as a fallback for out-of-tree
  * drivers whose nl80211 scan support is missing or broken.
  */
-function network_parse_iwlist_scan($output)
+function NetworkParseIwlistScan($output)
 {
     $networks = array();
     $current = array();
@@ -207,7 +207,7 @@ function network_parse_iwlist_scan($output)
  *
  * Returns array("mode" => "AP"|"station"|"idle", "clientCount" => int, "ssid" => string)
  */
-function network_interface_in_use($interface)
+function NetworkInterfaceInUse($interface)
 {
     $iface = escapeshellarg($interface);
 
@@ -256,14 +256,14 @@ function network_interface_in_use($interface)
     return array("mode" => "idle", "clientCount" => 0, "ssid" => "");
 }
 
-function network_wifi_scan()
+function NetworkWiFiScan()
 {
     $networks = array();
     $current = array();
     $interface = params('interface');
 
     # Validate interface.   -- Important because of SUDO
-    $interfaces = json_decode(network_list_interfaces(), true);
+    $interfaces = json_decode(NetworkListInterfaces(), true);
     $found = false;
 
     foreach ($interfaces as $row) {
@@ -278,7 +278,7 @@ function network_wifi_scan()
 
     exec("sudo /sbin/ip link set $interface up", $output);
 
-    $inUse = network_interface_in_use($interface);
+    $inUse = NetworkInterfaceInUse($interface);
 
     if ($inUse["mode"] === "AP") {
         return json(array(
@@ -304,7 +304,7 @@ function network_wifi_scan()
                 "message" => "$interface is currently $ssidMsg. This adapter doesn't support a safe scan while connected, so scanning is blocked to avoid dropping that connection."
             ));
         }
-        $networks = network_parse_iw_scan($output);
+        $networks = NetworkParseIwScan($output);
         return json(array("status" => "OK", "networks" => $networks));
     }
 
@@ -312,7 +312,7 @@ function network_wifi_scan()
     // and Wi-Fi 7 hardware where the old wireless extensions are gone.
     $output = array();
     exec("sudo /sbin/iw dev $interface scan", $output);
-    $networks = network_parse_iw_scan($output);
+    $networks = NetworkParseIwScan($output);
 
     // Fallback: some out-of-tree Realtek USB drivers (e.g. RTL8812BU /
     // RTL8822BU on the 88x2bu driver) advertise no working nl80211 scan
@@ -322,7 +322,7 @@ function network_wifi_scan()
     if (count($networks) == 0) {
         $output = array();
         exec("sudo /sbin/iwlist $interface scan 2>/dev/null", $output);
-        $networks = network_parse_iwlist_scan($output);
+        $networks = NetworkParseIwlistScan($output);
     }
 
     return json(array("status" => "OK", "networks" => $networks));
@@ -341,13 +341,13 @@ function network_wifi_scan()
  * {"status":"OK","connected":false,"wpa_state":"SCANNING","ssid":"","configuredSSID":"MyNet","ip":"","signal":null,"ssidVisible":false,"reason":"Network 'MyNet' not found in range (or it is hidden)."}
  * ```
  */
-function network_wifi_status()
+function NetworkWiFiStatus()
 {
     global $settings;
     $interface = params('interface');
 
     # Validate interface. -- Important because of SUDO
-    $interfaces = json_decode(network_list_interfaces(), true);
+    $interfaces = json_decode(NetworkListInterfaces(), true);
     $found = false;
     foreach ($interfaces as $row) {
         if ($row["ifname"] == $interface) {
@@ -474,7 +474,7 @@ function network_wifi_status()
  * {"status": "OK"}
  * ```
  */
-function network_persistentNames_delete()
+function NetworkPersistentNamesDelete()
 {
     global $settings;
 
@@ -525,10 +525,10 @@ function network_persistentNames_delete()
  * {"status": "OK", "interfaceCnt": 2}
  * ```
  */
-function network_persistentNames_create()
+function NetworkPersistentNamesCreate()
 {
     global $settings;
-    network_persistentNames_delete();
+    NetworkPersistentNamesDelete();
 
     $interfaces = network_list_interfaces_array();
     $count = 0;
@@ -588,7 +588,7 @@ function network_persistentNames_create()
  * }
  * ```
  */
-function network_get_dns()
+function NetworkGetDNS()
 {
     global $settings;
 
@@ -619,7 +619,7 @@ function network_get_dns()
  * }
  * ```
  */
-function network_save_dns()
+function NetworkSaveDNS()
 {
     global $settings;
 
@@ -659,7 +659,7 @@ function network_save_dns()
  * {"GATEWAY": "192.168.1.1"}
  * ```
  */
-function network_get_gateway()
+function NetworkGetGateway()
 {
     global $settings;
 
@@ -694,7 +694,7 @@ function network_get_gateway()
  * {"status": "OK", "GATEWAY": "192.168.1.1"}
  * ```
  */
-function network_save_gateway()
+function NetworkSaveGateway()
 {
     global $settings;
 
@@ -739,7 +739,7 @@ function network_save_gateway()
  * }
  * ```
  */
-function network_get_interface()
+function NetworkGetInterface()
 {
     global $settings;
 
@@ -864,13 +864,13 @@ function network_get_interface()
  * Creates a new blank DHCP interface configuration file for the specified
  * network interface (e.g. `eth1`, `wlan0`).
  *
- * @route GET /api/network/interface/add/{interface}
+ * @route POST /api/network/interface/add/{interface}
  * @response 200 DHCP interface created
  * ```json
  * {"status": "New Blank Interface created"}
  * ```
  */
-function network_add_interface()
+function NetworkAddInterface()
 {
     global $settings;
 
@@ -908,7 +908,7 @@ function network_add_interface()
  * {"status": "OK"}
  * ```
  */
-function network_set_interface()
+function NetworkSetInterface()
 {
     global $settings;
 
@@ -1019,7 +1019,7 @@ function network_set_interface()
  * {"status": "OK", "output": []}
  * ```
  */
-function network_apply_interface()
+function NetworkApplyInterface()
 {
     global $settings, $SUDO;
 

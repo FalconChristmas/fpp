@@ -7,7 +7,7 @@
  * @param string $filename Filename to inspect.
  * @return string Absolute directory path, or empty string if no match found.
  */
-function MapExtention($filename)
+function mapExtention($filename)
 {
     global $mediaDirectory, $settings;
 
@@ -53,11 +53,11 @@ function MapExtention($filename)
  * @param string $dirName Logical directory name (e.g. "music", "sequences").
  * @return string Absolute directory path, or empty string if not found.
  */
-function MapDirectoryKey($dirName)
+function mapDirectoryKey($dirName)
 {
     $dir = GetDirSetting($dirName);
     if ($dir == "") {
-        $dir = MapExtention($dirName);
+        $dir = mapExtention($dirName);
     }
     return $dir;
 }
@@ -77,13 +77,13 @@ function MapDirectoryKey($dirName)
  * }
  * ```
  */
-function files_copy()
+function FilesCopy()
 {
     $filename = params("source");
     $newfilename = params("dest");
     $dir = params("DirName");
 
-    $dir = MapDirectoryKey($dir);
+    $dir = mapDirectoryKey($dir);
 
     if ($dir == "") {
         return json(array("status" => "Invalid Directory"));
@@ -118,12 +118,12 @@ function files_copy()
  * }
  * ```
  */
-function files_rename()
+function FilesRename()
 {
     $filename = params("source");
     $newfilename = params("dest");
     $dir = params("DirName");
-    $dir = MapDirectoryKey($dir);
+    $dir = mapDirectoryKey($dir);
 
     if ($dir == "") {
         return json(array("status" => "Invalid Directory"));
@@ -152,7 +152,7 @@ function files_rename()
  * @param string $prefix  Optional prefix to prepend to each returned filename.
  * @return array Array of filename strings (nameOnly mode) or file detail arrays.
  */
-function GetFilesHelper($dirName, $prefix = '')
+function getFilesHelper($dirName, $prefix = '')
 {
     global $SUDO;
 
@@ -316,15 +316,15 @@ function GetFiles()
 {
     $dirName = params("DirName");
     check($dirName, "dirName", __FUNCTION__);
-    $dirName = MapDirectoryKey($dirName);
+    $dirName = mapDirectoryKey($dirName);
     if ($dirName == "") {
         return json(array("status" => "Invalid Directory"));
     }
 
     if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
-        return json(GetFilesHelper($dirName));
+        return json(getFilesHelper($dirName));
     } else {
-        return json(array("status" => "ok", "files" => GetFilesHelper($dirName)));
+        return json(array("status" => "ok", "files" => getFilesHelper($dirName)));
     }
 }
 
@@ -449,7 +449,7 @@ function GetPluginFileInfo()
  * @param string $filename Filename that was uploaded.
  * @return string Output from the plugin handler, or an error string if no handler found.
  */
-function CallPluginFileUploaded($dir, $filename)
+function callPluginFileUploaded($dir, $filename)
 {
     $pluginDirectory = GetDirSetting("plugins");
     if (file_exists($pluginDirectory)) {
@@ -484,7 +484,7 @@ function CallPluginFileUploaded($dir, $filename)
  * Notifies any plugin that has registered an `onUpload` handler for the given
  * file extension. `:ext` is the extension category and `**` is the file path.
  *
- * @route GET /api/file/onUpload/{ext}/**
+ * @route POST /api/file/onUpload/{ext}/**
  * @response 200 Plugin notified of upload
  * ```json
  * {"status": "OK"}
@@ -496,7 +496,7 @@ function PluginFileOnUpload()
 
     $ext = params("ext");
     $fileName = params(0);
-    return CallPluginFileUploaded($mediaDirectory . "/" . $ext, $fileName);
+    return callPluginFileUploaded($mediaDirectory . "/" . $ext, $fileName);
 }
 
 /**
@@ -508,7 +508,7 @@ function PluginFileOnUpload()
  * @param string $filename  Filename to move.
  * @return bool True on success, false if the rename failed.
  */
-function MovePluginFile($uploadDir, $filename)
+function movePluginFile($uploadDir, $filename)
 {
     global $mediaDirectory;
     $pluginDirectory = GetDirSetting("plugins");
@@ -524,7 +524,7 @@ function MovePluginFile($uploadDir, $filename)
                                 if (!rename($uploadDir . "/" . $filename, $mediaDirectory . "/" . $value["folder"] . "/" . $filename)) {
                                     return false;
                                 }
-                                CallPluginFileUploaded($mediaDirectory . "/" . $value["folder"], $filename);
+                                callPluginFileUploaded($mediaDirectory . "/" . $value["folder"], $filename);
                             }
                         }
                     }
@@ -573,7 +573,7 @@ function GetFile()
         $attach = intval($_GET['attach']);
     }
 
-    GetFileImpl($dirName, $fileName, $lines, $play, $attach);
+    getFileImpl($dirName, $fileName, $lines, $play, $attach);
 }
 
 /**
@@ -588,7 +588,7 @@ function GetFile()
  * @param int    $attach   1 to force attachment Content-Disposition for images.
  * @return void
  */
-function GetFileImpl($dir, $filename, $lines, $play, $attach)
+function getFileImpl($dir, $filename, $lines, $play, $attach)
 {
     global $SUDO;
     $isImage = 0;
@@ -599,7 +599,7 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         $isLog = 1;
     }
 
-    $dir = MapDirectoryKey($dir);
+    $dir = mapDirectoryKey($dir);
 
     if ($dir == "") {
         return;
@@ -710,7 +710,7 @@ function findFile($dir, $filename)
  * subfolder based on its extension, returning a status of `OK` or an error
  * message if not successful.
  *
- * @route GET /api/file/move/{fileName}
+ * @route POST /api/file/move/{fileName}
  * @response 200 File moved to media directory
  * ```json
  * {"status": "OK"}
@@ -789,7 +789,7 @@ function MoveFile()
                 return json(array("status" => $status));
             }
         } else {
-            if (!MovePluginFile($uploadDirectory, $file)) {
+            if (!movePluginFile($uploadDirectory, $file)) {
                 $status = "ERROR: Couldn't move file";
                 return json(array("status" => $status));
             }
@@ -841,13 +841,13 @@ function GetZipDir()
 
         //Logs and Config are special
         if (strtolower($dirName) == "logs") {
-            ZipLogs($zip);
+            zipLogs($zip);
         } else if (strtolower($dirName) == "config") {
-            ZipConfigs($zip);
+            zipConfigs($zip);
         } else {
-            $dir = MapDirectoryKey($dirName);
+            $dir = mapDirectoryKey($dirName);
             if (file_exists($dir) && $dir != "") {
-                ZipDirectory($zip, $dirName, $dir);
+                zipDirectory($zip, $dirName, $dir);
             } else {
                 $zip->close();
                 return json(array("status" => "Directory not found: Name:$dirName, Path:$dir"));
@@ -889,14 +889,14 @@ function GetZipDir()
  * @param ZipArchive $zip The archive to add files to.
  * @return void
  */
-function ZipLogs($zip)
+function zipLogs($zip)
 {
     global $SUDO;
     global $settings;
     global $logDirectory;
     global $mediaDirectory;
 
-    ZipConfigs($zip);
+    zipConfigs($zip);
 
     // Logs that are no longer generated at all. fppd.log has replaced them and is
     // written continuously, so it always carries the current picture -- there is
@@ -1013,7 +1013,7 @@ function ZipLogs($zip)
  * @param ZipArchive $zip The archive to add files to.
  * @return void
  */
-function ZipConfigs($zip)
+function zipConfigs($zip)
 {
     global $SUDO;
     global $mediaDirectory;
@@ -1075,7 +1075,7 @@ function ZipConfigs($zip)
  * @param string     $directory Absolute path to the directory to add.
  * @return void
  */
-function ZipDirectory($zip, $name, $directory)
+function zipDirectory($zip, $name, $directory)
 {
     global $mediaDirectory;
     foreach (scandir($directory) as $file) {
@@ -1131,7 +1131,7 @@ function DeleteFile()
 
     $status = "File not found";
     $dirName = params("DirName");
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
     $fileName = params(0);
 
     if ($fileName == "" && $dir == $uploadDirectory) {
@@ -1171,7 +1171,7 @@ function DeleteFile()
  * @param string   $pos BC math string representing the byte offset to seek to.
  * @return void
  */
-function emulated_fseek_for_big_files($fp, $pos)
+function emulatedFseekForBigFiles($fp, $pos)
 {
     if (bccomp((string) PHP_INT_MAX, $pos, 0) > -1) {
         // small, do it natively
@@ -1233,7 +1233,7 @@ function PatchFile()
     $offset = $_SERVER['HTTP_UPLOAD_OFFSET'];
     $length = $_SERVER['HTTP_UPLOAD_LENGTH'];
 
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
     $fullPath = "$dir/$fileName";
     if ($offset == 0) {
         //for the first chunk, clear out any existing patches
@@ -1318,7 +1318,7 @@ function PatchFile()
 
         if ($dirName != "upload" && $dirName != "uploads") {
             // uploads to the upload directory will have this called during MoveFile
-            CallPluginFileUploaded($dir, $fileName);
+            callPluginFileUploaded($dir, $fileName);
         }
     }
     return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "size" => $size));
@@ -1347,7 +1347,7 @@ function PostFile()
     $dirName = params("DirName");
     $fileName = params("Name");
 
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
     $fullPath = "$dir/$fileName";
     $size = 0;
     $totalSize = 0;
@@ -1372,7 +1372,7 @@ function PostFile()
             $blockSize = isset($_REQUEST["bs"]) ? $_REQUEST["bs"] : 0;
             $offset = bcmul($startBlock, $blockSize, 0);
             if ($offset > 0) {
-                emulated_fseek_for_big_files($fpOut, $offset);
+                emulatedFseekForBigFiles($fpOut, $offset);
                 $totalSize = bcadd($totalSize, $offset, 0);
             }
         }
@@ -1402,7 +1402,7 @@ function PostFile()
  * @param string $prefix   Optional prefix to prepend to the returned filename.
  * @return void
  */
-function GetFileInfo(&$list, $dirName, $fileName, $prefix = '')
+function getFileInfo(&$list, $dirName, $fileName, $prefix = '')
 {
     $fileFullName = $dirName . '/' . $fileName;
     $filesize = real_filesize($fileFullName);
@@ -1464,7 +1464,7 @@ function CreateDir()
     $dirName = params("DirName");
     $subDir = params("SubDir");
     $sanitized = sanitizeFilename($subDir);
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
     $fullPath = "$dir/$subDir";
 
     if ($sanitized != $subDir) {
@@ -1506,7 +1506,7 @@ function DeleteDir()
     $dirName = params("DirName");
     $subDir = params("SubDir");
     $sanitized = sanitizeFilename($subDir);
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
     $fullPath = "$dir/$subDir";
 
     if ($sanitized != $subDir) {
@@ -1565,7 +1565,7 @@ function TailFollowFile()
         return;
     }
 
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
 
     if ($dir == "") {
         http_response_code(403);

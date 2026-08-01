@@ -57,7 +57,7 @@ function GetGitOriginLog()
  * Discard local changes
  * Performs a hard reset on the current branch, discarding any local changes.
  *
- * @route GET /api/git/reset
+ * @route POST /api/git/reset
  * @response 200 Reset complete
  * ```json
  * {
@@ -339,7 +339,7 @@ function GitOSReleaseSizes()
             if (isset($r["assets"]) && $settings['OSImagePrefix'] != "") {
                 foreach ($r["assets"] as $file) {
                     $name = $file["name"];
-                    if (MatchesDeviceOSImage($name, $settings)) {
+                    if (matchesDeviceOSImage($name, $settings)) {
                         $rc = $rc . $name . "," . $file["size"] . "\n";
                     }
                 }
