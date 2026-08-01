@@ -23,7 +23,7 @@ require_once '../commandsocket.php';
  * }
  * ```
  */
-function testMode_Get()
+function TestModeGet()
 {
 	return json(json_decode(SendCommand("GetTestMode")));
 }
@@ -42,7 +42,7 @@ function testMode_Get()
  * { "status": "OK" }
  * ```
  */
-function testMode_Set()
+function TestModeSet()
 {
     $json = strval(file_get_contents('php://input'));
 

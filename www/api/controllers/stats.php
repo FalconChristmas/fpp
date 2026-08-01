@@ -81,7 +81,7 @@ function stats_generate($statsFile)
  * }
  * ```
  */
-function stats_get_last_file()
+function StatsGetLastFile()
 {
     global $_GET;
     $statsFile = stats_get_filename();
@@ -226,10 +226,10 @@ function stats_memory()
  * {"status": "OK", "uuid": "M2-xxxxxxxx-f67f-930d-56ee-7xxxxxxxxxx"}
  * ```
  */
-function stats_publish_stats_file()
+function StatsPublishStatsFile()
 {
     global $settings;
-    $jsonString = stats_get_last_file();
+    $jsonString = StatsGetLastFile();
 
     $ch = curl_init($settings['statsPublishUrl']);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -257,7 +257,7 @@ function stats_publish_stats_file()
  * {"status": "OK"}
  * ```
  */
-function stats_delete_last_file()
+function StatsDeleteLastFile()
 {
     $statsFile = stats_get_filename();
     if (file_exists($statsFile)) {

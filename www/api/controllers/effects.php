@@ -12,7 +12,7 @@
  * ["rainbow", "twinkle"]
  * ```
  */
-function effects_list()
+function EffectsList()
 {
     global $effectDirectory;
 
@@ -43,7 +43,7 @@ function effects_list()
  * ["rainbow", "twinkle", "MySequence"]
  * ```
  */
-function effects_list_ALL()
+function EffectsListAll()
 {
     global $effectDirectory;
     global $sequenceDirectory;
