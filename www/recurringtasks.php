@@ -50,21 +50,20 @@
 
         function TaskTypeChanged (row) {
             var type = row.find('.ptTmplType').val();
-            if (type === 'preset') {
-                row.find('.ptTmplPresetCell').show();
-                row.find('.ptTmplCommandCell').hide();
+            var isPreset = type === 'preset';
+            row.find('.ptTmplPresetCell').toggleClass('d-none', !isPreset);
+            row.find('.ptTmplCommandCell').toggleClass('d-none', isPreset);
+            if (isPreset) {
                 // A Command Preset can fire any number of commands at once
                 // (CommandManager::TriggerPreset) - there's no single result
                 // to test-run or view, so both are hidden for this type (see
                 // RecurringTasks.cpp's TestRunTask, which returns a "Command
                 // Preset tasks have no output to filter" note rather than a
                 // real result for this type).
-                row.find('.ptTmplPresetCell .ptTmplTestRun').hide();
+                row.find('.ptTmplPresetCell .ptTmplTestRun').addClass('d-none');
                 row.find('.ptTmplViewVar').addClass('d-none');
             } else {
-                row.find('.ptTmplPresetCell').hide();
-                row.find('.ptTmplCommandCell').show();
-                row.find('.ptTmplPresetCell .ptTmplTestRun').show();
+                row.find('.ptTmplPresetCell .ptTmplTestRun').removeClass('d-none');
                 // Restored to whatever LoadTaskStatus's resultVariable check
                 // last decided, not forced visible - a freshly-switched
                 // "FPP Command" row with no Result Variable set still has
@@ -664,7 +663,7 @@
                                                 onClick='TestRunTask($(this).closest("tr"));'>
                                         </span>
                                     </span>
-                                    <span class='ptTmplCommandCell' style='display:none;'>
+                                    <span class='ptTmplCommandCell d-none'>
                                         <select class='cmdTmplCommand'
                                             onChange='EditTaskCommandAndSettings($(this).closest("tr"));'></select>
                                         <span class='ptTmplButtonsRow'>
@@ -681,7 +680,7 @@
                                                 <td><span class='cmdTmplArgs'></span></td>
                                             </tr>
                                         </table>
-                                        <span class='cmdTmplJSON' style='display: none;'></span>
+                                        <span class='cmdTmplJSON d-none'></span>
                                         <div class='ptTmplResultVariableRow'>
                                             <span class='ptTmplAdvancedSummary text-muted'></span>
                                         </div>
