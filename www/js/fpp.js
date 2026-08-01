@@ -2422,6 +2422,7 @@ function PlaylistTypeChanged () {
 		oldMedia = $('.arg_mediaName').val();
 	}
 
+	DisposeArgHelpTooltips($('#playlistEntryOptions, #playlistEntryCommandOptions, #playlistEntryPropertiesOptions'));
 	$('#playlistEntryOptions').html('');
 	$('#playlistEntryCommandOptions').html('');
 	$('#playlistEntryPropertiesOptions').html('');
@@ -10556,12 +10557,30 @@ function GetRemotes () {
 	}
 	return remoteIpList;
 }
+// Bootstrap tooltips append their popup <div> to <body> and track their
+// instance outside jQuery's data/event bookkeeping - a plain jQuery .remove()
+// on an .argHelpIcon's row leaks both the instance and (if the tooltip
+// happened to be showing) an orphaned popup that nothing will ever hide
+// again, since its trigger element is gone. Must dispose() before removing.
+function DisposeArgHelpTooltips (root) {
+	if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+		return;
+	}
+	root.find('.argHelpIcon').each(function () {
+		var existing = bootstrap.Tooltip.getInstance(this);
+		if (existing) {
+			existing.dispose();
+		}
+	});
+}
+
 function CommandSelectChanged (
 	commandSelect,
 	tblCommand,
 	configAdjustable = false,
 	argPrintFunc = PrintArgInputs
 ) {
+	DisposeArgHelpTooltips($('#' + tblCommand));
 	for (var x = 1; x < 25; x++) {
 		$('#' + tblCommand + '_arg_' + x + '_row').remove();
 	}
@@ -10711,6 +10730,7 @@ function SubCommandChanged (
 	var tblCommand = subCommand.data('tblcommand');
 
 	for (var x = count + 1; x < 25; x++) {
+		DisposeArgHelpTooltips($('#' + tblCommand + '_arg_' + x + '_row'));
 		$('#' + tblCommand + '_arg_' + x + '_row').remove();
 	}
 	$.ajax({
