@@ -7,7 +7,7 @@
     require_once('config.php');
     require_once('common.php');
 
-    // Device capability for the plugin resource-hint check (D14). Computed
+    // Device capability for the plugin resource-hint check. Computed
     // server-side so it is exact for this box: total RAM (MB) and CPU cores.
     // Plugins may declare optional per-version resource requirements in
     // pluginInfo.json; the UI compares them against these values.
@@ -31,7 +31,7 @@
         var lastAutoLoadedUrl = '';
         var urlLoadedRepo = null;
         var pluginUrlError = '';
-        // --- Plugin categories (Phase 1) ---
+        // --- Plugin categories ---
         var pluginCategoryList = [];      // [{name,longName,slug,icon}] from pluginCategories.json
         var pluginCategoryBySlug = {};
         var pluginCategoryByName = {};
@@ -50,8 +50,8 @@
         // clients read only [0]/[1] and ignore it, so it is backward compatible.
         var PLUGIN_LIST_URL = 'https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/pluginList.json';
         var PLUGIN_CATEGORIES_URL = 'https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/pluginCategories.json';
-        // --- Plugin popularity (Phase 2) ---
-        // Install counts keyed by repoName (== row id). D17: the device does NOT fetch the
+        // --- Plugin popularity ---
+        // Install counts keyed by repoName (== row id). The device does NOT fetch the
         // personal stats host from the browser — that origin is not in FPP's Apache CSP
         // connect-src. Instead the SAME-ORIGIN backend endpoint api/plugin/popularity proxies
         // the stats feed server-side (CSP does not apply to PHP), requests gzip, slims it to
@@ -63,10 +63,14 @@
         var popularityLoaded = false;
         var POPULARITY_URL = 'api/plugin/popularity';
 
-        // Device capability for the resource-hint check (D14), injected server-side
+        // Device capability for the resource-hint check, injected server-side
         // (exact for this box). 0 means "unknown" -> the check degrades to no-op.
         var DEVICE_MEM_MB = <?php echo $pluginDeviceMemMB; ?>;
         var DEVICE_CORES  = <?php echo $pluginDeviceCores; ?>;
+
+        // uiLevel is set server-side by config.php; injected once here (same pattern
+        // as multisync.php) so the JS side never has to re-parse settings['uiLevel'].
+        var uiLevel = <?php echo (int) $uiLevel; ?>;
 
         // Evaluate a plugin's optional resource requirements against this device.
         // Fields (both optional, top-level on pluginInfo.json — plugin-wide, not
@@ -165,7 +169,7 @@
             });
         }
 
-        // Build category lookup maps + pills from pluginCategories.json (D16).
+        // Build category lookup maps + pills from pluginCategories.json.
         function LoadPluginCategories(cats) {
             pluginCategoryList = [];
             pluginCategoryBySlug = {};
@@ -189,7 +193,7 @@
         }
 
         // "Official" = clone origin (srcURL) is a repo in the FalconChristmas GitHub org.
-        // Parse the URL (host + first path segment) so a spoofed host/path can't earn it (D18).
+        // Parse the URL (host + first path segment) so a spoofed host/path can't earn it.
         function IsOfficialPlugin(data) {
             var u = data && data.srcURL;
             if (!u) return false;
@@ -204,7 +208,7 @@
         }
 
         // Attribution HTML derived from the clone origin (srcURL) rather than the
-        // self-supplied `author` field, which nobody verifies (D18). Returns the repo
+        // self-supplied `author` field, which nobody verifies. Returns the repo
         // owner (the GitHub/host account or org) linked to their profile. The
         // self-reported `author` is deliberately not shown — only the verifiable
         // source owner. Returns '' when there is no usable source URL (caller omits
@@ -236,6 +240,30 @@
             return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
         }
 
+        // Double-quote-attribute-safe escaping for untrusted values (plugin-supplied
+        // URLs) going into href="...". EscapeHtml (shared, js/fpp.js) is only safe
+        // for text content -- it does not escape '"', so an untrusted string placed
+        // straight into a double-quoted attribute could close the attribute early
+        // and inject a new one (e.g. onmouseover=...). pluginInfo.json fields are
+        // third-party-supplied and not verified (see PluginAuthorHtml above).
+        function EscapeAttr(s) {
+            return EscapeHtml(s).replace(/"/g, '&quot;');
+        }
+
+        // Plugin-declared URLs (pageUrl, etc.) that get navigated to (href, window.open)
+        // rather than just displayed need a scheme check, not just HTML/attribute
+        // escaping -- EscapeAttr stops attribute breakout but a well-formed
+        // "javascript:..." URL runs on click regardless of how cleanly it's escaped.
+        function IsSafeHttpUrl(u) {
+            if (!u) return false;
+            try {
+                var parsed = new URL(u, window.location.href);
+                return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+            } catch (e) {
+                return false;
+            }
+        }
+
         // Cache-busting nonce shared by all icon URLs loaded during this page
         // session, so a plugin update with a new icon is visible immediately
         // rather than showing a stale cached copy. The server sends 304 Not
@@ -258,9 +286,8 @@
             var $pills = $('#pluginCategoryPills');
             if (!$pills.length) return;
             $pills.empty();
-            var uiLevel = parseInt(settings["uiLevel"]) || 0;
             var pills = [];
-            // "All" view shown at every UI level (D27) and is the default landing view.
+            // "All" view shown at every UI level and is the default landing view.
             pills.push({ name: 'All', slug: 'all', icon: 'fas fa-border-all' });
             for (var i = 0; i < pluginCategoryList.length; i++) {
                 // Drop any "Other" entry from the JSON so we only insert
@@ -308,18 +335,25 @@
                     $('html,body').css('cursor', 'auto');
                     if (data.Status == 'OK') {
                         if (data.updatesAvailable) {
-                            $('#row-' + plugin).addClass('fppHasUpdate').find('.updatesAvailable').show();
+                            RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
                             var $modal = $('#pluginDetailDialog');
                             if ($modal.length && $modal.is(':visible')) {
                                 var $checkBtn = $modal.find('#pluginDetailCheckBtn');
                                 if ($checkBtn.length) {
-                                    $checkBtn.replaceWith(
-                                        $('<button class="btn btn-success" onclick="CloseModalDialog(\'pluginDetailDialog\');UpgradePlugin(\'' + plugin + '\');"><i class="far fa-arrow-alt-circle-down"></i> Update</button>')
-                                    );
+                                    // A real closure over `plugin` here, rather than an
+                                    // onclick="Fn('...')" string built from it -- no HTML/JS
+                                    // escaping needed at all since the value never round-trips
+                                    // through markup.
+                                    var $updateBtn = $('<button class="btn btn-success"><i class="far fa-arrow-alt-circle-down"></i> Update</button>');
+                                    $updateBtn.on('click', function () {
+                                        CloseModalDialog('pluginDetailDialog');
+                                        UpgradePlugin(plugin);
+                                    });
+                                    $checkBtn.replaceWith($updateBtn);
                                 }
                             }
                         } else {
-                            $('#row-' + plugin).removeClass('fppHasUpdate');
+                            RowEl(plugin).removeClass('fppHasUpdate');
                             $.jGrowl('No updates available for ' + plugin, { themeState: 'detract' });
                         }
                         FilterPlugins();
@@ -334,6 +368,42 @@
             });
         }
 
+        // Shared by CheckAllPluginsForUpdates, UpdateAllPlugins's pre-check, and
+        // UpdateAllFinish's post-upgrade recheck: POSTs api/plugin/<name>/updates
+        // for every plugin in pluginList in parallel, and calls onComplete once
+        // every request has settled (success or error). onResult(plugin, hasUpdate)
+        // fires per successful check so callers can drive their own row UI;
+        // onComplete(withUpdates, anyError) fires once with the aggregate result.
+        function CheckPluginsForUpdates(pluginList, onResult, onComplete) {
+            var checked = 0;
+            var total = pluginList.length;
+            if (total === 0) {
+                onComplete([], false);
+                return;
+            }
+            var withUpdates = [];
+            var anyError = false;
+            pluginList.forEach(function (plugin) {
+                $.ajax({
+                    url: 'api/plugin/' + plugin + '/updates',
+                    type: 'POST',
+                    dataType: 'json',
+                    success: function (data) {
+                        var hasUpdate = (data.Status == 'OK' && data.updatesAvailable);
+                        if (hasUpdate) withUpdates.push(plugin);
+                        onResult(plugin, hasUpdate);
+                    },
+                    error: function () {
+                        anyError = true;
+                    },
+                    complete: function () {
+                        checked++;
+                        if (checked === total) onComplete(withUpdates, anyError);
+                    }
+                });
+            });
+        }
+
         function CheckAllPluginsForUpdates() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
@@ -343,45 +413,21 @@
             $('html,body').css('cursor', 'wait');
             $('#checkAllUpdatesBtn').prop('disabled', true);
 
-            var checked = 0;
-            var total = installedPlugins.length;
-            var updatesFound = 0;
-
-            installedPlugins.forEach(function (plugin) {
-                var url = 'api/plugin/' + plugin + '/updates';
-
-                $.ajax({
-                    url: url,
-                    type: 'POST',
-                    dataType: 'json',
-                    success: function (data) {
-                        checked++;
-                        if (data.Status == 'OK' && data.updatesAvailable) {
-                            $('#row-' + plugin).addClass('fppHasUpdate').find('.updatesAvailable').show();
-                            updatesFound++;
-                        }
-
-                        if (checked === total) {
-                            $('html,body').css('cursor', 'auto');
-                            $('#checkAllUpdatesBtn').prop('disabled', false);
-                            if (updatesFound > 0) {
-                                $.jGrowl('Found updates for ' + updatesFound + ' plugin(s)', { themeState: 'success' });
-                            } else {
-                                $.jGrowl('All plugins are up to date', { themeState: 'success' });
-                            }
-                            FilterPlugins();
-                        }
-                    },
-                    error: function () {
-                        checked++;
-                        if (checked === total) {
-                            $('html,body').css('cursor', 'auto');
-                            $('#checkAllUpdatesBtn').prop('disabled', false);
-                            $.jGrowl('Completed checking plugins (some checks failed)', { themeState: 'warn' });
-                            FilterPlugins();
-                        }
-                    }
-                });
+            CheckPluginsForUpdates(installedPlugins, function (plugin, hasUpdate) {
+                if (hasUpdate) {
+                    RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
+                }
+            }, function (withUpdates, anyError) {
+                $('html,body').css('cursor', 'auto');
+                $('#checkAllUpdatesBtn').prop('disabled', false);
+                if (anyError) {
+                    $.jGrowl('Completed checking plugins (some checks failed)', { themeState: 'warn' });
+                } else if (withUpdates.length > 0) {
+                    $.jGrowl('Found updates for ' + withUpdates.length + ' plugin(s)', { themeState: 'success' });
+                } else {
+                    $.jGrowl('All plugins are up to date', { themeState: 'success' });
+                }
+                FilterPlugins();
             });
         }
 
@@ -391,19 +437,7 @@
         // with a pending update and never uninstalls anything (no removal window),
         // so a shared dependency can't be dropped mid-flight. Mirrors the Reinstall
         // All queue + progress-dialog + verify-by-recheck pattern.
-        var updateAllQueue = [];
         var updateAllAttempted = [];
-        var updateAllTotal = 0;
-        // The progress popup body is a <textarea> (see DisplayProgressDialog) and
-        // cannot render HTML, so status lines are plain text appended to .value,
-        // matching how StreamURL writes the streamed command output. Auto-scroll.
-        function UpdateAllLog(text) {
-            var outputArea = document.getElementById('pluginsProgressPopupText');
-            if (!outputArea)
-                return;
-            outputArea.value += text;
-            outputArea.scrollTop = outputArea.scrollHeight;
-        }
 
         // Entry point (toolbar button). Runs a fresh update check across all
         // installed plugins first so the user does not have to click "Check All for
@@ -417,28 +451,12 @@
             $('#updateAllBtn').prop('disabled', true);
             $('#checkAllUpdatesBtn').prop('disabled', true);
 
-            var checked = 0;
-            var total = installedPlugins.length;
-            var withUpdates = [];
-            installedPlugins.forEach(function (plugin) {
-                $.ajax({
-                    url: 'api/plugin/' + plugin + '/updates',
-                    type: 'POST',
-                    dataType: 'json',
-                    success: function (data) {
-                        if (data.Status == 'OK' && data.updatesAvailable) {
-                            $('#row-' + plugin).addClass('fppHasUpdate').find('.updatesAvailable').show();
-                            withUpdates.push(plugin);
-                        }
-                    },
-                    // complete runs on both success and error so one failed check
-                    // does not strand the batch.
-                    complete: function () {
-                        checked++;
-                        if (checked === total)
-                            UpdateAllChecksDone(withUpdates);
-                    }
-                });
+            CheckPluginsForUpdates(installedPlugins, function (plugin, hasUpdate) {
+                if (hasUpdate) {
+                    RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
+                }
+            }, function (withUpdates) {
+                UpdateAllChecksDone(withUpdates);
             });
         }
 
@@ -471,28 +489,70 @@
             });
         }
 
-        function RunUpdateAll(withUpdates) {
-            updateAllQueue = withUpdates.slice();
-            updateAllAttempted = withUpdates.slice();
-            updateAllTotal = withUpdates.length;
-            DisplayProgressDialog("pluginsProgressPopup", "Update All Plugins");
-            UpdateNextPlugin();
+        // --- Sequential batch queue runner ---
+        // Shared by Update All / Uninstall All / Reinstall All: each shifts one
+        // item off a queue, drives it through StreamURL against a per-batch
+        // endpoint (streaming output into the progress popup), and re-enters
+        // itself once StreamURL completes. StreamURL invokes its done/error
+        // callbacks BY NAME (window[name](id)), not by reference, so the runner
+        // needs one single, fixed global entry point (BatchQueueNext) rather than
+        // a distinct named function per batch type -- the currently-running job's
+        // parameters live in `batchJob` instead.
+        var batchJob = null;
+        // The progress popup body is a <textarea> (see DisplayProgressDialog) and
+        // cannot render HTML, so status lines are plain text appended to .value,
+        // matching how StreamURL writes the streamed command output. Auto-scroll.
+        function BatchQueueLog(text) {
+            var outputArea = document.getElementById('pluginsProgressPopupText');
+            if (!outputArea)
+                return;
+            outputArea.value += text;
+            outputArea.scrollTop = outputArea.scrollHeight;
         }
-
-        function UpdateNextPlugin() {
-            if (updateAllQueue.length === 0) {
-                UpdateAllFinish();
+        // job: { label, verb, verbCap, showStatus, queue, total, done,
+        //        itemName(item), urlFor(item), method, dataFor(item)?, onDone() }
+        function RunBatchQueue(job) {
+            batchJob = job;
+            BatchQueueNext();
+        }
+        function BatchQueueNext() {
+            var job = batchJob;
+            if (!job || job.queue.length === 0) {
+                batchJob = null;
+                if (job) job.onDone();
                 return;
             }
-            var plugin = updateAllQueue.shift();
-            var done = updateAllTotal - updateAllQueue.length;
-            SetProgressDialogStatus('pluginsProgressPopup',
-                'Update All — updating ' + done + ' of ' + updateAllTotal);
-            UpdateAllLog('\n===== Updating ' + plugin + ' (' + done + ' of ' + updateAllTotal + ') =====\n');
-            var url = 'api/plugin/' + plugin + '/upgrade?stream=true';
-            // Chain to the next plugin on both success and failure so a single
-            // failed upgrade does not stop the rest of the batch.
-            StreamURL(url, 'pluginsProgressPopupText', 'UpdateNextPlugin', 'UpdateNextPlugin');
+            var item = job.queue.shift();
+            job.done++;
+            if (job.showStatus) {
+                SetProgressDialogStatus('pluginsProgressPopup',
+                    job.label + ' — ' + job.verb + ' ' + job.done + ' of ' + job.total);
+            }
+            BatchQueueLog('\n===== ' + job.verbCap + ' ' + job.itemName(item) +
+                ' (' + job.done + ' of ' + job.total + ') =====\n');
+            var data = job.dataFor ? job.dataFor(item) : null;
+            // Chain to the next item on both success and failure so a single
+            // failure does not strand the batch.
+            StreamURL(job.urlFor(item), 'pluginsProgressPopupText', 'BatchQueueNext', 'BatchQueueNext',
+                job.method, data, data ? 'application/json' : null);
+        }
+
+        function RunUpdateAll(withUpdates) {
+            updateAllAttempted = withUpdates.slice();
+            DisplayProgressDialog("pluginsProgressPopup", "Update All Plugins");
+            RunBatchQueue({
+                label: 'Update All',
+                verb: 'updating',
+                verbCap: 'Updating',
+                showStatus: true,
+                queue: withUpdates.slice(),
+                total: withUpdates.length,
+                done: 0,
+                itemName: function (plugin) { return plugin; },
+                urlFor: function (plugin) { return 'api/plugin/' + plugin + '/upgrade?stream=true'; },
+                method: 'GET',
+                onDone: UpdateAllFinish
+            });
         }
 
         // After all upgrades have streamed, verify by re-checking each attempted
@@ -500,42 +560,28 @@
         // any plugin that STILL reports an update available did not update. Mirrors
         // ReinstallFinish's re-query verification.
         function UpdateAllFinish() {
-            var rechecked = 0;
             var total = updateAllAttempted.length;
-            var stillStale = [];
-            updateAllAttempted.forEach(function (plugin) {
-                $.ajax({
-                    url: 'api/plugin/' + plugin + '/updates',
-                    type: 'POST',
-                    dataType: 'json',
-                    success: function (data) {
-                        if (data.Status == 'OK' && data.updatesAvailable) {
-                            stillStale.push(plugin);
-                            $('#row-' + plugin).addClass('fppHasUpdate').find('.updatesAvailable').show();
-                        } else {
-                            $('#row-' + plugin).removeClass('fppHasUpdate').find('.updatesAvailable').hide();
-                        }
-                    },
-                    complete: function () {
-                        rechecked++;
-                        if (rechecked === total) {
-                            var ok = total - stillStale.length;
-                            SetProgressDialogStatus('pluginsProgressPopup',
-                                stillStale.length ? ('Update All — ' + stillStale.length + ' may have failed, ' + ok + ' of ' + total + ' ok')
-                                                  : ('Update All — complete (' + ok + ' of ' + total + ')'));
-                            UpdateAllLog('\n===== Update complete: ' + ok + ' of ' + total + ' plugin(s) updated successfully =====\n');
-                            if (stillStale.length)
-                                UpdateAllLog('Still reporting an available update (may have failed): ' + stillStale.join(', ') + '\n');
-                            UpdateAllLog('Reload the page to refresh the plugin list.\n');
-                            if (stillStale.length)
-                                $.jGrowl(stillStale.length + ' plugin(s) may not have updated', { themeState: 'warn' });
-                            else
-                                $.jGrowl('All ' + ok + ' plugin(s) updated successfully', { themeState: 'success' });
-                            FilterPlugins();
-                            ProgressDialogDone('pluginsProgressPopupText');
-                        }
-                    }
-                });
+            CheckPluginsForUpdates(updateAllAttempted, function (plugin, hasUpdate) {
+                if (hasUpdate) {
+                    RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
+                } else {
+                    RowEl(plugin).removeClass('fppHasUpdate').find('.updatesAvailable').addClass('d-none');
+                }
+            }, function (stillStale) {
+                var ok = total - stillStale.length;
+                SetProgressDialogStatus('pluginsProgressPopup',
+                    stillStale.length ? ('Update All — ' + stillStale.length + ' may have failed, ' + ok + ' of ' + total + ' ok')
+                                      : ('Update All — complete (' + ok + ' of ' + total + ')'));
+                BatchQueueLog('\n===== Update complete: ' + ok + ' of ' + total + ' plugin(s) updated successfully =====\n');
+                if (stillStale.length)
+                    BatchQueueLog('Still reporting an available update (may have failed): ' + stillStale.join(', ') + '\n');
+                BatchQueueLog('Reload the page to refresh the plugin list.\n');
+                if (stillStale.length)
+                    $.jGrowl(stillStale.length + ' plugin(s) may not have updated', { themeState: 'warn' });
+                else
+                    $.jGrowl('All ' + ok + ' plugin(s) updated successfully', { themeState: 'success' });
+                FilterPlugins();
+                ProgressDialogDone('pluginsProgressPopupText');
             });
         }
 
@@ -549,7 +595,7 @@
             var url = 'api/plugin?stream=true';
             var i = FindPluginInfo(plugin);
 
-            if (i < -1) {
+            if (i < 0) {
                 alert('Could not find plugin ' + plugin + ' in pluginInfo cache.');
                 return;
             }
@@ -568,7 +614,7 @@
             StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone', 'POST', postData, 'application/json');
         }
 
-        // Gate before InstallPlugin (D12): Official plugins (FalconChristmas org)
+        // Gate before InstallPlugin: Official plugins (FalconChristmas org)
         // install directly; third-party/community plugins pop a confirmation first
         // so the user acknowledges they are installing code from outside the FPP
         // project, which runs with full access to their system. Applies at all UI
@@ -612,15 +658,15 @@
             var src = (data && data.srcURL) ? data.srcURL : '';
             var body = resWarn +
                 '<div class="fpp-inline-warn mb-2"><i class="fas fa-exclamation-triangle"></i>' +
-                '<span>Installing <b>' + name + '</b> runs ' +
+                '<span>Installing <b>' + EscapeHtml(name) + '</b> runs ' +
                 '<b>third-party, untrusted code</b> on your FPP. It has full access to this device <b>and to ' +
                 'anything else on the network FPP is connected to</b>. This is inherently dangerous unless you ' +
                 'trust the plugin\'s author. The FPP project <b>does not test, vet, or guarantee the quality or ' +
                 'safety</b> of plugins &mdash; install at your own risk, and only from authors you trust. The ' +
                 '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> badge marks ' +
                 'plugins maintained by the FPP team (this plugin is not one of them).</span></div>';
-            if (src) body += '<div class="small text-secondary"><i class="fas fa-code"></i> Source: ' +
-                '<a href="' + src + '" target="_blank" rel="noopener noreferrer">' + src + '</a></div>';
+            if (IsSafeHttpUrl(src)) body += '<div class="small text-secondary"><i class="fas fa-code"></i> Source: ' +
+                '<a href="' + EscapeAttr(src) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(src) + '</a></div>';
             DoModalDialog({
                 id: "confirmInstallDialog",
                 class: "modal-lg",
@@ -655,7 +701,7 @@
                 id: "uninstallPluginDialog",
                 class: "modal-lg",
                 title: "Warning: Uninstalling Plugin",
-                body: "Please confirm you wish to uninstall the " + pluginName + " plugin",
+                body: "Please confirm you wish to uninstall the " + EscapeHtml(pluginName) + " plugin",
                 backdrop: true,
                 keyboard: true,
                 buttons: {
@@ -669,34 +715,24 @@
             });
         }
 
-        var uninstallAllQueue = [];
         function UninstallAllPlugins() {
-            uninstallAllQueue = installedPlugins.slice();
-            if (uninstallAllQueue.length === 0) {
+            var queue = installedPlugins.slice();
+            if (queue.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
                 return;
             }
             DisplayProgressDialog("pluginsProgressPopup", "Uninstall All Plugins");
-            UninstallNextPlugin();
-        }
-
-        function UninstallNextPlugin() {
-            if (uninstallAllQueue.length === 0) {
-                ProgressDialogDone('pluginsProgressPopupText');
-                return;
-            }
-            var plugin = uninstallAllQueue.shift();
-            // The progress popup body is a <textarea>, which cannot render HTML, so
-            // status must be plain text appended to .value (matching StreamURL).
-            var outputArea = document.getElementById('pluginsProgressPopupText');
-            if (outputArea) {
-                outputArea.value += '\n===== Uninstalling ' + plugin + ' =====\n';
-                outputArea.scrollTop = outputArea.scrollHeight;
-            }
-            var url = 'api/plugin/' + plugin + '?stream=true';
-            // Chain to the next plugin whether this one succeeds or fails so a
-            // single failure does not stop the rest of the batch.
-            StreamURL(url, 'pluginsProgressPopupText', 'UninstallNextPlugin', 'UninstallNextPlugin', 'DELETE');
+            RunBatchQueue({
+                verbCap: 'Uninstalling',
+                showStatus: false,
+                queue: queue,
+                total: queue.length,
+                done: 0,
+                itemName: function (plugin) { return plugin; },
+                urlFor: function (plugin) { return 'api/plugin/' + plugin + '?stream=true'; },
+                method: 'DELETE',
+                onDone: function () { ProgressDialogDone('pluginsProgressPopupText'); }
+            });
         }
 
         function ShowUninstallAllPluginsPopup() {
@@ -723,59 +759,64 @@
             });
         }
 
-        // Reinstall All: uninstall every installed plugin, then reinstall each one
-        // by one. Runs entirely client-side against the per-plugin API endpoints,
+        // Reinstall: uninstall the given plugin(s), then reinstall each one by
+        // one. Runs entirely client-side against the per-plugin API endpoints,
         // mirroring the Uninstall All queue pattern above but in two phases.
-        var reinstallUninstallQueue = [];
-        var reinstallInstallQueue = [];
+        // Shared by both Reinstall All and a single plugin's Reinstall action --
+        // repos.length is just 1 in the latter case, everything else (progress
+        // dialog, batch queue, re-verify) is identical.
         var reinstallAttempted = [];   // repo names we intend to reinstall
-        var reinstallSkipped = [];     // installed plugins with no cached info
-        var reinstallTotal = 0;
-        var reinstallUninstallDone = 0;
-        var reinstallInstallDone = 0;
-        // The progress popup body is a <textarea> (see DisplayProgressDialog), which
-        // cannot render HTML, so all of our own status lines must be plain text
-        // appended to .value -- matching how StreamURL writes the streamed command
-        // output. Auto-scroll to keep the latest line visible.
-        function ReinstallLog(text) {
-            var outputArea = document.getElementById('pluginsProgressPopupText');
-            if (!outputArea)
-                return;
-            outputArea.value += text;
-            outputArea.scrollTop = outputArea.scrollHeight;
+        var reinstallSkipped = [];     // requested plugins with no cached info
+
+        // Build the install POST body for an installed plugin from its cached
+        // pluginInfo.json, or null if we have no cached info to rebuild it from
+        // (repo was never loaded this session -- can't safely reinstall it).
+        function BuildReinstallInfo(repo) {
+            var i = FindPluginInfo(repo);
+            if (i < 0) return null;
+            var info = JSON.parse(JSON.stringify(pluginInfos[i])); // copy, don't mutate cache
+            var sel = SelectPluginVersionIndices(info);
+            var idx = sel.compatible >= 0 ? sel.compatible : (sel.untested >= 0 ? sel.untested : 0);
+            var v = info.versions[idx];
+            info['branch'] = (v.branch && v.branch !== '') ? v.branch : 'master';
+            info['sha'] = v.sha || '';
+            if (pluginInfoURLs[repo])
+                info['infoURL'] = pluginInfoURLs[repo]; // else backend uses the repo's own pluginInfo.json
+            info['useCredentials'] = (info.private || pluginInfoUseCredentials[repo]) ? 1 : 0;
+            return info;
         }
+
         function ReinstallAllPlugins() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
                 return;
             }
+            RunReinstall(installedPlugins.slice(), 'Reinstall All Plugins');
+        }
 
+        function ReinstallPlugin(repo) {
+            RunReinstall([repo], 'Reinstall Plugin');
+        }
+
+        // label is also used as the progress dialog title and the RunBatchQueue
+        // status-line prefix, so it reads e.g. "Reinstall Plugin — uninstalling 1
+        // of 1" for a single plugin vs "Reinstall All Plugins — uninstalling 3 of 8".
+        function RunReinstall(repos, label) {
             // Phase 0: capture the install POST body for every plugin BEFORE
             // removing anything, since uninstalling drops entries from
             // installedPlugins / the DOM. Only plugins we can rebuild an install
             // body for are queued; anything without cached info is left untouched
             // and reported as skipped rather than uninstalled-without-reinstall.
-            reinstallInstallQueue = [];
+            var installQueue = [];
             reinstallAttempted = [];
             reinstallSkipped = [];
-            reinstallUninstallDone = 0;
-            reinstallInstallDone = 0;
-            installedPlugins.forEach(function (repo) {
-                var i = FindPluginInfo(repo);
-                if (i < 0) {
+            repos.forEach(function (repo) {
+                var info = BuildReinstallInfo(repo);
+                if (!info) {
                     reinstallSkipped.push(repo); // no cached info -> can't rebuild the install body
                     return;
                 }
-                var info = JSON.parse(JSON.stringify(pluginInfos[i])); // copy, don't mutate cache
-                var sel = SelectPluginVersionIndices(info);
-                var idx = sel.compatible >= 0 ? sel.compatible : (sel.untested >= 0 ? sel.untested : 0);
-                var v = info.versions[idx];
-                info['branch'] = (v.branch && v.branch !== '') ? v.branch : 'master';
-                info['sha'] = v.sha || '';
-                if (pluginInfoURLs[repo])
-                    info['infoURL'] = pluginInfoURLs[repo]; // else backend uses the repo's own pluginInfo.json
-                info['useCredentials'] = (info.private || pluginInfoUseCredentials[repo]) ? 1 : 0;
-                reinstallInstallQueue.push(info);
+                installQueue.push(info);
                 reinstallAttempted.push(repo);
             });
 
@@ -784,54 +825,49 @@
                 return;
             }
 
-            reinstallUninstallQueue = reinstallAttempted.slice();
-            reinstallTotal = reinstallAttempted.length;
-            DisplayProgressDialog("pluginsProgressPopup", "Reinstall All Plugins");
+            DisplayProgressDialog("pluginsProgressPopup", label);
             if (reinstallSkipped.length) {
-                ReinstallLog('\nSkipping ' + reinstallSkipped.length +
+                BatchQueueLog('\nSkipping ' + reinstallSkipped.length +
                     ' plugin(s) with no available plugin info (left installed): ' +
                     reinstallSkipped.join(', ') + '\n');
             }
-            ReinstallUninstallNext();
+            RunBatchQueue({
+                label: label,
+                verb: 'uninstalling',
+                verbCap: 'Uninstalling',
+                showStatus: true,
+                queue: reinstallAttempted.slice(),
+                total: reinstallAttempted.length,
+                done: 0,
+                itemName: function (plugin) { return plugin; },
+                urlFor: function (plugin) { return 'api/plugin/' + plugin + '?stream=true'; },
+                method: 'DELETE',
+                onDone: function () { RunReinstallInstallPhase(installQueue, label); }
+            });
         }
 
-        function ReinstallUninstallNext() {
-            if (reinstallUninstallQueue.length === 0) {
-                ReinstallInstallNext(); // move on to the reinstall phase
-                return;
-            }
-            var plugin = reinstallUninstallQueue.shift();
-            reinstallUninstallDone++;
-            SetProgressDialogStatus('pluginsProgressPopup',
-                'Reinstall All — uninstalling ' + reinstallUninstallDone + ' of ' + reinstallTotal);
-            ReinstallLog('\n===== Uninstalling ' + plugin + ' (' +
-                reinstallUninstallDone + ' of ' + reinstallTotal + ') =====\n');
-            var url = 'api/plugin/' + plugin + '?stream=true';
-            // Continue on both success and failure so one failure does not strand
-            // the batch.
-            StreamURL(url, 'pluginsProgressPopupText', 'ReinstallUninstallNext', 'ReinstallUninstallNext', 'DELETE');
-        }
-
-        function ReinstallInstallNext() {
-            if (reinstallInstallQueue.length === 0) {
-                ReinstallFinish();
-                return;
-            }
-            reinstallInstallDone++;
-            var info = reinstallInstallQueue.shift();
-            SetProgressDialogStatus('pluginsProgressPopup',
-                'Reinstall All — installing ' + reinstallInstallDone + ' of ' + reinstallTotal);
-            ReinstallLog('\n===== Installing ' + info.repoName + ' (' +
-                reinstallInstallDone + ' of ' + reinstallTotal + ') =====\n');
-            var postData = JSON.stringify(info);
-            StreamURL('api/plugin?stream=true', 'pluginsProgressPopupText', 'ReinstallInstallNext', 'ReinstallInstallNext', 'POST', postData, 'application/json');
+        function RunReinstallInstallPhase(installQueue, label) {
+            RunBatchQueue({
+                label: label,
+                verb: 'installing',
+                verbCap: 'Installing',
+                showStatus: true,
+                queue: installQueue,
+                total: reinstallAttempted.length,
+                done: 0,
+                itemName: function (info) { return info.repoName; },
+                urlFor: function () { return 'api/plugin?stream=true'; },
+                method: 'POST',
+                dataFor: function (info) { return JSON.stringify(info); },
+                onDone: function () { ReinstallFinish(label); }
+            });
         }
 
         // After the reinstall phase, verify what actually ended up installed by
         // re-querying the authoritative list rather than trying to parse streamed
         // output (the install endpoint streams "Done" even on a logical failure).
         // Any plugin we attempted but that is now missing is reported as failed.
-        function ReinstallFinish() {
+        function ReinstallFinish(label) {
             $.ajax({
                 url: 'api/plugin',
                 dataType: 'json',
@@ -847,19 +883,19 @@
                         SetSetting('pluginReinstallNeededAfterOS', '', 0, 0, true);
                     }
                     SetProgressDialogStatus('pluginsProgressPopup',
-                        failed.length ? ('Reinstall All — ' + failed.length + ' failed, ' + ok + ' of ' + reinstallAttempted.length + ' ok')
-                                      : ('Reinstall All — complete (' + ok + ' of ' + reinstallAttempted.length + ')'));
-                    ReinstallLog('\n===== Reinstall complete: ' + ok + ' of ' +
+                        failed.length ? (label + ' — ' + failed.length + ' failed, ' + ok + ' of ' + reinstallAttempted.length + ' ok')
+                                      : (label + ' — complete (' + ok + ' of ' + reinstallAttempted.length + ')'));
+                    BatchQueueLog('\n===== Reinstall complete: ' + ok + ' of ' +
                         reinstallAttempted.length + ' plugin(s) reinstalled successfully =====\n');
                     if (failed.length) {
-                        ReinstallLog('Failed to reinstall ' + failed.length +
+                        BatchQueueLog('Failed to reinstall ' + failed.length +
                             ' plugin(s): ' + failed.join(', ') + '\n');
                     }
                     if (reinstallSkipped.length) {
-                        ReinstallLog('Skipped (no plugin info, left installed): ' +
+                        BatchQueueLog('Skipped (no plugin info, left installed): ' +
                             reinstallSkipped.join(', ') + '\n');
                     }
-                    ReinstallLog('Reload the page to refresh the plugin list.\n');
+                    BatchQueueLog('Reload the page to refresh the plugin list.\n');
                     if (failed.length)
                         $.jGrowl(failed.length + ' plugin(s) failed to reinstall', { themeState: 'danger' });
                     else
@@ -867,7 +903,7 @@
                     ProgressDialogDone('pluginsProgressPopupText');
                 },
                 error: function () {
-                    ReinstallLog('\nReinstall finished, but could not verify the installed plugin list. Reload the page to check.\n');
+                    BatchQueueLog('\nReinstall finished, but could not verify the installed plugin list. Reload the page to check.\n');
                     ProgressDialogDone('pluginsProgressPopupText');
                 }
             });
@@ -897,6 +933,30 @@
             });
         }
 
+        function ShowReinstallPluginPopup(repo, pluginName) {
+            if (!pluginName) {
+                var pi = FindPluginInfo(repo);
+                pluginName = (pi >= 0 && pluginInfos[pi].name) ? pluginInfos[pi].name : repo;
+            }
+            DoModalDialog({
+                id: "reinstallPluginDialog",
+                class: "modal-lg",
+                title: "Reinstall Plugin",
+                body: "This will uninstall and then reinstall the " + EscapeHtml(pluginName) + " plugin.",
+                backdrop: true,
+                keyboard: true,
+                buttons: {
+                    Reinstall: function () {
+                        CloseModalDialog("reinstallPluginDialog");
+                        ReinstallPlugin(repo);
+                    },
+                    Cancel: function () {
+                        CloseModalDialog("reinstallPluginDialog");
+                    }
+                }
+            });
+        }
+
         // The post-FPPOS-upgrade warning's Fix button links here with
         // ?action=reinstallAll; pop the Reinstall All confirmation automatically.
         // Gated on the pluginReinstallNeededAfterOS setting (still set only while a
@@ -921,6 +981,14 @@
             }
 
             return -1;
+        }
+
+        // Selects a plugin's card by exact element id via getElementById rather than
+        // a jQuery '#row-' + repo selector string -- repoName is plugin-declared free
+        // text (see PluginAuthorHtml above), and building a CSS-selector string from
+        // it can throw (special selector characters) instead of just finding nothing.
+        function RowEl(repo) {
+            return $(document.getElementById('row-' + repo));
         }
 
         // Determine which version entry applies to this FPP version/platform.
@@ -1003,7 +1071,7 @@
             if (!placed) $('#' + gridId).append(html);
         }
 
-        // --- Popularity (Phase 2) ---
+        // --- Popularity ---
 
         // Install count for a repo (0 when unknown / feed unavailable).
         function PopularityOf(repo) {
@@ -1089,7 +1157,6 @@
         // 404s when a repo is gone or the device has no network. The backend
         // fails soft (stale disk cache, else empty), so when network access is
         // unavailable the response is empty and we simply never draw the corner.
-        var IS_DEVELOPER_UI = (parseInt(settings["uiLevel"]) || 0) >= 3;
         var pluginGitHubRepos = {};   // repoName -> "owner/repo" (GitHub srcURL only, lowercase)
         var pluginGitHubStats = {};   // "owner/repo" -> { openIssues, openPRs } -- ONLY resolved repos
         var githubStatsRequested = {}; // "owner/repo" -> true once asked, so unresolved repos are not re-requested
@@ -1145,7 +1212,7 @@
         // Only touches cards whose repo we have counts for -- cards without data
         // keep no corner, which is what hides the feature when offline.
         function PatchPluginGitHubStats() {
-            if (!IS_DEVELOPER_UI) return;
+            if (uiLevel < 3) return;
             $('#pluginGrid, #installedGrid, #incompatibleGrid').children('.pluginCard').each(function () {
                 var repoName = ($(this).attr('id') || '').replace(/^row-/, '');
                 var repo = pluginGitHubRepos[repoName];
@@ -1192,7 +1259,7 @@
         var GITHUB_STATS_DEBOUNCE = 150;
         var GITHUB_STATS_MAX_WAIT = 600;
         function ScheduleGitHubStatsFetch() {
-            if (!IS_DEVELOPER_UI || githubStatsFailed || githubStatsFetching) return;
+            if (uiLevel < 3 || githubStatsFailed || githubStatsFetching) return;
             // Nothing left to fetch (every known repo already has counts or was
             // already requested)? Stop scheduling; LoadPlugin re-arms this for
             // late-arriving plugins.
@@ -1219,7 +1286,7 @@
         function FetchPluginGitHubStats() {
             githubStatsDebounce = null;
             githubStatsDebounceStart = 0;
-            if (!IS_DEVELOPER_UI || githubStatsFailed || githubStatsFetching) return;
+            if (uiLevel < 3 || githubStatsFailed || githubStatsFetching) return;
             var missing = [];
             for (var repoName in pluginGitHubRepos) {
                 if (!pluginGitHubRepos.hasOwnProperty(repoName)) continue;
@@ -1276,7 +1343,6 @@
             if (!$strip.length) return;
             popularStripHasCards = false;
             if (!popularityLoaded) { UpdatePopularStripVisibility(); return; }
-            var uiLevel = parseInt(settings["uiLevel"]) || 0;
             var ranked = [];
             for (var i = 0; i < pluginInfos.length; i++) {
                 var d = pluginInfos[i];
@@ -1345,9 +1411,9 @@
             var initials = GetInitials(data.name);
             if (iconUrl) {
                 var $iconWrap = $('<div class="pluginIconWrap pluginIconWrapSm flex-shrink-0"></div>');
-                var $img = $('<img class="pluginIcon pluginIconSm" src="' + iconUrl + '" alt="" loading="lazy">');
-                var $fb = $('<div class="pluginIconFallback pluginIconFallbackSm" style="display:none;">' + initials + '</div>');
-                $img.on('error', function () { $img.hide(); $fb.show(); });
+                var $img = $('<img class="pluginIcon pluginIconSm" src="' + EscapeAttr(iconUrl) + '" alt="" loading="lazy">');
+                var $fb = $('<div class="pluginIconFallback pluginIconFallbackSm d-none">' + initials + '</div>');
+                $img.on('error', function () { $img.addClass('d-none'); $fb.removeClass('d-none'); });
                 $iconWrap.append($img).append($fb);
                 $titleRow.append($iconWrap);
             } else {
@@ -1421,11 +1487,11 @@
             for (var i = 0; i < data.versions.length; i++) {
                 if (i > 0) html += ',';
                 if ((data.versions[i].minFPPVersion > 0) && (data.versions[i].maxFPPVersion > 0))
-                    html += ' v' + data.versions[i].minFPPVersion + ' - v' + data.versions[i].maxFPPVersion;
+                    html += ' v' + EscapeHtml(data.versions[i].minFPPVersion) + ' - v' + EscapeHtml(data.versions[i].maxFPPVersion);
                 else if (data.versions[i].minFPPVersion > 0)
-                    html += ' > v' + data.versions[i].minFPPVersion;
+                    html += ' > v' + EscapeHtml(data.versions[i].minFPPVersion);
                 else if (data.versions[i].maxFPPVersion > 0)
-                    html += ' < v' + data.versions[i].maxFPPVersion;
+                    html += ' < v' + EscapeHtml(data.versions[i].maxFPPVersion);
                 if (data.versions[i].hasOwnProperty('platforms')) {
                     var platforms = data.versions[i].platforms;
                     html += ' ';
@@ -1434,7 +1500,7 @@
                         if (platforms[p] == 'Raspberry Pi') html += 'Pi';
                         else if (platforms[p] == 'BeagleBone Black') html += 'BBB';
                         else if (platforms[p] == 'BeagleBone 64') html += 'BB64';
-                        else html += platforms[p];
+                        else html += EscapeHtml(platforms[p]);
                     }
                 }
             }
@@ -1455,22 +1521,22 @@
             var initials = GetInitials(data.name);
             var titleIcon = '';
             if (iconUrl) {
-                titleIcon += '<div class="pluginIconWrap" style="width:2rem;height:2rem;border-radius:0.4rem;display:inline-flex;vertical-align:middle;margin-right:0.5rem;">';
-                titleIcon += '<img class="pluginIcon" src="' + iconUrl + '" alt="" loading="lazy"';
-                titleIcon += ' onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">';
-                titleIcon += '<div class="pluginIconFallback" style="display:none;font-size:0.65rem;">' + initials + '</div>';
+                titleIcon += '<div class="pluginIconWrap pluginIconWrapSm d-inline-flex align-middle me-2">';
+                titleIcon += '<img class="pluginIcon" src="' + EscapeAttr(iconUrl) + '" alt="" loading="lazy"';
+                titleIcon += ' onerror="this.classList.add(\'d-none\');this.nextElementSibling.classList.remove(\'d-none\');">';
+                titleIcon += '<div class="pluginIconFallback pluginIconFallbackSm d-none">' + initials + '</div>';
                 titleIcon += '</div>';
             } else {
-                titleIcon += '<div class="pluginIconWrap" style="width:2rem;height:2rem;border-radius:0.4rem;display:inline-flex;vertical-align:middle;margin-right:0.5rem;"><div class="pluginIconFallback" style="font-size:0.65rem;">' + initials + '</div></div>';
+                titleIcon += '<div class="pluginIconWrap pluginIconWrapSm d-inline-flex align-middle me-2"><div class="pluginIconFallback pluginIconFallbackSm">' + initials + '</div></div>';
             }
 
             var body = '';
             body += '<div class="mb-2">' + PluginBadgesHtml(data, true) + '</div>';
             var authorHtml = PluginAuthorHtml(data);
             if (authorHtml) body += '<div class="mb-2 text-secondary"><i class="fas fa-user"></i> ' + authorHtml + '</div>';
-            body += '<p>' + data.description + '</p>';
+            body += '<p>' + EscapeHtml(data.description) + '</p>';
             // Supported-versions detail is noise for Basic users; show it from Advanced up.
-            if ((parseInt(settings["uiLevel"]) || 0) >= 1)
+            if (uiLevel >= 1)
                 body += '<div class="mb-2 text-muted small"><i class="fas fa-info-circle"></i> Compatible FPP versions: <b>' + PluginVersionsText(data) + '</b></div>';
             if (!installed && compatibleVersion == -1 && untestedVersion >= 0)
                 body += '<div class="fpp-inline-warn mb-2"><i class="fas fa-exclamation-triangle"></i>' +
@@ -1479,23 +1545,24 @@
                 body += '<div class="fpp-major-callout mb-2"><i class="fas fa-exclamation-triangle"></i>' +
                     '<span>No version is compatible with your FPP version/platform.</span></div>';
             body += '<div class="d-flex flex-column gap-1 small">';
-            if (data.homeURL) body += '<a href="' + data.homeURL + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-home"></i> <span class="text-decoration-underline">' + data.homeURL + '</span></a>';
+            if (IsSafeHttpUrl(data.homeURL)) body += '<a href="' + EscapeAttr(data.homeURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-home"></i> <span class="text-decoration-underline">' + EscapeHtml(data.homeURL) + '</span></a>';
             // Omit "View Source" when srcURL just duplicates the home link (same repo),
             // ignoring a trailing slash or .git suffix so github.com/x/y(.git)(/) all match.
             var sameLink = function (a, b) {
                 var n = function (u) { return (u || '').replace(/\.git$/i, '').replace(/\/+$/, '').toLowerCase(); };
                 return a && b && n(a) === n(b);
             };
-            if (data.srcURL && !sameLink(data.srcURL, data.homeURL)) body += '<a href="' + data.srcURL + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-code"></i> <span class="text-decoration-underline">View Source</span></a>';
-            if (data.bugURL) body += '<a href="' + data.bugURL + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-bug"></i> <span class="text-decoration-underline">Report a Bug</span></a>';
+            if (IsSafeHttpUrl(data.srcURL) && !sameLink(data.srcURL, data.homeURL)) body += '<a href="' + EscapeAttr(data.srcURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-code"></i> <span class="text-decoration-underline">View Source</span></a>';
+            if (IsSafeHttpUrl(data.bugURL)) body += '<a href="' + EscapeAttr(data.bugURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-bug"></i> <span class="text-decoration-underline">Report a Bug</span></a>';
             body += '</div>';
 
             var buttons = {};
             if (installed) {
-                if (data.pageUrl) {
+                if (IsSafeHttpUrl(data.pageUrl)) {
                     buttons['Open'] = function () { CloseModalDialog('pluginDetailDialog'); window.open(data.pageUrl, 'pluginContent'); };
                 }
-                buttons['Check for Updates'] = { id: 'pluginDetailCheckBtn', click: function () { CheckPluginForUpdates(repo); } };
+                buttons['Check for Update'] = { id: 'pluginDetailCheckBtn', click: function () { CheckPluginForUpdates(repo); } };
+                buttons['Reinstall'] = function () { CloseModalDialog('pluginDetailDialog'); ShowReinstallPluginPopup(repo, data.name); };
                 buttons['Uninstall'] = function () { CloseModalDialog('pluginDetailDialog'); ShowUninstallPluginPopup(repo, data.name); };
             } else if (compatibleVersion >= 0 || untestedVersion >= 0) {
                 var idx = compatibleVersion < 0 ? untestedVersion : compatibleVersion;
@@ -1521,13 +1588,13 @@
             // appended after it), so it only appears when we have data -- hidden
             // offline.
             var detailStats = '';
-            if (IS_DEVELOPER_UI) {
+            if (uiLevel >= 3) {
                 var dBadge = GitHubStatsBadgeHtml(pluginGitHubRepos[repo]);
                 if (dBadge) detailStats = '<span class="pluginDetailGitHubStats me-auto">' + dBadge + '</span>';
             }
             pluginDetailDialogRepo = repo;
 
-            DoModalDialog({ id: 'pluginDetailDialog', class: 'modal-lg', title: titleIcon + data.name, body: body, backdrop: true, keyboard: true, footer: detailStats, buttons: buttons });
+            DoModalDialog({ id: 'pluginDetailDialog', class: 'modal-lg', title: titleIcon + EscapeHtml(data.name), body: body, backdrop: true, keyboard: true, footer: detailStats, buttons: buttons });
         }
 
         // Category name/icon for a plugin, validated against the loaded taxonomy so
@@ -1585,7 +1652,7 @@
 
         function LoadPlugin(data, insert = false) {
             // Re-render: drop any existing card for this repo and refresh the cache.
-            if ($('#row-' + data.repoName).length) $('#row-' + data.repoName).remove();
+            if (RowEl(data.repoName).length) RowEl(data.repoName).remove();
             var pi = FindPluginInfo(data.repoName);
             if (pi >= 0) pluginInfos[pi] = data; else pluginInfos.push(data);
 
@@ -1598,7 +1665,7 @@
             // Developer UI: record the plugin's GitHub repo so the issue/PR
             // corner can be filled in. Private repos are skipped (GitHub won't
             // search them, and a private repo would poison the aggregate query).
-            if (IS_DEVELOPER_UI && !isPrivate) {
+            if (uiLevel >= 3 && !isPrivate) {
                 var ghRepo = GitHubRepoOf(data);
                 if (ghRepo) {
                     pluginGitHubRepos[data.repoName] = ghRepo;
@@ -1625,14 +1692,15 @@
                 if ((compatibleVersion >= 0) && data.versions[compatibleVersion].hasOwnProperty('allowUpdates'))
                     allowUpdates = data.versions[compatibleVersion].allowUpdates ? true : false;
                 if (allowUpdates) {
-                    actions += "<span class='updatesAvailable' style='display: none;'>";
-                    actions += "<button class='btn btn-sm btn-success' onclick='event.stopPropagation();UpgradePlugin(\"" + data.repoName + "\");'><i class='far fa-arrow-alt-circle-down'></i> Update</button>";
+                    actions += "<span class='updatesAvailable d-none'>";
+                    actions += "<button class='btn btn-sm btn-success' data-plugin-action=\"update\" data-repo=\"" + EscapeAttr(data.repoName) + "\"><i class='far fa-arrow-alt-circle-down'></i> Update</button>";
                     actions += "</span>";
                 }
-                if (data.pageUrl) {
-                    actions += "<a class='btn btn-sm btn-outline-primary' href='" + data.pageUrl + "' target='pluginContent'><i class='fas fa-external-link-alt'></i> Open</a>";
+                if (IsSafeHttpUrl(data.pageUrl)) {
+                    actions += "<a class='btn btn-sm btn-outline-primary' href=\"" + EscapeAttr(data.pageUrl) + "\" target='pluginContent'><i class='fas fa-external-link-alt'></i> Open</a>";
                 }
-                actions += "<button class='btn btn-sm btn-outline-danger' onclick='event.stopPropagation();ShowUninstallPluginPopup(\"" + data.repoName + "\");'><i class='far fa-trash-alt'></i> Uninstall</button>";
+                actions += "<button class='btn btn-sm btn-outline-warning' data-plugin-action=\"reinstall\" data-repo=\"" + EscapeAttr(data.repoName) + "\"><i class='fas fa-redo-alt'></i> Reinstall</button>";
+                actions += "<button class='btn btn-sm btn-outline-danger' data-plugin-action=\"uninstall\" data-repo=\"" + EscapeAttr(data.repoName) + "\"><i class='far fa-trash-alt'></i> Uninstall</button>";
             } else if (compatibleVersion >= 0 || untestedVersion >= 0) {
                 var idx = compatibleVersion < 0 ? untestedVersion : compatibleVersion;
                 var installText = 'Install';
@@ -1649,7 +1717,9 @@
                     installText = 'Install anyway';
                     btnClass = 'btn-danger';
                 }
-                actions += "<button class='btn btn-sm " + btnClass + "' onclick='event.stopPropagation();ConfirmAndInstall(\"" + data.repoName + "\", \"" + data.versions[idx].branch + "\", \"" + data.versions[idx].sha + "\");'><i class='far fa-arrow-alt-circle-down'></i> " + installText + "</button>";
+                actions += "<button class='btn btn-sm " + btnClass + "' data-plugin-action=\"install\" data-repo=\"" + EscapeAttr(data.repoName) +
+                    "\" data-branch=\"" + EscapeAttr(data.versions[idx].branch) + "\" data-sha=\"" + EscapeAttr(data.versions[idx].sha) +
+                    "\"><i class='far fa-arrow-alt-circle-down'></i> " + installText + "</button>";
             }
 
             // Plugin icon / initials avatar
@@ -1658,24 +1728,30 @@
             var iconHtml = '';
             if (iconUrl) {
                 iconHtml += '<div class="pluginIconWrap">';
-                iconHtml += '<img class="pluginIcon" src="' + iconUrl + '" alt="" loading="lazy"';
-                iconHtml += ' onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">';
-                iconHtml += '<div class="pluginIconFallback" style="display:none;">' + initials + '</div>';
+                iconHtml += '<img class="pluginIcon" src="' + EscapeAttr(iconUrl) + '" alt="" loading="lazy"';
+                iconHtml += ' onerror="this.classList.add(\'d-none\');this.nextElementSibling.classList.remove(\'d-none\');">';
+                iconHtml += '<div class="pluginIconFallback d-none">' + initials + '</div>';
                 iconHtml += '</div>';
             } else {
                 iconHtml += '<div class="pluginIconWrap"><div class="pluginIconFallback">' + initials + '</div></div>';
             }
 
             var html = '';
-            html += '<div id="row-' + data.repoName + '" class="col pluginCard" data-category-slug="' + pcatObj.slug + '" data-sort-rank="' + sortRank + '"';
+            html += '<div id="row-' + EscapeAttr(data.repoName) + '" class="col pluginCard" data-category-slug="' + pcatObj.slug + '" data-sort-rank="' + sortRank + '"';
             if (manuallyLoadedPlugins[data.repoName]) html += ' data-manual="1"';
             html += '>';
-            html += '<div class="card h-100 pluginCardInner" role="button" tabindex="0" onclick="ShowPluginDetail(\'' + data.repoName + '\');">';
+            // Card open/action clicks are handled by one delegated listener (see
+            // document.ready) reading data-plugin-action/data-repo/etc, rather than
+            // inline onclick="Fn(\'...\')" -- pluginInfo.json fields are third-party
+            // supplied (see PluginAuthorHtml above), and interpolating them into an
+            // onclick attribute's nested JS-string literal is a much easier mistake
+            // to get wrong than plain HTML-attribute escaping (EscapeAttr).
+            html += '<div class="card h-100 pluginCardInner" role="button" tabindex="0" data-plugin-action="detail" data-repo="' + EscapeAttr(data.repoName) + '">';
             html += '<div class="card-body d-flex flex-column">';
             html += '<div class="d-flex align-items-start gap-3 mb-1">';
             html += iconHtml;
             html += '<div class="min-w-0 flex-grow-1">';
-            html += '<h5 class="card-title pluginTitle mb-1">' + data.name + '</h5>';
+            html += '<h5 class="card-title pluginTitle mb-1">' + EscapeHtml(data.name) + '</h5>';
 			html += '<div class="pluginCardBadges">' + badges;
             if (manuallyLoadedPlugins[data.repoName]) {
                 html += '<span class="fpp-tag gap-1 pluginManualBadge"><i class="fas fa-link"></i> Manual URL</span>';
@@ -1684,17 +1760,21 @@
             html += '</div></div>';
             var cardAuthorHtml = PluginAuthorHtml(data);
             if (cardAuthorHtml) html += '<div class="text-secondary small mb-1 pluginAuthor"><i class="fas fa-user"></i> ' + cardAuthorHtml + '</div>';
-            html += '<p class="card-text pluginCardDesc small flex-grow-1">' + data.description + '</p>';
-            html += '<div class="pluginCardActions d-flex flex-wrap gap-2 mt-2 align-items-center" onclick="event.stopPropagation();">' +
+            html += '<p class="card-text pluginCardDesc small flex-grow-1">' + EscapeHtml(data.description) + '</p>';
+            // data-plugin-action="none": absorbs clicks on blank space within the
+            // actions row so they don't bubble up to the card's own "detail" action
+            // above -- the delegated handler finds this (nearer) match first via
+            // closest() and stops there, same effect as the old inline
+            // event.stopPropagation() without needing it on every button.
+            html += '<div class="pluginCardActions d-flex flex-wrap gap-2 mt-2 align-items-center" data-plugin-action="none">' +
                 actions + GitHubStatsRowHtml(pluginGitHubRepos[data.repoName]) + '</div>';
             html += '</div></div></div>';
 
             if (installed) {
                 InsertCardSorted('installedGrid', data.name, html, sortRank);
             } else {
-                var uiLevel = parseInt(settings["uiLevel"]) || 0;
-                // Basic hides plugins whose declared requirements exceed this device
-                // (D14). Advanced/Developer still see them, with an advisory badge and
+                // Basic hides plugins whose declared requirements exceed this device.
+                // Advanced/Developer still see them, with an advisory badge and
                 // an install confirmation. Coarse "heavy" profiles never hide.
                 if (uiLevel < 1 && PluginResourceVerdict(data).exceeds) return;
                 if (data.repoName == 'fpp-plugin-Template') {
@@ -1766,34 +1846,6 @@
                             if (pluginList[index] && pluginList[index].length > 2 && pluginList[index][2])
                                 data.__category = pluginList[index][2];
                             LoadPlugin(data);
-                            $('#pluginInput').on('input', function () {
-                                var val = $('#pluginInput').val() || '';
-                                pluginUrlError = '';
-                                if (val.length > 0) {
-                                    $('#pluginInput').addClass('has-text');
-                                    $('#pluginClearBtn').css('display', 'block');
-                                } else {
-                                    $('#pluginInput').removeClass('has-text');
-                                    $('#pluginClearBtn').css('display', '');
-                                }
-                                 if (/plugininfo\.json$/i.test(val)) {
-                                    if (val !== lastAutoLoadedUrl) {
-                                        if (urlLoadedRepo) {
-                                            $('#row-' + urlLoadedRepo).remove();
-                                            delete manuallyLoadedPlugins[urlLoadedRepo];
-                                            urlLoadedRepo = null;
-                                        }
-                                        lastAutoLoadedUrl = val;
-                                        ManualLoadInfo(true);
-                                    }
-                                } else if (urlLoadedRepo) {
-                                    $('#row-' + urlLoadedRepo).remove();
-                                    delete manuallyLoadedPlugins[urlLoadedRepo];
-                                    urlLoadedRepo = null;
-                                    lastAutoLoadedUrl = '';
-                                }
-                                FilterPlugins();
-                            });
                             FilterPlugins();
 
                         },
@@ -1813,12 +1865,45 @@
             }
         }
 
+        // Bound once in document.ready -- previously this was (re)bound inside
+        // LoadPlugins' per-plugin AJAX success callback, so with N catalogued
+        // plugins the same handler ended up attached N times to the same input,
+        // and every keystroke re-ran this whole body N times.
+        function HandlePluginInputChange() {
+            var val = $('#pluginInput').val() || '';
+            pluginUrlError = '';
+            if (val.length > 0) {
+                $('#pluginInput').addClass('has-text');
+                $('#pluginClearBtn').css('display', 'block');
+            } else {
+                $('#pluginInput').removeClass('has-text');
+                $('#pluginClearBtn').css('display', '');
+            }
+            if (uiLevel >= 3 && /plugininfo\.json$/i.test(val)) {
+                if (val !== lastAutoLoadedUrl) {
+                    if (urlLoadedRepo) {
+                        RowEl(urlLoadedRepo).remove();
+                        delete manuallyLoadedPlugins[urlLoadedRepo];
+                        urlLoadedRepo = null;
+                    }
+                    lastAutoLoadedUrl = val;
+                    ManualLoadInfo(true);
+                }
+            } else if (urlLoadedRepo) {
+                RowEl(urlLoadedRepo).remove();
+                delete manuallyLoadedPlugins[urlLoadedRepo];
+                urlLoadedRepo = null;
+                lastAutoLoadedUrl = '';
+            }
+            FilterPlugins();
+        }
+
         function ClearPluginInput() {
             $('#pluginInput').val('').removeClass('has-text');
             $('#pluginClearBtn').css('display', '');
             pluginUrlError = '';
             if (urlLoadedRepo) {
-                $('#row-' + urlLoadedRepo).remove();
+                RowEl(urlLoadedRepo).remove();
                 delete manuallyLoadedPlugins[urlLoadedRepo];
                 urlLoadedRepo = null;
             }
@@ -1850,7 +1935,7 @@
                     LoadPlugin(data, true);
                     ShowTopTab('available');
                     FilterPlugins();
-                    $('#row-' + data.repoName)[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    RowEl(data.repoName)[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
                 };
 
                 // First try a direct anonymous fetch. If that fails (404/401/403
@@ -1920,7 +2005,7 @@
             var raw = $('#pluginInput').val() || '';
             var value = raw.toLowerCase();
 
-            var isUrlInput = /plugininfo\.json$/i.test(raw);
+            var isUrlInput = uiLevel >= 3 && /plugininfo\.json$/i.test(raw);
             var urlLoadedMode = isUrlInput && urlLoadedRepo;
             var searching = (value !== '' && !isUrlInput);
             pluginSearchActive = searching;
@@ -1974,6 +2059,10 @@
             });
             if (activeTopTab === 'updates') $('#noUpdatesHint').toggleClass('d-none', installedVisible > 0);
             else $('#noUpdatesHint').addClass('d-none');
+
+            // Update All is only useful once a check has actually found something
+            // to update -- keep it out of the way otherwise, at every UI level.
+            $('#updateAllBtn').toggleClass('d-none', updateVisible === 0);
 
             $('#manageHeading').toggleClass('invisible', activeTopTab === 'updates' && updateVisible === 0);
 
@@ -2033,21 +2122,52 @@
             // Firefox restores input values on reload regardless of autocomplete="off",
             // which would leave the list filtered by a term the user can't see a reason for.
             $('#pluginInput').val('');
-
-            // Uninstall All and Reinstall All are bulk destructive actions, so only
-            // expose them in Advanced UI mode or higher.
-            if (settings["uiLevel"] > 0) {
-                $('#updateAllBtn').removeClass('d-none');
-                $('#uninstallAllBtn').removeClass('d-none');
-                $('#reinstallAllBtn').removeClass('d-none');
+            // pluginInfo.json URL entry is a developer-only escape hatch; everyone
+            // else just gets the plain search box.
+            if (uiLevel < 3) {
+                $('#pluginInput').attr('placeholder', 'Find a Plugin');
             }
+
+            // Uninstall All and Reinstall All are visible at every UI level (each is
+            // already gated by its own "this cannot be undone" confirmation dialog,
+            // and Reinstall All is already reachable at any UI level via the
+            // post-FPPOS-upgrade auto-open flow, MaybeAutoOpenReinstallAll). Update
+            // All's own visibility is handled separately in FilterPlugins() -- shown
+            // only once a check has actually found an update.
             $('#pluginTopTabs .nav-link').on('click', function () {
                 ShowTopTab($(this).attr('data-top-tab'));
                 this.scrollIntoView({ block: 'nearest', inline: 'center' });
             });
             $('#pluginClearBtn').on('click', ClearPluginInput);
+            $('#pluginInput').on('input', HandlePluginInputChange);
+
+            // Single delegated handler for every plugin-card click (open detail /
+            // update / uninstall / install). Cards are built as HTML strings (see
+            // LoadPlugin) carrying data-plugin-action/data-repo/etc rather than
+            // per-button onclick="Fn('...')" attributes built from those same
+            // pluginInfo.json-supplied values -- data-* attributes only ever need
+            // plain HTML-attribute escaping (EscapeAttr) to be safe, whereas an
+            // onclick string additionally has to be escaped for the JS-string
+            // literal nested inside it, which is easy to get wrong and was
+            // previously done for none of these sites. One listener here also means
+            // newly-inserted/replaced cards need no rebinding.
+            document.addEventListener('click', function (e) {
+                var el = e.target.closest('[data-plugin-action]');
+                if (!el) return;
+                e.stopPropagation();
+                var action = el.dataset.pluginAction;
+                var repo = el.dataset.repo;
+                if (action === 'detail') ShowPluginDetail(repo);
+                else if (action === 'update') UpgradePlugin(repo);
+                else if (action === 'uninstall') ShowUninstallPluginPopup(repo);
+                else if (action === 'reinstall') ShowReinstallPluginPopup(repo);
+                else if (action === 'install') ConfirmAndInstall(repo, el.dataset.branch, el.dataset.sha);
+                // 'none' (blank space in a card's actions row): absorb the click,
+                // do nothing -- same effect the old event.stopPropagation() had.
+            });
+
             BindPopularStripControls();
-            GetPluginPopularity();   // parallel with the list/installed loads (Phase 2)
+            GetPluginPopularity();   // parallel with the list/installed loads
             GetInstalledPlugins();
 
         });
@@ -2214,19 +2334,19 @@
                                     <button id="checkAllUpdatesBtn" class="buttons btn-outline-success"
                                         onClick='CheckAllPluginsForUpdates();'
                                         title="Check all installed plugins for updates">
-                                        <i class='fas fa-sync-alt'></i> Check All for Updates
+                                        <i class='fas fa-sync-alt'></i> Check for Updates
                                     </button>
                                     <button id="updateAllBtn" class="buttons btn-outline-primary d-none"
                                         onClick='UpdateAllPlugins();'
                                         title="Check for and update all installed plugins that have an update available">
                                         <i class='far fa-arrow-alt-circle-down'></i> Update All
                                     </button>
-                                    <button id="reinstallAllBtn" class="buttons btn-outline-warning d-none"
+                                    <button id="reinstallAllBtn" class="buttons btn-outline-warning"
                                         onClick='ShowReinstallAllPluginsPopup();'
                                         title="Uninstall and reinstall all installed plugins">
                                         <i class='fas fa-redo-alt'></i> Reinstall All
                                     </button>
-                                    <button id="uninstallAllBtn" class="buttons btn-outline-danger d-none"
+                                    <button id="uninstallAllBtn" class="buttons btn-outline-danger"
                                         onClick='ShowUninstallAllPluginsPopup();'
                                         title="Uninstall all installed plugins">
                                         <i class='fas fa-trash-alt'></i> Uninstall All
@@ -2240,7 +2360,7 @@
                                 <i class="fas fa-search"></i> No installed plugins match
                                 "<b class="fppNoResultsTerm"></b>". <span id="noInstalledCrossRef"></span>
                             </div>
-                            <div id="noUpdatesHint" class="text-secondary d-none">No updates found. Use <b>Check All for Updates</b> to refresh.</div>
+                            <div id="noUpdatesHint" class="text-secondary d-none">No updates found. Use <b>Check for Updates</b> to refresh.</div>
                         </div>
                     </div>
 
