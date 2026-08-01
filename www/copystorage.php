@@ -94,16 +94,21 @@ if ($isRestore && $hasConfig && $backupRc === 0) {
     // that script only runs when BootActions is set — which is rare.
     // Apply them here so the user doesn't need a second UI visit to get
     // the services running after a restore.
-    if (GetSettingValue('Service_MQTT_localbroker') === '1') {
+    //
+    // Must read these fresh from disk via ReadSettingFromFile(), not
+    // GetSettingValue(): the $settings array was populated from the old
+    // settings file when this request started, before the restore above
+    // overwrote it, so GetSettingValue() here would see pre-restore values.
+    if (ReadSettingFromFile('Service_MQTT_localbroker') === '1') {
         SetupLocalMQTTBroker('1');
     }
-    if (GetSettingValue('Service_rsync') === '1') {
+    if (ReadSettingFromFile('Service_rsync') === '1') {
         ApplySetting('Service_rsync', '1');
     }
-    if (GetSettingValue('Service_smbd_nmbd') === '1') {
+    if (ReadSettingFromFile('Service_smbd_nmbd') === '1') {
         ApplySetting('Service_smbd_nmbd', '1');
     }
-    if (GetSettingValue('Service_vsftpd') === '1') {
+    if (ReadSettingFromFile('Service_vsftpd') === '1') {
         ApplySetting('Service_vsftpd', '1');
     }
 }
