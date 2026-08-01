@@ -168,6 +168,23 @@ function loadPageReadyActions () {
 	setViewPortControl();
 }
 
+var UI_LEVEL_OVERRIDE_MINUTES = 15;
+
+function ShowAdvancedTemporarily () {
+	var expires = Math.floor(Date.now() / 1000) + UI_LEVEL_OVERRIDE_MINUTES * 60;
+	document.cookie =
+		'fppUiLevelOverrideExp=' +
+		expires +
+		'; path=/; max-age=' +
+		UI_LEVEL_OVERRIDE_MINUTES * 60;
+	location.reload();
+}
+
+function ExitUiLevelOverride () {
+	document.cookie = 'fppUiLevelOverrideExp=; path=/; max-age=0';
+	location.reload();
+}
+
 // Status-change callback that detects an fppd restart (transition from
 // not-running to running).  When that happens, re-fetch the command list
 // and reload the page if the list has changed.
@@ -5520,7 +5537,7 @@ function updateWarnings (jsonStatus) {
 					currentWarnings[i]['message'] +
 					fixButton +
 					'</li>';
-			} else {
+			} else if (warningDefinitions && warningDefinitions['Warnings']) {
 				//find extra warning info from definitions
 				for (var z = 0; z < warningDefinitions['Warnings'].length; z++) {
 					if (warningDefinitions['Warnings'][z]['id'] == warningID) {

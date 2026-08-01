@@ -653,6 +653,24 @@ if ($debug) {
     error_log("emailtoemail: $emailtoemail");
 }
 
+// Temporary UI Level override: lets a Basic-level user unlock Advanced fields
+// for a short window (via a client-side cookie) without changing the
+// persisted uiLevel setting. Cookie holds the unix expiry timestamp.
+if (!defined('UI_LEVEL_OVERRIDE_MINUTES')) {
+    define('UI_LEVEL_OVERRIDE_MINUTES', 15);
+}
+$uiLevelOverrideActive = false;
+$uiLevelOverrideMinsLeft = 0;
+if (
+    intval($settings['uiLevel']) < 1 &&
+    isset($_COOKIE['fppUiLevelOverrideExp']) &&
+    intval($_COOKIE['fppUiLevelOverrideExp']) > time()
+) {
+    $uiLevelOverrideActive = true;
+    $uiLevelOverrideMinsLeft = max(0, ceil((intval($_COOKIE['fppUiLevelOverrideExp']) - time()) / 60));
+    $settings['uiLevel'] = 1;
+}
+
 $uiLevel = $settings['uiLevel'];
 
 //Set the default timezone in PHP to match the currently set system timezone

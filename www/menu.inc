@@ -105,6 +105,12 @@ function list_plugin_entries($menu)
                 $currentHeaderSensor = $settings['currentHeaderSensor'];
             }
 
+            if (isset($uiLevelOverrideActive) && $uiLevelOverrideActive) {
+                echo "<span class=\"headerBox\" id=\"header_uiLevelOverride\">"
+                    . "<a href=\"javascript:void(0)\" role=\"button\" onclick=\"ExitUiLevelOverride()\""
+                    . " title=\"Advanced, ~" . $uiLevelOverrideMinsLeft . " min remaining. Click to exit.\">"
+                    . "<i class=\"fas fa-unlock\"></i></a></span>";
+            }
             ?>
             <span class="headerBox" id="header_player"></span>
             <span class="headerBox" id="header_plugin_indicators"></span>
