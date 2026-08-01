@@ -531,8 +531,9 @@ void Variables::reportMqttVariables(Json::Value& root) {
  * @response 200 Object keyed by variable name, each with `value`, `truncated`,
  *   `persist`, `lastUpdated` (unix timestamp) and `used` (true if referenced
  *   anywhere in config/commandPresets.json, either as a Set Variable target or
- *   via %VAR:name%). If `validateExpression` was passed, `{"valid": true|false}` (or, with
- *   `conditionExpr=true`, `{"valid": true|false, "kind": "variable"|"formula"|"literal"}`)
+ *   via %VAR:name%). If `validateExpression` was passed, `{"valid": true|false,
+ *   "kind": "formula"|"template"|"literal"}` (or, with `conditionExpr=true`,
+ *   `{"valid": true|false, "kind": "variable"|"formula"|"literal"}`)
  *   instead. If `fpp=true`, each entry has `value`/`truncated`/`lastUpdated`
  *   (no persist/used - these are live-computed, not stored; `lastUpdated` is
  *   approximated as the last time this endpoint observed the value actually
@@ -605,6 +606,17 @@ HttpResponsePtr Variables::render_GET(const HttpRequestPtr& req) {
                 proc.bindVariable(&inserted.first->second);
             }
             result["valid"] = proc.compile(exprArg);
+            // ExpressionProcessor::compile() treats anything not starting with
+            // '=' (and with no embedded "==...=="/"%%...%%" markers) as inert
+            // literal text to store verbatim - it always "compiles" fine, so a
+            // bare variable name like "outsideTemp" (meant to reference that
+            // variable's value) silently becomes the literal string
+            // "outsideTemp" instead. A plain valid:true can't distinguish that
+            // mistake from an intentional formula, so flag it here for the
+            // frontend to warn about instead of showing a bare green check.
+            bool looksLikeFormula = exprArg.size() > 1 && exprArg[0] == '=' && exprArg[1] != '=';
+            bool hasEmbeddedMarker = exprArg.find("==") != std::string::npos || exprArg.find("%%") != std::string::npos;
+            result["kind"] = looksLikeFormula ? "formula" : (hasEmbeddedMarker ? "template" : "literal");
         }
         std::string resultStr = SaveJsonToString(result);
         return makeStringResponse(resultStr, 200, "application/json");

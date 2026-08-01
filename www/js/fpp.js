@@ -10233,10 +10233,20 @@ function DebounceValidateExpression (inputEl, targetId, conditionExpr) {
 					RenderExpressionKindBadge(targetId, data);
 					return;
 				}
-				if (data && data.valid) {
-					$('#' + targetId).html('<i class="fas fa-check text-success" title="Valid expression"></i>');
-				} else {
+				if (!data || !data.valid) {
 					$('#' + targetId).html('<i class="fas fa-times text-danger" title="Invalid expression"></i>');
+				} else if (data.kind === 'literal') {
+					// compile() always "succeeds" on plain text with no '='
+					// and no embedded ==...==/%%...%% markers - it's stored
+					// verbatim, not evaluated, so a bare variable name here
+					// (e.g. "outsideTemp" instead of "=outsideTemp") silently
+					// becomes dead literal text. A plain green check would lie
+					// about that, so warn instead of confirming.
+					$('#' + targetId).html(
+						'<i class="fas fa-triangle-exclamation text-warning" title="Stored as literal text, not evaluated - start with &#39;=&#39; to compute a value or reference a variable (e.g. =outsideTemp)"></i>'
+					);
+				} else {
+					$('#' + targetId).html('<i class="fas fa-check text-success" title="Valid expression"></i>');
 				}
 			},
 			error: function () {
