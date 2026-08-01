@@ -124,6 +124,17 @@
             TaskTypeChanged(row);
             FilterTypeChanged(row);
             UpdateTaskAdvancedSummary(row);
+
+            // One-time init, same as fpp.js's InitArgHelpTooltips - these are
+            // the row's own real elements (AppendTaskAdvancedSectionToCommandEditor
+            // relocates them into the shared command editor dialog and back,
+            // never clones them), so binding once here covers both places
+            // they ever appear.
+            if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                row.find('.argHelpIcon').each(function () {
+                    new bootstrap.Tooltip(this);
+                });
+            }
         }
 
         // One-line stand-in for the Result Variable/Persist/Filter fields
@@ -556,12 +567,22 @@
             <h1 class="title">Recurring Tasks</h1>
             <div class="pageContent">
                 <div class="callout">
-                    Recurring Tasks are the "data pump" for <a href="variables.php">User Variables</a>: each
-                    one runs a Command Preset, or any single FPP Command, on a fixed interval - keeping I/O
-                    like a URL fetch or a script off the time-critical player loop. A <b>FPP Command</b> task
-                    can optionally land its result into a Variable, which the <code>If</code> command or a
-                    <code>Conditional</code> playlist entry can then read instantly. Saving reloads the
-                    running tasks immediately - no fppd restart needed.
+                    <p>
+                        Recurring Tasks fetch data <i>ahead of time</i> so it's already sitting in a
+                        <a href="variables.php">User Variable</a> when something time-critical needs it -
+                        a slow URL fetch or script run during a playlist or GPIO event would add a delay
+                        right when it matters most.
+                    </p>
+                    <p>
+                        Each task runs a Command Preset, or any single FPP Command, on a fixed interval,
+                        and a <b>FPP Command</b> task can optionally land its result into a Variable. An
+                        <code>If</code> command elsewhere then reads that Variable instantly, with no
+                        fetch delay of its own.
+                    </p>
+                    <p class="mb-0">
+                        Example: a <code>URL</code> command polling a weather API or a sensor's web
+                        endpoint every few minutes.
+                    </p>
                 </div>
                 <div id="recurringTasks" class="settings">
                     <div class="row tablePageHeader">
@@ -667,17 +688,29 @@
                                         <div class='ptTmplAdvancedFields d-none'>
                                             <table width='100%' class='ptTmplAdvancedTable settingsTable'>
                                                 <tr>
-                                                    <td>Result &rarr; Variable:</td>
+                                                    <td>Result &rarr; Variable:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title="The Variable this task's result (optionally filtered below) is saved into. Leave blank to run the command without saving anything. Overwrites an existing Variable of the same name.">
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><input type='text' size='16' class='ptTmplResultVariable'
                                                             placeholder='(optional)' list='ptResultVariableNames'></td>
                                                 </tr>
                                                 <tr>
-                                                    <td>Persist:</td>
+                                                    <td>Persist:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title='If checked, the Result Variable is saved to disk and reloaded automatically the next time FPP starts, so it keeps its value across a restart or reboot. If unchecked (the default), it only lives in memory and resets to unset every time FPP restarts.'>
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><input type='checkbox' class='ptTmplPersist'> persist across
                                                         restarts</td>
                                                 </tr>
                                                 <tr>
-                                                    <td>Filter:</td>
+                                                    <td>Filter:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title="<b>None</b>: store the whole raw result as-is.<br><b>JSON Field</b>: pull one field out of a JSON response by dotted path (object keys only, no array indices).<br><b>Between Markers</b>: extract the text found between two literal marker strings - good for scraping plain text or HTML.<br><b>Regex (advanced)</b>: extract the first capture group matched by a regular expression, or the whole match if the pattern has no group.">
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><select class='ptTmplFilterType'
                                                             onChange='FilterTypeChanged($(this).closest(".ptTmplAdvancedFields"));'>
                                                             <option value='none'>None (use raw result)</option>
@@ -692,17 +725,29 @@
                                                             placeholder='e.g. data.temperature'></td>
                                                 </tr>
                                                 <tr class='ptTmplFilterBetweenRow d-none'>
-                                                    <td>After:</td>
+                                                    <td>After:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title='Text is kept starting right after this marker. Leave blank to start from the beginning of the raw result.'>
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><input type='text' size='14' class='ptTmplFilterBetweenStart'
-                                                            placeholder='(optional)'></td>
+                                                            placeholder='e.g. Temp: '></td>
                                                 </tr>
                                                 <tr class='ptTmplFilterBetweenRow d-none'>
-                                                    <td>Before:</td>
+                                                    <td>Before:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title='Text is kept up until this marker. Leave blank to keep everything to the end of the raw result.'>
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><input type='text' size='14' class='ptTmplFilterBetweenEnd'
-                                                            placeholder='(optional)'></td>
+                                                            placeholder='e.g. &deg;F'></td>
                                                 </tr>
                                                 <tr class='ptTmplFilterRegexRow d-none'>
-                                                    <td>Pattern:</td>
+                                                    <td>Pattern:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title='A regular expression matched against the raw result. The first capture group (in parentheses) is used, or the whole match if the pattern has no group.'>
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><input type='text' size='20' class='ptTmplFilterRegex'
                                                             placeholder='e.g. Temp: ([0-9.]+)'></td>
                                                 </tr>

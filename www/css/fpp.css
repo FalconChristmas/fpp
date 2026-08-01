@@ -3342,6 +3342,17 @@ pre.testData,
 	text-align: left;
 }
 
+/* Default Bootstrap .tooltip-inner is capped at 200px, too narrow for
+   anything past a short sentence (e.g. Set Variable's "Set To" bulleted
+   list). A wider cap doesn't affect short tooltip content elsewhere - it's
+   just an upper bound, so raising it app-wide is safe rather than scoping to
+   one class. No Bootstrap utility covers max-width on a library-generated
+   tooltip node. Capped at 90vw too so it can't overflow a narrow phone
+   viewport. */
+.tooltip-inner {
+	max-width: min(320px, 90vw);
+}
+
 /* Signal strength styling */
 
 .text-success {

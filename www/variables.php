@@ -314,9 +314,7 @@
                     var names = SortNames(Object.keys(data || {}), data, 'user');
                     if (!names.length) {
                         $tbody.append(
-                            "<tr><td colspan='6' class='text-muted'>No variables defined yet. Use the " +
-                            "<b>Set Variable</b> command from a preset, GPIO input, MQTT topic, the API, or " +
-                            "a <a href='recurringtasks.php'>Recurring Task</a> to create one.</td></tr>"
+                            "<tr><td colspan='6' class='text-muted'>No variables defined yet.</td></tr>"
                         );
                         return;
                     }
@@ -612,12 +610,27 @@
         <div class="mainContainer">
             <h1 class="title">Variables</h1>
             <div class="pageContent">
-                <input type="text" id="variableSearchBox" class="form-control mb-3" placeholder="Search variable/topic names...">
                 <div class="text-muted mb-3">
-                    <b>User Variables</b> are named values you set with the <b>Set Variable</b> command (from a
-                    preset, GPIO input, MQTT topic, scheduler entry, the API, or
-                    <a href="recurringtasks.php">Recurring Tasks</a>) and read back anywhere via
-                    <code>%VAR:name%</code> or the <code>If</code> command.
+                    <p class="mb-0">
+                        Variables are named values that stick around so different parts of FPP can share
+                        data. Read one back two ways: drop <code>%VAR:name%</code> into any command's
+                        text field and it's swapped for the current value when that command runs - e.g. a
+                        <code>URL</code> command's address containing <code>%VAR:apiKey%</code>, or a
+                        <code>Run Script</code> command passing <code>%VAR:outsideTempF%</code> as an
+                        argument. Or, inside an <code>If</code> command's Check, pick the Variable
+                        directly from the condition editor - no <code>%VAR:</code> needed there.
+                    </p>
+                </div>
+                <div class="input-group mb-3">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" id="variableSearchBox" class="form-control" placeholder="Search variables">
+                </div>
+                <h5 class="fw-semibold mb-1 mt-2">User Variables</h5>
+                <div class="text-muted mb-2">
+                    Values you set yourself with the <b>Set Variable</b> command, triggered directly,
+                    from a GPIO input, a scheduler entry, the API, or (for data fetched
+                    from outside FPP, like a weather API) a
+                    <a href="recurringtasks.php">Recurring Task</a>.
                 </div>
                 <table class="table table-striped variables-aligned-table">
                     <colgroup>
@@ -640,9 +653,7 @@
                     </tbody>
                 </table>
 
-                <div class="text-muted mb-2 mt-2">
-                    <b>FPP Read-only Variables</b> - These can be used the same way as User Variables above.
-                </div>
+                <h5 class="fw-semibold mb-1 mt-2">FPP Read-only Variables</h5>
                 <table class="table table-striped variables-aligned-table">
                     <colgroup>
                         <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col>
@@ -663,10 +674,7 @@
                     </tbody>
                 </table>
 
-                <div class="text-muted mb-2 mt-2">
-                    <b>MQTT Read-only Variables</b> - These can be used the same way as User Variables
-                    above (exposed as <code>mqtt-&lt;topic&gt;</code>), including inside an Expression field.
-                </div>
+                <h5 class="fw-semibold mb-1 mt-2">MQTT Read-only Variables</h5>
                 <div class="table-responsive">
                     <table class="table table-striped variables-aligned-table">
                         <colgroup>
