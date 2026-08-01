@@ -289,8 +289,8 @@ void CommandManager::Init() {
     addCategorizedCommand(new SwitchToRemoteModeCommand(), "System", 1);
     addCategorizedCommand(new RebootCommand(), "System", 1);
     addCategorizedCommand(new ShutdownCommand(), "System", 1);
-    addCategorizedCommand(new SetVariableCommand(), "Events", 2);
-    addCategorizedCommand(new IfCommand(), "Events", 2);
+    addCategorizedCommand(new SetVariableCommand(), "Events", 1);
+    addCategorizedCommand(new IfCommand(), "Events", 1);
 
     std::function<void(const std::string&, const std::string&)> f =
         [](const std::string& topic, const std::string& payload) {
