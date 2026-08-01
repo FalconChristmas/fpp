@@ -13,14 +13,17 @@ $( document ).ready(function() {
 
 
 <?
-$uiLevelTogglePrepend = "<div class='row'><div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2'><div class='description'>Temporary User Interface Level</div></div><div class='printSettingFieldCol col-md'>";
-if ($uiLevelOverrideActive) {
-    $uiLevelTogglePrepend .= "<span>Advanced (~" . $uiLevelOverrideMinsLeft . " min remaining) &nbsp;</span>"
-        . "<input type='button' class='buttons' value='Exit Advanced Mode' onClick='ExitUiLevelOverride();'>";
-} else if (intval($settings['uiLevel']) < 1) {
-    $uiLevelTogglePrepend .= "<input type='button' class='buttons' value='Change to Advanced UI for " . UI_LEVEL_OVERRIDE_MINUTES . " Minutes' onClick='ShowAdvancedTemporarily();'>";
+$uiLevelTogglePrepend = "";
+if ($uiLevelOverrideActive || intval($settings['uiLevel']) < 1) {
+    $uiLevelTogglePrepend = "<div class='row'><div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2'><div class='description'>Temporary User Interface Level</div></div><div class='printSettingFieldCol col-md'>";
+    if ($uiLevelOverrideActive) {
+        $uiLevelTogglePrepend .= "<span>Advanced (~" . $uiLevelOverrideMinsLeft . " min remaining) &nbsp;</span>"
+            . "<input type='button' class='buttons' value='Exit Advanced Mode' onClick='ExitUiLevelOverride();'>";
+    } else {
+        $uiLevelTogglePrepend .= "<input type='button' class='buttons' value='Change to Advanced UI for " . UI_LEVEL_OVERRIDE_MINUTES . " Minutes' onClick='ShowAdvancedTemporarily();'>";
+    }
+    $uiLevelTogglePrepend .= "</div></div>";
 }
-$uiLevelTogglePrepend .= "</div></div>";
 PrintSettingGroup('ui', "", $uiLevelTogglePrepend);
 ?>
 
