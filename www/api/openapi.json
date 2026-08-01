@@ -6314,6 +6314,47 @@
         }
       }
     },
+    "/api/plugin/githubStats": {
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Get open issue / open PR counts for a list of GitHub repos.",
+        "description": "Developer-UI helper for the plugin cards. Accepts a comma-separated list of `owner/name` repos and returns per-repo `{ openIssues, openPRs }`. Counts are proxied from GitHub's issue-search API (one aggregate query per group of repos, cached per box), never one request per plugin -- which is what floods the device with 404s when there is no network or a repo is gone. Fail-soft: on any upstream problem it serves a stale cache if present, else an empty map (`source: unavailable`); the UI then hides the corner counts.",
+        "parameters": [
+          {
+            "name": "repos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated `owner/name` GitHub repos."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "repos": {
+                    "FalconChristmas/fpp-brightness": {
+                      "openIssues": 7,
+                      "openPRs": 1
+                    }
+                  },
+                  "source": "live|cache|partial|unavailable"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plugin/headerIndicators": {
       "get": {
         "tags": [
@@ -6363,47 +6404,6 @@
                     "remote-falcon": 1680
                   },
                   "source": "live|cache|stale|unavailable"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/plugin/githubStats": {
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "plugin/githubStats",
-        "description": "Get open issue / open PR counts for a comma-separated list of `owner/name` GitHub repos, proxied + cached from GitHub's issue-search API. Developer UI helper for the plugin cards; fails soft (empty map) when GitHub is unreachable.",
-        "parameters": [
-          {
-            "name": "repos",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Comma-separated `owner/name` GitHub repositories."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "repos": {
-                    "FalconChristmas/fpp-brightness": {
-                      "openIssues": 7,
-                      "openPRs": 1
-                    }
-                  },
-                  "source": "live|cache|partial|unavailable"
                 }
               }
             }
