@@ -94,9 +94,6 @@
                                 <li><a href='javascript:void(0);'
                                         onClick="helpPage='help/pixeloverlaymodels.php'; DisplayHelp();">Real-Time Pixel
                                         Overlay Models</a></li>
-                                <li><a href='javascript:void(0);'
-                                        onClick="helpPage='help/scriptbrowser.php'; DisplayHelp();">Script Repository
-                                        Browser</a></li>
                             </ul>
                         </div>
                     </div>
