@@ -52,6 +52,7 @@ public:
 
     std::string GetNextPlaylistName();
     std::string GetNextPlaylistStartStr();
+    bool IsEnabled() const { return !m_schedulerDisabled; }
 
     std::string GetPlaylistThatShouldBePlaying(int& repeat);
     Json::Value GetInfo(void);

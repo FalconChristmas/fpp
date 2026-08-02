@@ -280,7 +280,8 @@
 /* ------------------------------------------------------------- */
 
 [data-bs-theme="dark"] .panelMatrix-tab-content .divLEDPanelsData,
-[data-bs-theme="dark"] .panelMatrix-tab-content .divLEDPanelsLayoutData {
+[data-bs-theme="dark"] .panelMatrix-tab-content .divLEDPanelsLayoutData,
+[data-bs-theme="dark"] .panelMatrix-tab-content .divPanelSettingsSection {
     background-color: var(--bs-secondary-bg);
 }
 

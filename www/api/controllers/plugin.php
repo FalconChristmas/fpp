@@ -754,6 +754,10 @@ function GetPluginInfo()
 		$iconFile = $settings['pluginDirectory'] . '/' . $plugin . '/icon.png';
 		$result['hasIcon'] = file_exists($iconFile) || !empty($result['iconURL']);
 
+		$pageInfo = _PluginGetBestPageUrl($plugin);
+		$result['pageUrl'] = $pageInfo['url'];
+		$result['pageType'] = $pageInfo['page'];
+
 		return json($result);
 	}
 
@@ -1253,6 +1257,263 @@ function GetPluginPopularity()
 	return json(array('period' => PLUGIN_POPULARITY_PERIOD, 'counts' => new stdClass(), 'source' => 'unavailable'));
 }
 
+// --- Plugin GitHub issue/PR stats (Developer UI) ---------------------------
+// Open-issue and open-PR counts for each plugin repo, shown in the bottom-right
+// corner of the plugin card in Developer UI mode. Counts come from GitHub's
+// issue-search API, which can answer a whole GROUP of repos in one request
+// instead of one request per repo -- the per-repo pattern is what produces a
+// flood of 404s when a repo is renamed/removed or the device has no route to
+// api.github.com (every miss is a 404 + a wasted request). Issues and PRs come
+// back in the SAME issues-search result set (a PR is an issue carrying a
+// pull_request field), so one untyped `state:open` query per group yields both
+// counts. Fail-soft throughout, matching the popularity proxy: any network or
+// rate-limit problem yields a stale disk cache if we have one, else an empty
+// map, and the UI then hides the corner -- it never surfaces an error.
+define('PLUGIN_GITHUB_STATS_TTL', 6 * 60 * 60);   // 6h shared per-box cache (counts move slowly)
+define('PLUGIN_GITHUB_STATS_CHUNK', 15);          // repos per search query: bounds q length + a dead repo's blast radius
+define('PLUGIN_GITHUB_STATS_MAX_REPOS', 100);     // sanity cap on one request
+define('PLUGIN_GITHUB_STATS_MAX_PAGES', 5);       // cap pagination (500 items per group)
+
+function PluginGitHubStatsCacheFile()
+{
+	global $settings;
+	$base = isset($settings['mediaDirectory']) ? $settings['mediaDirectory'] : '/home/fpp/media';
+	return $base . '/tmp/pluginGithubStats.cache.json';
+}
+
+// One search API request. Returns http status, curl errno/message and body.
+function GitHubStatsSearchPage($url)
+{
+	$res = array('http' => 0, 'errno' => 0, 'error' => '', 'body' => '');
+	if (function_exists('curl_init')) {
+		$ch = curl_init($url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		curl_setopt($ch, CURLOPT_USERAGENT, 'FPP-PluginGitHubStats');
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept: application/vnd.github+json'));
+		$body = curl_exec($ch);
+		$res['http'] = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		$res['errno'] = (int)curl_errno($ch);
+		$res['error'] = (string)curl_error($ch);
+		curl_close($ch);
+		$res['body'] = is_string($body) ? $body : '';
+		return $res;
+	}
+
+	$ctx = stream_context_create(array('http' => array(
+		'timeout' => 8,
+		'follow_location' => 1,
+		'ignore_errors' => 1,
+		'user_agent' => 'FPP-PluginGitHubStats',
+		'header' => "Accept: application/vnd.github+json\r\n",
+	)));
+	$body = @file_get_contents($url, false, $ctx);
+	if ($body === false) {
+		$res['error'] = 'file_get_contents failed';
+		return $res;
+	}
+	$res['body'] = $body;
+	if (isset($http_response_header)) {
+		foreach ($http_response_header as $h) {
+			if (preg_match('#^HTTP/\S+\s+(\d{3})#', $h, $m)) {
+				$res['http'] = (int)$m[1];
+			}
+		}
+	}
+	return $res;
+}
+
+// Fetch every open issue AND open PR for the repos named in $orQuery (a
+// space-separated "repo:owner/name repo:..." string), paginating until all
+// results are seen. Returns array('ok'=>true, 'items'=>array(array('repo'=>..,'isPull'=>bool))) or
+// array('ok'=>false, 'http'=>.., 'errno'=>.., 'error'=>..) on a hard failure.
+function GitHubStatsSearchAll($orQuery)
+{
+	$items = array();
+	$page = 1;
+	$fetched = 0;
+	$total = null;
+	while ($page <= PLUGIN_GITHUB_STATS_MAX_PAGES) {
+		$url = 'https://api.github.com/search/issues?q=' .
+			rawurlencode('state:open ' . $orQuery) .
+			'&per_page=100&page=' . $page;
+		$res = GitHubStatsSearchPage($url);
+		if ((int)$res['http'] !== 200) {
+			return array('ok' => false, 'http' => $res['http'], 'errno' => $res['errno'], 'error' => $res['error']);
+		}
+		$body = json_decode($res['body'], true);
+		if (!is_array($body) || !isset($body['items']) || !is_array($body['items'])) {
+			return array('ok' => false, 'http' => $res['http'], 'errno' => 0, 'error' => 'invalid search response');
+		}
+		if ($total === null) {
+			$total = (int)$body['total_count'];
+		}
+		foreach ($body['items'] as $it) {
+			if (!is_array($it)) continue;
+			$repo = '';
+			if (isset($it['repository_url']) && preg_match('#/repos/([^/]+/[^/]+)$#', $it['repository_url'], $m)) {
+				$repo = strtolower($m[1]);
+			}
+			if ($repo !== '') {
+				$items[] = array('repo' => $repo, 'isPull' => isset($it['pull_request']) && is_array($it['pull_request']));
+			}
+		}
+		$fetched += count($body['items']);
+		if ($fetched >= $total || $total === 0) {
+			break;
+		}
+		$page++;
+	}
+	return array('ok' => true, 'items' => $items);
+}
+
+// Fetch counts for one chunk of repos, merging into $result (lowercased repo =>
+// array('openIssues'=>int, 'openPRs'=>int)). Returns false when a hard failure
+// (rate limit / offline) should stop all further fetching; true otherwise --
+// including the per-repo fallback, which only ever hides data for the genuinely
+// broken repos rather than failing the whole request.
+function PluginGitHubStatsFetchChunk($repos, &$result)
+{
+	$lower = array();
+	foreach ($repos as $r) {
+		$lower[] = strtolower($r);
+	}
+	$orQuery = implode(' ', array_map(function ($r) { return 'repo:' . $r; }, $lower));
+	$res = GitHubStatsSearchAll($orQuery);
+
+	if ($res['ok']) {
+		foreach ($res['items'] as $item) {
+			$repo = $item['repo'];
+			if (!isset($result[$repo])) {
+				$result[$repo] = array('openIssues' => 0, 'openPRs' => 0);
+			}
+			if ($item['isPull']) $result[$repo]['openPRs']++;
+			else $result[$repo]['openIssues']++;
+		}
+		foreach ($lower as $r) {
+			if (!isset($result[$r])) {
+				$result[$r] = array('openIssues' => 0, 'openPRs' => 0);
+			}
+		}
+		return true;
+	}
+
+	// A 422 means at least one repo in the chunk is not searchable (renamed,
+	// removed, or private) -- GitHub rejects the WHOLE query. Retry one repo at
+	// a time so a single dead repo can't hide stats for the rest of the chunk;
+	// a repo that 422s by itself is treated as "no data" (and cached) rather
+	// than an error. Any non-422 failure here means "stop fetching entirely".
+	if ((int)$res['http'] === 422) {
+		foreach ($lower as $r) {
+			$one = GitHubStatsSearchAll('repo:' . $r);
+			if ($one['ok']) {
+				if (!isset($result[$r])) {
+					$result[$r] = array('openIssues' => 0, 'openPRs' => 0);
+				}
+				foreach ($one['items'] as $item) {
+					if ($item['repo'] !== $r) continue;
+					if ($item['isPull']) $result[$r]['openPRs']++;
+					else $result[$r]['openIssues']++;
+				}
+			} elseif ((int)$one['http'] !== 422) {
+				return false; // rate-limited / offline mid-fallback: give up
+			} else {
+				$result[$r] = array('openIssues' => 0, 'openPRs' => 0); // genuinely gone
+			}
+		}
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Get open issue / open PR counts for a list of GitHub repos.
+ *
+ * Developer-UI helper for the plugin cards. Accepts a comma-separated list of
+ * `owner/name` repos and returns per-repo `{ openIssues, openPRs }`. Counts are
+ * proxied from GitHub's issue-search API (one aggregate query per group of
+ * repos, cached per box), never one request per plugin -- which is what floods
+ * the device with 404s when there is no network or a repo is gone. Fail-soft:
+ * on any upstream problem it serves a stale cache if present, else an empty map
+ * (`source: unavailable`); the UI then hides the corner counts.
+ *
+ * @route GET /api/plugin/githubStats
+ * @param string repos Comma-separated `owner/name` GitHub repos.
+ * @response 200 { "repos": { "FalconChristmas/fpp-brightness": { "openIssues": 7, "openPRs": 1 } }, "source": "live|cache|partial|unavailable" }
+ */
+function GetPluginGitHubStats()
+{
+	$requested = array();
+	$raw = isset($_GET['repos']) ? $_GET['repos'] : '';
+	foreach (explode(',', $raw) as $r) {
+		$r = trim($r);
+		// "owner/name.git" (a srcURL fragment) refers to the same repo as
+		// "owner/name"; a ".git" repo in a search query fails the whole query.
+		$r = preg_replace('/\.git$/i', '', $r);
+		if ($r === '' || preg_match('#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $r) !== 1) continue;
+		$requested[strtolower($r)] = true;
+		if (count($requested) >= PLUGIN_GITHUB_STATS_MAX_REPOS) break;
+	}
+	if (count($requested) === 0) {
+		return json(array('repos' => new stdClass(), 'source' => 'unavailable'));
+	}
+
+	$cacheFile = PluginGitHubStatsCacheFile();
+	$cache = array();
+	if (file_exists($cacheFile)) {
+		$tmp = json_decode(@file_get_contents($cacheFile), true);
+		if (is_array($tmp)) $cache = $tmp;
+	}
+
+	$result = array();
+	$toFetch = array();
+	foreach ($requested as $r => $v) {
+		if (isset($cache[$r]) && is_array($cache[$r]) &&
+			isset($cache[$r]['ts']) && (time() - (int)$cache[$r]['ts']) < PLUGIN_GITHUB_STATS_TTL) {
+			$result[$r] = array(
+				'openIssues' => max(0, (int)$cache[$r]['openIssues']),
+				'openPRs'    => max(0, (int)$cache[$r]['openPRs']),
+			);
+		} else {
+			$toFetch[$r] = true;
+		}
+	}
+
+	$hadLive = false;
+	$freshNow = array();
+	if (count($toFetch) > 0) {
+		$chunks = array_chunk(array_keys($toFetch), PLUGIN_GITHUB_STATS_CHUNK);
+		foreach ($chunks as $chunk) {
+			if (!PluginGitHubStatsFetchChunk($chunk, $result)) break;
+			$hadLive = true;
+		}
+		// Persist every repo we actually resolved this request (live results AND
+		// the zero-filled fallback for dead repos) so the next page load within
+		// the TTL is served without touching GitHub again.
+		$freshNow = array_intersect(array_keys($toFetch), array_keys($result));
+	}
+	if (count($freshNow) > 0) {
+		foreach ($freshNow as $r) {
+			$cache[$r] = array(
+				'openIssues' => max(0, (int)$result[$r]['openIssues']),
+				'openPRs'    => max(0, (int)$result[$r]['openPRs']),
+				'ts'         => time(),
+			);
+		}
+		@file_put_contents($cacheFile, json_encode($cache));
+	}
+
+	$covered = count($result);
+	if ($covered === 0) {
+		return json(array('repos' => new stdClass(), 'source' => 'unavailable'));
+	}
+	$source = ($covered < count($requested)) ? 'partial' : ($hadLive ? 'live' : 'cache');
+	return json(array('repos' => $result, 'source' => $source));
+}
+
 /**
  * Proxy-fetch a plugin icon image
  *
@@ -1428,6 +1689,265 @@ function PluginSetSetting()
 	WriteSettingToFile($setting, $value, $plugin);
 
 	return PluginGetSetting();
+}
+
+/**
+ * Get plugin page URL
+ *
+ * Scans the plugin's menu files (menu.inc, status_menu.inc, etc.) and returns
+ * the best page URL for the plugin.  Prefers the Status/Control page; falls
+ * back to the Content Setup (config) page if no status page is found.
+ *
+ * @route GET /api/plugin/{RepoName}/page
+ * @response 200 Plugin page info
+ * ```json
+ * {"url": "plugin.php?plugin=fpp-matrixtools&page=status.php", "page": "status.php", "found": true}
+ * ```
+ */
+function GetPluginPageUrl()
+{
+	$plugin = params('RepoName');
+	return json(_PluginGetBestPageUrl($plugin));
+}
+
+/**
+ * Helper: compute the "best" page URL for a plugin by scanning its menu files.
+ * Returns ['url' => ..., 'page' => ..., 'found' => true/false].
+ *
+ * Strategy – scan raw menu file content rather than PHP-including it, so we
+ * are immune to PHP errors, missing variables, side effects, and unusual
+ * execution contexts that would make @include produce empty or broken output:
+ *
+ *   1. Look for `'page' => 'xxx.php'` inside a PHP array (the template
+ *      pattern: $menuEntries = [ ['page' => 'status.php', ...], ...]).
+ *      When a `'type' => 'status'` / `'type' => 'content'` key precedes
+ *      the page entry we can rank by menu section.
+ *
+ *   2. Look for `page=xxx.php` inside an href (old-style *_menu.inc or
+ *      inline HTML in menu.inc).
+ *
+ *   3. Also try the PHP-include approach and merge results, so dynamically
+ *      constructed URLs that cannot be found via raw-text scan are still
+ *      captured (e.g. $page from a variable).  The raw-text scan runs
+ *      first, so it wins for the common cases; the include outcome is a
+ *      silent fallback that adds entries without replacing the raw ones.
+ */
+function _PluginGetBestPageUrl($plugin)
+{
+	global $pluginDirectory;
+	$dir = $pluginDirectory . '/' . $plugin;
+
+	// Gather candidate page names keyed by menu type (status, content, …).
+	// _RawScan returns [pageName => true] for that menu type; a page that
+	// appears under multiple types is recorded under each.
+	$byType = [];
+
+	// List of menu types in priority order (raw+include for each).
+	foreach (['status', 'content', 'output', 'help'] as $type) {
+		$names = _PluginScanMenuPagesRaw($dir, $plugin, $type);
+		$byType[$type] = [];
+
+		// Deduplicate while preserving the order they were found in.
+		$seen = [];
+		foreach ($names as $name) {
+			if (!isset($seen[$name])) {
+				$seen[$name] = true;
+				$byType[$type][] = $name;
+			}
+		}
+	}
+
+	// Return the first page from the highest-priority menu type.
+	foreach (['status', 'content', 'output', 'help'] as $type) {
+		if (!empty($byType[$type])) {
+			$page = $byType[$type][0];
+			return [
+				'url'   => 'plugin.php?plugin=' . urlencode($plugin) . '&page=' . urlencode($page),
+				'page'  => $page,
+				'found' => true,
+			];
+		}
+	}
+
+	return ['url' => null, 'page' => null, 'found' => false];
+}
+
+/**
+ * Scan raw content of the plugin's menu files for a given menu type,
+ * returning an array of page-file names (e.g. ['status.php', …]).
+ *
+ * Both file conventions are checked:
+ *   – unified  menu.inc       (new pattern, PHP array-driven)
+ *   – per-type  ${type}_menu.inc  (old pattern, static HTML)
+ *
+ * Inside each file two extractors run:
+ *   a) PHP-include (fallback) – captures links constructed dynamically
+ *      that a raw-text scan cannot see.
+ *   b) Raw-text scan (primary) – immune to execution-context issues.
+ */
+function _PluginScanMenuPagesRaw($dir, $plugin, $type)
+{
+	$pages = [];
+	$files = [];
+
+	if (file_exists($dir . '/menu.inc')) {
+		$files[] = ['path' => $dir . '/menu.inc', 'unified' => true];
+	}
+	$specific = $dir . '/' . $type . '_menu.inc';
+	if (file_exists($specific)) {
+		$files[] = ['path' => $specific, 'unified' => false];
+	}
+
+	foreach ($files as $info) {
+		$path = $info['path'];
+
+		// ---- (a) Raw-text scan (primary) --------------------------------
+		// Runs first so its results take precedence over the include
+		// fallback below: the raw scan reads the declared 'page' => value
+		// directly and is immune to quirks in the rendered HTML (e.g. a
+		// 'nopage=1' suffix whose "page=" substring can mislead the href
+		// parser).
+		$src = @file_get_contents($path);
+		if ($src !== false && $src !== '') {
+			_PluginExtractPageFromRaw($src, $info['unified'], $type, $pages);
+		}
+
+		// ---- (b) PHP-include fallback -----------------------------------
+		// Executes the file with $menu/$plugin in scope so that PHP-built
+		// hrefs are captured when the raw-text scan misses them. Failure
+		// is silent. IMPORTANT: Save/restore $pages around the include
+		// because the included file may define its own $pages variable
+		// (e.g. with 'name', 'type', 'page' keys) which would corrupt our
+		// array.
+		$pagesBefore = $pages;
+		$html = '';
+		try {
+			$menu = $type;
+			ob_start();
+			@include $path;
+			$html = ob_get_clean();
+		} catch (\Throwable $_) {
+			$html = '';
+		}
+		$pages = $pagesBefore;
+		if ($html !== '') {
+			_PluginExtractPageFromHtml($html, $pages);
+		}
+	}
+
+	return $pages;
+}
+
+/**
+ * Extract page names from HTML output (the include fallback).
+ *
+ * Populates $pages (by reference) with page-file names found in
+ * href="plugin.php?plugin=…&page=…" or href='…' attributes.
+ */
+function _PluginExtractPageFromHtml($html, array &$pages)
+{
+	// NOTE: anchor "page=" on a ?/& boundary so it does not match the "page="
+	// substring inside "nopage=1" (added for menu entries with 'wrap' => 0).
+	// Without the [?&] anchor the greedy [^"']* backtracks to the last "page="
+	// and captures the nopage value (e.g. "1") instead of the real page name.
+	if (preg_match_all('/href=(["\'])(?:[^"\']*plugin\.php[^"\']*[?&]page=([^"&\'&]+)|([^"\']*[?&]page=[^"&\'&]+[^"\']*plugin\.php[^"\']*))\1/i', $html, $m)) {
+		foreach ($m[2] as $i => $page) {
+			$v = trim($page !== '' ? $page : $m[3][$i]);
+			if ($v !== '') {
+				$pages[] = htmlspecialchars_decode($v);
+			}
+		}
+	}
+}
+
+/**
+ * Extract page names from raw PHP source code.
+ *
+ * Patterns (checked in order; first that matches wins):
+ *
+ *   1. PHP array entries:  'page' => 'xxx.php'
+ *      When inside a unified menu.inc, also looks for a preceding
+ *      'type' => '{type}' key to filter by the requested menu type.
+ *
+ *   2. page= in HTML attributes:  page="xxx.php"
+ *
+ *   3. page= in unquoted URL contexts:  page=xxx.php
+ *
+ *   4. Any .php filename inside quotes (broad catch-all for
+ *      variable assignments like $statusPage = 'advancedstats.php').
+ *
+ *   5. Any .php filename that could be a page, even without
+ *      surrounding quotes (aggressive fallback).
+ *
+ * Populates $pages (by reference).
+ */
+function _PluginExtractPageFromRaw($src, $unified, $type, array &$pages)
+{
+	$skipFiles = ['plugin.php'];
+
+	// ---- Pattern 1: PHP array entries ----------------------------------
+	$p1matchedAny = false;
+	if ($unified && preg_match_all("/['\"]((?:type|page))['\"]\s*=>\s*['\"]([^'\"]+)['\"]/i", $src, $entryM, PREG_SET_ORDER)) {
+		$lastType = null;
+		foreach ($entryM as $em) {
+			$key = strtolower($em[1]);
+			$val = $em[2];
+			$p1matchedAny = true;
+			if ($key === 'type') {
+				$lastType = $val;
+			} elseif ($key === 'page' && preg_match('/\.php$/i', $val)) {
+				if ($lastType === null || $lastType === $type) {
+					$pages[] = $val;
+				}
+				$lastType = null;
+			}
+		}
+		// If Pattern 1 found any array-style entries, stop here.
+		// Even if none matched the requested type, we must not fall
+		// through to the broader patterns which lack type filtering.
+		if ($p1matchedAny) {
+			return;
+		}
+	}
+
+	// ---- Pattern 2: page= in HTML attributes ---------------------------
+	if (preg_match_all('/page\s*=\s*["\']([a-zA-Z0-9_\-\.\/]+\.php)["\']/i', $src, $m)) {
+		foreach ($m[1] as $v) {
+			if (!in_array(strtolower($v), $skipFiles)) {
+				$pages[] = $v;
+			}
+		}
+		if (!empty($pages)) { return; }
+	}
+
+	// ---- Pattern 3: page= in unquoted URL contexts ---------------------
+	if (preg_match_all('/page\s*=\s*([a-zA-Z0-9_\-\.\/]+\.php)/i', $src, $m)) {
+		foreach ($m[1] as $v) {
+			if (!in_array(strtolower($v), $skipFiles)) {
+				$pages[] = $v;
+			}
+		}
+		if (!empty($pages)) { return; }
+	}
+
+	// ---- Pattern 4: any .php filename in quotes (broad) ---------------
+	if (preg_match_all('/["\']([a-zA-Z0-9_\-]+\.php)["\']/i', $src, $m)) {
+		foreach ($m[1] as $v) {
+			if (!in_array(strtolower($v), $skipFiles)) {
+				$pages[] = $v;
+			}
+		}
+		if (!empty($pages)) { return; }
+	}
+
+	// ---- Pattern 5: any .php filename after variable assignment -------
+	if (preg_match_all('/=\s*["\']([a-zA-Z0-9_\-]+\.php)["\']/i', $src, $m)) {
+		foreach ($m[1] as $v) {
+			if (!in_array(strtolower($v), $skipFiles)) {
+				$pages[] = $v;
+			}
+		}
+	}
 }
 
 ?>

@@ -59,6 +59,69 @@ static std::list<PlaylistEntryBase*> PL_ENTRY_CLEANUPS;
 Playlist* playlist = NULL;
 
 // ──────────────────────────────────────────────────────────────────────────
+// Crash snapshot
+//
+// What was playing, and where, at the moment fppd died.  The crash handler
+// already records the sequence file and elapsed ms; the playlist half is the
+// part that explains *why* a given entry was being started -- most usefully
+// the three section sizes, since an empty section that a caller believed was
+// non-empty is the shape of a whole class of bug here.
+//
+// Deliberately plain scalars in file statics, never the live Playlist: see
+// PlaylistDumpCrashState in the header for why the handler cannot lock or
+// walk containers.  Torn reads are accepted.
+// ──────────────────────────────────────────────────────────────────────────
+namespace {
+struct CrashSnapshot {
+    char playlistName[128];
+    char section[24];
+    int sectionPosition;
+    int leadInSize;
+    int mainSize;
+    int leadOutSize;
+    int status;
+    bool everSet;
+};
+CrashSnapshot s_crashSnapshot{};
+
+void copyFixed(char* dst, size_t dstSize, const std::string& src) {
+    size_t n = src.size() < dstSize - 1 ? src.size() : dstSize - 1;
+    memcpy(dst, src.data(), n);
+    dst[n] = '\0';
+}
+} // namespace
+
+void Playlist::UpdateCrashSnapshot(void) {
+    CrashSnapshot& s = s_crashSnapshot;
+    copyFixed(s.playlistName, sizeof(s.playlistName), m_name);
+    copyFixed(s.section, sizeof(s.section), m_currentSectionStr);
+    s.sectionPosition = m_sectionPosition;
+    s.leadInSize = (int)m_leadIn.size();
+    s.mainSize = (int)m_mainPlaylist.size();
+    s.leadOutSize = (int)m_leadOut.size();
+    s.status = (int)m_status;
+    s.everSet = true;
+}
+
+void PlaylistDumpCrashState(int fd) {
+    const CrashSnapshot& s = s_crashSnapshot;
+    char buf[512];
+    int n;
+    if (!s.everSet) {
+        n = snprintf(buf, sizeof(buf), "Playlist state: none (no playlist has run)\n");
+    } else {
+        n = snprintf(buf, sizeof(buf),
+                     "Playlist state: name='%.127s' section=%.23s pos=%d status=%d "
+                     "sizes(leadIn=%d main=%d leadOut=%d)\n",
+                     s.playlistName, s.section, s.sectionPosition, s.status,
+                     s.leadInSize, s.mainSize, s.leadOutSize);
+    }
+    if (n > 0) {
+        (void)!write(fd, buf, (size_t)(n < (int)sizeof(buf) ? n : (int)sizeof(buf) - 1));
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Deferred notifications and deferred re-entrant starts.
 //
 // TriggerPreset() and PluginManager::playlistCallback() run arbitrary code
@@ -416,7 +479,7 @@ Json::Value Playlist::LoadJSON(const std::string& filename) {
         return root;
     }
 
-    if (!LoadJsonFromFile(filename, root)) {
+    if (!LoadJsonFromFile(filename, root, JsonRoot::Object)) {
         std::string warn = "Could not load playlist ";
         warn += filename;
         WarningHolder::AddWarningTimeout(30, 24, warn);
@@ -686,6 +749,22 @@ void Playlist::SwitchToMainPlaylist(void) {
     LogDebug(VB_PLAYLIST, "Switching to MainPlaylist\n");
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    UpdateCrashSnapshot();
+
+    // A caller's "does this section have entries" test can be invalidated
+    // before we get here: ReloadIfNeeded() runs Cleanup(), which pops every
+    // entry into PL_ENTRY_CLEANUPS and then reloads from the file, so a
+    // playlist edited mid-play can come back without this section.  The
+    // vector is empty but keeps its capacity, so [0] hands back a stale
+    // pointer to an entry that Process() is about to delete -- the vtable is
+    // still mapped, the virtual call dispatches, and the fault lands inside
+    // StartPlaying().  Check here, at the one place the section is indexed,
+    // rather than at each call site.
+    if (m_mainPlaylist.empty()) {
+        LogDebug(VB_PLAYLIST, "MainPlaylist is empty, switching to idle.\n");
+        SetIdle();
+        return;
+    }
 
     m_currentSectionStr = "MainPlaylist";
     m_currentSection = &m_mainPlaylist;
@@ -700,6 +779,15 @@ void Playlist::SwitchToLeadOut(void) {
     LogDebug(VB_PLAYLIST, "Switching to LeadOut\n");
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    UpdateCrashSnapshot();
+
+    // See SwitchToMainPlaylist() -- a reload between the caller's size check
+    // and here can leave this section empty.
+    if (m_leadOut.empty()) {
+        LogDebug(VB_PLAYLIST, "LeadOut is empty, switching to idle.\n");
+        SetIdle();
+        return;
+    }
 
     m_currentSectionStr = "LeadOut";
     m_currentSection = &m_leadOut;
@@ -1018,6 +1106,8 @@ int Playlist::Process(void) {
         return 0;
     }
 
+    UpdateCrashSnapshot();
+
     if (m_currentSection == nullptr || m_sectionPosition >= m_currentSection->size()) {
         LogErr(VB_PLAYLIST, "Section position %d is outside of section %s\n",
                m_sectionPosition, m_currentSectionStr.c_str());
@@ -1199,8 +1289,11 @@ int Playlist::Process(void) {
                         RandomizeMainPlaylist();
                     }
 
-                    m_sectionPosition = 0;
-                    StartPlayingWithGlobalPause(m_mainPlaylist[0]);
+                    // Goes through SwitchToMainPlaylist() for its empty-section
+                    // guard; we are already in the MainPlaylist section, so the
+                    // section/position it sets are the values this branch wants.
+                    // ReloadIfNeeded() above may have emptied the section.
+                    SwitchToMainPlaylist();
                 } else if (m_leadOut.size()) {
                     ReloadIfNeeded();
 
@@ -2079,8 +2172,20 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         result["global_pause"]["remaining_seconds"] = static_cast<Json::Int64>((remaining + 999) / 1000); // Round up
     }
 
-    auto ple = m_currentSection->at(m_sectionPosition);
-    std::string type = ple->GetType();
+    // m_sectionPosition is allowed to sit at exactly m_currentSection->size()
+    // while the playlist is between items -- Process() sets it to size() when
+    // advancing past the end of a section, and checks for that state rather
+    // than treating it as invalid.  Using at() unguarded here therefore throws
+    // std::out_of_range out of the /api/fppd/status handler on a drogon I/O
+    // thread, which aborts fppd.  Every other at() on this vector is guarded
+    // the same way; treat "no current entry" as the null case the code below
+    // already handles.
+    PlaylistEntryBase* ple = nullptr;
+    std::string type;
+    if (m_sectionPosition < m_currentSection->size()) {
+        ple = m_currentSection->at(m_sectionPosition);
+        type = ple->GetType();
+    }
 
     while (type == "dynamic") {
         PlaylistEntryDynamic* dyn = dynamic_cast<PlaylistEntryDynamic*>(ple);
@@ -2151,6 +2256,16 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
             result["time_elapsed"] = secondsToTime(secsElapsed);
             result["time_remaining"] = secondsToTime(secsRemaining);
         }
+    } else {
+        // No current entry (between items, or a dynamic entry with nothing
+        // resolved).  Emit the same placeholders the idle branch above uses so
+        // the status JSON keeps a stable shape for API consumers.
+        result["current_sequence"] = "";
+        result["current_song"] = "";
+        result["seconds_played"] = "0";
+        result["seconds_remaining"] = "0";
+        result["time_elapsed"] = "00:00";
+        result["time_remaining"] = "00:00";
     }
 
     std::list<std::string> parents;

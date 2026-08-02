@@ -168,6 +168,23 @@ function loadPageReadyActions () {
 	setViewPortControl();
 }
 
+var UI_LEVEL_OVERRIDE_MINUTES = 15;
+
+function ShowAdvancedTemporarily () {
+	var expires = Math.floor(Date.now() / 1000) + UI_LEVEL_OVERRIDE_MINUTES * 60;
+	document.cookie =
+		'fppUiLevelOverrideExp=' +
+		expires +
+		'; path=/; max-age=' +
+		UI_LEVEL_OVERRIDE_MINUTES * 60;
+	location.reload();
+}
+
+function ExitUiLevelOverride () {
+	document.cookie = 'fppUiLevelOverrideExp=; path=/; max-age=0';
+	location.reload();
+}
+
 // Status-change callback that detects an fppd restart (transition from
 // not-running to running).  When that happens, re-fetch the command list
 // and reload the page if the list has changed.
@@ -2199,6 +2216,55 @@ function GetPlaylistDurationDiv (entry) {
 	);
 }
 
+// A media / sequence+media entry can carry a companion file that plays on its
+// own stream slot at the same time as the entry's main media (see
+// PlaylistEntryMedia's ExtraMedia). Nothing else in a playlist row says so, so
+// one row would silently be playing two different files. Flags it inline, with
+// the file and slot in the badge (and the full detail on hover).
+function psiExtraMediaBadge (entry) {
+	var extras = [];
+	if (typeof entry.extraMediaName == 'string' && entry.extraMediaName != '') {
+		extras.push({
+			name: entry.extraMediaName,
+			slot: entry.extraMediaSlot ? entry.extraMediaSlot : 2
+		});
+	}
+	// Hand-authored playlists can list several companions in an array instead;
+	// the editor only ever writes the single flat form above.
+	if (Array.isArray(entry.extraMedia)) {
+		for (var i = 0; i < entry.extraMedia.length; i++) {
+			var e = entry.extraMedia[i];
+			if (e && typeof e.mediaName == 'string' && e.mediaName != '') {
+				extras.push({ name: e.mediaName, slot: e.slot ? e.slot : 2 });
+			}
+		}
+	}
+	if (!extras.length) {
+		return '';
+	}
+
+	var labels = [];
+	var titles = [];
+	for (var x = 0; x < extras.length; x++) {
+		labels.push(extras[x].name + ' (slot ' + extras[x].slot + ')');
+		titles.push(
+			'Also plays ' + extras[x].name + ' on stream slot ' + extras[x].slot
+		);
+	}
+
+	// The pill carries the label only - .badge is uppercased site-wide, which
+	// would mangle a filename - so the file itself sits next to it in its own
+	// case.
+	return (
+		"<span class='psiExtraMedia ms-2' title='" +
+		titles.join(' | ').replace(/'/g, '&#39;') +
+		"'><span class='badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle'>" +
+		"<i class='fas fa-layer-group me-1'></i>Extra Media</span> <span class='small'>" +
+		labels.join(', ').replace(/&/g, '&amp;').replace(/</g, '&lt;') +
+		'</span></span>'
+	);
+}
+
 function GetPlaylistRowHTML (ID, entry, editMode, invalidNames = {}) {
 	var HTML = '';
 	var rowNum = ID + 1;
@@ -2318,6 +2384,9 @@ function GetPlaylistRowHTML (ID, entry, editMode, invalidNames = {}) {
 			HTML += psiDetailsForEntrySimple(entry, editMode);
 		}
 	}
+	// Outside the display-mode branches: a companion file is playing whatever
+	// the row chooses to show, including in Just Note mode.
+	HTML += psiExtraMediaBadge(entry);
 	HTML += '</div>';
 
 	HTML += GetPlaylistDurationDiv(entry);
@@ -2370,8 +2439,10 @@ function PlaylistTypeChanged () {
 		oldMedia = $('.arg_mediaName').val();
 	}
 
+	DisposeArgHelpTooltips($('#playlistEntryOptions, #playlistEntryCommandOptions, #playlistEntryPropertiesOptions'));
 	$('#playlistEntryOptions').html('');
 	$('#playlistEntryCommandOptions').html('');
+	$('#playlistEntryPropertiesOptions').html('');
 	PrintArgInputs('playlistEntryOptions', true, playlistEntryTypes[type].args);
 
 	if (oldPlaylistEntryType == '') {
@@ -2417,6 +2488,7 @@ function PlaylistTypeChanged () {
 
 	oldPlaylistEntryType = type;
 	UpdateChildVisibility();
+	MoveEntryPropertiesToBottom();
 }
 
 function PlaylistNameOK (name) {
@@ -2872,7 +2944,7 @@ function AddPlaylistEntry (mode) {
 	for (var i = 0; i < keys.length; i++) {
 		var a = pet.args[keys[i]];
 
-		var style = $('#playlistEntryOptions')
+		var style = PlaylistEntryArgScope()
 			.find('.arg_' + a.name)
 			.parent()
 			.parent()
@@ -2883,30 +2955,30 @@ function AddPlaylistEntry (mode) {
 
 		if (a.type == 'int') {
 			pe[a.name] = parseInt(
-				$('#playlistEntryOptions')
+				PlaylistEntryArgScope()
 					.find('.arg_' + a.name)
 					.val()
 			);
 		} else if (a.type == 'float') {
 			pe[a.name] = parseFloat(
-				$('#playlistEntryOptions')
+				PlaylistEntryArgScope()
 					.find('.arg_' + a.name)
 					.val()
 			);
 		} else if (a.type == 'bool') {
-			pe[a.name] = $('#playlistEntryOptions')
+			pe[a.name] = PlaylistEntryArgScope()
 				.find('.arg_' + a.name)
 				.is(':checked')
 				? 'true'
 				: 'false';
 		} else if (a.type == 'time' || a.type == 'date') {
-			pe[a.name] = $('#playlistEntryOptions')
+			pe[a.name] = PlaylistEntryArgScope()
 				.find('.arg_' + a.name)
 				.val();
 		} else if (a.type == 'array') {
 			var f = {};
 			for (x = 0; x < a.keys; x++) {
-				f[a.keys[x]] = $('#playlistEntryOptions')
+				f[a.keys[x]] = PlaylistEntryArgScope()
 					.find('.arg_' + a.name + '_' + a.keys[x])
 					.val();
 			}
@@ -2938,13 +3010,13 @@ function AddPlaylistEntry (mode) {
 			}
 			pe[a.name] = arr;
 		} else if (a.type == 'string' || a.type == 'file') {
-			var inp = $('#playlistEntryOptions').find('.arg_' + a.name);
+			var inp = PlaylistEntryArgScope().find('.arg_' + a.name);
 			var val = inp.val();
 			if (val !== undefined) {
 				pe[a.name] = val;
 			}
 		} else {
-			pe[a.name] = $('#playlistEntryOptions')
+			pe[a.name] = PlaylistEntryArgScope()
 				.find('.arg_' + a.name)
 				.html();
 		}
@@ -3445,7 +3517,9 @@ function RandomizePlaylistEntries () {
 }
 
 function GetTimeZone () {
-	$.get('https://ipapi.co/json/')
+	// Server-side proxy (api/geoip) - ipapi.co doesn't send
+	// Access-Control-Allow-Origin, so the browser can't call it directly.
+	$.get('api/geoip')
 		.done(function (data) {
 			$('#TimeZone').val(data.timezone).change();
 		})
@@ -3455,7 +3529,7 @@ function GetTimeZone () {
 }
 
 function GetGeoLocation () {
-	$.get('https://ipapi.co/json/')
+	$.get('api/geoip')
 		.done(function (data) {
 			$('#Latitude').val(data.latitude).change();
 			$('#Longitude').val(data.longitude).change();
@@ -3635,7 +3709,7 @@ function RevealAdvancedArgsWithValues (pet) {
 		var a = pet.args[keys[i]];
 		if (!a.advanced) continue;
 
-		var inp = $('#playlistEntryOptions').find('.arg_' + a.name);
+		var inp = PlaylistEntryArgScope().find('.arg_' + a.name);
 		if (!inp.length) continue;
 
 		var set;
@@ -5463,7 +5537,7 @@ function updateWarnings (jsonStatus) {
 					currentWarnings[i]['message'] +
 					fixButton +
 					'</li>';
-			} else {
+			} else if (warningDefinitions && warningDefinitions['Warnings']) {
 				//find extra warning info from definitions
 				for (var z = 0; z < warningDefinitions['Warnings'].length; z++) {
 					if (warningDefinitions['Warnings'][z]['id'] == warningID) {
@@ -8425,14 +8499,6 @@ function UpdateGenericArgChildVisibility (el) {
 	});
 }
 
-// Activates Bootstrap tooltips for any CommandArg's "help" text - same
-// mechanism already used for the command-preset preview icon elsewhere in
-// this file (data-bs-toggle="tooltip" + .tooltip()), just newly wired into
-// the generic per-arg renderer (PrintArgInputs).
-function InitArgHelpTooltips () {
-	$('.argHelpIcon').tooltip();
-}
-
 // ---------------------------------------------------------------------
 // "commandlist" arg type - a repeatable list of {command, args} rows,
 // backing the If command's Then/Else Run fields. Ported from gpio.php's
@@ -8574,7 +8640,8 @@ function CaptureOuterEditorAndOpenNested (nestedTarget, nestedData, title, saveB
 		title: title,
 		saveButton: saveButton,
 		cancelButton: 'Cancel',
-		showPresetSelect: true
+		showPresetSelect: true,
+		presetInsertsReference: true
 	});
 }
 
@@ -8700,13 +8767,52 @@ var conditionListState = {};
 // a formula is computed, and anything else is literal text - see
 // Condition.cpp's EvaluateNameOrExpression for the exact rules. Any existing
 // saved condition using "source":"Variable" now reads as not-found.
-var CONDITION_SOURCES = ['Expression', 'Time', 'GPIO Pin', 'Sun'];
+// Expression pinned first (the general-purpose default/fallback - anything
+// not covered by its own dedicated Source is still reachable through it),
+// everything else alphabetical - now that the list has grown past a small
+// handful, alphabetical is easier to scan than an ad-hoc grouping.
+var CONDITION_SOURCES = [
+	'Expression', 'Current Playlist', 'Current Song', 'Day', 'GPIO Pin',
+	'Is Playing', 'Month', 'Player Status', 'Sun', 'Time'
+];
+// Sources with exactly one live current value to read, same as Time - no
+// "which thing to read" choice (unlike Sun's Sunrise/Sunset, or GPIO Pin's
+// pin name), so there's nothing meaningful to put in a Name field at all.
+// Matches Condition.cpp's ReadConditionSourceValue() one-for-one: every
+// entry here just returns Variables::INSTANCE.getVariable("fpp_...")
+// directly, ignoring `name` entirely.
+var CONDITION_SOURCES_NO_NAME_FIELD = [
+	'Time', 'Day', 'Month', 'Player Status', 'Is Playing',
+	'Current Playlist', 'Current Song'
+];
 // Name-field label per source, matching Condition.cpp's readSource() use of
-// `name` - Time ignores `name` entirely (currentTimeHHMM()), so it gets no
-// Name field at all rather than a placeholder that would just be confusing.
+// `name` - Time (and the rest of CONDITION_SOURCES_NO_NAME_FIELD) ignores
+// `name` entirely, so those get no Name field at all rather than a
+// placeholder that would just be confusing.
 var CONDITION_NAME_LABELS = {
 	'GPIO Pin': 'GPIO Pin Name',
 	Sun: 'Sunrise or Sunset'
+};
+// Small fixed-choice Value suggestions (via <datalist>, same mechanism as
+// the Name field's own suggested-values list) for the new no-Name sources
+// whose Value really only has a handful of valid answers - Day/Month/Player
+// Status/Is Playing/GPIO Pin. Current Playlist/Current Song have no such
+// fixed set (playlist/media names are arbitrary), so they get no entry.
+// An entry is either a plain string (shown as-is, and is the Value it sets)
+// or a {value, label} object for when the underlying Value needs to stay a
+// literal ("0"/"1") but the label should read as something more meaningful -
+// GPIO Pin deliberately says "Low"/"High" rather than "Not Triggered"/
+// "Triggered": whether 1 means triggered depends on that specific pin's own
+// wiring/pull config (pull-up vs pull-down, NO vs NC), which FPP has no way
+// to know, so a "Triggered" label could be flat-out backwards for a given
+// pin. Is Playing has no such ambiguity - 1 always means "yes, playing" -
+// so it gets the more readable label without caveat.
+var CONDITION_VALUE_SUGGESTIONS = {
+	Day: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+	Month: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+	'Player Status': ['idle', 'playing', 'stopping gracefully', 'stopping gracefully after loop', 'stopping now', 'paused'],
+	'Is Playing': [{ value: '0', label: '0 - Not Playing' }, { value: '1', label: '1 - Playing' }],
+	'GPIO Pin': [{ value: '0', label: '0 - Low' }, { value: '1', label: '1 - High' }]
 };
 
 // Always-visible explanation of the selected Source, shown at the bottom of
@@ -8723,10 +8829,31 @@ var CONDITION_SOURCE_HELP = {
 	// detects intent (Condition.cpp's EvaluateNameOrExpression): type just a
 	// real variable's exact name for a plain lookup, or a formula to compute
 	// one - no need to type "=" or wrap anything in "%%...%%" by hand.
-	Expression: 'Type a Variable\'s exact name for a plain lookup, or a formula to compute one - detected automatically. Example (plain lookup): Name = "myCounter", Value = "5". Example (formula): Name = "myCounter * 2", Comparator = greater than, Value = "10". Example (MQTT variable): Name = "mqtt-homeassistant/sensor/outside_temperature/state", Value = "20".',
-	Time: 'Always the current wall-clock time as HH:MM - there’s no Name field for this source. Example: Comparator = greater than, Value = "18:00" (after 6pm).',
-	'GPIO Pin': 'Reads a GPIO pin’s last commanded output value, falling back to its live input reading if it hasn’t been commanded. Example: Name = "P1-3", Comparator = equal to, Value = "1".',
-	Sun: 'Always today’s sunrise or sunset time as HH:MM, based on FPP’s configured location - pick Sunrise or Sunset below instead of typing a Name. Example: Sunset, Comparator = greater than, Value = "20:30".'
+	// HTML, not plain text (see the html-vs-EscapeHtml branch in
+	// RenderConditionFields below) - broken into bullets since this is the
+	// one help entry dense enough (3 examples + a tip) that a single
+	// run-on sentence was hard to scan.
+	Expression: 'Type a Variable\'s exact name for a plain lookup, or a formula to compute one.' +
+		'<ul class="mb-1 ps-3">' +
+		'<li>Plain lookup: Name = "myCounter", Is = equal to, Value = "5"</li>' +
+		'<li>Formula: Name = "myCounter * 2", Is = greater than, Value = "10"</li>' +
+		'<li>MQTT variable: Name = "mqtt-homeassistant/sensor/outside_temperature/state", Is = equal to, Value = "20"</li>' +
+		'</ul>' +
+		'Tip: every dedicated Source below (Time, Day, Player Status, etc.) is really just a shortcut for one of the read-only fpp_ variables on the Variables page - anything not listed as its own Source (fpp_volume, fpp_warning_count, and more) is still reachable this way, by name.',
+	Time: 'Compares the current wall-clock time (HH:MM). Example: Is = greater than, Value = "18:00" (after 6pm).',
+	Day: 'Compares today’s day of the week. Example: Is = equal to, Value = "Saturday".',
+	Month: 'Compares the current month. Example: Is = equal to, Value = "December".',
+	'GPIO Pin': 'Reads a GPIO pin’s current value.' +
+		'<ul class="mb-1 ps-3">' +
+		'<li>Uses the pin’s last commanded output value, falling back to its live input reading if it hasn’t been commanded</li>' +
+		'<li>Suggested names below are only pins currently enabled as GPIO Inputs - a pin can still be typed manually if it was disabled after this condition was set up</li>' +
+		'<li>Example: Name = "P1-3", Is = equal to, Value = "1"</li>' +
+		'</ul>',
+	Sun: 'Compares today’s sunrise or sunset time (HH:MM), based on FPP’s configured location - pick Sunrise or Sunset below. Example: Sunset, Is = greater than, Value = "20:30".',
+	'Player Status': 'Compares the player’s current status (as text). Example: Is = equal to, Value = "playing".',
+	'Is Playing': 'Compares whether a playlist is currently playing ("1") or not ("0"). Example: Is = equal to, Value = "1".',
+	'Current Playlist': 'Compares the name of the currently loaded playlist (empty if none). Example: Is = equal to, Value = "Halloween Show".',
+	'Current Song': 'Compares the filename of the currently playing media (empty if none). Example: Is = contains, Value = "Jingle".'
 };
 
 // Suggests real, currently-known names for the Name field via a <datalist>,
@@ -8784,13 +8911,22 @@ function FetchConditionNameOptions (source, callback) {
 		return;
 	}
 	if (source === 'GPIO Pin') {
-		// Same list the "GPIO" Command's own Pin arg uses (gpio.cpp) - these
-		// are the exact names GPIOManager::fppCommandLastValue is keyed by.
+		// Unlike the "GPIO" Command's own Pin arg (api/options/GPIOLIST, every
+		// physical pin on the board), a condition can only ever see a value
+		// for pins actually configured as GPIO Inputs (Condition.cpp falls
+		// back to GPIOManager::GetInputPinValue, which only knows about pins
+		// SetupGPIOInput registered from config/gpio.json's enabled entries -
+		// see gpio.cpp). So list only those, read the same way gpio.php reads
+		// its own trigger list, and apply the same "enabled" default (missing
+		// enabled = active) used there.
 		$.ajax({
-			url: 'api/options/GPIOLIST',
+			url: 'api/configfile/gpio.json',
 			dataType: 'json',
 			success: function (data) {
-				done(Object.keys(data || {}));
+				var names = (Array.isArray(data) ? data : [])
+					.filter(function (t) { return t.enabled !== false && t.pin; })
+					.map(function (t) { return t.pin; });
+				done(names);
 			},
 			error: function () {
 				done([]);
@@ -9430,35 +9566,43 @@ function RenderConditionFields ($container, cond, onChange) {
 	});
 
 	var $nameWrap = $("<span class='d-inline-block'></span>");
-	if (cond.source === 'Time') {
-		// currentTimeHHMM() in Condition.cpp ignores `name` entirely - nothing
-		// to fill in, so don't show a field that would look meaningful but do
+	if (CONDITION_SOURCES_NO_NAME_FIELD.indexOf(cond.source) !== -1) {
+		// These all ignore `name` entirely in Condition.cpp - nothing to fill
+		// in, so don't show a field that would look meaningful but do
 		// nothing.
 		cond.name = '';
 	} else if (cond.source === 'Expression') {
 		var fieldId = 'condExpr_' + ++conditionFieldIdSeq;
+		// textarea, not a single-line input: a formula long enough to need
+		// the horizontal scrolling a single-line box would force is common
+		// enough here (and for Value below) that seeing more of it at once,
+		// wrapped, is worth the extra vertical space - resize:vertical (the
+		// browser default for a textarea) still lets it be dragged taller
+		// still for anything even longer.
 		var nameInp = $(
-			"<input type='text' id='" +
+			"<textarea id='" +
 				fieldId +
-				"' class='form-control form-control-sm flex-grow-1' placeholder='Expression'>"
+				"' rows='2' class='form-control form-control-sm flex-grow-1' placeholder='Expression'></textarea>"
 		)
 			.val(cond.name)
 			.on('input', function () {
 				cond.name = $(this).val();
-				DebounceValidateExpression(this, fieldId + '_validIcon');
+				DebounceValidateExpression(this, fieldId + '_kindBadge', true);
 				onChange();
 			});
-		var validIcon = $("<span id='" + fieldId + "_validIcon' class='expressionValidIcon ms-1'></span>");
+		// No trailing valid/invalid icon here anymore - see the matching
+		// comment on Value below; the badge lives next to the field's own
+		// label instead (LabeledField's badgeId param).
 		// Fixed width (rather than d-inline-block/w-auto) so the insert-variable
 		// helper (appended below, once $row's full layout - including whether
 		// Value is also an Expression - is known) lines up under the SAME
 		// left/right edges as the expression input, instead of two
 		// independently-sized boxes that only coincidentally share a left edge.
 		$nameWrap = $("<div class='d-flex flex-column' style='width:260px'></div>");
-		var $inputLine = $("<div class='d-flex align-items-center'></div>").append(nameInp, validIcon);
+		var $inputLine = $("<div class='d-flex align-items-center'></div>").append(nameInp);
 		$nameWrap.append($inputLine);
 		if (cond.name) {
-			DebounceValidateExpression(nameInp[0], fieldId + '_validIcon');
+			DebounceValidateExpression(nameInp[0], fieldId + '_kindBadge', true);
 		}
 	} else if (cond.source === 'Sun') {
 		// Only two valid values (Condition.cpp's sunTimeHHMM: anything that
@@ -9508,25 +9652,55 @@ function RenderConditionFields ($container, cond, onChange) {
 	// EvaluateConditionExpression() unconditionally) - a plain literal like
 	// "1" or "ON" compiles to itself unchanged, so this is a strict superset
 	// of the old fixed-Value behavior, not a separate mode needing its own
-	// toggle. Same input+validIcon layout as $nameWrap's Expression case so
-	// the two fields look like siblings.
+	// toggle.
 	var valueFieldId = 'condValue_' + ++conditionFieldIdSeq;
+	// textarea for the same reason as Name/Expression above - this field is
+	// unconditionally expression-capable for every Source, not just
+	// Expression, so it's just as likely to hold something long.
 	var valInp = $(
-		"<input type='text' id='" +
+		"<textarea id='" +
 			valueFieldId +
-			"' class='form-control form-control-sm flex-grow-1' placeholder='Value or Expression'>"
+			"' rows='2' class='form-control form-control-sm flex-grow-1' placeholder='Value or Expression'></textarea>"
 	)
 		.val(cond.value)
 		.on('input', function () {
 			cond.value = $(this).val();
-			DebounceValidateExpression(this, valueFieldId + '_validIcon');
+			DebounceValidateExpression(this, valueFieldId + '_kindBadge', true);
 			onChange();
 		});
-	var valueValidIcon = $("<span id='" + valueFieldId + "_validIcon' class='expressionValidIcon ms-1'></span>");
+	// No trailing valid/invalid icon here anymore - what kind of thing this
+	// text currently resolves to (Variable/Formula/Text/Invalid) is shown as
+	// a badge next to the "Value" label itself instead (see LabeledField's
+	// badgeId param below), which also means the textarea's own right edge
+	// now actually lines up with the insert-variable arrow underneath it.
 	var $valueWrap = $("<div class='d-flex flex-column' style='width:260px'></div>");
-	$valueWrap.append($("<div class='d-flex align-items-center'></div>").append(valInp, valueValidIcon));
+	$valueWrap.append($("<div class='d-flex align-items-center'></div>").append(valInp));
 	if (cond.value) {
-		DebounceValidateExpression(valInp[0], valueFieldId + '_validIcon');
+		DebounceValidateExpression(valInp[0], valueFieldId + '_kindBadge', true);
+	}
+	// Day/Month/Player Status only have a handful of valid answers - a
+	// <datalist> would be the usual way to suggest them (see the Name
+	// field's own datalist a bit above), but datalist/list= only works on
+	// <input>, not the <textarea> Value now is. A small "quick pick" select
+	// that just fills Value in on choice gets the same one-click result.
+	var valueSuggestions = CONDITION_VALUE_SUGGESTIONS[cond.source];
+	if (valueSuggestions) {
+		var $quickPick = $("<select class='form-select form-select-sm mt-1'><option value=''>-- Quick pick --</option></select>");
+		$.each(valueSuggestions, function (i, v) {
+			var optValue = typeof v === 'object' ? v.value : v;
+			var optLabel = typeof v === 'object' ? v.label : v;
+			$quickPick.append("<option value='" + EscapeHtml(optValue) + "'>" + EscapeHtml(optLabel) + '</option>');
+		});
+		$quickPick.on('change', function () {
+			var v = $(this).val();
+			if (v) {
+				cond.value = v;
+				valInp.val(v);
+				onChange();
+			}
+			$(this).val('');
+		});
+		$valueWrap.append($quickPick);
 	}
 
 	// One consolidated eye button (was two, one per side) - opens a modal
@@ -9544,14 +9718,22 @@ function RenderConditionFields ($container, cond, onChange) {
 	// "what goes here" is contextual (e.g. "GPIO Pin Name") rather than a
 	// generic "Name" that doesn't say what kind of name. Time gets no Name
 	// label since it has no Name field at all to label.
-	function LabeledField (label, $control) {
+	// badgeId, when given, adds an empty pill right after the label text -
+	// DebounceValidateExpression (conditionExpr=true mode) fills it in with
+	// what the field's current text resolves to (Variable/Formula/Text/
+	// Invalid). Replaces the old per-field check/X/amber icon: a label like
+	// "Value [Invalid]" reads on its own, no hovering for a tooltip needed,
+	// and it stops competing with the insert-variable arrow for space right
+	// next to the textarea.
+	function LabeledField (label, $control, badgeId) {
 		if (!label) {
 			return $control;
 		}
-		return $("<div class='d-flex flex-column'></div>").append(
-			$("<span class='text-muted text-center' style='font-size:0.8rem'></span>").text(label),
-			$control
-		);
+		var $label = $("<span class='text-muted text-center' style='font-size:0.8rem'></span>").text(label);
+		if (badgeId) {
+			$label.append(' ', $("<span id='" + badgeId + "'></span>"));
+		}
+		return $("<div class='d-flex flex-column'></div>").append($label, $control);
 	}
 	// The eye buttons sit beside labeled columns (each a label span stacked
 	// above its control), so a bare button would render shorter and land a
@@ -9562,17 +9744,22 @@ function RenderConditionFields ($container, cond, onChange) {
 	function EyeButtonField ($btn) {
 		return $("<div class='d-flex flex-column'></div>").append($("<span style='font-size:0.8rem'> </span>"), $btn);
 	}
-	var nameLabelText = cond.source === 'Time' ? null : CONDITION_NAME_LABELS[cond.source] || 'Name';
+	var nameLabelText = CONDITION_SOURCES_NO_NAME_FIELD.indexOf(cond.source) !== -1 ? null : CONDITION_NAME_LABELS[cond.source] || 'Name';
 	$row.append(
 		LabeledField('Source', sourceSel),
-		LabeledField(nameLabelText, $nameWrap),
+		// Only the Expression source's Name field runs through
+		// DebounceValidateExpression at all (every other source's Name is
+		// either absent or a fixed picker/lookup key, not expression text) -
+		// fieldId only exists in that branch above, so the badge is only
+		// wired up there.
+		LabeledField(nameLabelText, $nameWrap, cond.source === 'Expression' ? fieldId + '_kindBadge' : null),
 		// "Comparator" doubles as the "is" connector now (e.g. "Variable
 		// myVar" / "Comparator: equal to" reads the same as "myVar is equal
 		// to" did before) - a separate literal " is " text plus a
 		// "Comparator" label above the dropdown was saying the same thing
 		// twice.
 		LabeledField('Is', compSel),
-		LabeledField('Value', $valueWrap),
+		LabeledField('Value', $valueWrap, valueFieldId + '_kindBadge'),
 		EyeButtonField(showEvalBtn)
 	);
 	$container.append($row);
@@ -9602,9 +9789,13 @@ function RenderConditionFields ($container, cond, onChange) {
 	// appended last so it lands at the bottom of the dialog body - between
 	// the fields above and the Close button, which ShowConditionSubEditor
 	// renders into a separate sibling "_footer" element.
+	// Entries are static, developer-authored strings (never user input), so
+	// they're trusted HTML - not run through EscapeHtml - which lets the
+	// Expression entry above use <ul>/<li> bullets instead of one run-on
+	// sentence.
 	$container.append(
 		$("<div class='text-muted small mt-2'></div>").html(
-			"<i class='fas fa-circle-info me-1'></i>" + EscapeHtml(CONDITION_SOURCE_HELP[cond.source] || '')
+			"<i class='fas fa-circle-info me-1'></i>" + (CONDITION_SOURCE_HELP[cond.source] || '')
 		)
 	);
 }
@@ -9646,7 +9837,7 @@ function RenderSharedExpressionValueHelper ($container, nameInp, valInp, nameFie
 	var $input = $(
 		"<input type='text' list='" +
 			VAR_INSERT_DATALIST_ID +
-			"' class='form-control form-control-sm' placeholder='Insert variable…' style='position:absolute'>"
+			"' class='form-control form-control-sm placeholder-center position-absolute' placeholder='-- Select Variable to Insert --'>"
 	);
 	function insertPendingValue (targetId) {
 		var name = $input.val();
@@ -9827,7 +10018,18 @@ function ShowConditionEvaluationPopup (cond) {
 	// what fed into it.
 	var varValues = $.Deferred();
 	FetchConditionNameOptions('Variable', function (knownNames) {
-		var refs = FindReferencedVariableNames((cond.name || '') + ' ' + (cond.value || ''), knownNames);
+		// Classified per field, not concatenated together - an exact-match
+		// check (see FindReferencedVariableNames) needs to see each field's
+		// own trimmed text alone, not Name+Value glued together with a
+		// space, which would never equal any real variable name and would
+		// always fall through to the (less precise) substring scan instead.
+		var nameRefs = FindReferencedVariableNames(cond.name || '', knownNames);
+		var valueRefs = FindReferencedVariableNames(cond.value || '', knownNames);
+		var refs = nameRefs.concat(
+			valueRefs.filter(function (r) {
+				return nameRefs.indexOf(r) === -1;
+			})
+		);
 		if (!refs.length) {
 			varValues.resolve({});
 			return;
@@ -9874,24 +10076,39 @@ function ShowConditionEvaluationPopup (cond) {
 
 		$body.append($("<div class='mb-3'></div>").append($("<div class='text-muted small mb-1'>Formula</div>"), $("<div></div>").html(SummarizeConditionItemHtml(cond))));
 
-		if (!data || !data.found) {
-			$body.append("<div class='text-muted'>LHS has no current value - not set/seen yet, or Name doesn't match anything. Nothing further to evaluate.</div>");
+		if (!data) {
+			$body.append("<div class='text-danger'>Failed to fetch condition evaluation.</div>");
 			return;
 		}
 
+		// LHS not found no longer stops the popup cold - the API now always
+		// returns rhsValue/result too (a not-found LHS still yields a
+		// definite runtime result of `negate`), so every item below still
+		// gets evaluated and shown; only the LHS side falls back to a
+		// "(not found)" placeholder instead of its actual value.
+		var lhsFound = !!data.found;
 		var lhsSubstituted = cond.source === 'Expression' ? SubstituteVariableValues(cond.name || '', valueMap) : cond.name || '';
 		var rhsSubstituted = SubstituteVariableValues(cond.value || '', valueMap);
 		var lhsDisplay = cond.source === 'Expression' ? 'Expression(' + EscapeHtml(lhsSubstituted) + ')' : EscapeHtml(cond.source) + (cond.name ? ' ' + EscapeHtml(lhsSubstituted) : '');
+
+		if (!lhsFound) {
+			var missingLabel = cond.source === 'Expression'
+				? 'Expression(' + EscapeHtml(cond.name || '') + ')'
+				: EscapeHtml(cond.source) + (cond.name ? ' ' + EscapeHtml(cond.name) : '');
+			$body.append("<div class='text-muted mb-3'>" + missingLabel + " has no current value - not set/seen yet, or the Name doesn't match anything.</div>");
+		}
+
 		var substituted =
 			'<span class="text-info">' + lhsDisplay + '</span>' +
 			' <span class="text-muted">' + EscapeHtml(cond.comparator || 'equal to') + '</span>' +
 			' <span class="text-success">Expression(' + EscapeHtml(rhsSubstituted) + ')</span>';
 		$body.append($("<div class='mb-3'></div>").append($("<div class='text-muted small mb-1'>Values substituted</div>"), $("<div></div>").html(substituted)));
 
+		var lhsValueDisplay = lhsFound ? '"' + EscapeHtml(data.value) + '"' : '(not found)';
 		var resultLine =
-			'<code>"' + EscapeHtml(data.value) + '"</code> <span class="text-muted">' + EscapeHtml(cond.comparator || 'equal to') +
+			'<code>' + lhsValueDisplay + '</code> <span class="text-muted">' + EscapeHtml(cond.comparator || 'equal to') +
 			'</span> <code>"' + EscapeHtml(data.rhsValue || '') + '"</code> &rarr; <span class="' + (data.result ? 'text-success' : 'text-danger') + ' fw-semibold">' +
-			(data.result ? 'true' : 'false') + '</span>';
+			(data.result ? 'true' : 'false') + (lhsFound ? '' : ' <span class="text-muted fw-normal">(no current value, so nothing was actually compared)</span>') + '</span>';
 		$body.append($("<div></div>").append($("<div class='text-muted small mb-1'>Result</div>"), $("<div></div>").html(resultLine)));
 	});
 	$.when(mainPreview).fail(function () {
@@ -9905,6 +10122,19 @@ function ShowConditionEvaluationPopup (cond) {
 // show each referenced variable's own value, not just the final computed
 // LHS/RHS.
 function FindReferencedVariableNames (text, knownNames) {
+	// An exact whole-field match takes priority over any substring scan -
+	// mirrors Condition.cpp's EvaluateNameOrExpression, which returns that
+	// variable's raw value for an exact trimmed match and never even runs
+	// the formula-reference heuristic in that case. Skipping this check let
+	// a short real variable name (e.g. "state") that happens to appear as a
+	// substring inside a longer, unrelated field (a typo'd variable name
+	// that isn't actually an exact match to anything) steal a false
+	// substitution below - two unrelated variables' values getting spliced
+	// together with no separator in the "Values substituted" line.
+	var trimmed = (text || '').trim();
+	if (trimmed && knownNames.indexOf(trimmed) !== -1) {
+		return [trimmed];
+	}
 	var found = [];
 	var sorted = knownNames.slice().sort(function (a, b) {
 		return b.length - a.length;
@@ -9975,40 +10205,108 @@ function ShowConditionSubEditor (title, renderBodyFn) {
 // user pauses typing, not on every keystroke.
 var expressionValidateTimers = {};
 var expressionValidateSeq = {};
-function DebounceValidateExpression (inputEl, iconId) {
+// conditionExpr=true (only passed by the If Check editor's Name/Value
+// fields - see the DebounceValidateExpression calls in
+// RenderConditionFields) asks the server to classify the text the same way
+// it's actually evaluated at runtime (ConditionNode::ClassifyNameOrExpression)
+// instead of a bare compile check, and renders the result as a small pill
+// badge next to the field's own label (id passed as targetId - see
+// LabeledField's badgeId param) rather than a check/X icon next to the
+// field itself: "Value [Invalid]" reads on its own with no hovering for a
+// tooltip needed, distinguishes a real variable match / working formula /
+// inert unmatched literal text from each other (a bare compile check alone
+// can't - unwrapped, unmatched plain text always "compiles" as a literal
+// passthrough, so a typo'd variable name used to look identical to a real
+// match), and stops competing with the insert-variable arrow for space
+// right next to the textarea. The plain icon-in-targetId path below is only
+// still used by the generic "expression" CommandArg widget (e.g. Set
+// Variable's Expression field), which validates via a bare
+// ExpressionProcessor::compile() call with no such classification.
+function DebounceValidateExpression (inputEl, targetId, conditionExpr) {
 	var value = inputEl.value;
-	clearTimeout(expressionValidateTimers[iconId]);
+	clearTimeout(expressionValidateTimers[targetId]);
 	if (!value) {
-		$('#' + iconId).html('');
+		$('#' + targetId).empty();
 		return;
 	}
-	$('#' + iconId).html('<i class="fas fa-ellipsis-h text-muted" title="Validating..."></i>');
-	expressionValidateTimers[iconId] = setTimeout(function () {
+	if (conditionExpr) {
+		$('#' + targetId).text('…').removeClass().addClass('badge rounded-pill text-bg-secondary');
+	} else {
+		$('#' + targetId).html('<i class="fas fa-ellipsis-h text-muted" title="Validating..."></i>');
+	}
+	expressionValidateTimers[targetId] = setTimeout(function () {
 		// Guard against an earlier, slower request resolving after a later
-		// one and clobbering the icon with a stale result.
-		var seq = (expressionValidateSeq[iconId] || 0) + 1;
-		expressionValidateSeq[iconId] = seq;
+		// one and clobbering the badge/icon with a stale result.
+		var seq = (expressionValidateSeq[targetId] || 0) + 1;
+		expressionValidateSeq[targetId] = seq;
 		$.ajax({
 			dataType: 'json',
-			url: 'api/variables?validateExpression=' + encodeURIComponent(value),
+			url: 'api/variables?validateExpression=' + encodeURIComponent(value) + (conditionExpr ? '&conditionExpr=true' : ''),
 			success: function (data) {
-				if (expressionValidateSeq[iconId] !== seq) {
+				if (expressionValidateSeq[targetId] !== seq) {
 					return;
 				}
-				if (data && data.valid) {
-					$('#' + iconId).html('<i class="fas fa-check text-success" title="Valid expression"></i>');
+				if (conditionExpr) {
+					RenderExpressionKindBadge(targetId, data);
+					return;
+				}
+				if (!data || !data.valid) {
+					$('#' + targetId).html('<i class="fas fa-times text-danger" title="Invalid expression"></i>');
+				} else if (data.kind === 'literal') {
+					// compile() always "succeeds" on plain text with no '='
+					// and no embedded ==...==/%%...%% markers - it's stored
+					// verbatim, not evaluated, so a bare variable name here
+					// (e.g. "outsideTemp" instead of "=outsideTemp") silently
+					// becomes dead literal text. A plain green check would lie
+					// about that, so warn instead of confirming.
+					$('#' + targetId).html(
+						'<i class="fas fa-triangle-exclamation text-warning" title="Stored as literal text, not evaluated - start with &#39;=&#39; to compute a value or reference a variable (e.g. =outsideTemp)"></i>'
+					);
 				} else {
-					$('#' + iconId).html('<i class="fas fa-times text-danger" title="Invalid expression"></i>');
+					$('#' + targetId).html('<i class="fas fa-check text-success" title="Valid expression"></i>');
 				}
 			},
 			error: function () {
-				if (expressionValidateSeq[iconId] !== seq) {
+				if (expressionValidateSeq[targetId] !== seq) {
 					return;
 				}
-				$('#' + iconId).html('<i class="fas fa-question text-muted" title="Could not validate"></i>');
+				if (conditionExpr) {
+					$('#' + targetId).text('?').removeClass().addClass('badge rounded-pill text-bg-secondary').attr('title', 'Could not validate');
+					return;
+				}
+				$('#' + targetId).html('<i class="fas fa-question text-muted" title="Could not validate"></i>');
 			}
 		});
 	}, 400);
+}
+
+// Fills in one "Value [Formula]" / "Value [Invalid]" style label badge -
+// see the DebounceValidateExpression comment above for why this exists.
+// data.kind is only present when the request was ?conditionExpr=true.
+function RenderExpressionKindBadge (badgeId, data) {
+	var $badge = $('#' + badgeId);
+	var text, danger, title;
+	if (!data) {
+		text = '?';
+		title = 'Could not validate';
+	} else if (data.kind === 'variable') {
+		text = 'Variable';
+		title = 'Matches a real, currently-known variable name';
+	} else if (data.kind === 'formula') {
+		text = data.valid ? 'Formula' : 'Invalid';
+		title = data.valid ? 'A formula that currently compiles' : "Looks like a formula, but doesn't compile (e.g. references an unknown variable)";
+	} else if (data.kind === 'literal') {
+		text = 'Text';
+		title = "Doesn't match any known variable and isn't a formula - will be compared as literal text";
+	} else {
+		text = data.valid ? '' : 'Invalid';
+		title = data.valid ? '' : 'Invalid expression';
+	}
+	danger = text === 'Invalid' || text === '?';
+	$badge.text(text)
+		.attr('title', title)
+		.removeClass()
+		.addClass('badge rounded-pill ' + (danger ? 'text-bg-danger' : 'text-bg-secondary'));
 }
 
 // Populates every not-yet-populated .expressionVarHelper div with a
@@ -10070,7 +10368,7 @@ function RenderVarInsertHelper ($helper, targetId, shouldWrap) {
 	var $input = $(
 		"<input type='text' list='" +
 			VAR_INSERT_DATALIST_ID +
-			"' class='form-control form-control-sm w-100' placeholder='Insert variable to expression field…'>"
+			"' class='form-control form-control-sm w-100 placeholder-center' placeholder='-- Select Variable to Insert --'>"
 	).on('change', function () {
 		var name = $(this).val();
 		if (name) {
@@ -10078,7 +10376,44 @@ function RenderVarInsertHelper ($helper, targetId, shouldWrap) {
 		}
 		$(this).val('');
 	});
-	$helper.append($input);
+	// Same visual language as RenderSharedExpressionValueHelper's dual arrows
+	// (the Expression Source's Name+Value case) - without it, this plain
+	// text box gave no hint that picking a name here does anything, let
+	// alone that it lands in the single field directly above. Only one
+	// target here (unlike the dual-arrow case), so it's a simple trailing
+	// icon, not an absolutely-positioned pointer aimed at a measured field
+	// center - but still a real, focusable button rather than decoration
+	// only, so it's an equally obvious click target. Trailing (not leading)
+	// by request, so the input box itself sits flush left.
+	//
+	// Clicking the arrow with a name already typed/picked actually inserts
+	// it now - previously it only re-focused $input (a no-op if $input was
+	// already focused, which it always is right after typing), so clicking
+	// the arrow right after typing a name silently did nothing; only Tab/
+	// Enter/picking a datalist option (which fire native 'change') actually
+	// inserted. Matches RenderSharedExpressionValueHelper's arrows, which
+	// have always inserted on click - same focusAtEnd-before-insert fix for
+	// the same reason (a never-focused target field's selectionStart is 0,
+	// not null, so skipping this would insert at position 0/prepend instead
+	// of appending), and same clear-before-insert ordering to avoid
+	// double-inserting via the reentrant blur this triggers on $input.
+	var $arrow = $(
+		"<button type='button' class='buttons reallySmallButton varInsertArrow ms-1' title='Insert into the field above'><i class='fas fa-arrow-up'></i></button>"
+	).on('mousedown', function (e) {
+		e.preventDefault();
+		var name = $input.val();
+		if (!name) {
+			$input.trigger('focus');
+			return;
+		}
+		$input.val('');
+		var targetEl = document.getElementById(targetId);
+		var len = targetEl.value.length;
+		targetEl.focus();
+		targetEl.setSelectionRange(len, len);
+		InsertAtCursor(targetEl, shouldWrap ? '%%' + name + '%%' : name);
+	});
+	$helper.append($("<div class='d-flex align-items-center'></div>").append($input, $arrow));
 }
 
 // Inserts text at the current cursor position of a text input (replacing any
@@ -10249,18 +10584,42 @@ function GetRemotes () {
 	}
 	return remoteIpList;
 }
+// Bootstrap tooltips append their popup <div> to <body> and track their
+// instance outside jQuery's data/event bookkeeping - a plain jQuery .remove()
+// on an .argHelpIcon's row leaks both the instance and (if the tooltip
+// happened to be showing) an orphaned popup that nothing will ever hide
+// again, since its trigger element is gone. Must dispose() before removing.
+function DisposeArgHelpTooltips (root) {
+	if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+		return;
+	}
+	root.find('.argHelpIcon').each(function () {
+		var existing = bootstrap.Tooltip.getInstance(this);
+		if (existing) {
+			existing.dispose();
+		}
+	});
+}
+
 function CommandSelectChanged (
 	commandSelect,
 	tblCommand,
 	configAdjustable = false,
 	argPrintFunc = PrintArgInputs
 ) {
+	DisposeArgHelpTooltips($('#' + tblCommand));
 	for (var x = 1; x < 25; x++) {
 		$('#' + tblCommand + '_arg_' + x + '_row').remove();
 	}
 	$('#' + tblCommand + '_multisync_row').remove();
 	$('#' + tblCommand + '_multisyncHosts_row').remove();
 	$('#' + tblCommand + '_description_row').remove();
+	// Section headings (e.g. If's "When Check is True"/"When Check is False")
+	// have no numbered _arg_N_row id, so the removal loop above never catches
+	// them - a stale one from a previous render (e.g. the command picker's
+	// initial default before the real command is applied) would otherwise be
+	// left orphaned above the freshly re-rendered rows.
+	$('#' + tblCommand + ' tr.argSectionHeaderRow').remove();
 	var command = $('#' + commandSelect).val();
 	if (typeof command == 'undefined' || command == null) {
 		return;
@@ -10293,7 +10652,9 @@ function CommandSelectChanged (
 		line += "style='display:none'";
 	}
 	line +=
-		"><td>Multisync: <i class='fas fa-question-circle argHelpIcon' data-bs-toggle='tooltip' data-bs-placement='top' title='Send this command to multiple FPP instances'></i></td><td><input type='checkbox' id='" +
+		'><td>Multisync:' +
+		ArgHelpIcon('Send this command to multiple FPP instances') +
+		"</td><td><input type='checkbox' id='" +
 		tblCommand +
 		"_multisync' class='arg_multisync' onChange='OnMultisyncChanged(this, \"" +
 		tblCommand +
@@ -10336,7 +10697,48 @@ function CommandSelectChanged (
 	$('#' + tblCommand).append(line);
 
 	argPrintFunc(tblCommand, configAdjustable, co['args']);
+
+	// The command's own args have just been appended below the entry's rows -
+	// put the Entry Properties block back at the bottom of the form.
+	if (tblCommand == 'playlistEntryCommandOptions') {
+		MoveEntryPropertiesToBottom();
+	}
 }
+
+// The playlist entry editor renders an entry's own args (#playlistEntryOptions)
+// and, for an "FPP Command" entry, the selected command's args
+// (#playlistEntryCommandOptions) into two separate <tbody>s of one table, so
+// the command's args always land BELOW the entry's own rows. The Entry
+// Properties block (Note / Display Mode / Time Code) belongs at the bottom of
+// the form for every entry type, so move it into a third, trailing tbody. It
+// gets its own rather than being parked in the command one because
+// CommandArgChanged() empties that tbody every time the command changes.
+// Reading the form back stays correct because PlaylistEntryArgScope() (used by
+// GetPlaylistEntry) covers both entry tbodies.
+function MoveEntryPropertiesToBottom () {
+	var $tail = $('#playlistEntryPropertiesOptions');
+	if (!$tail.length) {
+		return;
+	}
+	// Both the heading row and its arg rows carry data-arg-section, so the
+	// whole block is found wherever it currently sits.
+	var $rows = PlaylistEntryArgScope().find(
+		"tr[data-arg-section='Entry Properties']"
+	);
+	if (!$rows.length) {
+		return;
+	}
+	$tail.append($rows);
+}
+
+// Where an entry's own arg inputs live: the main tbody plus the trailing one
+// holding the relocated Entry Properties block. Deliberately excludes
+// #playlistEntryCommandOptions - a selected command's args are read separately
+// (CommandToJSON) and could otherwise shadow an entry arg of the same name.
+function PlaylistEntryArgScope () {
+	return $('#playlistEntryOptions, #playlistEntryPropertiesOptions');
+}
+
 function SubCommandChanged (
 	subCommandV,
 	configAdjustable = false,
@@ -10355,6 +10757,7 @@ function SubCommandChanged (
 	var tblCommand = subCommand.data('tblcommand');
 
 	for (var x = count + 1; x < 25; x++) {
+		DisposeArgHelpTooltips($('#' + tblCommand + '_arg_' + x + '_row'));
 		$('#' + tblCommand + '_arg_' + x + '_row').remove();
 	}
 	$.ajax({
@@ -10395,7 +10798,11 @@ function ComputeArgGroupBoundaries (args) {
 	// playlistEntryTypes.json's per-entry-type args (see PlaylistTypeChanged) -
 	// PrintArgInputs' own render loop uses $.each() so it tolerates both, but
 	// .filter()/.map() below need a real array.
-	var argList = Array.isArray(args) ? args : Object.keys(args).map(function (k) {
+	// A command with zero registered args (e.g. "All Lights Off") has no
+	// "args" key at all in api/commands' JSON (Commands.cpp only creates
+	// cmd["args"] once it appends at least one entry), so args can be
+	// undefined here - treat that the same as an empty arg list.
+	var argList = Array.isArray(args) ? args : Object.keys(args || {}).map(function (k) {
 		return args[k];
 	});
 	var included = argList.filter(function (val) {
@@ -10590,12 +10997,48 @@ function PrintArgsInputsForEditable (
 	$.each(args, valFunc);
 }
 
-// Activates Bootstrap tooltips for any CommandArg's "help" text - same
-// mechanism already used for the command-preset preview icon elsewhere in
-// this file (data-bs-toggle="tooltip" + .tooltip()), just newly wired into
-// the generic per-arg renderer (PrintArgInputs).
+// The standard FPP help affordance, as emitted by PrintToolTip() in
+// common.php for settings pages (networkconfig.php et al): the help-icon.svg
+// glyph wrapped in a Bootstrap tooltip trigger. Used by the generic per-arg
+// renderers so a Command/playlist-entry arg's "help" text looks and behaves
+// exactly like a setting's tooltip rather than being its own one-off style.
+// Args tables are built as HTML strings and injected long after page load, so
+// the markup carries data-bs-title (not title - SetupToolTips' page-load sweep
+// never sees these elements) and InitArgHelpTooltips() does the wiring.
+function ArgHelpIcon (text) {
+	if (typeof text !== 'string' || text === '') {
+		return '';
+	}
+	var t = text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/'/g, '&apos;');
+	return (
+		" <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='" +
+		t +
+		"'><img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>"
+	);
+}
+
+// Activates Bootstrap tooltips for any CommandArg's "help" text. Disposes any
+// existing instance first (same pattern as networkconfig.php's
+// initializeTooltips) since the args table is re-rendered in place whenever
+// the command / playlist entry type changes.
 function InitArgHelpTooltips () {
-	$('.argHelpIcon').tooltip();
+	if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+		return;
+	}
+	$('.argHelpIcon').each(function () {
+		var existing = bootstrap.Tooltip.getInstance(this);
+		if (existing) {
+			existing.dispose();
+		}
+		try {
+			new bootstrap.Tooltip(this);
+		} catch (e) {
+			console.warn('Skipping invalid arg help tooltip', this, e);
+		}
+	});
 }
 
 function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
@@ -10607,6 +11050,8 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 	var timeOptions = new Map();
 	var argGroups = ComputeArgGroupBoundaries(args);
 	var groupIndex = 0;
+	var currentSection = null;
+	var sectionRowCounts = {};
 	// Args listed as a "children" value of some OTHER arg start hidden unless
 	// that parent arg's default value is the one that reveals them - keeps
 	// initial render consistent with UpdateGenericArgChildVisibility(), which
@@ -10645,18 +11090,55 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 			return;
 		}
 
+		var advancedHidden =
+			val.hasOwnProperty('advanced') &&
+			val.advanced == true &&
+			settings['uiLevel'] < 1;
 		var rowStyle = '';
-		if (
-			(val.hasOwnProperty('advanced') &&
-				val.advanced == true &&
-				settings['uiLevel'] < 1) ||
-			initiallyHiddenChildren[val['name']]
-		) {
+		if (advancedHidden || initiallyHiddenChildren[val['name']]) {
 			rowStyle = " style='display:hidden; visibility:collapse'";
 		}
 
+		// An arg's optional "section" groups consecutive args under a named
+		// heading (e.g. the playlist entry editor's Primary Media / Extra
+		// Media / Entry Properties) instead of one flat run of rows. Purely
+		// presentational - the heading is a row of its own, so nothing about
+		// how args are read back (by .arg_<name> class / _arg_N id) changes.
+		var section = typeof val['section'] === 'string' ? val['section'] : '';
+		var sectionHeader = '';
+		if (section !== '' && section !== currentSection) {
+			currentSection = section;
+			var esc = section
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/'/g, '&apos;');
+			sectionHeader =
+				"<tr class='argSectionHeaderRow' data-arg-section='" +
+				esc +
+				"'><td colspan='2' class='pt-3 pb-1'><div class='fw-bold text-uppercase small text-secondary border-bottom pb-1'>" +
+				esc +
+				'</div></td></tr>';
+		}
+		if (section !== '') {
+			// A section that ends up with no visible rows at all (e.g. Extra
+			// Media, whose args are all advanced:true, at UI level Basic)
+			// must not leave a dangling heading behind - see the post-render
+			// cleanup after this loop.
+			if (!sectionRowCounts.hasOwnProperty(section)) {
+				sectionRowCounts[section] = 0;
+			}
+			if (!advancedHidden) {
+				// A row hidden only because its parent arg's current value
+				// doesn't reveal it still counts - UpdateChildVisibility can
+				// show it again without a re-render.
+				sectionRowCounts[section]++;
+			}
+		}
+
 		var ID = tblCommand + '_arg_' + count;
-		var isNewGroup = argGroups.boundaries[groupIndex];
+		// A heading already separates this row from what came before, so the
+		// generic group divider on the same row would just double it up.
+		var isNewGroup = argGroups.boundaries[groupIndex] && sectionHeader === '';
 		groupIndex++;
 		var line =
 			"<tr id='" +
@@ -10665,8 +11147,22 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 			val['name'] +
 			(isNewGroup ? ' argRowGroupStart' : '') +
 			"'" +
+			// Tags the row with the section it belongs to so a whole section can
+			// be found (and, for Entry Properties, repositioned) later without
+			// relying on where it currently sits in the table.
+			(section !== ''
+				? " data-arg-section='" +
+					section.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/'/g, '&apos;') +
+					"'"
+				: '') +
 			rowStyle +
-			'><td>';
+			'>' +
+			// commandlist's content column stacks a taller block (rows/placeholder
+			// plus the Add Command button) below the label's single line of text -
+			// default middle valign centers the label against that whole stack
+			// instead of its top line, so it visibly drifts away from "Then Run:"/
+			// "Otherwise Run:". Pin it to the top so it lines up with the first line.
+			(val['type'] == 'commandlist' ? "<td class='align-top'>" : '<td>');
 		var subCommandInitFunc = null;
 
 		if (children.includes(val['name']))
@@ -10679,11 +11175,9 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 		// so a second copy of that row's own label here would just repeat it.
 		if (!val['toggleStyle']) {
 			line += val['description'] + ':';
-			if (typeof val['help'] === 'string' && val['help'] !== '') {
-				line +=
-					" <i class='fas fa-question-circle argHelpIcon' data-bs-toggle='tooltip' data-bs-placement='top' title='" +
-					val['help'].replace(/'/g, '&apos;') +
-					"'></i>";
+			var helpIcon = ArgHelpIcon(val['help']);
+			if (helpIcon !== '') {
+				line += helpIcon;
 				initFuncs.push('InitArgHelpTooltips');
 			}
 		}
@@ -10721,12 +11215,8 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				var opt0 = val['contents'][0];
 				var opt1 = val['contents'][1];
 				var toggleLabel = (typeof val['toggleLabel'] === 'string' && val['toggleLabel'] !== '') ? val['toggleLabel'] : val['description'];
-				var toggleHelp = '';
-				if (typeof val['help'] === 'string' && val['help'] !== '') {
-					toggleHelp =
-						" <i class='fas fa-question-circle argHelpIcon' data-bs-toggle='tooltip' data-bs-placement='top' title='" +
-						val['help'].replace(/'/g, '&apos;') +
-						"'></i>";
+				var toggleHelp = ArgHelpIcon(val['help']);
+				if (toggleHelp !== '') {
 					initFuncs.push('InitArgHelpTooltips');
 				}
 				line +=
@@ -10887,6 +11377,16 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				}
 				if (val['allowBlanks']) {
 					line += " data-allowblanks='true'";
+					// An unlabelled blank option reads as an empty row in the
+					// list; blankLabel names what picking it means (e.g.
+					// "-- None --" for an optional file). Carried on the element
+					// so ReloadContentList can rebuild the same placeholder.
+					if (typeof val['blankLabel'] === 'string' && val['blankLabel'] !== '') {
+						line +=
+							" data-blanklabel='" +
+							val['blankLabel'].replace(/'/g, '&apos;') +
+							"'";
+					}
 				}
 
 				if (typeof val['children'] === 'object') {
@@ -10914,7 +11414,12 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 
 				line += '>';
 				if (val['allowBlanks']) {
-					line += "<option value=''></option>";
+					line +=
+						"<option value=''>" +
+						(typeof val['blankLabel'] === 'string'
+							? val['blankLabel'].replace(/&/g, '&amp;').replace(/</g, '&lt;')
+							: '') +
+						'</option>';
 				}
 				line += '</select>';
 			}
@@ -11154,8 +11659,14 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 			if ($precedingRow.hasClass('argRowGroupStart')) {
 				$toggleRow.addClass('argRowGroupStart');
 			}
+			if (sectionHeader !== '') {
+				$(sectionHeader).insertBefore($precedingRow);
+			}
 			$toggleRow.insertBefore($precedingRow);
 		} else {
+			if (sectionHeader !== '') {
+				$('#' + tblCommand).append(sectionHeader);
+			}
 			$('#' + tblCommand).append(line);
 		}
 		if (typeof val['contentListUrl'] != 'undefined') {
@@ -11245,6 +11756,20 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				break;
 			}
 			$r.addClass('argRowGroupEnd');
+		}
+	});
+
+	// Drop the heading of any section whose rows are all hidden at the current
+	// UI level (see sectionRowCounts above) so it can't render as a label with
+	// nothing under it.
+	$('#' + tblCommand + ' tr.argSectionHeaderRow').each(function () {
+		var name = $(this).attr('data-arg-section');
+		// Only headings this call rendered are ours to remove: the playlist
+		// entry editor parks the Entry Properties block in the command-args
+		// tbody (see MoveEntryPropertiesToBottom), so a heading found here may
+		// belong to the entry, not to the command being rendered.
+		if (sectionRowCounts.hasOwnProperty(name) && !sectionRowCounts[name]) {
+			$(this).remove();
 		}
 	});
 
@@ -11377,7 +11902,14 @@ function ReloadContentList (baseUrl, inp) {
 
 	arg.empty();
 	if (allowblank) {
-		arg.append("<option value=''></option>");
+		var blankLabel = arg.data('blanklabel');
+		arg.append(
+			"<option value=''>" +
+				(typeof blankLabel === 'string'
+					? String(blankLabel).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+					: '') +
+				'</option>'
+		);
 	}
 	// Match the HTML escaping the initial (local) population uses so names
 	// containing &, <, or " do not break the option markup.

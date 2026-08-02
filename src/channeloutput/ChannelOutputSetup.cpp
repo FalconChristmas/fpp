@@ -288,14 +288,14 @@ bool skipOutputRangeCompute = false;
 static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
     Json::Value root;
     if (FileExists(cfgFile)) {
-        if (!LoadJsonFromFile(cfgFile, root)) {
+        if (!LoadJsonFromFile(cfgFile, root, JsonRoot::Object)) {
             if (!skipOutputRangeCompute) {
                 // this is a reload, it could still be writing the file so we'll wait a bit
                 // and try again
                 std::this_thread::sleep_for(std::chrono::milliseconds(5));
             }
-            if (!LoadJsonFromFile(cfgFile, root)) {
-                std::string warning = "Could not parse " + cfgFile + ". Some outputs may not work.";    
+            if (!LoadJsonFromFile(cfgFile, root, JsonRoot::Object)) {
+                std::string warning = "Could not parse " + cfgFile + ". Some outputs may not work.";
                 WarningHolder::AddWarning(26, warning);
                 outputLoadWarnings[cfgFile].insert(warning);
                 LogErr(VB_CHANNELOUT, "Error parsing %s\n", cfgFile.c_str());
@@ -473,7 +473,7 @@ int InitializeChannelOutputs(void) {
                                      std::string channelOutputsFile = FPP_DIR_CONFIG("/channeloutputs.json");
                                      if (FileExists(channelOutputsFile)) {
                                          Json::Value root;
-                                         if (LoadJsonFromFile(channelOutputsFile, root) && root.isMember("channelOutputs")) {
+                                         if (LoadJsonFromFile(channelOutputsFile, root, JsonRoot::Object) && root.isMember("channelOutputs")) {
                                              for (int i = 0; i < root["channelOutputs"].size(); i++) {
                                                  if (root["channelOutputs"][i]["type"].asString() == "LEDPanelMatrix" &&
                                                      root["channelOutputs"][i]["subType"].asString() == "BBBMatrix" &&
@@ -506,7 +506,7 @@ int InitializeChannelOutputs(void) {
     FileMonitor::INSTANCE.AddFile("outputprocessors.json", opfilename, [opfilename]() {
                              Json::Value newRoot;
                              if (FileExists(opfilename)) {
-                                 LoadJsonFromFile(opfilename, newRoot);
+                                 LoadJsonFromFile(opfilename, newRoot, JsonRoot::Object);
                              }
                              outputProcessors.loadFromJSON(newRoot);
                              ComputeOutputRanges();

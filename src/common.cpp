@@ -343,6 +343,98 @@ bool LoadJsonFromFile(const char* filename, Json::Value& root) {
     return LoadJsonFromFile(filenameStr, root);
 }
 
+static const char* JsonTypeName(Json::ValueType t) {
+    switch (t) {
+    case Json::nullValue:
+        return "null";
+    case Json::intValue:
+        return "int";
+    case Json::uintValue:
+        return "uint";
+    case Json::realValue:
+        return "real";
+    case Json::stringValue:
+        return "string";
+    case Json::booleanValue:
+        return "boolean";
+    case Json::arrayValue:
+        return "array";
+    case Json::objectValue:
+        return "object";
+    }
+    return "unknown";
+}
+
+bool LoadJsonFromFile(const std::string& filename, Json::Value& root, JsonRoot expected) {
+    Json::ValueType expectedType = (expected == JsonRoot::Array) ? Json::arrayValue : Json::objectValue;
+
+    if (!LoadJsonFromFile(filename, root)) {
+        root = Json::Value(expectedType);
+        return false;
+    }
+
+    // A null root is not a mismatch. jsoncpp treats null as an empty value of
+    // whatever type it is first used as and never throws on it, and FPP writes
+    // it itself - Variables::save() stores a default-constructed Json::Value,
+    // so a stock variables.json with nothing persisted is literally "null".
+    // Normalize it and report success, exactly as before this check existed.
+    if (root.isNull()) {
+        root = Json::Value(expectedType);
+        return true;
+    }
+
+    if (root.type() != expectedType) {
+        LogErr(VB_GENERAL, "JSON File %s has a %s at its root, expected %s - treating as empty\n",
+               filename.c_str(), JsonTypeName(root.type()), JsonTypeName(expectedType));
+        root = Json::Value(expectedType);
+        return false;
+    }
+
+    return true;
+}
+
+Json::Value LoadJsonFromFile(const std::string& filename, JsonRoot expected) {
+    Json::Value root;
+
+    LoadJsonFromFile(filename, root, expected);
+
+    return root;
+}
+
+bool LoadJsonFromString(const std::string& str, Json::Value& root, JsonRoot expected) {
+    Json::ValueType expectedType = (expected == JsonRoot::Array) ? Json::arrayValue : Json::objectValue;
+
+    if (!LoadJsonFromString(str, root)) {
+        root = Json::Value(expectedType);
+        return false;
+    }
+
+    // See LoadJsonFromFile() above - a null root is not a mismatch, it's
+    // normalized to an empty value of the expected shape and reported as
+    // success.
+    if (root.isNull()) {
+        root = Json::Value(expectedType);
+        return true;
+    }
+
+    if (root.type() != expectedType) {
+        LogErr(VB_GENERAL, "JSON string has a %s at its root, expected %s - treating as empty\n",
+               JsonTypeName(root.type()), JsonTypeName(expectedType));
+        root = Json::Value(expectedType);
+        return false;
+    }
+
+    return true;
+}
+
+Json::Value LoadJsonFromString(const std::string& str, JsonRoot expected) {
+    Json::Value root;
+
+    LoadJsonFromString(str, root, expected);
+
+    return root;
+}
+
 std::string SaveJsonToString(const Json::Value& root, const std::string& indentation) {
     Json::StreamWriterBuilder wbuilder;
     wbuilder["indentation"] = indentation;
@@ -683,6 +775,15 @@ bool RestartShouldResumePlaylist() {
 }
 void RegisterShutdownHandler(const std::function<void(bool)> hook) {
     SHUTDOWN_HOOK = hook;
+}
+
+static std::atomic<const char*> MAIN_LOOP_PHASE_STR{ "startup" };
+void SetMainLoopPhase(const char* phase) {
+    MAIN_LOOP_PHASE_STR.store(phase, std::memory_order_relaxed);
+}
+const char* GetMainLoopPhase() {
+    const char* p = MAIN_LOOP_PHASE_STR.load(std::memory_order_relaxed);
+    return p ? p : "?";
 }
 
 std::string GetFileExtension(const std::string& filename) {

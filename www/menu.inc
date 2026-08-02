@@ -105,6 +105,12 @@ function list_plugin_entries($menu)
                 $currentHeaderSensor = $settings['currentHeaderSensor'];
             }
 
+            if (isset($uiLevelOverrideActive) && $uiLevelOverrideActive) {
+                echo "<span class=\"headerBox\" id=\"header_uiLevelOverride\">"
+                    . "<a href=\"javascript:void(0)\" role=\"button\" onclick=\"ExitUiLevelOverride()\""
+                    . " title=\"Advanced, ~" . $uiLevelOverrideMinsLeft . " min remaining. Click to exit.\">"
+                    . "<i class=\"fas fa-unlock\"></i></a></span>";
+            }
             ?>
             <span class="headerBox" id="header_player"></span>
             <span class="headerBox" id="header_plugin_indicators"></span>
@@ -405,7 +411,7 @@ function list_plugin_entries($menu)
                                 <? if ($uiLevel >= 1) { ?>
                                     <a class="dropdown-item" href="packages.php"><i class="fas fa-box"></i> Packages </a>
                                 <? } ?>
-                                <? if ($uiLevel >= 2) { ?>
+                                <? if ($uiLevel >= 1) { ?>
                                     <a class="dropdown-item" href="variables.php"><i class="fas fa-tags"></i>
                                         Variables</a>
                                     <a class="dropdown-item" href="recurringtasks.php"><i class="fas fa-clock"></i>

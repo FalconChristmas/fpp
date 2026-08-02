@@ -28,7 +28,21 @@
 // toggleStyle/toggleLabel, and Command briefly gained a mid-vtable
 // disallowMultisync(). Plugins built against version 3 headers corrupt the heap
 // in Command::~Command and misdispatch getDescription() into the plugin's run().
-#define FPP_PLUGIN_API_VERSION 4
+//
+// Version 5 (FPP 10.0): Command::CommandArg gained a std::string section,
+// inserted between help and children - so it both grew sizeof(CommandArg) and
+// shifted children/toggleStyle/toggleLabel. Plugins built against version 4
+// headers hit the same heap corruption version 4 was introduced to stop.
+//
+// Version 5 is intended to be the LAST bump this file needs for Command or
+// CommandArg growth: both now carry a unique_ptr to an out-of-line struct
+// (Command::Data / CommandArg::Ext, defined in Commands.cpp) and new state goes
+// there, where plugins only ever see a pointer. Their sizes are additionally
+// published as fingerprint symbols the loader compares, so a slip is refused at
+// dlopen rather than corrupting the heap. Bump this only for a change the
+// pimpls cannot absorb - a new virtual on Command, or a change to one of the
+// frozen members.
+#define FPP_PLUGIN_API_VERSION 5
 
 // Plugins compiled with these headers will export their API version.
 // weak linkage allows multiple TUs to define this; visibility ensures .so export.

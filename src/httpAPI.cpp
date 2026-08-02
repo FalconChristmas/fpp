@@ -896,62 +896,6 @@ HttpResponsePtr PlayerResource::render_GET(const HttpRequestPtr& req) {
  */
 
 /**
- * Stop all running playlists.
- *
- * @route POST /api/fppd/playlists/stop
- * @response 200 All playlists stopped.
- */
-
-/**
- * Start a playlist by name.
- *
- * @route POST /api/fppd/playlists/{name}/start
- * @response 200 Playlist started.
- */
-
-/**
- * Stop a running playlist by name.
- *
- * @route POST /api/fppd/playlists/{name}/stop
- * @response 200 Playlist stopped.
- */
-
-/**
- * Skip to the next item in a running playlist.
- *
- * @route POST /api/fppd/playlists/{name}/nextItem
- * @response 200 Advanced to next item.
- */
-
-/**
- * Skip to the previous item in a running playlist.
- *
- * @route POST /api/fppd/playlists/{name}/prevItem
- * @response 200 Moved to previous item.
- */
-
-/**
- * Restart the current item in a running playlist.
- *
- * @route POST /api/fppd/playlists/{name}/restartItem
- * @response 200 Current item restarted.
- */
-
-/**
- * Jump to a named section (mainPlaylist, leadIn, leadOut) of a playlist.
- *
- * @route POST /api/fppd/playlists/{name}/section/{section}
- * @response 200 Jumped to section.
- */
-
-/**
- * Jump to a specific item index in a playlist.
- *
- * @route POST /api/fppd/playlists/{name}/item/{item}
- * @response 200 Jumped to item.
- */
-
-/**
  * Replace the active schedule.
  *
  * @route POST /api/fppd/schedule
@@ -963,62 +907,6 @@ HttpResponsePtr PlayerResource::render_GET(const HttpRequestPtr& req) {
  *
  * @route POST /api/fppd/volume/{volume}
  * @response 200 Object with the new `volume`.
- */
-
-/**
- * Start playing a sequence by name.
- *
- * @route POST /api/fppd/sequences/{name}/start
- * @response 200 Sequence started.
- */
-
-/**
- * Stop a running sequence by name.
- *
- * @route POST /api/fppd/sequences/{name}/stop
- * @response 200 Sequence stopped.
- */
-
-/**
- * Toggle pause on a running sequence (append /0 to resume, /1 to pause).
- *
- * @route POST /api/fppd/sequences/{name}/pause
- * @response 200 Pause state toggled.
- */
-
-/**
- * Step a paused sequence forward (optionally by /{frames}).
- *
- * @route POST /api/fppd/sequences/{name}/step
- * @response 200 Sequence stepped forward.
- */
-
-/**
- * Step a paused sequence backward (optionally by /{frames}).
- *
- * @route POST /api/fppd/sequences/{name}/back
- * @response 200 Sequence stepped backward.
- */
-
-/**
- * Reload all settings from disk.
- *
- * @route POST /api/fppd/settings/reload
- * @response 200 Settings reloaded.
- */
-
-/**
- * Reload a single setting from disk.
- *
- * @route POST /api/fppd/settings/reload/{setting}
- * @response 200 Setting reloaded.
- */
-
-/**
- * Restart the fppd daemon.
- *
- * @route POST /api/fppd/restart
- * @response 200 fppd restarting.
  */
 
 /**
@@ -1076,35 +964,6 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
         PostOutputs(data, result);
     } else if (url == "outputs/remap") {
         PostOutputsRemap(data, result);
-    } else if (replaceStart(url, "playlists/")) {
-        if (url == "stop") {
-            // Stop all running playlists
-            LogDebug(VB_HTTP, "API - Stopping all running playlists w/ content '%s'\n", getRequestContent(req).c_str());
-        } else if (endsWith(url, "/start")) {
-            // Start a playlist
-            replaceEnd(url, "/start", "");
-            LogDebug(VB_HTTP, "API - Starting playlist '%s' w/ content '%s'\n", url.c_str(), getRequestContent(req).c_str());
-        } else if (endsWith(url, "/nextItem")) {
-            replaceEnd(url, "/nextItem", "");
-            LogDebug(VB_HTTP, "API - Skipping to next entry in playlist '%s'\n", url.c_str());
-        } else if (endsWith(url, "/restartItem")) {
-            replaceEnd(url, "/restartItem", "");
-            LogDebug(VB_HTTP, "API - Restarting current item in playlist '%s'\n", url.c_str());
-        } else if (endsWith(url, "/prevItem")) {
-            replaceEnd(url, "/prevItem", "");
-            LogDebug(VB_HTTP, "API - Skipping to prev entry in playlist '%s'\n", url.c_str());
-        } else if (url.find("/section/") != std::string::npos) {
-            std::string playlistName = url.substr(0, url.find("/section/"));
-            std::string section = url.substr(url.rfind("/section/") + 6);
-            LogDebug(VB_HTTP, "API - Jumping to section '%s' in playlist '%s'\n", section.c_str(), url.c_str());
-        } else if (url.find("/item/") != std::string::npos) {
-            std::string playlistName = url.substr(0, url.find("/item/"));
-            int item = atoi(url.substr(url.rfind("/item/") + 6).c_str());
-            LogDebug(VB_HTTP, "API - Jumping to item %d in playlist '%s'\n", item, playlistName.c_str());
-        } else if (endsWith(url, "/stop")) {
-            replaceEnd(url, "/stop", "");
-            LogDebug(VB_HTTP, "API - Stopping playlist '%s' w/ content '%s'\n", url.c_str(), getRequestContent(req).c_str());
-        }
     } else if (url == "recurringtasks") {
         PostRecurringTasks(data, result);
     } else if (url == "schedule") {
@@ -1114,43 +973,6 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
         setVolume(volume);
         result["volume"] = volume;
         SetOKResult(result, "Volume set");
-    } else if (url.find("sequences/") == 0) {
-        replaceStart(url, "sequences/", "");
-
-        if (endsWith(url, "/start")) {
-            replaceEnd(url, "/start", "");
-            LogDebug(VB_HTTP, "API - Starting sequence '%s'\n", url.c_str());
-        } else if (endsWith(url, "/stop")) {
-            replaceEnd(url, "/stop", "");
-            LogDebug(VB_HTTP, "API - Stopping sequence '%s'\n", url.c_str());
-        } else if (endsWith(url, "/pause")) {
-            replaceEnd(url, "/pause", "");
-            LogDebug(VB_HTTP, "API - (un)Pausing sequence '%s'\n", url.c_str());
-        } else if (endsWith(url, "/pause/0")) {
-            LogDebug(VB_HTTP, "API - UnPausing sequence '%s'\n", url.c_str());
-        } else if (endsWith(url, "/pause/1")) {
-            LogDebug(VB_HTTP, "API - Pausing sequence '%s'\n", url.c_str());
-        } else if (endsWith(url, "/step")) {
-            replaceEnd(url, "/step", "");
-            LogDebug(VB_HTTP, "API - Stepping sequence '%s' by 1 frame\n", url.c_str());
-        } else if (endsWith(url, "/back")) {
-            replaceEnd(url, "/back", "");
-            LogDebug(VB_HTTP, "API - Stepping sequence '%s' BACK by 1 frame\n", url.c_str());
-        } else if (url.find("/step/") != std::string::npos) {
-            std::string sequenceName = url.substr(0, url.find("/step/"));
-            int frames = atoi(url.substr(url.find("/step/") + 6).c_str());
-            LogDebug(VB_HTTP, "API - Stepping sequence '%s' by %d frame(s)\n", sequenceName.c_str(), frames);
-        } else if (url.find("/back/") != std::string::npos) {
-            std::string sequenceName = url.substr(0, url.find("/back/"));
-            int frames = atoi(url.substr(url.find("/back/") + 6).c_str());
-            LogDebug(VB_HTTP, "API - Stepping sequence '%s' BACK by %d frame(s)\n", sequenceName.c_str(), frames);
-        }
-    } else if (url == "settings/reload") {
-        LogDebug(VB_HTTP, "API - Reloading all settings\n");
-    } else if (replaceStart(url, "settings/reload/")) {
-        LogDebug(VB_HTTP, "API - Reloading setting: %s\n", url.c_str());
-    } else if (url == "restart") {
-        LogDebug(VB_HTTP, "API - Restarting fppd daemon\n");
     } else if (url == "shutdown") {
         SetOKResult(result, "Shutting down fppd");
         ShutdownFPPD();
@@ -1227,12 +1049,6 @@ HttpResponsePtr PlayerResource::render_DELETE(const HttpRequestPtr& req) {
 /*
  *
  */
-/**
- * Update the runtime settings of a running playlist.
- *
- * @route PUT /api/fppd/playlists/{name}/settings
- * @response 200 Playlist settings updated.
- */
 HttpResponsePtr PlayerResource::render_PUT(const HttpRequestPtr& req) {
     LogRequest(req);
 
@@ -1248,26 +1064,12 @@ HttpResponsePtr PlayerResource::render_PUT(const HttpRequestPtr& req) {
 
     LogDebug(VB_HTTP, "PUT URL: %s %s\n", url.c_str(), req->query().c_str());
 
-    // Keep IF statement in alphabetical order
-    if (replaceStart(url, "playlists/")) {
-        if (endsWith(url, "/settings")) {
-            replaceEnd(url, "/settings", "");
+    // No PUT endpoints are currently implemented under /fppd/*.
+    LogErr(VB_HTTP, "API - Error unknown PUT request: %s\n", url.c_str());
 
-            LogDebug(VB_HTTP, "API - Updating runtime settings for playlist '%s'\n", url.c_str());
-        }
-    } else {
-        LogErr(VB_HTTP, "API - Error unknown PUT request: %s\n", url.c_str());
-
-        result["Status"] = "ERROR";
-        result["respCode"] = 404;
-        result["Message"] = std::string("endpoint fppd/") + url + " does not exist";
-    }
-
-    if (!result.isMember("Status")) {
-        result["Status"] = "ERROR";
-        result["respCode"] = 400;
-        result["Message"] = "PUT endpoint helper did not set result JSON";
-    }
+    result["Status"] = "ERROR";
+    result["respCode"] = 404;
+    result["Message"] = std::string("endpoint fppd/") + url + " does not exist";
 
     std::string resultStr = SaveJsonToString(result);
 
@@ -1440,8 +1242,10 @@ void PlayerResource::GetRecurringTasks(Json::Value& result) {
  * @param string value Optional - the Value field, only used when "comparator" is also given.
  * @param string not Optional - "true" to negate the result, only used when "comparator" is also given.
  * @response 200 {"found": true, "value": "..."} (source/name-only mode) or
- *           {"found": true, "value": "...", "rhsValue": "...", "result": true} (full-leaf mode) or
- *           {"found": false} if the source/name doesn't currently resolve.
+ *           {"found": true, "value": "...", "rhsValue": "...", "result": true} (full-leaf mode, LHS resolved) or
+ *           {"found": false, "rhsValue": "...", "result": true} (full-leaf mode, LHS not found - rhsValue/result
+ *           are still evaluated, since Value always evaluates and a missing LHS just yields `negate`) or
+ *           {"found": false} if the source/name doesn't currently resolve (source/name-only mode).
  */
 void PlayerResource::GetConditionPreview(const HttpRequestPtr& req, Json::Value& result) {
     std::string source = getRequestArg(req, "source");
@@ -1469,9 +1273,14 @@ void PlayerResource::GetConditionPreview(const HttpRequestPtr& req, Json::Value&
     result["found"] = lhsFound;
     if (lhsFound) {
         result["value"] = lhsValue;
-        result["rhsValue"] = rhsValue;
-        result["result"] = leafResult;
     }
+    // rhsValue/result are always resolvable (Value is unconditionally
+    // evaluated, and a not-found LHS still yields a definite result of
+    // `negate`), so return them regardless of lhsFound - lets the eye-preview
+    // modal show what Value evaluates to instead of stopping cold when only
+    // the LHS side is missing.
+    result["rhsValue"] = rhsValue;
+    result["result"] = leafResult;
     SetOKResult(result, "");
 }
 

@@ -743,7 +743,8 @@ if (is_dir($stringsDir)) {
             cmdTarget = name; cmdListIdx = -1;
             ShowCommandEditor('gpio_modal_' + name + '_new', {}, 'gpioCommandSaved', '', {
                 title: 'Add Command — ' + name.charAt(0).toUpperCase() + name.slice(1) + ' Edge',
-                saveButton: 'Add Command', cancelButton: 'Cancel', showPresetSelect: true
+                saveButton: 'Add Command', cancelButton: 'Cancel', showPresetSelect: true,
+                presetInsertsReference: true
             });
         }
 
@@ -751,7 +752,8 @@ if (is_dir($stringsDir)) {
             cmdTarget = name; cmdListIdx = idx;
             ShowCommandEditor('gpio_modal_' + name + '_' + idx, getModalList(name)[idx], 'gpioCommandSaved', '', {
                 title: 'Edit Command — ' + name.charAt(0).toUpperCase() + name.slice(1) + ' Edge',
-                saveButton: 'Save Command', cancelButton: 'Cancel', showPresetSelect: true
+                saveButton: 'Save Command', cancelButton: 'Cancel', showPresetSelect: true,
+                presetInsertsReference: true
             });
         }
 

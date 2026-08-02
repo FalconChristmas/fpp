@@ -798,7 +798,11 @@ function finalizeStatusJson($obj)
                 $verb = 'is';
             }
 
-            if ($settings['ShareCrashData'] == '0') {
+            // <= 0 rather than == 0: reports written while sending was enabled
+            // stay on disk after the user switches to "keep locally" (0) or
+            // "disabled" (-1), and telling them those will be uploaded is wrong
+            // in both cases.
+            if (intval($settings['ShareCrashData']) <= 0) {
                 $crWarning = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available, please submit to FPP developers or delete.";
             } else {
                 $crWarning = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available. " .

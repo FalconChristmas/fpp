@@ -694,7 +694,7 @@ void Scheduler::LoadScheduleFromFile(void) {
 
     std::string playlistFile;
 
-    Json::Value sch = LoadJsonFromFile(SCHEDULE_FILE);
+    Json::Value sch = LoadJsonFromFile(SCHEDULE_FILE, JsonRoot::Array);
     for (int i = 0; i < sch.size(); i++) {
         ScheduleEntry scheduleEntry;
         if (!scheduleEntry.LoadFromJson(sch[i]))

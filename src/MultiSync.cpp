@@ -803,7 +803,7 @@ static std::map<std::string, std::string> GetConfiguredOutputRanges() {
     std::map<std::string, std::vector<std::pair<uint32_t, uint32_t>>> byAddress;
 
     if (FileExists(FPP_DIR_CONFIG("/co-universes.json"))) {
-        Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"));
+        Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"), JsonRoot::Object);
         for (const auto& co : outputs["channelOutputs"]) {
             if (!co.isMember("universes")) {
                 continue;
@@ -953,7 +953,7 @@ void MultiSync::PerformHTTPDiscovery() {
     std::string subnetsStr = getSetting("MultiSyncHTTPSubnets");
 
     if (FileExists(FPP_DIR_CONFIG("/co-universes.json"))) {
-        Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"));
+        Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"), JsonRoot::Object);
         if (outputs.isMember("channelOutputs")) {
             for (int co = 0; co < outputs["channelOutputs"].size(); co++) {
                 if (outputs["channelOutputs"][co].isMember("universes")) {

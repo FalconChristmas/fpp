@@ -1333,6 +1333,30 @@ fi
 echo "FPP - Switching git clone to ${FPPBRANCH} branch"
 cd /opt/fpp
 git checkout ${FPPBRANCH}
+
+# Failsafe (image builds only): a shipped image MUST leave /opt/fpp on a real
+# tracking branch, never a detached HEAD. scripts/git_pull updates via
+# `git rebase @{u}`, which requires an upstream; a detached checkout -- what you
+# get from building a bare release TAG instead of its vX.Y branch -- breaks
+# every user's "Check for Updates" and makes www/common.php misreport the
+# version/branch. This is the last line of defense behind build-images.yml's
+# tag->branch resolver: fail the build loudly rather than publish an
+# un-updatable image (cf. CI run 30107796268, which shipped every 10.0-beta
+# image detached/on master). Normal (non-image) installs are unaffected.
+if [ "${isimage}" = "true" ]; then
+    CURBRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [ "${CURBRANCH}" = "HEAD" ] || [ -z "${CURBRANCH}" ]; then
+        echo "FPP - FATAL: /opt/fpp is in detached HEAD after 'git checkout ${FPPBRANCH}'." >&2
+        echo "             A release image must track a branch (e.g. v10.0-beta), not a tag." >&2
+        exit 1
+    fi
+    if ! git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+        echo "FPP - FATAL: branch '${CURBRANCH}' in /opt/fpp has no upstream; self-update would fail." >&2
+        exit 1
+    fi
+    echo "FPP - Image /opt/fpp on branch '${CURBRANCH}' tracking $(git rev-parse --abbrev-ref '@{u}' 2>/dev/null)"
+fi
+
 if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
     # force grabbing these upfront as the make -j4 may fail to fetch them due to locks
     # while initializing
@@ -1883,7 +1907,7 @@ EOF
     # 90s on every boot. The settings UI rewrites this line when external storage
     # is chosen, so commenting it by default loses no functionality.
     echo "#####################################" >> /etc/fstab
-    echo "#/dev/sda1     ${FPPHOME}/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
+    echo "#/dev/sda1     ${FPPHOME}/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=1000,gid=1000  0  0" >> /etc/fstab
     echo "#####################################" >> /etc/fstab
 
     #######################################
@@ -2127,6 +2151,14 @@ install_fpp_services() {
     if [ ! -f /etc/pipewire/client.conf ] && [ -f /usr/share/pipewire/client.conf ]; then
         cp /usr/share/pipewire/client.conf /etc/pipewire/client.conf
     fi
+
+    # NOTE: do not build/install upstream's GStreamer PipeWire plugin here.
+    # Replacing the distro plugin with a newer upstream one breaks audio
+    # outright unless it matches the libpipewire the process actually loads:
+    # a 1.6.0 plugin against the distro's 1.4.2 library leaves the pipewiresink
+    # stream node suspended, so playlists run silently with no error anywhere.
+    # scripts/build_pipewire_gst_plugin.sh is manual-only and version-guarded
+    # for that reason.  See upgrade/124 and upgrade/125.
 
     if $isimage; then
         mkdir -p /etc/networkd-dispatcher/initialized.d

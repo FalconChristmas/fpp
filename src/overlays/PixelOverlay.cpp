@@ -192,7 +192,7 @@ void PixelOverlayManager::loadModelMap() {
     std::string filename(FPP_DIR_CONFIG("/model-overlays.json"));
     if (FileExists(filename)) {
         Json::Value root;
-        bool result = LoadJsonFromFile(filename, root);
+        bool result = LoadJsonFromFile(filename, root, JsonRoot::Object);
         if (!result) {
             LogErr(VB_CHANNELOUT, "Error parsing model-overlays.json.");
             return;
@@ -394,7 +394,7 @@ void PixelOverlayManager::loadSubModelIndex() {
         return;
     }
     Json::Value root;
-    if (!LoadJsonFromFile(filename, root)) {
+    if (!LoadJsonFromFile(filename, root, JsonRoot::Object)) {
         LogErr(VB_CHANNELOUT, "Error parsing xlights-submodels.json.\n");
         return;
     }
@@ -412,7 +412,7 @@ void PixelOverlayManager::loadSubModelIndex() {
     std::string groupFile(FPP_DIR_CONFIG("/xlights-modelgroups.json"));
     if (FileExists(groupFile)) {
         Json::Value groot;
-        if (LoadJsonFromFile(groupFile, groot)) {
+        if (LoadJsonFromFile(groupFile, groot, JsonRoot::Object)) {
             Json::Value groups = groot["modelgroups"];
             for (int c = 0; c < groups.size(); c++) {
                 if (groups[c].isMember("Name")) {

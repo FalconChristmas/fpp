@@ -331,7 +331,7 @@ static void LoadPluginCommands(const std::string& dir) {
     std::string commandDir = FPP_DIR_PLUGIN("/" + dir + "/commands/");
     std::string descriptions = commandDir + "/descriptions.json";
     if (FileExists(descriptions)) {
-        Json::Value json = LoadJsonFromFile(descriptions);
+        Json::Value json = LoadJsonFromFile(descriptions, JsonRoot::Array);
         for (int x = 0; x < json.size(); x++) {
             Json::Value jscmd = json[x];
             ScriptCommand* cmd = new ScriptCommand(commandDir, jscmd);
@@ -603,6 +603,44 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName)
         dlclose(handle);
         return nullptr;
     }
+
+    // Second, independent gate: compare the plugin's compiled-in sizeof() for
+    // the two types it shares layout with against ours. The version number
+    // above only helps if somebody remembers to bump it, and twice now a member
+    // was added to CommandArg without one - a plugin then push_backs onto
+    // Command::args with its own smaller node size while Command::~Command
+    // destroys those nodes with the larger one, running ~string past the end of
+    // the plugin's allocation. This catches that even when the versions agree.
+    // Both types are pimpl'd as of version 5 so these should now never move,
+    // which makes this cheap to keep and loud if the freeze ever slips.
+    //
+    // Same provenance trick as above, but inverted: here a symbol resolving to
+    // libfpp's own copy is the expected case for a plugin that never includes
+    // Commands.h. It registers no commands, so there is no layout to disagree
+    // about and nothing to check.
+    auto abiSizeMatches = [&](const char* symbol, unsigned int coreSize, const char* what) {
+        unsigned int (*sfptr)();
+        *(void**)(&sfptr) = dlsym(handle, symbol);
+        Dl_info sizeInfo;
+        if (sfptr == nullptr || dladdr((void*)sfptr, &sizeInfo) == 0 ||
+            sizeInfo.dli_fbase != pluginInfo.dli_fbase) {
+            return true; // not the plugin's own symbol - nothing to compare
+        }
+        unsigned int pluginSize = sfptr();
+        if (pluginSize == coreSize) {
+            return true;
+        }
+        LogErr(VB_PLUGIN, "Plugin %s was built with a %u byte %s but FPP uses %u bytes. Please update and rebuild the plugin.\n",
+               shlibName.c_str(), pluginSize, what, coreSize);
+        WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (Command ABI mismatch - rebuild required)");
+        return false;
+    };
+    if (!abiSizeMatches("fpp_command_arg_abi_size", (unsigned int)sizeof(Command::CommandArg), "Command::CommandArg") ||
+        !abiSizeMatches("fpp_command_abi_size", (unsigned int)sizeof(Command), "Command")) {
+        dlclose(handle);
+        return nullptr;
+    }
+
     FPPPlugins::Plugin* p = fptr();
     if (p == nullptr) {
         LogErr(VB_PLUGIN, "Failed to create plugin from shlib %s\n", shlibName.c_str());

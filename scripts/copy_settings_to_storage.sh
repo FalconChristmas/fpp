@@ -18,6 +18,13 @@ if [ "$DIRECTION" == "TOUSB" -o "$DIRECTION" == "FROMUSB" ]; then
     FSTYPE=$(file -sL /dev/$DEVICE)
     EXTRA_ARGS=""
 
+    # FAT/exFAT have no on-disk ownership, so it must be set at mount time to match
+    # the *actual* fpp uid/gid (not hardcoded) -- the fpp uid has not been consistent
+    # across FPP's history (500 on older installs/images, 1000 since commit
+    # f8f2f1408 for Trixie compatibility). See issue #2782.
+    FPP_UID=$(id -u fpp)
+    FPP_GID=$(id -g fpp)
+
     mkdir -p /tmp/smnt
     if [[ "$FSTYPE" =~ "BTRFS" ]]; then
         mount -t btrfs -o noatime,nodiratime,compress=zstd,nofail /dev/$DEVICE /tmp/smnt
@@ -25,10 +32,10 @@ if [ "$DIRECTION" == "TOUSB" -o "$DIRECTION" == "FROMUSB" ]; then
         mount -t ext4 -o noatime,nodiratime,nofail /dev/$DEVICE /tmp/smnt
     elif [[ "$FSTYPE" =~ "FAT" ]]; then
         EXTRA_ARGS="--no-perms"
-        mount -t auto -o noatime,nodiratime,exec,nofail,uid=500,gid=500 /dev/$DEVICE /tmp/smnt
+        mount -t auto -o noatime,nodiratime,exec,nofail,uid=$FPP_UID,gid=$FPP_GID /dev/$DEVICE /tmp/smnt
     elif [[ "$FSTYPE" =~ "DOS" ]]; then
         EXTRA_ARGS="--no-perms"
-        mount -t auto -o noatime,nodiratime,exec,nofail,uid=500,gid=500 /dev/$DEVICE /tmp/smnt
+        mount -t auto -o noatime,nodiratime,exec,nofail,uid=$FPP_UID,gid=$FPP_GID /dev/$DEVICE /tmp/smnt
     else
         mount -t ext4 -o noatime,nodiratime,nofail /dev/$DEVICE /tmp/smnt
     fi
@@ -182,7 +189,7 @@ for action in $@; do
         rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/config/backups $DEST/config  2>&1 | IgnoreWarnings
         ;;
     "Configuration")
-        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* --exclude=fpp-info.json $SOURCE/* $DEST  2>&1 | IgnoreWarnings
         ;;
     *)
         echo -n "Unknown action $action"

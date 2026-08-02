@@ -64,6 +64,34 @@ Json::Value LoadJsonFromString(const std::string& str);
 bool LoadJsonFromString(const std::string& str, Json::Value& root);
 bool LoadJsonFromFile(const std::string& filename, Json::Value& root);
 bool LoadJsonFromFile(const char* filename, Json::Value& root);
+
+/*
+ * Load a config file and require its root to be the shape the caller expects.
+ *
+ * A file that parses cleanly but holds the wrong kind of value - an array where
+ * an object is expected, or the reverse - is a corrupt config, not usable data.
+ * Every jsoncpp accessor a caller reaches for next (operator[], isMember(),
+ * getMemberNames(), get()) throws Json::LogicError on that mismatch, and nothing
+ * in fppd catches it, so a single bad config file aborts the daemon. Checking
+ * here, where untrusted file data enters, keeps that throw unreachable.
+ *
+ * On any failure root is set to an empty value of the expected shape, so callers
+ * that ignore the return value iterate over nothing instead of aborting.
+ *
+ * These are separate overloads rather than a defaulted argument on the two
+ * versions above on purpose: adding a parameter would change those mangled names
+ * and break already-built plugins that link against them. The shape is an FPP
+ * enum rather than Json::ValueType so this header can keep using the Json::Value
+ * forward declaration instead of pulling jsoncpp into every includer.
+ */
+enum class JsonRoot {
+    Object,
+    Array
+};
+bool LoadJsonFromFile(const std::string& filename, Json::Value& root, JsonRoot expected);
+Json::Value LoadJsonFromFile(const std::string& filename, JsonRoot expected);
+bool LoadJsonFromString(const std::string& str, Json::Value& root, JsonRoot expected);
+Json::Value LoadJsonFromString(const std::string& str, JsonRoot expected);
 std::string SaveJsonToString(const Json::Value& root, const std::string& indentation = "");
 bool SaveJsonToString(const Json::Value& root, std::string& str, const std::string& indentation);
 bool SaveJsonToFile(const Json::Value& root, const std::string& filename, const std::string& indentation = "\t");
@@ -99,6 +127,13 @@ void ShutdownFPPD(bool restart = false);
 void RestartFPPDResumingPlaylist();
 bool RestartShouldResumePlaylist();
 void RegisterShutdownHandler(const std::function<void(bool)> hook);
+
+// Breadcrumb for the main-loop stall watchdog (issue #2727): the last call the
+// fppd main loop entered.  Pass a string literal (or any string with static
+// storage) -- the watchdog thread reads the pointer while the main loop is
+// wedged, so it must outlive the call that set it.
+void SetMainLoopPhase(const char* phase);
+const char* GetMainLoopPhase();
 
 void GetCurrentFPPDStatus(Json::Value& result);
 

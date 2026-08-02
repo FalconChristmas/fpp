@@ -73,6 +73,50 @@ cp -a mnt/etc/hostname tmp/etc
 echo "Saving machine-id"
 cp -a mnt/etc/machine-id tmp/etc
 
+# --- Reconcile fpp uid/gid with the incoming image --------------------------
+# The fpp user's uid/gid has not been consistent across FPP's history (500 on
+# older installs/images, 1000 since commit f8f2f1408 for Trixie compatibility).
+# We only need the NEW uid/gid (this image's own /etc/passwd, unambiguous --
+# no need to also track what it used to be); everything below just compares
+# against what's actually on disk/in fstab right now and fixes it if it
+# doesn't match, which is simpler and self-correcting regardless of history.
+# If the rsync below (which overwrites the real /etc/passwd wholesale) changes
+# the uid/gid, anything still owned by the old one becomes inaccessible to fpp
+# after reboot; the "chown -R fpp:fpp mnt/home/fpp" below fixes /home/fpp on
+# the root filesystem, but that's a non-recursive bind mount of / -- a
+# separately mounted drive underneath it (e.g. media on an external USB/SSD,
+# see /home/fpp/media in /etc/fstab) is invisible there and is handled below
+# instead. Same class of bug as issue #2782.
+NEW_FPP_UID=$(awk -F: -v u="${FPPUSER}" '$1==u{print $3}' /etc/passwd)
+NEW_FPP_GID=$(awk -F: -v u="${FPPUSER}" '$1==u{print $4}' /etc/passwd)
+
+if [ -n "${NEW_FPP_UID}" ] && [ -n "${NEW_FPP_GID}" ]; then
+    # FAT/exFAT synthesizes ownership from the mount's uid=/gid= options rather
+    # than storing it on disk, so a stale fstab entry (preserved verbatim by
+    # the --exclude=etc/fstab below) would mount with a stale uid/gid after
+    # reboot and lock ${FPPUSER} out of its own media. Match whatever uid=/gid=
+    # is currently there to the incoming image, whatever it used to be.
+    if grep -qE "/home/${FPPUSER}/media[[:space:]].*uid=[0-9]+,gid=[0-9]+" mnt/etc/fstab && \
+       ! grep -qE "/home/${FPPUSER}/media[[:space:]].*uid=${NEW_FPP_UID},gid=${NEW_FPP_GID}" mnt/etc/fstab; then
+        echo "FPP - Updating /home/${FPPUSER}/media mount options in fstab for the new uid/gid"
+        sed -i -E "s/(\/home\/${FPPUSER}\/media[^\n]*uid=)[0-9]+(,gid=)[0-9]+/\1${NEW_FPP_UID}\2${NEW_FPP_GID}/" mnt/etc/fstab
+    fi
+
+    # ext4/btrfs persist real ownership on disk (no mount-time uid= option to
+    # rewrite), so files written under a different uid need an explicit chown.
+    # Only needed when media is a separate mount -- when it's on the root
+    # filesystem, the chown below already covers it. Safe to do live/while
+    # mounted, same as the chown copy_settings_to_storage.sh does after a
+    # restore; chown on a currently-mounted FAT/exFAT filesystem is a no-op
+    # since its ownership isn't stored per-file, so this is harmless there too.
+    if mountpoint -q "mnt/home/${FPPUSER}/media"; then
+        CURRENT_MEDIA_UID=$(stat -c %u "mnt/home/${FPPUSER}/media" 2>/dev/null)
+        if [ -n "${CURRENT_MEDIA_UID}" ] && [ "${CURRENT_MEDIA_UID}" != "${NEW_FPP_UID}" ]; then
+            echo "FPP - Updating ownership of /home/${FPPUSER}/media to the new uid/gid"
+            chown -R "${NEW_FPP_UID}:${NEW_FPP_GID}" "mnt/home/${FPPUSER}/media" 2>/dev/null || true
+        fi
+    fi
+fi
 
 #remove some files that rsync won't copy over as they have the same timestamp and size, but are actually different
 #possibly due to ACL's or xtended attributes

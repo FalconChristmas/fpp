@@ -2,6 +2,7 @@
 $skipJSsettings = 1;
 require_once "common.php";
 require_once "common/oplog.inc.php";
+require_once "common/settings.php";
 // Ignore user aborts and allow the script to continue running
 session_write_close();
 ignore_user_abort(true);
@@ -86,6 +87,30 @@ $isRestore = stripos($direction, 'FROM') === 0;
 $hasConfig = stripos($flags, 'Configuration') !== false;
 if ($isRestore && $hasConfig && $backupRc === 0) {
     WriteSettingToFile('rebootFlag', '1');
+
+    // Apply service settings that need system-level setup (config files,
+    // service enable/start) so they survive the reboot.
+    // These are normally applied by handle_boot_actions on every boot, but
+    // that script only runs when BootActions is set — which is rare.
+    // Apply them here so the user doesn't need a second UI visit to get
+    // the services running after a restore.
+    //
+    // Must read these fresh from disk via ReadSettingFromFile(), not
+    // GetSettingValue(): the $settings array was populated from the old
+    // settings file when this request started, before the restore above
+    // overwrote it, so GetSettingValue() here would see pre-restore values.
+    if (ReadSettingFromFile('Service_MQTT_localbroker') === '1') {
+        SetupLocalMQTTBroker('1');
+    }
+    if (ReadSettingFromFile('Service_rsync') === '1') {
+        ApplySetting('Service_rsync', '1');
+    }
+    if (ReadSettingFromFile('Service_smbd_nmbd') === '1') {
+        ApplySetting('Service_smbd_nmbd', '1');
+    }
+    if (ReadSettingFromFile('Service_vsftpd') === '1') {
+        ApplySetting('Service_vsftpd', '1');
+    }
 }
 
 // The run's output goes into the fppd.log timeline, and the progress file is

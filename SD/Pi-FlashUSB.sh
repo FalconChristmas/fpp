@@ -1,10 +1,16 @@
 #! /bin/sh
 
+# Boot config directory -- see the matching block in scripts/common.  Probe for the
+# config file rather than the directory: a /boot/firmware directory can exist on
+# systems that do not boot from it.
 FPPBOOTDIR=/boot
-if [ -d "/boot/firmware" ]
-then
-    FPPBOOTDIR=/boot/firmware
-fi
+for __d in /boot/firmware /boot; do
+    if [ -f "${__d}/config.txt" ] || [ -f "${__d}/uEnv.txt" ] || [ -f "${__d}/extlinux/extlinux.conf" ]; then
+        FPPBOOTDIR="${__d}"
+        break
+    fi
+done
+unset __d
 
 echo "Checking for updated eeprom to allow booting from USB/NVMe"
 echo ""

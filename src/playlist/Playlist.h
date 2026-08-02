@@ -57,6 +57,11 @@ public:
     void ProcessMedia(void);
     int Cleanup(void);
 
+    // Refresh the lock-free snapshot the crash handler reads (see
+    // PlaylistDumpCrashState).  Called at the points where the section or
+    // position can change; cheap enough to not need gating.
+    void UpdateCrashSnapshot(void);
+
     int Play(const std::string& filename, const int position = -1, const int repeat = -1, const int scheduleEntry = -1, const int endPosition = -1);
 
     void InsertPlaylistAsNext(const std::string& filename, const int startPosition = -1, const int endPos = -1);
@@ -176,3 +181,12 @@ private:
 
 // Temporary singleton during conversion
 extern Playlist* playlist;
+
+// Write the last-known playing state to fd for a crash report.
+//
+// Reads a snapshot of plain scalars rather than the live Playlist, on purpose:
+// the crash handler cannot take m_playlistMutex (the faulting thread may hold
+// it, and blocking there hangs the process instead of producing a report), and
+// it cannot walk a std::string or vector that another thread is mid-update.
+// A field may be one update stale or torn; that is worth far more than nothing.
+void PlaylistDumpCrashState(int fd);

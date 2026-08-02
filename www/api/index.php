@@ -205,9 +205,11 @@ dispatch_get('/plugin', 'GetInstalledPlugins');
 dispatch_post('/plugin', 'InstallPlugin');
 dispatch_post('/plugin/fetchInfo', 'FetchPluginInfoProxy');
 dispatch_get('/plugin/popularity', 'GetPluginPopularity'); // keep above /plugin/:RepoName
+dispatch_get('/plugin/githubStats', 'GetPluginGitHubStats'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/fetchImage', 'PluginFetchImage'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/:RepoName', 'GetPluginInfo');
 dispatch_get('/plugin/:RepoName/icon', 'PluginServeIcon');
+dispatch_get('/plugin/:RepoName/page', 'GetPluginPageUrl');
 dispatch_delete('/plugin/:RepoName', 'UninstallPlugin');
 dispatch_get('/plugin/:RepoName/settings/:SettingName', 'PluginGetSetting');
 dispatch_put('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');
@@ -228,6 +230,8 @@ dispatch_get(array('/proxy/*/**', array("Ip", "urlPart")), 'GetProxiedURL');
 
 dispatch_get('/remotes', 'GetRemotes');
 dispatch_get('/remoteAction', 'remoteAction');
+
+dispatch_get('/geoip', 'GetGeoIP');
 
 dispatch_get('/sequence', 'GetSequences');
 dispatch_get('/sequence/current/step', 'GetSequenceStep');

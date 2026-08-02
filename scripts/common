@@ -39,11 +39,21 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     export BBBMODEL
 fi
 
+# Locate the directory holding the boot configuration.  Current Raspberry Pi and
+# BeagleBone 64 images mount the FAT boot partition at /boot/firmware, older ones
+# used /boot -- but the BeagleBone Black keeps its boot files in /boot on the root
+# filesystem while still shipping a /boot/firmware directory (ID.txt, START.HTM,
+# sysconf.txt), so testing for the directory picks the wrong one there.  Look for
+# the boot config file itself instead, newest layout first.  Kept in sync with
+# findBootConfigFile() in src/non-gpl/CapeUtils/CapeUtils.cpp.
 FPPBOOTDIR="/boot"
-if [ -d "/boot/firmware" ]
-then
-    FPPBOOTDIR="/boot/firmware"
-fi
+for __d in /boot/firmware /boot; do
+    if [ -f "${__d}/config.txt" ] || [ -f "${__d}/uEnv.txt" ] || [ -f "${__d}/extlinux/extlinux.conf" ]; then
+        FPPBOOTDIR="${__d}"
+        break
+    fi
+done
+unset __d
 
 PATHDIRS="${FPPDIR}/scripts/:${FPPBINDIR}/"
 if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPBINDIR}/fppd" ]; then

@@ -139,6 +139,12 @@ void AES67Manager::Shutdown() {
         m_rebuildThread.join();
     }
 
+    // Only now take the apply lock -- m_rebuildThread calls ApplyConfig(),
+    // so holding this across the join above would deadlock.  Taking it here
+    // still blocks until any in-flight ApplyConfig() (e.g. from a command
+    // thread) has finished, so we never tear down threads it is mid-rebuild.
+    std::lock_guard<std::mutex> applyLock(m_applyMutex);
+
     // Stop SAP threads
     m_sapAnnounceRunning.store(false);
     m_sapRecvRunning.store(false);
@@ -161,7 +167,7 @@ void AES67Manager::Shutdown() {
 // ──────────────────────────────────────────────────────────────────────────────
 bool AES67Manager::LoadConfig() {
     Json::Value root;
-    if (!LoadJsonFromFile(m_configPath, root)) {
+    if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
         LogWarn(VB_MEDIAOUT, "AES67Manager: Failed to load config from %s\n",
                 m_configPath.c_str());
         return false;
@@ -207,6 +213,12 @@ bool AES67Manager::LoadConfig() {
 // ApplyConfig — called from PHP API and boot sequence
 // ──────────────────────────────────────────────────────────────────────────────
 bool AES67Manager::ApplyConfig() {
+    // Serialize against concurrent ApplyConfig()/Shutdown()/Cleanup() calls -
+    // see m_applyMutex.  Without this, two callers can both get past the SAP
+    // thread joins below and both reach the std::thread assignments at the
+    // end, where assigning over a joinable thread calls std::terminate().
+    std::lock_guard<std::mutex> applyLock(m_applyMutex);
+
     if (!m_initialized.load()) {
         if (!Init()) {
             return false;
@@ -309,6 +321,8 @@ bool AES67Manager::ApplyConfig() {
 
 void AES67Manager::Cleanup() {
     LogInfo(VB_MEDIAOUT, "AES67Manager: Cleanup\n");
+
+    std::lock_guard<std::mutex> applyLock(m_applyMutex);
 
     m_sapAnnounceRunning.store(false);
     m_sapRecvRunning.store(false);

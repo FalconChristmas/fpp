@@ -20,6 +20,7 @@
 #include "Scheduler.h"
 #include "Variables.h"
 #include "Warnings.h"
+#include "commands/Condition.h"
 #include "common.h"
 #include "log.h"
 #include "mqtt.h"
@@ -106,6 +107,31 @@ static std::map<std::string, std::string> ComputeFppStatusVariables() {
     vars["fpp_volume"] = std::to_string(getVolume());
     vars["fpp_multisync"] = (multiSync && multiSync->isMultiSyncEnabled()) ? "1" : "0";
     vars["fpp_uptime_seconds"] = std::to_string((long long)(std::time(nullptr) - FPP_STARTUP_TIME));
+    vars["fpp_is_playing"] = Player::INSTANCE.IsPlaying() ? "1" : "0";
+    vars["fpp_was_scheduled"] = Player::INSTANCE.WasScheduled() ? "1" : "0";
+    vars["fpp_scheduler_enabled"] = (scheduler && scheduler->IsEnabled()) ? "1" : "0";
+    {
+        // Same "HH:MM" convention as the "Time" Condition source
+        // (Condition.cpp's CurrentTimeHHMM()) so a plain fpp_current_time
+        // comparison lines up with what that source's Value examples show.
+        // Date is ISO 8601 (YYYY-MM-DD) - unambiguous and sorts/compares
+        // correctly as a plain string. Day name matches strftime's locale-
+        // independent full weekday name (English), same as the rest of this
+        // list rather than the system locale.
+        static const char* kDayNames[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        static const char* kMonthNames[12] = { "January", "February", "March", "April", "May", "June",
+                                                "July", "August", "September", "October", "November", "December" };
+        std::time_t now = std::time(nullptr);
+        struct tm local;
+        localtime_r(&now, &local);
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%02d:%02d", local.tm_hour, local.tm_min);
+        vars["fpp_current_time"] = buf;
+        snprintf(buf, sizeof(buf), "%04d-%02d-%02d", local.tm_year + 1900, local.tm_mon + 1, local.tm_mday);
+        vars["fpp_current_date"] = buf;
+        vars["fpp_day_of_week"] = kDayNames[local.tm_wday];
+        vars["fpp_current_month"] = kMonthNames[local.tm_mon];
+    }
     vars["fpp_warning_count"] = std::to_string(WarningHolder::GetWarnings().size());
     if (scheduler) {
         vars["fpp_next_playlist"] = scheduler->GetNextPlaylistName();
@@ -152,7 +178,7 @@ void Variables::load() {
     if (!FileExists(file)) {
         return;
     }
-    Json::Value root = LoadJsonFromFile(file);
+    Json::Value root = LoadJsonFromFile(file, JsonRoot::Object);
     std::unique_lock<std::mutex> lock(m_lock);
     for (auto const& name : root.getMemberNames()) {
         VariableEntry e;
@@ -384,7 +410,7 @@ std::set<std::string> Variables::getReferencedNamesInConfig() {
     if (!FileExists(presetsFile)) {
         return referenced;
     }
-    Json::Value root = LoadJsonFromFile(presetsFile);
+    Json::Value root = LoadJsonFromFile(presetsFile, JsonRoot::Object);
     if (!root.isMember("commands")) {
         return referenced;
     }
@@ -496,13 +522,18 @@ void Variables::reportMqttVariables(Json::Value& root) {
  *
  * @route GET /api/variables
  * @param string validateExpression If set, validate this expression instead of listing variables.
+ * @param boolean conditionExpr If "true" alongside validateExpression, classify it the way the If
+ *   Check editor's Name/Value fields actually evaluate it (exact variable match / formula / inert
+ *   literal text) instead of a bare compile check.
  * @param boolean fpp If "true", list the read-only fpp- status variables instead of User Variables.
  * @param boolean mqtt If "true", list the read-only mqtt-<topic> variables (MQTT's own last-message-
  *   per-topic cache) instead of User Variables.
  * @response 200 Object keyed by variable name, each with `value`, `truncated`,
  *   `persist`, `lastUpdated` (unix timestamp) and `used` (true if referenced
  *   anywhere in config/commandPresets.json, either as a Set Variable target or
- *   via %VAR:name%). If `validateExpression` was passed, `{"valid": true|false}`
+ *   via %VAR:name%). If `validateExpression` was passed, `{"valid": true|false,
+ *   "kind": "formula"|"template"|"literal"}` (or, with `conditionExpr=true`,
+ *   `{"valid": true|false, "kind": "variable"|"formula"|"literal"}`)
  *   instead. If `fpp=true`, each entry has `value`/`truncated`/`lastUpdated`
  *   (no persist/used - these are live-computed, not stored; `lastUpdated` is
  *   approximated as the last time this endpoint observed the value actually
@@ -547,16 +578,46 @@ HttpResponsePtr Variables::render_GET(const HttpRequestPtr& req) {
     // nonexistent one is correctly flagged invalid.
     std::string exprArg = getRequestArg(req, "validateExpression");
     if (!exprArg.empty()) {
-        ExpressionProcessor proc;
-        std::map<std::string, ExpressionProcessor::ExpressionVariable> boundVars;
-        for (auto const& varName : getAllVariableNames()) {
-            auto inserted = boundVars.try_emplace(varName, varName);
-            inserted.first->second.setValue(getVariable(varName));
-            proc.bindVariable(&inserted.first->second);
-        }
-        bool valid = proc.compile(exprArg);
         Json::Value result;
-        result["valid"] = valid;
+        // conditionExpr=true: the If Check editor's Name/Value fields, which
+        // go through ConditionNode::ClassifyNameOrExpression's auto-detect at
+        // runtime (Condition.cpp's EvaluateNameOrExpression) rather than a
+        // bare ExpressionProcessor::compile() - a raw compile() call always
+        // "succeeds" on ordinary unmatched text (it's just treated as inert
+        // literal, per that function's own documented behavior), so it can't
+        // tell a real variable match, an actual formula, and a typo'd/
+        // unmatched name apart the way the Check editor's icon needs to.
+        if (getRequestArg(req, "conditionExpr") == "true") {
+            bool compileOk = true;
+            auto kind = ConditionNode::ClassifyNameOrExpression(exprArg, compileOk);
+            result["valid"] = compileOk;
+            result["kind"] = kind == ConditionNode::ExpressionKind::Variable ? "variable" : (kind == ConditionNode::ExpressionKind::Formula ? "formula" : "literal");
+        } else {
+            // Set Variable's "Expression" field (VariableCommands.cpp's
+            // SetVariableCommand::run(), type=="Expression" branch) really is
+            // just a bare ExpressionProcessor::compile() call with no
+            // auto-detect - so validating it the same way here is correct,
+            // not a shortcut.
+            ExpressionProcessor proc;
+            std::map<std::string, ExpressionProcessor::ExpressionVariable> boundVars;
+            for (auto const& varName : getAllVariableNames()) {
+                auto inserted = boundVars.try_emplace(varName, varName);
+                inserted.first->second.setValue(getVariable(varName));
+                proc.bindVariable(&inserted.first->second);
+            }
+            result["valid"] = proc.compile(exprArg);
+            // ExpressionProcessor::compile() treats anything not starting with
+            // '=' (and with no embedded "==...=="/"%%...%%" markers) as inert
+            // literal text to store verbatim - it always "compiles" fine, so a
+            // bare variable name like "outsideTemp" (meant to reference that
+            // variable's value) silently becomes the literal string
+            // "outsideTemp" instead. A plain valid:true can't distinguish that
+            // mistake from an intentional formula, so flag it here for the
+            // frontend to warn about instead of showing a bare green check.
+            bool looksLikeFormula = exprArg.size() > 1 && exprArg[0] == '=' && exprArg[1] != '=';
+            bool hasEmbeddedMarker = exprArg.find("==") != std::string::npos || exprArg.find("%%") != std::string::npos;
+            result["kind"] = looksLikeFormula ? "formula" : (hasEmbeddedMarker ? "template" : "literal");
+        }
         std::string resultStr = SaveJsonToString(result);
         return makeStringResponse(resultStr, 200, "application/json");
     }

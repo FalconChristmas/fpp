@@ -117,7 +117,7 @@ void OpusRTPManager::Shutdown() {
 // ──────────────────────────────────────────────────────────────────────────────
 bool OpusRTPManager::LoadConfig() {
     Json::Value root;
-    if (!LoadJsonFromFile(m_configPath, root)) {
+    if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
         LogWarn(VB_MEDIAOUT, "OpusRTPManager: Failed to load config from %s\n",
                 m_configPath.c_str());
         return false;

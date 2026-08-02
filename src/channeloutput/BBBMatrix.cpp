@@ -505,7 +505,7 @@ int BBBMatrix::Init(Json::Value config) {
         return 0;
     } else {
         LogDebug(VB_CHANNELOUT, "Using panel pinout from %s\n", filename);
-        if (!LoadJsonFromFile(filename, root)) {
+        if (!LoadJsonFromFile(filename, root, JsonRoot::Object)) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s - %s\n", name.c_str(), filename);
             WarningHolder::AddWarning(50, "LED panel output: could not read pin configuration for " + name);
             return 0;

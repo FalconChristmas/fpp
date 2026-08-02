@@ -256,6 +256,21 @@ private:
     // tearing anything else down -- see Shutdown() and SAPAnnounceLoop().
     std::thread m_rebuildThread;
 
+    // Serializes the whole tear-down/rebuild sequence in ApplyConfig(),
+    // Shutdown() and Cleanup().  ApplyConfig() joins the SAP threads at the
+    // top and re-creates them ~70 lines later, after loading config and
+    // building pipelines; that window is wide, and ApplyConfig() has three
+    // independent callers (the boot sequence, AES67ApplyCommand::run on a
+    // command thread, and m_rebuildThread from the watchdog).  Two overlapping
+    // calls both pass the join, then both assign m_sapAnnounceThread -- and
+    // assigning over a still-joinable std::thread is an unconditional
+    // std::terminate().
+    //
+    // Shutdown() must join m_rebuildThread BEFORE taking this lock: that
+    // thread calls ApplyConfig(), so holding the lock across the join would
+    // deadlock.
+    std::mutex m_applyMutex;
+
     // Pipeline management
     std::map<int, AES67Pipeline> m_sendPipelines;    // keyed by instance ID
     std::map<int, AES67Pipeline> m_recvPipelines;

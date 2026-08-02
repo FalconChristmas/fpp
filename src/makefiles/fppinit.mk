@@ -4,7 +4,7 @@ OBJECTS_fppinit += \
 
 TARGETS += fppinit
 OBJECTS_ALL+=$(OBJECTS_fppinit)
-LIBS_fppinit = -ljsoncpp -lsystemd
+LIBS_fppinit = -ljsoncpp -lsystemd $(LIBS_GPIO_ADDITIONS)
 
 ifeq '$(BUILD_FPPCAPEDETECT)' '1'
 CXXFLAGS_boot/FPPINIT.o+=-DCAPEDETECT=1

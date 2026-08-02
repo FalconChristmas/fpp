@@ -654,6 +654,21 @@ int StartMediaOutput(const std::string& filename, int msTime) {
         multiSync->SendMediaSyncStartPacket(out->m_mediaFilename);
     }
 
+    // mediaOutputStatus is global and shared by every media output, and only
+    // Process() ever writes the elapsed fields -- so until the new pipeline
+    // reports its first position they still describe the *previous* item.  On a
+    // synced remote that stale value is actively dangerous: the first sync
+    // packet after a clip change hands AdjustSpeed() a ~15s "local position"
+    // against a master position of ~1s, it reads that as 14s out of sync and
+    // issues a flushing seek into a pipeline that has not even prerolled yet
+    // (issue #2727).  Start every item from zero instead; AdjustSpeed()'s own
+    // "not playing yet" guard then holds until a real position arrives.
+    mediaOutputStatus.mediaSeconds = 0.0;
+    mediaOutputStatus.secondsElapsed = 0;
+    mediaOutputStatus.subSecondsElapsed = 0;
+    mediaOutputStatus.secondsRemaining = 0;
+    mediaOutputStatus.subSecondsRemaining = 0;
+
     LogWarn(VB_MEDIAOUT, "StartMediaOutput: Calling Start(%d) on mediaOutput=%p\n", msTime, out);
     if (!out->Start(msTime)) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", out->m_mediaFilename.c_str());

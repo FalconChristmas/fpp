@@ -16,6 +16,7 @@
 #include "fpphttp_types.h"
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
 #include <span>
 #include <string>
@@ -71,18 +72,37 @@ public:
 
     virtual std::unique_ptr<Result> run(const std::vector<std::string>& args) = 0;
 
+    // LAYOUT RULE: sizeof(CommandArg) is frozen as of plugin API version 5.
+    //
+    // Plugins build this type and push_back it onto Command::args; std::list
+    // instantiates the node (sizeof(CommandArg) + two pointers) inside the
+    // *plugin*, while FPP walks and destroys those nodes with its own idea of
+    // the size. Every past mismatch corrupted the heap in the field. So: do NOT
+    // add, remove, or reorder a data member below. Anything new goes in Ext,
+    // which lives in Commands.cpp and can grow freely because plugins only ever
+    // see a pointer to it. fpp_command_arg_abi_size() (bottom of this file)
+    // enforces this at plugin load, so a slip here refuses to load rather than
+    // corrupting memory - but it is a backstop, not a licence.
     class CommandArg {
     public:
-        CommandArg(const std::string& n, const std::string& t, const std::string& d, bool o = false) :
-            name(n),
-            type(t),
-            description(d),
-            optional(o),
-            min(-1),
-            max(-1),
-            allowBlanks(false),
-            adjustable(false),
-            advanced(false) {}
+        // Out-of-line for the same reason as the special members below: even
+        // though it never touches ext, the compiler still needs ~unique_ptr<Ext>
+        // here to unwind if a later member's construction throws.
+        CommandArg(const std::string& n, const std::string& t, const std::string& d, bool o = false);
+
+        // Out-of-line so that Ext stays incomplete here. This is load-bearing
+        // twice over: an implicitly-generated one would fail to compile in any
+        // TU that lacks Ext, and routing them through libfpp is what keeps a
+        // plugin's std::list<CommandArg> teardown on FPP's implementation
+        // rather than its own possibly-stale copy.
+        CommandArg(const CommandArg& o);
+        CommandArg(CommandArg&& o) noexcept;
+        ~CommandArg();
+        // Already implicitly deleted by the const members below; stated so a
+        // later edit that drops the const does not silently resurrect them
+        // with an Ext-aliasing shallow copy.
+        CommandArg& operator=(const CommandArg&) = delete;
+        CommandArg& operator=(CommandArg&&) = delete;
 
         CommandArg& setRange(int mn, int mx) {
             min = mn;
@@ -118,55 +138,61 @@ public:
             adjustable = true;
             return *this;
         }
+        // ---- Ext-backed fields ------------------------------------------
+        // Everything below is stored in Ext (Commands.cpp), not in this object,
+        // so it can change freely without moving anyone's members. These are
+        // every field added after plugin API version 3; they all landed between
+        // 2026-07-23 and 2026-07-27, and API version 5 already forces a plugin
+        // rebuild, so this was the moment to get them behind the pointer before
+        // anything depended on their offsets. Add new fields here, never above.
+        // The setter signatures are unchanged, so call sites are untouched.
+
         // Maps a value of this arg to the names of other args that are only
         // relevant when this arg has that value (e.g. "type" == "Random" ->
         // show "min"/"max"). Frontend hides every listed child arg's row
         // until its parent's value matches, mirroring the same mechanism
         // already used by the playlist-entry-type editor (fpp.js
         // UpdateChildVisibility) for CommandArg-driven UIs generally.
-        CommandArg& setChildren(std::map<std::string, std::vector<std::string>> c) {
-            children = std::move(c);
-            return *this;
-        }
+        CommandArg& setChildren(std::map<std::string, std::vector<std::string>> c);
+        const std::map<std::string, std::vector<std::string>>& getChildren() const;
         // Hides this arg's row unless FPP's global UI Level setting is
         // "Advanced" (frontend: fpp.js PrintArgInputs already checks
         // val.advanced, this was simply never set from any Command until now).
-        CommandArg& setAdvanced(bool a = true) {
-            advanced = a;
-            return *this;
-        }
+        CommandArg& setAdvanced(bool a = true);
+        bool isAdvanced() const;
         // Extra explanatory text shown as a hover tooltip next to the label -
         // for when the short description isn't enough room to explain a
         // field properly. Reuses the same Bootstrap tooltip mechanism
         // (data-bs-toggle="tooltip" + .tooltip()) already used elsewhere in
         // fpp.js (the command-preset preview icon), just newly wired into
         // the generic per-arg renderer.
-        CommandArg& setHelp(const std::string& h) {
-            help = h;
-            return *this;
-        }
+        CommandArg& setHelp(const std::string& h);
+        const std::string& getHelp() const;
+        // Groups this arg under a named heading alongside any other
+        // consecutive args sharing the same section (fpp.js PrintArgInputs -
+        // ported from the playlist-entry-editor's Primary Media / Extra
+        // Media / Entry Properties sections). Purely presentational.
+        CommandArg& setSection(const std::string& s);
+        const std::string& getSection() const;
         // Renders a 2-option contentList as a Bootstrap btn-check pill toggle
         // (matching the If command's own Match ALL/ANY condition toggle)
         // instead of the generic <select> - opt-in only, so every other
         // contentList-backed arg elsewhere in the app keeps its existing
         // dropdown rendering unchanged.
-        CommandArg& setToggleStyle(bool t = true) {
-            toggleStyle = t;
-            return *this;
-        }
+        CommandArg& setToggleStyle(bool t = true);
+        bool isToggleStyle() const;
         // Overrides the label shown next to a toggleStyle arg's own toggle
         // (fpp.js renders it inline, e.g. "Order:", matching the condition
         // editor's own "Match:" label) instead of reusing this arg's
         // description - the description is still what labels the row this
         // toggle is rendered directly above (e.g. "Then Run"), so reusing it
         // here too would just repeat the same text twice.
-        CommandArg& setToggleLabel(const std::string& l) {
-            toggleLabel = l;
-            return *this;
-        }
+        CommandArg& setToggleLabel(const std::string& l);
+        const std::string& getToggleLabel() const;
 
-        ~CommandArg() {}
-
+        // ---- FROZEN AT API VERSION 5 - see the LAYOUT RULE above ----------
+        // This is exactly the plugin API version 3 member set, the last one that
+        // was ever in the field long enough to matter.
         const std::string name;
         const std::string type;
         const std::string description;
@@ -180,17 +206,57 @@ public:
         std::string defaultValue;
         std::string adjustableGetValueURL;
         bool adjustable;
-        bool advanced;
-        std::string help;
-        std::map<std::string, std::vector<std::string>> children;
-        bool toggleStyle = false;
-        std::string toggleLabel;
+
+    private:
+        // ---- everything new goes here, in Commands.cpp -------------------
+        // Allocated on first use: most args set no extended field, and they
+        // should not pay for one.
+        struct Ext;
+        Ext& mutableExt();
+        std::unique_ptr<Ext> ext;
+        // ---- nothing may follow ext ---------------------------------------
     };
 
+    // ---- FROZEN AT API VERSION 5 --------------------------------------------
+    // Same rule as CommandArg, and for a sharper reason: plugins *subclass*
+    // Command, so a member added here shifts every member of their derived
+    // class. New base-class state goes in Data (Commands.cpp) instead.
+    // Note sizeof(std::list) does not depend on its element type, so args stays
+    // put no matter how CommandArg's Ext grows.
     std::string name;
     std::list<CommandArg> args;
     std::string description;
+
+private:
+    struct Data;
+    std::unique_ptr<Data> data; // allocated on first use, like CommandArg::ext
+    // ---- nothing may follow data --------------------------------------------
 };
+
+// ABI fingerprints, checked by PluginManager::loadPlugin().
+//
+// The Ext/Data pimpls above are what make these two sizes stay put; these are
+// what prove it. CommandArg grew twice without FPP_PLUGIN_API_VERSION being
+// bumped (advanced/help/children/toggleStyle/toggleLabel, then section), and
+// both times the result was heap corruption in the field. Relying on a human to
+// remember the bump has visibly not worked, so the sizes travel with the header
+// and the loader compares them.
+//
+// Emitted weak + default-visibility so every plugin that includes this header
+// exports its own compiled-in values; libfpp defines them too, and the loader
+// uses dladdr() provenance to tell "the plugin disagrees with us" (reject) from
+// "the plugin never touches commands" (nothing to check). Optional by
+// construction - a plugin that does not include Commands.h is unaffected.
+#ifdef __cplusplus
+extern "C" {
+__attribute__((weak, visibility("default"))) unsigned int fpp_command_arg_abi_size() {
+    return (unsigned int)sizeof(Command::CommandArg);
+}
+__attribute__((weak, visibility("default"))) unsigned int fpp_command_abi_size() {
+    return (unsigned int)sizeof(Command);
+}
+}
+#endif
 
 class CommandManager {
 public:

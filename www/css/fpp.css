@@ -2761,11 +2761,13 @@ table#fppSystemsTable > thead > tr:last-child > td {
 	margin-top: 5px;
 }
 
-[data-bs-theme='light'] .panelMatrix-tab-content .divLEDPanelsLayoutData {
+[data-bs-theme='light'] .panelMatrix-tab-content .divLEDPanelsLayoutData,
+[data-bs-theme='light'] .panelMatrix-tab-content .divPanelSettingsSection {
 	background-color: whitesmoke;
 }
 
-.panelMatrix-tab-content .divLEDPanelsLayoutData {
+.panelMatrix-tab-content .divLEDPanelsLayoutData,
+.panelMatrix-tab-content .divPanelSettingsSection {
 	border-radius: 10px;
 	padding: 10px;
 	margin-top: 5px;
@@ -3340,6 +3342,17 @@ pre.testData,
 	text-align: left;
 }
 
+/* Default Bootstrap .tooltip-inner is capped at 200px, too narrow for
+   anything past a short sentence (e.g. Set Variable's "Set To" bulleted
+   list). A wider cap doesn't affect short tooltip content elsewhere - it's
+   just an upper bound, so raising it app-wide is safe rather than scoping to
+   one class. No Bootstrap utility covers max-width on a library-generated
+   tooltip node. Capped at 90vw too so it can't overflow a narrow phone
+   viewport. */
+.tooltip-inner {
+	max-width: min(320px, 90vw);
+}
+
 /* Signal strength styling */
 
 .text-success {
@@ -3452,6 +3465,18 @@ pre.testData,
 
 .arg_note {
 	width: 100%;
+}
+
+/* The playlist entry editor (playlists.php "New Entry" / "Edit Entry") lays its
+   args out in a 2-column table that is sized by its content, so a single very
+   long media or sequence filename in a <select> stretches the value column
+   until every label - and its help icon - is squeezed into 2-3 wrapped lines.
+   Capping the controls keeps the label column readable. Functional layout
+   constraint, not a cosmetic tweak: no Bootstrap utility caps at a px/rem
+   width. */
+#playlistEntryProperties select,
+#playlistEntryProperties input[type='text'] {
+	max-width: 32rem;
 }
 
 .fppSystemsUiSettings {
@@ -4581,4 +4606,15 @@ pre.testData,
 	line-clamp: 2;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
+}
+
+/* Generic utility: centers only an input/textarea's placeholder text,
+   leaving an actual typed/picked value left-aligned via the field's own
+   default text-align - not achievable with a Bootstrap utility class, since
+   ::placeholder can't be targeted that way. Not component-specific -
+   apply to any field whose placeholder reads better centered (e.g. a
+   "-- Select X --" prompt). First used by the insert-variable helpers in
+   RenderSharedExpressionValueHelper/RenderVarInsertHelper (fpp.js). */
+.placeholder-center::placeholder {
+	text-align: center;
 }

@@ -133,28 +133,47 @@ resolve_rcn_image_url() {
     local listing="$1" board="$2" date_dir="$3" name="$4"
     case "$listing" in */) ;; *) listing="${listing}/" ;; esac
 
-    if [ -z "$date_dir" ]; then
-        # Newest dated subdir (rcn-ee keeps ~5). Listing rows look like
-        # <a href="2026-06-24/">.
-        date_dir="$(wget -qO- "$listing" \
+    # Candidate dated dirs, newest first. A pinned date narrows to just that one;
+    # otherwise we walk rcn-ee's dated builds newest->oldest. rcn-ee populates a
+    # new dated dir incrementally, so the newest dir can exist while our board
+    # image has not been uploaded into it yet -- fall back to the previous
+    # complete build instead of hard-failing (CI run 30107796268 hit this race:
+    # the 2026-07-24 dir existed but had no pocketbeagle2 image at build time).
+    local candidates
+    if [ -n "$date_dir" ]; then
+        candidates="$date_dir"
+    else
+        # Listing rows look like <a href="2026-06-24/">.
+        candidates="$(wget -qO- "$listing" \
             | grep -oE '"[0-9]{4}-[0-9]{2}-[0-9]{2}/"' \
             | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' \
-            | sort -V | uniq | tail -n1)"
-        [ -n "$date_dir" ] || { echo "resolve: no dated build under $listing" >&2; return 1; }
+            | sort -Vr | uniq)"
+        [ -n "$candidates" ] || { echo "resolve: no dated build under $listing" >&2; return 1; }
     fi
 
-    if [ -z "$name" ]; then
-        # Pick the board image. Anchoring on "<board>-debian-" excludes both the
-        # *.sha256sum sidecars and the pocketbeagle2-workshop variant.
-        name="$(wget -qO- "${listing}${date_dir}/" \
-            | grep -oE 'href="[^"]+\.img\.xz"' \
-            | sed -E 's/^href="//; s/"$//' \
-            | grep -E "^${board}-debian-.*\.img\.xz$" \
-            | sort -V | uniq | tail -n1)"
-        [ -n "$name" ] || { echo "resolve: no ${board}-debian-*.img.xz under ${listing}${date_dir}/" >&2; return 1; }
-    fi
+    local d found
+    for d in $candidates; do
+        if [ -n "$name" ]; then
+            # Caller pinned the exact filename; trust it in this dated dir.
+            found="$name"
+        else
+            # Pick the board image. Anchoring on "<board>-debian-" excludes both
+            # the *.sha256sum sidecars and the pocketbeagle2-workshop variant.
+            found="$(wget -qO- "${listing}${d}/" \
+                | grep -oE 'href="[^"]+\.img\.xz"' \
+                | sed -E 's/^href="//; s/"$//' \
+                | grep -E "^${board}-debian-.*\.img\.xz$" \
+                | sort -V | uniq | tail -n1)"
+        fi
+        if [ -n "$found" ]; then
+            echo "${listing}${d}/${found}"
+            return 0
+        fi
+        echo "resolve: no ${board}-debian-*.img.xz under ${listing}${d}/ -- trying older build" >&2
+    done
 
-    echo "${listing}${date_dir}/${name}"
+    echo "resolve: no ${board}-debian-*.img.xz in any dated build under $listing" >&2
+    return 1
 }
 
 # Diagnostics go to stderr so --print-base-image-url emits ONLY the URL on stdout.

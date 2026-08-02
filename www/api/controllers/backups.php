@@ -219,18 +219,37 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 	$fsType = exec($SUDO . $nsEnter . ' file -sL /dev/' . $deviceName, $fsTypeOutput, $fsTypeResultCode);
 
 	$mountCmd = '';
+	$isFatMount = false;
 	// Same mount options used in scripts/copy_settings_to_storage.sh
 	if (preg_match('/BTRFS/', $fsType)) {
 		$mountCmd = "mount -t btrfs -o noatime,nodiratime,compress=zstd,nofail /dev/$deviceName $mountPath";
 	} else if ((preg_match('/FAT/', $fsType)) ||
 		(preg_match('/DOS/', $fsType))) {
-		$mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,uid=500,gid=500 /dev/$deviceName $mountPath";
+		// FAT/exFAT have no on-disk ownership, so it must be set at mount time to
+		// match the *actual* fpp uid/gid (not hardcoded) -- otherwise the rsyncd
+		// [remote_filecopy] module (which drops privileges to the real fpp uid)
+		// can't write into the mount. See issue #2782.
+		$isFatMount = true;
+		$fppIds = GetFPPUserIds();
+		$mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,uid=" . $fppIds['uid'] . ",gid=" . $fppIds['gid'] . " /dev/$deviceName $mountPath";
 	} else {
 		// Default to ext4
 		$mountCmd = "mount -t ext4 -o noatime,nodiratime,nofail /dev/$deviceName $mountPath";
 	}
 
 	exec($SUDO . $nsEnter . ' ' . $mountCmd, $mountCmdOutput, $mountCmdResultCode);
+
+	// Unlike FAT/exFAT, ext4/btrfs persist real on-disk ownership, so a drive
+	// previously written to by an FPP box with a different fpp uid (500 vs 1000
+	// -- see issue #2782) can leave fpp unable to write into it here (e.g. the
+	// initial mkdir of a TOREMOTE backup folder). Reconcile the mount root's
+	// ownership so that at least fails; a full recursive chown is deliberately
+	// NOT done here since this helper mounts on every backup listing/read, not
+	// just writes, and a large drive's existing content would make that slow.
+	if (!$isFatMount && $mountCmdResultCode == 0) {
+		$fppIds = GetFPPUserIds();
+		exec($SUDO . $nsEnter . ' chown ' . $fppIds['uid'] . ':' . $fppIds['gid'] . ' ' . $mountPath);
+	}
 
 	if (isset($usercallback_function) && !empty($functionArgs)) {
 		//Call the function that will do some work in the mounted directory
@@ -424,7 +443,7 @@ function GetAvailableJSONBackups(){
 	$json_config_backup_filenames = process_jsonbackup_file_data_helper($json_config_backup_filenames, $dir_jsonbackups);
 
 	//See what backups are stored on the selected storage device if it's value is set
-	if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation'])) {
+	if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
 		$dir_jsonbackupsalternate = GetDirSetting('JsonBackupsAlternate');
 
 		//$settings['jsonConfigBackupUSBLocation'] is the selected alternative drive to stop backups to
@@ -690,7 +709,7 @@ function RestoreJsonBackup(){
 				$restore_status['Message'] = 'Backup File ' . $fullPath . ' could not be read.';
 			}
 		} else if ((strtolower($restore_from_directory) === 'jsonbackupsalternate')) {
-			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation'])) {
+			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
 				//Mount and read the json backup from the jsonConfigBackupUSBLocation location
 				$file_contents = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_get_contents', array($fullPath));
 
@@ -775,7 +794,10 @@ function DownloadJsonBackup(){
 		}
 	} elseif (strtolower($dirName) == "jsonbackupsalternate") {
 		//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
-		$fileExists = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_exists', array($fullPath));
+		$fileExists = false;
+		if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
+			$fileExists = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_exists', array($fullPath));
+		}
 
 		if ($fileExists) {
 			//Content type will always be json so see the header
@@ -823,6 +845,7 @@ function DeleteJsonBackup(){
 	$fullPath = "$dir/$fileName";
 
 	$fileDeleted = false;
+	$fileExists = false;
 	$fileExists_alt = false;
 	$dir_alt = $fullPath_alt = "";
 
@@ -834,7 +857,9 @@ function DeleteJsonBackup(){
 		//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
 
 		//Mount the drive and see if the file exists
-		$fileExists = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_exists', array($fullPath));
+		if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
+			$fileExists = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_exists', array($fullPath));
+		}
 	}
 
 	if ($dir == "") {
@@ -849,7 +874,9 @@ function DeleteJsonBackup(){
 		} elseif (strtolower($dirName) == "jsonbackupsalternate") {
 			//Use our DriveMountHelper to mount the specified USB drive and check if the file exists
 			// Mount the drive and delete the file
-			$fileDeleted = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'unlink', array($fullPath));
+			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
+				$fileDeleted = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'unlink', array($fullPath));
+			}
 
 			//ALSO check if the file exists in the /home/fpp/media location, because the backup we're deleting could have been copied to USB from location
 			//and we want to delete it in both

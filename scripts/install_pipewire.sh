@@ -213,22 +213,18 @@ sleep 1
 
 # --- 9. Build PipeWire GStreamer plugin from source (video mode=provide fix) ---
 echo ""
-echo "Step 9: Checking PipeWire GStreamer plugin for mode=provide support..."
-PLUGIN_HAS_PROVIDE=$(PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp \
-    gst-inspect-1.0 pipewiresink 2>/dev/null | grep -c "provide" || true)
-if [ "${PLUGIN_HAS_PROVIDE}" -gt 0 ]; then
-    echo "    GStreamer pipewiresink already supports mode=provide — skipping build."
-else
-    echo "    Stock plugin lacks mode=provide fix.  Building from source..."
-    if [ -x /opt/fpp/scripts/build_pipewire_gst_plugin.sh ]; then
-        /opt/fpp/scripts/build_pipewire_gst_plugin.sh 1.6.0 || {
-            echo "    WARNING: Plugin build failed. Video Input Sources (mode=provide) may crash."
-            echo "    Run manually: sudo /opt/fpp/scripts/build_pipewire_gst_plugin.sh 1.6.0"
-        }
-    else
-        echo "    WARNING: build_pipewire_gst_plugin.sh not found."
-    fi
-fi
+echo "Step 9: PipeWire GStreamer plugin..."
+# Deliberately does NOT build/replace the plugin.  Installing upstream's
+# newer plugin over the distro one breaks audio unless it matches the
+# libpipewire actually loaded at runtime -- a 1.6.0 plugin on the distro's
+# 1.4.2 library leaves the pipewiresink node suspended and every playlist
+# plays silently, with nothing logged.  build_pipewire_gst_plugin.sh is
+# manual-only and refuses a mismatched build without --force.
+PLUGIN_VERSION=$(gst-inspect-1.0 pipewiresink 2>/dev/null | awk '/^ *Version/ {print $NF; exit}')
+echo "    Using the distro plugin (version ${PLUGIN_VERSION:-unknown})."
+echo "    Video Input Sources (pipewiresink mode=provide) can crash on 1.4.2;"
+echo "    that needs a plugin AND libpipewire built from the same upstream"
+echo "    release, not a plugin swap alone."
 
 # --- 10. Verify ---
 echo ""

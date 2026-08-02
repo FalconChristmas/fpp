@@ -552,6 +552,215 @@
     }
 
 
+    // ---------------------------------------------------------------------
+    // Several panel matrices on one cape
+    //
+    // The PRU shifts a single frame for the whole cape, so everything that
+    // defines that frame's shape has to be identical across the matrices on
+    // it.  The lowest numbered cape matrix owns those settings; the rest
+    // mirror it and show them read-only.  Gamma, color order, brightness and
+    // start corner are applied in each matrix's own pixel mapping, so those
+    // stay per matrix and are deliberately not in this list.
+    // The real ceiling is one matrix per cape output, which the output
+    // conflict check below enforces exactly; this is just a sane upper bound
+    // (the page already caps all matrices at 5 in findNextAvailableId).
+    const MAX_CAPE_PANEL_MATRICES = 4;
+
+    // the panel cape this box has fitted, if any; '' on an ethernet-only box
+    const PAGE_CAPE_DRIVER = '<? echo $panelCapesDriver; ?>';
+
+    const SHARED_CAPE_SETTING_CLASSES = [
+        'LEDPanelsSize', 'LEDPanelsRowAddressType', 'LEDPanelsType',
+        'LEDPanelsColorDepth', 'LEDPanelsOutputByRow', 'LEDPanelsOutputBlankRow',
+        'LEDPanelInterleave', 'LEDPanelsWiringPinout', 'LEDPanelsColorOrder'
+    ];
+
+    function IsCapeDrivenMatrix(panelMatrixID) {
+        // The per matrix dropdown still labels the cape option with the legacy
+        // 'LEDscapeMatrix' value even on a BBShiftPanel cape (only the Add
+        // dialog uses the real driver name), so it can be trusted to rule the
+        // cape OUT but not to confirm it.
+        const sel = $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`);
+        const selVal = sel.length ? sel.val() : undefined;
+        if (selVal === 'ColorLight5a75' || selVal === 'X11PanelMatrix') {
+            return false;
+        }
+        const mp = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
+        const sub = mp ? mp.subType : undefined;
+        if (sub === 'ColorLight5a75' || sub === 'X11PanelMatrix') {
+            return false;
+        }
+        // Anything else on a cape box is driven by the cape.  A newly added
+        // matrix has no subType at all until it is saved, so this cannot rely
+        // on the lookup alone.
+        if (PAGE_CAPE_DRIVER !== '') {
+            return true;
+        }
+        return sub === 'BBShiftPanel';
+    }
+
+    function GetCapeMatrixIDs() {
+        const mats = (typeof channelOutputsLookup !== 'undefined' && channelOutputsLookup["LEDPanelMatrices"]) || {};
+        return Object.keys(mats)
+            .map(k => parseInt(k.replace('panelMatrix', ''), 10))
+            .filter(id => !isNaN(id) && IsCapeDrivenMatrix(id))
+            .sort((a, b) => a - b);
+    }
+
+    // Copy the owning matrix's panel settings onto an inheriting one.  The
+    // inputs stay in the DOM (hidden) because GetLEDPanelConfigFromUI reads
+    // the config back out of them.
+    function MirrorSharedCapeSettings(fromID, toID) {
+        SHARED_CAPE_SETTING_CLASSES.forEach(c => {
+            const src = $(`#panelMatrix${fromID} .${c}`);
+            const dst = $(`#panelMatrix${toID} .${c}`);
+            if (!src.length || !dst.length) {
+                return;
+            }
+            if (src.attr('type') === 'checkbox') {
+                dst.prop('checked', src.is(':checked'));
+            } else {
+                dst.val(src.val());
+            }
+        });
+        // the whole Panel Settings section belongs to the owning matrix
+        $(`#panelMatrix${toID} .divPanelSettingsSection`).addClass('d-none');
+        $(`#panelMatrix${toID} .divSharedCapeNote`).html(
+            `<div class="alert alert-info mt-2">Panel settings come from <b>Panel Matrix ${fromID}</b>. Every matrix on this cape is shifted out as ` +
+            `one frame, so they all use the same panel size, scan, type, addressing, color depth and output order. ` +
+            `Layout, start channel, start corner, color order, gamma and brightness are still set per matrix.</div>`
+        ).removeClass('d-none');
+        const mp = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + toID];
+        if (mp) {
+            mp.ledPanelsSize = $(`#panelMatrix${toID} .LEDPanelsSize`).val() || mp.ledPanelsSize;
+            UpdatePanelSize(toID);
+        }
+    }
+
+    function ShowOwnPanelSettings(panelMatrixID) {
+        $(`#panelMatrix${panelMatrixID} .divPanelSettingsSection`).removeClass('d-none');
+        $(`#panelMatrix${panelMatrixID} .divSharedCapeNote`).html('').addClass('d-none');
+    }
+
+    // Push the owning matrix's panel settings onto the others.  Called from
+    // the handlers that change any of them rather than wired per input, so a
+    // new shared setting only needs adding to the list above.
+    function SyncSharedCapeSettings() {
+        const ids = GetCapeMatrixIDs();
+        if (ids.length < 2) {
+            ids.forEach(id => ShowOwnPanelSettings(id));
+            return;
+        }
+        ShowOwnPanelSettings(ids[0]);
+        ids.slice(1).forEach(id => MirrorSharedCapeSettings(ids[0], id));
+    }
+
+    // Seeds a newly added cape matrix from the one that owns the panel
+    // settings, so everything downstream (the size select, the auto layout)
+    // works off the real panel geometry instead of the generic defaults.
+    const SHARED_CAPE_CONFIG_KEYS = [
+        'ledPanelsSize', 'panelWidth', 'panelHeight', 'panelScan', 'panelColorDepth',
+        'panelRowAddressType', 'panelType', 'panelOutputOrder', 'panelOutputBlankRow',
+        'panelInterleave', 'wiringPinout', 'LEDPanelAddressing', 'gpioSlowdown', 'cpuPWM',
+        'colorOrder',
+        // cape capabilities, not panel settings, but equally not per matrix -
+        // a new matrix must know the real output count for the Auto Layout
+        // bounds rather than the generic page default
+        'ledPanelsOutputs', 'ledPanelsPanelsPerOutput', 'maxLEDPanels'
+    ];
+
+    // The first cape output not already driven by another matrix.  Auto Layout
+    // numbers this matrix's rows from here, so laying out a second matrix does
+    // not just re-claim the outputs the first one is already using.
+    function GetFirstFreeCapeOutput(panelMatrixID) {
+        let base = 0;
+        GetCapeMatrixIDs().forEach(id => {
+            if (id == panelMatrixID) {
+                return;
+            }
+            const m = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + id];
+            if (!m || !m.panels) {
+                return;
+            }
+            m.panels.forEach(p => {
+                const o = parseInt(p.outputNumber, 10);
+                if (!isNaN(o) && o + 1 > base) {
+                    base = o + 1;
+                }
+            });
+        });
+        return base;
+    }
+
+    function InheritSharedCapeDefaults(newID) {
+        const dst = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + newID];
+        if (!dst) {
+            return;
+        }
+        const others = GetCapeMatrixIDs().filter(id => id != newID);
+        if (!others.length) {
+            return;
+        }
+        const src = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + others[0]];
+        if (src) {
+            SHARED_CAPE_CONFIG_KEYS.forEach(k => {
+                if (src[k] !== undefined) {
+                    dst[k] = src[k];
+                }
+            });
+        }
+        // start past every matrix already configured, so a new one does not
+        // silently overlay another's channels
+        let next = 1;
+        others.forEach(id => {
+            const m = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + id];
+            if (m && m.startChannel && m.channelCount) {
+                next = Math.max(next, m.startChannel + m.channelCount);
+            }
+        });
+        dst.startChannel = next;
+    }
+
+    // An output is one set of byte lanes in the shared frame, so it can only
+    // feed one matrix.  fppd rejects the second matrix outright if two claim
+    // the same output, so catch it here where it can still be fixed.
+    function CheckPanelOutputConflicts() {
+        const ids = GetCapeMatrixIDs();
+        const owner = {};
+        const conflicts = [];
+        ids.forEach(id => {
+            const mp = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + id];
+            if (!mp || !mp.panels) {
+                return;
+            }
+            new Set(mp.panels.map(p => p.outputNumber)).forEach(o => {
+                if (owner[o] !== undefined && owner[o] !== id) {
+                    conflicts.push({ output: o + 1, a: owner[o], b: id });
+                } else if (owner[o] === undefined) {
+                    owner[o] = id;
+                }
+            });
+        });
+        ids.forEach(id => $(`#panelMatrix${id} .divLEDPanelOutputConflict`).html('').hide());
+        conflicts.forEach(c => {
+            $(`#panelMatrix${c.b} .divLEDPanelOutputConflict`).html(
+                `<div class="alert alert-danger">Cape output ${c.output} is used by both Panel Matrix ${c.a} and Panel Matrix ${c.b}. ` +
+                `Each output can only drive one matrix.</div>`
+            ).show();
+        });
+        return conflicts.length === 0;
+    }
+
+    function SaveLEDPanelsConfig() {
+        SyncSharedCapeSettings();
+        if (!CheckPanelOutputConflicts()) {
+            DialogError("Save Channel Output Config",
+                "Two panel matrices are configured to use the same cape output. Fix the highlighted conflict before saving.");
+            return;
+        }
+        SaveChannelOutputsJSON();
+    }
+
     function UpdatePanelSize(panelMatrixID) {
         if (verboseDebug) {
             console.trace("UpdatePanelSize called for panelMatrixID: " + panelMatrixID);
@@ -705,8 +914,9 @@
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).show();
                 $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRowLabel`).show();
             }
-            outputByRowClicked();
+            outputByRowClicked(panelMatrixID);
         <? } ?>
+        SyncSharedCapeSettings();
     }
 
     function checkInterleave(panelMatrixID) {
@@ -844,20 +1054,31 @@
         //reset advanced panels
         channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panels = [];
 
+        // Start after the outputs the other matrices on this cape already use.
+        // Without this a second matrix lays itself out straight on top of the
+        // first one and neither will start.
+        var outBase = IsCapeDrivenMatrix(panelMatrixID) ? GetFirstFreeCapeOutput(panelMatrixID) : 0;
+        var availOutputs = parseInt(mp.ledPanelsOutputs, 10);
+        if (!isNaN(availOutputs) && availOutputs > 0 && (outBase + panelsHigh) > availOutputs) {
+            $.jGrowl(`This cape has ${availOutputs} outputs and ${outBase} are already in use, ` +
+                `so ${panelsHigh} more rows will not fit. Reduce the layout or free up outputs.`,
+                { themeState: 'warning' });
+            outBase = Math.max(0, availOutputs - panelsHigh);
+        }
 
         for (var y = 0; y < panelsHigh; y++) {
             for (var x = 0; x < panelsWide; x++) {
                 var panel = panelsWide - x - 1;
                 //Update display
                 $(`#panelMatrix${panelMatrixID} .LEDPanelPanelNumber_${y}_${panel}`).val(x);
-                $(`#panelMatrix${panelMatrixID} .LEDPanelOutputNumber_${y}_${panel}`).val(y);
+                $(`#panelMatrix${panelMatrixID} .LEDPanelOutputNumber_${y}_${panel}`).val(y + outBase);
                 SetLEDPanelOrientationIcon($(`#panelMatrix${panelMatrixID} .LEDPanelOrientation_${y}_${panel}`), 'N');
                 $(`#panelMatrix${panelMatrixID} .LEDPanelColorOrder_${y}_${panel}`).val('');
 
                 //update panels config
                 //
                 var newPanel = {
-                    outputNumber: y,
+                    outputNumber: y + outBase,
                     panelNumber: x,
                     xOffset: 0,
                     yOffset: 0,
@@ -1139,6 +1360,14 @@
                 ToggleAdvancedLayout(panelMatrixID);
             }
             checkInterleave(panelMatrixID); //ensure interleave option is hidden if required
+            <? if ($settings['BeaglePlatform']) { ?>
+                // "Blank between rows" only applies when output is by row; set that
+                // up here too since RowAddressTypeChanged is only emitted on some
+                // sub-platforms and would otherwise never run on load
+                outputByRowClicked(panelMatrixID);
+            <? } ?>
+            SyncSharedCapeSettings();
+            CheckPanelOutputConflicts();
             resolve();
         });
     }
@@ -1549,9 +1778,11 @@
 
 
 
-    function outputByRowClicked() {
+    // panelMatrixID used to be undeclared here, so this only did anything when
+    // some other function happened to have leaked a global of that name
+    function outputByRowClicked(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
         if (verboseDebug) {
-            console.trace("outputByRowClicked called");
+            console.trace("outputByRowClicked called for panelMatrixID: " + panelMatrixID);
         }
         <? if ($settings['BeaglePlatform']) { ?>
             var checked = $(`#panelMatrix${panelMatrixID} .LEDPanelsOutputByRow`).is(':checked')
@@ -2049,6 +2280,7 @@
 
         var co = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panels[AdvancedUIcanvas.selectedPanel].outputNumber = parseInt($(`#panelMatrix${panelMatrixID} .cpOutputNumber`).val());
         SetupCanvasPanel(panelMatrixID, AdvancedUIcanvas.selectedPanel);
+        CheckPanelOutputConflicts();
     }
 
     function cpPanelNumberChanged() {
@@ -2415,6 +2647,18 @@
                             });
                         };
 
+                        if ($(`#AddPanelMatrixDialog #LEDPanelsConnectionSelect`).val() == "BBShiftPanel") {
+                            // A cape matrix has no connection dropdown of its own, so the
+                            // subType has to be stamped here - without it nothing downstream
+                            // can tell this is a cape matrix.  The panel settings then come
+                            // from the matrix that already owns them rather than from the
+                            // generic defaults above.
+                            Object.assign(channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + NewPanelMatrixID], {
+                                subType: "BBShiftPanel"
+                            });
+                            InheritSharedCapeDefaults(NewPanelMatrixID);
+                        };
+
                         //Add in default sub array - panels []
                         channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + NewPanelMatrixID].panels = [
                             {
@@ -2472,6 +2716,9 @@
                         SetupAdvancedUISelects(NewPanelMatrixID);
                         SetSinglePanelSize(NewPanelMatrixID);
                         AutoLayoutPanels(NewPanelMatrixID, 1);
+                        // last, so the panel-settings section state is not undone
+                        // by the layout/size passes above
+                        SyncSharedCapeSettings();
                         SetupToolTips();
                         //location.reload();
                         //show tab of new panel matrix
@@ -2531,7 +2778,11 @@
                         return currentText + " (max number reached)";
                     });
                 }
-                if (subtypeCount["BBShiftPanel"] >= 1) {
+                // A cape drives one frame across all of its outputs, so several
+                // matrices can share it as long as each owns different outputs
+                // (a two sided display, a column either side of a door).  One
+                // matrix per output is the real ceiling.
+                if (subtypeCount["BBShiftPanel"] >= MAX_CAPE_PANEL_MATRICES) {
                     $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='BBShiftPanel']").prop("disabled", true);
                     $("#AddPanelMatrixDialog #LEDPanelsConnectionSelect option[value='BBShiftPanel']").text(function (_, currentText) {
                         return currentText + " (max number reached)";
@@ -2591,6 +2842,9 @@
         //SetSetting("LEDPanelsSize", value, 1, 0, false, null, function () {
         //settings['LEDPanelsSize'] = value;
         channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID]['ledPanelsSize'] = value;
+        // every matrix on the cape shifts out of the same frame, so a size
+        // change on the owning matrix has to carry to the rest
+        SyncSharedCapeSettings();
         LEDPanelLayoutChanged();
 
     }
@@ -2771,6 +3025,10 @@
                     mp["LEDPanelPanelNumber_" + r + "_" + c] = mp.panels[p];
                     mp["LEDPanelColorOrder_" + r + "_" + c] = mp.panels[p];
                 } */
+
+        // every path that edits the layout funnels through here, so this is
+        // where a resolved (or newly created) output clash gets re-evaluated
+        CheckPanelOutputConflicts();
 
         //show hide changes warning
         DisplaySaveWarningIfRequired();
@@ -3062,7 +3320,7 @@
                         <option value='7'>White Fade</option>
                     </select>
                 </span>
-                <input type='button' class="buttons btn-success ms-1" onClick='SaveChannelOutputsJSON();' value='Save'>
+                <input type='button' class="buttons btn-success ms-1" onClick='SaveLEDPanelsConfig();' value='Save'>
             </div>
         </div>
         <div id="SaveChangeWarningLabel" class="alert alert-danger" style="display:none;">
@@ -3134,6 +3392,9 @@
         <div class="divPanelMatrixID" style="display:none;"></div>
 
         <div class="divLEDPanelWarnings">
+        </div>
+
+        <div class="divLEDPanelOutputConflict" style="display:none;">
         </div>
 
         <div class="tableOptionsForm">
@@ -3227,6 +3488,9 @@
                             alt="panelMatrixNameHelp icon"></span>
                 </div>
             </div>
+            <!-- Settings that belong to THIS matrix: where it sits in the
+                 channel range, how its panels are arranged and how its color
+                 is scaled.  Every matrix has its own. -->
             <div class='divLEDPanelsData'>
                 <div class="container-fluid settingsTable">
                     <h3>Matrix Settings:</h3>
@@ -3237,10 +3501,6 @@
                         </div>
                         <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <span class='ledPanelSimpleUI LEDPanelLayoutSelect'>
-                                <!--  W:<select class='LEDPanelsLayoutCols' onChange='LEDPanelsLayoutChanged()'></select>
-                                H:<select class='LEDPanelsLayoutRows' onChange='LEDPanelsLayoutChanged()'></select> -->
-
-
                                 <? printLEDPanelLayoutSelect(1); ?>
                                 <input type='button' class='buttons' onClick='AutoLayoutPanels();' value='Auto Layout'>
                             </span>
@@ -3253,17 +3513,11 @@
                             <input class='LEDPanelsStartChannel' type=number min=1 max=<?= FPPD_MAX_CHANNELS ?>
                                 value='1'>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Single Panel Size (WxH):</b></div>
-                        <div class="printSettingFieldCola col-md-4 col-lg-4">
-                        </div>
+
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Channel Count:</b></div>
                         <div class="printSettingFieldCol col-md-4 col-lg-4"><span
                                 class='LEDPanelsChannelCount'>1536</span>(<span class='LEDPanelsPixelCount'>512</span>
                             Pixels)</div>
-                    </div>
-                    <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Model Start Corner:</b></div>
                         <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <select class='form-select LEDPanelsStartCorner'>
@@ -3271,35 +3525,11 @@
                                 <option value='1'>Bottom Left</option>
                             </select>
                         </div>
-                        <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Default Panel Color Order (C-Def):</b>
-                        </div>
-                        <div class="printSettingFieldCol col-md-4 col-lg-4">
-                            <select class='form-select LEDPanelsColorOrder'>
-                                <option value='RGB'>RGB</option>
-                                <option value='RBG'>RBG</option>
-                                <option value='GRB'>GRB</option>
-                                <option value='GBR'>GBR</option>
-                                <option value='BRG'>BRG</option>
-                                <option value='BGR'>BGR</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Panel Gamma:</b></div>
+
+                        <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Matrix Gamma:</b></div>
                         <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <? printLEDPanelGammaSelect($settings['Platform']); ?>
                         </div>
-                        <div class="printSettingLabelCol col-md-2 col-lg-2"><span
-                                class='LEDPanelsCLFirmwareVersionLabel'><b>Firmware Version:</b> </span></div>
-                        <div class="printSettingFieldCol col-md-4 col-lg-4">
-                            <select class='LEDPanelsCLFirmwareVersion'>
-                                <option value='0'>Auto Detect</option>
-                                <option value='2'>v2.x - v12.x</option>
-                                <option value='13'>v13.x+</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                 class='LEDPanelsBrightnessLabel'><b>Brightness:</b></span></div>
                         <div class="printSettingFieldCol col-md-4 col-lg-4">
@@ -3319,53 +3549,38 @@
                                 ?>
                             </select>
                         </div>
-                        <? if ($settings['Platform'] == "Raspberry Pi") { ?>
-                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
-                                    class='LEDPanelsGPIOSlowdownLabel'><b>GPIO Slowdown:</b></span></div>
-                            <div class="printSettingFieldCol col-md-4 col-lg-4">
-                                <select class='form-select LEDPanelsGPIOSlowdown'>
-                                    <option value='0'>0 (Pi Zero and other single-core)</option>
-                                    <option value='1' selected>1 (multi-core Pi)</option>
-                                    <option value='2'>2 (slow panels)</option>
-                                    <option value='3'>3 (slower panels)</option>
-                                    <option value='4'>4 (slower panels or faster Pi)</option>
-                                    <option value='5'>5 (slower panels or faster Pi)</option>
-                                </select>
-                            </div>
 
-                        <? } else if ($settings['BeaglePlatform']) { ?>
-                                <div class="printSettingLabelCol col-md-2 col-lg-2"><span
-                                        class='LEDPanelsOutputByRowLabel'><b>Output By Row:</b></div>
-                                <div class="printSettingFieldCol col-md-4 col-lg-4"><input class='LEDPanelsOutputByRow'
-                                        type='checkbox' onclick='outputByRowClicked()'></div>
-                        <? } else { ?>
-                                <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
-                                <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
-                        <? } ?>
-
-                    </div>
-                    <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><span
-                                class='LEDPanelInterleaveLabel'><b>Panel Interleave:</b></span></div>
+                                class='LEDPanelsCLFirmwareVersionLabel'><b>Firmware Version:</b> </span></div>
                         <div class="printSettingFieldCol col-md-4 col-lg-4">
-                            <? printLEDPanelInterleaveSelect(); ?>
+                            <select class='LEDPanelsCLFirmwareVersion'>
+                                <option value='0'>Auto Detect</option>
+                                <option value='2'>v2.x - v12.x</option>
+                                <option value='13'>v13.x+</option>
+                            </select>
                         </div>
-                        <? if ($settings['Platform'] == "Raspberry Pi") { ?>
-                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
-                                    class='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></div>
-                            <div class="printSettingFieldCol col-md-4 col-lg-4"><input class='LEDPanelsOutputCPUPWM'
-                                    type='checkbox'></div>
-                        <? } else if ($settings['BeaglePlatform']) { ?>
-                                <div class="printSettingLabelCol col-md-2 col-lg-2"><span
-                                        class='LEDPanelsOutputBlankRowLabel'><b>Blank between rows:</b></span></div>
-                                <div class="printSettingFieldCol col-md-4 col-lg-4"><input class='LEDPanelsOutputBlankRow'
-                                        type='checkbox'></div>
-                        <? } else { ?>
-                                <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
-                                <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
-                        <? } ?>
+                        <div class="printSettingLabelCol col-md-2 col-lg-2">
+                            <span class='LEDPanelsCLLinkCheckLabel'><b>Check Ethernet Link:</b></span>
+                        </div>
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
+                            <input class='LEDPanelsCLLinkCheck' type='checkbox'>
+                        </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Settings that describe the PANELS themselves.  A cape shifts one
+                 frame out of all of its outputs, so these are a property of the
+                 cape rather than of any one matrix on it: the whole box is
+                 hidden on the second and later cape matrices, which inherit
+                 these values (see SyncSharedCapeSettings). -->
+            <div class='divPanelSettingsSection'>
+                <div class="container-fluid settingsTable">
+                    <h3>Panel Settings:</h3>
                     <div class="row">
+                        <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Single Panel Size (WxH):</b></div>
+                        <div class="printSettingFieldCola col-md-4 col-lg-4">
+                        </div>
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><span
                                 class='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></div>
                         <div class="printSettingFieldCol col-md-4 col-lg-4">
@@ -3380,12 +3595,6 @@
                                 <option value='7'>7 Bit</option>
                                 <option value='6'>6 Bit</option>
                             </select>
-                        </div>
-                        <div class="printSettingLabelCol col-md-2 col-lg-2">
-                            <span class='LEDPanelsCLLinkCheckLabel'><b>Check Ethernet Link:</b></span>
-                        </div>
-                        <div class="printSettingFieldCol col-md-4 col-lg-4">
-                            <input class='LEDPanelsCLLinkCheck' type='checkbox'>
                         </div>
                     </div>
 
@@ -3404,36 +3613,33 @@
                                 </select>
                             </div>
                         <? } else if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
-                                <div class="printSettingLabelCol col-md-2 col-lg-2"><span
-                                        class='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
-                                <div class="printSettingFieldCol col-md-4 col-lg-4">
-                                    <select class="form-select LEDPanelsRowAddressType" onchange="RowAddressTypeChanged();">
-                                        <option value='0' selected>Standard</option>
-                                        <?
-                                        if ($panelCapesDriver == "BBShiftPanel") {
-                                            echo "<option value='1'>AB-Addressed Panels</option>";
-                                        }
-                                        ?>
-                                        <option value='2'>Direct Row Select</option>
-                                        <?
-                                        if ($panelCapesDriver == "BBShiftPanel") {
-                                            echo "<option value='3'>ABC-Addressed Panels</option>";
-                                            echo "<option value='4'>ABC Shift + DE Direct</option>";
-                                            // FM6363C moved to the LED Panel Type dropdown; saved
-                                            // configs with panelRowAddressType 51 are migrated on
-                                            // load (and fppd itself still accepts 51)
-                                        }
-                                        ?>
-                                    </select>
-                                </div>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                    class='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4">
+                                <select class="form-select LEDPanelsRowAddressType" onchange="RowAddressTypeChanged();">
+                                    <option value='0' selected>Standard</option>
+                                    <?
+                                    if ($panelCapesDriver == "BBShiftPanel") {
+                                        echo "<option value='1'>AB-Addressed Panels</option>";
+                                    }
+                                    ?>
+                                    <option value='2'>Direct Row Select</option>
+                                    <?
+                                    if ($panelCapesDriver == "BBShiftPanel") {
+                                        echo "<option value='3'>ABC-Addressed Panels</option>";
+                                        echo "<option value='4'>ABC Shift + DE Direct</option>";
+                                        // FM6363C moved to the LED Panel Type dropdown; saved
+                                        // configs with panelRowAddressType 51 are migrated on
+                                        // load (and fppd itself still accepts 51)
+                                    }
+                                    ?>
+                                </select>
+                            </div>
                         <? } else { ?>
-                                <div class=" printSettingLabelCol col-md-2 col-lg-2">
-                                </div>
-                                <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
                         <? } ?>
-                    </div>
 
-                    <div class="row">
                         <? if ($settings['Platform'] == "Raspberry Pi" || $panelCapesDriver == "BBShiftPanel") { ?>
                             <div class="printSettingLabelCol col-md-2 col-lg-2"><span class='LEDPanelsTypeLabel'><b>LED
                                         Panel
@@ -3456,6 +3662,51 @@
                             <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
                             <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
                         <? } ?>
+                    </div>
+
+                    <div class="row">
+                        <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Default Panel Color Order (C-Def):</b>
+                        </div>
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
+                            <select class='form-select LEDPanelsColorOrder'>
+                                <option value='RGB'>RGB</option>
+                                <option value='RBG'>RBG</option>
+                                <option value='GRB'>GRB</option>
+                                <option value='GBR'>GBR</option>
+                                <option value='BRG'>BRG</option>
+                                <option value='BGR'>BGR</option>
+                            </select>
+                        </div>
+                        <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                class='LEDPanelInterleaveLabel'><b>Panel Interleave:</b></span></div>
+                        <div class="printSettingFieldCol col-md-4 col-lg-4">
+                            <? printLEDPanelInterleaveSelect(); ?>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <? if ($settings['Platform'] == "Raspberry Pi") { ?>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                    class='LEDPanelsGPIOSlowdownLabel'><b>GPIO Slowdown:</b></span></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4">
+                                <select class='form-select LEDPanelsGPIOSlowdown'>
+                                    <option value='0'>0 (Pi Zero and other single-core)</option>
+                                    <option value='1' selected>1 (multi-core Pi)</option>
+                                    <option value='2'>2 (slow panels)</option>
+                                    <option value='3'>3 (slower panels)</option>
+                                    <option value='4'>4 (slower panels or faster Pi)</option>
+                                    <option value='5'>5 (slower panels or faster Pi)</option>
+                                </select>
+                            </div>
+                        <? } else if ($settings['BeaglePlatform']) { ?>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                    class='LEDPanelsOutputByRowLabel'><b>Output By Row:</b></span></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4"><input class='LEDPanelsOutputByRow'
+                                    type='checkbox' onclick='outputByRowClicked()'></div>
+                        <? } else { ?>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
+                        <? } ?>
                         <div class="printSettingLabelCol col-md-2 col-lg-2"></div>
                         <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <button class="vendorPanelSettingsBtn buttons btn-outline-success btn-rounded">Vendor
@@ -3464,8 +3715,25 @@
                         </div>
                     </div>
 
+                    <div class="row">
+                        <? if ($settings['Platform'] == "Raspberry Pi") { ?>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                    class='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4"><input class='LEDPanelsOutputCPUPWM'
+                                    type='checkbox'></div>
+                        <? } else if ($settings['BeaglePlatform']) { ?>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                    class='LEDPanelsOutputBlankRowLabel'><b>Blank between rows:</b></span></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4"><input class='LEDPanelsOutputBlankRow'
+                                    type='checkbox'></div>
+                        <? } ?>
+                    </div>
                 </div>
             </div>
+
+            <!-- shown in place of the box above on a cape matrix that inherits
+                 its panel settings from another one -->
+            <div class="divSharedCapeNote d-none"></div>
             <div class='divLEDPanelsLayoutData'>
                 <div style="padding: 10px;">
                     <h3>LED Panel Layout:</h3>

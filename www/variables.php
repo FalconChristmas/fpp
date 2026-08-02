@@ -27,7 +27,7 @@
         .variables-aligned-table .varcol-value { width: 380px; }
         .variables-aligned-table .varcol-eye { width: 46px; }
         .variables-aligned-table .varcol-updated { width: 110px; }
-        .variables-aligned-table .varcol-storage { width: 60px; }
+        .variables-aligned-table .varcol-storage { width: 100px; }
         /* table-layout:fixed enforces column widths but doesn't clip
            overflowing cell content on its own (.text-nowrap only stops
            wrapping) - without this, a value cell's appended "(N bytes)" note
@@ -186,7 +186,7 @@
         // re-fetching, so it stays instant and survives the 3s auto-refresh
         // (each Load*Table() re-applies it after rebuilding its rows).
         var VARIABLE_SEARCH_TABLES = [
-            { tbody: '#variablesTableBody', colspan: 7 },
+            { tbody: '#variablesTableBody', colspan: 6 },
             { tbody: '#fppVariablesTableBody', colspan: 5 },
             { tbody: '#mqttVariablesTableBody', colspan: 5 }
         ];
@@ -314,9 +314,7 @@
                     var names = SortNames(Object.keys(data || {}), data, 'user');
                     if (!names.length) {
                         $tbody.append(
-                            "<tr><td colspan='7' class='text-muted'>No variables defined yet. Use the " +
-                            "<b>Set Variable</b> command from a preset, GPIO input, MQTT topic, the API, or " +
-                            "a <a href='recurringtasks.php'>Recurring Task</a> to create one.</td></tr>"
+                            "<tr><td colspan='6' class='text-muted'>No variables defined yet.</td></tr>"
                         );
                         return;
                     }
@@ -336,8 +334,7 @@
                             "<td class='ps-4 text-nowrap'>" + valueCell + "</td>" +
                             "<td class='text-center'>" + eyeCell + "</td>" +
                             "<td>" + FormatVariableTimestamp(v.lastUpdated) + "</td>" +
-                            "<td class='text-center'>" + persistIcon + "</td>" +
-                            "<td class='ps-4'>" +
+                            "<td class='text-center text-nowrap'>" + persistIcon + " " +
                             "<button type='button' class='buttons btn-sm' title='Clear (reset value)' onclick='ClearVariable(\"" + escName + "\");'><i class='fas fa-eraser'></i></button> " +
                             "<button type='button' class='buttons btn-sm' title='Delete (remove entirely)' onclick='DeleteVariable(\"" + escName + "\");'><i class='fas fa-trash text-danger'></i></button>" +
                             "</td>" +
@@ -347,7 +344,7 @@
                     ApplyVariableSearchFilter();
                 },
                 error: function () {
-                    $('#variablesTableBody').html("<tr><td colspan='7' class='text-danger'>Error loading variables.</td></tr>");
+                    $('#variablesTableBody').html("<tr><td colspan='6' class='text-danger'>Error loading variables.</td></tr>");
                 }
             });
         }
@@ -429,12 +426,61 @@
             });
         }
 
+        // Fixed meanings for the read-only "fpp_" status variables - unlike
+        // user/MQTT variables (arbitrary, no canonical description), these
+        // are a known, stable set computed by ComputeFppStatusVariables()
+        // (Variables.cpp). Keep in sync with that function.
+        var FPP_VARIABLE_DESCRIPTIONS = {
+            fpp_status: 'Numeric player status code (0=idle, 1=playing, 2-4=stopping variants, 5=paused).',
+            fpp_status_name: 'Player status as text: idle, playing, stopping gracefully, stopping gracefully after loop, stopping now, or paused.',
+            fpp_mode_name: 'Current FPP mode, e.g. "player", "bridge", "master", "remote".',
+            fpp_volume: 'Current audio output volume (0-100).',
+            fpp_multisync: '1 if MultiSync is enabled, 0 otherwise.',
+            fpp_uptime_seconds: 'Seconds since fppd started.',
+            fpp_is_playing: '1 if a playlist is currently playing, 0 otherwise.',
+            fpp_was_scheduled: '1 if the current/most recent playlist was started by the Scheduler rather than manually or via the API, 0 otherwise.',
+            fpp_scheduler_enabled: '1 if the Scheduler is enabled, 0 if it has been disabled.',
+            fpp_current_time: 'Current local time as HH:MM (24-hour) - same format as the "Time" If-condition Source, so they compare directly.',
+            fpp_current_date: 'Current local date as YYYY-MM-DD.',
+            fpp_day_of_week: 'Current local day name, e.g. "Monday".',
+            fpp_current_month: 'Current local month name, e.g. "July".',
+            fpp_warning_count: 'Number of active system warnings.',
+            fpp_next_playlist: 'Name of the next Scheduler-triggered playlist, or empty if none is scheduled.',
+            fpp_next_playlist_start: 'Start time of the next scheduled playlist.',
+            fpp_current_playlist: 'Name of the currently loaded playlist.',
+            fpp_current_playlist_count: 'Number of entries in the current playlist.',
+            fpp_current_playlist_index: 'Index of the currently playing entry within the current playlist.',
+            fpp_current_sequence: 'Filename of the currently playing sequence.',
+            fpp_current_song: 'Filename of the currently playing media/song.',
+            fpp_seconds_played: 'Seconds played so far in the current playlist entry.',
+            fpp_seconds_remaining: 'Seconds remaining in the current playlist entry.',
+            fpp_time_elapsed: 'Elapsed time of the current playlist entry, formatted as text.',
+            fpp_time_remaining: 'Remaining time of the current playlist entry, formatted as text.',
+            fpp_repeat_mode: 'Current playlist repeat mode.',
+            fpp_random: 'Current playlist shuffle/random mode.'
+        };
+
         function LoadFppVariablesTable() {
             $.ajax({
                 dataType: 'json',
                 url: 'api/variables?fpp=true',
                 success: function (data) {
                     var $tbody = $('#fppVariablesTableBody');
+                    // This table refreshes every 3s (LoadAllVariableTables'
+                    // setInterval below) and SetupToolTips() converts each
+                    // info icon's title into a Bootstrap tooltip, whose
+                    // floating bubble lives outside the trigger element. If a
+                    // refresh empties $tbody while one is showing, its
+                    // trigger is gone but the bubble is never told to hide -
+                    // it's orphaned on screen until the page reloads. Dispose
+                    // any live instances on the old rows first so this can't
+                    // happen.
+                    $tbody.find('[data-bs-toggle="tooltip"]').each(function () {
+                        var inst = bootstrap.Tooltip.getInstance(this);
+                        if (inst) {
+                            inst.dispose();
+                        }
+                    });
                     $tbody.empty();
                     var names = SortNames(Object.keys(data || {}), data, 'fpp');
                     if (!names.length) {
@@ -446,9 +492,13 @@
                         var v = data[name];
                         var valueCell = RenderValueCell(v.value, v.truncated, v.size, bp.valueChars);
                         var eyeCell = RenderEyeCell(name, v.value, v.truncated, bp.valueChars, bp.forceEye);
+                        var desc = FPP_VARIABLE_DESCRIPTIONS[name];
+                        var descIcon = desc
+                            ? "<i class='fas fa-info-circle text-muted me-1' title='" + $('<div>').text(desc).html().replace(/'/g, '&#39;') + "'></i>"
+                            : '';
                         var row =
                             "<tr>" +
-                            "<td class='text-nowrap'>" + RenderNameCell(name, bp.topicChars) + "</td>" +
+                            "<td class='text-nowrap'>" + descIcon + RenderNameCell(name, bp.topicChars) + "</td>" +
                             "<td class='text-center'>" + RenderCopyButton(name) + "</td>" +
                             "<td class='ps-4 text-nowrap'>" + valueCell + "</td>" +
                             "<td class='text-center'>" + eyeCell + "</td>" +
@@ -457,6 +507,15 @@
                         $(row).attr('data-name', name.toLowerCase()).appendTo($tbody);
                     });
                     ApplyVariableSearchFilter();
+                    // These rows (and their info-icon title attributes) are
+                    // added after the page's one-time SetupToolTips() pass
+                    // (fpp.js, called on initial load only) already ran, so
+                    // without re-running it here the icons' titles never get
+                    // converted into (or shown as) Bootstrap tooltips - same
+                    // reason co-ledPanels.php/schedulePreview.php/
+                    // multisync.php/settings.php all re-call it after their
+                    // own dynamic re-renders.
+                    SetupToolTips();
                 },
                 error: function () {
                     $('#fppVariablesTableBody').html("<tr><td colspan='5' class='text-danger'>Error loading FPP variables.</td></tr>");
@@ -551,16 +610,31 @@
         <div class="mainContainer">
             <h1 class="title">Variables</h1>
             <div class="pageContent">
-                <input type="text" id="variableSearchBox" class="form-control mb-3" placeholder="Search variable/topic names...">
                 <div class="text-muted mb-3">
-                    <b>User Variables</b> are named values you set with the <b>Set Variable</b> command (from a
-                    preset, GPIO input, MQTT topic, scheduler entry, the API, or
-                    <a href="recurringtasks.php">Recurring Tasks</a>) and read back anywhere via
-                    <code>%VAR:name%</code> or the <code>If</code> command.
+                    <p class="mb-0">
+                        Variables are named values that stick around so different parts of FPP can share
+                        data. Read one back two ways: drop <code>%VAR:name%</code> into any command's
+                        text field and it's swapped for the current value when that command runs - e.g. a
+                        <code>URL</code> command's address containing <code>%VAR:apiKey%</code>, or a
+                        <code>Run Script</code> command passing <code>%VAR:outsideTempF%</code> as an
+                        argument. Or, inside an <code>If</code> command's Check, pick the Variable
+                        directly from the condition editor - no <code>%VAR:</code> needed there.
+                    </p>
+                </div>
+                <div class="input-group mb-3">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" id="variableSearchBox" class="form-control" placeholder="Search variables">
+                </div>
+                <h5 class="fw-semibold mb-1 mt-2">User Variables</h5>
+                <div class="text-muted mb-2">
+                    Values you set yourself with the <b>Set Variable</b> command, triggered directly,
+                    from a GPIO input, a scheduler entry, the API, or (for data fetched
+                    from outside FPP, like a weather API) a
+                    <a href="recurringtasks.php">Recurring Task</a>.
                 </div>
                 <table class="table table-striped variables-aligned-table">
                     <colgroup>
-                        <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col class="varcol-updated"><col class="varcol-storage"><col>
+                        <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col class="varcol-updated"><col class="varcol-storage">
                     </colgroup>
                     <thead>
                         <tr>
@@ -569,20 +643,17 @@
                             <th class="ps-4"><a href="javascript:void(0)" class="text-decoration-none text-reset sortableHeader" data-table="user" data-field="value">Value<span class="sortIndicator"></span></a></th>
                             <th></th>
                             <th><a href="javascript:void(0)" class="text-decoration-none text-reset sortableHeader" data-table="user" data-field="lastUpdated">Last Updated<span class="sortIndicator"></span></a></th>
-                            <th class="text-center">Storage</th>
-                            <th></th>
+                            <th class="text-center"></th>
                         </tr>
                     </thead>
                     <tbody id="variablesTableBody">
                         <tr>
-                            <td colspan="7" class="text-muted">Loading...</td>
+                            <td colspan="6" class="text-muted">Loading...</td>
                         </tr>
                     </tbody>
                 </table>
 
-                <div class="text-muted mb-2 mt-2">
-                    <b>FPP Read-only Variables</b> - These can be used the same way as User Variables above.
-                </div>
+                <h5 class="fw-semibold mb-1 mt-2">FPP Read-only Variables</h5>
                 <table class="table table-striped variables-aligned-table">
                     <colgroup>
                         <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col>
@@ -603,10 +674,7 @@
                     </tbody>
                 </table>
 
-                <div class="text-muted mb-2 mt-2">
-                    <b>MQTT Read-only Variables</b> - These can be used the same way as User Variables
-                    above (exposed as <code>mqtt-&lt;topic&gt;</code>), including inside an Expression field.
-                </div>
+                <h5 class="fw-semibold mb-1 mt-2">MQTT Read-only Variables</h5>
                 <div class="table-responsive">
                     <table class="table table-striped variables-aligned-table">
                         <colgroup>

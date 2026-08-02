@@ -497,7 +497,7 @@ static int GetMaxPipeWireGroupDelayMs() {
         return 0;
 
     Json::Value root;
-    if (!LoadJsonFromFile(configPath, root) || !root.isMember("groups"))
+    if (!LoadJsonFromFile(configPath, root, JsonRoot::Object) || !root.isMember("groups"))
         return 0;
 
     int maxDelay = 0;
@@ -559,7 +559,7 @@ static bool IsGstPipeWireChannelOrderQuirky() {
     const std::string cachePath = getFPPMediaDir() + "/config/gst-pipewire-quirks.json";
     if (FileExists(cachePath)) {
         Json::Value cache;
-        if (LoadJsonFromFile(cachePath, cache)
+        if (LoadJsonFromFile(cachePath, cache, JsonRoot::Object)
             && cache.get("pluginSig", "").asString() == pluginSig) {
             cachedVerdict = cache.get("channelOrderQuirky", false).asBool() ? 1 : 0;
             LogInfo(VB_MEDIAOUT, "GStreamer: pipewire channel-order quirk (cached): %s\n",
@@ -606,6 +606,8 @@ static bool IsGstPipeWireChannelOrderQuirky() {
         if (!LoadJsonFromString(out, dump) || !dump.isArray())
             continue;
         for (const auto& obj : dump) {
+            if (!obj.isObject())
+                continue;
             if (obj.get("type", "").asString() != "PipeWire:Interface:Node")
                 continue;
             if (obj["info"]["props"].get("node.name", "").asString() != "fpp_chorder_probe")
@@ -2050,6 +2052,11 @@ int GStreamerOutput::Process(void) {
     if (!m_pipeline || !m_bus) {
         return 0;
     }
+    // Sub-phases for the main-loop stall watchdog (issue #2727): everything
+    // below runs on the main loop and calls into GStreamer, which takes both
+    // element locks and (via pipewiresink) PipeWire's thread-loop lock, so a
+    // sink that is stuck in preroll can park the main loop right here.
+    SetMainLoopPhase("GStreamer ProcessMessages");
     ProcessMessages();
 
     // Update position
@@ -2071,12 +2078,16 @@ int GStreamerOutput::Process(void) {
             if (posSource) ownPosSource = true;
         }
         if (!posSource) {
+            SetMainLoopPhase("GStreamer get pwsink");
             posSource = gst_bin_get_by_name(GST_BIN(m_pipeline), "pwsink");
             if (posSource) ownPosSource = true;
         }
         if (!posSource) posSource = m_pipeline;
+        SetMainLoopPhase("GStreamer query position");
         bool havePos = gst_element_query_position(posSource, GST_FORMAT_TIME, &pos);
+        SetMainLoopPhase("GStreamer query duration");
         bool haveDur = gst_element_query_duration(m_pipeline, GST_FORMAT_TIME, &dur);
+        SetMainLoopPhase("GStreamer position post-processing");
         if (ownPosSource) gst_object_unref(posSource);
 
         // One-shot: log pipeline clock and sink sync state on first position update
@@ -2194,7 +2205,10 @@ int GStreamerOutput::Process(void) {
             float remaining = (effectiveDur > pos) ? (float)(effectiveDur - pos) / GST_SECOND : 0.0f;
             setMediaElapsed(elapsed, remaining);
 
-            if (multiSync->isMultiSyncEnabled()) {
+            // Only the primary slot represents the show's synced position;
+            // companion streams (slot > 1, e.g. extraMedia) play locally on
+            // each device and must not broadcast themselves as the master.
+            if (m_streamSlot == 1 && multiSync->isMultiSyncEnabled()) {
                 multiSync->SendMediaSyncPacket(m_mediaFilename, m_mediaOutputStatus->mediaSeconds);
             }
             CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
@@ -2635,6 +2649,23 @@ int GStreamerOutput::IsPlaying(void) {
 int GStreamerOutput::AdjustSpeed(float masterMediaPosition) {
     if (!m_pipeline || !m_allowSpeedAdjust)
         return 1;
+
+    // Nothing below may touch a pipeline that has never produced a position:
+    // both branches that act on a large diff issue a *synchronous* seek, and a
+    // seek into a pipeline still stuck in preroll blocks the calling thread
+    // forever inside the wedged sink.  This runs on the main loop (MultiSync
+    // ProcessControlPacket -> UpdateMasterMediaPosition) while holding
+    // mediaOutputLock, so that block takes the whole player down: no sync
+    // packets, no status, no `fpp` commands, and "Restart FPPD" never even gets
+    // read (issue #2727 -- confirmed 2026-07-29 on FPPv4-3, main thread parked
+    // on a PipeWire mutex with the pipeline still ASYNC).  Sitting out the
+    // sync until preroll completes is free: the preroll watchdog in Process()
+    // tears a genuinely wedged pipeline down and the playlist advances.
+    if (m_wallStartMs == 0) {
+        LogDebug(VB_MEDIAOUT, "GStreamer: skipping speed adjust, pipeline has not prerolled yet (master %0.3f)\n",
+                 masterMediaPosition);
+        return 1;
+    }
 
     // Can't adjust speed if not playing yet
     if (m_mediaOutputStatus->mediaSeconds < 0.01f) {
@@ -3192,7 +3223,7 @@ void GStreamerOutput::FlushPipeWireDelayBuffers() {
     }
 
     Json::Value root;
-    if (!LoadJsonFromFile(configPath, root) || !root.isMember("groups")) {
+    if (!LoadJsonFromFile(configPath, root, JsonRoot::Object) || !root.isMember("groups")) {
         return;
     }
 

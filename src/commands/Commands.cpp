@@ -31,7 +31,33 @@
 #include "PlaylistCommands.h"
 #include "VariableCommands.h"
 
+// %VAR:name% - substitute a named User Variable's current value. Applied
+// once, centrally, inside CommandManager::run() (the one chokepoint every
+// caller funnels through - api/command, presets, GPIO, MultiSync, playlist
+// "FPP Command" entries, If, recurring tasks, ...) rather than at each
+// individual call site, so it works the same way no matter how a command
+// gets run. Defined further down (needs Variables.h); forward-declared here
+// since run() is used well above that point in the file.
+static std::string ReplaceVariableKeywords(std::string str);
+
 CommandManager CommandManager::INSTANCE;
+
+// Out-of-line storage for anything added to Command/CommandArg after plugin API
+// version 5. Both hold it by unique_ptr, so growing either struct here is
+// invisible to a plugin's sizeof and cannot desync a std::list node or shift a
+// subclass's members. See the LAYOUT RULE comments in Commands.h.
+struct Command::Data {
+    // (empty - first field added after API version 5 goes here)
+};
+struct Command::CommandArg::Ext {
+    bool advanced = false;
+    std::string help;
+    std::string section;
+    std::map<std::string, std::vector<std::string>> children;
+    bool toggleStyle = false;
+    std::string toggleLabel;
+};
+
 Command::Command(const std::string& n) :
     name(n),
     description("") {
@@ -41,6 +67,99 @@ Command::Command(const std::string& n, const std::string& descript) :
     description(descript) {
 }
 Command::~Command() {}
+
+Command::CommandArg::CommandArg(const std::string& n, const std::string& t, const std::string& d, bool o) :
+    name(n),
+    type(t),
+    description(d),
+    optional(o),
+    min(-1),
+    max(-1),
+    allowBlanks(false),
+    adjustable(false) {
+}
+Command::CommandArg::CommandArg(const CommandArg& o) :
+    name(o.name),
+    type(o.type),
+    description(o.description),
+    optional(o.optional),
+    contentListUrl(o.contentListUrl),
+    contentList(o.contentList),
+    allowBlanks(o.allowBlanks),
+    min(o.min),
+    max(o.max),
+    defaultValue(o.defaultValue),
+    adjustableGetValueURL(o.adjustableGetValueURL),
+    adjustable(o.adjustable),
+    // Deep copy, not a shared handle: the builder pattern returns CommandArg&,
+    // so nearly every args.push_back() in the tree copies from an lvalue and
+    // the temporary is then destroyed. Aliasing ext would leave a dangling one.
+    ext(o.ext ? std::make_unique<Ext>(*o.ext) : nullptr) {
+}
+Command::CommandArg::CommandArg(CommandArg&& o) noexcept = default;
+Command::CommandArg::~CommandArg() = default;
+
+// Ext is allocated on first write; readers fall back to a default so an arg that
+// set none of these still costs nothing. Every accessor pair below follows this
+// shape - copy it when adding a field.
+Command::CommandArg::Ext& Command::CommandArg::mutableExt() {
+    if (!ext) {
+        ext = std::make_unique<Ext>();
+    }
+    return *ext;
+}
+
+Command::CommandArg& Command::CommandArg::setSection(const std::string& s) {
+    mutableExt().section = s;
+    return *this;
+}
+const std::string& Command::CommandArg::getSection() const {
+    static const std::string EMPTY;
+    return ext ? ext->section : EMPTY;
+}
+
+Command::CommandArg& Command::CommandArg::setHelp(const std::string& h) {
+    mutableExt().help = h;
+    return *this;
+}
+const std::string& Command::CommandArg::getHelp() const {
+    static const std::string EMPTY;
+    return ext ? ext->help : EMPTY;
+}
+
+Command::CommandArg& Command::CommandArg::setAdvanced(bool a) {
+    mutableExt().advanced = a;
+    return *this;
+}
+bool Command::CommandArg::isAdvanced() const {
+    return ext && ext->advanced;
+}
+
+Command::CommandArg& Command::CommandArg::setChildren(std::map<std::string, std::vector<std::string>> c) {
+    mutableExt().children = std::move(c);
+    return *this;
+}
+const std::map<std::string, std::vector<std::string>>& Command::CommandArg::getChildren() const {
+    static const std::map<std::string, std::vector<std::string>> EMPTY;
+    return ext ? ext->children : EMPTY;
+}
+
+Command::CommandArg& Command::CommandArg::setToggleStyle(bool t) {
+    mutableExt().toggleStyle = t;
+    return *this;
+}
+bool Command::CommandArg::isToggleStyle() const {
+    return ext && ext->toggleStyle;
+}
+
+Command::CommandArg& Command::CommandArg::setToggleLabel(const std::string& l) {
+    mutableExt().toggleLabel = l;
+    return *this;
+}
+const std::string& Command::CommandArg::getToggleLabel() const {
+    static const std::string EMPTY;
+    return ext ? ext->toggleLabel : EMPTY;
+}
 
 Json::Value Command::getDescription() {
     Json::Value cmd;
@@ -76,20 +195,23 @@ Json::Value Command::getDescription() {
                 a["adjustableGetValueURL"] = ar.adjustableGetValueURL;
             }
         }
-        if (ar.advanced) {
+        if (ar.isAdvanced()) {
             a["advanced"] = true;
         }
-        if (!ar.help.empty()) {
-            a["help"] = ar.help;
+        if (!ar.getHelp().empty()) {
+            a["help"] = ar.getHelp();
         }
-        if (ar.toggleStyle) {
+        if (!ar.getSection().empty()) {
+            a["section"] = ar.getSection();
+        }
+        if (ar.isToggleStyle()) {
             a["toggleStyle"] = true;
         }
-        if (!ar.toggleLabel.empty()) {
-            a["toggleLabel"] = ar.toggleLabel;
+        if (!ar.getToggleLabel().empty()) {
+            a["toggleLabel"] = ar.getToggleLabel();
         }
-        if (!ar.children.empty()) {
-            for (auto& kv : ar.children) {
+        if (!ar.getChildren().empty()) {
+            for (auto& kv : ar.getChildren()) {
                 for (auto& childName : kv.second) {
                     a["children"][kv.first].append(childName);
                 }
@@ -165,8 +287,10 @@ void CommandManager::Init() {
     addCategorizedCommand(new AllLightsOffCommand(), "Effects", 0);
     addCategorizedCommand(new SwitchToPlayerModeCommand(), "System", 1);
     addCategorizedCommand(new SwitchToRemoteModeCommand(), "System", 1);
-    addCategorizedCommand(new SetVariableCommand(), "Events", 2);
-    addCategorizedCommand(new IfCommand(), "Events", 2);
+    addCategorizedCommand(new RebootCommand(), "System", 1);
+    addCategorizedCommand(new ShutdownCommand(), "System", 1);
+    addCategorizedCommand(new SetVariableCommand(), "Events", 1);
+    addCategorizedCommand(new IfCommand(), "Events", 1);
 
     std::function<void(const std::string&, const std::string&)> f =
         [](const std::string& topic, const std::string& payload) {
@@ -304,18 +428,24 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     if (f != commands.end()) {
         LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
 
+        std::vector<std::string> resolvedArgs;
+        resolvedArgs.reserve(args.size());
+        for (auto const& arg : args) {
+            resolvedArgs.push_back(ReplaceVariableKeywords(arg));
+        }
+
         // Publish MQTT event for command execution
         Json::Value payload;
         payload["command"] = command;
         payload["args"] = Json::Value(Json::arrayValue);
-        for (const auto& arg : args) {
+        for (const auto& arg : resolvedArgs) {
             payload["args"].append(arg);
         }
         payload["trigger"] = "internal";
         std::string topic = "command/run";
         Events::Publish(topic, SaveJsonToString(payload));
 
-        return f->second->run(args);
+        return f->second->run(resolvedArgs);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
@@ -329,7 +459,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
             if (argsArray[x].isNull()) {
                 args.push_back("");
             } else {
-                args.push_back(argsArray[x].asString());
+                args.push_back(ReplaceVariableKeywords(argsArray[x].asString()));
             }
         }
         if (WillLog(LOG_DEBUG, VB_COMMAND)) {
@@ -374,7 +504,12 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
                 if (cmd["args"][x].isNull()) {
                     args.push_back("");
                 } else {
-                    args.push_back(cmd["args"][x].asString());
+                    // Resolved against THIS host's Variables before sending -
+                    // a remote host has no way to resolve %VAR:name% itself
+                    // (and may not even have a same-named Variable), so it
+                    // must go out already substituted, unlike the
+                    // non-multisync path below where run() does this.
+                    args.push_back(ReplaceVariableKeywords(cmd["args"][x].asString()));
                 }
             }
             MultiSync::INSTANCE.SendFPPCommandPacket(hosts, command, args);
@@ -457,7 +592,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
         Json::Value allCommands;
         if (FileExists(commandsFile)) {
             // Load new config file
-            allCommands = LoadJsonFromFile(commandsFile);
+            allCommands = LoadJsonFromFile(commandsFile, JsonRoot::Object);
         }
         if (plen > 1) {
             if (allCommands.isMember("commands")) {
@@ -613,9 +748,13 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
 // %VAR:name% - substitute a named User Variable's current value. Explicit
 // "VAR:" prefix (rather than bare %name%) avoids colliding with unrelated
 // existing usages of %word% patterns that happen to match a variable name.
-// Scoped to command args specifically (not the shared ReplaceKeywords() in
-// common.cpp) so the Variables dependency doesn't spread into the small
-// standalone CLI helpers that link common.o directly (fpp, fppoled, fsequtils).
+// Applied centrally in CommandManager::run() (see the forward declaration
+// near the top of this file) rather than at each call site, so every way a
+// command can run - api/command, a preset trigger, GPIO, MultiSync, a
+// playlist "FPP Command" entry, If, a recurring task, ... - resolves it the
+// same way. Kept out of the shared ReplaceKeywords() in common.cpp so the
+// Variables dependency doesn't spread into the small standalone CLI helpers
+// that link common.o directly (fpp, fppoled, fsequtils).
 static std::string ReplaceVariableKeywords(std::string str) {
     std::size_t varPos = 0;
     while ((varPos = str.find("%VAR:", varPos)) != std::string::npos) {
@@ -631,14 +770,15 @@ static std::string ReplaceVariableKeywords(std::string str) {
     return str;
 }
 
+// %VAR: substitution isn't done here - it's applied once, centrally, by
+// CommandManager::run() itself (see ReplaceVariableKeywords above), which
+// every caller of this function's result eventually goes through.
 Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string>& keywords) {
     if (!cmd.isMember("args"))
         return cmd;
 
     for (int i = 0; i < cmd["args"].size(); i++) {
-        std::string arg = cmd["args"][i].asString();
-
-        cmd["args"][i] = ReplaceVariableKeywords(ReplaceKeywords(cmd["args"][i].asString(), keywords));
+        cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
     }
 
     return cmd;
@@ -742,7 +882,7 @@ void CommandManager::LoadPresets() {
     if (FileExists(commandsFile)) {
         // Load new config file
         lastPresetTimeStamp = FileTimestamp(commandsFile);
-        allCommands = LoadJsonFromFile(commandsFile);
+        allCommands = LoadJsonFromFile(commandsFile, JsonRoot::Object);
     } else {
         // Convert any old events to new format
         Json::Value commands(Json::arrayValue);
@@ -756,7 +896,7 @@ void CommandManager::LoadPresets() {
                     LogDebug(VB_COMMAND, "Converting old %s event to a Command Preset\n", id);
 
                     Json::Value event;
-                    if (LoadJsonFromFile(filename, event)) {
+                    if (LoadJsonFromFile(filename, event, JsonRoot::Object)) {
                         event.removeMember("majorId");
                         event.removeMember("minorId");
                         event["presetSlot"] = 0;

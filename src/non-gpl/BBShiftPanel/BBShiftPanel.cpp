@@ -147,6 +147,8 @@ constexpr int MAX_OUTPUTS = 16;
 // so it does not need to divide the ring size evenly)
 constexpr uint32_t PUMP_BLOCK_SIZE = 3072;
 
+BBShiftPanelManager BBShiftPanelManager::INSTANCE;
+
 BBShiftPanelOutput::BBShiftPanelOutput(unsigned int startChannel, unsigned int channelCount) :
     ChannelOutput(startChannel, channelCount) {
     LogDebug(VB_CHANNELOUT, "BBShiftPanelOutput::BBShiftPanelOutput(%u, %u)\n",
@@ -157,6 +159,14 @@ void BBShiftPanelOutput::StartingOutput() {
     // StoppingOutput is also called when the channel output thread simply
     // goes idle, so the stopping flag has to clear when output resumes
     m_stopping = false;
+    BBShiftPanelManager::INSTANCE.startingOutput();
+}
+
+void BBShiftPanelManager::startingOutput() {
+    if (m_activeMembers++) {
+        // the cape is already refreshing for another matrix
+        return;
+    }
     // Restart the refresh before the init registers go out below: the PRU
     // has to be running to see them at all, and it only reads commands at a
     // frame boundary, so if it is still working through a frame it needs the
@@ -174,7 +184,7 @@ void BBShiftPanelOutput::StartingOutput() {
 #define PANEL_INIT_OFFSET 0x1E00
 #define ADDR_CONFIG_OFFSET 0x1DF8
 
-void BBShiftPanelOutput::sendPanelInitPackets() {
+void BBShiftPanelManager::sendPanelInitPackets() {
     // panel configuration register writes, from the rpi-rgb-led-matrix
     // project (lib/framebuffer.cc InitFM6126/InitFM6127): a register write
     // is the pattern repeated across the whole chain width on every data
@@ -237,6 +247,18 @@ void BBShiftPanelOutput::StoppingOutput() {
     while (m_inFlight > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+    BBShiftPanelManager::INSTANCE.stoppingOutput();
+}
+
+void BBShiftPanelManager::stoppingOutput() {
+    if (m_activeMembers > 0 && --m_activeMembers) {
+        // another matrix on this cape is still outputting
+        return;
+    }
+    // a partially arrived or prepped frame must not carry across the park, or
+    // the first frame after the restart would publish stale content
+    m_preppedThisFrame = 0;
+    m_framePrepped = false;
     ParkPRUs();
 }
 
@@ -259,7 +281,7 @@ void BBShiftPanelOutput::StoppingOutput() {
 //
 // PWM panels refresh from their own registers and their pump already idles
 // between commands, so none of this applies to them.
-void BBShiftPanelOutput::ParkPRUs() {
+void BBShiftPanelManager::ParkPRUs() {
     if (isPWMPanel() || !pru || !pruData || m_prusPaused) {
         return;
     }
@@ -298,7 +320,7 @@ void BBShiftPanelOutput::ParkPRUs() {
     m_prusPaused = true;
 }
 
-void BBShiftPanelOutput::UnparkPRUs() {
+void BBShiftPanelManager::UnparkPRUs() {
     if (m_prusPaused) {
         // the OE PRU first, so it is already waiting by the time the panel
         // PRU starts handing it brightnesses
@@ -320,14 +342,40 @@ BBShiftPanelOutput::~BBShiftPanelOutput() {
     while (m_inFlight > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    bgThreadsRunning = false;
-    bgTaskCondVar.notify_all();
-    while (bgThreadCount > 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    // covers an Init that failed after the manager accepted this matrix, where
+    // the output is deleted without Close() ever being called
+    releaseToManager();
+    BBShiftPanelManager::INSTANCE.removeMember(this);
+
+    if (m_matrix)
+        delete m_matrix;
+    if (m_panelMatrix)
+        delete m_panelMatrix;
+}
+
+void BBShiftPanelManager::removeMember(BBShiftPanelOutput* m) {
+    auto it = std::find(m_members.begin(), m_members.end(), m);
+    if (it == m_members.end()) {
+        // never registered (its Init failed)
+        return;
     }
+    m_members.erase(it);
+    m_preppedThisFrame = 0;
+    m_framePrepped = false;
+    // The remaining members keep the geometry they were mapped against.  It
+    // stays valid - a rowLen longer than the remaining chains need just shifts
+    // a few extra pixels off the end of those chains - and rebuilding here
+    // would restart the PRU in the middle of a shutdown.
+    if (m_members.empty()) {
+        teardown();
+    }
+}
 
+// Stops the hardware but keeps the parsed configuration, so a rebuild can
+// bring it back up with new geometry.
+void BBShiftPanelManager::teardownHardware() {
+    stopBackgroundThreads();
     StopPRU();
-
     if (m_heapBuffers) {
         for (auto& b : outputBuffers) {
             if (b) {
@@ -335,22 +383,27 @@ BBShiftPanelOutput::~BBShiftPanelOutput() {
                 b = nullptr;
             }
         }
+        m_heapBuffers = false;
     }
-
-    if (channelOffsets)
-        delete[] channelOffsets;
-    if (currentChannelData)
-        delete[] currentChannelData;
-
-    if (pru)
-        delete pru;
-    if (m_matrix)
-        delete m_matrix;
-    if (m_panelMatrix)
-        delete m_panelMatrix;
+    m_frontBuffer = nullptr;
+    currOutputBuffer = 0;
 }
 
-bool BBShiftPanelOutput::isPWMPanel() {
+void BBShiftPanelManager::teardown() {
+    teardownHardware();
+    if (currentChannelData) {
+        delete[] currentChannelData;
+        currentChannelData = nullptr;
+    }
+    if (!m_refreshWarning.empty()) {
+        WarningHolder::RemoveWarning(m_refreshWarning);
+        m_refreshWarning.clear();
+    }
+    m_activeMembers = 0;
+    m_openMembers = 0;
+}
+
+bool BBShiftPanelManager::isPWMPanel() const {
     return m_addressingMode >= ADDRESSING_MODE_FM6353C;
 }
 
@@ -365,6 +418,200 @@ int BBShiftPanelOutput::Init(Json::Value config) {
         return 0;
     }
 
+    // Everything below here is this matrix's own: its pixel mapping, its
+    // channel range, its color handling.  The hardware the frame goes out
+    // on is shared with any other matrix on the same cape and is set up by
+    // the manager in addMember() below.
+    m_invertedData = config["invertedData"].asInt();
+    m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
+    if (config.isMember("brightness")) {
+        m_brightness = config["brightness"].asInt();
+    }
+    if (m_brightness < 1 || m_brightness > 10) {
+        m_brightness = 10;
+    }
+    m_gamma = 2.2;
+    if (config.isMember("gamma")) {
+        m_gamma = atof(config["gamma"].asString().c_str());
+    }
+
+    int panelWidth = config["panelWidth"].asInt();
+    int panelHeight = config["panelHeight"].asInt();
+    if (!panelWidth) {
+        panelWidth = 32;
+    }
+    if (!panelHeight) {
+        panelHeight = 16;
+    }
+
+    m_panelMatrix = new PanelMatrix(panelWidth, panelHeight, m_invertedData);
+    if (!m_panelMatrix) {
+        LogErr(VB_CHANNELOUT, "BBShiftPanelOutput: Unable to create PanelMatrix\n");
+        return 0;
+    }
+    for (int i = 0; i < config["panels"].size(); i++) {
+        Json::Value p = config["panels"][i];
+        if (p["outputNumber"].asInt() <= outputs) {
+            char orientation = 'N';
+            const char* o = p["orientation"].asString().c_str();
+
+            if (o && *o) {
+                orientation = o[0];
+            }
+
+            if (p["colorOrder"].asString() == "") {
+                p["colorOrder"] = ColorOrderToString(m_colorOrder);
+            }
+
+            m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
+                                    p["panelNumber"].asInt(),
+                                    orientation,
+                                    p["xOffset"].asInt(), p["yOffset"].asInt(),
+                                    ColorOrderFromString(p["colorOrder"].asString()));
+            if (p["panelNumber"].asInt() > m_longestChain) {
+                m_longestChain = p["panelNumber"].asInt();
+            }
+        }
+    }
+    m_longestChain++;
+
+    // get the dimensions of the matrix
+    m_panels = m_panelMatrix->PanelCount();
+    m_width = m_panelMatrix->Width();
+    m_height = m_panelMatrix->Height();
+
+    m_channelCount = m_width * m_height * 3;
+
+    m_matrix = new Matrix(m_startChannel, m_width, m_height);
+    if (config.isMember("subMatrices")) {
+        for (int i = 0; i < config["subMatrices"].size(); i++) {
+            Json::Value sm = config["subMatrices"][i];
+
+            m_matrix->AddSubMatrix(
+                sm["enabled"].asInt(),
+                sm["startChannel"].asInt() - 1,
+                sm["width"].asInt(),
+                sm["height"].asInt(),
+                sm["xOffset"].asInt(),
+                sm["yOffset"].asInt());
+        }
+    }
+
+    // Claims the outputs this matrix drives on the shared cape and brings the
+    // PRU up (or rebuilds it around the new geometry if another matrix is
+    // already running).  This is what builds the gamma table and the scatter
+    // map, since both depend on the shared frame layout.
+    if (!BBShiftPanelManager::INSTANCE.addMember(this, config, root)) {
+        return 0;
+    }
+    m_registered = true;
+
+    if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
+        std::string dd = "LED Panels";
+        if (config.isMember("LEDPanelMatrixName") && !config["LEDPanelMatrixName"].asString().empty()) {
+            dd = config["LEDPanelMatrixName"].asString();
+        }
+        if (config.isMember("description")) {
+            dd = config["description"].asString();
+        }
+        std::string desc = dd;
+        int count = 0;
+        while (PixelOverlayManager::INSTANCE.getModel(desc) != nullptr) {
+            count++;
+            desc = dd + "-" + std::to_string(count);
+        }
+        PixelOverlayManager::INSTANCE.addAutoOverlayModel(desc,
+                                                          m_startChannel, m_channelCount, 3,
+                                                          "H", m_invertedData ? "BL" : "TL",
+                                                          m_height, 1);
+        m_autoCreatedModelName = desc;
+    }
+
+    return ChannelOutput::Init(config);
+}
+
+bool BBShiftPanelOutput::usesOutput(int o) const {
+    return m_panelMatrix && o >= 0 && o < MAX_MATRIX_OUTPUTS &&
+           !m_panelMatrix->m_outputPanels[o].empty();
+}
+
+// The settings below describe how the PRU shifts a frame out, so they belong
+// to the cape rather than to any one matrix on it.  The first matrix to
+// register fixes them; checkCompatible() holds later ones to the same values.
+BBShiftPanelManager::PanelParams BBShiftPanelManager::parsePanelParams(const Json::Value& config, const Json::Value& capeConfig) {
+    PanelParams p;
+    p.panelWidth = config["panelWidth"].asInt();
+    p.panelHeight = config["panelHeight"].asInt();
+    if (!p.panelWidth) {
+        p.panelWidth = 32;
+    }
+    if (!p.panelHeight) {
+        p.panelHeight = 16;
+    }
+
+    p.addressingMode = config["panelRowAddressType"].asInt();
+    p.panelType = config["panelType"].asInt();
+    // For PWM panel types the addressing dropdown selects how the GCLK
+    // program drives the row lines: Direct Row Select = binary row number
+    // on SEL0-4, anything else = the DP32020A style row shift register
+    p.pwmDirectRow = (p.addressingMode == ADDRESSING_MODE_DIRECT);
+    if (p.panelType == PANEL_TYPE_FM6363C) {
+        // the UI moved FM6363C from the addressing dropdown to the panel
+        // type dropdown; internally it stays the PWM addressing mode (old
+        // configs with panelRowAddressType == 51 keep working unchanged)
+        p.addressingMode = ADDRESSING_MODE_FM6363C;
+        p.panelType = 0;
+    } else if (p.panelType == PANEL_TYPE_FM6353) {
+        p.addressingMode = ADDRESSING_MODE_FM6353C;
+        p.panelType = 0;
+    } else if (p.panelType == PANEL_TYPE_FM6373) {
+        p.addressingMode = ADDRESSING_MODE_FM6373;
+        p.panelType = 0;
+    }
+    bool pwm = p.addressingMode >= ADDRESSING_MODE_FM6353C;
+
+    // A combo cape shares the PRUSS with a string driver on the other PRU:
+    // panels run single-PRU with the smaller split shared-memory ring and
+    // must not touch anything the other driver owns.  (The flag is also
+    // honored from the output config for bench testing.)
+    p.sharedPRUSS = capeConfig["sharedPRUSS"].asBool() || config["sharedPRUSS"].asBool();
+
+    p.colorDepth = 12;
+    if (config.isMember("panelColorDepth")) {
+        p.colorDepth = config["panelColorDepth"].asInt();
+    }
+    p.outputByRow = false;
+    p.outputBlankData = false;
+    if (config.isMember("panelOutputOrder")) {
+        p.outputByRow = config["panelOutputOrder"].asBool();
+    }
+    if (config.isMember("panelOutputBlankRow")) {
+        p.outputBlankData = config["panelOutputBlankRow"].asBool();
+    }
+    if (p.colorDepth < 0) {
+        p.colorDepth = -p.colorDepth;
+        p.outputBlankData = true;
+    }
+    if (p.colorDepth > 12 || p.colorDepth < 6) {
+        p.colorDepth = 8;
+    }
+    if (pwm) {
+        p.colorDepth = 16;
+    }
+
+    p.panelInterleave = "";
+    if (config.isMember("panelInterleave")) {
+        p.panelInterleave = config["panelInterleave"].asString();
+    }
+    p.panelScan = config["panelScan"].asInt();
+    if (p.panelScan == 0) {
+        //  default scan is 1/2 the height of the panel
+        p.panelScan = p.panelHeight / 2;
+    }
+    return p;
+}
+
+bool BBShiftPanelManager::parseCapeConfig(const Json::Value& root) {
     // Mux only the pins the cape actually uses: the named control pins plus
     // the data pins its outputs reference.  On the AM62x every PRU1 pin can
     // alternatively be muxed to PRU0, so a cape that lists fewer outputs
@@ -417,45 +664,27 @@ int BBShiftPanelOutput::Init(Json::Value config) {
         const PinCapabilities& pin = PinCapabilities::getPinByName(m_oePin);
         pin.configPin("pru0out", true);
     }
-    m_panelWidth = config["panelWidth"].asInt();
-    m_panelHeight = config["panelHeight"].asInt();
-    if (!m_panelWidth) {
-        m_panelWidth = 32;
-    }
-    if (!m_panelHeight) {
-        m_panelHeight = 16;
-    }
+    return true;
+}
 
-    m_addressingMode = config["panelRowAddressType"].asInt();
-    m_panelType = config["panelType"].asInt();
-    // For PWM panel types the addressing dropdown selects how the GCLK
-    // program drives the row lines: Direct Row Select = binary row number
-    // on SEL0-4, anything else = the DP32020A style row shift register
-    m_pwmDirectRow = (m_addressingMode == ADDRESSING_MODE_DIRECT);
-    if (m_panelType == PANEL_TYPE_FM6363C) {
-        // the UI moved FM6363C from the addressing dropdown to the panel
-        // type dropdown; internally it stays the PWM addressing mode (old
-        // configs with panelRowAddressType == 51 keep working unchanged)
-        m_addressingMode = ADDRESSING_MODE_FM6363C;
-        m_panelType = 0;
-    } else if (m_panelType == PANEL_TYPE_FM6353) {
-        m_addressingMode = ADDRESSING_MODE_FM6353C;
-        m_panelType = 0;
-    } else if (m_panelType == PANEL_TYPE_FM6373) {
-        m_addressingMode = ADDRESSING_MODE_FM6373;
-        m_panelType = 0;
-    }
+bool BBShiftPanelManager::adoptPanelParams(const PanelParams& p) {
+    m_panelWidth = p.panelWidth;
+    m_panelHeight = p.panelHeight;
+    m_panelScan = p.panelScan;
+    m_panelInterleave = p.panelInterleave;
+    m_addressingMode = p.addressingMode;
+    m_panelType = p.panelType;
+    m_pwmDirectRow = p.pwmDirectRow;
+    m_colorDepth = p.colorDepth;
+    m_outputByRow = p.outputByRow;
+    m_outputBlankData = p.outputBlankData;
+    m_sharedPRUSS = p.sharedPRUSS;
 
-    // A combo cape shares the PRUSS with a string driver on the other PRU:
-    // panels run single-PRU with the smaller split shared-memory ring and
-    // must not touch anything the other driver owns.  (The flag is also
-    // honored from the output config for bench testing.)
-    m_sharedPRUSS = root["sharedPRUSS"].asBool() || config["sharedPRUSS"].asBool();
     if (m_sharedPRUSS) {
         if (isPWMPanel()) {
             LogErr(VB_CHANNELOUT, "PWM panel types require both PRUs and cannot be used on a shared panels+strings cape\n");
             WarningHolder::AddWarning("PWM panel types (FM6363C/FM6353/FM6373) cannot be used on a shared panels+strings cape");
-            return 0;
+            return false;
         }
         singlePRU = true;
     }
@@ -466,156 +695,199 @@ int BBShiftPanelOutput::Init(Json::Value config) {
             pin.configPin("pru0out", true);
         }
     }
+    return true;
+}
 
-    m_invertedData = config["invertedData"].asInt();
-    m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
-
-    m_panelMatrix = new PanelMatrix(m_panelWidth, m_panelHeight, m_invertedData);
-    if (!m_panelMatrix) {
-        LogErr(VB_CHANNELOUT, "BBShiftPanelOutput: Unable to create PanelMatrix\n");
-        return 0;
+// A second matrix on the cape shares one frame, one stride schedule and one
+// set of PRU firmware, so anything that shapes those has to be identical.  The
+// per-matrix settings (gamma, color order, start corner, brightness, layout)
+// are deliberately not in here.
+bool BBShiftPanelManager::checkCompatible(const PanelParams& p) const {
+    const char* bad = nullptr;
+    if (p.panelWidth != m_panelWidth || p.panelHeight != m_panelHeight) {
+        bad = "panel size";
+    } else if (p.panelScan != m_panelScan) {
+        bad = "panel scan";
+    } else if (p.panelInterleave != m_panelInterleave) {
+        bad = "panel interleave";
+    } else if (p.addressingMode != m_addressingMode || p.panelType != m_panelType) {
+        bad = "panel type / row addressing";
+    } else if (p.colorDepth != m_colorDepth) {
+        bad = "color depth";
+    } else if (p.outputByRow != m_outputByRow || p.outputBlankData != m_outputBlankData) {
+        bad = "output order / blank row";
     }
-    bool usesOutput[MAX_OUTPUTS] = { false };
-    for (int i = 0; i < config["panels"].size(); i++) {
-        Json::Value p = config["panels"][i];
-        if (p["outputNumber"].asInt() <= outputs) {
-            char orientation = 'N';
-            const char* o = p["orientation"].asString().c_str();
+    if (bad) {
+        std::string w = std::string("All LED panel matrices on one cape must use the same ") + bad +
+                        "; this matrix was not started.";
+        LogErr(VB_CHANNELOUT, "BBShiftPanel: %s\n", w.c_str());
+        WarningHolder::AddWarning(w);
+        return false;
+    }
+    return true;
+}
 
-            if (o && *o) {
-                orientation = o[0];
-            }
+bool BBShiftPanelManager::addMember(BBShiftPanelOutput* m, const Json::Value& config, const Json::Value& capeConfig) {
+    PanelParams p = parsePanelParams(config, capeConfig);
+    if (m_members.empty()) {
+        if (!parseCapeConfig(capeConfig) || !adoptPanelParams(p)) {
+            return false;
+        }
+    } else if (!checkCompatible(p)) {
+        return false;
+    }
 
-            if (p["colorOrder"].asString() == "") {
-                p["colorOrder"] = ColorOrderToString(m_colorOrder);
-            }
-
-            m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
-                                    p["panelNumber"].asInt(),
-                                    orientation,
-                                    p["xOffset"].asInt(), p["yOffset"].asInt(),
-                                    ColorOrderFromString(p["colorOrder"].asString()));
-            usesOutput[p["outputNumber"].asInt()] = true;
-            if (p["panelNumber"].asInt() > m_longestChain) {
-                m_longestChain = p["panelNumber"].asInt();
+    // Each output is one set of byte lanes in the shared frame, so two
+    // matrices cannot drive the same one - they would each be writing the
+    // other's pixels.
+    for (int o = 0; o < m_numOutputs; o++) {
+        if (!m->usesOutput(o)) {
+            continue;
+        }
+        for (auto* other : m_members) {
+            if (other->usesOutput(o)) {
+                std::string w = "Two LED panel matrices are both configured to use cape output " +
+                                std::to_string(o + 1) + "; the second matrix was not started.";
+                LogErr(VB_CHANNELOUT, "BBShiftPanel: %s\n", w.c_str());
+                WarningHolder::AddWarning(w);
+                return false;
             }
         }
     }
-    m_longestChain++;
 
-    // get the dimensions of the matrix
-    m_panels = m_panelMatrix->PanelCount();
-    m_width = m_panelMatrix->Width();
-    m_height = m_panelMatrix->Height();
+    m_members.push_back(m);
+    ++m_openMembers;
+    if (!rebuild()) {
+        m_members.pop_back();
+        --m_openMembers;
+        if (m_members.empty()) {
+            // nothing is left holding the hardware, so do not leave the
+            // half-built frame buffers allocated
+            teardown();
+        }
+        return false;
+    }
+    return true;
+}
 
-    if (config.isMember("brightness")) {
-        m_brightness = config["brightness"].asInt();
-    }
-    if (m_brightness < 1 || m_brightness > 10) {
-        m_brightness = 10;
-    }
-    if (config.isMember("panelColorDepth")) {
-        m_colorDepth = config["panelColorDepth"].asInt();
-    }
+// The frame is as wide as the longest chain on the cape and as tall as one
+// panel's scan requires; every member maps into that same shape.
+void BBShiftPanelManager::computeGeometry() {
+    numRows = 0;
+    maxRowLen = 0;
+    // cleared up front so a member set with no panels leaves a zero sized
+    // frame rather than the previous rebuild's geometry
+    rowLen = 0;
 
-    if (config.isMember("panelOutputOrder")) {
-        m_outputByRow = config["panelOutputOrder"].asBool();
-    }
-    if (config.isMember("panelOutputBlankRow")) {
-        m_outputBlankData = config["panelOutputBlankRow"].asBool();
-    }
-    if (m_colorDepth < 0) {
-        m_colorDepth = -m_colorDepth;
-        m_outputBlankData = true;
-    }
-    if (m_colorDepth > 12 || m_colorDepth < 6) {
-        m_colorDepth = 8;
-    }
-
-    if (isPWMPanel()) {
-        m_colorDepth = 16;
-    }
-
-    float gamma = 2.2;
-    if (config.isMember("gamma")) {
-        gamma = atof(config["gamma"].asString().c_str());
-    }
-    setupGamma(gamma);
-
-    if (config.isMember("panelInterleave")) {
-        m_panelInterleave = config["panelInterleave"].asString();
-    }
-
-    m_panelScan = config["panelScan"].asInt();
-    // printf("Interleave: %d     Scan: %d    ZZI: %d    ZZCI:  %d    SI: %d\n", m_interleave, m_panelScan, zigZagInterleave, zigZagClusterInterleave, stripeInterleave);
-    if (m_panelScan == 0) {
-        //  default scan is 1/2 the height of the panel
-        m_panelScan = m_panelHeight / 2;
-    }
-
-    m_channelCount = m_width * m_height * 3;
-
-    m_matrix = new Matrix(m_startChannel, m_width, m_height);
-    if (config.isMember("subMatrices")) {
-        for (int i = 0; i < config["subMatrices"].size(); i++) {
-            Json::Value sm = config["subMatrices"][i];
-
-            m_matrix->AddSubMatrix(
-                sm["enabled"].asInt(),
-                sm["startChannel"].asInt() - 1,
-                sm["width"].asInt(),
-                sm["height"].asInt(),
-                sm["xOffset"].asInt(),
-                sm["yOffset"].asInt());
+    bool anyPanels = false;
+    m_longestChain = 0;
+    m_brightness = 1;
+    for (auto* m : m_members) {
+        if (m->m_panels > 0) {
+            anyPanels = true;
+        }
+        if (m->longestChain() > m_longestChain) {
+            m_longestChain = m->longestChain();
+        }
+        // the OE on-time is shared, so the cape runs at the brightest setting
+        // any matrix asked for and the others scale their gamma down to it
+        if (m->configuredBrightness() > m_brightness) {
+            m_brightness = m->configuredBrightness();
         }
     }
-    if (!setupChannelOffsets()) {
-        return 0;
+    if (!anyPanels) {
+        return;
     }
+
+    PanelInterleaveHandler* handler = PanelInterleaveHandler::createHandler(m_panelInterleave, m_panelWidth, m_panelHeight, m_panelScan);
+    if (!handler) {
+        LogErr(VB_CHANNELOUT, "Failed to create panel interleave handler\n");
+        return;
+    }
+    // the mapping only depends on the position within a panel, so one pass
+    // over a single panel gives the row count and row length for all of them
+    for (int y = 0; y < (m_panelHeight / 2); y++) {
+        for (int x = 0; x < m_panelWidth; ++x) {
+            int yOut = y;
+            int xOut = x;
+            handler->map(xOut, yOut);
+            if (yOut >= (int)numRows) {
+                numRows = yOut + 1;
+            }
+            if (xOut >= (int)maxRowLen) {
+                maxRowLen = xOut + 1;
+            }
+        }
+    }
+    delete handler;
+    rowLen = maxRowLen * m_longestChain;
+}
+
+// Brings the shared hardware up around the current member set.  Called for
+// every registration, so adding a matrix with a longer chain re-maps the ones
+// already registered onto the new frame width.
+bool BBShiftPanelManager::rebuild() {
+    teardownHardware();
+    computeGeometry();
+
+    uint32_t dataSize = intermediateSize();
+    if (!dataSize) {
+        LogErr(VB_CHANNELOUT, "BBShiftPanel: no panels configured, nothing to output\n");
+        return false;
+    }
+    if (currentChannelData) {
+        delete[] currentChannelData;
+    }
+    currentChannelData = new uint16_t[dataSize];
+    memset(currentChannelData, 0, dataSize * sizeof(uint16_t));
+
+    for (auto* m : m_members) {
+        m->setupGamma();
+        if (!m->buildScatterMap()) {
+            return false;
+        }
+    }
+
     pru = new BBBPru(1, true, true);
     pruData = (BBShiftPanelData*)pru->data_ram;
     if (!isPWMPanel()) {
         buildStrideSchedule();
     }
     if (StartPRU() == 0) {
-        return 0;
+        return false;
     }
     if (isPWMPanel()) {
         setupPWMRegisters();
     } else {
         setupBrightnessValues();
     }
-
-    if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
-        std::string dd = "LED Panels";
-        if (config.isMember("LEDPanelMatrixName") && !config["LEDPanelMatrixName"].asString().empty()) {
-            dd = config["LEDPanelMatrixName"].asString();
-        }
-        if (config.isMember("description")) {
-            dd = config["description"].asString();
-        }
-        std::string desc = dd;
-        int count = 0;
-        while (PixelOverlayManager::INSTANCE.getModel(desc) != nullptr) {
-            count++;
-            desc = dd + "-" + std::to_string(count);
-        }
-        PixelOverlayManager::INSTANCE.addAutoOverlayModel(desc,
-                                                          m_startChannel, m_channelCount, 3,
-                                                          "H", m_invertedData ? "BL" : "TL",
-                                                          m_height, 1);
-        m_autoCreatedModelName = desc;
-    }
-
-    bgThreadsRunning = true;
-    for (int i = 0; i < std::thread::hardware_concurrency(); i++) {
-        std::thread th(&BBShiftPanelOutput::runBackgroundTasks, this);
-        th.detach();
-    }
-    return ChannelOutput::Init(config);
+    startBackgroundThreads();
+    return true;
 }
 
-int BBShiftPanelOutput::StartPRU() {
+void BBShiftPanelManager::startBackgroundThreads() {
+    if (bgThreadsRunning) {
+        return;
+    }
+    bgThreadsRunning = true;
+    for (int i = 0; i < std::thread::hardware_concurrency(); i++) {
+        std::thread th(&BBShiftPanelManager::runBackgroundTasks, this);
+        th.detach();
+    }
+}
+
+void BBShiftPanelManager::stopBackgroundThreads() {
+    if (!bgThreadsRunning) {
+        return;
+    }
+    bgThreadsRunning = false;
+    bgTaskCondVar.notify_all();
+    while (bgThreadCount > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+}
+
+int BBShiftPanelManager::StartPRU() {
     if (!pru) {
         pru = new BBBPru(1, true, true);
         pruData = (BBShiftPanelData*)pru->data_ram;
@@ -703,11 +975,11 @@ int BBShiftPanelOutput::StartPRU() {
     m_heapBuffers = true;
     m_frontBuffer = nullptr;
     m_pumpRunning = true;
-    m_pumpThread = std::thread(&BBShiftPanelOutput::runPumpThread, this);
+    m_pumpThread = std::thread(&BBShiftPanelManager::runPumpThread, this);
     return 1;
 }
 
-void BBShiftPanelOutput::runPumpThread() {
+void BBShiftPanelManager::runPumpThread() {
     struct sched_param sp;
     sp.sched_priority = 50;
     int err = pthread_setschedparam(pthread_self(), SCHED_FIFO, &sp);
@@ -783,7 +1055,7 @@ void BBShiftPanelOutput::runPumpThread() {
         }
     }
 }
-void BBShiftPanelOutput::StopPRU(bool wait) {
+void BBShiftPanelManager::StopPRU(bool wait) {
     // A halted core cannot see the stop command, and a parked one is already
     // sitting on the check, so let them run first
     UnparkPRUs();
@@ -826,12 +1098,29 @@ void BBShiftPanelOutput::StopPRU(bool wait) {
 
 int BBShiftPanelOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "BBShiftPanelOutput::Close()\n");
+    if (!m_autoCreatedModelName.empty()) {
+        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
+        m_autoCreatedModelName.clear();
+    }
+    releaseToManager();
+    return ChannelOutput::Close();
+}
+
+void BBShiftPanelOutput::releaseToManager() {
+    if (m_registered && !m_closed) {
+        m_closed = true;
+        BBShiftPanelManager::INSTANCE.closeMember();
+    }
+}
+
+void BBShiftPanelManager::closeMember() {
+    if (m_openMembers > 0 && --m_openMembers) {
+        // the pins stay muxed while another matrix on the cape still needs them
+        return;
+    }
     if (!m_refreshWarning.empty()) {
         WarningHolder::RemoveWarning(m_refreshWarning);
         m_refreshWarning.clear();
-    }
-    if (!m_autoCreatedModelName.empty()) {
-        PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
     }
     // release only the pins this cape muxed; other drivers (a future
     // panels + strings combo cape) may own the rest
@@ -850,10 +1139,10 @@ int BBShiftPanelOutput::Close(void) {
             pin.releasePin();
         }
     }
-    return ChannelOutput::Close();
+    m_configuredPins.clear();
 }
 
-void BBShiftPanelOutput::runBackgroundTasks() {
+void BBShiftPanelManager::runBackgroundTasks() {
     ++bgThreadCount;
     while (bgThreadsRunning) {
         std::function<void()> task;
@@ -872,7 +1161,7 @@ void BBShiftPanelOutput::runBackgroundTasks() {
     --bgThreadCount;
 }
 
-void BBShiftPanelOutput::processTasks(std::atomic<int>& counter) {
+void BBShiftPanelManager::processTasks(std::atomic<int>& counter) {
     // This must always drain to zero, even during shutdown: the queued tasks
     // reference the calling frame's stack (counter, results) and this object,
     // so returning while any are queued or running leaves them with dangling
@@ -896,19 +1185,28 @@ void BBShiftPanelOutput::processTasks(std::atomic<int>& counter) {
 }
 
 void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
-    // if (!isPWMPanel() && FileExists(FPP_DIR_MEDIA("/config/panel_timing.txt"))) {
-    //     setupBrightnessValues();
-    // }
     LogExcess(VB_CHANNELOUT, "BBShiftPanelOutput::PrepData(%p)\n", channelData);
+    if (!m_registered) {
+        return;
+    }
     ++m_inFlight;
-    if (m_stopping) {
-        --m_inFlight;
+    BBShiftPanelManager::INSTANCE.prepMember(this, channelData);
+    --m_inFlight;
+}
+
+// Scatters this matrix's channels into its own byte lanes of the shared 16 bit
+// intermediate.  Members never touch each other's lanes, so this is safe to run
+// for each matrix in turn with no coordination beyond the frame boundary below.
+void BBShiftPanelOutput::scatterFrame(unsigned char* channelData) {
+    auto& mgr = BBShiftPanelManager::INSTANCE;
+    uint16_t* dest = mgr.currentChannelData;
+    if (!dest) {
         return;
     }
     m_matrix->OverlaySubMatrices(channelData);
     channelData += m_startChannel;
 
-    std::unique_lock<std::mutex> lock(bgTaskMutex);
+    std::unique_lock<std::mutex> lock(mgr.bgTaskMutex);
     size_t total = m_scatterOffsets.size();
     size_t start = 0;
     std::atomic<int> counter(0);
@@ -917,30 +1215,48 @@ void BBShiftPanelOutput::PrepData(unsigned char* channelData) {
         // is sorted by destination
         size_t end = std::min(start + 64 * 1024, total);
         ++counter;
-        bgTasks.push([this, channelData, start, end, &counter]() {
+        mgr.bgTasks.push([this, channelData, start, end, dest, &counter]() {
             const uint32_t* offs = m_scatterOffsets.data();
             const uint32_t* srcs = m_scatterSrc.data();
             for (size_t x = start; x < end; x++) {
-                currentChannelData[offs[x]] = gammaCurve[channelData[srcs[x]]];
+                dest[offs[x]] = gammaCurve[channelData[srcs[x]]];
             }
             --counter;
         });
         start = end;
     }
     lock.unlock();
-    bgTaskCondVar.notify_all();
-    processTasks(counter);
-    if (bgThreadsRunning && !m_stopping) {
-        if (isPWMPanel()) {
-            PrepDataPWM();
-        } else {
-            PrepDataShift();
-        }
-    }
-    --m_inFlight;
+    mgr.bgTaskCondVar.notify_all();
+    mgr.processTasks(counter);
 }
 
-void BBShiftPanelOutput::PrepDataPWM() {
+// One frame's worth of work for the whole cape.  Every member scatters into
+// the shared intermediate first; the bit-plane pass is expensive and produces
+// a single frame for all of them, so it runs once, when the last member has
+// arrived.  Doing it here rather than in SendData keeps it out of the way of
+// the other outputs' wire sends.
+void BBShiftPanelManager::prepMember(BBShiftPanelOutput* m, unsigned char* channelData) {
+    if (!m->m_stopping) {
+        m->scatterFrame(channelData);
+    }
+    // A stopping member contributes nothing but must still be counted, or the
+    // frame boundary would never be reached again and output would stall.
+    if (++m_preppedThisFrame < (int)m_members.size()) {
+        return;
+    }
+    m_preppedThisFrame = 0;
+    if (!bgThreadsRunning) {
+        return;
+    }
+    if (isPWMPanel()) {
+        PrepDataPWM();
+    } else {
+        PrepDataShift();
+    }
+    m_framePrepped = true;
+}
+
+void BBShiftPanelManager::PrepDataPWM() {
     uint8_t* buf = outputBuffers[currOutputBuffer];
 
     std::unique_lock<std::mutex> lock(bgTaskMutex);
@@ -984,7 +1300,7 @@ void BBShiftPanelOutput::PrepDataPWM() {
     */
 
     // wait for the PRU to take the previous command before queueing the next
-    while (pruData->command && !m_stopping) {
+    while (pruData->command && bgThreadsRunning) {
         std::this_thread::sleep_for(std::chrono::microseconds(100));
         __asm__ __volatile__("" ::
                                  : "memory");
@@ -1002,7 +1318,7 @@ void BBShiftPanelOutput::PrepDataPWM() {
                              : "memory");
 }
 
-void BBShiftPanelOutput::PrepDataShift() {
+void BBShiftPanelManager::PrepDataShift() {
     std::array<std::array<uint16_t*, 16>, 32> results;
 
     uint32_t bytesPerPixel = (m_numOutputSlots * 6 * 2) / 16;
@@ -1070,14 +1386,25 @@ void BBShiftPanelOutput::PrepDataShift() {
 
 int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBShiftPanelOutput::SendData(%p)\n", channelData);
-    if (!bgThreadsRunning || m_stopping) {
+    if (!m_registered || m_stopping) {
         return m_channelCount;
     }
     ++m_inFlight;
-    if (m_stopping) {
-        --m_inFlight;
-        return m_channelCount;
+    BBShiftPanelManager::INSTANCE.publishFrame();
+    --m_inFlight;
+    return m_channelCount;
+}
+
+// Hands the frame the last PrepData built to the pump.  Every member calls
+// this, but the frame is shared, so only the first call after a prep does
+// anything - the rest are no-ops.  This is deliberately cheap: a pointer
+// store and a couple of PRU words, nothing that would hold up the other
+// outputs waiting to send.
+void BBShiftPanelManager::publishFrame() {
+    if (!m_framePrepped) {
+        return;
     }
+    m_framePrepped = false;
 
     if (!isPWMPanel()) {
         // hand the just-prepared frame to the pump thread; it picks it up at
@@ -1086,7 +1413,7 @@ int BBShiftPanelOutput::SendData(unsigned char* channelData) {
         pruData->numStrides = m_strideSchedule.size() * numRows;
         pruData->pixelsPerStride = rowLen;
     } else {
-        while (pruData->command && !m_stopping) {
+        while (pruData->command && bgThreadsRunning) {
             std::this_thread::sleep_for(std::chrono::microseconds(100));
             __asm__ __volatile__("" ::
                                      : "memory");
@@ -1113,8 +1440,6 @@ int BBShiftPanelOutput::SendData(unsigned char* channelData) {
     while (outputBuffers[currOutputBuffer] == nullptr) {
         currOutputBuffer = (currOutputBuffer + 1) % NUM_OUTPUT_BUFFERS;
     }
-    --m_inFlight;
-    return m_channelCount;
 }
 inline int mapRow(int row, int mode) {
     if (mode == ADDRESSING_MODE_DIRECT) {
@@ -1181,7 +1506,7 @@ static int outputRegData(int curidx, uint8_t* odata, uint16_t r, uint16_t g, uin
     return curidx;
 }
 
-void BBShiftPanelOutput::setupPWMRegisters() {
+void BBShiftPanelManager::setupPWMRegisters() {
     /*
     // FM6363 from colorlight + logic analyzer
     // Confirmed via "advanced" tab in LEDVision
@@ -1315,7 +1640,7 @@ void BBShiftPanelOutput::setupPWMRegisters() {
                              : "memory");
 }
 
-void BBShiftPanelOutput::writeFM6373SeqWord(int idx) {
+void BBShiftPanelManager::writeFM6373SeqWord(int idx) {
     // rewrite the rotating register slot (slot 3 of 5) with sequence word
     // idx.  Only safe while no register upload is in flight: called from
     // SendData after the previous DATA command was consumed (the PRU is
@@ -1341,7 +1666,7 @@ void BBShiftPanelOutput::writeFM6373SeqWord(int idx) {
     pru->memcpyToPRU((uint8_t*)&pruData->registers[0] + 2 * slotSize, buf, len);
 }
 
-void BBShiftPanelOutput::setupGCLKConfig() {
+void BBShiftPanelManager::setupGCLKConfig() {
     // Configuration for the GCLK program on the other PRU (see the rowConfig
     // register in BBShiftPanel_gclk.asm): [0] = blanking loops between GCLK
     // packets (the brightness knob), [1] = row select mode, [2]/[3] = GCLK
@@ -1374,7 +1699,7 @@ void BBShiftPanelOutput::setupGCLKConfig() {
     }
 }
 
-uint32_t BBShiftPanelOutput::computeMaxBrightnessCycles() {
+uint32_t BBShiftPanelManager::computeMaxBrightnessCycles() {
     // Scale the row length by the amount of data actually shifted per pixel
     // clock: 16 output slots shift twice the bytes of 8 slots, so the same
     // physical row takes twice as long to shift out
@@ -1400,7 +1725,7 @@ uint32_t BBShiftPanelOutput::computeMaxBrightnessCycles() {
     return maxBright;
 }
 
-void BBShiftPanelOutput::buildStrideSchedule() {
+void BBShiftPanelManager::buildStrideSchedule() {
     m_strideSchedule.clear();
     m_dupCopies.clear();
 
@@ -1522,7 +1847,7 @@ void BBShiftPanelOutput::buildStrideSchedule() {
     }
 }
 
-void BBShiftPanelOutput::setupBrightnessValues() {
+void BBShiftPanelManager::setupBrightnessValues() {
     uint32_t* cur = &pruData->brightness[0];
     int n = m_strideSchedule.size();
     auto writeEntry = [&](int s, int r) {
@@ -1550,51 +1875,43 @@ void BBShiftPanelOutput::setupBrightnessValues() {
     }
 }
 
-bool BBShiftPanelOutput::setupChannelOffsets() {
-    PanelInterleaveHandler* handler = PanelInterleaveHandler::createHandler(m_panelInterleave, m_panelWidth, m_panelHeight, m_panelScan);
+// Maps this matrix's channels onto the shared frame.  The lane a pixel lands
+// in is fixed by which cape output its panel is on (outputPin/outputBank from
+// the cape pinout), which is what lets two matrices share one frame without
+// coordinating: they simply never compute the same destination offset.
+bool BBShiftPanelOutput::buildScatterMap() {
+    auto& mgr = BBShiftPanelManager::INSTANCE;
+    const int m_panelWidth = mgr.m_panelWidth;
+    const int m_panelHeight = mgr.m_panelHeight;
+    const uint32_t rowLen = mgr.rowLen;
+    const uint32_t maxRowLen = mgr.maxRowLen;
+    const int m_numOutputSlots = mgr.m_numOutputSlots;
+
+    PanelInterleaveHandler* handler = PanelInterleaveHandler::createHandler(mgr.m_panelInterleave, m_panelWidth, m_panelHeight, mgr.m_panelScan);
     if (!handler) {
         LogErr(VB_CHANNELOUT, "Failed to create panel interleave handler\n");
         return false;
     }
-    numRows = 0;
-    rowLen = 0;
-    int maxRowLen = 0;
-    for (int output = 0; output < m_numOutputs; output++) {
-        int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
 
-        for (int i = 0; i < panelsOnOutput; i++) {
-            for (int y = 0; y < (m_panelHeight / 2); y++) {
-                for (int x = 0; x < m_panelWidth; ++x) {
-                    int yOut = y;
-                    int xOut = x;
-                    handler->map(xOut, yOut);
-                    if (yOut >= numRows) {
-                        numRows = yOut + 1;
-                    }
-                    if (xOut >= maxRowLen) {
-                        maxRowLen = xOut + 1;
-                    }
-                }
-            }
-        }
-    }
-    rowLen = maxRowLen * m_longestChain;
-    channelOffsets = new uint32_t[m_channelCount];
+    uint32_t* channelOffsets = new uint32_t[m_channelCount];
     memset(channelOffsets, 0xFF, m_channelCount * sizeof(uint32_t));
 
     int pixelStride = m_numOutputSlots * 6;
     int totalRowLen = rowLen * pixelStride;
-    for (int output = 0; output < m_numOutputs; output++) {
+    for (int output = 0; output < mgr.m_numOutputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         // For 16 outputs, bank1 data starts at offset 48 (= 8 slots * 6 colors)
         // so that ISPC's 16-lane reduce_add packs bank0/bank1 pairs correctly:
         // bank0 channels occupy slots 0-47, bank1 channels occupy slots 48-95
-        int outputIdx = outputPin[output] + outputBank[output] * 48;
+        int outputIdx = mgr.outputPin[output] + mgr.outputBank[output] * 48;
 
         for (int i = 0; i < panelsOnOutput; i++) {
             int panel = m_panelMatrix->m_outputPanels[output][i];
             int c = m_panelMatrix->m_panels[panel].chain;
-            int chain = m_longestChain - c - 1;
+            // the chain position is measured from the far end of the LONGEST
+            // chain on the cape, so a matrix with a shorter chain than another
+            // simply shifts the leading pixels off the end of its own chain
+            int chain = mgr.m_longestChain - c - 1;
             int xOff = chain * maxRowLen;
 
             for (int y = 0; y < (m_panelHeight / 2); y++) {
@@ -1614,7 +1931,7 @@ bool BBShiftPanelOutput::setupChannelOffsets() {
                     handler->map(xOut, yOut);
                     xOut += xOff;
 
-                    if (isPWMPanel()) {
+                    if (mgr.isPWMPanel()) {
                         // For PWM panels, the first of each group of 16 pixels is out first,
                         // then the second of each group of 16, etc...
                         int xo2 = xOut % 16;
@@ -1637,28 +1954,6 @@ bool BBShiftPanelOutput::setupChannelOffsets() {
     }
     delete handler;
 
-    /*
-    for (int x = 0; x < rowLen * 3; x++) {
-        printf("%06x ", channelOffsets[x]);
-        if ((x % 3) == 2) {
-            printf("  ");
-        }
-        if ((x % 48) == 47) {
-            printf("\n");
-        }
-    }
-    printf("\n");
-    int offset = 32 * rowLen * 3;
-    for (int x = 0; x < rowLen * 3; x++) {
-        printf("%06x ", channelOffsets[x + offset]);
-        if ((x % 3) == 2) {
-            printf("  ");
-        }
-        if ((x % 48) == 47) {
-            printf("\n");
-        }
-    }
-    */
     // Build the scatter map sorted by destination offset so the prep loop
     // writes sequentially; the random accesses become byte reads, which the
     // cache handles far better than random read-modify-write stores.
@@ -1667,7 +1962,6 @@ bool BBShiftPanelOutput::setupChannelOffsets() {
     // out of the map; writing through the marker used to crash.  The stable
     // sort keeps the original channel order for duplicated offsets so the
     // last writer still wins.
-    uint32_t dataSize = rowLen * m_numOutputSlots * 6 * numRows;
     std::vector<std::pair<uint32_t, uint32_t>> map;
     map.reserve(m_channelCount);
     uint32_t unmapped = 0;
@@ -1691,20 +1985,26 @@ bool BBShiftPanelOutput::setupChannelOffsets() {
         m_scatterSrc[x] = map[x].second;
     }
     delete[] channelOffsets;
-    channelOffsets = nullptr;
-
-    currentChannelData = new uint16_t[dataSize];
-    memset(currentChannelData, 0, dataSize * sizeof(uint16_t));
     return true;
 }
 
-void BBShiftPanelOutput::setupGamma(float gamma) {
+void BBShiftPanelOutput::setupGamma() {
+    auto& mgr = BBShiftPanelManager::INSTANCE;
+    float gamma = m_gamma;
     if (gamma < 0.01 || gamma > 50.0) {
         gamma = 2.2;
     }
+    // The OE on-time is shared by every matrix on the cape, so a matrix that
+    // asked for less brightness than the cape ended up running at makes up the
+    // difference here.  With one matrix, or with matrices that agree, the
+    // ratio is 1.0 and the table is unchanged.
+    float brightnessScale = 1.0f;
+    if (mgr.m_brightness > 0 && m_brightness < mgr.m_brightness) {
+        brightnessScale = (float)m_brightness / (float)mgr.m_brightness;
+    }
 
-    int colorDepth = m_colorDepth;
-    if (isPWMPanel()) {
+    int colorDepth = mgr.m_colorDepth;
+    if (mgr.isPWMPanel()) {
         // we are outputting 16 bit data as that's what the
         // PWM registers require, but only the bottom 12 bits are used
         colorDepth = 12;
@@ -1745,7 +2045,7 @@ void BBShiftPanelOutput::setupGamma(float gamma) {
             break;
         }
         float f = v;
-        f = max * std::pow(f / 255.0f, gamma);
+        f = max * std::pow(f / 255.0f, gamma) * brightnessScale;
         if (f > max) {
             f = max;
         }
@@ -1766,7 +2066,7 @@ void BBShiftPanelOutput::setupGamma(float gamma) {
 }
 
 void BBShiftPanelOutput::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
-    for (int output = 0; output < m_numOutputs; output++) {
+    for (int output = 0; output < BBShiftPanelManager::INSTANCE.numOutputs(); output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         for (int i = 0; i < panelsOnOutput; i++) {
             int panel = m_panelMatrix->m_outputPanels[output][i];
@@ -1782,14 +2082,25 @@ void BBShiftPanelOutput::GetRequiredChannelRanges(const std::function<void(int, 
 
 void BBShiftPanelOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "BBShiftPanelOutput::DumpConfig()\n");
-    LogDebug(VB_CHANNELOUT, "BBBMatrix::DumpConfig()\n");
     LogDebug(VB_CHANNELOUT, "    Width          : %d\n", m_width);
     LogDebug(VB_CHANNELOUT, "    Height         : %d\n", m_height);
+    LogDebug(VB_CHANNELOUT, "    Longest Chain  : %d\n", m_longestChain);
+    LogDebug(VB_CHANNELOUT, "    Inverted Data  : %d\n", m_invertedData);
+    LogDebug(VB_CHANNELOUT, "    Brightness     : %d\n", m_brightness);
+    LogDebug(VB_CHANNELOUT, "    Gamma          : %f\n", m_gamma);
+    BBShiftPanelManager::INSTANCE.dumpConfig();
+
+    ChannelOutput::DumpConfig();
+}
+
+void BBShiftPanelManager::dumpConfig() {
+    LogDebug(VB_CHANNELOUT, "  Shared cape config (%d matri%s):\n",
+             (int)m_members.size(), m_members.size() == 1 ? "x" : "ces");
     LogDebug(VB_CHANNELOUT, "    Panel Width    : %d\n", m_panelWidth);
     LogDebug(VB_CHANNELOUT, "    Panel Height   : %d\n", m_panelHeight);
     LogDebug(VB_CHANNELOUT, "    Color Depth    : %d\n", m_colorDepth);
     LogDebug(VB_CHANNELOUT, "    Longest Chain  : %d\n", m_longestChain);
-    LogDebug(VB_CHANNELOUT, "    Inverted Data  : %d\n", m_invertedData);
+    LogDebug(VB_CHANNELOUT, "    Cape Brightness: %d\n", m_brightness);
     LogDebug(VB_CHANNELOUT, "    Output Rows    : %d\n", numRows);
     LogDebug(VB_CHANNELOUT, "    Output Length  : %d\n", rowLen);
     LogDebug(VB_CHANNELOUT, "    Num Outputs    : %d (%d slots)\n", m_numOutputs, m_numOutputSlots);
@@ -1801,6 +2112,4 @@ void BBShiftPanelOutput::DumpConfig(void) {
         }
         LogDebug(VB_CHANNELOUT, "    Stride Schedule:%s\n", sched.c_str());
     }
-
-    ChannelOutput::DumpConfig();
 }

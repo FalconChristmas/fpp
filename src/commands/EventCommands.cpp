@@ -296,3 +296,45 @@ std::unique_ptr<Command::Result> SwitchToRemoteModeCommand::run(const std::vecto
     ShutdownFPPD(true);
     return std::make_unique<Command::Result>("Switch To Remote Mode");
 }
+
+RebootCommand::RebootCommand() :
+    Command("Reboot", "Reboot the Device. Requires confirmation.") {
+    args.push_back(CommandArg("confirm", "bool", "Confirm System Reboot"));
+}
+std::unique_ptr<Command::Result> RebootCommand::run(const std::vector<std::string>& args) {
+#ifdef PLATFORM_OSX
+    return std::make_unique<Command::ErrorResult>(" Reboot is not supported on this platform (macOS).");
+#endif
+    if (FileExists("/etc/fpp/container")) {
+        return std::make_unique<Command::ErrorResult>(" Reboot is not supported when running in a container.");
+    }
+    if (args.empty() || (args[0] != "true" && args[0] != "1")) {
+        LogWarn(VB_CONTROL, "Reboot Command: rejected, confirmation not given\n");
+        return std::make_unique<Command::ErrorResult>(" Confirmation not given. Reboot aborted.");
+    }
+    LogInfo(VB_CONTROL, "Reboot Command: rebooting Ddevice by FPP Command\n");
+    std::string rc;
+    urlGet("http://localhost/api/system/reboot", rc);
+    return std::make_unique<Command::Result>("Reboot initiated");
+}
+
+ShutdownCommand::ShutdownCommand() :
+    Command("Shutdown", "Shut down the OS. Requires confirmation.") {
+    args.push_back(CommandArg("confirm", "bool", "Confirm System Shutdown"));
+}
+std::unique_ptr<Command::Result> ShutdownCommand::run(const std::vector<std::string>& args) {
+#ifdef PLATFORM_OSX
+    return std::make_unique<Command::ErrorResult>(" Shutdown is not supported on this platform (macOS).");
+#endif
+    if (FileExists("/etc/fpp/container")) {
+        return std::make_unique<Command::ErrorResult>(" Shutdown is not supported when running in a container.");
+    }
+    if (args.empty() || (args[0] != "true" && args[0] != "1")) {
+        LogWarn(VB_CONTROL, "Shutdown Command: rejected, confirmation not given\n");
+        return std::make_unique<Command::ErrorResult>(" Confirmation not given. Shutdown aborted.");
+    }
+    LogInfo(VB_CONTROL, "Shutdown Command: shutting down OS by FPP Command\n");
+    std::string rc;
+    urlGet("http://localhost/api/system/shutdown", rc);
+    return std::make_unique<Command::Result>("Shutdown initiated");
+}

@@ -16,15 +16,73 @@
             FillInTaskRow(row, task);
         }
 
+        // Fetched once (like fpp.js's commandList) and reused for every row's
+        // .ptTmplPreset <select> - mirrors FillInCommandTemplate's handling
+        // of .cmdTmplCommand (LoadCommandList) so a saved-but-now-missing
+        // preset shows up as a disabled "(unavailable)" option instead of
+        // silently losing the row's actual saved value.
+        var presetNameList = null;
+        function PopulatePresetSelect ($select, currentValue) {
+            if (presetNameList === null) {
+                $.ajax({
+                    dataType: 'json',
+                    url: 'api/commandPresets?names=true',
+                    async: false,
+                    success: function (data) {
+                        presetNameList = data || [];
+                    }
+                });
+            }
+            $select.empty();
+            $select.append("<option value=''></option>");
+            $.each(presetNameList, function (i, name) {
+                var esc = $('<div>').text(name).html().replace(/'/g, '&#39;');
+                $select.append("<option value='" + esc + "'>" + esc + '</option>');
+            });
+            if (currentValue && presetNameList.indexOf(currentValue) === -1) {
+                var escMissing = $('<div>').text(currentValue).html().replace(/'/g, '&#39;');
+                $select.prepend(
+                    "<option class='invalidPresetOption' value='" + escMissing +
+                    "' disabled>" + escMissing + ' (unavailable)</option>'
+                );
+            }
+        }
+
         function TaskTypeChanged (row) {
             var type = row.find('.ptTmplType').val();
-            if (type === 'preset') {
-                row.find('.ptTmplPresetCell').show();
-                row.find('.ptTmplCommandCell').hide();
+            var isPreset = type === 'preset';
+            row.find('.ptTmplPresetCell').toggleClass('d-none', !isPreset);
+            row.find('.ptTmplCommandCell').toggleClass('d-none', isPreset);
+            if (isPreset) {
+                // A Command Preset can fire any number of commands at once
+                // (CommandManager::TriggerPreset) - there's no single result
+                // to test-run or view, so both are hidden for this type (see
+                // RecurringTasks.cpp's TestRunTask, which returns a "Command
+                // Preset tasks have no output to filter" note rather than a
+                // real result for this type).
+                row.find('.ptTmplPresetCell .ptTmplTestRun').addClass('d-none');
+                row.find('.ptTmplViewVar').addClass('d-none');
             } else {
-                row.find('.ptTmplPresetCell').hide();
-                row.find('.ptTmplCommandCell').show();
+                row.find('.ptTmplPresetCell .ptTmplTestRun').removeClass('d-none');
+                // Restored to whatever LoadTaskStatus's resultVariable check
+                // last decided, not forced visible - a freshly-switched
+                // "FPP Command" row with no Result Variable set still has
+                // nothing to view.
+                LoadTaskStatus();
             }
+        }
+
+        var MIN_TASK_INTERVAL_SEC = 30;
+
+        // Shared by the initial FillInTaskRow() fill and the live 'input'
+        // listener below - a loaded task with a bad/short saved value shows
+        // the red highlight immediately, not just after the user touches
+        // the field. See .intervalInvalid above for why this is a filled
+        // class toggle rather than fpp.js's plain-border validateNumber()
+        // convention - a bare border didn't read clearly in this table.
+        function UpdateIntervalField (input) {
+            var sec = parseInt(input.value, 10);
+            input.classList.toggle('intervalInvalid', isNaN(sec) || sec < MIN_TASK_INTERVAL_SEC);
         }
 
         function FilterTypeChanged (row) {
@@ -40,9 +98,14 @@
 
             var sec = data.intervalMS ? Math.round(data.intervalMS / 1000) : 60;
             row.find('.ptTmplIntervalSec').val(sec);
+            UpdateIntervalField(row.find('.ptTmplIntervalSec')[0]);
 
             row.find('.ptTmplType').val(data.type === 'command' ? 'command' : 'preset');
-            row.find('.ptTmplPreset').val(data.preset || '');
+            var $presetSelect = row.find('.ptTmplPreset');
+            if ($presetSelect.find('option').length === 0) {
+                PopulatePresetSelect($presetSelect, data.preset || '');
+            }
+            $presetSelect.val(data.preset || '');
             row.find('.ptTmplResultVariable').val(data.resultVariable || '');
             row.find('.ptTmplPersist').prop('checked', !!data.persistResult);
             row.find('.ptTmplFilterType').val(data.filterType || 'none');
@@ -60,6 +123,17 @@
             TaskTypeChanged(row);
             FilterTypeChanged(row);
             UpdateTaskAdvancedSummary(row);
+
+            // One-time init, same as fpp.js's InitArgHelpTooltips - these are
+            // the row's own real elements (AppendTaskAdvancedSectionToCommandEditor
+            // relocates them into the shared command editor dialog and back,
+            // never clones them), so binding once here covers both places
+            // they ever appear.
+            if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                row.find('.argHelpIcon').each(function () {
+                    new bootstrap.Tooltip(this);
+                });
+            }
         }
 
         // One-line stand-in for the Result Variable/Persist/Filter fields
@@ -240,26 +314,55 @@
         // task actually wrote, so confirming the data pump produces what
         // you expect meant leaving this page for variables.php. The eye
         // icon next to Status (shown whenever the task has a resultVariable
-        // configured) fetches straight from the same GET api/variables/{name}
-        // variables.php's own View button uses.
+        // configured) fetches from GET api/variables (the listing, for its
+        // lastUpdated) rather than the plain-text api/variables/{name}
+        // variables.php's own View button uses - see ViewTaskResultVariable.
+        // Single-value FormatVariableTimestamp equivalent (variables.php's
+        // version isn't reachable from here - separate page, separate
+        // <script>). Kept in lockstep with that one intentionally: same
+        // "8s"/"5m"/"3h"/"2d" compact single-unit format.
+        function FormatTaskVarTimestamp (unixSeconds) {
+            if (!unixSeconds) {
+                return 'never';
+            }
+            var diff = Math.max(0, Math.floor(Date.now() / 1000) - unixSeconds);
+            var units = [['d', 86400], ['h', 3600], ['m', 60], ['s', 1]];
+            for (var i = 0; i < units.length; i++) {
+                var count = Math.floor(diff / units[i][1]);
+                if (count >= 1 || units[i][0] === 's') {
+                    return count + units[i][0] + ' ago';
+                }
+            }
+        }
+
         var viewTaskVarPopupSeq = 0;
+        // Fetches the JSON listing (api/variables), not the plain-text
+        // api/variables/{name} - the listing also carries lastUpdated, which
+        // this popup needs to show staleness. Without it, a Test Run that
+        // errors (writes nothing) followed by View looks identical to a
+        // fresh, just-written value - see ShowTaskVariablePopup.
         function ViewTaskResultVariable (name) {
             $.ajax({
-                dataType: 'text',
-                url: 'api/variables/' + encodeURIComponent(name),
-                success: function (value) {
-                    ShowTaskVariablePopup(name, value);
+                dataType: 'json',
+                url: 'api/variables',
+                success: function (data) {
+                    var v = (data && data[name]) || {};
+                    ShowTaskVariablePopup(name, v.value || '', v.lastUpdated);
                 },
                 error: function () {
-                    ShowTaskVariablePopup(name, '');
+                    ShowTaskVariablePopup(name, '', 0);
                 }
             });
         }
 
-        function ShowTaskVariablePopup (name, value) {
+        function ShowTaskVariablePopup (name, value, lastUpdated) {
             var domId = 'taskVarPopup_' + (++viewTaskVarPopupSeq);
             var $popup = $(
-                "<div id='" + domId + "'><pre class='text-break m-0' style='white-space:pre-wrap;'></pre></div>"
+                "<div id='" + domId + "'>" +
+                "<div class='text-muted mb-2'>Last updated: " + FormatTaskVarTimestamp(lastUpdated) +
+                " - this is the Variable's current value, which may predate the most recent Test Run " +
+                "if that run errored or hasn't been saved yet.</div>" +
+                "<pre class='text-break m-0' style='white-space:pre-wrap;'></pre></div>"
             ).appendTo('body');
             $popup.find('pre').text(value);
             $popup.fppDialog({
@@ -404,19 +507,6 @@
             });
         }
 
-        function ReloadTasksNow () {
-            $.ajax({
-                type: 'POST',
-                url: 'api/fppd/recurringtasks',
-                contentType: 'application/json',
-                data: JSON.stringify({ command: 'reload' }),
-                complete: function () {
-                    $.jGrowl('Recurring tasks reloaded from disk.', { themeState: 'success' });
-                    LoadTaskStatus();
-                }
-            });
-        }
-
         $(document).ready(function () {
             $('#tblTasksBody').on('mousedown', 'tr', function (event, ui) {
                 HandleTableRowMouseClick(event, $(this));
@@ -430,6 +520,9 @@
             $('#tblTasksBody').on('click', '.ptTmplViewVar', function (event) {
                 event.stopPropagation(); // don't also trigger the row's own mousedown-select handler
                 ViewTaskResultVariable($(this).attr('data-varname'));
+            });
+            $('#tblTasksBody').on('input', '.ptTmplIntervalSec', function () {
+                UpdateIntervalField(this);
             });
         });
 
@@ -473,29 +566,31 @@
             <h1 class="title">Recurring Tasks</h1>
             <div class="pageContent">
                 <div class="callout">
-                    Recurring Tasks are the "data pump" for <a href="variables.php">User Variables</a>: each
-                    one runs a Command Preset, or any single FPP Command, on a fixed interval - keeping I/O
-                    like a URL fetch or a script off the time-critical player loop. A <b>FPP Command</b> task
-                    can optionally land its result into a Variable, which the <code>If</code> command or a
-                    <code>Conditional</code> playlist entry can then read instantly. Saving reloads the
-                    running tasks immediately - no fppd restart needed.
+                    <p>
+                        Recurring Tasks fetch data <i>ahead of time</i> so it's already sitting in a
+                        <a href="variables.php">User Variable</a> when something time-critical needs it -
+                        a slow URL fetch or script run during a playlist or GPIO event would add a delay
+                        right when it matters most.
+                    </p>
+                    <p>
+                        Each task runs a Command Preset, or any single FPP Command, on a fixed interval,
+                        and a <b>FPP Command</b> task can optionally land its result into a Variable. An
+                        <code>If</code> command elsewhere then reads that Variable instantly, with no
+                        fetch delay of its own.
+                    </p>
+                    <p class="mb-0">
+                        Example: a <code>URL</code> command polling a weather API or a sensor's web
+                        endpoint every few minutes.
+                    </p>
                 </div>
                 <div id="recurringTasks" class="settings">
                     <div class="row tablePageHeader">
-                        <div class="col">
-                            <div class="form-actions form-actions-secondary">
-                                <input class="buttons" type="button" value="Clear Selection"
-                                    onClick="$('#tblTasksBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteTaskButton');" />
-                            </div>
-                        </div>
                         <div class="col-auto ms-auto">
                             <div class="form-actions form-actions-primary">
                                 <div><button class="disableButtons deleteTaskButton"
                                         data-btn-enabled-class="btn-outline-danger" type="button" value="Delete"
                                         onClick="DeleteSelectedEntries('tblTasksBody'); DisableButtonClass('deleteTaskButton');">Delete</button>
                                 </div>
-                                <div><button class="buttons" type="button" value="Reload Now"
-                                        onClick="ReloadTasksNow();">Reload Now</button></div>
                                 <div><button class="buttons btn-outline-success form-actions-button-primary ms-1"
                                         type="button" onClick="AddTask();"><i class="fas fa-plus"></i>
                                         Add</button></div>
@@ -513,6 +608,16 @@
                             display: block;
                             margin-top: 4px;
                         }
+                        /* Edit/Test Run (and the FPP Command cell's tooltip
+                           icon) always drop to their own line below the
+                           select, rather than wrapping unpredictably next to
+                           it at different table widths - keeps the
+                           Preset/Command column's height (and where its
+                           buttons land) consistent across screen sizes. */
+                        .ptTmplButtonsRow {
+                            display: block;
+                            margin-top: 4px;
+                        }
                         /* Matches #tblCommandEditor's own label-column rule
                            (commandEditor.php) so the Result Variable/Filter
                            section lines up the same way as the command
@@ -521,13 +626,26 @@
                             padding-right: 8px;
                             width: 25%;
                         }
+                        /* A plain 2px red border (fpp.js's own
+                           validateNumber()/IP-field convention) reads as just
+                           another border in a table this dense. Filled
+                           instead, using the same theme-aware Bootstrap
+                           danger tokens .alert-danger already uses elsewhere
+                           in FPP (correct in both light and dark mode,
+                           unlike a hardcoded color) so it's unmistakable at
+                           a glance without inventing a new visual language. */
+                        .ptTmplIntervalSec.intervalInvalid {
+                            background-color: var(--bs-danger-bg-subtle);
+                            border-color: var(--bs-danger-border-subtle);
+                            color: var(--bs-danger-text-emphasis);
+                        }
                     </style>
                     <div class='fppTableWrapper fppTableWrapperAsTable'>
                         <div class='fppTableContents' role="region" aria-labelledby="tblTasksHead" tabindex="0">
                             <table class='fppTableRowTemplate template-tblTasksBody'>
                                 <tr>
                                     <td class='center'><input type='checkbox' class='ptTmplEnabled' checked></td>
-                                    <td><input type='text' size='20' maxlength='64' class='ptTmplName'></td>
+                                    <td><input type='text' size='14' maxlength='64' class='ptTmplName'></td>
                                     <td><input type='number' min='30' step='1' size='6' value='60'
                                             class='ptTmplIntervalSec'></td>
                                     <td>
@@ -539,43 +657,59 @@
                                     </td>
                                     <td class='ptTmplCommandTd'>
                                     <span class='ptTmplPresetCell'>
-                                        <input type='text' size='24' class='ptTmplPreset' list='ptPresetNames'>
-                                        <input type='button' class='buttons smallButton' value='Test Run'
-                                            onClick='TestRunTask($(this).closest("tr"));'>
+                                        <select class='ptTmplPreset'></select>
+                                        <span class='ptTmplButtonsRow'>
+                                            <input type='button' class='buttons smallButton ptTmplTestRun' value='Test Run'
+                                                onClick='TestRunTask($(this).closest("tr"));'>
+                                        </span>
                                     </span>
-                                    <span class='ptTmplCommandCell' style='display:none;'>
+                                    <span class='ptTmplCommandCell d-none'>
                                         <select class='cmdTmplCommand'
                                             onChange='EditTaskCommandAndSettings($(this).closest("tr"));'></select>
-                                        <input type='button' class='buttons reallySmallButton' value='Edit'
-                                            onClick='EditTaskCommandAndSettings($(this).closest("tr"));'>
-                                        <input type='button' class='buttons smallButton' value='Test Run'
-                                            onClick='TestRunTask($(this).closest("tr"));'>
-                                        <img class='cmdTmplTooltipIcon' data-bs-html='true' data-bs-toggle='tooltip'
-                                            title='' src='images/redesign/help-icon.svg' width=22 height=22>
+                                        <span class='ptTmplButtonsRow'>
+                                            <input type='button' class='buttons reallySmallButton' value='Edit'
+                                                onClick='EditTaskCommandAndSettings($(this).closest("tr"));'>
+                                            <input type='button' class='buttons smallButton' value='Test Run'
+                                                onClick='TestRunTask($(this).closest("tr"));'>
+                                            <img class='cmdTmplTooltipIcon' data-bs-html='true' data-bs-toggle='tooltip'
+                                                title='' src='images/redesign/help-icon.svg' width=22 height=22>
+                                        </span>
                                         <table class='cmdTmplArgsTable'>
                                             <tr>
                                                 <th class='left'>Args:</th>
                                                 <td><span class='cmdTmplArgs'></span></td>
                                             </tr>
                                         </table>
-                                        <span class='cmdTmplJSON' style='display: none;'></span>
+                                        <span class='cmdTmplJSON d-none'></span>
                                         <div class='ptTmplResultVariableRow'>
                                             <span class='ptTmplAdvancedSummary text-muted'></span>
                                         </div>
                                         <div class='ptTmplAdvancedFields d-none'>
                                             <table width='100%' class='ptTmplAdvancedTable settingsTable'>
                                                 <tr>
-                                                    <td>Result &rarr; Variable:</td>
+                                                    <td>Result &rarr; Variable:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title="The Variable this task's result (optionally filtered below) is saved into. Leave blank to run the command without saving anything. Overwrites an existing Variable of the same name.">
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><input type='text' size='16' class='ptTmplResultVariable'
                                                             placeholder='(optional)' list='ptResultVariableNames'></td>
                                                 </tr>
                                                 <tr>
-                                                    <td>Persist:</td>
+                                                    <td>Persist:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title='If checked, the Result Variable is saved to disk and reloaded automatically the next time FPP starts, so it keeps its value across a restart or reboot. If unchecked (the default), it only lives in memory and resets to unset every time FPP restarts.'>
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><input type='checkbox' class='ptTmplPersist'> persist across
                                                         restarts</td>
                                                 </tr>
                                                 <tr>
-                                                    <td>Filter:</td>
+                                                    <td>Filter:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title="<b>None</b>: store the whole raw result as-is.<br><b>JSON Field</b>: pull one field out of a JSON response by dotted path (object keys only, no array indices).<br><b>Between Markers</b>: extract the text found between two literal marker strings - good for scraping plain text or HTML.<br><b>Regex (advanced)</b>: extract the first capture group matched by a regular expression, or the whole match if the pattern has no group.">
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><select class='ptTmplFilterType'
                                                             onChange='FilterTypeChanged($(this).closest(".ptTmplAdvancedFields"));'>
                                                             <option value='none'>None (use raw result)</option>
@@ -590,17 +724,29 @@
                                                             placeholder='e.g. data.temperature'></td>
                                                 </tr>
                                                 <tr class='ptTmplFilterBetweenRow d-none'>
-                                                    <td>After:</td>
+                                                    <td>After:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title='Text is kept starting right after this marker. Leave blank to start from the beginning of the raw result.'>
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><input type='text' size='14' class='ptTmplFilterBetweenStart'
-                                                            placeholder='(optional)'></td>
+                                                            placeholder='e.g. Temp: '></td>
                                                 </tr>
                                                 <tr class='ptTmplFilterBetweenRow d-none'>
-                                                    <td>Before:</td>
+                                                    <td>Before:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title='Text is kept up until this marker. Leave blank to keep everything to the end of the raw result.'>
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><input type='text' size='14' class='ptTmplFilterBetweenEnd'
-                                                            placeholder='(optional)'></td>
+                                                            placeholder='e.g. &deg;F'></td>
                                                 </tr>
                                                 <tr class='ptTmplFilterRegexRow d-none'>
-                                                    <td>Pattern:</td>
+                                                    <td>Pattern:
+                                                        <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
+                                                            data-bs-title='A regular expression matched against the raw result. The first capture group (in parentheses) is used, or the whole match if the pattern has no group.'>
+                                                            <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
+                                                    </td>
                                                     <td><input type='text' size='20' class='ptTmplFilterRegex'
                                                             placeholder='e.g. Temp: ([0-9.]+)'></td>
                                                 </tr>
@@ -636,25 +782,11 @@
         <?php include 'common/footer.inc'; ?>
     </div>
 
-    <datalist id='ptPresetNames'>
-        <?php
-        $presetsJSON = @file_get_contents($settings['configDirectory'] . '/commandPresets.json');
-        $presets = $presetsJSON ? json_decode($presetsJSON, true) : null;
-        if ($presets && isset($presets['commands'])) {
-            foreach ($presets['commands'] as $preset) {
-                if (!empty($preset['name'])) {
-                    echo "<option value='" . htmlspecialchars($preset['name']) . "'>";
-                }
-            }
-        }
-        ?>
-    </datalist>
-
-    <!-- Populated in JS (LoadResultVariableNames), not server-side like
-         ptPresetNames above - unlike presets, Variables are created/renamed
-         constantly at runtime (Set Variable, MQTT, recurring tasks
+    <!-- Populated in JS (LoadResultVariableNames) - Variables are created/
+         renamed constantly at runtime (Set Variable, MQTT, recurring tasks
          themselves), so a page-load-time PHP snapshot would go stale
-         immediately. -->
+         immediately. Command Presets (.ptTmplPreset, PopulatePresetSelect)
+         use the same JS-fetch approach now, for the same reason. -->
     <datalist id='ptResultVariableNames'></datalist>
 
 </body>
