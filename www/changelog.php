@@ -50,18 +50,18 @@ $cacheFile = $mediaDirectory . "/tmp/changelog-cache";
 $lines = array();
 if ($clickable) {
     if ($currentBranch != 'HEAD') {
-        exec($logCmd . " | tee " . $cacheFile, $lines, $rv);
+        exec($logCmd . " | tee " . $cacheFile, $lines);
     } else {
-        exec("cat " . $cacheFile . " 2>/dev/null", $lines, $rv);
+        exec("cat " . $cacheFile . " 2>/dev/null", $lines);
         // No (new-format) cache yet -- e.g. reverted right after an upgrade before
         // ever loading this page on a branch. Fall back to a live log so we show
         // history up to the current point rather than an empty page.
         if (count($lines) == 0) {
-            exec($logCmd, $lines, $rv);
+            exec($logCmd, $lines);
         }
     }
 } else {
-    exec($logCmd, $lines, $rv);
+    exec($logCmd, $lines);
 }
 
 // Build the commit rows.

@@ -75,7 +75,14 @@ $output_header_end = "----------------------------------------------------------
 echo $output_header_end;
 file_put_contents($tee_log_file, $output_header_end, FILE_APPEND);
 
-system($command . " 2>&1 | tee -a " . $tee_log_file, $backupRc);
+// Explicit bash -o pipefail: system() otherwise runs this through /bin/sh
+// (dash, no pipefail), so piping through "tee -a" would report tee's exit
+// code -- which almost always succeeds regardless of whether the copy
+// script itself failed -- rather than copy_settings_to_storage.sh's. With
+// pipefail, the pipeline's reported status is the first stage that actually
+// failed, so $backupRc (used below for the fppd.log FINISH line) means what
+// it always claimed to.
+system("/bin/bash -o pipefail -c " . escapeshellarg($command . " 2>&1 | tee -a " . $tee_log_file), $backupRc);
 echo "\n";
 
 sleep(2);
