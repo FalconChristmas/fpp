@@ -90,9 +90,9 @@ if (isset($_GET['cpu'])) {
             }
 
             if (html) {
-                el.html(html).show();
+                el.html(html).removeClass('d-none');
             } else {
-                el.hide().empty();
+                el.addClass('d-none').empty();
             }
         }
 
@@ -192,7 +192,7 @@ if (isset($_GET['cpu'])) {
 
                 // Show the item if it was hidden (conditional check)
                 if (itemEl.length && conditionalChecks.includes(check.id)) {
-                    itemEl.show();
+                    itemEl.removeClass('d-none');
                 }
             }
         }
@@ -235,12 +235,12 @@ if (isset($_GET['cpu'])) {
         var conditionalChecks = ['scheduler', 'mediadisk', 'pipewire', 'gstreamer', 'pluginofficial', 'plugincommunity', 'pluginunknown'];
 
         function renderPlaceholder(check) {
-            var hiddenStyle = check.static ? '' : ' style="display: none;"';
+            var hiddenClass = check.static ? '' : ' d-none';
             var statusHtml = check.static
                 ? '<i class="fas fa-spinner fa-spin fpp-health-check__status-icon fpp-status--loading"></i>' +
                 '<span class="fpp-health-check__status-text">Checking...</span>'
                 : '';
-            return '<li class="fpp-health-check__item" data-check="' + check.id + '"' + hiddenStyle + '>' +
+            return '<li class="fpp-health-check__item' + hiddenClass + '" data-check="' + check.id + '">' +
                 '<span class="fpp-health-check__label">' +
                 '<i class="fas me-1 ' + check.icon + '"></i> ' + check.label +
                 '</span>' +
@@ -257,7 +257,7 @@ if (isset($_GET['cpu'])) {
             // Reset tracking for new health check run
             receivedChecks = {};
             checkStatuses = {};
-            $('#healthRecoveryActions').hide().empty();
+            $('#healthRecoveryActions').addClass('d-none').empty();
 
             // Build layout with pre-rendered placeholders
             var leftHtml = healthChecks.left.map(renderPlaceholder).join('');
@@ -537,7 +537,7 @@ if (isset($_GET['cpu'])) {
                 var mediaFree = <?= $mediaFree ?>;
                 var mediaPct = <?= $mediaPct ?>;
 
-                $('#media-row').show();
+                $('#media-row').removeClass('d-none');
                 $('#media-device').text('<?= addslashes($mediaDevice) ?>');
                 $('#media-info').text(formatBytes(mediaUsed) + ' / ' + formatBytes(mediaTotal) + ' (' + formatBytes(mediaFree) + ' free)');
                 $('#media-bar').css('width', mediaPct + '%').attr('aria-valuenow', mediaPct);
@@ -545,18 +545,18 @@ if (isset($_GET['cpu'])) {
 
                 // Show disk warning if media or root partition is over 85%
                 if (mediaPct > 85 || rootPct > 85) {
-                    $('#disk-warning').show();
+                    $('#disk-warning').removeClass('d-none');
                 } else {
-                    $('#disk-warning').hide();
+                    $('#disk-warning').addClass('d-none');
                 }
             <?php } else { ?>
-                $('#media-row').hide();
+                $('#media-row').addClass('d-none');
 
                 // Show disk warning if root partition is over 85%
                 if (rootPct > 85) {
-                    $('#disk-warning').show();
+                    $('#disk-warning').removeClass('d-none');
                 } else {
-                    $('#disk-warning').hide();
+                    $('#disk-warning').addClass('d-none');
                 }
             <?php } ?>
         }
@@ -607,10 +607,10 @@ if (isset($_GET['cpu'])) {
         function updateFanData(sensors) {
             var fans = sensors.filter(function (s) { return s.valueType === 'FanSpeed'; });
             if (fans.length === 0) {
-                $('#fan-monitoring-row').hide();
+                $('#fan-monitoring-row').addClass('d-none');
                 return;
             }
-            $('#fan-monitoring-row').show();
+            $('#fan-monitoring-row').removeClass('d-none');
             var html = '';
             fans.forEach(function (fan) {
                 var rpm = parseFloat(fan.value).toFixed(0);
@@ -715,7 +715,7 @@ if (isset($_GET['cpu'])) {
                 ?>
 
                 <!-- Disk Space Warning Banner -->
-                <div id="disk-warning" class="fpp-alert fpp-alert--danger" role="alert" style="display: none;">
+                <div id="disk-warning" class="fpp-alert fpp-alert--danger d-none" role="alert">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>
                         <strong>High Disk Usage Detected!</strong>
@@ -734,7 +734,7 @@ if (isset($_GET['cpu'])) {
                     </div>
                     <div class="card-body">
                         <div id='healthCheckOutput'></div>
-                        <div id="healthRecoveryActions" class="fpp-health-recovery" style="display: none;"></div>
+                        <div id="healthRecoveryActions" class="fpp-health-recovery d-none"></div>
                     </div>
                 </div>
 
@@ -791,12 +791,12 @@ if (isset($_GET['cpu'])) {
                             <div class="card-header">
                                 <h5>
                                     <span><i class="fa-solid fa-memory"></i> Memory Usage</span>
-                                    <i class="fas fa-question-circle fpp-help-popover"
+                                    <i class="fas fa-question-circle fpp-help-popover ms-auto"
                                         data-help-content="memoryHelpContent" data-help-title="Memory Types"
-                                        style="font-size: 0.8em; cursor: help; margin-left: auto;"></i>
+                                        style="font-size: 0.8em; cursor: help;"></i>
                                 </h5>
                             </div>
-                            <div id="memoryHelpContent" style="display: none;">
+                            <div id="memoryHelpContent" class="d-none">
                                 <div class="fpp-help-content">
                                     <p><span class="fpp-help-swatch fpp-help-swatch--success"></span><strong>Used
                                             Memory</strong><br>
@@ -808,7 +808,7 @@ if (isset($_GET['cpu'])) {
                                             Memory</strong><br>
                                         Completely unused memory.</p>
                                     <hr>
-                                    <p style="margin-bottom:0;"><em>High buffer/cache is normal — it means your system
+                                    <p class="mb-0"><em>High buffer/cache is normal — it means your system
                                             is efficiently using available RAM.</em></p>
                                 </div>
                             </div>
@@ -847,10 +847,10 @@ if (isset($_GET['cpu'])) {
                                 <div class="fpp-gauge__label">
                                     <?php echo formatMemBytes($memUsed); ?> used
                                     <span
-                                        style="opacity: 0.7; margin-left: 4px;">(+<?php echo formatMemBytes($memBufferCache); ?>
+                                        class="opacity-75 ms-1">(+<?php echo formatMemBytes($memBufferCache); ?>
                                         cache)</span>
                                     <br>
-                                    <span style="opacity: 0.7;"><?php echo formatMemBytes($memFree); ?> free</span>
+                                    <span class="opacity-75"><?php echo formatMemBytes($memFree); ?> free</span>
                                 </div>
                             </div>
                         </div>
@@ -880,7 +880,7 @@ if (isset($_GET['cpu'])) {
                 </div>
 
                 <!-- Fan Monitoring -->
-                <div class="row" id="fan-monitoring-row" style="display: none;">
+                <div class="row d-none" id="fan-monitoring-row">
                     <div class="col-12">
                         <div class="card compact-card">
                             <div class="card-header">
@@ -909,7 +909,7 @@ if (isset($_GET['cpu'])) {
                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
                         </div>
-                        <div class="disk-row" id="media-row" style="display: none;">
+                        <div class="disk-row d-none" id="media-row">
                             <div class="disk-label">
                                 <span class="disk-device">Media Partition (<span id="media-device">--</span>)</span>
                                 <span class="disk-info" id="media-info">-- / --</span>
@@ -985,11 +985,11 @@ if (isset($_GET['cpu'])) {
                         ?>
                         <div class="card compact-card">
                             <div class="card-header">
-                                <h3 style="display: flex; align-items: center;">
+                                <h3 class="d-flex align-items-center">
                                     <span><i class="fas fa-tachometer-alt"></i> System Busyness</span>
-                                    <i class="fas fa-question-circle fpp-help-popover"
+                                    <i class="fas fa-question-circle fpp-help-popover ms-auto"
                                         data-help-content="busynessHelpContent" data-help-title="System Busyness"
-                                        style="font-size: 0.8em; cursor: help; margin-left: auto;"></i>
+                                        style="font-size: 0.8em; cursor: help;"></i>
                                 </h3>
                             </div>
                             <?php
@@ -997,7 +997,7 @@ if (isset($_GET['cpu'])) {
                             $threshGreen = number_format($coresNum * 0.70, 2);
                             $threshYellow = number_format($coresNum * 0.90, 2);
                             ?>
-                            <div id="busynessHelpContent" style="display: none;">
+                            <div id="busynessHelpContent" class="d-none">
                                 <div class="fpp-help-content">
                                     <p><span class="fpp-help-swatch fpp-help-swatch--success"></span><strong>Running
                                             smoothly</strong> (below <?= $threshGreen ?>)<br>
@@ -1011,7 +1011,7 @@ if (isset($_GET['cpu'])) {
                                         (above <?= $threshYellow ?>)<br>
                                         Traffic is heavy — your system is in gridlock.</p>
                                     <hr>
-                                    <p style="margin-bottom:0;"><em>Your system is like a highway with <?= $coresNum ?>
+                                    <p class="mb-0"><em>Your system is like a highway with <?= $coresNum ?>
                                             lanes (CPU cores). The numbers show average load over 1, 5, and 15 minutes.
                                             Right now, traffic is <?= $_traffic ?>.</em></p>
                                 </div>
