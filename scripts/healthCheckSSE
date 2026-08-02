@@ -25,7 +25,7 @@ emit_event() {
     echo ""
 
     case "$status" in
-        pass) PASS_COUNT=$((PASS_COUNT + 1)) ;;
+        pass|caution) PASS_COUNT=$((PASS_COUNT + 1)) ;;
         warn) WARN_COUNT=$((WARN_COUNT + 1)) ;;
         fail) FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
     esac
@@ -51,7 +51,7 @@ emit_event_details() {
     echo ""
 
     case "$status" in
-        pass) PASS_COUNT=$((PASS_COUNT + 1)) ;;
+        pass|caution) PASS_COUNT=$((PASS_COUNT + 1)) ;;
         warn) WARN_COUNT=$((WARN_COUNT + 1)) ;;
         fail) FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
     esac
@@ -122,6 +122,71 @@ HC_Warnings() {
             WARN_COUNT=$((WARN_COUNT + 1))
         fi
     fi
+}
+
+# Each category is only emitted (shown in the UI) when the plugin directory
+# currently has a plugin of that provenance, OR the sticky "ever installed"
+# setting is set (a plugin of that provenance was installed at some point,
+# even before this feature existed, and may since have been removed) -- see
+# GetPluginProvenance() in www/api/controllers/plugin.php for the
+# classification (official/community/unknown) and the live directory scan.
+# Message text is exactly "Installed" or "Previously Installed" per
+# category; extra context (what the category means, the reimage warning)
+# lives in the expandable details so the headline stays a plain status word.
+# Community plugins still count as a PASS (green check) since they're a
+# known/catalogued source, just rendered in the intermediate "caution" color
+# -- not an error, but not FPP-team-reviewed either.
+HC_PluginProvenance() {
+    local provenance
+    provenance=$(curl -s --max-time 3 http://127.0.0.1/api/plugin/provenance)
+    if [ -z "$provenance" ]; then
+        return
+    fi
+
+    local bucket icon status details
+    for bucket in official community unknown; do
+        local label count everInstalled pluginStatus
+        label=$(echo "$provenance" | jq -r --arg b "$bucket" '.[$b].label')
+        count=$(echo "$provenance" | jq -r --arg b "$bucket" '.[$b].installedCount')
+        everInstalled=$(echo "$provenance" | jq -r --arg b "$bucket" '.[$b].everInstalled')
+        pluginStatus=$(echo "$provenance" | jq -r --arg b "$bucket" '.[$b].status')
+
+        # Not currently installed and never has been -- don't show this category at all.
+        if [ "$pluginStatus" = "null" ]; then
+            continue
+        fi
+
+        # Show the count alongside "Installed" when there's more than one --
+        # "Installed (1)" would be a redundant no-op. "Previously Installed"
+        # implies installedCount is 0, so it never gets a count suffix.
+        if [ "$pluginStatus" = "Installed" ] && [ "${count:-0}" -gt 1 ] 2>/dev/null; then
+            pluginStatus="Installed (${count})"
+        fi
+
+        case "$bucket" in
+            official)
+                icon="fa-check-circle"
+                status="pass"
+                details=$(build_json_array "Written by the FPP team, unlikely to cause issues with FPP." "Uninstalling an official plugin removes it completely.")
+                ;;
+            community)
+                icon="fa-check-circle"
+                status="caution"
+                details=$(build_json_array "Community plugins run third-party, untrusted code on your FPP with full access to this device and to anything else on the network it is connected to." "The FPP project does not test, vet, monitor, or guarantee the quality or safety of Community plugins. They can cause problems with FPP. If you are experiencing problems, try uninstalling these plugins, or reimage your FPP SD card/install to return to a known, supported configuration." "Uninstalling a community plugin runs that plugin's own uninstall script - it may not completely remove everything it changed on this system.")
+                ;;
+            unknown)
+                icon="fa-triangle-exclamation"
+                status="fail"
+                details=$(build_json_array "Please install plugins via the Plugins page. If this plugin is not listed there, the FPP team may have decided it is unsuitable to run on FPP." "This plugin runs whatever code was found at that URL, with full access to this device and to anything else on the network it is connected to. Installing plugins via URLs is not supported." "Uninstalling an unknown plugin cannot be trusted to clean up after itself - its uninstall script could do anything. Reimaging is the only reliable way to ensure this system is not contaminated.")
+                ;;
+        esac
+
+        if [ -n "$details" ]; then
+            emit_event_details "plugin${bucket}" "$label" "$icon" "$status" "$pluginStatus" "$details"
+        else
+            emit_event "plugin${bucket}" "$label" "$icon" "$status" "$pluginStatus"
+        fi
+    done
 }
 
 HC_Scheduler() {
@@ -447,6 +512,7 @@ HC_GStreamer() {
 HC_FPPD
 HC_Warnings
 HC_HostName
+HC_PluginProvenance
 
 # Network chain order
 dns_ok=1

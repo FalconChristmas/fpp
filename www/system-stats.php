@@ -140,6 +140,7 @@ if (isset($_GET['cpu'])) {
         function getStatusIcon(status) {
             switch (status) {
                 case 'pass': return 'fa-check-circle fpp-status--pass';
+                case 'caution': return 'fa-check-circle fpp-status--caution';
                 case 'warn': return 'fa-exclamation-circle fpp-status--warn';
                 case 'fail': return 'fa-times-circle fpp-status--fail';
                 default: return 'fa-spinner fa-spin fpp-status--loading';
@@ -202,8 +203,10 @@ if (isset($_GET['cpu'])) {
             $('#hcFailCount').text(summary.fail).removeClass().addClass('fpp-health-summary__count fpp-status--fail');
         }
 
-        // All checks in display order - static ones are always shown, conditional ones start hidden
-        // Only scheduler and mediadisk are truly conditional (may not be emitted at all)
+        // Static checks are always shown and stay in their declared column/order.
+        // Conditional checks (static: false) may never be emitted at all -- they're
+        // listed at the tail of their column (after every static check) so a hidden
+        // one never splices into the middle of the always-shown block.
         var healthChecks = {
             left: [
                 { id: 'fppd', label: 'FPPD Daemon', icon: 'fa-play-circle', static: true },
@@ -212,7 +215,9 @@ if (isset($_GET['cpu'])) {
                 { id: 'rootdisk', label: 'Root Filesystem', icon: 'fa-hdd', static: true },
                 { id: 'ntp', label: 'Time Sync (NTP)', icon: 'fa-clock', static: true },
                 { id: 'pipewire', label: 'PipeWire Audio', icon: 'fa-volume-high', static: false },
-                { id: 'scheduler', label: 'Scheduler', icon: 'fa-calendar-alt', static: false }
+                { id: 'scheduler', label: 'Scheduler', icon: 'fa-calendar-alt', static: false },
+                { id: 'pluginofficial', label: 'Official Plugins', icon: 'fa-puzzle-piece', static: false },
+                { id: 'pluginunknown', label: 'Unknown Plugins', icon: 'fa-puzzle-piece', static: false }
             ],
             right: [
                 { id: 'gateway', label: 'Default Gateway', icon: 'fa-network-wired', static: true },
@@ -221,12 +226,13 @@ if (isset($_GET['cpu'])) {
                 { id: 'dns', label: 'DNS Resolution', icon: 'fa-search', static: true },
                 { id: 'datetime', label: 'Browser Time Sync', icon: 'fa-clock', static: true },
                 { id: 'gstreamer', label: 'GStreamer', icon: 'fa-film', static: false },
-                { id: 'mediadisk', label: 'Media Partition', icon: 'fa-folder', static: false }
+                { id: 'mediadisk', label: 'Media Partition', icon: 'fa-folder', static: false },
+                { id: 'plugincommunity', label: 'Community Plugins', icon: 'fa-puzzle-piece', static: false }
             ]
         };
 
         // Checks that may not be emitted at all (hidden until a result arrives)
-        var conditionalChecks = ['scheduler', 'mediadisk', 'pipewire', 'gstreamer'];
+        var conditionalChecks = ['scheduler', 'mediadisk', 'pipewire', 'gstreamer', 'pluginofficial', 'plugincommunity', 'pluginunknown'];
 
         function renderPlaceholder(check) {
             var hiddenStyle = check.static ? '' : ' style="display: none;"';

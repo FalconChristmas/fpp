@@ -699,9 +699,30 @@
                 resWarn = '<div class="fpp-major-callout mb-2"><i class="fas fa-microchip"></i>' +
                     '<span><b>Not enough RAM/CPU.</b> ' + res.title +
                     ' Installing it anyway may degrade or disrupt your show.</span></div>';
+            // Pasting a plugininfo.json URL is a developer workflow (testing a plugin
+            // mid-development, often from a branch/fork that isn't in the catalog at
+            // all yet) -- not a general install path. Shown regardless of the
+            // resolved plugin's official/third-party status, and forces a
+            // confirmation dialog even for an Official-org plugin that would
+            // otherwise auto-install below.
+            var devWarn = '';
+            if (manuallyLoadedPlugins[plugin])
+                // Standalone warning for the URL-paste path: when this fires on a
+                // non-official plugin it REPLACES the third-party warning below rather
+                // than stacking with it (see the non-official branch), so it needs to
+                // cover the device/network-access risk on its own, not just point at
+                // who should be using this install method.
+                devWarn = '<div class="fpp-major-callout mb-2"><i class="fas fa-user-gear"></i>' +
+                    '<span>Installing a plugin from a URL is intended for <b>plugin developers</b> ' +
+                    'testing their own plugin while developing it. It runs <b>whatever code is found at that ' +
+                    'URL</b>, with full access to this device <b>and to anything else on the network FPP is ' +
+                    'connected to</b>. This is inherently dangerous. If you are not a developer, we recommend ' +
+                    'you <b>do not</b> install this ' +
+                    'plugin.</span></div>';
             if (data && IsOfficialPlugin(data)) {
-                // Official plugins install directly unless they exceed device resources.
-                if (!resWarn) {
+                // Official plugins install directly unless they exceed device resources
+                // or were loaded via the developer URL-paste path.
+                if (!resWarn && !devWarn) {
                     InstallPlugin(plugin, branch, sha);
                     return;
                 }
@@ -709,7 +730,7 @@
                     id: "confirmInstallDialog",
                     class: "modal-lg",
                     title: "Install this plugin?",
-                    body: resWarn,
+                    body: devWarn + resWarn,
                     backdrop: true,
                     keyboard: true,
                     buttons: {
@@ -726,15 +747,20 @@
             }
             var name = (data && data.name) ? data.name : plugin;
             var src = (data && data.srcURL) ? data.srcURL : '';
-            var body = resWarn +
-                '<div class="fpp-inline-warn mb-2"><i class="fas fa-exclamation-triangle"></i>' +
-                '<span>Installing <b>' + EscapeHtml(name) + '</b> runs ' +
-                '<b>third-party, untrusted code</b> on your FPP. It has full access to this device <b>and to ' +
-                'anything else on the network FPP is connected to</b>. This is inherently dangerous unless you ' +
-                'trust the plugin\'s author. The FPP project <b>does not test, vet, or guarantee the quality or ' +
-                'safety</b> of plugins &mdash; install at your own risk, and only from authors you trust. The ' +
-                '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> badge marks ' +
-                'plugins maintained by the FPP team (this plugin is not one of them).</span></div>';
+            var body = devWarn + resWarn;
+            // devWarn already covers the untrusted-code/device-and-network-access risk
+            // on its own (see its comment above) -- don't also stack this box on top of
+            // it and say the same thing twice.
+            if (!devWarn) {
+                body += '<div class="fpp-inline-warn mb-2"><i class="fas fa-exclamation-triangle"></i>' +
+                    '<span>Installing <b>' + EscapeHtml(name) + '</b> runs ' +
+                    '<b>third-party, untrusted code</b> on your FPP. It has full access to this device <b>and to ' +
+                    'anything else on the network FPP is connected to</b>. This is inherently dangerous unless you ' +
+                    'trust the plugin\'s author. The FPP project <b>does not test, vet, or guarantee the quality or ' +
+                    'safety</b> of plugins &mdash; install at your own risk, and only from authors you trust. The ' +
+                    '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> badge marks ' +
+                    'plugins maintained by the FPP team (this plugin is not one of them).</span></div>';
+            }
             if (IsSafeHttpUrl(src)) body += '<div class="small text-secondary"><i class="fas fa-code"></i> Source: ' +
                 '<a href="' + EscapeAttr(src) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(src) + '</a></div>';
             DoModalDialog({

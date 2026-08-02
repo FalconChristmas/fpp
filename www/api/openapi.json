@@ -6411,6 +6411,47 @@
         }
       }
     },
+    "/api/plugin/provenance": {
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Get plugin provenance status",
+        "description": "Live-scans the plugin directory and classifies every currently-installed plugin into official/community/unknown (see ClassifyPluginProvenance()), combined with the sticky \"ever installed\" settings so plugins removed after this feature shipped still show up. A directory counts as \"installed\" even if incomplete/partially installed (e.g. missing pluginInfo.json) -- such a plugin can't be classified by srcURL/index lookup, so it falls into 'unknown'.",
+        "responses": {
+          "200": {
+            "description": "Provenance status per category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "official": {
+                    "label": "Official Plugins",
+                    "installedCount": 1,
+                    "everInstalled": true,
+                    "status": "Installed"
+                  },
+                  "community": {
+                    "label": "Community Plugins",
+                    "installedCount": 0,
+                    "everInstalled": true,
+                    "status": "Previously Installed"
+                  },
+                  "unknown": {
+                    "label": "Unknown Plugins",
+                    "installedCount": 0,
+                    "everInstalled": false,
+                    "status": null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plugin/{RepoName}": {
       "parameters": [
         {

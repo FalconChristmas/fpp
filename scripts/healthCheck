@@ -372,6 +372,60 @@ HC_Warnings() {
 
 }
 
+# Only shown per-category (Official/Community/Unknown Plugins) when a plugin
+# of that provenance is currently installed OR the sticky "ever installed"
+# setting is set (see GetPluginProvenance() in
+# www/api/controllers/plugin.php for the live directory scan +
+# classification and the settings that back this). Never emitted at all
+# otherwise -- unlike the other checks here, absence of an item is the normal
+# case, not a loading state. This page has no "caution" (between pass/warn)
+# color like the live health check does, so Community plugins render as a
+# plain green pass here too -- still counts as passed either way.
+HC_PluginProvenance() {
+    PROVENANCE=$(curl -s --max-time 3 http://127.0.0.1/api/plugin/provenance)
+    if [ "x${PROVENANCE}" = "x" ]; then
+        return
+    fi
+
+    JQ=$(which jq)
+    if [ "$?" == "1" ]; then
+        return
+    fi
+
+    for BUCKET in official community unknown; do
+        LABEL=$(echo "${PROVENANCE}" | jq -r --arg b "${BUCKET}" '.[$b].label')
+        PSTATUS=$(echo "${PROVENANCE}" | jq -r --arg b "${BUCKET}" '.[$b].status')
+        PCOUNT=$(echo "${PROVENANCE}" | jq -r --arg b "${BUCKET}" '.[$b].installedCount')
+
+        if [ "x${PSTATUS}" = "xnull" ]; then
+            continue
+        fi
+
+        # "Installed (1)" would be a redundant no-op; "Previously Installed"
+        # implies PCOUNT is 0, so it never gets a count suffix either.
+        if [ "x${PSTATUS}" = "xInstalled" ] && [ "${PCOUNT:-0}" -gt 1 ] 2>/dev/null; then
+            PSTATUS="Installed (${PCOUNT})"
+        fi
+
+        PrintItemHead "${LABEL}"
+
+        case "${BUCKET}" in
+            official)
+                STATUS=1
+                ;;
+            community)
+                STATUS=1
+                ;;
+            unknown)
+                STATUS=0
+                ;;
+        esac
+        STATUSSTR="${PSTATUS}"
+
+        PrintItemFoot
+    done
+}
+
 #############################################################################
 # Main Health Check routines here.  Some call others due to dependencies but
 # some stand alone on their own.
@@ -380,6 +434,7 @@ HC_Warnings() {
 # FPP
 HC_FPPD
 HC_Warnings
+HC_PluginProvenance
 
 MODE=$(getSetting fppMode)
 if [ "x${MODE}" = "xplayer" -o "x${MODE}" = "xmaster" ]

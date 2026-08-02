@@ -93,6 +93,179 @@ function PipAvailable()
 	return $available;
 }
 
+// "Official" = clone origin (srcURL) is a repo in the FalconChristmas GitHub
+// org. Mirrors plugins.php's client-side IsOfficialPlugin() -- host + first
+// path segment only, so a spoofed host/path can't earn it.
+function IsOfficialPluginSrcURL($url)
+{
+	if (!is_string($url) || $url === '') {
+		return false;
+	}
+	$parts = parse_url($url);
+	if (!is_array($parts) || !isset($parts['host']) || strtolower($parts['host']) !== 'github.com') {
+		return false;
+	}
+	$path = isset($parts['path']) ? $parts['path'] : '';
+	$segs = array_values(array_filter(explode('/', $path), function ($s) { return $s !== ''; }));
+	return count($segs) > 0 && strtolower($segs[0]) === 'falconchristmas';
+}
+
+/**
+ * repoName -> infoURL map from the official pluginList.json in
+ * FalconChristmas/fpp-data -- the curated index of known community plugins.
+ * Fetched once per request (via FindPluginIndexEntry(), used by both
+ * ResolvePluginInfoByName() for dependency resolution and
+ * IsRepoNameInPluginIndex() for provenance classification).
+ */
+function GetPluginIndex()
+{
+	static $pluginList = null;
+	if ($pluginList === null) {
+		$listJSON = FetchURLWithGitHubCredentials('https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/pluginList.json');
+		$decoded = json_decode($listJSON, true);
+		$pluginList = (is_array($decoded) && isset($decoded['pluginList']) && is_array($decoded['pluginList'])) ? $decoded['pluginList'] : array();
+	}
+	return $pluginList;
+}
+
+// Looks up $repoName's [repoName, infoURL, category] entry in the plugin
+// index (see GetPluginIndex()). Returns the entry, or null if not found.
+// Shared by IsRepoNameInPluginIndex() and ResolvePluginInfoByName() so the
+// match logic exists in exactly one place.
+function FindPluginIndexEntry($repoName)
+{
+	foreach (GetPluginIndex() as $entry) {
+		if (is_array($entry) && count($entry) >= 2 && $entry[0] === $repoName) {
+			return $entry;
+		}
+	}
+	return null;
+}
+
+// True if $repoName appears in the official plugin index (fpp-data's
+// pluginList.json) -- i.e. a known, catalogued community plugin, whether or
+// not it's actually installed from there.
+function IsRepoNameInPluginIndex($repoName)
+{
+	return FindPluginIndexEntry($repoName) !== null;
+}
+
+/**
+ * Classifies a plugin into one of three provenance buckets:
+ *   - 'official': srcURL is a FalconChristmas org repo.
+ *   - 'community': not official, but repoName is in the curated fpp-data
+ *     plugin index (a known, catalogued community plugin).
+ *   - 'unknown': neither -- not published by the FPP project, and not in the
+ *     index either (e.g. installed by pasting an arbitrary plugininfo.json
+ *     URL). Highest-risk bucket for support purposes.
+ */
+function ClassifyPluginProvenance($repoName, $srcURL)
+{
+	if (IsOfficialPluginSrcURL($srcURL)) {
+		return 'official';
+	}
+	if (is_string($repoName) && $repoName !== '' && IsRepoNameInPluginIndex($repoName)) {
+		return 'community';
+	}
+	return 'unknown';
+}
+
+// Settings holding "has a plugin of this provenance ever been installed on
+// this system" -- keyed by ClassifyPluginProvenance()'s return value.
+$GLOBALS['PLUGIN_PROVENANCE_SETTINGS'] = array(
+	'official' => 'PluginOfficialEverInstalled',
+	'community' => 'PluginCommunityEverInstalled',
+	'unknown' => 'PluginUnknownEverInstalled',
+);
+
+/**
+ * Records, permanently, that this system has installed an official,
+ * community, or unknown-provenance plugin at least once. These flags are
+ * sticky -- never cleared by uninstalling the plugin -- because they exist
+ * to answer "has unsupported/unverified code ever touched this system" when
+ * reading a Support Zip / health check from a troubleshooting bundle, not
+ * "is one installed right now". A community or unknown install taints the
+ * system for support purposes even after the plugin is removed; only a
+ * reimage genuinely resets that history, which is exactly the message the
+ * health check gives. Stored in the main settings file like any other
+ * setting -- resetConfig.php's "settings" reset area is taught to carry
+ * these three keys forward across that specific reset instead, see
+ * PreservePluginProvenanceAcrossReset() there.
+ */
+function RecordPluginInstallProvenance($repoName, $srcURL)
+{
+	$bucket = ClassifyPluginProvenance($repoName, $srcURL);
+	WriteSettingToFile($GLOBALS['PLUGIN_PROVENANCE_SETTINGS'][$bucket], '1');
+}
+
+/**
+ * Get plugin provenance status
+ *
+ * Live-scans the plugin directory and classifies every currently-installed
+ * plugin into official/community/unknown (see ClassifyPluginProvenance()),
+ * combined with the sticky "ever installed" settings so plugins removed
+ * after this feature shipped still show up. A directory counts as
+ * "installed" even if incomplete/partially installed (e.g. missing
+ * pluginInfo.json) -- such a plugin can't be classified by srcURL/index
+ * lookup, so it falls into 'unknown'.
+ *
+ * @route GET /api/plugin/provenance
+ * @response 200 Provenance status per category
+ * ```json
+ * {
+ *   "official": {"label": "Official Plugins", "installedCount": 1, "everInstalled": true, "status": "Installed"},
+ *   "community": {"label": "Community Plugins", "installedCount": 0, "everInstalled": true, "status": "Previously Installed"},
+ *   "unknown": {"label": "Unknown Plugins", "installedCount": 0, "everInstalled": false, "status": null}
+ * }
+ * ```
+ */
+function GetPluginProvenance()
+{
+	global $settings;
+
+	$labels = array('official' => 'Official Plugins', 'community' => 'Community Plugins', 'unknown' => 'Unknown Plugins');
+	$counts = array('official' => 0, 'community' => 0, 'unknown' => 0);
+
+	$pluginDir = $settings['pluginDirectory'];
+	if ($dh = @opendir($pluginDir)) {
+		while (($repoName = readdir($dh)) !== false) {
+			if (in_array($repoName, array('.', '..')) || !is_dir($pluginDir . '/' . $repoName)) {
+				continue;
+			}
+			$infoFile = $pluginDir . '/' . $repoName . '/pluginInfo.json';
+			$srcURL = '';
+			if (file_exists($infoFile)) {
+				$data = json_decode(file_get_contents($infoFile), true);
+				if (is_array($data) && isset($data['srcURL'])) {
+					$srcURL = $data['srcURL'];
+				}
+			}
+			$bucket = ClassifyPluginProvenance($repoName, $srcURL);
+			$counts[$bucket]++;
+		}
+	}
+
+	$result = array();
+	foreach ($labels as $bucket => $label) {
+		$everInstalled = ReadSettingFromFile($GLOBALS['PLUGIN_PROVENANCE_SETTINGS'][$bucket]) == '1';
+		$installedCount = $counts[$bucket];
+		$status = null;
+		if ($installedCount > 0) {
+			$status = 'Installed';
+		} else if ($everInstalled) {
+			$status = 'Previously Installed';
+		}
+		$result[$bucket] = array(
+			'label' => $label,
+			'installedCount' => $installedCount,
+			'everInstalled' => $everInstalled,
+			'status' => $status,
+		);
+	}
+
+	return json($result);
+}
+
 // Removes a partially-installed plugin directory (and any linkName symlink) so a
 // refused/failed install does not leave a half-installed plugin behind.
 function CleanupPartialPluginInstall($plugin, $linkName = null)
@@ -274,6 +447,10 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	}
 
 	$srcURL = isset($pluginInfo['srcURL']) ? $pluginInfo['srcURL'] : '';
+	// Captured before InjectGitHubCredentials() below rewrites $srcURL with an
+	// embedded user:token@ -- IsOfficialPluginSrcURL()'s host/path parse
+	// doesn't need credentials and it's one less thing carrying a PAT around.
+	$origSrcURL = $srcURL;
 	$branch = escapeshellcmd(isset($pluginInfo['branch']) && $pluginInfo['branch'] !== '' ? $pluginInfo['branch'] : 'master');
 	$sha = isset($pluginInfo['sha']) ? $pluginInfo['sha'] : '';
 	$infoURL = isset($pluginInfo['infoURL']) ? $pluginInfo['infoURL'] : '';
@@ -394,6 +571,7 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	// The only statement that the operation as a whole succeeded -- the wrapper
 	// scripts only ever report on their own phase.
 	PluginEchoLog('install', $repoName, "\nInstalled plugin '$plugin'.\n", $stream);
+	RecordPluginInstallProvenance($repoName, $origSrcURL);
 	return true;
 }
 
@@ -561,23 +739,11 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
  */
 function ResolvePluginInfoByName($repoName)
 {
-	static $pluginList = null;
-	if ($pluginList === null) {
-		$listJSON = FetchURLWithGitHubCredentials('https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/pluginList.json');
-		$decoded = json_decode($listJSON, true);
-		$pluginList = (is_array($decoded) && isset($decoded['pluginList']) && is_array($decoded['pluginList'])) ? $decoded['pluginList'] : array();
-	}
-
-	$infoURL = null;
-	foreach ($pluginList as $entry) {
-		if (is_array($entry) && count($entry) >= 2 && $entry[0] === $repoName) {
-			$infoURL = $entry[1];
-			break;
-		}
-	}
-	if ($infoURL === null) {
+	$entry = FindPluginIndexEntry($repoName);
+	if ($entry === null) {
 		return null;
 	}
+	$infoURL = $entry[1];
 
 	$infoJSON = FetchURLWithGitHubCredentials($infoURL);
 	$info = json_decode($infoJSON, true);

@@ -59,6 +59,9 @@
 	--fpp-danger-light: #fde8e8;
 	--fpp-info: #6b95ec;
 	--fpp-info-light: #e8f0fd;
+	/* Between success and warning -- a "pass" still worth a second look
+	   (e.g. Community Plugins: not an error, but not FPP-team-reviewed either). */
+	--fpp-caution: #7a9a1e;
 
 	/* Neutral Colors - Text */
 	--fpp-text-primary: #333;
@@ -252,6 +255,7 @@
 	--fpp-danger-light: #4a1f24;
 	--fpp-info: var(--bs-info);
 	--fpp-info-light: #1e2f52;
+	--fpp-caution: #b3d334;
 
 	/* Neutral Colors - Text */
 	--fpp-text-primary: #dee2e6;
@@ -857,6 +861,10 @@
 
 .fpp-status--warn {
 	color: var(--bs-warning);
+}
+
+.fpp-status--caution {
+	color: var(--fpp-caution);
 }
 
 .fpp-status--fail {
