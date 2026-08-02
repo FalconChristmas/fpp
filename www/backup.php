@@ -393,6 +393,32 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
         error_log($backup_error_string);
     }
 
+    // Restoring can bring in state from a box that doesn't match what's
+    // actually installed/running here -- packages, plugins, Service_*
+    // settings, and more -- the same reconciliation an FPPOS reflash already
+    // needs. Rather than re-deriving which specific area(s) require which
+    // piece of that reconciliation (services, packages, plugin binaries...),
+    // just feed every restore into the exact same boot-time path a reflash
+    // already uses, unconditionally: handleBootActions() and
+    // checkInstallPackages() (FPPINIT_Config.cpp) already run every boot and
+    // no-op unless triggered, so this needs no new C++ -- see copystorage.php
+    // for the full rationale and what each trigger does. Both require a full
+    // reboot, not just the fppd restart some areas above already request
+    // (fppinit start/postNetwork don't run on an fppd-only restart).
+    //
+    // Gated on $restore_done alone, not on $backup_errors being empty: even a
+    // partial restore (some sub-items failed, others succeeded within the
+    // same request -- processRestoreData() tracks ATTEMPT/SUCCESS per item,
+    // not a clean top-level success flag) still needs reconciling for
+    // whatever DID land. A reboot is harmless if nothing needed it; skipping
+    // it because something else in the same restore failed would leave
+    // successfully-restored state unreconciled.
+    if ($restore_done) {
+        WriteSettingToFile('BootActions', 'settings');
+        WriteSettingToFile('rebootFlag', 1);
+        exec('sudo touch /fppos_upgraded');
+    }
+
     //$restore_done is set if we got to actually call the function to restore data, if there was some sort of error with the data beforehand it will never get set
     //use this as a simple check so we can return other data (what errors we had)
     return !empty($restore_result) ? array('success' => true, 'message' => $restore_result) : array('success' => false, 'message' => $backup_errors);
