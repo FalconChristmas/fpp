@@ -162,6 +162,9 @@
                     // (plugins.php?action=reinstallAll): now that installedPlugins
                     // and pluginInfos are loaded, pop the Reinstall All confirm.
                     MaybeAutoOpenReinstallAll();
+                    // Everything is rendered and interactive; refresh the Updates
+                    // tab count for real, quietly, in the background.
+                    BackgroundCheckForUpdates();
                 },
                 error: function () {
                     alert('Error, failed to get pluginList.json');
@@ -404,11 +407,77 @@
             });
         }
 
+        // Quiet background pass over the installed plugins so the Updates tab
+        // count reflects a real (fetch-based) check without anyone pressing
+        // "Check for Updates" -- the page-load render only knows about commits
+        // that some earlier fetch already pulled down, so the tab's [0] was
+        // asserting "no updates" from stale information.
+        //
+        // Deliberately different from CheckPluginsForUpdates: one request at a
+        // time, not a parallel fan-out. Each check runs a git fetch server-side,
+        // and N of those at once would occupy the PHP worker pool exactly when
+        // the user might be clicking Install. No cursor, no button locking, no
+        // growls -- rows and the tab count just correct themselves as answers
+        // arrive. The explicit Check/Update All buttons cancel the sweep (they
+        // are about to redo the same work in parallel anyway); a failed check
+        // is skipped silently since offline boxes hit this on every page load.
+        var bgUpdateSweep = null; // non-null while a background sweep is running
+
+        function CancelBackgroundUpdateCheck() {
+            if (bgUpdateSweep) {
+                bgUpdateSweep.cancelled = true;
+                bgUpdateSweep = null;
+                $('#updatesCheckSpinner').addClass('d-none');
+            }
+        }
+
+        function BackgroundCheckForUpdates() {
+            if (bgUpdateSweep || installedPlugins.length === 0)
+                return;
+            var sweep = { cancelled: false };
+            bgUpdateSweep = sweep;
+            var queue = installedPlugins.slice();
+            $('#updatesCheckSpinner').removeClass('d-none');
+
+            function finish() {
+                if (bgUpdateSweep === sweep)
+                    bgUpdateSweep = null;
+                $('#updatesCheckSpinner').addClass('d-none');
+            }
+            function next() {
+                if (sweep.cancelled || queue.length === 0) {
+                    finish();
+                    return;
+                }
+                var plugin = queue.shift();
+                $.ajax({
+                    url: 'api/plugin/' + plugin + '/updates',
+                    type: 'POST',
+                    dataType: 'json',
+                    success: function (data) {
+                        if (!sweep.cancelled && data.Status == 'OK') {
+                            if (data.updatesAvailable)
+                                RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
+                            else
+                                RowEl(plugin).removeClass('fppHasUpdate');
+                            FilterPlugins();
+                        }
+                        next();
+                    },
+                    error: function () {
+                        next();
+                    }
+                });
+            }
+            next();
+        }
+
         function CheckAllPluginsForUpdates() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
                 return;
             }
+            CancelBackgroundUpdateCheck();
 
             $('html,body').css('cursor', 'wait');
             $('#checkAllUpdatesBtn').prop('disabled', true);
@@ -447,6 +516,7 @@
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
                 return;
             }
+            CancelBackgroundUpdateCheck();
             $('html,body').css('cursor', 'wait');
             $('#updateAllBtn').prop('disabled', true);
             $('#checkAllUpdatesBtn').prop('disabled', true);
@@ -2260,6 +2330,8 @@
                                         <button type="button" class="nav-link text-nowrap" data-top-tab="updates" role="tab">
                                             <i class="far fa-arrow-alt-circle-up"></i> Updates
                                             <span class="badge bg-secondary ms-1" id="topCountUpdates">0</span>
+                                            <span class="spinner-border spinner-border-sm ms-1 d-none" id="updatesCheckSpinner"
+                                                role="status" aria-hidden="true" title="Checking for updates..."></span>
                                         </button>
                                     </li>
                                 </ul>
