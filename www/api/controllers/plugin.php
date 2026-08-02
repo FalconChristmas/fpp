@@ -109,7 +109,8 @@ function CleanupPartialPluginInstall($plugin, $linkName = null)
  *
  * Get list of installed plugins.
  *
- * @route GET /api/plugin
+ * @route-v1 GET /plugin
+ * @route-v2 GET /plugin
  * @response 200 List of installed plugin names
  * ```json
  * ["fpp-brightness", "fpp-matrixtools", "fpp-vastfmt"]
@@ -144,7 +145,8 @@ function GetInstalledPlugins()
  * with `branch` and `sha` fields added to specify which branch and commit
  * to install.
  *
- * @route POST /api/plugin
+ * @route-v1 POST /plugin
+ * @route-v2 POST /plugin
  * @body {"repoName": "fpp-matrixtools", "name": "MatrixTools", "author": "Chris Pinkham (CaptainMurdoch)", "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git", "branch": "master", "sha": ""}
  * @response 200 Plugin installed
  * ```json
@@ -718,7 +720,8 @@ function ComparePluginFPPVersions($a, $b)
  * `updatesAvailable` field indicates whether the plugin has commits that
  * have been fetched but not yet merged.
  *
- * @route GET /api/plugin/{RepoName}
+ * @route-v1 GET /plugin/{RepoName}
+ * @route-v2 GET /plugin/{RepoName}
  * @response 200 Plugin information
  * ```json
  * {
@@ -749,7 +752,7 @@ function GetPluginInfo()
 		$json = file_get_contents($infoFile);
 		$result = json_decode($json, true);
 		$result['Status'] = 'OK';
-		$result['updatesAvailable'] = PluginHasUpdates($plugin);
+		$result['updatesAvailable'] = pluginHasUpdates($plugin);
 
 		$iconFile = $settings['pluginDirectory'] . '/' . $plugin . '/icon.png';
 		$result['hasIcon'] = file_exists($iconFile) || !empty($result['iconURL']);
@@ -835,7 +838,8 @@ function PluginServeIcon()
  *
  * Uninstall plugin {RepoName}.
  *
- * @route DELETE /api/plugin/{RepoName}
+ * @route-v1 DELETE /plugin/{RepoName}
+ * @route-v2 DELETE /plugin/{RepoName}
  * @response 200 Plugin uninstalled
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -906,7 +910,8 @@ function UninstallPlugin()
  * Check plugin `{RepoName}` for available updates by running `git fetch` in
  * the plugin directory and checking for any unmerged commits.
  *
- * @route POST /api/plugin/{RepoName}/updates
+ * @route-v1 POST /plugin/{RepoName}/updates
+ * @route-v2 POST /plugin/{RepoName}/updates
  * @response 200 Update check result
  * ```json
  * {"Status": "OK", "Message": "", "updatesAvailable": 1}
@@ -925,7 +930,7 @@ function CheckForPluginUpdates()
 	if ($return_val == 0) {
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
-		$result['updatesAvailable'] = PluginHasUpdates($plugin);
+		$result['updatesAvailable'] = pluginHasUpdates($plugin);
 	} else {
 		$result['Status'] = 'Error';
 		$result['Message'] = 'Could not run git fetch for plugin ' . $plugin;
@@ -940,8 +945,10 @@ function CheckForPluginUpdates()
  * Pull in git updates for plugin `{RepoName}`. Supports an optional
  * `?stream=true` query parameter for streaming output.
  *
- * @route GET /api/plugin/{RepoName}/upgrade
- * @route POST /api/plugin/{RepoName}/upgrade
+ * @route-v1 GET /plugin/{RepoName}/upgrade
+ * @route-v2 POST /plugin/{RepoName}/upgrade
+ * @badge-v1 "DEPRECATED" warning
+ * @param bool stream When `true`, stream the upgrade output to the response instead of buffering it
  * @response 200 Plugin upgraded
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -997,7 +1004,7 @@ function UpgradePlugin()
  * @return string|false Modified URL on success, or false if credentials are not
  *                      configured or the URL is not a recognized GitHub URL.
  */
-function InjectGitHubCredentials($url)
+function injectGitHubCredentials($url)
 {
 	global $settings;
 
@@ -1026,7 +1033,7 @@ function InjectGitHubCredentials($url)
  * @param string $url URL to fetch.
  * @return string|false Response body on success, or false on failure.
  */
-function FetchURLWithGitHubCredentials($url)
+function fetchURLWithGitHubCredentials($url)
 {
 	global $GitHubFetchLastError;
 	$GitHubFetchLastError = '';
@@ -1146,7 +1153,8 @@ function FetchURLWithGitHubCredentials($url)
  * authenticate against private GitHub repositories using credentials
  * configured on the Developer settings page.
  *
- * @route POST /api/plugin/fetchInfo
+ * @route-v1 POST /plugin/fetchInfo
+ * @route-v2 POST /plugin/fetchInfo
  * @body {"url": "https://example.com/pluginInfo.json", "useCredentials": 1}
  * @response 200 Plugin info fetched from remote URL
  * ```json
@@ -1583,7 +1591,7 @@ function FetchPluginInfoProxy()
 		if ($user === '' || $pat === '') {
 			return json(array('Status' => 'Error', 'Message' => 'GitHub user name and/or Personal Access Token are not configured on the Developer settings page.'));
 		}
-		$data = FetchURLWithGitHubCredentials($url);
+		$data = fetchURLWithGitHubCredentials($url);
 	} else {
 		$data = file_get_contents($url);
 	}
@@ -1619,7 +1627,7 @@ function FetchPluginInfoProxy()
  * @param string $plugin Plugin directory name (repo name).
  * @return int 1 if updates are available, 0 otherwise.
  */
-function PluginHasUpdates($plugin)
+function pluginHasUpdates($plugin)
 {
 	global $settings, $fppDir;
 	$output = '';
@@ -1646,7 +1654,8 @@ function PluginHasUpdates($plugin)
  *
  * Returns the value of setting `{SettingName}` from plugin `{RepoName}`.
  *
- * @route GET /api/plugin/{RepoName}/settings/{SettingName}
+ * @route-v1 GET /plugin/{RepoName}/settings/{SettingName}
+ * @route-v2 GET /plugin/{RepoName}/settings/{SettingName}
  * @response 200 Plugin setting value
  * ```json
  * {"status": "OK", "SettingName": "SettingValue"}
@@ -1671,8 +1680,10 @@ function PluginGetSetting()
  *
  * Sets `{SettingName}` for plugin `{RepoName}` and returns the updated value.
  *
- * @route POST /api/plugin/{RepoName}/settings/{SettingName}
- * @route PUT /api/plugin/{RepoName}/settings/{SettingName}
+ * @route-v1 POST /plugin/{RepoName}/settings/{SettingName}
+ * @route-v2 POST /plugin/{RepoName}/settings/{SettingName}
+ * @route-v1 PUT /plugin/{RepoName}/settings/{SettingName}
+ * @route-v2 PUT /plugin/{RepoName}/settings/{SettingName}
  * @body SettingValue
  * @response 200 Plugin setting updated
  * ```json

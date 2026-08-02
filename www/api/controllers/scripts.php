@@ -5,13 +5,14 @@
  *
  * Returns a list of currently installed scripts.
  *
- * @route GET /api/scripts
+ * @route-v1 GET /scripts
+ * @route-v2 GET /scripts
  * @response 200 List of installed script filenames
  * ```json
  * ["script1.sh", "script2.sh"]
  * ```
  */
-function scripts_list()
+function ScriptsList()
 {
     global $settings;
 
@@ -37,13 +38,14 @@ function scripts_list()
  *
  * Returns the source code of an installed script.
  *
- * @route GET /api/scripts/{scriptName}
+ * @route-v1 GET /scripts/{scriptName}
+ * @route-v2 GET /scripts/{scriptName}
  * @response 200 Script source code
  * ```text
  * The content of the script as a string
  * ```
  */
-function script_get()
+function ScriptGet()
 {
     global $settings;
 
@@ -61,7 +63,8 @@ function script_get()
  *
  * Writes the `POST` request body to the file specified by `{scriptName}`.
  *
- * @route POST /api/scripts/{scriptName}
+ * @route-v1 POST /scripts/{scriptName}
+ * @route-v2 POST /scripts/{scriptName}
  * @response 200 Script saved
  * ```json
  * {
@@ -71,7 +74,7 @@ function script_get()
  * }
  * ```
  */
-function script_save()
+function ScriptSave()
 {
     global $settings;
     $scriptName = params("scriptName");
@@ -113,13 +116,15 @@ function script_save()
  *
  * Runs a locally installed script.
  *
- * @route GET /api/scripts/{scriptName}/run
+ * @route-v1 GET /scripts/{scriptName}/run
+ * @route-v2 POST /scripts/{scriptName}/run
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Script output
  * ```text
  * The output of the script as a String
  * ```
  */
-function script_run()
+function ScriptRun()
 {
     global $settings;
 
@@ -138,13 +143,14 @@ function script_run()
  *
  * Returns the source code of a remote script from the script repository.
  *
- * @route GET /api/scripts/viewRemote/{category}/{filename}
+ * @route-v1 GET /scripts/viewRemote/{category}/{filename}
+ * @route-v2 GET /scripts/viewRemote/{category}/{filename}
  * @response 200 Remote script source code
  * ```text
  * The content of the script as a string
  * ```
  */
-function scripts_view_remote()
+function ScriptsViewRemote()
 {
     $category = params('category');
     $filename = params('filename');
@@ -159,13 +165,15 @@ function scripts_view_remote()
  *
  * Installs a remote script from the script repository.
  *
- * @route GET /api/scripts/installRemote/{category}/{filename}
+ * @route-v1 GET /scripts/installRemote/{category}/{filename}
+ * @route-v2 POST /scripts/installRemote/{category}/{filename}
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Remote script installed
  * ```json
  * {"status": "OK"}
  * ```
  */
-function scripts_install_remote()
+function ScriptsInstallRemote()
 {
     global $fppDir, $SUDO;
     global $scriptDirectory;

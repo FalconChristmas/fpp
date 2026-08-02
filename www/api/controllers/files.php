@@ -7,7 +7,7 @@
  * @param string $filename Filename to inspect.
  * @return string Absolute directory path, or empty string if no match found.
  */
-function MapExtention($filename)
+function mapExtention($filename)
 {
     global $mediaDirectory, $settings;
 
@@ -53,11 +53,11 @@ function MapExtention($filename)
  * @param string $dirName Logical directory name (e.g. "music", "sequences").
  * @return string Absolute directory path, or empty string if not found.
  */
-function MapDirectoryKey($dirName)
+function mapDirectoryKey($dirName)
 {
     $dir = GetDirSetting($dirName);
     if ($dir == "") {
-        $dir = MapExtention($dirName);
+        $dir = mapExtention($dirName);
     }
     return $dir;
 }
@@ -67,7 +67,8 @@ function MapDirectoryKey($dirName)
  *
  * Copies the specified file from `:source` to `:dest` within the given directory.
  *
- * @route POST /api/file/{DirName}/copy/{source}/{dest}
+ * @route-v1 POST /file/{DirName}/copy/{source}/{dest}
+ * @route-v2 POST /file/{DirName}/copy/{source}/{dest}
  * @response 200 File copied successfully
  * ```json
  * {
@@ -77,13 +78,13 @@ function MapDirectoryKey($dirName)
  * }
  * ```
  */
-function files_copy()
+function FilesCopy()
 {
     $filename = params("source");
     $newfilename = params("dest");
     $dir = params("DirName");
 
-    $dir = MapDirectoryKey($dir);
+    $dir = mapDirectoryKey($dir);
 
     if ($dir == "") {
         return json(array("status" => "Invalid Directory"));
@@ -108,7 +109,8 @@ function files_copy()
  *
  * Renames the specified file from `:source` to `:dest` within the given directory.
  *
- * @route POST /api/file/{DirName}/rename/{source}/{dest}
+ * @route-v1 POST /file/{DirName}/rename/{source}/{dest}
+ * @route-v2 POST /file/{DirName}/rename/{source}/{dest}
  * @response 200 File renamed successfully
  * ```json
  * {
@@ -118,12 +120,12 @@ function files_copy()
  * }
  * ```
  */
-function files_rename()
+function FilesRename()
 {
     $filename = params("source");
     $newfilename = params("dest");
     $dir = params("DirName");
-    $dir = MapDirectoryKey($dir);
+    $dir = mapDirectoryKey($dir);
 
     if ($dir == "") {
         return json(array("status" => "Invalid Directory"));
@@ -152,7 +154,7 @@ function files_rename()
  * @param string $prefix  Optional prefix to prepend to each returned filename.
  * @return array Array of filename strings (nameOnly mode) or file detail arrays.
  */
-function GetFilesHelper($dirName, $prefix = '')
+function getFilesHelper($dirName, $prefix = '')
 {
     global $SUDO;
 
@@ -294,7 +296,8 @@ function GetFilesHelper($dirName, $prefix = '')
  *
  * Returns a list of files in the specified media directory.
  *
- * @route GET /api/files/{DirName}
+ * @route-v1 GET /files/{DirName}
+ * @route-v2 GET /files/{DirName}
  * @param bool nameOnly When `1`, return a flat array of filenames instead of the default object envelope
  * @response 200 Listing of files
  * ```json
@@ -316,15 +319,15 @@ function GetFiles()
 {
     $dirName = params("DirName");
     check($dirName, "dirName", __FUNCTION__);
-    $dirName = MapDirectoryKey($dirName);
+    $dirName = mapDirectoryKey($dirName);
     if ($dirName == "") {
         return json(array("status" => "Invalid Directory"));
     }
 
     if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
-        return json(GetFilesHelper($dirName));
+        return json(getFilesHelper($dirName));
     } else {
-        return json(array("status" => "ok", "files" => GetFilesHelper($dirName)));
+        return json(array("status" => "ok", "files" => getFilesHelper($dirName)));
     }
 }
 
@@ -402,7 +405,8 @@ function GetSequenceFPS()
  * name, extension category, and file path are read from route parameters.
  * The metadata command is defined in the plugin's `pluginInfo.json`.
  *
- * @route GET /api/file/info/{plugin}/{ext}/**
+ * @route-v1 GET /file/info/{plugin}/{ext}/**
+ * @route-v2 GET /file/info/{plugin}/{ext}/**
  * @response 200 Plugin-specific file information
  * ```json
  * {}
@@ -449,7 +453,7 @@ function GetPluginFileInfo()
  * @param string $filename Filename that was uploaded.
  * @return string Output from the plugin handler, or an error string if no handler found.
  */
-function CallPluginFileUploaded($dir, $filename)
+function callPluginFileUploaded($dir, $filename)
 {
     $pluginDirectory = GetDirSetting("plugins");
     if (file_exists($pluginDirectory)) {
@@ -484,7 +488,9 @@ function CallPluginFileUploaded($dir, $filename)
  * Notifies any plugin that has registered an `onUpload` handler for the given
  * file extension. `:ext` is the extension category and `**` is the file path.
  *
- * @route GET /api/file/onUpload/{ext}/**
+ * @route-v1 GET /file/onUpload/{ext}/**
+ * @route-v2 POST /file/onUpload/{ext}/**
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Plugin notified of upload
  * ```json
  * {"status": "OK"}
@@ -496,7 +502,7 @@ function PluginFileOnUpload()
 
     $ext = params("ext");
     $fileName = params(0);
-    return CallPluginFileUploaded($mediaDirectory . "/" . $ext, $fileName);
+    return callPluginFileUploaded($mediaDirectory . "/" . $ext, $fileName);
 }
 
 /**
@@ -508,7 +514,7 @@ function PluginFileOnUpload()
  * @param string $filename  Filename to move.
  * @return bool True on success, false if the rename failed.
  */
-function MovePluginFile($uploadDir, $filename)
+function movePluginFile($uploadDir, $filename)
 {
     global $mediaDirectory;
     $pluginDirectory = GetDirSetting("plugins");
@@ -524,7 +530,7 @@ function MovePluginFile($uploadDir, $filename)
                                 if (!rename($uploadDir . "/" . $filename, $mediaDirectory . "/" . $value["folder"] . "/" . $filename)) {
                                     return false;
                                 }
-                                CallPluginFileUploaded($mediaDirectory . "/" . $value["folder"], $filename);
+                                callPluginFileUploaded($mediaDirectory . "/" . $value["folder"], $filename);
                             }
                         }
                     }
@@ -540,7 +546,8 @@ function MovePluginFile($uploadDir, $filename)
  *
  * Downloads the specified file from a media directory.
  *
- * @route GET /api/file/{DirName}/**
+ * @route-v1 GET /file/{DirName}/**
+ * @route-v2 GET /file/{DirName}/**
  * @param int tail Return the last N lines instead of the whole file
  * @param bool play When `1`, set a playback-oriented content type instead of a forced attachment
  * @param bool attach When `1`, force attachment download for images
@@ -573,7 +580,7 @@ function GetFile()
         $attach = intval($_GET['attach']);
     }
 
-    GetFileImpl($dirName, $fileName, $lines, $play, $attach);
+    getFileImpl($dirName, $fileName, $lines, $play, $attach);
 }
 
 /**
@@ -588,7 +595,7 @@ function GetFile()
  * @param int    $attach   1 to force attachment Content-Disposition for images.
  * @return void
  */
-function GetFileImpl($dir, $filename, $lines, $play, $attach)
+function getFileImpl($dir, $filename, $lines, $play, $attach)
 {
     global $SUDO;
     $isImage = 0;
@@ -599,7 +606,7 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         $isLog = 1;
     }
 
-    $dir = MapDirectoryKey($dir);
+    $dir = mapDirectoryKey($dir);
 
     if ($dir == "") {
         return;
@@ -710,7 +717,9 @@ function findFile($dir, $filename)
  * subfolder based on its extension, returning a status of `OK` or an error
  * message if not successful.
  *
- * @route GET /api/file/move/{fileName}
+ * @route-v1 GET /file/move/{fileName}
+ * @route-v2 POST /file/move/{fileName}
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 File moved to media directory
  * ```json
  * {"status": "OK"}
@@ -789,7 +798,7 @@ function MoveFile()
                 return json(array("status" => $status));
             }
         } else {
-            if (!MovePluginFile($uploadDirectory, $file)) {
+            if (!movePluginFile($uploadDirectory, $file)) {
                 $status = "ERROR: Couldn't move file";
                 return json(array("status" => $status));
             }
@@ -807,7 +816,8 @@ function MoveFile()
  * directories) as a zip archive. `logs` and `config` are handled specially to
  * include system log and config files.
  *
- * @route GET /api/files/zip/{DirNames}
+ * @route-v1 GET /files/zip/{DirNames}
+ * @route-v2 GET /files/zip/{DirNames}
  * @response 200 Binary file stream of the compressed system archive.
  * ```bytes
  * [Raw Binary Stream: application/zip]
@@ -841,13 +851,13 @@ function GetZipDir()
 
         //Logs and Config are special
         if (strtolower($dirName) == "logs") {
-            ZipLogs($zip);
+            zipLogs($zip);
         } else if (strtolower($dirName) == "config") {
-            ZipConfigs($zip);
+            zipConfigs($zip);
         } else {
-            $dir = MapDirectoryKey($dirName);
+            $dir = mapDirectoryKey($dirName);
             if (file_exists($dir) && $dir != "") {
-                ZipDirectory($zip, $dirName, $dir);
+                zipDirectory($zip, $dirName, $dir);
             } else {
                 $zip->close();
                 return json(array("status" => "Directory not found: Name:$dirName, Path:$dir"));
@@ -889,14 +899,14 @@ function GetZipDir()
  * @param ZipArchive $zip The archive to add files to.
  * @return void
  */
-function ZipLogs($zip)
+function zipLogs($zip)
 {
     global $SUDO;
     global $settings;
     global $logDirectory;
     global $mediaDirectory;
 
-    ZipConfigs($zip);
+    zipConfigs($zip);
 
     // Logs that are no longer generated at all. fppd.log has replaced them and is
     // written continuously, so it always carries the current picture -- there is
@@ -1013,7 +1023,7 @@ function ZipLogs($zip)
  * @param ZipArchive $zip The archive to add files to.
  * @return void
  */
-function ZipConfigs($zip)
+function zipConfigs($zip)
 {
     global $SUDO;
     global $mediaDirectory;
@@ -1075,7 +1085,7 @@ function ZipConfigs($zip)
  * @param string     $directory Absolute path to the directory to add.
  * @return void
  */
-function ZipDirectory($zip, $name, $directory)
+function zipDirectory($zip, $name, $directory)
 {
     global $mediaDirectory;
     foreach (scandir($directory) as $file) {
@@ -1115,7 +1125,8 @@ function removeDir(string $dir): void
  * Deletes the specified file or directory from a media directory. Validates
  * the resolved path against the allowed base directory to prevent path traversal.
  *
- * @route DELETE /api/file/{DirName}/**
+ * @route-v1 DELETE /file/{DirName}/**
+ * @route-v2 DELETE /file/{DirName}/**
  * @response 200 File or directory deleted
  * ```json
  * {
@@ -1131,7 +1142,7 @@ function DeleteFile()
 
     $status = "File not found";
     $dirName = params("DirName");
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
     $fileName = params(0);
 
     if ($fileName == "" && $dir == $uploadDirectory) {
@@ -1171,7 +1182,7 @@ function DeleteFile()
  * @param string   $pos BC math string representing the byte offset to seek to.
  * @return void
  */
-function emulated_fseek_for_big_files($fp, $pos)
+function emulatedFseekForBigFiles($fp, $pos)
 {
     if (bccomp((string) PHP_INT_MAX, $pos, 0) > -1) {
         // small, do it natively
@@ -1207,8 +1218,10 @@ function emulated_fseek_for_big_files($fp, $pos)
  * delivers a chunk identified by `Upload-Name`, `Upload-Offset`, and `Upload-Length`
  * headers; when all chunks arrive, the file is assembled.
  *
- * @route POST /api/file/{DirName}
- * @route PATCH /api/file/{DirName}
+ * @route-v1 POST /file/{DirName}
+ * @route-v2 POST /file/{DirName}
+ * @route-v1 PATCH /file/{DirName}
+ * @route-v2 PATCH /file/{DirName}
  * @response 200 Upload chunk received
  * ```json
  * {
@@ -1233,7 +1246,7 @@ function PatchFile()
     $offset = $_SERVER['HTTP_UPLOAD_OFFSET'];
     $length = $_SERVER['HTTP_UPLOAD_LENGTH'];
 
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
     $fullPath = "$dir/$fileName";
     if ($offset == 0) {
         //for the first chunk, clear out any existing patches
@@ -1318,7 +1331,7 @@ function PatchFile()
 
         if ($dirName != "upload" && $dirName != "uploads") {
             // uploads to the upload directory will have this called during MoveFile
-            CallPluginFileUploaded($dir, $fileName);
+            callPluginFileUploaded($dir, $fileName);
         }
     }
     return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "size" => $size));
@@ -1329,7 +1342,8 @@ function PatchFile()
  *
  * Uploads a file to the specified media directory.
  *
- * @route POST /api/file/{DirName}/{Name}
+ * @route-v1 POST /file/{DirName}/{Name}
+ * @route-v2 POST /file/{DirName}/{Name}
  * @param int bs Block size used for fragmented uploads
  * @param int sb Starting block index used for fragmented uploads
  * @response 200 File uploaded successfully
@@ -1347,7 +1361,7 @@ function PostFile()
     $dirName = params("DirName");
     $fileName = params("Name");
 
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
     $fullPath = "$dir/$fileName";
     $size = 0;
     $totalSize = 0;
@@ -1372,7 +1386,7 @@ function PostFile()
             $blockSize = isset($_REQUEST["bs"]) ? $_REQUEST["bs"] : 0;
             $offset = bcmul($startBlock, $blockSize, 0);
             if ($offset > 0) {
-                emulated_fseek_for_big_files($fpOut, $offset);
+                emulatedFseekForBigFiles($fpOut, $offset);
                 $totalSize = bcadd($totalSize, $offset, 0);
             }
         }
@@ -1402,7 +1416,7 @@ function PostFile()
  * @param string $prefix   Optional prefix to prepend to the returned filename.
  * @return void
  */
-function GetFileInfo(&$list, $dirName, $fileName, $prefix = '')
+function getFileInfo(&$list, $dirName, $fileName, $prefix = '')
 {
     $fileFullName = $dirName . '/' . $fileName;
     $filesize = real_filesize($fileFullName);
@@ -1448,7 +1462,8 @@ function GetFileInfo(&$list, $dirName, $fileName, $prefix = '')
  *
  * Creates a subdirectory inside the specified media directory.
  *
- * @route POST /api/dir/{DirName}/{SubDir}
+ * @route-v1 POST /dir/{DirName}/{SubDir}
+ * @route-v2 POST /dir/{DirName}/{SubDir}
  * @response 200 Subdirectory created
  * ```json
  * {
@@ -1464,7 +1479,7 @@ function CreateDir()
     $dirName = params("DirName");
     $subDir = params("SubDir");
     $sanitized = sanitizeFilename($subDir);
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
     $fullPath = "$dir/$subDir";
 
     if ($sanitized != $subDir) {
@@ -1490,7 +1505,8 @@ function CreateDir()
  *
  * Deletes an empty subdirectory from the specified media directory.
  *
- * @route DELETE /api/dir/{DirName}/{SubDir}
+ * @route-v1 DELETE /dir/{DirName}/{SubDir}
+ * @route-v2 DELETE /dir/{DirName}/{SubDir}
  * @response 200 Subdirectory deleted
  * ```json
  * {
@@ -1506,7 +1522,7 @@ function DeleteDir()
     $dirName = params("DirName");
     $subDir = params("SubDir");
     $sanitized = sanitizeFilename($subDir);
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
     $fullPath = "$dir/$subDir";
 
     if ($sanitized != $subDir) {
@@ -1532,7 +1548,8 @@ function DeleteDir()
  * Streams the tail of a log file using Server-Sent Events (SSE). Only works
  * for files in the `logs` directory.
  *
- * @route GET /api/file/{DirName}/tailfollow/*
+ * @route-v1 GET /file/{DirName}/tailfollow/*
+ * @route-v2 GET /file/{DirName}/tailfollow/*
  * @param int lines Number of existing lines to seed into the stream, from 1 to 500, default 50
  * @response 200 Success
  * ```text
@@ -1565,7 +1582,7 @@ function TailFollowFile()
         return;
     }
 
-    $dir = MapDirectoryKey($dirName);
+    $dir = mapDirectoryKey($dirName);
 
     if ($dir == "") {
         http_response_code(403);

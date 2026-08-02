@@ -5,7 +5,8 @@
  *
  * Returns a list of all `*.fseq` sequence files.
  *
- * @route GET /api/sequence
+ * @route-v1 GET /sequence
+ * @route-v2 GET /sequence
  * @response 200 List of sequence names
  * ```json
  * ["GreatestShow", "StPatricksDay", "Valentine"]
@@ -29,7 +30,8 @@ function GetSequences()
  *
  * Downloads the `*.fseq` file for the named sequence.
  *
- * @route GET /api/sequence/{SequenceName}
+ * @route-v1 GET /sequence/{SequenceName}
+ * @route-v2 GET /sequence/{SequenceName}
  * @response 200 Raw FSEQ file download
  * ```bytes
  * [Content-Type: application/octet-stream]
@@ -47,7 +49,7 @@ function GetSequence()
     if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = FSeqOrEseqDirectory($sequence);
+    $dir = fSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         if (ob_get_level()) {
@@ -71,7 +73,8 @@ function GetSequence()
  *
  * Returns `name`, `version`, `id`, `time`, and other details from the `*.fseq` file for the named sequence.
  *
- * @route GET /api/sequence/{SequenceName}/meta
+ * @route-v1 GET /sequence/{SequenceName}/meta
+ * @route-v2 GET /sequence/{SequenceName}/meta
  * @response 200 Sequence metadata
  * ```json
  * {
@@ -96,7 +99,7 @@ function GetSequenceMetaData()
     if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = FSeqOrEseqDirectory($sequence);
+    $dir = fSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         $cmd = $fppDir . "/src/fsequtils -j " . escapeshellarg($file) . " 2> /dev/null";
@@ -124,7 +127,8 @@ function GetSequenceMetaData()
  *
  * Uploads a new `*.fseq` sequence file.
  *
- * @route POST /api/sequence/{SequenceName}
+ * @route-v1 POST /sequence/{SequenceName}
+ * @route-v2 POST /sequence/{SequenceName}
  * @body "(Raw FSEQ file data)"
  * @response 200 Sequence uploaded
  * ```json
@@ -138,7 +142,7 @@ function PostSequence()
     if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = FSeqOrEseqDirectory($sequence);
+    $dir = fSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
 
     $putdata = fopen("php://input", "r");
@@ -161,20 +165,21 @@ function PostSequence()
  *
  * Deletes the named `*.fseq` sequence file.
  *
- * @route DELETE /api/sequence/{SequenceName}
+ * @route-v1 DELETE /sequence/{SequenceName}
+ * @route-v2 DELETE /sequence/{SequenceName}
  * @response 200 Sequence deleted
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
  */
-function DeleteSequences()
+function DeleteSequence()
 {
     global $settings;
     $sequence = params('SequenceName');
     if ((substr($sequence, -5) != ".fseq") && (substr($sequence, -5) != ".eseq")) {
         $sequence = $sequence . ".fseq";
     }
-    $dir = FSeqOrEseqDirectory($sequence);
+    $dir = fSeqOrEseqDirectory($sequence);
     $file = $dir . '/' . findFile($dir, $sequence);
     if (file_exists($file)) {
         unlink($file);
@@ -197,7 +202,9 @@ function DeleteSequences()
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
  *
- * @route GET /api/sequence/{SequenceName}/start/{startSecond}
+ * @route-v1 GET /sequence/{SequenceName}/start/{startSecond}
+ * @route-v2 POST /sequence/{SequenceName}/start/{startSecond}
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Sequence started
  * ```json
  * {
@@ -239,7 +246,9 @@ function GetSequenceStart()
  * If the sequence was paused via `sequence/current/togglePause`, steps the sequence forward one frame.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/sequence/current/step
+ * @route-v1 GET /sequence/current/step
+ * @route-v2 POST /sequence/current/step
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Sequence stepped
  * ```json
  * {"status": "OK"}
@@ -262,7 +271,9 @@ function GetSequenceStep()
  *
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
- * @route GET /api/sequence/current/togglePause
+ * @route-v1 GET /sequence/current/togglePause
+ * @route-v2 POST /sequence/current/togglePause
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Sequence play/pause toggled
  * ```json
  * {"status": "OK"}
@@ -283,7 +294,9 @@ function GetSequenceTogglePause()
  *
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
- * @route GET /api/sequence/current/stop
+ * @route-v1 GET /sequence/current/stop
+ * @route-v2 POST /sequence/current/stop
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Sequence stopped
  * ```json
  * {"status": "OK"}
@@ -303,7 +316,7 @@ function GetSequenceStop()
  * @param string $seq Sequence filename including extension (`.fseq` or `.eseq`).
  * @return string Absolute path to the directory containing the sequence file.
  */
-function FSeqOrEseqDirectory($seq)
+function fSeqOrEseqDirectory($seq)
 {
     global $settings;
     if (substr($seq, -5) == ".fseq") {

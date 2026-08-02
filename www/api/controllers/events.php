@@ -5,7 +5,8 @@
  *
  * Returns a map of all event (`*.fevt`) files, keyed by event ID (filename without extension).
  *
- * @route GET /api/events
+ * @route-v1 GET /events
+ * @route-v2 GET /events
  * @response 200 Map of all event files keyed by event ID
  * ```json
  * {
@@ -17,7 +18,7 @@
  * }
  * ```
  */
-function events_list()
+function EventsList()
 {
     global $settings;
 
@@ -45,7 +46,8 @@ function events_list()
  * Returns the contents of a specific event file. If `{eventId}` is `ids`, returns a map
  * of event IDs to display names.
  *
- * @route GET /api/events/{eventId}
+ * @route-v1 GET /events/{eventId}
+ * @route-v2 GET /events/{eventId}
  * @response 200 Event file contents
  * ```json
  * {
@@ -55,7 +57,7 @@ function events_list()
  * }
  * ```
  */
-function event_get()
+function EventGet()
 {
     global $settings;
 
@@ -94,13 +96,15 @@ function event_get()
  * Triggers the specified event by sending a `Trigger Event` command to `fppd`.
  *
  * @badges "FPP REQUIRED" critical
- * @route GET /api/events/{eventId}/trigger
+ * @route-v1 GET /events/{eventId}/trigger
+ * @route-v2 POST /events/{eventId}/trigger
+ * @badge-v1 "DEPRECATED" warning
  * @response 200 Event triggered
  * ```json
  * {"status": "OK"}
  * ```
  */
-function event_trigger()
+function EventTrigger()
 {
     global $settings;
 

@@ -6,7 +6,8 @@
  * Returns header indicator data (e.g., notification badges) from all installed plugins
  * that define a `headerIndicators.php` file.
  *
- * @route GET /api/plugin/headerIndicators
+ * @route-v1 GET /plugin/headerIndicators
+ * @route-v2 GET /plugin/headerIndicators
  * @response 200 Plugin header indicator data
  * ```json
  * [

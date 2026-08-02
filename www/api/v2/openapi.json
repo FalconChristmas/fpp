@@ -3,12 +3,12 @@
   "info": {
     "title": "FPP API",
     "description": "Falcon Player (FPP) REST API",
-    "version": "1.0"
+    "version": "2.0"
   },
   "servers": [
     {
-      "url": "/",
-      "description": "Local FPP instance"
+      "url": "/api/v2",
+      "description": "Local FPP instance (v2)"
     }
   ],
   "tags": [
@@ -20,15 +20,6 @@
     },
     {
       "name": "channel"
-    },
-    {
-      "name": "command"
-    },
-    {
-      "name": "commandPresets"
-    },
-    {
-      "name": "commands"
     },
     {
       "name": "configfile"
@@ -52,25 +43,10 @@
       "name": "files"
     },
     {
-      "name": "fppd"
-    },
-    {
-      "name": "geoip"
-    },
-    {
       "name": "git"
     },
     {
-      "name": "gpio"
-    },
-    {
-      "name": "help"
-    },
-    {
       "name": "media"
-    },
-    {
-      "name": "models"
     },
     {
       "name": "network"
@@ -79,13 +55,7 @@
       "name": "options"
     },
     {
-      "name": "overlays"
-    },
-    {
       "name": "pipewire"
-    },
-    {
-      "name": "player"
     },
     {
       "name": "playlist"
@@ -101,9 +71,6 @@
     },
     {
       "name": "proxy"
-    },
-    {
-      "name": "recurringtasks"
     },
     {
       "name": "remoteAction"
@@ -134,13 +101,10 @@
     },
     {
       "name": "time"
-    },
-    {
-      "name": "variables"
     }
   ],
   "paths": {
-    "/api/backups/configuration": {
+    "/backups/configuration": {
       "post": {
         "tags": [
           "backups"
@@ -176,7 +140,7 @@
         }
       }
     },
-    "/api/backups/configuration/list": {
+    "/backups/configuration/list": {
       "get": {
         "tags": [
           "backups"
@@ -215,7 +179,7 @@
         }
       }
     },
-    "/api/backups/configuration/list/{DeviceName}": {
+    "/backups/configuration/list/{DeviceName}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -252,7 +216,7 @@
         }
       }
     },
-    "/api/backups/configuration/restore/{Directory}/{BackupFilename}": {
+    "/backups/configuration/restore/{Directory}/{BackupFilename}": {
       "parameters": [
         {
           "name": "Directory",
@@ -314,7 +278,7 @@
         }
       }
     },
-    "/api/backups/configuration/{Directory}/{BackupFilename}": {
+    "/backups/configuration/{Directory}/{BackupFilename}": {
       "parameters": [
         {
           "name": "Directory",
@@ -395,7 +359,7 @@
         }
       }
     },
-    "/api/backups/devices": {
+    "/backups/devices": {
       "get": {
         "tags": [
           "backups"
@@ -424,7 +388,7 @@
         }
       }
     },
-    "/api/backups/devices/mount/{DeviceName}/{MountLocation}": {
+    "/backups/devices/mount/{DeviceName}/{MountLocation}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -468,7 +432,7 @@
         }
       }
     },
-    "/api/backups/devices/unmount/{DeviceName}/{MountLocation}": {
+    "/backups/devices/unmount/{DeviceName}/{MountLocation}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -512,7 +476,7 @@
         }
       }
     },
-    "/api/backups/list": {
+    "/backups/list": {
       "get": {
         "tags": [
           "backups"
@@ -538,7 +502,7 @@
         }
       }
     },
-    "/api/backups/list/{DeviceName}": {
+    "/backups/list/{DeviceName}": {
       "parameters": [
         {
           "name": "DeviceName",
@@ -574,7 +538,7 @@
         }
       }
     },
-    "/api/cape": {
+    "/cape": {
       "get": {
         "tags": [
           "cape"
@@ -643,7 +607,7 @@
         }
       }
     },
-    "/api/cape/eeprom/sign/{key}/{order}": {
+    "/cape/eeprom/sign/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -686,7 +650,7 @@
         }
       }
     },
-    "/api/cape/eeprom/signingData": {
+    "/cape/eeprom/signingData": {
       "post": {
         "tags": [
           "cape"
@@ -726,7 +690,7 @@
         }
       }
     },
-    "/api/cape/eeprom/signingData/{key}/{order}": {
+    "/cape/eeprom/signingData/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -771,7 +735,7 @@
         }
       }
     },
-    "/api/cape/eeprom/signingFile/{key}/{order}": {
+    "/cape/eeprom/signingFile/{key}/{order}": {
       "parameters": [
         {
           "name": "key",
@@ -811,7 +775,7 @@
         }
       }
     },
-    "/api/cape/eeprom/voucher": {
+    "/cape/eeprom/voucher": {
       "post": {
         "tags": [
           "cape"
@@ -854,7 +818,7 @@
         }
       }
     },
-    "/api/cape/options": {
+    "/cape/options": {
       "get": {
         "tags": [
           "cape"
@@ -884,7 +848,7 @@
         }
       }
     },
-    "/api/cape/panel": {
+    "/cape/panel": {
       "get": {
         "tags": [
           "cape"
@@ -906,7 +870,7 @@
         }
       }
     },
-    "/api/cape/panel/{key}": {
+    "/cape/panel/{key}": {
       "parameters": [
         {
           "name": "key",
@@ -938,7 +902,7 @@
         }
       }
     },
-    "/api/cape/strings": {
+    "/cape/strings": {
       "get": {
         "tags": [
           "cape"
@@ -963,7 +927,7 @@
         }
       }
     },
-    "/api/cape/strings/{key}": {
+    "/cape/strings/{key}": {
       "parameters": [
         {
           "name": "key",
@@ -1026,7 +990,7 @@
         }
       }
     },
-    "/api/channel/input/stats": {
+    "/channel/input/stats": {
       "delete": {
         "tags": [
           "channel"
@@ -1093,7 +1057,7 @@
         }
       }
     },
-    "/api/channel/output/processors": {
+    "/channel/output/processors": {
       "get": {
         "tags": [
           "channel"
@@ -1183,7 +1147,7 @@
         }
       }
     },
-    "/api/channel/output/{file}": {
+    "/channel/output/{file}": {
       "parameters": [
         {
           "name": "file",
@@ -1258,187 +1222,7 @@
         }
       }
     },
-    "/api/command": {
-      "post": {
-        "tags": [
-          "command"
-        ],
-        "summary": "command",
-        "description": "Run a command described by the posted JSON object (with `command` and `args`).",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "command": "Volume Set",
-                "args": [
-                  "50"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Command result."
-          },
-          "500": {
-            "description": "The command errored or timed out."
-          }
-        }
-      }
-    },
-    "/api/command/{command}": {
-      "parameters": [
-        {
-          "name": "command",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "command"
-        ],
-        "summary": "command/{command}",
-        "description": "Run a command by name via GET, passing arguments as extra path segments (e.g. /api/command/Volume%20Set/50).",
-        "responses": {
-          "200": {
-            "description": "Command result (text/plain)."
-          },
-          "404": {
-            "description": "No command with that name exists."
-          },
-          "500": {
-            "description": "The command errored or timed out."
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "command"
-        ],
-        "summary": "command/{command}",
-        "description": "Run a named command, passing its arguments as a JSON array in the body.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array"
-              },
-              "example": [
-                "arg1",
-                "arg2"
-              ]
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Command result."
-          },
-          "500": {
-            "description": "The command errored or timed out."
-          }
-        }
-      }
-    },
-    "/api/commandPresets": {
-      "get": {
-        "tags": [
-          "commandPresets"
-        ],
-        "summary": "commandPresets",
-        "description": "Get the saved command presets (config/commandPresets.json).",
-        "parameters": [
-          {
-            "name": "names",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Return just the preset names instead of full definitions."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Command presets (or preset names when `names=true`)."
-          }
-        }
-      }
-    },
-    "/api/commandPresets/{name}": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "commandPresets"
-        ],
-        "summary": "commandPresets/{name}",
-        "description": "Get a single command preset by name.",
-        "responses": {
-          "200": {
-            "description": "The preset definition."
-          }
-        }
-      }
-    },
-    "/api/commands": {
-      "get": {
-        "tags": [
-          "commands"
-        ],
-        "summary": "commands",
-        "description": "List all available commands and their argument descriptions. Each entry also carries \"category\" (e.g. \"Playlist\", \"Media\", \"Plugins\") and \"level\" (0 Basic / 1 Advanced / 3 Developer) for UI grouping and filtering, plus \"disallowMultisync\" (true) on a command whose Multisync option should stay hidden - e.g. \"If\", since multisyncing it would broadcast the raw check to other instances rather than propagate the result of evaluating it.",
-        "responses": {
-          "200": {
-            "description": "Array of command descriptions."
-          }
-        }
-      }
-    },
-    "/api/commands/{command}": {
-      "parameters": [
-        {
-          "name": "command",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "commands"
-        ],
-        "summary": "commands/{command}",
-        "description": "Get the description of a single command by name. Includes the same \"category\"/\"level\" fields as the list route.",
-        "responses": {
-          "200": {
-            "description": "The command description."
-          },
-          "404": {
-            "description": "No command with that name exists."
-          }
-        }
-      }
-    },
-    "/api/configfile": {
+    "/configfile": {
       "get": {
         "tags": [
           "configfile"
@@ -1467,7 +1251,7 @@
         }
       }
     },
-    "/api/configfile/**": {
+    "/configfile/**": {
       "delete": {
         "tags": [
           "configfile"
@@ -1545,7 +1329,7 @@
         }
       }
     },
-    "/api/dir/{DirName}/{SubDir}": {
+    "/dir/{DirName}/{SubDir}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1613,7 +1397,7 @@
         }
       }
     },
-    "/api/effects": {
+    "/effects": {
       "get": {
         "tags": [
           "effects"
@@ -1638,7 +1422,7 @@
         }
       }
     },
-    "/api/effects/ALL": {
+    "/effects/ALL": {
       "get": {
         "tags": [
           "effects"
@@ -1664,7 +1448,7 @@
         }
       }
     },
-    "/api/email/configure": {
+    "/email/configure": {
       "post": {
         "tags": [
           "email"
@@ -1689,7 +1473,7 @@
         }
       }
     },
-    "/api/email/test": {
+    "/email/test": {
       "post": {
         "tags": [
           "email"
@@ -1714,7 +1498,7 @@
         }
       }
     },
-    "/api/events": {
+    "/events": {
       "get": {
         "tags": [
           "events"
@@ -1742,7 +1526,7 @@
         }
       }
     },
-    "/api/events/{eventId}": {
+    "/events/{eventId}": {
       "parameters": [
         {
           "name": "eventId",
@@ -1778,7 +1562,7 @@
         }
       }
     },
-    "/api/events/{eventId}/trigger": {
+    "/events/{eventId}/trigger": {
       "parameters": [
         {
           "name": "eventId",
@@ -1789,7 +1573,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "events"
         ],
@@ -1812,7 +1596,7 @@
         }
       }
     },
-    "/api/file/info/{plugin}/{ext}/**": {
+    "/file/info/{plugin}/{ext}/**": {
       "parameters": [
         {
           "name": "plugin",
@@ -1852,7 +1636,7 @@
         }
       }
     },
-    "/api/file/move/{fileName}": {
+    "/file/move/{fileName}": {
       "parameters": [
         {
           "name": "fileName",
@@ -1863,7 +1647,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "file"
         ],
@@ -1886,7 +1670,7 @@
         }
       }
     },
-    "/api/file/onUpload/{ext}/**": {
+    "/file/onUpload/{ext}/**": {
       "parameters": [
         {
           "name": "ext",
@@ -1897,7 +1681,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "file"
         ],
@@ -1920,7 +1704,7 @@
         }
       }
     },
-    "/api/file/{DirName}": {
+    "/file/{DirName}": {
       "parameters": [
         {
           "name": "DirName",
@@ -1957,7 +1741,7 @@
         }
       }
     },
-    "/api/file/{DirName}/**": {
+    "/file/{DirName}/**": {
       "parameters": [
         {
           "name": "DirName",
@@ -2053,7 +1837,7 @@
         }
       }
     },
-    "/api/file/{DirName}/copy/{source}/{dest}": {
+    "/file/{DirName}/copy/{source}/{dest}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2105,7 +1889,7 @@
         }
       }
     },
-    "/api/file/{DirName}/rename/{source}/{dest}": {
+    "/file/{DirName}/rename/{source}/{dest}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2157,7 +1941,7 @@
         }
       }
     },
-    "/api/file/{DirName}/tailfollow/*": {
+    "/file/{DirName}/tailfollow/*": {
       "parameters": [
         {
           "name": "DirName",
@@ -2198,13 +1982,13 @@
             }
           },
           "403": {
-            "description": "Forbidden directory",
+            "description": "Forbidden filename",
             "content": {
               "text/plain": {
                 "schema": {
                   "type": "string"
                 },
-                "example": "Tail follow is only allowed for log files."
+                "example": "Invalid file path."
               }
             }
           },
@@ -2222,7 +2006,7 @@
         }
       }
     },
-    "/api/file/{DirName}/{Name}": {
+    "/file/{DirName}/{Name}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2286,32 +2070,7 @@
         }
       }
     },
-    "/api/files/Sequences/fps": {
-      "get": {
-        "tags": [
-          "files"
-        ],
-        "summary": "Get sequence frame rates (fps)",
-        "description": "Returns a map of sequence filename => fps for every `.fseq` file in the sequence directory. This is intentionally split out from the main file listing so the file manager can render the sequence list immediately and lazily fill in the FPS column via this endpoint. The fps is derived from the fseq header StepTime (fps = round(1000 / StepTime)) and cached per file (keyed on name + size) so fsequtils is only run on cache misses.",
-        "responses": {
-          "200": {
-            "description": "Map of sequence filename to fps",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "GreatestShow.fseq": 40,
-                  "subdir/Intro.fseq": 20
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/files/zip/{DirNames}": {
+    "/files/zip/{DirNames}": {
       "parameters": [
         {
           "name": "DirNames",
@@ -2343,7 +2102,7 @@
         }
       }
     },
-    "/api/files/{DirName}": {
+    "/files/{DirName}": {
       "parameters": [
         {
           "name": "DirName",
@@ -2397,790 +2156,7 @@
         }
       }
     },
-    "/api/fppd/condition/preview": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "Preview a single If/Conditional Check leaf - the same lookup evaluate() uses internally (Variable/Expression/Time/GPIO Pin/Sun), before any comparator/Value is applied. Backs the If condition editor's \"Show Current Value\" button, so picking the right Value to compare against isn't guesswork.",
-        "description": "When a \"comparator\" param is also supplied (the consolidated eye-preview modal's full-leaf mode), also evaluates Value the same way Value is unconditionally evaluated at runtime and applies the comparator, returning the RHS value and the boolean result too - reuses ConditionNode::PreviewLeafResult(), the exact same evaluation path a real saved leaf's evaluate() takes, so this can never drift from runtime behavior.",
-        "parameters": [
-          {
-            "name": "source",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "One of the If Check \"Source\" dropdown values (e.g. \"Variable\", \"GPIO Pin\")."
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "The Name/Expression field for that source."
-          },
-          {
-            "name": "comparator",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Optional - one of the Check \"Comparator\" values. Enables full-leaf mode."
-          },
-          {
-            "name": "value",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Optional - the Value field, only used when \"comparator\" is also given."
-          },
-          {
-            "name": "not",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Optional - \"true\" to negate the result, only used when \"comparator\" is also given."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "{\"found\": true, \"value\": \"...\"} (source/name-only mode) or"
-          }
-        }
-      }
-    },
-    "/api/fppd/e131stats": {
-      "delete": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/e131stats",
-        "description": "Reset the E1.31/sACN receive statistics.",
-        "responses": {
-          "200": {
-            "description": "Statistics cleared."
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/e131stats",
-        "description": "Get the number of E1.31/sACN bytes received per universe.",
-        "responses": {
-          "200": {
-            "description": "E1.31 receive statistics."
-          }
-        }
-      }
-    },
-    "/api/fppd/effects": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/effects",
-        "description": "List the effects currently running on the player.",
-        "responses": {
-          "200": {
-            "description": "Object with a `runningEffects` array."
-          }
-        }
-      }
-    },
-    "/api/fppd/effects/{name}": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/effects/{name}",
-        "description": "Start (or update) a named overlay effect on the player.",
-        "responses": {
-          "200": {
-            "description": "Effect started."
-          }
-        }
-      }
-    },
-    "/api/fppd/falcon/hardware": {
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/falcon/hardware",
-        "description": "Re-read the Falcon hardware (e.g. cape/receiver) configuration.",
-        "responses": {
-          "200": {
-            "description": "Hardware refreshed."
-          }
-        }
-      }
-    },
-    "/api/fppd/gpio/ext": {
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/gpio/ext",
-        "description": "Set an external GPIO input state.",
-        "responses": {
-          "200": {
-            "description": "GPIO state updated."
-          }
-        }
-      }
-    },
-    "/api/fppd/log": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/log",
-        "description": "Get the current fppd logging configuration (log level and enabled channels).",
-        "responses": {
-          "200": {
-            "description": "Current log settings."
-          }
-        }
-      }
-    },
-    "/api/fppd/log/level/{level}": {
-      "parameters": [
-        {
-          "name": "level",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "enum": [
-              "error",
-              "warn",
-              "info",
-              "debug",
-              "excess"
-            ]
-          },
-          "example": "debug",
-          "description": "Log level to apply globally, or a level:channel[,channel] targeting expression."
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "Set logging levels.",
-        "description": "There is no separate channel parameter: the {level} path segment carries both the level and the optional channel targeting. A bare level name - one of error, warn, info, debug, or excess - sets that level globally for every log channel. To target specific channels instead, use level:channel,channel and separate multiple groups with a semicolon, e.g. debug:Schedule,Player;info:Sync. Channel names are case-sensitive and match those returned by GET /api/fppd/log (for example Command, Control, HTTP, Schedule, Sync).",
-        "responses": {
-          "200": {
-            "description": "Log level updated."
-          },
-          "400": {
-            "description": "Invalid or unrecognized log level."
-          }
-        }
-      }
-    },
-    "/api/fppd/mqtt/cache": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/mqtt/cache",
-        "description": "Dump the cached MQTT messages.",
-        "responses": {
-          "200": {
-            "description": "Object keyed by topic, each value the topic's last cached message as a plain string."
-          },
-          "400": {
-            "description": "MQTT is not initialized."
-          }
-        }
-      }
-    },
-    "/api/fppd/multiSyncStats": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/multiSyncStats",
-        "description": "Get MultiSync packet statistics.",
-        "parameters": [
-          {
-            "name": "reset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer"
-            },
-            "description": "Set to 1 to reset the statistics after reading them."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "MultiSync statistics."
-          }
-        }
-      }
-    },
-    "/api/fppd/multiSyncSystems": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/multiSyncSystems",
-        "description": "List the MultiSync systems discovered on the network.",
-        "parameters": [
-          {
-            "name": "localOnly",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer"
-            },
-            "description": "Set to 1 to return only the local system."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "MultiSync systems."
-          }
-        }
-      }
-    },
-    "/api/fppd/outputs": {
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/outputs",
-        "description": "Apply a new channel-output configuration.",
-        "responses": {
-          "200": {
-            "description": "Outputs updated."
-          }
-        }
-      }
-    },
-    "/api/fppd/outputs/remap": {
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/outputs/remap",
-        "description": "Remap channel outputs.",
-        "responses": {
-          "200": {
-            "description": "Outputs remapped."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlist/config": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlist/config",
-        "description": "Get the configuration of the running playlist.",
-        "responses": {
-          "200": {
-            "description": "Playlist configuration."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlist/filetime": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlist/filetime",
-        "description": "Get the last-modified time of the running playlist file.",
-        "responses": {
-          "200": {
-            "description": "Playlist file time."
-          }
-        }
-      }
-    },
-    "/api/fppd/playlists": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/playlists",
-        "description": "List the playlists that are currently running.",
-        "responses": {
-          "200": {
-            "description": "Currently running playlists."
-          }
-        }
-      }
-    },
-    "/api/fppd/ports": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/ports",
-        "description": "Get the current status of every output port (current draw, smart-receiver data, sensor readings, etc.).",
-        "responses": {
-          "200": {
-            "description": "Array of port status objects."
-          }
-        }
-      }
-    },
-    "/api/fppd/ports/list": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/ports/list",
-        "description": "List the names of all configured output ports.",
-        "responses": {
-          "200": {
-            "description": "Array of port names (first entry is \"--ALL--\").",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array"
-                },
-                "example": [
-                  "--ALL--",
-                  "Port 1",
-                  "Port 2"
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/fppd/ports/pixelCount": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/ports/pixelCount",
-        "description": "Start a pixel-count test on all ports, then return current port status.",
-        "responses": {
-          "200": {
-            "description": "Array of port status objects."
-          }
-        }
-      }
-    },
-    "/api/fppd/ports/stop": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/ports/stop",
-        "description": "Stop any running port test, then return current port status.",
-        "responses": {
-          "200": {
-            "description": "Array of port status objects."
-          }
-        }
-      }
-    },
-    "/api/fppd/schedule": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/schedule",
-        "description": "Get the currently loaded schedule.",
-        "responses": {
-          "200": {
-            "description": "Object with a `schedule` member."
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/schedule",
-        "description": "Replace the active schedule.",
-        "responses": {
-          "200": {
-            "description": "Schedule updated."
-          }
-        }
-      }
-    },
-    "/api/fppd/schedule/range": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "Expand the schedule over an arbitrary date range.",
-        "description": "Unlike `/api/fppd/schedule`, which reports only the rolling window fppd has actually scheduled out, this expands the configured schedule rules across any requested range so past and future dates can be previewed. Occurrences are advisory - they describe what the schedule says should happen, not what fppd has committed to running.",
-        "parameters": [
-          {
-            "name": "start",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer"
-            },
-            "description": "Range start as epoch seconds."
-          },
-          {
-            "name": "end",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer"
-            },
-            "description": "Range end as epoch seconds. Must be after `start` and no more than 420 days later."
-          },
-          {
-            "name": "includeDisabled",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Set to `1` to also expand disabled schedule entries."
-          },
-          {
-            "name": "summary",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Set to `1` to collapse to one item per schedule entry per day, each carrying a `count` of that day's occurrences. Intended for month and other coarse views, where a repeating entry would otherwise return thousands of items."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Object with a `schedule` member containing `entries`, `items`, `rangeStart` and `rangeEnd`."
-          },
-          "400": {
-            "description": "Missing, malformed, or excessively large range."
-          }
-        }
-      }
-    },
-    "/api/fppd/sequence": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/sequence",
-        "description": "Get the list of running sequences.",
-        "responses": {
-          "200": {
-            "description": "Running sequences."
-          }
-        }
-      }
-    },
-    "/api/fppd/shutdown": {
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/shutdown",
-        "description": "Shut down the fppd daemon.",
-        "responses": {
-          "200": {
-            "description": "fppd shutting down."
-          }
-        }
-      }
-    },
-    "/api/fppd/status": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/status",
-        "description": "Get the full current player status (playlist, sequence, time, mode, etc.).",
-        "responses": {
-          "200": {
-            "description": "Current player status JSON."
-          }
-        }
-      }
-    },
-    "/api/fppd/testing": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/testing",
-        "description": "Get the current test-mode configuration.",
-        "responses": {
-          "200": {
-            "description": "Object with the current test `config`."
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/testing",
-        "description": "Activate or deactivate test mode. POST the test configuration JSON (with an `enabled` flag); an empty/disabled config turns test mode off.",
-        "responses": {
-          "200": {
-            "description": "Test mode activated or deactivated."
-          }
-        }
-      }
-    },
-    "/api/fppd/testing/tests": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/testing/tests",
-        "description": "List the available test pattern names.",
-        "responses": {
-          "200": {
-            "description": "Array of test pattern names.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array"
-                },
-                "example": [
-                  "RGB Chase",
-                  "RGB Cycle",
-                  "Custom Chase",
-                  "Custom Cycle",
-                  "RGB Single Color",
-                  "Single Channel Chase",
-                  "Single Channel Fill",
-                  "Output Specific"
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/fppd/testing/tests/{pattern}": {
-      "parameters": [
-        {
-          "name": "pattern",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/testing/tests/{pattern}",
-        "description": "Get the argument definitions for a specific test pattern.",
-        "responses": {
-          "200": {
-            "description": "Object with an `args` array describing the pattern's inputs."
-          },
-          "400": {
-            "description": "The named test pattern does not exist."
-          }
-        }
-      }
-    },
-    "/api/fppd/version": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/version",
-        "description": "Get FPP version information.",
-        "responses": {
-          "200": {
-            "description": "Version details.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "version": "9.0",
-                  "majorVersion": 9,
-                  "minorVersion": 0,
-                  "branch": "master",
-                  "fppdAPI": 4,
-                  "Status": "OK"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/fppd/volume": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/volume",
-        "description": "Get (or set) the master output volume.",
-        "parameters": [
-          {
-            "name": "set",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer"
-            },
-            "description": "New volume (0-100) to apply before returning."
-          },
-          {
-            "name": "simple",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Return the volume as a bare text/plain integer instead of JSON."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Object with a `volume` member (0-100)."
-          }
-        }
-      }
-    },
-    "/api/fppd/volume/{volume}": {
-      "parameters": [
-        {
-          "name": "volume",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/volume/{volume}",
-        "description": "Set the master output volume (0-100).",
-        "responses": {
-          "200": {
-            "description": "Object with the new `volume`."
-          }
-        }
-      }
-    },
-    "/api/fppd/warnings": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/warnings",
-        "description": "List the messages for all currently active warnings.",
-        "responses": {
-          "200": {
-            "description": "Array of warning message strings.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array"
-                },
-                "example": [
-                  "Low disk space",
-                  "No network connection"
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/fppd/warnings_full": {
-      "get": {
-        "tags": [
-          "fppd"
-        ],
-        "summary": "fppd/warnings_full",
-        "description": "List all currently active warnings as full objects (message plus metadata).",
-        "responses": {
-          "200": {
-            "description": "Array of warning objects."
-          }
-        }
-      }
-    },
-    "/api/geoip": {
-      "get": {
-        "tags": [
-          "geoip"
-        ],
-        "summary": "GeoIP lookup",
-        "description": "Server-side proxy for ipapi.co's IP geolocation lookup, used by the Timezone/GeoLocation \"Lookup\"/\"Detect\" buttons on settings.php. ipapi.co does not send Access-Control-Allow-Origin, so the browser can't call it directly from FPP's UI (blocked by the Same Origin Policy) - PHP isn't subject to that, so we fetch it here and hand back the same JSON.",
-        "responses": {
-          "200": {
-            "description": "ipapi.co's JSON response, passed through unmodified",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "ip": "1.2.3.4",
-                  "city": "Adelaide",
-                  "region": "South Australia",
-                  "timezone": "Australia/Adelaide",
-                  "latitude": -34.9,
-                  "longitude": 138.6
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Lookup failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "error": "GeoIP lookup failed"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/git/branches": {
+    "/git/branches": {
       "get": {
         "tags": [
           "git"
@@ -3208,7 +2184,7 @@
         }
       }
     },
-    "/api/git/originLog": {
+    "/git/originLog": {
       "get": {
         "tags": [
           "git"
@@ -3244,37 +2220,7 @@
         }
       }
     },
-    "/api/git/releases/notes/{tag}": {
-      "parameters": [
-        {
-          "name": "tag",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "git"
-        ],
-        "summary": "Get OS release notes for a tag",
-        "description": "Proxies the GitHub `FalconChristmas/fpp` release-by-tag API so the browser does not call api.github.com directly (same pattern/UA/timeout as GitOSReleases). Returns the raw GitHub release object on success; a non-200 status otherwise so the caller's error handler fires.",
-        "responses": {
-          "200": {
-            "description": "GitHub release object for the tag"
-          },
-          "400": {
-            "description": "Invalid tag"
-          },
-          "404": {
-            "description": "Release not found for the tag"
-          }
-        }
-      }
-    },
-    "/api/git/releases/os/{All}": {
+    "/git/releases/os/{All}": {
       "parameters": [
         {
           "name": "All",
@@ -3324,7 +2270,7 @@
         }
       }
     },
-    "/api/git/releases/sizes": {
+    "/git/releases/sizes": {
       "get": {
         "tags": [
           "git"
@@ -3349,8 +2295,8 @@
         }
       }
     },
-    "/api/git/reset": {
-      "get": {
+    "/git/reset": {
+      "post": {
         "tags": [
           "git"
         ],
@@ -3378,7 +2324,7 @@
         }
       }
     },
-    "/api/git/status": {
+    "/git/status": {
       "get": {
         "tags": [
           "git"
@@ -3403,114 +2349,7 @@
         }
       }
     },
-    "/api/gpio": {
-      "get": {
-        "tags": [
-          "gpio"
-        ],
-        "summary": "gpio",
-        "description": "List the available GPIO pins. Add ?list=true for just the pin names.",
-        "parameters": [
-          {
-            "name": "list",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Return just the pin names instead of full capabilities."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Array of pin capability objects (or pin names when `list=true`)."
-          }
-        }
-      }
-    },
-    "/api/gpio/{pin}": {
-      "parameters": [
-        {
-          "name": "pin",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "gpio"
-        ],
-        "summary": "gpio/{pin}",
-        "description": "Read the last value set on a GPIO pin via the API/commands. Only pins with a cached value can be read; output pins must be SET before they can be read.",
-        "responses": {
-          "200": {
-            "description": "Object with `pin` and `value` (0 or 1)."
-          },
-          "400": {
-            "description": "The pin has no cached value."
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "gpio"
-        ],
-        "summary": "gpio/{pin}",
-        "description": "Configure a GPIO pin for output and set its value. Body: `{\"value\": 0|1}`.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "value": 1
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Object with `pin` and the applied `value`."
-          },
-          "400": {
-            "description": "Missing/invalid `value` field."
-          },
-          "404": {
-            "description": "The named pin does not exist."
-          },
-          "500": {
-            "description": "Error setting the pin."
-          }
-        }
-      }
-    },
-    "/api/help": {
-      "get": {
-        "tags": [
-          "help"
-        ],
-        "summary": "help",
-        "description": "Returns an HTML page listing all available FPP API endpoints and their descriptions.",
-        "responses": {
-          "200": {
-            "description": "HTML page listing all API endpoints",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                },
-                "example": "<html table listing all API endpoints>"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/media": {
+    "/media": {
       "get": {
         "tags": [
           "media"
@@ -3535,7 +2374,7 @@
         }
       }
     },
-    "/api/media/{MediaName}/duration": {
+    "/media/{MediaName}/duration": {
       "parameters": [
         {
           "name": "MediaName",
@@ -3582,7 +2421,7 @@
         }
       }
     },
-    "/api/media/{MediaName}/meta": {
+    "/media/{MediaName}/meta": {
       "parameters": [
         {
           "name": "MediaName",
@@ -3626,94 +2465,7 @@
         }
       }
     },
-    "/api/models": {
-      "get": {
-        "tags": [
-          "models"
-        ],
-        "summary": "models",
-        "description": "List all configured pixel-overlay models.",
-        "parameters": [
-          {
-            "name": "simple",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Return just the model names instead of full definitions."
-          },
-          {
-            "name": "all",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Prepend the \"--All Models--\" entry to the result."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Array of models (or model names when `simple=true`)."
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "models"
-        ],
-        "summary": "models",
-        "description": "Replace the overlay model definitions (writes config/model-overlays.json) and flag fppd for restart.",
-        "responses": {
-          "200": {
-            "description": "Model overlay configuration saved."
-          }
-        }
-      }
-    },
-    "/api/models/raw": {
-      "post": {
-        "tags": [
-          "models"
-        ],
-        "summary": "models/raw",
-        "description": "Upload a raw channel-memory-map file (writes media/channelmemorymaps) and flag fppd for restart.",
-        "responses": {
-          "200": {
-            "description": "Raw channel memory map saved."
-          }
-        }
-      }
-    },
-    "/api/models/{model}": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "models"
-        ],
-        "summary": "models/{model}",
-        "description": "Get a single pixel-overlay model definition by name.",
-        "responses": {
-          "200": {
-            "description": "The model definition."
-          },
-          "404": {
-            "description": "No model with that name exists."
-          }
-        }
-      }
-    },
-    "/api/network/dns": {
+    "/network/dns": {
       "get": {
         "tags": [
           "network"
@@ -3778,7 +2530,7 @@
         }
       }
     },
-    "/api/network/gateway": {
+    "/network/gateway": {
       "get": {
         "tags": [
           "network"
@@ -3837,7 +2589,7 @@
         }
       }
     },
-    "/api/network/interface": {
+    "/network/interface": {
       "get": {
         "tags": [
           "network"
@@ -3891,7 +2643,7 @@
         }
       }
     },
-    "/api/network/interface/add/{interface}": {
+    "/network/interface/add/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -3902,7 +2654,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "network"
         ],
@@ -3925,7 +2677,7 @@
         }
       }
     },
-    "/api/network/interface/{interface}": {
+    "/network/interface/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -4003,7 +2755,7 @@
         }
       }
     },
-    "/api/network/interface/{interface}/apply": {
+    "/network/interface/{interface}/apply": {
       "parameters": [
         {
           "name": "interface",
@@ -4038,7 +2790,7 @@
         }
       }
     },
-    "/api/network/persistentNames": {
+    "/network/persistentNames": {
       "delete": {
         "tags": [
           "network"
@@ -4085,7 +2837,7 @@
         }
       }
     },
-    "/api/network/wifi/scan/{interface}": {
+    "/network/wifi/scan/{interface}": {
       "parameters": [
         {
           "name": "interface",
@@ -4127,49 +2879,7 @@
         }
       }
     },
-    "/api/network/wifi/status/{interface}": {
-      "parameters": [
-        {
-          "name": "interface",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "network"
-        ],
-        "summary": "Get WiFi connection status / diagnostics",
-        "description": "Returns the wpa_supplicant association state for the given wireless `{interface}` plus a human-readable reason describing why it is (not) connected (wrong password, SSID not in range, waiting for DHCP, etc).",
-        "responses": {
-          "200": {
-            "description": "WiFi connection status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "connected": false,
-                  "wpa_state": "SCANNING",
-                  "ssid": "",
-                  "configuredSSID": "MyNet",
-                  "ip": "",
-                  "signal": null,
-                  "ssidVisible": false,
-                  "reason": "Network 'MyNet' not found in range (or it is hidden)."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/network/wifi/strength": {
+    "/network/wifi/strength": {
       "get": {
         "tags": [
           "network"
@@ -4198,7 +2908,7 @@
         }
       }
     },
-    "/api/options/{SettingName}": {
+    "/options/{SettingName}": {
       "parameters": [
         {
           "name": "SettingName",
@@ -4232,376 +2942,7 @@
         }
       }
     },
-    "/api/overlays/effects": {
-      "get": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/effects",
-        "description": "List the available overlay effects. Add ?full=true for full descriptions.",
-        "parameters": [
-          {
-            "name": "full",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Return full effect descriptions instead of just names."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Array of effect names (or descriptions when `full=true`)."
-          }
-        }
-      }
-    },
-    "/api/overlays/effects/{effect}": {
-      "parameters": [
-        {
-          "name": "effect",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/effects/{effect}",
-        "description": "Get the description of a single overlay effect.",
-        "responses": {
-          "200": {
-            "description": "The effect description."
-          }
-        }
-      }
-    },
-    "/api/overlays/fonts": {
-      "get": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/fonts",
-        "description": "List the fonts available for overlay text effects.",
-        "responses": {
-          "200": {
-            "description": "Array of font names."
-          }
-        }
-      }
-    },
-    "/api/overlays/model/{model}": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/model/{model}",
-        "description": "Get a single overlay model with its current runtime state.",
-        "responses": {
-          "200": {
-            "description": "Model definition plus runtime state."
-          }
-        }
-      }
-    },
-    "/api/overlays/model/{model}/clear": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/model/{model}/clear",
-        "description": "Clear (blank) an overlay model's pixel buffer.",
-        "responses": {
-          "200": {
-            "description": "Model cleared."
-          }
-        }
-      }
-    },
-    "/api/overlays/model/{model}/data": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/model/{model}/data",
-        "description": "Get the current pixel buffer of an overlay model. Append /rle for run-length-encoded data.",
-        "responses": {
-          "200": {
-            "description": "Object with a `data` array (and `rle` flag)."
-          }
-        }
-      }
-    },
-    "/api/overlays/model/{model}/fill": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "put": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/model/{model}/fill",
-        "description": "Fill an overlay model with a solid color. Body: `{\"RGB\":[r,g,b]}` or `{\"Value\":v}`.",
-        "responses": {
-          "200": {
-            "description": "Model filled."
-          }
-        }
-      }
-    },
-    "/api/overlays/model/{model}/mmap": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "put": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/model/{model}/mmap",
-        "description": "Force the overlay buffer to be memory-mapped so external programs can access it.",
-        "responses": {
-          "200": {
-            "description": "Overlay buffer mmapped."
-          }
-        }
-      }
-    },
-    "/api/overlays/model/{model}/pixel": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "put": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/model/{model}/pixel",
-        "description": "Set a single pixel in an overlay model. Body: `{\"X\":x,\"Y\":y,\"RGB\":[r,g,b]}`.",
-        "responses": {
-          "200": {
-            "description": "Pixel set."
-          }
-        }
-      }
-    },
-    "/api/overlays/model/{model}/preview": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/model/{model}/preview",
-        "description": "Get the per-pixel virtual-display coordinates for a model, for a lightweight layout preview. Sourced from config/virtualdisplaymap (the xLights-exported layout) and returned on demand so the UI never has to inline this data (which can be hundreds of thousands of points per model) for every model at once.",
-        "responses": {
-          "200": {
-            "description": "Object with a `pixels` array of [x, y, channel] triples."
-          }
-        }
-      }
-    },
-    "/api/overlays/model/{model}/save": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "put": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/model/{model}/save",
-        "description": "Save an overlay model's current buffer to an image file. Body: `{\"File\":\"name\"}`.",
-        "responses": {
-          "200": {
-            "description": "Overlay saved as image."
-          }
-        }
-      }
-    },
-    "/api/overlays/model/{model}/state": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "put": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/model/{model}/state",
-        "description": "Set an overlay model's active state. Body: `{\"State\": <int>}`.",
-        "responses": {
-          "200": {
-            "description": "State updated."
-          }
-        }
-      }
-    },
-    "/api/overlays/model/{model}/text": {
-      "parameters": [
-        {
-          "name": "model",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "put": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/model/{model}/text",
-        "description": "Render text onto an overlay model. Body includes Message, Color, Font, FontSize, Position, PixelsPerSecond, AntiAlias and optional AutoEnable.",
-        "responses": {
-          "200": {
-            "description": "Text effect started."
-          }
-        }
-      }
-    },
-    "/api/overlays/models": {
-      "get": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/models",
-        "description": "List all overlay models with their current runtime state (active state, running effect, dimensions).",
-        "responses": {
-          "200": {
-            "description": "Array of models with runtime state."
-          }
-        }
-      }
-    },
-    "/api/overlays/range/{ranges}": {
-      "parameters": [
-        {
-          "name": "ranges",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "put": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/range/{ranges}",
-        "description": "Set, update, or delete active overlay channel ranges. Body: `{\"Value\":v}`, `{\"delete\":true}`, or `{\"deleteAll\":true}`.",
-        "responses": {
-          "200": {
-            "description": "Ranges updated."
-          }
-        }
-      }
-    },
-    "/api/overlays/running": {
-      "get": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/running",
-        "description": "List the overlay effects that are currently running.",
-        "responses": {
-          "200": {
-            "description": "Active overlay effects."
-          }
-        }
-      }
-    },
-    "/api/overlays/settings": {
-      "get": {
-        "tags": [
-          "overlays"
-        ],
-        "summary": "overlays/settings",
-        "description": "Get the pixel-overlay manager settings.",
-        "responses": {
-          "200": {
-            "description": "Object with the `autoCreate` flag."
-          }
-        }
-      }
-    },
-    "/api/pipewire/control/groups": {
+    "/pipewire/control/groups": {
       "get": {
         "tags": [
           "pipewire"
@@ -4653,7 +2994,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}": {
+    "/pipewire/control/groups/{id}": {
       "parameters": [
         {
           "name": "id",
@@ -4700,7 +3041,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/members/{cardId}/mute": {
+    "/pipewire/control/groups/{id}/members/{cardId}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -4768,7 +3109,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/members/{cardId}/volume": {
+    "/pipewire/control/groups/{id}/members/{cardId}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -4837,7 +3178,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/mute": {
+    "/pipewire/control/groups/{id}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -4896,7 +3237,7 @@
         }
       }
     },
-    "/api/pipewire/control/groups/{id}/volume": {
+    "/pipewire/control/groups/{id}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -4956,7 +3297,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups": {
+    "/pipewire/control/input-groups": {
       "get": {
         "tags": [
           "pipewire"
@@ -5004,7 +3345,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups/{id}": {
+    "/pipewire/control/input-groups/{id}": {
       "parameters": [
         {
           "name": "id",
@@ -5051,7 +3392,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
+    "/pipewire/control/input-groups/{id}/members/{memberIndex}/mute": {
       "parameters": [
         {
           "name": "id",
@@ -5118,7 +3459,7 @@
         }
       }
     },
-    "/api/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
+    "/pipewire/control/input-groups/{id}/members/{memberIndex}/volume": {
       "parameters": [
         {
           "name": "id",
@@ -5186,7 +3527,7 @@
         }
       }
     },
-    "/api/pipewire/control/routing": {
+    "/pipewire/control/routing": {
       "get": {
         "tags": [
           "pipewire"
@@ -5234,7 +3575,7 @@
         }
       }
     },
-    "/api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
+    "/pipewire/control/routing/{inputGroupId}/{outputGroupId}/mute": {
       "parameters": [
         {
           "name": "inputGroupId",
@@ -5298,7 +3639,7 @@
         }
       }
     },
-    "/api/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
+    "/pipewire/control/routing/{inputGroupId}/{outputGroupId}/volume": {
       "parameters": [
         {
           "name": "inputGroupId",
@@ -5363,7 +3704,7 @@
         }
       }
     },
-    "/api/pipewire/control/status": {
+    "/pipewire/control/status": {
       "get": {
         "tags": [
           "pipewire"
@@ -5399,7 +3740,7 @@
         }
       }
     },
-    "/api/pipewire/control/streams": {
+    "/pipewire/control/streams": {
       "get": {
         "tags": [
           "pipewire"
@@ -5439,7 +3780,7 @@
         }
       }
     },
-    "/api/pipewire/control/streams/{slot}/volume": {
+    "/pipewire/control/streams/{slot}/volume": {
       "parameters": [
         {
           "name": "slot",
@@ -5495,49 +3836,7 @@
         }
       }
     },
-    "/api/player": {
-      "get": {
-        "tags": [
-          "player"
-        ],
-        "summary": "player",
-        "description": "Get the player status. Equivalent to /api/player/status.",
-        "responses": {
-          "200": {
-            "description": "Player status JSON."
-          }
-        }
-      }
-    },
-    "/api/player/current": {
-      "get": {
-        "tags": [
-          "player"
-        ],
-        "summary": "player/current",
-        "description": "Get information about the currently playing playlist.",
-        "responses": {
-          "200": {
-            "description": "Object with a `playlist` member describing the current playlist."
-          }
-        }
-      }
-    },
-    "/api/player/status": {
-      "get": {
-        "tags": [
-          "player"
-        ],
-        "summary": "player/status",
-        "description": "Get the player status (playlist, sequence, timing, mode, etc.).",
-        "responses": {
-          "200": {
-            "description": "Player status JSON."
-          }
-        }
-      }
-    },
-    "/api/playlist/{PlaylistName}": {
+    "/playlist/{PlaylistName}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -5678,7 +3977,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/start": {
+    "/playlist/{PlaylistName}/start": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -5689,7 +3988,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -5719,7 +4018,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/start/{Repeat}": {
+    "/playlist/{PlaylistName}/start/{Repeat}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -5738,7 +4037,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -5779,7 +4078,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}": {
+    "/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -5806,7 +4105,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -5836,7 +4135,7 @@
         }
       }
     },
-    "/api/playlist/{PlaylistName}/{SectionName}/item": {
+    "/playlist/{PlaylistName}/{SectionName}/item": {
       "parameters": [
         {
           "name": "PlaylistName",
@@ -5894,7 +4193,7 @@
         }
       }
     },
-    "/api/playlists": {
+    "/playlists": {
       "get": {
         "tags": [
           "playlists"
@@ -5980,8 +4279,8 @@
         }
       }
     },
-    "/api/playlists/pause": {
-      "get": {
+    "/playlists/pause": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -6011,7 +4310,7 @@
         }
       }
     },
-    "/api/playlists/playable": {
+    "/playlists/playable": {
       "get": {
         "tags": [
           "playlists"
@@ -6037,8 +4336,8 @@
         }
       }
     },
-    "/api/playlists/resume": {
-      "get": {
+    "/playlists/resume": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -6068,8 +4367,8 @@
         }
       }
     },
-    "/api/playlists/stop": {
-      "get": {
+    "/playlists/stop": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -6099,8 +4398,8 @@
         }
       }
     },
-    "/api/playlists/stopgracefully": {
-      "get": {
+    "/playlists/stopgracefully": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -6130,8 +4429,8 @@
         }
       }
     },
-    "/api/playlists/stopgracefullyafterloop": {
-      "get": {
+    "/playlists/stopgracefullyafterloop": {
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -6161,7 +4460,7 @@
         }
       }
     },
-    "/api/playlists/validate": {
+    "/playlists/validate": {
       "get": {
         "tags": [
           "playlists"
@@ -6196,7 +4495,7 @@
         }
       }
     },
-    "/api/plugin": {
+    "/plugin": {
       "get": {
         "tags": [
           "plugin"
@@ -6262,24 +4561,7 @@
         }
       }
     },
-    "/api/plugin/fetchImage?url=...": {
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "Proxy-fetch a plugin icon image",
-        "description": "Fetches an image from an external URL and serves it with the correct content-type. Used to bypass CSP restrictions that block loading images from external hosts (e.g. raw.githubusercontent.com) directly in `<img>` tags.",
-        "responses": {
-          "200": {
-            "description": "Image data"
-          },
-          "400": {
-            "description": "Missing or invalid URL"
-          }
-        }
-      }
-    },
-    "/api/plugin/fetchInfo": {
+    "/plugin/fetchInfo": {
       "post": {
         "tags": [
           "plugin"
@@ -6314,48 +4596,7 @@
         }
       }
     },
-    "/api/plugin/githubStats": {
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "Get open issue / open PR counts for a list of GitHub repos.",
-        "description": "Developer-UI helper for the plugin cards. Accepts a comma-separated list of `owner/name` repos and returns per-repo `{ openIssues, openPRs }`. Counts are proxied from GitHub's issue-search API (one aggregate query per group of repos, cached per box), never one request per plugin -- which is what floods the device with 404s when there is no network or a repo is gone. Fail-soft: on any upstream problem it serves a stale cache if present, else an empty map (`source: unavailable`); the UI then hides the corner counts.",
-        "parameters": [
-          {
-            "name": "repos",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Comma-separated `owner/name` GitHub repos."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "repos": {
-                    "FalconChristmas/fpp-brightness": {
-                      "openIssues": 7,
-                      "openPRs": 1
-                    }
-                  },
-                  "source": "live|cache|partial|unavailable"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/plugin/headerIndicators": {
+    "/plugin/headerIndicators": {
       "get": {
         "tags": [
           "plugin"
@@ -6383,35 +4624,7 @@
         }
       }
     },
-    "/api/plugin/popularity": {
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "plugin/popularity",
-        "description": "Get plugin install-popularity counts (repoName -> install count, last 365 days), proxied + cached from the community stats feed.",
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "period": "last365Days",
-                  "counts": {
-                    "remote-falcon": 1680
-                  },
-                  "source": "live|cache|stale|unavailable"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/plugin/{RepoName}": {
+    "/plugin/{RepoName}": {
       "parameters": [
         {
           "name": "RepoName",
@@ -6480,70 +4693,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/icon": {
-      "parameters": [
-        {
-          "name": "RepoName",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "Serve plugin icon",
-        "description": "Serves the plugin icon. First checks for a local icon.png in the plugin directory. If not found, checks the plugin's pluginInfo.json for an iconURL field and proxies it (same-origin, avoids CSP restrictions on external image hosts).",
-        "responses": {
-          "200": {
-            "description": "PNG image data"
-          },
-          "404": {
-            "description": "No icon available"
-          }
-        }
-      }
-    },
-    "/api/plugin/{RepoName}/page": {
-      "parameters": [
-        {
-          "name": "RepoName",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "Get plugin page URL",
-        "description": "Scans the plugin's menu files (menu.inc, status_menu.inc, etc.) and returns the best page URL for the plugin.  Prefers the Status/Control page; falls back to the Content Setup (config) page if no status page is found.",
-        "responses": {
-          "200": {
-            "description": "Plugin page info",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "url": "plugin.php?plugin=fpp-matrixtools&page=status.php",
-                  "page": "status.php",
-                  "found": true
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/plugin/{RepoName}/settings/{SettingName}": {
+    "/plugin/{RepoName}/settings/{SettingName}": {
       "parameters": [
         {
           "name": "RepoName",
@@ -6619,7 +4769,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/updates": {
+    "/plugin/{RepoName}/updates": {
       "parameters": [
         {
           "name": "RepoName",
@@ -6655,7 +4805,7 @@
         }
       }
     },
-    "/api/plugin/{RepoName}/upgrade": {
+    "/plugin/{RepoName}/upgrade": {
       "parameters": [
         {
           "name": "RepoName",
@@ -6666,12 +4816,23 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "plugin"
         ],
         "summary": "Update plugin",
         "description": "Pull in git updates for plugin `{RepoName}`. Supports an optional `?stream=true` query parameter for streaming output.",
+        "parameters": [
+          {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "When `true`, stream the upgrade output to the response instead of buffering it"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Plugin upgraded",
@@ -6690,7 +4851,7 @@
         }
       }
     },
-    "/api/proxies": {
+    "/proxies": {
       "delete": {
         "tags": [
           "proxies"
@@ -6806,7 +4967,7 @@
         }
       }
     },
-    "/api/proxies/{ProxyIp}": {
+    "/proxies/{ProxyIp}": {
       "parameters": [
         {
           "name": "ProxyIp",
@@ -6863,7 +5024,7 @@
         }
       }
     },
-    "/api/proxy/{Ip}/{urlPart}": {
+    "/proxy/{Ip}/{urlPart}": {
       "parameters": [
         {
           "name": "Ip",
@@ -6918,25 +5079,13 @@
         }
       }
     },
-    "/api/recurringtasks": {
-      "get": {
-        "tags": [
-          "recurringtasks"
-        ],
-        "summary": "recurringtasks",
-        "description": "Report the configured Recurring Tasks merged with last-run status, for the Recurring Tasks admin page (www/recurringtasks.php).",
-        "responses": {
-          "200": {
-            "description": "{\"tasks\": [...]}"
-          }
-        }
-      },
+    "/remoteAction": {
       "post": {
         "tags": [
-          "recurringtasks"
+          "remoteAction"
         ],
-        "summary": "recurringtasks",
-        "description": "Re-read config/recurringtasks.json and re-schedule all Recurring Task timers to match, so a save on www/recurringtasks.php (which writes that file via the generic api/configfile endpoint) takes effect without an fppd restart. Also handles an immediate \"Test Run\" of one task, run synchronously against the posted task definition (not a saved name), so the admin page can preview unsaved edits.",
+        "summary": "Proxy a command to remote FPP (v2 \u2014 JSON body)",
+        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -6944,28 +5093,12 @@
                 "type": "object"
               },
               "example": {
-                "command": "reload"
+                "ip": "192.168.1.100",
+                "action": "reboot"
               }
             }
           }
         },
-        "responses": {
-          "200": {
-            "description": "Recurring tasks reloaded, or {\"ok\":bool,\"raw\":string,\"filtered\":string,\"error\":string} for \"test\"."
-          },
-          "400": {
-            "description": "'command' field not specified."
-          }
-        }
-      }
-    },
-    "/api/remoteAction": {
-      "get": {
-        "tags": [
-          "remoteAction"
-        ],
-        "summary": "Proxy a command to remote FPP",
-        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.",
         "responses": {
           "400": {
             "description": "Invalid action",
@@ -6983,7 +5116,7 @@
         }
       }
     },
-    "/api/remotes": {
+    "/remotes": {
       "get": {
         "tags": [
           "remotes"
@@ -7008,7 +5141,7 @@
         }
       }
     },
-    "/api/schedule": {
+    "/schedule": {
       "get": {
         "tags": [
           "schedule"
@@ -7107,7 +5240,7 @@
         }
       }
     },
-    "/api/schedule/reload": {
+    "/schedule/reload": {
       "post": {
         "tags": [
           "schedule"
@@ -7138,7 +5271,7 @@
         }
       }
     },
-    "/api/scripts": {
+    "/scripts": {
       "get": {
         "tags": [
           "scripts"
@@ -7163,7 +5296,7 @@
         }
       }
     },
-    "/api/scripts/installRemote/{category}/{filename}": {
+    "/scripts/installRemote/{category}/{filename}": {
       "parameters": [
         {
           "name": "category",
@@ -7182,7 +5315,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "scripts"
         ],
@@ -7205,7 +5338,7 @@
         }
       }
     },
-    "/api/scripts/viewRemote/{category}/{filename}": {
+    "/scripts/viewRemote/{category}/{filename}": {
       "parameters": [
         {
           "name": "category",
@@ -7245,7 +5378,7 @@
         }
       }
     },
-    "/api/scripts/{scriptName}": {
+    "/scripts/{scriptName}": {
       "parameters": [
         {
           "name": "scriptName",
@@ -7301,7 +5434,7 @@
         }
       }
     },
-    "/api/scripts/{scriptName}/run": {
+    "/scripts/{scriptName}/run": {
       "parameters": [
         {
           "name": "scriptName",
@@ -7312,7 +5445,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "scripts"
         ],
@@ -7333,7 +5466,7 @@
         }
       }
     },
-    "/api/sequence": {
+    "/sequence": {
       "get": {
         "tags": [
           "sequence"
@@ -7359,8 +5492,8 @@
         }
       }
     },
-    "/api/sequence/current/step": {
-      "get": {
+    "/sequence/current/step": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -7389,8 +5522,8 @@
         }
       }
     },
-    "/api/sequence/current/stop": {
-      "get": {
+    "/sequence/current/stop": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -7423,8 +5556,8 @@
         }
       }
     },
-    "/api/sequence/current/togglePause": {
-      "get": {
+    "/sequence/current/togglePause": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -7457,7 +5590,7 @@
         }
       }
     },
-    "/api/sequence/{SequenceName}": {
+    "/sequence/{SequenceName}": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -7556,7 +5689,7 @@
         }
       }
     },
-    "/api/sequence/{SequenceName}/meta": {
+    "/sequence/{SequenceName}/meta": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -7607,7 +5740,7 @@
         }
       }
     },
-    "/api/sequence/{SequenceName}/start/{startSecond}": {
+    "/sequence/{SequenceName}/start/{startSecond}": {
       "parameters": [
         {
           "name": "SequenceName",
@@ -7626,7 +5759,7 @@
           }
         }
       ],
-      "get": {
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -7661,7 +5794,7 @@
         }
       }
     },
-    "/api/settings": {
+    "/settings": {
       "get": {
         "tags": [
           "settings"
@@ -7702,31 +5835,7 @@
         }
       }
     },
-    "/api/settings/fanThermal/reset": {
-      "post": {
-        "tags": [
-          "settings"
-        ],
-        "summary": "Reset fan thermal trip settings",
-        "description": "Removes all FanTrip_* settings and restores the hardware (device tree) default trip temperatures that fppinit captured at boot.",
-        "responses": {
-          "200": {
-            "description": "Settings reset",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/settings/{SettingName}": {
+    "/settings/{SettingName}": {
       "parameters": [
         {
           "name": "SettingName",
@@ -7804,7 +5913,7 @@
         }
       }
     },
-    "/api/settings/{SettingName}/jsonValueUpdate": {
+    "/settings/{SettingName}/jsonValueUpdate": {
       "parameters": [
         {
           "name": "SettingName",
@@ -7848,7 +5957,7 @@
         }
       }
     },
-    "/api/statistics/usage": {
+    "/statistics/usage": {
       "delete": {
         "tags": [
           "statistics"
@@ -7960,13 +6069,24 @@
         }
       }
     },
-    "/api/system/fppd/restart": {
-      "get": {
+    "/system/fppd/restart": {
+      "post": {
         "tags": [
           "system"
         ],
         "summary": "Restart fppd process",
         "description": "Restarts the `fppd` process. Pass `?quick=1` to reload some configuration without a full restart.",
+        "parameters": [
+          {
+            "name": "quick",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "When `1`, send a reload signal to a running fppd instead of a full stop/start"
+          }
+        ],
         "responses": {
           "200": {
             "description": "fppd restarted",
@@ -7984,7 +6104,7 @@
         }
       }
     },
-    "/api/system/fppd/skipBootDelay": {
+    "/system/fppd/skipBootDelay": {
       "post": {
         "tags": [
           "system"
@@ -8009,8 +6129,8 @@
         }
       }
     },
-    "/api/system/fppd/start": {
-      "get": {
+    "/system/fppd/start": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -8033,8 +6153,8 @@
         }
       }
     },
-    "/api/system/fppd/stop": {
-      "get": {
+    "/system/fppd/stop": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -8057,7 +6177,7 @@
         }
       }
     },
-    "/api/system/info": {
+    "/system/info": {
       "get": {
         "tags": [
           "system"
@@ -8106,7 +6226,7 @@
         }
       }
     },
-    "/api/system/packages": {
+    "/system/packages": {
       "get": {
         "tags": [
           "system"
@@ -8132,7 +6252,7 @@
         }
       }
     },
-    "/api/system/packages/info/{packageName}": {
+    "/system/packages/info/{packageName}": {
       "parameters": [
         {
           "name": "packageName",
@@ -8168,8 +6288,8 @@
         }
       }
     },
-    "/api/system/reboot": {
-      "get": {
+    "/system/reboot": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -8177,22 +6297,12 @@
         "description": "Reboots the operating system.",
         "responses": {
           "200": {
-            "description": "Reboot initiated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK"
-                }
-              }
-            }
+            "description": "Reboot initiated"
           }
         }
       }
     },
-    "/api/system/releaseNotes/{version}": {
+    "/system/releaseNotes/{version}": {
       "parameters": [
         {
           "name": "version",
@@ -8230,8 +6340,8 @@
         }
       }
     },
-    "/api/system/shutdown": {
-      "get": {
+    "/system/shutdown": {
+      "post": {
         "tags": [
           "system"
         ],
@@ -8239,22 +6349,12 @@
         "description": "Executes a clean shutdown of the operating system.",
         "responses": {
           "200": {
-            "description": "Shutdown initiated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK"
-                }
-              }
-            }
+            "description": "Shutdown initiated"
           }
         }
       }
     },
-    "/api/system/status": {
+    "/system/status": {
       "get": {
         "tags": [
           "system"
@@ -8291,7 +6391,7 @@
         }
       }
     },
-    "/api/system/updateStatus": {
+    "/system/updateStatus": {
       "get": {
         "tags": [
           "system"
@@ -8325,7 +6425,7 @@
         }
       }
     },
-    "/api/system/volume": {
+    "/system/volume": {
       "get": {
         "tags": [
           "system"
@@ -8386,7 +6486,7 @@
         }
       }
     },
-    "/api/testmode": {
+    "/testmode": {
       "get": {
         "tags": [
           "testmode"
@@ -8468,7 +6568,7 @@
         }
       }
     },
-    "/api/time": {
+    "/time": {
       "get": {
         "tags": [
           "time"
@@ -8488,133 +6588,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/variables": {
-      "get": {
-        "tags": [
-          "variables"
-        ],
-        "summary": "variables",
-        "description": "List all User Variables and their current values. Pass ?validateExpression instead to syntax-check an expression (for the Set Variable \"Expression\" field) against currently-known variables, without setting anything. Pass ?fpp=true instead to list the read-only \"fpp_\" status variables (current playlist/sequence, play state, volume, etc.) instead of User Variables.",
-        "parameters": [
-          {
-            "name": "validateExpression",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "If set, validate this expression instead of listing variables."
-          },
-          {
-            "name": "conditionExpr",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "If \"true\" alongside validateExpression, classify it the way the If"
-          },
-          {
-            "name": "fpp",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "If \"true\", list the read-only fpp- status variables instead of User Variables."
-          },
-          {
-            "name": "mqtt",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "If \"true\", list the read-only mqtt-<topic> variables (MQTT's own last-message-"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Object keyed by variable name, each with `value`, `truncated`,"
-          }
-        }
-      }
-    },
-    "/api/variables/{name}": {
-      "parameters": [
-        {
-          "name": "name",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "delete": {
-        "tags": [
-          "variables"
-        ],
-        "summary": "variables/{name}",
-        "description": "Delete a User Variable entirely - unlike POSTing an empty body (the UI's \"Clear\"), which only resets its value/persist flag and leaves the row behind, this removes the name from the list altogether.",
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Missing variable name in the path, or name is a read-only"
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "variables"
-        ],
-        "summary": "variables/{name}",
-        "description": "Read a single User Variable's current value.",
-        "responses": {
-          "200": {
-            "description": "The variable's value as plain text (empty string if unset)."
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "variables"
-        ],
-        "summary": "variables/{name}",
-        "description": "Set a User Variable's value. Body is the raw new value (plain text, not JSON). Add ?persist=true to save it to config/variables.json so it survives an fppd restart; omitted or any other value means the variable is in-memory only.",
-        "parameters": [
-          {
-            "name": "persist",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Persist the value to disk so it survives a restart."
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "text/plain": {
-              "schema": {
-                "type": "string"
-              },
-              "example": "new-value-goes-here"
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Missing variable name in the path."
           }
         }
       }

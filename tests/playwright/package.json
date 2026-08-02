@@ -7,7 +7,19 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",
-    "install:browsers": "playwright install"
+    "install:browsers": "playwright install",
+
+    "test:api:ci":                "playwright test --project=api-ci --grep-invert \"@(state|hardware|destructive)\"",
+    "test:api:v1":                "playwright test --project=api-ci --grep @v1",
+    "test:api:v2":                "playwright test --project=api-ci --grep @v2",
+    "test:api:state":             "playwright test --project=api-state --grep @state",
+    "test:api:hardware:cape":     "PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL} playwright test --project=api-hardware-cape --grep \"@hardware:cape\"",
+    "test:api:hardware:wifi":     "PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL} playwright test --project=api-hardware-wifi --grep \"@hardware:wifi\"",
+    "test:api:hardware:audio":    "PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL} playwright test --project=api-hardware-audio --grep \"@hardware:audio\"",
+    "test:api:hardware:pipewire": "PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL} playwright test --project=api-hardware-pipewire --grep \"@hardware:pipewire\"",
+    "test:api:destructive":       "PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL} playwright test --project=api-destructive --grep @destructive",
+
+    "check:api-coverage": "npx ts-node --project tsconfig.json scripts/check-api-coverage.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.2",
