@@ -188,7 +188,7 @@ void checkFSTAB() {
     if (cont.find("home/fpp/media") == std::string::npos) {
         cont += "\n";
         cont += "#####################################\n";
-        cont += "#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0\n";
+        cont += "#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=1000,gid=1000  0  0\n";
         cont += "#####################################\n";
         PutFileContents("/etc/fstab", cont);
     }

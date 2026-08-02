@@ -219,18 +219,37 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 	$fsType = exec($SUDO . $nsEnter . ' file -sL /dev/' . $deviceName, $fsTypeOutput, $fsTypeResultCode);
 
 	$mountCmd = '';
+	$isFatMount = false;
 	// Same mount options used in scripts/copy_settings_to_storage.sh
 	if (preg_match('/BTRFS/', $fsType)) {
 		$mountCmd = "mount -t btrfs -o noatime,nodiratime,compress=zstd,nofail /dev/$deviceName $mountPath";
 	} else if ((preg_match('/FAT/', $fsType)) ||
 		(preg_match('/DOS/', $fsType))) {
-		$mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,uid=500,gid=500 /dev/$deviceName $mountPath";
+		// FAT/exFAT have no on-disk ownership, so it must be set at mount time to
+		// match the *actual* fpp uid/gid (not hardcoded) -- otherwise the rsyncd
+		// [remote_filecopy] module (which drops privileges to the real fpp uid)
+		// can't write into the mount. See issue #2782.
+		$isFatMount = true;
+		$fppIds = GetFPPUserIds();
+		$mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,uid=" . $fppIds['uid'] . ",gid=" . $fppIds['gid'] . " /dev/$deviceName $mountPath";
 	} else {
 		// Default to ext4
 		$mountCmd = "mount -t ext4 -o noatime,nodiratime,nofail /dev/$deviceName $mountPath";
 	}
 
 	exec($SUDO . $nsEnter . ' ' . $mountCmd, $mountCmdOutput, $mountCmdResultCode);
+
+	// Unlike FAT/exFAT, ext4/btrfs persist real on-disk ownership, so a drive
+	// previously written to by an FPP box with a different fpp uid (500 vs 1000
+	// -- see issue #2782) can leave fpp unable to write into it here (e.g. the
+	// initial mkdir of a TOREMOTE backup folder). Reconcile the mount root's
+	// ownership so that at least fails; a full recursive chown is deliberately
+	// NOT done here since this helper mounts on every backup listing/read, not
+	// just writes, and a large drive's existing content would make that slow.
+	if (!$isFatMount && $mountCmdResultCode == 0) {
+		$fppIds = GetFPPUserIds();
+		exec($SUDO . $nsEnter . ' chown ' . $fppIds['uid'] . ':' . $fppIds['gid'] . ' ' . $mountPath);
+	}
 
 	if (isset($usercallback_function) && !empty($functionArgs)) {
 		//Call the function that will do some work in the mounted directory

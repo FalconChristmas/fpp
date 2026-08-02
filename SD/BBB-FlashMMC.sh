@@ -289,7 +289,7 @@ if [ "$ARCH" == "aarch64" ]; then
     echo "${DEVICE}p1  /boot/firmware vfat user,uid=1000,gid=1000,defaults 0 2" >> /tmp/rootfs/etc/fstab
     echo "debugfs  /sys/kernel/debug  debugfs  mode=755,uid=root,gid=gpio,defaults  0  0" >> /tmp/rootfs/etc/fstab
     echo "#####################################" >> /tmp/rootfs/etc/fstab
-    echo "#/dev/sda1     /home/fpp/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /tmp/rootfs/etc/fstab
+    echo "#/dev/sda1     /home/fpp/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=1000,gid=1000  0  0" >> /tmp/rootfs/etc/fstab
     echo "#####################################" >> /tmp/rootfs/etc/fstab
 
     sed -i "s|root=/dev/[a-zA-Z0-9]*\([0-9]\) |root=${DEVICE}p3 |g" /tmp/rootfs/boot/firmware/extlinux/extlinux.conf

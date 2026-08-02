@@ -194,7 +194,10 @@ function PutSetting()
                         $fsckOrder = "2";
                     } else {
                         # exFAT probably
-                        $options = "defaults,noatime,nodiratime,exec,nofail,uid=500,gid=500";
+                        # FAT/exFAT have no on-disk ownership -- uid/gid must be set at mount
+                        # time to match the *actual* fpp uid/gid (not hardcoded); see issue #2782.
+                        $fppIds = GetFPPUserIds();
+                        $options = "defaults,noatime,nodiratime,exec,nofail,uid=" . $fppIds['uid'] . ",gid=" . $fppIds['gid'];
                         $fsckOrder = "2";
                     }
                 } else {
@@ -204,7 +207,8 @@ function PutSetting()
                 }
             } else {
                 # FAT filesystem
-                $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500";
+                $fppIds = GetFPPUserIds();
+                $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=" . $fppIds['uid'] . ",gid=" . $fppIds['gid'];
                 $fsckOrder = "2";
             }
         }

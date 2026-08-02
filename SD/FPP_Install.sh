@@ -1907,7 +1907,7 @@ EOF
     # 90s on every boot. The settings UI rewrites this line when external storage
     # is chosen, so commenting it by default loses no functionality.
     echo "#####################################" >> /etc/fstab
-    echo "#/dev/sda1     ${FPPHOME}/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
+    echo "#/dev/sda1     ${FPPHOME}/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=1000,gid=1000  0  0" >> /etc/fstab
     echo "#####################################" >> /etc/fstab
 
     #######################################

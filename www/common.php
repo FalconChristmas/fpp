@@ -16,6 +16,26 @@ function check($var, $var_name = "", $function_name = "")
 
 }
 
+/**
+ * Get the numeric uid/gid of the 'fpp' system user.
+ *
+ * The 'fpp' user's uid has not been consistent across FPP's history (500 on
+ * older installs/images, 1000 since commit f8f2f1408 for Trixie compatibility),
+ * so mount options and rsync module configs that need to match it must resolve
+ * it at runtime rather than hardcoding a number.
+ *
+ * @return array ['uid' => int, 'gid' => int]
+ */
+function GetFPPUserIds()
+{
+    $pwentry = posix_getpwnam('fpp');
+    if ($pwentry === false) {
+        // Should never happen on a real FPP system; fall back to the historical default.
+        return array('uid' => 500, 'gid' => 500);
+    }
+    return array('uid' => $pwentry['uid'], 'gid' => $pwentry['gid']);
+}
+
 function getFileList($dir, $ext)
 {
     $i = array();
