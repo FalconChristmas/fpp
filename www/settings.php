@@ -93,7 +93,7 @@ if ($storageUILevel > 0 && $settings['Platform'] != "MacOS" && $settings['Platfo
     $flashTargets = array();
     if (preg_match('/^mmcblk0p/', $rootDev)) {
         $flashTargets = array("mmcblk1", "nvme0n1", "sda");
-    } else if (preg_match('/^mmcblk1p/', $rootDev) && isset($settings['Variant']) && $settings['Variant'] == "PocketBeagle2") {
+    } else if (preg_match('/^mmcblk1p/', $rootDev) && strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) {
         $flashTargets = array("mmcblk0");
     }
     foreach ($flashTargets as $target) {

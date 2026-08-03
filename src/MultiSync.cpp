@@ -433,7 +433,14 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model) {
         }
         return kSysTypeFPPBeagleBoneGreen;
     }
-    if (contains(model, "PocketBeagle2") || contains(model, "BeaglePlay")) {
+    // This is fed both the device-tree model ("BeagleBoard.org PocketBeagle2")
+    // and, for HTTP-discovered controllers, a remote's 'Variant' setting, which
+    // spells the board with a space ("PocketBeagle 2", "PocketBeagle 2
+    // Industrial").  Both spellings have to be caught here, and before the
+    // PocketBeagle test below -- otherwise a PocketBeagle 2 falls through and
+    // gets reported as a PocketBeagle 1.
+    if (contains(model, "PocketBeagle2") || contains(model, "PocketBeagle 2") ||
+        contains(model, "BeaglePlay")) {
         return kSysTypeFPPPocketBeagle2;
     }
     if (contains(model, "PocketBeagle")) {

@@ -209,7 +209,7 @@ function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
             $serialNumber = "";
         }
     }
-    if ($settings['Variant'] == "PocketBeagle2" && $serialNumber == "") {
+    if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false && $serialNumber == "") {
         $serialNumber = exec("dd if=/sys/bus/i2c/devices/0-0050/eeprom count=16 skip=40 bs=1 2>/dev/null", $output, $return_val);
         if ($return_val != 0) {
             $serialNumber = "";
