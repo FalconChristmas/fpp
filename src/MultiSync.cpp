@@ -3034,21 +3034,28 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
     }
 
     char tmpStr[128];
-    memset(tmpStr, 0, sizeof(tmpStr));
-    strcpy(tmpStr, (char*)(extraData + 12));
-    std::string hostname(tmpStr);
-
-    strcpy(tmpStr, (char*)(extraData + 77));
-    std::string version(tmpStr);
-
-    strcpy(tmpStr, (char*)(extraData + 118));
-    std::string typeStr(tmpStr);
+    // Bounded copy of a packet string field. The packet tail is not guaranteed
+    // to be NUL-terminated and may be longer than tmpStr, so clamp to both the
+    // field's own size and the destination buffer to avoid a stack overflow /
+    // over-read.
+    auto copyField = [&](int fieldOffset) -> std::string {
+        int avail = (int)pkt->extraDataLen - fieldOffset;
+        if (avail < 0) {
+            avail = 0;
+        }
+        int toCopy = std::min(avail, (int)(sizeof(tmpStr) - 1));
+        memset(tmpStr, 0, sizeof(tmpStr));
+        memcpy(tmpStr, (char*)(extraData + fieldOffset), toCopy);
+        return std::string(tmpStr);
+    };
+    std::string hostname = copyField(12);
+    std::string version = copyField(77);
+    std::string typeStr = copyField(118);
     // End of v1 packet fields
 
     std::string ranges;
     if ((pkt->extraDataLen) > 169) {
-        strcpy(tmpStr, (char*)(extraData + 166 - 7));
-        ranges = tmpStr;
+        ranges = copyField(166 - 7);
     }
 
     bool isLocal = false;
@@ -3166,14 +3173,24 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
     cpkt->pktType = CTRL_PKT_FPPCOMMAND;
 
     int pos = sizeof(ControlPkt);
-    outBuf[pos++] = args.size();
-    strcpy(&outBuf[pos], host.c_str());
-    pos += host.length() + 1;
-    strcpy(&outBuf[pos], cmd.c_str());
-    pos += cmd.length() + 1;
+    int room = (int)sizeof(outBuf) - pos;
+    // Bounded writes so a long host/cmd/arg can never overflow outBuf; strings
+    // that don't fit are truncated rather than written past the buffer.
+    auto appendField = [&](const std::string& v) {
+        int n = std::min((int)v.length() + 1, room > 0 ? room : 0);
+        if (n > 0) {
+            memcpy(&outBuf[pos], v.c_str(), n);
+            outBuf[pos + n - 1] = '\0';
+        }
+        pos += n;
+        room -= n;
+    };
+    outBuf[pos++] = (unsigned char)args.size();
+    room--;
+    appendField(host);
+    appendField(cmd);
     for (auto& a : args) {
-        strcpy(&outBuf[pos], a.c_str());
-        pos += a.length() + 1;
+        appendField(a);
     }
     cpkt->extraDataLen = pos - sizeof(ControlPkt);
 
