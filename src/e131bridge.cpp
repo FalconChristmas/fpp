@@ -859,6 +859,17 @@ bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime) {
         uint32_t len = bridgeBuffer[8] << 8;
         len += bridgeBuffer[9];
 
+        // Drop the packet if the length or channel map is out of bounds. Reading
+        // `len` bytes from the receive buffer, or writing beyond the bridge buffer
+        // (FPPD_MAX_CHANNEL_NUM), would corrupt memory. 64-bit arithmetic avoids
+        // uint32 overflow of the channel+length sum.
+        int ddpOffset = tc ? 14 : 10;
+        if ((uint64_t)len > (uint64_t)(BUFSIZE + 1 - ddpOffset) ||
+            (uint64_t)chan + (uint64_t)len > (uint64_t)FPPD_MAX_CHANNEL_NUM) {
+            ddpErrors++;
+            return push;
+        }
+
         uint32_t sn = bridgeBuffer[1] & 0xF;
         if (sn) {
             bool isErr = false;
@@ -882,8 +893,7 @@ bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime) {
         ddpMinChannel = std::min(ddpMinChannel, chan + 1);
         ddpMaxChannel = std::max(ddpMaxChannel, chan + len);
 
-        int offset = tc ? 14 : 10;
-        SetBridgeData(&bridgeBuffer[offset],
+        SetBridgeData(&bridgeBuffer[ddpOffset],
                       chan,
                       len,
                       packetTime);
