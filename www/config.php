@@ -297,13 +297,15 @@ if ($settings['Platform'] == "Raspberry Pi") {
     $settings['BBB_Tethering'] = "1";
     $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
     $settings['BeaglePlatform'] = true;
-    if (preg_match('/PocketBeagle2/', $settings['SubPlatform'])) {
+    if (preg_match('/Industrial/i', $settings['SubPlatform'])) {
+        $settings['Variant'] = "PocketBeagle 2 Industrial";
+        $settings['Logo'] = "beagle_pocket_2i.svg";
+    } else if (preg_match('/PocketBeagle2/', $settings['SubPlatform'])) {
         $settings['Variant'] = "PocketBeagle2";
-        $settings['Logo'] = "beagle_pocket.svg";
+        $settings['Logo'] = "beagle_pocket_2.svg";
     } else {
-        // for now, eventually support others?
         $settings['Variant'] = "PocketBeagle2";
-        $settings['Logo'] = "beagle_pocket.svg";
+        $settings['Logo'] = "beagle_pocket_2.svg";
     }
 } else if ($settings['Platform'] == "BeagleBone Black") {
     $settings['OSImagePrefix'] = "BBB";
