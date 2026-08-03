@@ -221,7 +221,8 @@ char* ProcessCommand(char* command, char* response) {
 
         s = strtok_r(NULL, ",", &saveptr);
         if (s) {
-            strcpy(name, s);
+            // Bounded copy - the token can be longer than the 128-byte buffer.
+            snprintf(name, sizeof(name), "%s", s);
             s = strtok_r(NULL, ",", &saveptr);
             if (s)
                 SetSetting(name, s);
