@@ -633,11 +633,50 @@
             switch (type) {
                 case 'hdmi':
                     var scaling = member.scaling || 'fit';
-                    html += '<select class="form-select form-select-sm" style="width:auto;" onchange="UpdateMemberField(' + gi + ',' + mi + ',\'scaling\',this.value)" title="Scaling mode">';
+                    var region = member.region || 'full';
+                    html += '<div class="d-flex gap-1 align-items-center flex-wrap">';
+                    html += '<select class="form-select form-select-sm w-auto" onchange="UpdateMemberField(' + gi + ',' + mi + ',\'scaling\',this.value)" title="Scaling mode">';
                     html += '<option value="fit"' + (scaling === 'fit' ? ' selected' : '') + '>Fit</option>';
                     html += '<option value="fill"' + (scaling === 'fill' ? ' selected' : '') + '>Fill</option>';
                     html += '<option value="stretch"' + (scaling === 'stretch' ? ' selected' : '') + '>Stretch</option>';
                     html += '</select>';
+
+                    // Region: which slice of the source lands on this display.
+                    // Giving two displays opposite halves splits one video
+                    // across both from a single decode.
+                    html += '<select class="form-select form-select-sm w-auto" onchange="UpdateMemberField(' + gi + ',' + mi + ',\'region\',this.value)" title="Portion of the source video shown on this display">';
+                    var regions = [
+                        ['full', 'Whole video'],
+                        ['left', 'Left half'],
+                        ['right', 'Right half'],
+                        ['top', 'Top half'],
+                        ['bottom', 'Bottom half'],
+                        ['custom', 'Custom region']
+                    ];
+                    for (var r = 0; r < regions.length; r++) {
+                        html += '<option value="' + regions[r][0] + '"' + (region === regions[r][0] ? ' selected' : '') + '>' + regions[r][1] + '</option>';
+                    }
+                    html += '</select>';
+
+                    if (region === 'custom') {
+                        var cropFields = [
+                            ['cropX', 'X', 0],
+                            ['cropY', 'Y', 0],
+                            ['cropWidth', 'W', 100],
+                            ['cropHeight', 'H', 100]
+                        ];
+                        for (var f = 0; f < cropFields.length; f++) {
+                            var key = cropFields[f][0];
+                            var val = (member[key] !== undefined) ? member[key] : cropFields[f][2];
+                            html += '<span class="text-muted"><small>' + cropFields[f][1] + '</small></span>';
+                            html += '<input type="number" class="form-control form-control-sm" style="width:70px;" min="0" max="100" step="1"';
+                            html += ' value="' + val + '"';
+                            html += ' title="' + cropFields[f][1] + ' as a percentage of the source frame"';
+                            html += ' onchange="UpdateMemberField(' + gi + ',' + mi + ',\'' + key + '\',parseFloat(this.value))">';
+                        }
+                        html += '<span class="text-muted"><small>%</small></span>';
+                    }
+                    html += '</div>';
                     break;
                 case 'overlay':
                     html += '<span class="text-muted" style="font-size:0.85rem;">Auto-scaled to model</span>';
@@ -742,7 +781,8 @@
             var member = {
                 type: 'hdmi',
                 connector: '',
-                scaling: 'fit'
+                scaling: 'fit',
+                region: 'full'
             };
 
             // Default to first unused HDMI connector
@@ -782,8 +822,14 @@
             delete member.port;
             delete member.scaling;
             delete member.encoding;
+            delete member.region;
+            delete member.cropX;
+            delete member.cropY;
+            delete member.cropWidth;
+            delete member.cropHeight;
             if (type === 'hdmi') {
                 member.scaling = 'fit';
+                member.region = 'full';
             } else if (type === 'rtp') {
                 member.address = '239.0.0.1';
                 member.port = 5004;

@@ -1315,13 +1315,23 @@ int GStreamerOutput::Start(int msTime) {
                 // Passthrough for HW-decoded NV12/DMA; required for software
                 // decode (I420 won't negotiate against the DRM plane).
                 GstElement* teeKmsConvert = gst_element_factory_make("videoconvert", "vteekmsconv");
+                // The primary display can be one half of a split too, so it
+                // takes a crop from the same config the consumers use.
+                GstElement* kmsCrop = VideoOutputManager::CreateCropElement(
+                    VideoOutputManager::Instance().GetHdmiCropForConnector(m_streamSlot, m_hdmiConnectorId),
+                    "vkmscrop");
                 gst_bin_add_many(GST_BIN(m_pipeline), kmsQueue, teeKmsConvert, m_kmssink, NULL);
                 GstPad* teeSrc = gst_element_request_pad_simple(vtee, "src_%u");
                 GstPad* kmsQSink = gst_element_get_static_pad(kmsQueue, "sink");
                 gst_pad_link(teeSrc, kmsQSink);
                 gst_object_unref(teeSrc);
                 gst_object_unref(kmsQSink);
-                gst_element_link_many(kmsQueue, teeKmsConvert, m_kmssink, NULL);
+                if (kmsCrop) {
+                    gst_bin_add(GST_BIN(m_pipeline), kmsCrop);
+                    gst_element_link_many(kmsQueue, teeKmsConvert, kmsCrop, m_kmssink, NULL);
+                } else {
+                    gst_element_link_many(kmsQueue, teeKmsConvert, m_kmssink, NULL);
+                }
                 LogDebug(VB_MEDIAOUT, "GStreamer: video tee active — kmssink direct, pipewiresink deferred\n");
             } else {
                 // No primary HDMI — vtee routes to deferred pipewiresink
@@ -1432,8 +1442,21 @@ int GStreamerOutput::Start(int msTime) {
                     // against the DRM plane and the pipeline would fail with
                     // "not-negotiated".  See the direct-kmssink path below.
                     GstElement* dConvert = gst_element_factory_make("videoconvert", nullptr);
+
+                    // Optional crop, last before the sink so kmssink takes it
+                    // as the DRM plane's source rectangle (metadata only, no
+                    // per-frame copy).  This is what lets one decode of a
+                    // double-wide file feed a different half to each display.
+                    GstElement* dCrop = VideoOutputManager::CreateCropElement(
+                        hc.crop, "dcrop_" + std::to_string(resolvedConnId));
+
                     gst_bin_add_many(GST_BIN(m_pipeline), dQueue, dConvert, dkmsSink, NULL);
-                    gst_element_link_many(dQueue, dConvert, dkmsSink, NULL);
+                    if (dCrop) {
+                        gst_bin_add(GST_BIN(m_pipeline), dCrop);
+                        gst_element_link_many(dQueue, dConvert, dCrop, dkmsSink, NULL);
+                    } else {
+                        gst_element_link_many(dQueue, dConvert, dkmsSink, NULL);
+                    }
 
                     GstPad* teeSrc = gst_element_request_pad_simple(vtee, "src_%u");
                     GstPad* dQSink = gst_element_get_static_pad(dQueue, "sink");
@@ -1463,8 +1486,21 @@ int GStreamerOutput::Start(int msTime) {
             // Pi5 has no hardware H.264 decoder at all, so every H.264 video
             // takes the software path and HDMI output failed outright.
             GstElement* kmsConvert = gst_element_factory_make("videoconvert", "vkmsconv");
+            // A crop configured for this display still applies with no PipeWire
+            // routing -- a single-output split (one half shown, other discarded)
+            // is legitimate, and the setting shouldn't silently do nothing.
+            GstElement* kmsCrop = VideoOutputManager::CreateCropElement(
+                VideoOutputManager::Instance().GetHdmiCropForConnector(m_streamSlot, m_hdmiConnectorId),
+                "vkmscrop");
             gst_bin_add_many(GST_BIN(m_pipeline), videoQueue, kmsConvert, m_kmssink, NULL);
-            if (!gst_element_link_many(videoQueue, kmsConvert, m_kmssink, NULL)) {
+            bool linked = false;
+            if (kmsCrop) {
+                gst_bin_add(GST_BIN(m_pipeline), kmsCrop);
+                linked = gst_element_link_many(videoQueue, kmsConvert, kmsCrop, m_kmssink, NULL);
+            } else {
+                linked = gst_element_link_many(videoQueue, kmsConvert, m_kmssink, NULL);
+            }
+            if (!linked) {
                 LogErr(VB_MEDIAOUT, "GStreamer HDMI: Failed to link video chain\n");
             }
         }
