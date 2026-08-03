@@ -173,7 +173,9 @@ function scripts_install_remote()
     $category = params('category');
     $filename = params('filename');
 
-    exec("$SUDO $fppDir/scripts/installScript \"$category\" \"$filename\"");
+    // Pass each value as a shell-escaped positional argument so the category
+    // or filename cannot break out of the script invocation.
+    exec("$SUDO $fppDir/scripts/installScript " . escapeshellarg($category) . " " . escapeshellarg($filename));
 
 	//Trigger a JSON Configuration Backup
 	GenerateBackupViaAPI($category . ' script ' . $filename . ' content was installed.');

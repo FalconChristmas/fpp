@@ -38,7 +38,9 @@ if (!$wrapped) {
     <?php
 }
 $date = date("Ymd-Hi");
-$path = preg_replace('/{DATE}/', $date, $_GET['path']);
+// The path is interpolated into the shell command below, so wrap it as a
+// single shell argument to prevent command injection.
+$path = escapeshellarg(preg_replace('/{DATE}/', $date, $_GET['path']));
 $compress = isset($_GET['compress']) ? escapeshellcmd($_GET['compress']) : "no";
 $delete = isset($_GET['delete']) ? escapeshellcmd($_GET['delete']) : "no";
 $remote_storage = isset($_GET['remoteStorage']) ? escapeshellcmd($_GET['remoteStorage']) : 'none';

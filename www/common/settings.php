@@ -2,6 +2,9 @@
 
 function SetTimeZone($timezone)
 {
+    // The timezone value is interpolated into shell commands, so escape it
+    // as a single shell word before use.
+    $timezone = escapeshellarg($timezone);
     if (file_exists("/etc/fpp/container")) {
         exec("sudo ln -s -f /usr/share/zoneinfo/$timezone /etc/localtime");
         exec("sudo bash -c \"echo $timezone > /etc/timezone\"");
@@ -27,6 +30,9 @@ function SetHWClock()
 
 function SetDate($date)
 {
+    // Strip any characters that are not part of a date so the value cannot
+    // be used as a shell metacharacter when interpolated below.
+    $date = preg_replace('/[^0-9\/\-\sA-Za-z:]/', '', $date);
     // Need to pass in the current time or it gets reset to 00:00:00
     exec("sudo date +\"%Y-%m-%d %H:%M:%S\" -s \"$date \$(date +%H:%M:%S)\"");
     SetHWClock();
@@ -34,6 +40,8 @@ function SetDate($date)
 
 function SetTime($time)
 {
+    // Strip everything that is not part of an HH:MM:SS time string.
+    $time = preg_replace('/[^0-9:]/', '', $time);
     exec("sudo date +%k:%M:%S -s \"$time\"");
     SetHWClock();
 }
@@ -56,6 +64,9 @@ function SetNTPServer($value)
     // any other Pis pointed at it. chrony's default minsources is 1, so pointing
     // at a single server (e.g. another FPP) syncs without extra tuning.
     $ntpConfigFile = '/etc/chrony/chrony.conf';
+    // Keep only hostname/IP characters so the value can't break out of the
+    // sed expression below.
+    $value = preg_replace('/[^A-Za-z0-9.\-]/', '', $value);
     // Remove existing pool and server source lines.
     exec("sudo sed -i '/^pool .*/d' $ntpConfigFile ; sudo sed -i '/^server .*/d' $ntpConfigFile");
     if ($value != '') {
@@ -172,7 +183,9 @@ function EnableOSPassword($value)
         $password = 'falcon';
     }
 
-    system("echo 'fpp:$password' | sudo chpasswd");
+    // Escape the whole 'user:password' line so it is passed to chpasswd via
+    // stdin without any shell interpretation.
+    system("echo " . escapeshellarg('fpp:' . $password) . " | sudo chpasswd");
 }
 
 function SetOSPassword($value)
@@ -181,7 +194,7 @@ function SetOSPassword($value)
         $value = 'falcon';
     }
 
-    system("echo 'fpp:$value' | sudo chpasswd");
+    system("echo " . escapeshellarg('fpp:' . $value) . " | sudo chpasswd");
 }
 
 function SetForceHDMI($value)
@@ -485,7 +498,9 @@ function setVolume($vol)
         // Simple PipeWire mode shares the same runtime pipeline as Advanced.
         if (!IsPipeWireBackend($settings)) {
             // Why do we do this here and in fppd's settings.c
-            $status = exec($SUDO . " amixer -c $card set '$mixerDevice' -- " . $vol . "%");
+            // Escape the mixer device name so it cannot break out of the
+            // single-quoted argument to amixer.
+            $status = exec($SUDO . " amixer -c $card set " . escapeshellarg($mixerDevice) . " -- " . $vol . "%");
         }
     }
 }

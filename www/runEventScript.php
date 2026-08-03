@@ -30,22 +30,28 @@ if (isset($_GET['plugin'])) {
     $scriptDirectory = "/home/fpp/media/plugins/$plugin/scripts";
 }
 
-if ((isset($_GET['scriptName'])) && strlen($_GET['scriptName']) > 0 &&
-    (file_exists($scriptDirectory . "/" . $_GET['scriptName'])))
+$script = "";
+if ((isset($_GET['scriptName'])) && strlen($_GET['scriptName']) > 0)
 {
-	$script = escapeshellcmd($_GET['scriptName']);
+    // Constrain to a single filename inside the script directory. sanitizeFilename() strips
+    // "/" and ".." so the value cannot escape the directory via path traversal, and
+    // escapeshellarg() below wraps the resolved path as one shell word.
+    $script = sanitizeFilename($_GET['scriptName']);
+}
 
+if ($script != "" && file_exists($scriptDirectory . "/" . $script))
+{
 	$args = "";
 	if (isset($_GET['args']))
 		$args = escapeshellcmd($_GET['args']);
 
 	if (isset($_GET['nohtml'])) {
 		echo "Running $script $args\n--------------------------------------------------------------------------------\n";
-		system($SUDO . " $fppDir/scripts/eventScript $scriptDirectory/$script $args");
+		system($SUDO . " $fppDir/scripts/eventScript " . escapeshellarg($scriptDirectory . "/" . $script) . " $args");
 	} else {
 		echo "Running $script $args<br><hr>\n";
 		echo "<pre>\n";
-		system($SUDO . " $fppDir/scripts/eventScript $scriptDirectory/$script $args");
+		system($SUDO . " $fppDir/scripts/eventScript " . escapeshellarg($scriptDirectory . "/" . $script) . " $args");
 		echo "</pre>\n";
 	}
 }

@@ -179,6 +179,10 @@ function PutSetting()
         if ($value == "--none--") {
             $value = $rootDevice;
         } else {
+            // Restrict the device name to alphanumerics so it cannot break out
+            // of /dev/$value in the file/sed commands below. Must happen before
+            // /dev/$value is first used.
+            $value = preg_replace('/[^A-Za-z0-9]/', '', $value);
             $fsckOrder = "0";
             exec($SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val);
             if ($output[0] == "") {
