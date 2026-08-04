@@ -324,7 +324,10 @@ void APIServer::Init(void) {
         callback(resp);
     };
     // Register /fppd exact match first; the catch-all regex is registered after
-    // the more specific /fppd/* routes below so they take priority.
+    // the more specific /fppd/* routes below so they take priority. Bare /fppd
+    // has no content of its own -- it 404s from PlayerResource just like a bad
+    // sub-path would (confirmed directly against fppd:32322). Intentionally
+    // left undocumented, same reasoning as bare /command below.
     app.registerHandler("/fppd", copyHandler(handleFppd), {drogon::Get, drogon::Post, drogon::Put, drogon::Delete, drogon::Head});
 
     // OutputMonitor (/fppd/ports/*)
@@ -350,6 +353,13 @@ void APIServer::Init(void) {
     app.registerHandlerViaRegex("/fppd/testing(/.*)?", copyHandler(handleTesting), {drogon::Get, drogon::Post, drogon::Head});
 
 #ifdef HAS_AES67_GSTREAMER
+    /**
+     * Get AES67 status: whether it's active, PTP sync state, discovered
+     * streams and pipelines.
+     *
+     * @route GET /api/aes67
+     * @response 200 AES67 status.
+     */
     // AES67 status/test endpoint
     auto handleAES67 = [](const HttpRequestPtr& req,
                           std::function<void(const HttpResponsePtr&)>&& callback) {
@@ -360,6 +370,12 @@ void APIServer::Init(void) {
 #endif
 
 #ifdef HAS_OPUS_RTP_GSTREAMER
+    /**
+     * Get Opus RTP status: whether it's active and the current pipelines.
+     *
+     * @route GET /api/opusrtp
+     * @response 200 Opus RTP status.
+     */
     auto handleOpusRTP = [](const HttpRequestPtr& req,
                             std::function<void(const HttpResponsePtr&)>&& callback) {
         callback(OpusRTPManager::INSTANCE.render_GET(req));
@@ -368,9 +384,12 @@ void APIServer::Init(void) {
     app.registerHandlerViaRegex("/opusrtp/.*", copyHandler(handleOpusRTP), {drogon::Get, drogon::Head});
 #endif
 
-    // Plugin-published PipeWire audio sources (AudioSourceRegistry).
-    // Consumed by the PHP API (GET /api/pipewire/audio/plugin-sources) to
-    // populate the Input Groups "PipeWire Source" member picker.
+    // Plugin-published PipeWire audio sources (AudioSourceRegistry). Internal
+    // to fppd -- the publicly documented route is the PHP passthrough,
+    // GetPipeWirePluginSources() in www/api/controllers/pipewire.php, which
+    // is what actually sits at /api/pipewire/audio/plugin-sources (this raw
+    // fppd path isn't Apache-proxied directly, so it has no /api/ route of
+    // its own to document here).
     auto handlePluginSources = [](const HttpRequestPtr& req,
                                   std::function<void(const HttpResponsePtr&)>&& callback) {
         std::string body = SaveJsonToString(AudioSourceRegistry::INSTANCE.toJson());
@@ -378,11 +397,53 @@ void APIServer::Init(void) {
     };
     app.registerHandler("/pipewire/audio/plugin-sources", copyHandler(handlePluginSources), {drogon::Get, drogon::Head});
 
+    // Internal-only endpoint, deliberately undocumented (no @route
+    // docblock) -- lists every HTTP route currently registered with the
+    // embedded Drogon server, FPP's own included, so ServeOpenApiSpec() in
+    // www/api/index.php can diff it against known @route docblocks and
+    // surface whatever's left over as plugin-supplied (e.g. fpp-brightness's
+    // /Brightness). Registered under /internal, not /fppd, specifically so
+    // it does NOT appear in Apache's direct-proxy namespace whitelist
+    // (etc/apache2.site) -- PHP reaches it the same way it reaches every
+    // other fppd endpoint, a direct call to localhost:32322, never through
+    // Apache. It's still technically reachable externally via the generic
+    // /api/plugin-apis/<path> passthrough (that rule proxies any fppd path
+    // unconditionally -- it's what makes third-party plugin routes work at
+    // all, so it can't be restricted just for this one path), but it's no
+    // longer listed anywhere or reachable at a guessable /api/ path.
+    auto handlePluginApiRoutes = [](const HttpRequestPtr& req,
+                                    std::function<void(const HttpResponsePtr&)>&& callback) {
+        static const char* methodNames[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS", "PATCH", "INVALID"};
+        Json::Value result(Json::arrayValue);
+        for (auto& info : drogon::app().getHandlersInfo()) {
+            Json::Value entry;
+            entry["path"] = std::get<0>(info);
+            drogon::HttpMethod m = std::get<1>(info);
+            entry["method"] = (m >= 0 && m <= drogon::Invalid) ? methodNames[m] : "UNKNOWN";
+            entry["description"] = std::get<2>(info);
+            result.append(entry);
+        }
+        callback(makeStringResponse(SaveJsonToString(result), 200, "application/json"));
+    };
+    app.registerHandler("/internal/pluginApiRoutes", copyHandler(handlePluginApiRoutes), {drogon::Get, drogon::Head});
+
     // PlayerResource catch-all for all other /fppd/* paths (registered AFTER
     // specific /fppd/ports and /fppd/testing routes so they match first)
     app.registerHandlerViaRegex("/fppd/.*", copyHandler(handleFppd), {drogon::Get, drogon::Post, drogon::Put, drogon::Delete, drogon::Head});
 
-    // PixelOverlayManager (/models/*, /overlays/*)
+    /**
+     * List/manage pixel overlay models. See /api/models/* and /api/overlays/*
+     * for per-model operations.
+     *
+     * @route GET /api/models
+     * @response 200 Array of overlay models.
+     */
+    // PixelOverlayManager (/models/*, /overlays/*). NOTE: despite the shared
+    // handler, methods are NOT uniformly supported across paths -- render_POST()
+    // only acts on p1=="models" and render_PUT() only acts on p1=="overlays"
+    // with a /model/{id}/... suffix (bare PUT /api/models 404s: "PUT Not
+    // found /models"). Confirmed live; verify before adding more @route
+    // docblocks here rather than assuming symmetry.
     auto handleModels = [](const HttpRequestPtr& req,
                            std::function<void(const HttpResponsePtr&)>&& callback) {
         HttpResponsePtr resp;
@@ -398,7 +459,12 @@ void APIServer::Init(void) {
     };
     app.registerHandler("/models", copyHandler(handleModels), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
     app.registerHandlerViaRegex("/models/.*", copyHandler(handleModels), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
-    app.registerHandler("/overlays", copyHandler(handleModels), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
+    // No bare "/overlays" registration: it was never a documented,
+    // intentional endpoint (checked the full doc history -- the pre-FPP10
+    // endpoints.json help page only ever listed "overlays/models" and
+    // "overlays/model/:ModelName", never bare "overlays"), Apache has never
+    // proxied it externally, and grep finds zero internal callers anywhere
+    // in the codebase. Only the real sub-paths are registered.
     app.registerHandlerViaRegex("/overlays/.*", copyHandler(handleModels), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
 
     // CommandManager (/command/*, /commands/*, /commandPresets/*)
@@ -413,10 +479,30 @@ void APIServer::Init(void) {
             resp = makeStringResponse("Method Not Allowed", 405);
         callback(resp);
     };
+    // Bare /command has no content of its own -- it 404s from CommandManager
+    // just like a bad sub-path would (confirmed by hitting it directly against
+    // fppd:32322). Registered anyway because /command/* needs a parent match;
+    // intentionally left undocumented since there's nothing real to document.
     app.registerHandler("/command", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
     app.registerHandlerViaRegex("/command/.*", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
+    /**
+     * List all defined commands.
+     *
+     * @route GET /api/commands
+     * @response 200 Array of commands.
+     */
+    // render_POST() only acts when the path's first segment is literally
+    // "command" (POST /api/command/{name}, already documented there) --
+    // bare POST here, and POST /api/commandPresets below, both 404
+    // "Not Found". Confirmed live.
     app.registerHandler("/commands", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
     app.registerHandlerViaRegex("/commands/.*", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
+    /**
+     * List all defined command presets.
+     *
+     * @route GET /api/commandPresets
+     * @response 200 Array of command presets.
+     */
     app.registerHandler("/commandPresets", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
     app.registerHandlerViaRegex("/commandPresets/.*", copyHandler(handleCommands), {drogon::Get, drogon::Post, drogon::Head});
 
@@ -432,6 +518,14 @@ void APIServer::Init(void) {
             resp = makeStringResponse("Method Not Allowed", 405);
         callback(resp);
     };
+    /**
+     * List all GPIO pins and their current state/configuration.
+     *
+     * @route GET /api/gpio
+     * @response 200 Array of GPIO pins.
+     */
+    // render_POST() only acts on POST /api/gpio/{pin} (already documented
+    // there); bare POST here 404s "Not Found". Confirmed live.
     app.registerHandler("/gpio", copyHandler(handleGpio), {drogon::Get, drogon::Post, drogon::Head});
     app.registerHandlerViaRegex("/gpio/.*", copyHandler(handleGpio), {drogon::Get, drogon::Post, drogon::Head});
 
@@ -450,6 +544,15 @@ void APIServer::Init(void) {
             resp = makeStringResponse("Method Not Allowed", 405);
         callback(resp);
     };
+    /**
+     * List all variables and their current values.
+     *
+     * @route GET /api/variables
+     * @response 200 Array of variables.
+     */
+    // Variables::render_POST()/render_DELETE() both require a name segment
+    // (POST /variables/{name}, DELETE /variables/{name} -- already
+    // documented there); bare POST/DELETE 400 "Bad Request". Confirmed live.
     app.registerHandler("/variables", copyHandler(handleVariables), { drogon::Get, drogon::Post, drogon::Delete, drogon::Head });
     app.registerHandlerViaRegex("/variables/.*", copyHandler(handleVariables), { drogon::Get, drogon::Post, drogon::Delete, drogon::Head });
 
@@ -467,6 +570,16 @@ void APIServer::Init(void) {
             resp = makeStringResponse("Method Not Allowed", 405);
         callback(resp);
     };
+    /**
+     * Get the current player state (playing/stopped, volume, current media, etc.).
+     *
+     * @route GET /api/player
+     * @response 200 Current player state.
+     */
+    // Player::render_POST()/render_PUT() are both unconditional
+    // `return makeStringResponse("Not Found", 404, ...)` -- registered for
+    // completeness/future use but dead code today. Confirmed live. Do not
+    // document POST/PUT here without checking Player.cpp again.
     app.registerHandler("/player", copyHandler(handlePlayer), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
     app.registerHandlerViaRegex("/player/.*", copyHandler(handlePlayer), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
 

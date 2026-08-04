@@ -3294,12 +3294,16 @@ function GetPipeWireAudioSources()
     return json($sources);
 }
 
-// GET /api/pipewire/audio/plugin-sources
-// Returns PipeWire Audio/Source nodes registered by plugins with fppd's
-// AudioSourceRegistry (via AudioSourceRegistry::INSTANCE.registerSource()).
-// Passthrough to fppd's HTTP server; returns an empty list when fppd is
-// not running.  The registry is in-fppd-memory only — saved input-group
-// members store the nodeName themselves, so nothing needs to persist here.
+/**
+ * List PipeWire Audio/Source nodes registered by plugins with fppd's
+ * AudioSourceRegistry (via AudioSourceRegistry::INSTANCE.registerSource()).
+ * Passthrough to fppd's HTTP server; returns an empty list when fppd is
+ * not running. The registry is in-fppd-memory only -- saved input-group
+ * members store the nodeName themselves, so nothing needs to persist here.
+ *
+ * @route GET /api/pipewire/audio/plugin-sources
+ * @response 200 Object with a `sources` array.
+ */
 function GetPipeWirePluginSources()
 {
     $result = array("sources" => array());

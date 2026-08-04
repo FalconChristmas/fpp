@@ -13,6 +13,9 @@
   ],
   "tags": [
     {
+      "name": "aes67"
+    },
+    {
       "name": "backups"
     },
     {
@@ -79,6 +82,9 @@
       "name": "options"
     },
     {
+      "name": "opusrtp"
+    },
+    {
       "name": "overlays"
     },
     {
@@ -140,6 +146,20 @@
     }
   ],
   "paths": {
+    "/api/aes67": {
+      "get": {
+        "tags": [
+          "aes67"
+        ],
+        "summary": "aes67",
+        "description": "Get AES67 status: whether it's active, PTP sync state, discovered streams and pipelines.",
+        "responses": {
+          "200": {
+            "description": "AES67 status."
+          }
+        }
+      }
+    },
     "/api/backups/configuration": {
       "post": {
         "tags": [
@@ -4232,6 +4252,20 @@
         }
       }
     },
+    "/api/opusrtp": {
+      "get": {
+        "tags": [
+          "opusrtp"
+        ],
+        "summary": "opusrtp",
+        "description": "Get Opus RTP status: whether it's active and the current pipelines.",
+        "responses": {
+          "200": {
+            "description": "Opus RTP status."
+          }
+        }
+      }
+    },
     "/api/overlays/effects": {
       "get": {
         "tags": [
@@ -4597,6 +4631,20 @@
         "responses": {
           "200": {
             "description": "Object with the `autoCreate` flag."
+          }
+        }
+      }
+    },
+    "/api/pipewire/audio/plugin-sources": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "pipewire/audio/plugin-sources",
+        "description": "List PipeWire Audio/Source nodes registered by plugins with fppd's AudioSourceRegistry (via AudioSourceRegistry::INSTANCE.registerSource()). Passthrough to fppd's HTTP server; returns an empty list when fppd is not running. The registry is in-fppd-memory only -- saved input-group members store the nodeName themselves, so nothing needs to persist here.",
+        "responses": {
+          "200": {
+            "description": "Object with a `sources` array."
           }
         }
       }
@@ -7198,88 +7246,6 @@
                   "script1.sh",
                   "script2.sh"
                 ]
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/scripts/installRemote/{category}/{filename}": {
-      "parameters": [
-        {
-          "name": "category",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "filename",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "scripts"
-        ],
-        "summary": "Install remote script",
-        "description": "Installs a remote script from the script repository.",
-        "responses": {
-          "200": {
-            "description": "Remote script installed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/scripts/viewRemote/{category}/{filename}": {
-      "parameters": [
-        {
-          "name": "category",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        },
-        {
-          "name": "filename",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "scripts"
-        ],
-        "summary": "Get remote script",
-        "description": "Returns the source code of a remote script from the script repository.",
-        "responses": {
-          "200": {
-            "description": "Remote script source code",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                },
-                "example": "The content of the script as a string"
               }
             }
           }
