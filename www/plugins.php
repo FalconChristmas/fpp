@@ -2176,6 +2176,28 @@
             if (activeTopTab === 'updates') $('#noUpdatesHint').toggleClass('d-none', installedVisible > 0);
             else $('#noUpdatesHint').addClass('d-none');
 
+            // Incompatible cards -- same search matching as Available/Installed,
+            // so the section doesn't sit there unfiltered (and misleadingly
+            // prominent) once a search has hidden everything else.
+            var incompatibleVisible = 0;
+            $('#incompatibleGrid').children('.pluginCard').each(function () {
+                if (urlLoadedMode) {
+                    $(this).addClass('d-none');
+                    return;
+                }
+                var searchText = $('.pluginTitle', this).text().toLowerCase();
+                var authorTxt = $('.pluginAuthor', this).text().toLowerCase();
+                if (authorTxt) searchText += ' ' + authorTxt;
+                var descTxt = $('.pluginCardDesc', this).text().toLowerCase();
+                if (descTxt) searchText += ' ' + descTxt;
+                var matchesSearch = value === '' || searchText.indexOf(value) > -1;
+                $(this).toggleClass('d-none', !matchesSearch);
+                if (matchesSearch) incompatibleVisible++;
+            });
+            var incompatibleTotal = $('#incompatibleGrid').children('.pluginCard').length;
+            $('#incompatiblePluginsWrap').toggleClass('d-none', incompatibleTotal === 0 || incompatibleVisible === 0);
+            $('#incompatiblePluginsCount').text(incompatibleVisible);
+
             // Update All is only useful once a check has actually found something
             // to update -- keep it out of the way otherwise, at every UI level.
             $('#updateAllBtn').toggleClass('d-none', updateVisible === 0);
@@ -2192,7 +2214,7 @@
                 $('#noUrlSchemeResults').removeClass('d-none');
             } else if (hasUrlError) {
                 $('#noAvailableResults').addClass('d-none');
-                $('#noUrlResults').addClass('d-none');
+                $('#noUrlResults').removeClass('d-none');
                 $('#noUrlSchemeResults').addClass('d-none');
             } else {
                 var showAvailEmpty = searching && activeTopTab === 'available' && availVisible === 0;
