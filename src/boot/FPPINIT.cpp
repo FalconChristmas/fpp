@@ -288,6 +288,12 @@ int main(int argc, char* argv[]) {
         runScripts("boot", true);
         int skipNetwork = FileExists("/etc/fpp/desktop") || getRawSettingInt("SkipNetworkReset", 0);
         if (!skipNetwork) {
+            // Respect the same "FPP doesn't own networking here" gate as
+            // setupNetwork() below -- this touches the same
+            // systemd-networkd-owned lease state, so it must not run on
+            // desktop/dev builds or when the admin has explicitly opted out
+            // via SkipNetworkReset.
+            consumePendingDhcpLeaseReset();
             setupNetwork();
         }
         configureBBB();
