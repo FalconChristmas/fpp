@@ -207,7 +207,12 @@ fi
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
     logStage "Updating boot loader"
     echo "Updating Raspberry Pi boot loader:"
-    /bin/rpi-eeprom-update -a
+    # This script runs chrooted into the read-only .fppos image mount, so the
+    # default backup path (/var/lib/raspberrypi/bootloader/backup) resolves
+    # there and fails with "Read-only file system". Point it at /mnt instead,
+    # which from inside this chroot is the bind-mounted real disk that the
+    # new FPP will actually boot from.
+    FIRMWARE_BACKUP_DIR=/mnt/var/lib/raspberrypi/bootloader/backup /bin/rpi-eeprom-update -a
 fi
 
 if [ "${FPPPLATFORM}" = "BeagleBone 64" ]; then
