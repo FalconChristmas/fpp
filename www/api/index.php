@@ -581,7 +581,14 @@ function ServeOpenApiSpec() {
 
     foreach (collectPluginEndpoints() as $ep) {
         $method = strtolower($ep['method']);
-        $path   = '/plugin/' . $ep['plugin'] . '/' . $ep['endpoint'];
+        // Every other path in this spec is the full external path (@route
+        // docblocks are written with /api/... baked in, and
+        // MergeUndocumentedFppdRoutes() below does the same) -- match that,
+        // rather than the bare limonade-relative path these are dispatched
+        // at internally. servers.url is "/", not "/api", so leaving this one
+        // bare made every generated request URL for a PHP plugin route
+        // (Scalar's "Try it", copy-as-curl, etc.) 404.
+        $path   = '/api/plugin/' . $ep['plugin'] . '/' . $ep['endpoint'];
         if (!isset($spec['paths'][$path])) {
             $spec['paths'][$path] = array();
         }
