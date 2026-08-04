@@ -157,6 +157,13 @@ int StartEffect(FSEQFile* fseq, const std::string& effectName, int loop, bool bg
     std::unique_lock<std::mutex> lock(effectsLock);
     if (effectCount >= MAX_EFFECTS) {
         LogErr(VB_EFFECT, "Unable to start effect %s, maximum number of effects already running\n", effectName.c_str());
+        // This function takes ownership of fseq -- the effectID failure below
+        // deletes it, and so does StopEffect. Returning here without deleting
+        // leaked the whole FSEQFile, mapping and all, on every rejected start,
+        // which is exactly when a controller is already at the ceiling and
+        // retrying: one report leaked 48 of them before running out of address
+        // space to create the next read-ahead thread in.
+        delete fseq;
         return -1;
     }
     int effectID = -1;
