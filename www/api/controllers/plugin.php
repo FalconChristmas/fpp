@@ -2613,4 +2613,265 @@ function _PluginExtractPageFromRaw($src, $unified, $type, array &$pages)
 	}
 }
 
+/**
+ * Function names a plugin's api.php must not declare, beyond anything FPP has
+ * already declared (which is checked dynamically).
+ *
+ * These are limonade's request-handling hooks. It either calls them when a
+ * global of that name happens to exist (call_if_exists: configure, initialize,
+ * before, autorender, before_exit, before_sending_header) or defines its own
+ * only when one does not (after, route_missing, autoload_controller, not_found,
+ * server_error). Either way a plugin declaring one silently takes over part of
+ * request handling for EVERY API call, not just its own endpoints --
+ * autoload_controller() in particular decides whether FPP's controllers get
+ * loaded at all. None of them are defined yet when plugin code is included, so
+ * function_exists() cannot catch them; they have to be named.
+ */
+function PluginApiReservedFunctions()
+{
+    return array(
+        'configure', 'initialize', 'before', 'autorender', 'before_exit',
+        'before_sending_header', 'after', 'route_missing', 'autoload_controller',
+        'not_found', 'server_error',
+    );
+}
+
+/**
+ * Top-level function names declared by a PHP file.
+ *
+ * Uses the tokenizer rather than a regex so that the word "function" inside a
+ * comment or a string can't produce a false hit. Methods are skipped (they live
+ * in a class's namespace and cannot collide), as are functions inside a
+ * namespace declaration, and closures have no name to collect.
+ */
+function PluginApiDeclaredFunctions($file)
+{
+    $src = @file_get_contents($file);
+    if ($src === false || $src === '') {
+        return array();
+    }
+    $tokens = @token_get_all($src);
+    if (!is_array($tokens)) {
+        return array();
+    }
+
+    $names = array();
+    $depth = 0;          // current brace depth
+    $classDepth = -1;    // brace depth the enclosing class body sits at, or -1
+    $namespaced = false;
+    $count = count($tokens);
+
+    for ($i = 0; $i < $count; $i++) {
+        $t = $tokens[$i];
+
+        if (is_string($t)) {
+            if ($t === '{') {
+                $depth++;
+            } else if ($t === '}') {
+                $depth--;
+                if ($classDepth >= 0 && $depth <= $classDepth) {
+                    $classDepth = -1;
+                }
+            }
+            continue;
+        }
+
+        if ($t[0] === T_NAMESPACE) {
+            // Anything declared from here on is namespaced and cannot collide
+            // with FPP's global functions.
+            $namespaced = true;
+            continue;
+        }
+
+        if ($t[0] === T_CLASS || $t[0] === T_INTERFACE || $t[0] === T_TRAIT) {
+            // Skip the "::class" constant, which is not a class declaration.
+            $prev = $i - 1;
+            while ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_WHITESPACE) {
+                $prev--;
+            }
+            if ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_DOUBLE_COLON) {
+                continue;
+            }
+            $classDepth = $depth;
+            continue;
+        }
+
+        if ($t[0] !== T_FUNCTION) {
+            continue;
+        }
+
+        // The name, if any, is the next token that isn't whitespace, a comment,
+        // or the "&" of a by-reference return. No name means a closure.
+        //
+        // The ampersand is a plain string token on older PHP but its own token
+        // type from 8.1, so both forms have to be skipped or "function &foo()"
+        // reads as anonymous and its name is missed.
+        $skip = array(T_WHITESPACE, T_COMMENT, T_DOC_COMMENT);
+        foreach (array('T_AMPERSAND_FOLLOWED_BY_VAR_OR_VARARG',
+                       'T_AMPERSAND_NOT_FOLLOWED_BY_VAR_OR_VARARG') as $amp) {
+            if (defined($amp)) {
+                $skip[] = constant($amp);
+            }
+        }
+        $j = $i + 1;
+        while ($j < $count) {
+            if (is_string($tokens[$j])) {
+                if ($tokens[$j] !== '&') {
+                    break;
+                }
+            } else if (!in_array($tokens[$j][0], $skip, true)) {
+                break;
+            }
+            $j++;
+        }
+        if ($j < $count && is_array($tokens[$j]) && $tokens[$j][0] === T_STRING) {
+            if ($classDepth < 0 && !$namespaced) {
+                $names[] = $tokens[$j][1];
+            }
+        }
+    }
+
+    return $names;
+}
+
+/**
+ * The names in a plugin's api.php that would collide with something FPP relies
+ * on. Empty means the file is safe to include.
+ */
+function PluginApiFunctionConflicts($file)
+{
+    $conflicts = array();
+    foreach (PluginApiDeclaredFunctions($file) as $name) {
+        if (in_array(strtolower($name), PluginApiReservedFunctions(), true)) {
+            $conflicts[] = $name . ' (reserved)';
+        } else if (function_exists($name)) {
+            $conflicts[] = $name;
+        }
+    }
+    return $conflicts;
+}
+
+// Returns an array of all plugin endpoints: [['plugin'=>..., 'method'=>..., 'endpoint'=>..., 'callback'=>...], ...]
+//
+// Memoized: this is called once from addPluginEndpoints() at bootstrap and
+// again from ServeOpenApiSpec() (controllers/docs.php) when /openapi.json is
+// requested. Recomputing it the second time is wrong, not just wasteful --
+// PluginApiFunctionConflicts() treats function_exists() as a signal, and by
+// the second call every plugin's own functions exist because the first call
+// just require_once'd them. That reads as every plugin conflicting with
+// itself, so a naive second pass silently drops all plugin paths from the
+// served spec while the routes (registered by the first pass) keep working.
+//
+// Depends on FPP's own controllers -- this file included -- already being
+// loaded, so that PluginApiFunctionConflicts()'s function_exists() checks see
+// every FPP-declared name before any plugin's api.php is required. index.php
+// guarantees that ordering (require_once_dir(controllers) runs before
+// addPluginEndpoints(), which calls this); see the comment there.
+function collectPluginEndpoints()
+{
+    static $collected = null;
+    if ($collected !== null) {
+        return $collected;
+    }
+
+    global $pluginDirectory;
+    $collected = array();
+    $baseDir = $pluginDirectory . '/';
+    if ($dir = opendir($baseDir)) {
+        while (($file = readdir($dir)) !== false) {
+            if (!in_array($file, array('.', '..')) && is_dir($baseDir . $file) && is_file($baseDir . $file . '/api.php')) {
+                // Including a file that redeclares an existing function is a
+                // fatal error, and it would happen here -- taking down every
+                // route in the API, not just this plugin's. Check first and skip
+                // the plugin instead. Losing one plugin's endpoints is a bad
+                // outcome; losing the API is a much worse one.
+                $conflicts = PluginApiFunctionConflicts($baseDir . $file . '/api.php');
+                if (!empty($conflicts)) {
+                    error_log("FPP: skipping plugin API for '$file' -- api.php declares "
+                        . "function(s) FPP already provides: " . implode(', ', $conflicts));
+                    continue;
+                }
+
+                $functionsBefore = get_defined_functions();
+                $userFunctionsBefore = isset($functionsBefore['user']) ? $functionsBefore['user'] : array();
+
+                // A syntax error in a plugin's api.php is a ParseError thrown at
+                // require_once time -- catchable, unlike a redeclaration fatal
+                // (PHP never turned "cannot redeclare" into a catchable Error, so
+                // that one still has to be prevented before this point rather than
+                // caught here; see PluginApiFunctionConflicts() above). Confirmed
+                // live: an uncaught ParseError here previously took down every
+                // route in the API, not just this plugin's, exactly like the
+                // conflict case -- catch it and skip the plugin instead.
+                try {
+                    require_once $baseDir . $file . '/api.php';
+                } catch (\Throwable $e) {
+                    error_log("FPP: skipping plugin API for '$file' -- api.php failed to load: "
+                        . get_class($e) . ': ' . $e->getMessage());
+                    continue;
+                }
+
+                $functionsAfter = get_defined_functions();
+                $userFunctionsAfter = isset($functionsAfter['user']) ? $functionsAfter['user'] : array();
+                $newUserFunctions = array_diff($userFunctionsAfter, $userFunctionsBefore);
+
+                $sfile = preg_replace('/-/', '', $file);
+                $endpointFunction = "getEndpoints$sfile";
+
+                if (!is_callable($endpointFunction)) {
+                    foreach ($newUserFunctions as $funcName) {
+                        if (stripos($funcName, 'getEndpoints') === 0) {
+                            $endpointFunction = $funcName;
+                            break;
+                        }
+                    }
+                }
+
+                if (!is_callable($endpointFunction)) {
+                    error_log("Skipping plugin API endpoint registration for '$file': no callable getEndpoints* function found");
+                    continue;
+                }
+
+                foreach (call_user_func($endpointFunction) as $ep) {
+                    if (!isset($ep['callback'])) {
+                        error_log("Skipping plugin endpoint for '$file': callback missing");
+                        continue;
+                    }
+                    $collected[] = array(
+                        'plugin'   => $file,
+                        'method'   => $ep['method'],
+                        'endpoint' => $ep['endpoint'],
+                        'callback' => $ep['callback'],
+                    );
+                }
+            }
+        }
+    }
+    return $collected;
+}
+
+// Called once from index.php, after require_once_dir(controllers) and before
+// run(), so plugin routes register after every one of FPP's own dispatch_*
+// calls (route_find() returns the first match, so a plugin can never shadow
+// an FPP route this way).
+function addPluginEndpoints()
+{
+    foreach (collectPluginEndpoints() as $ep) {
+        if (!is_callable($ep['callback'])) {
+            error_log("Skipping plugin endpoint for '{$ep['plugin']}': callback not callable");
+            continue;
+        }
+        $path = '/plugin/' . $ep['plugin'] . '/' . $ep['endpoint'];
+        if ($ep['method'] == 'GET') {
+            dispatch_get($path, $ep['callback']);
+        } else if ($ep['method'] == 'POST') {
+            dispatch_post($path, $ep['callback']);
+        } else if ($ep['method'] == 'PUT') {
+            dispatch_put($path, $ep['callback']);
+        } else if ($ep['method'] == 'DELETE') {
+            dispatch_delete($path, $ep['callback']);
+        }
+    }
+}
+
 ?>
