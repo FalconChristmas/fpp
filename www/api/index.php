@@ -488,7 +488,21 @@ function collectPluginEndpoints()
                 $functionsBefore = get_defined_functions();
                 $userFunctionsBefore = isset($functionsBefore['user']) ? $functionsBefore['user'] : array();
 
-                require_once $baseDir . $file . '/api.php';
+                // A syntax error in a plugin's api.php is a ParseError thrown at
+                // require_once time -- catchable, unlike a redeclaration fatal
+                // (PHP never turned "cannot redeclare" into a catchable Error, so
+                // that one still has to be prevented before this point rather than
+                // caught here; see PluginApiFunctionConflicts() above). Confirmed
+                // live: an uncaught ParseError here previously took down every
+                // route in the API, not just this plugin's, exactly like the
+                // conflict case -- catch it and skip the plugin instead.
+                try {
+                    require_once $baseDir . $file . '/api.php';
+                } catch (\Throwable $e) {
+                    error_log("FPP: skipping plugin API for '$file' -- api.php failed to load: "
+                        . get_class($e) . ': ' . $e->getMessage());
+                    continue;
+                }
 
                 $functionsAfter = get_defined_functions();
                 $userFunctionsAfter = isset($functionsAfter['user']) ? $functionsAfter['user'] : array();
