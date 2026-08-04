@@ -22,7 +22,12 @@ DEFAULT_VALUES=(
     ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
     ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
     ["style-src"]="'self' 'unsafe-inline'"
-    ["font-src"]="'self' data:"
+    # https://fonts.scalar.com: the Scalar API docs viewer (www/api/api.html)
+    # loads its Inter/mono webfonts from there. Missing since Scalar was
+    # integrated (9bab76c81) -- confirmed live via 14 blocked font-src
+    # violations on /api/, silently falling back to the system font instead
+    # of erroring visibly.
+    ["font-src"]="'self' data: https://fonts.scalar.com"
 )
 
 # local JSON template content
