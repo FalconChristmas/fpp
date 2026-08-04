@@ -136,24 +136,27 @@ if (isset($_GET['areas'])) {
     $areas = preg_split('/,/', $areasStr);
 }
 
-// Plugin provenance (see www/api/controllers/plugin.php) is meant to survive
+// Plugin source (see www/api/controllers/plugin.php) is meant to survive
 // everything short of a reimage -- it exists to tell a Support Zip reader
-// whether unofficial/unknown-provenance code has EVER touched this system,
+// whether unofficial/unknown-source code has EVER touched this system,
 // even after the plugin is long gone. The 'settings' area below deletes the
 // whole settings file, which would otherwise silently erase that history.
-// Snapshot the three known keys by name (not a raw file copy) BEFORE
-// deletion, so only currently-valid, correctly-named entries carry forward
-// -- if this reset is being run because those settings look wrong (e.g. a
-// stale/mis-named leftover from a previous FPP version), a raw copy would
-// just carry the corruption forward; reading by exact known key name and
-// re-writing through WriteSettingToFile() below guarantees the restored
-// entries are in the current, correct format either way.
-$pluginProvenanceSettings = array('PluginOfficialEverInstalled', 'PluginCommunityEverInstalled', 'PluginUnknownEverInstalled');
-$pluginProvenanceBackup = array();
-foreach ($pluginProvenanceSettings as $setting) {
+// Snapshot the known keys by name (not a raw file copy) BEFORE deletion, so
+// only currently-valid, correctly-named entries carry forward -- if this reset
+// is being run because those settings look wrong (e.g. a stale/mis-named
+// leftover from a previous FPP version), a raw copy would just carry the
+// corruption forward; reading by exact known key name and re-writing through
+// WriteSettingToFile() below guarantees the restored entries are in the
+// current, correct format either way.
+$pluginSourceSettings = array(
+    'PluginUnknownEverInstalled',
+    'PluginUnverifiedRepos',
+);
+$pluginSourceBackup = array();
+foreach ($pluginSourceSettings as $setting) {
     $value = ReadSettingFromFile($setting);
     if ($value !== false && $value !== '') {
-        $pluginProvenanceBackup[$setting] = $value;
+        $pluginSourceBackup[$setting] = $value;
     }
 }
 
@@ -190,9 +193,9 @@ foreach ($areas as $area) {
 
 flush();
 
-if (in_array('settings', $areas) && !empty($pluginProvenanceBackup)) {
-    printf("\nRestoring plugin provenance history...\n");
-    foreach ($pluginProvenanceBackup as $setting => $value) {
+if (in_array('settings', $areas) && !empty($pluginSourceBackup)) {
+    printf("\nRestoring plugin source history...\n");
+    foreach ($pluginSourceBackup as $setting => $value) {
         WriteSettingToFile($setting, $value);
         printf("  Restored setting: %s = %s\n", $setting, $value);
     }

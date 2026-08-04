@@ -6310,54 +6310,16 @@
         }
       }
     },
-    "/api/plugin/fetchImage?url=...": {
-      "get": {
-        "tags": [
-          "plugin"
-        ],
-        "summary": "Proxy-fetch a plugin icon image",
-        "description": "Fetches an image from an external URL and serves it with the correct content-type. Used to bypass CSP restrictions that block loading images from external hosts (e.g. raw.githubusercontent.com) directly in `<img>` tags.",
-        "responses": {
-          "200": {
-            "description": "Image data"
-          },
-          "400": {
-            "description": "Missing or invalid URL"
-          }
-        }
-      }
-    },
     "/api/plugin/fetchInfo": {
       "post": {
         "tags": [
           "plugin"
         ],
-        "summary": "Get plugin info from URL",
-        "description": "Server-side proxy for fetching a `pluginInfo.json` from a remote URL. Used to retrieve plugin repository info without CORS issues, and to authenticate against private GitHub repositories using credentials configured on the Developer settings page.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "url": "https://example.com/pluginInfo.json",
-                "useCredentials": 1
-              }
-            }
-          }
-        },
+        "summary": "Fetch a pluginInfo.json on the browser's behalf",
+        "description": "Backs the \"Enter a pluginInfo.json URL\" box on the Plugins page. The browser tries the URL directly first; this is the fallback for when that fails, which is normally CORS or a private repo needing the configured PAT. Restricted to GitHub hosts. Without that this is an open proxy: it fetches whatever URL the caller names and hands back the response body, so anyone who can reach FPP's web UI could read anything FPP's network can reach. The restriction costs nothing real -- a plugin is a git repo FPP clones from GitHub, and the credentialed path here is GitHub-PAT-specific already. A pluginInfo.json hosted elsewhere still loads via the browser's direct attempt when that host allows it; only the server-side fallback is GitHub-only.",
         "responses": {
           "200": {
-            "description": "Plugin info fetched from remote URL",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {}
-              }
-            }
+            "description": "The decoded pluginInfo.json"
           }
         }
       }
@@ -6459,40 +6421,23 @@
         }
       }
     },
-    "/api/plugin/provenance": {
+    "/api/plugin/source": {
       "get": {
         "tags": [
           "plugin"
         ],
-        "summary": "Get plugin provenance status",
-        "description": "Live-scans the plugin directory and classifies every currently-installed plugin into official/community/unknown (see ClassifyPluginProvenance()), combined with the sticky \"ever installed\" settings so plugins removed after this feature shipped still show up. A directory counts as \"installed\" even if incomplete/partially installed (e.g. missing pluginInfo.json) -- such a plugin can't be classified by srcURL/index lookup, so it falls into 'unknown'.",
+        "summary": "Get plugin source status",
+        "description": "Reports whether a plugin from outside the curated plugin list has ever been installed on this system, at one of two confidence levels: \"unknown\"    -- it definitely has. \"unverified\" -- one may have been: something was installed while FPP could not reach the plugin list to check it, and the list still isn't cached, so the question is still open. \"none\"       -- nothing to report. Answered entirely from settings plus an already-cached plugin list. No network call, no plugin-directory scan: this is on the health check's path and has to be instant even on a box with no internet.",
         "responses": {
           "200": {
-            "description": "Provenance status per category",
+            "description": "Source level",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object"
                 },
                 "example": {
-                  "official": {
-                    "label": "Official Plugins",
-                    "installedCount": 1,
-                    "everInstalled": true,
-                    "status": "Installed"
-                  },
-                  "community": {
-                    "label": "Community Plugins",
-                    "installedCount": 0,
-                    "everInstalled": true,
-                    "status": "Previously Installed"
-                  },
-                  "unknown": {
-                    "label": "Unknown Plugins",
-                    "installedCount": 0,
-                    "everInstalled": false,
-                    "status": null
-                  }
+                  "level": "none"
                 }
               }
             }
@@ -6585,10 +6530,10 @@
           "plugin"
         ],
         "summary": "Serve plugin icon",
-        "description": "Serves the plugin icon. First checks for a local icon.png in the plugin directory. If not found, checks the plugin's pluginInfo.json for an iconURL field and proxies it (same-origin, avoids CSP restrictions on external image hosts).",
+        "description": "Serves the icon for {RepoName}, whether or not that plugin is installed. Resolved in three tiers: 1. a local icon.png in the plugin's directory; 2. the iconURL out of the plugin's own installed pluginInfo.json; 3. the iconURL out of the listed pluginInfo.json for {RepoName}, for plugins that are listed but not installed (the Browse tab). Serving these same-origin is what lets the Plugins page show icons at all -- raw.githubusercontent.com is allow-listed in FPP's CSP connect-src, not img-src. The client passes only a repo name: tiers 2 and 3 both run their URL past PluginIconURLIsAllowed() before fetching, so the set of things this endpoint can be made to request is bounded by the plugin list and by that allow-list, not by the caller.",
         "responses": {
           "200": {
-            "description": "PNG image data"
+            "description": "Image data"
           },
           "404": {
             "description": "No icon available"
