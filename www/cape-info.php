@@ -399,20 +399,22 @@ if (isset($settings["cape-info"])) {
                         }
                     }
                     if ("platforms" in capeObj) {
+                        // A cape may be listed by exact model (Variant) or by the
+                        // compatibility class several models share (CapeVariant --
+                        // the BeagleBone Black family, or both PocketBeagle 2 boards).
                         var plat = capeObj.platforms;
-                        if (settings["Platform"] == "BeagleBone Black") {
-                            if (!plat.includes(settings["Variant"])) {
-                                valid = false;
-                            }
-                        } else if (settings["Platform"] == "BeagleBone 64") {
-                            if (!plat.includes(settings["Variant"])) {
-                                valid = false;
-                            }
-                        } else {
-                            if (!plat.includes(settings["Platform"])
-                                && !plat.includes(settings["Variant"])) {
-                                valid = false;
-                            }
+                        var match = plat.includes(settings["Variant"])
+                            || plat.includes(settings["CapeVariant"]);
+                        // The Beagle platforms deliberately do not fall back to
+                        // Platform: the PocketBeagle sits on the "BeagleBone Black"
+                        // platform but takes a different set of capes.
+                        if (!match
+                            && settings["Platform"] != "BeagleBone Black"
+                            && settings["Platform"] != "BeagleBone 64") {
+                            match = plat.includes(settings["Platform"]);
+                        }
+                        if (!match) {
+                            valid = false;
                         }
                     }
                     if (valid) {
@@ -459,7 +461,8 @@ if (isset($settings["cape-info"])) {
                         var valid = true;
                         if ("platforms" in ver) {
                             if (!ver.platforms.includes(settings["Platform"])
-                                && !ver.platforms.includes(settings["Variant"])) {
+                                && !ver.platforms.includes(settings["Variant"])
+                                && !ver.platforms.includes(settings["CapeVariant"])) {
                                 valid = false;
                             }
                         }

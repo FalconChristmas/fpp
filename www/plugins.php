@@ -28,6 +28,9 @@
         var pluginInfoURLs = [];
         var pluginInfoUseCredentials = {};
         var manuallyLoadedPlugins = {};
+        // pluginInfo.json repoName -> the name that entry is listed under in
+        // pluginList.json, when they differ. See LoadPlugins() and GetIconUrl().
+        var pluginListKeyOf = {};
         var lastAutoLoadedUrl = '';
         var urlLoadedRepo = null;
         var pluginUrlError = '';
@@ -273,16 +276,26 @@
         // Modified when the icon file is unchanged, so the overhead is minimal.
         var iconCacheNonce = Date.now();
 
-        // Get the plugin icon URL. Always routes through the same-origin API to
-        // avoid CSP restrictions on external image hosts (raw.githubusercontent.com
-        // is only allow-listed in connect-src, not img-src).
+        // Get the plugin icon URL. Always routes through the same-origin
+        // api/plugin/:RepoName/icon, keyed purely by repo name -- both to avoid
+        // CSP restrictions on external image hosts (raw.githubusercontent.com is
+        // only allow-listed in connect-src, not img-src) and because the server
+        // resolves the actual image source itself (local icon.png, or the
+        // listed pluginInfo.json) rather than us handing it a URL to fetch.
+        // The hasIcon/iconURL checks below are only hints that let us skip a
+        // request we already know will 404.
         function GetIconUrl(data, installed) {
+            var name = data.repoName;
             if (installed) {
                 if (data.hasOwnProperty('hasIcon') && !data.hasIcon) return null;
-                return 'api/plugin/' + data.repoName + '/icon?_=' + iconCacheNonce;
+            } else {
+                if (!data.iconURL) return null;
+                // Not installed, so the server has to find this one in the
+                // plugin list -- ask under the name the list actually files it
+                // under, which is not always the plugin's own repoName.
+                name = pluginListKeyOf[name] || name;
             }
-            if (data.iconURL) return 'api/plugin/fetchImage?url=' + encodeURIComponent(data.iconURL);
-            return null;
+            return 'api/plugin/' + name + '/icon?_=' + iconCacheNonce;
         }
 
         function BuildCategoryPills() {
@@ -700,7 +713,7 @@
                     '<span><b>Not enough RAM/CPU.</b> ' + res.title +
                     ' Installing it anyway may degrade or disrupt your show.</span></div>';
             // Pasting a plugininfo.json URL is a developer workflow (testing a plugin
-            // mid-development, often from a branch/fork that isn't in the catalog at
+            // mid-development, often from a branch/fork that isn't in the plugin list at
             // all yet) -- not a general install path. Shown regardless of the
             // resolved plugin's official/third-party status, and forces a
             // confirmation dialog even for an Official-org plugin that would
@@ -1709,7 +1722,7 @@
         // detail modal stay consistent. includeCategory adds the category chip.
         //
         // Color budget: amber "Not updated" and red "Incompatible" are the only problem
-        // colors, and purple "Official" the only provenance one (matching the Dev badge
+        // colors, and purple "Official" the only source one (matching the Dev badge
         // on about.php); everything else is a quiet .fpp-tag. So a card carries at most
         // one warning plus one trust mark rather than five competing alerts. Previously
         // Private and "Not updated" were both amber, which left amber meaning nothing in
@@ -1941,6 +1954,13 @@
                             }
                             if (pluginList[index] && pluginList[index].length > 2 && pluginList[index][2])
                                 data.__category = pluginList[index][2];
+                            // A pluginInfo.json's own repoName is not always the
+                            // name it is listed under in pluginList.json (e.g.
+                            // "TwilioControl" vs "FPP-Plugin-TwilioControl"), and
+                            // the plugin list name is the only one the server can look
+                            // an icon up by. Record the pairing.
+                            if (data && data.repoName)
+                                pluginListKeyOf[data.repoName] = pluginList[index][0];
                             LoadPlugin(data);
                             FilterPlugins();
 
@@ -1962,7 +1982,7 @@
         }
 
         // Bound once in document.ready -- previously this was (re)bound inside
-        // LoadPlugins' per-plugin AJAX success callback, so with N catalogued
+        // LoadPlugins' per-plugin AJAX success callback, so with N listed
         // plugins the same handler ended up attached N times to the same input,
         // and every keystroke re-ran this whole body N times.
         function HandlePluginInputChange() {
@@ -2156,6 +2176,28 @@
             if (activeTopTab === 'updates') $('#noUpdatesHint').toggleClass('d-none', installedVisible > 0);
             else $('#noUpdatesHint').addClass('d-none');
 
+            // Incompatible cards -- same search matching as Available/Installed,
+            // so the section doesn't sit there unfiltered (and misleadingly
+            // prominent) once a search has hidden everything else.
+            var incompatibleVisible = 0;
+            $('#incompatibleGrid').children('.pluginCard').each(function () {
+                if (urlLoadedMode) {
+                    $(this).addClass('d-none');
+                    return;
+                }
+                var searchText = $('.pluginTitle', this).text().toLowerCase();
+                var authorTxt = $('.pluginAuthor', this).text().toLowerCase();
+                if (authorTxt) searchText += ' ' + authorTxt;
+                var descTxt = $('.pluginCardDesc', this).text().toLowerCase();
+                if (descTxt) searchText += ' ' + descTxt;
+                var matchesSearch = value === '' || searchText.indexOf(value) > -1;
+                $(this).toggleClass('d-none', !matchesSearch);
+                if (matchesSearch) incompatibleVisible++;
+            });
+            var incompatibleTotal = $('#incompatibleGrid').children('.pluginCard').length;
+            $('#incompatiblePluginsWrap').toggleClass('d-none', incompatibleTotal === 0 || incompatibleVisible === 0);
+            $('#incompatiblePluginsCount').text(incompatibleVisible);
+
             // Update All is only useful once a check has actually found something
             // to update -- keep it out of the way otherwise, at every UI level.
             $('#updateAllBtn').toggleClass('d-none', updateVisible === 0);
@@ -2172,7 +2214,7 @@
                 $('#noUrlSchemeResults').removeClass('d-none');
             } else if (hasUrlError) {
                 $('#noAvailableResults').addClass('d-none');
-                $('#noUrlResults').addClass('d-none');
+                $('#noUrlResults').removeClass('d-none');
                 $('#noUrlSchemeResults').addClass('d-none');
             } else {
                 var showAvailEmpty = searching && activeTopTab === 'available' && availVisible === 0;

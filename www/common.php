@@ -2221,10 +2221,16 @@ function file_cache_internal($cache_name, $data_to_cache, $cache_age = 90)
     }
     return $cache_data_return;
 }
-function file_cache($cache_name, $data_function, $cache_time = 90, $grace_time = 10)
+// $cache_dir defaults to /tmp, which on most FPP platforms is tmpfs -- so the
+// cache is volatile and every reboot starts cold.  That is the right default:
+// almost everything cached here is cheap to recompute and some of it (kernel
+// version, git state) SHOULD be re-read after a reboot.  Pass a persistent
+// directory only for a value whose absence has a visible consequence rather
+// than just a slower first request -- see file_cache_dir_persistent().
+function file_cache($cache_name, $data_function, $cache_time = 90, $grace_time = 10, $cache_dir = "/tmp")
 {
-    $file_path = "/tmp/cache_" . $cache_name . ".cache";
-    $file_path_lock = "/tmp/cache_" . $cache_name . ".cache_recalc";
+    $file_path = $cache_dir . "/cache_" . $cache_name . ".cache";
+    $file_path_lock = $cache_dir . "/cache_" . $cache_name . ".cache_recalc";
     $exists = file_exists($file_path);
     $recache = true;
     $inGrace = false;
@@ -2284,6 +2290,17 @@ function file_cache($cache_name, $data_function, $cache_time = 90, $grace_time =
     flock($fd, LOCK_UN);
     fclose($fd);
     return $data;
+}
+
+// Cache directory that survives a reboot, for file_cache()'s $cache_dir. Lives
+// under the media directory so it is on writable storage and is cleared by the
+// "Caches" area of a config reset (resetConfig.php's 'tmp/*'), which is the
+// behaviour a user pressing Reset Caches expects.
+function file_cache_dir_persistent()
+{
+    global $settings;
+    $dir = $settings['mediaDirectory'] . '/tmp';
+    return is_dir($dir) ? $dir : '/tmp';
 }
 
 

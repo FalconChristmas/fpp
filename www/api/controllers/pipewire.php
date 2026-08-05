@@ -3294,12 +3294,16 @@ function GetPipeWireAudioSources()
     return json($sources);
 }
 
-// GET /api/pipewire/audio/plugin-sources
-// Returns PipeWire Audio/Source nodes registered by plugins with fppd's
-// AudioSourceRegistry (via AudioSourceRegistry::INSTANCE.registerSource()).
-// Passthrough to fppd's HTTP server; returns an empty list when fppd is
-// not running.  The registry is in-fppd-memory only — saved input-group
-// members store the nodeName themselves, so nothing needs to persist here.
+/**
+ * List PipeWire Audio/Source nodes registered by plugins with fppd's
+ * AudioSourceRegistry (via AudioSourceRegistry::INSTANCE.registerSource()).
+ * Passthrough to fppd's HTTP server; returns an empty list when fppd is
+ * not running. The registry is in-fppd-memory only -- saved input-group
+ * members store the nodeName themselves, so nothing needs to persist here.
+ *
+ * @route GET /api/pipewire/audio/plugin-sources
+ * @response 200 Object with a `sources` array.
+ */
 function GetPipeWirePluginSources()
 {
     $result = array("sources" => array());
@@ -6164,6 +6168,51 @@ function SavePipeWireVideoGroups()
 // The primary HDMI output is handled directly by GStreamerOut's kmssink
 // (not through PipeWire), so the PipeWire video stream is available for
 // ADDITIONAL outputs: a second HDMI port, a PixelOverlay, a network stream.
+/////////////////////////////////////////////////////////////////////////////
+// Translate a member's region selection into the fractional crop rectangle
+// fppd consumes.  Regions are stored as fractions of the source rather than
+// pixels so the same configuration splits any resolution -- fppd resolves them
+// against the negotiated caps at playback time.
+//
+// Returns null for a full-frame (or unset) region so the key stays out of the
+// consumer config entirely, which is what the C++ default already means.
+function VideoRegionToCrop($member)
+{
+    $region = isset($member['region']) ? $member['region'] : 'full';
+
+    switch ($region) {
+        case 'left':
+            return array('x' => 0.0, 'y' => 0.0, 'width' => 0.5, 'height' => 1.0);
+        case 'right':
+            return array('x' => 0.5, 'y' => 0.0, 'width' => 0.5, 'height' => 1.0);
+        case 'top':
+            return array('x' => 0.0, 'y' => 0.0, 'width' => 1.0, 'height' => 0.5);
+        case 'bottom':
+            return array('x' => 0.0, 'y' => 0.5, 'width' => 1.0, 'height' => 0.5);
+        case 'custom':
+            // Stored as percentages in the UI; clamped here so a hand-edited
+            // config can't produce a region that crops the frame to nothing.
+            $x = isset($member['cropX']) ? floatval($member['cropX']) : 0.0;
+            $y = isset($member['cropY']) ? floatval($member['cropY']) : 0.0;
+            $w = isset($member['cropWidth']) ? floatval($member['cropWidth']) : 100.0;
+            $h = isset($member['cropHeight']) ? floatval($member['cropHeight']) : 100.0;
+
+            $x = max(0.0, min(99.0, $x));
+            $y = max(0.0, min(99.0, $y));
+            $w = max(1.0, min(100.0 - $x, $w));
+            $h = max(1.0, min(100.0 - $y, $h));
+
+            if ($x == 0.0 && $y == 0.0 && $w == 100.0 && $h == 100.0)
+                return null;
+
+            return array('x' => $x / 100.0, 'y' => $y / 100.0,
+                'width' => $w / 100.0, 'height' => $h / 100.0);
+        case 'full':
+        default:
+            return null;
+    }
+}
+
 function ApplyPipeWireVideoGroups($overrideData = null)
 {
     global $settings, $SUDO;
@@ -6264,6 +6313,9 @@ function ApplyPipeWireVideoGroups($overrideData = null)
                     $entry['width'] = $c['width'];
                     $entry['height'] = $c['height'];
                     $entry['scaling'] = isset($member['scaling']) ? $member['scaling'] : 'fit';
+                    $crop = VideoRegionToCrop($member);
+                    if ($crop !== null)
+                        $entry['crop'] = $crop;
                     $entry['name'] = $conn;
                     break;
 

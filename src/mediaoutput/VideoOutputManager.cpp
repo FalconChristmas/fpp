@@ -23,6 +23,7 @@
 #include "overlays/PixelOverlay.h"
 #include "overlays/PixelOverlayModel.h"
 
+#include <cmath> // lround -- crop fractions to pixels (needed directly for NOPCH builds)
 #include <fstream>
 #include <cstring>
 #include <thread>
@@ -46,6 +47,118 @@ static constexpr int SAP_PORT              = 9875;
 static constexpr int SAP_TTL               = 255;
 static constexpr int SAP_VERSION           = 1;
 static constexpr int SAP_INTERVAL_S        = 30;
+
+#ifdef HAS_GSTREAMER_VIDEO_OUTPUT
+// Resolve a fractional VideoCropRect against a concrete frame size and push the
+// result into a videocrop element.  Offsets and extents are forced even: NV12 /
+// I420 subsample chroma 2x2, and an odd source rectangle on a DRM plane splits
+// a chroma pair between the two halves of a split, tinting the seam.
+static void ApplyCropForFrameSize(GstElement* cropElem, const VideoCropRect& crop,
+                                  int frameW, int frameH) {
+    if (frameW <= 0 || frameH <= 0)
+        return;
+
+    auto evenDown = [](long v) { return (int)(v < 0 ? 0 : (v & ~1L)); };
+
+    int left = evenDown(lround(crop.x * frameW));
+    int top = evenDown(lround(crop.y * frameH));
+    int cropW = evenDown(lround(crop.width * frameW));
+    int cropH = evenDown(lround(crop.height * frameH));
+
+    // Keep the region inside the frame even if the fractions round outward.
+    if (left >= frameW) left = evenDown(frameW - 2);
+    if (top >= frameH) top = evenDown(frameH - 2);
+    if (left + cropW > frameW) cropW = evenDown(frameW - left);
+    if (top + cropH > frameH) cropH = evenDown(frameH - top);
+    if (cropW < 2) cropW = 2;
+    if (cropH < 2) cropH = 2;
+
+    g_object_set(cropElem,
+                 "left", left,
+                 "top", top,
+                 "right", frameW - left - cropW,
+                 "bottom", frameH - top - cropH,
+                 NULL);
+
+    LogDebug(VB_MEDIAOUT, "VideoOutputManager: crop %s → source %dx%d, region %dx%d+%d+%d\n",
+             GST_ELEMENT_NAME(cropElem), frameW, frameH, cropW, cropH, left, top);
+}
+
+// Watches the caps arriving at a videocrop element and re-resolves the
+// fractional region whenever the source resolution is announced.  Runs before
+// the first buffer, so the very first frame is already cropped -- important
+// here because the alternative (setting the crop after PLAYING) would flash a
+// full uncropped frame across both displays on every track change.
+static GstPadProbeReturn CropCapsProbe(GstPad* pad, GstPadProbeInfo* info, gpointer userData) {
+    GstEvent* event = GST_PAD_PROBE_INFO_EVENT(info);
+    if (!event || GST_EVENT_TYPE(event) != GST_EVENT_CAPS)
+        return GST_PAD_PROBE_OK;
+
+    GstCaps* caps = nullptr;
+    gst_event_parse_caps(event, &caps);
+    if (!caps)
+        return GST_PAD_PROBE_OK;
+
+    GstStructure* s = gst_caps_get_structure(caps, 0);
+    int width = 0, height = 0;
+    if (s && gst_structure_get_int(s, "width", &width) &&
+        gst_structure_get_int(s, "height", &height)) {
+        GstElement* elem = gst_pad_get_parent_element(pad);
+        if (elem) {
+            ApplyCropForFrameSize(elem, *static_cast<const VideoCropRect*>(userData),
+                                  width, height);
+            gst_object_unref(elem);
+        }
+    }
+    return GST_PAD_PROBE_OK;
+}
+
+// Make an existing videocrop element track `crop` for whatever resolution the
+// source turns out to be.  Split out from CreateCropElement so the gst_parse_launch
+// paths, which get their videocrop from the pipeline description, share it.
+static void AttachCropResolver(GstElement* cropElem, const VideoCropRect& crop) {
+    // The probe outlives this call, so the region it reads has to as well.
+    // Owned by the element: freed with it, whichever bin ends up holding it.
+    VideoCropRect* cropCopy = new VideoCropRect(crop);
+    g_object_set_data_full(G_OBJECT(cropElem), "fpp-crop-rect", cropCopy,
+                           [](gpointer p) { delete static_cast<VideoCropRect*>(p); });
+
+    GstPad* sinkPad = gst_element_get_static_pad(cropElem, "sink");
+    if (sinkPad) {
+        gst_pad_add_probe(sinkPad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+                          CropCapsProbe, cropCopy, nullptr);
+        gst_object_unref(sinkPad);
+    }
+
+    LogInfo(VB_MEDIAOUT, "VideoOutputManager: '%s' shows source region %.1f%%,%.1f%% %.1f%%x%.1f%%\n",
+            GST_ELEMENT_NAME(cropElem), crop.x * 100.0, crop.y * 100.0,
+            crop.width * 100.0, crop.height * 100.0);
+}
+
+GstElement* VideoOutputManager::CreateCropElement(const VideoCropRect& crop,
+                                                  const std::string& name) {
+    if (crop.IsFullFrame())
+        return nullptr;
+    if (!crop.IsValid()) {
+        LogWarn(VB_MEDIAOUT, "VideoOutputManager: ignoring invalid crop region "
+                "%.3f,%.3f %.3fx%.3f for '%s'\n",
+                crop.x, crop.y, crop.width, crop.height, name.c_str());
+        return nullptr;
+    }
+
+    GstElement* cropElem = gst_element_factory_make("videocrop", name.c_str());
+    if (!cropElem) {
+        LogErr(VB_MEDIAOUT, "VideoOutputManager: videocrop element not available — "
+               "is gstreamer1.0-plugins-good installed?  Output '%s' will show the full frame\n",
+               name.c_str());
+        WarningHolder::AddWarning(31, "Video crop unavailable: videocrop element missing (install gstreamer1.0-plugins-good)");
+        return nullptr;
+    }
+
+    AttachCropResolver(cropElem, crop);
+    return cropElem;
+}
+#endif
 
 VideoOutputManager& VideoOutputManager::Instance() {
     static VideoOutputManager instance;
@@ -365,6 +478,7 @@ std::vector<VideoOutputManager::HdmiConsumerInfo> VideoOutputManager::GetHdmiCon
         info.cardPath = c.cardPath;
         info.width = c.width;
         info.height = c.height;
+        info.crop = c.crop;
 
         // The cardPath/connectorId stored in the config were captured when the
         // group was configured, but DRM card numbering is not stable across
@@ -397,6 +511,20 @@ std::vector<VideoOutputManager::HdmiConsumerInfo> VideoOutputManager::GetHdmiCon
         result.push_back(info);
     }
     return result;
+}
+
+VideoCropRect VideoOutputManager::GetHdmiCropForConnector(int streamSlot, int connectorId) const {
+    if (connectorId <= 0)
+        return VideoCropRect();
+
+    // Deliberately no lock here and no skip list: GetHdmiConsumers takes the
+    // lock itself, and reusing it keeps the entry matching (on-demand only,
+    // stream-slot filter) and the live connector re-resolution in one place.
+    for (const auto& info : GetHdmiConsumers(streamSlot)) {
+        if (info.connectorId == connectorId)
+            return info.crop;
+    }
+    return VideoCropRect();
 }
 
 void VideoOutputManager::StopConsumers() {
@@ -494,6 +622,21 @@ bool VideoOutputManager::LoadConfig() {
             ci.width = entry.get("width", 0).asInt();
             ci.height = entry.get("height", 0).asInt();
             ci.scaling = entry.get("scaling", "fit").asString();
+            // Optional sub-region of the source, as fractions of the frame.
+            // Absent (the common case) leaves the full-frame default.
+            if (entry.isMember("crop") && entry["crop"].isObject()) {
+                const Json::Value& c = entry["crop"];
+                ci.crop.x = c.get("x", 0.0).asDouble();
+                ci.crop.y = c.get("y", 0.0).asDouble();
+                ci.crop.width = c.get("width", 1.0).asDouble();
+                ci.crop.height = c.get("height", 1.0).asDouble();
+                if (!ci.crop.IsValid()) {
+                    LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has an out-of-range "
+                            "crop region (%.3f,%.3f %.3fx%.3f) — using the full frame\n",
+                            ci.name.c_str(), ci.crop.x, ci.crop.y, ci.crop.width, ci.crop.height);
+                    ci.crop = VideoCropRect();
+                }
+            }
         } else if (ci.type == "overlay") {
             ci.overlayModel = entry.get("overlayModel", "").asString();
         } else if (ci.type == "rtp") {
@@ -855,7 +998,29 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         int fps = VideoInputManager::Instance().GetSourceFramerate(consumer.sourceNode);
         if (fps <= 0) fps = 30;  // fallback for on-demand consumers
 
-        if (consumer.width > 0 && consumer.height > 0) {
+        // Showing a sub-region means the display size caps have to go: they
+        // would make videoscale squeeze the whole source down to the panel
+        // first, and the crop would then take half of an already-squashed
+        // frame.  Crop at source resolution instead and let kmssink scale the
+        // region up during scanout, which is free and better quality anyway.
+        bool cropping = !consumer.crop.IsFullFrame() && consumer.crop.IsValid();
+        if (cropping) {
+            // Naming a missing element in the description fails the whole
+            // gst_parse_launch, taking the output down entirely.  Losing the
+            // crop and showing the full frame is the better failure.
+            GstElementFactory* cropFactory = gst_element_factory_find("videocrop");
+            if (cropFactory) {
+                gst_object_unref(cropFactory);
+            } else {
+                LogErr(VB_MEDIAOUT, "VideoOutputManager: videocrop element not available for '%s' — "
+                       "is gstreamer1.0-plugins-good installed?  Showing the full frame\n",
+                       consumer.name.c_str());
+                WarningHolder::AddWarning(31, "Video crop unavailable: videocrop element missing (install gstreamer1.0-plugins-good)");
+                cropping = false;
+            }
+        }
+
+        if (consumer.width > 0 && consumer.height > 0 && !cropping) {
             pipelineDesc += "video/x-raw,width=" + std::to_string(consumer.width)
                          + ",height=" + std::to_string(consumer.height)
                          + ",framerate=" + std::to_string(fps) + "/1 ! ";
@@ -866,6 +1031,11 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         // Queue absorbs timing jitter between intervideosrc and kmssink;
         // without it GStreamer warns about missing latency compensation.
         pipelineDesc += "queue max-size-buffers=2 ! ";
+
+        // Immediately upstream of kmssink so the crop rides along as metadata
+        // (the DRM plane's source rectangle) rather than copying every frame.
+        if (cropping)
+            pipelineDesc += "videocrop name=vcrop ! ";
 
         // kmssink sync=true paces frame rendering by intervideosrc timestamps
         // (fresh monotonic timestamps, independent of HLS timing).
@@ -978,6 +1148,14 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     // When fd is available, driver-name is unnecessary (derived from the fd).
     // When fd is unavailable, fall back to driver-name=vc4.
     if (consumer.type == "hdmi") {
+        // The crop element (if the description asked for one) needs its
+        // fractional region bound before the pipeline sees any caps.
+        GstElement* cropElem = gst_bin_get_by_name(GST_BIN(consumer.pipeline), "vcrop");
+        if (cropElem) {
+            AttachCropResolver(cropElem, consumer.crop);
+            gst_object_unref(cropElem);
+        }
+
         GstElement* sink = gst_bin_get_by_name(GST_BIN(consumer.pipeline), "sink");
         if (sink) {
             // Prefer live-resolved card path over config value

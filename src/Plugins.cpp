@@ -632,11 +632,16 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName)
         }
         LogErr(VB_PLUGIN, "Plugin %s was built with a %u byte %s but FPP uses %u bytes. Please update and rebuild the plugin.\n",
                shlibName.c_str(), pluginSize, what, coreSize);
-        WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (Command ABI mismatch - rebuild required)");
+        WarningHolder::AddWarning(5, "Could not load plugin " + shlibName + " (" + what + " ABI mismatch - rebuild required)");
         return false;
     };
     if (!abiSizeMatches("fpp_command_arg_abi_size", (unsigned int)sizeof(Command::CommandArg), "Command::CommandArg") ||
-        !abiSizeMatches("fpp_command_abi_size", (unsigned int)sizeof(Command), "Command")) {
+        !abiSizeMatches("fpp_command_abi_size", (unsigned int)sizeof(Command), "Command") ||
+        // The VB_* macros resolve to a member offset within FPPLogger::INSTANCE,
+        // so a plugin that disagrees about this layout passes _LogWrite() a
+        // reference into the wrong facility - see the LAYOUT RULE in log.h.
+        !abiSizeMatches("fpp_logger_instance_abi_size", (unsigned int)sizeof(FPPLoggerInstance), "FPPLoggerInstance") ||
+        !abiSizeMatches("fpp_logger_abi_span", fpp_logger_abi_span(), "FPPLogger facility layout")) {
         dlclose(handle);
         return nullptr;
     }

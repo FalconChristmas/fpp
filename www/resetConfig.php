@@ -37,8 +37,10 @@ $files['config'] = array(
     'config/recurringtasks.json',
     'config/commandPresets.json',
 );
+
 $files['network'] = array(
     'config/interface.*',
+    'config/leases.*',
     '/var/lib/connman/fpp.config',
 );
 $files['media'] = array(
@@ -136,24 +138,27 @@ if (isset($_GET['areas'])) {
     $areas = preg_split('/,/', $areasStr);
 }
 
-// Plugin provenance (see www/api/controllers/plugin.php) is meant to survive
+// Plugin source (see www/api/controllers/plugin.php) is meant to survive
 // everything short of a reimage -- it exists to tell a Support Zip reader
-// whether unofficial/unknown-provenance code has EVER touched this system,
+// whether unofficial/unknown-source code has EVER touched this system,
 // even after the plugin is long gone. The 'settings' area below deletes the
 // whole settings file, which would otherwise silently erase that history.
-// Snapshot the three known keys by name (not a raw file copy) BEFORE
-// deletion, so only currently-valid, correctly-named entries carry forward
-// -- if this reset is being run because those settings look wrong (e.g. a
-// stale/mis-named leftover from a previous FPP version), a raw copy would
-// just carry the corruption forward; reading by exact known key name and
-// re-writing through WriteSettingToFile() below guarantees the restored
-// entries are in the current, correct format either way.
-$pluginProvenanceSettings = array('PluginOfficialEverInstalled', 'PluginCommunityEverInstalled', 'PluginUnknownEverInstalled');
-$pluginProvenanceBackup = array();
-foreach ($pluginProvenanceSettings as $setting) {
+// Snapshot the known keys by name (not a raw file copy) BEFORE deletion, so
+// only currently-valid, correctly-named entries carry forward -- if this reset
+// is being run because those settings look wrong (e.g. a stale/mis-named
+// leftover from a previous FPP version), a raw copy would just carry the
+// corruption forward; reading by exact known key name and re-writing through
+// WriteSettingToFile() below guarantees the restored entries are in the
+// current, correct format either way.
+$pluginSourceSettings = array(
+    'PluginUnknownEverInstalled',
+    'PluginUnverifiedRepos',
+);
+$pluginSourceBackup = array();
+foreach ($pluginSourceSettings as $setting) {
     $value = ReadSettingFromFile($setting);
     if ($value !== false && $value !== '') {
-        $pluginProvenanceBackup[$setting] = $value;
+        $pluginSourceBackup[$setting] = $value;
     }
 }
 
@@ -190,12 +195,36 @@ foreach ($areas as $area) {
 
 flush();
 
-if (in_array('settings', $areas) && !empty($pluginProvenanceBackup)) {
-    printf("\nRestoring plugin provenance history...\n");
-    foreach ($pluginProvenanceBackup as $setting => $value) {
+if (in_array('settings', $areas) && !empty($pluginSourceBackup)) {
+    printf("\nRestoring plugin source history...\n");
+    foreach ($pluginSourceBackup as $setting => $value) {
         WriteSettingToFile($setting, $value);
         printf("  Restored setting: %s = %s\n", $setting, $value);
     }
+    flush();
+}
+
+if (in_array('network', $areas)) {
+    // systemd-networkd's saved DHCP server lease state
+    // (/var/lib/systemd/network/dhcp-server-lease/) is deliberately NOT touched here.
+    // Deleting it live races the daemon (it may re-write a lease file mid-
+    // delete, and a full daemon restart to pick up the change drops IP
+    // addresses on every managed interface, not just the ones being reset --
+    // KeepConfiguration= defaults to "no"). Instead we drop a marker that's
+    // consumed at boot, before systemd-networkd is started for that boot
+    // (fppinit.service is ordered Before= it), which is race-free by
+    // construction. See consumePendingDhcpLeaseReset() in
+    // src/boot/FPPINIT_Network.cpp, which already refuses to act on this
+    // marker at boot when SkipNetworkReset/desktop is set -- no need to gate
+    // the touch here too, an ungated touch is at worst a harmless,
+    // permanently-dangling marker file on those installs.
+    // TODO(FPP11): this is one of several ad-hoc "do this on next boot"
+    // marker files scattered around FPP (see also /fpp_kiosk,
+    // fpp_expand_rootfs, /fppos_upgraded). Standardize these on a single
+    // settings-key convention instead of bare marker files.
+    $leaseMarker = $settings['mediaDirectory'] . '/config/dhcpLeaseResetPending';
+    touch($leaseMarker);
+    printf("\nDHCP server leases will be cleared on next reboot.\n");
     flush();
 }
 

@@ -216,7 +216,6 @@ if (isset($_GET['cpu'])) {
                 { id: 'ntp', label: 'Time Sync (NTP)', icon: 'fa-clock', static: true },
                 { id: 'pipewire', label: 'PipeWire Audio', icon: 'fa-volume-high', static: false },
                 { id: 'scheduler', label: 'Scheduler', icon: 'fa-calendar-alt', static: false },
-                { id: 'pluginofficial', label: 'Official Plugins', icon: 'fa-puzzle-piece', static: false },
                 { id: 'pluginunknown', label: 'Unknown Plugins', icon: 'fa-puzzle-piece', static: false }
             ],
             right: [
@@ -226,13 +225,12 @@ if (isset($_GET['cpu'])) {
                 { id: 'dns', label: 'DNS Resolution', icon: 'fa-search', static: true },
                 { id: 'datetime', label: 'Browser Time Sync', icon: 'fa-clock', static: true },
                 { id: 'gstreamer', label: 'GStreamer', icon: 'fa-film', static: false },
-                { id: 'mediadisk', label: 'Media Partition', icon: 'fa-folder', static: false },
-                { id: 'plugincommunity', label: 'Community Plugins', icon: 'fa-puzzle-piece', static: false }
+                { id: 'mediadisk', label: 'Media Partition', icon: 'fa-folder', static: false }
             ]
         };
 
         // Checks that may not be emitted at all (hidden until a result arrives)
-        var conditionalChecks = ['scheduler', 'mediadisk', 'pipewire', 'gstreamer', 'pluginofficial', 'plugincommunity', 'pluginunknown'];
+        var conditionalChecks = ['scheduler', 'mediadisk', 'pipewire', 'gstreamer', 'pluginunknown'];
 
         function renderPlaceholder(check) {
             var hiddenClass = check.static ? '' : ' d-none';

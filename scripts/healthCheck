@@ -372,18 +372,18 @@ HC_Warnings() {
 
 }
 
-# Only shown per-category (Official/Community/Unknown Plugins) when a plugin
-# of that provenance is currently installed OR the sticky "ever installed"
-# setting is set (see GetPluginProvenance() in
-# www/api/controllers/plugin.php for the live directory scan +
-# classification and the settings that back this). Never emitted at all
-# otherwise -- unlike the other checks here, absence of an item is the normal
-# case, not a loading state. This page has no "caution" (between pass/warn)
-# color like the live health check does, so Community plugins render as a
-# plain green pass here too -- still counts as passed either way.
-HC_PluginProvenance() {
-    PROVENANCE=$(curl -s --max-time 3 http://127.0.0.1/api/plugin/provenance)
-    if [ "x${PROVENANCE}" = "x" ]; then
+# Emits at most one item, "Unknown Plugins", and only when this system has a
+# record of installing something from outside the curated plugin list --
+# unlike the other checks here, absence of the item is the normal case, not a
+# loading state. See the plugin-source block in www/api/controllers/plugin.php for
+# what the levels mean.
+#
+# This page has no "caution" color between pass and fail, so the uncertain
+# level ("something was installed while the plugin list was unreachable") renders
+# as a plain pass with explanatory text rather than as a failure.
+HC_PluginSource() {
+    PLUGINSOURCE=$(curl -s --max-time 3 http://127.0.0.1/api/plugin/source)
+    if [ "x${PLUGINSOURCE}" = "x" ]; then
         return
     fi
 
@@ -392,38 +392,24 @@ HC_PluginProvenance() {
         return
     fi
 
-    for BUCKET in official community unknown; do
-        LABEL=$(echo "${PROVENANCE}" | jq -r --arg b "${BUCKET}" '.[$b].label')
-        PSTATUS=$(echo "${PROVENANCE}" | jq -r --arg b "${BUCKET}" '.[$b].status')
-        PCOUNT=$(echo "${PROVENANCE}" | jq -r --arg b "${BUCKET}" '.[$b].installedCount')
+    LEVEL=$(echo "${PLUGINSOURCE}" | jq -r '.level')
 
-        if [ "x${PSTATUS}" = "xnull" ]; then
-            continue
-        fi
+    case "${LEVEL}" in
+        unknown)
+            STATUS=0
+            STATUSSTR="Installed"
+            ;;
+        unverified)
+            STATUS=1
+            STATUSSTR="Possibly Installed - plugin list was unreachable at install time"
+            ;;
+        *)
+            return
+            ;;
+    esac
 
-        # "Installed (1)" would be a redundant no-op; "Previously Installed"
-        # implies PCOUNT is 0, so it never gets a count suffix either.
-        if [ "x${PSTATUS}" = "xInstalled" ] && [ "${PCOUNT:-0}" -gt 1 ] 2>/dev/null; then
-            PSTATUS="Installed (${PCOUNT})"
-        fi
-
-        PrintItemHead "${LABEL}"
-
-        case "${BUCKET}" in
-            official)
-                STATUS=1
-                ;;
-            community)
-                STATUS=1
-                ;;
-            unknown)
-                STATUS=0
-                ;;
-        esac
-        STATUSSTR="${PSTATUS}"
-
-        PrintItemFoot
-    done
+    PrintItemHead "Unknown Plugins"
+    PrintItemFoot
 }
 
 #############################################################################
@@ -434,7 +420,7 @@ HC_PluginProvenance() {
 # FPP
 HC_FPPD
 HC_Warnings
-HC_PluginProvenance
+HC_PluginSource
 
 MODE=$(getSetting fppMode)
 if [ "x${MODE}" = "xplayer" -o "x${MODE}" = "xmaster" ]

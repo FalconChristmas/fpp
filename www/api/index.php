@@ -206,8 +206,7 @@ dispatch_post('/plugin', 'InstallPlugin');
 dispatch_post('/plugin/fetchInfo', 'FetchPluginInfoProxy');
 dispatch_get('/plugin/popularity', 'GetPluginPopularity'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/githubStats', 'GetPluginGitHubStats'); // keep above /plugin/:RepoName
-dispatch_get('/plugin/fetchImage', 'PluginFetchImage'); // keep above /plugin/:RepoName
-dispatch_get('/plugin/provenance', 'GetPluginProvenance'); // keep above /plugin/:RepoName
+dispatch_get('/plugin/source', 'GetPluginSource'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/:RepoName', 'GetPluginInfo');
 dispatch_get('/plugin/:RepoName/icon', 'PluginServeIcon');
 dispatch_get('/plugin/:RepoName/page', 'GetPluginPageUrl');
@@ -256,8 +255,6 @@ dispatch_put('/settings/:SettingName', 'PutSetting');
 dispatch_put('/settings/:SettingName/jsonValueUpdate', 'UpdateJSONValueSetting');
 
 dispatch_get('/scripts', 'scripts_list');
-dispatch_get('/scripts/installRemote/:category/:filename', 'scripts_install_remote');
-dispatch_get('/scripts/viewRemote/:category/:filename', 'scripts_view_remote');
 dispatch_get('/scripts/:scriptName', 'script_get');
 dispatch_post('/scripts/:scriptName', 'script_save');
 dispatch_get('/scripts/:scriptName/run', 'script_run');
@@ -288,117 +285,30 @@ dispatch_post('/testmode', 'testMode_Set');
 
 dispatch_get('/time', 'GetTime');
 
+// Load FPP's own controllers BEFORE any plugin's api.php.
+//
+// limonade normally defers this to autoload_controller() inside run(), which
+// would put plugin code first: collectPluginEndpoints() require_once's every
+// installed plugin's api.php right here, at line 290, and run() only loads
+// www/api/controllers/ afterwards. That ordering is what makes a plugin able to
+// break or take over the API rather than merely fail on its own -- a plugin
+// declaring a name a controller also declares wins the race, and the
+// controller's later declaration is then the fatal one, killing every route
+// served by that file and every file loaded after it.
+//
+// Loading them first costs nothing (autoload_controller loads the whole
+// directory on any matched route anyway, and require_once makes the second call
+// a no-op) and means FPP's own definitions always exist first, so
+// PluginApiFunctionConflicts() (controllers/plugin.php) can see a conflict
+// coming.
+require_once_dir(__DIR__ . '/controllers');
+
+// Definition in controllers/plugin.php, alongside collectPluginEndpoints()
+// and the rest of the plugin-loading machinery -- called here, rather than
+// there, because ordering relative to the dispatch_* calls above and run()
+// below is what keeps plugins from ever registering ahead of FPP's own
+// routes (see the comment on require_once_dir() just above).
 addPluginEndpoints();
 
 run();
 
-///////////////////////////////////////////////////////////////////////////
-
-// Returns an array of all plugin endpoints: [['plugin'=>..., 'method'=>..., 'endpoint'=>..., 'callback'=>...], ...]
-function collectPluginEndpoints()
-{
-    global $pluginDirectory;
-    $collected = array();
-    $baseDir = $pluginDirectory . '/';
-    if ($dir = opendir($baseDir)) {
-        while (($file = readdir($dir)) !== false) {
-            if (!in_array($file, array('.', '..')) && is_dir($baseDir . $file) && is_file($baseDir . $file . '/api.php')) {
-                $functionsBefore = get_defined_functions();
-                $userFunctionsBefore = isset($functionsBefore['user']) ? $functionsBefore['user'] : array();
-
-                require_once $baseDir . $file . '/api.php';
-
-                $functionsAfter = get_defined_functions();
-                $userFunctionsAfter = isset($functionsAfter['user']) ? $functionsAfter['user'] : array();
-                $newUserFunctions = array_diff($userFunctionsAfter, $userFunctionsBefore);
-
-                $sfile = preg_replace('/-/', '', $file);
-                $endpointFunction = "getEndpoints$sfile";
-
-                if (!is_callable($endpointFunction)) {
-                    foreach ($newUserFunctions as $funcName) {
-                        if (stripos($funcName, 'getEndpoints') === 0) {
-                            $endpointFunction = $funcName;
-                            break;
-                        }
-                    }
-                }
-
-                if (!is_callable($endpointFunction)) {
-                    error_log("Skipping plugin API endpoint registration for '$file': no callable getEndpoints* function found");
-                    continue;
-                }
-
-                foreach (call_user_func($endpointFunction) as $ep) {
-                    if (!isset($ep['callback'])) {
-                        error_log("Skipping plugin endpoint for '$file': callback missing");
-                        continue;
-                    }
-                    $collected[] = array(
-                        'plugin'   => $file,
-                        'method'   => $ep['method'],
-                        'endpoint' => $ep['endpoint'],
-                        'callback' => $ep['callback'],
-                    );
-                }
-            }
-        }
-    }
-    return $collected;
-}
-
-function addPluginEndpoints()
-{
-    foreach (collectPluginEndpoints() as $ep) {
-        if (!is_callable($ep['callback'])) {
-            error_log("Skipping plugin endpoint for '{$ep['plugin']}': callback not callable");
-            continue;
-        }
-        $path = '/plugin/' . $ep['plugin'] . '/' . $ep['endpoint'];
-        if ($ep['method'] == 'GET') {
-            dispatch_get($path, $ep['callback']);
-        } else if ($ep['method'] == 'POST') {
-            dispatch_post($path, $ep['callback']);
-        } else if ($ep['method'] == 'PUT') {
-            dispatch_put($path, $ep['callback']);
-        } else if ($ep['method'] == 'DELETE') {
-            dispatch_delete($path, $ep['callback']);
-        }
-    }
-}
-
-function ServeApiDocs() {
-    set_include_path(get_include_path() . PATH_SEPARATOR . dirname(__DIR__));
-    extract($GLOBALS);
-    include __DIR__ . '/api.php';
-    exit;
-}
-
-function ServeApiHtml() {
-    header('Content-Type: text/html; charset=utf-8');
-    readfile(__DIR__ . '/api.html');
-    exit;
-}
-
-function ServeOpenApiSpec() {
-    $spec = json_decode(file_get_contents(__DIR__ . '/openapi.json'), true);
-
-    foreach (collectPluginEndpoints() as $ep) {
-        $method = strtolower($ep['method']);
-        $path   = '/plugin/' . $ep['plugin'] . '/' . $ep['endpoint'];
-        if (!isset($spec['paths'][$path])) {
-            $spec['paths'][$path] = array();
-        }
-        if (!isset($spec['paths'][$path][$method])) {
-            $spec['paths'][$path][$method] = array(
-                'summary'  => $ep['plugin'] . ' - ' . $ep['endpoint'],
-                'tags'     => array('Plugins', $ep['plugin']),
-                'responses' => array('200' => array('description' => 'Success')),
-            );
-        }
-    }
-
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($spec, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    exit;
-}

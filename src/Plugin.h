@@ -15,6 +15,12 @@
 #include <map>
 #include <string>
 
+// For the FPPLogger layout fingerprints at the bottom of this file. They live
+// here rather than in log.h because this is the header every plugin includes
+// textually: log.h usually arrives through the PCH, and a weak definition that
+// nothing in the translation unit references is not emitted from there.
+#include "log.h"
+
 #include "fpphttp_types.h"
 
 // Increment this when the plugin ABI changes. "ABI" is not just virtual method
@@ -42,13 +48,43 @@
 // dlopen rather than corrupting the heap. Bump this only for a change the
 // pimpls cannot absorb - a new virtual on Command, or a change to one of the
 // frozen members.
+//
+// "ABI" is also not only about Command. FPPLoggerInstance (log.h) grew a
+// crashRingCapture bool, taking it from 28 to 32 bytes on 32-bit ARM, and the
+// VB_* macros expand to a member of FPPLogger::INSTANCE - so plugins built
+// against the older header resolved VB_PLUGIN 52 bytes short of where libfpp put
+// it and handed _LogWrite() a reference into the middle of another facility;
+// formatting that facility's name ran strlen() over raw character bytes and
+// aborted fppd on the plugin's first log line. That layout is fingerprinted
+// below rather than version-bumped, deliberately: a bump would also refuse the
+// plugin binaries that have since been rebuilt correctly. The consequence is
+// that a plugin built before those fingerprints existed exports nothing to
+// compare and is still loaded - the gate covers recurrence, not the binaries
+// already in the field.
 #define FPP_PLUGIN_API_VERSION 5
 
 // Plugins compiled with these headers will export their API version.
 // weak linkage allows multiple TUs to define this; visibility ensures .so export.
+//
+// Alongside it, fingerprints for the FPPLogger layout described by the LAYOUT
+// RULE in log.h - the same second-gate idea as the Command/CommandArg sizes in
+// commands/Commands.h, and for the same reason: relying on a human to remember
+// the version bump has visibly not worked. Each module computes these from its
+// own copy of log.h, so a plugin that disagrees about where VB_* lives is
+// refused at dlopen instead of handing _LogWrite() a reference into the middle
+// of another facility. The span is measured rather than sizeof()'d because the
+// two ways this breaks differ: growing FPPLoggerInstance and inserting a
+// facility both move the later VB_* macros, and only the first shows up in a
+// sizeof.
 #ifdef __cplusplus
 extern "C" {
 __attribute__((weak, visibility("default"))) int fpp_plugin_api_version() { return FPP_PLUGIN_API_VERSION; }
+__attribute__((weak, visibility("default"))) unsigned int fpp_logger_instance_abi_size() {
+    return (unsigned int)sizeof(FPPLoggerInstance);
+}
+__attribute__((weak, visibility("default"))) unsigned int fpp_logger_abi_span() {
+    return (unsigned int)((const char*)&FPPLogger::INSTANCE.HTTP - (const char*)&FPPLogger::INSTANCE.General);
+}
 }
 #endif
 
