@@ -20,6 +20,7 @@
 
 #include "Plugin.h"
 class MediaDetails;
+class Command;
 
 class PluginManager {
 public:
@@ -46,6 +47,29 @@ public:
 
     FPPPlugins::Plugin* findPlugin(const std::string& name, const std::string& shlibName = "");
 
+    // ---- Runtime load/unload -------------------------------------------------
+    // Main loop only. Lets an install take effect and an uninstall stop having
+    // effect without restarting fppd, which would interrupt a running show.
+    //
+    // unloadPlugin() detaches the plugin at once, then waits for the readiness
+    // predicate shutdown() handed back (see Plugin.h) before destroying it.
+    // It dlclose()s the library only for a plugin that declared
+    // FPP_PLUGIN_SUPPORTS_UNLOAD (see Plugin.h for what that asserts). Otherwise
+    // the mapping is kept until fppd restarts - a few hundred KB, against a
+    // crash class that would land in the middle of a show. Either way the plugin
+    // object is destroyed, its routes are disarmed and its registrations are
+    // withdrawn, so it stops doing anything.
+    bool loadPlugin(const std::string& name, std::string& error);
+    bool unloadPlugin(const std::string& name, std::string& error);
+    bool isPluginLoaded(const std::string& name);
+
+    // Called when a plugin actually produced a ChannelOutput. That object is
+    // owned by the output system and may be mid-show, so its plugin cannot be
+    // unloaded. Note this is NOT the same as implementing ChannelOutputPlugin:
+    // everything deriving from the FPPPlugin convenience class inherits that
+    // interface whether or not it ever returns an output.
+    void noteChannelOutputCreated(FPPPlugins::ChannelOutputPlugin* plugin);
+
     static PluginManager INSTANCE;
 
 private:
@@ -64,6 +88,56 @@ private:
     std::vector<FPPPlugins::ChannelDataPlugin*> mChannelDataPlugins;
     std::vector<FPPPlugins::APIProviderPlugin*> mAPIProviderPlugins;
 
+    // Brings a newly loaded plugin up to the state the boot sequence would have
+    // left it in: HTTP routes registered, control fds handed to the epoll loop.
+    void startPlugin(FPPPlugins::Plugin* plugin);
+    // Drops a plugin from every registry that holds it, so nothing calls into it.
+    void detachPlugin(FPPPlugins::Plugin* plugin);
+
+    // A plugin that has been detached but is still finishing. Held until its
+    // readiness predicate says so (or the cap expires), then destroyed and, if
+    // it opted in, unmapped.
+    struct PendingUnload {
+        FPPPlugins::Plugin* plugin = nullptr;
+        void* handle = nullptr;
+        bool unmap = false;
+        bool hadLibrary = false;
+        std::string name;
+        std::function<bool()> ready;
+        long long deadlineMS = 0;
+    };
+    std::vector<PendingUnload> mPendingUnloads;
+    void pollPendingUnload(const std::string& name);
+    void finishUnload(PendingUnload& p);
+
     std::vector<void*> mShlibHandles;
     std::set<std::string> mLoadedUserPlugins;
+
+    // The library each shlib-backed plugin came from, and whether it declared
+    // itself safe to unmap (FPP_PLUGIN_SUPPORTS_UNLOAD). mShlibHandles alone
+    // cannot say which handle belongs to which plugin.
+    struct LoadedLibrary {
+        void* handle = nullptr;
+        bool supportsUnload = false;
+    };
+    std::map<std::string, LoadedLibrary> mPluginLibraries;
+    // Which file each plugin library path was loaded FROM, so a reload can tell
+    // that the file was replaced underneath it. See loadSHLIBPlugin().
+    std::map<std::string, ino_t> mLoadedShlibInodes;
+
+    // Which epoll file descriptors each plugin registered, so unloadPlugin() can
+    // withdraw them. Attributed by diffing the callback map around each plugin's
+    // addControlCallbacks() call rather than by asking plugins to report them -
+    // the API predates unloading and cannot be changed without an ABI break.
+    // (A plugin may also remove its own fds via EPollManager in shutdown();
+    // removing an already-removed fd is harmless.)
+    std::map<std::string, std::vector<int>> mPluginControlFds;
+
+    // Plugins that handed a live ChannelOutput to the output system.
+    std::set<std::string> mPluginsWithOutputs;
+
+    // Commands FPP registered on a script plugin's behalf from its
+    // commands/descriptions.json. CommandManager::removeCommand() only
+    // unregisters, so unloading has to delete these too.
+    std::map<std::string, std::vector<Command*>> mPluginCommands;
 };

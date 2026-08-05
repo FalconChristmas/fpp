@@ -40,6 +40,9 @@
 #include "settings.h"
 #include "commands/Commands.h"
 
+#include "CurlManager.h"
+#include "EPollManager.h"
+#include "Timers.h"
 #include "Plugins.h"
 
 PluginManager PluginManager::INSTANCE;
@@ -327,7 +330,11 @@ public:
     Json::Value description;
 };
 
-static void LoadPluginCommands(const std::string& dir) {
+// Returns the commands registered, so unloading the plugin can take them back
+// out again - they are FPP-owned objects describing scripts in the plugin's
+// directory, and an uninstalled plugin should not leave its commands listed.
+static std::vector<Command*> LoadPluginCommands(const std::string& dir) {
+    std::vector<Command*> added;
     std::string commandDir = FPP_DIR_PLUGIN("/" + dir + "/commands/");
     std::string descriptions = commandDir + "/descriptions.json";
     if (FileExists(descriptions)) {
@@ -337,11 +344,13 @@ static void LoadPluginCommands(const std::string& dir) {
             ScriptCommand* cmd = new ScriptCommand(commandDir, jscmd);
             if (cmd->IsOk()) {
                 CommandManager::INSTANCE.addCommand(cmd);
+                added.push_back(cmd);
             } else {
                 delete cmd;
             }
         }
     }
+    return added;
 }
 
 void PluginManager::init() {
@@ -415,6 +424,22 @@ void PluginManager::Cleanup() {
     // holds, and a plugin destructor that also deletes them double-frees.
     unregisterApis();
     mAPIProviderPlugins.clear();
+    // Anything still settling from an unload will never get another timer tick
+    // now, so finish it here rather than leaking the object (and, for an opted-in
+    // plugin, the mapping) on the way out.
+    while (!mPendingUnloads.empty()) {
+        PendingUnload p = std::move(mPendingUnloads.back());
+        mPendingUnloads.pop_back();
+        finishUnload(p);
+    }
+    // Inbound HTTP is disarmed above and the routes have drained, so no request
+    // is inside plugin code. Now let each plugin stop its own activity - threads,
+    // timers, connections - while it is still a whole object. Destructors are too
+    // late for that: a thread calling in during destruction reads a plugin that
+    // is half gone.
+    for (auto& a : mPlugins) {
+        a->shutdown();
+    }
     while (!mPlugins.empty()) {
         delete mPlugins.back();
         mPlugins.pop_back();
@@ -477,7 +502,13 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
             }
         }
     }
-    LoadPluginCommands(name);
+    {
+        std::vector<Command*> cmds = LoadPluginCommands(name);
+        if (!cmds.empty()) {
+            auto& slot = mPluginCommands[name];
+            slot.insert(slot.end(), cmds.begin(), cmds.end());
+        }
+    }
 
     std::string eventScript = FPP_DIR + "/scripts/eventScript";
     if (!found) {
@@ -553,7 +584,38 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
 }
 
 FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName) {
-    void* handle = dlopen(shlibName.c_str(), RTLD_NOW);
+    // If this path was loaded before and the file behind it has since been
+    // replaced - an upgrade between an unloadPlugin() and a loadPlugin() - it
+    // cannot simply be reopened. dlopen() matches an already-loaded object by
+    // NAME before it ever compares the file, so the same path hands back the
+    // copy still mapped and the new build is ignored: the upgrade appears to
+    // succeed while the old code keeps running. Give the new file a name of its
+    // own to open, then unlink that name - the mapping keeps the inode alive, so
+    // nothing is left behind on disk.
+    std::string openPath = shlibName;
+    struct stat sb;
+    bool haveStat = (stat(shlibName.c_str(), &sb) == 0);
+    auto known = mLoadedShlibInodes.find(shlibName);
+    if (haveStat && known != mLoadedShlibInodes.end() && known->second != sb.st_ino) {
+        static int generation = 0;
+        std::string genPath = shlibName + ".gen" + std::to_string(++generation);
+        unlink(genPath.c_str());
+        if (link(shlibName.c_str(), genPath.c_str()) == 0) {
+            openPath = genPath;
+        } else {
+            LogWarn(VB_PLUGIN, "%s was replaced on disk but a private name could not be made (%s); "
+                               "the previously loaded build stays in use until fppd restarts\n",
+                    shlibName.c_str(), FPPstrerror(errno));
+        }
+    }
+
+    void* handle = dlopen(openPath.c_str(), RTLD_NOW);
+    if (openPath != shlibName) {
+        unlink(openPath.c_str());
+    }
+    if (handle != nullptr && haveStat) {
+        mLoadedShlibInodes[shlibName] = sb.st_ino;
+    }
     if (handle == nullptr) {
         if (!FileExists(shlibName) && !FileExists(getFPPDDir("/" + shlibName))) {
             LogErr(VB_PLUGIN, "Failed to find shlib %s\n", shlibName.c_str());
@@ -655,6 +717,21 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName)
     }
     mShlibHandles.push_back(handle);
     addPlugin(p);
+
+    // Opt-in: only a plugin that declares itself safe gets dlclose()d on unload.
+    // Same provenance check as the ABI gates above - the symbol has to be the
+    // plugin's own, not one picked up from a dependency.
+    bool supportsUnload = false;
+    int (*unloadFptr)();
+    *(void**)(&unloadFptr) = dlsym(handle, "fpp_plugin_supports_unload");
+    Dl_info unloadInfo;
+    if (unloadFptr != nullptr && dladdr((void*)unloadFptr, &unloadInfo) != 0 &&
+        unloadInfo.dli_fbase == pluginInfo.dli_fbase) {
+        supportsUnload = (unloadFptr() == 1);
+    }
+    mPluginLibraries[p->getName()] = { handle, supportsUnload };
+    LogDebug(VB_PLUGIN, "Plugin %s %s unloading\n", p->getName().c_str(),
+             supportsUnload ? "supports" : "does not support");
     return p;
 }
 bool PluginManager::hasPlugins() {
@@ -707,7 +784,288 @@ void PluginManager::modifyChannelData(int ms, uint8_t* seqData) {
 }
 void PluginManager::addControlCallbacks(std::map<int, std::function<bool(int)>>& callbacks) {
     for (auto a : mAPIProviderPlugins) {
+        // Record which descriptors this plugin added, so unloadPlugin() can take
+        // them back out of the epoll loop. The callbacks it installs are
+        // std::functions whose code lives in the plugin, so leaving one
+        // registered after the plugin is gone is a call into nothing.
+        std::set<int> before;
+        for (const auto& c : callbacks) {
+            before.insert(c.first);
+        }
         a->addControlCallbacks(callbacks);
+        auto* plugin = dynamic_cast<FPPPlugins::Plugin*>(a);
+        if (!plugin) {
+            continue;
+        }
+        for (const auto& c : callbacks) {
+            if (before.find(c.first) == before.end()) {
+                mPluginControlFds[plugin->getName()].push_back(c.first);
+            }
+        }
+    }
+}
+
+// ---- Runtime load/unload ---------------------------------------------------
+
+void PluginManager::noteChannelOutputCreated(FPPPlugins::ChannelOutputPlugin* plugin) {
+    if (auto* p = dynamic_cast<FPPPlugins::Plugin*>(plugin)) {
+        mPluginsWithOutputs.insert(p->getName());
+    }
+}
+
+bool PluginManager::isPluginLoaded(const std::string& name) {
+    for (auto& a : mPlugins) {
+        if (a->getName() == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void PluginManager::startPlugin(FPPPlugins::Plugin* plugin) {
+    auto* api = dynamic_cast<FPPPlugins::APIProviderPlugin*>(plugin);
+    if (!api) {
+        return;
+    }
+    api->registerApis();
+
+    // At boot these land in a map fppd hands to EPollManager once everything has
+    // registered. That map is long gone by the time a plugin loads at runtime,
+    // so collect into a local one and register the descriptors directly.
+    std::map<int, std::function<bool(int)>> callbacks;
+    api->addControlCallbacks(callbacks);
+    for (auto& c : callbacks) {
+        EPollManager::INSTANCE.addFileDescriptor(c.first, c.second);
+        mPluginControlFds[plugin->getName()].push_back(c.first);
+    }
+}
+
+void PluginManager::detachPlugin(FPPPlugins::Plugin* plugin) {
+    auto drop = [plugin](auto& vec) {
+        for (auto it = vec.begin(); it != vec.end();) {
+            if (dynamic_cast<FPPPlugins::Plugin*>(*it) == plugin) {
+                it = vec.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    };
+    drop(mPlaylistPlugins);
+    drop(mChannelOutputPlugins);
+    drop(mChannelDataPlugins);
+    drop(mAPIProviderPlugins);
+    for (auto it = mPlugins.begin(); it != mPlugins.end(); ++it) {
+        if (*it == plugin) {
+            mPlugins.erase(it);
+            break;
+        }
+    }
+}
+
+bool PluginManager::loadPlugin(const std::string& name, std::string& error) {
+    if (isPluginLoaded(name)) {
+        return true; // already running; nothing to do
+    }
+    if (!DirectoryExists(FPP_DIR_PLUGIN("/" + name))) {
+        error = "no plugin directory for " + name;
+        return false;
+    }
+    // Plenty of plugins are web-UI only - no callbacks script, nothing for fppd
+    // to run. That is a successful no-op, not a failure: reporting it as one
+    // told the user to restart FPPD to enable something that needs neither.
+    std::string callbacks = FPP_DIR_PLUGIN("/" + name + "/callbacks");
+    bool haveCallbacks = FileExists(callbacks);
+    for (const char* ext : { ".sh", ".pl", ".php", ".py" }) {
+        haveCallbacks = haveCallbacks || FileExists(callbacks + ext);
+    }
+    if (!haveCallbacks) {
+        LogDebug(VB_PLUGIN, "Plugin %s has no callbacks; nothing for fppd to load\n", name.c_str());
+        return true;
+    }
+
+    // A previous unloadPlugin() left the name in this set (the library stays
+    // mapped), so clear it or loadUserPlugin() will not look at the plugin again.
+    mLoadedUserPlugins.erase(name);
+
+    FPPPlugins::Plugin* p = loadUserPlugin(name);
+    if (!p) {
+        // loadUserPlugin() logs the specific reason - a missing callbacks script,
+        // an ABI-version refusal from loadSHLIBPlugin(), a createPlugin() that
+        // returned nothing.
+        error = "plugin " + name + " did not load - see the log";
+        return false;
+    }
+    startPlugin(p);
+    LogInfo(VB_PLUGIN, "Loaded plugin %s\n", name.c_str());
+    return true;
+}
+
+bool PluginManager::unloadPlugin(const std::string& name, std::string& error) {
+    FPPPlugins::Plugin* plugin = nullptr;
+    for (auto& a : mPlugins) {
+        if (a->getName() == name) {
+            plugin = a;
+            break;
+        }
+    }
+    if (!plugin) {
+        return true; // not loaded; the caller's goal already holds
+    }
+    // A channel output the plugin created is owned by the output system, not by
+    // the plugin, and may be mid-show. Nothing here can take it back, so refuse
+    // rather than leave an output running against a destroyed plugin. Keyed on
+    // having actually produced one - merely implementing ChannelOutputPlugin
+    // says nothing, since the FPPPlugin convenience base inherits all four
+    // plugin interfaces.
+    if (mPluginsWithOutputs.find(name) != mPluginsWithOutputs.end()) {
+        error = name + " provides a channel output in use and can only be removed by restarting";
+        return false;
+    }
+
+    // Order matters: stop inbound HTTP first (unregisterApis does not return
+    // until no request is inside the plugin's handlers and they are destroyed),
+    // then let the plugin stop its own threads and timers while it is still a
+    // whole object, then stop calling it, then destroy it.
+    if (auto* api = dynamic_cast<FPPPlugins::APIProviderPlugin*>(plugin)) {
+        api->unregisterApis();
+    }
+    // Withdraw the plugin's epoll descriptors BEFORE shutdown(), while they are
+    // still open: a plugin that closes them itself in shutdown() would make the
+    // EPOLL_CTL_DEL fail, and the callback - which lives in the plugin - has to
+    // come out of the map either way.
+    auto fds = mPluginControlFds.find(name);
+    if (fds != mPluginControlFds.end()) {
+        for (int fd : fds->second) {
+            EPollManager::INSTANCE.removeFileDescriptor(fd);
+        }
+        mPluginControlFds.erase(fds);
+    }
+
+    std::function<bool()> ready = plugin->shutdown();
+
+    // Anything the plugin still has in flight holds a callback that lives in its
+    // library. shutdown() cannot cancel those - they are owned by CurlManager -
+    // so drop them here. Requests the plugin did not tag with its name are
+    // invisible to this, which is exactly why unmapping is opt-in below.
+    CurlManager::INSTANCE.cancelRequests(name);
+
+    // Commands FPP registered from the plugin's descriptions.json. (A plugin
+    // that added its own Command objects in registerApis() removes them in
+    // unregisterApis(); these are the ones FPP owns.)
+    auto cmds = mPluginCommands.find(name);
+    if (cmds != mPluginCommands.end()) {
+        for (Command* c : cmds->second) {
+            CommandManager::INSTANCE.removeCommand(c); // unregisters only
+            delete c;
+        }
+        mPluginCommands.erase(cmds);
+    }
+
+    // Detach now: from here nothing calls into the plugin, so as far as the rest
+    // of FPP is concerned it is unloaded, whatever the settling time says.
+    detachPlugin(plugin);
+    mLoadedUserPlugins.erase(name);
+
+    // Unmapping is opt-in. A plugin that declared FPP_PLUGIN_SUPPORTS_UNLOAD has
+    // asserted it leaves nothing behind pointing into its library; without that
+    // the mapping stays, which costs address space and nothing else.
+    void* handle = nullptr;
+    bool unmap = false;
+    auto lib = mPluginLibraries.find(name);
+    bool hadLibrary = (lib != mPluginLibraries.end());
+    if (lib != mPluginLibraries.end()) {
+        if (lib->second.supportsUnload) {
+            handle = lib->second.handle;
+            unmap = true;
+            for (auto it = mShlibHandles.begin(); it != mShlibHandles.end(); ++it) {
+                if (*it == handle) {
+                    mShlibHandles.erase(it); // or Cleanup() would dlclose it a second time
+                    break;
+                }
+            }
+            mPluginLibraries.erase(lib);
+            // The library leaves the link map when it is closed, so a later load
+            // of the same path opens whatever is on disk - no generation link
+            // needed for it.
+            for (auto it = mLoadedShlibInodes.begin(); it != mLoadedShlibInodes.end();) {
+                it = (it->first.find("/" + name + "/") != std::string::npos) ? mLoadedShlibInodes.erase(it) : ++it;
+            }
+        }
+    }
+
+    PendingUnload pending;
+    pending.plugin = plugin;
+    pending.handle = handle;
+    pending.unmap = unmap;
+    pending.hadLibrary = hadLibrary;
+    pending.name = name;
+    pending.ready = std::move(ready);
+    // Cap the wait so a predicate that never returns true delays teardown
+    // rather than holding the plugin forever.
+    pending.deadlineMS = GetTimeMS() + 60000;
+
+    if (!pending.ready) {
+        finishUnload(pending);
+        return true;
+    }
+    // Still finishing. A load arriving in the meantime is fine: it constructs a
+    // fresh object, and the dlopen it does raises the library's reference count
+    // above what this later drops.
+    mPendingUnloads.push_back(std::move(pending));
+    LogInfo(VB_PLUGIN, "Unloaded plugin %s (waiting for it to finish)\n", name.c_str());
+    pollPendingUnload(name);
+    return true;
+}
+
+// Re-arms itself once a second until the plugin says it is done. Safe to
+// reschedule from inside the callback: a one-shot timer is removed from the list
+// before it fires, so addTimer() here adds a fresh entry rather than mutating
+// the one being run.
+void PluginManager::pollPendingUnload(const std::string& name) {
+    Timers::INSTANCE.addTimer("PluginUnload-" + name, GetTimeMS() + 1000, [this, name]() {
+        for (auto it = mPendingUnloads.begin(); it != mPendingUnloads.end(); ++it) {
+            if (it->name != name) {
+                continue;
+            }
+            bool done = false;
+            long long now = GetTimeMS();
+            if (now >= it->deadlineMS) {
+                LogWarn(VB_PLUGIN, "Plugin %s never reported finished; tearing down anyway\n", name.c_str());
+                done = true;
+            } else {
+                // The predicate is the plugin's code, which is why this runs
+                // while the library is still mapped.
+                try {
+                    done = it->ready();
+                } catch (...) {
+                    LogWarn(VB_PLUGIN, "Plugin %s threw while reporting readiness; tearing down\n", name.c_str());
+                    done = true;
+                }
+            }
+            if (done) {
+                PendingUnload p = std::move(*it);
+                mPendingUnloads.erase(it);
+                finishUnload(p);
+            } else {
+                pollPendingUnload(name);
+            }
+            return;
+        }
+    });
+}
+
+void PluginManager::finishUnload(PendingUnload& p) {
+    // Drop the predicate before the library goes: it is the plugin's code too.
+    p.ready = nullptr;
+    delete p.plugin; // the plugin's own full teardown
+    if (p.unmap && p.handle) {
+        dlclose(p.handle);
+        LogInfo(VB_PLUGIN, "Unloaded plugin %s (library unmapped)\n", p.name.c_str());
+    } else if (p.hadLibrary) {
+        LogInfo(VB_PLUGIN, "Unloaded plugin %s (library kept mapped)\n", p.name.c_str());
+    } else {
+        // A script plugin has no library of its own to keep or drop.
+        LogInfo(VB_PLUGIN, "Unloaded plugin %s\n", p.name.c_str());
     }
 }
 void PluginManager::multiSyncData(const std::string& pn, uint8_t* data, int len) {

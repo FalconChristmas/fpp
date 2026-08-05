@@ -988,6 +988,13 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	// The only statement that the operation as a whole succeeded -- the wrapper
 	// scripts only ever report on their own phase.
 	PluginEchoLog('install', $repoName, "\nInstalled plugin '$plugin'.\n", $stream);
+	// Now that the plugin's install script has built or fetched whatever it
+	// needs, ask fppd to pick it up. Dependency plugins come through here too,
+	// so each is loaded as it finishes.
+	$loaded = FPPDPluginLifecycle($plugin, 'load');
+	if (!$loaded['ok']) {
+		PluginEchoLog('install', $repoName, "Installed, but FPPD did not load it (" . $loaded['message'] . "). Restart FPPD to enable it.\n", $stream);
+	}
 	// Dependency plugins are resolved from the plugin list into a fresh
 	// $depInfo (see ResolvePluginDependencies()) and recorded through this same
 	// call, so each one is judged on where it actually came from rather than
@@ -1506,6 +1513,40 @@ function PluginServeIcon()
  * {"Status": "OK", "Message": ""}
  * ```
  */
+/**
+ * Ask fppd to load or unload a plugin, so an install takes effect and an
+ * uninstall stops having effect without restarting - which on a running show
+ * means not interrupting it.
+ *
+ * Goes through the documented proxy rather than fppd's internal port. Returns
+ * an array {ok, message}. A failure here is never fatal to the install or
+ * uninstall itself: the worst case is the old behaviour, where the change lands
+ * at the next restart. fppd not running is exactly that case - nothing is
+ * loaded, so there is nothing to change.
+ */
+function FPPDPluginLifecycle($plugin, $action)
+{
+    $ctx = stream_context_create(array('http' => array(
+        'method' => 'POST',
+        'content' => '',
+        'timeout' => 30,
+        'ignore_errors' => true,
+    )));
+    $url = 'http://localhost/api/fppd/plugin/' . rawurlencode($plugin) . '/' . $action;
+    $resp = @file_get_contents($url, false, $ctx);
+    if ($resp === false) {
+        return array('ok' => false, 'message' => 'fppd did not answer (not running?)');
+    }
+    $json = json_decode($resp, true);
+    if (!is_array($json) || !isset($json['Status'])) {
+        return array('ok' => false, 'message' => 'unexpected response from fppd');
+    }
+    return array(
+        'ok' => ($json['Status'] === 'OK'),
+        'message' => isset($json['Message']) ? $json['Message'] : '',
+    );
+}
+
 function UninstallPlugin()
 {
 	global $settings, $fppDir, $SUDO, $_REQUEST;
@@ -1539,6 +1580,13 @@ function UninstallPlugin()
 			}
 		}
 
+		// Unload first: the files are about to be deleted, and a plugin left
+		// loaded would keep running against scripts and a binary that no longer
+		// exist. If fppd refuses (a channel output in use) or is not running,
+		// say so and carry on - the uninstall itself still proceeds, it just
+		// needs a restart to fully take hold.
+		$unloaded = FPPDPluginLifecycle($plugin, 'unload');
+
 		if (isset($stream) && $stream != "false") {
 			DisableOutputBuffering();
 			system("$fppDir/scripts/uninstall_plugin $plugin", $return_val);
@@ -1549,10 +1597,15 @@ function UninstallPlugin()
 
 		if ($return_val == 0) {
 			if (isset($stream) && $stream != "false") {
+				if (!$unloaded['ok']) {
+					return "\nUninstalled, but fppd still has it loaded (" . $unloaded['message'] . ") - restart FPPD to finish.\nDone\n";
+				}
 				return "\nDone\n";
 			}
 			$result['Status'] = 'OK';
-			$result['Message'] = '';
+			$result['Message'] = $unloaded['ok'] ? ''
+				: 'Uninstalled, but FPPD still has it loaded (' . $unloaded['message'] . '). Restart FPPD to finish.';
+			$result['restartRequired'] = !$unloaded['ok'];
 		} else {
 			$result['Status'] = 'Error';
 			$result['Message'] = 'Failed to properly uninstall plugin (' . $plugin . ')';

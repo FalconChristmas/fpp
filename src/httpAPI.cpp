@@ -53,6 +53,10 @@ extern volatile int runMainFPPDLoop;
 #include "RecurringTasks.h"
 #include "Player.h"
 #include "Plugins.h"
+#include "Timers.h"
+
+#include <chrono>
+#include <future>
 #include "Scheduler.h"
 #include "Sequence.h"
 #include "Variables.h"
@@ -426,6 +430,56 @@ void APIServer::Init(void) {
         callback(makeStringResponse(SaveJsonToString(result), 200, "application/json"));
     };
     app.registerHandler("/internal/pluginApiRoutes", copyHandler(handlePluginApiRoutes), {drogon::Get, drogon::Head});
+
+    /**
+     * Load or unload a plugin without restarting fppd, so installing a plugin can
+     * take effect and uninstalling one can stop having effect mid-show.
+     *
+     * POST /fppd/plugin/<name>/load  |  POST /fppd/plugin/<name>/unload
+     *
+     * PluginManager mutates state the main loop walks every tick, and unloading
+     * calls into the plugin to stop its threads, so the work is handed to the
+     * main loop via a one-shot timer and this thread waits for the result. The
+     * wait is bounded: a wedged main loop returns 503 rather than pinning one of
+     * drogon's small pool of I/O threads forever.
+     */
+    auto handlePluginLifecycle = [](const HttpRequestPtr& req,
+                                    std::function<void(const HttpResponsePtr&)>&& callback,
+                                    const std::string& name, const std::string& action) {
+        if (name.empty() || name.find('/') != std::string::npos) {
+            callback(makeStringResponse("{\"Status\":\"ERROR\",\"Message\":\"invalid plugin name\"}",
+                                        400, "application/json"));
+            return;
+        }
+        bool load = (action == "load");
+        // Timers replace a same-named entry, so a second request arriving while
+        // one is queued would silently drop the first. Keep the names distinct.
+        static std::atomic<uint64_t> seq{ 0 };
+        std::string timerName = "PluginLifecycle-" + std::to_string(seq++);
+
+        auto result = std::make_shared<std::promise<std::pair<bool, std::string>>>();
+        auto done = result->get_future();
+        Timers::INSTANCE.addTimer(timerName, GetTimeMS(), [result, name, load]() {
+            std::string err;
+            bool ok = load ? PluginManager::INSTANCE.loadPlugin(name, err)
+                           : PluginManager::INSTANCE.unloadPlugin(name, err);
+            result->set_value({ ok, err });
+        });
+
+        if (done.wait_for(std::chrono::seconds(30)) != std::future_status::ready) {
+            callback(makeStringResponse("{\"Status\":\"ERROR\",\"Message\":\"timed out waiting for the main loop\"}",
+                                        503, "application/json"));
+            return;
+        }
+        auto [ok, err] = done.get();
+        Json::Value resp(Json::objectValue);
+        resp["Status"] = ok ? "OK" : "ERROR";
+        resp["Message"] = err;
+        resp["plugin"] = name;
+        resp["loaded"] = PluginManager::INSTANCE.isPluginLoaded(name);
+        callback(makeStringResponse(SaveJsonToString(resp), ok ? 200 : 400, "application/json"));
+    };
+    app.registerHandler("/fppd/plugin/{1}/{2}", handlePluginLifecycle, {drogon::Post});
 
     // PlayerResource catch-all for all other /fppd/* paths (registered AFTER
     // specific /fppd/ports and /fppd/testing routes so they match first)
