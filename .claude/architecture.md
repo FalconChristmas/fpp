@@ -10,7 +10,7 @@ The main loop calls `EPollManager::INSTANCE.waitForEvents(sleepms)` (50ms idle, 
 
 ## Core Shared Library (`libfpp.so` / `fpp_so.mk`)
 
-Contains 125+ object files covering all core functionality. Key linked libraries: zstd, jsoncpp, curl, mosquitto, SDL2, FFmpeg (avformat/avcodec/avutil/swresample/swscale), GraphicsMagick, libhttpserver, libgpiod, tag (audio metadata), vlc (optional), kms++ (optional).
+Contains 125+ object files covering all core functionality. Key linked libraries: zstd, jsoncpp, curl, mosquitto, SDL2, FFmpeg (avformat/avcodec/avutil/swresample/swscale), GraphicsMagick, drogon/trantor, libgpiod, tag (audio metadata), vlc (optional), kms++ (optional).
 
 ## C++ Backend (`src/`)
 

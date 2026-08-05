@@ -14,12 +14,6 @@
 #define PLATFORM_PI64
 #endif
 
-// Block libhttpserver from loading: FPP now uses drogon, and fpphttp.h provides
-// source-level shims in the httpserver:: namespace for plugin compatibility.
-// Defining the guard here causes any #include <httpserver.hpp> in plugin code
-// to be silently skipped, preventing redefinition conflicts with our shims.
-#define SRC_HTTPSERVER_HPP_
-
 // Kept for backward compatibility with external plugins compiled against the
 // old libhttpserver-based API. See CLAUDE.md.
 #define HTTP_RESPONSE_CONST

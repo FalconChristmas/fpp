@@ -40,17 +40,39 @@ public:
         size_t curPos = 0;
     };
 
+    // The trailing `owner` on every add below tags the request so it can be
+    // cancelled as a group later. A plugin that wants to be unloadable must pass
+    // its plugin name: its callback is a std::function whose code and captured
+    // state live in the plugin's .so, so an in-flight request is a call into
+    // that library after it is gone. FPP's own callers leave it empty - core
+    // code is never unloaded.
+
     // Raw methods for working directly with the CURL* objects
     CURL* createCurl(const std::string& fullUrl, CurlPrivateData** data = nullptr, bool upload = false);
-    void addCURL(const std::string& furl, CURL* curl, std::function<void(CURL*)>&& callback, bool autoCleanCurl = true);
+    void addCURL(const std::string& furl, CURL* curl, std::function<void(CURL*)>&& callback, bool autoCleanCurl = true,
+                 const std::string& owner = "");
 
     // Asynchronous methods for string content
     void add(const std::string& furl, const std::string& method, const std::string& data,
              const std::list<std::string>& extraHeaders,
-             std::function<void(int rc, const std::string& resp)>&& callback);
-    void addGet(const std::string& furl, std::function<void(int rc, const std::string& resp)>&& callback);
-    void addPost(const std::string& furl, const std::string& data, const std::string& contentType, std::function<void(int rc, const std::string& resp)>&& callback);
-    void addPut(const std::string& furl, const std::string& data, const std::string& contentType, std::function<void(int rc, const std::string& resp)>&& callback);
+             std::function<void(int rc, const std::string& resp)>&& callback,
+             const std::string& owner = "");
+    void addGet(const std::string& furl, std::function<void(int rc, const std::string& resp)>&& callback,
+                const std::string& owner = "");
+    void addPost(const std::string& furl, const std::string& data, const std::string& contentType,
+                 std::function<void(int rc, const std::string& resp)>&& callback, const std::string& owner = "");
+    void addPut(const std::string& furl, const std::string& data, const std::string& contentType,
+                std::function<void(int rc, const std::string& resp)>&& callback, const std::string& owner = "");
+
+    // Abandons every outstanding request tagged with `owner`: the transfers are
+    // removed from the multi handle and their callbacks are destroyed WITHOUT
+    // being invoked. Destroying them is the point - that is what releases the
+    // plugin-owned callable while its library is still mapped. Returns how many
+    // were cancelled.
+    //
+    // Main loop only, same as doProcessCurls(), so it cannot run while a
+    // callback is executing.
+    int cancelRequests(const std::string& owner);
 
     // Synchronous methods
     std::string doGet(const std::string& furl, int& rc);
@@ -81,6 +103,7 @@ private:
         ~CurlInfo() {}
         std::string host;
         std::string url;
+        std::string owner; // empty for FPP's own requests; see cancelRequests()
         CURL* curl = nullptr;
         bool cleanCurl = true;
         std::function<void(CURL*)> callback;
