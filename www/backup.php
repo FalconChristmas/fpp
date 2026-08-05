@@ -2171,7 +2171,7 @@ if ($skipHTMLCodeOutput === false) {
                             continue;
                         }
 
-                        printf("	settings['%s'] = \"%s\";\n", $key, $value);
+                        printf("	settings['%s'] = %s;\n", $key, json_encode((string) $value));
                     } else {
                         $js_array = json_encode($value);
                         printf("    settings['%s'] = %s;\n", $key, $js_array);

@@ -840,7 +840,7 @@ if (!isset($skipJSsettings)) {
             if (!isset($settingInfos[$key])) {
                 //Print out settings that need to be exposed to the browser in JS settings array - this is temporary until all settings properly defined in json file
                 if (!is_array($value)) {
-                    printf("	settings['%s'] = \"%s\"; // Needs proper defintion in JSON\n", $key, $value);
+                    printf("	settings['%s'] = %s; // Needs proper defintion in JSON\n", $key, json_encode((string) $value));
                 } else {
                     $js_array = json_encode($value);
                     printf("    settings['%s'] = %s; // Needs proper defintion in JSON\n", $key, $js_array);
@@ -853,7 +853,7 @@ if (!isset($skipJSsettings)) {
                 if (in_array($pageName, $settingInfos[$key]["exposedAsJSToPages"]) || in_array("all", $settingInfos[$key]["exposedAsJSToPages"])) {
                     //Print out settings to browser
                     if (!is_array($value)) {
-                        printf("	settings['%s'] = \"%s\";\n", $key, $value);
+                        printf("	settings['%s'] = %s;\n", $key, json_encode((string) $value));
                     } else {
                         $js_array = json_encode($value);
                         printf("    settings['%s'] = %s;\n", $key, $js_array);

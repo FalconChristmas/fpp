@@ -22,7 +22,7 @@ if (!isset($skipJSsettings)) {
 var pluginSettings = new Array();
 <?
     foreach ($pluginSettings as $key => $value) {
-        printf("    pluginSettings['%s'] = \"%s\";\n", $key, $value);
+        printf("    pluginSettings['%s'] = %s;\n", $key, json_encode((string) $value));
     }
     ?>
 </script>
