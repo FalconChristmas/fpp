@@ -155,11 +155,51 @@ static bool bridgeDataReceived = false;
 
 static std::map<int, std::function<bool(uint8_t* data, long long packetTime)>> ArtNetOpcodeHandlers;
 
+// The ArtNet socket is shared by everything that speaks ArtNet: the protocol
+// fixes the port, so the bridge and any plugin extending ArtNet necessarily
+// receive on one descriptor. Its epoll registration therefore belongs HERE and
+// nowhere else, driven by whether any opcode handler currently wants packets.
+//
+// It used to be registered by each interested party instead, which does not
+// work for a shared descriptor. EPollManager holds one callback per fd, so the
+// second registration silently replaced the first, and the first removal took
+// the descriptor out of the epoll set for everyone - unloading a plugin that
+// had registered it stopped the bridge receiving ArtNet entirely. Keeping it
+// here also means the callback is always FPP's own, never a plugin's, so an
+// unloaded plugin can never leave the loop dispatching into an unmapped
+// library.
+static void UpdateArtNetInputRegistration() {
+    bool wanted = !ArtNetOpcodeHandlers.empty();
+    if (wanted && artnetSock < 0) {
+        // A handler wants ArtNet packets on a player that has no ArtNet input
+        // of its own, so there is no socket yet. Create it - this is what the
+        // callers who used to register the descriptor themselves were doing by
+        // calling CreateArtNetSocket(), and without it a plugin's triggers
+        // would silently stop working wherever the bridge has no ArtNet.
+        CreateArtNetSocket();
+    }
+    if (artnetSock < 0) {
+        return;
+    }
+    if (wanted && !artnetSocketAsInput) {
+        std::function<bool(int)> f = [](int i) {
+            return Bridge_ReceiveArtNetData();
+        };
+        EPollManager::INSTANCE.addFileDescriptor(artnetSock, f);
+        artnetSocketAsInput = true;
+    } else if (!wanted && artnetSocketAsInput) {
+        EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
+        artnetSocketAsInput = false;
+    }
+}
+
 void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t* data, long long packetTime)> handler) {
     ArtNetOpcodeHandlers[opCode] = handler;
+    UpdateArtNetInputRegistration();
 }
 void RemoveArtNetOpcodeHandler(int opCode) {
     ArtNetOpcodeHandlers.erase(opCode);
+    UpdateArtNetInputRegistration();
 }
 
 static bool hasUDP = false;
@@ -1226,18 +1266,15 @@ void BridgeReloadUDP() {
             EPollManager::INSTANCE.addFileDescriptor(ddpSock, f);
         }
     }
-    artnetSocketAsInput = false;
     if (artnetSock > 0) {
         if (enabled && hasArtNet) {
+            // Registering the handlers is what puts the socket in the epoll
+            // set - see UpdateArtNetInputRegistration().
             AddArtNetOpcodeHandler(0x5000, Bridge_StoreArtNetData);  // ArtOutput
             AddArtNetOpcodeHandler(0x5200, Bridge_HandleArtNetSync); // ArtSync
             AddArtNetOpcodeHandler(0x2000, Bridge_HandleArtNetPoll); // ArtPoll
-            std::function<bool(int)> f = [](int i) {
-                return Bridge_ReceiveArtNetData();
-            };
-            EPollManager::INSTANCE.addFileDescriptor(artnetSock, f);
-            artnetSocketAsInput = true;
         }
+        UpdateArtNetInputRegistration();
     }
 }
 void BridgeShutdownUDP(bool reloading) {
@@ -1261,13 +1298,19 @@ void BridgeShutdownUDP(bool reloading) {
         ddpSock = -1;
     }
     if (artnetSock >= 0) {
-        if (artnetSocketAsInput) {
-            EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
-            artnetSocketAsInput = false;
-        }
+        // Give back the bridge's own handlers and let the shared registration
+        // re-evaluate, rather than pulling the descriptor out from under
+        // everyone: a plugin may still want ArtNet delivered across a reload.
+        RemoveArtNetOpcodeHandler(0x5000);
+        RemoveArtNetOpcodeHandler(0x5200);
+        RemoveArtNetOpcodeHandler(0x2000);
         if (!reloading) {
             // don't close the artNet socket if we are reloading
             // as outputs or inputs may still be using it
+            if (artnetSocketAsInput) {
+                EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
+                artnetSocketAsInput = false;
+            }
             close(artnetSock);
             artnetSock = -1;
         }
