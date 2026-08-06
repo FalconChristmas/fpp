@@ -124,6 +124,9 @@ char* ProcessCommand(char* command, char* response) {
     char* saveptr = nullptr; // for thread-safe strtok_r below
     LogExcess(VB_COMMAND, "CMD: %s\n", command);
     s = strtok_r(command, ",", &saveptr);
+    if (!s) {
+        s = command; // empty/all-delimiter command; graceful "Invalid command" path below
+    }
     strncpy(CommandStr, s, sizeof(CommandStr)); // s can be 256 bytes long
     CommandStr[sizeof(CommandStr) - 1] = '\0';
 

@@ -589,7 +589,17 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
 #endif
             char zfName[256];
             std::string SystemUUID = getSetting("SystemUUID", "unknown");
-            snprintf(zfName, sizeof(zfName), "crashes/fpp-%s-%s-%s-%s.zip", sysType, getFPPVersion(), SystemUUID.c_str(), tbuffer);
+            char safeUUID[64];
+            unsigned int uuidLen = 0;
+            for (const char* p = SystemUUID.c_str(); *p != '\0' && uuidLen < sizeof(safeUUID) - 1; ++p) {
+                unsigned char c = *p;
+                bool safe = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_' || c == '.';
+                if (safe) {
+                    safeUUID[uuidLen++] = c;
+                }
+            }
+            safeUUID[uuidLen] = '\0';
+            snprintf(zfName, sizeof(zfName), "crashes/fpp-%s-%s-%s-%s.zip", sysType, getFPPVersion(), safeUUID, tbuffer);
 
             // Use script to generate crash report with passwords redacted
             char scriptCmd[512];
