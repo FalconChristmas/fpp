@@ -2757,6 +2757,54 @@
         }
       }
     },
+    "/api/fppd/plugin/{PluginName}/{action}": {
+      "parameters": [
+        {
+          "name": "PluginName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "action",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "Load or unload a plugin without restarting fppd, so installing a plugin can take effect and uninstalling one can stop having effect mid-show.",
+        "description": "PluginManager mutates state the main loop walks every tick, and unloading calls into the plugin to stop its threads, so the work is handed to the main loop via a one-shot timer and this thread waits for the result. The wait is bounded: a wedged main loop returns 503 rather than pinning one of drogon's small pool of I/O threads forever. Documented under readable parameter names rather than the positional {1}/{2} drogon registers it as - see the skip list in docs.php.",
+        "responses": {
+          "200": {
+            "description": "The plugin was loaded or unloaded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "",
+                  "plugin": "fpp-brightness",
+                  "loaded": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The main loop did not answer in time; nothing was changed."
+          }
+        }
+      }
+    },
     "/api/fppd/ports": {
       "get": {
         "tags": [

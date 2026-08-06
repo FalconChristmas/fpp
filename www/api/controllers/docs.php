@@ -43,11 +43,114 @@ function ServeOpenApiSpec() {
         }
     }
 
+    // Before the undocumented sweep, so anything a plugin describes for itself
+    // is already in the spec by the time that runs and drops out of its
+    // "already documented?" check rather than being reported as undocumented.
+    MergePluginApiDocs($spec);
     MergeUndocumentedFppdRoutes($spec);
 
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($spec, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     exit;
+}
+
+// Plugins that serve HTTP routes from C++ can describe them in an
+// apiDocs.json at the top of the plugin directory, and those descriptions are
+// merged into the spec here so they appear on the API page like anything else
+// rather than under "Undocumented".
+//
+// Drogon's registry does not record who registered a route, so fppd cannot tell
+// us which plugin owns what (see MergeUndocumentedFppdRoutes() below). A file
+// beside the plugin's own code sidesteps that: the plugin declares its own
+// paths, and ownership is simply which directory the file came from. It also
+// means the documentation ships and versions with the plugin, needs no rebuild
+// to change, and works for a route that is not reachable when the docs are
+// generated - a plugin that is installed but disabled still documents itself.
+//
+// The format is an OpenAPI fragment, so it composes with the rest of the spec
+// with no translation:
+//
+//   {
+//     "paths": {
+//       "/Brightness": {
+//         "get": {
+//           "summary": "Read the current brightness",
+//           "responses": { "200": { "description": "Brightness, 0-200" } }
+//         }
+//       }
+//     }
+//   }
+//
+// Paths are written as the plugin registered them with
+// FPPPlugins::registerPluginApi() - "/Brightness", not "/api/plugin-apis/
+// Brightness". The external prefix is worked out here, the same way the
+// undocumented sweep does it, so a plugin does not have to know whether its
+// namespace is proxied directly or through the generic passthrough.
+//
+// Paths the plugin registers with family=true can be documented individually
+// here even though only the parent is registered with Drogon: fppd never
+// reports the subpaths, so they would otherwise be undocumentable.
+function MergePluginApiDocs(&$spec)
+{
+    global $pluginDirectory;
+
+    // Same list as MergeUndocumentedFppdRoutes() - anything outside it is only
+    // reachable through the generic /api/plugin-apis/ passthrough.
+    $directProxyNamespaces = array(
+        'fppd', 'overlays', 'models', 'commands', 'command', 'commandPresets',
+        'player', 'gpio', 'variables', 'aes67', 'opusrtp',
+    );
+
+    $baseDir = $pluginDirectory . '/';
+    if (!is_dir($baseDir) || !($dir = opendir($baseDir))) {
+        return;
+    }
+    while (($file = readdir($dir)) !== false) {
+        if (in_array($file, array('.', '..')) || !is_dir($baseDir . $file)) {
+            continue;
+        }
+        $docFile = $baseDir . $file . '/apiDocs.json';
+        if (!is_file($docFile)) {
+            continue;
+        }
+        $docs = json_decode(file_get_contents($docFile), true);
+        // A plugin shipping a broken file must not take the whole API page
+        // down with it - log and skip, as the PHP endpoint scan does.
+        if (!is_array($docs) || !isset($docs['paths']) || !is_array($docs['paths'])) {
+            error_log("FPP: ignoring $docFile -- expected an object with a 'paths' member");
+            continue;
+        }
+        foreach ($docs['paths'] as $rawPath => $methods) {
+            if (!is_array($methods) || $rawPath === '' || $rawPath[0] !== '/') {
+                error_log("FPP: ignoring path '$rawPath' in $docFile -- paths start with '/'");
+                continue;
+            }
+            $namespace = ltrim(strtok($rawPath, '/'), '/');
+            $path = in_array($namespace, $directProxyNamespaces, true)
+                ? '/api' . $rawPath
+                : '/api/plugin-apis' . $rawPath;
+
+            foreach ($methods as $method => $op) {
+                $method = strtolower($method);
+                if (!is_array($op)) {
+                    continue;
+                }
+                // Never overwrite something FPP documents itself: a plugin
+                // cannot claim one of the core paths by describing it.
+                if (isset($spec['paths'][$path][$method])) {
+                    continue;
+                }
+                if (!isset($op['tags'])) {
+                    $op['tags'] = array('Plugins', $file);
+                }
+                if (!isset($op['responses'])) {
+                    $op['responses'] = array('200' => array('description' => 'Success'));
+                }
+                $spec['paths'][$path][$method] = $op;
+            }
+        }
+    }
+    closedir($dir);
 }
 
 // fppd's /internal/pluginApiRoutes lists every route Drogon has registered,
@@ -104,6 +207,12 @@ function MergeUndocumentedFppdRoutes(&$spec)
     // it happening to fall outside $directProxyNamespaces.
     $nonApiRoutes = array('/fppdws', '/internal/pluginApiRoutes');
 
+    // Routes drogon registers with positional placeholders, documented by hand
+    // at the same path with readable parameter names. The "already documented?"
+    // checks below compare paths literally, so they cannot match "{1}/{2}"
+    // against "{PluginName}/{action}" - list them here instead.
+    $documentedUnderFriendlyNames = array('/fppd/plugin/{1}/{2}');
+
     // Namespaces Apache proxies directly from /api/<name>... straight to
     // fppd (see the RewriteRule list in etc/apache2.site). Anything NOT in
     // this list is only reachable externally via the generic
@@ -135,7 +244,8 @@ function MergeUndocumentedFppdRoutes(&$spec)
             continue; // regex catch-all, not a real callable path
         }
         if (in_array($rawPath, $nonFunctionalBareRoutes, true)
-            || in_array($rawPath, $nonApiRoutes, true)) {
+            || in_array($rawPath, $nonApiRoutes, true)
+            || in_array($rawPath, $documentedUnderFriendlyNames, true)) {
             continue;
         }
         if (in_array($route['method'] . ' ' . $rawPath, $nonFunctionalMethodPaths, true)) {

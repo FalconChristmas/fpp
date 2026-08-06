@@ -435,13 +435,21 @@ void APIServer::Init(void) {
      * Load or unload a plugin without restarting fppd, so installing a plugin can
      * take effect and uninstalling one can stop having effect mid-show.
      *
-     * POST /fppd/plugin/<name>/load  |  POST /fppd/plugin/<name>/unload
-     *
      * PluginManager mutates state the main loop walks every tick, and unloading
      * calls into the plugin to stop its threads, so the work is handed to the
      * main loop via a one-shot timer and this thread waits for the result. The
      * wait is bounded: a wedged main loop returns 503 rather than pinning one of
      * drogon's small pool of I/O threads forever.
+     *
+     * Documented under readable parameter names rather than the positional
+     * {1}/{2} drogon registers it as - see the skip list in docs.php.
+     *
+     * @route POST /api/fppd/plugin/{PluginName}/{action}
+     * @response 200 The plugin was loaded or unloaded.
+     * ```json
+     * {"Status": "OK", "Message": "", "plugin": "fpp-brightness", "loaded": false}
+     * ```
+     * @response 503 The main loop did not answer in time; nothing was changed.
      */
     auto handlePluginLifecycle = [](const HttpRequestPtr& req,
                                     std::function<void(const HttpResponsePtr&)>&& callback,
