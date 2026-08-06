@@ -78,9 +78,29 @@ private:
     // FPPOS reflash, cleared by the Plugin Manager once a reinstall succeeds).
     void checkPluginReinstallWarning();
 
-    FPPPlugins::Plugin* loadSHLIBPlugin(const std::string& shlibName);
+    FPPPlugins::Plugin* loadSHLIBPlugin(const std::string& shlibName, const std::string& dirName);
     FPPPlugins::Plugin* loadUserPlugin(const std::string& name);
     void addPlugin(FPPPlugins::Plugin* plugin);
+
+    // A plugin's own name - what it passed to FPPPlugins::Plugin's constructor -
+    // is not required to match the directory it was installed from, and nothing
+    // makes a plugin author keep the two in step. Everything outside fppd speaks
+    // DIRECTORY names: the Plugin Manager, the install and uninstall scripts,
+    // and the load/unload REST endpoints. Keying the unload bookkeeping on the
+    // plugin's own name silently missed any plugin where they differed -
+    // unloadPlugin() found nothing to unload and reported success, so an
+    // uninstall deleted the files while the plugin kept running. One shipped
+    // plugin was in exactly that state (fpp-LoRa called itself "LoRa"); it has
+    // since been renamed to match, but that fixes one plugin, not the class -
+    // an out-of-tree plugin can still name itself anything it likes.
+    //
+    // So all of it is keyed on the directory name, and this maps a live plugin
+    // back to the directory it came from. multiSyncData() deliberately still
+    // matches on the plugin's own name: that one is the identifier the plugin
+    // puts in the MultiSync packets it sends, not an installation identity.
+    std::map<FPPPlugins::Plugin*, std::string> mPluginDirNames;
+    std::string dirNameFor(FPPPlugins::Plugin* plugin) const;
+    FPPPlugins::Plugin* findPluginByDir(const std::string& dirName) const;
 
     std::vector<FPPPlugins::Plugin*> mPlugins;
     std::vector<FPPPlugins::PlaylistEventPlugin*> mPlaylistPlugins;

@@ -483,6 +483,7 @@ void PluginManager::Cleanup() {
         delete mPlugins.back();
         mPlugins.pop_back();
     }
+    mPluginDirNames.clear();
     // Delete any commands that plugins registered but did not remove in
     // unregisterApis(). Those commands have vtables in the plugin library.
     // CommandManager::Cleanup() must run before dlclose() so that the virtual
@@ -502,7 +503,7 @@ FPPPlugins::Plugin* PluginManager::findPlugin(const std::string& name, const std
         }
     }
     std::string libName = "lib" + (shlibName == "" ? name : shlibName) + SHLIB_EXT;
-    FPPPlugins::Plugin* p = loadSHLIBPlugin(libName);
+    FPPPlugins::Plugin* p = loadSHLIBPlugin(libName, name);
     if (!p) {
         if (DirectoryExists(FPP_DIR_PLUGIN("/" + name)) && (mLoadedUserPlugins.find(name) == mLoadedUserPlugins.end())) {
             loadUserPlugin(name);
@@ -599,6 +600,7 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
     ScriptFPPPlugin* spl = new ScriptFPPPlugin(name, filename, callback_list);
     if (spl->hasCallback()) {
         mLoadedUserPlugins.emplace(name);
+        mPluginDirNames[spl] = name;
         addPlugin(spl);
         return spl;
     } else {
@@ -610,7 +612,7 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
                 }
                 delete spl;
                 mLoadedUserPlugins.emplace(name);
-                auto* p = loadSHLIBPlugin(shlibName);
+                auto* p = loadSHLIBPlugin(shlibName, name);
                 if (p == nullptr) {
                     WarningHolder::AddWarning(5, "Could not load plugin " + name);
                 }
@@ -622,7 +624,7 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
     return nullptr;
 }
 
-FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName) {
+FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName, const std::string& dirName) {
     // If this path was loaded before and the file behind it has since been
     // replaced - an upgrade between an unloadPlugin() and a loadPlugin() - it
     // cannot simply be reopened. dlopen() matches an already-loaded object by
@@ -768,7 +770,8 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName)
         unloadInfo.dli_fbase == pluginInfo.dli_fbase) {
         supportsUnload = (unloadFptr() == 1);
     }
-    mPluginLibraries[p->getName()] = { handle, supportsUnload };
+    mPluginDirNames[p] = dirName;
+    mPluginLibraries[dirName] = { handle, supportsUnload };
     LogDebug(VB_PLUGIN, "Plugin %s %s unloading\n", p->getName().c_str(),
              supportsUnload ? "supports" : "does not support");
     return p;
@@ -808,7 +811,7 @@ void PluginManager::registerApis() {
         auto* plugin = dynamic_cast<FPPPlugins::Plugin*>(a);
         std::optional<CommandRecorder> recordCommands;
         if (plugin) {
-            recordCommands.emplace(mPluginCommands, plugin->getName());
+            recordCommands.emplace(mPluginCommands, dirNameFor(plugin));
         }
         a->registerApis();
     }
@@ -844,7 +847,7 @@ void PluginManager::addControlCallbacks(std::map<int, std::function<bool(int)>>&
             // mPluginCommands. Scoped so it records before the fds are.
             std::optional<CommandRecorder> recordCommands;
             if (plugin) {
-                recordCommands.emplace(mPluginCommands, plugin->getName());
+                recordCommands.emplace(mPluginCommands, dirNameFor(plugin));
             }
             a->addControlCallbacks(callbacks);
         }
@@ -853,7 +856,7 @@ void PluginManager::addControlCallbacks(std::map<int, std::function<bool(int)>>&
         }
         for (const auto& c : callbacks) {
             if (before.find(c.first) == before.end()) {
-                mPluginControlFds[plugin->getName()].push_back(c.first);
+                mPluginControlFds[dirNameFor(plugin)].push_back(c.first);
             }
         }
     }
@@ -861,19 +864,34 @@ void PluginManager::addControlCallbacks(std::map<int, std::function<bool(int)>>&
 
 // ---- Runtime load/unload ---------------------------------------------------
 
+// The directory a plugin was installed from. Falls back to the plugin's own
+// name for anything not loaded through loadUserPlugin() - a script plugin, or a
+// shlib reached through findPlugin() - where the two are the same by
+// construction. See mPluginDirNames in Plugins.h for why this exists.
+std::string PluginManager::dirNameFor(FPPPlugins::Plugin* plugin) const {
+    auto it = mPluginDirNames.find(plugin);
+    return it != mPluginDirNames.end() ? it->second : plugin->getName();
+}
+
+// Resolves the name the Plugin Manager and the REST endpoints use - the
+// directory - to the loaded plugin, whatever the plugin calls itself.
+FPPPlugins::Plugin* PluginManager::findPluginByDir(const std::string& dirName) const {
+    for (auto& a : mPlugins) {
+        if (dirNameFor(a) == dirName) {
+            return a;
+        }
+    }
+    return nullptr;
+}
+
 void PluginManager::noteChannelOutputCreated(FPPPlugins::ChannelOutputPlugin* plugin) {
     if (auto* p = dynamic_cast<FPPPlugins::Plugin*>(plugin)) {
-        mPluginsWithOutputs.insert(p->getName());
+        mPluginsWithOutputs.insert(dirNameFor(p));
     }
 }
 
 bool PluginManager::isPluginLoaded(const std::string& name) {
-    for (auto& a : mPlugins) {
-        if (a->getName() == name) {
-            return true;
-        }
-    }
-    return false;
+    return findPluginByDir(name) != nullptr;
 }
 
 void PluginManager::startPlugin(FPPPlugins::Plugin* plugin) {
@@ -883,7 +901,8 @@ void PluginManager::startPlugin(FPPPlugins::Plugin* plugin) {
     }
     // The boot path records these in registerApis()/addControlCallbacks(); a
     // runtime load comes through here instead and has to do the same.
-    CommandRecorder recordCommands(mPluginCommands, plugin->getName());
+    const std::string dirName = dirNameFor(plugin);
+    CommandRecorder recordCommands(mPluginCommands, dirName);
     api->registerApis();
 
     // At boot these land in a map fppd hands to EPollManager once everything has
@@ -893,7 +912,7 @@ void PluginManager::startPlugin(FPPPlugins::Plugin* plugin) {
     api->addControlCallbacks(callbacks);
     for (auto& c : callbacks) {
         EPollManager::INSTANCE.addFileDescriptor(c.first, c.second);
-        mPluginControlFds[plugin->getName()].push_back(c.first);
+        mPluginControlFds[dirName].push_back(c.first);
     }
 }
 
@@ -958,13 +977,9 @@ bool PluginManager::loadPlugin(const std::string& name, std::string& error) {
 }
 
 bool PluginManager::unloadPlugin(const std::string& name, std::string& error) {
-    FPPPlugins::Plugin* plugin = nullptr;
-    for (auto& a : mPlugins) {
-        if (a->getName() == name) {
-            plugin = a;
-            break;
-        }
-    }
+    // By directory name, which is what the Plugin Manager and the REST
+    // endpoints pass - a plugin is free to call itself something else.
+    FPPPlugins::Plugin* plugin = findPluginByDir(name);
     if (!plugin) {
         return true; // not loaded; the caller's goal already holds
     }
@@ -1145,7 +1160,8 @@ void PluginManager::pollPendingUnload(const std::string& name) {
 void PluginManager::finishUnload(PendingUnload& p) {
     // Drop the predicate before the library goes: it is the plugin's code too.
     p.ready = nullptr;
-    delete p.plugin; // the plugin's own full teardown
+    mPluginDirNames.erase(p.plugin); // so the map never holds a freed pointer
+    delete p.plugin;                 // the plugin's own full teardown
     if (p.unmap && p.handle) {
         dlclose(p.handle);
         LogInfo(VB_PLUGIN, "Unloaded plugin %s (library unmapped)\n", p.name.c_str());
