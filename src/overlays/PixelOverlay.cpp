@@ -1050,6 +1050,7 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                             args.push_back("0");
                             args.push_back(msg);
                             lock.unlock();
+                            LogDebug(VB_COMMAND, "PixelOverlay HTTP API running \"Overlay Model Effect\" on model \"%s\"\n", p3.c_str());
                             CommandManager::INSTANCE.run("Overlay Model Effect", args);
                             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                         }
@@ -1310,6 +1311,7 @@ public:
         } else {
             newArgs.push_back(args[7]);
         }
+        LogDebug(VB_COMMAND, "Legacy command \"%s\" translating to \"Overlay Model Effect\"\n", name.c_str());
         return CommandManager::INSTANCE.run("Overlay Model Effect", newArgs);
     }
 };

@@ -298,6 +298,7 @@ void CommandManager::Init() {
                 Json::Value val;
                 bool success = LoadJsonFromString(payload, val);
                 if (success && val.isObject()) {
+                    LogDebug(VB_COMMAND, "MQTT topic \"%s\" running command \"%s\" (JSON payload)\n", topic.c_str(), val["command"].asString().c_str());
                     CommandManager::INSTANCE.run(val);
                 } else {
                     LogWarn(VB_COMMAND, "Invalid JSON Payload: %s\n", payload.c_str());
@@ -323,11 +324,13 @@ void CommandManager::Init() {
                 if (args.size() == 0 && payload != "") {
                     Json::Value val = LoadJsonFromString(payload);
                     if (val.isObject()) {
+                        LogDebug(VB_COMMAND, "MQTT topic \"%s\" running command \"%s\" (JSON payload)\n", topic.c_str(), command.c_str());
                         CommandManager::INSTANCE.run(command, val);
                     } else {
                         LogWarn(VB_COMMAND, "Invalid JSON Payload for topic %s: %s\n", topic.c_str(), payload.c_str());
                     }
                 } else {
+                    LogDebug(VB_COMMAND, "MQTT topic \"%s\" running command \"%s\"\n", topic.c_str(), command.c_str());
                     CommandManager::INSTANCE.run(command, args);
                 }
             }
@@ -787,11 +790,13 @@ Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std
 int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& keywords) {
     std::unique_lock<std::mutex> lock(presetsMutex);
     std::list<Json::Value> slotPresets;
+    std::list<std::string> slotPresetNames;
     for (auto const& name : presets.getMemberNames()) {
         for (int i = 0; i < presets[name].size(); i++) {
             if (presets[name][i]["presetSlot"].asInt() == slot) {
                 Json::Value cmd = ReplaceCommandKeywords(presets[name][i], keywords);
                 slotPresets.push_back(cmd);
+                slotPresetNames.push_back(name);
             }
         }
     }
@@ -809,8 +814,11 @@ int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& 
     std::string topic = "command/preset/triggered";
     Events::Publish(topic, SaveJsonToString(payload));
 
+    auto nameIt = slotPresetNames.begin();
     for (auto const& preset : slotPresets) {
+        LogDebug(VB_COMMAND, "Command Preset \"%s\" (slot %d) running command \"%s\"\n", nameIt->c_str(), slot, preset["command"].asString().c_str());
         run(preset);
+        ++nameIt;
     }
     return 1;
 }
@@ -848,6 +856,7 @@ int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::s
 
     for (int i = 0; i < it.size(); i++) {
         Json::Value cmd = ReplaceCommandKeywords(it[i], keywords);
+        LogDebug(VB_COMMAND, "Command Preset \"%s\" running command \"%s\"\n", name.c_str(), cmd["command"].asString().c_str());
         run(cmd);
     }
 

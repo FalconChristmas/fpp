@@ -331,11 +331,13 @@ public:
         nargs.push_back("Output Specific");
         nargs.push_back("--ALL--");
         nargs.push_back("999");
+        LogDebug(VB_COMMAND, "Check Pixel Count command starting Test Mode to measure current draw\n");
         CommandManager::INSTANCE.run("Test Start", nargs);
         Timers::INSTANCE.addPeriodicTimer("CheckPixelCount", 1000, [args]() {
             if (CurrentBasedPixelCountPixelStringTester::INSTANCE.getCurrentStatus() == CurrentBasedPixelCountPixelStringTester::Status::Complete) {
                 OutputMonitor::INSTANCE.checkPixelCounts(args[0], args[2], std::atoi(args[1].c_str()));
                 std::vector<std::string> args;
+                LogDebug(VB_COMMAND, "Check Pixel Count command stopping Test Mode, current-based detection complete\n");
                 CommandManager::INSTANCE.run("Test Stop", args);
                 Timers::INSTANCE.stopPeriodicTimer("CheckPixelCount");
             }
@@ -1011,10 +1013,12 @@ HttpResponsePtr OutputMonitor::render_GET(const HttpRequestPtr& req) {
             args.push_back("Output Specific");
             args.push_back("--ALL--");
             args.push_back("999");
+            LogDebug(VB_COMMAND, "GET /api/fppd/ports/pixelCount from %s starting Test Mode\n", req->getPeerAddr().toIp().c_str());
             CommandManager::INSTANCE.run("Test Start", args);
         }
         if (plen > 2 && parts[2] == "stop") {
             std::vector<std::string> args;
+            LogDebug(VB_COMMAND, "GET /api/fppd/ports/stop from %s stopping Test Mode\n", req->getPeerAddr().toIp().c_str());
             CommandManager::INSTANCE.run("Test Stop", args);
         }
         Sensors::INSTANCE.updateSensorSources();

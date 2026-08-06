@@ -405,6 +405,7 @@ void PlaylistEntryMedia::StopExtraMedia(void) {
     m_extraMediaStarted = false;
     for (const auto& em : m_extraMedia) {
         std::vector<std::string> args = { std::to_string(em.slot) };
+        LogDebug(VB_COMMAND, "Media entry: stopping extra media '%s', running \"Stop Media Slot\" on slot %d\n", em.mediaName.c_str(), em.slot);
         CommandManager::INSTANCE.run("Stop Media Slot", args);
     }
 }

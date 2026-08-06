@@ -2965,6 +2965,9 @@ void MultiSync::ProcessCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* s
 
     CommandPkt* cpkt = (CommandPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
+    LogDebug(VB_COMMAND, "ProcessCommandPacket() running legacy command \"%s\" from remote host %s (%s)\n",
+             cpkt->command, stats->hostname.c_str(), stats->sourceIP.c_str());
+
     char response[1500];
     char* r2 = ProcessCommand(cpkt->command, response);
     if (r2) {
@@ -3145,6 +3148,8 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
     }
     if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
         stats->pktFPPCommand++;
+        LogDebug(VB_COMMAND, "ProcessFPPCommandPacket() running \"%s\" from remote host %s (%s)\n",
+                 cmd.c_str(), stats->hostname.c_str(), stats->sourceIP.c_str());
         for (auto a : m_plugins) {
             a->ReceivedFPPCommandPacket(cmd, args);
         }
@@ -3197,6 +3202,7 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
     if (host != "" && host.find(",") == std::string::npos) {
         if (MyHostMatches(host, m_hostname, m_localSystems)) {
             // only targetting myself, just run and don't send the packet
+            LogDebug(VB_COMMAND, "SendFPPCommandPacket() self-targeted, running \"%s\" locally without sending\n", cmd.c_str());
             CommandManager::INSTANCE.run(cmd, args);
         } else {
             SendUnicastPacket(host, outBuf, pos);
@@ -3206,6 +3212,7 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
         // the packet won't loop back so if it's supposed to run on this host as well,
         // we need to force it
         if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
+            LogDebug(VB_COMMAND, "SendFPPCommandPacket() broadcast includes self, running \"%s\" locally too\n", cmd.c_str());
             CommandManager::INSTANCE.run(cmd, args);
         }
     }
