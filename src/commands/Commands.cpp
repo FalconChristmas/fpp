@@ -728,6 +728,8 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
             std::string command(getRequestContent(req));
             LogDebug(VB_COMMAND, "Received command: \"%s\"\n", TruncateForLog(command, 2000).c_str());
             Json::Value val = LoadJsonFromString(command);
+            LogDebug(VB_COMMAND, "POST /api/command (bare JSON body) from %s running command \"%s\"\n",
+                     req->getPeerAddr().toIp().c_str(), val["command"].asString().c_str());
             std::unique_ptr<Command::Result> r = run(val);
             int count = 0;
             while (!r->isDone() && count < 1000) {
