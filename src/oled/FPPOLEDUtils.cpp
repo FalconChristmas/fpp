@@ -526,7 +526,7 @@ void FPPOLEDUtils::run() {
                         lastUpdateTime = 0;
                         lastActionTime = ntime;
                     } else if ((action == "Test" || action == "Test/Down") && ((ntime - lastActionTime) > 70000)) {
-                        printf("Action: %s\n", action.c_str());
+                        LogDebug(VB_COMMAND, "OLED button action: %s (gap since last action: %lldus)\n", action.c_str(), (long long)(ntime - lastActionTime));
                         lastUpdateTime = 0;
                         lastActionTime = ntime;
                         if (OLEDPage::GetCurrentPage()) {
@@ -534,7 +534,7 @@ void FPPOLEDUtils::run() {
                         }
                     }
                 } else if (action != "" && ((ntime - lastActionTime) > 70000)) { // account for some debounce time
-                    printf("Action: %s\n", action.c_str());
+                    LogDebug(VB_COMMAND, "OLED button action: %s (gap since last action: %lldus)\n", action.c_str(), (long long)(ntime - lastActionTime));
                     // force immediate update
                     lastUpdateTime = 0;
                     lastActionTime = ntime;

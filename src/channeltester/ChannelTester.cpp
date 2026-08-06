@@ -430,6 +430,7 @@ HttpResponsePtr ChannelTester::render_GET(const HttpRequestPtr& req) {
 HttpResponsePtr ChannelTester::render_POST(const HttpRequestPtr& req) {
     Json::Value result;
     std::string content = std::string{ getRequestContent(req) };
+    LogDebug(VB_COMMAND, "POST /fppd/testing from %s: \"%s\"\n", req->getPeerAddr().toIp().c_str(), TruncateForLog(content, 2000).c_str());
     if (ChannelTester::INSTANCE.SetupTest(content)) {
         result["Status"] = "OK";
         result["respCode"] = 200;

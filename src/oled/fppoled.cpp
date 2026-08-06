@@ -10,6 +10,7 @@
 #include "FPPOLEDUtils.h"
 #include "OLEDPages.h"
 #include "common.h"
+#include "log.h"
 #include "settings.h"
 
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
@@ -53,6 +54,16 @@ void sigTermHandler(int sig) {
 }
 
 int main(int argc, char* argv[]) {
+    // "logFile" isn't a persisted setting - fppd.cpp only ever sets it in its
+    // own memory at startup, defaulting to FPP_FILE_LOG - so use that same
+    // constant directly rather than a getSetting() lookup that would just
+    // come back empty here. toStdOut=true preserves the existing
+    // journalctl-visible output (fppoled has no daemonize/foreground flag to
+    // check like fppd does), while also merging into the same shared
+    // fppd.log everything else writes to - see log.cpp's note that fppd.log
+    // is a multi-writer log, each line tagged with the real program name
+    // automatically.
+    SetLogFile(FPP_FILE_LOG.c_str(), true);
     printf("FPP OLED Status Display Driver\n");
     int lt = getRawSettingInt("LEDDisplayType", 7);
     printf("    LED Display Type: %d\n", lt);
