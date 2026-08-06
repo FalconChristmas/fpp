@@ -2318,8 +2318,7 @@ if ($skipHTMLCodeOutput === false) {
                 if (document.getElementById("backup.EEPROM").checked) {
                     flags += " EEPROM";
                 }
-                if ((document.getElementById("backup.Backups").checked) &&
-                    (direction = document.getElementById("backup.Direction").value == 'TOUSB')) {
+                if (document.getElementById("backup.Backups").checked) {
                     flags += " Backups";
                 }
 

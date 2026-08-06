@@ -32,14 +32,18 @@ fppFileCopy.directionChanged = function () {
     $(fppFileCopy.config.showHostDevice).hide();
     $(fppFileCopy.config.showPathSelect).hide();
     $(fppFileCopy.config.showPath).hide();
-    $(fppFileCopy.config.showBackups).hide();
     $(fppFileCopy.config.showCompressed).hide();
+
+    // The "Backups" folder can be copied in either direction (see
+    // copy_settings_to_storage.sh's "Backups" case, which isn't gated on
+    // direction), so the checkbox should be available regardless of which
+    // Copy Type is selected -- not just TOUSB.
+    $(fppFileCopy.config.showBackups).show();
 
     switch (direction) {
         case 'TOUSB':
             $(fppFileCopy.config.showUSB).show();
             $(fppFileCopy.config.showPath).show();
-            $(fppFileCopy.config.showBackups).show();
             fppFileCopy.getRestoreDeviceDirectories();
             break;
         case 'FROMUSB':
