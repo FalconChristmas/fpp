@@ -123,6 +123,26 @@ __attribute__((weak, visibility("default"))) unsigned int fpp_logger_abi_span() 
 //   - Any epoll descriptors it registered are gone (FPP withdraws the ones it
 //     added through addControlCallbacks(); anything registered directly with
 //     EPollManager is the plugin's own to remove).
+//   - Every Command it registered with CommandManager::addCommand() has been
+//     withdrawn AND DELETED in shutdown(). A Command subclass declared in a
+//     plugin has its vtable in that plugin's .so, so one left registered is a
+//     call into an unmapped library. Note removeCommand() only UNREGISTERS -
+//     CommandManager owns what is left in the registry and deletes it at
+//     shutdown, so a plugin taking one back owns it again and must delete it:
+//
+//       for (Command* c : myCommands) {
+//           CommandManager::INSTANCE.removeCommand(c); // unregisters only
+//           delete c;
+//       }
+//       myCommands.clear();
+//
+//     FPP does keep a backstop: it records what appeared in the registry while
+//     the plugin was loading and, at unload, deletes anything the plugin left
+//     behind. That is a safety net for a plugin that forgets, not the contract
+//     - it only covers the load window, so a command registered later (from a
+//     request handler or a thread) is the plugin's alone. It also only fires
+//     for a command still registered under the same name AND pointer, so a
+//     plugin doing its own cleanup is never double-freed.
 //   - It registered HTTP routes through FPPPlugins::registerPluginApi() only.
 //   - Anything it handed to a drogon/trantor event loop has finished, or it
 //     returns a settling time from shutdown() long enough that it will have.

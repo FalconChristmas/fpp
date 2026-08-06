@@ -390,6 +390,14 @@ void CommandManager::removeCommand(const std::string& cmdName) {
     }
     commandMeta.erase(cmdName);
 }
+std::vector<std::pair<std::string, Command*>> CommandManager::getRegisteredCommands() const {
+    std::vector<std::pair<std::string, Command*>> ret;
+    ret.reserve(commands.size());
+    for (const auto& c : commands) {
+        ret.emplace_back(c.first, c.second);
+    }
+    return ret;
+}
 Json::Value CommandManager::describeCommand(Command* cmd) {
     Json::Value result = cmd->getDescription();
     auto m = commandMeta.find(cmd->name);

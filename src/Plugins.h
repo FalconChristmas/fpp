@@ -136,8 +136,25 @@ private:
     // Plugins that handed a live ChannelOutput to the output system.
     std::set<std::string> mPluginsWithOutputs;
 
-    // Commands FPP registered on a script plugin's behalf from its
-    // commands/descriptions.json. CommandManager::removeCommand() only
-    // unregisters, so unloading has to delete these too.
-    std::map<std::string, std::vector<Command*>> mPluginCommands;
+    // Commands that appeared in the command registry while a plugin was being
+    // loaded, so unloadPlugin() can take them back. Covers both the ones FPP
+    // registers on a script plugin's behalf from its commands/descriptions.json
+    // and the addCommand() calls a C++ plugin makes from its constructor,
+    // registerApis() or addControlCallbacks() - a Command subclass declared in a
+    // plugin has its vtable in that plugin's .so, so one left registered after
+    // an unload is a call into an unmapped library.
+    //
+    // Attributed by DIFFING the registry around the plugin's own code rather
+    // than by asking plugins to report what they added: addCommand() carries no
+    // owner argument and cannot gain one without breaking every plugin that
+    // calls it - the same constraint, and the same answer, as the epoll
+    // descriptors in mPluginControlFds above. A name already registered before
+    // the plugin ran is deliberately NOT attributed to it, so a plugin whose
+    // command name collides with an existing one cannot cause the original to
+    // be deleted out from under its owner.
+    //
+    // The name is stored alongside the pointer because
+    // CommandManager::removeCommand() only unregisters - unloading has to
+    // delete these too, and the pointer alone cannot be looked up afterwards.
+    std::map<std::string, std::vector<std::pair<std::string, Command*>>> mPluginCommands;
 };

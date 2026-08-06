@@ -23,6 +23,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <stdio.h>
 #include <stdlib.h>
@@ -330,11 +331,51 @@ public:
     Json::Value description;
 };
 
-// Returns the commands registered, so unloading the plugin can take them back
-// out again - they are FPP-owned objects describing scripts in the plugin's
-// directory, and an uninstalled plugin should not leave its commands listed.
-static std::vector<Command*> LoadPluginCommands(const std::string& dir) {
-    std::vector<Command*> added;
+namespace {
+// Attributes to a plugin every command that appears in the registry while this
+// object is alive. See mPluginCommands in Plugins.h for why ownership is
+// deduced this way rather than reported. Scoped rather than open-coded because
+// the load path it wraps has several early returns.
+class CommandRecorder {
+public:
+    CommandRecorder(std::map<std::string, std::vector<std::pair<std::string, Command*>>>& into,
+                    const std::string& plugin) :
+        mInto(into),
+        mPlugin(plugin) {
+        for (const auto& c : CommandManager::INSTANCE.getRegisteredCommands()) {
+            mBefore.insert(c.first);
+        }
+    }
+    ~CommandRecorder() {
+        std::vector<std::pair<std::string, Command*>> added;
+        for (const auto& c : CommandManager::INSTANCE.getRegisteredCommands()) {
+            if (mBefore.find(c.first) == mBefore.end()) {
+                added.push_back(c);
+            }
+        }
+        if (!added.empty()) {
+            auto& slot = mInto[mPlugin];
+            slot.insert(slot.end(), added.begin(), added.end());
+            LogDebug(VB_PLUGIN, "Plugin %s registered %d command(s)\n", mPlugin.c_str(), (int)added.size());
+        }
+    }
+    CommandRecorder(const CommandRecorder&) = delete;
+    CommandRecorder& operator=(const CommandRecorder&) = delete;
+
+private:
+    std::map<std::string, std::vector<std::pair<std::string, Command*>>>& mInto;
+    std::string mPlugin;
+    std::set<std::string> mBefore;
+};
+} // namespace
+
+// Registers the commands a plugin declares in commands/descriptions.json. These
+// are FPP-owned objects describing scripts in the plugin's directory, and an
+// uninstalled plugin should not leave its commands listed - but withdrawing
+// them again is not this function's job. They go into the registry through
+// addCommand() like any other, so the CommandRecorder wrapping the load
+// attributes them to the plugin and unloadPlugin() takes them back from there.
+static void LoadPluginCommands(const std::string& dir) {
     std::string commandDir = FPP_DIR_PLUGIN("/" + dir + "/commands/");
     std::string descriptions = commandDir + "/descriptions.json";
     if (FileExists(descriptions)) {
@@ -344,13 +385,11 @@ static std::vector<Command*> LoadPluginCommands(const std::string& dir) {
             ScriptCommand* cmd = new ScriptCommand(commandDir, jscmd);
             if (cmd->IsOk()) {
                 CommandManager::INSTANCE.addCommand(cmd);
-                added.push_back(cmd);
             } else {
                 delete cmd;
             }
         }
     }
-    return added;
 }
 
 void PluginManager::init() {
@@ -481,6 +520,10 @@ FPPPlugins::Plugin* PluginManager::findPlugin(const std::string& name, const std
 }
 FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
     LogDebug(VB_PLUGIN, "Found Plugin: (%s)\n", name.c_str());
+    // Covers the whole load, so it catches both the commands FPP registers from
+    // the plugin's descriptions.json below and the ones a C++ plugin registers
+    // from its own constructor, which runs inside loadSHLIBPlugin().
+    CommandRecorder recordCommands(mPluginCommands, name);
     std::string filename = FPP_DIR_PLUGIN("/" + name + "/callbacks");
     bool found = false;
 
@@ -502,13 +545,9 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
             }
         }
     }
-    {
-        std::vector<Command*> cmds = LoadPluginCommands(name);
-        if (!cmds.empty()) {
-            auto& slot = mPluginCommands[name];
-            slot.insert(slot.end(), cmds.begin(), cmds.end());
-        }
-    }
+    // Registered with CommandManager, so the CommandRecorder above attributes
+    // these to the plugin along with everything else it adds.
+    LoadPluginCommands(name);
 
     std::string eventScript = FPP_DIR + "/scripts/eventScript";
     if (!found) {
@@ -764,6 +803,13 @@ void PluginManager::mediaCallback(const Json::Value& playlist, const MediaDetail
 }
 void PluginManager::registerApis() {
     for (auto a : mAPIProviderPlugins) {
+        // Some plugins register their commands here rather than in their
+        // constructor, so this needs recording too - see mPluginCommands.
+        auto* plugin = dynamic_cast<FPPPlugins::Plugin*>(a);
+        std::optional<CommandRecorder> recordCommands;
+        if (plugin) {
+            recordCommands.emplace(mPluginCommands, plugin->getName());
+        }
         a->registerApis();
     }
 }
@@ -792,8 +838,16 @@ void PluginManager::addControlCallbacks(std::map<int, std::function<bool(int)>>&
         for (const auto& c : callbacks) {
             before.insert(c.first);
         }
-        a->addControlCallbacks(callbacks);
         auto* plugin = dynamic_cast<FPPPlugins::Plugin*>(a);
+        {
+            // Several plugins register their commands from here - see
+            // mPluginCommands. Scoped so it records before the fds are.
+            std::optional<CommandRecorder> recordCommands;
+            if (plugin) {
+                recordCommands.emplace(mPluginCommands, plugin->getName());
+            }
+            a->addControlCallbacks(callbacks);
+        }
         if (!plugin) {
             continue;
         }
@@ -827,6 +881,9 @@ void PluginManager::startPlugin(FPPPlugins::Plugin* plugin) {
     if (!api) {
         return;
     }
+    // The boot path records these in registerApis()/addControlCallbacks(); a
+    // runtime load comes through here instead and has to do the same.
+    CommandRecorder recordCommands(mPluginCommands, plugin->getName());
     api->registerApis();
 
     // At boot these land in a map fppd hands to EPollManager once everything has
@@ -949,14 +1006,45 @@ bool PluginManager::unloadPlugin(const std::string& name, std::string& error) {
     // invisible to this, which is exactly why unmapping is opt-in below.
     CurlManager::INSTANCE.cancelRequests(name);
 
-    // Commands FPP registered from the plugin's descriptions.json. (A plugin
-    // that added its own Command objects in registerApis() removes them in
-    // unregisterApis(); these are the ones FPP owns.)
+    // Backstop for commands the plugin did not take back itself. A C++ plugin
+    // owns what it registers and is expected to withdraw and delete it in
+    // shutdown() (see Plugin.h) - this is the safety net for one that forgets,
+    // plus the only owner of the commands FPP itself registered from a script
+    // plugin's descriptions.json. A Command subclass declared in a plugin has
+    // its vtable in that plugin's .so, so anything left has to go before the
+    // library does.
     auto cmds = mPluginCommands.find(name);
     if (cmds != mPluginCommands.end()) {
-        for (Command* c : cmds->second) {
-            CommandManager::INSTANCE.removeCommand(c); // unregisters only
-            delete c;
+        // What is registered under each name NOW, so a command the plugin
+        // already withdrew itself (in shutdown(), which has just run) is not
+        // deleted twice, and one that something else has since re-registered
+        // under the same name is left to its new owner.
+        std::map<std::string, Command*> current;
+        for (const auto& c : CommandManager::INSTANCE.getRegisteredCommands()) {
+            current.emplace(c.first, c.second);
+        }
+        std::vector<std::string> leftBehind;
+        for (const auto& c : cmds->second) {
+            auto it = current.find(c.first);
+            if (it == current.end() || it->second != c.second) {
+                continue;
+            }
+            CommandManager::INSTANCE.removeCommand(c.first); // unregisters only
+            delete c.second;
+            leftBehind.push_back(c.first);
+        }
+        // Say so rather than quietly covering for it: a C++ plugin reaching this
+        // has a shutdown() that does not withdraw what it registered, and the
+        // net only reaches the commands added while it was loading. (Script
+        // plugins are expected here - FPP registered those from their
+        // descriptions.json and owns them.)
+        if (!leftBehind.empty() && mPluginLibraries.find(name) != mPluginLibraries.end()) {
+            std::string list;
+            for (const auto& n : leftBehind) {
+                list += (list.empty() ? "" : ", ") + n;
+            }
+            LogWarn(VB_PLUGIN, "Plugin %s left %d command(s) registered at unload (%s); it should withdraw and delete them in shutdown()\n",
+                    name.c_str(), (int)leftBehind.size(), list.c_str());
         }
         mPluginCommands.erase(cmds);
     }
