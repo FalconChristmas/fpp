@@ -114,6 +114,7 @@ typedef enum systemType {
     kSysTypeESPixelStick = 0xC2,
     kSysTypeESPixelStickESP32 = 0xC3,
     kSysTypeBaldrick = 0xC4,
+    kSysTypeJBoards = 0xC5,
     kSysTypeNonMultiSyncCapable = 0xF0,
     kSysTypeWLED = 0xFB,
     kSysTypeDIYLEDExpress = 0xFC,
