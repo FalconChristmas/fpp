@@ -536,7 +536,16 @@ void setupNetwork(bool fullReload) {
                 localFullReload = true;
             }
             if (!contains(execAndReturn("/usr/bin/systemctl is-active hostapd"), "inactive")) {
-                exec("/usr/bin/systemctl stop hostapd.service");
+                // Bounded: an unresponsive hostapd (driver/dbus hiccup) must not be
+                // able to wedge fppinit indefinitely - this runs synchronously in
+                // the interactive "Restart Network" request (network_apply_interface),
+                // so a hang here blocks that whole HTTP request and can make the
+                // rest of the appliance look unresponsive until it clears.
+                exec("/usr/bin/timeout 10 /usr/bin/systemctl stop hostapd.service");
+                if (contains(execAndReturn("/usr/bin/systemctl is-active hostapd"), "active")) {
+                    printf("FPP - hostapd did not stop within 10s, killing it\n");
+                    exec("/usr/bin/systemctl kill --signal=SIGKILL hostapd.service");
+                }
                 localFullReload = true;
             }
             exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
