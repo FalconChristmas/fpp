@@ -5,7 +5,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-startDaemonLog
+startDaemonLog Shutdown
 
 runPreStopScripts
 

@@ -167,6 +167,7 @@ void runScripts(const std::string tp, bool userBefore) {
     std::string pfx = "FPPDIR=/opt/fpp SRCDIR=/opt/fpp/src ";
 
     if (userBefore && FileExists(FPP_MEDIA_DIR + "/scripts/UserCallbackHook.sh")) {
+        printf("FPP - Running UserCallbackHook.sh %s\n", tp.c_str());
         execbg(pfx + FPP_MEDIA_DIR + "/scripts/UserCallbackHook.sh " + tp);
     }
     for (const auto& entry : std::filesystem::directory_iterator(FPP_MEDIA_DIR + "/plugins")) {
@@ -174,11 +175,13 @@ void runScripts(const std::string tp, bool userBefore) {
             std::string filename = entry.path().filename();
             std::string cmd = FPP_MEDIA_DIR + "/plugins/" + filename + "/scripts/" + tp + ".sh";
             if (FileExists(cmd)) {
+                printf("FPP - Running plugin %s script for %s\n", filename.c_str(), tp.c_str());
                 execbg(pfx + cmd);
             }
         }
     }
     if (!userBefore && FileExists(FPP_MEDIA_DIR + "/scripts/UserCallbackHook.sh")) {
+        printf("FPP - Running UserCallbackHook.sh %s\n", tp.c_str());
         execbg(pfx + FPP_MEDIA_DIR + "/scripts/UserCallbackHook.sh " + tp);
     }
 }
