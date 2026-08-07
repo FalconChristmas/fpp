@@ -14,6 +14,7 @@
 
 #include <cstring>
 #include <list>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -21,6 +22,7 @@
 
 #include "CurlManager.h"
 #include "fppversion.h"
+#include "log.h"
 
 CurlManager CurlManager::INSTANCE;
 
