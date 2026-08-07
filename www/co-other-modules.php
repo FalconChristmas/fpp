@@ -1257,6 +1257,9 @@
             for (var a in config.values) {
                 result += CreatePesetRow(config.values[a]);
             }
+            result += "<div class='row'>";
+            result += "<div class='col-sm-9 offset-sm-2'><small class='text-muted'>The preset's command arguments may use <code>%CHANNEL_VALUE%</code> or <code>%CHANNEL_VALUE255%</code> (0-255) and <code>%CHANNEL_VALUE100%</code> (0-100) to receive the channel value that triggered it.</small></div>";
+            result += "</div>";
             result += "</div>";
             return result;
         }
