@@ -184,7 +184,7 @@ $network_settings_restored_post_apply = array('wired_network' => "", 'wifi_netwo
 $network_settings_restored_applied_ips = array('wired_network' => array(), 'wifi_network' => array());
 
 //Array of settings by name/key name, that are considered sensitive/taboo
-$sensitive_data = array('emailpass', 'password', 'secret');
+$sensitive_data = array('emailpass', 'emailgpass', 'password', 'passwordVerify', 'osPassword', 'osPasswordVerify', 'MQTTPassword', 'secret');
 
 //Lookup arrays for what is a json and a ini file
 $known_json_config_files = array('channelInputs', 'universe_inputs', 'dmx_inputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
@@ -660,6 +660,26 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         $restore_data = $restore_area_data['system_settings'][0];
 
                         foreach ($restore_data as $setting_name => $setting_value) {
+                            //Verify fields are UI-only confirmation values, never persisted directly.
+                            if ($setting_name == "passwordVerify" || $setting_name == "osPasswordVerify") {
+                                continue;
+                            }
+
+                            if ($setting_name == "password" || $setting_name == "osPassword") {
+                                //"Protect sensitive data" blanks the primary field but,
+                                //on backups made before that scrubbing covered the verify
+                                //field too, the real value may still be sitting in it.
+                                //Recover it from there rather than resetting to the default.
+                                $verify_key = ($setting_name == "password") ? "passwordVerify" : "osPasswordVerify";
+                                if ($setting_value == "" && !empty($restore_data[$verify_key])) {
+                                    $setting_value = $restore_data[$verify_key];
+                                }
+                                //Don't clobber the device's existing password with a blank value.
+                                if ($setting_value == "") {
+                                    continue;
+                                }
+                            }
+
                             //check if we can change it (default value is checked - true)
                             if ($setting_name == "fppMode") {
                                 if ($keepMasterSlaveSettings == false) {
