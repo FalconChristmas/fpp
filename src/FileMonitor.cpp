@@ -17,6 +17,7 @@
 
 #include <cstring>
 #include <unistd.h>
+#include <vector>
 
 #include "FileMonitor.h"
 #include "Timers.h"
@@ -139,11 +140,25 @@ FileMonitor& FileMonitor::RemoveFile(const std::string& id, const std::string& f
 }
 
 FileMonitor& FileMonitor::TriggerFileChanged(const std::string& file) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = files_.find(file);
-    if (it != files_.end()) {
-        for (const auto& callback : it->second.callbacks) {
-            callback.second();
+    // Copy the callbacks out and invoke them with mutex_ released.  Callbacks
+    // do arbitrary heavyweight work (reloading channel outputs, plugin
+    // teardown); if one crashes, the process exit path runs ~Plugin ->
+    // RemoveFile on this same thread, and holding mutex_ here turns that
+    // crash into a self-deadlocked zombie instead of a clean crash-exit.
+    std::vector<std::function<void()>> callbacks;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = files_.find(file);
+        if (it != files_.end()) {
+            for (const auto& callback : it->second.callbacks) {
+                callbacks.push_back(callback.second);
+            }
+        }
+    }
+    if (!callbacks.empty()) {
+        std::lock_guard<std::mutex> cbLock(callbackMutex_);
+        for (auto& callback : callbacks) {
+            callback();
         }
     }
     return *this;
@@ -169,7 +184,11 @@ void FileMonitor::fileChangedEvent() {
         event_size = offsetof(struct inotify_event, name) + pevent->len;
         buffer_i += event_size;
 
-        std::lock_guard<std::mutex> lock(mutex_);
+        // Callbacks are collected under the lock but invoked after it is
+        // released -- see TriggerFileChanged for why holding mutex_ across a
+        // callback is not survivable.
+        std::vector<std::function<void()>> pendingCallbacks;
+        std::unique_lock<std::mutex> lock(mutex_);
         std::string path = fileMapping_[pevent->wd];
 
         // printf("%d) %s: (%s)    id: %d   mask: %X\n", buffer_i, path.c_str(), pevent->name, pevent->wd, pevent->mask);
@@ -218,7 +237,7 @@ void FileMonitor::fileChangedEvent() {
                 }
                 if (notify) {
                     for (const auto& callback : it->second.callbacks) {
-                        callback.second();
+                        pendingCallbacks.push_back(callback.second);
                     }
                 }
             }
@@ -231,7 +250,7 @@ void FileMonitor::fileChangedEvent() {
                     fileMapping_.erase(it->second.inotify_watch_fd);
                     it->second.inotify_watch_fd = -1; // Reset watch descriptor
                     for (const auto& callback : it->second.callbacks) {
-                        callback.second();
+                        pendingCallbacks.push_back(callback.second);
                     }
                 }
             }
@@ -239,8 +258,15 @@ void FileMonitor::fileChangedEvent() {
             auto it = files_.find(path);
             if (it != files_.end()) {
                 for (const auto& callback : it->second.callbacks) {
-                    callback.second();
+                    pendingCallbacks.push_back(callback.second);
                 }
+            }
+        }
+        lock.unlock();
+        if (!pendingCallbacks.empty()) {
+            std::lock_guard<std::mutex> cbLock(callbackMutex_);
+            for (auto& callback : pendingCallbacks) {
+                callback();
             }
         }
         if (buffer_i >= r) {
@@ -252,14 +278,23 @@ void FileMonitor::fileChangedEvent() {
         }
     }
 #else
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto& fileEntry : files_) {
-        const std::string& file = fileEntry.first;
-        FileMonitorInfo& fileInfo = fileEntry.second;
-        if (fileInfo.checkForChanges(file)) {
-            for (const auto& callback : fileInfo.callbacks) {
-                callback.second();
+    std::vector<std::function<void()>> pendingCallbacks;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto& fileEntry : files_) {
+            const std::string& file = fileEntry.first;
+            FileMonitorInfo& fileInfo = fileEntry.second;
+            if (fileInfo.checkForChanges(file)) {
+                for (const auto& callback : fileInfo.callbacks) {
+                    pendingCallbacks.push_back(callback.second);
+                }
             }
+        }
+    }
+    if (!pendingCallbacks.empty()) {
+        std::lock_guard<std::mutex> cbLock(callbackMutex_);
+        for (auto& callback : pendingCallbacks) {
+            callback();
         }
     }
 #endif

@@ -43,5 +43,10 @@ private:
     std::map<int, std::string> fileMapping_;
 
     std::mutex mutex_;
+    // Serializes callback invocation without holding mutex_ across the
+    // callbacks themselves, so Add/RemoveFile stay callable while (or after)
+    // a callback runs -- including from the process exit path if a callback
+    // crashes.
+    std::mutex callbackMutex_;
     int inotify_fd_ = -1;
 };
