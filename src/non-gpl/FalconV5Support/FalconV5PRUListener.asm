@@ -28,6 +28,7 @@
 
 #include "FalconUtils.asm"
 #include "FalconPRUDefs.hp"
+#include "SMEMRing.hp"
 
 /** Register map */
 
@@ -105,8 +106,11 @@ BIT_LOOP:
     MVIB    *r1.b0++, r31.b0
     QBNE    BIT_LOOP, r1.b0, 8 + BYTES_PER_STORE
 
-    //got the number of bytes needed, store it
-    LDI     treg1,  12000
+    //got the number of bytes needed, store it.  The cap is the capture
+    //reservation at the bottom of shared RAM: on the AM62x the string PRU's
+    //ring starts immediately above it (see SMEMRing.hp), so overrunning here
+    //would corrupt frame data in flight.
+    LDI     treg1,  SMEM_RING_LISTENER_BYTES - BYTES_PER_STORE
     QBLT    DONE_DATA_STORE, lengthReg, treg1
         SBBO    &data_reg, smemLocReg, lengthReg, BYTES_PER_STORE
 DONE_DATA_STORE

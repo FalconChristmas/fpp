@@ -25,6 +25,7 @@
 #include "util/GPIOUtils.h"
 
 #include "util/BBBPruUtils.h"
+#include "pru/SMEMRing.hp"
 #include "util/BBBUtils.h"
 #include <sys/wait.h>
 #include <arm_neon.h>
@@ -195,14 +196,18 @@ void FalconV5Support::processListenerData() {
         // if (len) {
         //     printDataBuf(len, pru->data);
         // }
-        if (len > 4096 * 3) {
-            len = 4096 * 3;
+        // the listener stops storing at its shared RAM reservation; on the
+        // AM62x the string PRU's ring starts immediately above it
+        if (len > SMEM_RING_LISTENER_BYTES) {
+            len = SMEM_RING_LISTENER_BYTES;
         }
         if (len) {
-            uint8_t buf[4096 * 3];
+            // the copy rounds up past len, and the PRU keeps counting even
+            // after it stops storing, so leave room for the overshoot
+            uint8_t buf[SMEM_RING_LISTENER_BYTES + 8];
             pru->pru->memcpyToPRU(buf, pru->data, (len + 8) & 0xFFFFFFFC);
             for (auto& l : listeners) {
-                uint8_t data[4096 * 3];
+                uint8_t data[SMEM_RING_LISTENER_BYTES + 8];
                 uint8_t packet[1024];
                 maskBit(len, l->offset, buf, data);
                 int pidx = 0;
