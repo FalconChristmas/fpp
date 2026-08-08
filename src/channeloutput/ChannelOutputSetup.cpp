@@ -28,6 +28,7 @@
 #include "ChannelOutput.h"
 #include "ChannelOutputSetup.h"
 #include "Sequence.h"
+#include "channeloutputthread.h"
 #include "Warnings.h"
 #include "common.h"
 #include "log.h"
@@ -63,6 +64,9 @@ float mediaElapsedSeconds = 0.0;
 std::atomic<FPPChannelOutputInstance*> channelOutputs;
 std::atomic<FPPChannelOutputInstance*> lastChannelOutput;
 inline void addChannelOutput(FPPChannelOutputInstance* inst) {
+    // the output thread walks this list under outputThreadLock; linking a node
+    // in takes several stores, so publish them all before it can see any
+    std::unique_lock<std::mutex> lock(outputThreadLock);
     inst->prev = lastChannelOutput.load();
     if (lastChannelOutput) {
         lastChannelOutput.load()->next = inst;
@@ -78,6 +82,14 @@ bool HasChannelOutputs() {
     return channelOutputs.load() != nullptr;
 }
 
+// NOTE: this and GetOutputTypes() below walk the list from HTTP/MultiSync
+// threads without outputThreadLock, so they can still read an instance the
+// reload path is freeing.  Taking the lock here is NOT safe: the output thread
+// holds it across Sequence::SendSequenceData(), which runs FSEQ-triggered
+// commands (Sequence.cpp), and a command that reaches back into either of
+// these would deadlock the output thread outright.  Closing this properly
+// wants a read-side that cannot block the writer -- an RCU/epoch scheme or a
+// shared_ptr snapshot of the list -- rather than this mutex.
 bool HasUniverseOutputs() {
     std::string universeFile = FPP_DIR_CONFIG("/co-universes.json");
     for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
@@ -282,7 +294,6 @@ static std::map<std::string, std::string> OUTPUT_REMAPS = {
     { "RPIWS281X", "DPIPixels" }
 };
 
-extern int ChannelOutputThreadIsRunning(void);
 bool skipOutputRangeCompute = false;
 
 static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
@@ -305,43 +316,59 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
     }
 
     bool changed = false;
-    std::list<FPPChannelOutputInstance*> toDelete;
-    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
-        // remove everything in the list that was loaded from the cfgFile
-        if (inst->sourceFile == cfgFile) {
-            changed = true;
-            toDelete.push_back(inst);
-            if (inst->next) {
-                inst->next.load()->prev = inst->prev.load();
-            }
-            if (inst->prev) {
-                inst->prev.load()->next = inst->next.load();
-            }
-            if (inst == channelOutputs.load()) {
-                channelOutputs = inst->next.load();
-            }
-            if (inst == lastChannelOutput.load()) {
-                lastChannelOutput = inst->prev.load();
+    {
+        // Unlink and destroy under outputThreadLock.  PrepareChannelData() and
+        // SendChannelData() walk this list from the channel output thread,
+        // which holds that lock for the whole of its cycle; without it the
+        // walk can be sitting inside inst->output->PrepData() when the
+        // instance is freed here, and inst = inst->next then reads a freed
+        // node as well.  This used to be a 100ms sleep, which is not a
+        // barrier at all -- a slow output cycle (the reports that led here had
+        // Send: 73ms against a 50ms loop) simply runs past it.
+        //
+        // Only the teardown is covered.  Init() of the replacement outputs
+        // below can take a long time (compileMatrix.sh, PRU firmware loads)
+        // and holding the lock across it would stall output for that whole
+        // time; a half-populated list is harmless, an unlinked-but-live one is
+        // not.
+        std::list<FPPChannelOutputInstance*> toDelete;
+        std::unique_lock<std::mutex> lock(outputThreadLock);
+        for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+            // remove everything in the list that was loaded from the cfgFile
+            if (inst->sourceFile == cfgFile) {
+                changed = true;
+                toDelete.push_back(inst);
+                if (inst->next) {
+                    inst->next.load()->prev = inst->prev.load();
+                }
+                if (inst->prev) {
+                    inst->prev.load()->next = inst->next.load();
+                }
+                if (inst == channelOutputs.load()) {
+                    channelOutputs = inst->next.load();
+                }
+                if (inst == lastChannelOutput.load()) {
+                    lastChannelOutput = inst->prev.load();
+                }
             }
         }
-    }
-    if (!toDelete.empty() && ChannelOutputThreadIsRunning()) {
-        // if the channel output thread is running, we need to wait at least one cycle
-        // before we can delete the outputs, this isn't ideal, but we don't want to
-        // delete the outputs while the thread is running as it may be using them
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (ChannelOutputThreadIsRunning()) {
+            // StoppingOutput() is the pair of the StartingOutput() the output
+            // thread makes when it comes up, so it is only owed to the outputs
+            // if that thread actually ran.
+            for (auto inst : toDelete) {
+                if (inst->output) {
+                    inst->output->StoppingOutput();
+                }
+            }
+        }
         for (auto inst : toDelete) {
             if (inst->output) {
-                inst->output->StoppingOutput();
+                inst->output->Close();
+                delete inst->output;
             }
+            delete inst;
         }
-    }
-    for (auto inst : toDelete) {
-        if (inst->output) {
-            inst->output->Close();
-            delete inst->output;
-        }
-        delete inst;
     }
     for (auto& warning : outputLoadWarnings[cfgFile]) {
         WarningHolder::RemoveWarning(26, warning);
@@ -543,6 +570,7 @@ void OverlayOutputTestData(std::set<std::string> types, unsigned char* channelDa
         }
     }
 }
+// see the note on HasUniverseOutputs() for why this walk stays unlocked
 std::set<std::string> GetOutputTypes() {
     std::set<std::string> ret;
     for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
@@ -617,6 +645,10 @@ void StoppingOutput(void) {
  *
  */
 void CloseChannelOutputs(void) {
+    // Deliberately not taking outputThreadLock, unlike the reload path: this
+    // runs at shutdown, after StopChannelOutputThread(), so there is nothing
+    // left to race with.  If that thread did wedge and is still holding the
+    // lock, blocking here would trade a crash-exit for a hung daemon.
     for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
         if (inst->output) {
             inst->output->Close();

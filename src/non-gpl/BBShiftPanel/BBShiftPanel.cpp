@@ -974,6 +974,14 @@ int BBShiftPanelManager::StartPRU() {
     }
     m_heapBuffers = true;
     m_frontBuffer = nullptr;
+    // Reset the handshake counters with it.  These outlive the pump thread, so
+    // on a restart (teardownHardware() then back through here) stale values
+    // would leave the new thread thinking a frame from the previous
+    // configuration is still owed, and SendData waiting on a priming that
+    // already happened.
+    m_pumpSeq.store(0, std::memory_order_relaxed);
+    m_pumpedSeq = 0;
+    m_pumpPrimed.store(0, std::memory_order_relaxed);
     m_pumpRunning = true;
     m_pumpThread = std::thread(&BBShiftPanelManager::runPumpThread, this);
     return 1;
@@ -1004,6 +1012,13 @@ void BBShiftPanelManager::runPumpThread() {
             }
             ++m_pumpedSeq;
             uint8_t* src = m_frontBuffer.load(std::memory_order_acquire);
+            if (!src) {
+                // The sequence can be ahead of the buffer if a reconfigure
+                // republished it while a frame was in flight; there is nothing
+                // to stream, and the shift path below makes the same check.
+                m_pumpPrimed.store(m_pumpedSeq, std::memory_order_release);
+                continue;
+            }
             uint32_t srcOff = 0;
             bool primed = false;
             while (srcOff < m_frameBytes && m_pumpRunning) {

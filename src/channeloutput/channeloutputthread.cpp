@@ -53,6 +53,7 @@ volatile int ThreadIsExiting = 0;
 volatile int outputForced = 0;
 volatile int alwaysTransmit = 0;
 
+// declared in channeloutputthread.h, which documents what it protects
 std::mutex outputThreadLock;
 std::mutex outputThreadStatusLock;
 std::condition_variable outputThreadCond;
