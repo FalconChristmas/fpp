@@ -213,6 +213,7 @@ function ViewReleaseNotes()
  *   "remoteCommit": "ece480e86b7dd8f2d013248e8f99bb0e8baac197",
  *   "currentBranch": "master",
  *   "localCommit": "ece480e86",
+ *   "versionUnknown": false,
  *   "isEndOfLife": false,
  *   "latestMajorVersion": 9
  * }
@@ -323,6 +324,23 @@ function GetUpdateStatus()
                 "isEndOfLife" => false,
                 "latestMajorVersion" => $currentMajor
             ));
+        } else if ($test === 'notbuilt') {
+            // Simulate: no local version (cleaned/never-built tree).  Nothing can
+            // be compared, so the UI should offer a rebuild, not an upgrade.
+            return json(array(
+                "status" => "OK",
+                "branchUpgradeAvailable" => false,
+                "branchUpgradeTarget" => "",
+                "branchUpgradeVersion" => "",
+                "isMajorVersionUpgrade" => false,
+                "commitUpdateAvailable" => false,
+                "remoteCommit" => "",
+                "currentBranch" => "Unknown",
+                "localCommit" => $localCommit,
+                "versionUnknown" => true,
+                "isEndOfLife" => false,
+                "latestMajorVersion" => $currentMajor
+            ));
         }
     }
 
@@ -392,8 +410,9 @@ function GetUpdateStatus()
     }
 
     // Check if current version is End of Life
-    // EOL = current major version is older than the latest major version
-    $isEndOfLife = (intval($currentMajor) < $latestMajorVersion);
+    // EOL = current major version is older than the latest major version.
+    // With no local version there is nothing to compare, so never claim EOL.
+    $isEndOfLife = !$updateStatus['versionUnknown'] && (intval($currentMajor) < $latestMajorVersion);
 
     return json(array(
         "status" => "OK",
@@ -405,6 +424,7 @@ function GetUpdateStatus()
         "remoteCommit" => $updateStatus['remoteCommit'],
         "currentBranch" => $updateStatus['currentBranch'],
         "localCommit" => $updateStatus['localCommit'],
+        "versionUnknown" => $updateStatus['versionUnknown'],
         "isEndOfLife" => $isEndOfLife,
         "latestMajorVersion" => $latestMajorVersion
     ));

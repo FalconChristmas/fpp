@@ -8316,6 +8316,7 @@
                   "remoteCommit": "ece480e86b7dd8f2d013248e8f99bb0e8baac197",
                   "currentBranch": "master",
                   "localCommit": "ece480e86",
+                  "versionUnknown": false,
                   "isEndOfLife": false,
                   "latestMajorVersion": 9
                 }

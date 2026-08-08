@@ -72,6 +72,7 @@ var FPP_UPDATE_STATE = {
 	remoteCommit: '',
 	currentBranch: '',
 	localCommit: '',
+	versionUnknown: false,
 	isEndOfLife: false,
 	latestMajorVersion: 0,
 	checked: false
@@ -13624,6 +13625,7 @@ function checkForFppUpdate () {
 			FPP_UPDATE_STATE.remoteCommit = data.remoteCommit;
 			FPP_UPDATE_STATE.currentBranch = data.currentBranch;
 			FPP_UPDATE_STATE.localCommit = data.localCommit;
+			FPP_UPDATE_STATE.versionUnknown = data.versionUnknown || false;
 			FPP_UPDATE_STATE.isEndOfLife = data.isEndOfLife || false;
 			FPP_UPDATE_STATE.latestMajorVersion = data.latestMajorVersion || 0;
 			FPP_UPDATE_STATE.checked = true;
@@ -13636,6 +13638,18 @@ function checkForFppUpdate () {
 		})
 		.fail(function () {
 			console.log('Failed to check for updates via API');
+
+			// A cleaned/never-built tree reports an "Unknown" branch, which matches
+			// no remote branch and makes every release branch look like an
+			// available upgrade. There is nothing to compare, so don't guess.
+			if (
+				typeof FPP_BRANCH === 'undefined' ||
+				!FPP_BRANCH ||
+				FPP_BRANCH === 'Unknown'
+			) {
+				FPP_UPDATE_STATE.versionUnknown = true;
+				return;
+			}
 
 			// Fallback to legacy fppstats check for navbar only
 			const epochTimeMilliseconds = Date.now();

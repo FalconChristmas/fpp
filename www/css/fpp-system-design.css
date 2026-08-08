@@ -1589,6 +1589,13 @@
 	color: var(--bs-success);
 }
 
+/* Not-built state (no local version, only a rebuild to offer) -- must not
+   inherit the default "update available" green the dark theme applies. */
+.fpp-version-indicator--rebuild {
+	background: var(--fpp-bg-page);
+	border-color: var(--fpp-border);
+}
+
 /* Warning/upgrade theme (for OS upgrades) */
 .fpp-version-indicator--upgrade {
 	background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);

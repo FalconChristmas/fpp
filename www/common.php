@@ -2678,6 +2678,16 @@ function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasD
         $fppVersionFloat = floatval($matches[1]);
     }
 
+    // A tree that has never been built -- or that has been cleaned -- has no
+    // generated www/fppversion.php, so version and branch both resolve to
+    // "Unknown" (see fppunknown_versions.php).  Nothing can be compared in that
+    // state: the branch matches no remote branch, and every release branch looks
+    // newer than a version we cannot read, which previously produced a bogus
+    // "FPP vX.Y is available for install" offer.  Report no updates at all and
+    // let the UI offer a rebuild instead.
+    $versionUnknown = ($fppVersion === '' || $fppVersion === 'Unknown' ||
+        $currentBranch === '' || $currentBranch === 'Unknown');
+
     $result = [
         'branchUpgradeAvailable' => false,
         'branchUpgradeTarget' => '',
@@ -2686,8 +2696,13 @@ function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasD
         'remoteCommit' => '',
         'currentBranch' => $currentBranch,
         'localCommit' => $localCommit,
-        'fppVersionFloat' => $fppVersionFloat
+        'fppVersionFloat' => $fppVersionFloat,
+        'versionUnknown' => $versionUnknown
     ];
+
+    if ($versionUnknown) {
+        return $result;
+    }
 
     // Skip branch upgrade detection for master branch users
     $checkBranchUpgrade = ($currentBranch !== 'master' && $currentBranch !== 'main');
