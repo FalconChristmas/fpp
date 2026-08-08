@@ -407,42 +407,75 @@ void Sequence::ProcessVariableHeaders() {
         return;
     }
     for (auto& vh : seqFile->getVariableHeaders()) {
-        if (vh.code[0] == 'F') {
-            if (vh.code[1] == 'C' || vh.code[1] == 'E') {
-                const std::vector<uint8_t>& vhd = vh.getData();
-                const uint8_t* data = &vhd[0];
-                if (data[0] != 1)
-                    continue; // version flag, only understand v1 right now
-                uint32_t* uintData = (uint32_t*)&data[1];
-                int count = *uintData;
-                std::string ips = "";
-                if (data[5]) {
-                    ips = std::string((const char*)&data[5]);
-                    // TODO - process ips to see if we are actually supposed to run these commands/effects
-                    //     Not supported in xLights yet
+        if (vh.code[0] != 'F' || (vh.code[1] != 'C' && vh.code[1] != 'E')) {
+            continue;
+        }
+        // This walks a blob that came straight out of a file, so every read is
+        // bounds-checked against its end.  It used to trust the block's own
+        // fields: the entry count and range count were read (unaligned) with no
+        // size check and the command/IP strings with a bare std::string(char*),
+        // so one truncated or non-v1 FC/FE block ran strlen() off the end of the
+        // vector and killed fppd while opening the sequence, before a single
+        // frame played.  Nothing here is worth crashing a show over - a header
+        // that does not parse is dropped and the sequence still runs.
+        const std::vector<uint8_t>& vhd = vh.getData();
+        const uint8_t* data = vhd.data();
+        const uint8_t* const end = data + vhd.size();
+
+        auto readU32 = [&data, end](uint32_t& out) {
+            if ((size_t)(end - data) < sizeof(out)) {
+                return false;
+            }
+            memcpy(&out, data, sizeof(out)); // also drops the unaligned cast
+            data += sizeof(out);
+            return true;
+        };
+        auto readStr = [&data, end](std::string& out) {
+            const uint8_t* nul = (const uint8_t*)memchr(data, 0, end - data);
+            if (nul == nullptr) {
+                return false;
+            }
+            out.assign((const char*)data, nul - data);
+            data = nul + 1;
+            return true;
+        };
+
+        uint32_t count = 0;
+        std::string ips;
+        // version flag, only understand v1 right now
+        if (data == end || *data++ != 1 || !readU32(count) || !readStr(ips)) {
+            continue;
+        }
+        // TODO - process ips to see if we are actually supposed to run these commands/effects
+        //     Not supported in xLights yet
+
+        bool truncated = false;
+        for (uint32_t x = 0; x < count && !truncated; x++) {
+            std::string cmd;
+            uint32_t cc = 0;
+            if (!readStr(cmd) || !readU32(cc)) {
+                truncated = true;
+                break;
+            }
+            for (uint32_t cc1 = 0; cc1 < cc; cc1++) {
+                uint32_t start = 0;
+                uint32_t stop = 0;
+                if (!readU32(start) || !readU32(stop)) {
+                    truncated = true;
+                    break;
                 }
-                data += 6 + ips.length();
-                for (int x = 0; x < count; x++) {
-                    std::string cmd = std::string((const char*)data);
-                    data += cmd.length() + 1;
-                    uintData = (uint32_t*)data;
-                    int cc = uintData[0];
-                    data += 4;
-                    for (int cc1 = 0; cc1 < cc; cc1++) {
-                        uintData = (uint32_t*)data;
-                        uint32_t start = uintData[0];
-                        uint32_t end = uintData[1];
-                        if (vh.code[1] == 'C') {
-                            commandPresets[start].push_back(cmd);
-                            commandPresets[end].push_back(cmd + "_END");
-                        } else {
-                            effectsOn[start].push_back(cmd);
-                            effectsOff[end].push_back(cmd);
-                        }
-                        data += 8;
-                    }
+                if (vh.code[1] == 'C') {
+                    commandPresets[start].push_back(cmd);
+                    commandPresets[stop].push_back(cmd + "_END");
+                } else {
+                    effectsOn[start].push_back(cmd);
+                    effectsOff[stop].push_back(cmd);
                 }
             }
+        }
+        if (truncated) {
+            LogWarn(VB_SEQUENCE, "Truncated '%c%c' variable header in %s, ignoring the rest of it\n",
+                    vh.code[0], vh.code[1], m_seqFilename.c_str());
         }
     }
 }
@@ -878,6 +911,12 @@ void Sequence::SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t 
 
     if (!m_bridgeData) {
         m_bridgeData = (uint8_t*)calloc(1, FPPD_MAX_CHANNEL_NUM);
+    }
+    // Guard against out-of-range bridging data so it cannot write past
+    // m_bridgeData (FPPD_MAX_CHANNEL_NUM). Unsigned arithmetic avoids overflow.
+    if (startChannel < 0 || len < 0 ||
+        ((unsigned long long)startChannel + (unsigned long long)len) > (unsigned long long)FPPD_MAX_CHANNEL_NUM) {
+        return;
     }
     memcpy(&m_bridgeData[startChannel], data, len);
 

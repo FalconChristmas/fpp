@@ -252,6 +252,7 @@ void RecurringTasks::runTask(const RecurringTask& task) {
         }
     }
 
+    LogDebug(VB_COMMAND, "RecurringTask \"%s\" running command \"%s\"\n", task.name.c_str(), task.command.c_str());
     std::unique_ptr<Command::Result> result = CommandManager::INSTANCE.run(task.command, task.args);
     if (!result) {
         recordStatus(task.name, false, "command returned no result");
@@ -316,6 +317,7 @@ Json::Value RecurringTasks::TestRunTask(const Json::Value& taskJson) {
         return result;
     }
 
+    LogDebug(VB_COMMAND, "RecurringTask \"%s\" manual test-run of command \"%s\"\n", task.name.c_str(), task.command.c_str());
     std::unique_ptr<Command::Result> r = CommandManager::INSTANCE.run(task.command, task.args);
     if (!r) {
         result["ok"] = false;

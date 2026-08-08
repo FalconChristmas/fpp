@@ -370,6 +370,22 @@ function network_wifi_status()
         }
     }
 
+    // Is this interface currently running as FPP's own setup/tether hotspot
+    // (hostapd) rather than as a wifi client? If so, wpa_supplicant/iw below
+    // won't reflect a real connection attempt at all - the config was saved
+    // but won't take effect until tethering is turned off and networking is
+    // restarted (or the device reboots).
+    $apActive = false;
+    $hostapdConf = "/etc/hostapd/hostapd.conf";
+    if (file_exists($hostapdConf)) {
+        $hc = file_get_contents($hostapdConf);
+        if (preg_match('/^interface=(.+)$/m', $hc, $m) && trim($m[1]) === $interface) {
+            $activeOut = array();
+            exec("systemctl is-active hostapd 2>/dev/null", $activeOut);
+            $apActive = (isset($activeOut[0]) && trim($activeOut[0]) === "active");
+        }
+    }
+
     // wpa_supplicant association state via its control socket
     $wpaState = "";
     $ssid = "";
@@ -427,7 +443,11 @@ function network_wifi_status()
         && stripos($journal, "timed out") !== false);
 
     // Derive a human-readable reason (most specific first)
-    if ($configuredSSID === "") {
+    if ($apActive) {
+        $reason = "This device is currently broadcasting its own setup hotspot" .
+            ($configuredSSID !== "" ? " - it will try to connect to '" . $configuredSSID . "'" : "") .
+            " once networking is restarted (or the device is rebooted).";
+    } else if ($configuredSSID === "") {
         $reason = "No wireless network is configured.";
     } else if ($connected) {
         $reason = "Connected to " . $ssid . ($ip !== "" ? " (" . $ip . ")" : "");

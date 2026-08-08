@@ -1,0 +1,13 @@
+This directory must exist for plugin images to be served.
+
+etc/apache2.site has a <Directory "/opt/fpp/www/images/plugin"> block whose
+RewriteRule turns /images/plugin/<plugin>/<file> into a plugin.php request that
+reads the file out of the plugin's own directory. Nothing is ever stored here.
+
+Apache only applies a <Directory> section to a directory that exists, so if this
+one is missing the rewrite never runs and every plugin image and icon 404s -
+with nothing in the error log, because as far as Apache is concerned the request
+is simply for a file that is not there. It was previously untracked, so a
+`git clean -fd` in /opt/fpp silently broke plugin images until the next reflash.
+
+This file is tracked purely to keep the directory present in every checkout.

@@ -751,8 +751,7 @@ function MoveFile()
                 return json(array("status" => $status));
             }
             $nfile = $file;
-            $nfile = str_replace('"', '\\"', $nfile);
-            exec("$SUDO gunzip -f \"$sequenceDirectory/$nfile\"");
+            exec("$SUDO gunzip -f " . escapeshellarg($sequenceDirectory . "/" . $nfile));
         } else if (preg_match("/\.(eseq)$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $effectDirectory . '/' . $file)) {
                 $status = "ERROR: Couldn't move effect file";

@@ -612,6 +612,7 @@ void GPIOManager::GPIOState::doAction(int v) {
         if (v == 1) {
             // Rising edge — run rising commands, then schedule hold timer if needed.
             for (auto& action : risingActions) {
+                LogDebug(VB_COMMAND, "GPIO %s rising edge running command \"%s\"\n", pin->name.c_str(), action["command"].asString().c_str());
                 CommandManager::INSTANCE.run(action);
             }
             holdFired = false;
@@ -636,6 +637,7 @@ void GPIOManager::GPIOState::doAction(int v) {
             holdFired = false;
             if (!wasHeld) {
                 for (auto& action : fallingActions) {
+                    LogDebug(VB_COMMAND, "GPIO %s falling edge running command \"%s\"\n", pin->name.c_str(), action["command"].asString().c_str());
                     CommandManager::INSTANCE.run(action);
                 }
             }
@@ -659,6 +661,7 @@ void GPIOManager::GPIOState::checkHoldTimer(long long scheduledStart) {
         return;
     LogDebug(VB_GPIO, "GPIO %s hold timer fired.\n", pin->name.c_str());
     for (auto& action : holdActions) {
+        LogDebug(VB_COMMAND, "GPIO %s hold running command \"%s\"\n", pin->name.c_str(), action["command"].asString().c_str());
         CommandManager::INSTANCE.run(action);
     }
     holdFired = true;

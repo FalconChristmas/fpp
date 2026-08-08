@@ -25,7 +25,7 @@ emit_event() {
     echo ""
 
     case "$status" in
-        pass) PASS_COUNT=$((PASS_COUNT + 1)) ;;
+        pass|caution) PASS_COUNT=$((PASS_COUNT + 1)) ;;
         warn) WARN_COUNT=$((WARN_COUNT + 1)) ;;
         fail) FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
     esac
@@ -51,7 +51,7 @@ emit_event_details() {
     echo ""
 
     case "$status" in
-        pass) PASS_COUNT=$((PASS_COUNT + 1)) ;;
+        pass|caution) PASS_COUNT=$((PASS_COUNT + 1)) ;;
         warn) WARN_COUNT=$((WARN_COUNT + 1)) ;;
         fail) FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
     esac
@@ -122,6 +122,53 @@ HC_Warnings() {
             WARN_COUNT=$((WARN_COUNT + 1))
         fi
     fi
+}
+
+# Emits at most one item, "Unknown Plugins", and only when this system has a
+# record of installing something from outside the curated plugin list. A
+# plugin the list names is the ordinary case and gets no row -- this page
+# exists to surface problems.
+#
+# The API answers with a confidence level rather than a count. See the
+# source block in www/api/controllers/plugin.php:
+#
+#   unknown    -- certain. Installed via a pasted pluginInfo.json URL, or
+#                 confirmed absent from a plugin list FPP successfully fetched.
+#   unverified -- uncertain. Something was installed while the plugin list was
+#                 unreachable, and it still is, so FPP genuinely cannot say.
+#                 Deliberately not phrased as an accusation and carries no
+#                 reimage advice, since the usual cause is simply a box with no
+#                 internet access. It clears itself once the plugin list is
+#                 reachable and the plugin turns out to be listed.
+#   none       -- nothing to report; no item is emitted at all.
+HC_PluginSource() {
+    local pluginsource level icon status message details
+    pluginsource=$(curl -s --max-time 3 http://127.0.0.1/api/plugin/source)
+    if [ -z "$pluginsource" ]; then
+        return
+    fi
+
+    level=$(echo "$pluginsource" | jq -r '.level')
+
+    case "$level" in
+        unknown)
+            icon="fa-triangle-exclamation"
+            status="fail"
+            message="Installed"
+            details=$(build_json_array "Please install plugins via the Plugins page. If this plugin is not listed there, the FPP team may have decided it is unsuitable to run on FPP." "This plugin runs whatever code was found at that URL, with full access to this device and to anything else on the network it is connected to. Installing plugins via URLs is not supported." "Uninstalling an unknown plugin cannot be trusted to clean up after itself - its uninstall script could do anything. Reimaging is the only reliable way to ensure this system is not contaminated.")
+            ;;
+        unverified)
+            icon="fa-triangle-exclamation"
+            status="caution"
+            message="Possibly Installed"
+            details=$(build_json_array "A plugin was installed while FPP could not reach the plugin list, so it could not be confirmed as one of the listed plugins." "This is not a finding on its own - it usually just means the FPP had no internet access at the time. Check the Plugins page to see what is installed." "Once FPP can reach the plugin list again this check resolves itself, and will only report a problem if the plugin really is not listed.")
+            ;;
+        *)
+            return
+            ;;
+    esac
+
+    emit_event_details "pluginunknown" "Unknown Plugins" "$icon" "$status" "$message" "$details"
 }
 
 HC_Scheduler() {
@@ -447,6 +494,7 @@ HC_GStreamer() {
 HC_FPPD
 HC_Warnings
 HC_HostName
+HC_PluginSource
 
 # Network chain order
 dns_ok=1

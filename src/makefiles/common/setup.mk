@@ -190,6 +190,36 @@ CFLAGS+=$(OPTIMIZE_FLAGS) -pipe \
 ifneq ($(abspath $(CURDIR)),$(abspath $(SRCDIR)))
 CFLAGS += -MMD -MP
 
+# A plugin that declares FPP_PLUGIN_SUPPORTS_UNLOAD gets dlclose()d when it is
+# unloaded, and glibc permanently marks any shared object that is the FIRST to
+# define an STB_GNU_UNIQUE symbol as NODELETE: dlclose() then returns success
+# and unmaps nothing, for the life of the process.
+#
+# GCC emits STB_GNU_UNIQUE for a static local in an inline function - which
+# includes every method a plugin defines inside its class body. So one
+# "static const std::string" in a formatting helper is enough to make a whole
+# plugin impossible to unmap, with no diagnostic anywhere: the unload still
+# reports success and everything else about it works. Measured on fpp-PixelRadio,
+# which defines 7 of them (three static locals, their guard variables, and a
+# static char lookup table): it never unmapped, through any number of cycles,
+# until this flag was added - then it unmapped on the first unload, source
+# unchanged. Plugins whose only unique symbol is std::piecewise_construct are
+# unaffected, because libstdc++ defines that one first.
+#
+# Check a plugin with:  nm -D lib<plugin>.so | awk '$$2=="u"'
+#
+# The trade is the point of the flag: statics in inline functions are no longer
+# unified across the plugin and libfpp. That sharing is exactly what glibc
+# refuses to unload a library to protect, so it cannot be kept alongside
+# unloading - and a plugin is the wrong place to be relying on it.
+#
+# Not applied to the core build above, which is never dlclose()d. Not applied
+# for clang either (macOS): Mach-O has no STB_GNU_UNIQUE and clang rejects the
+# flag.
+ifeq '$(findstring clang,$(CXXCOMPILER))' ''
+CFLAGS += -fno-gnu-unique
+endif
+
 # Pull in whatever dependency files already exist in the plugin's own build
 # directory. This is intentionally a plain wildcard (not tied to any
 # plugin-specific OBJECTS variable name) so it works unmodified for every

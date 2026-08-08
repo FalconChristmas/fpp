@@ -54,6 +54,8 @@ int PlaylistEntryCommand::StartPlaying(void) {
         return 0;
     }
 
+    LogDebug(VB_COMMAND, "Playlist entry #%d running command \"%s\"\n", GetPositionInPlaylist(), m_command["command"].asString().c_str());
+
     m_result = std::move(CommandManager::INSTANCE.run(m_command));
     if (m_result->isDone() && m_result->isError()) {
         // failed, so mark finished

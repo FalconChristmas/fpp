@@ -253,6 +253,43 @@ int main(int argc, char* argv[]) {
             teeOutput(logFile, "fppinit", "BootPre", getpid());
         } else if (action == "bootPost") {
             teeOutput(logFile, "fppinit", "BootPost", getpid());
+        } else if (action == "runPreStartScripts" || action == "runPostStartScripts" || action == "runPreStopScripts" || action == "runPostStopScripts") {
+            // Standalone equivalents of the runScripts() calls inside start/
+            // bootPre/bootPost (already teed there); not currently invoked by
+            // anything shipped in this repo, but if a plugin or admin script
+            // ever calls `fppinit runPreStartScripts` etc. directly, its output
+            // - and now, which plugin/UserCallbackHook scripts it found and ran -
+            // should land in fppd.log rather than nowhere.
+            teeOutput(logFile, "fppinit", "Scripts", getpid());
+        } else if (action == "setupNetwork" || action == "checkForTether" || action == "maybeRemoveTether") {
+            // These drive AP<->client WiFi transitions (the interactive "Restart
+            // Network" apply, and the networkd-dispatcher-triggered tether
+            // watchdog/removal). Without this, their output only reaches
+            // journald (setupNetwork's is captured by the PHP caller and shown
+            // in the browser, but never persisted) or the networkd-dispatcher
+            // process's own syslog lines - invisible to fppd.log either way,
+            // even though this is exactly the sequence a WiFi-setup bug report
+            // needs to reconstruct.
+            teeOutput(logFile, "fppinit", "Network", getpid());
+        } else if (action == "setupAudio") {
+            // Backgrounded by settings.php with its stdout/stderr explicitly sent
+            // to /dev/null so the HTTP response returns immediately - teeOutput's
+            // dup2 replaces that fd before we print anything, so this capture
+            // still works even though the parent shell redirected us away.
+            teeOutput(logFile, "fppinit", "Audio", getpid());
+        } else if (action == "configureBBB" || action == "applyThermal" || action == "resetThermal" || action == "installKiosk") {
+            // Same gap as setupNetwork: invoked directly via PHP exec(), output
+            // otherwise lives only in that request's $output/HTTP response.
+            teeOutput(logFile, "fppinit", "Config", getpid());
+        } else if (action == "announceIP" || action == "resizeRootFS") {
+            // One-shot systemd services (fpp-announce-ip / fpp-expand-rootfs);
+            // same RAM-only-journald loss as bootPre/bootPost before they were
+            // added above.
+            teeOutput(logFile, "fppinit", "Boot", getpid());
+        } else if (action == "reboot") {
+            // fpp-reboot.service - capture why/what before the box actually goes
+            // down, so it's the last thing in fppd.log rather than nothing.
+            teeOutput(logFile, "fppinit", "Reboot", getpid());
         }
     } else {
         printf("Could not too output to log.  Directory might not be writable or maybe full.\n");
@@ -288,6 +325,12 @@ int main(int argc, char* argv[]) {
         runScripts("boot", true);
         int skipNetwork = FileExists("/etc/fpp/desktop") || getRawSettingInt("SkipNetworkReset", 0);
         if (!skipNetwork) {
+            // Respect the same "FPP doesn't own networking here" gate as
+            // setupNetwork() below -- this touches the same
+            // systemd-networkd-owned lease state, so it must not run on
+            // desktop/dev builds or when the admin has explicitly opted out
+            // via SkipNetworkReset.
+            consumePendingDhcpLeaseReset();
             setupNetwork();
         }
         configureBBB();
@@ -395,11 +438,20 @@ int main(int argc, char* argv[]) {
         // right beside checkInstallPackages -- both are gated on the same
         // /fppos_upgraded marker, so keeping them together keeps that shared
         // precondition visible in one place.
+        //
+        // /fppos_upgraded is no longer touched only by an OS reflash
+        // (upgradeOS-part2.sh) -- www/backup.php touches it after ANY JSON
+        // restore area (network, virtualEEPROM, channelOutputs, etc
+        // included, even though some of those already set their own
+        // rebootFlag separately -- this just rides along on the same
+        // reboot), and www/copystorage.php touches it after a File Copy
+        // restore of Configuration or Plugins specifically.
         checkConfigMigrations();
 
         // Both of these must run after a join:
         //  - checkInstallPackages may apt-install user packages after an OS
-        //    upgrade, so it needs the network up (network thread joined).
+        //    upgrade or a restore (see the /fppos_upgraded note above), so
+        //    it needs the network up (network thread joined).
         //  - setFileOwnership chowns /home/fpp/media, where setupAudio writes its
         //    PipeWire config as root, so it must follow the audio thread -- run it
         //    last so it also catches anything checkInstallPackages dropped there.

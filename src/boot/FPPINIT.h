@@ -100,6 +100,7 @@ void handleRebootActions();
 // ---------------------------------------------------------------------------
 std::string FindTetherWIFIAdapater();
 void setupNetwork(bool fullReload = false);
+void consumePendingDhcpLeaseReset();
 void handleBootDelay();
 void handleTimeSyncWait();
 void checkWLANInterface();

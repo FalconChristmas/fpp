@@ -433,7 +433,14 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model) {
         }
         return kSysTypeFPPBeagleBoneGreen;
     }
-    if (contains(model, "PocketBeagle2") || contains(model, "BeaglePlay")) {
+    // This is fed both the device-tree model ("BeagleBoard.org PocketBeagle2")
+    // and, for HTTP-discovered controllers, a remote's 'Variant' setting, which
+    // spells the board with a space ("PocketBeagle 2", "PocketBeagle 2
+    // Industrial").  Both spellings have to be caught here, and before the
+    // PocketBeagle test below -- otherwise a PocketBeagle 2 falls through and
+    // gets reported as a PocketBeagle 1.
+    if (contains(model, "PocketBeagle2") || contains(model, "PocketBeagle 2") ||
+        contains(model, "BeaglePlay")) {
         return kSysTypeFPPPocketBeagle2;
     }
     if (contains(model, "PocketBeagle")) {
@@ -2958,6 +2965,9 @@ void MultiSync::ProcessCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* s
 
     CommandPkt* cpkt = (CommandPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
+    LogDebug(VB_COMMAND, "ProcessCommandPacket() running legacy command \"%s\" from remote host %s (%s)\n",
+             cpkt->command, stats->hostname.c_str(), stats->sourceIP.c_str());
+
     char response[1500];
     char* r2 = ProcessCommand(cpkt->command, response);
     if (r2) {
@@ -3027,21 +3037,28 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
     }
 
     char tmpStr[128];
-    memset(tmpStr, 0, sizeof(tmpStr));
-    strcpy(tmpStr, (char*)(extraData + 12));
-    std::string hostname(tmpStr);
-
-    strcpy(tmpStr, (char*)(extraData + 77));
-    std::string version(tmpStr);
-
-    strcpy(tmpStr, (char*)(extraData + 118));
-    std::string typeStr(tmpStr);
+    // Bounded copy of a packet string field. The packet tail is not guaranteed
+    // to be NUL-terminated and may be longer than tmpStr, so clamp to both the
+    // field's own size and the destination buffer to avoid a stack overflow /
+    // over-read.
+    auto copyField = [&](int fieldOffset) -> std::string {
+        int avail = (int)pkt->extraDataLen - fieldOffset;
+        if (avail < 0) {
+            avail = 0;
+        }
+        int toCopy = std::min(avail, (int)(sizeof(tmpStr) - 1));
+        memset(tmpStr, 0, sizeof(tmpStr));
+        memcpy(tmpStr, (char*)(extraData + fieldOffset), toCopy);
+        return std::string(tmpStr);
+    };
+    std::string hostname = copyField(12);
+    std::string version = copyField(77);
+    std::string typeStr = copyField(118);
     // End of v1 packet fields
 
     std::string ranges;
     if ((pkt->extraDataLen) > 169) {
-        strcpy(tmpStr, (char*)(extraData + 166 - 7));
-        ranges = tmpStr;
+        ranges = copyField(166 - 7);
     }
 
     bool isLocal = false;
@@ -3131,6 +3148,8 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
     }
     if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
         stats->pktFPPCommand++;
+        LogDebug(VB_COMMAND, "ProcessFPPCommandPacket() running \"%s\" from remote host %s (%s)\n",
+                 cmd.c_str(), stats->hostname.c_str(), stats->sourceIP.c_str());
         for (auto a : m_plugins) {
             a->ReceivedFPPCommandPacket(cmd, args);
         }
@@ -3159,20 +3178,31 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
     cpkt->pktType = CTRL_PKT_FPPCOMMAND;
 
     int pos = sizeof(ControlPkt);
-    outBuf[pos++] = args.size();
-    strcpy(&outBuf[pos], host.c_str());
-    pos += host.length() + 1;
-    strcpy(&outBuf[pos], cmd.c_str());
-    pos += cmd.length() + 1;
+    int room = (int)sizeof(outBuf) - pos;
+    // Bounded writes so a long host/cmd/arg can never overflow outBuf; strings
+    // that don't fit are truncated rather than written past the buffer.
+    auto appendField = [&](const std::string& v) {
+        int n = std::min((int)v.length() + 1, room > 0 ? room : 0);
+        if (n > 0) {
+            memcpy(&outBuf[pos], v.c_str(), n);
+            outBuf[pos + n - 1] = '\0';
+        }
+        pos += n;
+        room -= n;
+    };
+    outBuf[pos++] = (unsigned char)args.size();
+    room--;
+    appendField(host);
+    appendField(cmd);
     for (auto& a : args) {
-        strcpy(&outBuf[pos], a.c_str());
-        pos += a.length() + 1;
+        appendField(a);
     }
     cpkt->extraDataLen = pos - sizeof(ControlPkt);
 
     if (host != "" && host.find(",") == std::string::npos) {
         if (MyHostMatches(host, m_hostname, m_localSystems)) {
             // only targetting myself, just run and don't send the packet
+            LogDebug(VB_COMMAND, "SendFPPCommandPacket() self-targeted, running \"%s\" locally without sending\n", cmd.c_str());
             CommandManager::INSTANCE.run(cmd, args);
         } else {
             SendUnicastPacket(host, outBuf, pos);
@@ -3182,6 +3212,7 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
         // the packet won't loop back so if it's supposed to run on this host as well,
         // we need to force it
         if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
+            LogDebug(VB_COMMAND, "SendFPPCommandPacket() broadcast includes self, running \"%s\" locally too\n", cmd.c_str());
             CommandManager::INSTANCE.run(cmd, args);
         }
     }

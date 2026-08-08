@@ -35,6 +35,8 @@
 // reserve the TOP 84K for DMX/PixelNet data
 #define DDR_RESERVED 84 * 1024
 
+static const std::string PRU_STALLED_WARNING = "BBBSerial: PRU is not consuming frames - serial output is stalled";
+
 #include "Plugin.h"
 class BBBSerialPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
@@ -241,14 +243,16 @@ int BBBSerialOutput::Init(Json::Value config) {
         WarningHolder::AddWarning(20, "BBBSerial: no room in the PRU DDR region");
         return 0;
     }
-    m_serialData->address_dma = m_ddrPhys;
-    m_serialData->command = 0;
-    m_serialData->response = 0;
     if (!m_pru->run(pru_program)) {
         LogErr(VB_CHANNELOUT, "BBBSerial: Unable to start PRU. May require a reboot.\n");
         WarningHolder::AddWarning(20, "BBBSerial: Unable to start PRU. May require a reboot.");
         return 0;
     }
+    // after run(): it clears the PRU data ram, so anything written to the
+    // control block before this point is thrown away
+    m_serialData->address_dma = m_ddrPhys;
+    m_serialData->command = 0;
+    m_serialData->response = 0;
 
     int sz = m_pixelnet ? (4096 + 6) : (512 + 1);
 
@@ -285,6 +289,13 @@ void BBBSerialOutput::GetRequiredChannelRanges(const std::function<void(int, int
 int BBBSerialOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close()\n");
 
+    // Stop the output thread before anything below it goes away.  RawSendData
+    // writes through m_serialData (PRU data ram) and m_ddrArea (the shared DDR
+    // region), and deleting the last BBBPru unmaps both - on a config reload
+    // that leaves the still-running thread writing into unmapped/gated memory.
+    // ThreadedChannelOutput::Close() below calls this again; it is idempotent.
+    StopOutputThread();
+
     if (m_serialData && m_pru) {
         // Send the stop command
         m_serialData->response = 0;
@@ -308,6 +319,10 @@ int BBBSerialOutput::Close(void) {
 
     BBBPru::ddrRelease("BBBSerial");
     m_ddrArea = nullptr;
+    if (m_pruStalled) {
+        m_pruStalled = false;
+        WarningHolder::RemoveWarning(20, PRU_STALLED_WARNING);
+    }
     LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close() done\n");
     return ThreadedChannelOutput::Close();
 }
@@ -355,9 +370,25 @@ int BBBSerialOutput::RawSendData(unsigned char* channelData) {
         }
     }
 
-    // Wait for the previous draw to finish
-    while (m_serialData->command)
-        ;
+    // Wait for the previous draw to finish.  The PRU clears the command as
+    // soon as it picks the frame up, so this normally falls straight through;
+    // bound it anyway so a PRU that never answers stalls this one output
+    // visibly instead of pegging a core forever with nothing in the UI.
+    int spins = 0;
+    while (m_serialData->command) {
+        if (++spins > 1000000) {
+            if (!m_pruStalled) {
+                m_pruStalled = true;
+                LogErr(VB_CHANNELOUT, "BBBSerial: PRU is not consuming frames, serial output stalled\n");
+                WarningHolder::AddWarning(20, PRU_STALLED_WARNING);
+            }
+            return m_channelCount;
+        }
+    }
+    if (m_pruStalled) {
+        m_pruStalled = false;
+        WarningHolder::RemoveWarning(20, PRU_STALLED_WARNING);
+    }
 
     int frame_size = m_pixelnet ? (4096 + 6) : (512 + 1);
     frame_size *= m_outputs;

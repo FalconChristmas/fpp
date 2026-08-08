@@ -268,6 +268,13 @@ public:
     void removeCommand(Command* cmd);
     void removeCommand(const std::string& cmdName);
 
+    // Every currently registered command, name and object. PluginManager diffs
+    // this around a plugin's load to work out which commands that plugin
+    // registered: addCommand() carries no owner and cannot gain one without
+    // breaking every plugin that calls it, so ownership is deduced the same way
+    // addControlCallbacks() deduces a plugin's epoll descriptors.
+    std::vector<std::pair<std::string, Command*>> getRegisteredCommands() const;
+
     Json::Value getDescriptions();
     bool HasPreset(const std::string& name);
 

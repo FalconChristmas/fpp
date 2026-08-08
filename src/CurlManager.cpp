@@ -14,6 +14,7 @@
 
 #include <cstring>
 #include <list>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -21,6 +22,7 @@
 
 #include "CurlManager.h"
 #include "fppversion.h"
+#include "log.h"
 
 CurlManager CurlManager::INSTANCE;
 
@@ -33,7 +35,8 @@ CurlManager::~CurlManager() {
     }
 }
 
-void CurlManager::addCURL(const std::string& furl, CURL* curl, std::function<void(CURL*)>&& callback, bool autoCleanCurl) {
+void CurlManager::addCURL(const std::string& furl, CURL* curl, std::function<void(CURL*)>&& callback, bool autoCleanCurl,
+                          const std::string& owner) {
     std::unique_lock<std::mutex> l(lock);
     if (curlMulti == nullptr) {
         curlMulti = curl_multi_init();
@@ -46,6 +49,7 @@ void CurlManager::addCURL(const std::string& furl, CURL* curl, std::function<voi
     i->callback = callback;
     i->curl = curl;
     i->cleanCurl = autoCleanCurl;
+    i->owner = owner;
     curl_multi_add_handle(curlMulti, curl);
     numCurls++;
     for (int x = 0; x < curls.size(); x++) {
@@ -116,7 +120,8 @@ CURL* CurlManager::createCurl(const std::string& fullUrl, CurlPrivateData** cpd,
 
 void CurlManager::add(const std::string& furl, const std::string& method, const std::string& data,
                       const std::list<std::string>& extraHeaders,
-                      std::function<void(int rc, const std::string& resp)>&& callback) {
+                      std::function<void(int rc, const std::string& resp)>&& callback,
+                      const std::string& owner) {
     CURL* curl = createCurl(furl);
 
     if (method == "POST") {
@@ -141,7 +146,18 @@ void CurlManager::add(const std::string& furl, const std::string& method, const 
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     }
 
-    addCURL(furl, curl, [callback, headers](CURL* c) {
+    // The header list is owned by the callback rather than freed inside it, so
+    // it is released whether the request completes or is cancelled (which
+    // destroys the callback without running it). Either way that happens after
+    // curl_easy_cleanup(), which is also the right order - the old code freed
+    // the list while the easy handle still referenced it.
+    std::shared_ptr<curl_slist> headerList(headers, [](curl_slist* h) {
+        if (h) {
+            curl_slist_free_all(h);
+        }
+    });
+
+    addCURL(furl, curl, [callback, headerList](CURL* c) {
         CurlPrivateData* data = nullptr;
         long rc = 0;
         curl_easy_getinfo(c, CURLINFO_PRIVATE, &data);
@@ -149,22 +165,56 @@ void CurlManager::add(const std::string& furl, const std::string& method, const 
 
         char* urlp = nullptr;
         curl_easy_getinfo(c, CURLINFO_EFFECTIVE_URL, &urlp);
-        if (headers) {
-            curl_slist_free_all(headers);
-        }
         std::string resp(reinterpret_cast<char*>(data->resp.data()), data->resp.size());
         callback(rc, resp);
-    });
+    }, true, owner);
 }
-void CurlManager::addGet(const std::string& url, std::function<void(int rc, const std::string& resp)>&& callback) {
-    add(url, "GET", "", {}, [callback](int rc, const std::string& resp) { callback(rc, resp); });
+void CurlManager::addGet(const std::string& url, std::function<void(int rc, const std::string& resp)>&& callback,
+                         const std::string& owner) {
+    add(url, "GET", "", {}, [callback](int rc, const std::string& resp) { callback(rc, resp); }, owner);
 }
 
-void CurlManager::addPost(const std::string& url, const std::string& data, const std::string& contentType, std::function<void(int rc, const std::string& resp)>&& callback) {
-    add(url, "POST", data, { "Content-Type: " + contentType }, [callback](int rc, const std::string& resp) { callback(rc, resp); });
+void CurlManager::addPost(const std::string& url, const std::string& data, const std::string& contentType,
+                          std::function<void(int rc, const std::string& resp)>&& callback, const std::string& owner) {
+    add(url, "POST", data, { "Content-Type: " + contentType }, [callback](int rc, const std::string& resp) { callback(rc, resp); }, owner);
 }
-void CurlManager::addPut(const std::string& url, const std::string& data, const std::string& contentType, std::function<void(int rc, const std::string& resp)>&& callback) {
-    add(url, "PUT", data, { "Content-Type: " + contentType }, [callback](int rc, const std::string& resp) { callback(rc, resp); });
+void CurlManager::addPut(const std::string& url, const std::string& data, const std::string& contentType,
+                         std::function<void(int rc, const std::string& resp)>&& callback, const std::string& owner) {
+    add(url, "PUT", data, { "Content-Type: " + contentType }, [callback](int rc, const std::string& resp) { callback(rc, resp); }, owner);
+}
+
+int CurlManager::cancelRequests(const std::string& owner) {
+    if (owner.empty()) {
+        return 0; // "" is FPP's own traffic; cancelling all of it is never wanted
+    }
+    // The callbacks are moved out and destroyed after the lock is dropped: they
+    // belong to a plugin, and a captured object's destructor that touched
+    // CurlManager again would deadlock on this non-recursive mutex.
+    std::vector<std::function<void(CURL*)>> doomed;
+    {
+        std::unique_lock<std::mutex> l(lock);
+        for (size_t x = 0; x < curls.size(); x++) {
+            CurlInfo* ci = curls[x];
+            if (!ci || ci->owner != owner) {
+                continue;
+            }
+            curls[x] = nullptr;
+            --numCurls;
+            curl_multi_remove_handle(curlMulti, ci->curl);
+            if (ci->cleanCurl) {
+                CurlPrivateData* data = nullptr;
+                curl_easy_getinfo(ci->curl, CURLINFO_PRIVATE, &data);
+                if (data) {
+                    delete data;
+                }
+                curl_easy_cleanup(ci->curl);
+            }
+            doomed.push_back(std::move(ci->callback));
+            delete ci;
+        }
+    }
+    LogDebug(VB_GENERAL, "CurlManager cancelled %d request(s) for %s\n", (int)doomed.size(), owner.c_str());
+    return (int)doomed.size();
 }
 
 std::string CurlManager::doGet(const std::string& furl, int& rc) {

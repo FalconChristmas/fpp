@@ -124,6 +124,9 @@ char* ProcessCommand(char* command, char* response) {
     char* saveptr = nullptr; // for thread-safe strtok_r below
     LogExcess(VB_COMMAND, "CMD: %s\n", command);
     s = strtok_r(command, ",", &saveptr);
+    if (!s) {
+        s = command; // empty/all-delimiter command; graceful "Invalid command" path below
+    }
     strncpy(CommandStr, s, sizeof(CommandStr)); // s can be 256 bytes long
     CommandStr[sizeof(CommandStr) - 1] = '\0';
 
@@ -221,7 +224,8 @@ char* ProcessCommand(char* command, char* response) {
 
         s = strtok_r(NULL, ",", &saveptr);
         if (s) {
-            strcpy(name, s);
+            // Bounded copy - the token can be longer than the 128-byte buffer.
+            snprintf(name, sizeof(name), "%s", s);
             s = strtok_r(NULL, ",", &saveptr);
             if (s)
                 SetSetting(name, s);
@@ -368,6 +372,15 @@ void CommandProc() {
         std::array<char, MAX_RESPONSE_SIZE> response;
         response[0] = 0;
         response[MAX_RESPONSE_SIZE - 1] = '\n';
+        // The socket protocol carries no caller identity (no PID/process info
+        // is sent with the datagram), so this can't say which local caller it
+        // was - only that it was local. A native C++ plugin calling
+        // CommandManager in-process never reaches this socket at all, but a
+        // plugin's own PHP page using commandsocket.php's SendCommand() looks
+        // identical to any other FPP UI page here. Realistic callers: the FPP
+        // UI, a plugin's own PHP page, the "fpp" CLI tool, or a local script
+        // talking to the socket directly.
+        LogDebug(VB_COMMAND, "Local command socket (FPP UI, plugin, FPP cli, script, etc) running \"%s\"\n", &command[0]);
         char* response2 = ProcessCommand(&command[0], &response[0]);
         errno = 0;
         if (response2) {

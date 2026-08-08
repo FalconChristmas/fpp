@@ -297,14 +297,28 @@ if ($settings['Platform'] == "Raspberry Pi") {
     $settings['BBB_Tethering'] = "1";
     $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
     $settings['BeaglePlatform'] = true;
-    if (preg_match('/PocketBeagle2/', $settings['SubPlatform'])) {
-        $settings['Variant'] = "PocketBeagle2";
-        $settings['Logo'] = "beagle_pocket.svg";
+    // The device-tree model reads "BeagleBoard.org PocketBeagle2" on both the
+    // base board and the industrial one, so it cannot tell them apart.  Only
+    // the industrial has eMMC populated -- the base board ships with the
+    // footprint empty -- and mmcblk0 is the eMMC slot on this platform (the SD
+    // card is always mmcblk1), so its presence identifies the board.  The
+    // storage UI already treats /dev/mmcblk0 as "the eMMC" the same way.
+    //
+    // The authoritative answer is the board ID in the on-board EEPROM ("PB2I"
+    // vs "PB20" at offset 46), which is what SD/BB64-AutoFlash.sh uses, but
+    // that costs an i2c read on every page load to pick a logo.
+    if (file_exists("/dev/mmcblk0")) {
+        $settings['Variant'] = "PocketBeagle 2 Industrial";
+        $settings['Logo'] = "beagle_pocket_2i.svg";
     } else {
-        // for now, eventually support others?
-        $settings['Variant'] = "PocketBeagle2";
-        $settings['Logo'] = "beagle_pocket.svg";
+        $settings['Variant'] = "PocketBeagle 2";
+        $settings['Logo'] = "beagle_pocket_2.svg";
     }
+    // Both boards take the same capes, so they share one entry in the vendor
+    // cape catalogs.  'Variant' names the board; 'CapeVariant' names the cape
+    // compatibility class, which is what those catalogs key off -- and which
+    // keeps the unspaced spelling those catalogs already use.
+    $settings['CapeVariant'] = "PocketBeagle2";
 } else if ($settings['Platform'] == "BeagleBone Black") {
     $settings['OSImagePrefix'] = "BBB";
     $settings['LogoLink'] = "http://beagleboard.org/";
@@ -332,6 +346,15 @@ if ($settings['Platform'] == "Raspberry Pi") {
     } else {
         $settings['Variant'] = "UNKNOWN";
         $settings['Logo'] = "beagle_logo.svg";
+    }
+    // The Green / Wireless / SanCloud boards are all cape-compatible with the
+    // BeagleBone Black and share its single entry in the vendor cape catalogs,
+    // which list no names of their own -- without this they match nothing and
+    // the cape list comes up empty.  The PocketBeagle is on the same platform
+    // but takes a different set of capes, so it keeps its own name, and an
+    // unrecognized board gets no capes rather than a guess at its pinout.
+    if ($settings['Variant'] != "PocketBeagle" && $settings['Variant'] != "UNKNOWN") {
+        $settings['CapeVariant'] = "BeagleBone Black";
     }
 } else if ($settings['Platform'] == "Debian" || $settings['Platform'] == "Ubuntu" || $settings['Platform'] == "Mint" || $settings['Platform'] == "Armbian" || $settings['Platform'] == "OrangePi") {
     if (file_exists("/etc/fpp/container")) {
@@ -407,6 +430,14 @@ if ($settings['Platform'] == "Raspberry Pi") {
 } else {
     $settings['Logo'] = "";
     $settings['LogoLink'] = "";
+}
+
+// Cape compatibility class, matched against the "platforms" lists in the vendor
+// cape catalogs.  On most boards this is just the model, so default it to
+// 'Variant'; platforms where several models share one set of capes (e.g. the
+// PocketBeagle 2 and PocketBeagle 2 Industrial) set it above.
+if (!isset($settings['CapeVariant'])) {
+    $settings['CapeVariant'] = $settings['Variant'];
 }
 
 $fd = @fopen($settingsFile, "r");
@@ -809,7 +840,7 @@ if (!isset($skipJSsettings)) {
             if (!isset($settingInfos[$key])) {
                 //Print out settings that need to be exposed to the browser in JS settings array - this is temporary until all settings properly defined in json file
                 if (!is_array($value)) {
-                    printf("	settings['%s'] = \"%s\"; // Needs proper defintion in JSON\n", $key, $value);
+                    printf("	settings['%s'] = %s; // Needs proper defintion in JSON\n", $key, json_encode((string) $value));
                 } else {
                     $js_array = json_encode($value);
                     printf("    settings['%s'] = %s; // Needs proper defintion in JSON\n", $key, $js_array);
@@ -822,7 +853,7 @@ if (!isset($skipJSsettings)) {
                 if (in_array($pageName, $settingInfos[$key]["exposedAsJSToPages"]) || in_array("all", $settingInfos[$key]["exposedAsJSToPages"])) {
                     //Print out settings to browser
                     if (!is_array($value)) {
-                        printf("	settings['%s'] = \"%s\";\n", $key, $value);
+                        printf("	settings['%s'] = %s;\n", $key, json_encode((string) $value));
                     } else {
                         $js_array = json_encode($value);
                         printf("    settings['%s'] = %s;\n", $key, $js_array);

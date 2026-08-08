@@ -93,6 +93,596 @@ function PipAvailable()
 	return $available;
 }
 
+// "Official" = clone origin (srcURL) is a repo in the FalconChristmas GitHub
+// org. Mirrors plugins.php's client-side IsOfficialPlugin() -- host + first
+// path segment only, so a spoofed host/path can't earn it.
+function IsOfficialPluginSrcURL($url)
+{
+	if (!is_string($url) || $url === '') {
+		return false;
+	}
+	$parts = parse_url($url);
+	if (!is_array($parts) || !isset($parts['host']) || strtolower($parts['host']) !== 'github.com') {
+		return false;
+	}
+	$path = isset($parts['path']) ? $parts['path'] : '';
+	$segs = array_values(array_filter(explode('/', $path), function ($s) { return $s !== ''; }));
+	return count($segs) > 0 && strtolower($segs[0]) === 'falconchristmas';
+}
+
+$GLOBALS['PLUGIN_LIST_URL'] = 'https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/pluginList.json';
+
+// Ceilings on what FPP will pull down from a plugin's repo. Neither is a
+// realistic size -- pluginList.json is ~8KB and a pluginInfo.json ~1KB, and the
+// largest icon in the live list is ~2.2MB -- they exist so a single bad or
+// hostile URL can't exhaust memory or fill the cache directory.
+define('PLUGIN_FETCH_MAX_JSON', 1048576);   // 1 MB
+define('PLUGIN_FETCH_MAX_ICON', 4194304);   // 4 MB
+
+// Bounds for FetchURLWithGitHubCredentials(). Looser than
+// PluginBoundedFetch()'s 8s because that path can go via api.github.com
+// with authentication over a slow link, but finite: the point is that a
+// stalled remote cannot hold a PHP-FPM worker forever.
+define('PLUGIN_GITHUB_CONNECT_TIMEOUT', 5);
+define('PLUGIN_GITHUB_TIMEOUT', 20);
+
+// How long a fetched plugin list stays fresh, and the grace file_cache()
+// adds on top. Past TTL+grace, a cached copy is one whose last refresh
+// attempt FAILED -- file_cache() keeps serving the old file rather than
+// losing it -- so it is fine to read but must not be used to conclude that
+// something is absent from it.
+define('PLUGIN_LIST_TTL', 900);
+define('PLUGIN_LIST_GRACE', 10);
+
+/**
+ * Bounded fetch for the small public resources this controller pulls from
+ * GitHub (the plugin list, a listed plugin's pluginInfo.json, and
+ * plugin icons). All of them live on raw.githubusercontent.com and need no
+ * credentials, so the only thing that matters is that a wedged or blackholed
+ * remote can't pin a PHP-FPM worker for PHP's 900s default_socket_timeout --
+ * which is what an unbounded file_get_contents() does.
+ *
+ * Redirects are deliberately NOT followed: a redirect would carry the request
+ * off the host PluginIconURLIsAllowed() just approved.
+ *
+ * Returns the body, or null on any failure (which is what file_cache() wants
+ * to see so it leaves a good cache entry alone).
+ */
+function PluginBoundedFetch($url, $timeout = 8, $maxBytes = PLUGIN_FETCH_MAX_JSON)
+{
+	$ctx = stream_context_create(array('http' => array(
+		'timeout' => $timeout,
+		'follow_location' => 0,
+		'user_agent' => 'FPP',
+	)));
+	$fp = @fopen($url, 'rb', false, $ctx);
+	if ($fp === false) {
+		return null;
+	}
+	// Read one byte past the limit: if it arrives, the body is over budget and
+	// is refused outright rather than truncated. A truncated JSON document
+	// fails to parse anyway, but a truncated image would be cached and served
+	// as a corrupt icon, which is worse than no icon.
+	$data = @stream_get_contents($fp, $maxBytes + 1);
+	fclose($fp);
+	if ($data === false || $data === '' || strlen($data) > $maxBytes) {
+		return null;
+	}
+	return $data;
+}
+
+/**
+ * True when the cached plugin list is recent enough to conclude that a plugin
+ * is NOT on it.
+ *
+ * Absence is only meaningful against a current list. file_cache() deliberately
+ * keeps serving the last good copy when a refresh fails, so "the list is
+ * non-empty" does not mean "the list is up to date" -- a months-old snapshot
+ * looks exactly like a fresh one to the caller, and every plugin added to
+ * fpp-data since would read as unlisted. Deciding "unknown" off that is a
+ * permanent false accusation, which is the whole failure mode this check
+ * exists to avoid.
+ *
+ * Being PRESENT in a stale list is still trustworthy: plugins are added to
+ * fpp-data far more often than they are removed, so a stale hit is safe to act
+ * on while a stale miss is not.
+ */
+function PluginListIsCurrent()
+{
+	$f = PluginListCacheFile();
+	if (!file_exists($f)) {
+		return false;
+	}
+	return (time() - filemtime($f)) <= (PLUGIN_LIST_TTL + PLUGIN_LIST_GRACE);
+}
+
+// Where GetPluginList()'s file_cache() entry lands. file_cache() composes
+// <dir>/cache_<name>.cache; the $cacheOnly read path needs the same path
+// without going through file_cache(), so it is built in exactly one place.
+function PluginListCacheFile()
+{
+	return file_cache_dir_persistent() . '/cache_plugin_list.cache';
+}
+
+/**
+ * The curated index of known plugins from FalconChristmas/fpp-data, as an
+ * array of [repoName, infoURL, category] entries. Returns an empty array when
+ * the list has never been fetched and can't be reached right now.
+ *
+ * Cached for 15 minutes via file_cache(), which single-flights the refresh and
+ * -- importantly -- refuses to overwrite a good entry with a failed fetch, so
+ * a transient GitHub outage degrades to slightly stale data rather than to no
+ * data. Callers MUST treat an empty return as "don't know", never as "not
+ * listed": see RecordPluginInstallSource().
+ *
+ * Cached on PERSISTENT storage rather than the /tmp default. On most FPP
+ * platforms /tmp is tmpfs, so a reboot would drop the list -- and
+ * ResolveUnverifiedPlugins() can only settle a pending plugin against a list it
+ * already has. Losing it every boot means a box that installed something while
+ * offline keeps reporting "Possibly Installed" long after it is back online.
+ *
+ * With $cacheOnly the cache file is read directly and no fetch is attempted at
+ * all, for callers on a latency-sensitive path who would rather have no answer
+ * than wait for one -- see ResolveUnverifiedPlugins(). Age is deliberately
+ * ignored there: for settling a pending plugin a stale list beats no list, and
+ * plugins are only ever added to it.
+ */
+function GetPluginList($cacheOnly = false)
+{
+	static $pluginList = null;
+	if ($pluginList === null) {
+		if ($cacheOnly) {
+			$listJSON = @file_get_contents(PluginListCacheFile());
+			if ($listJSON === false) {
+				return array();
+			}
+		} else {
+			$listJSON = file_cache('plugin_list', function () {
+				$url = $GLOBALS['PLUGIN_LIST_URL'];
+				$data = PluginBoundedFetch($url);
+				// fpp-data is public, so the bounded anonymous fetch is the
+				// normal path. Fall back to the credentialed fetcher only if
+				// that failed, to keep working for anyone who is rate-limited
+				// without a PAT.
+				return ($data !== null) ? $data : FetchURLWithGitHubCredentials($url);
+			}, PLUGIN_LIST_TTL, PLUGIN_LIST_GRACE, file_cache_dir_persistent());
+		}
+		$decoded = json_decode($listJSON, true);
+		$pluginList = (is_array($decoded) && isset($decoded['pluginList']) && is_array($decoded['pluginList'])) ? $decoded['pluginList'] : array();
+	}
+	return $pluginList;
+}
+
+/**
+ * The decoded pluginInfo.json for a LISTED plugin, cached for an hour.
+ *
+ * The infoURL is taken from the plugin list entry, never from the caller --
+ * this is the whole reason api/plugin/:RepoName/icon can exist without being an
+ * open proxy. A client names a repo; every URL the server actually fetches
+ * originated in FalconChristmas/fpp-data.
+ *
+ * Returns null when $repoName isn't listed or the fetch failed.
+ */
+function GetListedPluginInfo($repoName)
+{
+	if (!is_string($repoName) || $repoName === '') {
+		return null;
+	}
+	$entry = FindPluginIndexEntry($repoName);
+	if ($entry === null || !isset($entry[1]) || !is_string($entry[1]) || $entry[1] === '') {
+		return null;
+	}
+	$infoURL = $entry[1];
+
+	// Cache key has to be filesystem-safe; repoNames are already restricted to
+	// GitHub repo characters, but don't rely on that for a path.
+	$key = 'plugin_info_' . preg_replace('/[^A-Za-z0-9_.-]/', '_', $repoName);
+	$json = file_cache($key, function () use ($infoURL) {
+		return PluginBoundedFetch($infoURL);
+	}, 3600);
+
+	$decoded = json_decode($json, true);
+	return is_array($decoded) ? $decoded : null;
+}
+
+/**
+ * True if $url is an https URL on a GitHub host FPP will talk to.
+ *
+ * Anchored at the scheme and requiring the host be followed by "/", so the
+ * usual confusions don't slip through: "https://raw.githubusercontent.com@evil"
+ * and "https://github.com.evil.com/" both fail, as does any non-https scheme.
+ *
+ * This is the boundary for two different things -- which URLs are allowed to
+ * receive FPP's GitHub credentials, and which URLs FPP is willing to fetch on a
+ * caller's behalf -- so it is defined once here rather than repeated.
+ */
+function IsGitHubURL($url)
+{
+	return is_string($url) && (bool) preg_match('#^https://(github\.com|raw\.githubusercontent\.com|api\.github\.com)/#i', $url);
+}
+
+// Icon URLs FPP is willing to fetch. Every iconURL in the live plugin list is a
+// raw.githubusercontent.com path, so this costs nothing in practice while
+// removing the entire class of "point FPP at something on my LAN" abuse.
+//
+// svg is deliberately absent. FPP serves these bytes from its OWN origin, and
+// an SVG is a script-bearing document -- navigating directly to a proxied
+// image/svg+xml would run its script as FPP. The other five formats can't.
+$GLOBALS['PLUGIN_ICON_URL_RE'] = '#^https://raw\.githubusercontent\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+\.(png|jpg|jpeg|gif|webp)$#i';
+
+// True if $url is a fetchable plugin icon. On success $ext is set to the
+// lower-cased extension, which is where the served Content-Type comes from --
+// a closed set, rather than "whatever the URL ended in".
+function PluginIconURLIsAllowed($url, &$ext = null)
+{
+	$ext = null;
+	if (!is_string($url) || !preg_match($GLOBALS['PLUGIN_ICON_URL_RE'], $url, $m)) {
+		return false;
+	}
+	$ext = strtolower($m[1]);
+	return true;
+}
+
+// Looks up $repoName's [repoName, infoURL, category] entry in the plugin
+// list (see GetPluginList()). Returns the entry, or null if not found.
+// Shared by GetListedPluginInfo() and ResolvePluginInfoByName() so the
+// match logic exists in exactly one place.
+function FindPluginIndexEntry($repoName)
+{
+	foreach (GetPluginList() as $entry) {
+		if (is_array($entry) && count($entry) >= 2 && $entry[0] === $repoName) {
+			return $entry;
+		}
+	}
+	return null;
+}
+
+/**
+ * The two settings behind the "Unknown Plugins" health check.
+ *
+ *   PluginUnknownEverInstalled -- CERTAIN. A plugin FPP knows is not in the
+ *                                 curated plugin list was installed here.
+ *   PluginUnverifiedRepos      -- UNCERTAIN. Plugins installed while the plugin
+ *                                 list could not be reached, so FPP could not
+ *                                 check them either way. Non-empty IS the
+ *                                 uncertain state -- there is no separate flag,
+ *                                 since it would only ever restate this.
+ *                                 GetPluginSource() settles the entries
+ *                                 once the list is back.
+ *
+ * The first is sticky -- never cleared by uninstalling the plugin -- because it
+ * answers "has unsupported code ever touched this system" when someone is
+ * reading a Support Zip, not "is it installed right now".
+ *
+ * Classification happens at INSTALL time, not at read time. Classifying on read
+ * needs the plugin list on every health check, and a box that is offline, rate
+ * limited or freshly imaged has no list to match against -- so every plugin
+ * on it looks unlisted, and the check hard-fails telling the user to reimage.
+ * Install time is the one moment FPP has ground truth about where a plugin came
+ * from, and it only has to be right once.
+ *
+ * resetConfig.php carries both forward across a "settings" reset, see the
+ * $pluginSourceSettings list there.
+ */
+$GLOBALS['PLUGIN_UNKNOWN_SETTING'] = 'PluginUnknownEverInstalled';
+$GLOBALS['PLUGIN_UNVERIFIED_REPOS_SETTING'] = 'PluginUnverifiedRepos';
+
+/**
+ * "owner/repo", lower-cased, out of a github.com or raw.githubusercontent.com
+ * URL. Returns '' for anything else. This is the one identity a plugin's clone
+ * URL and its plugin list entry are guaranteed to agree on.
+ */
+function PluginRepoSlugFromURL($url)
+{
+	if (!is_string($url) || $url === '') {
+		return '';
+	}
+	$parts = parse_url($url);
+	if (!is_array($parts) || !isset($parts['host'])) {
+		return '';
+	}
+	$host = strtolower($parts['host']);
+	if ($host !== 'github.com' && $host !== 'raw.githubusercontent.com') {
+		return '';
+	}
+	$segs = array_values(array_filter(explode('/', isset($parts['path']) ? $parts['path'] : ''), function ($s) {
+		return $s !== '';
+	}));
+	if (count($segs) < 2) {
+		return '';
+	}
+	return strtolower($segs[0] . '/' . preg_replace('/\.git$/i', '', $segs[1]));
+}
+
+/**
+ * True when $srcURL -- the URL git cloned the plugin from -- is one of the
+ * repos the plugin list names.
+ *
+ * The clone URL is the only identity worth judging on. repoName is just a label
+ * inside a pluginInfo.json, and on the "Enter a pluginInfo.json URL" path that
+ * document came from a URL the user chose, so a fork at
+ * github.com/someone-else/fpp-brightness can call itself "fpp-brightness" and
+ * would sail past a name match. Where the code was cloned from cannot be
+ * spoofed that way.
+ *
+ * Matching is on the GitHub owner/repo slug rather than the URL text, because a
+ * plugin's repoName is often not the name the list files it under -- 8 of the
+ * 58 current entries differ, e.g. "Statistics-Fpp-Plugin" for repoName
+ * "fpp-plugin-AdvancedStats".
+ *
+ * An empty or non-GitHub $srcURL is never listed: every listed plugin lives on
+ * GitHub, and with no clone URL there is nothing to verify.
+ *
+ * The caller MUST have established that the list is present and current first:
+ * this returns false for "not listed", "no list" and "stale list" alike, and
+ * only the first of those is a finding. See PluginListIsCurrent().
+ */
+function PluginSrcURLIsListed($srcURL)
+{
+	$slug = PluginRepoSlugFromURL($srcURL);
+	if ($slug === '') {
+		return false;
+	}
+	foreach (GetPluginList() as $entry) {
+		if (is_array($entry) && count($entry) >= 2 && $slug === PluginRepoSlugFromURL($entry[1])) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// The pending list is stored as comma-separated "repoName|srcURL" records.
+// srcURL is what a deferred check matches on, so it is exactly as accurate as
+// the immediate one. repoName rides along purely as a label, so whoever reads
+// this setting in a support bundle can see which plugin is awaiting an answer.
+function GetUnverifiedPluginRepos()
+{
+	$raw = ReadSettingFromFile($GLOBALS['PLUGIN_UNVERIFIED_REPOS_SETTING']);
+	if (!is_string($raw) || trim($raw) === '') {
+		return array();
+	}
+	$out = array();
+	foreach (explode(',', $raw) as $item) {
+		$item = trim($item);
+		if ($item === '') {
+			continue;
+		}
+		$parts = explode('|', $item, 2);
+		$out[] = array(
+			'repoName' => $parts[0],
+			'srcURL' => isset($parts[1]) ? $parts[1] : '',
+		);
+	}
+	return $out;
+}
+
+function SetUnverifiedPluginRepos($pending)
+{
+	$items = array();
+	foreach ($pending as $p) {
+		// ',' and '|' are the separators, so they can never appear in a value.
+		$clean = function ($v) {
+			return str_replace(array(',', '|'), '', is_string($v) ? $v : '');
+		};
+		$repoName = $clean($p['repoName']);
+		$srcURL = $clean(isset($p['srcURL']) ? $p['srcURL'] : '');
+		if ($repoName === '' && $srcURL === '') {
+			continue;
+		}
+		$items[$repoName . '|' . $srcURL] = true;
+	}
+	WriteSettingToFile($GLOBALS['PLUGIN_UNVERIFIED_REPOS_SETTING'], implode(',', array_keys($items)));
+}
+
+/**
+ * Records what this system now knows about where a just-installed plugin came
+ * from. Called once per successful install from InstallPluginFromInfo().
+ *
+ * The plugin list decides, but ONLY when it was actually fetched: an empty list
+ * means "couldn't check", which is parked as uncertain rather than collapsed
+ * into an accusation.
+ *
+ * How the install was started is deliberately NOT an input. A plugin pasted
+ * into the "Enter a pluginInfo.json URL" box that resolves to a listed repo is
+ * the same code from the same place as installing it from the Plugins page --
+ * flagging it would be crying wolf, and the health check's whole value is that
+ * it only fires on something real. What matters is where the code came from,
+ * which PluginSrcURLIsListed() answers from srcURL. That also covers the dev-tools
+ * case for free: there is no marker to strip, because there is no marker.
+ */
+function RecordPluginInstallSource($repoName, $srcURL)
+{
+	// Published by the FPP project -- nothing to record.
+	if (IsOfficialPluginSrcURL($srcURL)) {
+		return;
+	}
+
+	// Decidable without the list: every listed plugin lives on GitHub, so a
+	// clone URL that is not a GitHub repo cannot be on it. Worth answering
+	// here so an offline box still gets a definite result for the clearest
+	// case instead of parking it.
+	if (is_string($srcURL) && $srcURL !== '' && PluginRepoSlugFromURL($srcURL) === '') {
+		WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+		return;
+	}
+
+	$list = GetPluginList();
+	if (!empty($list) && PluginSrcURLIsListed($srcURL)) {
+		// On the list. Safe to conclude even from a stale copy.
+		return;
+	}
+
+	if (empty($list) || !PluginListIsCurrent()) {
+		// Either no list at all, or one whose last refresh failed. Absence
+		// proves nothing against it -- park the plugin and let
+		// GetPluginSource() settle it once a current list is available.
+		$pending = GetUnverifiedPluginRepos();
+		$pending[] = array('repoName' => $repoName, 'srcURL' => $srcURL);
+		SetUnverifiedPluginRepos($pending);
+		return;
+	}
+
+	WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+}
+
+// How long GetPluginSource() will wait inline for a plugin list it does not
+// have. The health check gives the whole endpoint 3s, so this has to leave room
+// for everything else; anything slower is left to the detached warm below.
+define('PLUGIN_LIST_QUICK_TIMEOUT', 1.5);
+
+/**
+ * One short attempt to fetch the plugin list inline, for a caller that needs it
+ * now but must not stall. On success the list is written to its cache (via a
+ * temp file and rename, so a reader never sees it half-written) and true is
+ * returned. On failure a detached warm is left running and false is returned.
+ *
+ * Deliberately NOT routed through file_cache(): that takes a BLOCKING lock
+ * while it recomputes, so concurrent cold callers would queue and each pay the
+ * full timeout in turn -- five health checks at once became 1.5s, 3s, 4.5s...
+ * The non-blocking lock here means one caller does the work and every other
+ * returns instantly, which is the behaviour a latency-sensitive path needs.
+ */
+function PluginTryQuickListFetch()
+{
+	$cache = PluginListCacheFile();
+	$fd = @fopen($cache . '.trylock', 'c');
+	if ($fd === false) {
+		return false;
+	}
+	if (!flock($fd, LOCK_EX | LOCK_NB)) {
+		// Another request is already fetching. Don't queue behind it.
+		fclose($fd);
+		return false;
+	}
+
+	$ok = false;
+	$data = PluginBoundedFetch($GLOBALS['PLUGIN_LIST_URL'], PLUGIN_LIST_QUICK_TIMEOUT);
+	if ($data !== null && strpos($data, '"pluginList"') !== false) {
+		$tmp = $cache . '.quick';
+		if (@file_put_contents($tmp, $data) !== false) {
+			$ok = @rename($tmp, $cache);
+		}
+		@unlink($tmp);
+	}
+
+	flock($fd, LOCK_UN);
+	fclose($fd);
+
+	if (!$ok) {
+		PluginWarmListDetached();
+	}
+	return $ok;
+}
+
+/**
+ * Fetches the plugin list into its cache in a detached background process, so
+ * the NEXT caller has it. Returns immediately; the result is never waited on.
+ *
+ * flock -n means a warm already in flight wins and repeat health checks don't
+ * stack processes. curl -f keeps an error page out of the cache, and the
+ * download lands on a temp file that is moved into place, so a reader can never
+ * see a half-written list.
+ */
+function PluginWarmListDetached()
+{
+	$cache = PluginListCacheFile();
+	$inner = 'curl -sf --max-time 20 ' . escapeshellarg($GLOBALS['PLUGIN_LIST_URL'])
+		. ' -o ' . escapeshellarg($cache . '.warm')
+		. ' && mv -f ' . escapeshellarg($cache . '.warm') . ' ' . escapeshellarg($cache);
+
+	if (is_executable('/bin/flock') || is_executable('/usr/bin/flock')) {
+		$cmd = 'flock -n ' . escapeshellarg($cache . '.warmlock') . ' -c ' . escapeshellarg($inner);
+	} else {
+		$cmd = $inner;
+	}
+	exec($cmd . ' > /dev/null 2>&1 &');
+}
+
+/**
+ * Resolves any repos parked by an install that happened while the plugin list
+ * was unreachable, using it ONLY if already cached -- this runs on
+ * the health check path, which must never block on the network.
+ *
+ * A pending repo that turns out to be listed is dropped; one that isn't is
+ * promoted to the certain flag. With no cached list nothing changes, so
+ * this can only ever add information, never invent it.
+ */
+function ResolveUnverifiedPlugins()
+{
+	$pending = GetUnverifiedPluginRepos();
+	if (empty($pending)) {
+		return;
+	}
+	// Cache-only first: primes GetPluginList()'s static, so the
+	// PluginSrcURLIsListed() calls below reuse it without a fetch.
+	if (empty(GetPluginList(true))) {
+		// Nothing cached, and a plugin is waiting on an answer. Try briefly --
+		// if the list is a fast fetch away, settle it right now. If not, leave
+		// a detached fetch behind rather than making the health check wait, and
+		// the next run settles it. This is the only path that fetches here, it
+		// only runs while something is pending, and it stops for good once the
+		// list lands.
+		if (!PluginTryQuickListFetch() || empty(GetPluginList(true))) {
+			return;
+		}
+	}
+
+	// A stale list can clear a pending plugin (being present on it is
+	// trustworthy) but must not promote one to a finding, since absence from
+	// an out-of-date list proves nothing. Anything we still can't settle
+	// stays pending for a later run.
+	$current = PluginListIsCurrent();
+	$stillPending = array();
+	foreach ($pending as $p) {
+		if (PluginSrcURLIsListed($p['srcURL'])) {
+			continue;
+		}
+		if ($current) {
+			WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+			continue;
+		}
+		$stillPending[] = $p;
+	}
+	SetUnverifiedPluginRepos($stillPending);
+}
+
+/**
+ * Get plugin source status
+ *
+ * Reports whether a plugin from outside the curated plugin list has ever been
+ * installed on this system, at one of two confidence levels:
+ *
+ *   "unknown"    -- it definitely has.
+ *   "unverified" -- one may have been: something was installed while FPP could
+ *                   not reach the plugin list to check it, and the list still
+ *                   isn't cached, so the question is still open.
+ *   "none"       -- nothing to report.
+ *
+ * Answered entirely from settings plus an already-cached plugin list. No network
+ * call, no plugin-directory scan: this is on the health check's path and has
+ * to be instant even on a box with no internet.
+ *
+ * @route GET /api/plugin/source
+ * @response 200 Source level
+ * ```json
+ * {"level": "none"}
+ * ```
+ */
+function GetPluginSource()
+{
+	ResolveUnverifiedPlugins();
+
+	if (ReadSettingFromFile($GLOBALS['PLUGIN_UNKNOWN_SETTING']) == '1') {
+		$level = 'unknown';
+	} else if (!empty(GetUnverifiedPluginRepos())) {
+		$level = 'unverified';
+	} else {
+		$level = 'none';
+	}
+
+	return json(array('level' => $level));
+}
+
 // Removes a partially-installed plugin directory (and any linkName symlink) so a
 // refused/failed install does not leave a half-installed plugin behind.
 function CleanupPartialPluginInstall($plugin, $linkName = null)
@@ -274,6 +864,10 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	}
 
 	$srcURL = isset($pluginInfo['srcURL']) ? $pluginInfo['srcURL'] : '';
+	// Captured before InjectGitHubCredentials() below rewrites $srcURL with an
+	// embedded user:token@ -- IsOfficialPluginSrcURL()'s host/path parse
+	// doesn't need credentials and it's one less thing carrying a PAT around.
+	$origSrcURL = $srcURL;
 	$branch = escapeshellcmd(isset($pluginInfo['branch']) && $pluginInfo['branch'] !== '' ? $pluginInfo['branch'] : 'master');
 	$sha = isset($pluginInfo['sha']) ? $pluginInfo['sha'] : '';
 	$infoURL = isset($pluginInfo['infoURL']) ? $pluginInfo['infoURL'] : '';
@@ -394,6 +988,18 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	// The only statement that the operation as a whole succeeded -- the wrapper
 	// scripts only ever report on their own phase.
 	PluginEchoLog('install', $repoName, "\nInstalled plugin '$plugin'.\n", $stream);
+	// Now that the plugin's install script has built or fetched whatever it
+	// needs, ask fppd to pick it up. Dependency plugins come through here too,
+	// so each is loaded as it finishes.
+	$loaded = FPPDPluginLifecycle($plugin, 'load');
+	if (!$loaded['ok']) {
+		PluginEchoLog('install', $repoName, "Installed, but FPPD did not load it (" . $loaded['message'] . "). Restart FPPD to enable it.\n", $stream);
+	}
+	// Dependency plugins are resolved from the plugin list into a fresh
+	// $depInfo (see ResolvePluginDependencies()) and recorded through this same
+	// call, so each one is judged on where it actually came from rather than
+	// inheriting anything from the plugin that pulled it in.
+	RecordPluginInstallSource($repoName, $origSrcURL);
 	return true;
 }
 
@@ -561,23 +1167,11 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
  */
 function ResolvePluginInfoByName($repoName)
 {
-	static $pluginList = null;
-	if ($pluginList === null) {
-		$listJSON = FetchURLWithGitHubCredentials('https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/pluginList.json');
-		$decoded = json_decode($listJSON, true);
-		$pluginList = (is_array($decoded) && isset($decoded['pluginList']) && is_array($decoded['pluginList'])) ? $decoded['pluginList'] : array();
-	}
-
-	$infoURL = null;
-	foreach ($pluginList as $entry) {
-		if (is_array($entry) && count($entry) >= 2 && $entry[0] === $repoName) {
-			$infoURL = $entry[1];
-			break;
-		}
-	}
-	if ($infoURL === null) {
+	$entry = FindPluginIndexEntry($repoName);
+	if ($entry === null) {
 		return null;
 	}
+	$infoURL = $entry[1];
 
 	$infoJSON = FetchURLWithGitHubCredentials($infoURL);
 	$info = json_decode($infoJSON, true);
@@ -772,31 +1366,100 @@ function GetPluginInfo()
 	return json($result);
 }
 
+// Serves $data as an image and exits. Content-Type comes from $ext, which
+// only ever arrives here out of PluginIconURLIsAllowed()'s closed set, and
+// nosniff stops a browser second-guessing it from the bytes.
+function PluginEmitIcon($data, $ext)
+{
+	$types = array(
+		'png' => 'image/png',
+		'jpg' => 'image/jpeg',
+		'jpeg' => 'image/jpeg',
+		'gif' => 'image/gif',
+		'webp' => 'image/webp',
+	);
+	header('Content-Type: ' . (isset($types[$ext]) ? $types[$ext] : 'image/png'));
+	header('X-Content-Type-Options: nosniff');
+	header('Cache-Control: public, max-age=86400');
+	ob_clean();
+	flush();
+	echo $data;
+	exit;
+}
+
+/**
+ * Fetches a remote plugin icon, with the bytes cached on disk for a day so a
+ * page full of plugin cards costs one round trip per plugin per day.
+ *
+ * Deliberately NOT file_cache(): that trims what it reads back, which would
+ * corrupt any image whose final byte is whitespace-ish (a PNG's IEND CRC
+ * frequently is).
+ *
+ * Returns the image bytes, or null.
+ */
+function PluginCachedIconData($repoName, $url, $ext)
+{
+	$file = '/tmp/cache_plugin_icon_' . preg_replace('/[^A-Za-z0-9_.-]/', '_', $repoName) . '.' . $ext;
+	if (file_exists($file) && (time() - filemtime($file)) < 86400) {
+		$data = @file_get_contents($file);
+		if ($data !== false && $data !== '') {
+			return $data;
+		}
+	}
+
+	$data = PluginBoundedFetch($url, 8, PLUGIN_FETCH_MAX_ICON);
+	if ($data === null) {
+		// Serve a stale icon rather than none if we have one.
+		$data = file_exists($file) ? @file_get_contents($file) : false;
+		return ($data === false || $data === '') ? null : $data;
+	}
+
+	@file_put_contents($file, $data, LOCK_EX);
+	return $data;
+}
+
 /**
  * Serve plugin icon
  *
- * Serves the plugin icon. First checks for a local icon.png in the plugin
- * directory. If not found, checks the plugin's pluginInfo.json for an
- * iconURL field and proxies it (same-origin, avoids CSP restrictions on
- * external image hosts).
+ * Serves the icon for {RepoName}, whether or not that plugin is installed.
+ * Resolved in three tiers:
+ *   1. a local icon.png in the plugin's directory;
+ *   2. the iconURL out of the plugin's own installed pluginInfo.json;
+ *   3. the iconURL out of the listed pluginInfo.json for {RepoName},
+ *      for plugins that are listed but not installed (the Browse tab).
+ *
+ * Serving these same-origin is what lets the Plugins page show icons at all --
+ * raw.githubusercontent.com is allow-listed in FPP's CSP connect-src, not
+ * img-src. The client passes only a repo name: tiers 2 and 3 both run their
+ * URL past PluginIconURLIsAllowed() before fetching, so the set of things this
+ * endpoint can be made to request is bounded by the plugin list and by that
+ * allow-list, not by the caller.
  *
  * @route GET /api/plugin/{RepoName}/icon
- * @response 200 PNG image data
+ * @response 200 Image data
  * @response 404 No icon available
  */
 function PluginServeIcon()
 {
 	global $settings;
 	$plugin = params('RepoName');
+
+	// Path segment, not a path. Keeps a crafted RepoName out of the
+	// filesystem lookups below.
+	if (!is_string($plugin) || !preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || $plugin === '.' || $plugin === '..') {
+		http_response_code(404);
+		return;
+	}
 	$pluginDir = $settings['pluginDirectory'] . '/' . $plugin;
 
-	// Check for local icon.png
+	// Tier 1: local icon.png
 	$file = $pluginDir . '/icon.png';
 	if (file_exists($file)) {
 		$mtime = filemtime($file);
 		$lastModified = gmdate('D, d M Y H:i:s', $mtime) . ' GMT';
 
 		header('Content-Type: image/png');
+		header('X-Content-Type-Options: nosniff');
 		header('Cache-Control: public, max-age=0, must-revalidate');
 		header('Last-Modified: ' . $lastModified);
 
@@ -811,19 +1474,28 @@ function PluginServeIcon()
 		exit;
 	}
 
-	// Check pluginInfo.json for iconURL and proxy it
+	// Tier 2: iconURL from the installed plugin's own pluginInfo.json. This
+	// file is attacker-influenced for a plugin installed by pasting a URL, so
+	// it gets the same allow-list check as anything else.
 	$infoFile = $pluginDir . '/pluginInfo.json';
 	if (file_exists($infoFile)) {
 		$info = json_decode(file_get_contents($infoFile), true);
-		if (!empty($info['iconURL'])) {
-			$ctx = stream_context_create(['http' => ['timeout' => 10, 'follow_location' => 1, 'user_agent' => 'FPP']]);
-			$data = @file_get_contents($info['iconURL'], false, $ctx);
-			if ($data !== false) {
-				header('Content-Type: image/png');
-				header('Cache-Control: public, no-cache');
-				echo $data;
-				exit;
+		$iconURL = (is_array($info) && isset($info['iconURL'])) ? $info['iconURL'] : '';
+		if (PluginIconURLIsAllowed($iconURL, $ext)) {
+			$data = PluginCachedIconData($plugin, $iconURL, $ext);
+			if ($data !== null) {
+				PluginEmitIcon($data, $ext);
 			}
+		}
+	}
+
+	// Tier 3: listed but not installed -- the Browse tab.
+	$info = GetListedPluginInfo($plugin);
+	$iconURL = (is_array($info) && isset($info['iconURL'])) ? $info['iconURL'] : '';
+	if (PluginIconURLIsAllowed($iconURL, $ext)) {
+		$data = PluginCachedIconData($plugin, $iconURL, $ext);
+		if ($data !== null) {
+			PluginEmitIcon($data, $ext);
 		}
 	}
 
@@ -841,6 +1513,40 @@ function PluginServeIcon()
  * {"Status": "OK", "Message": ""}
  * ```
  */
+/**
+ * Ask fppd to load or unload a plugin, so an install takes effect and an
+ * uninstall stops having effect without restarting - which on a running show
+ * means not interrupting it.
+ *
+ * Goes through the documented proxy rather than fppd's internal port. Returns
+ * an array {ok, message}. A failure here is never fatal to the install or
+ * uninstall itself: the worst case is the old behaviour, where the change lands
+ * at the next restart. fppd not running is exactly that case - nothing is
+ * loaded, so there is nothing to change.
+ */
+function FPPDPluginLifecycle($plugin, $action)
+{
+    $ctx = stream_context_create(array('http' => array(
+        'method' => 'POST',
+        'content' => '',
+        'timeout' => 30,
+        'ignore_errors' => true,
+    )));
+    $url = 'http://localhost/api/fppd/plugin/' . rawurlencode($plugin) . '/' . $action;
+    $resp = @file_get_contents($url, false, $ctx);
+    if ($resp === false) {
+        return array('ok' => false, 'message' => 'fppd did not answer (not running?)');
+    }
+    $json = json_decode($resp, true);
+    if (!is_array($json) || !isset($json['Status'])) {
+        return array('ok' => false, 'message' => 'unexpected response from fppd');
+    }
+    return array(
+        'ok' => ($json['Status'] === 'OK'),
+        'message' => isset($json['Message']) ? $json['Message'] : '',
+    );
+}
+
 function UninstallPlugin()
 {
 	global $settings, $fppDir, $SUDO, $_REQUEST;
@@ -874,6 +1580,13 @@ function UninstallPlugin()
 			}
 		}
 
+		// Unload first: the files are about to be deleted, and a plugin left
+		// loaded would keep running against scripts and a binary that no longer
+		// exist. If fppd refuses (a channel output in use) or is not running,
+		// say so and carry on - the uninstall itself still proceeds, it just
+		// needs a restart to fully take hold.
+		$unloaded = FPPDPluginLifecycle($plugin, 'unload');
+
 		if (isset($stream) && $stream != "false") {
 			DisableOutputBuffering();
 			system("$fppDir/scripts/uninstall_plugin $plugin", $return_val);
@@ -884,10 +1597,15 @@ function UninstallPlugin()
 
 		if ($return_val == 0) {
 			if (isset($stream) && $stream != "false") {
+				if (!$unloaded['ok']) {
+					return "\nUninstalled, but fppd still has it loaded (" . $unloaded['message'] . ") - restart FPPD to finish.\nDone\n";
+				}
 				return "\nDone\n";
 			}
 			$result['Status'] = 'OK';
-			$result['Message'] = '';
+			$result['Message'] = $unloaded['ok'] ? ''
+				: 'Uninstalled, but FPPD still has it loaded (' . $unloaded['message'] . '). Restart FPPD to finish.';
+			$result['restartRequired'] = !$unloaded['ok'];
 		} else {
 			$result['Status'] = 'Error';
 			$result['Message'] = 'Failed to properly uninstall plugin (' . $plugin . ')';
@@ -1007,9 +1725,9 @@ function InjectGitHubCredentials($url)
 	if ($user === '' || $pat === '')
 		return false;
 
-	// Only inject into github.com / raw.githubusercontent.com URLs to avoid
-	// leaking credentials to unrelated hosts.
-	if (!preg_match('#^https://(github\.com|raw\.githubusercontent\.com|api\.github\.com)/#i', $url))
+	// Only inject into GitHub URLs to avoid leaking credentials to unrelated
+	// hosts.
+	if (!IsGitHubURL($url))
 		return $url;
 
 	return preg_replace('#^https://#i', 'https://' . rawurlencode($user) . ':' . rawurlencode($pat) . '@', $url, 1);
@@ -1038,7 +1756,7 @@ function FetchURLWithGitHubCredentials($url)
 
 	// Only treat as a GitHub URL (and apply credentials/normalization) when
 	// the host is one of the known GitHub hosts.
-	$isGitHub = (bool) preg_match('#^https://(github\.com|raw\.githubusercontent\.com|api\.github\.com)/#i', $url);
+	$isGitHub = IsGitHubURL($url);
 
 	if ($isGitHub && $haveCreds) {
 		// Strip GitHub's temporary "Raw" share-link token (e.g. ?token=GHSAT...)
@@ -1078,6 +1796,23 @@ function FetchURLWithGitHubCredentials($url)
 				$ch = curl_init($tryUrl);
 				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 				curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+				// Without these this call has no upper bound at all: a remote
+				// that accepts and then stalls pins a PHP-FPM worker
+				// indefinitely. Every caller here fetches a small JSON file,
+				// so the caps are generous and still finite.
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, PLUGIN_GITHUB_CONNECT_TIMEOUT);
+				curl_setopt($ch, CURLOPT_TIMEOUT, PLUGIN_GITHUB_TIMEOUT);
+				curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+				// Redirects stay on https: FOLLOWLOCATION is on and this request
+				// carries an "Authorization: token" header, so a redirect to
+				// http would put the PAT on the wire in clear.
+				if (defined('CURLPROTO_HTTPS')) {
+					curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+					curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
+				}
+				// Only enforced when the server sends a Content-Length, so the
+				// length check below is the one that actually holds.
+				curl_setopt($ch, CURLOPT_MAXFILESIZE, PLUGIN_FETCH_MAX_JSON);
 				curl_setopt($ch, CURLOPT_USERAGENT, 'FPP-PluginManager');
 				curl_setopt($ch, CURLOPT_HTTPHEADER, array(
 					'Authorization: token ' . $pat,
@@ -1089,6 +1824,10 @@ function FetchURLWithGitHubCredentials($url)
 				$curlErr = curl_error($ch);
 				curl_close($ch);
 				if ($data !== false && $httpCode >= 200 && $httpCode < 400) {
+					if (strlen($data) > PLUGIN_FETCH_MAX_JSON) {
+						$GitHubFetchLastError = 'response exceeded ' . PLUGIN_FETCH_MAX_JSON . ' bytes';
+						return false;
+					}
 					return $data;
 				}
 				$lastCode = $httpCode;
@@ -1101,10 +1840,12 @@ function FetchURLWithGitHubCredentials($url)
 							"User-Agent: FPP-PluginManager\r\n" .
 							"Accept: application/vnd.github.raw, application/json, */*\r\n",
 						'follow_location' => 1,
+						'max_redirects' => 3,
+						'timeout' => PLUGIN_GITHUB_TIMEOUT,
 						'ignore_errors' => 1,
 					),
 				));
-				$data = @file_get_contents($tryUrl, false, $ctx);
+				$data = @file_get_contents($tryUrl, false, $ctx, 0, PLUGIN_FETCH_MAX_JSON);
 				if ($data !== false && $data !== '') {
 					return $data;
 				}
@@ -1119,7 +1860,7 @@ function FetchURLWithGitHubCredentials($url)
 		// fetch failed. This handles the case where the PAT is missing or expired but
 		// the URL was freshly copied from GitHub.
 		if ($hadGhsatToken) {
-			$ghsatData = @file_get_contents($url);
+			$ghsatData = PluginBoundedFetch($url, PLUGIN_GITHUB_TIMEOUT);
 			if ($ghsatData !== false && $ghsatData !== '') {
 				return $ghsatData;
 			}
@@ -1515,51 +2256,23 @@ function GetPluginGitHubStats()
 }
 
 /**
- * Proxy-fetch a plugin icon image
+ * Fetch a pluginInfo.json on the browser's behalf
  *
- * Fetches an image from an external URL and serves it with the correct
- * content-type. Used to bypass CSP restrictions that block loading
- * images from external hosts (e.g. raw.githubusercontent.com) directly
- * in `<img>` tags.
+ * Backs the "Enter a pluginInfo.json URL" box on the Plugins page. The browser
+ * tries the URL directly first; this is the fallback for when that fails, which
+ * is normally CORS or a private repo needing the configured PAT.
  *
- * @route GET /api/plugin/fetchImage?url=...
- * @response 200 Image data
- * @response 400 Missing or invalid URL
+ * Restricted to GitHub hosts. Without that this is an open proxy: it fetches
+ * whatever URL the caller names and hands back the response body, so anyone who
+ * can reach FPP's web UI could read anything FPP's network can reach. The
+ * restriction costs nothing real -- a plugin is a git repo FPP clones from
+ * GitHub, and the credentialed path here is GitHub-PAT-specific already. A
+ * pluginInfo.json hosted elsewhere still loads via the browser's direct attempt
+ * when that host allows it; only the server-side fallback is GitHub-only.
+ *
+ * @route POST /api/plugin/fetchInfo
+ * @response 200 The decoded pluginInfo.json
  */
-function PluginFetchImage()
-{
-	$url = isset($_GET['url']) ? $_GET['url'] : '';
-	if ($url === '' || !preg_match('#^https?://#i', $url)) {
-		http_response_code(400);
-		echo 'Missing or invalid url parameter';
-		exit;
-	}
-
-	$ctx = stream_context_create(['http' => ['timeout' => 10, 'follow_location' => 1, 'user_agent' => 'FPP']]);
-	$data = @file_get_contents($url, false, $ctx);
-	if ($data === false) {
-		http_response_code(404);
-		exit;
-	}
-
-	// Determine content type from the URL extension
-	$ext = strtolower(pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
-	switch ($ext) {
-		case 'png':  $ct = 'image/png'; break;
-		case 'jpg':
-		case 'jpeg': $ct = 'image/jpeg'; break;
-		case 'gif':  $ct = 'image/gif'; break;
-		case 'svg':  $ct = 'image/svg+xml'; break;
-		case 'webp': $ct = 'image/webp'; break;
-		default:     $ct = 'image/png';
-	}
-
-	header('Content-Type: ' . $ct);
-	header('Cache-Control: public, max-age=86400');
-	echo $data;
-	exit;
-}
-
 function FetchPluginInfoProxy()
 {
 	$body = '';
@@ -1573,8 +2286,11 @@ function FetchPluginInfoProxy()
 	$url = isset($req['url']) ? $req['url'] : '';
 	$useCreds = isset($req['useCredentials']) && $req['useCredentials'];
 
-	if ($url === '' || !preg_match('#^https://#i', $url)) {
-		return json(array('Status' => 'Error', 'Message' => 'Invalid URL'));
+	if (!IsGitHubURL($url)) {
+		return json(array(
+			'Status' => 'Error',
+			'Message' => 'FPP will only fetch a pluginInfo.json from github.com or raw.githubusercontent.com.',
+		));
 	}
 
 	if ($useCreds) {
@@ -1585,7 +2301,7 @@ function FetchPluginInfoProxy()
 		}
 		$data = FetchURLWithGitHubCredentials($url);
 	} else {
-		$data = file_get_contents($url);
+		$data = PluginBoundedFetch($url);
 	}
 
 	if ($data === false || $data === null || $data === '') {
@@ -1948,6 +2664,267 @@ function _PluginExtractPageFromRaw($src, $unified, $type, array &$pages)
 			}
 		}
 	}
+}
+
+/**
+ * Function names a plugin's api.php must not declare, beyond anything FPP has
+ * already declared (which is checked dynamically).
+ *
+ * These are limonade's request-handling hooks. It either calls them when a
+ * global of that name happens to exist (call_if_exists: configure, initialize,
+ * before, autorender, before_exit, before_sending_header) or defines its own
+ * only when one does not (after, route_missing, autoload_controller, not_found,
+ * server_error). Either way a plugin declaring one silently takes over part of
+ * request handling for EVERY API call, not just its own endpoints --
+ * autoload_controller() in particular decides whether FPP's controllers get
+ * loaded at all. None of them are defined yet when plugin code is included, so
+ * function_exists() cannot catch them; they have to be named.
+ */
+function PluginApiReservedFunctions()
+{
+    return array(
+        'configure', 'initialize', 'before', 'autorender', 'before_exit',
+        'before_sending_header', 'after', 'route_missing', 'autoload_controller',
+        'not_found', 'server_error',
+    );
+}
+
+/**
+ * Top-level function names declared by a PHP file.
+ *
+ * Uses the tokenizer rather than a regex so that the word "function" inside a
+ * comment or a string can't produce a false hit. Methods are skipped (they live
+ * in a class's namespace and cannot collide), as are functions inside a
+ * namespace declaration, and closures have no name to collect.
+ */
+function PluginApiDeclaredFunctions($file)
+{
+    $src = @file_get_contents($file);
+    if ($src === false || $src === '') {
+        return array();
+    }
+    $tokens = @token_get_all($src);
+    if (!is_array($tokens)) {
+        return array();
+    }
+
+    $names = array();
+    $depth = 0;          // current brace depth
+    $classDepth = -1;    // brace depth the enclosing class body sits at, or -1
+    $namespaced = false;
+    $count = count($tokens);
+
+    for ($i = 0; $i < $count; $i++) {
+        $t = $tokens[$i];
+
+        if (is_string($t)) {
+            if ($t === '{') {
+                $depth++;
+            } else if ($t === '}') {
+                $depth--;
+                if ($classDepth >= 0 && $depth <= $classDepth) {
+                    $classDepth = -1;
+                }
+            }
+            continue;
+        }
+
+        if ($t[0] === T_NAMESPACE) {
+            // Anything declared from here on is namespaced and cannot collide
+            // with FPP's global functions.
+            $namespaced = true;
+            continue;
+        }
+
+        if ($t[0] === T_CLASS || $t[0] === T_INTERFACE || $t[0] === T_TRAIT) {
+            // Skip the "::class" constant, which is not a class declaration.
+            $prev = $i - 1;
+            while ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_WHITESPACE) {
+                $prev--;
+            }
+            if ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_DOUBLE_COLON) {
+                continue;
+            }
+            $classDepth = $depth;
+            continue;
+        }
+
+        if ($t[0] !== T_FUNCTION) {
+            continue;
+        }
+
+        // The name, if any, is the next token that isn't whitespace, a comment,
+        // or the "&" of a by-reference return. No name means a closure.
+        //
+        // The ampersand is a plain string token on older PHP but its own token
+        // type from 8.1, so both forms have to be skipped or "function &foo()"
+        // reads as anonymous and its name is missed.
+        $skip = array(T_WHITESPACE, T_COMMENT, T_DOC_COMMENT);
+        foreach (array('T_AMPERSAND_FOLLOWED_BY_VAR_OR_VARARG',
+                       'T_AMPERSAND_NOT_FOLLOWED_BY_VAR_OR_VARARG') as $amp) {
+            if (defined($amp)) {
+                $skip[] = constant($amp);
+            }
+        }
+        $j = $i + 1;
+        while ($j < $count) {
+            if (is_string($tokens[$j])) {
+                if ($tokens[$j] !== '&') {
+                    break;
+                }
+            } else if (!in_array($tokens[$j][0], $skip, true)) {
+                break;
+            }
+            $j++;
+        }
+        if ($j < $count && is_array($tokens[$j]) && $tokens[$j][0] === T_STRING) {
+            if ($classDepth < 0 && !$namespaced) {
+                $names[] = $tokens[$j][1];
+            }
+        }
+    }
+
+    return $names;
+}
+
+/**
+ * The names in a plugin's api.php that would collide with something FPP relies
+ * on. Empty means the file is safe to include.
+ */
+function PluginApiFunctionConflicts($file)
+{
+    $conflicts = array();
+    foreach (PluginApiDeclaredFunctions($file) as $name) {
+        if (in_array(strtolower($name), PluginApiReservedFunctions(), true)) {
+            $conflicts[] = $name . ' (reserved)';
+        } else if (function_exists($name)) {
+            $conflicts[] = $name;
+        }
+    }
+    return $conflicts;
+}
+
+// Returns an array of all plugin endpoints: [['plugin'=>..., 'method'=>..., 'endpoint'=>..., 'callback'=>...], ...]
+//
+// Memoized: this is called once from addPluginEndpoints() at bootstrap and
+// again from ServeOpenApiSpec() (controllers/docs.php) when /openapi.json is
+// requested. Recomputing it the second time is wrong, not just wasteful --
+// PluginApiFunctionConflicts() treats function_exists() as a signal, and by
+// the second call every plugin's own functions exist because the first call
+// just require_once'd them. That reads as every plugin conflicting with
+// itself, so a naive second pass silently drops all plugin paths from the
+// served spec while the routes (registered by the first pass) keep working.
+//
+// Depends on FPP's own controllers -- this file included -- already being
+// loaded, so that PluginApiFunctionConflicts()'s function_exists() checks see
+// every FPP-declared name before any plugin's api.php is required. index.php
+// guarantees that ordering (require_once_dir(controllers) runs before
+// addPluginEndpoints(), which calls this); see the comment there.
+function collectPluginEndpoints()
+{
+    static $collected = null;
+    if ($collected !== null) {
+        return $collected;
+    }
+
+    global $pluginDirectory;
+    $collected = array();
+    $baseDir = $pluginDirectory . '/';
+    if ($dir = opendir($baseDir)) {
+        while (($file = readdir($dir)) !== false) {
+            if (!in_array($file, array('.', '..')) && is_dir($baseDir . $file) && is_file($baseDir . $file . '/api.php')) {
+                // Including a file that redeclares an existing function is a
+                // fatal error, and it would happen here -- taking down every
+                // route in the API, not just this plugin's. Check first and skip
+                // the plugin instead. Losing one plugin's endpoints is a bad
+                // outcome; losing the API is a much worse one.
+                $conflicts = PluginApiFunctionConflicts($baseDir . $file . '/api.php');
+                if (!empty($conflicts)) {
+                    error_log("FPP: skipping plugin API for '$file' -- api.php declares "
+                        . "function(s) FPP already provides: " . implode(', ', $conflicts));
+                    continue;
+                }
+
+                $functionsBefore = get_defined_functions();
+                $userFunctionsBefore = isset($functionsBefore['user']) ? $functionsBefore['user'] : array();
+
+                // A syntax error in a plugin's api.php is a ParseError thrown at
+                // require_once time -- catchable, unlike a redeclaration fatal
+                // (PHP never turned "cannot redeclare" into a catchable Error, so
+                // that one still has to be prevented before this point rather than
+                // caught here; see PluginApiFunctionConflicts() above). Confirmed
+                // live: an uncaught ParseError here previously took down every
+                // route in the API, not just this plugin's, exactly like the
+                // conflict case -- catch it and skip the plugin instead.
+                try {
+                    require_once $baseDir . $file . '/api.php';
+                } catch (\Throwable $e) {
+                    error_log("FPP: skipping plugin API for '$file' -- api.php failed to load: "
+                        . get_class($e) . ': ' . $e->getMessage());
+                    continue;
+                }
+
+                $functionsAfter = get_defined_functions();
+                $userFunctionsAfter = isset($functionsAfter['user']) ? $functionsAfter['user'] : array();
+                $newUserFunctions = array_diff($userFunctionsAfter, $userFunctionsBefore);
+
+                $sfile = preg_replace('/-/', '', $file);
+                $endpointFunction = "getEndpoints$sfile";
+
+                if (!is_callable($endpointFunction)) {
+                    foreach ($newUserFunctions as $funcName) {
+                        if (stripos($funcName, 'getEndpoints') === 0) {
+                            $endpointFunction = $funcName;
+                            break;
+                        }
+                    }
+                }
+
+                if (!is_callable($endpointFunction)) {
+                    error_log("Skipping plugin API endpoint registration for '$file': no callable getEndpoints* function found");
+                    continue;
+                }
+
+                foreach (call_user_func($endpointFunction) as $ep) {
+                    if (!isset($ep['callback'])) {
+                        error_log("Skipping plugin endpoint for '$file': callback missing");
+                        continue;
+                    }
+                    $collected[] = array(
+                        'plugin'   => $file,
+                        'method'   => $ep['method'],
+                        'endpoint' => $ep['endpoint'],
+                        'callback' => $ep['callback'],
+                    );
+                }
+            }
+        }
+    }
+    return $collected;
+}
+
+// Called once from index.php, after require_once_dir(controllers) and before
+// run(), so plugin routes register after every one of FPP's own dispatch_*
+// calls (route_find() returns the first match, so a plugin can never shadow
+// an FPP route this way).
+function addPluginEndpoints()
+{
+    foreach (collectPluginEndpoints() as $ep) {
+        if (!is_callable($ep['callback'])) {
+            error_log("Skipping plugin endpoint for '{$ep['plugin']}': callback not callable");
+            continue;
+        }
+        $path = '/plugin/' . $ep['plugin'] . '/' . $ep['endpoint'];
+        if ($ep['method'] == 'GET') {
+            dispatch_get($path, $ep['callback']);
+        } else if ($ep['method'] == 'POST') {
+            dispatch_post($path, $ep['callback']);
+        } else if ($ep['method'] == 'PUT') {
+            dispatch_put($path, $ep['callback']);
+        } else if ($ep['method'] == 'DELETE') {
+            dispatch_delete($path, $ep['callback']);
+        }
+    }
 }
 
 ?>

@@ -372,6 +372,46 @@ HC_Warnings() {
 
 }
 
+# Emits at most one item, "Unknown Plugins", and only when this system has a
+# record of installing something from outside the curated plugin list --
+# unlike the other checks here, absence of the item is the normal case, not a
+# loading state. See the plugin-source block in www/api/controllers/plugin.php for
+# what the levels mean.
+#
+# This page has no "caution" color between pass and fail, so the uncertain
+# level ("something was installed while the plugin list was unreachable") renders
+# as a plain pass with explanatory text rather than as a failure.
+HC_PluginSource() {
+    PLUGINSOURCE=$(curl -s --max-time 3 http://127.0.0.1/api/plugin/source)
+    if [ "x${PLUGINSOURCE}" = "x" ]; then
+        return
+    fi
+
+    JQ=$(which jq)
+    if [ "$?" == "1" ]; then
+        return
+    fi
+
+    LEVEL=$(echo "${PLUGINSOURCE}" | jq -r '.level')
+
+    case "${LEVEL}" in
+        unknown)
+            STATUS=0
+            STATUSSTR="Installed"
+            ;;
+        unverified)
+            STATUS=1
+            STATUSSTR="Possibly Installed - plugin list was unreachable at install time"
+            ;;
+        *)
+            return
+            ;;
+    esac
+
+    PrintItemHead "Unknown Plugins"
+    PrintItemFoot
+}
+
 #############################################################################
 # Main Health Check routines here.  Some call others due to dependencies but
 # some stand alone on their own.
@@ -380,6 +420,7 @@ HC_Warnings() {
 # FPP
 HC_FPPD
 HC_Warnings
+HC_PluginSource
 
 MODE=$(getSetting fppMode)
 if [ "x${MODE}" = "xplayer" -o "x${MODE}" = "xmaster" ]

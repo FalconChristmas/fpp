@@ -184,7 +184,7 @@ $network_settings_restored_post_apply = array('wired_network' => "", 'wifi_netwo
 $network_settings_restored_applied_ips = array('wired_network' => array(), 'wifi_network' => array());
 
 //Array of settings by name/key name, that are considered sensitive/taboo
-$sensitive_data = array('emailpass', 'password', 'secret');
+$sensitive_data = array('emailpass', 'emailgpass', 'password', 'passwordVerify', 'osPassword', 'osPasswordVerify', 'MQTTPassword', 'secret');
 
 //Lookup arrays for what is a json and a ini file
 $known_json_config_files = array('channelInputs', 'universe_inputs', 'dmx_inputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
@@ -391,6 +391,32 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
         $backup_error_string = "doRestore: Invalid restore area specified" . $restore_area_main . " data could not be decoded properly. Is it a valid backup file?";
         $backup_errors[] = $backup_error_string;
         error_log($backup_error_string);
+    }
+
+    // Restoring can bring in state from a box that doesn't match what's
+    // actually installed/running here -- packages, plugins, Service_*
+    // settings, and more -- the same reconciliation an FPPOS reflash already
+    // needs. Rather than re-deriving which specific area(s) require which
+    // piece of that reconciliation (services, packages, plugin binaries...),
+    // just feed every restore into the exact same boot-time path a reflash
+    // already uses, unconditionally: handleBootActions() and
+    // checkInstallPackages() (FPPINIT_Config.cpp) already run every boot and
+    // no-op unless triggered, so this needs no new C++ -- see copystorage.php
+    // for the full rationale and what each trigger does. Both require a full
+    // reboot, not just the fppd restart some areas above already request
+    // (fppinit start/postNetwork don't run on an fppd-only restart).
+    //
+    // Gated on $restore_done alone, not on $backup_errors being empty: even a
+    // partial restore (some sub-items failed, others succeeded within the
+    // same request -- processRestoreData() tracks ATTEMPT/SUCCESS per item,
+    // not a clean top-level success flag) still needs reconciling for
+    // whatever DID land. A reboot is harmless if nothing needed it; skipping
+    // it because something else in the same restore failed would leave
+    // successfully-restored state unreconciled.
+    if ($restore_done) {
+        WriteSettingToFile('BootActions', 'settings');
+        WriteSettingToFile('rebootFlag', 1);
+        exec('sudo touch /fppos_upgraded');
     }
 
     //$restore_done is set if we got to actually call the function to restore data, if there was some sort of error with the data beforehand it will never get set
@@ -634,6 +660,26 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         $restore_data = $restore_area_data['system_settings'][0];
 
                         foreach ($restore_data as $setting_name => $setting_value) {
+                            //Verify fields are UI-only confirmation values, never persisted directly.
+                            if ($setting_name == "passwordVerify" || $setting_name == "osPasswordVerify") {
+                                continue;
+                            }
+
+                            if ($setting_name == "password" || $setting_name == "osPassword") {
+                                //"Protect sensitive data" blanks the primary field but,
+                                //on backups made before that scrubbing covered the verify
+                                //field too, the real value may still be sitting in it.
+                                //Recover it from there rather than resetting to the default.
+                                $verify_key = ($setting_name == "password") ? "passwordVerify" : "osPasswordVerify";
+                                if ($setting_value == "" && !empty($restore_data[$verify_key])) {
+                                    $setting_value = $restore_data[$verify_key];
+                                }
+                                //Don't clobber the device's existing password with a blank value.
+                                if ($setting_value == "") {
+                                    continue;
+                                }
+                            }
+
                             //check if we can change it (default value is checked - true)
                             if ($setting_name == "fppMode") {
                                 if ($keepMasterSlaveSettings == false) {
@@ -2145,7 +2191,7 @@ if ($skipHTMLCodeOutput === false) {
                             continue;
                         }
 
-                        printf("	settings['%s'] = \"%s\";\n", $key, $value);
+                        printf("	settings['%s'] = %s;\n", $key, json_encode((string) $value));
                     } else {
                         $js_array = json_encode($value);
                         printf("    settings['%s'] = %s;\n", $key, $js_array);
@@ -2292,8 +2338,7 @@ if ($skipHTMLCodeOutput === false) {
                 if (document.getElementById("backup.EEPROM").checked) {
                     flags += " EEPROM";
                 }
-                if ((document.getElementById("backup.Backups").checked) &&
-                    (direction = document.getElementById("backup.Direction").value == 'TOUSB')) {
+                if (document.getElementById("backup.Backups").checked) {
                     flags += " Backups";
                 }
 

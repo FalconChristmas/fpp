@@ -58,39 +58,3 @@ using HttpRequestPtr = std::shared_ptr<drogon::HttpRequest>;
 using HttpResponsePtr = std::shared_ptr<drogon::HttpResponse>;
 using HttpCallback = std::function<void(const HttpResponsePtr&)>;
 
-// ---- Drogon-free part of the libhttpserver compatibility shims ----
-// The webserver shim's API never touches Drogon (register_resource takes an
-// http_resource* and is implemented out-of-line in fpphttp_compat.cpp), so it
-// lives here where a plugin-facing header can use it cheaply. The Drogon-using
-// shims (http_request/http_response/string_response/http_resource) stay in
-// fpphttp.h. Define FPP_NO_HTTP_COMPAT_SHIMS before including to opt out.
-#ifndef FPP_NO_HTTP_COMPAT_SHIMS
-
-namespace httpserver {
-
-class http_resource; // defined in fpphttp.h
-
-// Shim for httpserver::webserver. Passed to old-style registerApis(webserver*)
-// overrides so they can call register_resource() and have routes land in drogon.
-class webserver {
-public:
-    void setPluginName(const std::string& name) { pluginName = name; }
-
-    // Registers an http_resource for the given path with drogon.
-    // If 'family' is true, also registers a regex catch-all for all subpaths.
-    // Implemented in fpphttp_compat.cpp to avoid pulling in HttpAppFramework.h here.
-    void register_resource(const std::string& path, http_resource* resource,
-                           bool family = false);
-
-    // Zeros the atomic slot for this path so in-flight and future drogon
-    // dispatches return 410 Gone instead of calling into freed plugin memory.
-    // Implemented in fpphttp_compat.cpp alongside register_resource.
-    void unregister_resource(const std::string& path, http_resource*);
-    void unregister_resource(const std::string& path);
-
-    std::string pluginName;
-};
-
-} // namespace httpserver
-
-#endif // FPP_NO_HTTP_COMPAT_SHIMS

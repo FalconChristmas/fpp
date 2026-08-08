@@ -11,14 +11,13 @@
  * included LICENSE.LGPL file.
  */
 
-// Compatibility layer for HTTP handling using Drogon framework.
-// This replaces the previous libhttpserver-based implementation.
+// HTTP helpers for FPP and for plugins, on top of Drogon.
 // Only include the minimal drogon headers to avoid DrObject auto-registration
 // in translation units that don't need the full framework.
 
-// HttpRequestPtr/HttpResponsePtr/HttpCallback aliases and the (drogon-free)
-// httpserver::webserver shim live here so declaration-only headers can use them
-// without the heavy drogon include below. See fpphttp_types.h.
+// HttpRequestPtr/HttpResponsePtr/HttpCallback aliases live there so that
+// declaration-only headers can use them without the heavy drogon include below.
+// See fpphttp_types.h.
 #include "fpphttp_types.h"
 
 #include <drogon/HttpRequest.h>
@@ -96,91 +95,47 @@ inline std::string getQueryString(const HttpRequestPtr& req) {
     return req->query();
 }
 
-// ---- Source-level compatibility shims for plugins written against libhttpserver ----
-// These allow plugin source code that used libhttpserver types to be recompiled
-// against the new drogon-based FPP API with minimal or no code changes.
-// Define FPP_NO_HTTP_COMPAT_SHIMS before including this header to opt out.
+// ---- Plugin HTTP API registration -----------------------------------------
+//
+// Plugins must register their HTTP routes through these rather than calling
+// drogon::app().registerHandler() directly, because drogon has no route removal
+// API. A handler registered straight with drogon is a function pointer into the
+// plugin's .so that can never be withdrawn, which makes the plugin impossible to
+// unload -- and impossible to upgrade in place, since a newly loaded build
+// cannot take over a path the retired one still owns.
+//
+// What FPP does instead: the drogon route is registered once, ever, per path,
+// and belongs to FPP. It dispatches through a slot that lives here in libfpp,
+// not in any plugin. registerPluginApi() arms that slot; unregisterPluginApi()
+// disarms it and requests to the path answer 410 Gone. A later
+// registerPluginApi() for the same path re-arms the same slot, so a replacement
+// build of the plugin picks the route straight back up.
+//
+// unregisterPluginApi() does not return until no request is executing inside the
+// handler AND the handler object itself has been destroyed -- the plugin's own
+// callable, whose code and captured state live in the .so. That is the ordering
+// that makes a subsequent dlclose() safe: destroy while still mapped, then
+// unmap. (A handler that unregistered its own path from inside itself would
+// deadlock. Nothing should do that.)
+//
+// This covers inbound HTTP only. A handler that hands work to another thread is
+// responsible for that thread itself, in FPPPlugins::Plugin::shutdown().
+namespace FPPPlugins {
 
-#ifndef FPP_NO_HTTP_COMPAT_SHIMS
+// Same shape drogon's registerHandler() takes.
+using PluginApiHandler = std::function<void(const HttpRequestPtr&, HttpCallback&&)>;
 
-namespace httpserver {
+// Registers (or re-arms) 'path'. With family=true, subpaths of 'path' route to
+// the same handler as well.
+void registerPluginApi(const std::string& path, PluginApiHandler handler,
+                       const std::vector<drogon::HttpMethod>& methods = { drogon::Get, drogon::Post, drogon::Put,
+                                                                          drogon::Delete, drogon::Head },
+                       bool family = false);
 
-// Wraps a drogon HttpRequestPtr and exposes the old libhttpserver http_request API.
-class http_request {
-public:
-    explicit http_request(const HttpRequestPtr& r) :
-        m_req(r), m_pieces(getPathPieces(r->path())) {}
+// Disarms 'path' (and its family subpaths, if any were registered) and destroys
+// the handler before returning. Safe to call for a path that was never
+// registered, and safe to call twice.
+void unregisterPluginApi(const std::string& path);
 
-    std::string get_path() const { return m_req->path(); }
-    const std::vector<std::string>& get_path_pieces() const { return m_pieces; }
-    std::string get_arg(const std::string& key) const { return m_req->getParameter(key); }
-    std::string get_content() const { return std::string(m_req->body()); }
-    std::string get_querystring() const { return m_req->query(); }
-    std::string get_method() const {
-        switch (m_req->method()) {
-        case drogon::Get:    return "GET";
-        case drogon::Post:   return "POST";
-        case drogon::Put:    return "PUT";
-        case drogon::Delete: return "DELETE";
-        case drogon::Head:   return "HEAD";
-        default:             return "UNKNOWN";
-        }
-    }
-    const HttpRequestPtr& drogonRequest() const { return m_req; }
+} // namespace FPPPlugins
 
-private:
-    HttpRequestPtr m_req;
-    std::vector<std::string> m_pieces;
-};
-
-// Abstract base for libhttpserver-style responses.
-class http_response {
-public:
-    virtual ~http_response() = default;
-    virtual HttpResponsePtr toDrogon() const = 0;
-};
-
-// Drop-in replacement for httpserver::string_response.
-class string_response : public http_response {
-public:
-    string_response(const std::string& body, int code = 200,
-                    const std::string& contentType = "text/plain") :
-        m_body(body), m_code(code), m_ct(contentType) {}
-    HttpResponsePtr toDrogon() const override {
-        return makeStringResponse(m_body, m_code, m_ct);
-    }
-
-private:
-    std::string m_body;
-    int m_code;
-    std::string m_ct;
-};
-
-// Base class for libhttpserver-style resource objects.
-// Plugins can continue to inherit from this and override render_* methods.
-class http_resource {
-public:
-    virtual ~http_resource() = default;
-    virtual std::shared_ptr<http_response> render_GET(const http_request&) {
-        return std::make_shared<string_response>("Method Not Allowed", 405);
-    }
-    virtual std::shared_ptr<http_response> render_POST(const http_request&) {
-        return std::make_shared<string_response>("Method Not Allowed", 405);
-    }
-    virtual std::shared_ptr<http_response> render_PUT(const http_request&) {
-        return std::make_shared<string_response>("Method Not Allowed", 405);
-    }
-    virtual std::shared_ptr<http_response> render_DELETE(const http_request&) {
-        return std::make_shared<string_response>("Method Not Allowed", 405);
-    }
-    virtual std::shared_ptr<http_response> render_HEAD(const http_request& req) {
-        return render_GET(req);
-    }
-};
-
-// Note: the httpserver::webserver shim is defined in fpphttp_types.h (it does
-// not depend on drogon), and is available here via the include above.
-
-} // namespace httpserver
-
-#endif // FPP_NO_HTTP_COMPAT_SHIMS

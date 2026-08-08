@@ -126,10 +126,17 @@ void EPollManager::removeFileDescriptor(int fd) {
     int rc = epoll_ctl(epollf, EPOLL_CTL_DEL, fd, &event);
 #endif
     if (rc == -1) {
-        LogWarn(VB_GENERAL, "Failed to remove descriptor: %d  %s\n", fd, FPPstrerror(errno));
-    } else {
-        callbacks.erase(fd);
+        // Commonly EBADF because the caller already closed the descriptor, which
+        // takes it out of the epoll set by itself. Either way the caller is done
+        // with it.
+        LogDebug(VB_GENERAL, "Failed to remove descriptor: %d  %s\n", fd, FPPstrerror(errno));
     }
+    // Erase unconditionally. Keeping the callback when epoll_ctl() failed used to
+    // leave a std::function behind for a descriptor nobody owns any more - and
+    // when that callback belonged to a plugin that has since been unloaded, the
+    // next addFileDescriptor() to reuse the descriptor number destroyed it by
+    // assigning over it, running a destructor in an unmapped library.
+    callbacks.erase(fd);
 }
 
 void EPollManager::setTimerCallback(std::function<void()>&& callback) {

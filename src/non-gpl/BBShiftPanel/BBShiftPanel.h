@@ -254,6 +254,14 @@ private:
     // sequence bump so the byte flow stays in step with the commands
     std::atomic<uint32_t> m_pumpSeq{ 0 };
     uint32_t m_pumpedSeq = 0;
+    // A self-PWM panel refreshes from its own engine while its row scan free
+    // runs, so a gap in the shift out shows up as the image drifting
+    // vertically rather than as a glitch.  The frame is therefore not handed
+    // to the PRU until the pump has the ring as full as it will go, and the
+    // pump is woken directly rather than found by polling.
+    std::mutex m_pumpMutex;
+    std::condition_variable m_pumpCV;
+    std::atomic<uint32_t> m_pumpPrimed{ 0 };
     uint32_t m_frameBytes = 0;
     BBBPruSMEMRing m_ring;
     bool m_heapBuffers = false;

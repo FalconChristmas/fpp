@@ -640,6 +640,8 @@ void FPPStatusOLEDPage::runTest(const std::string& test, bool ms) {
 
     std::string data = SaveJsonToString(val);
 
+    LogDebug(VB_COMMAND, "fppoled sending command to /api/command: %s\n", data.c_str());
+
     buffer.clear();
     CURL* curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);

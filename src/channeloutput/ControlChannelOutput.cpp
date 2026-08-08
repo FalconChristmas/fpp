@@ -61,9 +61,23 @@ int ControlChannelOutput::SendData(unsigned char* channelData) {
     uint8_t v = *channelData;
     if (v != lastValue) {
         lastValue = v;
-        for (auto& p : presets[v]) {
+
+        auto it = presets.find(v);
+        if (it == presets.end()) {
+            return 0;
+        }
+
+        // Make the value that fired the preset available to the preset's
+        // commands as %CHANNEL_VALUE% / %CHANNEL_VALUE255% / %CHANNEL_VALUE100%.
+        // Presets that don't reference the keywords are unaffected.
+        std::map<std::string, std::string> keywords;
+        keywords["CHANNEL_VALUE"] = std::to_string(v);
+        keywords["CHANNEL_VALUE255"] = std::to_string(v);
+        keywords["CHANNEL_VALUE100"] = std::to_string((v * 100 + 127) / 255);
+
+        for (auto& p : it->second) {
             if (p != "") {
-                CommandManager::INSTANCE.TriggerPreset(p);
+                CommandManager::INSTANCE.TriggerPreset(p, keywords);
             }
         }
     }

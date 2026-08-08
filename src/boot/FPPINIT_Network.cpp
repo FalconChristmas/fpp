@@ -137,6 +137,38 @@ static void unblockWifi() {
     }
 }
 
+// Consumes the marker resetConfig.php drops for a "network" area reset. Must
+// only be called from the boot "start" path (FPPINIT.cpp), NOT from
+// setupNetwork() -- that function is also invoked live via `fppinit
+// setupNetwork <iface>` (network.php's interface-save path) while
+// systemd-networkd is already running, which would reintroduce the exact
+// live-daemon race this is meant to avoid. Boot's "start" action runs before
+// systemd-networkd.service is (re)started for this boot -- fppinit.service is
+// ordered Before= it -- so calling this only from there is race-free by
+// construction: the daemon that owns /var/lib/systemd/network/dhcp-server-lease/
+// isn't running yet.
+//
+// TODO(FPP11): this is one of several ad-hoc "do this on next boot" marker
+// files scattered around FPP (see also /fpp_kiosk, fpp_expand_rootfs,
+// /fppos_upgraded). Standardize these on a single settings-key convention
+// instead of bare marker files.
+void consumePendingDhcpLeaseReset() {
+    std::string marker = FPP_MEDIA_DIR + "/config/dhcpLeaseResetPending";
+    if (!FileExists(marker)) {
+        return;
+    }
+    // One JSON file per interface (not a per-lease directory), e.g.
+    // /var/lib/systemd/network/dhcp-server-lease/eth0 -- confirmed against a
+    // live device (systemd 257). Wipe all of them.
+    if (DirectoryExists("/var/lib/systemd/network/dhcp-server-lease")) {
+        for (const auto& entry : std::filesystem::directory_iterator("/var/lib/systemd/network/dhcp-server-lease")) {
+            std::error_code ec;
+            std::filesystem::remove(entry.path(), ec);
+        }
+    }
+    unlink(marker.c_str());
+}
+
 void setupNetwork(bool fullReload) {
     unblockWifi();
     auto dnsSettings = loadSettingsFile(FPP_MEDIA_DIR + "/config/dns");
@@ -369,7 +401,13 @@ void setupNetwork(bool fullReload) {
                     content.append("\n");
                 }
                 if (DHCPSERVER == 1) {
-                    content.append("[DHCPServer]\nPoolOffset=").append(std::to_string(DHCPOFFSET)).append("\nPoolSize=").append(std::to_string(DHCPPOOLSIZE)).append("\n");
+                    // PersistLeases=yes is already the default on Debian 13/trixie
+                    // (systemd >= 256, via systemd-networkd-persistent-storage.service);
+                    // set explicitly here for clarity and so behavior doesn't silently
+                    // depend on an OS-level default we don't control. Harmlessly ignored
+                    // as an unknown key on older systemd (verified: an unrecognized
+                    // [DHCPServer] key logs a warning but doesn't break parsing).
+                    content.append("[DHCPServer]\nPersistLeases=yes\nDefaultLeaseTimeSec=8h\nMaxLeaseTimeSec=8h\nPoolOffset=").append(std::to_string(DHCPOFFSET)).append("\nPoolSize=").append(std::to_string(DHCPPOOLSIZE)).append("\n");
                     if (!dnsSettings["DNS1"].empty()) {
                         content.append("EmitDNS=yes\nDNS=").append(dnsSettings["DNS1"]).append("\n");
                     }
@@ -396,7 +434,14 @@ void setupNetwork(bool fullReload) {
                                                "DHCP=no\n"
                                                "Address=192.168.8.1/24\n"
                                                "DHCPServer=yes\n\n");
+        // PersistLeases=yes is already the default on Debian 13/trixie (systemd
+        // >= 256, via systemd-networkd-persistent-storage.service); set explicitly
+        // here for clarity and so behavior doesn't silently depend on an OS-level
+        // default we don't control. Harmlessly ignored as an unknown key on older
+        // systemd (verified: an unrecognized [DHCPServer] key logs a warning but
+        // doesn't break parsing).
         content.append("[DHCPServer]\n"
+                       "PersistLeases=yes\n"
                        "PoolOffset=10\n"
                        "PoolSize=100\n"
                        "EmitDNS=no\n\n");
@@ -491,7 +536,16 @@ void setupNetwork(bool fullReload) {
                 localFullReload = true;
             }
             if (!contains(execAndReturn("/usr/bin/systemctl is-active hostapd"), "inactive")) {
-                exec("/usr/bin/systemctl stop hostapd.service");
+                // Bounded: an unresponsive hostapd (driver/dbus hiccup) must not be
+                // able to wedge fppinit indefinitely - this runs synchronously in
+                // the interactive "Restart Network" request (network_apply_interface),
+                // so a hang here blocks that whole HTTP request and can make the
+                // rest of the appliance look unresponsive until it clears.
+                exec("/usr/bin/timeout 10 /usr/bin/systemctl stop hostapd.service");
+                if (contains(execAndReturn("/usr/bin/systemctl is-active hostapd"), "active")) {
+                    printf("FPP - hostapd did not stop within 10s, killing it\n");
+                    exec("/usr/bin/systemctl kill --signal=SIGKILL hostapd.service");
+                }
                 localFullReload = true;
             }
             exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
@@ -1080,7 +1134,14 @@ void maybeEnableTethering() {
                                                "Address=192.168.8.1/24\n"
                                                "DHCPServer=yes\n\n");
 
+        // PersistLeases=yes is already the default on Debian 13/trixie (systemd
+        // >= 256, via systemd-networkd-persistent-storage.service); set explicitly
+        // here for clarity and so behavior doesn't silently depend on an OS-level
+        // default we don't control. Harmlessly ignored as an unknown key on older
+        // systemd (verified: an unrecognized [DHCPServer] key logs a warning but
+        // doesn't break parsing).
         content.append("[DHCPServer]\n"
+                       "PersistLeases=yes\n"
                        "PoolOffset=10\n"
                        "PoolSize=100\n"
                        "EmitDNS=no\n\n");

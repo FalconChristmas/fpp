@@ -108,6 +108,13 @@ ServerTokens Prod
     RewriteRule ^player(.*)$ http://localhost:32322/player$1 [P]
     RewriteRule ^gpio(.*)$ http://localhost:32322/gpio$1 [P]
     RewriteRule ^variables(.*)$ http://localhost:32322/variables$1 [P]
+    RewriteRule ^aes67(.*)$ http://localhost:32322/aes67$1 [P]
+    RewriteRule ^opusrtp(.*)$ http://localhost:32322/opusrtp$1 [P]
+    # Block fppd's internal-only routes (see src/httpAPI.cpp's
+    # /internal/pluginApiRoutes) from the generic plugin-apis passthrough
+    # below -- must come first, since that rule proxies any fppd path
+    # unconditionally and would otherwise forward these too.
+    RewriteRule ^plugin-apis/internal(/.*)?$ - [F,L]
     RewriteRule ^plugin-apis/(.*)$ http://localhost:32322/$1 [P]
 
     # SSE endpoints - use dedicated proxy rules with immediate flushing
@@ -121,7 +128,6 @@ ServerTokens Prod
     RewriteRule ^index.php - [L,NC]
     RewriteRule ^api.php - [L,NC]
     RewriteRule ^api.html - [L,NC]
-    RewriteRule ^openapi.json - [L,NC]
     RewriteRule ^help ../api/ [R=301,L,NC]
     RewriteRule ^help/.* ../api/ [R=301,L,NC]
     RewriteRule ^endpoints.json - [L,NC]
@@ -190,6 +196,10 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
     Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
 </Directory>
 
+# This directory must exist or none of the below applies: Apache only merges a
+# <Directory> section for a directory that is actually there, so a missing one
+# means the rewrite never runs and every plugin image 404s silently. It holds no
+# files - see www/images/plugin/.gitkeep, which exists to keep it in the tree.
 <Directory "/opt/fpp/www/images/plugin">
     Options FollowSymLinks
     AllowOverride None

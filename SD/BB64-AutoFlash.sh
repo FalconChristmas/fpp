@@ -45,20 +45,57 @@ if [ -f "$EEPROM" ]; then
     fi
 
     if $NEEDS_FIX; then
-        # Determine board variant from device-tree model string.
-        # PB2 Industrial contains "Industrial"; fall back to PB2I if
-        # the model string is unavailable (common with blank EEPROM).
-        MODEL=$(cat /proc/device-tree/model 2>/dev/null || true)
-        case "$MODEL" in
-            *[Ii]ndustrial*|"")
-                echo "Running fix_pb2i_eeprom.sh"
-                /bin/bash /opt/fpp/capes/drivers/bb64/fix_pb2i_eeprom.sh
+        # Determine the board variant.  The device-tree model string is NOT
+        # usable for this: it reads "BeagleBoard.org PocketBeagle2" on the
+        # industrial board as well as on the base one.
+        #
+        # The board ID at EEPROM offset 46 is "PB2I" on the industrial and
+        # "PB20" on the base board, and it is still readable in the "valid
+        # header, blank serial" failure mode.  When the header itself is blank
+        # there is nothing left to read, so probe the hardware instead: the
+        # industrial always has eMMC populated, the base board ships with the
+        # footprint empty (and is not a target for this script anyway, since
+        # everything below flashes ${DEVICE}).
+        #
+        # This matters beyond cosmetics.  u-boot's SPL only applies the 1GB
+        # DDRSS timings when the EEPROM identifies the board as the industrial
+        # variant, so writing a base-board EEPROM onto an industrial leaves it
+        # running on half its RAM until the EEPROM is rewritten.
+        BOARDID=""
+        if [ "$MAGIC" = "aa55" ]; then
+            BOARDID=$(dd if="$EEPROM" bs=1 skip=46 count=4 2>/dev/null)
+        fi
+        case "$BOARDID" in
+            PB2I)
+                INDUSTRIAL=true
+                ;;
+            PB20)
+                INDUSTRIAL=false
                 ;;
             *)
-                echo "Running fix_pb2_eeprom.sh"
-                /bin/bash /opt/fpp/capes/drivers/bb64/fix_pb2_eeprom.sh
+                # Blank header - wait briefly for the eMMC to enumerate, then
+                # decide on its presence.
+                INDUSTRIAL=false
+                i=0
+                while [ $i -lt 10 ]; do
+                    if [ "$(cat /sys/block/mmcblk0/device/type 2>/dev/null)" = "MMC" ]; then
+                        INDUSTRIAL=true
+                        break
+                    fi
+                    i=$((i + 1))
+                    sleep 1
+                done
+                echo "EEPROM header blank, detected industrial=${INDUSTRIAL} from eMMC presence"
                 ;;
         esac
+
+        if $INDUSTRIAL; then
+            echo "Running fix_pb2i_eeprom.sh"
+            /bin/bash /opt/fpp/capes/drivers/bb64/fix_pb2i_eeprom.sh
+        else
+            echo "Running fix_pb2_eeprom.sh"
+            /bin/bash /opt/fpp/capes/drivers/bb64/fix_pb2_eeprom.sh
+        fi
     fi
 else
     echo "WARNING: EEPROM device not found at $EEPROM"

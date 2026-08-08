@@ -32,6 +32,35 @@
 class PixelOverlayModel;
 
 /**
+ * A sub-region of the source frame, as fractions (0.0-1.0) of its width and
+ * height.  Fractions rather than pixels so one configuration works for any
+ * source resolution — the pixel crop is computed from the negotiated caps at
+ * runtime, and re-computed if the source resolution changes mid-stream.
+ *
+ * Used to split one decoded video across several displays: give each output a
+ * different region (e.g. left half / right half of a 3840x1080 file) and each
+ * shows its own slice of a single decode.
+ */
+struct VideoCropRect {
+    double x = 0.0;
+    double y = 0.0;
+    double width = 1.0;
+    double height = 1.0;
+
+    /// True when this selects the whole frame, i.e. no crop element is needed.
+    bool IsFullFrame() const {
+        return x <= 0.0 && y <= 0.0 && width >= 1.0 && height >= 1.0;
+    }
+
+    /// True when the values describe a usable region.  A zero/negative extent
+    /// or one starting past the right/bottom edge would crop everything away.
+    bool IsValid() const {
+        return width > 0.0 && height > 0.0 && x >= 0.0 && y >= 0.0 &&
+               (x + width) <= 1.0001 && (y + height) <= 1.0001;
+    }
+};
+
+/**
  * VideoOutputManager — manages PipeWire video consumer pipelines.
  *
  * Each video output destination (HDMI display, pixel overlay, network stream)
@@ -67,6 +96,7 @@ public:
         int width = 0;
         int height = 0;
         int primaryPlaneId = -1; // DRM primary plane for this connector's CRTC
+        VideoCropRect crop;      // region of the source this display shows
     };
 
     /// Return HDMI consumer info for consumers that match the given stream
@@ -74,6 +104,29 @@ public:
     std::vector<HdmiConsumerInfo> GetHdmiConsumers(
         int streamSlot,
         const std::set<int>& skipConnectorIds = {}) const;
+
+    /// Region configured for the display on `connectorId`, whole frame if none.
+    /// Unlike GetHdmiConsumers this does not skip the connector driven by the
+    /// primary pipeline — that display is one half of a split too, so its
+    /// kmssink needs the crop even though no consumer pipeline is started for
+    /// it.  Matches the on-demand consumer entries and the stream-slot filter
+    /// exactly as GetHdmiConsumers does.
+    VideoCropRect GetHdmiCropForConnector(int streamSlot, int connectorId) const;
+
+#ifdef HAS_GSTREAMER_VIDEO_OUTPUT
+    /// Build a videocrop element that resolves `crop` against the negotiated
+    /// caps at runtime.  Returns nullptr when the whole frame is selected (no
+    /// element needed) or when the crop is invalid/videocrop is unavailable.
+    /// The caller owns the floating ref — add it to a bin as usual.
+    ///
+    /// Place it immediately upstream of kmssink: kmssink advertises
+    /// GstVideoCropMeta, so videocrop then crops by metadata (it becomes the
+    /// DRM plane's source rectangle, applied by the display hardware during
+    /// scanout) instead of copying pixels.  With any other element in between
+    /// it silently falls back to a full per-frame copy.
+    static GstElement* CreateCropElement(const VideoCropRect& crop,
+                                         const std::string& name);
+#endif
 
     /// Start all configured consumers targeting the given producer node.
     /// Called by GStreamerOut after pipewiresink is attached to PipeWire graph.
@@ -139,6 +192,7 @@ private:
         int width = 0;
         int height = 0;
         std::string scaling;        // "fit", "fill", "stretch"
+        VideoCropRect crop;         // region of the source shown on this output
         int assignedPlaneId = -1;   // DRM overlay plane reserved for this consumer's kmssink; released in StopConsumer
         // DRM cardPath this consumer's kmssink acquired via
         // GStreamerOutput::AcquireSharedDrmFd(); empty if none (non-HDMI
@@ -195,7 +249,8 @@ private:
               pipeWireNodeName(std::move(o.pipeWireNodeName)),
               connector(std::move(o.connector)), cardPath(std::move(o.cardPath)),
               connectorId(o.connectorId), width(o.width), height(o.height),
-              scaling(std::move(o.scaling)), assignedPlaneId(o.assignedPlaneId),
+              scaling(std::move(o.scaling)), crop(o.crop),
+              assignedPlaneId(o.assignedPlaneId),
               acquiredDrmCard(std::move(o.acquiredDrmCard)),
               overlayModel(std::move(o.overlayModel)),
               overlayState(std::move(o.overlayState)),

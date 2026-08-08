@@ -29,7 +29,7 @@ if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
     if (preg_match('/^http/', $fn)) {
         $file = '/home/fpp/media/tmp/tmp-eeprom.bin';
         echo "Downloading $fn to $file \n\n";
-        system("/usr/bin/wget -O $file $fn 2>&1");
+        system("/usr/bin/wget -O " . escapeshellarg($file) . " " . escapeshellarg($fn) . " 2>&1");
         if (!file_exists($file) || filesize($file) < 72) {
             echo "\n\nProblems downloading firmware.  Check above errors for details.\n";
             echo "You may be able to manually download the file and do the upgrade directly with the file.\n";
@@ -54,7 +54,9 @@ if ($file != '') {
     echo "Upgrading firmware.....\n";
     echo "\n";
     flush();
-    system("sudo /opt/fpp/scripts/upgradeCapeFirmware " . $force . $resetDefaults . $file, $retval);
+    // Wrap the file path as a single shell arg so the filename/URL cannot inject
+    // additional commands. $force/$resetDefaults are fixed constant strings.
+    system("sudo /opt/fpp/scripts/upgradeCapeFirmware " . $force . $resetDefaults . escapeshellarg($file), $retval);
     WriteSettingToFile('rebootFlag', 1);
     flush();
 

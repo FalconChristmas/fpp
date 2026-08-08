@@ -398,6 +398,11 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                 if (p) {
                     LogInfo(VB_CHANNELOUT, "Plugin found, creating output: start=%d, count=%d\n", start, count);
                     channelOutput->output = p->createChannelOutput(start, count);
+                    if (channelOutput->output) {
+                        // Pins the plugin: the output outlives it and is owned
+                        // elsewhere, so the plugin cannot be unloaded.
+                        PluginManager::INSTANCE.noteChannelOutputCreated(p);
+                    }
                 } else {
                     LogWarn(VB_CHANNELOUT, "Plugin NOT found for type: %s\n", type.c_str());
                 }

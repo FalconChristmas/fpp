@@ -271,7 +271,7 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
         // device advertises, defaulting to the universally-safe S16LE.
         std::string fmt = "S16LE";
         std::string hwParams = execAndReturn("timeout 2 /usr/bin/aplay -D hw:" + cId +
-                                             " --dump-hw-params /dev/zero 2>&1 | head -40");
+                                                " --dump-hw-params /dev/zero 2>&1 | head -40");
         std::smatch fmtMatch;
         if (std::regex_search(hwParams, fmtMatch, std::regex(R"(FORMAT[^:]*:\s+(.+))"))) {
             std::string fmtLine = fmtMatch[1].str();
@@ -281,6 +281,27 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
                 fmt = "S24_32LE";
             } else if (fmtLine.find("S24_3LE") != std::string::npos) {
                 fmt = "S24LE";
+            }
+        }
+        // Some cards expose only IEC958_SUBFRAME_LE passthrough on raw hw: with
+        // no standard PCM format (e.g. the Pi Zero W2 / Pi 3 vc4-hdmi card under
+        // KMS). PipeWire's SPA ALSA plugin cannot open a passthrough-only hw:
+        // device, so no sink is created and the fpp_group_default combine-stream
+        // ends up with no target, making GStreamer fail with "Failed to connect".
+        // sysdefault: routes through ALSA's dmix/plug layer (which downconverts
+        // IEC958 to normal PCM), so use it whenever hw: lacks a PCM format but
+        // sysdefault: provides one.
+        std::string alsaPath = "hw:" + cId;
+        bool hasPcmFmt = hwParams.find("S16_LE") != std::string::npos ||
+                         hwParams.find("S24_LE") != std::string::npos ||
+                         hwParams.find("S32_LE") != std::string::npos;
+        if (!hasPcmFmt && hwParams.find("IEC958_SUBFRAME_LE") != std::string::npos) {
+            std::string sysParams = execAndReturn("timeout 2 /usr/bin/aplay -D sysdefault:" + cId +
+                                                    " --dump-hw-params /dev/zero 2>&1 | head -40");
+            if (sysParams.find("S16_LE") != std::string::npos ||
+                sysParams.find("S24_LE") != std::string::npos ||
+                sysParams.find("S32_LE") != std::string::npos) {
+                alsaPath = "sysdefault:" + cId;
             }
         }
         const std::string desc = getAlsaCardProductName(card, cId) + " (" + cId + ")";
@@ -293,7 +314,7 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
         c << "      node.name = \"" << nodeName << "\"\n";
         c << "      node.description = \"" << desc << "\"\n";
         c << "      media.class = \"Audio/Sink\"\n";
-        c << "      api.alsa.path = \"hw:" << cId << "\"\n";
+        c << "      api.alsa.path = \"" << alsaPath << "\"\n";
         c << "      api.alsa.period-size = " << perSize << "\n";
         c << "      api.alsa.headroom = 256\n";
         c << "      audio.format = \"" << fmt << "\"\n";
@@ -608,7 +629,20 @@ void setupAudio() {
     auto cardIsDeadHDMI = [&](const std::string& k) {
         if (!lineHasHDMI(cardLines[k])) return false;
         if (cards[k].starts_with("vc4hdmi")) {
-            return !hdmiStatus[cards[k]];
+            // hdmiStatus is keyed by a synthesized connector index ("vc4hdmi0",
+            // "vc4hdmi1" on dual-HDMI boards). Single-HDMI boards (e.g. Pi Zero
+            // 2 W, Pi 3) register the card as plain "vc4hdmi", which never
+            // matches an "NN" index key; the std::map read then yields false and
+            // the card is wrongly declared "no HDMI connected" even when a
+            // display is attached, causing setupAudio to permanently revert
+            // AudioOutput back to card 0. When there is no per-port status for
+            // this card, fall back to the any-HDMI-connected signal (same
+            // semantics as the legacy bcm2835 HDMI branch below).
+            auto it = hdmiStatus.find(cards[k]);
+            if (it != hdmiStatus.end()) {
+                return !it->second;
+            }
+            return !anyHDMIConnected;
         }
         // legacy bcm2835 HDMI shares the physical port; if any HDMI is
         // connected, assume this device may work, otherwise treat as dead.

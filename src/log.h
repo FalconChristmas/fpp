@@ -31,6 +31,24 @@ typedef enum {
  * to go to different files
  */
 
+// LAYOUT RULE: this class is plugin ABI, even though no plugin ever names it.
+// The VB_* macros below expand to a member of the single FPPLogger::INSTANCE, so
+// a plugin bakes in "INSTANCE + N * sizeof(FPPLoggerInstance)" at compile time
+// and passes that address to libfpp's _LogWrite() as an FPPLoggerInstance&.
+// Change sizeof(FPPLoggerInstance) -- or insert/remove a facility in FPPLogger --
+// and every already-built plugin points at the middle of some other facility.
+// What comes back is not a std::string, so facility.name.c_str() hands strlen() a
+// pointer made of raw character bytes and fppd dies on the plugin's first log
+// line.  Adding the crashRingCapture bool below did exactly that: it grew this
+// class from 28 to 32 bytes on 32-bit ARM, and plugins built against the older
+// header resolved VB_PLUGIN 52 bytes short, landing inside the SSO buffer of
+// Control's name.  Plugin.h publishes fingerprints for this layout (they live
+// there, not here, because that is the header every plugin includes textually
+// rather than through the PCH) and the loader compares them, so a slip is
+// refused at dlopen -- but only for plugins built since those fingerprints
+// existed.  If a member is genuinely needed here, treat it as an ABI change and
+// weigh a FPP_PLUGIN_API_VERSION bump, which is the only thing that reaches
+// binaries already in the field.
 class FPPLoggerInstance {
 public:
     FPPLoggerInstance(std::string name, bool crashRingCapture = true) {

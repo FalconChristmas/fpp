@@ -28,6 +28,9 @@
         var pluginInfoURLs = [];
         var pluginInfoUseCredentials = {};
         var manuallyLoadedPlugins = {};
+        // pluginInfo.json repoName -> the name that entry is listed under in
+        // pluginList.json, when they differ. See LoadPlugins() and GetIconUrl().
+        var pluginListKeyOf = {};
         var lastAutoLoadedUrl = '';
         var urlLoadedRepo = null;
         var pluginUrlError = '';
@@ -162,6 +165,9 @@
                     // (plugins.php?action=reinstallAll): now that installedPlugins
                     // and pluginInfos are loaded, pop the Reinstall All confirm.
                     MaybeAutoOpenReinstallAll();
+                    // Everything is rendered and interactive; refresh the Updates
+                    // tab count for real, quietly, in the background.
+                    BackgroundCheckForUpdates();
                 },
                 error: function () {
                     alert('Error, failed to get pluginList.json');
@@ -270,16 +276,26 @@
         // Modified when the icon file is unchanged, so the overhead is minimal.
         var iconCacheNonce = Date.now();
 
-        // Get the plugin icon URL. Always routes through the same-origin API to
-        // avoid CSP restrictions on external image hosts (raw.githubusercontent.com
-        // is only allow-listed in connect-src, not img-src).
+        // Get the plugin icon URL. Always routes through the same-origin
+        // api/plugin/:RepoName/icon, keyed purely by repo name -- both to avoid
+        // CSP restrictions on external image hosts (raw.githubusercontent.com is
+        // only allow-listed in connect-src, not img-src) and because the server
+        // resolves the actual image source itself (local icon.png, or the
+        // listed pluginInfo.json) rather than us handing it a URL to fetch.
+        // The hasIcon/iconURL checks below are only hints that let us skip a
+        // request we already know will 404.
         function GetIconUrl(data, installed) {
+            var name = data.repoName;
             if (installed) {
                 if (data.hasOwnProperty('hasIcon') && !data.hasIcon) return null;
-                return 'api/plugin/' + data.repoName + '/icon?_=' + iconCacheNonce;
+            } else {
+                if (!data.iconURL) return null;
+                // Not installed, so the server has to find this one in the
+                // plugin list -- ask under the name the list actually files it
+                // under, which is not always the plugin's own repoName.
+                name = pluginListKeyOf[name] || name;
             }
-            if (data.iconURL) return 'api/plugin/fetchImage?url=' + encodeURIComponent(data.iconURL);
-            return null;
+            return 'api/plugin/' + name + '/icon?_=' + iconCacheNonce;
         }
 
         function BuildCategoryPills() {
@@ -404,11 +420,77 @@
             });
         }
 
+        // Quiet background pass over the installed plugins so the Updates tab
+        // count reflects a real (fetch-based) check without anyone pressing
+        // "Check for Updates" -- the page-load render only knows about commits
+        // that some earlier fetch already pulled down, so the tab's [0] was
+        // asserting "no updates" from stale information.
+        //
+        // Deliberately different from CheckPluginsForUpdates: one request at a
+        // time, not a parallel fan-out. Each check runs a git fetch server-side,
+        // and N of those at once would occupy the PHP worker pool exactly when
+        // the user might be clicking Install. No cursor, no button locking, no
+        // growls -- rows and the tab count just correct themselves as answers
+        // arrive. The explicit Check/Update All buttons cancel the sweep (they
+        // are about to redo the same work in parallel anyway); a failed check
+        // is skipped silently since offline boxes hit this on every page load.
+        var bgUpdateSweep = null; // non-null while a background sweep is running
+
+        function CancelBackgroundUpdateCheck() {
+            if (bgUpdateSweep) {
+                bgUpdateSweep.cancelled = true;
+                bgUpdateSweep = null;
+                $('#updatesCheckSpinner').addClass('d-none');
+            }
+        }
+
+        function BackgroundCheckForUpdates() {
+            if (bgUpdateSweep || installedPlugins.length === 0)
+                return;
+            var sweep = { cancelled: false };
+            bgUpdateSweep = sweep;
+            var queue = installedPlugins.slice();
+            $('#updatesCheckSpinner').removeClass('d-none');
+
+            function finish() {
+                if (bgUpdateSweep === sweep)
+                    bgUpdateSweep = null;
+                $('#updatesCheckSpinner').addClass('d-none');
+            }
+            function next() {
+                if (sweep.cancelled || queue.length === 0) {
+                    finish();
+                    return;
+                }
+                var plugin = queue.shift();
+                $.ajax({
+                    url: 'api/plugin/' + plugin + '/updates',
+                    type: 'POST',
+                    dataType: 'json',
+                    success: function (data) {
+                        if (!sweep.cancelled && data.Status == 'OK') {
+                            if (data.updatesAvailable)
+                                RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
+                            else
+                                RowEl(plugin).removeClass('fppHasUpdate');
+                            FilterPlugins();
+                        }
+                        next();
+                    },
+                    error: function () {
+                        next();
+                    }
+                });
+            }
+            next();
+        }
+
         function CheckAllPluginsForUpdates() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
                 return;
             }
+            CancelBackgroundUpdateCheck();
 
             $('html,body').css('cursor', 'wait');
             $('#checkAllUpdatesBtn').prop('disabled', true);
@@ -447,6 +529,7 @@
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
                 return;
             }
+            CancelBackgroundUpdateCheck();
             $('html,body').css('cursor', 'wait');
             $('#updateAllBtn').prop('disabled', true);
             $('#checkAllUpdatesBtn').prop('disabled', true);
@@ -629,9 +712,30 @@
                 resWarn = '<div class="fpp-major-callout mb-2"><i class="fas fa-microchip"></i>' +
                     '<span><b>Not enough RAM/CPU.</b> ' + res.title +
                     ' Installing it anyway may degrade or disrupt your show.</span></div>';
+            // Pasting a plugininfo.json URL is a developer workflow (testing a plugin
+            // mid-development, often from a branch/fork that isn't in the plugin list at
+            // all yet) -- not a general install path. Shown regardless of the
+            // resolved plugin's official/third-party status, and forces a
+            // confirmation dialog even for an Official-org plugin that would
+            // otherwise auto-install below.
+            var devWarn = '';
+            if (manuallyLoadedPlugins[plugin])
+                // Standalone warning for the URL-paste path: when this fires on a
+                // non-official plugin it REPLACES the third-party warning below rather
+                // than stacking with it (see the non-official branch), so it needs to
+                // cover the device/network-access risk on its own, not just point at
+                // who should be using this install method.
+                devWarn = '<div class="fpp-major-callout mb-2"><i class="fas fa-user-gear"></i>' +
+                    '<span>Installing a plugin from a URL is intended for <b>plugin developers</b> ' +
+                    'testing their own plugin while developing it. It runs <b>whatever code is found at that ' +
+                    'URL</b>, with full access to this device <b>and to anything else on the network FPP is ' +
+                    'connected to</b>. This is inherently dangerous. If you are not a developer, we recommend ' +
+                    'you <b>do not</b> install this ' +
+                    'plugin.</span></div>';
             if (data && IsOfficialPlugin(data)) {
-                // Official plugins install directly unless they exceed device resources.
-                if (!resWarn) {
+                // Official plugins install directly unless they exceed device resources
+                // or were loaded via the developer URL-paste path.
+                if (!resWarn && !devWarn) {
                     InstallPlugin(plugin, branch, sha);
                     return;
                 }
@@ -639,7 +743,7 @@
                     id: "confirmInstallDialog",
                     class: "modal-lg",
                     title: "Install this plugin?",
-                    body: resWarn,
+                    body: devWarn + resWarn,
                     backdrop: true,
                     keyboard: true,
                     buttons: {
@@ -656,15 +760,20 @@
             }
             var name = (data && data.name) ? data.name : plugin;
             var src = (data && data.srcURL) ? data.srcURL : '';
-            var body = resWarn +
-                '<div class="fpp-inline-warn mb-2"><i class="fas fa-exclamation-triangle"></i>' +
-                '<span>Installing <b>' + EscapeHtml(name) + '</b> runs ' +
-                '<b>third-party, untrusted code</b> on your FPP. It has full access to this device <b>and to ' +
-                'anything else on the network FPP is connected to</b>. This is inherently dangerous unless you ' +
-                'trust the plugin\'s author. The FPP project <b>does not test, vet, or guarantee the quality or ' +
-                'safety</b> of plugins &mdash; install at your own risk, and only from authors you trust. The ' +
-                '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> badge marks ' +
-                'plugins maintained by the FPP team (this plugin is not one of them).</span></div>';
+            var body = devWarn + resWarn;
+            // devWarn already covers the untrusted-code/device-and-network-access risk
+            // on its own (see its comment above) -- don't also stack this box on top of
+            // it and say the same thing twice.
+            if (!devWarn) {
+                body += '<div class="fpp-inline-warn mb-2"><i class="fas fa-exclamation-triangle"></i>' +
+                    '<span>Installing <b>' + EscapeHtml(name) + '</b> runs ' +
+                    '<b>third-party, untrusted code</b> on your FPP. It has full access to this device <b>and to ' +
+                    'anything else on the network FPP is connected to</b>. This is inherently dangerous unless you ' +
+                    'trust the plugin\'s author. The FPP project <b>does not test, vet, or guarantee the quality or ' +
+                    'safety</b> of plugins &mdash; install at your own risk, and only from authors you trust. The ' +
+                    '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> badge marks ' +
+                    'plugins maintained by the FPP team (this plugin is not one of them).</span></div>';
+            }
             if (IsSafeHttpUrl(src)) body += '<div class="small text-secondary"><i class="fas fa-code"></i> Source: ' +
                 '<a href="' + EscapeAttr(src) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(src) + '</a></div>';
             DoModalDialog({
@@ -1613,7 +1722,7 @@
         // detail modal stay consistent. includeCategory adds the category chip.
         //
         // Color budget: amber "Not updated" and red "Incompatible" are the only problem
-        // colors, and purple "Official" the only provenance one (matching the Dev badge
+        // colors, and purple "Official" the only source one (matching the Dev badge
         // on about.php); everything else is a quiet .fpp-tag. So a card carries at most
         // one warning plus one trust mark rather than five competing alerts. Previously
         // Private and "Not updated" were both amber, which left amber meaning nothing in
@@ -1845,6 +1954,13 @@
                             }
                             if (pluginList[index] && pluginList[index].length > 2 && pluginList[index][2])
                                 data.__category = pluginList[index][2];
+                            // A pluginInfo.json's own repoName is not always the
+                            // name it is listed under in pluginList.json (e.g.
+                            // "TwilioControl" vs "FPP-Plugin-TwilioControl"), and
+                            // the plugin list name is the only one the server can look
+                            // an icon up by. Record the pairing.
+                            if (data && data.repoName)
+                                pluginListKeyOf[data.repoName] = pluginList[index][0];
                             LoadPlugin(data);
                             FilterPlugins();
 
@@ -1866,7 +1982,7 @@
         }
 
         // Bound once in document.ready -- previously this was (re)bound inside
-        // LoadPlugins' per-plugin AJAX success callback, so with N catalogued
+        // LoadPlugins' per-plugin AJAX success callback, so with N listed
         // plugins the same handler ended up attached N times to the same input,
         // and every keystroke re-ran this whole body N times.
         function HandlePluginInputChange() {
@@ -2060,6 +2176,28 @@
             if (activeTopTab === 'updates') $('#noUpdatesHint').toggleClass('d-none', installedVisible > 0);
             else $('#noUpdatesHint').addClass('d-none');
 
+            // Incompatible cards -- same search matching as Available/Installed,
+            // so the section doesn't sit there unfiltered (and misleadingly
+            // prominent) once a search has hidden everything else.
+            var incompatibleVisible = 0;
+            $('#incompatibleGrid').children('.pluginCard').each(function () {
+                if (urlLoadedMode) {
+                    $(this).addClass('d-none');
+                    return;
+                }
+                var searchText = $('.pluginTitle', this).text().toLowerCase();
+                var authorTxt = $('.pluginAuthor', this).text().toLowerCase();
+                if (authorTxt) searchText += ' ' + authorTxt;
+                var descTxt = $('.pluginCardDesc', this).text().toLowerCase();
+                if (descTxt) searchText += ' ' + descTxt;
+                var matchesSearch = value === '' || searchText.indexOf(value) > -1;
+                $(this).toggleClass('d-none', !matchesSearch);
+                if (matchesSearch) incompatibleVisible++;
+            });
+            var incompatibleTotal = $('#incompatibleGrid').children('.pluginCard').length;
+            $('#incompatiblePluginsWrap').toggleClass('d-none', incompatibleTotal === 0 || incompatibleVisible === 0);
+            $('#incompatiblePluginsCount').text(incompatibleVisible);
+
             // Update All is only useful once a check has actually found something
             // to update -- keep it out of the way otherwise, at every UI level.
             $('#updateAllBtn').toggleClass('d-none', updateVisible === 0);
@@ -2076,7 +2214,7 @@
                 $('#noUrlSchemeResults').removeClass('d-none');
             } else if (hasUrlError) {
                 $('#noAvailableResults').addClass('d-none');
-                $('#noUrlResults').addClass('d-none');
+                $('#noUrlResults').removeClass('d-none');
                 $('#noUrlSchemeResults').addClass('d-none');
             } else {
                 var showAvailEmpty = searching && activeTopTab === 'available' && availVisible === 0;
@@ -2260,6 +2398,8 @@
                                         <button type="button" class="nav-link text-nowrap" data-top-tab="updates" role="tab">
                                             <i class="far fa-arrow-alt-circle-up"></i> Updates
                                             <span class="badge bg-secondary ms-1" id="topCountUpdates">0</span>
+                                            <span class="spinner-border spinner-border-sm ms-1 d-none" id="updatesCheckSpinner"
+                                                role="status" aria-hidden="true" title="Checking for updates..."></span>
                                         </button>
                                     </li>
                                 </ul>

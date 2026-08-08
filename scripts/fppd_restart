@@ -7,7 +7,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 cd ${FPPDIR}
 
-startDaemonLog
+startDaemonLog Restart
 
 # Clear any restart flag
 sed -i -e "s/^restartFlag .*/restartFlag = \"0\"/" ${MEDIADIR}/settings

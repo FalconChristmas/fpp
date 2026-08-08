@@ -1,4 +1,0 @@
-   order deny,allow
-   deny from all
-   Require local
-   allow from all

@@ -38,7 +38,9 @@ if (!$wrapped) {
     <?php
 }
 $date = date("Ymd-Hi");
-$path = preg_replace('/{DATE}/', $date, $_GET['path']);
+// The path is interpolated into the shell command below, so wrap it as a
+// single shell argument to prevent command injection.
+$path = escapeshellarg(preg_replace('/{DATE}/', $date, $_GET['path']));
 $compress = isset($_GET['compress']) ? escapeshellcmd($_GET['compress']) : "no";
 $delete = isset($_GET['delete']) ? escapeshellcmd($_GET['delete']) : "no";
 $remote_storage = isset($_GET['remoteStorage']) ? escapeshellcmd($_GET['remoteStorage']) : 'none';
@@ -75,42 +77,53 @@ $output_header_end = "----------------------------------------------------------
 echo $output_header_end;
 file_put_contents($tee_log_file, $output_header_end, FILE_APPEND);
 
-system($command . " 2>&1 | tee -a " . $tee_log_file, $backupRc);
+// Explicit bash -o pipefail: system() otherwise runs this through /bin/sh
+// (dash, no pipefail), so piping through "tee -a" would report tee's exit
+// code -- which almost always succeeds regardless of whether the copy
+// script itself failed -- rather than copy_settings_to_storage.sh's. With
+// pipefail, the pipeline's reported status is the first stage that actually
+// failed, so $backupRc (used below for the fppd.log FINISH line) means what
+// it always claimed to.
+system("/bin/bash -o pipefail -c " . escapeshellarg($command . " 2>&1 | tee -a " . $tee_log_file), $backupRc);
 echo "\n";
 
 sleep(2);
 
-// Flag for reboot only when "Configuration" is restored via File Copy restore.
 $direction = $_GET['direction'] ?? '';
 $flags = $_GET['flags'] ?? '';
 $isRestore = stripos($direction, 'FROM') === 0;
 $hasConfig = stripos($flags, 'Configuration') !== false;
-if ($isRestore && $hasConfig && $backupRc === 0) {
-    WriteSettingToFile('rebootFlag', '1');
+$hasPlugins = stripos($flags, 'Plugins') !== false;
+$hasEeprom = stripos($flags, 'EEPROM') !== false;
 
-    // Apply service settings that need system-level setup (config files,
-    // service enable/start) so they survive the reboot.
-    // These are normally applied by handle_boot_actions on every boot, but
-    // that script only runs when BootActions is set — which is rare.
-    // Apply them here so the user doesn't need a second UI visit to get
-    // the services running after a restore.
-    //
-    // Must read these fresh from disk via ReadSettingFromFile(), not
-    // GetSettingValue(): the $settings array was populated from the old
-    // settings file when this request started, before the restore above
-    // overwrote it, so GetSettingValue() here would see pre-restore values.
-    if (ReadSettingFromFile('Service_MQTT_localbroker') === '1') {
-        SetupLocalMQTTBroker('1');
-    }
-    if (ReadSettingFromFile('Service_rsync') === '1') {
-        ApplySetting('Service_rsync', '1');
-    }
-    if (ReadSettingFromFile('Service_smbd_nmbd') === '1') {
-        ApplySetting('Service_smbd_nmbd', '1');
-    }
-    if (ReadSettingFromFile('Service_vsftpd') === '1') {
-        ApplySetting('Service_vsftpd', '1');
-    }
+// Restoring "Configuration", "Plugins", or "EEPROM" can bring in state from
+// a box that doesn't match what's actually installed/running here --
+// Service_* settings, packages, plugin binaries, cape hardware config, and
+// more -- the same reconciliation an FPPOS reflash already needs. Rather
+// than re-implementing pieces of that reconciliation ourselves (services
+// were previously applied inline here; a plugin check was previously done
+// inline too), just feed the restore into the exact same boot-time path a
+// reflash already uses: handleBootActions() and checkInstallPackages()
+// (FPPINIT_Config.cpp) already run every boot and no-op unless triggered, so
+// this needs no new C++ -- just the same signal a reflash already produces.
+// EEPROM restores don't strictly need BootActions/checkInstallPackages
+// (cape hardware config, not packages/services), but setting them anyway
+// costs nothing beyond a no-op boot pass, and it matches backup.php's
+// virtualEEPROM area -- which gets the same unconditional treatment -- so
+// there isn't a separate, narrower code path to maintain for this one case.
+// Both markers require a full reboot, not just an fppd restart (fppinit
+// start/postNetwork don't run on an fppd-only restart).
+//
+// Not gated on $backupRc === 0: system()'s pipe here ("... | tee -a
+// $tee_log_file") runs via /bin/sh without pipefail, so $backupRc is tee's
+// exit code, not copy_settings_to_storage.sh's -- it's ~always 0 regardless
+// of whether the actual copy succeeded, so it was never a real success
+// check. A partial/failed copy still needs whatever DID land reconciled,
+// same reasoning as backup.php's $restore_done-only gate.
+if ($isRestore && ($hasConfig || $hasPlugins || $hasEeprom)) {
+    WriteSettingToFile('rebootFlag', '1');
+    WriteSettingToFile('BootActions', 'settings');
+    exec('sudo touch /fppos_upgraded');
 }
 
 // The run's output goes into the fppd.log timeline, and the progress file is
