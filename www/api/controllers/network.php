@@ -385,6 +385,9 @@ function network_wifi_status()
             $apActive = (isset($activeOut[0]) && trim($activeOut[0]) === "active");
         }
     }
+    $tetheringMode = isset($settings['EnableTethering']) ? intval($settings['EnableTethering']) : 0;
+    $tetheringEnabled = ($tetheringMode === 1);
+    $tetheringDisabled = ($tetheringMode === 2);
 
     // wpa_supplicant association state via its control socket
     $wpaState = "";
@@ -444,9 +447,20 @@ function network_wifi_status()
 
     // Derive a human-readable reason (most specific first)
     if ($apActive) {
-        $reason = "This device is currently broadcasting its own setup hotspot" .
-            ($configuredSSID !== "" ? " - it will try to connect to '" . $configuredSSID . "'" : "") .
-            " once networking is restarted (or the device is rebooted).";
+        if ($tetheringEnabled) {
+            $reason = "This device is currently broadcasting its own setup hotspot because tethering is enabled." .
+                ($configuredSSID !== ""
+                    ? " Turn off tethering to have it try connecting to '" . $configuredSSID . "' instead."
+                    : "");
+        } else if ($tetheringDisabled) {
+            $reason = "This device is currently broadcasting its own setup hotspot. Tethering was just set to Disabled," .
+                " but that only takes effect once networking is restarted.";
+        } else {
+            $reason = "This device is currently broadcasting its own setup hotspot." .
+                ($configuredSSID !== ""
+                    ? " It will try to connect to '" . $configuredSSID . "' the next time networking is restarted (or the device is rebooted)."
+                    : " No wireless network is configured yet, so it will keep broadcasting the hotspot until one is set up.");
+        }
     } else if ($configuredSSID === "") {
         $reason = "No wireless network is configured.";
     } else if ($connected) {
@@ -464,7 +478,7 @@ function network_wifi_status()
     } else if ($wpaState === "INACTIVE") {
         $reason = "WiFi is inactive - no configured network is available.";
     } else if ($wpaState === "" ) {
-        $reason = "wpa_supplicant is not running for this interface.";
+        $reason = "The WiFi connection service is not running for this interface. Try 'Restart Network'; if that doesn't help, reboot the device.";
     } else {
         $reason = "Connecting to '" . $configuredSSID . "'... (" . $wpaState . ")";
     }

@@ -638,6 +638,13 @@
             });
         }
 
+        function ShowTetherRestartBanner() {
+            // Tethering settings are re-read live by setupNetwork(), so a full
+            // reboot isn't required - just surface the same Restart Network
+            // banner/confirm flow the interface tab uses.
+            $('#btnConfigNetwork').show();
+        }
+
         function ApplyNetworkConfig() {
             DoModalDialog({
                 id: "applyNetworkConfirm",
@@ -2232,7 +2239,7 @@
                             </h3>
                             <div class="container-fluid settingsTable settingsGroupTable">
                                 <?
-                                PrintSettingGroup('tethering', '', '', '', '', '', false);
+                                PrintSettingGroup('tethering', '', '', '', '', 'ShowTetherRestartBanner()', false);
                                 ?>
                             </div>
 
