@@ -992,21 +992,39 @@ void BBShiftPanelManager::runPumpThread() {
         // command so the byte flow stays in step with the commands
         while (m_pumpRunning) {
             if (m_pumpedSeq == m_pumpSeq.load(std::memory_order_acquire)) {
-                struct timespec ts = { 0, 500000 };
-                nanosleep(&ts, nullptr);
+                // PrepDataPWM wakes this the moment a frame is published; the
+                // timeout is only a backstop so shutdown cannot wedge here.
+                // Polling on a 500us sleep used to leave the PRU shifting
+                // against an empty ring for most of that wakeup latency.
+                std::unique_lock<std::mutex> lk(m_pumpMutex);
+                m_pumpCV.wait_for(lk, std::chrono::microseconds(200), [this] {
+                    return !m_pumpRunning || m_pumpSeq.load(std::memory_order_acquire) != m_pumpedSeq;
+                });
                 continue;
             }
             ++m_pumpedSeq;
             uint8_t* src = m_frontBuffer.load(std::memory_order_acquire);
             uint32_t srcOff = 0;
+            bool primed = false;
             while (srcOff < m_frameBytes && m_pumpRunning) {
                 uint32_t n = m_ring.write(src + srcOff, std::min(PUMP_BLOCK_SIZE, m_frameBytes - srcOff));
                 if (n == 0) {
-                    struct timespec ts = { 0, 150000 };
+                    // the ring holds as much as it can - the PRU may start.
+                    // Back off in small steps: at the drain rate a 150us sleep
+                    // was long enough to open a gap the panel could see.
+                    if (!primed) {
+                        primed = true;
+                        m_pumpPrimed.store(m_pumpedSeq, std::memory_order_release);
+                    }
+                    struct timespec ts = { 0, 20000 };
                     nanosleep(&ts, nullptr);
                     continue;
                 }
                 srcOff += n;
+            }
+            // a frame smaller than the ring never fills it
+            if (!primed) {
+                m_pumpPrimed.store(m_pumpedSeq, std::memory_order_release);
             }
         }
         return;
@@ -1306,10 +1324,20 @@ void BBShiftPanelManager::PrepDataPWM() {
                                  : "memory");
     }
 
-    // hand the frame to the pump thread; the PRU is paced by the ring so the
-    // DATA command can be queued immediately
+    // hand the frame to the pump thread
     m_frontBuffer.store(buf, std::memory_order_release);
-    m_pumpSeq.fetch_add(1, std::memory_order_release);
+    uint32_t seq = m_pumpSeq.fetch_add(1, std::memory_order_release) + 1;
+    m_pumpCV.notify_one();
+    // Hold the DATA command until the ring is primed.  Starting the PRU
+    // against an empty ring left it in RINGWAIT for the pump's wakeup
+    // latency, and an FM6363C reads that gap as its row scan running away
+    // from the data.  Filling the ring takes ~65us; the loop bound is only a
+    // backstop so a stopped pump cannot hang the output thread.
+    for (int i = 0; i < 4000 && m_pumpRunning && bgThreadsRunning &&
+                    m_pumpPrimed.load(std::memory_order_acquire) != seq;
+         ++i) {
+        std::this_thread::yield();
+    }
 
     pruData->numBlocks = rowLen / 16;
     pruData->numRows = numRows;
