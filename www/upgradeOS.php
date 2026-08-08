@@ -137,7 +137,15 @@ if (preg_match('/^https?:/', $_GET['os'])) {
                 UpgradeEchoLog('os-upgrade', $baseFile, "Mirror download failed, falling back to GitHub...\n");
             }
         }
-        $command = "sudo wget -c --quiet --show-progress --progress=bar:force:noscroll " . $url . " -O /home/fpp/media/upload/$baseFile 2>&1";
+        // --progress=dot:giga (not bar:force): the output of this command is
+        // passthru'd straight into the browser's streamed <pre>, not a terminal.
+        // The bar style redraws one line via \r, which has nowhere to "redraw" in
+        // a streamed HTML response -- passthru() just forwards every \r-terminated
+        // update as more bytes appended to the page, so the dialog fills up with a
+        // new line per update. dot:giga instead emits real \n-terminated summary
+        // lines at large (1GB-per-row) intervals, which suits both the streamed
+        // dialog and an OS-image-sized download.
+        $command = "sudo wget -c --quiet --show-progress --progress=dot:giga " . $url . " -O /home/fpp/media/upload/$baseFile 2>&1";
         $retryCount = 0;
         while ($retryCount < 20 && $rc != 0) {
             echo "Running command: $command\n";
