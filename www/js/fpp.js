@@ -1524,6 +1524,13 @@ function StreamURL (
 		contentType: postContentType,
 		data: postData,
 		processData: postProcessData,
+		// Every terminal-output popup in FPP streams through here. Without this,
+		// a re-run whose URL happens to match a prior run byte-for-byte (same
+		// remote IP, same firmware filename, same version, or a no-param action
+		// like kiosk install/disable) can be served straight from the browser's
+		// HTTP cache -- the popup opens already "full" of the previous run's
+		// output instead of streaming the current one.
+		cache: false,
 		xhrFields: {
 			onprogress: function (e) {
 				var this_response,
