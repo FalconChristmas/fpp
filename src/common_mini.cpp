@@ -560,18 +560,21 @@ bool CopyFileContents(const std::string& srcFile, const std::string& destFile) {
     // Here we use kernel-space copying for performance
 #if defined(__APPLE__)
     int result = fcopyfile(input, output, 0, COPYFILE_ALL);
+    bool ok = result == 0;
 #else
     off_t bytesCopied = 0;
     struct stat fileinfo = { 0 };
     fstat(input, &fileinfo);
-    int result = sendfile(output, input, &bytesCopied, fileinfo.st_size);
+    // sendfile returns the number of bytes copied, not 0, on success
+    ssize_t result = sendfile(output, input, &bytesCopied, fileinfo.st_size);
+    bool ok = result == fileinfo.st_size;
 #endif
     close(input);
     close(output);
-    if (result < 0) {
-        fprintf(stderr, "ERROR: Unable to open %s for reading.\n", srcFile.c_str());
+    if (!ok) {
+        fprintf(stderr, "ERROR: Unable to copy %s to %s.\n", srcFile.c_str(), destFile.c_str());
     }
-    return result == 0;
+    return ok;
 }
 
 bool SetFilePerms(const std::string& filename, bool exBit) {
