@@ -32,7 +32,16 @@
 
 
 
+#ifdef SHIFT16
+// A 16 deep shift is 65 cycles (260ns at the AM62x 250MHz), so the 8 deep
+// 220ns T0 deadline has already passed by the time the data is clocked out.
+// Give the wait a real target: 300ns lands T0H at ~312ns, inside WS2811
+// (100-400), SK6812 and WS2815 (150-450), and closer to nominal than 8 deep
+// manages for WS2812B (250-550).
+#define T0_TIME   300
+#else
 #define T0_TIME   220
+#endif
 #define T1_TIME   750
 #define LOW_TIME  1120
 //if LOW_TIME needs to be more than 1250, you need to do:
@@ -137,6 +146,23 @@ DISABLE_SEND .macro
 #define tmpReg1         r19
 #define tmpReg2         r20
 
+#ifdef SHIFT16
+// 16 strings per pin needs 16 bytes of high masks and 16 of low, which will
+// not fit alongside the 64 byte pixel block: r2-r29 are all spoken for.  Keep
+// them in the PRU scratchpad instead - bank 11 high, bank 12 low - and use
+// r21-r24 as a transient window.  XIN/XOUT costs one cycle regardless of
+// length (measured on the AM62x), so this buys the 32 bytes for two cycles
+// per shift phase and no registers at all.
+//
+// Both banks are free in every supported configuration: bank 10 is the
+// FalconV5 listener handshake, and a shared panels+strings cape forces the
+// panel driver into SINGLEPRU, whose build has no XIN/XOUT compiled in at all.
+#define BYTES_FOR_MASKS 34
+#define MASK_HI_BANK 11
+#define MASK_LOW_BANK 12
+#define OUTPUT_MASKS r21
+#define MASK_OVERFLOW r25.w0
+#else
 //r21-r24 contains the output masks, r21/22 are high, r23/24 are low
 // read two extra bytes for the "next"
 #define BYTES_FOR_MASKS 18
@@ -144,6 +170,7 @@ DISABLE_SEND .macro
 #define OUTPUT_HI_MASKS r21
 #define OUTPUT_LOW_MASKS r23
 #define MASK_OVERFLOW r25.w0
+#endif
 
 #define next_check  r25.w0
 #define curCommand  r25.w2
@@ -201,9 +228,26 @@ PRELOAD_DATA .macro dataAddress
 
 LOAD_NEXT_DATABLOCK .macro dataAddress
     .newblock
+#ifdef SHIFT16
+    // 16 deep drains the ring at twice the byte rate, so whether the pump can
+    // keep up stops being obvious.  Count the times we find it empty (the
+    // slot SMEMRing.hp reserves for exactly this) - it costs nothing unless we
+    // are actually starving, and the ARM can read it to tell the difference
+    // between "comfortable" and "one scheduling hiccup from a torn frame".
+WAITDATA?:
+    LBBO    &tmpReg1, ringCtrl, 0, 4
+    QBNE    GOTDATA?, tmpReg1, ringReadPtr
+    LDI     tmpReg2, SMEM_RING_STATS_OFFSET
+    LBCO    &tmpReg1, CONST_PRUDRAM, tmpReg2, 4
+    ADD     tmpReg1, tmpReg1, 1
+    SBCO    &tmpReg1, CONST_PRUDRAM, tmpReg2, 4
+    JMP     WAITDATA?
+GOTDATA?:
+#else
 WAITDATA?:
     LBBO    &tmpReg1, ringCtrl, 0, 4
     QBEQ    WAITDATA?, tmpReg1, ringReadPtr
+#endif
     LBBO    &pixelData, ringReadPtr, 0, DATABLOCKSIZE
     ADD     ringReadPtr, ringReadPtr, DATABLOCKSIZE
     SBBO    &ringReadPtr, ringCtrl, 4, 4
@@ -233,9 +277,16 @@ TOGGLE_LATCH .macro
     NOP
     .endm
 
-OUTPUT_REG_INDIRECT .macro 
+// strings per data pin, i.e. how deep the cape's shift register chain is
+#ifdef SHIFT16
+#define SHIFT_DEPTH 16
+#else
+#define SHIFT_DEPTH 8
+#endif
+
+OUTPUT_REG_INDIRECT .macro
     .newblock
-    LOOP ENDLOOP?, 8
+    LOOP ENDLOOP?, SHIFT_DEPTH
     MVIB DATA_BYTE, *r1.b0++
     TOGGLE_CLOCK
 ENDLOOP?:
@@ -244,7 +295,12 @@ ENDLOOP?:
 OUTPUT_HIGH .macro
     .newblock
     MOV r1.b1, r1.b0
+#ifdef SHIFT16
+    XIN MASK_HI_BANK, &OUTPUT_MASKS, 16
+    LDI r1.b0, &OUTPUT_MASKS
+#else
     LDI r1.b0, &OUTPUT_HI_MASKS
+#endif
     OUTPUT_REG_INDIRECT
     MOV r1.b0, r1.b1
     .endm
@@ -252,10 +308,33 @@ OUTPUT_HIGH .macro
 OUTPUT_LOW .macro
     .newblock
     MOV r1.b1, r1.b0
+#ifdef SHIFT16
+    XIN MASK_LOW_BANK, &OUTPUT_MASKS, 16
+    LDI r1.b0, &OUTPUT_MASKS
+#else
     LDI r1.b0, &OUTPUT_LOW_MASKS
+#endif
     OUTPUT_REG_INDIRECT
     MOV r1.b0, r1.b1
     .endm
+
+#ifdef SHIFT16
+// Pull one 34 byte command table record into the scratchpad: 16 bytes of high
+// masks to bank 11, 16 of low to bank 12, then the two byte "next check"
+// value.  That last load targets MASK_OVERFLOW, which is the same register
+// field as next_check, exactly as the 8 deep single LBCO does.  Advances the
+// offset register to the following record.
+LOAD_MASKS .macro cmdOffset
+    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, cmdOffset, 16
+    XOUT MASK_HI_BANK, &OUTPUT_MASKS, 16
+    ADD  cmdOffset, cmdOffset, 16
+    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, cmdOffset, 16
+    XOUT MASK_LOW_BANK, &OUTPUT_MASKS, 16
+    ADD  cmdOffset, cmdOffset, 16
+    LBCO &MASK_OVERFLOW, CONST_PRUDRAM, cmdOffset, 2
+    ADD  cmdOffset, cmdOffset, 2
+    .endm
+#endif
 
 
 OUTPUT_FALCONV5_PACKET .macro
@@ -284,9 +363,14 @@ FALCONV5_LOOP?:
     LDI r1.b0, &pixelData
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
-    JAL r1.w2, OUTPUT_FULL_BIT_FV5 
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
-    JAL r1.w2, OUTPUT_FULL_BIT_FV5 
+    JAL r1.w2, OUTPUT_FULL_BIT_FV5
+#ifdef SHIFT16
+    // as in WORD_LOOP, a 64 byte block only carries four of the eight bits
+    LOAD_NEXT_DATABLOCK fv5_data_addr
+    LDI r1.b0, &pixelData
+#endif
+    JAL r1.w2, OUTPUT_FULL_BIT_FV5
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
     JAL r1.w2, OUTPUT_FULL_BIT_FV5
@@ -372,6 +456,21 @@ DONE_FALCONV5?:
 	LDI32	r1, CTPPR_1 + PRU_MEMORY_OFFSET
     SBBO    &r0, r1, 0x00, 4
 
+#ifdef SHIFT16
+    // The scratchpad mask transfers assume XIN/XOUT is register aligned.  A
+    // panel driver sharing this PRUSS turns on the PRUSS wide XIN/XOUT shift
+    // feature (SPP bit 0), which displaces every transfer by r0.b0.  Our r0 is
+    // the 64 byte aligned ring read pointer and the shift amount is only the
+    // low 5 bits, so it masks to zero either way - but do not leave that a
+    // coincidence.  Clear just bit 0: the rest of SPP is PRU1's high priority
+    // OCP port enable, which the panel driver does want.  Both of these have
+    // to happen before r0 becomes the ring pointer below.
+    LDI32   r1, PRU_CONFIG_REG
+    LBBO    &r0, r1, 0x34, 4
+    CLR     r0, r0, 0
+    SBBO    &r0, r1, 0x34, 4
+#endif
+
 #ifndef AM33XX
     // Wait for the ARM to publish the ring location/size into our data RAM
     // (see SMEMRing.hp).  It cannot be written before the firmware starts:
@@ -439,13 +538,22 @@ CONT_DATA:
     SBCO    &r1, CONST_PRUDRAM, 8, 4
 
     // Reset the output masks
+#ifdef SHIFT16
+    // LOAD_MASKS walks curCommand past the record it just read, so it ends up
+    // pointing at the next one - the same place the 8 deep LDI below puts it.
+    LDI     curCommand, COMMANDTABLE_OFFSET
+    LOAD_MASKS curCommand
+#else
     LBCO	&OUTPUT_MASKS, CONST_PRUDRAM, COMMANDTABLE_OFFSET, BYTES_FOR_MASKS
+#endif
     // reset the command table
     MOV next_check, MASK_OVERFLOW
     QBBC NO_CUSTOM_CHECKS, data_flags, 0
         MOV next_check, data_len
 NO_CUSTOM_CHECKS:
+#ifndef SHIFT16
     LDI curCommand, COMMANDTABLE_OFFSET + BYTES_FOR_MASKS
+#endif
 	LDI	cur_data, 1
 
     //start the clock
@@ -458,13 +566,23 @@ WORD_LOOP:
     JAL r1.w2, OUTPUT_FULL_BIT
     JAL r1.w2, OUTPUT_FULL_BIT
     JAL r1.w2, OUTPUT_FULL_BIT
+#ifdef SHIFT16
+    // each bit consumes 16 bytes at 16 strings per pin, so a 64 byte block is
+    // only four bits deep and one pixel byte needs two of them
+    LOAD_NEXT_DATABLOCK data_addr
+    LDI r1.b0, &pixelData
+#endif
     JAL r1.w2, OUTPUT_FULL_BIT
     JAL r1.w2, OUTPUT_FULL_BIT
     JAL r1.w2, OUTPUT_FULL_BIT
     JAL r1.w2, OUTPUT_FULL_BIT
     QBNE NO_COMMAND_NEEDED, cur_data, next_check
+#ifdef SHIFT16
+        LOAD_MASKS curCommand
+#else
         LBCO &OUTPUT_MASKS, CONST_PRUDRAM, curCommand, BYTES_FOR_MASKS
         ADD curCommand, curCommand, BYTES_FOR_MASKS
+#endif
         MOV next_check, MASK_OVERFLOW
 NO_COMMAND_NEEDED:
     ADD cur_data, cur_data, 1
