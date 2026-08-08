@@ -366,19 +366,54 @@ BBBPru::~BBBPru() {
     }
 }
 
+static std::string pruFirmwareName(int pru_num) {
+    return FIRMWARE_PREFIX + "-pru" + std::to_string(pru_num) + "-fw";
+}
+
+// /lib/firmware/<prefix>-pruN-fw ships as a symlink to the "-fw.sleep"
+// parking firmware that the image loads at boot.  Copying the program
+// through that name would overwrite the sleep firmware itself, so install
+// the program under its own name and atomically repoint the link at it.
+static void installPRUFirmware(int pru_num, const std::string& program) {
+    std::string fw = "/lib/firmware/" + pruFirmwareName(pru_num);
+    CopyFileContents(program, fw + ".fpp");
+    std::string tmpLink = fw + ".new";
+    unlink(tmpLink.c_str());
+    if (symlink((pruFirmwareName(pru_num) + ".fpp").c_str(), tmpLink.c_str()) == 0) {
+        rename(tmpLink.c_str(), fw.c_str());
+    }
+}
+
+// Point the firmware name back at the sleep firmware so the next boot parks
+// the PRU instead of re-running the last output program.  FalconSerial in
+// particular free-runs frames without waiting for a first command, so leaving
+// it installed as the boot firmware blasts garbage on any muxed pins.
+static void restorePRUSleepFirmware(int pru_num) {
+    std::string sleepName = pruFirmwareName(pru_num) + ".sleep";
+    if (!FileExists("/lib/firmware/" + sleepName)) {
+        return;
+    }
+    std::string fw = "/lib/firmware/" + pruFirmwareName(pru_num);
+    std::string tmpLink = fw + ".new";
+    unlink(tmpLink.c_str());
+    if (symlink(sleepName.c_str(), tmpLink.c_str()) == 0) {
+        rename(tmpLink.c_str(), fw.c_str());
+    }
+}
+
 bool BBBPru::run(const std::string& program, bool clearSharedMems) {
     LogDebug(VB_CHANNELOUT, "BBBPru[%d]::run(%s)\n", pru_num, program.c_str());
 
     bool enabled = true;
     if (!FAKE_PRU) {
         prus[pru_num].disable();
-        CopyFileContents(program, "/lib/firmware/" + FIRMWARE_PREFIX + "-pru" + std::to_string(pru_num) + "-fw");
+        installPRUFirmware(pru_num, program);
         enabled = prus[pru_num].enable();
         if (!enabled) {
             return false;
         }
     } else {
-        CopyFileContents(program, "/lib/firmware/" + FIRMWARE_PREFIX + "-pru" + std::to_string(pru_num) + "-fw");
+        installPRUFirmware(pru_num, program);
     }
     clearPRUMem(data_ram, data_ram_size);
     if (clearSharedMems) {
@@ -496,6 +531,7 @@ void BBBPru::ddrRelease(const std::string& owner) {
 void BBBPru::stop() {
     if (!FAKE_PRU) {
         prus[pru_num].disable();
+        restorePRUSleepFirmware(pru_num);
     }
 }
 
