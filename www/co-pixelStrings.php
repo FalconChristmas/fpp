@@ -243,7 +243,7 @@ function readCapes($cd, $capes)
         var result = "";
 
         result += "<td>";
-        result += "<select class='form-select fvsReverse'>";
+        result += "<select class='form-select vsReverse'>";
         result += "<option value='0'>Forward</option>";
         result += "<option value='1'";
         if (reverse)
