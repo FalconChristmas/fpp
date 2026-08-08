@@ -12,6 +12,11 @@
 # existing entry (e.g. Pi64, which isn't published to rpi-imager today) is
 # skipped with a warning rather than guessing at a new entry's "devices"
 # list, icon, etc.
+#
+# The four platforms' downloads/hashing run as parallel matrix jobs (each
+# multi-GB image is fetched+extracted+hashed independently) rather than one
+# long sequential loop -- they don't depend on each other. A final job
+# gathers the per-platform results and does the JSON update + PR.
 #############################################################################
 
 name: Update RPi Imager JSON
@@ -38,16 +43,13 @@ permissions:
   pull-requests: write
 
 jobs:
-  update:
+  resolve:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
     steps:
-      - name: Checkout master
-        uses: actions/checkout@v5
-        with:
-          ref: master
-
       - name: Resolve release
         id: release
         run: |
@@ -81,108 +83,130 @@ jobs:
           # tag_name/published_at -- using those here previously overwrote
           # correct "9.5.3" entries back down to "9.5" (PR #2772).
 
-      - name: Download platform images and compute hashes
+      - name: Upload release.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-json
+          path: release.json
+          retention-days: 1
+
+  hashes:
+    needs: resolve
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Suffix must match the trailing "-<suffix>.img.zip" of the asset
+        # filename exactly (a plain substring match would let "Pi" match
+        # "Pi64" too).
+        suffix: [Pi, Pi64, BB64, BBB]
+    steps:
+      - name: Download release.json
+        uses: actions/download-artifact@v4
+        with:
+          name: release-json
+
+      - name: Download image and compute hashes
         id: hashes
+        env:
+          SUFFIX: ${{ matrix.suffix }}
         run: |
           set -euo pipefail
           mkdir -p work
-          # Suffix must match the trailing "-<suffix>.img.zip" of the asset
-          # filename exactly (a plain substring match would let "Pi" match
-          # "Pi64" too).
-          for SUFFIX in Pi Pi64 BB64 BBB; do
-            MATCH=$(jq -c --arg s "$SUFFIX" \
-              '[.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$"))] | sort_by(.updated_at) | last // empty' \
-              release.json)
 
-            if [ -z "$MATCH" ]; then
-              echo "No .img.zip asset for platform $SUFFIX in this release -- skipping."
-              continue
-            fi
+          MATCH=$(jq -c --arg s "$SUFFIX" \
+            '[.assets[] | select(.name | test("-" + $s + "\\.img\\.zip$"))] | sort_by(.updated_at) | last // empty' \
+            release.json)
 
-            NAME=$(jq -r '.name' <<<"$MATCH")
-            URL=$(jq -r '.browser_download_url' <<<"$MATCH")
-            # Per-asset, not per-release: this repo re-uploads patch bumps
-            # (9.5, 9.5.1, ..., 9.5.3) onto the SAME release/tag over time,
-            # so the release object's own tag_name/published_at are stale
-            # for anything past the first upload (see the note above).
-            ASSET_DATE=$(jq -r '(.updated_at // .created_at)' <<<"$MATCH" | cut -d'T' -f1)
-            # Asset filenames are FPP-v<VERSION>-<SUFFIX>.img.zip (see
-            # SD/build-image-pi.sh's OUT_IMG); strip the fixed prefix/suffix
-            # to recover VERSION even though it can differ from the release
-            # tag_name (FPP-v9.5.3-Pi.img.zip on tag "9.5").
-            ASSET_VERSION="${NAME#FPP-v}"
-            ASSET_VERSION="${ASSET_VERSION%-${SUFFIX}.img.zip}"
+          if [ -z "$MATCH" ]; then
+            echo "No .img.zip asset for platform $SUFFIX in this release -- skipping."
+            exit 0
+          fi
 
-            echo "=== $SUFFIX: $NAME (version $ASSET_VERSION, $ASSET_DATE) ==="
-            ZIP="work/$NAME"
-            curl -fL --retry 3 -o "$ZIP" "$URL"
+          NAME=$(jq -r '.name' <<<"$MATCH")
+          URL=$(jq -r '.browser_download_url' <<<"$MATCH")
+          # Per-asset, not per-release: this repo re-uploads patch bumps
+          # (9.5, 9.5.1, ..., 9.5.3) onto the SAME release/tag over time,
+          # so the release object's own tag_name/published_at are stale
+          # for anything past the first upload (see resolve job's note).
+          ASSET_DATE=$(jq -r '(.updated_at // .created_at)' <<<"$MATCH" | cut -d'T' -f1)
+          # Asset filenames are FPP-v<VERSION>-<SUFFIX>.img.zip (see
+          # SD/build-image-pi.sh's OUT_IMG); strip the fixed prefix/suffix
+          # to recover VERSION even though it can differ from the release
+          # tag_name (FPP-v9.5.3-Pi.img.zip on tag "9.5").
+          ASSET_VERSION="${NAME#FPP-v}"
+          ASSET_VERSION="${ASSET_VERSION%-${SUFFIX}.img.zip}"
 
-            ZIP_SIZE=$(stat -c%s "$ZIP")
-            ZIP_SHA=$(sha256sum "$ZIP" | awk '{print $1}')
+          echo "=== $SUFFIX: $NAME (version $ASSET_VERSION, $ASSET_DATE) ==="
+          ZIP="work/$NAME"
+          curl -fL --retry 3 -o "$ZIP" "$URL"
 
-            IMG_DIR="work/extract-$SUFFIX"
-            rm -rf "$IMG_DIR"
-            mkdir -p "$IMG_DIR"
-            unzip -q "$ZIP" -d "$IMG_DIR"
-            IMG_FILE=$(find "$IMG_DIR" -maxdepth 1 -name '*.img' | head -n1)
-            if [ -z "$IMG_FILE" ]; then
-              echo "::error::No .img found inside $NAME" >&2
-              exit 1
-            fi
+          ZIP_SIZE=$(stat -c%s "$ZIP")
+          ZIP_SHA=$(sha256sum "$ZIP" | awk '{print $1}')
 
-            IMG_SIZE=$(stat -c%s "$IMG_FILE")
-            IMG_SHA=$(sha256sum "$IMG_FILE" | awk '{print $1}')
+          IMG_DIR="work/extract-$SUFFIX"
+          rm -rf "$IMG_DIR"
+          mkdir -p "$IMG_DIR"
+          unzip -q "$ZIP" -d "$IMG_DIR"
+          IMG_FILE=$(find "$IMG_DIR" -maxdepth 1 -name '*.img' | head -n1)
+          if [ -z "$IMG_FILE" ]; then
+            echo "::error::No .img found inside $NAME" >&2
+            exit 1
+          fi
 
-            # Free the extracted .img right away -- these are multi-GB and
-            # four platforms in a row will exhaust the runner's disk otherwise.
-            rm -rf "$IMG_DIR"
-            rm -f "$ZIP"
+          IMG_SIZE=$(stat -c%s "$IMG_FILE")
+          IMG_SHA=$(sha256sum "$IMG_FILE" | awk '{print $1}')
 
-            {
-              echo "${SUFFIX}_url=$URL"
-              echo "${SUFFIX}_version=$ASSET_VERSION"
-              echo "${SUFFIX}_release_date=$ASSET_DATE"
-              echo "${SUFFIX}_image_download_size=$ZIP_SIZE"
-              echo "${SUFFIX}_image_download_sha256=$ZIP_SHA"
-              echo "${SUFFIX}_extract_size=$IMG_SIZE"
-              echo "${SUFFIX}_extract_sha256=$IMG_SHA"
-            } >> "$GITHUB_OUTPUT"
-          done
+          # Free the extracted .img right away -- these are multi-GB and
+          # each matrix job only has one platform's worth of disk headroom.
+          rm -rf "$IMG_DIR"
+          rm -f "$ZIP"
+
+          jq -n \
+            --arg url "$URL" \
+            --arg version "$ASSET_VERSION" \
+            --arg release_date "$ASSET_DATE" \
+            --argjson image_download_size "$ZIP_SIZE" \
+            --arg image_download_sha256 "$ZIP_SHA" \
+            --argjson extract_size "$IMG_SIZE" \
+            --arg extract_sha256 "$IMG_SHA" \
+            '{url: $url, version: $version, release_date: $release_date,
+              image_download_size: $image_download_size, image_download_sha256: $image_download_sha256,
+              extract_size: $extract_size, extract_sha256: $extract_sha256}' \
+            > "hashes-${SUFFIX}.json"
+
+      - name: Upload hashes
+        uses: actions/upload-artifact@v4
+        if: hashFiles(format('hashes-{0}.json', matrix.suffix)) != ''
+        with:
+          name: hashes-${{ matrix.suffix }}
+          path: hashes-${{ matrix.suffix }}.json
+          retention-days: 1
+
+  update:
+    needs: [resolve, hashes]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.resolve.outputs.tag }}
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v5
+        with:
+          ref: master
+
+      - name: Download per-platform hashes
+        uses: actions/download-artifact@v4
+        with:
+          pattern: hashes-*
+          path: hashes
+          merge-multiple: false
 
       - name: Update JSON
         id: update
-        env:
-          TAG: ${{ steps.release.outputs.tag }}
-          Pi_url: ${{ steps.hashes.outputs.Pi_url }}
-          Pi_version: ${{ steps.hashes.outputs.Pi_version }}
-          Pi_release_date: ${{ steps.hashes.outputs.Pi_release_date }}
-          Pi_image_download_size: ${{ steps.hashes.outputs.Pi_image_download_size }}
-          Pi_image_download_sha256: ${{ steps.hashes.outputs.Pi_image_download_sha256 }}
-          Pi_extract_size: ${{ steps.hashes.outputs.Pi_extract_size }}
-          Pi_extract_sha256: ${{ steps.hashes.outputs.Pi_extract_sha256 }}
-          Pi64_url: ${{ steps.hashes.outputs.Pi64_url }}
-          Pi64_version: ${{ steps.hashes.outputs.Pi64_version }}
-          Pi64_release_date: ${{ steps.hashes.outputs.Pi64_release_date }}
-          Pi64_image_download_size: ${{ steps.hashes.outputs.Pi64_image_download_size }}
-          Pi64_image_download_sha256: ${{ steps.hashes.outputs.Pi64_image_download_sha256 }}
-          Pi64_extract_size: ${{ steps.hashes.outputs.Pi64_extract_size }}
-          Pi64_extract_sha256: ${{ steps.hashes.outputs.Pi64_extract_sha256 }}
-          BB64_url: ${{ steps.hashes.outputs.BB64_url }}
-          BB64_version: ${{ steps.hashes.outputs.BB64_version }}
-          BB64_release_date: ${{ steps.hashes.outputs.BB64_release_date }}
-          BB64_image_download_size: ${{ steps.hashes.outputs.BB64_image_download_size }}
-          BB64_image_download_sha256: ${{ steps.hashes.outputs.BB64_image_download_sha256 }}
-          BB64_extract_size: ${{ steps.hashes.outputs.BB64_extract_size }}
-          BB64_extract_sha256: ${{ steps.hashes.outputs.BB64_extract_sha256 }}
-          BBB_url: ${{ steps.hashes.outputs.BBB_url }}
-          BBB_version: ${{ steps.hashes.outputs.BBB_version }}
-          BBB_release_date: ${{ steps.hashes.outputs.BBB_release_date }}
-          BBB_image_download_size: ${{ steps.hashes.outputs.BBB_image_download_size }}
-          BBB_image_download_sha256: ${{ steps.hashes.outputs.BBB_image_download_sha256 }}
-          BBB_extract_size: ${{ steps.hashes.outputs.BBB_extract_size }}
-          BBB_extract_sha256: ${{ steps.hashes.outputs.BBB_extract_sha256 }}
         run: |
           python3 <<'PY'
+          import glob
           import json
           import os
           import re
@@ -243,19 +267,25 @@ jobs:
               m = name_re.match(o.get("name", ""))
               return channel_of(m.group(1)) if m else "stable"
 
+          # Each parallel "hashes" matrix job dropped hashes-<SUFFIX>.json
+          # (absent if that platform had no asset in this release).
+          per_platform = {}
+          for f in glob.glob("hashes/hashes-*/hashes-*.json"):
+              suffix = re.match(r"hashes-(.+)\.json$", os.path.basename(f)).group(1)
+              with open(f) as fh:
+                  per_platform[suffix] = json.load(fh)
+
           added, updated, removed_dupes, superseded, skipped = [], [], [], [], []
           channels_seen = set()
 
           for suffix in PLATFORM_SUFFIXES:
-              url = os.environ.get(f"{suffix}_url", "")
-              if not url:
+              fields = per_platform.get(suffix)
+              if not fields:
                   continue  # no asset for this platform in the release
 
-              # Per-platform, not per-release: see the note by the "Resolve
-              # release" step -- a single release/tag can carry several
-              # differently-versioned assets uploaded over time.
-              version = os.environ[f"{suffix}_version"]
-              release_date = os.environ[f"{suffix}_release_date"]
+              url = fields["url"]
+              version = fields["version"]
+              release_date = fields["release_date"]
               new_channel = channel_of(version)
               new_family = family_of(version)
               channels_seen.add(new_channel)
@@ -324,10 +354,10 @@ jobs:
               label = m.group(2) if m else suffix
               entry["name"] = f"FPP v{version} {label}"
               entry["url"] = url
-              entry["image_download_size"] = int(os.environ[f"{suffix}_image_download_size"])
-              entry["image_download_sha256"] = os.environ[f"{suffix}_image_download_sha256"]
-              entry["extract_size"] = int(os.environ[f"{suffix}_extract_size"])
-              entry["extract_sha256"] = os.environ[f"{suffix}_extract_sha256"]
+              entry["image_download_size"] = int(fields["image_download_size"])
+              entry["image_download_sha256"] = fields["image_download_sha256"]
+              entry["extract_size"] = int(fields["extract_size"])
+              entry["extract_sha256"] = fields["extract_sha256"]
               entry["release_date"] = release_date
 
           with open(path, "w") as f:
@@ -356,7 +386,6 @@ jobs:
       - name: Open PR
         if: ${{ inputs.dry_run != true && steps.update.outputs.changed != '' }}
         env:
-          TAG: ${{ steps.release.outputs.tag }}
           CHANNEL: ${{ steps.update.outputs.channel }}
           ADDED: ${{ steps.update.outputs.added }}
           UPDATED: ${{ steps.update.outputs.updated }}
