@@ -70,6 +70,7 @@ $system_config_areas = array(
     'channelmemorymaps' => array('friendly_name' => 'Pixel Overlay Models Old(Channel Memory Maps)', 'file' => $settings['mediaDirectory'] . "/channelmemorymaps"),
     'gpio-input' => array('friendly_name' => 'GPIO Input Triggers ', 'file' => $settings['configDirectory'] . "/gpio.json"),
     'model-overlays' => array('friendly_name' => 'Pixel Overlay Models', 'file' => $settings['model-overlays']),
+    'virtualdisplaymap' => array('friendly_name' => 'Virtual Display Map (2D Preview Layout)', 'file' => $settings['configDirectory'] . "/virtualdisplaymap"),
     'misc_configs' => array(
         'friendly_name' => 'Miscellaneous Settings (Additional Plugins Configs, System Settings, etc.)',
         'file' => array(
@@ -542,6 +543,43 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
         $outputProcessors_data = prettyPrintJSON(json_encode($restore_area_data));
 
         if (file_put_contents($overlays_json_filepath, $outputProcessors_data) === false) {
+            $save_result = false;
+        } else {
+            $save_result = true;
+        }
+        $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
+
+        //Set FPPD restart flag
+        WriteSettingToFile('restartFlag', 1);
+    }
+
+    //PIXEL OVERLAY MODELS - MODEL-OVERLAYS
+    if ($restore_area_key == "model-overlays" && !$restore_data_is_empty) {
+        //Just overwrite the model-overlays JSON file
+        $settings_restored[$restore_area_key]['ATTEMPT'] = true;
+        $overlays_json_filepath = $system_config_areas['model-overlays']['file'];
+        //PrettyPrint the JSON data and save it
+        $overlays_data = prettyPrintJSON(json_encode($restore_area_data));
+
+        if (file_put_contents($overlays_json_filepath, $overlays_data) === false) {
+            $save_result = false;
+        } else {
+            $save_result = true;
+        }
+        $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
+
+        //Set FPPD restart flag
+        WriteSettingToFile('restartFlag', 1);
+    }
+
+    //VIRTUAL DISPLAY MAP - 2D PREVIEW LAYOUT
+    if ($restore_area_key == "virtualdisplaymap" && !$restore_data_is_empty) {
+        //Just overwrite the virtualdisplaymap flat file
+        $settings_restored[$restore_area_key]['ATTEMPT'] = true;
+        $virtualdisplaymap_filepath = $system_config_areas['virtualdisplaymap']['file'];
+        $data = implode("\n", $restore_area_data);
+
+        if (file_put_contents($virtualdisplaymap_filepath, $data) === false) {
             $save_result = false;
         } else {
             $save_result = true;
