@@ -216,6 +216,10 @@ StartFSEQAsEffectCommand::StartFSEQAsEffectCommand() :
     args.push_back(CommandArg("effect", "string", "FSEQ Name").setContentListUrl("api/sequence"));
     args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
     args.push_back(CommandArg("bg", "bool", "Background"));
+    args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true)
+                       .setDefaultValue("false")
+                       .setHelp("Checks to see if this exact item is already running and "
+                                "prevents it from running again."));
 }
 std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
@@ -224,6 +228,7 @@ std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector
 
     bool loop = false;
     bool bg = false;
+    bool iNR = false;
 
     if (args.size() > 1) {
         loop = args[1] == "true" || args[1] == "1";
@@ -231,6 +236,21 @@ std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector
     if (args.size() > 2) {
         bg = args[2] == "true" || args[2] == "1";
     }
+    if (args.size() > 3) {
+        iNR = args[3] == "true" || args[3] == "1";
+    }
+
+    if (iNR) {
+        const Json::Value RunningEffects = GetRunningEffectsJson();
+        for (int x = 0; x < RunningEffects.size(); x++) {
+            Json::Value v = RunningEffects[x];
+            if (v["name"].asString() == args[0]) {
+                LogDebug(VB_COMMAND, "Effect Already running, configured not to start it again\n");
+                return std::make_unique<Command::Result>("Effect NOT Started");
+            }
+        }
+    }
+
     StartFSEQAsEffect(args[0], loop, bg);
     return std::make_unique<Command::Result>("Effect Started");
 }
