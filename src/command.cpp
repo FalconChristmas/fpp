@@ -226,9 +226,16 @@ char* ProcessCommand(char* command, char* response) {
         if (s) {
             // Bounded copy - the token can be longer than the 128-byte buffer.
             snprintf(name, sizeof(name), "%s", s);
-            s = strtok_r(NULL, ",", &saveptr);
-            if (s)
-                SetSetting(name, s);
+            // Don't use strtok_r for the value: it skips empty fields, so a
+            // command clearing a setting to "" (e.g. "SetSetting,foo,,")
+            // would otherwise never call SetSetting() at all. saveptr points
+            // at the start of the value here; split it on the next comma
+            // manually so an empty value still comes through.
+            char* value = saveptr;
+            char* comma = strchr(value, ',');
+            if (comma)
+                *comma = '\0';
+            SetSetting(name, value);
         }
     } else if (!strcmp(CommandStr, "StartSequence")) {
         if ((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) &&
