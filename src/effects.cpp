@@ -330,6 +330,32 @@ int StopEffect(int effectID) {
 }
 
 /*
+ * Restart a single effect in place, i.e. jump it back to frame 0 without
+ * closing and reopening the underlying FSEQFile. This reuses the exact same
+ * mechanism OverlayEffect() already uses to wrap a looping effect back to
+ * the start (effects.cpp: e->currentFrame = 0), so it needs no new file
+ * open, no new read-ahead thread, and no teardown of the one already
+ * running - unlike a stop+start, it can't add to the concurrent-thread
+ * pressure that caused the crashes in issue #2815.
+ *
+ * Matches on both ID and name: effectID slots are recycled, so a caller
+ * that remembered an ID from an earlier point in time could otherwise end
+ * up restarting an unrelated effect that has since taken over that slot.
+ * Requiring the name to also match makes that mismatch a safe no-op.
+ */
+int RestartEffect(int effectID, const std::string& effectName) {
+    LogDebug(VB_EFFECT, "RestartEffect(%d, %s)\n", effectID, effectName.c_str());
+
+    std::unique_lock<std::mutex> lock(effectsLock);
+    if (effectID < 0 || effectID >= MAX_EFFECTS || !effects[effectID] || effects[effectID]->name != effectName) {
+        return 0;
+    }
+
+    effects[effectID]->currentFrame = 0;
+    return 1;
+}
+
+/*
  * Stop all effects
  */
 void StopAllEffects(void) {

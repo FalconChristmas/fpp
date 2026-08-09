@@ -220,6 +220,11 @@ StartFSEQAsEffectCommand::StartFSEQAsEffectCommand() :
                        .setDefaultValue("false")
                        .setHelp("Checks to see if this exact item is already running and "
                                 "prevents it from running again."));
+    args.push_back(CommandArg("restartIfRunning", "bool", "Restart If Running", true)
+                       .setDefaultValue("false")
+                       .setHelp("If this exact item is already running, restart it from the "
+                                "beginning in place instead of starting a second instance. "
+                                "Ignored if 'If Not Running' is also set."));
 }
 std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
@@ -229,6 +234,7 @@ std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector
     bool loop = false;
     bool bg = false;
     bool iNR = false;
+    bool restartIfRunning = false;
 
     if (args.size() > 1) {
         loop = args[1] == "true" || args[1] == "1";
@@ -239,14 +245,25 @@ std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector
     if (args.size() > 3) {
         iNR = args[3] == "true" || args[3] == "1";
     }
+    if (args.size() > 4) {
+        restartIfRunning = args[4] == "true" || args[4] == "1";
+    }
 
-    if (iNR) {
+    if (iNR || restartIfRunning) {
         const Json::Value RunningEffects = GetRunningEffectsJson();
         for (int x = 0; x < RunningEffects.size(); x++) {
             Json::Value v = RunningEffects[x];
             if (v["name"].asString() == args[0]) {
-                LogDebug(VB_COMMAND, "Effect Already running, configured not to start it again\n");
-                return std::make_unique<Command::Result>("Effect NOT Started");
+                if (iNR) {
+                    LogDebug(VB_COMMAND, "Effect Already running, configured not to start it again\n");
+                    return std::make_unique<Command::Result>("Effect NOT Started");
+                }
+                // restartIfRunning: jump the already-running instance back to frame 0
+                // in place rather than tearing it down and opening a new one - reuses
+                // its existing read-ahead thread instead of spinning up another.
+                if (RestartEffect(v["id"].asInt(), args[0])) {
+                    return std::make_unique<Command::Result>("Effect Restarted");
+                }
             }
         }
     }
