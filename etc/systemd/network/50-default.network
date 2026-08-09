@@ -11,3 +11,9 @@ LinkLocalAddressing=yes
 [DHCPv4]
 ClientIdentifier=mac
 UseDomains=true
+# FPP owns the hostname (/etc/hostname), so there is nothing to learn from the
+# lease. Left at its default of yes, networkd calls org.freedesktop.hostname1 as
+# soon as the lease lands, which D-Bus-activates systemd-hostnamed, which
+# activates polkit to authorize it -- ~21s of boot on a single-core AM335x board
+# to set a hostname that was already correct.
+UseHostname=false

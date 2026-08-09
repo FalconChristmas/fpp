@@ -385,6 +385,15 @@ void setupNetwork(bool fullReload) {
                 content.append("\n");
                 if (interfaceSettings["PROTO"] == "dhcp") {
                     content.append("[DHCPv4]\nClientIdentifier=mac\nUseDomains=true\n");
+                    // FPP owns the hostname (checkHostName writes /etc/hostname), so
+                    // there is nothing to learn from the lease. Leaving this at its
+                    // default of yes makes networkd call org.freedesktop.hostname1 the
+                    // moment the lease lands, which D-Bus-activates systemd-hostnamed,
+                    // which in turn activates polkit to authorize the call. Measured on
+                    // a single-core AM335x board that chain cost ~21s of boot (4.3s
+                    // hostnamed + 16.8s polkitd) for a hostname that was already
+                    // correct; nothing else on an FPP box uses polkit at all.
+                    content.append("UseHostname=false\n");
                     // Only use NTP from DHCP if explicitly enabled
                     std::string useNTPFromDHCP;
                     getRawSetting("UseNTPFromDHCP", useNTPFromDHCP);
