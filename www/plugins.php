@@ -898,6 +898,10 @@
         function ReinstallAllPlugins() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
+                // Nothing to reinstall, so clear the post-FPPOS-upgrade flag --
+                // otherwise a box with no plugins keeps nagging forever since
+                // this early-return path never reaches ReinstallFinish().
+                SetSetting('pluginReinstallNeededAfterOS', '', 0, 0, true);
                 return;
             }
             RunReinstall(installedPlugins.slice(), 'Reinstall All Plugins');
@@ -1021,6 +1025,9 @@
         function ShowReinstallAllPluginsPopup() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
+                // Nothing to reinstall, so clear the post-FPPOS-upgrade flag --
+                // otherwise a box with no plugins keeps nagging forever.
+                SetSetting('pluginReinstallNeededAfterOS', '', 0, 0, true);
                 return;
             }
             DoModalDialog({
