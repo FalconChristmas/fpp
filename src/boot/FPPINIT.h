@@ -109,6 +109,8 @@ void checkWLANInterface();
 // never set it, since a reset causes the carrier change that re-invokes them.
 bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery = false);
 void announceIPAddresses();
+// Turn off 802.11 power saving on all wireless interfaces.
+void disableWLANPowerManagement();
 void maybeEnableTethering();
 void detectNetworkModules();
 void removeDummyInterface();

@@ -1080,20 +1080,37 @@ void announceIPAddresses() {
     exec(fliteCmd);
     unlink(announceWav.c_str()); // don't leave the rendered WAV behind in /run
 }
-static void disableWLANPowerManagement() {
+// Turn off 802.11 power saving on every wireless interface. A show controller
+// wants its network responsive, not its radio dozing between beacons; the power
+// saved is irrelevant on a mains-powered board.
+//
+// Was dead code until now -- written but never called, from the commit that
+// introduced it -- so this had simply never run. The drivers in use happen to
+// default power_save off, which is why nobody noticed; this makes it true by
+// intent rather than by luck, and covers an adapter whose driver defaults the
+// other way.
+void disableWLANPowerManagement() {
     struct ifaddrs* ifAddrStruct = NULL;
-    struct ifaddrs* ifa = NULL;
-    void* tmpAddrPtr = NULL;
     getifaddrs(&ifAddrStruct);
-    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+    // getifaddrs yields one entry per address family, so a single interface shows
+    // up as AF_PACKET plus AF_INET plus AF_INET6. Collect names first: otherwise
+    // this forks iw two or three times per adapter for no reason.
+    std::set<std::string> wireless;
+    for (struct ifaddrs* ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
         if (!ifa->ifa_addr) {
             continue;
         }
         std::string nm = ifa->ifa_name;
         if (startsWith(nm, "wl")) {
-            printf("FPP - Disabling power saving for %s\n", nm.c_str());
-            exec("/usr/sbin/iw dev " + nm + " set power_save off 2>/dev/null > /dev/null");
+            wireless.insert(nm);
         }
+    }
+    if (ifAddrStruct != NULL) {
+        freeifaddrs(ifAddrStruct);
+    }
+    for (const auto& nm : wireless) {
+        printf("FPP - Disabling power saving for %s\n", nm.c_str());
+        exec("/usr/sbin/iw dev " + nm + " set power_save off 2>/dev/null > /dev/null");
     }
 }
 
