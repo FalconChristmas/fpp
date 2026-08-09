@@ -192,6 +192,53 @@ static bool usbAudioDevicePresent() {
     return found;
 }
 
+// An ASoC card cannot bind until *every* component it references is present --
+// the codec, the CPU DAI (e.g. McASP) and the machine driver (simple-audio-card).
+// A cape EEPROM only names the codec, and the rest are device-tree platform
+// devices whose drivers udev autoloads from their modalias. On a slow single-core
+// board udev's coldplug can land tens of seconds into boot, long after we would
+// have given up and taken snd-dummy -- measured ~35s after the codec on a
+// BeagleBone, with the card arriving 10s behind snd-dummy.
+//
+// So do udev's job for the audio devices, early: modprobe the modalias of any
+// still-unbound platform device whose compatible looks audio-related. Driving it
+// off the kernel's own modalias means no module or SoC name is hardcoded, so this
+// works for any cape/codec/CPU-DAI combination.
+static void loadPendingSoundDrivers() {
+    const std::string base = "/sys/bus/platform/devices";
+    DIR* dp = opendir(base.c_str());
+    if (!dp) {
+        return;
+    }
+    struct dirent* ep = nullptr;
+    while ((ep = readdir(dp)) != nullptr) {
+        std::string dev = ep->d_name;
+        if (dev == "." || dev == "..") {
+            continue;
+        }
+        std::string path = base + "/" + dev;
+        if (FileExists(path + "/driver")) {
+            continue; // a driver is already bound
+        }
+        std::string modalias = GetFileContents(path + "/modalias");
+        TrimWhiteSpace(modalias);
+        // the modalias embeds the DT compatible, so it is also what we match on.
+        // A quote would let the string escape the shell below; nothing the kernel
+        // emits contains one, but refuse rather than trust that.
+        if (modalias.empty() || modalias.find('\'') != std::string::npos) {
+            continue;
+        }
+        std::string lower = modalias;
+        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+        if (!lower.contains("audio") && !lower.contains("sound") && !lower.contains("mcasp") && !lower.contains("i2s")) {
+            continue;
+        }
+        printf("FPP - Loading sound driver for %s (%s)\n", dev.c_str(), modalias.c_str());
+        exec("/sbin/modprobe '" + modalias + "' > /dev/null 2>&1");
+    }
+    closedir(dp);
+}
+
 // Returns true if every ALSA card referenced by the PipeWire audio-groups JSON
 // is currently present (by stable card ID, as listed in /proc/asound/cards).
 // Used to decide whether the cached PipeWire group config is still valid for the
@@ -701,6 +748,10 @@ void setupAudio() {
     // the common case) waits zero.
     if (noRealSoundcard && countRealAlsaCards() == 0 && (deviceTreeDeclaresSoundCard() || usbAudioDevicePresent())) {
         printf("FPP - No soundcard yet, but audio hardware is present; waiting...\n");
+        // Don't just wait on udev -- it may not have autoloaded the CPU DAI or
+        // machine driver yet, and without them the card can never bind no matter
+        // how long we sit here.
+        loadPendingSoundDrivers();
         int waited = 0;
         while (waited < 50 && countRealAlsaCards() == 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
