@@ -167,6 +167,14 @@ void CrashLogRingDump(int fd);
 std::string TruncateForLog(const std::string& s, size_t maxLen = 200);
 
 void SetLogFile(const char* filename, bool toStdOut = true);
+
+// Drop the stdout copy of any line that made it into the log file.  Only fppd
+// wants this: it runs as `fppd -f` under systemd, so every line it logs would
+// otherwise also be captured by journald, doubling the volume for a copy that
+// dies with the boot.  Leave it off (the default) in the small services -- their
+// output is what `journalctl -u <service>` is expected to show.  An interactive
+// run (stdout is a TTY) echoes to the console regardless.
+void SetSuppressDuplicateStdOut(bool suppress);
 int loggingToFile(void);
 void logVersionInfo(void);
 

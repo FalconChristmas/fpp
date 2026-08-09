@@ -26,45 +26,9 @@
 
 #include "FPPINIT.h"
 
-// Redirect our stdout (and everything we fork, which is why this dup2's the fd
-// rather than just wrapping printf) into logs/fppd.log, prefixing every line
-// with fppd's own line shape: "<date time.ms> <program>(<pid>) [<facility>] ".
-//
-// fppd.log is the merged, sequential record of the system: boot -> init -> fppd
-// -> restarts -> operations, in one file, in time order. Init used to write its
-// own fpp_init.log / fpp_boot.log, which could not be interleaved with fppd's
-// log after the fact -- exactly the problem this arc exists to fix.
-//
-// The prefixing is done by bash rather than in C++ because the point of the
-// dup2 is to capture child output too: the filter has to live on the far side of
-// the pipe, where tee used to sit. printf '%(...)T' and EPOCHREALTIME are bash
-// builtins (hence /bin/bash explicitly -- popen uses /bin/sh, which is dash on
-// Debian and has neither), so this forks nothing per line. Appending per line
-// rather than holding the file open is what makes it survive a logrotate rename.
-//
-// `|| [ -n "$__l" ]` keeps a final line that has no trailing newline: read
-// returns false at EOF, and that unterminated line is what a process killed
-// mid-write leaves behind -- the output most worth having.
-void teeOutput(const std::string& log, const std::string& program, const std::string& facility, pid_t pid) {
-    mkdir(FPP_MEDIA_DIR.c_str(), 0775);
-    mkdir((FPP_MEDIA_DIR + "/logs").c_str(), 0775);
-
-    std::string cmd = "/bin/bash -c 'while IFS= read -r __l || [ -n \"$__l\" ]; do "
-                      "__now=${EPOCHREALTIME}; __us=${__now#*.}; "
-                      "printf \"%(%Y-%m-%d %H:%M:%S)T.%s " +
-                      program + "(" + std::to_string(pid) + ") [" + facility + "] %s\\n\" " +
-                      "\"${__now%.*}\" \"${__us:0:3}\" \"$__l\" >> " + log + "; done'";
-
-    FILE* f = popen(cmd.c_str(), "w");
-    if (!f) {
-        printf("Couldn't start the log writer\n");
-        return;
-    }
-    if (dup2(fileno(f), STDOUT_FILENO) < 0) {
-        printf("Couldn't redirect output to log file\n");
-    }
-    setvbuf(stdout, NULL, _IOLBF, 0);
-}
+// teeOutput() -- which sends our stdout, and that of everything we fork, to both
+// fppd.log and the console we were started with -- now lives in common_mini.cpp
+// so fpprtc (which links common_mini but not FPPINIT) can use it too.
 
 int remove_recursive(const char* const path, bool removeThis = true) {
     DIR* const directory = opendir(path);

@@ -858,11 +858,13 @@ int parseArguments(int argc, char** argv) {
         }
     }
 
-    // toStdOut is now only reachable when no real log file is set: once a line
-    // lands in the log file, log.cpp suppresses the stdout copy (see the comment
-    // there). Kept as-is because "-f" is how systemd runs fppd, so !daemonize is
-    // true in normal operation and this argument would otherwise duplicate every
-    // line into journald.
+    // fppd is the one binary that asks for the stdout copy to be dropped once a
+    // line is in the log file: "-f" is how systemd runs it, so !daemonize is true
+    // in normal operation and every line would otherwise be duplicated into
+    // journald. (An interactive `fppd -f` still echoes -- log.cpp checks isatty.)
+    // The suppression is opt-in precisely so fppoled and the other small services
+    // that link this logger keep showing up in `journalctl -u <service>`.
+    SetSuppressDuplicateStdOut(true);
     SetLogFile(getSetting("logFile").c_str(), !getSettingInt("daemonize"));
 
     return 0;

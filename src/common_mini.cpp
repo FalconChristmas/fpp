@@ -389,6 +389,99 @@ void CloseOpenFiles(int daemonMode) {
     }
 }
 
+// Redirect our stdout (and everything we fork, which is why this dup2's the fd
+// rather than just wrapping printf) into logs/fppd.log, prefixing every line
+// with fppd's own line shape: "<date time.ms> <program>(<pid>) [<facility>] ".
+//
+// fppd.log is the merged, sequential record of the system: boot -> init -> fppd
+// -> restarts -> operations, in one file, in time order. Init used to write its
+// own fpp_init.log / fpp_boot.log, which could not be interleaved with fppd's
+// log after the fact -- exactly the problem this arc exists to fix.
+//
+// This is a tee, not a redirect: the line is also echoed to the stdout we were
+// started with. Under systemd that is journald, so `systemctl status fppinit`
+// and `journalctl -u fpprtc` keep showing what the service did; run by hand from
+// a shell it is the terminal, so `fppinit setupAudio` still prints as it goes.
+// Only the fppd.log copy carries the timestamp/program/facility prefix -- the
+// console copy is the raw line, because journald stamps and tags it already.
+//
+// The prefixing is done by bash rather than in C++ because the point of the
+// dup2 is to capture child output too: the filter has to live on the far side of
+// the pipe, where tee used to sit. printf '%(...)T' and EPOCHREALTIME are bash
+// builtins (hence /bin/bash explicitly -- popen uses /bin/sh, which is dash on
+// Debian and has neither), so this forks nothing per line. Appending per line
+// rather than holding the file open is what makes it survive a logrotate rename.
+//
+// `|| [ -n "$__l" ]` keeps a final line that has no trailing newline: read
+// returns false at EOF, and that unterminated line is what a process killed
+// mid-write leaves behind -- the output most worth having.
+void teeOutput(const std::string& log, const std::string& program, const std::string& facility, pid_t pid) {
+    std::size_t slash = log.rfind('/');
+    if (slash != std::string::npos && slash > 0) {
+        // logs/ under the media dir, and the media dir itself: a first boot can
+        // reach here before either exists.
+        std::string dir = log.substr(0, slash);
+        std::size_t parent = dir.rfind('/');
+        if (parent != std::string::npos && parent > 0) {
+            mkdir(dir.substr(0, parent).c_str(), 0775);
+        }
+        mkdir(dir.c_str(), 0775);
+    }
+
+    // The bash `>>` below would create the file root-owned (these services run as
+    // root), which then locks out fppd and the PHP-side writers that share it.
+    // Whoever creates fppd.log owns making it group-writable by fpp -- log.cpp
+    // and FPPINIT do the same for the cases where they get there first.
+    if (access(log.c_str(), F_OK) != 0) {
+        FILE* nf = fopen(log.c_str(), "a");
+        if (nf) {
+            uid_t uid;
+            gid_t gid;
+            if (GetUserIds("fpp", &uid, &gid) && fchown(fileno(nf), uid, gid) == 0) {
+                fchmod(fileno(nf), 0664);
+            }
+            fclose(nf);
+        }
+    }
+
+    // Grab a second handle on the console (journald/terminal) BEFORE the dup2
+    // below takes fd 1 over, so the writer can still reach it. dup() leaves
+    // FD_CLOEXEC clear, so it survives popen's exec into bash and is addressable
+    // there by number -- and it returns the lowest free descriptor, which for a
+    // service this early is a single digit, well clear of the fds bash reserves
+    // for its own redirections.
+    int consoleFd = dup(STDOUT_FILENO);
+    std::string echoConsole;
+    if (consoleFd >= 0) {
+        echoConsole = "printf \"%s\\n\" \"$__l\" >&" + std::to_string(consoleFd) + "; ";
+    }
+
+    std::string cmd = "/bin/bash -c 'while IFS= read -r __l || [ -n \"$__l\" ]; do " +
+                      echoConsole +
+                      "__now=${EPOCHREALTIME}; __us=${__now#*.}; "
+                      "printf \"%(%Y-%m-%d %H:%M:%S)T.%s " +
+                      program + "(" + std::to_string(pid) + ") [" + facility + "] %s\\n\" " +
+                      "\"${__now%.*}\" \"${__us:0:3}\" \"$__l\" >> " + log + "; done'";
+
+    FILE* f = popen(cmd.c_str(), "w");
+    if (!f) {
+        printf("Couldn't start the log writer\n");
+        if (consoleFd >= 0) {
+            close(consoleFd);
+        }
+        return;
+    }
+    if (dup2(fileno(f), STDOUT_FILENO) < 0) {
+        printf("Couldn't redirect output to log file\n");
+    }
+    // The writer child has its own copy; ours would otherwise be inherited by
+    // every command we fork from here on.
+    if (consoleFd >= 0) {
+        close(consoleFd);
+    }
+    setvbuf(stdout, NULL, _IOLBF, 0);
+}
+
 int DateInRange(time_t when, int startDate, int endDate) {
     struct tm dt;
     localtime_r(&when, &dt);

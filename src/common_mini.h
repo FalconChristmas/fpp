@@ -68,6 +68,13 @@ int DateInRange(int currentDate, int startDate, int endDate);
 void CloseOpenFiles(int daemonMode = 0);
 std::string secondsToTime(int i);
 
+// Tee this process's stdout (and that of everything it forks) into `log`, one
+// prefixed line at a time, while still echoing each raw line to the stdout we
+// started with (journald under systemd, the terminal by hand).  For the small
+// startup services -- fppinit, fpprtc -- which printf() rather than link the
+// full logger.  See the comment on the definition.
+void teeOutput(const std::string& log, const std::string& program, const std::string& facility, pid_t pid);
+
 std::string GetFileContents(const std::string& filename);
 std::string GetFileExtension(const std::string& filename);
 

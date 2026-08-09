@@ -34,10 +34,10 @@ class WarningHolder {
 };
 
 void WarningHolder::AddWarning(const std::string& w) {
-    printf("Warning: %s\n", w.c_str());
+    LogWarn(VB_GENERAL, "Warning: %s\n", w.c_str());
 }
 void WarningHolder::AddWarning(int id, const std::string& w, const std::map<std::string, std::string>& data) {
-    printf("Warning: %s\n", w.c_str());
+    LogWarn(VB_GENERAL, "Warning: %s\n", w.c_str());
 }
 
 static FPPOLEDUtils* oled = nullptr;
@@ -57,16 +57,22 @@ int main(int argc, char* argv[]) {
     // "logFile" isn't a persisted setting - fppd.cpp only ever sets it in its
     // own memory at startup, defaulting to FPP_FILE_LOG - so use that same
     // constant directly rather than a getSetting() lookup that would just
-    // come back empty here. toStdOut=true preserves the existing
-    // journalctl-visible output (fppoled has no daemonize/foreground flag to
-    // check like fppd does), while also merging into the same shared
-    // fppd.log everything else writes to - see log.cpp's note that fppd.log
-    // is a multi-writer log, each line tagged with the real program name
-    // automatically.
+    // come back empty here. toStdOut=true keeps the journalctl-visible output
+    // (fppoled has no daemonize/foreground flag to check like fppd does) while
+    // also merging into the same shared fppd.log everything else writes to -
+    // see log.cpp's note that fppd.log is a multi-writer log, each line tagged
+    // with the real program name automatically. fppd asks for the stdout copy
+    // to be dropped once a line is in the file (SetSuppressDuplicateStdOut);
+    // fppoled deliberately does not - it is a handful of lines a boot, and
+    // `journalctl -u fppoled` is where they are looked for.
+    //
+    // Everything below logs rather than printf()s for the same reason: a raw
+    // printf reaches only the journal, which on these boxes is RAM-only and
+    // never reaches a Support Zip.
     SetLogFile(FPP_FILE_LOG.c_str(), true);
-    printf("FPP OLED Status Display Driver\n");
+    LogInfo(VB_GENERAL, "FPP OLED Status Display Driver\n");
     int lt = getRawSettingInt("LEDDisplayType", 7);
-    printf("    LED Display Type: %d\n", lt);
+    LogInfo(VB_GENERAL, "    LED Display Type: %d\n", lt);
     if (!OLEDPage::InitializeDisplay(lt)) {
         lt = 0;
     }
@@ -106,7 +112,7 @@ int main(int argc, char* argv[]) {
     }
     LoadSettings(argv[0]);
     int ledType = getRawSettingInt("LEDDisplayType", 99);
-    printf("    Led Type: %d\n", ledType);
+    LogInfo(VB_GENERAL, "    Led Type: %d\n", ledType);
     fflush(stdout);
     if (lt != ledType) {
         if (ledType == 99) {
