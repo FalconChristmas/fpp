@@ -1417,6 +1417,25 @@ do
     fi
 done
 
+# Turn off PHP extensions FPP does not use.  Every one of these was checked by
+# matching the functions and classes it actually provides (via ReflectionExtension)
+# against all of FPP's PHP sources -- none of them is referenced anywhere.
+#
+# This is a memory and attack-surface change, NOT a boot-time one: measured on a
+# single-core AM335x board it takes cold PHP startup from 1.08s to 0.84s, but
+# php-fpm loads extensions once in the master and forks its workers, so that is
+# ~0.24s of boot, once.  What it does buy is ~1.6MB per worker (9.7MB across the
+# six workers that board runs, and up to ~40MB at pm.max_children=25) on a device
+# with 480MB of RAM -- plus getting FFI out of a web-facing PHP.
+#
+# Deliberately conservative: sqlite3, pdo and pdo_sqlite are unused by FPP core
+# and were measured as safe to drop, but they are left ENABLED because a
+# third-party plugin under /media/plugins could reasonably keep its own data in
+# SQLite, and nothing here can see those plugins to check.
+echo "FPP - Disabling unused PHP extensions"
+phpdismod -v ${ACTUAL_PHPVER} calendar exif ffi ftp phar readline shmop \
+                              sysvmsg sysvsem sysvshm xmlwriter xsl 2>/dev/null || true
+
 # FPP serves very few web clients (usually one or two), so the stock
 # every-30-minutes PHP session garbage collection is overkill. Run it every
 # 2 hours instead, and turn off Persistent so a power-cycled appliance doesn't
