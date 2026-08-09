@@ -70,3 +70,25 @@ compileBinaries
 # Delete any statistics
 /usr/bin/curl -X DELETE http://localhost/api/statistics/usage
 
+# Clear the cached "what version/commit am I on" lookups so the web UI
+# reflects the upgrade immediately instead of waiting out their ~20-90s TTLs
+# -- this upgrade doesn't reboot, and /tmp (where those caches live) is tmpfs
+# so nothing else clears them. This is a UX nicety, not a correctness fix:
+# check_fppstats_updates() in www/common.php compares commit timestamps, not
+# just shas, so stale remote data can no longer produce a false "update
+# available" prompt on its own. Nothing here reads from GitHub's releases API
+# (that's a separate, longer-lived cache about major-version upgrades, not
+# this per-commit one), so it's left alone. The branch name itself
+# (getFPPBranch()) isn't cached in /tmp at all -- it's a hardcoded value in
+# the generated www/fppversion.php, already rewritten by compileBinaries
+# above, so there's no branch cache file to clear here.
+echo "Clearing cached update-check data"
+rm -f /tmp/cache_local_git_version.cache /tmp/cache_local_git_commit_date.cache \
+      /tmp/cache_fppstats_commits.cache
+
+# Re-warm those caches now rather than leaving the first page load after the
+# upgrade to pay for it -- fppstats_commits involves a real network call to
+# fppstats.falconchristmas.com (up to ~5s on a slow/unreachable host), and
+# nothing needs to see the outcome here, so this is fire-and-forget.
+/usr/bin/curl -s -o /dev/null http://localhost/api/system/updateStatus &
+

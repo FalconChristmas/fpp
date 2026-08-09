@@ -2515,6 +2515,27 @@ function get_local_git_version()
 }
 
 /**
+ * Returns the commit timestamp (unix epoch) of the local Git HEAD
+ * @return int 0 if unavailable
+ */
+function get_local_git_commit_date()
+{
+    $cachefile_name = "local_git_commit_date";
+    $cache_age = 20;
+
+    $epoch = file_cache($cachefile_name, function () {
+        $epoch = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ log -1 --format=%ct HEAD", $output, $return_val);
+        if ($return_val != 0) {
+            $epoch = "0";
+        }
+        unset($output);
+        return trim($epoch);
+    }, $cache_age);
+
+    return intval($epoch);
+}
+
+/**
  * Returns version of the remote Git branch for the current branch
  * @return string
  */
@@ -2738,13 +2759,24 @@ function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasD
                     $remoteCommit = $branch['commit']['sha'] ?? '';
                     $result['remoteCommit'] = $remoteCommit;
 
-                    // Check if local is behind remote (commit update available)
+                    // Check if local is behind remote (commit update available).
+                    // A sha mismatch alone isn't proof we're behind: fpp-stats-server
+                    // only rescrapes GitHub every 5 minutes (server/index.js), so right
+                    // after any push -- ours via upgrade_FPP or someone else's -- it can
+                    // still report the previous branch tip. Comparing commit timestamps
+                    // instead of just the sha means we only flag an update when the
+                    // remote commit is actually newer than what's installed; a same-or-
+                    // older remote timestamp means fppstats just hasn't caught up yet.
                     if (
                         !empty($remoteCommit) && !empty($localCommit) &&
                         strpos($remoteCommit, $localCommit) !== 0 &&
                         strpos($localCommit, $remoteCommit) !== 0
                     ) {
-                        $result['commitUpdateAvailable'] = true;
+                        $remoteCommitEpoch = intval($branch['commit']['date_epoch'] ?? 0);
+                        $localCommitEpoch = get_local_git_commit_date();
+                        if ($remoteCommitEpoch > 0 && $localCommitEpoch > 0 && $remoteCommitEpoch > $localCommitEpoch) {
+                            $result['commitUpdateAvailable'] = true;
+                        }
                     }
                 }
 
