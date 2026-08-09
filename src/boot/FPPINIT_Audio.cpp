@@ -16,6 +16,7 @@
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include <dirent.h>
 #include <map>
 #include <regex>
 #include <set>
@@ -105,6 +106,90 @@ static int getAlsaCardNumForId(const std::string& cardId) {
         }
     }
     return -1;
+}
+
+// Number of registered cards that aren't the synthetic snd-dummy. Reads
+// /proc/asound/cards, which is pure kernel state -- unlike "aplay -l", it needs
+// no /dev/snd node and so is visible the instant the card registers.
+static int countRealAlsaCards() {
+    int count = 0;
+    std::istringstream iss(GetFileContents("/proc/asound/cards"));
+    std::string line;
+    while (std::getline(iss, line)) {
+        auto bracket = line.find('[');
+        auto closeBracket = line.find(']');
+        if (bracket != std::string::npos && closeBracket != std::string::npos && closeBracket > bracket) {
+            std::string id = line.substr(bracket + 1, closeBracket - bracket - 1);
+            TrimWhiteSpace(id);
+            if (id != "Dummy") {
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
+// True if the device tree declares a sound card -- i.e. this board is *expected*
+// to have audio, whether or not the driver has bound yet. Used to decide whether
+// "no cards yet" means "still coming" or "there is genuinely no audio here", so
+// only the ambiguous case ever waits. A board with no sound node (a BeagleBone
+// with no audio cape) costs one failed opendir.
+static bool deviceTreeDeclaresSoundCard() {
+    DIR* dp = opendir("/proc/device-tree");
+    if (!dp) {
+        return false;
+    }
+    bool found = false;
+    struct dirent* ep = nullptr;
+    while (!found && (ep = readdir(dp)) != nullptr) {
+        std::string name = ep->d_name;
+        // the node is "sound" or, when addressed, "sound@<unit>"
+        if (name == "sound" || name.starts_with("sound@")) {
+            found = true;
+        }
+    }
+    closedir(dp);
+    return found;
+}
+
+// True if a USB audio device is plugged in, whether or not snd-usb-audio has
+// bound to it yet. A USB DAC has no device-tree node, so it needs its own check:
+// the device appears in sysfs at enumeration, then udev autoloads snd-usb-audio,
+// then the card registers -- and setupAudio can land in that gap.
+//
+// Read from sysfs rather than lsusb: only "lsusb -v" reports interface class, and
+// it costs ~200ms on a BeagleBone (it walks and wakes every device) against a
+// handful of open() calls here.
+//
+// bInterfaceClass 01 is USB Audio. Subclass 03 is MIDIStreaming, which yields a
+// card with no playback device, so it can never satisfy the probe below -- skip
+// it and don't wait on a MIDI controller.
+static bool usbAudioDevicePresent() {
+    DIR* dp = opendir("/sys/bus/usb/devices");
+    if (!dp) {
+        return false;
+    }
+    bool found = false;
+    struct dirent* ep = nullptr;
+    while (!found && (ep = readdir(dp)) != nullptr) {
+        std::string dev = ep->d_name;
+        if (dev == "." || dev == "..") {
+            continue;
+        }
+        std::string base = "/sys/bus/usb/devices/" + dev;
+        std::string cls = GetFileContents(base + "/bInterfaceClass");
+        TrimWhiteSpace(cls);
+        if (cls != "01") {
+            continue;
+        }
+        std::string sub = GetFileContents(base + "/bInterfaceSubClass");
+        TrimWhiteSpace(sub);
+        if (sub != "03") {
+            found = true;
+        }
+    }
+    closedir(dp);
+    return found;
 }
 
 // Returns true if every ALSA card referenced by the PipeWire audio-groups JSON
@@ -542,8 +627,8 @@ void setupAudio() {
         }
     }
 
-    std::string aplay = execAndReturn("/usr/bin/aplay -l 2>&1");
-    std::vector<std::string> lines = split(aplay, '\n');
+    std::string aplay;
+    std::vector<std::string> lines;
     std::map<std::string, std::string> cards;
     std::map<std::string, std::string> cardLines; // full aplay line per "card N"
     // Normalised card IDs that got an fpp_alsa_* sink node in 95-fpp-alsa-sink.conf
@@ -561,17 +646,27 @@ void setupAudio() {
         std::transform(lc.begin(), lc.end(), lc.begin(), ::tolower);
         return lc.find("hdmi") != std::string::npos;
     };
-    for (auto& l : lines) {
-        if (l.starts_with("card ")) {
-            std::string k = l.substr(0, 6);
-            std::string v = l.substr(8);
-            int idx = v.find(' ');
-            v = v.substr(0, idx);
-            cards[k] = v;
-            cardLines[k] = l;
-            hasNonHDMI |= !lineHasHDMI(l);
+    // Snapshot the cards "aplay -l" can see. Wrapped so it can be re-run after
+    // waiting for a late-binding card below.
+    auto probeCards = [&]() {
+        aplay = execAndReturn("/usr/bin/aplay -l 2>&1");
+        lines = split(aplay, '\n');
+        cards.clear();
+        cardLines.clear();
+        hasNonHDMI = false;
+        for (auto& l : lines) {
+            if (l.starts_with("card ")) {
+                std::string k = l.substr(0, 6);
+                std::string v = l.substr(8);
+                int idx = v.find(' ');
+                v = v.substr(0, idx);
+                cards[k] = v;
+                cardLines[k] = l;
+                hasNonHDMI |= !lineHasHDMI(l);
+            }
         }
-    }
+    };
+    probeCards();
     int hdmiIdx = 0;
     bool anyHDMIConnected = false;
     for (int x = 0; x < 4; x++) {
@@ -594,6 +689,36 @@ void setupAudio() {
     // and group-regeneration dance, which only matters for real/hot-pluggable
     // hardware.
     bool noRealSoundcard = (!hasNonHDMI || contains(aplay, "no soundcards"));
+    // Loading snd-dummy is a one-way door: it takes the next free card number, so
+    // a real card that binds a moment later lands behind it and the default
+    // selection resolves to Dummy. Before committing, give hardware that is
+    // physically here -- declared in the device tree, or a plugged-in USB audio
+    // device -- a bounded chance to finish binding. Cape modules are modprobed
+    // back in fppinit's cape detect (an earlier systemd unit) and an ASoC card
+    // binds synchronously as its last component registers, so this is normally
+    // already satisfied -- it only pays out when the driver is still being
+    // autoloaded. Gated so a board with neither (a BeagleBone with no audio cape,
+    // the common case) waits zero.
+    if (noRealSoundcard && countRealAlsaCards() == 0 && (deviceTreeDeclaresSoundCard() || usbAudioDevicePresent())) {
+        printf("FPP - No soundcard yet, but audio hardware is present; waiting...\n");
+        int waited = 0;
+        while (waited < 50 && countRealAlsaCards() == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            ++waited;
+        }
+        if (countRealAlsaCards() > 0) {
+            // The card is registered in the kernel, but "aplay -l" reads
+            // /dev/snd/controlC*, which udev creates a beat later (~115ms measured
+            // on a BeagleBone). This is the one part udev genuinely owns, so settle
+            // for it rather than re-probing into the gap.
+            exec("/usr/bin/udevadm settle --timeout=5 > /dev/null 2>&1");
+            printf("FPP - Soundcard registered after %d.%ds\n", waited / 10, waited % 10);
+            probeCards();
+            noRealSoundcard = (!hasNonHDMI || contains(aplay, "no soundcards"));
+        } else {
+            printf("FPP - No soundcard appeared after %d seconds\n", waited / 10);
+        }
+    }
     if (noRealSoundcard) {
         printf("FPP - No Soundcard Detected, loading snd-dummy\n");
         modprobe("snd-dummy");
