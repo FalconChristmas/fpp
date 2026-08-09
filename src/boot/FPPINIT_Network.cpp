@@ -20,6 +20,7 @@
 #include <map>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <set>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -928,11 +929,75 @@ static std::string buildIPAnnounceString() {
     return found ? announce : "";
 }
 
+// Force a USB re-enumeration of every USB-attached network adapter that has not
+// come up, by unbinding and rebinding it on the usb driver -- the software
+// equivalent of unplugging and replugging it.
+//
+// Some USB WiFi adapters lose their register interface at init and never
+// recover: observed with a Realtek 8822bu on an AM335x musb-hdrc controller,
+// where the driver binds and wlan0 duly appears, but every register access
+// returns -EPROTO. On one boot the kernel logged 65,956 of them against 1 on a
+// healthy boot, the radio never associated, and the board sat up-but-unreachable
+// until someone physically re-plugged the adapter -- which fixed it instantly.
+// Nothing in the kernel or in wpa_supplicant retries at the USB level, so
+// without this the only recovery is a walk out to the device.
+//
+// Returns true if anything was reset, so the caller knows to wait again.
+static bool reenumerateStalledUsbNetDevices() {
+    std::set<std::string> usbIds; // e.g. "1-1"; a device can back several interfaces
+    for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net")) {
+        std::string ifName = entry.path().filename();
+        if (ifName == "lo" || startsWith(ifName, "usb")) {
+            continue; // usb0/usb1 are the BBB's own gadget interfaces, not adapters
+        }
+        // Only touch adapters that are actually failing. An interface that has
+        // carrier is working even if it has no IP yet (slow DHCP), and resetting
+        // it would be actively harmful.
+        std::string carrier = GetFileContents(entry.path().string() + "/carrier");
+        TrimWhiteSpace(carrier);
+        if (carrier == "1") {
+            continue;
+        }
+        std::error_code ec;
+        std::filesystem::path dev = std::filesystem::canonical(entry.path() / "device", ec);
+        if (ec || dev.string().find("/usb") == std::string::npos) {
+            continue; // not USB-attached (onboard MAC); nothing to re-enumerate
+        }
+        // .../usb1/1-1/1-1:1.0 -- the interface node's parent is the USB device,
+        // and its name is the id the usb driver binds by.
+        std::string usbId = dev.parent_path().filename();
+        if (!usbId.empty() && usbId.find(':') == std::string::npos) {
+            usbIds.insert(usbId);
+        }
+    }
+    bool reset = false;
+    for (const auto& id : usbIds) {
+        printf("FPP - Network adapter on USB %s never came up; re-enumerating it\n", id.c_str());
+        // Shell redirection rather than PutFileContents: the latter flocks the
+        // target and then runs SetFilePerms on it, neither of which makes sense
+        // for a sysfs attribute. This is the exact form verified on hardware.
+        exec("/bin/echo " + id + " > /sys/bus/usb/drivers/usb/unbind 2>/dev/null");
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        exec("/bin/echo " + id + " > /sys/bus/usb/drivers/usb/bind 2>/dev/null");
+        reset = true;
+    }
+    return reset;
+}
+
 bool waitForInterfacesUp(int timeOut) {
     int count = 0;
+    bool retriedUsb = false;
     // If no network interfaces have carrier/link, don't wait for IP address - likely no network available and no point waiting for DHCP/NTP
     while (!hasNetworkInterfaceForNTP()) {
         if (count >= (timeOut / 2)) { // spend half the timeOut waiting for interfaces to have link, then give up
+            // Before writing the network off, try re-enumerating a USB adapter
+            // that enumerated but never came up -- exactly once, and only on this
+            // failure path, so a healthy boot never pays for any of it.
+            if (!retriedUsb && reenumerateStalledUsbNetDevices()) {
+                retriedUsb = true;
+                count = 0;
+                continue;
+            }
             printf("FPP - No network interfaces with link detected after waiting for %d ms, skipping IP wait\n", timeOut * 200);
             return false;
         }
