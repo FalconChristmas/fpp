@@ -328,6 +328,79 @@ static std::string simpleConfigCardId(const std::string& jsonPath) {
     return members[0].get("cardId", "").asString();
 }
 
+// Verify a candidate PCM format can actually carry the target sample rate.
+//
+// Some I2S cards run a fixed bit clock (e.g. TI McASP driving a PCM5102A on a
+// BeagleBone cape): widening the sample size shrinks the achievable rate, so
+// S32_LE is reachable only at 22050 while S16_LE reaches 44100.  The bit clock
+// is the constant, not the rate -- 32 bits/frame x 44100 == 64 bits/frame x 22050.
+//
+// `aplay --dump-hw-params` cannot see this.  It reports the unrefined capability
+// space and ignores both -f and -r, so it lists "FORMAT: S16_LE S32_LE" and
+// "RATE: [22050 44100]" with no hint that the S32_LE/44100 pair is invalid.  The
+// only way to observe the coupling is to actually open the device.
+//
+// Getting this wrong is expensive: PipeWire asks for the impossible pair, fails
+// adapter creation ("no format found (def:267)"), aborts context creation and
+// exits, and systemd restarts it every few seconds forever -- stalling boot and
+// burning CPU indefinitely.
+//
+// Feeding 8KB of zeros opens the device, reports the negotiated rate and exits
+// in ~250ms.  The payload is silence, so nothing audible is emitted.
+// Keep in sync with PipeWireFormatHoldsRate() in www/api/controllers/pipewire.php.
+static bool formatHoldsRate(const std::string& alsaPath, const std::string& pwFmt,
+                            int rate, int channels) {
+    std::string alsaFmt;
+    if (pwFmt == "S32LE") {
+        alsaFmt = "S32_LE";
+    } else if (pwFmt == "S24_32LE") {
+        alsaFmt = "S24_LE";
+    } else if (pwFmt == "S24LE") {
+        alsaFmt = "S24_3LE";
+    } else if (pwFmt == "S16LE") {
+        alsaFmt = "S16_LE";
+    } else {
+        return false;
+    }
+    if (rate <= 0) rate = 44100;
+    if (channels <= 0) channels = 2;
+    std::string out = execAndReturn("head -c 8192 /dev/zero | timeout 2 /usr/bin/aplay -D " +
+                                    alsaPath + " -t raw -f " + alsaFmt + " -r " +
+                                    std::to_string(rate) + " -c " + std::to_string(channels) +
+                                    " - 2>&1");
+    // Unverifiable (device busy, probe timed out, aplay missing): decline to
+    // widen.  S16LE at the target rate is universally supported, so a needlessly
+    // narrow format costs only bit depth, while a wrongly wide one costs a
+    // permanent PipeWire crash loop.  Bias to the cheap failure.
+    if (out.empty()) {
+        return false;
+    }
+    if (contains(out, "not accurate")) {
+        return false;
+    }
+    return contains(out, "Playing raw data");
+}
+
+// Pick the widest PCM format the card advertises that can still hold the target
+// rate, falling back through narrower candidates to the universally-safe S16LE.
+static std::string bestFormatForRate(const std::string& fmtLine, const std::string& alsaPath,
+                                     int rate, int channels) {
+    static const std::pair<const char*, const char*> candidates[] = {
+        { "S32_LE", "S32LE" },
+        { "S24_LE", "S24_32LE" },
+        { "S24_3LE", "S24LE" },
+    };
+    for (const auto& [alsaName, pwName] : candidates) {
+        if (fmtLine.find(alsaName) == std::string::npos) {
+            continue;
+        }
+        if (formatHoldsRate(alsaPath, pwName, rate, channels)) {
+            return pwName;
+        }
+    }
+    return "S16LE";
+}
+
 // Build the contents of 97-fpp-audio-groups.conf for the Simple-mode synthetic
 // group: a single 2-channel "Default" group whose one member is the selected
 // sound card.  This reproduces, byte-for-byte for the simple case, what
@@ -401,19 +474,16 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
         // node there). Create the adapter inline so the filter-chain/combine
         // playback has a real sink to target. Detect the best PCM format the
         // device advertises, defaulting to the universally-safe S16LE.
+        // Capture the advertised format list here, but defer choosing one until
+        // alsaPath is resolved below: the rate-holding probe has to open the
+        // device we will actually configure (hw: or sysdefault:), not a guess.
         std::string fmt = "S16LE";
+        std::string fmtLine;
         std::string hwParams = execAndReturn("timeout 2 /usr/bin/aplay -D hw:" + cId +
                                                 " --dump-hw-params /dev/zero 2>&1 | head -40");
         std::smatch fmtMatch;
         if (std::regex_search(hwParams, fmtMatch, std::regex(R"(FORMAT[^:]*:\s+(.+))"))) {
-            std::string fmtLine = fmtMatch[1].str();
-            if (fmtLine.find("S32_LE") != std::string::npos) {
-                fmt = "S32LE";
-            } else if (fmtLine.find("S24_LE") != std::string::npos) {
-                fmt = "S24_32LE";
-            } else if (fmtLine.find("S24_3LE") != std::string::npos) {
-                fmt = "S24LE";
-            }
+            fmtLine = fmtMatch[1].str();
         }
         // Some cards expose only IEC958_SUBFRAME_LE passthrough on raw hw: with
         // no standard PCM format (e.g. the Pi Zero W2 / Pi 3 vc4-hdmi card under
@@ -435,6 +505,11 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
                 sysParams.find("S32_LE") != std::string::npos) {
                 alsaPath = "sysdefault:" + cId;
             }
+        }
+        // Now that the target device is known, pick the widest advertised format
+        // that can actually hold the configured rate on it.
+        if (!fmtLine.empty()) {
+            fmt = bestFormatForRate(fmtLine, alsaPath, pipewireSampleRate, 2);
         }
         const std::string desc = getAlsaCardProductName(card, cId) + " (" + cId + ")";
         c << "# Custom FPP ALSA adapter nodes\n";
@@ -1191,17 +1266,14 @@ void setupAudio() {
             // Detect best audio format from ALSA HW params
             // FORMAT line examples: "FORMAT: S16_LE S24_3LE", "FORMAT: S16_LE S24_LE S32_LE"
             // Priority: S32 > S24 > S16.  ALSA uses _ (S24_3LE), PipeWire drops it (S24LE).
+            // A wider format only counts if the card can still reach the target
+            // rate in it — fixed-bit-clock I2S cards advertise S32_LE but reach
+            // it only at half the rate (see bestFormatForRate).
             std::string audioFormat = "S16LE"; // safe default all cards support
             std::smatch fmtMatch;
             if (std::regex_search(hwParams, fmtMatch, std::regex(R"(FORMAT[^:]*:\s+(.+))"))) {
-                std::string fmtLine = fmtMatch[1].str();
-                if (fmtLine.find("S32_LE") != std::string::npos) {
-                    audioFormat = "S32LE";
-                } else if (fmtLine.find("S24_LE") != std::string::npos) {
-                    audioFormat = "S24_32LE"; // 24-bit in 32-bit container
-                } else if (fmtLine.find("S24_3LE") != std::string::npos) {
-                    audioFormat = "S24LE"; // packed 24-bit (3 bytes)
-                }
+                audioFormat = bestFormatForRate(fmtMatch[1].str(), "hw:" + cId,
+                                                pipewireSampleRate, maxChannels);
             }
 
             // Channel position arrays matching PipeWire convention

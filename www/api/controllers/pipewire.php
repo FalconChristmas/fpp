@@ -696,6 +696,52 @@ function DetectAlsaCardMaxChannels($cardNum, $aplayLine, $isUsbCard)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Verify a candidate PCM format can actually carry the target sample rate.
+//
+// Some I2S cards run a fixed bit clock (e.g. TI McASP driving a PCM5102A on a
+// BeagleBone cape): widening the sample size shrinks the achievable rate, so
+// S32_LE is reachable only at 22050 while S16_LE reaches 44100.  The bit clock
+// is the constant, not the rate -- 32 bits/frame x 44100 == 64 bits/frame x 22050.
+//
+// `aplay --dump-hw-params` cannot see this.  It reports the unrefined capability
+// space and ignores both -f and -r, so it lists "FORMAT: S16_LE S32_LE" and
+// "RATE: [22050 44100]" with no hint that the S32_LE/44100 pair is invalid.  The
+// only way to observe the coupling is to actually open the device.
+//
+// Getting this wrong is expensive: PipeWire asks for the impossible pair, fails
+// adapter creation ("no format found (def:267)"), aborts context creation and
+// exits, and systemd restarts it every few seconds forever -- stalling boot and
+// burning CPU indefinitely.
+//
+// Feeding 8KB of zeros opens the device, reports the negotiated rate and exits
+// in ~250ms.  The payload is silence, so nothing audible is emitted.
+// Keep in sync with formatHoldsRate() in src/boot/FPPINIT_Audio.cpp.
+function PipeWireFormatHoldsRate($alsaPath, $pwFmt, $rate, $channels)
+{
+    $alsaFmt = array(
+        'S32LE' => 'S32_LE',
+        'S24_32LE' => 'S24_LE',
+        'S24LE' => 'S24_3LE',
+        'S16LE' => 'S16_LE',
+    );
+    if (!isset($alsaFmt[$pwFmt]))
+        return false;
+    $rate = intval($rate) > 0 ? intval($rate) : 44100;
+    $channels = intval($channels) > 0 ? intval($channels) : 2;
+    $out = shell_exec('head -c 8192 /dev/zero | timeout 2 aplay -D ' . escapeshellarg($alsaPath)
+        . ' -t raw -f ' . $alsaFmt[$pwFmt] . ' -r ' . $rate . ' -c ' . $channels . ' - 2>&1');
+    // Unverifiable (device busy, probe timed out, aplay missing): decline to
+    // widen.  S16LE at the target rate is universally supported, so a needlessly
+    // narrow format costs only bit depth, while a wrongly wide one costs a
+    // permanent PipeWire crash loop.  Bias to the cheap failure.
+    if ($out === null || $out === '')
+        return false;
+    if (stripos($out, 'not accurate') !== false)
+        return false;
+    return stripos($out, 'Playing raw data') !== false;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // Quirk table for multi-channel I2S cards whose drivers advertise only a
 // continuous channel range (e.g. "[2 8]"), which the conservative non-USB
 // heuristics clamp to stereo (issue #2620).  $cardDesc is any descriptive
@@ -4217,16 +4263,22 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                             && preg_match('/^\s*' . intval($cardNum) . '\s+\[[^\]]*\]:\s*(.*)$/m', $procCards, $pcM)) {
                             $unresolvedMaxCh = min(8, max($unresolvedMaxCh, PipeWireCardChannelQuirk($pcM[1])));
                         }
-                        // Detect best audio format: S32 > S24 > S16
+                        // Detect best audio format: S32 > S24 > S16.  A format
+                        // only counts if the card can hold the target rate in it
+                        // -- fixed-bit-clock I2S cards list S32_LE but reach it
+                        // only at half the rate.  Try widest first and fall back
+                        // through the narrower ones, ending at the S16LE default.
                         $unresolvedFmt = 'S16LE';
                         if (preg_match('/FORMAT[^:]*:\s+(.+)/i', $testOutput, $fmtM)) {
                             $fmtLine = $fmtM[1];
-                            if (strpos($fmtLine, 'S32_LE') !== false) {
-                                $unresolvedFmt = 'S32LE';
-                            } elseif (strpos($fmtLine, 'S24_LE') !== false) {
-                                $unresolvedFmt = 'S24_32LE';
-                            } elseif (strpos($fmtLine, 'S24_3LE') !== false) {
-                                $unresolvedFmt = 'S24LE';
+                            $fmtProbePath = ($needsSysdefault ? 'sysdefault:' : 'hw:') . $cardId;
+                            foreach (array('S32_LE' => 'S32LE', 'S24_LE' => 'S24_32LE', 'S24_3LE' => 'S24LE') as $alsaName => $pwName) {
+                                if (strpos($fmtLine, $alsaName) === false)
+                                    continue;
+                                if (PipeWireFormatHoldsRate($fmtProbePath, $pwName, 44100, $unresolvedMaxCh)) {
+                                    $unresolvedFmt = $pwName;
+                                    break;
+                                }
                             }
                         }
                         $customAlsaAdaptersForUnresolved[$cardId] = array(
@@ -4327,12 +4379,16 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                     }
                     if ($fmtOut && preg_match('/FORMAT[^:]*:\s+(.+)/i', $fmtOut, $fmtM)) {
                         $fmtLine = $fmtM[1];
-                        if (strpos($fmtLine, 'S32_LE') !== false) {
-                            $adapterFmt = 'S32LE';
-                        } elseif (strpos($fmtLine, 'S24_LE') !== false) {
-                            $adapterFmt = 'S24_32LE';
-                        } elseif (strpos($fmtLine, 'S24_3LE') !== false) {
-                            $adapterFmt = 'S24LE';
+                        // Only widen past S16LE when the card can actually hold
+                        // the target rate in that format (see the helper).
+                        $fmtProbePath = ($adapterNeedsSysdefault ? 'sysdefault:' : 'hw:') . $cidSafe;
+                        foreach (array('S32_LE' => 'S32LE', 'S24_LE' => 'S24_32LE', 'S24_3LE' => 'S24LE') as $alsaName => $pwName) {
+                            if (strpos($fmtLine, $alsaName) === false)
+                                continue;
+                            if (PipeWireFormatHoldsRate($fmtProbePath, $pwName, $memberRate, $memberCh)) {
+                                $adapterFmt = $pwName;
+                                break;
+                            }
                         }
                     }
                 }
