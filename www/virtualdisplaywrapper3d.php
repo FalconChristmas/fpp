@@ -281,9 +281,6 @@
         <!-- FilePond initialization script -->
         <script>
             $(document).ready(function () {
-                var isSafari = window.safari !== undefined;
-                var maxChunkSize = isSafari ? 1024 * 1024 * 512 : 1024 * 1024 * 64;
-
                 const pond = FilePond.create(document.querySelector('#filepondInput'), {
                     labelIdle: `<b style="font-size: 1.3em;">Drag & Drop 3D Asset Files or Click to Select</b><br><br><span class="btn btn-dark filepond--label-action" style="text-decoration:none;">Select Files</span><br><br><small>Supported: .obj, .mtl, .png, .jpg, .jpeg</small>`,
                     server: {
@@ -303,7 +300,7 @@
                     },
                     credits: false,
                     chunkUploads: true,
-                    chunkSize: maxChunkSize,
+                    chunkSize: 1024 * 1024 * 64,
                     chunkForce: true,
                     maxParallelUploads: 3,
                     labelTapToUndo: 'Tap to Close',
