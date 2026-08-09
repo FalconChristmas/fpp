@@ -16,6 +16,7 @@
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -65,6 +66,10 @@ static volatile int pauseBackgroundEffects = 0;
 static std::array<FPPeffect*, MAX_EFFECTS> effects;
 static std::list<std::pair<uint32_t, uint32_t>> clearRanges;
 static std::mutex effectsLock;
+// effectIDs in the order OverlayEffects() composites them: oldest (re)started
+// first, most-recently (re)started last. Composited in this order, so the
+// last entry here is drawn last and wins on any channel two effects share.
+static std::vector<int> effectRenderOrder;
 
 /*
  * Initialize effects constructs
@@ -153,6 +158,34 @@ int IsEffectRunning(void) {
     return result;
 }
 
+/*
+ * Assumes effectsLock is already held. Moves effectID to the most-recent end
+ * of effectRenderOrder (the back of the vector, since OverlayEffects() walks
+ * it front-to-back and composites last = wins), inserting it if not already
+ * present. Used by both a fresh StartEffect() allocation and a
+ * RestartEffect() re-trigger of an existing slot, so that whichever effect
+ * started or restarted most recently visually wins regardless of its array
+ * slot.
+ */
+static void BringEffectToFront(int effectID) {
+    auto it = std::find(effectRenderOrder.begin(), effectRenderOrder.end(), effectID);
+    if (it != effectRenderOrder.end()) {
+        effectRenderOrder.erase(it);
+    }
+    effectRenderOrder.push_back(effectID);
+}
+
+/*
+ * Assumes effectsLock is already held. Removes effectID from the render order if
+ * present.
+ */
+static void RemoveEffectFromRenderOrder(int effectID) {
+    auto it = std::find(effectRenderOrder.begin(), effectRenderOrder.end(), effectID);
+    if (it != effectRenderOrder.end()) {
+        effectRenderOrder.erase(it);
+    }
+}
+
 int StartEffect(FSEQFile* fseq, const std::string& effectName, int loop, bool bg) {
     std::unique_lock<std::mutex> lock(effectsLock);
     if (effectCount >= MAX_EFFECTS) {
@@ -183,6 +216,7 @@ int StartEffect(FSEQFile* fseq, const std::string& effectName, int loop, bool bg
     effects[effectID]->fp = fseq;
     effects[effectID]->loop = loop;
     effects[effectID]->background = bg;
+    BringEffectToFront(effectID);
 
     effectCount++;
     int tmpec = effectCount;
@@ -273,6 +307,7 @@ void StopEffectHelper(int effectID) {
     delete e;
     effects[effectID] = NULL;
     effectCount--;
+    RemoveEffectFromRenderOrder(effectID);
 }
 
 /*
@@ -352,6 +387,7 @@ int RestartEffect(int effectID, const std::string& effectName) {
     }
 
     effects[effectID]->currentFrame = 0;
+    BringEffectToFront(effectID);
     return 1;
 }
 
@@ -411,7 +447,6 @@ int OverlayEffect(int effectID, char* channelData) {
  * Overlay current effects onto raw channel data
  */
 int OverlayEffects(char* channelData) {
-    int i;
     int dataRead = 0;
 
     std::unique_lock<std::mutex> lock(effectsLock);
@@ -431,11 +466,24 @@ int OverlayEffects(char* channelData) {
         skipBackground = 1;
     }
 
-    for (i = 0; i < MAX_EFFECTS; i++) {
-        if (effects[i]) {
+    // Snapshot into a reused scratch buffer (not a fresh local) so this
+    // doesn't malloc/free every frame: OverlayEffect() below can call
+    // StopEffectHelper() -> RemoveEffectFromRenderOrder() on natural EOF,
+    // mutating the live list mid-loop, so we still need a copy to iterate
+    // safely - just not a newly-allocated one each time. Safe as `static`
+    // even though OverlayEffects() can be entered from more than one thread
+    // (normally RunChannelOutputThread, but also directly from whatever
+    // thread calls Sequence::SendBlankingData() when the channel output
+    // thread isn't running) because the whole function body, including
+    // every access to `order`, runs under effectsLock - concurrent calls
+    // are serialized by the mutex, not by single-thread ownership.
+    static std::vector<int> order;
+    order = effectRenderOrder;
+    for (int id : order) {
+        if (effects[id]) {
             if ((!skipBackground) ||
-                (skipBackground && (!effects[i]->background))) {
-                dataRead |= OverlayEffect(i, channelData);
+                (skipBackground && (!effects[id]->background))) {
+                dataRead |= OverlayEffect(id, channelData);
             }
         }
     }
