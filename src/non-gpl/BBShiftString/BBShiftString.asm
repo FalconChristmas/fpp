@@ -47,6 +47,18 @@
 //if LOW_TIME needs to be more than 1250, you need to do:
 // #define SLOW_WAITNS
 
+// To find out whether the ARM pump is keeping the ring fed, uncomment this and
+// rebuild.  The firmware then counts every poll that finds the ring empty into
+// SMEM_RING_STATS_OFFSET, which the ARM can read from the owning PRU's data RAM.
+// This is the only trustworthy measurement of starvation: sampling the read
+// pointer from userspace cannot resolve a stall once the output duty cycle gets
+// high, because the sampling process's own scheduling jitter runs to about a
+// millisecond - the same size as the stalls being looked for.
+// Read it as a delta over a known interval.  To convert polls to time, freeze
+// the pump (SIGSTOP fppd) mid frame for a known wall time and divide: that
+// calibrated one poll at 48.1ns on an AM62x at 250MHz.
+// #define RING_STALL_STATS
+
 #if !defined(RUNNING_ON_PRU0) && !defined(RUNNING_ON_PRU1)
 #define RUNNING_ON_PRU1
 #endif
@@ -228,12 +240,12 @@ PRELOAD_DATA .macro dataAddress
 
 LOAD_NEXT_DATABLOCK .macro dataAddress
     .newblock
-#ifdef SHIFT16
-    // 16 deep drains the ring at twice the byte rate, so whether the pump can
-    // keep up stops being obvious.  Count the times we find it empty (the
-    // slot SMEMRing.hp reserves for exactly this) - it costs nothing unless we
-    // are actually starving, and the ARM can read it to tell the difference
-    // between "comfortable" and "one scheduling hiccup from a torn frame".
+#ifdef RING_STALL_STATS
+    // Count the polls that find the ring empty (the slot SMEMRing.hp reserves
+    // for exactly this).  When data is ready this costs the same two
+    // instructions as the plain loop below - LBBO then a branch - so the only
+    // overhead lands on the path where we are already starving.  See
+    // RING_STALL_STATS at the top of this file for how to read it.
 WAITDATA?:
     LBBO    &tmpReg1, ringCtrl, 0, 4
     QBNE    GOTDATA?, tmpReg1, ringReadPtr
