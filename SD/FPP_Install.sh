@@ -1534,6 +1534,24 @@ cat > /etc/systemd/system/shellinabox.service.d/fpp-defer.conf <<EOF
 After=${SHELLINABOX_DEFER_AFTER}
 EOF
 
+# rsyslog duplicates the journal into /var/log/syslog, and on these boards that
+# write traffic competes for the SD/eMMC with the reads the boot itself needs --
+# the same storage contention that makes boot times on a BBB swing by ~10s
+# between otherwise identical boots.  Nothing needs it early: journald is the
+# primary, persistent log, and syslog.target has no dependents here.
+#
+# Deferring loses nothing.  syslog.socket is DefaultDependencies=no and
+# Before=sockets.target, so it exists from the very start of boot with an 8M
+# ReceiveBuffer, and rsyslog is TriggeredBy= it -- journald forwards into that
+# socket whether or not rsyslog is running, and rsyslog drains the backlog when
+# it starts.  A whole boot's journal on a BBB is ~95KB, about 1.2% of the buffer.
+echo "FPP - Deferring rsyslog so its writes don't compete with the boot's reads"
+mkdir -p /etc/systemd/system/rsyslog.service.d
+cat > /etc/systemd/system/rsyslog.service.d/fpp-defer.conf <<EOF
+[Unit]
+After=${BG_DEFER_AFTER}
+EOF
+
 if $isimage; then
     #######################################
     echo "FPP - Copying rsync daemon config files into place"
@@ -2203,6 +2221,17 @@ install_fpp_services() {
     # to keep its ~entropy-gathering startup off the boot path. Every FPP target
     # has a hardware RNG (AM335x omap-rng, bcm2835-rng, ...), so it stays idle.
     systemctl disable haveged.service 2>/dev/null || true
+
+    # atd runs one-shot jobs queued with at(1). FPP never queues any -- scheduling
+    # goes through fppd's own scheduler and cron -- so on a stock box the daemon
+    # starts, finds an empty spool and idles forever.
+    systemctl disable atd.service 2>/dev/null || true
+
+    # ufw ships enabled but unconfigured, so it starts, applies no rules (`ufw
+    # status` reports inactive) and exits.  FPP does not manage it and nothing in
+    # the tree references it; an admin who wants a firewall can enable it, which
+    # is what `ufw enable` does anyway.
+    systemctl disable ufw.service 2>/dev/null || true
     systemctl daemon-reload
 
     local svc
