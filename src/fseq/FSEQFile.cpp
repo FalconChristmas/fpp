@@ -1052,52 +1052,80 @@ public:
         m_blocksToRead.push_back(block + 2);
         m_blocksToRead.push_back(block + 3);
         m_firstBlock = block;
+        if (m_readThread) {
+            // Already reading ahead for this file.  Overwriting the pointer
+            // here would leak the previous thread, which stays joinable and
+            // spinning for the life of the daemon; the blocks queued above are
+            // all the existing thread needs.
+            m_readSignal.notify_all();
+            return;
+        }
         m_readThreadRunning = true;
-        m_readThread = new std::thread([this]() {
-            SetThreadName("FSEQReadThread");
-            while (m_readThreadRunning) {
-                std::unique_lock<std::mutex> readerlock(m_readMutex);
-                if (!m_blocksToRead.empty()) {
-                    int block = m_blocksToRead.front();
-                    m_blocksToRead.pop_front();
-                    uint8_t* data = m_blockMap[block];
-                    if (!data && block < (m_file->m_frameOffsets.size() - 1)) {
-                        readerlock.unlock();
-                        uint64_t offset = m_file->m_frameOffsets[block].second;
-                        uint64_t size = m_file->m_frameOffsets[block + 1].second - offset;
-                        uint64_t max = m_file->getNumFrames() * m_file->getChannelCount();
-                        bool problem = false;
-                        if (size > max) {
-                            size = max;
-                            problem = true;
-                        }
-                        data = (uint8_t*)malloc(size);
-                        if (!data || problem) {
-                            // this is a serious problem, I need to figure out why this is occuring
-                            LogWarn(VB_SEQUENCE, "Serious problem reading sequence data\n");
-                            LogWarn(VB_SEQUENCE, "    Block: %d / %d\n", block, m_file->m_frameOffsets.size());
-                            LogWarn(VB_SEQUENCE, "    Offset: %" PRIu64 "\n", m_file->m_frameOffsets[block].second);
-                            LogWarn(VB_SEQUENCE, "    Offset+1: %" PRIu64 "\n", m_file->m_frameOffsets[block + 1].second);
-                            int sz = m_file->m_frameOffsets[block + 1].second - offset;
-                            LogWarn(VB_SEQUENCE, "    Size: %d\n", (int)sz);
-                            LogWarn(VB_SEQUENCE, "    Max: %d\n", (int)max);
-                            for (int x = 0; x < m_file->m_frameOffsets.size(); x++) {
-                                LogWarn(VB_SEQUENCE, "        Block %d:    Frame Index: %d    Offset: %" PRIu64 "\n", x, m_file->m_frameOffsets[x].first,
-                                        m_file->m_frameOffsets[x].second);
-                            }
-                        }
-                        seek(offset, SEEK_SET);
-                        read(data, size);
-
-                        readerlock.lock();
-                        m_blockMap[block] = data;
-                        m_readSignal.notify_all();
+        try {
+            m_readThread = new std::thread([this]() {
+                SetThreadName("FSEQReadThread");
+                while (m_readThreadRunning) {
+                    std::unique_lock<std::mutex> readerlock(m_readMutex);
+                    if (!m_blocksToRead.empty()) {
+                        readQueuedBlock(readerlock);
+                    } else {
+                        m_readSignal.wait_for(readerlock, 25ms);
                     }
-                } else {
-                    m_readSignal.wait_for(readerlock, 25ms);
+                }
+            });
+        } catch (const std::system_error& e) {
+            // Every open compressed FSEQ gets its own read-ahead thread, so a
+            // box running a lot of FSEQ overlay effects at once can run the
+            // process out of threads or (on 32 bit) address space, and the
+            // thread constructor throws.  The read-ahead is an optimization,
+            // not a requirement - getBlock() reads inline when this is null -
+            // so degrade rather than let the exception abort fppd.
+            m_readThread = nullptr;
+            m_readThreadRunning = false;
+            LogWarn(VB_SEQUENCE, "Could not start FSEQ read ahead thread (%s), reading blocks inline\n", e.what());
+        }
+    }
+
+    // Reads the block at the front of m_blocksToRead into m_blockMap.  Called
+    // by the read-ahead thread, and by getBlock() when that thread could not
+    // be created.  readerlock is held on entry and on return but is dropped
+    // around the file I/O.
+    void readQueuedBlock(std::unique_lock<std::mutex>& readerlock) {
+        int block = m_blocksToRead.front();
+        m_blocksToRead.pop_front();
+        uint8_t* data = m_blockMap[block];
+        if (!data && block < (m_file->m_frameOffsets.size() - 1)) {
+            readerlock.unlock();
+            uint64_t offset = m_file->m_frameOffsets[block].second;
+            uint64_t size = m_file->m_frameOffsets[block + 1].second - offset;
+            uint64_t max = m_file->getNumFrames() * m_file->getChannelCount();
+            bool problem = false;
+            if (size > max) {
+                size = max;
+                problem = true;
+            }
+            data = (uint8_t*)malloc(size);
+            if (!data || problem) {
+                // this is a serious problem, I need to figure out why this is occuring
+                LogWarn(VB_SEQUENCE, "Serious problem reading sequence data\n");
+                LogWarn(VB_SEQUENCE, "    Block: %d / %d\n", block, m_file->m_frameOffsets.size());
+                LogWarn(VB_SEQUENCE, "    Offset: %" PRIu64 "\n", m_file->m_frameOffsets[block].second);
+                LogWarn(VB_SEQUENCE, "    Offset+1: %" PRIu64 "\n", m_file->m_frameOffsets[block + 1].second);
+                int sz = m_file->m_frameOffsets[block + 1].second - offset;
+                LogWarn(VB_SEQUENCE, "    Size: %d\n", (int)sz);
+                LogWarn(VB_SEQUENCE, "    Max: %d\n", (int)max);
+                for (int x = 0; x < m_file->m_frameOffsets.size(); x++) {
+                    LogWarn(VB_SEQUENCE, "        Block %d:    Frame Index: %d    Offset: %" PRIu64 "\n", x, m_file->m_frameOffsets[x].first,
+                            m_file->m_frameOffsets[x].second);
                 }
             }
-        });
+            seek(offset, SEEK_SET);
+            read(data, size);
+
+            readerlock.lock();
+            m_blockMap[block] = data;
+            m_readSignal.notify_all();
+        }
     }
 
     void preloadBlock(int block) {
@@ -1121,7 +1149,7 @@ public:
         std::unique_lock<std::mutex> readerlock(m_readMutex);
         uint8_t* data = m_blockMap[block];
         while (data == nullptr) {
-            if ((block > (m_firstBlock + 3)) && m_firstBlock) {
+            if (m_readThread && (block > (m_firstBlock + 3)) && m_firstBlock) {
                 // if not one of the first few blocks and it's not already
                 // available, then something is really slow
                 AddSlowStorageWarning();
@@ -1129,7 +1157,18 @@ public:
                 LogWarn(VB_SEQUENCE, "Blocks: %d     First: %d\n", m_blocksToRead.size(), m_blocksToRead.empty() ? -1 : m_blocksToRead.front());
             }
             m_blocksToRead.push_front(block);
-            m_readSignal.wait_for(readerlock, 10s);
+            if (m_readThread) {
+                m_readSignal.wait_for(readerlock, 10s);
+            } else {
+                // No read ahead thread, so nothing else will service the queue
+                readQueuedBlock(readerlock);
+                if (m_blockMap[block] == nullptr) {
+                    // the block cannot be produced at all (past the end of the
+                    // file); wait like the read ahead path does rather than
+                    // spinning on it
+                    m_readSignal.wait_for(readerlock, 10s);
+                }
+            }
             data = m_blockMap[block];
         }
         if (block > 2) {
