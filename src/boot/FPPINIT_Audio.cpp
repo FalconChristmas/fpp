@@ -347,7 +347,17 @@ static std::string simpleConfigCardId(const std::string& jsonPath) {
 //
 // Feeding 8KB of zeros opens the device, reports the negotiated rate and exits
 // in ~250ms.  The payload is silence, so nothing audible is emitted.
+//
+// Judge the attempt by aplay's exit status, not by its output.  aplay prints the
+// "Playing raw data ..." banner from header() *before* set_params() negotiates
+// anything, so the banner appears even when the card then rejects the request
+// with "Sample format non available" -- matching on it reports success for a
+// format the device cannot produce.  The two failures look different and both
+// have to be caught: an unusable format makes aplay exit non-zero, while a rate
+// the driver quietly refines to something else only warns and still exits 0.
 // Keep in sync with PipeWireFormatHoldsRate() in www/api/controllers/pipewire.php.
+static constexpr char kProbeRcTag[] = "fpp-audio-probe-rc:";
+
 static bool formatHoldsRate(const std::string& alsaPath, const std::string& pwFmt,
                             int rate, int channels) {
     std::string alsaFmt;
@@ -364,21 +374,26 @@ static bool formatHoldsRate(const std::string& alsaPath, const std::string& pwFm
     }
     if (rate <= 0) rate = 44100;
     if (channels <= 0) channels = 2;
+    // $? after the pipeline is aplay's own status; echo it so the exit code
+    // survives execAndReturn(), which only hands back stdout.
     std::string out = execAndReturn("head -c 8192 /dev/zero | timeout 2 /usr/bin/aplay -D " +
                                     alsaPath + " -t raw -f " + alsaFmt + " -r " +
                                     std::to_string(rate) + " -c " + std::to_string(channels) +
-                                    " - 2>&1");
-    // Unverifiable (device busy, probe timed out, aplay missing): decline to
-    // widen.  S16LE at the target rate is universally supported, so a needlessly
-    // narrow format costs only bit depth, while a wrongly wide one costs a
-    // permanent PipeWire crash loop.  Bias to the cheap failure.
-    if (out.empty()) {
+                                    " - 2>&1; echo \"" + kProbeRcTag + "$?\"");
+    // Unverifiable (device busy, probe timed out, aplay missing, shell never ran):
+    // decline to widen.  S16LE at the target rate is universally supported, so a
+    // needlessly narrow format costs only bit depth, while a wrongly wide one costs
+    // a permanent PipeWire crash loop.  Bias to the cheap failure.
+    const size_t tagPos = out.rfind(kProbeRcTag);
+    if (tagPos == std::string::npos) {
         return false;
     }
-    if (contains(out, "not accurate")) {
+    if (std::strtol(out.c_str() + tagPos + (sizeof(kProbeRcTag) - 1), nullptr, 10) != 0) {
         return false;
     }
-    return contains(out, "Playing raw data");
+    // aplay exits 0 after refining an unreachable rate to a reachable one, warning
+    // "rate is not accurate" on the way past.  That pair is still a rejection.
+    return !contains(out, "not accurate");
 }
 
 // Pick the widest PCM format the card advertises that can still hold the target

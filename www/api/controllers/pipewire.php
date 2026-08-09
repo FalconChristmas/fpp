@@ -715,6 +715,14 @@ function DetectAlsaCardMaxChannels($cardNum, $aplayLine, $isUsbCard)
 //
 // Feeding 8KB of zeros opens the device, reports the negotiated rate and exits
 // in ~250ms.  The payload is silence, so nothing audible is emitted.
+//
+// Judge the attempt by aplay's exit status, not by its output.  aplay prints the
+// "Playing raw data ..." banner from header() *before* set_params() negotiates
+// anything, so the banner appears even when the card then rejects the request
+// with "Sample format non available" -- matching on it reports success for a
+// format the device cannot produce.  The two failures look different and both
+// have to be caught: an unusable format makes aplay exit non-zero, while a rate
+// the driver quietly refines to something else only warns and still exits 0.
 // Keep in sync with formatHoldsRate() in src/boot/FPPINIT_Audio.cpp.
 function PipeWireFormatHoldsRate($alsaPath, $pwFmt, $rate, $channels)
 {
@@ -728,17 +736,20 @@ function PipeWireFormatHoldsRate($alsaPath, $pwFmt, $rate, $channels)
         return false;
     $rate = intval($rate) > 0 ? intval($rate) : 44100;
     $channels = intval($channels) > 0 ? intval($channels) : 2;
-    $out = shell_exec('head -c 8192 /dev/zero | timeout 2 aplay -D ' . escapeshellarg($alsaPath)
-        . ' -t raw -f ' . $alsaFmt[$pwFmt] . ' -r ' . $rate . ' -c ' . $channels . ' - 2>&1');
+    $out = array();
+    $rc = -1;
+    exec('head -c 8192 /dev/zero | timeout 2 aplay -D ' . escapeshellarg($alsaPath)
+        . ' -t raw -f ' . $alsaFmt[$pwFmt] . ' -r ' . $rate . ' -c ' . $channels . ' - 2>&1',
+        $out, $rc);
     // Unverifiable (device busy, probe timed out, aplay missing): decline to
     // widen.  S16LE at the target rate is universally supported, so a needlessly
     // narrow format costs only bit depth, while a wrongly wide one costs a
     // permanent PipeWire crash loop.  Bias to the cheap failure.
-    if ($out === null || $out === '')
+    if ($rc !== 0)
         return false;
-    if (stripos($out, 'not accurate') !== false)
-        return false;
-    return stripos($out, 'Playing raw data') !== false;
+    // aplay exits 0 after refining an unreachable rate to a reachable one, warning
+    // "rate is not accurate" on the way past.  That pair is still a rejection.
+    return stripos(implode("\n", $out), 'not accurate') === false;
 }
 
 /////////////////////////////////////////////////////////////////////////////
