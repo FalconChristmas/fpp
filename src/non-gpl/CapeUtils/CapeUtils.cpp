@@ -760,6 +760,46 @@ void ConfigureI2C1BusPins(bool enable) {
 #endif
 }
 
+// Kernel module names change over time, but a cape EEPROM is programmed once and
+// is then in the field forever, so an older EEPROM can name a module the running
+// kernel no longer has.  Map the old name onto the current one.  The map is only
+// consulted when the name from the EEPROM does not resolve on this kernel, so a
+// kernel that still has the old name keeps using it.
+// Note: modprobe treats '-' and '_' as equivalent, so only real renames belong here.
+static const std::map<std::string, std::string> LEGACY_MODULE_NAME_MAP = {
+    // ASoC codec drivers gained the snd_soc_ prefix
+    { "pcm5102a", "snd_soc_pcm5102a" }
+};
+
+static bool moduleNameResolves(const std::string& module) {
+    std::string cmd = "/sbin/modprobe -n -q " + module + " > /dev/null 2>&1";
+    return system(cmd.c_str()) == 0;
+}
+
+// modprobe every module the cape asks for, mapping any renamed-since-programmed
+// names to what this kernel calls them.  Loading these at detect time rather than
+// letting them autoload keeps a cape's sound card/RTC/GPIO expander from showing
+// up after the rest of boot has already given up on it.
+static void loadModules(const Json::Value& modules) {
+    for (int x = 0; x < modules.size(); x++) {
+        std::string module = modules[x].asString();
+        if (module.empty()) {
+            continue;
+        }
+        if (!moduleNameResolves(module)) {
+            auto it = LEGACY_MODULE_NAME_MAP.find(module);
+            if (it != LEGACY_MODULE_NAME_MAP.end() && moduleNameResolves(it->second)) {
+                printf("Cape module \"%s\" not found, loading \"%s\" instead\n", module.c_str(), it->second.c_str());
+                module = it->second;
+            } else {
+                printf("Cape module \"%s\" is not available on this kernel\n", module.c_str());
+                continue;
+            }
+        }
+        exec("/sbin/modprobe " + module + " 2> /dev/null  > /dev/null");
+    }
+}
+
 static std::map<std::string, std::string> CONFIG_EEPROM_UPGRADE_MAP = {
     { "RPIWS281X:PiHat", "PiHat" },
     { "spixels:spixels", "spixels" },
@@ -1304,10 +1344,7 @@ private:
                     if (result.isMember("modules")) {
                         // if the cape requires kernel modules, load them at this
                         // time so they will be available later
-                        for (int x = 0; x < result["modules"].size(); x++) {
-                            std::string v = "/sbin/modprobe " + result["modules"][x].asString() + " 2> /dev/null  > /dev/null";
-                            exec(v.c_str());
-                        }
+                        loadModules(result["modules"]);
                     }
                     if (result.isMember("pinctrl")) {
                         // if the cape requires pins set to a particular mode, set them now
@@ -1318,9 +1355,10 @@ private:
                             }
                         }
 
-                        for (int x = 0; x < result["modules"].size(); x++) {
-                            std::string v = "/sbin/modprobe " + result["modules"][x].asString() + " 2> /dev/null  > /dev/null";
-                            exec(v.c_str());
+                        // some modules will not bind until their pins are in the
+                        // right mode, so retry them now that pinctrl is applied
+                        if (result.isMember("modules")) {
+                            loadModules(result["modules"]);
                         }
                     }
                     if (result.isMember("i2cDevices") && !readOnly) {
