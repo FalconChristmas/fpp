@@ -1431,6 +1431,36 @@ OnCalendar=*-*-* 00/2:09:00
 Persistent=false
 EOF
 
+# How far to push the services that are never needed while the box is booting.
+#
+# Everything below is already ordered after fpp_postnetwork so it stays out of the
+# fppinit/networkd window. On a single-core board that is not far enough: the
+# three services that decide when the box is actually usable -- fppd, apache2 and
+# php-fpm -- then have to share one core with all of it, and they lose. Measured
+# on a BBB, php-fpm starts in 2.3s cold on an idle box but took 20.9s at boot
+# (~18s of pure contention), and being the last of the three to come up it alone
+# sets the time-to-usable. Ordering the background services behind all three took
+# ~5s off that, and costs them nothing -- none is needed at boot by definition.
+#
+# Gate on $FPPPLATFORM, NOT on nproc: FPP_Install.sh runs inside a chroot during
+# image builds, where nproc reports the *build host's* core count, so an nproc
+# gate would silently never fire on a BBB image. FPPPLATFORM is derived from the
+# rootfs (bbb.io template + uname -m) and is correct in the chroot. AM335x is the
+# only single-core FPP target.
+#
+# Multi-core Pi and BeagleBone 64 deliberately keep the existing ordering: they
+# have spare cores, so the extra edges would buy nothing while making these units
+# hostage to a slow fppd start and delaying chrony's time sync for no gain.
+# php-fpm is referenced via $ACTUAL_PHPVER (8.4 on Debian 13, 8.3 on Ubuntu 24) --
+# hardcoding a version would name a unit that does not exist, and systemd ignores
+# an After= on an unknown unit silently, quietly dropping half the benefit.
+BG_DEFER_AFTER="fpp_postnetwork.service"
+SHELLINABOX_DEFER_AFTER="fppd.service"
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+    BG_DEFER_AFTER="fpp_postnetwork.service fppd.service apache2.service php${ACTUAL_PHPVER}-fpm.service"
+    SHELLINABOX_DEFER_AFTER="${BG_DEFER_AFTER}"
+fi
+
 # The exim4 MTA is only used for occasional outbound notification mail, never at
 # boot. Starting it early costs ~25s on a single-core SBC because it does DNS
 # lookups before the network/resolver is ready (so they time out), and it just
@@ -1439,9 +1469,9 @@ EOF
 # rather than ahead of it, and by then DNS actually resolves so it comes up fast.
 echo "FPP - Deferring exim4 startup until after the network is up"
 mkdir -p /etc/systemd/system/exim4.service.d
-cat > /etc/systemd/system/exim4.service.d/fpp-defer.conf <<'EOF'
+cat > /etc/systemd/system/exim4.service.d/fpp-defer.conf <<EOF
 [Unit]
-After=fpp_postnetwork.service
+After=${BG_DEFER_AFTER}
 EOF
 
 # exim4-base.service is the daily exim queue/db housekeeping oneshot, triggered
@@ -1458,9 +1488,9 @@ cat > /etc/systemd/system/exim4-base.timer.d/fpp.conf <<'EOF'
 Persistent=false
 EOF
 mkdir -p /etc/systemd/system/exim4-base.service.d
-cat > /etc/systemd/system/exim4-base.service.d/fpp-defer.conf <<'EOF'
+cat > /etc/systemd/system/exim4-base.service.d/fpp-defer.conf <<EOF
 [Unit]
-After=fpp_postnetwork.service
+After=${BG_DEFER_AFTER}
 EOF
 
 # chrony: fppinit's postNetwork now does a fast one-shot SNTP clock set, so the
@@ -1470,9 +1500,9 @@ EOF
 # single-core SBCs.
 echo "FPP - Deferring chrony until after the clock is set in postNetwork"
 mkdir -p /etc/systemd/system/chrony.service.d
-cat > /etc/systemd/system/chrony.service.d/fpp-defer.conf <<'EOF'
+cat > /etc/systemd/system/chrony.service.d/fpp-defer.conf <<EOF
 [Unit]
-After=fpp_postnetwork.service
+After=${BG_DEFER_AFTER}
 EOF
 
 # apache2 + php-fpm back the web UI, which isn't needed before fppd. On a
@@ -1499,9 +1529,9 @@ EOF
 # (It's a systemd-sysv-generator unit, but a drop-in still applies.)
 echo "FPP - Deferring shellinabox until after fppd"
 mkdir -p /etc/systemd/system/shellinabox.service.d
-cat > /etc/systemd/system/shellinabox.service.d/fpp-defer.conf <<'EOF'
+cat > /etc/systemd/system/shellinabox.service.d/fpp-defer.conf <<EOF
 [Unit]
-After=fppd.service
+After=${SHELLINABOX_DEFER_AFTER}
 EOF
 
 if $isimage; then

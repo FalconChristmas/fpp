@@ -966,11 +966,19 @@ void announceIPAddresses() {
     // chain we're retiring. Instead render to a WAV and play it through PipeWire
     // natively with pw-play. pw-play needs the runtime env vars to find FPP's
     // PipeWire instance at /run/pipewire-fpp. /run/fppd is created by setupAudio.
+    // Both halves are hard-capped. A PipeWire graph that cannot reach a working
+    // sink does not fail pw-play -- the node parks in error and the stream never
+    // starts *or* ends, so pw-play blocks in poll() indefinitely. Unbounded, that
+    // turns a cosmetic audio problem into an unbootable box. The real fix is
+    // upstream (FPP now stops WirePlumber from creating a second node fighting
+    // for the same PCM), but nothing about announcing an IP address is worth
+    // risking a hung boot service over, so cap it here too.
     const std::string announceWav = "/run/fppd/ip-announce.wav";
     std::string fliteCmd =
-        "/usr/bin/flite -voice awb -t \"" + announce + "\" -o " + announceWav +
+        "/usr/bin/timeout 60 /usr/bin/flite -voice awb -t \"" + announce + "\" -o " + announceWav +
         " && PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp"
-        " /usr/bin/pw-play " + announceWav;
+        " /usr/bin/timeout 60 /usr/bin/pw-play " +
+        announceWav;
     exec(fliteCmd);
     unlink(announceWav.c_str()); // don't leave the rendered WAV behind in /run
 }

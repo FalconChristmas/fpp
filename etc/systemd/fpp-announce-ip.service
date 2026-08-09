@@ -15,8 +15,20 @@ Description=FPP Announce IP Address
 After=fpp_postnetwork.service fpp-pipewire.service fpp-wireplumber.service fpp-pipewire-pulse.service
 
 [Service]
-Type=oneshot
+# Type=simple, NOT oneshot, so this is genuinely the fire-and-forget the comment
+# above claims. A oneshot job keeps multi-user.target (and thus graphical.target)
+# in "start waiting" until ExecStart exits -- so anything that stalls the
+# announcement stalls the whole boot transaction with no upper bound. That is not
+# theoretical: a duplicate WirePlumber ALSA node losing the race for the PCM left
+# pw-play blocked in poll(), and the box sat at 13 minutes of "boot" and climbing
+# until the process was killed by hand. Nothing is ordered after this unit, so
+# there is nothing that needs to wait for it to finish.
+Type=simple
 ExecStart=/opt/fpp/src/fppinit announceIP
+# Backstop for anything that gets past the per-command timeouts in announceIP():
+# the announcement is a few seconds of speech, so minutes means wedged. This only
+# reaps the stray process -- with Type=simple the boot has long since moved on.
+RuntimeMaxSec=180
 
 [Install]
 WantedBy=multi-user.target
