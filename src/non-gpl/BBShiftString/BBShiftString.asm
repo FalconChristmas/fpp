@@ -250,12 +250,15 @@ WAITDATA?:
 #endif
     LBBO    &pixelData, ringReadPtr, 0, DATABLOCKSIZE
     ADD     ringReadPtr, ringReadPtr, DATABLOCKSIZE
-    SBBO    &ringReadPtr, ringCtrl, 4, 4
-    // ringCtrl is also the first address past the ring
+    // ringCtrl is also the first address past the ring.  Wrap BEFORE
+    // publishing so the pointer the ARM sees is always a real ring address -
+    // publishing the one-past-the-end value makes an empty ring look occupied
+    // until the next block is consumed.
     QBNE    NOWRAP?, ringReadPtr, ringCtrl
     LDI     tmpReg1, SMEM_RING_CONFIG_OFFSET
     LBCO    &ringReadPtr, CONST_PRUDRAM, tmpReg1, 4
 NOWRAP?:
+    SBBO    &ringReadPtr, ringCtrl, 4, 4
     .endm
 
 UNPRELOAD_DATA .macro dataAddress
@@ -495,10 +498,14 @@ RINGCFGWAIT:
     LDI     clockBit, (CONTROL_BIT_BASE + CLOCK_PIN)
     LDI     latchBit, (CONTROL_BIT_BASE + LATCH_PIN)
 
-    // Make sure the data address and command are cleared at start
+    // Make sure the data address and command are cleared at start.  The
+    // command word has to be cleared explicitly: the 0x1 written above is a
+    // startup marker, and leaving it there makes the wait loop below read it
+    // back as a one byte frame and consume a ring block the ARM never wrote.
 	LDI 	r1, 0x0
 	LDI 	r2, 0x0
 	SBCO	&r1, CONST_PRUDRAM, 0, 8
+	SBCO	&r1, CONST_PRUDRAM, 8, 4
 
 	// Wait for the start condition from the main program to indicate
 	// that we have a rendered frame ready to clock out.  This also

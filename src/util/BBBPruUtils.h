@@ -124,7 +124,19 @@ public:
     // Producers that stop on a frame boundary can use this to know the PRU
     // has consumed exactly what was produced, so the two stay aligned in the
     // byte stream across a pause.
-    bool drained() const { return ctrl && ctrl[0] == ctrl[1]; }
+    // Compared modulo the ring size: a consumer that publishes its read
+    // pointer before wrapping reports "one past the end", which is the same
+    // position as the base.  Comparing raw would call that not-drained
+    // forever and wedge a producer waiting on it.
+    bool drained() const {
+        if (!ctrl) {
+            return false;
+        }
+        if (!pointerMode) {
+            return ctrl[0] == ctrl[1];
+        }
+        return ((ctrl[0] - basePru) % size) == ((ctrl[1] - basePru) % size);
+    }
 
     uint32_t size = 0;
 

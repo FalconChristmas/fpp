@@ -1165,7 +1165,15 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
 bool BBShiftStringOutput::pumpFrameData(FrameData& d) {
     if (!d.pumpActive) {
         uint32_t seq = d.pendingSeq.load(std::memory_order_acquire);
-        if (seq == d.pumpedSeq || d.pruData->command != 0) {
+        // The command word says how many blocks to render but not WHERE the
+        // frame starts - the firmware just reads on from wherever it stopped.
+        // So a command may only be issued when the ring is empty, which is the
+        // only moment the read pointer provably sits on this frame's first
+        // byte.  Without this the two channels drift apart by whatever was
+        // still buffered when the first command went out, and every frame
+        // after that renders that many bytes into the previous one.  Streaming
+        // ahead within a frame is unaffected (that is the loop below).
+        if (seq == d.pumpedSeq || d.pruData->command != 0 || !d.ring.drained()) {
             return false;
         }
         // snapshot the newest pending frame; retry if SendData raced us
