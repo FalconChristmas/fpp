@@ -1773,12 +1773,21 @@ void setupAudio() {
     // --- AES67 cleanup ---
     // AES67 is now managed by AES67Manager in fppd (GStreamer-based).
     // Remove any leftover PipeWire RTP module configs from the legacy Python approach.
-    unlink("/etc/pipewire/pipewire.conf.d/96-fpp-aes67-rtp.conf");
-    unlink("/etc/pipewire/pipewire.conf.d/96-fpp-aes67-sap.conf");
-    unlink("/etc/ptp4l-fpp.conf");
-    // Kill any leftover legacy daemons
-    exec("pkill -f fpp_aes67_sap 2>/dev/null || true");
-    exec("pkill -f 'ptp4l.*ptp4l-fpp' 2>/dev/null || true");
+    // Note the unlinks are all evaluated -- no short-circuiting -- so every stale
+    // file goes even if an earlier one was already absent.
+    bool hadLegacyAES67 = (unlink("/etc/pipewire/pipewire.conf.d/96-fpp-aes67-rtp.conf") == 0);
+    hadLegacyAES67 |= (unlink("/etc/pipewire/pipewire.conf.d/96-fpp-aes67-sap.conf") == 0);
+    hadLegacyAES67 |= (unlink("/etc/ptp4l-fpp.conf") == 0);
+    // Kill any leftover legacy daemons -- but only when this boot actually found
+    // legacy config to remove. The daemons were only ever launched from those
+    // files, so once they are gone there is nothing to kill, and two `pkill -f`
+    // scans (each a /bin/sh plus a walk of every /proc/*/cmdline) were costing
+    // real time on a single-core board on every boot, forever, on the critical
+    // path to fppd -- to hunt for processes belonging to a removed feature.
+    if (hadLegacyAES67) {
+        exec("pkill -f fpp_aes67_sap 2>/dev/null || true");
+        exec("pkill -f 'ptp4l.*ptp4l-fpp' 2>/dev/null || true");
+    }
 
     // PipeWire is already running (started at boot with the persisted configs),
     // so only restart it when the config actually changed. A restart is
