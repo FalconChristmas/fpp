@@ -770,6 +770,22 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 		labelTapToUndo: 'Tap to Close'
 	});
 
+	// The upload's byte transfer can hit 100% well before the server finishes
+	// writing/assembling the chunk and responds, which is what FilePond is
+	// actually still waiting on to consider the item done. Swap the label so
+	// that wait doesn't look like a stuck/frozen upload; FilePond overwrites
+	// this itself once the item actually completes (see 'processfile' below).
+	pond.on('processfileprogress', (file, progress) => {
+		if (progress < 1) {
+			return;
+		}
+		var itemEl = document.getElementById('filepond--item-' + file.id);
+		var mainEl = itemEl && itemEl.querySelector('.filepond--file-status-main');
+		var subEl = itemEl && itemEl.querySelector('.filepond--file-status-sub');
+		if (mainEl) mainEl.textContent = 'Saving to disk';
+		if (subEl) subEl.textContent = '';
+	});
+
 	pond.on('processfile', (error, file) => {
 		console.log('Process file: ' + file.filename);
 		moveFile(file.filename, function () {
