@@ -71,6 +71,14 @@
 .btn-outline-danger {
 	@include fpp-btn-outline-variant($danger, $white);
 }
+.pageContent .btn-outline-primary,
+.btn-outline-primary {
+	@include fpp-btn-outline-variant($primary, $white);
+}
+.pageContent .btn-outline-warning,
+.btn-outline-warning {
+	@include fpp-btn-outline-variant($warning, $black);
+}
 .btn-rounded,
 .disableButtons.btn-rounded,
 .btn-rounded,
