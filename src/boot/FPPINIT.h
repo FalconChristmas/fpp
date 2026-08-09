@@ -104,7 +104,10 @@ void consumePendingDhcpLeaseReset();
 void handleBootDelay();
 void handleTimeSyncWait();
 void checkWLANInterface();
-bool waitForInterfacesUp(int timeOut);
+// allowUsbRecovery: permit one USB re-enumeration of an adapter that came up
+// dead. Boot path only -- the networkd-dispatcher-driven tether callers must
+// never set it, since a reset causes the carrier change that re-invokes them.
+bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery = false);
 void announceIPAddresses();
 void maybeEnableTethering();
 void detectNetworkModules();

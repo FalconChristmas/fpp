@@ -371,7 +371,7 @@ int main(int argc, char* argv[]) {
                 removeDummyInterface();
                 checkWLANInterface();
                 removeDummyInterface();
-                waitForInterfacesUp(100); // wait for an IP (needed for the time-sync wait)
+                waitForInterfacesUp(100, true); // wait for an IP (needed for the time-sync wait); boot path may recover a dead USB adapter
                 // Time sync wait happens AFTER interfaces are up so NTP can sync
                 handleTimeSyncWait();
                 if (!FileExists("/etc/fpp/desktop")) {

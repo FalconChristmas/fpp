@@ -944,6 +944,21 @@ static std::string buildIPAnnounceString() {
 //
 // Returns true if anything was reset, so the caller knows to wait again.
 static bool reenumerateStalledUsbNetDevices() {
+    // At most one re-enumeration per boot, enforced across processes.
+    //
+    // A reset is itself a carrier transition, which is exactly what
+    // networkd-dispatcher reacts to by running `fppinit checkForTether`, which
+    // waits for interfaces again. Without this the reset feeds itself: observed
+    // on hardware firing 11 times in one boot, 10 of them from the dispatcher,
+    // roughly every 7 seconds -- which also defeats a human physically
+    // re-plugging the adapter, because it gets reset again seconds later. The
+    // opt-in argument on waitForInterfacesUp() keeps the dispatcher paths out of
+    // here in the first place; this marker is the belt to that pair of braces,
+    // since every invocation is a separate process and cannot share state.
+    const std::string marker = "/run/fppd/usb-net-reenumerated";
+    if (FileExists(marker)) {
+        return false;
+    }
     std::set<std::string> usbIds; // e.g. "1-1"; a device can back several interfaces
     for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net")) {
         std::string ifName = entry.path().filename();
@@ -970,6 +985,10 @@ static bool reenumerateStalledUsbNetDevices() {
             usbIds.insert(usbId);
         }
     }
+    if (!usbIds.empty()) {
+        exec("/bin/mkdir -p /run/fppd");
+        PutFileContents(marker, "1");
+    }
     bool reset = false;
     for (const auto& id : usbIds) {
         printf("FPP - Network adapter on USB %s never came up; re-enumerating it\n", id.c_str());
@@ -984,7 +1003,7 @@ static bool reenumerateStalledUsbNetDevices() {
     return reset;
 }
 
-bool waitForInterfacesUp(int timeOut) {
+bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery) {
     int count = 0;
     bool retriedUsb = false;
     // If no network interfaces have carrier/link, don't wait for IP address - likely no network available and no point waiting for DHCP/NTP
@@ -993,7 +1012,12 @@ bool waitForInterfacesUp(int timeOut) {
             // Before writing the network off, try re-enumerating a USB adapter
             // that enumerated but never came up -- exactly once, and only on this
             // failure path, so a healthy boot never pays for any of it.
-            if (!retriedUsb && reenumerateStalledUsbNetDevices()) {
+            //
+            // Opt-in, and only the boot path opts in. The tether callers below
+            // are driven by networkd-dispatcher on carrier changes, and a reset
+            // produces a carrier change, so letting them in here builds a loop
+            // that resets the adapter every few seconds indefinitely.
+            if (allowUsbRecovery && !retriedUsb && reenumerateStalledUsbNetDevices()) {
                 retriedUsb = true;
                 count = 0;
                 continue;
