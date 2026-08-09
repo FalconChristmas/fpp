@@ -106,7 +106,15 @@ public:
         // set and the subsequent requestEventFile() request comes up with no pull-up
         // bias and a bare consumer name. That's what made the OLED HAT's Down button
         // (P1-35) come up floating/unresponsive specifically on Pi5.
-        if (startsWith(mode, "gpio") && (resetMode == "a0" || resetMode == "a3")) {
+        //
+        // gpio_pu/gpio_pd must never take this shortcut, on any platform: it's a
+        // bare direction-only pinctrl call with no bias support, so a pin whose
+        // resetMode still has the "a0"/"a3" class default (i.e. nobody called
+        // setResetMode() for it) silently comes up floating despite the caller
+        // explicitly asking for a pull-up/down. Plain "gpio" has no bias to lose,
+        // so it's the only mode allowed to keep the fast path here.
+        if (startsWith(mode, "gpio") && mode != "gpio_pu" && mode != "gpio_pd" &&
+            (resetMode == "a0" || resetMode == "a3")) {
             char buf[256];
             snprintf(buf, 256, "/usr/bin/pinctrl set %d %s", gpio, directionOut ? "op" : "ip");
             system(buf);
