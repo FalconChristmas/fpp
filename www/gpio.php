@@ -540,6 +540,12 @@ if (is_dir($stringsDir)) {
                     return label ? (label + '=' + v) : v;
                 }).join(', ');
             }
+            // Multisync isn't part of args[] - it lives alongside it in the command
+            // JSON, with an empty host list meaning "every remote". Show it too so
+            // the card reflects everything the command editor captured.
+            if (cmd.multisyncCommand) {
+                s += ' · Multisync: ' + (cmd.multisyncHosts ? cmd.multisyncHosts : 'all remotes');
+            }
             return s;
         }
 
