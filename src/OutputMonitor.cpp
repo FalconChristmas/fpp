@@ -447,6 +447,7 @@ void OutputMonitor::EnableOutputs() {
         LogDebug(VB_CHANNELOUT, "Enabling outputs\n");
     }
     std::unique_lock<std::mutex> lock(gpioLock);
+    outputsEnabled = true;
     PinCapabilities::SetMultiPinValue(pullHighOutputPins, 1);
     PinCapabilities::SetMultiPinValue(pullLowOutputPins, 0);
     for (auto p : portPins) {
@@ -474,6 +475,7 @@ void OutputMonitor::DisableOutputs() {
         LogDebug(VB_CHANNELOUT, "Disabling outputs\n");
     }
     std::unique_lock<std::mutex> lock(gpioLock);
+    outputsEnabled = false;
     for (auto p : portPins) {
         if (p) {
             for (auto& r : p->receivers) {
@@ -549,6 +551,10 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
             GPIOManager::INSTANCE.RemoveGPIOCallback(pi->eFusePin);
             pi->eFusePin->releasePin();
         }
+        // reset() drops the pin pointers, so a retry still queued against this
+        // port would take processRetries() through a null eFusePin/enablePin.
+        // The timer stops itself once the list empties.
+        eFuseRetries.remove(pi);
         pi->reset();
     }
 }
@@ -695,6 +701,11 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         }
     }
     if (hasInfo) {
+        // AddOutputPin() above brought the enable pin up in whatever state the
+        // monitor is in, so the port bookkeeping has to agree with it.  It is
+        // what decides whether an eFuse trip on this port is reported as a
+        // trip or silently swallowed, and what the status API reports.
+        pi->receivers[0].isOn = outputsEnabled && pi->receivers[0].enabled;
         portPins[port] = pi;
     } else if (pinConfig.isMember("falconV5Listener")) {
         int mr = -1;
@@ -775,7 +786,10 @@ const PinCapabilities* OutputMonitor::AddOutputPin(const std::string& name, cons
         op.push_back(pc);
     }
     pc->configPin("gpio", true, "Enable-" + name);
-    pc->setValue(!highToEnable);
+    // Only pins that go on the enable lists follow the monitor's state; a port
+    // with nothing configured on it is left off even while output is running.
+    bool on = addToList && outputsEnabled;
+    pc->setValue(on ? highToEnable : !highToEnable);
     return pc;
 }
 

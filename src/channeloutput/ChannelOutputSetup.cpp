@@ -67,6 +67,19 @@ inline void addChannelOutput(FPPChannelOutputInstance* inst) {
     // the output thread walks this list under outputThreadLock; linking a node
     // in takes several stores, so publish them all before it can see any
     std::unique_lock<std::mutex> lock(outputThreadLock);
+    // An output added while the output thread is already up -- a config reload,
+    // which is what an xLights auto-upload does -- missed the StartingOutput()
+    // that thread made when it came up, and would otherwise run in the stopped
+    // state for as long as it lives: BBShiftPanel leaves its PRUs parked, so
+    // the panels stay dark, and PCA9685 never leaves sleep.  The thread sets
+    // ThreadIsRunning and makes its own StartingOutput() call under this same
+    // lock, so checking here cannot land in between the two and either miss
+    // the call or make it twice.
+    if (inst->output && ChannelOutputThreadIsRunning()) {
+        LogDebug(VB_CHANNELOUT, "Output thread already running, starting output on new %s\n",
+                 inst->output->GetOutputType().c_str());
+        inst->output->StartingOutput();
+    }
     inst->prev = lastChannelOutput.load();
     if (lastChannelOutput) {
         lastChannelOutput.load()->next = inst;
