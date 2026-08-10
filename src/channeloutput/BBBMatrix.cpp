@@ -432,8 +432,14 @@ int BBBMatrix::Init(Json::Value config) {
     }
     m_handler = PanelInterleaveHandler::createHandler(m_panelInterleave, m_panelWidth, m_panelHeight, m_panelScan);
     if (!m_handler) {
-        LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to create PanelInterleaveHandler for %s\n", m_panelInterleave.c_str());
-        WarningHolder::AddWarning("BBBMatrix: Unable to create PanelInterleaveHandler for " + m_panelInterleave);
+        // A panel that scans fewer rows than half its height folds the rest
+        // into extra columns, so it needs an interleave that matches; without
+        // one the pixels have nowhere to go.
+        LogErr(VB_CHANNELOUT, "BBBMatrix: Panel interleave '%s' cannot map a %dx%d 1/%d scan panel\n",
+               m_panelInterleave.c_str(), m_panelWidth, m_panelHeight, m_panelScan);
+        WarningHolder::AddWarning(50, "LED panel output disabled: panel interleave '" + m_panelInterleave +
+                                          "' is not valid for a " + std::to_string(m_panelWidth) + "x" + std::to_string(m_panelHeight) +
+                                          " 1/" + std::to_string(m_panelScan) + " scan panel.  Set the Panel Interleave to match the panel.");
         return 0;
     }
     m_channelCount = m_width * m_height * 3;

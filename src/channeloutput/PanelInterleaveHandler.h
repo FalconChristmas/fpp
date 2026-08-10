@@ -30,7 +30,13 @@ public:
         y = pair.second;
     }
 
+    // Returns nullptr if no handler can map the panel onto the caller's frame
+    // buffer; callers must check and disable the output rather than proceed.
     static PanelInterleaveHandler* createHandler(const std::string& type, int panelWidth, int panelHeight, int panelScan);
+
+    // true if every mapped pixel lands inside the frame the callers allocate
+    // for this geometry
+    bool mapFitsFrame() const;
 
 protected:
     PanelInterleaveHandler(int pw, int ph, int ps, int pi);
