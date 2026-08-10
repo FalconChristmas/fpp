@@ -496,7 +496,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         payload["trigger"] = "ui";
         std::string topic = "command/run";
         std::string payloadStr = SaveJsonToString(payload);
-        LogWarn(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
+        LogDebug(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
         Events::Publish(topic, payloadStr);
 
         return f->second->run(args);
@@ -649,7 +649,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             payload["trigger"] = "api-get";
             std::string topic = "command/run";
             std::string payloadStr = SaveJsonToString(payload);
-            LogWarn(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
+            LogDebug(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
             Events::Publish(topic, payloadStr);
 
             std::unique_ptr<Command::Result> r = f->second->run(args);
@@ -714,7 +714,7 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                 payload["trigger"] = "api-post";
                 std::string topic = "command/run";
                 std::string payloadStr = SaveJsonToString(payload);
-                LogWarn(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
+                LogDebug(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
                 Events::Publish(topic, payloadStr);
 
                 std::unique_ptr<Command::Result> r = f->second->run(args);
