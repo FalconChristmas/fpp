@@ -20,6 +20,7 @@
 #include "../Variables.h"
 #include "../common.h"
 #include "../log.h"
+#include "../Warnings.h"
 
 #include "../Events.h"
 
@@ -459,6 +460,15 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         return f->second->run(resolvedArgs);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
+    // A playlist "FPP Command" entry (or preset, GPIO binding, etc.) can
+    // reference a command that a plugin used to provide but no longer does
+    // (uninstalled/updated) - the failure above is otherwise silent: the
+    // caller just gets an ErrorResult and, for a playlist entry, that item is
+    // marked finished exactly like a successful one (PlaylistEntryCommand::
+    // StartPlaying() -> FinishPlay(), no distinct failure state), so a show
+    // can silently skip this step forever with nothing but a log line to
+    // show for it. Surface it as a real warning instead.
+    WarningHolder::AddWarningTimeout(900, 61, "No command found for \"" + command + "\" - it may have come from a plugin that is no longer installed or was updated");
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
 
@@ -502,6 +512,15 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         return f->second->run(args);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
+    // A playlist "FPP Command" entry (or preset, GPIO binding, etc.) can
+    // reference a command that a plugin used to provide but no longer does
+    // (uninstalled/updated) - the failure above is otherwise silent: the
+    // caller just gets an ErrorResult and, for a playlist entry, that item is
+    // marked finished exactly like a successful one (PlaylistEntryCommand::
+    // StartPlaying() -> FinishPlay(), no distinct failure state), so a show
+    // can silently skip this step forever with nothing but a log line to
+    // show for it. Surface it as a real warning instead.
+    WarningHolder::AddWarningTimeout(900, 61, "No command found for \"" + command + "\" - it may have come from a plugin that is no longer installed or was updated");
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
 std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
@@ -667,6 +686,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
                 return makeStringResponse("Timeout running command", 500, "text/plain");
             }
         }
+        WarningHolder::AddWarningTimeout(900, 61, "No command found for \"" + command + "\" - it may have come from a plugin that is no longer installed or was updated");
         return makeStringResponse("Not Found", 404, "text/plain");
     }
     return makeStringResponse("Not Found", 404, "text/plain");
@@ -732,6 +752,7 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                     return makeStringResponse("Timeout running command", 500, "text/plain");
                 }
             }
+            WarningHolder::AddWarningTimeout(900, 61, "No command found for \"" + command + "\" - it may have come from a plugin that is no longer installed or was updated");
         } else {
             std::string command(getRequestContent(req));
             LogDebug(VB_COMMAND, "Received command: \"%s\"\n", TruncateForLog(command, 2000).c_str());
