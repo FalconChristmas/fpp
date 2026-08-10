@@ -12919,7 +12919,17 @@ function startFppdWS () {
 		fppdWSReconnectTimer = null;
 	}
 	var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-	var url = proto + '//' + window.location.host + '/fppdws';
+	// Keep whatever path prefix the current page is under, rather than hardcoding
+	// root - needed so this still reaches the right fppd when viewed through
+	// FPP's built-in /proxy/<ip>/ relay (etc/apache2.site), which serves another
+	// FPP's pages under a path prefix instead of at the root. A plain '/fppdws'
+	// here connects to THIS Apache's own fppd instead of the one being proxied
+	// to; mod_proxy_html can't fix this the way it rewrites static markup,
+	// since this URL is only ever built at runtime in the browser. The /proxy/
+	// Directory block's own WebSocket-upgrade rule already relays a prefixed
+	// path (e.g. /proxy/<ip>/fppdws) correctly - it just never receives one.
+	var pathPrefix = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+	var url = proto + '//' + window.location.host + pathPrefix + 'fppdws';
 	try {
 		fppdWS = new WebSocket(url);
 	} catch (e) {
