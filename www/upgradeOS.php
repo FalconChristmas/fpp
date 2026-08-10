@@ -195,6 +195,29 @@ if (!file_exists($full_fppos_path)) {
     UpgradeLog('os-upgrade', $baseFile, "Image ready: $full_fppos_path (" . filesize($full_fppos_path) . " bytes)");
 }
 
+// The fppos upgrade re-flashes the running root filesystem in place
+// (upgradeOS-part2.sh rsync's bin etc lib opt root sbin usr var over the live
+// root, with the running OS still on disk). If free space is low, that copy can
+// die partway through and a half-written root cannot boot. Refuse to start
+// unless the root filesystem has room for the image plus the new OS being
+// written; the UI-side 200MB guard in about.php is not enforced server-side and
+// is too small for the actual copy.
+if ($applyUpdate) {
+    $imageSize = filesize($full_fppos_path);
+    $rootFree = disk_free_space("/");
+    $requiredFree = 2 * $imageSize;
+    if ($rootFree !== false && $rootFree < $requiredFree) {
+        UpgradeEchoLog('os-upgrade', $baseFile, sprintf(
+            "Not enough free space on the root filesystem to apply %s: %s bytes free, %s bytes required (2x the image size).\n",
+            $baseFile,
+            number_format($rootFree),
+            number_format($requiredFree)
+        ));
+        UpgradeLog('os-upgrade', $baseFile, "Aborting - insufficient free space on root filesystem");
+        $applyUpdate = false;
+    }
+}
+
 if ($applyUpdate) {
     logStage("Applying OS image");
 
