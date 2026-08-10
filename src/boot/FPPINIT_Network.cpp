@@ -11,6 +11,7 @@
  */
 
 #include <arpa/inet.h>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -929,45 +930,69 @@ static std::string buildIPAnnounceString() {
     return found ? announce : "";
 }
 
-// Force a USB re-enumeration of every USB-attached network adapter that has not
-// come up, by unbinding and rebinding it on the usb driver -- the software
-// equivalent of unplugging and replugging it.
+// A USB network adapter can enumerate, bind, and bring up its netdev, and then
+// have the USB link itself fail at the protocol layer: every register access
+// returns -EPROTO, the radio never associates, and the board runs perfectly
+// while being completely unreachable. Measured at roughly 5% of boots on one
+// adapter/controller pairing, and the box stays dark until someone walks out
+// to it.
 //
-// Some USB WiFi adapters lose their register interface at init and never
-// recover: observed with a Realtek 8822bu on an AM335x musb-hdrc controller,
-// where the driver binds and wlan0 duly appears, but every register access
-// returns -EPROTO. On one boot the kernel logged 65,956 of them against 1 on a
-// healthy boot, the radio never associated, and the board sat up-but-unreachable
-// until someone physically re-plugged the adapter -- which fixed it instantly.
-// Nothing in the kernel or in wpa_supplicant retries at the USB level, so
-// without this the only recovery is a walk out to the device.
+// Nothing recovers this in software. Tried on hardware and rejected: unbind and
+// rebind on the usb driver (re-enumerates, then fails its descriptor reads and
+// never returns), disabling and re-enabling the root-hub port (leaves it "not
+// attached"), and unbinding the host controller (brings the controller back but
+// not the device). Even a physical replug does not reliably fix it. A reboot
+// does, so that is what this does.
 //
-// Returns true if anything was reset, so the caller knows to wait again.
-static bool reenumerateStalledUsbNetDevices() {
-    // At most one re-enumeration per boot, enforced across processes.
-    //
-    // A reset is itself a carrier transition, which is exactly what
-    // networkd-dispatcher reacts to by running `fppinit checkForTether`, which
-    // waits for interfaces again. Without this the reset feeds itself: observed
-    // on hardware firing 11 times in one boot, 10 of them from the dispatcher,
-    // roughly every 7 seconds -- which also defeats a human physically
-    // re-plugging the adapter, because it gets reset again seconds later. The
-    // opt-in argument on waitForInterfacesUp() keeps the dispatcher paths out of
-    // here in the first place; this marker is the belt to that pair of braces,
-    // since every invocation is a separate process and cannot share state.
-    const std::string marker = "/run/fppd/usb-net-reenumerated";
-    if (FileExists(marker)) {
-        return false;
+// The whole difficulty is firing only for this failure and nothing else. All of
+// the following must hold:
+//   - a USB-attached network interface exists and has no carrier
+//   - no other interface has an address, so we are not already reachable
+//   - tethering is not the configured intent
+//   - this boot's kernel log shows USB protocol errors
+// That last condition is what separates a wedged adapter from an ordinary "no
+// access point in range", "wrong passphrase", or "AP is down" -- none of which a
+// reboot would fix, and all of which it would hide.
+static constexpr int USB_WEDGE_MAX_REBOOTS = 2;
+
+static std::string usbWedgeStateFile() {
+    // /var/tmp, not media/tmp (fppinit.service wipes that on stop, and this has
+    // to survive exactly the reboot it is counting) and not media/config (this
+    // is transient state, and a restored config backup must not carry a stale
+    // count into an unrelated box).
+    return "/var/tmp/fpp-usbnet-wedge-reboots";
+}
+
+// Attempts made recently. Deliberately expires: a box power-cycled hours later
+// should get a fresh pair of tries rather than inheriting a stale count.
+static int usbWedgeRebootCount() {
+    std::string c = GetFileContents(usbWedgeStateFile());
+    int count = 0;
+    long long when = 0;
+    if (c.empty() || sscanf(c.c_str(), "%d %lld", &count, &when) != 2) {
+        return 0;
     }
-    std::set<std::string> usbIds; // e.g. "1-1"; a device can back several interfaces
-    for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net")) {
+    if ((((long long)time(nullptr)) - when) > 3600) {
+        return 0;
+    }
+    return count;
+}
+
+static void clearUsbWedgeRebootCount() {
+    unlink(usbWedgeStateFile().c_str());
+}
+
+// USB port ids (e.g. "1-1.2") of USB-attached network interfaces that have no
+// carrier. An interface that has carrier is working even if DHCP has not
+// finished, and is none of our business.
+static std::set<std::string> carrierlessUsbNetDeviceIds() {
+    std::set<std::string> ids;
+    std::error_code dirEc;
+    for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net", dirEc)) {
         std::string ifName = entry.path().filename();
         if (ifName == "lo" || startsWith(ifName, "usb")) {
-            continue; // usb0/usb1 are the BBB's own gadget interfaces, not adapters
+            continue; // usb0/usb1 are the board's own gadget interfaces, not adapters
         }
-        // Only touch adapters that are actually failing. An interface that has
-        // carrier is working even if it has no IP yet (slow DHCP), and resetting
-        // it would be actively harmful.
         std::string carrier = GetFileContents(entry.path().string() + "/carrier");
         TrimWhiteSpace(carrier);
         if (carrier == "1") {
@@ -976,51 +1001,160 @@ static bool reenumerateStalledUsbNetDevices() {
         std::error_code ec;
         std::filesystem::path dev = std::filesystem::canonical(entry.path() / "device", ec);
         if (ec || dev.string().find("/usb") == std::string::npos) {
-            continue; // not USB-attached (onboard MAC); nothing to re-enumerate
+            continue; // onboard MAC; a reboot is not indicated for it
         }
-        // .../usb1/1-1/1-1:1.0 -- the interface node's parent is the USB device,
-        // and its name is the id the usb driver binds by.
+        // .../usb1/1-1/1-1.2/1-1.2:1.0 -- the interface node's parent is the USB
+        // device, and its name is the port id the kernel logs errors against.
         std::string usbId = dev.parent_path().filename();
         if (!usbId.empty() && usbId.find(':') == std::string::npos) {
-            usbIds.insert(usbId);
+            ids.insert(usbId);
         }
     }
-    if (!usbIds.empty()) {
-        exec("/bin/mkdir -p /run/fppd");
-        PutFileContents(marker, "1");
+    return ids;
+}
+
+static bool anyInterfaceHasAddress() {
+    struct ifaddrs* addrs = nullptr;
+    if (getifaddrs(&addrs) != 0) {
+        return true; // cannot tell: assume reachable and do not reboot
     }
-    bool reset = false;
+    bool found = false;
+    for (struct ifaddrs* ifa = addrs; ifa && !found; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr || ifa->ifa_addr->sa_family != AF_INET) {
+            continue;
+        }
+        std::string nm = ifa->ifa_name;
+        if (nm == "lo" || startsWith(nm, "usb")) {
+            continue;
+        }
+        uint32_t a = ntohl(((struct sockaddr_in*)ifa->ifa_addr)->sin_addr.s_addr);
+        if ((a >> 16) == 0xA9FE) {
+            continue; // 169.254/16 link-local is not a usable address
+        }
+        found = true;
+    }
+    freeifaddrs(addrs);
+    return found;
+}
+
+// The signature of a link that has failed below the driver: -EPROTO/-ETIMEDOUT
+// against the adapter's own USB port id.
+//
+// Anchoring on the port id is what keeps a flaky USB stick from rebooting a box
+// whose WiFi is merely out of range -- both conditions would otherwise be true
+// at once. Every line the kernel and the driver emit for this failure carries
+// the id, in both forms:
+//   usb 1-1.2: device descriptor read/64, error -71
+//   rtw88_8822bu 1-1.2:1.0: write register 0x5 failed with -71
+// Thresholded because one retried transfer is normal; a real wedge produces
+// thousands.
+static bool kernelLogShowsUsbProtocolFailure(const std::set<std::string>& usbIds) {
+    if (usbIds.empty()) {
+        return false;
+    }
+    std::string ids;
     for (const auto& id : usbIds) {
-        printf("FPP - Network adapter on USB %s never came up; re-enumerating it\n", id.c_str());
-        // Shell redirection rather than PutFileContents: the latter flocks the
-        // target and then runs SetFilePerms on it, neither of which makes sense
-        // for a sysfs attribute. This is the exact form verified on hardware.
-        exec("/bin/echo " + id + " > /sys/bus/usb/drivers/usb/unbind 2>/dev/null");
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-        exec("/bin/echo " + id + " > /sys/bus/usb/drivers/usb/bind 2>/dev/null");
-        reset = true;
+        if (!ids.empty()) {
+            ids += "|";
+        }
+        for (char c : id) { // the ids contain '.', which must not be a wildcard
+            if (c == '.') {
+                ids += "\\.";
+            } else {
+                ids += c;
+            }
+        }
     }
-    return reset;
+    std::string out = execAndReturn(
+        "/bin/dmesg 2>/dev/null | /bin/grep -cE '(" + ids + "):.*(error -(71|110)" +
+        "|failed with -(71|110)|fail, status: -(71|110))'");
+    TrimWhiteSpace(out);
+    return atoi(out.c_str()) >= 4;
+}
+
+// Set once a reboot has been asked for, so the rest of postNetwork can stop
+// doing work for a boot that is about to be thrown away.
+static std::atomic<bool> s_usbWedgeRebootPending{false};
+
+bool usbWedgeRebootPending() {
+    return s_usbWedgeRebootPending.load();
+}
+
+// Returns true if a reboot was requested. Does NOT block waiting for it.
+//
+// fppd's start depends on fpp_postnetwork, so anything that stalls this service
+// past its TimeoutStartSec takes fppd down with it. /usr/sbin/reboot is a
+// symlink to systemctl, which asks logind over D-Bus to set a wall message;
+// on an early-boot box that activation can time out. Calling it synchronously
+// hung this service for 37+ seconds until systemd killed it -- the reboot never
+// happened AND fppd never started, which is worse than the wedge being fixed.
+// So: go straight to the system manager (no logind), don't wait for the job,
+// and background the call so it cannot stall this thread no matter what.
+static bool rebootIfUsbNetWedged() {
+    if (getRawSettingInt("AutoRebootOnUSBNetworkFailure", 1) == 0) {
+        return false;
+    }
+    if (getRawSettingInt("EnableTethering", 0) == 1) {
+        return false; // no upstream network is expected; being without one is the plan
+    }
+    std::set<std::string> stalled = carrierlessUsbNetDeviceIds();
+    if (stalled.empty()) {
+        return false; // no USB adapter in trouble, so a reboot cannot be the answer
+    }
+    if (anyInterfaceHasAddress()) {
+        return false; // reachable some other way; never reboot a box that is fine
+    }
+    if (!kernelLogShowsUsbProtocolFailure(stalled)) {
+        printf("FPP - USB network adapter has no carrier, but its USB link is healthy "
+               "(no access point in range?); not rebooting\n");
+        return false;
+    }
+    int count = usbWedgeRebootCount();
+    if (count >= USB_WEDGE_MAX_REBOOTS) {
+        printf("FPP - USB network adapter is wedged, but %d reboots have not cleared it; "
+               "staying up rather than looping\n",
+               count);
+        return false;
+    }
+    printf("FPP - USB network adapter is wedged: USB protocol errors, no carrier, and no "
+           "other network. Rebooting (attempt %d of %d).\n",
+           count + 1, USB_WEDGE_MAX_REBOOTS);
+    PutFileContents(usbWedgeStateFile(),
+                    std::to_string(count + 1) + " " + std::to_string((long long)time(nullptr)));
+    sync();
+    s_usbWedgeRebootPending = true;
+    // Forced reboot, not a graceful one. The condition being recovered from is a
+    // wedged USB stack, which is precisely what stops a graceful shutdown from
+    // finishing: tasks block in uninterruptible sleep on the dead device, so
+    // neither SIGTERM nor SIGKILL clears them. Measured on hardware, an ordinary
+    // "systemctl start reboot.target" began stopping units 8s after this point
+    // and then sat there for 37 minutes, the controller logging
+    // "musb-hdrc: VBUS_ERROR in a_wait_bcon" while it churned -- the board was
+    // unreachable that whole time, which is the outage this is supposed to end.
+    // sync() above is what makes skipping the unmounts acceptable; the sysrq
+    // fallback covers systemctl itself being unable to run.
+    execbg("( /bin/systemctl --force --force reboot"
+           " || { echo 1 > /proc/sys/kernel/sysrq; echo b > /proc/sysrq-trigger; } ) &");
+    return true;
 }
 
 bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery) {
     int count = 0;
-    bool retriedUsb = false;
     // If no network interfaces have carrier/link, don't wait for IP address - likely no network available and no point waiting for DHCP/NTP
     while (!hasNetworkInterfaceForNTP()) {
         if (count >= (timeOut / 2)) { // spend half the timeOut waiting for interfaces to have link, then give up
-            // Before writing the network off, try re-enumerating a USB adapter
-            // that enumerated but never came up -- exactly once, and only on this
-            // failure path, so a healthy boot never pays for any of it.
+            // Before writing the network off, check for a USB adapter whose USB
+            // link has died, which only a reboot clears.
             //
             // Opt-in, and only the boot path opts in. The tether callers below
-            // are driven by networkd-dispatcher on carrier changes, and a reset
-            // produces a carrier change, so letting them in here builds a loop
-            // that resets the adapter every few seconds indefinitely.
-            if (allowUsbRecovery && !retriedUsb && reenumerateStalledUsbNetDevices()) {
-                retriedUsb = true;
-                count = 0;
-                continue;
+            // are driven by networkd-dispatcher on carrier changes, and rebooting
+            // from a carrier-change handler is a boot loop with extra steps.
+            if (allowUsbRecovery && rebootIfUsbNetWedged()) {
+                // Reboot is queued. Return at once and let the caller skip the
+                // rest of postNetwork: this service is on fppd's dependency
+                // chain, so overrunning its start timeout here would fail fppd
+                // for the few seconds of life this boot has left.
+                return false;
             }
             printf("FPP - No network interfaces with link detected after waiting for %d ms, skipping IP wait\n", timeOut * 200);
             return false;
@@ -1042,6 +1176,10 @@ bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery) {
         return false;
     }
     printf("FPP - Waited for %0.1f seconds for IP address\n", (((float)count) * 0.2f));
+    // Network came up, so whatever the last wedge was, it is over. Clearing here
+    // rather than letting the count expire keeps the next occurrence entitled to
+    // its full pair of attempts.
+    clearUsbWedgeRebootCount();
     return true;
 }
 

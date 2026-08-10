@@ -385,7 +385,8 @@
 		"wifiDomainGroup": {
 			"description": "WIFI Domain",
 			"settings": [
-				"WifiRegulatoryDomain"
+				"WifiRegulatoryDomain",
+				"AutoRebootOnUSBNetworkFailure"
 			]
 		},
 		"advNetworkSettingsGroup": {
@@ -490,6 +491,19 @@
 				"Forwarding": 1,
 				"Masquerading/NAT": 2
 			}
+		},
+		"AutoRebootOnUSBNetworkFailure": {
+			"name": "AutoRebootOnUSBNetworkFailure",
+			"description": "Reboot If USB WiFi Adapter Fails",
+			"tip": "Some USB WiFi adapters intermittently lose their USB connection while booting. The adapter is detected and the interface appears, but the radio never connects, leaving FPP running normally while unreachable over the network. When FPP sees this specific failure it reboots to recover, at most twice before giving up so it can never boot loop. A reboot is only triggered when USB errors are present AND no other connection has an IP address, so an access point being out of range or turned off will not cause one.",
+			"gatherStats": true,
+			"level": 1,
+			"restart": 0,
+			"reboot": 0,
+			"checkedValue": "1",
+			"uncheckedValue": "0",
+			"default": "1",
+			"type": "checkbox"
 		},
 		"WifiRegulatoryDomain": {
 			"name": "WifiRegulatoryDomain",

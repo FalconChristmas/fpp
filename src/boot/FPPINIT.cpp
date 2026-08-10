@@ -372,14 +372,20 @@ int main(int argc, char* argv[]) {
                 checkWLANInterface();
                 removeDummyInterface();
                 waitForInterfacesUp(100, true); // wait for an IP (needed for the time-sync wait); boot path may recover a dead USB adapter
-                // Interfaces exist and are associated by here, which is what iw
-                // needs; doing it earlier would miss an adapter that enumerated late.
-                disableWLANPowerManagement();
-                // Time sync wait happens AFTER interfaces are up so NTP can sync
-                handleTimeSyncWait();
-                if (!FileExists("/etc/fpp/desktop")) {
-                    maybeEnableTethering();
-                    detectNetworkModules();
+                // A wedged USB adapter has queued a reboot. Everything below is
+                // setup for a boot that is about to end, and this service is on
+                // fppd's dependency chain -- overrunning its start timeout here
+                // is what fails fppd, so finish immediately instead.
+                if (!usbWedgeRebootPending()) {
+                    // Interfaces exist and are associated by here, which is what iw
+                    // needs; doing it earlier would miss an adapter that enumerated late.
+                    disableWLANPowerManagement();
+                    // Time sync wait happens AFTER interfaces are up so NTP can sync
+                    handleTimeSyncWait();
+                    if (!FileExists("/etc/fpp/desktop")) {
+                        maybeEnableTethering();
+                        detectNetworkModules();
+                    }
                 }
             } catch (const std::exception& e) {
                 printf("FPP - network setup failed: %s\n", e.what());
