@@ -3029,6 +3029,7 @@ table#fppSystemsTable > thead > tr:last-child > td {
 
 .commandPresetInvalidCommand .cmdTmplCommand {
 	background-color: var(--bs-danger-bg-subtle) !important;
+	color: var(--bs-danger-text-emphasis) !important;
 }
 
 .commandPresetInvalidWarning {
