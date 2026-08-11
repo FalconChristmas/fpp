@@ -136,12 +136,18 @@
             });
         }
         function StopPixelCount() {
-            $.get("api/fppd/ports/stop");
+            // keepalive so the request survives the page going away.  A normal
+            // XHR started from an unload handler is cancelled with the rest of
+            // the document's requests by some browsers (Firefox) before it is
+            // ever sent, which would leave the player stuck in test mode.
+            fetch("api/fppd/ports/stop", { keepalive: true }).catch(function () { });
         }
 
         function SetupPage() {
             setInterval(StartMonitoring, 1000);
-            window.addEventListener('beforeunload', StopPixelCount, false);
+            // pagehide, not beforeunload - it also covers the cases where the
+            // page is put in the back/forward cache or the tab is discarded
+            window.addEventListener('pagehide', StopPixelCount, false);
         }
     </script>
 
