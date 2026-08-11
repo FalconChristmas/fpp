@@ -3654,6 +3654,7 @@
                                         echo "<option value='3'>FM6363C</option>";
                                         echo "<option value='4'>FM6353 / ICN2153</option>";
                                         echo "<option value='5'>FM6373 / DP32019B</option>";
+                                        echo "<option value='6'>DP3364S</option>";
                                     }
                                     ?>
                                 </select>

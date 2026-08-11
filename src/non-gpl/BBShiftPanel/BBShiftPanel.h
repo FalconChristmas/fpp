@@ -150,6 +150,7 @@ private:
     void setupPWMRegisters();
     void setupGCLKConfig();
     void writeFM6373SeqWord(int idx);
+    void writeDP3364SeqWord(int idx);
 
     std::vector<BBShiftPanelOutput*> m_members;
     // members that have arrived in this frame's PrepData; the shared bit-plane
