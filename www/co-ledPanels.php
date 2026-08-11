@@ -457,6 +457,7 @@
         ["LEDPanelsRowAddressType", "panelRowAddressType"],
         ["LEDPanelsType", "panelType"],
         ["LEDPanelInterleave", "panelInterleave"],
+        ["LEDPanelDataLayout", "panelDataLayout"],
         ["LEDPanelsOutputByRow", "panelOutputOrder", val => val ? 1 : 0],
         ["LEDPanelsOutputBlankRow", "panelOutputBlankRow", val => val ? 1 : 0],
         ["LEDPanelUIFrontView", "LEDPanelUIFrontView"],
@@ -661,7 +662,7 @@
     const SHARED_CAPE_CONFIG_KEYS = [
         'ledPanelsSize', 'panelWidth', 'panelHeight', 'panelScan', 'panelColorDepth',
         'panelRowAddressType', 'panelType', 'panelOutputOrder', 'panelOutputBlankRow',
-        'panelInterleave', 'wiringPinout', 'LEDPanelAddressing', 'gpioSlowdown', 'cpuPWM',
+        'panelInterleave', 'panelDataLayout', 'wiringPinout', 'LEDPanelAddressing', 'gpioSlowdown', 'cpuPWM',
         'colorOrder',
         // cape capabilities, not panel settings, but equally not per matrix -
         // a new matrix must know the real output count for the Auto Layout
@@ -924,7 +925,19 @@
             console.trace("checkInterleave called for panelMatrixID: " + panelMatrixID);
         }
         let mp = channelOutputsLookup.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
-        if ((mp.panelScan * 2) === mp.panelHeight) {
+        // Full height panels address every row on their own, so the two RGB
+        // lanes split a row rather than the panel: they need a data layout
+        // and cannot be interleaved.  Everything else is the reverse.
+        const fullHeight = (mp.panelScan === mp.panelHeight);
+        if (fullHeight) {
+            $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayout`).show();
+            $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayoutLabel`).show();
+        } else {
+            $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayout`).hide();
+            $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayoutLabel`).hide();
+            $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayout`).val(0);
+        }
+        if (fullHeight || (mp.panelScan * 2) === mp.panelHeight) {
             $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
             $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
         } else if (!(($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "ColorLight5a75") || ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix"))) {
@@ -1490,6 +1503,10 @@
         if (matrixDiv.find('.LEDPanelInterleave').length > 0) {
             var rat = matrixDiv.find('.LEDPanelInterleave').val();
             config.panelInterleave = rat;
+        }
+
+        if (matrixDiv.find('.LEDPanelDataLayout').length > 0) {
+            config.panelDataLayout = parseInt(matrixDiv.find('.LEDPanelDataLayout').val() || 0);
         }
         config.panels = [];
 
@@ -2386,6 +2403,10 @@
                 html += "<option value='64x64x32'>64x64 1/32 Scan</option>"
                 html += "<option value='128x64x16'>128x64 1/16 Scan</option>"
                 html += "<option value='128x64x32'>128x64 1/32 Scan</option>"
+                // full height panels: every row has its own scan address, so
+                // they need a Panel Data Layout other than Standard
+                html += "<option value='64x64x64'>64x64 1/64 Scan</option>"
+                html += "<option value='128x64x64'>128x64 1/64 Scan</option>"
             <? } ?>
             html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
             html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
@@ -3229,6 +3250,10 @@
                 mp.ledPanelsInterleave = value;
                 $(`#${matrixDivName} .LEDPanelInterleave`).val(value);
                 LEDPanelLayoutChanged();
+            } else if (name == "panelDataLayout") {
+                mp.panelDataLayout = value;
+                $(`#${matrixDivName} .LEDPanelDataLayout`).val(value);
+                LEDPanelLayoutChanged();
             } else if (name == "panelColorOrder") {
                 mp.colorOrder = value;
                 $(`#${matrixDivName} .LEDPanelsColorOrder`).val(value);
@@ -3686,6 +3711,17 @@
                         <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <? printLEDPanelInterleaveSelect(); ?>
                         </div>
+                        <? if ($panelCapesDriver == "BBShiftPanel") { ?>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                    class='LEDPanelDataLayoutLabel'><b>Panel Data Layout:</b></span></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4">
+                                <select class='form-select LEDPanelDataLayout' onchange="LEDPanelLayoutChanged();">
+                                    <option value='0' selected>Standard (Top/Bottom)</option>
+                                    <option value='1'>Full Height - Left on RGB2</option>
+                                    <option value='2'>Full Height - Left on RGB1</option>
+                                </select>
+                            </div>
+                        <? } ?>
                     </div>
 
                     <div class="row">

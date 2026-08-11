@@ -135,6 +135,36 @@ static_assert(sizeof(FM6373_SEQ_R) == FM6373_SEQ_LEN * sizeof(uint16_t));
 static_assert(sizeof(FM6373_SEQ_G) == FM6373_SEQ_LEN * sizeof(uint16_t));
 static_assert(sizeof(FM6373_SEQ_B) == FM6373_SEQ_LEN * sizeof(uint16_t));
 
+// FM6373 registers for a full height 1/64 scan panel, from the same project
+// (fm6373.profiles, fm6373_regtype2, a 128x64 capture).  Nine registers differ
+// from the 1/32 table above beyond the scan count, and the whole 0x70/0xf0
+// tail block moves to a repeated 0x54 - which is why patching only the scan
+// count does not turn a 1/32 table into a working 1/64 one.
+static constexpr uint16_t FM6373_64S_SEQ_R[] = {
+    0x0000, 0x0100, 0x023f, 0x033f, 0x0402, 0x0508, 0x0602, 0x0710,
+    0x0810, 0x0900, 0x0a00, 0x0b00, 0x0c01, 0x0d03, 0x0e02, 0x0f11,
+    0x10c2, 0x1121, 0x1201, 0x1300, 0x1400, 0x1500, 0x1600, 0x17f0,
+    0x181f, 0x1900, 0x1a1f, 0x1b10, 0x1cbe, 0x1d0e, 0x1e42, 0x1f24,
+    0x2008, 0x2101, 0x221c, 0x5400, 0x5400, 0x5400, 0x5400, 0x5400,
+    0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x2300
+};
+static constexpr uint16_t FM6373_64S_SEQ_G[] = {
+    0x0000, 0x0100, 0x023f, 0x033f, 0x0402, 0x0508, 0x0602, 0x0710,
+    0x0810, 0x0900, 0x0a00, 0x0b00, 0x0c08, 0x0d03, 0x0e04, 0x0f11,
+    0x10c2, 0x1121, 0x1201, 0x1300, 0x1400, 0x1500, 0x1600, 0x17f0,
+    0x181f, 0x1950, 0x1a1f, 0x1b10, 0x1cbe, 0x1d0e, 0x1e46, 0x1f20,
+    0x2008, 0x2101, 0x221c, 0x5400, 0x5400, 0x5400, 0x5400, 0x5400,
+    0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x2300
+};
+static constexpr uint16_t FM6373_64S_SEQ_B[] = {
+    0x0000, 0x0100, 0x023f, 0x033f, 0x0402, 0x0508, 0x0602, 0x0710,
+    0x0810, 0x0900, 0x0a00, 0x0b00, 0x0c08, 0x0d01, 0x0e04, 0x0f11,
+    0x10c2, 0x1121, 0x1201, 0x1300, 0x1400, 0x1500, 0x1600, 0x17f0,
+    0x182f, 0x1900, 0x1a1f, 0x1b10, 0x1cbe, 0x1d0e, 0x1e48, 0x1f20,
+    0x2010, 0x2101, 0x221c, 0x5400, 0x5400, 0x5400, 0x5400, 0x5400,
+    0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x2300
+};
+
 // ICND1065L config registers.  From kingdo9/rpi-rgb-led-matrix_pwm_experiment
 // (lib/spwm/registertest/data/icnd1065l.profiles, icnd1065l_regtype1 - the
 // project's built-in default, captured from a 1/43 scan panel).  The chip
@@ -184,6 +214,17 @@ constexpr int SM16380SH_SEQ_LEN = 32;
 // 3 rotating through the chip's config sequence one word per frame.  They
 // differ only in the payload, whether the middle (11 clock) LAT burst is sent,
 // how many slots follow, and which register carries the scan count.
+// A capture taken at one scan rate.  Registers other than the scan count
+// change with the scan rate on these chips, so a table is only really valid
+// for the geometry it came from; where a second capture is known the closest
+// one is used instead of stretching the default.
+struct PWMChipSeqVariant {
+    int scan;
+    const uint16_t* r;
+    const uint16_t* g;
+    const uint16_t* b;
+};
+
 struct PWMChipSeq {
     const uint16_t* r;
     const uint16_t* g;
@@ -193,6 +234,9 @@ struct PWMChipSeq {
     uint16_t extraWord; // that word; only read when slots == 6
     bool midLatch;      // send the 11 clock LAT burst
     uint8_t scanReg;    // register address holding the scan row count
+    int defaultScan;    // scan rate the tables above were captured at
+    const PWMChipSeqVariant* variants;
+    int variantCount;
 };
 
 static const PWMChipSeq* pwmChipSeqFor(int addressingMode) {
@@ -200,14 +244,20 @@ static const PWMChipSeq* pwmChipSeqFor(int addressingMode) {
     // low 6 bits of this register and leaves the upper 2 bits as a chip
     // constant, so the patch preserves whatever the table above carries there
     // (ICND1065L sets bit 6; the other two leave it clear).
+    static const PWMChipSeqVariant FM6373_VARIANTS[] = {
+        { 64, FM6373_64S_SEQ_R, FM6373_64S_SEQ_G, FM6373_64S_SEQ_B },
+    };
     static const PWMChipSeq FM6373_SEQ = {
-        FM6373_SEQ_R, FM6373_SEQ_G, FM6373_SEQ_B, FM6373_SEQ_LEN, 5, 0, true, 0x02
+        FM6373_SEQ_R, FM6373_SEQ_G, FM6373_SEQ_B, FM6373_SEQ_LEN, 5, 0, true, 0x02,
+        32, FM6373_VARIANTS, 1
     };
     static const PWMChipSeq ICND1065L_SEQ = {
-        ICND1065L_SEQ_R, ICND1065L_SEQ_G, ICND1065L_SEQ_B, ICND1065L_SEQ_LEN, 5, 0, true, 0x02
+        ICND1065L_SEQ_R, ICND1065L_SEQ_G, ICND1065L_SEQ_B, ICND1065L_SEQ_LEN, 5, 0, true, 0x02,
+        43, nullptr, 0
     };
     static const PWMChipSeq SM16380SH_SEQ = {
-        SM16380SH_SEQ_R, SM16380SH_SEQ_G, SM16380SH_SEQ_B, SM16380SH_SEQ_LEN, 6, 0xF003, false, 0x02
+        SM16380SH_SEQ_R, SM16380SH_SEQ_G, SM16380SH_SEQ_B, SM16380SH_SEQ_LEN, 6, 0xF003, false, 0x02,
+        32, nullptr, 0
     };
     switch (addressingMode) {
     case ADDRESSING_MODE_FM6373:
@@ -793,6 +843,27 @@ BBShiftPanelManager::PanelParams BBShiftPanelManager::parsePanelParams(const Jso
         //  default scan is 1/2 the height of the panel
         p.panelScan = p.panelHeight / 2;
     }
+
+    // Full height data layouts.  Only meaningful when every row has its own
+    // scan address, because that is what frees the second RGB lane to carry
+    // the other half of the same row instead of the other half of the panel.
+    p.dataLayout = config["panelDataLayout"].asInt();
+    if (p.dataLayout) {
+        if (p.panelScan != p.panelHeight) {
+            LogErr(VB_CHANNELOUT, "BBShiftPanel: full height data layout needs scan (%d) to equal panel height (%d); using the standard layout\n",
+                   p.panelScan, p.panelHeight);
+            WarningHolder::AddWarning("LED panel data layout requires the scan rate to equal the panel height");
+            p.dataLayout = 0;
+        } else if (p.panelWidth & 1) {
+            LogErr(VB_CHANNELOUT, "BBShiftPanel: full height data layout needs an even panel width (%d); using the standard layout\n",
+                   p.panelWidth);
+            p.dataLayout = 0;
+        } else if (!p.panelInterleave.empty()) {
+            LogErr(VB_CHANNELOUT, "BBShiftPanel: full height data layout cannot be combined with panel interleave; using the standard layout\n");
+            WarningHolder::AddWarning("LED panel data layout cannot be combined with panel interleave");
+            p.dataLayout = 0;
+        }
+    }
     return p;
 }
 
@@ -859,6 +930,7 @@ bool BBShiftPanelManager::adoptPanelParams(const PanelParams& p) {
     m_panelInterleave = p.panelInterleave;
     m_addressingMode = p.addressingMode;
     m_panelType = p.panelType;
+    m_dataLayout = p.dataLayout;
     m_pwmDirectRow = p.pwmDirectRow;
     m_colorDepth = p.colorDepth;
     m_outputByRow = p.outputByRow;
@@ -897,6 +969,8 @@ bool BBShiftPanelManager::checkCompatible(const PanelParams& p) const {
         bad = "panel interleave";
     } else if (p.addressingMode != m_addressingMode || p.panelType != m_panelType) {
         bad = "panel type / row addressing";
+    } else if (p.dataLayout != m_dataLayout) {
+        bad = "panel data layout";
     } else if (p.colorDepth != m_colorDepth) {
         bad = "color depth";
     } else if (p.outputByRow != m_outputByRow || p.outputBlankData != m_outputBlankData) {
@@ -981,6 +1055,17 @@ void BBShiftPanelManager::computeGeometry() {
         }
     }
     if (!anyPanels) {
+        return;
+    }
+
+    if (m_dataLayout) {
+        // Full height: every row has its own scan address, and the two RGB
+        // lanes split that row down the middle rather than splitting the
+        // panel top from bottom.  Interleave is rejected in parsePanelParams
+        // for this layout, so there is no handler to consult.
+        numRows = m_panelHeight;
+        maxRowLen = m_panelWidth / 2;
+        rowLen = maxRowLen * m_longestChain;
         return;
     }
 
@@ -1826,6 +1911,19 @@ void BBShiftPanelManager::setupPWMRegisters() {
         idx = outputRegData(idx, odata, 0x0155, 0x0155, 0x0155, m_numOutputSlots);
         pru->memcpyToPRU((uint8_t*)&pruData->registers[0], &odata[0], idx);
 
+        bool haveScan = ((int)numRows == seq->defaultScan);
+        for (int v = 0; v < seq->variantCount && !haveScan; v++) {
+            haveScan = (seq->variants[v].scan == (int)numRows);
+        }
+        if (!haveScan) {
+            // These tables are per-capture, not per-chip: on this family the
+            // current, subfield and tail registers move with the scan rate as
+            // well as the scan count itself, so an unmatched rate is a
+            // starting point rather than a correct configuration.
+            LogWarn(VB_CHANNELOUT, "BBShiftPanel: no register table captured at 1/%u scan for this panel type; using the 1/%d table with only the scan count adjusted\n",
+                    numRows, seq->defaultScan);
+        }
+
         setupGCLKConfig();
         pruData->numBlocks = rowLen / 16;
         pruData->numRows = numRows;
@@ -1937,9 +2035,20 @@ void BBShiftPanelManager::writeFM6373SeqWord(int idx) {
     // previous REGISTERS upload completed before that DATA was dispatched)
     // and from the serialized init loop in setupPWMRegisters.
     const PWMChipSeq* seq = pwmChipSeqFor(m_addressingMode);
-    uint16_t rw = seq->r[idx];
-    uint16_t gw = seq->g[idx];
-    uint16_t bw = seq->b[idx];
+    const uint16_t* sr = seq->r;
+    const uint16_t* sg = seq->g;
+    const uint16_t* sb = seq->b;
+    for (int v = 0; v < seq->variantCount; v++) {
+        if (seq->variants[v].scan == (int)numRows) {
+            sr = seq->variants[v].r;
+            sg = seq->variants[v].g;
+            sb = seq->variants[v].b;
+            break;
+        }
+    }
+    uint16_t rw = sr[idx];
+    uint16_t gw = sg[idx];
+    uint16_t bw = sb[idx];
     if ((rw >> 8) == seq->scanReg) {
         // the scan row count lives in the low 6 bits; the upper 2 are a chip
         // constant carried over from the table (DMD_STM32 patches the same
@@ -2273,6 +2382,44 @@ bool BBShiftPanelOutput::buildScatterMap() {
             // simply shifts the leading pixels off the end of its own chain
             int chain = mgr.m_longestChain - c - 1;
             int xOff = chain * maxRowLen;
+
+            if (mgr.m_dataLayout) {
+                // Full height layout: lane 1 and lane 2 carry the two halves
+                // of the SAME row.  Layout 2 puts the left half on lane 1,
+                // layout 1 swaps them.  Every row is its own scan address, so
+                // yOut is just y and the row is half a panel wide.
+                const int half = m_panelWidth / 2;
+                const int leftLane1 = (mgr.m_dataLayout == 2);
+                for (int y = 0; y < m_panelHeight; y++) {
+                    int yw = y * m_panelWidth * 3;
+                    for (int x = 0; x < half; ++x) {
+                        int lane1x = leftLane1 ? x : x + half;
+                        int lane2x = leftLane1 ? x + half : x;
+                        uint32_t r1 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane1x * 3];
+                        uint32_t g1 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane1x * 3 + 1];
+                        uint32_t b1 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane1x * 3 + 2];
+
+                        uint32_t r2 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane2x * 3];
+                        uint32_t g2 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane2x * 3 + 1];
+                        uint32_t b2 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane2x * 3 + 2];
+
+                        int yOut = y;
+                        int xOut = x + xOff;
+                        if (mgr.isPWMPanel()) {
+                            int xo2 = xOut % 16;
+                            int xo3 = xOut / 16;
+                            xOut = xo2 * (rowLen / 16) + xo3;
+                        }
+                        channelOffsets[r1] = yOut * totalRowLen + xOut * pixelStride + outputIdx;
+                        channelOffsets[g1] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 8;
+                        channelOffsets[b1] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 16;
+                        channelOffsets[r2] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 24;
+                        channelOffsets[g2] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 32;
+                        channelOffsets[b2] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 40;
+                    }
+                }
+                continue;
+            }
 
             for (int y = 0; y < (m_panelHeight / 2); y++) {
                 int yw1 = y * m_panelWidth * 3;

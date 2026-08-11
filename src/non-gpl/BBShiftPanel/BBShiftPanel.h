@@ -125,6 +125,7 @@ private:
         int colorDepth = 12;
         int addressingMode = 0;
         int panelType = 0;
+        int dataLayout = 0;
         bool pwmDirectRow = false;
         bool outputByRow = false;
         bool outputBlankData = false;
@@ -180,6 +181,13 @@ private:
     // 0 = standard, 1 = FM6126A, 2 = FM6127 - panels that need their config
     // registers clocked out before they display (see sendPanelInitPackets)
     int m_panelType = 0;
+    // How the framebuffer is routed onto the two RGB lanes.  0 is the normal
+    // HUB75 arrangement: the lanes carry the top and bottom halves of the
+    // panel and each addressed row lights two physical rows.  A full height
+    // panel (scan == height) addresses every row on its own instead, so its
+    // lanes carry the LEFT and RIGHT halves of one row - 1 and 2 select which
+    // way round.  See buildScatterMap.
+    int m_dataLayout = 0;
     // PWM panels: drive the row lines with a direct binary row number
     // instead of the DP32020A style row shift register
     bool m_pwmDirectRow = false;
