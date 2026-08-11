@@ -237,18 +237,23 @@ function network_interface_in_use($interface)
     }
 
     if ($iftype === "managed") {
-        $statusOut = array();
-        exec("sudo wpa_cli -i $iface status 2>/dev/null", $statusOut);
-        $wpaState = "";
+        // Ask the kernel (nl80211) rather than wpa_supplicant's control socket:
+        // all that matters here is "associated, and to what", and iw answers
+        // that however the link was brought up. network_wifi_status() below
+        // still uses wpa_cli, because it needs the association *states* that
+        // only wpa_supplicant knows.
+        $linkOut = array();
+        exec("/sbin/iw dev $iface link 2>/dev/null", $linkOut);
+        $associated = false;
         $ssid = "";
-        foreach ($statusOut as $line) {
-            if (preg_match('/^wpa_state=(.*)$/', $line, $m)) {
-                $wpaState = trim($m[1]);
-            } else if (preg_match('/^ssid=(.*)$/', $line, $m)) {
+        foreach ($linkOut as $line) {
+            if (preg_match('/^Connected to/', $line)) {
+                $associated = true;
+            } else if (preg_match('/^\s*SSID:\s*(.*)$/', $line, $m)) {
                 $ssid = trim($m[1]);
             }
         }
-        if ($wpaState === "COMPLETED") {
+        if ($associated) {
             return array("mode" => "station", "clientCount" => 0, "ssid" => $ssid);
         }
     }
@@ -389,7 +394,12 @@ function network_wifi_status()
     $tetheringEnabled = ($tetheringMode === 1);
     $tetheringDisabled = ($tetheringMode === 2);
 
-    // wpa_supplicant association state via its control socket
+    // Association state via wpa_supplicant's control socket. This one keeps
+    // using wpa_cli deliberately: the whole point of this endpoint is to say
+    // WHY a connection is failing, and the intermediate states it reports
+    // (4WAY_HANDSHAKE, INACTIVE, SCANNING, ...) have no nl80211 equivalent --
+    // iw can only say associated or not. The iw/ip fallbacks below keep the
+    // page useful if the socket is ever unreachable.
     $wpaState = "";
     $ssid = "";
     $ip = "";
@@ -415,6 +425,20 @@ function network_wifi_status()
         }
         if ($ssid == "" && preg_match('/SSID:\s*(.+)/', $line, $m)) {
             $ssid = trim($m[1]);
+        }
+        // Fallback when the control socket gave us nothing: the kernel still
+        // knows whether we are associated, just not how we got there.
+        if ($wpaState === "" && preg_match('/^Connected to/', $line)) {
+            $wpaState = "COMPLETED";
+        }
+    }
+    // Same fallback for the address. wpa_supplicant reports ip_address, but
+    // only while its socket answers; the kernel always knows.
+    if ($ip === "") {
+        $ipOut = array();
+        exec("ip -4 -o addr show dev $iface scope global 2>/dev/null", $ipOut);
+        if (isset($ipOut[0]) && preg_match('/inet\s+(\d+\.\d+\.\d+\.\d+)/', $ipOut[0], $m)) {
+            $ip = $m[1];
         }
     }
 

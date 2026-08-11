@@ -808,6 +808,21 @@ EOF
             systemctl enable systemd-resolved
             systemctl enable networkd-dispatcher
 
+            # The wpasupplicant package enables BOTH the generic
+            # wpa_supplicant.service and the per-interface
+            # wpa_supplicant@<iface>.service, so every board boots two
+            # supplicant daemons. FPP only ever drives the per-interface one
+            # (see FPPINIT_Network.cpp), so the generic instance is a second
+            # daemon doing nothing on a board with 480MB and one core.
+            #
+            # Disabled WITHOUT --now on purpose: the generic unit declares
+            # RuntimeDirectory=wpa_supplicant, so stopping it makes systemd
+            # delete /run/wpa_supplicant -- including the control socket the
+            # RUNNING per-interface instance created there, which would break
+            # wpa_cli (and the network status page) until the next reboot.
+            # Leaving it running until then costs nothing and avoids that.
+            systemctl disable wpa_supplicant.service || true
+
             # if systemd hasn't created a new resolv.conf, don't replace it yet
             if [ -f /run/systemd/resolve/resolv.conf ]; then
                 rm -f /etc/resolv.conf

@@ -105,12 +105,17 @@ ap_client_count() {
 
 # Is this managed-mode interface currently associated to an AP?
 # Echoes the SSID (may be empty) and returns non-zero if not connected.
+#
+# Asks the kernel over nl80211 rather than wpa_cli. Only "associated, and to
+# what" is needed here, which iw answers directly, and it stays correct however
+# the link came up -- wpa_cli additionally needs wpa_supplicant's control
+# socket in /run/wpa_supplicant, which is a runtime directory owned by the
+# generic wpa_supplicant.service that FPP does not use.
 station_connected_ssid() {
-    local out state ssid
-    out=$(wpa_cli -i "$1" status 2>/dev/null)
-    state=$(awk -F= '$1=="wpa_state"{print $2}' <<< "$out")
-    ssid=$(awk -F= '$1=="ssid"{print $2}' <<< "$out")
-    [ "$state" = "COMPLETED" ] || return 1
+    local out ssid
+    out=$(iw dev "$1" link 2>/dev/null)
+    grep -q '^Connected to' <<< "$out" || return 1
+    ssid=$(sed -n 's/^[[:space:]]*SSID: //p' <<< "$out" | head -1)
     printf '%s' "$ssid"
 }
 
