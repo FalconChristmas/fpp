@@ -461,10 +461,13 @@ function network_wifi_status()
                     ? " It will try to connect to '" . $configuredSSID . "' the next time networking is restarted (or the device is rebooted)."
                     : " No wireless network is configured yet, so it will keep broadcasting the hotspot until one is set up.");
         }
+    } else if ($connected) {
+        $reason = "Connected to " . $ssid . ($ip !== "" ? " (" . $ip . ")" : "") .
+            ($configuredSSID === ""
+                ? " (saved config has no network configured - this will disconnect on the next network restart)"
+                : "");
     } else if ($configuredSSID === "") {
         $reason = "No wireless network is configured.";
-    } else if ($connected) {
-        $reason = "Connected to " . $ssid . ($ip !== "" ? " (" . $ip . ")" : "");
     } else if ($wpaState === "COMPLETED") {
         $reason = "Associated - waiting for an IP address (DHCP).";
     } else if ($wrongKey || $wpaState === "4WAY_HANDSHAKE") {
