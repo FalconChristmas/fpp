@@ -58,7 +58,11 @@ typedef struct {
             uint8_t numBlocks;
             uint8_t numRows;
             uint16_t buffer[4];            // buffer to get registers aligned on boundary
-            uint8_t registers[5 * 12 * 16]; // 5 registers, up to 12 bytes per clock (16 outputs), 16 clocks each
+            // up to 6 registers (SM16380SH takes a sixth slot; the rest use
+            // five), up to 12 bytes per clock (16 outputs), 16 clocks each.
+            // Ends at 0x490 in the PRU data RAM, clear of the chip config at
+            // PWM_CHIP_CONFIG_OFFSET (0x1DF8).
+            uint8_t registers[6 * 12 * 16];
         } __attribute__((__packed__));
     } __attribute__((__packed__));
 } __attribute__((__packed__)) BBShiftPanelData;

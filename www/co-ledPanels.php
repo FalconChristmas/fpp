@@ -3652,9 +3652,12 @@
                                     <?
                                     if ($panelCapesDriver == "BBShiftPanel") {
                                         echo "<option value='3'>FM6363C</option>";
-                                        echo "<option value='4'>FM6353 / ICN2153</option>";
+                                        echo "<option value='4'>FM6353</option>";
                                         echo "<option value='5'>FM6373 / DP32019B</option>";
                                         echo "<option value='6'>DP3364S</option>";
+                                        echo "<option value='7'>ICND1065L</option>";
+                                        echo "<option value='8'>SM16380SH</option>";
+                                        echo "<option value='9'>ICND2153</option>";
                                     }
                                     ?>
                                 </select>
