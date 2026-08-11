@@ -5561,39 +5561,23 @@ function updateWarnings (jsonStatus) {
 					}
 				}
 
-				//determine click through behavior
-				var clickFunction = null;
-				if (currentWarnings[i]['HelpPage'] !== (null || '')) {
-					switch (currentWarnings[i]['HelpPageType']) {
-						case 'php':
-							clickFunction =
-								'doWarningPHPModal(' + warningID + ",'" + warningMessage + "')";
-							break;
-						case 'md':
-							clickFunction =
-								'doWarningMDModal(' + warningID + ",'" + warningMessage + "')";
-							break;
-						default:
-							clickFunction =
-								'doWarningBasicModal(' +
-								warningID +
-								",'" +
-								warningMessage +
-								"','" +
-								currentWarnings[i]['HelpTxt'] +
-								"')";
-					}
-				}
-
 				//create output link string for each warning with a valid definition
 				if (
 					currentWarnings[i]['HelpPageType'] !== (null || '') ||
 					currentWarnings[i]['HelpTxt'] !== (null || '')
 				) {
+					// Click-through behavior is wired up after the HTML is inserted
+					// into the DOM (see the addEventListener loop below), not via an
+					// inline onclick= built from string concatenation - the warning
+					// message/help text are free-form and may contain quote
+					// characters (a warning naming a specific command in quotes, for
+					// instance), which broke the attribute/JS-string quoting when
+					// embedded directly. data-warning-idx is always just a plain
+					// integer, so it needs no escaping.
 					txt +=
-						'<li><span class="warning-link"><a href="javascript:void(0)" onclick="' +
-						clickFunction +
-						';"><i class="fas fa-' +
+						'<li><span class="warning-link"><a href="javascript:void(0)" data-warning-idx="' +
+						i +
+						'"><i class="fas fa-' +
 						currentWarnings[i]['icon'] +
 						'"></i> ' +
 						currentWarnings[i]['message'] +
@@ -5617,6 +5601,29 @@ function updateWarnings (jsonStatus) {
 		txt += '</ul>';
 
 		document.getElementById('warningsDiv').innerHTML = txt;
+
+		// Wire up click-through behavior here instead of via an inline onclick=
+		// built from string concatenation (see the data-warning-idx comment
+		// above) - message/HelpTxt are passed as real JS values through this
+		// closure, never serialized into markup, so there's nothing to escape.
+		document
+			.querySelectorAll('#warningsDiv a[data-warning-idx]')
+			.forEach(function (a) {
+				var w = currentWarnings[parseInt(a.getAttribute('data-warning-idx'), 10)];
+				a.addEventListener('click', function () {
+					switch (w['HelpPageType']) {
+						case 'php':
+							doWarningPHPModal(w['id'], w['message']);
+							break;
+						case 'md':
+							doWarningMDModal(w['id'], w['message']);
+							break;
+						default:
+							doWarningBasicModal(w['id'], w['message'], w['HelpTxt']);
+					}
+				});
+			});
+
 		$('#warningsRow').show();
 	} else {
 		$('#warningsRow').hide();
