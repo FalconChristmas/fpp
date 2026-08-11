@@ -65,7 +65,10 @@ void InitAM335xBalls() {
                 mem_fd,                 /* File to map */
                 MEMLOCATIONS[d]         /* Offset to control module */
             );
-            Ball::setDomainAddress(d, gpio_map);
+            // MAP_FAILED is (void*)-1, not nullptr, so storing it as-is sails
+            // straight past readReg()'s null check and segfaults on the first
+            // query. Hand over nullptr instead and let register access no-op.
+            Ball::setDomainAddress(d, gpio_map == MAP_FAILED ? nullptr : gpio_map);
             ++d;
         }
         close(mem_fd);

@@ -106,7 +106,9 @@ void InitAM6232Balls() {
             mem_fd,                 /* File to map */
             MEMLOCATIONS[d]         /* Offset to GPIO peripheral */
         );
-        Ball::setDomainAddress(d, gpio_map);
+        // MAP_FAILED is (void*)-1, not nullptr, and would sail past readReg()'s
+        // null check straight into a segfault.
+        Ball::setDomainAddress(d, gpio_map == MAP_FAILED ? nullptr : gpio_map);
         ++d;
     }
     close(mem_fd);
