@@ -3217,7 +3217,15 @@
             let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
             lastVendorPanelSelect = JSON.parse(request.responseText);
             Object.entries(lastVendorPanelSelect).forEach(function ([idx, details]) {
-                if (details["settings"]["all"] !== undefined || details) {
+                // Was `|| details`, which is always truthy, so every entry was
+                // listed even when nothing in it applied to this player.  List
+                // an entry only when it actually carries settings we would use.
+                var applicable = details["settings"] !== undefined &&
+                    (details["settings"]["all"] !== undefined ||
+                        vendorSettingsKeysFor(mp.subType, details["settings"]).some(function (k) {
+                            return details["settings"][k] !== undefined;
+                        }));
+                if (applicable) {
                     $('#vendorPanelSelectDialog .selectPanel').append(
                         `<option value="${details['name']}">${details['name']}</option>`
                     );
@@ -3227,6 +3235,28 @@
         };
         request.send();
     }
+    // Vendor settings blocks that this FPP is new enough to understand.
+    //
+    // Older FPP only ever looks up settings["all"] and settings[<subType>], so
+    // a block under "<subType>-vN" is invisible to it.  That is what lets the
+    // data file describe panels using options an older UI has no <option> for
+    // without breaking it: an unmatched value would leave the select with
+    // nothing selected, and a null panel size then throws in the size parsing.
+    // Returns the applicable keys in ascending version order so a later tier
+    // refines an earlier one.
+    function vendorSettingsKeysFor(subType, settings) {
+        var re = new RegExp("^" + subType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "-v(\\d+)$");
+        var tiers = [];
+        Object.keys(settings || {}).forEach(function (k) {
+            var m = re.exec(k);
+            if (m && parseInt(m[1], 10) <= FPP_MAJOR_VERSION) {
+                tiers.push([parseInt(m[1], 10), k]);
+            }
+        });
+        tiers.sort(function (a, b) { return a[0] - b[0]; });
+        return [subType].concat(tiers.map(function (t) { return t[1]; }));
+    }
+
     function applyPanelProperties(panelMatrixID, details) {
         let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         var matrixDivName = 'panelMatrix' + panelMatrixID;
@@ -3303,9 +3333,11 @@
                                     if (details["settings"]["all"] != undefined) {
                                         applyPanelProperties(panelMatrixID, details["settings"]["all"]);
                                     }
-                                    if (details["settings"][mp.subType] != undefined) {
-                                        applyPanelProperties(panelMatrixID, details["settings"][mp.subType]);
-                                    }
+                                    vendorSettingsKeysFor(mp.subType, details["settings"]).forEach(function (k) {
+                                        if (details["settings"][k] != undefined) {
+                                            applyPanelProperties(panelMatrixID, details["settings"][k]);
+                                        }
+                                    });
                                 }
                             });
                             CloseModalDialog("PanelSelectDialog");
