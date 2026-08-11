@@ -606,6 +606,11 @@ public:
         maxWid = std::max(maxWid, (int)metrics.textWidth());
         totalHi += (int)metrics.textHeight();
 
+        // Empty text (or text consisting only of newlines) measures as zero width,
+        // which would make the scrolling branch below construct an invalid image.
+        maxWid = std::max(maxWid, 1);
+        totalHi = std::max(totalHi, 1);
+
         if (position == "Centered" || position == "Center") {
             image->magick("RGB");
             // one shot, just draw the text and return
