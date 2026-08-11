@@ -318,6 +318,8 @@
         // Current config
         var videoGroups = { videoOutputGroups: [] };
         var nextGroupId = 1;
+        // Set when the config has been modified but not yet saved
+        var hasUnsavedChanges = false;
 
         function EscapeAttr(s) {
             return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
@@ -392,6 +394,7 @@
         /////////////////////////////////////////////////////////////////////////////
         // Load saved groups
         function LoadGroups() {
+            hasUnsavedChanges = false;
             $.getJSON('api/pipewire/video/groups')
                 .done(function (data) {
                     videoGroups = data || { videoOutputGroups: [] };
@@ -411,10 +414,29 @@
         }
 
         /////////////////////////////////////////////////////////////////////////////
+        // Clear the unsaved-changes state once the config has been written to disk.
+        // The banner is removed in place rather than re-rendering the cards.
+        function ClearUnsavedChanges() {
+            hasUnsavedChanges = false;
+            $('#unsavedChangesBanner').remove();
+        }
+
+        // Banner shown while added/deleted groups are not yet written to disk
+        function UnsavedChangesBanner() {
+            if (!hasUnsavedChanges) return '';
+            return '<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" id="unsavedChangesBanner">' +
+                '<i class="fas fa-exclamation-triangle"></i>' +
+                '<div>Groups have been added or deleted but <b>not saved yet</b>. ' +
+                'Click <b>Save &amp; Apply</b> to make the change permanent.</div>' +
+                '</div>';
+        }
+
+        /////////////////////////////////////////////////////////////////////////////
         // Render all group cards
         function RenderGroups() {
             var container = $('#groupsContainer');
             container.empty();
+            container.append(UnsavedChangesBanner());
 
             if (videoGroups.videoOutputGroups.length === 0) {
                 container.append(
@@ -427,7 +449,14 @@
                     '<i class="fas fa-plus"></i> Add First Group</button>' +
                     '</div>'
                 );
-                $('#bottomToolbar').hide();
+                // Keep the toolbar (and its Save buttons) available when the last group
+                // has just been deleted, otherwise the deletion can never be saved and
+                // the group reappears on reload.
+                if (hasUnsavedChanges) {
+                    $('#bottomToolbar').show();
+                } else {
+                    $('#bottomToolbar').hide();
+                }
                 return;
             }
 
@@ -704,6 +733,7 @@
                 members: []
             };
             videoGroups.videoOutputGroups.push(group);
+            hasUnsavedChanges = true;
             RenderGroups();
         }
 
@@ -713,7 +743,9 @@
             var name = videoGroups.videoOutputGroups[index].name || 'this group';
             if (confirm('Delete "' + name + '"?')) {
                 videoGroups.videoOutputGroups.splice(index, 1);
+                hasUnsavedChanges = true;
                 RenderGroups();
+                $.jGrowl('Group deleted — click "Save & Apply" to make the change permanent.', { themeState: 'warning' });
             }
         }
 
@@ -854,6 +886,7 @@
                 contentType: 'application/json',
                 data: JSON.stringify(videoGroups),
                 success: function (result) {
+                    ClearUnsavedChanges();
                     $.jGrowl('Video output groups saved', { theme: 'success' });
                 },
                 error: function (xhr) {
@@ -872,6 +905,7 @@
                 contentType: 'application/json',
                 data: JSON.stringify(videoGroups),
                 success: function () {
+                    ClearUnsavedChanges();
                     ShowApplyProgress('Applying video output groups...');
                     $.ajax({
                         url: 'api/pipewire/video/groups/apply',

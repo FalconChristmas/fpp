@@ -474,6 +474,8 @@
         var audioGroups = { groups: [] };
         // Next group ID counter
         var nextGroupId = 1;
+        // Set when the config has been modified but not yet saved
+        var hasUnsavedChanges = false;
 
         // Help icon tooltip builder
         function HelpIcon(text) {
@@ -687,6 +689,7 @@
         /////////////////////////////////////////////////////////////////////////////
         // Load saved groups
         function LoadGroups() {
+            hasUnsavedChanges = false;
             $.getJSON('api/pipewire/audio/groups')
                 .done(function (data) {
                     audioGroups = data || { groups: [] };
@@ -706,10 +709,30 @@
         }
 
         /////////////////////////////////////////////////////////////////////////////
+        // Clear the unsaved-changes state once the config has been written to disk.
+        // The banner is removed in place rather than re-rendering, so open EQ and
+        // calibration panels are left alone.
+        function ClearUnsavedChanges() {
+            hasUnsavedChanges = false;
+            $('#unsavedChangesBanner').remove();
+        }
+
+        // Banner shown while added/deleted groups are not yet written to disk
+        function UnsavedChangesBanner() {
+            if (!hasUnsavedChanges) return '';
+            return '<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" id="unsavedChangesBanner">' +
+                '<i class="fas fa-exclamation-triangle"></i>' +
+                '<div>Groups have been added or deleted but <b>not saved yet</b>. ' +
+                'Click <b>Save &amp; Apply</b> to make the change permanent.</div>' +
+                '</div>';
+        }
+
+        /////////////////////////////////////////////////////////////////////////////
         // Render all groups
         function RenderGroups() {
             var container = $('#groupsContainer');
             container.empty();
+            container.append(UnsavedChangesBanner());
 
             if (audioGroups.groups.length === 0) {
                 container.append(
@@ -722,7 +745,14 @@
                     '<i class="fas fa-plus"></i> Create First Group</button>' +
                     '</div>'
                 );
-                $('#bottomToolbar').hide();
+                // Keep the toolbar (and its Save button) available when the last group
+                // has just been deleted, otherwise the deletion can never be saved and
+                // the group reappears on reload.
+                if (hasUnsavedChanges) {
+                    $('#bottomToolbar').show();
+                } else {
+                    $('#bottomToolbar').hide();
+                }
                 return;
             }
 
@@ -1245,13 +1275,16 @@
                 members: []
             };
             audioGroups.groups.push(group);
+            hasUnsavedChanges = true;
             RenderGroups();
         }
 
         function DeleteGroup(index) {
             if (!confirm('Delete group "' + audioGroups.groups[index].name + '"?')) return;
             audioGroups.groups.splice(index, 1);
+            hasUnsavedChanges = true;
             RenderGroups();
+            $.jGrowl('Group deleted — click "Save & Apply" to make the change permanent.', { themeState: 'warning' });
         }
 
         function ToggleGroupEnabled(index, enabled) {
@@ -1649,6 +1682,7 @@
                     if (data && data.data) {
                         audioGroups = data.data;
                     }
+                    ClearUnsavedChanges();
                     $.jGrowl('Audio groups saved', { themeState: 'highlight' });
                 },
                 error: function (xhr) {
@@ -1725,6 +1759,7 @@
                     if (data && data.data) {
                         audioGroups = data.data;
                     }
+                    ClearUnsavedChanges();
                     ShowApplyProgress('Applying PipeWire configuration...');
 
                     // 4. Apply (generates PipeWire configs and restarts services)
