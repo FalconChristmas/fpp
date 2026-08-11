@@ -568,11 +568,17 @@ public:
         // Normalize a literal "\n" (backslash followed by 'n', as typed into a
         // single-line text field) into a real newline byte so it is treated the
         // same as an actual embedded newline for both sizing and rendering below.
+        // A doubled backslash ("\\") escapes to a single literal backslash, so
+        // text containing a literal "\n" sequence (e.g. a Windows path like
+        // "c:\network") can be entered as "c:\\network" without being split.
         std::string normalizedMsg;
         normalizedMsg.reserve(msg.length());
         for (int x = 0; x < msg.length(); x++) {
             if (msg[x] == '\\' && (x < msg.length() - 1) && msg[x + 1] == 'n') {
                 normalizedMsg += '\n';
+                x++;
+            } else if (msg[x] == '\\' && (x < msg.length() - 1) && msg[x + 1] == '\\') {
+                normalizedMsg += '\\';
                 x++;
             } else {
                 normalizedMsg += msg[x];
