@@ -42,7 +42,11 @@ MEMORY
 {
       PAGE 0:
 	/* 16 KB PRU Instruction RAM */
-	PRU_IMEM	: org = 0x00000000 len = 0x00004000
+	/* 12KB of instruction RAM on the AM62x PRU cores.  This said 0x4000,
+	   which let clpru link a .text the kernel then refused to load with
+	   "bad phdr da 0x0 mem 0x320c / Failed to load program segments: -22" -
+	   a firmware that builds clean and only fails at fppd start. */
+	PRU_IMEM	: org = 0x00000000 len = 0x00003000
 
       PAGE 1:
 	/* Data RAMs */

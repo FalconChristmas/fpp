@@ -1210,7 +1210,12 @@ int BBShiftPanelManager::StartPRU() {
         if (const PWMChipSeq* seq = pwmChipSeqFor(m_addressingMode)) {
             addrCfg = 1 | ((uint32_t)seq->slots << 8) | ((seq->midLatch ? 11u : 0u) << 16);
         } else if (m_addressingMode == ADDRESSING_MODE_DP3364) {
-            addrCfg = 2;
+            // The DP3364S upload is the same shape as the FM6373 one with a
+            // single register slot and no middle LAT burst: VSYNC (LE 3),
+            // PRE_ACT (LE 14), then one word latched over its last 5 clocks.
+            // Sharing that code rather than duplicating it matters - the
+            // 16 output firmware only just fits in the PRU's 12KB IMEM.
+            addrCfg = 1 | (1u << 8) | (0u << 16);
         } else {
             addrCfg = 0;
         }
