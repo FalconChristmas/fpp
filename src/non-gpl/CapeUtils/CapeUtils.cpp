@@ -700,13 +700,22 @@ bool isPocketBeagle() {
     return ret;
 }
 // Query a pin's current pinmux mode name via the pinctrl tool. Reads work on
-// both am335xpm and older /dev/mem kernels. Returns "" if unavailable.
+// both am335xpm and older /dev/mem kernels. Returns "" if the mode can't be
+// determined, which callers must treat as "don't touch this pin".
+//
+// Uses "-l" rather than "-q" because only "-l" marks the current mode
+// unambiguously, in brackets:  "gpio gpio_out gpio_pd [gpio_pu] i2c ...".
+// "-q" prints the raw register value followed by *every* mode name that matches
+// it, so its trailing token is whichever alias happens to sort last -- P9_17 at
+// mux mode 2 comes back "i2c_scl", not "i2c", because both names map to the same
+// PIN_INPUT_PULLUP|2 -- and when no named mode matches the value at all, the last
+// token is a bare hex number that "-s" would just reject.
 static std::string PinCurrentMode(const std::string& pin) {
     if (!file_exists("/usr/bin/pinctrl")) {
         return "";
     }
     std::string out;
-    std::string cmd = "/usr/bin/pinctrl -q " + pin + " 2>/dev/null";
+    std::string cmd = "/usr/bin/pinctrl -l " + pin + " 2>/dev/null";
     FILE* p = popen(cmd.c_str(), "r");
     if (p) {
         char buf[256];
@@ -715,14 +724,15 @@ static std::string PinCurrentMode(const std::string& pin) {
         }
         pclose(p);
     }
-    // pinctrl -q prints "<pin>:\n\t<BALL>:  <hex>    <mode>"; take the last token
-    size_t end = out.find_last_not_of(" \t\r\n");
-    if (end == std::string::npos) {
+    size_t ob = out.find('[');
+    if (ob == std::string::npos) {
         return "";
     }
-    size_t start = out.find_last_of(" \t\r\n", end);
-    return out.substr(start == std::string::npos ? 0 : start + 1,
-                      end - (start == std::string::npos ? 0 : start));
+    size_t cb = out.find(']', ob);
+    if (cb == std::string::npos) {
+        return "";
+    }
+    return out.substr(ob + 1, cb - ob - 1);
 }
 void ConfigurePin(const char* pin, const char* mode) {
     // Prefer the pinctrl tool: it writes via /dev/am335xpm on am335xpm kernels
@@ -750,12 +760,46 @@ void ConfigurePin(const char* pin, const char* mode) {
 #endif
 void ConfigureI2C1BusPins(bool enable) {
 #ifdef PLATFORM_BBB
-    if (isPocketBeagle()) {
-        ConfigurePin("P2_09", enable ? "i2c" : "default");
-        ConfigurePin("P2_11", enable ? "i2c" : "default");
+    // The i2c1 pads are not dedicated to i2c -- on the BBB they are P9_17/P9_18,
+    // which capes routinely use as plain GPIO (the HE123's OLED Back/Enter
+    // buttons live there).  So borrowing them for a probe has to be exactly
+    // reversible, and there is no generic mode name that does that: the pinctrl
+    // tool has no "default" (P9_17 offers gpio/gpio_out/gpio_pd/gpio_pu/i2c/
+    // i2c_scl/spi/spi_cs0 plus "reset"), "reset" is bare PIN_INPUT|mode7 with no
+    // pull, and BBBPinCapabilities maps "default" to a bias-less "gpio".  Handing
+    // back any of those turns a pulled-up button pin into a floating one.  The
+    // pin's real default is whatever the DT/overlay/cape put there, so capture
+    // that exact mode and write the same string back.  Mirrors what
+    // findCapeEEPROM() already does for the i2c2 pads.
+    //
+    // Restoring only when the capture succeeded is deliberate: with no known-good
+    // mode to return to, leaving the pad muxed to i2c is at least a state the
+    // logs explain, whereas guessing puts a button pin somewhere nobody asked for.
+    static std::string origMode1;
+    static std::string origMode2;
+
+    const bool pb = isPocketBeagle();
+    const char* pin1 = pb ? "P2_09" : "P9_17";
+    const char* pin2 = pb ? "P2_11" : "P9_18";
+
+    if (enable) {
+        origMode1 = PinCurrentMode(pin1);
+        origMode2 = PinCurrentMode(pin2);
+        ConfigurePin(pin1, "i2c");
+        ConfigurePin(pin2, "i2c");
     } else {
-        ConfigurePin("P9_17", enable ? "i2c" : "default");
-        ConfigurePin("P9_18", enable ? "i2c" : "default");
+        if (!origMode1.empty()) {
+            ConfigurePin(pin1, origMode1.c_str());
+        } else {
+            printf("Could not read the original mode of %s; leaving it muxed for i2c1\n", pin1);
+        }
+        if (!origMode2.empty()) {
+            ConfigurePin(pin2, origMode2.c_str());
+        } else {
+            printf("Could not read the original mode of %s; leaving it muxed for i2c1\n", pin2);
+        }
+        origMode1.clear();
+        origMode2.clear();
     }
 #endif
 }
@@ -957,10 +1001,21 @@ private:
         }
 #endif
         waitForI2CBus(bus);
-        if (bus == 2 && !HasI2CDevice(0x50, bus)) {
+
+        // Cape detection is not the only thing that lands here: CapeInfo is built
+        // lazily once per *process*, so fppd re-runs this whole probe when a
+        // channel output first asks for a string/panel config, long after fppoled
+        // has muxed and claimed its button pins. Only the first run has to search
+        // for the bus -- it records the answer -- so later runs take it from the
+        // recorded location and never go near the i2c1 pins.
+        int knownBus = recordedEEPROMBus();
+        if (knownBus > 0) {
+            printf("Using the cape EEPROM already located on i2c%d this boot.\n", knownBus);
+            bus = knownBus;
+        } else if (bus == 2 && !HasI2CDevice(0x50, bus, 1000)) {
             printf("Did not find 0x50 on i2c2, trying i2c1.\n");
             ConfigureI2C1BusPins(true);
-            if (HasI2CDevice(0x50, 1)) {
+            if (HasI2CDevice(0x50, 1, 250)) {
                 bus = 1;
             } else {
                 ConfigureI2C1BusPins(false);
@@ -973,7 +1028,12 @@ private:
             if (!i2c2_o2.empty() && i2c2_o2 != "i2c") ConfigurePin("P9_20", i2c2_o2.c_str());
         }
 #endif
-        if (HasI2CDevice(0x50, bus)) {
+        // Give this one a short retry too. By now the bus is settled, but a miss
+        // here is expensive out of proportion to the wait: it drops the cape's
+        // whole config in favour of the generic /opt/fpp-vendor fallback, and in
+        // fppd (which re-runs all of this per process) that means a cape that
+        // worked at boot silently coming up as no cape at all.
+        if (HasI2CDevice(0x50, bus, 250)) {
             EEPROM = string_sprintf("/sys/bus/i2c/devices/%d-0050/eeprom", bus);
             if (!file_exists(EEPROM)) {
                 std::string newDevFile = string_sprintf("/sys/bus/i2c/devices/i2c-%d/new_device", bus);
@@ -1499,11 +1559,65 @@ private:
         return false;
     }
 
-    bool HasI2CDevice(int i, int i2cBus) {
+    // The bus the EEPROM was found on during this boot's cape detection, or -1 if
+    // it hasn't been located yet. findCapeEEPROM() records it after a successful
+    // read; /home/fpp/media/tmp is wiped at boot, so a stale answer can't survive
+    // into the next one.
+    int recordedEEPROMBus() {
+        // get_file_contents() does not survive a missing file
+        if (!file_exists("/home/fpp/media/tmp/eeprom_location.txt")) {
+            return -1;
+        }
+        int len = 0;
+        char* data = (char*)get_file_contents("/home/fpp/media/tmp/eeprom_location.txt", len);
+        std::string loc(data, len);
+        free(data);
+
+        // "/sys/bus/i2c/devices/<bus>-0050/eeprom"
+        static const std::string PREFIX = "/sys/bus/i2c/devices/";
+        if (loc.compare(0, PREFIX.size(), PREFIX) != 0) {
+            return -1;
+        }
+        size_t dash = loc.find('-', PREFIX.size());
+        if (dash == std::string::npos) {
+            return -1;
+        }
+        // Length-capped so std::stoi cannot throw: findCapeEEPROM() runs outside
+        // the constructor's try block, so an out_of_range here would escape
+        // CapeInfo entirely rather than degrade to "no cape".
+        std::string busStr = loc.substr(PREFIX.size(), dash - PREFIX.size());
+        if (busStr.empty() || busStr.size() > 4 || busStr.find_first_not_of("0123456789") != std::string::npos) {
+            return -1;
+        }
+        return std::stoi(busStr);
+    }
+
+    // A device that isn't answering yet is not the same as a device that isn't
+    // there, and the difference matters: a single missed probe on i2c2 sends us
+    // to i2c1, which on the BBB steals P9_17/P9_18 from whatever the cape put
+    // there. The pads for a bus are often re-muxed microseconds earlier (see
+    // findCapeEEPROM), and the lines still have to charge through their pull-ups
+    // before anyone will ACK -- so give a "missing" device retryMS to show up
+    // before believing it. retryMS=0 keeps the old single-shot behaviour for
+    // callers that are only confirming a device already known to be there.
+    bool HasI2CDevice(int i, int i2cBus, int retryMS = 0) {
         char buf[256];
         snprintf(buf, sizeof(buf), "i2cdetect -y -r %d 0x%X 0x%X", i2cBus, i, i);
-        std::string result = exec(buf);
-        return result != "" && result.find("--") == std::string::npos;
+        int waited = 0;
+        while (true) {
+            std::string result = exec(buf);
+            if (result != "" && result.find("--") == std::string::npos) {
+                if (waited) {
+                    printf("Found 0x%X on i2c%d after %dms\n", i, i2cBus, waited);
+                }
+                return true;
+            }
+            if (waited >= retryMS) {
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            waited += 50;
+        }
     }
     std::string checkUnsupported(const std::string& orig, int i2cbus) {
         return orig;

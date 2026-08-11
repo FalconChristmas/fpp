@@ -97,12 +97,30 @@ int main(int argc, char* argv[]) {
     if (lt != 0) {
         OLEDPage::displayBootingNotice("FPP - Cape Detection");
     }
+    // Wait for cape detection before touching any GPIO. There is no systemd
+    // ordering between fppinit and fppoled -- both are WantedBy=sysinit.target
+    // with DefaultDependencies=no -- so this file is the entire interlock, and it
+    // matters: cape detection re-muxes pins (it can borrow P9_17/P9_18 for an
+    // i2c1 probe), and a pin re-muxed out from under an already-open GPIO event
+    // request stops delivering edges until the request is remade.
+    //
+    // Giving up is still better than blocking the display forever, but it must
+    // not be silent: everything past this point is then racing cape detection,
+    // and "the OLED buttons only work after I restart fppoled" is exactly what
+    // that looks like from the outside.
     count = 0;
     bool capeDetectionDone = FileExists("/home/fpp/media/tmp/cape_detect_done");
     while (!capeDetectionDone && count < 200) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         ++count;
         capeDetectionDone = FileExists("/home/fpp/media/tmp/cape_detect_done");
+    }
+    if (!capeDetectionDone) {
+        LogWarn(VB_GENERAL, "Timed out after %dms waiting for cape detection; configuring GPIO anyway. "
+                            "Pins re-muxed by a later cape detect will not deliver events until fppoled is restarted.\n",
+                count * 100);
+    } else if (count) {
+        LogInfo(VB_GENERAL, "Cape detection completed after %dms\n", count * 100);
     }
 
     // wait until after cape detection so gpio expanders are registered and available

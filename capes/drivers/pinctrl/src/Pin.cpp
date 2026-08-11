@@ -13,6 +13,9 @@ Pin& Pin::getPin(const std::string& n) {
     }
     return PINS[n];
 }
+bool Pin::hasPin(const std::string& n) {
+    return PINS.find(n) != PINS.end();
+}
 
 const std::map<std::string, Pin>& Pin::getAllPins() {
     return PINS;
@@ -60,12 +63,15 @@ const Pin& Pin::listModes() const {
     return *this;
 }
 
-const Pin& Pin::setMode(const std::string& m) const {
+bool Pin::setMode(const std::string& m) const {
     if (m == "reset") {
+        if (balls.empty()) {
+            return false;
+        }
         for (auto& b : balls) {
             Ball::findBall(b).setMode("reset");
         }
-        return *this;
+        return true;
     }
     const auto& md = modes.find(m);
     if (md != modes.end()) {
@@ -79,10 +85,10 @@ const Pin& Pin::setMode(const std::string& m) const {
         auto& b = Ball::findBall(md->second.first);
         b.setMode("reset");
         b.setMode(md->second.second);
-    } else {
-        printf("Unknown mode for pin %s:  %s\n", name.c_str(), m.c_str());
+        return true;
     }
-    return *this;
+    printf("Unknown mode for pin %s:  %s\n", name.c_str(), m.c_str());
+    return false;
 }
 Pin& Pin::modesFromBall(const std::string& b) {
     std::string bn = b.empty() ? balls.front() : b;
