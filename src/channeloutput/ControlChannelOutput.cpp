@@ -77,6 +77,7 @@ int ControlChannelOutput::SendData(unsigned char* channelData) {
 
         for (auto& p : it->second) {
             if (p != "") {
+                LogDebug(VB_COMMAND, "Control Channel %d (value %d) triggering preset \"%s\"\n", StartChannel(), v, p.c_str());
                 CommandManager::INSTANCE.TriggerPreset(p, keywords);
             }
         }

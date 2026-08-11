@@ -806,7 +806,13 @@ void Sequence::SendSequenceData() {
             const auto& p = commandPresets.find(frame);
             if (p != commandPresets.end()) {
                 std::map<std::string, std::string> keywords({ { "SEQUENCE_NAME", m_seqFilename } });
+                uint32_t elapsedMS = frame * (uint32_t)m_seqStepTime;
+                uint32_t totalSeconds = elapsedMS / 1000;
+                char timeBuf[16];
+                snprintf(timeBuf, sizeof(timeBuf), "%02u:%02u.%03u",
+                         totalSeconds / 60, totalSeconds % 60, elapsedMS % 1000);
                 for (auto& cmd : p->second) {
+                    LogDebug(VB_COMMAND, "Sequence \"%s\" @ %s triggering preset \"%s\"\n", m_seqFilename.c_str(), timeBuf, cmd.c_str());
                     CommandManager::INSTANCE.TriggerPreset(cmd, keywords);
                 }
             }

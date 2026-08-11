@@ -221,6 +221,7 @@ void RecurringTasks::Reload() {
 void RecurringTasks::runTask(const RecurringTask& task) {
     if (task.type == "preset") {
         if (!task.preset.empty()) {
+            LogDebug(VB_COMMAND, "Recurring Task \"%s\" triggering preset \"%s\"\n", task.name.c_str(), task.preset.c_str());
             CommandManager::INSTANCE.TriggerPreset(task.preset);
         }
         recordStatus(task.name, true, "");
@@ -252,7 +253,7 @@ void RecurringTasks::runTask(const RecurringTask& task) {
         }
     }
 
-    LogDebug(VB_COMMAND, "RecurringTask \"%s\" running command \"%s\"\n", task.name.c_str(), task.command.c_str());
+    LogDebug(VB_COMMAND, "Recurring Task \"%s\" running command \"%s\"\n", task.name.c_str(), task.command.c_str());
     std::unique_ptr<Command::Result> result = CommandManager::INSTANCE.run(task.command, task.args);
     if (!result) {
         recordStatus(task.name, false, "command returned no result");
@@ -296,6 +297,7 @@ Json::Value RecurringTasks::TestRunTask(const Json::Value& taskJson) {
 
     if (task.type == "preset") {
         if (!task.preset.empty()) {
+            LogDebug(VB_COMMAND, "Recurring Task \"%s\" manual test-run triggering preset \"%s\"\n", task.name.c_str(), task.preset.c_str());
             CommandManager::INSTANCE.TriggerPreset(task.preset);
         }
         if (!task.name.empty()) {
@@ -317,7 +319,7 @@ Json::Value RecurringTasks::TestRunTask(const Json::Value& taskJson) {
         return result;
     }
 
-    LogDebug(VB_COMMAND, "RecurringTask \"%s\" manual test-run of command \"%s\"\n", task.name.c_str(), task.command.c_str());
+    LogDebug(VB_COMMAND, "Recurring Task \"%s\" manual test-run of command \"%s\"\n", task.name.c_str(), task.command.c_str());
     std::unique_ptr<Command::Result> r = CommandManager::INSTANCE.run(task.command, task.args);
     if (!r) {
         result["ok"] = false;

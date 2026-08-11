@@ -384,7 +384,7 @@ void PlaylistEntryMedia::StartExtraMedia(int startMS) {
             em.videoOut,
             em.sync ? "true" : "false"
         };
-        LogInfo(VB_PLAYLIST, "Media entry: starting extra media '%s' on slot %d (videoOut='%s'%s)\n",
+        LogDebug(VB_PLAYLIST, "Media entry: starting extra media '%s' on slot %d (videoOut='%s'%s)\n",
                 em.mediaName.c_str(), em.slot, em.videoOut.c_str(),
                 em.sync ? ", synced" : "");
         CommandManager::INSTANCE.run("Play Media", args);

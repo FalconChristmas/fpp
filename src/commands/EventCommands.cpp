@@ -56,6 +56,8 @@ std::unique_ptr<Command::Result> TriggerPresetInFutureCommand::run(const std::ve
     long long t = GetTimeMS();
     int val = std::atoi(args[1].c_str());
     long long tv = t + val;
+    LogDebug(VB_COMMAND, "\"Trigger Command Preset In Future\" identifier \"%s\" scheduling preset \"%s\" to trigger in %dms\n",
+            args[0].c_str(), args[2].c_str(), val);
     Timers::INSTANCE.addTimer(args[0], tv, args[2]);
     return std::make_unique<Command::Result>("Timer Started");
 }
@@ -86,6 +88,13 @@ std::unique_ptr<Command::Result> TriggerMultiplePresetSlotsCommand::run(const st
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
+    std::string slotList;
+    for (auto& a : args) {
+        if (a.length() > 0) {
+            slotList += (slotList.empty() ? "" : ", ") + a;
+        }
+    }
+    LogDebug(VB_COMMAND, "\"Trigger Multiple Command Preset Slots\" command triggering slots: %s\n", slotList.c_str());
     for (auto& a : args) {
         if (a.length() > 0) {
             CommandManager::INSTANCE.TriggerPreset(std::atoi(a.c_str()));
@@ -107,6 +116,13 @@ std::unique_ptr<Command::Result> TriggerMultiplePresetsCommand::run(const std::v
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
+    std::string nameList;
+    for (auto& a : args) {
+        if (!a.empty()) {
+            nameList += (nameList.empty() ? "" : ", ") + a;
+        }
+    }
+    LogDebug(VB_COMMAND, "\"Trigger Multiple Command Presets\" command triggering presets: %s\n", nameList.c_str());
     for (auto& a : args) {
         if (!a.empty()) {
             CommandManager::INSTANCE.TriggerPreset(a);

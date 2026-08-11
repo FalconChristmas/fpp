@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
+#include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 
 #include <thread>
 
@@ -435,16 +436,42 @@ Json::Value CommandManager::getDescriptions() {
     }
     return ret;
 }
+
+// Flattens a command's args into the "a,b,c" form used by the log lines below,
+// so every path a command can arrive on reports it the same way: as
+// "command(args)".  Args are unbounded (one could carry a Variable's full
+// value), so each is truncated before logging - see TruncateForLog().
+//
+// Deliberately NOT gated behind WillLog() at the call sites.  Every caller logs
+// at Info, and _LogWrite() formats any line at Debug or below regardless of the
+// configured level so the crash ring can retain it (see CrashLogRingWillCapture)
+// - so a guard would not skip the formatting, it would only drop the line out of
+// crash dumps.  Guarding is a pure win only at LOG_EXCESSIVE, which the ring
+// never captures; that is the one level FPP's other WillLog() call sites use.
+static std::string FormatArgsForLog(const std::vector<std::string>& args) {
+    std::string argString;
+    for (auto& a : args) {
+        if (!argString.empty()) {
+            argString += ",";
+        }
+        argString += TruncateForLog(a);
+    }
+    return argString;
+}
+
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const std::vector<std::string>& args) {
     auto f = commands.find(command);
     if (f != commands.end()) {
-        LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
-
         std::vector<std::string> resolvedArgs;
         resolvedArgs.reserve(args.size());
         for (auto const& arg : args) {
             resolvedArgs.push_back(ReplaceVariableKeywords(arg));
         }
+
+        // Logged after substitution (like the Json overload below) so the line
+        // shows what actually ran, not the unresolved %VAR:name% that was
+        // passed in.
+        LogInfo(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), FormatArgsForLog(resolvedArgs).c_str());
 
         // Publish MQTT event for command execution
         Json::Value payload;
@@ -483,18 +510,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
                 args.push_back(ReplaceVariableKeywords(argsArray[x].asString()));
             }
         }
-        if (WillLog(LOG_DEBUG, VB_COMMAND)) {
-            std::string argString;
-            for (auto& a : args) {
-                if (!argString.empty()) {
-                    argString += ",";
-                }
-                // args are unbounded (e.g. could carry a Variable's full
-                // value) - truncate before logging, see TruncateForLog().
-                argString += TruncateForLog(a);
-            }
-            LogDebug(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), argString.c_str());
-        }
+        LogInfo(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), FormatArgsForLog(args).c_str());
 
         // Publish MQTT event for command execution
         Json::Value payload;
@@ -506,7 +522,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         payload["trigger"] = "ui";
         std::string topic = "command/run";
         std::string payloadStr = SaveJsonToString(payload);
-        LogDebug(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
+        LogExcess(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
         Events::Publish(topic, payloadStr);
 
         return f->second->run(args);
@@ -669,7 +685,12 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
         }
         auto f = commands.find(command);
         if (f != commands.end()) {
-            LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
+            // This route calls the Command directly rather than through
+            // CommandManager::run(), so it must log the args itself - see the
+            // MQTT publish just below for why it can't simply delegate.
+            LogInfo(VB_COMMAND, "GET /api/command/%s from %s: running command \"%s(%s)\"\n",
+                    command.c_str(), getEffectiveClientIP(req).c_str(),
+                    command.c_str(), FormatArgsForLog(args).c_str());
 
             // Publish MQTT event for command execution
             Json::Value payload;
@@ -681,7 +702,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             payload["trigger"] = "api-get";
             std::string topic = "command/run";
             std::string payloadStr = SaveJsonToString(payload);
-            LogDebug(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
+            LogExcess(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
             Events::Publish(topic, payloadStr);
 
             std::unique_ptr<Command::Result> r = f->second->run(args);
@@ -742,7 +763,11 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
             }
             auto f = commands.find(command);
             if (f != commands.end()) {
-                LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
+                // Direct Command call, not CommandManager::run() - log the
+                // args here too, same as the GET route above.
+                LogInfo(VB_COMMAND, "POST /api/command/%s from %s: running command \"%s(%s)\"\n",
+                        command.c_str(), getEffectiveClientIP(req).c_str(),
+                        command.c_str(), FormatArgsForLog(args).c_str());
 
                 // Publish MQTT event for command execution
                 Json::Value payload;
@@ -754,7 +779,7 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                 payload["trigger"] = "api-post";
                 std::string topic = "command/run";
                 std::string payloadStr = SaveJsonToString(payload);
-                LogDebug(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
+                LogExcess(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
                 Events::Publish(topic, payloadStr);
 
                 std::unique_ptr<Command::Result> r = f->second->run(args);
@@ -775,10 +800,10 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
             WarningHolder::AddWarningTimeout(900, 61, "No command found for \"" + command + "\" - it may have come from a plugin that is no longer installed or was updated");
         } else {
             std::string command(getRequestContent(req));
-            LogDebug(VB_COMMAND, "Received command: \"%s\"\n", TruncateForLog(command, 2000).c_str());
+            LogExcess(VB_COMMAND, "Received command: \"%s\"\n", TruncateForLog(command, 2000).c_str());
             Json::Value val = LoadJsonFromString(command);
-            LogDebug(VB_COMMAND, "POST /api/command (bare JSON body) from %s running command \"%s\"\n",
-                     req->getPeerAddr().toIp().c_str(), val["command"].asString().c_str());
+            LogDebug(VB_COMMAND, "POST /api/command (bare JSON body) from %s: running command \"%s\"\n",
+                     getEffectiveClientIP(req).c_str(), val["command"].asString().c_str());
             std::unique_ptr<Command::Result> r = run(val);
             int count = 0;
             while (!r->isDone() && count < 1000) {
