@@ -589,11 +589,9 @@ public:
         int maxWid = 0;
         int totalHi = 0;
 
-        int lines = 1;
         int last = 0;
         for (int x = 0; x < normalizedMsg.length(); x++) {
             if (normalizedMsg[x] == '\n') {
-                lines++;
                 std::string newM = normalizedMsg.substr(last, x - last);
                 Magick::TypeMetric metrics;
                 image->fontTypeMetrics(newM, &metrics);
