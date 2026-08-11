@@ -1325,8 +1325,8 @@
         "tags": [
           "command"
         ],
-        "summary": "command/{command}",
-        "description": "Run a command by name via GET, passing arguments as extra path segments (e.g. /api/command/Volume%20Set/50).",
+        "summary": "Run a command by name via GET, passing arguments as extra path segments (e.g. /api/command/Volume%20Set/50).",
+        "description": "An argument may contain `%VAR:name%` to substitute a User Variable's current value, as anywhere else a command's arguments are given. Percent-encode it as `%25VAR:name%25`: sent raw, `%VA` is an invalid escape and Apache rejects the request with a 400 before it reaches FPP. An unset variable substitutes as an empty string. Note that empty path segments collapse, so an argument that should be empty cannot be passed this way - use the POST form below for that.",
         "responses": {
           "200": {
             "description": "Command result (text/plain)."
@@ -1343,8 +1343,8 @@
         "tags": [
           "command"
         ],
-        "summary": "command/{command}",
-        "description": "Run a named command, passing its arguments as a JSON array in the body.",
+        "summary": "Run a named command, passing its arguments as a JSON array in the body.",
+        "description": "An argument may contain `%VAR:name%` to substitute a User Variable's current value, as anywhere else a command's arguments are given. No encoding is needed here, unlike the GET form above. An unset variable substitutes as an empty string.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1353,7 +1353,7 @@
               },
               "example": [
                 "arg1",
-                "arg2"
+                "%VAR:brightness%"
               ]
             }
           }

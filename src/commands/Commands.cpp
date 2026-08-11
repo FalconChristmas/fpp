@@ -593,6 +593,15 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
  * Run a command by name via GET, passing arguments as extra path segments
  * (e.g. /api/command/Volume%20Set/50).
  *
+ * An argument may contain `%VAR:name%` to substitute a User Variable's current
+ * value, as anywhere else a command's arguments are given. Percent-encode it as
+ * `%25VAR:name%25`: sent raw, `%VA` is an invalid escape and Apache rejects the
+ * request with a 400 before it reaches FPP. An unset variable substitutes as an
+ * empty string.
+ *
+ * Note that empty path segments collapse, so an argument that should be empty
+ * cannot be passed this way - use the POST form below for that.
+ *
  * @route GET /api/command/{command}
  * @response 200 Command result (text/plain).
  * @response 404 No command with that name exists.
@@ -652,7 +661,11 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
         std::string command = parts[1];
         std::vector<std::string> args;
         for (int x = 2; x < plen; x++) {
-            args.push_back(parts[x]);
+            // Substituted here rather than inherited from CommandManager::run():
+            // this route calls the Command directly (see the MQTT publish below
+            // for why), so without this %VAR:name% would pass through literally
+            // on /api/command/... alone while resolving on every other path.
+            args.push_back(ReplaceVariableKeywords(parts[x]));
         }
         auto f = commands.find(command);
         if (f != commands.end()) {
@@ -704,8 +717,13 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
 /**
  * Run a named command, passing its arguments as a JSON array in the body.
  *
+ * An argument may contain `%VAR:name%` to substitute a User Variable's current
+ * value, as anywhere else a command's arguments are given. No encoding is
+ * needed here, unlike the GET form above. An unset variable substitutes as an
+ * empty string.
+ *
  * @route POST /api/command/{command}
- * @body ["arg1", "arg2"]
+ * @body ["arg1", "%VAR:brightness%"]
  * @response 200 Command result.
  * @response 500 The command errored or timed out.
  */
@@ -718,7 +736,9 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
             Json::Value val = LoadJsonFromString(std::string(getRequestContent(req)));
             std::vector<std::string> args;
             for (int x = 0; x < val.size(); x++) {
-                args.push_back(val[x].asString());
+                // Direct Command call, so substitute here - same reason as the
+                // GET route above.
+                args.push_back(ReplaceVariableKeywords(val[x].asString()));
             }
             auto f = commands.find(command);
             if (f != commands.end()) {
