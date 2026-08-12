@@ -175,6 +175,40 @@ echo "Restoring system ssh keys"
 cp -a tmp/ssh/* mnt/etc/ssh
 echo
 
+# Neutralize the incoming image's FIRST-BOOT identity setup.
+#
+# Both markers below exist so that a freshly flashed card gives itself a unique
+# identity the first time it boots. An in-place OS upgrade is not a fresh flash:
+# the device already has an identity, which the restores here deliberately
+# preserve, so letting the image's markers through undoes that work on the very
+# next boot -- after this script has already "restored" everything.
+#
+#   /etc/bbb.io/ssh_regenerate     bbbio-set-sysconf (generic-sys-mods) sees it
+#                                  and runs bb-regenerate-ssh-host-keys, which
+#                                  deletes /etc/ssh/ssh_host_* and runs
+#                                  ssh-keygen -A. That is what made every OS
+#                                  upgrade hand out new host keys and greet the
+#                                  user with "REMOTE HOST IDENTIFICATION HAS
+#                                  CHANGED" (the keys restored above were wiped
+#                                  ~1 minute later, on first boot).
+#   sysconf.txt user_name/password  written into the image by the build script
+#                                  for first-boot user creation. bbbio-set-sysconf
+#                                  applies them, resetting the user's password
+#                                  back to the image default even if it had been
+#                                  changed.
+#
+# Acting on either also triggers an extra "Rebooting after setting up
+# sysconf.txt options" reboot immediately after the upgrade.
+#
+# Both are cleaned unconditionally: they only exist on Beagle images, and rm/sed
+# on an absent file is a no-op everywhere else.
+rm -f mnt/etc/bbb.io/ssh_regenerate
+for SYSCONF in mnt/boot/firmware/sysconf.txt mnt/boot/sysconf.txt; do
+    if [ -f "${SYSCONF}" ]; then
+        sed -i -E '/^[[:space:]]*(user_name|user_password)[[:space:]]*=/d' "${SYSCONF}"
+    fi
+done
+
 echo "Restoring hostname"
 cp -af tmp/etc/hostname mnt/etc/hostname
 rm -f  tmp/etc/hostname
@@ -198,10 +232,18 @@ chown -R fpp:fpp mnt/home/fpp
 # create a file in root to detect that we just did an FPPOS Upgrade
 touch mnt/fppos_upgraded
 
-if [ -f mnt/etc/ssh/ssh_host_dsa_key -a -f mnt/etc/ssh/ssh_host_dsa_key.pub -a -f mnt/etc/ssh/ssh_host_ecdsa_key -a -f mnt/etc/ssh/ssh_host_ecdsa_key.pub -a -f mnt/etc/ssh/ssh_host_ed25519_key -a -f mnt/etc/ssh/ssh_host_ed25519_key.pub -a -f mnt/etc/ssh/ssh_host_rsa_key -a -f mnt/etc/ssh/ssh_host_rsa_key.pub ]
+# Old images shipped a first-boot unit that regenerated the host keys; with the
+# keys restored above it must not run. Gate on the key types OpenSSH actually
+# has today: this test used to require ssh_host_dsa_key as well, which Debian
+# has not shipped in years (OpenSSH dropped DSA entirely), so it never fired.
+if [ -f mnt/etc/ssh/ssh_host_ed25519_key -a -f mnt/etc/ssh/ssh_host_ed25519_key.pub -a -f mnt/etc/ssh/ssh_host_rsa_key -a -f mnt/etc/ssh/ssh_host_rsa_key.pub ]
 then
-    echo "Found all SSH key files, disabling first-boot SSH key regeneration"
-    rm mnt/etc/systemd/system/multi-user.target.wants/regenerate_ssh_host_keys.service
+    if [ -f mnt/etc/systemd/system/multi-user.target.wants/regenerate_ssh_host_keys.service ]; then
+        echo "Found all SSH key files, disabling first-boot SSH key regeneration"
+        rm mnt/etc/systemd/system/multi-user.target.wants/regenerate_ssh_host_keys.service
+    fi
+else
+    echo "WARNING: SSH host keys were not restored - clients will see a changed host key"
 fi
 
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
