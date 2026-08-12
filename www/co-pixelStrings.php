@@ -830,6 +830,27 @@ function readCapes($cd, $capes)
     // clocked 2 wire parts are not driven by these outputs.  Entries for
     // protocols FPP cannot drive yet are harmless: nothing offers them in the
     // dropdown, and the estimate is right the day a driver lands.
+    // Parts that are electrically a WS2811 at 800kHz: same bit cell, same
+    // 1.25us period, so FPP drives them all with one timing and the choice is
+    // a label rather than a behaviour.  Grouped as xLights groups them.
+    //
+    // Deliberately NOT listed, because FPP would drive them wrong rather than
+    // merely differently:
+    //   tm1803, tm1804, ucs1903, ws2811 slow - 400kHz parts, ~2-2.6us period,
+    //     they need a firmware built for the slower bit cell
+    //   sk6822, pl9823, ucs1912, ge8822 - 1.4-1.75us period, outside the
+    //     window this timing covers
+    //   tm1914 - inverted like the TM18xx family and wants a mode select
+    //     preamble, so it needs real support rather than an alias
+    var PIXEL_PROTOCOLS_WS281X = [
+        'ws2811', 'ws2812', 'ws2812b', 'ws2813', 'ws2815', 'ws2818',
+        'sk6812', 'sk6813', 'sm16703', 'gs8206', 'gs8208',
+        'tm1809', 'tm1812', 'ucs1904', 'ucs2903', 'apa104', 'apa106',
+        // the RGBW members of the same family - colour order picks the
+        // channel count, so these behave identically too
+        'apa109', 'sk6812rgbw', 'sk6818', 'sm16704', 'ucs2904', 'ws2814'
+    ].join(',');
+
     var PIXEL_PROTOCOL_WIRE = {
         'tm1814': { bytesPerChannel: 1, preamble: 8 },
         'tm1814a': { bytesPerChannel: 1, preamble: 8 },
@@ -1193,12 +1214,17 @@ function readCapes($cd, $capes)
             // TM18xx family costs it nothing and can sit alongside ws2811 on
             // the same cape.  Other drivers share one idle level across every
             // port and only get the list a cape explicitly declares.
-            // ucs8903/8904 are 16 bit parts: the sequence still supplies 8
-            // bits and the driver widens through the gamma curve, so the only
-            // cost is twice the shift time, which the estimate above accounts
-            // for.
+            // Everything in PIXEL_PROTOCOLS_WS281X is driven identically -
+            // they share the one bit cell timing - so listing them is purely
+            // so someone who bought an SK6812 can find "sk6812" instead of
+            // having to know it is a WS2811 in disguise.  The names and the
+            // grouping follow the pixel table in xLights
+            // (src-core/models/Pixels.cpp) so both ends agree.
+            //
+            // tm1814/tm1814a really do differ (inverted line, current words)
+            // and ucs8903/8904 are 16 bit; those are handled, not aliases.
             if (val["driver"] == "BBShiftString") {
-                return "ws2811,tm1814,ucs8903,ucs8904";
+                return PIXEL_PROTOCOLS_WS281X + ",tm1814,tm1814a,ucs8903,ucs8904";
             }
         }
         return "ws2811";
