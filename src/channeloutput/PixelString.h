@@ -129,6 +129,21 @@ public:
     // BrightnessLUTCache::getWide - so this only changes the wire length.
     static int protocolBytesPerChannel(const std::string& protocol);
 
+    // The bit cell a protocol wants, in ns.  t0/t1 are how long the line is
+    // driven for a zero and a one; period is the whole cell.  These are the
+    // instants every port on a PRU shares, so a driver can only honour one set
+    // at a time - see BBShiftString, which derives the controller's timing
+    // from the ports in use and refuses to mix.
+    struct Timing {
+        int t0Ns;
+        int t1Ns;
+        int periodNs;
+        bool operator==(const Timing& o) const {
+            return t0Ns == o.t0Ns && t1Ns == o.t1Ns && periodNs == o.periodNs;
+        }
+    };
+    static Timing protocolTiming(const std::string& protocol);
+
     // Set the wire length from a count of colour channels.  The licensed
     // output clamps rebuild that count from the (reduced) virtual strings, so
     // it is channels and excludes both the protocol preamble and any 16 bit

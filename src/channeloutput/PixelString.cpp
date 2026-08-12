@@ -465,6 +465,43 @@ std::vector<uint8_t> PixelString::buildTM1814Preamble(float milliAmps) {
     return p;
 }
 
+// Per protocol bit cell.  Anything not listed is the 800kHz ws281x family,
+// which is the overwhelming majority and what the timing has always been.
+//
+// The listed ones are genuinely different parts, not aliases: driving them
+// with the ws281x cell does not merely shift an edge, it puts the pulse
+// outside the window the part decodes.  That is why they were kept out of the
+// protocol dropdown until the firmware could take its timing at runtime.
+PixelString::Timing PixelString::protocolTiming(const std::string& protocol) {
+    // the ws281x family - see the alias list in co-pixelStrings.php
+    static const Timing ws281x{ 320, 750, 1120 };
+
+    // 400kHz parts: a 2.5us cell, twice the ws281x period
+    if (protocol == "ucs1903" || protocol == "ws2811slow" || protocol == "ws2811 slow") {
+        return { 500, 2000, 2500 };
+    }
+    if (protocol == "tm1803") {
+        return { 750, 1875, 2625 };
+    }
+    if (protocol == "gw6205") {
+        return { 750, 1625, 2375 };
+    }
+    // longer cell parts, between the two
+    if (protocol == "tm1804" || protocol == "tm1809slow") {
+        return { 500, 1000, 1500 };
+    }
+    if (protocol == "sk6822" || protocol == "pl9823") {
+        return { 375, 1375, 1750 };
+    }
+    if (protocol == "ucs1912") {
+        return { 250, 1250, 1625 };
+    }
+    if (protocol == "ge8822") {
+        return { 375, 1000, 1375 };
+    }
+    return ws281x;
+}
+
 int PixelString::protocolBytesPerChannel(const std::string& protocol) {
     // single wire 16 bit parts; bit depths follow the pixel table in xLights
     // (src-core/models/Pixels.cpp).  The bare name is the 16 bit part itself,

@@ -1979,6 +1979,41 @@ table.fppStickyTheadTable thead.Zebra_Pin td {
 	font-weight: bold;
 }
 
+/* Make the size attribute mean something on numeric table inputs.
+   size= is ignored by browsers for type=number, so a column holding a 0-9
+   null count renders as wide as one holding a channel number and the table
+   overflows for no reason.  The markup already states the intent, so key off
+   it rather than inventing per-column classes: no Bootstrap width utility
+   covers this, and it is a layout constraint rather than a cosmetic tweak.
+   ch units so it tracks the font, plus room for the spinner. */
+.fppTableWrapper input[type='number'][size='2'] {
+	width: 5.5ch;
+}
+
+.fppTableWrapper input[type='number'][size='3'] {
+	width: 6.5ch;
+}
+
+.fppTableWrapper input[type='number'][size='4'] {
+	width: 7.5ch;
+}
+
+.fppTableWrapper input[type='number'][size='5'] {
+	width: 8.5ch;
+}
+
+.fppTableWrapper input[type='number'][size='6'] {
+	width: 9.5ch;
+}
+
+.fppTableWrapper input[type='number'][size='7'] {
+	width: 10.5ch;
+}
+
+.fppTableWrapper input[type='number'][size='8'] {
+	width: 11.5ch;
+}
+
 /* Generic clearfix-child utility (legacy). Kept global so pages don't need
    to redefine it. Used by about.php and potentially elsewhere. */
 .clear {

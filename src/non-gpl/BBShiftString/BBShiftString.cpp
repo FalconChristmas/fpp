@@ -139,6 +139,55 @@ BBShiftStringOutput::~BBShiftStringOutput() {
 // signal.  That is the one shipped use - a batch of K16A-B boards with the
 // second line of the first differential group reversed - and it has to keep
 // working.
+// T0, T1 and the end of the bit cell are single latch instants shared by every
+// port on the PRU, so the controller can only run one bit cell at a time.  Take
+// it from the ports that actually have pixels, and if they disagree, say so
+// loudly and name the odd ones out rather than driving them at a timing their
+// part cannot decode.
+//
+// Mixing cannot be papered over by picking the slower cell: a ws281x part fed a
+// 2000ns one-pulse reads it as garbage, so there is no safe common value.
+void BBShiftStringOutput::resolveTiming(const Json::Value& config) {
+    std::map<PixelString::Timing, std::vector<int>, TimingLess> used;
+    for (int i = 0; i < (int)m_strings.size(); i++) {
+        if (m_strings[i]->m_outputBytes > 0) {
+            used[PixelString::protocolTiming(config["outputs"][i]["protocol"].asString())]
+                .push_back(m_strings[i]->m_portNumber + 1);
+        }
+    }
+    if (used.empty()) {
+        return;
+    }
+    // the cell the most ports want wins
+    auto best = used.begin();
+    for (auto it = used.begin(); it != used.end(); ++it) {
+        if (it->second.size() > best->second.size()) {
+            best = it;
+        }
+    }
+    m_t0Ns = best->first.t0Ns;
+    m_t1Ns = best->first.t1Ns;
+    m_lowNs = best->first.periodNs;
+
+    if (used.size() > 1) {
+        std::string odd;
+        for (auto& [t, ports] : used) {
+            if (t == best->first) {
+                continue;
+            }
+            for (int p : ports) {
+                odd += (odd.empty() ? "" : ", ") + std::to_string(p);
+            }
+        }
+        LogErr(VB_CHANNELOUT, "Ports on one controller must share a bit timing; using %d/%d/%dns. Port(s) %s want a different one and will not work\n",
+               m_t0Ns, m_t1Ns, m_lowNs, odd.c_str());
+        WarningHolder::AddWarning("BBShiftString: port(s) " + odd +
+                                  " use a pixel protocol whose timing differs from the rest of the controller");
+    } else if (!(best->first == PixelString::Timing{ 320, 750, 1120 })) {
+        LogInfo(VB_CHANNELOUT, "BBShiftString: bit timing %d/%d/%dns\n", m_t0Ns, m_t1Ns, m_lowNs);
+    }
+}
+
 void BBShiftStringOutput::demoteInvertedReceiverChains() {
     int x = 0;
     while (x < m_strings.size()) {
@@ -402,6 +451,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
         m_strings.push_back(newString);
     }
 
+    resolveTiming(config);
     demoteInvertedReceiverChains();
 
     for (auto& a : m_strings) {
@@ -609,6 +659,41 @@ int BBShiftStringOutput::Init(Json::Value config) {
     return retVal;
 }
 
+// Bit timing, as PRU cycle counts, published where the firmware's per-bit
+// waits read them (TIMING_*_OFFSET in BBShiftString.asm - the unused "buffer"
+// words, which have to be in the low 256 bytes because LBCO's offset field is
+// 8 bit).  The firmware spins on the marker before its first frame, so the
+// three counts must be written before it.
+//
+// The waits count from a clock reset at the start of the bit, and the macro
+// spends a few instructions between reading the counter and entering its
+// delay loop, so the target is reduced by that overhead here rather than on
+// the PRU.  The immediate form compensated 3 (LDI+MAX+SUB); the runtime form
+// reads through LBCO instead of LDI, which is slower.
+constexpr int TIMING_OVERHEAD_CYCLES = 5;
+
+// ns per PRU cycle: 200MHz on the AM335x, 250MHz on the AM62x
+#ifdef PLATFORM_BBB
+constexpr int PRU_NS_PER_CYCLE = 5;
+#else
+constexpr int PRU_NS_PER_CYCLE = 4;
+#endif
+
+static uint32_t timingCycles(int ns) {
+    int c = ns / PRU_NS_PER_CYCLE - TIMING_OVERHEAD_CYCLES;
+    return (uint32_t)std::max(1, c);
+}
+
+static void publishTiming(BBBPru* pru, int t0ns, int t1ns, int lowns) {
+    volatile uint32_t* p = (volatile uint32_t*)(pru->data_ram + 16);
+    p[0] = timingCycles(t0ns);   // TIMING_T0_OFFSET
+    p[1] = timingCycles(t1ns);   // TIMING_T1_OFFSET
+    p[2] = timingCycles(lowns);  // TIMING_LOW_OFFSET
+    __sync_synchronize();
+    p[3] = 0xA5A5A5A5;           // TIMING_MAGIC_OFFSET, written last
+    __sync_synchronize();
+}
+
 // Publish the resolved clock/latch r30 bit numbers to the firmware (see
 // PINCFG_OFFSET in BBShiftString.asm; the 0xA5 marker distinguishes a real
 // config from cleared memory).  Must land after run() - the firmware load
@@ -685,6 +770,7 @@ int BBShiftStringOutput::StartPRU() {
             return 0;
         }
         publishPinConfig(m_pru1.pru, m_clockBit[1], m_latchBit[1]);
+        publishTiming(m_pru1.pru, m_t0Ns, m_t1Ns, m_lowNs);
 #ifndef PLATFORM_BBB
         // the firmware polls for the ring location; the upper half of the
         // shared RAM keeps clear of the FalconV5 listener capture area
@@ -702,6 +788,7 @@ int BBShiftStringOutput::StartPRU() {
             return 0;
         }
         publishPinConfig(m_pru0.pru, m_clockBit[0], m_latchBit[0]);
+        publishTiming(m_pru0.pru, m_t0Ns, m_t1Ns, m_lowNs);
 #ifndef PLATFORM_BBB
         m_pru0.ring.attach(m_pru0.pru, ringBase[0], ringSize[0], true);
 #endif

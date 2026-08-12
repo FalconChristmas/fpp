@@ -52,6 +52,25 @@
 #define T0_TIME   320
 #define T1_TIME   750
 #define LOW_TIME  1120
+
+// Runtime bit timing.  The three waits above are the compiled defaults; when
+// the ARM publishes cycle counts at the offsets below they take over, so one
+// firmware can drive a different bit cell (a 400kHz part, say) without a
+// separate image.  See publishTiming() in BBShiftString.cpp.
+//
+// They live in the "buffer" words of the PRU data RAM struct - unused, and
+// crucially in the low 256 bytes, because LBCO's offset field is 8 bit and an
+// offset of 256 will not assemble.  That is also why the clock/latch config
+// at PINCFG_OFFSET has to be read through a register: fine once per frame in
+// the idle loop, too expensive three times per bit.
+//
+// The ARM writes cycles already reduced by the macro's own overhead, so the
+// PRU does no arithmetic and no ns conversion.  A zero means "not published",
+// and the compiled default is used instead.
+#define TIMING_T0_OFFSET   16
+#define TIMING_T1_OFFSET   20
+#define TIMING_LOW_OFFSET  24
+#define TIMING_MAGIC_OFFSET 28
 //if LOW_TIME needs to be more than 1250, you need to do:
 // #define SLOW_WAITNS
 
@@ -66,6 +85,20 @@
 // the pump (SIGSTOP fppd) mid frame for a known wall time and divide: that
 // calibrated one poll at 48.1ns on an AM62x at 250MHz.
 // #define RING_STALL_STATS
+
+// Measure where the bit cell edges actually land.  With this defined the
+// firmware records the PRU cycle counter at the T0 and T1 latches of every
+// bit into the words below, which the ARM can read back: that is the achieved
+// timing, including the wait macro's own overhead, rather than the requested
+// value.  Use it to calibrate TIMING_OVERHEAD_CYCLES and to check whether a
+// window is work bound (achieved > requested means the wait never ran).
+// Costs two instructions per edge, so leave it off in shipping firmware.
+// It reuses the timing marker word, which is only read once at startup and is
+// free afterwards - the other low words are all live (0/4 are the DDR
+// addresses, 8 the command, 12 the response).  T1 uses the same macro as T0,
+// so calibrating T0 calibrates both.
+// #define TIMING_PROBE
+#define PROBE_T0_OFFSET TIMING_MAGIC_OFFSET
 
 #if !defined(RUNNING_ON_PRU0) && !defined(RUNNING_ON_PRU1)
 #define RUNNING_ON_PRU1
@@ -285,6 +318,26 @@ UNPRELOAD_DATA .macro dataAddress
     .endm
 #endif
 
+
+// Wait until the PRU cycle counter reaches a target held in data RAM, rather
+// than a compile time immediate.  Same shape as WAITNS_LOOP - the MAX clamps
+// a target already passed to zero so the LOOP count is never negative - but
+// the target arrives as cycles from the ARM.
+//
+// One extra cost over the immediate form: LBCO from local data RAM is slower
+// than LDI, which is why the ARM subtracts TIMING_OVERHEAD_CYCLES rather than
+// the 3 the immediate version compensates for.
+WAITCYCLES_DRAM .macro dramOff, treg1, treg2
+    .newblock
+    LDI32 treg1, PRU_CONTROL_REG
+    LBBO &treg2, treg1, 0xC, 4
+    LBCO &treg1, CONST_PRUDRAM, dramOff, 4
+    MAX  treg1, treg2, treg1
+    SUB  treg1, treg1, treg2
+    LOOP endloop?, treg1
+        NOP
+endloop?:
+    .endm
 
 TOGGLE_CLOCK .macro
     SET r30, r30, clockBit
@@ -509,6 +562,16 @@ RINGCFGWAIT:
     SBBO    &ringReadPtr, ringCtrl, 4, 4
 #endif
 
+    // Wait for the ARM to publish the bit timing (see publishTiming() in
+    // BBShiftString.cpp).  Like the ring config it cannot be written before
+    // the firmware starts, because loading the firmware clears these memories.
+    // The ARM writes the three cycle counts first and the marker last, so
+    // seeing the marker means all three are good.
+TIMINGWAIT:
+    LBCO    &tmpReg1, CONST_PRUDRAM, TIMING_MAGIC_OFFSET, 4
+    LDI32   tmpReg2, 0xA5A5A5A5
+    QBNE    TIMINGWAIT, tmpReg1, tmpReg2
+
 	// Write a 0x1 into the response field so that they know we have started
 	LDI 	r2, 0x1
 	SBCO	&r2, CONST_PRUDRAM, 8, 4
@@ -650,15 +713,19 @@ EXIT:
 OUTPUT_FULL_BIT:
     OUTPUT_HIGH
     //wait for the full cycle to complete
-    WAITNS_LOOP  LOW_TIME, tmpReg1, tmpReg2
+    WAITCYCLES_DRAM  TIMING_LOW_OFFSET, tmpReg1, tmpReg2
     //start the clock
     RESET_PRU_CLOCK tmpReg1, tmpReg2
     TOGGLE_LATCH
     OUTPUT_REG_INDIRECT
-    WAITNS_LOOP  T0_TIME, tmpReg1, tmpReg2
+    WAITCYCLES_DRAM  TIMING_T0_OFFSET, tmpReg1, tmpReg2
     TOGGLE_LATCH
+#ifdef TIMING_PROBE
+    GET_PRU_CLOCK tmpReg1, tmpReg2, 4
+    SBCO &tmpReg1, CONST_PRUDRAM, PROBE_T0_OFFSET, 4
+#endif
     OUTPUT_LOW
-    WAITNS_LOOP  T1_TIME, tmpReg1, tmpReg2
+    WAITCYCLES_DRAM  TIMING_T1_OFFSET, tmpReg1, tmpReg2
     TOGGLE_LATCH
     JMP r1.w2
 

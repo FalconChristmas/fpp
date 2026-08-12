@@ -232,6 +232,24 @@ private:
     bool pumpFrameData(FrameData& d);
 
     void createOutputLengths(FrameData& d, const std::string& pfx);
+
+    // Bit cell timing in ns, published to the firmware as cycle counts.  These
+    // are the values the firmware used to have compiled in; keeping them here
+    // is what lets a different bit cell (a 400kHz part) be selected without a
+    // separate firmware image.
+    int m_t0Ns = 320;
+    int m_t1Ns = 750;
+    int m_lowNs = 1120;
+
+    // ordering so a Timing can key a map; the values are small and exact
+    struct TimingLess {
+        bool operator()(const PixelString::Timing& a, const PixelString::Timing& b) const {
+            return std::tie(a.t0Ns, a.t1Ns, a.periodNs) < std::tie(b.t0Ns, b.t1Ns, b.periodNs);
+        }
+    };
+    // pick the controller's bit cell from the protocols actually in use
+    void resolveTiming(const Json::Value& config);
+
     void demoteInvertedReceiverChains();
 
     void setupFalconV5Support(const Json::Value& root, uint8_t* memLoc);
