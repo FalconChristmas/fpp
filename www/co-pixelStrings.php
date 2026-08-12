@@ -212,6 +212,22 @@ function readCapes($cd, $capes)
         return result;
     }
 
+    // Hide the Protocol column unless some port on this cape offers more than
+    // one protocol.  A ws281x-only cape (all the BBB48String ones, DPI) would
+    // otherwise get a column containing nothing but the word WS2811.  Driven
+    // off the rows' own protocols attribute so a cape that declares its own
+    // list is picked up without naming drivers here.
+    function UpdateProtocolColumnVisibility() {
+        var choice = false;
+        $('#PixelString tbody tr').each(function () {
+            if (($(this).attr('protocols') || '').split(',').length > 1) {
+                choice = true;
+                return false;
+            }
+        });
+        $('body').toggleClass('noPixelProtocolColumn', !choice);
+    }
+
     function pixelOutputProtocolSelect(protocols, protocol) {
         var result = "";
         var pixelProtocols = protocols.split(',');
@@ -797,11 +813,49 @@ function readCapes($cd, $capes)
     // PixelString.cpp; per the receiver table the whole controller's budget
     // drops ~90 pixels/port with v5 (bidirectional) remotes and ~30 with
     // send-only v4 remotes.
-    function pixelStringChannelsForStrings(strings) {
+    // What a protocol costs on the wire, which is what the estimate actually
+    // cares about - the config's channel count is a colour count, not a byte
+    // count, and the two stop matching once the part is not 8 bits.
+    //
+    //   bytesPerChannel - sequence data is always 8 bits per channel, so a
+    //     wider part does NOT consume more channels: the driver expands 8 bits
+    //     to 16 (or 12) through the brightness/gamma curve on the way out.
+    //     Only the shift time grows, which is exactly what this estimate is
+    //     measuring, so it belongs here and nowhere else.
+    //   preamble - constant leading bytes the protocol requires once per port,
+    //     e.g. TM1814's C1/C2 constant current words (PixelString.cpp).
+    //
+    // Bit depths follow the pixel table in xLights (src-core/models/Pixels.cpp)
+    // so both ends agree.  Only the single wire families are listed - the
+    // clocked 2 wire parts are not driven by these outputs.  Entries for
+    // protocols FPP cannot drive yet are harmless: nothing offers them in the
+    // dropdown, and the estimate is right the day a driver lands.
+    var PIXEL_PROTOCOL_WIRE = {
+        'tm1814': { bytesPerChannel: 1, preamble: 8 },
+        'tm1814a': { bytesPerChannel: 1, preamble: 8 },
+        // 16 bit
+        'ucs8903': { bytesPerChannel: 2, preamble: 0 },
+        'ucs8904': { bytesPerChannel: 2, preamble: 0 },
+        'ucs7604': { bytesPerChannel: 2, preamble: 0 },
+        // 12 bit
+        'sj1221': { bytesPerChannel: 1.5, preamble: 0 },
+        'tls3001': { bytesPerChannel: 1.5, preamble: 0 },
+        'tlc5973': { bytesPerChannel: 1.5, preamble: 0 }
+    };
+    function pixelProtocolWire(protocol) {
+        var p = (protocol || 'ws2811').toLowerCase();
+        // xLights spells the explicit wide modes "ucs8903 16 bit" / "ucs8904 (16)";
+        // treat any such suffix as the same part
+        p = p.replace(/\s*[\(]?16\s*bit[\)]?\s*$/, '').replace(/\s*\(16\)\s*$/, '').trim();
+        return PIXEL_PROTOCOL_WIRE[p] || { bytesPerChannel: 1, preamble: 0 };
+    }
+
+    function pixelStringChannelsForStrings(strings, wire) {
         var chans = 0;
         if (!strings) {
             return 0;
         }
+        var bpc = (wire || {}).bytesPerChannel || 1;
         for (var i = 0; i < strings.length; i++) {
             var vs = strings[i];
             var px = parseInt(vs.pixelCount) || 0;
@@ -811,7 +865,7 @@ function readCapes($cd, $capes)
             // channelsPerNode == number of channels in the color order (RGB=3, RGBW=4)
             var cpn = (vs.colorOrder || 'RGB').length;
             var nulls = (parseInt(vs.nullNodes) || 0) + (parseInt(vs.endNulls) || 0);
-            chans += (px + nulls) * cpn;
+            chans += (px + nulls) * cpn * bpc;
         }
         return chans;
     }
@@ -843,10 +897,14 @@ function readCapes($cd, $capes)
             'virtualStringsD', 'virtualStringsE', 'virtualStringsF'];
         var chans = 0;
         var anyChannels = false;
+        // The smart-receiver lead-in and marker sizes below are raw wire bytes,
+        // so they deliberately do NOT scale with the protocol's bit depth; only
+        // the pixel data does.
+        var wire = pixelProtocolWire(port.protocol);
         if (type == 'v1') {
             chans += 36; // VirtualString(0,0) lead-in: 0 + 18 + 18
         }
-        var r0 = pixelStringChannelsForStrings(port.virtualStrings);
+        var r0 = pixelStringChannelsForStrings(port.virtualStrings, wire);
         chans += r0;
         if (r0 > 0) {
             anyChannels = true;
@@ -860,7 +918,7 @@ function readCapes($cd, $capes)
             } else if (type == 'v2') {
                 chans += 10; // VirtualString(3, p): SMART_RECEIVER_V2_GAP
             }
-            var rp = pixelStringChannelsForStrings(port[labels[p]]);
+            var rp = pixelStringChannelsForStrings(port[labels[p]], wire);
             chans += rp;
             if (rp > 0) {
                 anyChannels = true;
@@ -872,8 +930,11 @@ function readCapes($cd, $capes)
         }
         if (!anyChannels) {
             chans = 0;
+        } else {
+            // once per port, ahead of the pixel data (PixelString::Init)
+            chans += wire.preamble;
         }
-        return { channels: chans, isV5: type == 'v5' && !isV4, isV4: isV4 };
+        return { channels: Math.ceil(chans), isV5: type == 'v5' && !isV4, isV4: isV4 };
     }
 
     // ---- DPIPixels frame-rate ceiling ---------------------------------------
@@ -1127,6 +1188,17 @@ function readCapes($cd, $capes)
             }
             if (val["protocols"]) {
                 return val["protocols"].join(",");
+            }
+            // BBShiftString sets the idle level per port, so the inverted
+            // TM18xx family costs it nothing and can sit alongside ws2811 on
+            // the same cape.  Other drivers share one idle level across every
+            // port and only get the list a cape explicitly declares.
+            // ucs8903/8904 are 16 bit parts: the sequence still supplies 8
+            // bits and the driver widens through the gamma curve, so the only
+            // cost is twice the shift time, which the estimate above accounts
+            // for.
+            if (val["driver"] == "BBShiftString") {
+                return "ws2811,tm1814,ucs8903,ucs8904";
             }
         }
         return "ws2811";
@@ -1814,6 +1886,7 @@ function readCapes($cd, $capes)
                     }
 
                     $('#PixelString tbody').append(str);
+                    UpdateProtocolColumnVisibility();
 
                     expansions.forEach(function (r) {
                         PixelStringExpansionTypeChanged(r);

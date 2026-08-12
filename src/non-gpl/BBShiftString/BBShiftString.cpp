@@ -126,6 +126,58 @@ BBShiftStringOutput::~BBShiftStringOutput() {
     }
 }
 
+// Inverted lines and Falcon smart receivers do not mix, but only for one of
+// the two reasons a line can be inverted.
+//
+// A chain's first port carries the config packet and the receiver's processor
+// watches that line, so an inverted head is refused whatever set it.  Protocol
+// inversion (TM18xx) is meant to reach the pixels, so it passes through the
+// receiver and is refused for every port of the chain.
+//
+// Cape declared inversion on a non-head port is left alone: it exists to undo
+// a backwards wired differential pair, so the receiver already sees a correct
+// signal.  That is the one shipped use - a batch of K16A-B boards with the
+// second line of the first differential group reversed - and it has to keep
+// working.
+void BBShiftStringOutput::demoteInvertedReceiverChains() {
+    int x = 0;
+    while (x < m_strings.size()) {
+        PixelString* head = m_strings[x++];
+        if (!head->m_isSmartReceiver ||
+            (head->smartReceiverType != PixelString::ReceiverType::FalconV5 &&
+             head->smartReceiverType != PixelString::ReceiverType::FalconV4)) {
+            continue;
+        }
+        std::vector<PixelString*> chain{ head };
+        for (int i = 0; i < 3 && x < m_strings.size(); ++i) {
+            chain.push_back(m_strings[x++]);
+        }
+
+        std::string why;
+        if (head->m_isInverted) {
+            why = "its first port is inverted";
+        } else {
+            for (auto* p : chain) {
+                if (p->m_protocolInverted) {
+                    why = "port " + std::to_string(p->m_portNumber + 1) + " uses an inverted protocol";
+                    break;
+                }
+            }
+        }
+        if (why.empty()) {
+            continue;
+        }
+
+        LogWarn(VB_CHANNELOUT, "Falcon smart receivers on port %d disabled: %s\n",
+                head->m_portNumber + 1, why.c_str());
+        WarningHolder::AddWarning("BBShiftString: smart receivers on port " +
+                                  std::to_string(head->m_portNumber + 1) +
+                                  " disabled, " + why);
+        head->smartReceiverType = PixelString::ReceiverType::None;
+        head->m_isSmartReceiver = false;
+    }
+}
+
 void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& pfx) {
     // One command table record is the high mask for every string slot, then
     // the low mask for every slot, then the two byte channel offset at which
@@ -343,13 +395,18 @@ int BBShiftStringOutput::Init(Json::Value config) {
             return 0;
         }
 
-        if (newString->m_outputChannels > maxStringLen) {
-            maxStringLen = newString->m_outputChannels;
+        if (newString->m_outputBytes > maxStringLen) {
+            maxStringLen = newString->m_outputBytes;
         }
 
-        hasV5SR |= newString->smartReceiverType == PixelString::ReceiverType::FalconV5;
-        hasFalconSR |= newString->smartReceiverType == PixelString::ReceiverType::FalconV4 || newString->smartReceiverType == PixelString::ReceiverType::FalconV5;
         m_strings.push_back(newString);
+    }
+
+    demoteInvertedReceiverChains();
+
+    for (auto& a : m_strings) {
+        hasV5SR |= a->smartReceiverType == PixelString::ReceiverType::FalconV5;
+        hasFalconSR |= a->smartReceiverType == PixelString::ReceiverType::FalconV4 || a->smartReceiverType == PixelString::ReceiverType::FalconV5;
     }
 
     int retVal = ChannelOutput::Init(config);
@@ -389,7 +446,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
                                  m_strings[x]->smartReceiverType == PixelString::ReceiverType::FalconV4)) {
             curRecPort = 0;
         }
-        if (m_strings[x]->m_outputChannels > 0 || curRecPort >= 0) {
+        if (m_strings[x]->m_outputBytes > 0 || curRecPort >= 0) {
             if (curRecPort == -1 && m_strings[x]->smartReceiverType != PixelString::ReceiverType::None) {
                 curRecPort = m_strings[x]->m_portNumber % 4;
             }
@@ -432,7 +489,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
             }
 
             // printf("pru: %d  pin: %d  idx: %d\n", pru, pin, pinIdx);
-            if (x >= m_licensedOutputs && m_strings[x]->m_outputChannels > 0) {
+            if (x >= m_licensedOutputs && m_strings[x]->m_outputBytes > 0) {
                 // apply limit
                 int pixels = 50;
                 int chanCount = 0;
@@ -446,15 +503,15 @@ int BBShiftStringOutput::Init(Json::Value config) {
                 if (m_strings[x]->m_isSmartReceiver) {
                     chanCount = 0;
                 }
-                m_strings[x]->m_outputChannels = chanCount;
+                m_strings[x]->setPixelDataChannels(chanCount);
             }
 
             if (pru == 0) {
                 m_pru0.stringMap[bit][pinIdx] = x;
-                m_pru0.maxStringLen = std::max(m_pru0.maxStringLen, m_strings[x]->m_outputChannels);
+                m_pru0.maxStringLen = std::max(m_pru0.maxStringLen, m_strings[x]->m_outputBytes);
             } else {
                 m_pru1.stringMap[bit][pinIdx] = x;
-                m_pru1.maxStringLen = std::max(m_pru1.maxStringLen, m_strings[x]->m_outputChannels);
+                m_pru1.maxStringLen = std::max(m_pru1.maxStringLen, m_strings[x]->m_outputBytes);
             }
             if (curRecPort >= 0) {
                 if (++curRecPort == 4) {
@@ -881,6 +938,7 @@ void BBShiftStringOutput::prepDataT(FrameData& d, unsigned char* channelData) {
         uint32_t len = 0;
         uint32_t vsIdx = 0;
         uint32_t vsOff = 0;
+        uint8_t pad = 0;
     } slots[MAX_PINS_PER_PRU][SPP];
     uint32_t newMax = d.maxStringLen;
     for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
@@ -888,7 +946,7 @@ void BBShiftStringOutput::prepDataT(FrameData& d, unsigned char* channelData) {
             int idx = d.stringMap[y][x];
             if (idx != -1) {
                 PixelString* ps = m_strings[idx];
-                uint32_t newLen = ps->m_outputChannels;
+                uint32_t newLen = ps->m_outputBytes;
                 SlotSrc& sl = slots[y][x];
                 if (tester) {
                     sl.buf = tester->createTestData(ps, m_testCycle, m_testPercent, channelData, newLen);
@@ -897,6 +955,11 @@ void BBShiftStringOutput::prepDataT(FrameData& d, unsigned char* channelData) {
                     sl.affine = m_vsAffine[idx].data();
                 }
                 sl.len = newLen;
+                // Past the end of a string the port is parked at its idle
+                // level, which an inverted line holds high.  The data phase
+                // still shifts whatever is in the buffer, so padding a short
+                // inverted port with zeros would drop the line mid bit.
+                sl.pad = ps->m_isInverted ? 0xFF : 0x00;
                 newMax = std::max(newMax, newLen);
             }
         }
@@ -926,7 +989,42 @@ void BBShiftStringOutput::prepDataT(FrameData& d, unsigned char* channelData) {
                     memcpy(col[x], sl.buf + p0, avail);
                     p = avail;
                 } else if (sl.ps) {
+                    // A protocol preamble (TM1814's C1/C2 current words) is
+                    // constant and leads the port's stream, so it is consumed
+                    // out of the first tile before the virtual strings start.
+                    const auto& pre = sl.ps->m_preamble;
+                    while (p < avail && (p0 + p) < pre.size()) {
+                        col[x][p] = pre[p0 + p];
+                        ++p;
+                    }
                     auto& vstrings = sl.ps->m_virtualStrings;
+                    if (sl.ps->m_bytesPerChannel == 2) {
+                        // 16 bit part: two bytes per channel, most significant
+                        // first.  vsOff counts wire bytes here rather than
+                        // channels, so the channel index is vsOff >> 1.  Kept
+                        // as its own loop so the 8 bit path below is untouched.
+                        while (p < avail && sl.vsIdx < vstrings.size()) {
+                            auto& vs = vstrings[sl.vsIdx];
+                            uint32_t vsBytes = (uint32_t)vs.chMapCount * 2;
+                            uint32_t m = std::min(avail - p, vsBytes - sl.vsOff);
+                            const uint16_t* br = vs.brightnessMap16;
+                            const int* mp = vs.chMap;
+                            for (uint32_t k = 0; k < m; ++k) {
+                                uint32_t wb = sl.vsOff + k;
+                                uint16_t v = br[channelData[mp[wb >> 1]]];
+                                col[x][p++] = (wb & 1) ? (uint8_t)v : (uint8_t)(v >> 8);
+                            }
+                            sl.vsOff += m;
+                            if (sl.vsOff >= vsBytes) {
+                                sl.vsOff = 0;
+                                sl.vsIdx++;
+                            }
+                        }
+                        if (p < n) {
+                            memset(&col[x][p], sl.pad, n - p);
+                        }
+                        continue;
+                    }
                     while (p < avail && sl.vsIdx < vstrings.size()) {
                         auto& vs = vstrings[sl.vsIdx];
                         uint32_t m = std::min(avail - p, (uint32_t)vs.chMapCount - sl.vsOff);
@@ -956,7 +1054,7 @@ void BBShiftStringOutput::prepDataT(FrameData& d, unsigned char* channelData) {
                     }
                 }
                 if (p < n) {
-                    memset(&col[x][p], 0, n - p);
+                    memset(&col[x][p], sl.pad, n - p);
                 }
             }
             uint32_t g = 0;
@@ -1268,27 +1366,10 @@ void BBShiftStringOutput::StoppingOutput() {
     m_pru0.curV5ConfigPacket = 0;
 }
 constexpr int numPacketTypes = 12;
-static void invertPackets(std::array<std::array<uint8_t, 64>, numPacketTypes>& pckt) {
-    for (auto& d : pckt) {
-        for (int x = 0; x < 57; x++) {
-            d[x] = ~d[x];
-        }
-    }
-}
-static void invertPacket(std::array<uint8_t, 64>& d) {
-    for (int x = 0; x < 57; x++) {
-        d[x] = ~d[x];
-    }
-}
+// No inversion pass here: config packets only exist for a chain's first port,
+// and demoteInvertedReceiverChains() has already dropped any chain whose head
+// is inverted, so a packet never needs flipping.
 void BBShiftStringOutput::encodeFalconV5Packet(std::vector<std::array<uint8_t, 64>>& packets, uint8_t* memLocPru0, uint8_t* memLocPru1) {
-    int x = 0;
-    while (x < m_strings.size()) {
-        int p = x;
-        PixelString* p1 = m_strings[x++];
-        if (p1->m_isInverted) {
-            invertPacket(packets[p]);
-        }
-    }
     std::array<uint8_t, 57 * MAX_PINS_PER_PRU * MAX_STRINGS_PER_PIN> pru0Data;
     std::array<uint8_t, 57 * MAX_PINS_PER_PRU * MAX_STRINGS_PER_PIN> pru1Data;
     for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {

@@ -109,7 +109,7 @@ int SpixelsOutput::Init(Json::Value config) {
             return 0;
 
         int connector = 0;
-        int pixels = newString->m_outputChannels / 3; // FIXME, need to confirm this
+        int pixels = newString->m_outputBytes / 3; // FIXME, need to confirm this
 
         if (pixels == 0) {
             delete newString;
@@ -209,7 +209,7 @@ void SpixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>
         int min = FPPD_MAX_CHANNELS;
         int max = 0;
         int inCh = 0;
-        for (int p = 0; p < ps->m_outputChannels; p++) {
+        for (int p = 0; p < ps->m_outputBytes; p++) {
             int ch = ps->m_outputMap[inCh++];
             if (ch < FPPD_MAX_CHANNELS) {
                 min = std::min(min, ch);
@@ -234,7 +234,7 @@ void SpixelsOutput::PrepData(unsigned char* channelData) {
         ps = m_strings[s];
         inCh = 0;
 
-        for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
+        for (int p = 0, pix = 0; p < ps->m_outputBytes; pix++) {
             r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
             g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
             b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];

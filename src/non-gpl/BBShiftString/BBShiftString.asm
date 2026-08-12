@@ -32,16 +32,24 @@
 
 
 
-#ifdef SHIFT16
-// A 16 deep shift is 65 cycles (260ns at the AM62x 250MHz), so the 8 deep
-// 220ns T0 deadline has already passed by the time the data is clocked out.
-// Give the wait a real target: 300ns lands T0H at ~312ns, inside WS2811
-// (100-400), SK6812 and WS2815 (150-450), and closer to nominal than 8 deep
-// manages for WS2812B (250-550).
-#define T0_TIME   300
-#else
-#define T0_TIME   220
-#endif
+// T0 is the instant the zero bits are dropped, and every port on the PRU
+// shares it - there is only one latch here - so it has to suit each protocol
+// the cape can be carrying at once.
+//
+// 320ns is the value that does: the TM18xx parts are the tight constraint,
+// wanting a 310-410ns low time for a zero code (TM1814 datasheet, typical
+// 360), while the ws281x family is far looser - WS2811 100-400, SK6812 and
+// WS2815 150-450, WS2812B 250-550.  The overlap is 310-400 and 320 sits in
+// it with margin at the end that matters.
+//
+// This used to be 220, which was under spec for both TM18xx and WS2812B and
+// only worked because real silicon is more forgiving than its datasheet.  It
+// was also below the work already needed to get here: the 8 deep data shift
+// is 33 cycles plus the latch, so on the AM335x the wait was a no-op and the
+// real edge landed near 230ns.  A 16 deep shift is 65 cycles (260ns at the
+// AM62x 250MHz) and needed its own 300ns value for the same reason; 320
+// clears both, so one constant now serves every build.
+#define T0_TIME   320
 #define T1_TIME   750
 #define LOW_TIME  1120
 //if LOW_TIME needs to be more than 1250, you need to do:

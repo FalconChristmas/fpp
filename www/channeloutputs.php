@@ -87,18 +87,18 @@
             border-bottom: 2px solid var(--fpp-border)
         }
 
-        <?
-        if ($settings['BeaglePlatform']) {
-            //  BBB only supports ws2811 at this point
-            ?>
-            #PixelString tr>th:nth-of-type(2),
-            #PixelString tr>td:nth-of-type(2),
-            div[aria-labelledby="PixelString"] .floatThead-table tr>th:nth-of-type(2) {
-                display: none;
-            }
-
-            <?
+        /* The Protocol column is only useful when the cape actually offers a
+           choice - most are ws281x only, where it would be a static label.
+           UpdateProtocolColumnVisibility() in co-pixelStrings.php sets this
+           class from the loaded cape, so it follows the subtype dropdown
+           rather than the platform. */
+        body.noPixelProtocolColumn #PixelString tr>th:nth-of-type(2),
+        body.noPixelProtocolColumn #PixelString tr>td:nth-of-type(2),
+        body.noPixelProtocolColumn div[aria-labelledby="PixelString"] .floatThead-table tr>th:nth-of-type(2) {
+            display: none;
         }
+
+        <?
         if ((isset($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {
             // don't support virtual strings
             ?>

@@ -271,13 +271,13 @@ int DPIPixelsOutput::Init(Json::Value config) {
         if (!newString->Init(s, &root["outputs"][i]))
             return 0;
 
-        if (newString->m_outputChannels > longestString)
-            longestString = newString->m_outputChannels;
+        if (newString->m_outputBytes > longestString)
+            longestString = newString->m_outputBytes;
 
         if (protocol == "")
             protocol = s["protocol"].asString();
 
-        outputChannelCounts.push_back(newString->m_outputChannels);
+        outputChannelCounts.push_back(newString->m_outputBytes);
 
         if (root["outputs"][i].isMember("pin")) {
             std::string pinName = root["outputs"][i]["pin"].asString();
@@ -287,13 +287,13 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 bitPos[i] = pinBitPos;
                 outputToStringMap[pinBitPos] = i;
                 stringToOutputMap[i] = pinBitPos;
-                stringLengths[pinBitPos] = newString->m_outputChannels;
+                stringLengths[pinBitPos] = newString->m_outputBytes;
 
                 outputPinMap.push_back(pinName);
             } else {
                 // A pin DPI cannot drive.  The old RPIWS281X configs put ws2801 strings on
                 // spidev pins, so skip just that output rather than failing the whole cape.
-                if (newString->m_outputChannels > 0) {
+                if (newString->m_outputBytes > 0) {
                     if (skippedOutputs != "") {
                         skippedOutputs += ", ";
                     }
@@ -316,7 +316,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 if (firstStringInBank[z] != 0) {
                     outputToStringMap[bitPos[i] + (z * 24)] = i;
                     stringToOutputMap[i] = bitPos[i] + (z * 24);
-                    stringLengths[bitPos[i] + (z * 24)] = newString->m_outputChannels;
+                    stringLengths[bitPos[i] + (z * 24)] = newString->m_outputBytes;
                     z = 0;
                 }
             }
@@ -326,7 +326,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
             outputPinMap.push_back("");
         }
 
-        if ((i >= licensedOutputs) && (newString->m_outputChannels > 0)) {
+        if ((i >= licensedOutputs) && (newString->m_outputBytes > 0)) {
             // apply limit at the source, same code as BBB48StringOutput
             int pixels = 50;
             int chanCount = 0;
@@ -348,7 +348,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 }
                 outputList += std::to_string(i + 1);
             }
-            newString->m_outputChannels = chanCount;
+            newString->setPixelDataChannels(chanCount);
         }
         pixelStrings.push_back(newString);
     }
@@ -398,7 +398,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
         // latchCount = 1;
     }
 
-    while (!pixelStrings.empty() && pixelStrings.back()->m_outputChannels == 0) {
+    while (!pixelStrings.empty() && pixelStrings.back()->m_outputBytes == 0) {
         PixelString* ps = pixelStrings.back();
         delete ps;
         pixelStrings.pop_back();
@@ -422,7 +422,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
     if (pixelStrings.size() > licensedOutputs) {
         int pixels = 0;
         for (int s = 0; s < pixelStrings.size(); s++) {
-            pixels = pixelStrings[s]->m_outputChannels / 3;
+            pixels = pixelStrings[s]->m_outputBytes / 3;
             if ((s >= licensedOutputs) && (pixels > 50)) {
                 if (outputList != "") {
                     outputList += ", ";
@@ -639,7 +639,7 @@ void DPIPixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int
         int inCh = 0;
         int min = FPPD_MAX_CHANNELS;
         int max = 0;
-        for (int p = 0; p < ps->m_outputChannels; p++) {
+        for (int p = 0; p < ps->m_outputBytes; p++) {
             int ch = ps->m_outputMap[inCh++];
             if (ch < FPPD_MAX_CHANNELS) {
                 min = std::min(min, ch);

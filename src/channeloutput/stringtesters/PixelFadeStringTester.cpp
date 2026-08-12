@@ -16,10 +16,10 @@
 #include "../PixelString.h"
 
 uint8_t* PixelFadeStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t& newLen) {
-    newLen = ps->m_outputChannels;
+    newLen = ps->m_outputBytes;
     uint8_t* data = ps->m_outputBuffer;
-    memset(data, 0, ps->m_outputChannels);
-    uint8_t* out = data;
+    uint8_t* out = ps->pixelDataStart();
+    memset(out, 0, ps->m_outputBytes - ps->m_preamble.size());
     uint32_t inCh = 0;
 
     uint8_t fadeValue;

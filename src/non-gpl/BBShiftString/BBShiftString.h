@@ -232,6 +232,7 @@ private:
     bool pumpFrameData(FrameData& d);
 
     void createOutputLengths(FrameData& d, const std::string& pfx);
+    void demoteInvertedReceiverChains();
 
     void setupFalconV5Support(const Json::Value& root, uint8_t* memLoc);
     void encodeFalconV5Packet(std::vector<std::array<uint8_t, 64>>& packets, uint8_t* memLocPru0, uint8_t* memLocPru1);
