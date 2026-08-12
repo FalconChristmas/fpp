@@ -339,7 +339,7 @@ function list_plugin_entries($menu)
                                 <a class="dropdown-item" href="index.php"><i class="fas fa-info"></i> Status Page</a>
                                 <?
                                 if (isset($settings['cape-info']) && isset($settings['cape-info']['provides']) && in_array("currentMonitoring", $settings['cape-info']['provides'])) {
-                                    echo "<a class='dropdown-item' href='currentmonitor.php'><i class='fas fa-bolt'></i> Current Monitor</a>";
+                                    echo "<a class='dropdown-item' href='currentmonitor.php'><i class='fas fa-bolt'></i> Port Status</a>";
                                 }
                                 if ((!$settings["IsDesktop"]) || ($settings['uiLevel'] > 2)) {
                                     echo "<a class='dropdown-item' href='networkconfig.php'><i class='fas fa-network-wired'></i> Network</a>";

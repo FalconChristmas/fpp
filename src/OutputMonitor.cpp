@@ -231,14 +231,22 @@ public:
                 int pv = enablePin->getValue();
                 v["enabled"] = (pv && highToEnable) || (!pv && !highToEnable);
             }
-            if (receivers[0].isOn && eFusePin) {
-                if (receivers[0].hasTriggered) {
-                    v["status"] = false;
+            // Only report a fuse status for ports that actually have a fuse pin
+            // to read.  Ports with nothing but an enable (the local outputs on
+            // the K8-Pro/K16-Pro, where only the differential receivers report
+            // back) have nothing to detect, and a hard-coded "OK" there is a
+            // green light for a check that can never go red.  Leaving the key
+            // out lets the UI say nothing instead of saying something false.
+            if (eFusePin) {
+                if (receivers[0].isOn) {
+                    if (receivers[0].hasTriggered) {
+                        v["status"] = false;
+                    } else {
+                        v["status"] = eFuseOKValue == eFusePin->getValue();
+                    }
                 } else {
-                    v["status"] = eFuseOKValue == eFusePin->getValue();
+                    v["status"] = true;
                 }
-            } else {
-                v["status"] = true;
             }
 
             // printf("Port %s   isOn: %d    hasTriggered: %d     okVal: %d    curVal: %d\n", name.c_str(), receivers[0].isOn, receivers[0].hasTriggered, eFuseOKValue, eFusePin->getValue());
@@ -969,7 +977,9 @@ void OutputMonitor::setSmartReceiverInfo(int port, int index, bool enabled, bool
 
 /**
  * Get the current status of every output port (current draw, smart-receiver
- * data, sensor readings, etc.).
+ * data, sensor readings, etc.).  Each port only reports what its hardware can
+ * measure: "ma" is present only for ports with a current sensor, "status" only
+ * for ports with an eFuse, and "enabled" only for ports with an enable pin.
  *
  * @route GET /api/fppd/ports
  * @response 200 Array of port status objects.

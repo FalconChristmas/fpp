@@ -2811,7 +2811,7 @@
           "fppd"
         ],
         "summary": "fppd/ports",
-        "description": "Get the current status of every output port (current draw, smart-receiver data, sensor readings, etc.).",
+        "description": "Get the current status of every output port (current draw, smart-receiver data, sensor readings, etc.).  Each port only reports what its hardware can measure: \"ma\" is present only for ports with a current sensor, \"status\" only for ports with an eFuse, and \"enabled\" only for ports with an enable pin.",
         "responses": {
           "200": {
             "description": "Array of port status objects."
