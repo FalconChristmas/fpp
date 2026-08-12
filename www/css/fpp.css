@@ -4619,3 +4619,57 @@ pre.testData,
 .placeholder-center::placeholder {
 	text-align: center;
 }
+
+/* ============================ */
+/* = Upload Drop Zone (FilePond) = */
+/* ============================ */
+
+/* Wrapper for a FilePond instance (file manager, 3D asset upload). The drop
+   target has to read as a droppable region on sight, so it carries its own
+   dashed outline and a background lifted off the page - the one place a
+   custom rule beats a utility class, since no Bootstrap utility draws a
+   dashed affordance.
+
+   Everything below is scoped under .fileponduploader on purpose. Pages load
+   css/filepond.min.css AFTER fpp.css, and FilePond paints the drop area with
+   fixed light-mode literals (#f1f0ef panel, #4f4f4f label) at single-class
+   specificity. Matching that specificity would lose on source order, so each
+   rule here is deliberately one step more specific. */
+
+/* --bs-tertiary-bg rather than a card/page token because it is the one that
+   steps away from the surrounding surface in BOTH themes - card matches the
+   white page container in light, page matches the dark body in dark, and
+   either way the zone would flatten out in one of the two. */
+.fileponduploader {
+	background-color: var(--bs-tertiary-bg);
+	border: 2px dashed var(--fpp-border-dark);
+	border-radius: 10px;
+	transition: 0.3s all cubic-bezier(0.02, 0.72, 0.32, 0.99);
+}
+
+/* Light up on hover, on keyboard focus, and while a file is actually being
+   dragged over it. FilePond flags the drag with data-hopper-state on its own
+   root, which is nested inside this wrapper - hence :has(). Browsers without
+   :has() simply keep the resting border instead of the accent one. */
+.fileponduploader:hover,
+.fileponduploader:focus-within,
+.fileponduploader:has(.filepond--hopper[data-hopper-state='drag-over']) {
+	border-color: var(--bs-primary);
+	background-color: var(--bs-primary-bg-subtle);
+}
+
+/* FilePond's panel is its own opaque light-grey sheet; let the wrapper's
+   themed background show through instead. */
+.fileponduploader .filepond--panel-root {
+	background-color: transparent;
+}
+
+.fileponduploader .filepond--root .filepond--drop-label {
+	min-height: 100px;
+	background: transparent;
+	color: var(--fpp-text-primary);
+}
+
+.fileponduploader .filepond--drop-label label {
+	min-height: 100px;
+}

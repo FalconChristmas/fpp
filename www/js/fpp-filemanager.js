@@ -757,7 +757,7 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 	});
 
 	const pond = FilePond.create(document.querySelector('#filepondInput'), {
-		labelIdle: `<b style="font-size: 1.3em;">Drag & Drop or Select Files to upload</b><br><br><span class="btn btn-dark filepond--label-action" style="text-decoration:none;">Select Files</span><br>`,
+		labelIdle: `<b class="fs-5">Drag & Drop or Select Files to upload</b><br><br><span class="btn btn-primary filepond--label-action text-decoration-none">Select Files</span><br>`,
 		server: 'api/file/upload',
 		credits: false,
 		chunkUploads: true,

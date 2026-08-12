@@ -37,34 +37,6 @@
         <!-- FilePond CSS and JS for file uploads -->
         <link rel="stylesheet" href="css/filepond.min.css" />
         <script src="js/filepond.min.js"></script>
-        <style>
-            .fileponduploader {
-                background: var(--fpp-bg-card);
-                border: 2px dashed var(--fpp-border);
-                border-radius: 10px;
-                transition: 0.3s all cubic-bezier(0.02, 0.72, 0.32, 0.99);
-            }
-
-            .filepond--root .filepond--drop-label {
-                min-height: 100px;
-                background: transparent;
-            }
-
-            .filepond--drop-label label {
-                min-height: 100px;
-            }
-
-            .filepond--panel-root {
-                background-color: transparent;
-            }
-
-            #asset-uploader-section {
-                margin-top: 30px;
-                padding: 20px;
-                background: var(--fpp-bg-card);
-                border-radius: 8px;
-            }
-        </style>
     <?php endif; ?>
 
     <?php
@@ -260,13 +232,13 @@
                     alignment inaccuracies, and only a fresh tree generation and export will correct the geometry FPP
                     receives.
 
-                    <div id="asset-uploader-section">
+                    <div id="asset-uploader-section" class="mt-4 p-3 rounded fpp-bg-white">
                         <h3>Upload 3D Object Files</h3>
                         <p>Until xLights supports automatic upload of 3D object files (.obj, .mtl, .png, .jpg), you can
                             manually upload them here. Files will be saved to
                             <code>/home/fpp/media/virtualdisplay_assets</code>.
                         </p>
-                        <div id="fileponduploader" class="fileponduploader">
+                        <div id="fileponduploader" class="fileponduploader p-3">
                             <input type="file" class="filepond" id="filepondInput" multiple>
                         </div>
                     </div>
@@ -282,7 +254,7 @@
         <script>
             $(document).ready(function () {
                 const pond = FilePond.create(document.querySelector('#filepondInput'), {
-                    labelIdle: `<b style="font-size: 1.3em;">Drag & Drop 3D Asset Files or Click to Select</b><br><br><span class="btn btn-dark filepond--label-action" style="text-decoration:none;">Select Files</span><br><br><small>Supported: .obj, .mtl, .png, .jpg, .jpeg</small>`,
+                    labelIdle: `<b class="fs-5">Drag & Drop 3D Asset Files or Click to Select</b><br><br><span class="btn btn-primary filepond--label-action text-decoration-none">Select Files</span><br><br><small>Supported: .obj, .mtl, .png, .jpg, .jpeg</small>`,
                     server: {
                         url: 'api/file/virtualdisplay_assets',
                         process: {
