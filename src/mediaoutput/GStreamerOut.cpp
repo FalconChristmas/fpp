@@ -1663,7 +1663,18 @@ int GStreamerOutput::Start(int msTime) {
     //    playout timing, so audio stays correct.
     //  - Any drift between the system clock and PipeWire's graph clock
     //    is negligible over typical media durations (sub-ms per minute).
-    {
+    //
+    // Audio-only pipelines are excluded, because there the trade is all cost
+    // and no benefit: with no kmssink there is nothing to wedge, and a running
+    // wall clock costs the head of every file.  base_time is latched when the
+    // pipeline reaches PLAYING, but pipewiresink prerolls before its PipeWire
+    // stream is actually streaming, so everything the sink renders during that
+    // gap is already late and never reaches the graph.  Measured on a BBB with
+    // an I2S cape, playing a 10 s chirp and capturing the sink monitor: 240 ms
+    // to 760 ms of the start missing, run to run.  Leaving pipewiresink's own
+    // clock in place -- it does not advance until the stream runs, so no buffer
+    // is ever late -- brings that down to one quantum (~20 ms).
+    if (wantVideo || wantHDMI) {
         GstClock* sysClock = gst_system_clock_obtain();
         gst_pipeline_use_clock(GST_PIPELINE(m_pipeline), sysClock);
         gst_object_unref(sysClock);

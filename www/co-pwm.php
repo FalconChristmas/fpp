@@ -282,10 +282,11 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
         var val = $("#PWMTestPatternType").val();
         if (val != "0") {
             var data = '{"command":"Test Stop","multisyncCommand":false,"multisyncHosts":"","args":[]}';
-            $.post("api/command", data
-            ).done(function (data) {
-            }).fail(function () {
-            });
+            // keepalive so the request survives the page going away.  A normal
+            // XHR started from an unload handler is cancelled with the rest of
+            // the document's requests by some browsers (Firefox) before it is
+            // ever sent, which would leave the outputs stuck in test mode.
+            fetch("api/command", { method: "POST", body: data, keepalive: true }).catch(function () { });
         }
     }
     function servoMinMaxChanged(idx) {
@@ -322,7 +323,9 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
         }
         ?>
         loadPWMOutputs();
-        window.addEventListener('beforeunload', StopServoTesting, false);
+        // pagehide, not beforeunload - it also covers the cases where the
+        // page is put in the back/forward cache or the tab is discarded
+        window.addEventListener('pagehide', StopServoTesting, false);
     });
 </script>
 

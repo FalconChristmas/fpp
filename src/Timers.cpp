@@ -178,6 +178,7 @@ void Timers::fireTimer(TimerInfo* t) {
     if (t->commandPreset.empty()) {
         t->callback();
     } else {
+        LogDebug(VB_COMMAND, "\"Trigger Command Preset In Future\" identifier \"%s\" triggering preset \"%s\"\n", t->id.c_str(), t->commandPreset.c_str());
         CommandManager::INSTANCE.TriggerPreset(t->commandPreset);
     }
 }

@@ -89,6 +89,24 @@ function DownloadConfigFile()
 }
 
 /**
+ * Config file already holds exactly this content
+ *
+ * @param string $path Absolute path to the existing config file.
+ * @param string $data Content that was uploaded.
+ * @return bool True if writing $data to $path would change nothing.
+ */
+function ConfigFileIsUnchanged($path, $data)
+{
+	if (!is_file($path)) {
+		return false;
+	}
+
+	$cur = @file_get_contents($path);
+
+	return ($cur !== false) && ($cur === $data);
+}
+
+/**
  * Upload configuration file
  *
  * Uploads or overwrites a config file in `/home/fpp/media/config`, creating any
@@ -130,9 +148,21 @@ function UploadConfigFile()
 		$data = @file_get_contents("php://input");
 	}
 
+	// An identical upload is not written at all. WriteFileAtomic() finishes with a
+	// rename() over the destination and fppd's FileMonitor watches the config
+	// directory for exactly that, so rewriting the same bytes still tears down and
+	// rebuilds every channel output loaded from the file -- PRU firmware reloads
+	// included. xLights sends the whole controller config on each "output to
+	// lights" when auto-upload is on, and most of those uploads change nothing.
+	$unchanged = false;
+
 	if ($data === false) {
 		$result['Status'] = 'Error';
 		$result['Message'] = 'Unable to read uploaded data';
+	} else if (ConfigFileIsUnchanged($fileName, $data)) {
+		$unchanged = true;
+		$result['Status'] = 'OK';
+		$result['Message'] = '';
 	} else if (WriteFileAtomic($fileName, $data)) {
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
@@ -141,7 +171,7 @@ function UploadConfigFile()
 		$result['Message'] = 'Unable to write file';
 	}
 
-	if ($result['Status'] == 'OK') {
+	if ($result['Status'] == 'OK' && !$unchanged) {
 		//Trigger a JSON Configuration Backup
 		GenerateBackupViaAPI('Config File ' . $baseFile . ' was uploaded/modified.', 'config_file/' . $baseFile);
 	}

@@ -137,7 +137,15 @@ if (preg_match('/^https?:/', $_GET['os'])) {
                 UpgradeEchoLog('os-upgrade', $baseFile, "Mirror download failed, falling back to GitHub...\n");
             }
         }
-        $command = "sudo wget -c --quiet --show-progress --progress=bar:force:noscroll " . $url . " -O /home/fpp/media/upload/$baseFile 2>&1";
+        // --progress=dot:giga (not bar:force): the output of this command is
+        // passthru'd straight into the browser's streamed <pre>, not a terminal.
+        // The bar style redraws one line via \r, which has nowhere to "redraw" in
+        // a streamed HTML response -- passthru() just forwards every \r-terminated
+        // update as more bytes appended to the page, so the dialog fills up with a
+        // new line per update. dot:giga instead emits real \n-terminated summary
+        // lines at large (1GB-per-row) intervals, which suits both the streamed
+        // dialog and an OS-image-sized download.
+        $command = "sudo wget -c --quiet --show-progress --progress=dot:giga " . $url . " -O /home/fpp/media/upload/$baseFile 2>&1";
         $retryCount = 0;
         while ($retryCount < 20 && $rc != 0) {
             echo "Running command: $command\n";
@@ -185,6 +193,29 @@ if (!file_exists($full_fppos_path)) {
     $applyUpdate = false;
 } else {
     UpgradeLog('os-upgrade', $baseFile, "Image ready: $full_fppos_path (" . filesize($full_fppos_path) . " bytes)");
+}
+
+// The fppos upgrade re-flashes the running root filesystem in place
+// (upgradeOS-part2.sh rsync's bin etc lib opt root sbin usr var over the live
+// root, with the running OS still on disk). If free space is low, that copy can
+// die partway through and a half-written root cannot boot. Refuse to start
+// unless the root filesystem has room for the image plus the new OS being
+// written; the UI-side 200MB guard in about.php is not enforced server-side and
+// is too small for the actual copy.
+if ($applyUpdate) {
+    $imageSize = filesize($full_fppos_path);
+    $rootFree = disk_free_space("/");
+    $requiredFree = 2 * $imageSize;
+    if ($rootFree !== false && $rootFree < $requiredFree) {
+        UpgradeEchoLog('os-upgrade', $baseFile, sprintf(
+            "Not enough free space on the root filesystem to apply %s: %s bytes free, %s bytes required (2x the image size).\n",
+            $baseFile,
+            number_format($rootFree),
+            number_format($requiredFree)
+        ));
+        UpgradeLog('os-upgrade', $baseFile, "Aborting - insufficient free space on root filesystem");
+        $applyUpdate = false;
+    }
 }
 
 if ($applyUpdate) {

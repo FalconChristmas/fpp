@@ -21,6 +21,7 @@
 
 #include "fpp-json.h"
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
+#include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 #include "StatusWebSocket.h"
 #include <fcntl.h>
 
@@ -454,12 +455,22 @@ void APIServer::Init(void) {
     auto handlePluginLifecycle = [](const HttpRequestPtr& req,
                                     std::function<void(const HttpResponsePtr&)>&& callback,
                                     const std::string& name, const std::string& action) {
+        std::string clientIP = getEffectiveClientIP(req);
+        // name and action are raw URL path segments - unvalidated at this point
+        // (action isn't checked against "load" until below, and the reject branch
+        // is by definition reached with a malformed name), so truncate before
+        // logging rather than let a caller choose how many bytes of fppd.log a
+        // single rejected request consumes.
         if (name.empty() || name.find('/') != std::string::npos) {
+            LogWarn(VB_PLUGIN, "API - Rejected plugin %s request for invalid plugin name \"%s\" from %s\n",
+                    TruncateForLog(action).c_str(), TruncateForLog(name).c_str(), clientIP.c_str());
             callback(makeStringResponse("{\"Status\":\"ERROR\",\"Message\":\"invalid plugin name\"}",
                                         400, "application/json"));
             return;
         }
         bool load = (action == "load");
+        LogInfo(VB_PLUGIN, "API - %s plugin \"%s\" requested from %s\n",
+                load ? "Loading" : "Unloading", TruncateForLog(name).c_str(), clientIP.c_str());
         // Timers replace a same-named entry, so a second request arriving while
         // one is queued would silently drop the first. Keep the names distinct.
         static std::atomic<uint64_t> seq{ 0 };
@@ -475,11 +486,17 @@ void APIServer::Init(void) {
         });
 
         if (done.wait_for(std::chrono::seconds(30)) != std::future_status::ready) {
+            LogErr(VB_PLUGIN, "API - %s plugin \"%s\" (from %s) timed out waiting for the main loop\n",
+                   load ? "Loading" : "Unloading", TruncateForLog(name).c_str(), clientIP.c_str());
             callback(makeStringResponse("{\"Status\":\"ERROR\",\"Message\":\"timed out waiting for the main loop\"}",
                                         503, "application/json"));
             return;
         }
         auto [ok, err] = done.get();
+        // err can carry dlerror() text, which is not length-bounded either.
+        LogInfo(VB_PLUGIN, "API - %s plugin \"%s\" (from %s): %s%s%s\n",
+                load ? "Load" : "Unload", TruncateForLog(name).c_str(), clientIP.c_str(),
+                ok ? "OK" : "FAILED", err.empty() ? "" : " - ", TruncateForLog(err).c_str());
         Json::Value resp(Json::objectValue);
         resp["Status"] = ok ? "OK" : "ERROR";
         resp["Message"] = err;
@@ -684,8 +701,8 @@ void APIServer::Init(void) {
  *
  */
 void LogRequest(const HttpRequestPtr& req) {
-    LogDebug(VB_HTTP, "API Req: %s%s\n", req->path().c_str(),
-             req->query().c_str());
+    LogDebug(VB_HTTP, "API Req: %s%s from %s\n", req->path().c_str(),
+             req->query().c_str(), getEffectiveClientIP(req).c_str());
 }
 
 /*
@@ -986,7 +1003,10 @@ HttpResponsePtr PlayerResource::render_GET(const HttpRequestPtr& req) {
             result["Message"] = "Mqtt not Initialized";
         }
     } else {
-        LogErr(VB_HTTP, "API - Error unknown GET request: %s\n", url.c_str());
+        // url is an unvalidated caller-supplied path - truncate so an unknown
+        // endpoint can't let a caller choose how many bytes of fppd.log each
+        // request costs (bounded only by Apache's request-line limit).
+        LogErr(VB_HTTP, "API - Error unknown GET request: %s\n", TruncateForLog(url).c_str());
 
         result["Status"] = "ERROR";
         result["respCode"] = 404;
@@ -1152,7 +1172,7 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
         SetOKResult(result, "Shutting down fppd");
         ShutdownFPPD();
     } else {
-        LogErr(VB_HTTP, "API - Error unknown POST request: %s\n", url.c_str());
+        LogErr(VB_HTTP, "API - Error unknown POST request: %s\n", TruncateForLog(url).c_str());
 
         result["Status"] = "ERROR";
         result["respCode"] = 404;
@@ -1201,7 +1221,7 @@ HttpResponsePtr PlayerResource::render_DELETE(const HttpRequestPtr& req) {
         ResetBytesReceived();
         SetOKResult(result, "Stats Cleared");
     } else {
-        LogErr(VB_HTTP, "API - Error unknown DELETE request: %s\n", url.c_str());
+        LogErr(VB_HTTP, "API - Error unknown DELETE request: %s\n", TruncateForLog(url).c_str());
 
         result["Status"] = "ERROR";
         result["respCode"] = 404;
@@ -1240,7 +1260,7 @@ HttpResponsePtr PlayerResource::render_PUT(const HttpRequestPtr& req) {
     LogDebug(VB_HTTP, "PUT URL: %s %s\n", url.c_str(), req->query().c_str());
 
     // No PUT endpoints are currently implemented under /fppd/*.
-    LogErr(VB_HTTP, "API - Error unknown PUT request: %s\n", url.c_str());
+    LogErr(VB_HTTP, "API - Error unknown PUT request: %s\n", TruncateForLog(url).c_str());
 
     result["Status"] = "ERROR";
     result["respCode"] = 404;

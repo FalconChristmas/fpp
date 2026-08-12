@@ -385,7 +385,8 @@
 		"wifiDomainGroup": {
 			"description": "WIFI Domain",
 			"settings": [
-				"WifiRegulatoryDomain"
+				"WifiRegulatoryDomain",
+				"AutoRebootOnUSBNetworkFailure"
 			]
 		},
 		"advNetworkSettingsGroup": {
@@ -490,6 +491,19 @@
 				"Forwarding": 1,
 				"Masquerading/NAT": 2
 			}
+		},
+		"AutoRebootOnUSBNetworkFailure": {
+			"name": "AutoRebootOnUSBNetworkFailure",
+			"description": "Reboot If USB WiFi Adapter Fails",
+			"tip": "Some USB WiFi adapters intermittently lose their USB connection while booting. The adapter is detected and the interface appears, but the radio never connects, leaving FPP running normally while unreachable over the network. When FPP sees this specific failure it reboots to recover, at most twice before giving up so it can never boot loop. A reboot is only triggered when USB errors are present AND no other connection has an IP address, so an access point being out of range or turned off will not cause one.",
+			"gatherStats": true,
+			"level": 1,
+			"restart": 0,
+			"reboot": 0,
+			"checkedValue": "1",
+			"uncheckedValue": "0",
+			"default": "1",
+			"type": "checkbox"
 		},
 		"WifiRegulatoryDomain": {
 			"name": "WifiRegulatoryDomain",
@@ -1506,7 +1520,6 @@
 			"description": "Tethering Mode",
 			"tip": "Enable or disable FPP WiFi tethering mode",
 			"gatherStats": true,
-			"reboot": 1,
 			"default": 0,
 			"type": "select",
 			"options": {
@@ -2995,7 +3008,6 @@
 			"name": "TetherInterface",
 			"description": "Tethering Interface",
 			"tip": "WiFi interface to use for tethering.",
-			"reboot": 1,
 			"type": "select",
 			"optionsCommand": "/sbin/ifconfig -a | cut -f1 | cut -f1 -d' ' | grep -v ^$ | grep  wl | sed -r 's/:+$//'"
 		},
@@ -3004,7 +3016,6 @@
 			"description": "Tethering Pre Shared Key (PSK)",
 			"tip": "Pre Shared Key to use to connect to FPP WiFi tethering.",
 			"type": "password",
-			"reboot": 1,
 			"size": 32,
 			"maxlength": 32,
 			"default": "Christmas"
@@ -3014,7 +3025,6 @@
 			"description": "Tethering SSID",
 			"tip": "SSID to use for FPP WiFi tethering.",
 			"type": "text",
-			"reboot": 1,
 			"size": 32,
 			"maxlength": 32,
 			"default": "FPP"

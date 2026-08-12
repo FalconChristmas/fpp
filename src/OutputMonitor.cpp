@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
+#include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 
 #include <cinttypes>
 #include <cmath>
@@ -230,14 +231,22 @@ public:
                 int pv = enablePin->getValue();
                 v["enabled"] = (pv && highToEnable) || (!pv && !highToEnable);
             }
-            if (receivers[0].isOn && eFusePin) {
-                if (receivers[0].hasTriggered) {
-                    v["status"] = false;
+            // Only report a fuse status for ports that actually have a fuse pin
+            // to read.  Ports with nothing but an enable (the local outputs on
+            // the K8-Pro/K16-Pro, where only the differential receivers report
+            // back) have nothing to detect, and a hard-coded "OK" there is a
+            // green light for a check that can never go red.  Leaving the key
+            // out lets the UI say nothing instead of saying something false.
+            if (eFusePin) {
+                if (receivers[0].isOn) {
+                    if (receivers[0].hasTriggered) {
+                        v["status"] = false;
+                    } else {
+                        v["status"] = eFuseOKValue == eFusePin->getValue();
+                    }
                 } else {
-                    v["status"] = eFuseOKValue == eFusePin->getValue();
+                    v["status"] = true;
                 }
-            } else {
-                v["status"] = true;
             }
 
             // printf("Port %s   isOn: %d    hasTriggered: %d     okVal: %d    curVal: %d\n", name.c_str(), receivers[0].isOn, receivers[0].hasTriggered, eFuseOKValue, eFusePin->getValue());
@@ -331,13 +340,13 @@ public:
         nargs.push_back("Output Specific");
         nargs.push_back("--ALL--");
         nargs.push_back("999");
-        LogDebug(VB_COMMAND, "Check Pixel Count command starting Test Mode to measure current draw\n");
+        LogDebug(VB_COMMAND, "\"Check Pixel Count\" command starting Test Mode to measure current draw\n");
         CommandManager::INSTANCE.run("Test Start", nargs);
         Timers::INSTANCE.addPeriodicTimer("CheckPixelCount", 1000, [args]() {
             if (CurrentBasedPixelCountPixelStringTester::INSTANCE.getCurrentStatus() == CurrentBasedPixelCountPixelStringTester::Status::Complete) {
                 OutputMonitor::INSTANCE.checkPixelCounts(args[0], args[2], std::atoi(args[1].c_str()));
                 std::vector<std::string> args;
-                LogDebug(VB_COMMAND, "Check Pixel Count command stopping Test Mode, current-based detection complete\n");
+                LogDebug(VB_COMMAND, "\"Check Pixel Count\" command stopping Test Mode, current-based detection complete\n");
                 CommandManager::INSTANCE.run("Test Stop", args);
                 Timers::INSTANCE.stopPeriodicTimer("CheckPixelCount");
             }
@@ -447,6 +456,7 @@ void OutputMonitor::EnableOutputs() {
         LogDebug(VB_CHANNELOUT, "Enabling outputs\n");
     }
     std::unique_lock<std::mutex> lock(gpioLock);
+    outputsEnabled = true;
     PinCapabilities::SetMultiPinValue(pullHighOutputPins, 1);
     PinCapabilities::SetMultiPinValue(pullLowOutputPins, 0);
     for (auto p : portPins) {
@@ -474,6 +484,7 @@ void OutputMonitor::DisableOutputs() {
         LogDebug(VB_CHANNELOUT, "Disabling outputs\n");
     }
     std::unique_lock<std::mutex> lock(gpioLock);
+    outputsEnabled = false;
     for (auto p : portPins) {
         if (p) {
             for (auto& r : p->receivers) {
@@ -549,6 +560,10 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
             GPIOManager::INSTANCE.RemoveGPIOCallback(pi->eFusePin);
             pi->eFusePin->releasePin();
         }
+        // reset() drops the pin pointers, so a retry still queued against this
+        // port would take processRetries() through a null eFusePin/enablePin.
+        // The timer stops itself once the list empties.
+        eFuseRetries.remove(pi);
         pi->reset();
     }
 }
@@ -695,6 +710,11 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         }
     }
     if (hasInfo) {
+        // AddOutputPin() above brought the enable pin up in whatever state the
+        // monitor is in, so the port bookkeeping has to agree with it.  It is
+        // what decides whether an eFuse trip on this port is reported as a
+        // trip or silently swallowed, and what the status API reports.
+        pi->receivers[0].isOn = outputsEnabled && pi->receivers[0].enabled;
         portPins[port] = pi;
     } else if (pinConfig.isMember("falconV5Listener")) {
         int mr = -1;
@@ -775,7 +795,10 @@ const PinCapabilities* OutputMonitor::AddOutputPin(const std::string& name, cons
         op.push_back(pc);
     }
     pc->configPin("gpio", true, "Enable-" + name);
-    pc->setValue(!highToEnable);
+    // Only pins that go on the enable lists follow the monitor's state; a port
+    // with nothing configured on it is left off even while output is running.
+    bool on = addToList && outputsEnabled;
+    pc->setValue(on ? highToEnable : !highToEnable);
     return pc;
 }
 
@@ -954,7 +977,9 @@ void OutputMonitor::setSmartReceiverInfo(int port, int index, bool enabled, bool
 
 /**
  * Get the current status of every output port (current draw, smart-receiver
- * data, sensor readings, etc.).
+ * data, sensor readings, etc.).  Each port only reports what its hardware can
+ * measure: "ma" is present only for ports with a current sensor, "status" only
+ * for ports with an eFuse, and "enabled" only for ports with an enable pin.
  *
  * @route GET /api/fppd/ports
  * @response 200 Array of port status objects.
@@ -1013,12 +1038,12 @@ HttpResponsePtr OutputMonitor::render_GET(const HttpRequestPtr& req) {
             args.push_back("Output Specific");
             args.push_back("--ALL--");
             args.push_back("999");
-            LogDebug(VB_COMMAND, "GET /api/fppd/ports/pixelCount from %s starting Test Mode\n", req->getPeerAddr().toIp().c_str());
+            LogDebug(VB_COMMAND, "GET /api/fppd/ports/pixelCount from %s starting Test Mode\n", getEffectiveClientIP(req).c_str());
             CommandManager::INSTANCE.run("Test Start", args);
         }
         if (plen > 2 && parts[2] == "stop") {
             std::vector<std::string> args;
-            LogDebug(VB_COMMAND, "GET /api/fppd/ports/stop from %s stopping Test Mode\n", req->getPeerAddr().toIp().c_str());
+            LogDebug(VB_COMMAND, "GET /api/fppd/ports/stop from %s stopping Test Mode\n", getEffectiveClientIP(req).c_str());
             CommandManager::INSTANCE.run("Test Stop", args);
         }
         Sensors::INSTANCE.updateSensorSources();

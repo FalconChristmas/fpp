@@ -19,6 +19,36 @@ PanelInterleaveHandler::PanelInterleaveHandler(int pw, int ph, int ps, int pi) :
     m_map.resize(m_panelWidth * m_panelHeight);
 }
 
+bool PanelInterleaveHandler::mapFitsFrame() const {
+    // Callers address their frame buffers as [bit][mapped y][chain * xSpan][gpio],
+    // where the buffer holds exactly m_panelScan rows and each panel occupies
+    // xSpan = m_panelWidth * m_panelHeight / (m_panelScan * 2) columns; the
+    // extra columns are where a scan rate below half the panel height folds
+    // its rows.  Only y in [0, m_panelHeight / 2) is ever mapped - the two
+    // halves of the panel are driven together - so that is the range checked.
+    // A map that leaves the frame does not merely look wrong on the panel, it
+    // writes past the end of the allocation, so it has to be refused here
+    // rather than trusted by every caller in turn.
+    if (m_panelScan <= 0 || m_panelWidth <= 0 || m_panelHeight <= 0) {
+        return false;
+    }
+    const int xSpan = m_panelWidth * m_panelHeight / (m_panelScan * 2);
+    if (xSpan <= 0) {
+        return false;
+    }
+    for (int y = 0; y < (m_panelHeight / 2); ++y) {
+        for (int x = 0; x < m_panelWidth; ++x) {
+            // the map holds uint16_t, so a negative mapping has already
+            // wrapped to a large value and trips these same checks
+            const auto& p = m_map[y * m_panelWidth + x];
+            if (p.first >= xSpan || p.second >= m_panelScan) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 class NoInterleaveHandler : public PanelInterleaveHandler {
 public:
     NoInterleaveHandler(int pw, int ph, int ps, int pi) :
@@ -871,7 +901,7 @@ public:
     MultiplexMapperBase* base;
 };
 
-PanelInterleaveHandler* PanelInterleaveHandler::createHandler(const std::string& type, int panelWidth, int panelHeight, int panelScan) {
+static PanelInterleaveHandler* buildHandler(const std::string& type, int panelWidth, int panelHeight, int panelScan) {
     if ((panelScan * 2) == panelHeight) {
         return new NoInterleaveHandler(panelWidth, panelHeight, panelScan, 0);
     }
@@ -936,6 +966,20 @@ PanelInterleaveHandler* PanelInterleaveHandler::createHandler(const std::string&
     }
 
     return new NoInterleaveHandler(panelWidth, panelHeight, panelScan, 0);
+}
+
+PanelInterleaveHandler* PanelInterleaveHandler::createHandler(const std::string& type, int panelWidth, int panelHeight, int panelScan) {
+    PanelInterleaveHandler* handler = buildHandler(type, panelWidth, panelHeight, panelScan);
+    if (handler && !handler->mapFitsFrame()) {
+        // Unknown interleave types fall back to no interleave at all, which
+        // is only a valid mapping when the panel scans half its rows.  On a
+        // panel that scans fewer, the unfolded rows index past the end of the
+        // frame buffer, so refuse the handler and let the caller disable the
+        // output instead of corrupting the heap on the first frame.
+        delete handler;
+        return nullptr;
+    }
+    return handler;
 }
 
 #ifdef STANDALONE

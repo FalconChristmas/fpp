@@ -205,6 +205,16 @@ static std::string getRTCDev() {
 }
 
 int main(int argc, char* argv[]) {
+    // Which RTC was detected, which driver was loaded, and what time came back
+    // are exactly what a "clock is wrong after a power cycle" report needs, and
+    // journald on these boxes is RAM-only -- so tee it into fppd.log alongside
+    // fppinit's boot output, in time order, while still printing to the console
+    // for `journalctl -u fpprtc` and for a hand-run `fpprtc`.
+    // (the media dir is hardcoded here as it is throughout this file - FPPINIT.h
+    // has the same constant, but including it collides with this file's own static
+    // exec()/modprobe() helpers.)
+    teeOutput("/home/fpp/media/logs/fppd.log", "fpprtc", "RTC", getpid());
+
     std::string rtc = getRTCDev();
     std::string dev;
     if (!setupRTC(dev, !FileExists(rtc))) {

@@ -45,11 +45,29 @@
 #define SMEM_RING_DEFAULT_SIZE 30720
 
 /* Two users: 16KB each; 16320 = 340 * 48 = 255 * 64, leaving room for the
- * counters.  Note the FalconV5 PRU listener captures into shared RAM at
- * 0x10000..0x12EE0 (12000 bytes); it runs on PRU0 and therefore can only
- * coexist with a ring at SPLIT1 (strings on PRU1), which it clears. */
+ * counters. */
 #define SMEM_RING_SPLIT0_BASE 0x00010000
 #define SMEM_RING_SPLIT1_BASE 0x00014000
 #define SMEM_RING_SPLIT_SIZE 16320
+
+/* Strings on one PRU with the FalconV5 listener on the other.  The listener
+ * captures from the base of shared RAM upwards, so the ring takes everything
+ * above its reservation.
+ *
+ * Sizing the reservation: the listener does NOT sample once per FalconV5 bit.
+ * It supersamples - one byte holding all eight listener pins every
+ * FALCONV5_PERIOD (166ns on the AM62x, ~6.8x the 1130ns bit period), so it
+ * captures at ~6MB/s.  BBShiftString leaves it enabled for a window bounded by
+ * its sleep sequence at ~2.1ms, which is ~12.6KB.  Hence the 12KB below: it is
+ * driven by the window, and shrinking it truncates the tail of a capture.
+ *
+ * That leaves 20416 bytes for the ring.  A 16 deep chain drains it at 12.8MB/s
+ * (16 bytes per WS281x bit), so that is 1.6ms of buffer - down from 2.55ms at
+ * 8 deep, which is why the 16 deep firmware counts ring-empty events into
+ * SMEM_RING_STATS_OFFSET. */
+#define SMEM_RING_LISTENER_BYTES 12288
+#define SMEM_RING_V5_BASE 0x00013000
+/* 0x13000..0x17FC0, a multiple of BBShiftString's 64 byte block */
+#define SMEM_RING_V5_SIZE 20416
 
 #endif

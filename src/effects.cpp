@@ -16,6 +16,7 @@
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -65,6 +66,10 @@ static volatile int pauseBackgroundEffects = 0;
 static std::array<FPPeffect*, MAX_EFFECTS> effects;
 static std::list<std::pair<uint32_t, uint32_t>> clearRanges;
 static std::mutex effectsLock;
+// effectIDs in the order OverlayEffects() composites them: oldest (re)started
+// first, most-recently (re)started last. Composited in this order, so the
+// last entry here is drawn last and wins on any channel two effects share.
+static std::vector<int> effectRenderOrder;
 
 /*
  * Initialize effects constructs
@@ -153,6 +158,34 @@ int IsEffectRunning(void) {
     return result;
 }
 
+/*
+ * Assumes effectsLock is already held. Moves effectID to the most-recent end
+ * of effectRenderOrder (the back of the vector, since OverlayEffects() walks
+ * it front-to-back and composites last = wins), inserting it if not already
+ * present. Used by both a fresh StartEffect() allocation and a
+ * RestartEffect() re-trigger of an existing slot, so that whichever effect
+ * started or restarted most recently visually wins regardless of its array
+ * slot.
+ */
+static void BringEffectToFront(int effectID) {
+    auto it = std::find(effectRenderOrder.begin(), effectRenderOrder.end(), effectID);
+    if (it != effectRenderOrder.end()) {
+        effectRenderOrder.erase(it);
+    }
+    effectRenderOrder.push_back(effectID);
+}
+
+/*
+ * Assumes effectsLock is already held. Removes effectID from the render order if
+ * present.
+ */
+static void RemoveEffectFromRenderOrder(int effectID) {
+    auto it = std::find(effectRenderOrder.begin(), effectRenderOrder.end(), effectID);
+    if (it != effectRenderOrder.end()) {
+        effectRenderOrder.erase(it);
+    }
+}
+
 int StartEffect(FSEQFile* fseq, const std::string& effectName, int loop, bool bg) {
     std::unique_lock<std::mutex> lock(effectsLock);
     if (effectCount >= MAX_EFFECTS) {
@@ -183,6 +216,7 @@ int StartEffect(FSEQFile* fseq, const std::string& effectName, int loop, bool bg
     effects[effectID]->fp = fseq;
     effects[effectID]->loop = loop;
     effects[effectID]->background = bg;
+    BringEffectToFront(effectID);
 
     effectCount++;
     int tmpec = effectCount;
@@ -273,6 +307,7 @@ void StopEffectHelper(int effectID) {
     delete e;
     effects[effectID] = NULL;
     effectCount--;
+    RemoveEffectFromRenderOrder(effectID);
 }
 
 /*
@@ -326,6 +361,33 @@ int StopEffect(int effectID) {
         sequence->SendBlankingData();
     }
 
+    return 1;
+}
+
+/*
+ * Restart a single effect in place, i.e. jump it back to frame 0 without
+ * closing and reopening the underlying FSEQFile. This reuses the exact same
+ * mechanism OverlayEffect() already uses to wrap a looping effect back to
+ * the start (effects.cpp: e->currentFrame = 0), so it needs no new file
+ * open, no new read-ahead thread, and no teardown of the one already
+ * running - unlike a stop+start, it can't add to the concurrent-thread
+ * pressure that caused the crashes in issue #2815.
+ *
+ * Matches on both ID and name: effectID slots are recycled, so a caller
+ * that remembered an ID from an earlier point in time could otherwise end
+ * up restarting an unrelated effect that has since taken over that slot.
+ * Requiring the name to also match makes that mismatch a safe no-op.
+ */
+int RestartEffect(int effectID, const std::string& effectName) {
+    LogDebug(VB_EFFECT, "RestartEffect(%d, %s)\n", effectID, effectName.c_str());
+
+    std::unique_lock<std::mutex> lock(effectsLock);
+    if (effectID < 0 || effectID >= MAX_EFFECTS || !effects[effectID] || effects[effectID]->name != effectName) {
+        return 0;
+    }
+
+    effects[effectID]->currentFrame = 0;
+    BringEffectToFront(effectID);
     return 1;
 }
 
@@ -385,7 +447,6 @@ int OverlayEffect(int effectID, char* channelData) {
  * Overlay current effects onto raw channel data
  */
 int OverlayEffects(char* channelData) {
-    int i;
     int dataRead = 0;
 
     std::unique_lock<std::mutex> lock(effectsLock);
@@ -405,11 +466,24 @@ int OverlayEffects(char* channelData) {
         skipBackground = 1;
     }
 
-    for (i = 0; i < MAX_EFFECTS; i++) {
-        if (effects[i]) {
+    // Snapshot into a reused scratch buffer (not a fresh local) so this
+    // doesn't malloc/free every frame: OverlayEffect() below can call
+    // StopEffectHelper() -> RemoveEffectFromRenderOrder() on natural EOF,
+    // mutating the live list mid-loop, so we still need a copy to iterate
+    // safely - just not a newly-allocated one each time. Safe as `static`
+    // even though OverlayEffects() can be entered from more than one thread
+    // (normally RunChannelOutputThread, but also directly from whatever
+    // thread calls Sequence::SendBlankingData() when the channel output
+    // thread isn't running) because the whole function body, including
+    // every access to `order`, runs under effectsLock - concurrent calls
+    // are serialized by the mutex, not by single-thread ownership.
+    static std::vector<int> order;
+    order = effectRenderOrder;
+    for (int id : order) {
+        if (effects[id]) {
             if ((!skipBackground) ||
-                (skipBackground && (!effects[i]->background))) {
-                dataRead |= OverlayEffect(i, channelData);
+                (skipBackground && (!effects[id]->background))) {
+                dataRead |= OverlayEffect(id, channelData);
             }
         }
     }

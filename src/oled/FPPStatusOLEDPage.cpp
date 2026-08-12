@@ -378,10 +378,10 @@ bool FPPStatusOLEDPage::getCurrentStatus(Json::Value& result) {
             std::string status = result["status_name"].asString();
             return true;
         } else if (debug) {
-            printf("Invalid json\n");
+            LogWarn(VB_GENERAL, "Invalid json\n");
         }
     } else if (debug) {
-        printf("Curl returned bad status:  %d\n", rc);
+        LogWarn(VB_GENERAL, "Curl returned bad status:  %d\n", rc);
     }
     return false;
 }
@@ -575,7 +575,7 @@ void FPPStatusOLEDPage::fillInNetworks() {
 }
 
 void FPPStatusOLEDPage::runTest(const std::string& test, bool ms) {
-    printf("Running Test: %s    Speed: %dms\n", test.c_str(), _testSpeed);
+    LogInfo(VB_GENERAL, "Running Test: %s    Speed: %dms\n", test.c_str(), _testSpeed);
 
     Json::Value val;
     if (test == "Off") {
@@ -634,7 +634,7 @@ void FPPStatusOLEDPage::runTest(const std::string& test, bool ms) {
         val["args"].append(channelRange);
         val["args"].append("#0000ff");
     } else if (_currentTest != "") {
-        printf("Unknown test %s\n", test.c_str());
+        LogWarn(VB_GENERAL, "Unknown test %s\n", test.c_str());
         return;
     }
 

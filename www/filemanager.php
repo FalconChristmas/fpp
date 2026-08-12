@@ -78,27 +78,6 @@
     <link rel="stylesheet" href="bootstrap-table/extensions/bootstrap-table-filter-control.min.css" />
     <!-- Filepond CSS -->
     <link rel="stylesheet" href="css/filepond.min.css" />
-    <style>
-        .fileponduploader {
-            background: #fff;
-            border: 2px dashed #ced4da;
-            border-radius: 10px;
-            transition: 0.3s all cubic-bezier(0.02, 0.72, 0.32, 0.99);
-        }
-
-        .filepond--root .filepond--drop-label {
-            min-height: 100px;
-            background: transparent;
-        }
-
-        .filepond--drop-label label {
-            min-height: 100px;
-        }
-
-        .filepond--panel-root {
-            background-color: transparent;
-        }
-    </style>
 
 
 </head>
@@ -862,11 +841,14 @@
                                 </div>
                             </div>
                         <?php } ?>
-                        <div id='fileponduploader' class='fileponduploader ui-tabs-panel'>
+                        <!-- Not a tab panel - it sits below the tab strip and is always
+                             visible - so it must not carry ui-tabs-panel. That class won
+                             on specificity and stripped the drop zone's border/background. -->
+                        <div id='fileponduploader' class='fileponduploader p-3'>
                             <input type="file" class="filepond" id="filepondInput" multiple>
                         </div>
                     </div>
-                    <div id="tablefilterChk">
+                    <div id="tablefilterChk" class="mt-3">
                         <?php PrintSetting('fileManagerTableFilter', 'FileManagerFilterToggled'); ?>
                     </div>
                 </div>

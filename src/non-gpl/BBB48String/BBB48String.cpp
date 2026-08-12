@@ -178,7 +178,7 @@ void BBB48StringOutput::createOutputLengths(FrameData& d,
     std::map<int, std::vector<GPIOCommand>> sizes;
     for (int x : d.gpioStringMap) {
         if (x != -1) {
-            int pc = m_strings[x]->m_outputChannels;
+            int pc = m_strings[x]->m_outputBytes;
             if (pc != 0) {
                 for (auto& a : m_strings[x]->m_gpioCommands) {
                     sizes[a.channelOffset].push_back(a);
@@ -372,8 +372,37 @@ int BBB48StringOutput::Init(Json::Value config) {
         if (!newString->Init(s, &root["outputs"][i]))
             return 0;
 
-        if (newString->m_outputChannels > maxStringLen) {
-            maxStringLen = newString->m_outputChannels;
+        // This PRU drives the pins directly and has no per-port idle level, so
+        // an inverted protocol would put inverted data on a line that still
+        // idles low - worse than not supporting it.  Undo the inversion and
+        // drive the port as a normal ws281x string.  The preamble has to go
+        // with it: those bytes are meaningless to a ws281x part and would
+        // offset every pixel on the port.  (Cape declared inversion never
+        // reaches here: no cape using this driver sets it.)
+        // The fill loop here emits one byte per channel, so a 16 bit part
+        // would come out at half length with the wrong bytes.  Refuse it and
+        // drive the port 8 bit rather than produce garbage.
+        if (newString->m_bytesPerChannel != 1) {
+            LogWarn(VB_CHANNELOUT, "16 bit protocols are not supported on this cape; output %d will be driven as 8 bit\n", i + 1);
+            WarningHolder::AddWarning("BBB48String: 16 bit protocols are not supported on this cape, output " + std::to_string(i + 1));
+            int pre = (int)newString->m_preamble.size();
+            newString->m_outputBytes = (newString->m_outputBytes - pre) / newString->m_bytesPerChannel + pre;
+            newString->m_bytesPerChannel = 1;
+            for (auto& vs : newString->m_virtualStrings) {
+                vs.brightnessMap16 = nullptr;
+            }
+        }
+
+        if (newString->m_protocolInverted) {
+            LogWarn(VB_CHANNELOUT, "Inverted protocols are not supported on this cape; output %d will be driven as ws2811\n", i + 1);
+            WarningHolder::AddWarning("BBB48String: inverted protocols are not supported on this cape, output " + std::to_string(i + 1));
+            newString->invertOutput();
+            newString->dropPreamble();
+            newString->m_protocolInverted = false;
+        }
+
+        if (newString->m_outputBytes > maxStringLen) {
+            maxStringLen = newString->m_outputBytes;
         }
 
         m_strings.push_back(newString);
@@ -406,14 +435,14 @@ int BBB48StringOutput::Init(Json::Value config) {
     std::string outputList;
     int allMax = 0;
     for (int x = 0; x < m_strings.size(); x++) {
-        if (m_strings[x]->m_outputChannels > 0) {
+        if (m_strings[x]->m_outputBytes > 0) {
             // need to output this pin, configure it
             std::string pinName = root["outputs"][x]["pin"].asString();
             const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
             m_usedGPIOS.push_back(pinName);
             pin.configPin("gpio", true, "BBB48String-" + std::to_string(x + 1));
             allStringMap.push_back(x);
-            if (x >= m_licensedOutputs && m_strings[x]->m_outputChannels > 0) {
+            if (x >= m_licensedOutputs && m_strings[x]->m_outputBytes > 0) {
                 // apply limit
                 int pixels = 50;
                 int chanCount = 0;
@@ -435,17 +464,17 @@ int BBB48StringOutput::Init(Json::Value config) {
                     }
                     outputList += std::to_string(x + 1);
                 }
-                m_strings[x]->m_outputChannels = chanCount;
+                m_strings[x]->setPixelDataChannels(chanCount);
             }
-            allMax = std::max(allMax, m_strings[x]->m_outputChannels);
+            allMax = std::max(allMax, m_strings[x]->m_outputBytes);
             if (pin.mappedGPIOIdx() == 0) {
                 m_gpio0Data.gpioStringMap.push_back(x);
                 m_gpio0Data.maxStringLen =
-                    std::max(m_gpio0Data.maxStringLen, m_strings[x]->m_outputChannels);
+                    std::max(m_gpio0Data.maxStringLen, m_strings[x]->m_outputBytes);
             } else {
                 m_gpioData.gpioStringMap.push_back(x);
                 m_gpioData.maxStringLen =
-                    std::max(m_gpioData.maxStringLen, m_strings[x]->m_outputChannels);
+                    std::max(m_gpioData.maxStringLen, m_strings[x]->m_outputBytes);
             }
         }
     }
@@ -708,7 +737,7 @@ void BBB48StringOutput::GetRequiredChannelRanges(
         int inCh = 0;
         int min = FPPD_MAX_CHANNELS;
         int max = -1;
-        for (int p = 0; p < ps->m_outputChannels; p++) {
+        for (int p = 0; p < ps->m_outputBytes; p++) {
             int ch = ps->m_outputMap[inCh++];
             if (ch < FPPD_MAX_CHANNELS) {
                 min = std::min(min, ch);
@@ -785,7 +814,7 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
         int idx = d.gpioStringMap[s];
         if (idx >= 0) {
             PixelString* ps = m_strings[idx];
-            uint32_t newLen = ps->m_outputChannels;
+            uint32_t newLen = ps->m_outputBytes;
             SlotSrc& sl = slots[s];
             if (tester) {
                 sl.buf = tester->createTestData(ps, m_testCycle, m_testPercent,

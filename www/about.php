@@ -388,6 +388,11 @@
         //     (the OS image ships a fresh FPP, so an FPP update first is wasted).
         //   - FPP update available with OS current -> 'fpp'.
         function getRecommendedPath() {
+            if (needsRebuild) {
+                // Nothing installed to compare or upgrade -- rebuilding what's
+                // checked out is the only thing that makes this box work again.
+                return 'fpp';
+            }
             if (isMajorVersionUpgrade || osUpgradeAvailable) {
                 return 'os';
             }
@@ -418,7 +423,9 @@
         // an FPP update is the recommended path).
         function updateCardSubtitles() {
             var $fpp = $('#fppCardSubtitle');
-            if (isMajorVersionUpgrade) {
+            if (needsRebuild) {
+                $fpp.text('FPP has not been built on this system. Rebuild to restore the FPP daemon.');
+            } else if (isMajorVersionUpgrade) {
                 $fpp.text('Cannot upgrade across major versions from here. Use the OS upgrade instead.');
             } else if (fppUpdateAvailable && osUpgradeAvailable) {
                 $fpp.text('An FPP update is available, but the OS upgrade below already includes a fresh FPP build.');
@@ -483,7 +490,15 @@
 
             var recommended = getRecommendedPath(); // 'fpp' | 'os' | null
 
-            if (isMajorVersionUpgrade) {
+            if (needsRebuild) {
+                // A rebuild is the only path that fixes this box; don't dress an OS
+                // image up as the recommendation or claim an update is available.
+                $('#upgradeRecommendationBanner').hide();
+                $('#osRecommendedBadge').hide();
+                $('#fppRecommendedBadge').hide();
+                $('#fppUpdateBanner').hide();
+                $('#osUpdateBanner').hide();
+            } else if (isMajorVersionUpgrade) {
                 // Major version upgrades REQUIRE an OS upgrade. The OS banner is
                 // already configured in UpdateVersionInfo(); recommend OS here.
                 $('#upgradeRecommendationBanner').hide();
@@ -574,6 +589,9 @@
         var branchUpgradeData = null;
         var isMajorVersionUpgrade = false;
         var isEndOfLife = false;
+        // No local version (cleaned/never-built tree): nothing can be compared, so
+        // the only action this card can offer is a rebuild of what's checked out.
+        var needsRebuild = false;
 
         function UpdateVersionInfo(testMode) {
             // Replace any still-shimmering async placeholders with a neutral "--"
@@ -652,13 +670,21 @@
 
                 var isAdvancedView = settings['uiLevel'] && (parseInt(settings['uiLevel']) >= 1);
 
-                if (isAdvancedView) {
+                // With no local version there is nothing to compare against, so the
+                // per-uiLevel version rows are replaced by a single rebuild row.
+                needsRebuild = updateData.versionUnknown || false;
+
+                if (needsRebuild) {
+                    $('#fppVersionStandard').hide();
+                    $('#fppVersionAdvanced').hide();
+                } else if (isAdvancedView) {
                     $('#fppVersionStandard').hide();
                     $('#fppVersionAdvanced').show();
                 } else {
                     $('#fppVersionStandard').show();
                     $('#fppVersionAdvanced').hide();
                 }
+                $('#fppVersionRebuild').toggle(needsRebuild);
 
                 // Hide all standard view states
                 $('#fppVersionStandardBranchUpgrade, #fppVersionStandardCommitUpdate, #fppVersionStandardCurrent').hide();
@@ -675,7 +701,21 @@
                     $('#eolBanner').hide();
                 }
 
-                if (updateData.branchUpgradeAvailable) {
+                if (needsRebuild) {
+                    // FPP has never been built here (or the tree was cleaned), so
+                    // there is no version to upgrade *from*. Offer the rebuild that
+                    // actually fixes this box instead of an unverifiable "upgrade".
+                    branchUpgradeData = null;
+                    fppUpdateAvailable = false;
+                    isMajorVersionUpgrade = false;
+
+                    $('#fppUpdateBanner').hide();
+                    setVersionStatusDot('fppVersionStatusBadge', 'required', 'Rebuild Required');
+
+                    $('#fppUpdateButton').prop('disabled', false);
+                    $('#fppUpdateButtonText').text('Rebuild FPP');
+
+                } else if (updateData.branchUpgradeAvailable) {
                     // Branch upgrade available - takes priority
                     branchUpgradeData = updateData;
                     fppUpdateAvailable = true;
@@ -816,7 +856,11 @@
 
         // Handle FPP update button click - route to appropriate action
         function HandleFPPUpdate() {
-            if (branchUpgradeData && branchUpgradeData.branchUpgradeAvailable) {
+            if (needsRebuild) {
+                // No version to diff against and no release notes to show -- just
+                // rebuild. manualUpdate.php is the same script the upgrade uses.
+                UpgradeFPP('FPP Rebuild');
+            } else if (branchUpgradeData && branchUpgradeData.branchUpgradeAvailable) {
                 // Branch upgrade: show release notes modal with upgrade button
                 ViewReleaseNotes(branchUpgradeData.branchUpgradeVersion);
             } else {
@@ -831,16 +875,19 @@
         // declared by the scripts via logStage() and parsed generically; this
         // callback just binds the latest stage to this dialog's status line.
         // SetProgressDialogStatus replaces the .modal-title, so we keep the
-        // "FPP Upgrade — " prefix to preserve the dialog's identity.
+        // dialog's title as a prefix to preserve its identity.
+        var fppUpgradeTitle = 'FPP Upgrade';
+
         function FPPUpgradeProgress(response) {
             var stage = ParseLastStageMarker(response);
             if (stage != '')
-                SetProgressDialogStatus('fppUpgrade', 'FPP Upgrade — ' + stage);
+                SetProgressDialogStatus('fppUpgrade', fppUpgradeTitle + ' — ' + stage);
         }
 
-        function UpgradeFPP() {
-            DisplayProgressDialog('fppUpgrade', 'FPP Upgrade');
-            SetProgressDialogStatus('fppUpgrade', 'FPP Upgrade — Starting…');
+        function UpgradeFPP(title) {
+            fppUpgradeTitle = title || 'FPP Upgrade';
+            DisplayProgressDialog('fppUpgrade', fppUpgradeTitle);
+            SetProgressDialogStatus('fppUpgrade', fppUpgradeTitle + ' — Starting…');
             StreamURL('manualUpdate.php?wrapped=1', 'fppUpgradeText', 'FPPUpgradeDone', '', 'GET', null, null, true, false, 'FPPUpgradeProgress'); // trailing arg: generic stage-status hook
         }
 
@@ -1470,6 +1517,18 @@
                                 </div>
                             </div>
                             <?php if ($advancedInfoCollapse) { ?></details><?php } ?>
+
+                            <!-- No local version (cleaned or never-built tree). Replaces
+                                 both the standard and advanced rows: there is no
+                                 current-vs-target comparison to draw. -->
+                            <div id="fppVersionRebuild" class="fpp-version-indicator fpp-version-indicator--rebuild"
+                                style="display: none;">
+                                <i class="fas fa-exclamation-triangle text-danger"></i>
+                                <span class="fpp-version-indicator__current">Not built</span>
+                                <span class="fpp-upd-dot fpp-upd-dot--required">Rebuild required</span>
+                                <span class="fpp-version-indicator__label fpp-version-indicator__label--subtle">FPP
+                                    has not been built on this system</span>
+                            </div>
 
                             <!-- Standard View Version Indicators (uiLevel 0 - Basic) -->
                             <div id="fppVersionStandard" class="fpp-version-standard-wrapper">

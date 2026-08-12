@@ -66,7 +66,7 @@ function CommonButtonClicked() {
 function ShowResetConfigPopup() {
     DoModalDialog({
         id: "resetFPPDialog",
-        class: "modal-lg",
+        class: "modal-xl",
         title: "Reset FPP Config",
         body: $("#resetConfigMenu"),
         backdrop: true,
@@ -149,7 +149,7 @@ if ($showOSSecurity) {
 <?
     PrintSetting('osPasswordEnable');
     ?>
-    <div class='row osPasswordEnableChild' style='display: none;'>
+    <div class='row osPasswordEnableChild d-none'>
         <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
             <div class='description'><i class="fas fa-fw fa-nbsp ui-level-0"></i>Username
             </div>
@@ -166,7 +166,7 @@ if ($showOSSecurity) {
     <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1" title="Advanced Level Setting"></i>
     <b>SSH Keys</b> (root and fpp users)
     <img id="ssh_img" title="Add optional SSH key(s) for passwordless SSH authentication." src="images/redesign/help-icon.svg" width=22 height=22>
-    <span id="ssh_tip" class="tooltip" style="display: none">Add optional SSH key(s) for passwordless SSH authentication.</span><br>
+    <span id="ssh_tip" class="tooltip d-none">Add optional SSH key(s) for passwordless SSH authentication.</span><br>
     <textarea  id='sshKeys' style='width: 100%;' rows='10'><?echo shell_exec('sudo cat /root/.ssh/authorized_keys'); ?></textarea>
     <input type='button' class='buttons' value='Save Keys' onClick='SaveSSHKeys();'>&nbsp;&nbsp;<b>OR</b>&nbsp;&nbsp;
     <input id='UploadAuthorizedKeys' type='button' class='buttons' value='Upload authorized_keys' onClick='UploadAuthorizedKeys();' disabled> <input type="file" id="authorized_keys" style='padding-left: 0px;' onChange="$('#UploadAuthorizedKeys').prop('disabled', false);"><br>
@@ -185,64 +185,52 @@ You can individually select what settings you want to reset." src="images/redesi
 }
 ?>
 
-<div id='resetPopup' title='Reset FPP Config' style="display: none">
+<div id='resetPopup' title='Reset FPP Config' class="d-none">
     <span id='resetConfigMenu'>
-        <b>Choose areas to reset:</b><br>
-        <input id="allButton" class="buttons" value="Everything" onClick="AllButtonClicked()">&nbsp;Everything (includes everything below except network)<br>
-        <input id="commonButton" class="buttons" value="Common" onClick="CommonButtonClicked()">&nbsp;Sequences/Media/Playlist<br>
-        <input id="noneButton" class="buttons" value="Nothing" onClick="ClearButtonClicked()">&nbsp;Clears all checkboxes<br>
-
+        <div class="mb-3">
+            <b class="d-block mb-2">Choose areas to reset:</b>
+            <div class="mb-1"><input id="allButton" class="buttons" value="Everything" onClick="AllButtonClicked()">&nbsp;Everything (includes everything below except network)</div>
+            <div class="mb-1"><input id="commonButton" class="buttons" value="Common" onClick="CommonButtonClicked()">&nbsp;Sequences/Media/Playlist</div>
+            <div><input id="noneButton" class="buttons" value="Nothing" onClick="ClearButtonClicked()">&nbsp;Clears all checkboxes</div>
+        </div>
 
         <div class="container-fluid settingsTable settingsGroupTable">
             <div class="row">
-                <div class="col-md"><b>FPP</b></div><div class="col-md"></div><div class="col-md"><b>Plugins</b></div>
-            </div>
-            <div class="row">
-                <div class="col-md"><input type='checkbox' id='rc_config'>&nbsp;Configuration Files</div>
-                <div class="col-md"><input type='checkbox' id='rc_schedule'>&nbsp;Schedule</div>
-                <div class="col-md"><input type='checkbox' id='rc_plugins'>&nbsp;Installed Plugins</div>
-            </div>
-
-            <div class="row">
-                <div class="col-md"><input type='checkbox' id='rc_network'>&nbsp;Network Config Files</div>
-                <div class="col-md"><input type='checkbox' id='rc_sequences'>&nbsp;Sequences</div>
-                <div class="col-md"><input type='checkbox' id='rc_pluginConfigs'>&nbsp;Plugin Config Files</div>
-            </div>
-
-            <div class="row">
-                <div class="col-md"><input type='checkbox' id='rc_channeloutputs'>&nbsp;Channel Outputs</div>
-                <div class="col-md"><input type='checkbox' id='rc_effects'>&nbsp;Effects</div>
-                <div class="col-md"><b>OS</b></div>
-            </div>
-            <div class="row">
-                <div class="col-md"><input type='checkbox' id='rc_eeprom'>&nbsp;EEPROM / String Config</div>
-                <div class="col-md"></div>
-                <div class="col-md"></div>
-            </div>
-            <div class="row">
-                <div class="col-md"><input type='checkbox' id='rc_logs'>&nbsp;Logs</div>
-                <div class="col-md"><input type='checkbox' id='rc_playlists'>&nbsp;Playlists</div>
-                <div class="col-md"><input type='checkbox' id='rc_user'>&nbsp;Root/FPP User Files</div>
-            </div>
-            <div class="row">
-                <div class="col-md"><input type='checkbox' id='rc_settings'>&nbsp;Settings</div>
-                <div class="col-md"><input type='checkbox' id='rc_media'>&nbsp;Media</div>
-                <div class="col-md">(ssh keys, history)</div>
-            </div>
-            <div class="row">
-                <div class="col-md"><input type='checkbox' id='rc_backups'>&nbsp;Backups</div>
-                <div class="col-md"><input type='checkbox' id='rc_uploads'>&nbsp;Uploads</div>
-                <div class="col-md"></div>
-            </div>
-            <div class="row">
-                <div class="col-md"><input type='checkbox' id='rc_caches'>&nbsp;Caches</div>
-                <div class="col-md"><input type='checkbox' id='rc_scripts'>&nbsp;Scripts</div>
-                <div class="col-md"></div>
-            </div>
-            <div class="row">
-                <div class="col-md"><input type='checkbox' id='rc_audiobackend'>&nbsp;Audio Backend (PipeWire)</div>
-                <div class="col-md"></div>
-                <div class="col-md"></div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-3">
+                        <b class="d-block mb-2">Configuration</b>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_config'><label for="rc_config">Configuration Files</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_network'><label for="rc_network">Network Config Files</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_channeloutputs'><label for="rc_channeloutputs">Channel Outputs</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_eeprom'><label for="rc_eeprom">EEPROM / String Config</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_settings'><label for="rc_settings">Settings</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_schedule'><label for="rc_schedule">Schedule</label></div>
+                    </div>
+                    <div class="mb-3 mb-md-0">
+                        <b class="d-block mb-2">Content</b>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_sequences'><label for="rc_sequences">Sequences</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_media'><label for="rc_media">Media</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_effects'><label for="rc_effects">Effects</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_playlists'><label for="rc_playlists">Playlists</label></div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="mb-3">
+                        <b class="d-block mb-2">Plugins</b>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_plugins'><label for="rc_plugins">Installed Plugins</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_pluginConfigs'><label for="rc_pluginConfigs">Plugin Config Files</label></div>
+                    </div>
+                    <div>
+                        <b class="d-block mb-2">OS / System Files</b>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_logs'><label for="rc_logs">Logs</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_backups'><label for="rc_backups">Backups</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_uploads'><label for="rc_uploads">Uploads</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_caches'><label for="rc_caches">Caches</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_scripts'><label for="rc_scripts">Scripts</label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_user'><label for="rc_user">Root/FPP User Files <span class="text-body-secondary">(ssh keys, history)</span></label></div>
+                        <div class="d-flex align-items-center gap-2 mb-1"><input type='checkbox' id='rc_audiobackend'><label for="rc_audiobackend">Audio Backend (PipeWire)</label></div>
+                    </div>
+                </div>
             </div>
         </div>
 

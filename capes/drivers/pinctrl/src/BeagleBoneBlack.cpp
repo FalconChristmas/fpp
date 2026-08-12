@@ -25,13 +25,12 @@ void InitBeagleBoneBlack() {
     Pin::addPin("P8_17").addBall("GPMC_AD11").modesFromBall();
     Pin::addPin("P8_18").addBall("GPMC_CLK").modesFromBall();
     Pin::addPin("P8_19").addBall("GPMC_AD8").modesFromBall();
-    // Pin::addPin("P8-20").addBall("").modesFromBall();
-    // Pin::addPin("P8-21").addBall("").modesFromBall();
-    // Pin::addPin("P8-22").addBall("").modesFromBall();
-    // Pin::addPin("P8-23").addBall("").modesFromBall();
-    // Pin::addPin("P8-24").addBall("").modesFromBall();
-    // Pin::addPin("P8-25").addBall("").modesFromBall();
-    // Pin::addPin("P8-26").addBall("").modesFromBall();
+    // P8_20-P8_25 are the eMMC pins and are deliberately absent: re-muxing them
+    // would take the boot device out from under the running system.
+    // P8_26 is not one of them -- it is GPMC_CSN0 (gpio1_29) and is free to use,
+    // it just got swept into the block above. Without it, a cape asking FPP to
+    // configure P8_26 only produces "Unknown pin: P8_26" and no mux change.
+    Pin::addPin("P8_26").addBall("GPMC_CSN0").modesFromBall();
     Pin::addPin("P8_27").addBall("LCD_VSYNC").modesFromBall();
     Pin::addPin("P8_28").addBall("LCD_PLCK").modesFromBall();
     Pin::addPin("P8_29").addBall("LCD_HSYNC").modesFromBall();

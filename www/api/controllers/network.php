@@ -237,18 +237,23 @@ function network_interface_in_use($interface)
     }
 
     if ($iftype === "managed") {
-        $statusOut = array();
-        exec("sudo wpa_cli -i $iface status 2>/dev/null", $statusOut);
-        $wpaState = "";
+        // Ask the kernel (nl80211) rather than wpa_supplicant's control socket:
+        // all that matters here is "associated, and to what", and iw answers
+        // that however the link was brought up. network_wifi_status() below
+        // still uses wpa_cli, because it needs the association *states* that
+        // only wpa_supplicant knows.
+        $linkOut = array();
+        exec("/sbin/iw dev $iface link 2>/dev/null", $linkOut);
+        $associated = false;
         $ssid = "";
-        foreach ($statusOut as $line) {
-            if (preg_match('/^wpa_state=(.*)$/', $line, $m)) {
-                $wpaState = trim($m[1]);
-            } else if (preg_match('/^ssid=(.*)$/', $line, $m)) {
+        foreach ($linkOut as $line) {
+            if (preg_match('/^Connected to/', $line)) {
+                $associated = true;
+            } else if (preg_match('/^\s*SSID:\s*(.*)$/', $line, $m)) {
                 $ssid = trim($m[1]);
             }
         }
-        if ($wpaState === "COMPLETED") {
+        if ($associated) {
             return array("mode" => "station", "clientCount" => 0, "ssid" => $ssid);
         }
     }
@@ -385,8 +390,16 @@ function network_wifi_status()
             $apActive = (isset($activeOut[0]) && trim($activeOut[0]) === "active");
         }
     }
+    $tetheringMode = isset($settings['EnableTethering']) ? intval($settings['EnableTethering']) : 0;
+    $tetheringEnabled = ($tetheringMode === 1);
+    $tetheringDisabled = ($tetheringMode === 2);
 
-    // wpa_supplicant association state via its control socket
+    // Association state via wpa_supplicant's control socket. This one keeps
+    // using wpa_cli deliberately: the whole point of this endpoint is to say
+    // WHY a connection is failing, and the intermediate states it reports
+    // (4WAY_HANDSHAKE, INACTIVE, SCANNING, ...) have no nl80211 equivalent --
+    // iw can only say associated or not. The iw/ip fallbacks below keep the
+    // page useful if the socket is ever unreachable.
     $wpaState = "";
     $ssid = "";
     $ip = "";
@@ -412,6 +425,20 @@ function network_wifi_status()
         }
         if ($ssid == "" && preg_match('/SSID:\s*(.+)/', $line, $m)) {
             $ssid = trim($m[1]);
+        }
+        // Fallback when the control socket gave us nothing: the kernel still
+        // knows whether we are associated, just not how we got there.
+        if ($wpaState === "" && preg_match('/^Connected to/', $line)) {
+            $wpaState = "COMPLETED";
+        }
+    }
+    // Same fallback for the address. wpa_supplicant reports ip_address, but
+    // only while its socket answers; the kernel always knows.
+    if ($ip === "") {
+        $ipOut = array();
+        exec("ip -4 -o addr show dev $iface scope global 2>/dev/null", $ipOut);
+        if (isset($ipOut[0]) && preg_match('/inet\s+(\d+\.\d+\.\d+\.\d+)/', $ipOut[0], $m)) {
+            $ip = $m[1];
         }
     }
 
@@ -444,13 +471,27 @@ function network_wifi_status()
 
     // Derive a human-readable reason (most specific first)
     if ($apActive) {
-        $reason = "This device is currently broadcasting its own setup hotspot" .
-            ($configuredSSID !== "" ? " - it will try to connect to '" . $configuredSSID . "'" : "") .
-            " once networking is restarted (or the device is rebooted).";
+        if ($tetheringEnabled) {
+            $reason = "This device is currently broadcasting its own setup hotspot because tethering is enabled." .
+                ($configuredSSID !== ""
+                    ? " Turn off tethering to have it try connecting to '" . $configuredSSID . "' instead."
+                    : "");
+        } else if ($tetheringDisabled) {
+            $reason = "This device is currently broadcasting its own setup hotspot. Tethering was just set to Disabled," .
+                " but that only takes effect once networking is restarted.";
+        } else {
+            $reason = "This device is currently broadcasting its own setup hotspot." .
+                ($configuredSSID !== ""
+                    ? " It will try to connect to '" . $configuredSSID . "' the next time networking is restarted (or the device is rebooted)."
+                    : " No wireless network is configured yet, so it will keep broadcasting the hotspot until one is set up.");
+        }
+    } else if ($connected) {
+        $reason = "Connected to " . $ssid . ($ip !== "" ? " (" . $ip . ")" : "") .
+            ($configuredSSID === ""
+                ? " (saved config has no network configured - this will disconnect on the next network restart)"
+                : "");
     } else if ($configuredSSID === "") {
         $reason = "No wireless network is configured.";
-    } else if ($connected) {
-        $reason = "Connected to " . $ssid . ($ip !== "" ? " (" . $ip . ")" : "");
     } else if ($wpaState === "COMPLETED") {
         $reason = "Associated - waiting for an IP address (DHCP).";
     } else if ($wrongKey || $wpaState === "4WAY_HANDSHAKE") {
@@ -464,7 +505,7 @@ function network_wifi_status()
     } else if ($wpaState === "INACTIVE") {
         $reason = "WiFi is inactive - no configured network is available.";
     } else if ($wpaState === "" ) {
-        $reason = "wpa_supplicant is not running for this interface.";
+        $reason = "The WiFi connection service is not running for this interface. Try 'Restart Network'; if that doesn't help, reboot the device.";
     } else {
         $reason = "Connecting to '" . $configuredSSID . "'... (" . $wpaState . ")";
     }

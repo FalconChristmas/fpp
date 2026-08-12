@@ -444,6 +444,12 @@
     border-color: var(--bs-border-color);
 }
 
+/* Version indicator — not built (rebuild required) */
+[data-bs-theme="dark"] .fpp-version-indicator--rebuild {
+    background: linear-gradient(135deg, #2c3034 0%, #343a40 100%);
+    border-color: var(--bs-border-color);
+}
+
 /* Version indicator — OS upgrade warning */
 [data-bs-theme="dark"] .fpp-version-indicator--upgrade {
     background: linear-gradient(135deg, #2b2000 0%, #3d2e00 100%);

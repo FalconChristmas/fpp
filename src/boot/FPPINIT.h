@@ -104,8 +104,16 @@ void consumePendingDhcpLeaseReset();
 void handleBootDelay();
 void handleTimeSyncWait();
 void checkWLANInterface();
-bool waitForInterfacesUp(int timeOut);
+// allowUsbRecovery: permit one USB re-enumeration of an adapter that came up
+// dead. Boot path only -- the networkd-dispatcher-driven tether callers must
+// never set it, since a reset causes the carrier change that re-invokes them.
+bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery = false);
+// True once a wedged USB network adapter has caused a reboot to be queued. The
+// boot is being thrown away, so callers should stop doing network setup work.
+bool usbWedgeRebootPending();
 void announceIPAddresses();
+// Turn off 802.11 power saving on all wireless interfaces.
+void disableWLANPowerManagement();
 void maybeEnableTethering();
 void detectNetworkModules();
 void removeDummyInterface();

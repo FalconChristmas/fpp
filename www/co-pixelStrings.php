@@ -212,6 +212,72 @@ function readCapes($cd, $capes)
         return result;
     }
 
+    // Hide the Protocol column unless some port on this cape offers more than
+    // one protocol.  A ws281x-only cape (all the BBB48String ones, DPI) would
+    // otherwise get a column containing nothing but the word WS2811.  Driven
+    // off the rows' own protocols attribute so a cape that declares its own
+    // list is picked up without naming drivers here.
+    // The controller's bit timing group.  Falls back to ws281x, which is what
+    // every existing config is, so a config saved before this control existed
+    // keeps working untouched.
+    // Fill the timing group selector and show whichever timing control suits
+    // the driver: BBShiftString takes its bit cell at runtime and so gets the
+    // real groups; everything else keeps the compiled Normal/Slow pair.
+    function SetupPixelStringTimingControl() {
+        var sel = $('#PixelStringTimingGroup');
+        if (sel.length && !sel.children().length) {
+            sel.html(PIXEL_TIMING_GROUPS.map(function (g) {
+                return "<option value='" + g.id + "'>" + g.label + "</option>";
+            }).join(''));
+        }
+        var runtime = MapPixelStringType($('#PixelStringSubType').val()) == 'BBShiftString';
+        sel.toggleClass('d-none', !runtime);
+        $('#PixelStringPixelTiming').toggleClass('d-none', runtime);
+    }
+
+    function GetPixelStringTimingGroup() {
+        var v = $('#PixelStringTimingGroup').val();
+        return v ? v : 'ws281x';
+    }
+
+    // Changing the timing re-offers every port's protocol list.  A port set to
+    // a protocol the new group does not contain is moved to that group's first
+    // entry, because leaving it is exactly the unworkable mix this control
+    // exists to prevent.
+    function PixelStringTimingGroupChanged() {
+        var allowed = pixelTimingGroupProtocols(GetPixelStringTimingGroup()).split(',');
+        $('#PixelString tbody tr').each(function () {
+            var row = $(this);
+            row.attr('protocols', allowed.join(','));
+            var sel = row.find('.vsProtocol');
+            if (!sel.length) {
+                return;
+            }
+            var cur = sel.val();
+            var keep = allowed.indexOf(cur) >= 0 ? cur : allowed[0];
+            if (sel.is('select')) {
+                sel.html(allowed.map(function (x) {
+                    return "<option value='" + x + "'" + (x == keep ? " selected" : "") + ">" + x.toUpperCase() + "</option>";
+                }).join(''));
+                sel.toggleClass('d-none', allowed.length <= 1);
+            }
+            sel.val(keep);
+        });
+        UpdateProtocolColumnVisibility();
+        CalculatePixelStringMaxFPS();
+    }
+
+    function UpdateProtocolColumnVisibility() {
+        var choice = false;
+        $('#PixelString tbody tr').each(function () {
+            if (($(this).attr('protocols') || '').split(',').length > 1) {
+                choice = true;
+                return false;
+            }
+        });
+        $('body').toggleClass('noPixelProtocolColumn', !choice);
+    }
+
     function pixelOutputProtocolSelect(protocols, protocol) {
         var result = "";
         var pixelProtocols = protocols.split(',');
@@ -219,11 +285,11 @@ function readCapes($cd, $capes)
         if (pixelProtocols.length == 0)
             pixelProtocols.push(protocol);
 
-        result += "<select class='vsProtocol'";
+        result += "<select class='vsProtocol";
         if (pixelProtocols.length <= 1) {
-            result += " style='display:none;'";
+            result += " d-none";
         }
-        result += ">\n";
+        result += "'>\n";
 
         for (i = 0; i < pixelProtocols.length; i++) {
             result += "<option value='" + pixelProtocols[i] + "'";
@@ -243,7 +309,7 @@ function readCapes($cd, $capes)
         var result = "";
 
         result += "<td>";
-        result += "<select class='form-select fvsReverse'>";
+        result += "<select class='form-select vsReverse'>";
         result += "<option value='0'>Forward</option>";
         result += "<option value='1'";
         if (reverse)
@@ -409,7 +475,7 @@ function readCapes($cd, $capes)
         }
 
         result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + description + "'></td>";
-        result += "<td><input type='number' class='vsStartChannel' data-bs-html='true' size='7' value='" + startChannel + "' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this); sanityCheckOutputs();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+        result += "<td><input type='number' class='vsStartChannel' data-bs-html='true' size='8' value='" + startChannel + "' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this); sanityCheckOutputs();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
         result += "<td><input type='number' class='vsPixelCount' size='4' min='0' max='1600' onkeypress='preventNonNumericalInput(event)' value='" + pixelCount + "' onChange='updateItemEndChannel(this); sanityCheckOutputs();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
         result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this); sanityCheckOutputs();'></td>";
         if (groupCount == 0) {
@@ -797,11 +863,118 @@ function readCapes($cd, $capes)
     // PixelString.cpp; per the receiver table the whole controller's budget
     // drops ~90 pixels/port with v5 (bidirectional) remotes and ~30 with
     // send-only v4 remotes.
-    function pixelStringChannelsForStrings(strings) {
+    // What a protocol costs on the wire, which is what the estimate actually
+    // cares about - the config's channel count is a colour count, not a byte
+    // count, and the two stop matching once the part is not 8 bits.
+    //
+    //   bytesPerChannel - sequence data is always 8 bits per channel, so a
+    //     wider part does NOT consume more channels: the driver expands 8 bits
+    //     to 16 (or 12) through the brightness/gamma curve on the way out.
+    //     Only the shift time grows, which is exactly what this estimate is
+    //     measuring, so it belongs here and nowhere else.
+    //   preamble - constant leading bytes the protocol requires once per port,
+    //     e.g. TM1814's C1/C2 constant current words (PixelString.cpp).
+    //
+    // Bit depths follow the pixel table in xLights (src-core/models/Pixels.cpp)
+    // so both ends agree.  Only the single wire families are listed - the
+    // clocked 2 wire parts are not driven by these outputs.  Entries for
+    // protocols FPP cannot drive yet are harmless: nothing offers them in the
+    // dropdown, and the estimate is right the day a driver lands.
+    // Bit timing groups.  T0, T1 and the end of the bit cell are single latch
+    // instants shared by every port on the PRU, so a controller can only run
+    // one bit cell at a time - which is exactly why this is picked once for the
+    // controller and then filters what each port may be set to.  Letting a
+    // user select a mix that cannot work is the thing to avoid; the driver
+    // warns about one, but it should never get that far.
+    //
+    // Each group is one exact bit cell, so every protocol in a group really is
+    // interchangeable.  The timings mirror PixelString::protocolTiming(), which
+    // is authoritative - the driver derives its own timing from the protocols,
+    // so these two cannot drift apart without the driver warning.
+    var PIXEL_TIMING_GROUPS = [
+        { id: 'ws281x',  label: 'WS281x (800kHz)', t0: 320, t1: 750,  period: 1120 },
+        { id: 'ucs1903', label: 'UCS1903 (400kHz)', t0: 500, t1: 2000, period: 2500 },
+        { id: 'tm1803',  label: 'TM1803 (400kHz)',              t0: 750, t1: 1875, period: 2625 },
+        { id: 'gw6205',  label: 'GW6205 (400kHz)',              t0: 750, t1: 1625, period: 2375 },
+        { id: 'tm1804',  label: 'TM1804',         t0: 500, t1: 1000, period: 1500 },
+        { id: 'sk6822',  label: 'SK6822',              t0: 375, t1: 1375, period: 1750 },
+        { id: 'ucs1912', label: 'UCS1912',                      t0: 250, t1: 1250, period: 1625 },
+        { id: 'ge8822',  label: 'GE8822',                       t0: 375, t1: 1000, period: 1375 }
+    ];
+
+    // Parts that are electrically a WS2811 at 800kHz: same bit cell, same
+    // 1.25us period, so FPP drives them all with one timing and the choice is
+    // a label rather than a behaviour.  Grouped as xLights groups them.
+    //
+    // tm1914 is still absent: it is inverted like the rest of the TM18xx family
+    // and wants a mode select preamble, so it needs real support rather than a
+    // place in a list.
+    var PIXEL_PROTOCOLS_WS281X = [
+        'ws2811', 'ws2812', 'ws2812b', 'ws2813', 'ws2815', 'ws2818',
+        'sk6812', 'sk6813', 'sm16703', 'gs8206', 'gs8208',
+        'tm1809', 'tm1812', 'ucs1904', 'ucs2903', 'apa104', 'apa106',
+        // the RGBW members of the same family - colour order picks the
+        // channel count, so these behave identically too
+        'apa109', 'sk6812rgbw', 'sk6818', 'sm16704', 'ucs2904', 'ws2814'
+    ].join(',');
+
+    var PIXEL_PROTOCOL_WIRE = {
+        'tm1814': { bytesPerChannel: 1, preamble: 8 },
+        'tm1814a': { bytesPerChannel: 1, preamble: 8 },
+        // 16 bit
+        'ucs8903': { bytesPerChannel: 2, preamble: 0 },
+        'ucs8904': { bytesPerChannel: 2, preamble: 0 },
+        'ucs7604': { bytesPerChannel: 2, preamble: 0 },
+        // 12 bit
+        'sj1221': { bytesPerChannel: 1.5, preamble: 0 },
+        'tls3001': { bytesPerChannel: 1.5, preamble: 0 },
+        'tlc5973': { bytesPerChannel: 1.5, preamble: 0 }
+    };
+    // Which protocols each timing group offers.  The ws281x group also carries
+    // the parts that differ in polarity or bit width rather than timing -
+    // tm1814 (inverted) and ucs8903/8904 (16 bit) - because those really are
+    // per port and can sit alongside plain ws2811 on one controller.
+    var PIXEL_TIMING_PROTOCOLS = {
+        'ws281x':  null,   // filled in below from PIXEL_PROTOCOLS_WS281X
+        'ucs1903': 'ucs1903,ws2811slow',
+        'tm1803':  'tm1803',
+        'gw6205':  'gw6205',
+        'tm1804':  'tm1804',
+        'sk6822':  'sk6822,pl9823',
+        'ucs1912': 'ucs1912',
+        'ge8822':  'ge8822'
+    };
+    function pixelTimingGroupProtocols(id) {
+        if (id == 'ws281x' || !PIXEL_TIMING_PROTOCOLS[id]) {
+            return PIXEL_PROTOCOLS_WS281X + ',tm1814,tm1814a,ucs8903,ucs8904';
+        }
+        return PIXEL_TIMING_PROTOCOLS[id];
+    }
+    // which group a protocol belongs to, for validating a loaded config
+    function pixelTimingGroupFor(protocol) {
+        var p = (protocol || 'ws2811').toLowerCase();
+        for (var id in PIXEL_TIMING_PROTOCOLS) {
+            if (pixelTimingGroupProtocols(id).split(',').indexOf(p) >= 0) {
+                return id;
+            }
+        }
+        return 'ws281x';
+    }
+
+    function pixelProtocolWire(protocol) {
+        var p = (protocol || 'ws2811').toLowerCase();
+        // xLights spells the explicit wide modes "ucs8903 16 bit" / "ucs8904 (16)";
+        // treat any such suffix as the same part
+        p = p.replace(/\s*[\(]?16\s*bit[\)]?\s*$/, '').replace(/\s*\(16\)\s*$/, '').trim();
+        return PIXEL_PROTOCOL_WIRE[p] || { bytesPerChannel: 1, preamble: 0 };
+    }
+
+    function pixelStringChannelsForStrings(strings, wire) {
         var chans = 0;
         if (!strings) {
             return 0;
         }
+        var bpc = (wire || {}).bytesPerChannel || 1;
         for (var i = 0; i < strings.length; i++) {
             var vs = strings[i];
             var px = parseInt(vs.pixelCount) || 0;
@@ -811,7 +984,7 @@ function readCapes($cd, $capes)
             // channelsPerNode == number of channels in the color order (RGB=3, RGBW=4)
             var cpn = (vs.colorOrder || 'RGB').length;
             var nulls = (parseInt(vs.nullNodes) || 0) + (parseInt(vs.endNulls) || 0);
-            chans += (px + nulls) * cpn;
+            chans += (px + nulls) * cpn * bpc;
         }
         return chans;
     }
@@ -843,10 +1016,14 @@ function readCapes($cd, $capes)
             'virtualStringsD', 'virtualStringsE', 'virtualStringsF'];
         var chans = 0;
         var anyChannels = false;
+        // The smart-receiver lead-in and marker sizes below are raw wire bytes,
+        // so they deliberately do NOT scale with the protocol's bit depth; only
+        // the pixel data does.
+        var wire = pixelProtocolWire(port.protocol);
         if (type == 'v1') {
             chans += 36; // VirtualString(0,0) lead-in: 0 + 18 + 18
         }
-        var r0 = pixelStringChannelsForStrings(port.virtualStrings);
+        var r0 = pixelStringChannelsForStrings(port.virtualStrings, wire);
         chans += r0;
         if (r0 > 0) {
             anyChannels = true;
@@ -860,7 +1037,7 @@ function readCapes($cd, $capes)
             } else if (type == 'v2') {
                 chans += 10; // VirtualString(3, p): SMART_RECEIVER_V2_GAP
             }
-            var rp = pixelStringChannelsForStrings(port[labels[p]]);
+            var rp = pixelStringChannelsForStrings(port[labels[p]], wire);
             chans += rp;
             if (rp > 0) {
                 anyChannels = true;
@@ -872,8 +1049,11 @@ function readCapes($cd, $capes)
         }
         if (!anyChannels) {
             chans = 0;
+        } else {
+            // once per port, ahead of the pixel data (PixelString::Init)
+            chans += wire.preamble;
         }
-        return { channels: chans, isV5: type == 'v5' && !isV4, isV4: isV4 };
+        return { channels: Math.ceil(chans), isV5: type == 'v5' && !isV4, isV4: isV4 };
     }
 
     // ---- DPIPixels frame-rate ceiling ---------------------------------------
@@ -969,7 +1149,21 @@ function readCapes($cd, $capes)
             // v5 remotes cost ~90 pixels of budget (config packet + query/listen
             // windows); send-only v4 remotes only cost the config packet, ~30
             var budget = maxPixels + (anyV5 ? 90 : (anyV4 ? 30 : 0));
-            fps = Math.floor(32000 / budget);
+            // 32000 is the ws281x rule of thumb, 800 RGB pixels at 40fps, and
+            // it bakes in that cell's 1120ns bit.  A slower part clocks the
+            // same bytes over a longer bit, so the ceiling scales straight
+            // down with the period - without this a 400kHz group would be
+            // reported at roughly twice the frame rate it can really do.
+            var period = 1120;
+            for (var gi = 0; gi < PIXEL_TIMING_GROUPS.length; gi++) {
+                if (PIXEL_TIMING_GROUPS[gi].id == GetPixelStringTimingGroup()) {
+                    period = PIXEL_TIMING_GROUPS[gi].period;
+                }
+            }
+            fps = Math.floor(32000 * (1120 / period) / budget);
+            // no bit period in the message: the Pixel Timing selector sits
+            // right beside it and already names the group, and the extra text
+            // widens the header bar enough to wrap it onto two lines
             msg = 'Supports &asymp;' + (fps > 999 ? '&gt;999' : fps) + ' fps max (longest port ' + (worstPort + 1);
             if (anyV5) {
                 msg += ', -90px for v5 remotes';
@@ -1127,6 +1321,23 @@ function readCapes($cd, $capes)
             }
             if (val["protocols"]) {
                 return val["protocols"].join(",");
+            }
+            // Only the protocols of the controller's selected bit timing, so a
+            // combination that cannot physically work is never offered - the
+            // three latch instants are shared by every port on the PRU, so
+            // there is no such thing as a per-port bit cell.
+            //
+            // Within a group the choice is real but cheap: the ws281x group
+            // lists the parts that are electrically a WS2811 (so someone who
+            // bought an SK6812 finds "sk6812" rather than having to know it is
+            // a WS2811 in disguise, named as xLights names them), plus tm1814
+            // (inverted) and ucs8903/8904 (16 bit), which differ per port
+            // rather than in timing.
+            //
+            // Other drivers share one idle level and one timing across every
+            // port, and only get the list a cape explicitly declares.
+            if (val["driver"] == "BBShiftString") {
+                return pixelTimingGroupProtocols(GetPixelStringTimingGroup());
             }
         }
         return "ws2811";
@@ -1577,7 +1788,12 @@ function readCapes($cd, $capes)
                         $('#PixelStringSubTypeVersion').hide();
                         $('#versionTag').hide();
                     }
-                    if (type == "BBB48String") {
+                    // Both drivers have a bit timing choice, they just differ in
+                    // how far it goes: BBB48String compiles one of two cells
+                    // into its PRU code, BBShiftString takes any cell at
+                    // runtime.  SetupPixelStringTimingControl() picks which of
+                    // the two selects inside this block to show.
+                    if (type == "BBB48String" || type == "BBShiftString") {
                         $('#BBPixelTiming').show();
                     } else {
                         $('#BBPixelTiming').hide();
@@ -1603,6 +1819,21 @@ function readCapes($cd, $capes)
                         pixelTiming = output.pixelTiming;
                     }
                     $('#PixelStringPixelTiming').val(pixelTiming);
+                    SetupPixelStringTimingControl();
+                    // The group is not stored: it is implied by the protocols
+                    // the ports are set to, so the control can never disagree
+                    // with what the driver will actually do.
+                    var outs = output.outputs || [];
+                    var grp = 'ws281x';
+                    for (var gi = 0; gi < outs.length; gi++) {
+                        if (outs[gi].protocol) {
+                            grp = pixelTimingGroupFor(outs[gi].protocol);
+                            if (grp != 'ws281x') {
+                                break;
+                            }
+                        }
+                    }
+                    $('#PixelStringTimingGroup').val(grp);
 
                     $('#PixelString tbody').html("");
 
@@ -1814,6 +2045,7 @@ function readCapes($cd, $capes)
                     }
 
                     $('#PixelString tbody').append(str);
+                    UpdateProtocolColumnVisibility();
 
                     expansions.forEach(function (r) {
                         PixelStringExpansionTypeChanged(r);
@@ -2768,6 +3000,11 @@ function readCapes($cd, $capes)
                             <option value="0">Normal (ws281x)</option>
                             <option value="1">Slow (1903)</option>
                         </select>
+                        <!-- BBShiftString takes its bit cell at runtime, so it
+                             offers the real timing groups instead of the two
+                             compiled ones above.  Options are filled from
+                             PIXEL_TIMING_GROUPS. -->
+                        <select id='PixelStringTimingGroup' class='d-none' onChange='PixelStringTimingGroupChanged();'></select>
                     </div>
                 </div>
 

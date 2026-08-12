@@ -11,6 +11,7 @@
  */
 
 #include <arpa/inet.h>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -20,6 +21,7 @@
 #include <map>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <set>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -385,6 +387,15 @@ void setupNetwork(bool fullReload) {
                 content.append("\n");
                 if (interfaceSettings["PROTO"] == "dhcp") {
                     content.append("[DHCPv4]\nClientIdentifier=mac\nUseDomains=true\n");
+                    // FPP owns the hostname (checkHostName writes /etc/hostname), so
+                    // there is nothing to learn from the lease. Leaving this at its
+                    // default of yes makes networkd call org.freedesktop.hostname1 the
+                    // moment the lease lands, which D-Bus-activates systemd-hostnamed,
+                    // which in turn activates polkit to authorize the call. Measured on
+                    // a single-core AM335x board that chain cost ~21s of boot (4.3s
+                    // hostnamed + 16.8s polkitd) for a hostname that was already
+                    // correct; nothing else on an FPP box uses polkit at all.
+                    content.append("UseHostname=false\n");
                     // Only use NTP from DHCP if explicitly enabled
                     std::string useNTPFromDHCP;
                     getRawSetting("UseNTPFromDHCP", useNTPFromDHCP);
@@ -919,11 +930,232 @@ static std::string buildIPAnnounceString() {
     return found ? announce : "";
 }
 
-bool waitForInterfacesUp(int timeOut) {
+// A USB network adapter can enumerate, bind, and bring up its netdev, and then
+// have the USB link itself fail at the protocol layer: every register access
+// returns -EPROTO, the radio never associates, and the board runs perfectly
+// while being completely unreachable. Measured at roughly 5% of boots on one
+// adapter/controller pairing, and the box stays dark until someone walks out
+// to it.
+//
+// Nothing recovers this in software. Tried on hardware and rejected: unbind and
+// rebind on the usb driver (re-enumerates, then fails its descriptor reads and
+// never returns), disabling and re-enabling the root-hub port (leaves it "not
+// attached"), and unbinding the host controller (brings the controller back but
+// not the device). Even a physical replug does not reliably fix it. A reboot
+// does, so that is what this does.
+//
+// The whole difficulty is firing only for this failure and nothing else. All of
+// the following must hold:
+//   - a USB-attached network interface exists and has no carrier
+//   - no other interface has an address, so we are not already reachable
+//   - tethering is not the configured intent
+//   - this boot's kernel log shows USB protocol errors
+// That last condition is what separates a wedged adapter from an ordinary "no
+// access point in range", "wrong passphrase", or "AP is down" -- none of which a
+// reboot would fix, and all of which it would hide.
+static constexpr int USB_WEDGE_MAX_REBOOTS = 2;
+
+static std::string usbWedgeStateFile() {
+    // /var/tmp, not media/tmp (fppinit.service wipes that on stop, and this has
+    // to survive exactly the reboot it is counting) and not media/config (this
+    // is transient state, and a restored config backup must not carry a stale
+    // count into an unrelated box).
+    return "/var/tmp/fpp-usbnet-wedge-reboots";
+}
+
+// Attempts made recently. Deliberately expires: a box power-cycled hours later
+// should get a fresh pair of tries rather than inheriting a stale count.
+static int usbWedgeRebootCount() {
+    std::string c = GetFileContents(usbWedgeStateFile());
+    int count = 0;
+    long long when = 0;
+    if (c.empty() || sscanf(c.c_str(), "%d %lld", &count, &when) != 2) {
+        return 0;
+    }
+    if ((((long long)time(nullptr)) - when) > 3600) {
+        return 0;
+    }
+    return count;
+}
+
+static void clearUsbWedgeRebootCount() {
+    unlink(usbWedgeStateFile().c_str());
+}
+
+// USB port ids (e.g. "1-1.2") of USB-attached network interfaces that have no
+// carrier. An interface that has carrier is working even if DHCP has not
+// finished, and is none of our business.
+static std::set<std::string> carrierlessUsbNetDeviceIds() {
+    std::set<std::string> ids;
+    std::error_code dirEc;
+    for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net", dirEc)) {
+        std::string ifName = entry.path().filename();
+        if (ifName == "lo" || startsWith(ifName, "usb")) {
+            continue; // usb0/usb1 are the board's own gadget interfaces, not adapters
+        }
+        std::string carrier = GetFileContents(entry.path().string() + "/carrier");
+        TrimWhiteSpace(carrier);
+        if (carrier == "1") {
+            continue;
+        }
+        std::error_code ec;
+        std::filesystem::path dev = std::filesystem::canonical(entry.path() / "device", ec);
+        if (ec || dev.string().find("/usb") == std::string::npos) {
+            continue; // onboard MAC; a reboot is not indicated for it
+        }
+        // .../usb1/1-1/1-1.2/1-1.2:1.0 -- the interface node's parent is the USB
+        // device, and its name is the port id the kernel logs errors against.
+        std::string usbId = dev.parent_path().filename();
+        if (!usbId.empty() && usbId.find(':') == std::string::npos) {
+            ids.insert(usbId);
+        }
+    }
+    return ids;
+}
+
+static bool anyInterfaceHasAddress() {
+    struct ifaddrs* addrs = nullptr;
+    if (getifaddrs(&addrs) != 0) {
+        return true; // cannot tell: assume reachable and do not reboot
+    }
+    bool found = false;
+    for (struct ifaddrs* ifa = addrs; ifa && !found; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr || ifa->ifa_addr->sa_family != AF_INET) {
+            continue;
+        }
+        std::string nm = ifa->ifa_name;
+        if (nm == "lo" || startsWith(nm, "usb")) {
+            continue;
+        }
+        uint32_t a = ntohl(((struct sockaddr_in*)ifa->ifa_addr)->sin_addr.s_addr);
+        if ((a >> 16) == 0xA9FE) {
+            continue; // 169.254/16 link-local is not a usable address
+        }
+        found = true;
+    }
+    freeifaddrs(addrs);
+    return found;
+}
+
+// The signature of a link that has failed below the driver: -EPROTO/-ETIMEDOUT
+// against the adapter's own USB port id.
+//
+// Anchoring on the port id is what keeps a flaky USB stick from rebooting a box
+// whose WiFi is merely out of range -- both conditions would otherwise be true
+// at once. Every line the kernel and the driver emit for this failure carries
+// the id, in both forms:
+//   usb 1-1.2: device descriptor read/64, error -71
+//   rtw88_8822bu 1-1.2:1.0: write register 0x5 failed with -71
+// Thresholded because one retried transfer is normal; a real wedge produces
+// thousands.
+static bool kernelLogShowsUsbProtocolFailure(const std::set<std::string>& usbIds) {
+    if (usbIds.empty()) {
+        return false;
+    }
+    std::string ids;
+    for (const auto& id : usbIds) {
+        if (!ids.empty()) {
+            ids += "|";
+        }
+        for (char c : id) { // the ids contain '.', which must not be a wildcard
+            if (c == '.') {
+                ids += "\\.";
+            } else {
+                ids += c;
+            }
+        }
+    }
+    std::string out = execAndReturn(
+        "/bin/dmesg 2>/dev/null | /bin/grep -cE '(" + ids + "):.*(error -(71|110)" +
+        "|failed with -(71|110)|fail, status: -(71|110))'");
+    TrimWhiteSpace(out);
+    return atoi(out.c_str()) >= 4;
+}
+
+// Set once a reboot has been asked for, so the rest of postNetwork can stop
+// doing work for a boot that is about to be thrown away.
+static std::atomic<bool> s_usbWedgeRebootPending{false};
+
+bool usbWedgeRebootPending() {
+    return s_usbWedgeRebootPending.load();
+}
+
+// Returns true if a reboot was requested. Does NOT block waiting for it.
+//
+// fppd's start depends on fpp_postnetwork, so anything that stalls this service
+// past its TimeoutStartSec takes fppd down with it. /usr/sbin/reboot is a
+// symlink to systemctl, which asks logind over D-Bus to set a wall message;
+// on an early-boot box that activation can time out. Calling it synchronously
+// hung this service for 37+ seconds until systemd killed it -- the reboot never
+// happened AND fppd never started, which is worse than the wedge being fixed.
+// So: go straight to the system manager (no logind), don't wait for the job,
+// and background the call so it cannot stall this thread no matter what.
+static bool rebootIfUsbNetWedged() {
+    if (getRawSettingInt("AutoRebootOnUSBNetworkFailure", 1) == 0) {
+        return false;
+    }
+    if (getRawSettingInt("EnableTethering", 0) == 1) {
+        return false; // no upstream network is expected; being without one is the plan
+    }
+    std::set<std::string> stalled = carrierlessUsbNetDeviceIds();
+    if (stalled.empty()) {
+        return false; // no USB adapter in trouble, so a reboot cannot be the answer
+    }
+    if (anyInterfaceHasAddress()) {
+        return false; // reachable some other way; never reboot a box that is fine
+    }
+    if (!kernelLogShowsUsbProtocolFailure(stalled)) {
+        printf("FPP - USB network adapter has no carrier, but its USB link is healthy "
+               "(no access point in range?); not rebooting\n");
+        return false;
+    }
+    int count = usbWedgeRebootCount();
+    if (count >= USB_WEDGE_MAX_REBOOTS) {
+        printf("FPP - USB network adapter is wedged, but %d reboots have not cleared it; "
+               "staying up rather than looping\n",
+               count);
+        return false;
+    }
+    printf("FPP - USB network adapter is wedged: USB protocol errors, no carrier, and no "
+           "other network. Rebooting (attempt %d of %d).\n",
+           count + 1, USB_WEDGE_MAX_REBOOTS);
+    PutFileContents(usbWedgeStateFile(),
+                    std::to_string(count + 1) + " " + std::to_string((long long)time(nullptr)));
+    sync();
+    s_usbWedgeRebootPending = true;
+    // Forced reboot, not a graceful one. The condition being recovered from is a
+    // wedged USB stack, which is precisely what stops a graceful shutdown from
+    // finishing: tasks block in uninterruptible sleep on the dead device, so
+    // neither SIGTERM nor SIGKILL clears them. Measured on hardware, an ordinary
+    // "systemctl start reboot.target" began stopping units 8s after this point
+    // and then sat there for 37 minutes, the controller logging
+    // "musb-hdrc: VBUS_ERROR in a_wait_bcon" while it churned -- the board was
+    // unreachable that whole time, which is the outage this is supposed to end.
+    // sync() above is what makes skipping the unmounts acceptable; the sysrq
+    // fallback covers systemctl itself being unable to run.
+    execbg("( /bin/systemctl --force --force reboot"
+           " || { echo 1 > /proc/sys/kernel/sysrq; echo b > /proc/sysrq-trigger; } ) &");
+    return true;
+}
+
+bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery) {
     int count = 0;
     // If no network interfaces have carrier/link, don't wait for IP address - likely no network available and no point waiting for DHCP/NTP
     while (!hasNetworkInterfaceForNTP()) {
         if (count >= (timeOut / 2)) { // spend half the timeOut waiting for interfaces to have link, then give up
+            // Before writing the network off, check for a USB adapter whose USB
+            // link has died, which only a reboot clears.
+            //
+            // Opt-in, and only the boot path opts in. The tether callers below
+            // are driven by networkd-dispatcher on carrier changes, and rebooting
+            // from a carrier-change handler is a boot loop with extra steps.
+            if (allowUsbRecovery && rebootIfUsbNetWedged()) {
+                // Reboot is queued. Return at once and let the caller skip the
+                // rest of postNetwork: this service is on fppd's dependency
+                // chain, so overrunning its start timeout here would fail fppd
+                // for the few seconds of life this boot has left.
+                return false;
+            }
             printf("FPP - No network interfaces with link detected after waiting for %d ms, skipping IP wait\n", timeOut * 200);
             return false;
         }
@@ -944,6 +1176,10 @@ bool waitForInterfacesUp(int timeOut) {
         return false;
     }
     printf("FPP - Waited for %0.1f seconds for IP address\n", (((float)count) * 0.2f));
+    // Network came up, so whatever the last wedge was, it is over. Clearing here
+    // rather than letting the count expire keeps the next occurrence entitled to
+    // its full pair of attempts.
+    clearUsbWedgeRebootCount();
     return true;
 }
 
@@ -966,28 +1202,53 @@ void announceIPAddresses() {
     // chain we're retiring. Instead render to a WAV and play it through PipeWire
     // natively with pw-play. pw-play needs the runtime env vars to find FPP's
     // PipeWire instance at /run/pipewire-fpp. /run/fppd is created by setupAudio.
+    // Both halves are hard-capped. A PipeWire graph that cannot reach a working
+    // sink does not fail pw-play -- the node parks in error and the stream never
+    // starts *or* ends, so pw-play blocks in poll() indefinitely. Unbounded, that
+    // turns a cosmetic audio problem into an unbootable box. The real fix is
+    // upstream (FPP now stops WirePlumber from creating a second node fighting
+    // for the same PCM), but nothing about announcing an IP address is worth
+    // risking a hung boot service over, so cap it here too.
     const std::string announceWav = "/run/fppd/ip-announce.wav";
     std::string fliteCmd =
-        "/usr/bin/flite -voice awb -t \"" + announce + "\" -o " + announceWav +
+        "/usr/bin/timeout 60 /usr/bin/flite -voice awb -t \"" + announce + "\" -o " + announceWav +
         " && PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp"
-        " /usr/bin/pw-play " + announceWav;
+        " /usr/bin/timeout 60 /usr/bin/pw-play " +
+        announceWav;
     exec(fliteCmd);
     unlink(announceWav.c_str()); // don't leave the rendered WAV behind in /run
 }
-static void disableWLANPowerManagement() {
+// Turn off 802.11 power saving on every wireless interface. A show controller
+// wants its network responsive, not its radio dozing between beacons; the power
+// saved is irrelevant on a mains-powered board.
+//
+// Was dead code until now -- written but never called, from the commit that
+// introduced it -- so this had simply never run. The drivers in use happen to
+// default power_save off, which is why nobody noticed; this makes it true by
+// intent rather than by luck, and covers an adapter whose driver defaults the
+// other way.
+void disableWLANPowerManagement() {
     struct ifaddrs* ifAddrStruct = NULL;
-    struct ifaddrs* ifa = NULL;
-    void* tmpAddrPtr = NULL;
     getifaddrs(&ifAddrStruct);
-    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+    // getifaddrs yields one entry per address family, so a single interface shows
+    // up as AF_PACKET plus AF_INET plus AF_INET6. Collect names first: otherwise
+    // this forks iw two or three times per adapter for no reason.
+    std::set<std::string> wireless;
+    for (struct ifaddrs* ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
         if (!ifa->ifa_addr) {
             continue;
         }
         std::string nm = ifa->ifa_name;
         if (startsWith(nm, "wl")) {
-            printf("FPP - Disabling power saving for %s\n", nm.c_str());
-            exec("/usr/sbin/iw dev " + nm + " set power_save off 2>/dev/null > /dev/null");
+            wireless.insert(nm);
         }
+    }
+    if (ifAddrStruct != NULL) {
+        freeifaddrs(ifAddrStruct);
+    }
+    for (const auto& nm : wireless) {
+        printf("FPP - Disabling power saving for %s\n", nm.c_str());
+        exec("/usr/sbin/iw dev " + nm + " set power_save off 2>/dev/null > /dev/null");
     }
 }
 

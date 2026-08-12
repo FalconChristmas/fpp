@@ -92,7 +92,7 @@ bool FPPOLEDUtils::setupControlPin(const std::string& file) {
         if (LoadJsonFromFile(file, root, JsonRoot::Object)) {
             if (root.isMember("controls") && root["controls"].isMember("I2CEnable")) {
                 controlPin = root["controls"]["I2CEnable"].asString();
-                printf("Using control pin %s\n", controlPin.c_str());
+                LogInfo(VB_GPIO, "Using control pin %s\n", controlPin.c_str());
 
                 const PinCapabilities& pin = PinCapabilities::getPinByName(controlPin);
                 pin.configPin("gpio", true);
@@ -197,15 +197,15 @@ bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string& file) {
                     if (action == nullptr) {
                         // pin didn't resolve to a real GPIO line -- skip rather than
                         // poll a null pin (getValue()==0) and flood with phantom presses
-                        printf("Skipping input %s: GPIO line not available\n", pinName.c_str());
+                        LogWarn(VB_GPIO, "Skipping input %s: GPIO line not available\n", pinName.c_str());
                         continue;
                     }
                     if (risingAction != "") {
-                        printf("Configuring pin %s as input of type %s   (mode: %s,  file: %d)\n", action->pin.c_str(), risingAction.c_str(), action->mode.c_str(), action->file);
+                        LogInfo(VB_GPIO, "Configuring pin %s as input of type %s   (mode: %s,  file: %d)\n", action->pin.c_str(), risingAction.c_str(), action->mode.c_str(), action->file);
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(risingAction, 1, 1, 100000, action->file == -1 ? action->gpiodPin : nullptr));
                     }
                     if (fallingAction != "") {
-                        printf("Configuring pin %s as input of type %s   (mode: %s,  file: %d)\n", action->pin.c_str(), fallingAction.c_str(), action->mode.c_str(), action->file);
+                        LogInfo(VB_GPIO, "Configuring pin %s as input of type %s   (mode: %s,  file: %d)\n", action->pin.c_str(), fallingAction.c_str(), action->mode.c_str(), action->file);
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(fallingAction, 0, 0, 100000, action->file == -1 ? action->gpiodPin : nullptr));
                     }
                     actions.push_back(action);
@@ -232,11 +232,16 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                     if (a->pin == pin && action) {
                         delete action;
                         action = nullptr;
-                        printf("Skipping %s.  Already configured for actions: ", pin.c_str());
+                        // Built up and logged as one line: a log line is one
+                        // record with its own timestamp/prefix, so the piecemeal
+                        // printf() version would come out as a header line
+                        // followed by an orphaned line per action.
+                        std::string configured;
                         for (auto aa : a->actions) {
-                            printf("%s ", aa->action.c_str());
+                            configured += aa->action;
+                            configured += " ";
                         }
-                        printf("\n");
+                        LogInfo(VB_GPIO, "Skipping %s.  Already configured for actions: %s\n", pin.c_str(), configured.c_str());
                     }
                 }
                 if (action == nullptr) {
@@ -256,7 +261,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                         // but bail defensively if it timed out). Falling through would
                         // create a polling action on the null pin, whose getValue() is
                         // always 0, flooding the menu with phantom presses.
-                        printf("Skipping input %s: GPIO line not available\n", action->pin.c_str());
+                        LogWarn(VB_GPIO, "Skipping input %s: GPIO line not available\n", action->pin.c_str());
                         delete action;
                         continue;
                     }
@@ -302,7 +307,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                         needsPolling = true;
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(type, actionValue, actionValue, 100000, pin.ptr()));
                     } else {
-                        printf("Configuring pin %s as input of type %s   (mode: %s)\n", action->pin.c_str(), type.c_str(), action->mode.c_str());
+                        LogInfo(VB_GPIO, "Configuring pin %s as input of type %s   (mode: %s)\n", action->pin.c_str(), type.c_str(), action->mode.c_str());
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(type, actionValue, actionValue, 100000));
                         setInputFlag(type);
                     }
@@ -316,7 +321,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                             std::string buttonaction = root["inputs"][x]["actions"][a]["action"].asString();
                             int minValue = root["inputs"][x]["actions"][a]["minValue"].asInt();
                             int maxValue = root["inputs"][x]["actions"][a]["maxValue"].asInt();
-                            printf("Configuring AIN input of type %s  with range %d-%d\n", buttonaction.c_str(), minValue, maxValue);
+                            LogInfo(VB_GPIO, "Configuring AIN input of type %s  with range %d-%d\n", buttonaction.c_str(), minValue, maxValue);
                             action->actions.push_back(new FPPOLEDUtils::InputAction::Action(buttonaction, minValue, maxValue, 250000));
                             setInputFlag(buttonaction);
                         }
@@ -403,18 +408,17 @@ static void waitForInputPins() {
         }
         if (missing.empty()) {
             if (waited) {
-                printf("All %d configured input pin(s) resolved after %dms\n", (int)names.size(), waited);
-                fflush(stdout);
+                LogInfo(VB_GPIO, "All %d configured input pin(s) resolved after %dms\n", (int)names.size(), waited);
             }
             return;
         }
         if (waited >= maxWaitMS) {
-            printf("Timed out after %dms waiting for %d input pin(s) to appear:", waited, (int)missing.size());
+            std::string missingNames;
             for (const auto& n : missing) {
-                printf(" %s", n.c_str());
+                missingNames += " ";
+                missingNames += n;
             }
-            printf("\n");
-            fflush(stdout);
+            LogWarn(VB_GPIO, "Timed out after %dms waiting for %d input pin(s) to appear:%s\n", waited, (int)missing.size(), missingNames.c_str());
             return;
         }
         usleep(200000);
@@ -450,7 +454,7 @@ void FPPOLEDUtils::run() {
         if (OLEDPage::IsForcedOff() && !forcedOff) {
             // turning back on
             if (controlPin != "") {
-                printf("Re-enabling I2C Bus via pin: %s\n", controlPin.c_str());
+                LogInfo(VB_GPIO, "Re-enabling I2C Bus via pin: %s\n", controlPin.c_str());
                 const PinCapabilities& pin = PinCapabilities::getPinByName(controlPin);
                 pin.configPin("gpio", true);
                 pin.setValue(1);
@@ -466,7 +470,7 @@ void FPPOLEDUtils::run() {
                 }
             }
             if (controlPin != "") {
-                printf("Disabling I2C Bus via pin: %s\n", controlPin.c_str());
+                LogInfo(VB_GPIO, "Disabling I2C Bus via pin: %s\n", controlPin.c_str());
                 const PinCapabilities& pin = PinCapabilities::getPinByName(controlPin);
                 pin.configPin("gpio", true);
                 pin.setValue(0);

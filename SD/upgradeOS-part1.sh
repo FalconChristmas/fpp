@@ -110,6 +110,31 @@ else
   fi
 fi
 
+# The rsync in upgradeOS-part2.sh copies a new root filesystem over the LIVE
+# one (bin etc lib opt root sbin usr var), so the running OS occupies the disk
+# throughout the copy. If the root filesystem is too full for the incoming OS,
+# the copy dies partway through and leaves a half-written root that will not
+# boot (issue #2816). Pre-flight check: the image itself is already on disk
+# (typically on this same filesystem), and the new OS is roughly the size of
+# the old one, so requiring at least 2x the image size free is a safe margin
+# for the in-place replacement plus the staging image.
+FREESPACE=$(df -Pk / | awk 'NR==2 {print $4}')
+if [[ $FREESPACE =~ ^[0-9]+$ ]]; then
+  FREESPACE_BYTES=$((FREESPACE * 1024))
+  REQUIRED=$((OURSIZE * 2))
+  if [ "$FREESPACE_BYTES" -lt "$REQUIRED" ];
+  then
+    echo "Not enough free space on the root filesystem to apply this OS image."
+    echo "Free: $((FREESPACE_BYTES / 1024 / 1024)) MB, required: $((REQUIRED / 1024 / 1024)) MB (2x image size)"
+    echo "Aborting upgrade. Free up space and try again."
+    exit 1;
+  else
+    echo "Sufficient free space on the root filesystem: $((FREESPACE_BYTES / 1024 / 1024)) MB free, $((REQUIRED / 1024 / 1024)) MB required"
+  fi
+else
+  echo "Could not determine free space on root filesystem, continuing"
+fi
+
 mount $1 /mnt
 
 ORIGTYPE=$(</etc/fpp/platform)

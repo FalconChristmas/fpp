@@ -608,9 +608,7 @@
                 DisableDNSFields(true);
             }
 
-            if (typeof updateDNSInputVisibility === 'function') {
-                updateDNSInputVisibility();
-            }
+            updateDNSInputVisibility();
 
             CheckDNS();
         }
@@ -632,10 +630,14 @@
             var url = "api/network/dns";
             $.get(url, function (data) {
                 GetDNSInfo(data);
-                if (typeof updateDNSInputVisibility === 'function') {
-                    updateDNSInputVisibility();
-                }
             });
+        }
+
+        function ShowTetherRestartBanner() {
+            // Tethering settings are re-read live by setupNetwork(), so a full
+            // reboot isn't required - just surface the same Restart Network
+            // banner/confirm flow the interface tab uses.
+            $('#btnConfigNetwork').show();
         }
 
         function ApplyNetworkConfig() {
@@ -1558,16 +1560,6 @@
                 }
             });
 
-            function updateDNSInputVisibility() {
-                if ($('#dns_manual').is(':checked')) {
-                    $('#dns1Row').show();
-                    $('#dns2Row').show();
-                } else {
-                    $('#dns1Row').hide();
-                    $('#dns2Row').hide();
-                }
-            }
-
             $("#dns_manual").on("click", function () {
                 DisableDNSFields(false);
                 $('#dns_dhcp').prop('checked', false);
@@ -1586,15 +1578,21 @@
 
             // Initial state on page load
             updateDNSInputVisibility();
-            // Force re-check after a short delay in case browser autofill or async radio state
-            setTimeout(function () {
-                updateDNSInputVisibility();
-            }, 200);
         });
 
         function DisableDNSFields(disabled) {
             $('#dns1').prop("disabled", disabled);
             $('#dns2').prop("disabled", disabled);
+        }
+
+        function updateDNSInputVisibility() {
+            if ($('#dns_manual').is(':checked')) {
+                $('#dns1Row').show();
+                $('#dns2Row').show();
+            } else {
+                $('#dns1Row').hide();
+                $('#dns2Row').hide();
+            }
         }
 
         function setHostName() {
@@ -2232,7 +2230,7 @@
                             </h3>
                             <div class="container-fluid settingsTable settingsGroupTable">
                                 <?
-                                PrintSettingGroup('tethering', '', '', '', '', '', false);
+                                PrintSettingGroup('tethering', '', '', '', '', 'ShowTetherRestartBanner()', false);
                                 ?>
                             </div>
 

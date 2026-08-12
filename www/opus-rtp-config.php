@@ -230,6 +230,7 @@
             var opusData = { instances: [] };
             var availableInterfaces = [];
             var nextInstanceId = 1;
+            var hasUnsavedChanges = false;
 
             function HelpIcon(text) {
                 return ' <img src="images/redesign/help-icon.svg" class="icon-help" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="auto" title="' + EscapeAttr(text) + '">';
@@ -280,6 +281,7 @@
 
             /////////////////////////////////////////////////////////////////////////////
             function LoadInstances() {
+                hasUnsavedChanges = false;
                 $.getJSON('api/pipewire/opusrtp/instances')
                     .done(function (data) {
                         opusData = data || { instances: [] };
@@ -301,9 +303,21 @@
             }
 
             /////////////////////////////////////////////////////////////////////////////
+            // Banner shown while added/deleted instances are not yet written to disk
+            function UnsavedChangesBanner() {
+                if (!hasUnsavedChanges) return '';
+                return '<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" id="unsavedChangesBanner">' +
+                    '<i class="fas fa-exclamation-triangle"></i>' +
+                    '<div>Instances have been added or deleted but <b>not saved yet</b>. ' +
+                    'Click <b>Save &amp; Apply</b> to make the change permanent.</div>' +
+                    '</div>';
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
             function RenderInstances() {
                 var container = $('#instancesContainer');
                 container.empty();
+                container.append(UnsavedChangesBanner());
 
                 if (opusData.instances.length === 0) {
                     container.append(
@@ -317,7 +331,14 @@
                         '<i class="fas fa-plus"></i> Create First Instance</button>' +
                         '</div>'
                     );
-                    $('#bottomToolbar').hide();
+                    // Keep the toolbar (and its Save & Apply button) available when the
+                    // last instance has just been deleted, otherwise the deletion can
+                    // never be saved and the instance reappears on reload.
+                    if (hasUnsavedChanges) {
+                        $('#bottomToolbar').show();
+                    } else {
+                        $('#bottomToolbar').hide();
+                    }
                     return;
                 }
 
@@ -488,13 +509,16 @@
                     dtx: false,
                     packetLoss: 5
                 });
+                hasUnsavedChanges = true;
                 RenderInstances();
             }
 
             function DeleteInstance(index) {
                 if (!confirm('Delete instance "' + opusData.instances[index].name + '"?')) return;
                 opusData.instances.splice(index, 1);
+                hasUnsavedChanges = true;
                 RenderInstances();
+                $.jGrowl('Instance deleted — click "Save & Apply" to make the change permanent.', { themeState: 'warning' });
             }
 
             function ToggleInstanceEnabled(index, enabled) {
@@ -550,6 +574,10 @@
                     dataType: 'json'
                 })
                     .done(function () {
+                        // Config is now on disk — drop the unsaved-changes banner and,
+                        // if the last instance was just deleted, the toolbar with it.
+                        hasUnsavedChanges = false;
+                        RenderInstances();
                         $.post('api/pipewire/opusrtp/apply', '')
                             .done(function (applyData) {
                                 if (applyData && applyData.restartRequired) {

@@ -339,10 +339,27 @@
             FilterPlugins();
         }
 
+        // Busy state for the "Check for Update" button in the plugin detail
+        // modal: disabled with a spinning wheel / "Checking for Updates" label
+        // while the per-plugin check runs, mirroring SetCheckForUpdatesBusy on the
+        // Updates tab. No-ops when the button doesn't exist (dialog closed).
+        function SetDetailCheckBusy(plugin, busy) {
+            var $btn = $('#pluginDetailCheckBtn');
+            if (!$btn.length) return;
+            if (busy) {
+                $btn.prop('disabled', true);
+                $btn.html('<i class="fas fa-spinner fa-spin me-1"></i>Checking for Updates');
+            } else {
+                $btn.prop('disabled', false);
+                $btn.html('Check for Update');
+            }
+        }
+
         function CheckPluginForUpdates(plugin) {
             var url = 'api/plugin/' + plugin + '/updates';
 
             $('html,body').css('cursor', 'wait');
+            SetDetailCheckBusy(plugin, true);
             $.ajax({
                 url: url,
                 type: 'POST',
@@ -370,15 +387,19 @@
                             }
                         } else {
                             RowEl(plugin).removeClass('fppHasUpdate');
+                            SetDetailCheckBusy(plugin, false);
                             $.jGrowl('No updates available for ' + plugin, { themeState: 'detract' });
                         }
                         FilterPlugins();
                     }
-                    else
+                    else {
+                        SetDetailCheckBusy(plugin, false);
                         alert('ERROR: ' + data.Message);
+                    }
                 },
                 error: function () {
                     $('html,body').css('cursor', 'auto');
+                    SetDetailCheckBusy(plugin, false);
                     alert('Error, API call failed when checking plugin for updates');
                 }
             });
@@ -440,7 +461,6 @@
             if (bgUpdateSweep) {
                 bgUpdateSweep.cancelled = true;
                 bgUpdateSweep = null;
-                $('#updatesCheckSpinner').addClass('d-none');
             }
         }
 
@@ -450,12 +470,10 @@
             var sweep = { cancelled: false };
             bgUpdateSweep = sweep;
             var queue = installedPlugins.slice();
-            $('#updatesCheckSpinner').removeClass('d-none');
 
             function finish() {
                 if (bgUpdateSweep === sweep)
                     bgUpdateSweep = null;
-                $('#updatesCheckSpinner').addClass('d-none');
             }
             function next() {
                 if (sweep.cancelled || queue.length === 0) {
@@ -485,6 +503,20 @@
             next();
         }
 
+        // Toggle the "Check for Updates" button between its idle and busy states.
+        // Busy: disabled with a spinning wheel and "Checking for Updates" label.
+        // Idle: enabled with the sync icon and "Check for Updates" label.
+        function SetCheckForUpdatesBusy(busy) {
+            var $btn = $('#checkAllUpdatesBtn');
+            if (busy) {
+                $btn.prop('disabled', true);
+                $btn.html('<i class="fas fa-spinner fa-spin me-1"></i>Checking for Updates');
+            } else {
+                $btn.prop('disabled', false);
+                $btn.html('<i class="fas fa-sync-alt"></i> Check for Updates');
+            }
+        }
+
         function CheckAllPluginsForUpdates() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
@@ -493,7 +525,7 @@
             CancelBackgroundUpdateCheck();
 
             $('html,body').css('cursor', 'wait');
-            $('#checkAllUpdatesBtn').prop('disabled', true);
+            SetCheckForUpdatesBusy(true);
 
             CheckPluginsForUpdates(installedPlugins, function (plugin, hasUpdate) {
                 if (hasUpdate) {
@@ -501,7 +533,7 @@
                 }
             }, function (withUpdates, anyError) {
                 $('html,body').css('cursor', 'auto');
-                $('#checkAllUpdatesBtn').prop('disabled', false);
+                SetCheckForUpdatesBusy(false);
                 if (anyError) {
                     $.jGrowl('Completed checking plugins (some checks failed)', { themeState: 'warn' });
                 } else if (withUpdates.length > 0) {
@@ -532,7 +564,7 @@
             CancelBackgroundUpdateCheck();
             $('html,body').css('cursor', 'wait');
             $('#updateAllBtn').prop('disabled', true);
-            $('#checkAllUpdatesBtn').prop('disabled', true);
+            SetCheckForUpdatesBusy(true);
 
             CheckPluginsForUpdates(installedPlugins, function (plugin, hasUpdate) {
                 if (hasUpdate) {
@@ -546,7 +578,7 @@
         function UpdateAllChecksDone(withUpdates) {
             $('html,body').css('cursor', 'auto');
             $('#updateAllBtn').prop('disabled', false);
-            $('#checkAllUpdatesBtn').prop('disabled', false);
+            SetCheckForUpdatesBusy(false);
             FilterPlugins();
             if (withUpdates.length === 0) {
                 $.jGrowl('All plugins are up to date', { themeState: 'success' });
@@ -898,6 +930,10 @@
         function ReinstallAllPlugins() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
+                // Nothing to reinstall, so clear the post-FPPOS-upgrade flag --
+                // otherwise a box with no plugins keeps nagging forever since
+                // this early-return path never reaches ReinstallFinish().
+                SetSetting('pluginReinstallNeededAfterOS', '', 0, 0, true);
                 return;
             }
             RunReinstall(installedPlugins.slice(), 'Reinstall All Plugins');
@@ -1021,6 +1057,9 @@
         function ShowReinstallAllPluginsPopup() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
+                // Nothing to reinstall, so clear the post-FPPOS-upgrade flag --
+                // otherwise a box with no plugins keeps nagging forever.
+                SetSetting('pluginReinstallNeededAfterOS', '', 0, 0, true);
                 return;
             }
             DoModalDialog({
@@ -1668,11 +1707,11 @@
             var buttons = {};
             if (installed) {
                 if (IsSafeHttpUrl(data.pageUrl)) {
-                    buttons['Open'] = function () { CloseModalDialog('pluginDetailDialog'); window.open(data.pageUrl, 'pluginContent'); };
+                    buttons['Open'] = { class: 'btn-outline-primary', click: function () { CloseModalDialog('pluginDetailDialog'); window.open(data.pageUrl, 'pluginContent'); } };
                 }
-                buttons['Check for Update'] = { id: 'pluginDetailCheckBtn', click: function () { CheckPluginForUpdates(repo); } };
-                buttons['Reinstall'] = function () { CloseModalDialog('pluginDetailDialog'); ShowReinstallPluginPopup(repo, data.name); };
-                buttons['Uninstall'] = function () { CloseModalDialog('pluginDetailDialog'); ShowUninstallPluginPopup(repo, data.name); };
+                buttons['Check for Update'] = { id: 'pluginDetailCheckBtn', class: 'btn-outline-success', click: function () { CheckPluginForUpdates(repo); } };
+                buttons['Reinstall'] = { class: 'btn-outline-warning', click: function () { CloseModalDialog('pluginDetailDialog'); ShowReinstallPluginPopup(repo, data.name); } };
+                buttons['Uninstall'] = { class: 'btn-outline-danger', click: function () { CloseModalDialog('pluginDetailDialog'); ShowUninstallPluginPopup(repo, data.name); } };
             } else if (compatibleVersion >= 0 || untestedVersion >= 0) {
                 var idx = compatibleVersion < 0 ? untestedVersion : compatibleVersion;
                 // Match the card's wording: "Install anyway" when the only available
@@ -2398,8 +2437,6 @@
                                         <button type="button" class="nav-link text-nowrap" data-top-tab="updates" role="tab">
                                             <i class="far fa-arrow-alt-circle-up"></i> Updates
                                             <span class="badge bg-secondary ms-1" id="topCountUpdates">0</span>
-                                            <span class="spinner-border spinner-border-sm ms-1 d-none" id="updatesCheckSpinner"
-                                                role="status" aria-hidden="true" title="Checking for updates..."></span>
                                         </button>
                                     </li>
                                 </ul>

@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <atomic>
 #include <functional>
 #include "fpp-json-fwd.h"
 #include <list>
@@ -72,6 +73,13 @@ private:
     std::vector<PortPinInfo*> portPins;
     std::list<PortPinInfo*> eFuseRetries;
     bool retryTimerRunning = false;
+    // Whether the enable pins are currently supposed to be driven on.  Ports
+    // are re-registered whenever a string config is reloaded, which happens
+    // while output is running (an xLights auto-upload lands after "output to
+    // lights" has already started the output thread), so AddPortConfiguration
+    // has to bring a port up in the state the monitor is already in rather
+    // than assume the pre-output state.
+    std::atomic<bool> outputsEnabled{ false };
     std::mutex gpioLock;
     int numGroups = 1;
     int curGroup = -1;

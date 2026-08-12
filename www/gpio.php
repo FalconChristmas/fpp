@@ -225,7 +225,7 @@ if (is_dir($stringsDir)) {
             background: var(--bs-tertiary-bg);
             border-radius: var(--fpp-radius-sm);
             padding: 0.15rem 0.5rem;
-            word-break: break-all;
+            overflow-wrap: break-word;
             color: var(--bs-body-color);
         }
 
@@ -266,7 +266,7 @@ if (is_dir($stringsDir)) {
             font-family: var(--fpp-font-mono);
             font-size: var(--fpp-fs-sm);
             color: var(--bs-body-color);
-            word-break: break-all;
+            overflow-wrap: break-word;
         }
 
         /* ── Modal section grouping ─────────────────────────────────────────────── */
@@ -531,7 +531,21 @@ if (is_dir($stringsDir)) {
         function cmdSummary(cmd) {
             if (!cmd || !cmd.command) return '(none)';
             var s = cmd.command;
-            if (cmd.args && cmd.args.length) s += ': ' + cmd.args.map(function (a) { return a !== '' ? a : '—'; }).join(', ');
+            if (cmd.args && cmd.args.length) {
+                var def = commandListByName[cmd.command];
+                var defArgs = (def && def.args) ? def.args : [];
+                s += ': ' + cmd.args.map(function (a, i) {
+                    var v = (a !== '' && a !== null && typeof a !== 'undefined') ? a : '—';
+                    var label = defArgs[i] ? (defArgs[i].description || defArgs[i].name) : null;
+                    return label ? (label + '=' + v) : v;
+                }).join(', ');
+            }
+            // Multisync isn't part of args[] - it lives alongside it in the command
+            // JSON, with an empty host list meaning "every remote". Show it too so
+            // the card reflects everything the command editor captured.
+            if (cmd.multisyncCommand) {
+                s += ' · Multisync: ' + (cmd.multisyncHosts ? cmd.multisyncHosts : 'all remotes');
+            }
             return s;
         }
 

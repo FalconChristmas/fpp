@@ -490,8 +490,14 @@ void Scheduler::doScheduledCommand(const std::time_t itemTime, const ScheduledIt
     cmd["multisyncCommand"] = item.entry->multisyncCommand;
     cmd["multisyncHosts"] = item.entry->multisyncHosts;
 
-    std::thread th([this](Json::Value cmd) {
+    int entryIndex = item.entryIndex;
+    std::thread th([this, entryIndex](Json::Value cmd) {
         SetThreadName("FPP-RunCmd");
+        // "id" rather than a row number: entryIndex is the 0-based index into
+        // the schedule vector, and that is exactly what the API reports as an
+        // entry's "id" (see BuildScheduleRangeItem / the scheduledItem["id"]
+        // below), so this is the value to cross-reference against.
+        LogDebug(VB_COMMAND, "Scheduler entry id %d running command \"%s\"\n", entryIndex, cmd["command"].asString().c_str());
         CommandManager::INSTANCE.run(cmd);
     },
                    std::move(cmd));

@@ -14,6 +14,10 @@
 
 #include "fpp-json.h"
 
+// not in fpp-pch.h; libc++ pulls them in transitively but libstdc++ does not
+#include <memory>
+#include <tuple>
+
 #include "../Sequence.h"
 #include "../log.h"
 
@@ -63,6 +67,9 @@ VirtualString::VirtualString() :
     leadInCount(0),
     toggleCount(0),
     leadOutCount(0) {
+    // never leave this dangling - ReadVirtualString normally replaces it, but
+    // a default constructed string is used directly for empty ports
+    brightnessMap = BrightnessLUTCache::get(100, 1.0f, false);
 }
 
 VirtualString::VirtualString(int rt, int rn) :
@@ -108,10 +115,102 @@ VirtualString::VirtualString(int rt, int rn) :
         break;
     }
     pixelCount = leadInCount + toggleCount + leadOutCount;
-    for (int x = 0; x < 256; x++) {
-        brightnessMap[x] = x;
-    }
+    // identity: full brightness, no gamma
+    brightnessMap = BrightnessLUTCache::get(100, 1.0f, false);
 }
+namespace {
+struct LUTKey {
+    int brightness;
+    int gammaScaled;
+    bool inverted;
+    bool operator<(const LUTKey& o) const {
+        return std::tie(brightness, gammaScaled, inverted) <
+               std::tie(o.brightness, o.gammaScaled, o.inverted);
+    }
+};
+std::map<LUTKey, std::unique_ptr<std::array<uint8_t, 256>>> g_luts;
+std::map<LUTKey, std::unique_ptr<std::array<uint16_t, 256>>> g_wideLuts;
+std::mutex g_lutLock;
+
+// gamma is quantised so it can key the cache; build from the quantised value
+// so two strings sharing a key get byte-identical tables whichever is built
+// first.  1/10000 is past any configurable gamma - 2.2f round trips exactly.
+int scaleGamma(float gamma) {
+    return (int)std::lround(gamma * 10000.0f);
+}
+} // namespace
+
+const uint8_t* BrightnessLUTCache::get(int brightness, float gamma, bool inverted) {
+    // Quantise gamma so it can key the cache, then build from the quantised
+    // value rather than the caller's: two strings that share a key must get
+    // byte-identical tables whichever of them is built first.  1/10000 is fine
+    // past any gamma anyone configures - 2.2f round trips exactly.
+    int gammaScaled = scaleGamma(gamma);
+    LUTKey key{ brightness, gammaScaled, inverted };
+
+    std::lock_guard<std::mutex> lock(g_lutLock);
+    auto it = g_luts.find(key);
+    if (it != g_luts.end()) {
+        return it->second->data();
+    }
+
+    auto table = std::make_unique<std::array<uint8_t, 256>>();
+    // identical to the original per-string computation, so the tables are
+    // byte for byte what they always were (at 100/1.0 that is the identity
+    // map, which is what the smart receiver markers want)
+    float maxB = brightness * 2.55f;
+    float g = gammaScaled / 10000.0f;
+    for (int x = 0; x < 256; x++) {
+        float f = maxB * pow((float)x / 255.0f, g);
+        if (f > 255.0) {
+            f = 255.0;
+        }
+        if (f < 0.0) {
+            f = 0.0;
+        }
+        uint8_t v = (uint8_t)round(f);
+        (*table)[x] = inverted ? (uint8_t)~v : v;
+    }
+    const uint8_t* p = table->data();
+    g_luts[key] = std::move(table);
+    return p;
+}
+
+const uint16_t* BrightnessLUTCache::getWide(int brightness, float gamma, bool inverted) {
+    int gammaScaled = scaleGamma(gamma);
+    LUTKey key{ brightness, gammaScaled, inverted };
+
+    std::lock_guard<std::mutex> lock(g_lutLock);
+    auto it = g_wideLuts.find(key);
+    if (it != g_wideLuts.end()) {
+        return it->second->data();
+    }
+
+    auto table = std::make_unique<std::array<uint16_t, 256>>();
+    // the same curve as the 8 bit table, evaluated to full 16 bit range
+    float maxB = brightness * 655.35f;
+    float g = gammaScaled / 10000.0f;
+    for (int x = 0; x < 256; x++) {
+        float f = maxB * pow((float)x / 255.0f, g);
+        if (f > 65535.0) {
+            f = 65535.0;
+        }
+        if (f < 0.0) {
+            f = 0.0;
+        }
+        uint16_t v = (uint16_t)llround(f);
+        (*table)[x] = inverted ? (uint16_t)~v : v;
+    }
+    const uint16_t* p = table->data();
+    g_wideLuts[key] = std::move(table);
+    return p;
+}
+
+size_t BrightnessLUTCache::tableCount() {
+    std::lock_guard<std::mutex> lock(g_lutLock);
+    return g_luts.size() + g_wideLuts.size();
+}
+
 bool VirtualString::isSmartReceiver() const {
     return receiverNum >= 0;
 }
@@ -132,7 +231,7 @@ int VirtualString::channelsPerNode() const {
 PixelString::PixelString(bool supportSmart) :
     m_portNumber(0),
     m_channelOffset(0),
-    m_outputChannels(0),
+    m_outputBytes(0),
     m_isSmartReceiver(supportSmart),
     m_brightnessMaps(nullptr),
     m_outputBuffer(nullptr) {
@@ -158,7 +257,10 @@ PixelString::~PixelString() {
  */
 int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
     m_portNumber = config["portNumber"].asInt();
-    m_outputChannels = 0;
+    m_outputBytes = 0;
+    // needed before the virtual strings are read so their lookup tables are
+    // built at the right width
+    m_bytesPerChannel = protocolBytesPerChannel(config["protocol"].asString());
 
     int receiverCount = 1;
     if (m_isSmartReceiver && config.isMember("differentialType")) {
@@ -184,6 +286,15 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
             }
         }
         m_isSmartReceiver = smartReceiverType != ReceiverType::Standard;
+        if (m_bytesPerChannel != 1 &&
+            (smartReceiverType == ReceiverType::v1 || smartReceiverType == ReceiverType::v2)) {
+            // v1/v2 receivers interleave fixed width marker patterns with the
+            // pixel data, so a wide part would need two widths in one stream.
+            // Falcon v4/v5 markers are zero length, so those are fine.
+            LogWarn(VB_CHANNELOUT, "16 bit protocols are not supported with v1/v2 smart receivers on port %d; using 8 bit\n", m_portNumber + 1);
+            WarningHolder::AddWarning("PixelString: 16 bit protocol not supported with v1/v2 smart receivers on port " + std::to_string(m_portNumber + 1));
+            m_bytesPerChannel = 1;
+        }
     } else {
         smartReceiverType = ReceiverType::None;
         m_isSmartReceiver = false;
@@ -192,7 +303,7 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
         // v1 needs a lead in
         AddVirtualString(VirtualString(0, 0));
     }
-    int startMaxChan = m_outputChannels;
+    int startMaxChan = m_outputBytes;
     for (int i = 0; i < config["virtualStrings"].size(); i++) {
         Json::Value vsc = config["virtualStrings"][i];
         VirtualString vs;
@@ -202,14 +313,14 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
         AddVirtualString(vs);
     }
     std::array<bool, 6> hasChannels;
-    hasChannels[0] = startMaxChan != m_outputChannels;
+    hasChannels[0] = startMaxChan != m_outputBytes;
     if (!hasChannels[0] && (smartReceiverType == ReceiverType::v1 || smartReceiverType == ReceiverType::v2)) {
         // we need to output at least 1 pixel
         AddNullPixelString();
     }
     for (int p = 1; p < receiverCount; p++) {
         int sz = m_virtualStrings.size();
-        int mc = m_outputChannels;
+        int mc = m_outputBytes;
 
         if (smartReceiverType == ReceiverType::v1) {
             // v1 smart  receiver
@@ -221,7 +332,7 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
             // Falcon v4/v5, just marker to determine config packets later
             AddVirtualString(VirtualString(4, p));
         }
-        startMaxChan = m_outputChannels;
+        startMaxChan = m_outputBytes;
         for (int i = 0; i < config[SMART_RECEIVER_LABELS[p]].size(); i++) {
             Json::Value vsc = config[SMART_RECEIVER_LABELS[p]][i];
             VirtualString vs;
@@ -230,7 +341,7 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
             }
             AddVirtualString(vs);
         }
-        hasChannels[p] = startMaxChan != m_outputChannels;
+        hasChannels[p] = startMaxChan != m_outputBytes;
         hasChannels[0] |= hasChannels[p];
         if (!hasChannels[p]) {
             if (p != (receiverCount - 1)) {
@@ -238,7 +349,7 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
                 AddNullPixelString();
             } else {
                 // in this case, we can revert and just send one less receivers of data
-                m_outputChannels = mc;
+                m_outputBytes = mc;
                 while (sz != m_virtualStrings.size()) {
                     m_virtualStrings.pop_back();
                 }
@@ -248,28 +359,28 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
 
     if (!hasChannels[0]) {
         // empty, no strings
-        m_outputChannels = 0;
+        m_outputBytes = 0;
         m_virtualStrings.clear();
         AddVirtualString(VirtualString());
     }
     if (pinConfig) {
         m_pinConfig = *pinConfig;
-        OutputMonitor::INSTANCE.AddPortConfiguration(m_portNumber, m_pinConfig, m_outputChannels > 0);
+        OutputMonitor::INSTANCE.AddPortConfiguration(m_portNumber, m_pinConfig, m_outputBytes > 0);
     }
 
-    m_outputMap.resize(m_outputChannels);
+    m_outputMap.resize(m_outputBytes);
 
     // Initialize all maps to an unused location which should be zero.
     // We need this so that null nodes in the middle of a string are sent
     // all zeroes to keep them dark.
-    for (int i = 0; i < m_outputChannels; i++) {
+    for (int i = 0; i < m_outputBytes; i++) {
         m_outputMap[i] = FPPD_OFF_CHANNEL;
     }
 
     int offset = 0;
     int mapIndex = 0;
 
-    m_brightnessMaps = (uint8_t**)calloc(1, sizeof(uint8_t*) * m_outputChannels);
+    m_brightnessMaps = (const uint8_t**)calloc(1, sizeof(const uint8_t*) * m_outputBytes);
 
     for (int i = 0; i < m_virtualStrings.size(); i++) {
         m_virtualStrings[i].chMap = &m_outputMap[offset];
@@ -282,27 +393,165 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
         for (int j = 0; j < ((m_virtualStrings[i].startNulls * m_virtualStrings[i].channelsPerNode()) + (m_virtualStrings[i].pixelCount * m_virtualStrings[i].channelsPerNode()) + (m_virtualStrings[i].endNulls * m_virtualStrings[i].channelsPerNode())); j++)
             m_brightnessMaps[mapIndex++] = m_virtualStrings[i].brightnessMap;
     }
+    // A 16 bit part clocks two bytes per colour channel.  The channel maps
+    // above are per channel and stay as they are - only the wire length grows.
+    // Marker strings from a smart receiver are raw wire bytes and do not
+    // widen, but the only receivers allowed here (Falcon v4/v5) have zero
+    // length markers, so this is a straight doubling.
+    if (m_bytesPerChannel != 1) {
+        m_outputBytes *= m_bytesPerChannel;
+    }
+
+    // Protocol preamble, if any.  It has to land after the channel maps are
+    // built (those are sized for the pixel bytes only) and before the gpio off
+    // command below, which needs the full wire length.
+    if (m_outputBytes && protocolNeedsTM1814Preamble(config["protocol"].asString())) {
+        // per channel drive current; the part powers up at its 6.5mA floor, so
+        // without this a TM1814 string just looks dim
+        float mA = config.isMember("tm1814MilliAmps") ? config["tm1814MilliAmps"].asFloat() : 38.0f;
+        m_preamble = buildTM1814Preamble(mA);
+        m_outputBytes += m_preamble.size();
+    }
+
     // turn gpio off after all channels on this port are done
-    if (m_outputChannels) {
-        m_gpioCommands.push_back(GPIOCommand(m_portNumber, m_outputChannels));
+    if (m_outputBytes) {
+        m_gpioCommands.push_back(GPIOCommand(m_portNumber, m_outputBytes));
     }
 
     // certain testing capabilities (like pixel counting) may require a
     // buffer larger than the number of pixels configured
-    int obs = std::max(2400, m_outputChannels);
+    int obs = std::max(2400, m_outputBytes);
     m_outputBuffer = (uint8_t*)calloc(obs, 1);
 
-    if (pinConfig && pinConfig->isMember("inverted") && (*pinConfig)["inverted"].asBool()) {
+    // Cape declared inversion corrects a wiring defect; protocol inversion is
+    // the pixel type asking for it.  Both flip the same line, so they compose
+    // by xor and cancel when a TM18xx string lands on a backwards-wired port.
+    m_protocolInverted = isInvertedProtocol(config["protocol"].asString());
+    // isMember first: pinConfig points into the cape config and a bare
+    // operator[] would insert a null member into it
+    bool wireInverted = pinConfig && pinConfig->isMember("inverted") && (*pinConfig)["inverted"].asBool();
+    if (m_protocolInverted != wireInverted) {
         invertOutput();
+    }
+
+    // after any inversion, so the bytes copied in are the wire form
+    if (!m_preamble.empty()) {
+        memcpy(m_outputBuffer, m_preamble.data(), m_preamble.size());
     }
 
     return 1;
 }
 
+// TM1814 frames are "C1 C2 D1..Dn Reset".  C1 carries four 6 bit constant
+// current levels in the chip's physical W,R,G,B pin order with the top two
+// bits of each byte fixed at 0; C2 is the bitwise complement of C1 and the
+// chip will not decode the frame without it.  Every chip in the chain reads
+// and forwards both, so this is once per frame, not once per pixel.
+std::vector<uint8_t> PixelString::buildTM1814Preamble(float milliAmps) {
+    // 64 levels spanning 6.5mA (all zero) to 38mA (all ones)
+    constexpr float MIN_MA = 6.5f;
+    constexpr float MAX_MA = 38.0f;
+    milliAmps = std::clamp(milliAmps, MIN_MA, MAX_MA);
+    uint8_t level = (uint8_t)std::lround((milliAmps - MIN_MA) * 63.0f / (MAX_MA - MIN_MA)) & 0x3F;
+
+    std::vector<uint8_t> p(8);
+    // C1: W, R, G, B - all four channels get the same level.  This is the
+    // chip's pin order and is independent of the string's color order, which
+    // only decides how channel data lands in the W/R/G/B slots of Dn.
+    for (int i = 0; i < 4; i++) {
+        p[i] = level;
+        p[i + 4] = ~level;
+    }
+    return p;
+}
+
+// Per protocol bit cell.  Anything not listed is the 800kHz ws281x family,
+// which is the overwhelming majority and what the timing has always been.
+//
+// The listed ones are genuinely different parts, not aliases: driving them
+// with the ws281x cell does not merely shift an edge, it puts the pulse
+// outside the window the part decodes.  That is why they were kept out of the
+// protocol dropdown until the firmware could take its timing at runtime.
+PixelString::Timing PixelString::protocolTiming(const std::string& protocol) {
+    // the ws281x family - see the alias list in co-pixelStrings.php
+    static const Timing ws281x{ 320, 750, 1120 };
+
+    // 400kHz parts: a 2.5us cell, twice the ws281x period
+    if (protocol == "ucs1903" || protocol == "ws2811slow" || protocol == "ws2811 slow") {
+        return { 500, 2000, 2500 };
+    }
+    if (protocol == "tm1803") {
+        return { 750, 1875, 2625 };
+    }
+    if (protocol == "gw6205") {
+        return { 750, 1625, 2375 };
+    }
+    // longer cell parts, between the two
+    if (protocol == "tm1804" || protocol == "tm1809slow") {
+        return { 500, 1000, 1500 };
+    }
+    if (protocol == "sk6822" || protocol == "pl9823") {
+        return { 375, 1375, 1750 };
+    }
+    if (protocol == "ucs1912") {
+        return { 250, 1250, 1625 };
+    }
+    if (protocol == "ge8822") {
+        return { 375, 1000, 1375 };
+    }
+    return ws281x;
+}
+
+int PixelString::protocolBytesPerChannel(const std::string& protocol) {
+    // single wire 16 bit parts; bit depths follow the pixel table in xLights
+    // (src-core/models/Pixels.cpp).  The bare name is the 16 bit part itself,
+    // and the explicit "16 bit"/"(16)" spellings some controllers use mean the
+    // same thing here.
+    if (protocol == "ucs8903" || protocol == "ucs8904" || protocol == "ucs7604" ||
+        protocol == "ucs8903 16 bit" || protocol == "ucs8904 16 bit" ||
+        protocol == "ucs7604 16 bit") {
+        return 2;
+    }
+    return 1;
+}
+
+bool PixelString::protocolNeedsTM1814Preamble(const std::string& protocol) {
+    return protocol == "tm1814" || protocol == "tm1814a";
+}
+
+void PixelString::setPixelDataChannels(int channels) {
+    // a port clamped to nothing sends nothing, preamble included - the same
+    // rule Init uses when deciding to build one at all
+    m_outputBytes = channels ? channels * m_bytesPerChannel + (int)m_preamble.size() : 0;
+}
+
+void PixelString::dropPreamble() {
+    if (m_preamble.empty()) {
+        return;
+    }
+    int n = (int)m_preamble.size();
+    m_outputBytes -= n;
+    // the preamble shifted the whole stream, so every command past it moves back
+    for (auto& c : m_gpioCommands) {
+        if (c.channelOffset >= n) {
+            c.channelOffset -= n;
+        }
+    }
+    m_preamble.clear();
+    memset(m_outputBuffer, 0, n);
+}
+
+bool PixelString::isInvertedProtocol(const std::string& protocol) {
+    // Only the protocols FPP can actually drive today.  The TM18xx bit cell
+    // is close enough to ws2811 that the shared timing covers it; what makes
+    // them different is the idle level.
+    return protocol == "tm1814" || protocol == "tm1814a";
+}
+
 void PixelString::AddVirtualString(const VirtualString& vs) {
-    m_outputChannels += vs.startNulls * vs.channelsPerNode();
-    m_outputChannels += vs.pixelCount * vs.channelsPerNode();
-    m_outputChannels += vs.endNulls * vs.channelsPerNode();
+    m_outputBytes += vs.startNulls * vs.channelsPerNode();
+    m_outputBytes += vs.pixelCount * vs.channelsPerNode();
+    m_outputBytes += vs.endNulls * vs.channelsPerNode();
 
     m_virtualStrings.push_back(vs);
 }
@@ -362,18 +611,9 @@ int PixelString::ReadVirtualString(Json::Value& vsc, VirtualString& vs) const {
         if ((vs.zigZag == vs.pixelCount) || (vs.zigZag == 1))
             vs.zigZag = 0;
 
-        float bf = vs.brightness;
-        float maxB = bf * 2.55f;
-        for (int x = 0; x < 256; x++) {
-            float f = x;
-            f = maxB * pow(f / 255.0f, vs.gamma);
-            if (f > 255.0) {
-                f = 255.0;
-            }
-            if (f < 0.0) {
-                f = 0.0;
-            }
-            vs.brightnessMap[x] = round(f);
+        vs.brightnessMap = BrightnessLUTCache::get(vs.brightness, vs.gamma, false);
+        if (m_bytesPerChannel == 2) {
+            vs.brightnessMap16 = BrightnessLUTCache::getWide(vs.brightness, vs.gamma, false);
         }
     } else {
         vs.colorOrder = ColorOrderFromString("RGB");
@@ -383,9 +623,7 @@ int PixelString::ReadVirtualString(Json::Value& vsc, VirtualString& vs) const {
         vs.startNulls = 0;
         vs.endNulls = 0;
         vs.startChannel = 0;
-        for (int x = 0; x < 256; x++) {
-            vs.brightnessMap[x] = x;
-        }
+        vs.brightnessMap = BrightnessLUTCache::get(100, 1.0f, false);
     }
 
     return 1;
@@ -486,13 +724,13 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
         int pixel = 0;
         int zigChannelCount = vs.zigZag * vs.channelsPerNode();
 
-        for (int i = 0; i < m_outputChannels; i += zigChannelCount) {
+        for (int i = 0; i < m_outputBytes; i += zigChannelCount) {
             segment = i / zigChannelCount;
             if (segment % 2) {
                 int offset1 = i;
                 int offset2 = i + zigChannelCount - vs.channelsPerNode();
 
-                if ((offset2 + 2) < m_outputChannels)
+                if ((offset2 + 2) < m_outputBytes)
                     FlipPixels(offset1, offset2, vs.channelsPerNode());
             }
         }
@@ -513,7 +751,7 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
 void PixelString::DumpMap(const char* msg) {
     if (WillLog(LOG_EXCESSIVE, VB_CHANNELOUT)) {
         LogExcess(VB_CHANNELOUT, "OutputMap: %s\n", msg);
-        for (int i = 0; i < m_outputChannels; i++) {
+        for (int i = 0; i < m_outputBytes; i++) {
             LogExcess(VB_CHANNELOUT, "map[%d] = %d\n", i, m_outputMap[i]);
         }
     }
@@ -581,12 +819,24 @@ void PixelString::DumpConfig(void) {
     }
 }
 
+// Everything downstream of here holds wire form, not logical form: on an
+// inverted port the line idles high and the data phase drives high for a
+// logical zero, so every byte that goes out has to be complemented.  The
+// brightness maps carry that for pixel data; the preamble needs it too.
 void PixelString::invertOutput() {
     m_isInverted = !m_isInverted;
     for (auto& vs : m_virtualStrings) {
-        for (int x = 0; x < 256; x++) {
-            vs.brightnessMap[x] = ~vs.brightnessMap[x];
+        // the tables are shared, so swap to the complemented one rather than
+        // flipping this string's in place and corrupting every other user
+        int b = vs.isSmartReceiver() ? 100 : vs.brightness;
+        float g = vs.isSmartReceiver() ? 1.0f : vs.gamma;
+        vs.brightnessMap = BrightnessLUTCache::get(b, g, m_isInverted);
+        if (vs.brightnessMap16) {
+            vs.brightnessMap16 = BrightnessLUTCache::getWide(b, g, m_isInverted);
         }
+    }
+    for (auto& b : m_preamble) {
+        b = ~b;
     }
 }
 
@@ -674,12 +924,23 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
 }
 
 uint8_t* PixelString::prepareOutput(uint8_t* channelData) {
-    int idx = 0;
+    // any protocol preamble is already sitting at the head of the buffer
+    int idx = m_preamble.size();
     for (auto& vs : m_virtualStrings) {
         int* map = vs.chMap;
-        uint8_t* brightness = vs.brightnessMap;
-        for (int ch = 0; ch < vs.chMapCount; ch++) {
-            m_outputBuffer[idx++] = brightness[channelData[map[ch]]];
+        if (vs.brightnessMap16) {
+            // 16 bit parts take each channel most significant byte first
+            const uint16_t* brightness = vs.brightnessMap16;
+            for (int ch = 0; ch < vs.chMapCount; ch++) {
+                uint16_t v = brightness[channelData[map[ch]]];
+                m_outputBuffer[idx++] = (uint8_t)(v >> 8);
+                m_outputBuffer[idx++] = (uint8_t)v;
+            }
+        } else {
+            const uint8_t* brightness = vs.brightnessMap;
+            for (int ch = 0; ch < vs.chMapCount; ch++) {
+                m_outputBuffer[idx++] = brightness[channelData[map[ch]]];
+            }
         }
     }
     return m_outputBuffer;

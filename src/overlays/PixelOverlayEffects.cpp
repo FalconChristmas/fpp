@@ -565,6 +565,26 @@ public:
             disableWhenDone = true;
         }
 
+        // Normalize a literal "\n" (backslash followed by 'n', as typed into a
+        // single-line text field) into a real newline byte so it is treated the
+        // same as an actual embedded newline for both sizing and rendering below.
+        // A doubled backslash ("\\") escapes to a single literal backslash, so
+        // text containing a literal "\n" sequence (e.g. a Windows path like
+        // "c:\network") can be entered as "c:\\network" without being split.
+        std::string normalizedMsg;
+        normalizedMsg.reserve(msg.length());
+        for (int x = 0; x < msg.length(); x++) {
+            if (msg[x] == '\\' && (x < msg.length() - 1) && msg[x + 1] == 'n') {
+                normalizedMsg += '\n';
+                x++;
+            } else if (msg[x] == '\\' && (x < msg.length() - 1) && msg[x + 1] == '\\') {
+                normalizedMsg += '\\';
+                x++;
+            } else {
+                normalizedMsg += msg[x];
+            }
+        }
+
         Magick::Image* image = new Magick::Image(Magick::Geometry(m->getWidth(), m->getHeight()), Magick::Color("black"));
         image->quiet(true);
         image->depth(8);
@@ -575,28 +595,27 @@ public:
         int maxWid = 0;
         int totalHi = 0;
 
-        int lines = 1;
         int last = 0;
-        for (int x = 0; x < msg.length(); x++) {
-            if (msg[x] == '\n' || ((x < msg.length() - 1) && msg[x] == '\\' && msg[x + 1] == 'n')) {
-                lines++;
-                std::string newM = msg.substr(last, x);
+        for (int x = 0; x < normalizedMsg.length(); x++) {
+            if (normalizedMsg[x] == '\n') {
+                std::string newM = normalizedMsg.substr(last, x - last);
                 Magick::TypeMetric metrics;
                 image->fontTypeMetrics(newM, &metrics);
                 maxWid = std::max(maxWid, (int)metrics.textWidth());
                 totalHi += (int)metrics.textHeight();
-                if (msg[x] == '\n') {
-                    last = x + 1;
-                } else {
-                    last = x + 2;
-                }
+                last = x + 1;
             }
         }
-        std::string newM = msg.substr(last);
+        std::string newM = normalizedMsg.substr(last);
         Magick::TypeMetric metrics;
         image->fontTypeMetrics(newM, &metrics);
         maxWid = std::max(maxWid, (int)metrics.textWidth());
         totalHi += (int)metrics.textHeight();
+
+        // Empty text (or text consisting only of newlines) measures as zero width,
+        // which would make the scrolling branch below construct an invalid image.
+        maxWid = std::max(maxWid, 1);
+        totalHi = std::max(totalHi, 1);
 
         if (position == "Centered" || position == "Center") {
             image->magick("RGB");
@@ -613,7 +632,7 @@ public:
                                            Magick::Color::scaleDoubleToQuantum(rb)));
             image->antiAlias(antialias);
             image->strokeAntiAlias(antialias);
-            image->annotate(msg, Magick::CenterGravity);
+            image->annotate(normalizedMsg, Magick::CenterGravity);
             Magick::Blob blob;
             image->write(&blob);
 
@@ -663,7 +682,7 @@ public:
                                            Magick::Color::scaleDoubleToQuantum(rb)));
             image2.antiAlias(antialias);
             image2.strokeAntiAlias(antialias);
-            image2.annotate(msg, Magick::CenterGravity);
+            image2.annotate(normalizedMsg, Magick::CenterGravity);
 
             double y = (m->getHeight() / 2.0) - ((totalHi) / 2.0);
             double x = (m->getWidth() / 2.0) - (maxWid / 2.0);

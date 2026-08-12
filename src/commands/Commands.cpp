@@ -14,12 +14,14 @@
 
 #include "fpp-json.h"
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
+#include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 
 #include <thread>
 
 #include "../Variables.h"
 #include "../common.h"
 #include "../log.h"
+#include "../Warnings.h"
 
 #include "../Events.h"
 
@@ -434,16 +436,42 @@ Json::Value CommandManager::getDescriptions() {
     }
     return ret;
 }
+
+// Flattens a command's args into the "a,b,c" form used by the log lines below,
+// so every path a command can arrive on reports it the same way: as
+// "command(args)".  Args are unbounded (one could carry a Variable's full
+// value), so each is truncated before logging - see TruncateForLog().
+//
+// Deliberately NOT gated behind WillLog() at the call sites.  Every caller logs
+// at Info, and _LogWrite() formats any line at Debug or below regardless of the
+// configured level so the crash ring can retain it (see CrashLogRingWillCapture)
+// - so a guard would not skip the formatting, it would only drop the line out of
+// crash dumps.  Guarding is a pure win only at LOG_EXCESSIVE, which the ring
+// never captures; that is the one level FPP's other WillLog() call sites use.
+static std::string FormatArgsForLog(const std::vector<std::string>& args) {
+    std::string argString;
+    for (auto& a : args) {
+        if (!argString.empty()) {
+            argString += ",";
+        }
+        argString += TruncateForLog(a);
+    }
+    return argString;
+}
+
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const std::vector<std::string>& args) {
     auto f = commands.find(command);
     if (f != commands.end()) {
-        LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
-
         std::vector<std::string> resolvedArgs;
         resolvedArgs.reserve(args.size());
         for (auto const& arg : args) {
             resolvedArgs.push_back(ReplaceVariableKeywords(arg));
         }
+
+        // Logged after substitution (like the Json overload below) so the line
+        // shows what actually ran, not the unresolved %VAR:name% that was
+        // passed in.
+        LogInfo(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), FormatArgsForLog(resolvedArgs).c_str());
 
         // Publish MQTT event for command execution
         Json::Value payload;
@@ -459,6 +487,15 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         return f->second->run(resolvedArgs);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
+    // A playlist "FPP Command" entry (or preset, GPIO binding, etc.) can
+    // reference a command that a plugin used to provide but no longer does
+    // (uninstalled/updated) - the failure above is otherwise silent: the
+    // caller just gets an ErrorResult and, for a playlist entry, that item is
+    // marked finished exactly like a successful one (PlaylistEntryCommand::
+    // StartPlaying() -> FinishPlay(), no distinct failure state), so a show
+    // can silently skip this step forever with nothing but a log line to
+    // show for it. Surface it as a real warning instead.
+    WarningHolder::AddWarningTimeout(900, 61, "No command found for \"" + command + "\" - it may have come from a plugin that is no longer installed or was updated");
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
 
@@ -473,18 +510,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
                 args.push_back(ReplaceVariableKeywords(argsArray[x].asString()));
             }
         }
-        if (WillLog(LOG_DEBUG, VB_COMMAND)) {
-            std::string argString;
-            for (auto& a : args) {
-                if (!argString.empty()) {
-                    argString += ",";
-                }
-                // args are unbounded (e.g. could carry a Variable's full
-                // value) - truncate before logging, see TruncateForLog().
-                argString += TruncateForLog(a);
-            }
-            LogDebug(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), argString.c_str());
-        }
+        LogInfo(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), FormatArgsForLog(args).c_str());
 
         // Publish MQTT event for command execution
         Json::Value payload;
@@ -496,12 +522,21 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         payload["trigger"] = "ui";
         std::string topic = "command/run";
         std::string payloadStr = SaveJsonToString(payload);
-        LogWarn(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
+        LogExcess(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
         Events::Publish(topic, payloadStr);
 
         return f->second->run(args);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
+    // A playlist "FPP Command" entry (or preset, GPIO binding, etc.) can
+    // reference a command that a plugin used to provide but no longer does
+    // (uninstalled/updated) - the failure above is otherwise silent: the
+    // caller just gets an ErrorResult and, for a playlist entry, that item is
+    // marked finished exactly like a successful one (PlaylistEntryCommand::
+    // StartPlaying() -> FinishPlay(), no distinct failure state), so a show
+    // can silently skip this step forever with nothing but a log line to
+    // show for it. Surface it as a real warning instead.
+    WarningHolder::AddWarningTimeout(900, 61, "No command found for \"" + command + "\" - it may have come from a plugin that is no longer installed or was updated");
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
 std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
@@ -574,6 +609,15 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
  * Run a command by name via GET, passing arguments as extra path segments
  * (e.g. /api/command/Volume%20Set/50).
  *
+ * An argument may contain `%VAR:name%` to substitute a User Variable's current
+ * value, as anywhere else a command's arguments are given. Percent-encode it as
+ * `%25VAR:name%25`: sent raw, `%VA` is an invalid escape and Apache rejects the
+ * request with a 400 before it reaches FPP. An unset variable substitutes as an
+ * empty string.
+ *
+ * Note that empty path segments collapse, so an argument that should be empty
+ * cannot be passed this way - use the POST form below for that.
+ *
  * @route GET /api/command/{command}
  * @response 200 Command result (text/plain).
  * @response 404 No command with that name exists.
@@ -633,11 +677,20 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
         std::string command = parts[1];
         std::vector<std::string> args;
         for (int x = 2; x < plen; x++) {
-            args.push_back(parts[x]);
+            // Substituted here rather than inherited from CommandManager::run():
+            // this route calls the Command directly (see the MQTT publish below
+            // for why), so without this %VAR:name% would pass through literally
+            // on /api/command/... alone while resolving on every other path.
+            args.push_back(ReplaceVariableKeywords(parts[x]));
         }
         auto f = commands.find(command);
         if (f != commands.end()) {
-            LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
+            // This route calls the Command directly rather than through
+            // CommandManager::run(), so it must log the args itself - see the
+            // MQTT publish just below for why it can't simply delegate.
+            LogInfo(VB_COMMAND, "GET /api/command/%s from %s: running command \"%s(%s)\"\n",
+                    command.c_str(), getEffectiveClientIP(req).c_str(),
+                    command.c_str(), FormatArgsForLog(args).c_str());
 
             // Publish MQTT event for command execution
             Json::Value payload;
@@ -649,7 +702,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             payload["trigger"] = "api-get";
             std::string topic = "command/run";
             std::string payloadStr = SaveJsonToString(payload);
-            LogWarn(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
+            LogExcess(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
             Events::Publish(topic, payloadStr);
 
             std::unique_ptr<Command::Result> r = f->second->run(args);
@@ -667,6 +720,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
                 return makeStringResponse("Timeout running command", 500, "text/plain");
             }
         }
+        WarningHolder::AddWarningTimeout(900, 61, "No command found for \"" + command + "\" - it may have come from a plugin that is no longer installed or was updated");
         return makeStringResponse("Not Found", 404, "text/plain");
     }
     return makeStringResponse("Not Found", 404, "text/plain");
@@ -684,8 +738,13 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
 /**
  * Run a named command, passing its arguments as a JSON array in the body.
  *
+ * An argument may contain `%VAR:name%` to substitute a User Variable's current
+ * value, as anywhere else a command's arguments are given. No encoding is
+ * needed here, unlike the GET form above. An unset variable substitutes as an
+ * empty string.
+ *
  * @route POST /api/command/{command}
- * @body ["arg1", "arg2"]
+ * @body ["arg1", "%VAR:brightness%"]
  * @response 200 Command result.
  * @response 500 The command errored or timed out.
  */
@@ -698,11 +757,17 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
             Json::Value val = LoadJsonFromString(std::string(getRequestContent(req)));
             std::vector<std::string> args;
             for (int x = 0; x < val.size(); x++) {
-                args.push_back(val[x].asString());
+                // Direct Command call, so substitute here - same reason as the
+                // GET route above.
+                args.push_back(ReplaceVariableKeywords(val[x].asString()));
             }
             auto f = commands.find(command);
             if (f != commands.end()) {
-                LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
+                // Direct Command call, not CommandManager::run() - log the
+                // args here too, same as the GET route above.
+                LogInfo(VB_COMMAND, "POST /api/command/%s from %s: running command \"%s(%s)\"\n",
+                        command.c_str(), getEffectiveClientIP(req).c_str(),
+                        command.c_str(), FormatArgsForLog(args).c_str());
 
                 // Publish MQTT event for command execution
                 Json::Value payload;
@@ -714,7 +779,7 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                 payload["trigger"] = "api-post";
                 std::string topic = "command/run";
                 std::string payloadStr = SaveJsonToString(payload);
-                LogWarn(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
+                LogExcess(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
                 Events::Publish(topic, payloadStr);
 
                 std::unique_ptr<Command::Result> r = f->second->run(args);
@@ -732,12 +797,13 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                     return makeStringResponse("Timeout running command", 500, "text/plain");
                 }
             }
+            WarningHolder::AddWarningTimeout(900, 61, "No command found for \"" + command + "\" - it may have come from a plugin that is no longer installed or was updated");
         } else {
             std::string command(getRequestContent(req));
-            LogDebug(VB_COMMAND, "Received command: \"%s\"\n", TruncateForLog(command, 2000).c_str());
+            LogExcess(VB_COMMAND, "Received command: \"%s\"\n", TruncateForLog(command, 2000).c_str());
             Json::Value val = LoadJsonFromString(command);
-            LogDebug(VB_COMMAND, "POST /api/command (bare JSON body) from %s running command \"%s\"\n",
-                     req->getPeerAddr().toIp().c_str(), val["command"].asString().c_str());
+            LogDebug(VB_COMMAND, "POST /api/command (bare JSON body) from %s: running command \"%s\"\n",
+                     getEffectiveClientIP(req).c_str(), val["command"].asString().c_str());
             std::unique_ptr<Command::Result> r = run(val);
             int count = 0;
             while (!r->isDone() && count < 1000) {

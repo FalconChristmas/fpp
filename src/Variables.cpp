@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 #include "fpphttp.h"
+#include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 
 #include "MultiSync.h"
 #include "Player.h"
@@ -662,6 +663,8 @@ HttpResponsePtr Variables::render_POST(const HttpRequestPtr& req) {
         }
         std::string value = std::string(getRequestContent(req));
         bool persist = getRequestArg(req, "persist") == "true";
+        LogDebug(VB_COMMAND, "POST /api/variables/%s from %s: \"%s\"%s\n", name.c_str(),
+                 getEffectiveClientIP(req).c_str(), TruncateForLog(value).c_str(), persist ? " (persist)" : "");
         setVariable(name, value, persist);
         return makeStringResponse("OK", 200, "text/plain");
     }
@@ -687,6 +690,7 @@ HttpResponsePtr Variables::render_DELETE(const HttpRequestPtr& req) {
     if (IsFppStatusVariableName(name) || IsMqttVariableName(name)) {
         return makeStringResponse("\"" + name + "\" is read-only and cannot be deleted", 400, "text/plain");
     }
+    LogDebug(VB_COMMAND, "DELETE /api/variables/%s from %s\n", name.c_str(), getEffectiveClientIP(req).c_str());
     deleteVariable(name);
     return makeStringResponse("OK", 200, "text/plain");
 }

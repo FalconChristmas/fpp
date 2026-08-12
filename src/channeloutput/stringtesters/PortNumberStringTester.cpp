@@ -16,9 +16,9 @@
 #include "../PixelString.h"
 
 uint8_t* OutputPortNumberPixelStringTester::createTestData(PixelString* ps, int cycleCount, float percentOfCycle, uint8_t* inChannelData, uint32_t& newLen) {
-    newLen = ps->m_outputChannels;
+    newLen = ps->m_outputBytes;
     uint8_t* data = ps->m_outputBuffer;
-    uint8_t* out = data;
+    uint8_t* out = ps->pixelDataStart();
     uint32_t inCh = 0;
     unsigned char clr[3];
     switch (cycleCount % 3) {

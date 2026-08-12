@@ -755,19 +755,32 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 	$('#tblConfig').on('mousedown', 'tbody tr', function (event, ui) {
 		HandleMouseClick(event, $(this), 'Config');
 	});
-	// there is a bug/issue with FilePond and Safari that causes it to stop when uploading large files, stopping after the first
-	// chunk. This is a workaround to increase the chunk size to 512MB so at least files up to 512MB can be uploaded.
-	var isSafari = window.safari !== undefined;
-	var maxChunkSize = isSafari ? 1024 * 1024 * 512 : 1024 * 1024 * 64;
+
 	const pond = FilePond.create(document.querySelector('#filepondInput'), {
-		labelIdle: `<b style="font-size: 1.3em;">Drag & Drop or Select Files to upload</b><br><br><span class="btn btn-dark filepond--label-action" style="text-decoration:none;">Select Files</span><br>`,
+		labelIdle: `<b class="fs-5">Drag & Drop or Select Files to upload</b><br><br><span class="btn btn-primary filepond--label-action text-decoration-none">Select Files</span><br>`,
 		server: 'api/file/upload',
 		credits: false,
 		chunkUploads: true,
-		chunkSize: maxChunkSize,
+		chunkSize: 1024 * 1024 * 64,
 		chunkForce: true,
 		maxParallelUploads: 3,
 		labelTapToUndo: 'Tap to Close'
+	});
+
+	// The upload's byte transfer can hit 100% well before the server finishes
+	// writing/assembling the chunk and responds, which is what FilePond is
+	// actually still waiting on to consider the item done. Swap the label so
+	// that wait doesn't look like a stuck/frozen upload; FilePond overwrites
+	// this itself once the item actually completes (see 'processfile' below).
+	pond.on('processfileprogress', (file, progress) => {
+		if (progress < 1) {
+			return;
+		}
+		var itemEl = document.getElementById('filepond--item-' + file.id);
+		var mainEl = itemEl && itemEl.querySelector('.filepond--file-status-main');
+		var subEl = itemEl && itemEl.querySelector('.filepond--file-status-sub');
+		if (mainEl) mainEl.textContent = 'Saving to disk';
+		if (subEl) subEl.textContent = '';
 	});
 
 	pond.on('processfile', (error, file) => {

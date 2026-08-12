@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
+#include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 
 #include <sys/stat.h>
 #include <dirent.h>
@@ -881,6 +882,8 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
             std::string content(getRequestContent(req));
             write(fp, content.c_str(), content.length());
             close(fp);
+            LogDebug(VB_COMMAND, "POST /api/models/raw from %s: saved %zu bytes to %s\n",
+                     getEffectiveClientIP(req).c_str(), content.length(), filename);
             std::string nvresults;
             urlPut("http://127.0.0.1/api/settings/restartFlag", "1", nvresults);
             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
@@ -896,6 +899,8 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
             std::string content(getRequestContent(req));
             write(fp, content.c_str(), content.length());
             close(fp);
+            LogDebug(VB_COMMAND, "POST /api/models from %s: saved %zu bytes to %s\n",
+                     getEffectiveClientIP(req).c_str(), content.length(), filename);
             std::string nvresults;
             urlPut("http://127.0.0.1/api/settings/restartFlag", "1", nvresults);
             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
@@ -1050,7 +1055,7 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                             args.push_back("0");
                             args.push_back(msg);
                             lock.unlock();
-                            LogDebug(VB_COMMAND, "PixelOverlay HTTP API running \"Overlay Model Effect\" on model \"%s\"\n", p3.c_str());
+                            LogDebug(VB_COMMAND, "PixelOverlay HTTP API from %s running \"Overlay Model Effect\" on model \"%s\"\n", getEffectiveClientIP(req).c_str(), p3.c_str());
                             CommandManager::INSTANCE.run("Overlay Model Effect", args);
                             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                         }

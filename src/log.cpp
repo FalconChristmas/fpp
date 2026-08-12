@@ -41,6 +41,14 @@ FPPLogger FPPLogger::INSTANCE = FPPLogger();
 char logFileName[1024] = "";
 bool logToStdOut = true;
 
+// Whether a line already written to the log file should be kept off stdout.
+// Opt-in, and only fppd opts in: it is the one FPP binary whose stdout is a
+// firehose into journald (it runs as `fppd -f` under systemd), so its stdout
+// copy is pure duplication of what fppd.log already has.  The small services --
+// fppoled and friends -- log a handful of lines that users and support look for
+// with `journalctl -u fppoled`, so they stay on both.  See _LogWrite().
+static bool suppressDuplicateStdOut = false;
+
 // ---------------------------------------------------------------------------
 // Crash-time log ring
 //
@@ -576,15 +584,21 @@ void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facilit
             }
         }
     }
-    // Once the line is in a real log file, a second copy on stdout is a pure
-    // duplicate: fppd runs as `fppd -f` under systemd, so logToStdOut stays set
-    // and journald captured every line a second time -- doubling the volume for
-    // a copy that does not outlive the boot, while fppd.log is what the Support
-    // Zip ships and what users are asked for. Suppress it at the source, here.
+    // For fppd, once the line is in a real log file a second copy on stdout is a
+    // pure duplicate: it runs as `fppd -f` under systemd, so logToStdOut stays
+    // set and journald captured every line a second time -- doubling the volume
+    // for a copy that does not outlive the boot, while fppd.log is what the
+    // Support Zip ships and what users are asked for. Suppress it at the source,
+    // here, for the callers that ask (SetSuppressDuplicateStdOut).
     //
     // Do NOT instead mute the stream in fppd.service: fppd's stdout is inherited
     // by every child it forks (cape detection, plugin callbacks), so muting it
     // there discards their output too. That was tried, and reverted.
+    //
+    // Every other binary that links the logger keeps writing both places. They
+    // are low volume, and `journalctl -u fppoled` / `systemctl status` is where
+    // a service's output is looked for -- that is what suppressing this
+    // globally, rather than per-caller, silently took away.
     //
     // `fppd -l stdout` still logs to stdout, and nothing suppresses stdout when
     // no real log file is in use (early startup, before SetLogFile).
@@ -594,9 +608,13 @@ void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facilit
     // is a genuine on-screen echo of the log file, not a journald duplicate, so
     // keep echoing every line -- that is the interactive foreground behavior.
     if (strcmp(logFileName, "stdout") && logToStdOut &&
-        (!wroteLogFile || stdoutIsInteractive())) {
+        (!wroteLogFile || !suppressDuplicateStdOut || stdoutIsInteractive())) {
         fwrite(out.data(), 1, out.size(), stdout);
     }
+}
+
+void SetSuppressDuplicateStdOut(bool suppress) {
+    suppressDuplicateStdOut = suppress;
 }
 
 void SetLogFile(const char* filename, bool toStdOut) {

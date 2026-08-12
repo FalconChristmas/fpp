@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
+#include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 
 #include "../common.h"
 #include "../log.h"
@@ -430,7 +431,11 @@ HttpResponsePtr ChannelTester::render_GET(const HttpRequestPtr& req) {
 HttpResponsePtr ChannelTester::render_POST(const HttpRequestPtr& req) {
     Json::Value result;
     std::string content = std::string{ getRequestContent(req) };
-    LogDebug(VB_COMMAND, "POST /fppd/testing from %s: \"%s\"\n", req->getPeerAddr().toIp().c_str(), TruncateForLog(content, 2000).c_str());
+    // Default 200 rather than the 2000 the Debug-level JSON dumps use: this is
+    // the one Info-level line that could emit a multi-KB entry, and a real test
+    // spec is only a few hundred bytes. TruncateForLog appends the true size,
+    // so nothing is hidden - and the crash ring caps a line at 240 bytes anyway.
+    LogDebug(VB_COMMAND, "POST /api/fppd/testing from %s: \"%s\"\n", getEffectiveClientIP(req).c_str(), TruncateForLog(content).c_str());
     if (ChannelTester::INSTANCE.SetupTest(content)) {
         result["Status"] = "OK";
         result["respCode"] = 200;

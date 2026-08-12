@@ -56,6 +56,8 @@ std::unique_ptr<Command::Result> TriggerPresetInFutureCommand::run(const std::ve
     long long t = GetTimeMS();
     int val = std::atoi(args[1].c_str());
     long long tv = t + val;
+    LogDebug(VB_COMMAND, "\"Trigger Command Preset In Future\" identifier \"%s\" scheduling preset \"%s\" to trigger in %dms\n",
+            args[0].c_str(), args[2].c_str(), val);
     Timers::INSTANCE.addTimer(args[0], tv, args[2]);
     return std::make_unique<Command::Result>("Timer Started");
 }
@@ -86,6 +88,13 @@ std::unique_ptr<Command::Result> TriggerMultiplePresetSlotsCommand::run(const st
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
+    std::string slotList;
+    for (auto& a : args) {
+        if (a.length() > 0) {
+            slotList += (slotList.empty() ? "" : ", ") + a;
+        }
+    }
+    LogDebug(VB_COMMAND, "\"Trigger Multiple Command Preset Slots\" command triggering slots: %s\n", slotList.c_str());
     for (auto& a : args) {
         if (a.length() > 0) {
             CommandManager::INSTANCE.TriggerPreset(std::atoi(a.c_str()));
@@ -107,6 +116,13 @@ std::unique_ptr<Command::Result> TriggerMultiplePresetsCommand::run(const std::v
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
+    std::string nameList;
+    for (auto& a : args) {
+        if (!a.empty()) {
+            nameList += (nameList.empty() ? "" : ", ") + a;
+        }
+    }
+    LogDebug(VB_COMMAND, "\"Trigger Multiple Command Presets\" command triggering presets: %s\n", nameList.c_str());
     for (auto& a : args) {
         if (!a.empty()) {
             CommandManager::INSTANCE.TriggerPreset(a);
@@ -216,6 +232,15 @@ StartFSEQAsEffectCommand::StartFSEQAsEffectCommand() :
     args.push_back(CommandArg("effect", "string", "FSEQ Name").setContentListUrl("api/sequence"));
     args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
     args.push_back(CommandArg("bg", "bool", "Background"));
+    args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true)
+                       .setDefaultValue("false")
+                       .setHelp("Checks to see if this exact item is already running and "
+                                "prevents it from running again."));
+    args.push_back(CommandArg("restartIfRunning", "bool", "Restart If Running", true)
+                       .setDefaultValue("false")
+                       .setHelp("If this exact item is already running, restart it from the "
+                                "beginning in place instead of starting a second instance. "
+                                "Ignored if 'If Not Running' is also set."));
 }
 std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector<std::string>& args) {
     if (args.empty()) {
@@ -224,6 +249,8 @@ std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector
 
     bool loop = false;
     bool bg = false;
+    bool iNR = false;
+    bool restartIfRunning = false;
 
     if (args.size() > 1) {
         loop = args[1] == "true" || args[1] == "1";
@@ -231,6 +258,32 @@ std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector
     if (args.size() > 2) {
         bg = args[2] == "true" || args[2] == "1";
     }
+    if (args.size() > 3) {
+        iNR = args[3] == "true" || args[3] == "1";
+    }
+    if (args.size() > 4) {
+        restartIfRunning = args[4] == "true" || args[4] == "1";
+    }
+
+    if (iNR || restartIfRunning) {
+        const Json::Value RunningEffects = GetRunningEffectsJson();
+        for (int x = 0; x < RunningEffects.size(); x++) {
+            Json::Value v = RunningEffects[x];
+            if (v["name"].asString() == args[0]) {
+                if (iNR) {
+                    LogDebug(VB_COMMAND, "Effect Already running, configured not to start it again\n");
+                    return std::make_unique<Command::Result>("Effect NOT Started");
+                }
+                // restartIfRunning: jump the already-running instance back to frame 0
+                // in place rather than tearing it down and opening a new one - reuses
+                // its existing read-ahead thread instead of spinning up another.
+                if (RestartEffect(v["id"].asInt(), args[0])) {
+                    return std::make_unique<Command::Result>("Effect Restarted");
+                }
+            }
+        }
+    }
+
     StartFSEQAsEffect(args[0], loop, bg);
     return std::make_unique<Command::Result>("Effect Started");
 }

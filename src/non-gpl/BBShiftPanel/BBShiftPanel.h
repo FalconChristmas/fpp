@@ -58,7 +58,11 @@ typedef struct {
             uint8_t numBlocks;
             uint8_t numRows;
             uint16_t buffer[4];            // buffer to get registers aligned on boundary
-            uint8_t registers[5 * 12 * 16]; // 5 registers, up to 12 bytes per clock (16 outputs), 16 clocks each
+            // up to 6 registers (SM16380SH takes a sixth slot; the rest use
+            // five), up to 12 bytes per clock (16 outputs), 16 clocks each.
+            // Ends at 0x490 in the PRU data RAM, clear of the chip config at
+            // PWM_CHIP_CONFIG_OFFSET (0x1DF8).
+            uint8_t registers[6 * 12 * 16];
         } __attribute__((__packed__));
     } __attribute__((__packed__));
 } __attribute__((__packed__)) BBShiftPanelData;
@@ -121,6 +125,7 @@ private:
         int colorDepth = 12;
         int addressingMode = 0;
         int panelType = 0;
+        int dataLayout = 0;
         bool pwmDirectRow = false;
         bool outputByRow = false;
         bool outputBlankData = false;
@@ -150,6 +155,7 @@ private:
     void setupPWMRegisters();
     void setupGCLKConfig();
     void writeFM6373SeqWord(int idx);
+    void writeDP3364SeqWord(int idx);
 
     std::vector<BBShiftPanelOutput*> m_members;
     // members that have arrived in this frame's PrepData; the shared bit-plane
@@ -175,6 +181,13 @@ private:
     // 0 = standard, 1 = FM6126A, 2 = FM6127 - panels that need their config
     // registers clocked out before they display (see sendPanelInitPackets)
     int m_panelType = 0;
+    // How the framebuffer is routed onto the two RGB lanes.  0 is the normal
+    // HUB75 arrangement: the lanes carry the top and bottom halves of the
+    // panel and each addressed row lights two physical rows.  A full height
+    // panel (scan == height) addresses every row on its own instead, so its
+    // lanes carry the LEFT and RIGHT halves of one row - 1 and 2 select which
+    // way round.  See buildScatterMap.
+    int m_dataLayout = 0;
     // PWM panels: drive the row lines with a direct binary row number
     // instead of the DP32020A style row shift register
     bool m_pwmDirectRow = false;

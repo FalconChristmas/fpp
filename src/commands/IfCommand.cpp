@@ -148,7 +148,11 @@ namespace
         }
         CommandListEntry entry = std::move(chain.remaining.front());
         chain.remaining.erase(chain.remaining.begin());
-        LogDebug(VB_COMMAND, "If:   -> %s\n", DescribeEntry(entry).c_str());
+        // Deliberately not gated on WillLog(): a line at Debug or below is
+        // retained in the crash ring even when the configured level discards it
+        // (see CrashLogRingWillCapture), so gating would drop the If tracing
+        // out of crash dumps - which is exactly where it earns its keep.
+        LogDebug(VB_COMMAND, "If: running command %s\n", DescribeEntry(entry).c_str());
         chain.inFlight = CommandManager::INSTANCE.run(entry.command, entry.args);
         chain.startTimeMS = GetTimeMS();
     }
@@ -165,7 +169,8 @@ namespace
         LogDebug(VB_COMMAND, "If: running %zu command(s) %s\n", list.size(), sequential ? "sequentially" : "in parallel");
         if (!sequential) {
             for (auto& entry : list) {
-                LogDebug(VB_COMMAND, "If:   -> %s\n", DescribeEntry(entry).c_str());
+                // Ungated for the same reason as StartNextEntry() above.
+                LogDebug(VB_COMMAND, "If: running command %s\n", DescribeEntry(entry).c_str());
                 CommandManager::INSTANCE.run(entry.command, entry.args);
             }
             return;
@@ -238,7 +243,7 @@ std::unique_ptr<Command::Result> IfCommand::run(const std::vector<std::string>& 
     const std::string& elseCommandsJson = args[3];
     bool elseSequential = args[4] != "Parallel";
 
-    LogDebug(VB_COMMAND, "If: Check = %s\n", TruncateForLog(conditions, 2000).c_str());
+    LogExcess(VB_COMMAND, "If: Check = %s\n", TruncateForLog(conditions, 2000).c_str());
 
     if (conditions.empty()) {
         return std::make_unique<Command::ErrorResult>("If: no condition configured under Check");
@@ -253,9 +258,17 @@ std::unique_ptr<Command::Result> IfCommand::run(const std::vector<std::string>& 
     }
 
     bool matched = condition->evaluate();
-    LogDebug(VB_COMMAND, "If: overall result = %s -> running %s (%s)\n", matched ? "true" : "false",
-             matched ? "Then Run" : "Otherwise Run",
-             TruncateForLog(matched ? thenCommandsJson : elseCommandsJson, 2000).c_str());
+    // Two tiers, matching the rest of the Command facility: Debug carries the
+    // decision - the causal link between this If and the commands that follow,
+    // which each log themselves at Info from CommandManager::run() - while the
+    // command-list JSON goes to Excessive. That JSON is up to 2000 chars
+    // restating, less legibly, what those next lines already say, and Excessive
+    // is the one level the crash ring does not capture, so it stays out of the
+    // 256 slots the ring has to work with.
+    LogDebug(VB_COMMAND, "If: overall result = %s -> running %s\n",
+             matched ? "true" : "false", matched ? "Then Run" : "Otherwise Run");
+    LogExcess(VB_COMMAND, "If: %s command list = %s\n", matched ? "Then Run" : "Otherwise Run",
+              TruncateForLog(matched ? thenCommandsJson : elseCommandsJson, 2000).c_str());
     auto list = ParseCommandList(matched ? thenCommandsJson : elseCommandsJson);
     bool sequential = matched ? thenSequential : elseSequential;
 

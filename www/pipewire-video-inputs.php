@@ -265,6 +265,8 @@
         // Current config
         var videoInputSources = { videoInputSources: [] };
         var nextSourceId = 1;
+        // Set when the config has been modified but not yet saved
+        var hasUnsavedChanges = false;
 
         // videotestsrc pattern options
         var testPatterns = [
@@ -328,6 +330,7 @@
         }
 
         function LoadSources() {
+            hasUnsavedChanges = false;
             $.getJSON('api/pipewire/video/input-sources')
                 .done(function (data) {
                     videoInputSources = data || { videoInputSources: [] };
@@ -347,9 +350,27 @@
                 });
         }
 
+        // Clear the unsaved-changes state once the config has been written to disk.
+        // The banner is removed in place rather than re-rendering the cards.
+        function ClearUnsavedChanges() {
+            hasUnsavedChanges = false;
+            $('#unsavedChangesBanner').remove();
+        }
+
+        // Banner shown while added/deleted sources are not yet written to disk
+        function UnsavedChangesBanner() {
+            if (!hasUnsavedChanges) return '';
+            return '<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" id="unsavedChangesBanner">' +
+                '<i class="fas fa-exclamation-triangle"></i>' +
+                '<div>Sources have been added or deleted but <b>not saved yet</b>. ' +
+                'Click <b>Save &amp; Apply</b> to make the change permanent.</div>' +
+                '</div>';
+        }
+
         function RenderSources() {
             var container = $('#sourcesContainer');
             container.empty();
+            container.append(UnsavedChangesBanner());
 
             if (videoInputSources.videoInputSources.length === 0) {
                 container.append(
@@ -361,7 +382,14 @@
                     '<i class="fas fa-plus"></i> Add First Source</button>' +
                     '</div>'
                 );
-                $('#bottomToolbar').hide();
+                // Keep the toolbar (and its Save buttons) available when the last source
+                // has just been deleted, otherwise the deletion can never be saved and
+                // the source reappears on reload.
+                if (hasUnsavedChanges) {
+                    $('#bottomToolbar').show();
+                } else {
+                    $('#bottomToolbar').hide();
+                }
                 return;
             }
 
@@ -583,6 +611,7 @@
                 framerate: 10
             };
             videoInputSources.videoInputSources.push(source);
+            hasUnsavedChanges = true;
             RenderSources();
         }
 
@@ -590,7 +619,9 @@
             var name = videoInputSources.videoInputSources[index].name || 'this source';
             if (confirm('Delete "' + name + '"?')) {
                 videoInputSources.videoInputSources.splice(index, 1);
+                hasUnsavedChanges = true;
                 RenderSources();
+                $.jGrowl('Source deleted — click "Save & Apply" to make the change permanent.', { themeState: 'warning' });
             }
         }
 
@@ -675,6 +706,7 @@
                 contentType: 'application/json',
                 data: JSON.stringify(videoInputSources),
                 success: function () {
+                    ClearUnsavedChanges();
                     $.jGrowl('Video input sources saved', { theme: 'success' });
                 },
                 error: function (xhr) {
@@ -691,6 +723,7 @@
                 contentType: 'application/json',
                 data: JSON.stringify(videoInputSources),
                 success: function () {
+                    ClearUnsavedChanges();
                     ShowApplyProgress('Applying video input sources...');
                     $.ajax({
                         url: 'api/pipewire/video/input-sources/apply',

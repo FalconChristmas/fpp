@@ -26,12 +26,20 @@ public:
 
     const Pin& query() const;
     const Pin& listModes() const;
-    const Pin& setMode(const std::string& m) const;
+    // Returns false if this pin has no such mode, so callers can tell a rejected
+    // mode from an applied one.  A silent "success" here is dangerous: FPP's
+    // CapeUtils::ConfigurePin() takes a zero exit as "the mux is set" and skips
+    // its fallback, so a mode this tool doesn't know would leave the pad wherever
+    // it happened to be.
+    bool setMode(const std::string& m) const;
 
     std::list<std::string> balls;
     std::map<std::string, std::pair<std::string, std::string>> modes;
 
     static Pin& addPin(const std::string& n);
     static Pin& getPin(const std::string& n);
+    // Unlike getPin(), does not print or insert a placeholder for a name this
+    // board doesn't have.
+    static bool hasPin(const std::string& n);
     static const std::map<std::string, Pin>& getAllPins();
 };

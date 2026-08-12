@@ -22,6 +22,48 @@
             $.get("api/fppd/ports/pixelCount");
         }
 
+        // A port only reports what its hardware can actually measure.  "status"
+        // is absent on ports with no eFuse, "ma" on ports with no current
+        // sensor, "enabled" on ports with no enable pin - print nothing for
+        // those rather than "undefined".
+        function FormatPortDetails(port, clickName) {
+            var html = "";
+            if (typeof port.enabled !== 'undefined') {
+                if (port["enabled"]) {
+                    html += "Enabled: <i class='fas fa-check-circle text-success' title='Port Enabled' onclick='OnDisableClicked(\"" + clickName + "\")'></i><br>";
+                } else if (port["status"] === false) {
+                    html += "Enabled: <i class='fas fa-times-circle text-danger' title='eFuse Triggered' onclick='OnEnableClicked(\"" + clickName + "\")'></i><br>";
+                } else {
+                    html += "Enabled: <i class='fas fa-times-circle text-info' title='Port Disabled' onclick='OnEnableClicked(\"" + clickName + "\")'></i><br>";
+                }
+            }
+            if (typeof port.status !== 'undefined') {
+                if (port["status"]) {
+                    html += "Status: <i class='fas fa-check-circle text-success' title='eFuse Normal'></i><br>";
+                } else {
+                    html += "Status: <i class='fas fa-times-circle text-danger' title='eFuse Triggered'></i><br>";
+                }
+            }
+            if (typeof port.pixelCount !== 'undefined') {
+                html += "Pixels: " + port["pixelCount"] + "<br>";
+            }
+            if (typeof port.ma !== 'undefined') {
+                html += port["ma"] + " ma";
+            }
+            return html;
+        }
+
+        function AddToTotals(totals, key, port) {
+            if (typeof port.ma === 'undefined') {
+                return;
+            }
+            if (!totals.has(key)) {
+                totals.set(key, port["ma"]);
+            } else {
+                totals.set(key, port["ma"] + totals.get(key));
+            }
+        }
+
         function FormatSmartReceiver(first, name, k, port, row, col, totals) {
             if (port == null) {
                 return "";
@@ -31,38 +73,18 @@
                 html += "<b>" + name + "</b><br>";
             }
             html += "<b>" + k + ":</b><br>";
-            html += "<div style='margin-left: 15px;'>";
+            html += "<div class='ms-3'>";
 
-            if (port["enabled"]) {
-                html += "Enabled: <i class='fas fa-check-circle text-success' title='Port Enabled' onclick='OnDisableClicked(\"" + name + k + "\")'></i><br>";
-            } else if (port["status"]) {
-                html += "Enabled: <i class='fas fa-times-circle text-info' title='Port Disabled' onclick='OnEnableClicked(\"" + name + k + "\")'></i><br>";
-            } else {
-                html += "Enabled: <i class='fas fa-times-circle text-danger' title='eFuse Triggered' onclick='OnEnableClicked(\"" + name + k + "\")'></i><br>";
-            }
-            if (port["status"]) {
-                html += "Status: <i class='fas fa-check-circle text-success' title='eFuse Normal'></i><br>";
-            } else {
-                html += "Status: <i class='fas fa-times-circle text-danger' title='eFuse Triggered'></i><br>";
-            }
-            if (typeof port.pixelCount !== 'undefined') {
-                html += "Pixels: " + port["pixelCount"] + "<br>";
-            }
-            html += port["ma"] + " ma";
+            html += FormatPortDetails(port, name + k);
 
             html += "</div>";
             $("#fppPorts tr:nth-child(" + row + ") td:nth-child(" + col + ")").html(html);
-            $("#fppPorts tr:nth-child(" + row + ")").show();
+            $("#fppPorts tr:nth-child(" + row + ")").removeClass("d-none");
 
 
             var idx = name.substr(5);
             idx = (idx - 1) & 0xFFFC;
-            var key = "Smart Receiver " + (idx + 1) + "-" + (idx + 4) + k;
-            if (!totals.has(key)) {
-                totals.set(key, port["ma"]);
-            } else {
-                totals.set(key, port["ma"] + totals.get(key));
-            }
+            AddToTotals(totals, "Smart Receiver " + (idx + 1) + "-" + (idx + 4) + k, port);
         }
         function StartMonitoring() {
             $.get('api/fppd/ports', function (data) {
@@ -74,28 +96,13 @@
                         rn += 6;
                     }
                     while (rn >= count) {
-                        $('#fppPorts').append("<tr style='display:none'><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>");
+                        $('#fppPorts').append("<tr class='d-none'><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>");
                         count++;
                     }
                     if (!port["smartReceivers"]) {
-                        $("#fppPorts tr:nth-child(" + port["row"] + ")").show();
+                        $("#fppPorts tr:nth-child(" + port["row"] + ")").removeClass("d-none");
                         var html = "<b>" + port["name"] + "</b><br>";
-                        if (port["enabled"]) {
-                            html += "Enabled: <i class='fas fa-check-circle text-success' title='Port Enabled' onclick='OnDisableClicked(\"" + port["name"] + "\")'></i><br>";
-                        } else if (port["status"]) {
-                            html += "Enabled: <i class='fas fa-times-circle text-info' title='Port Disabled' onclick='OnEnableClicked(\"" + port["name"] + "\")'></i><br>";
-                        } else {
-                            html += "Enabled: <i class='fas fa-times-circle text-danger' title='eFuse Triggered' onclick='OnEnableClicked(\"" + port["name"] + "\")'></i><br>";
-                        }
-                        if (port["status"]) {
-                            html += "Status: <i class='fas fa-check-circle text-success' title='eFuse Normal'></i><br>";
-                        } else {
-                            html += "Status: <i class='fas fa-times-circle text-danger' title='eFuse Triggered'></i><br>";
-                        }
-                        if (typeof port.pixelCount !== 'undefined') {
-                            html += "Pixels: " + port["pixelCount"] + "<br>";
-                        }
-                        html += port["ma"] + " ma";
+                        html += FormatPortDetails(port, port["name"]);
                         $("#fppPorts tr:nth-child(" + port["row"] + ") td:nth-child(" + port["col"] + ")").html(html);
 
                         var key;
@@ -107,11 +114,7 @@
                         } else {
                             key = port["bank"];
                         }
-                        if (!totals.has(key)) {
-                            totals.set(key, port["ma"]);
-                        } else {
-                            totals.set(key, port["ma"] + totals.get(key));
-                        }
+                        AddToTotals(totals, key, port);
                     } else {
                         rn = port["row"];
                         FormatSmartReceiver(true, port["name"], "A", port["A"], rn, port["col"], totals);
@@ -122,26 +125,43 @@
                         FormatSmartReceiver(false, port["name"], "F", port["F"], rn + 5, port["col"], totals);
                     }
                 });
-                var banks = "<b>Totals</b><br>";
-                for (const [key, value] of totals.entries()) {
-                    banks += key + ": " + value + " ma<br>";
+                // Nothing on this cape measures current (K8-Pro/K16-Pro local
+                // ports with no receivers plugged in), so there is no total to
+                // show - leave the row hidden rather than printing "NaN ma".
+                if (totals.size) {
+                    var banks = "<b>Totals</b><br>";
+                    for (const [key, value] of totals.entries()) {
+                        banks += key + ": " + value + " ma<br>";
+                    }
+                    var count = $('#fppPorts tr').length;
+                    $("#fppPorts tr:nth-child(" + (count - 1) + ") td:nth-child(1)").html(banks);
+                    $("#fppPorts tr:nth-child(" + (count - 1) + ") td:nth-child(2)").remove();
+                    $("#fppPorts tr:nth-child(" + (count - 1) + ") td:nth-child(3)").remove();
+                    $("#fppPorts tr:nth-child(" + (count - 1) + ") td:nth-child(4)").remove();
+                    $("#fppPorts tr:nth-child(" + (count - 1) + ") td:nth-child(1)").attr("colspan", 4);
+                    $("#fppPorts tr:nth-child(" + (count - 1) + ")").removeClass("d-none");
                 }
-                var count = $('#fppPorts tr').length;
-                $("#fppPorts tr:nth-child(" + (count - 1) + ") td:nth-child(1)").html(banks);
-                $("#fppPorts tr:nth-child(" + (count - 1) + ") td:nth-child(2)").remove();
-                $("#fppPorts tr:nth-child(" + (count - 1) + ") td:nth-child(3)").remove();
-                $("#fppPorts tr:nth-child(" + (count - 1) + ") td:nth-child(4)").remove();
-                $("#fppPorts tr:nth-child(" + (count - 1) + ") td:nth-child(1)").attr("colspan", 4);
-                $("#fppPorts tr:nth-child(" + (count - 1) + ")").show();
+                // The note only makes sense once we know what the ports report,
+                // so it stays hidden until the first response has been handled.
+                $("#noCurrentMonitoringNote").toggleClass("d-none", totals.size > 0);
+                // Pixel counting works by watching the current draw change as
+                // pixels light up, so it has nothing to measure here either.
+                $("#btnCountPixels").toggleClass("d-none", totals.size == 0);
             });
         }
         function StopPixelCount() {
-            $.get("api/fppd/ports/stop");
+            // keepalive so the request survives the page going away.  A normal
+            // XHR started from an unload handler is cancelled with the rest of
+            // the document's requests by some browsers (Firefox) before it is
+            // ever sent, which would leave the player stuck in test mode.
+            fetch("api/fppd/ports/stop", { keepalive: true }).catch(function () { });
         }
 
         function SetupPage() {
             setInterval(StartMonitoring, 1000);
-            window.addEventListener('beforeunload', StopPixelCount, false);
+            // pagehide, not beforeunload - it also covers the cases where the
+            // page is put in the back/forward cache or the tab is discarded
+            window.addEventListener('pagehide', StopPixelCount, false);
         }
     </script>
 
@@ -154,12 +174,25 @@
         $activeParentMenuItem = 'status';
         include 'menu.inc'; ?>
         <div class="mainContainer">
-            <h2 class="title d-none d-sm-block ">FPP Current Monitor</h2>
+            <h2 class="title d-none d-sm-block ">FPP Port Status</h2>
             <div class="pageContent">
+                <?php
+                // Ports only report what their hardware can measure.  On capes
+                // whose local ports have nothing but an enable line, the page is
+                // just a set of toggles, so explain why there are no readings
+                // instead of leaving the user to wonder.
+                $noMonitoringMsg = 'This cape does not report current draw or eFuse status for these ports.';
+                if (isset($settings['cape-info']['currentMonitoringEmptyMessage'])) {
+                    $noMonitoringMsg = $settings['cape-info']['currentMonitoringEmptyMessage'];
+                }
+                ?>
+                <div id="noCurrentMonitoringNote" class="alert alert-info d-none">
+                    <?= htmlspecialchars($noMonitoringMsg) ?>
+                </div>
                 <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
                     <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
-                        <table id='fppPortsTable' cellpadding='4' width="100%">
-                            <tbody id='fppPorts' width="100%">
+                        <table id='fppPortsTable' cellpadding='4' class="w-100">
+                            <tbody id='fppPorts'>
                                 <tr>
                                     <td width="12%"></td>
                                     <td width="12%"></td>

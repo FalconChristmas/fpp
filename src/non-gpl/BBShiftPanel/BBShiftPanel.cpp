@@ -72,17 +72,33 @@ constexpr int ADDRESSING_MODE_ABC_DE = 4;    // SM5266P: A/B/C drive a shifter, 
 constexpr int ADDRESSING_MODE_FM6353C = 50;
 constexpr int ADDRESSING_MODE_FM6363C = 51;
 constexpr int ADDRESSING_MODE_FM6373 = 52;
+constexpr int ADDRESSING_MODE_DP3364 = 53;
+constexpr int ADDRESSING_MODE_ICND1065L = 54;
+constexpr int ADDRESSING_MODE_SM16380SH = 55;
+constexpr int ADDRESSING_MODE_ICND2153 = 56;
 
 constexpr int PANEL_TYPE_FM6126A = 1;
 constexpr int PANEL_TYPE_FM6127 = 2;
 // The PWM chips are presented in the UI as panel types (they are driver
 // chips like the FM6126A), but internally they are PWM addressing modes
 constexpr int PANEL_TYPE_FM6363C = 3;
-constexpr int PANEL_TYPE_FM6353 = 4; // also covers the compatible ICN2153
+constexpr int PANEL_TYPE_FM6353 = 4;
 constexpr int PANEL_TYPE_FM6373 = 5; // the common DP32019B receiver boards
+constexpr int PANEL_TYPE_DP3364 = 6;
+constexpr int PANEL_TYPE_ICND1065L = 7;
+constexpr int PANEL_TYPE_SM16380SH = 8;
+// Split out of PANEL_TYPE_FM6353, which used to claim ICN2153 compatibility.
+// The two take the same register grammar but not the same values, so an
+// existing config on type 4 keeps the FM6353 payload it has always had.
+constexpr int PANEL_TYPE_ICND2153 = 9;
 
 // must match PWM_CHIP_CONFIG_OFFSET in BBShiftPanel_pwm.asm
 #define PWM_CHIP_CONFIG_OFFSET 0x1DF8
+// the register slots live at the front of the same PRU data RAM, so growing
+// them must not reach the chip config word
+static_assert(offsetof(BBShiftPanelData, registers) + sizeof(((BBShiftPanelData*)nullptr)->registers) <= PWM_CHIP_CONFIG_OFFSET);
+// REG1_OFF in BBShiftPanel_pwm.asm is this offset, hardcoded as 16
+static_assert(offsetof(BBShiftPanelData, registers) == 16);
 
 // FM6373 config register sequence, one {address, value} word per register,
 // different per color line.  Captured from a working DP32019B 128x64 panel
@@ -118,6 +134,213 @@ constexpr int FM6373_SEQ_LEN = 47;
 static_assert(sizeof(FM6373_SEQ_R) == FM6373_SEQ_LEN * sizeof(uint16_t));
 static_assert(sizeof(FM6373_SEQ_G) == FM6373_SEQ_LEN * sizeof(uint16_t));
 static_assert(sizeof(FM6373_SEQ_B) == FM6373_SEQ_LEN * sizeof(uint16_t));
+
+// FM6373 registers for a full height 1/64 scan panel, from the same project
+// (fm6373.profiles, fm6373_regtype2, a 128x64 capture).  Nine registers differ
+// from the 1/32 table above beyond the scan count, and the whole 0x70/0xf0
+// tail block moves to a repeated 0x54 - which is why patching only the scan
+// count does not turn a 1/32 table into a working 1/64 one.
+static constexpr uint16_t FM6373_64S_SEQ_R[] = {
+    0x0000, 0x0100, 0x023f, 0x033f, 0x0402, 0x0508, 0x0602, 0x0710,
+    0x0810, 0x0900, 0x0a00, 0x0b00, 0x0c01, 0x0d03, 0x0e02, 0x0f11,
+    0x10c2, 0x1121, 0x1201, 0x1300, 0x1400, 0x1500, 0x1600, 0x17f0,
+    0x181f, 0x1900, 0x1a1f, 0x1b10, 0x1cbe, 0x1d0e, 0x1e42, 0x1f24,
+    0x2008, 0x2101, 0x221c, 0x5400, 0x5400, 0x5400, 0x5400, 0x5400,
+    0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x2300
+};
+static constexpr uint16_t FM6373_64S_SEQ_G[] = {
+    0x0000, 0x0100, 0x023f, 0x033f, 0x0402, 0x0508, 0x0602, 0x0710,
+    0x0810, 0x0900, 0x0a00, 0x0b00, 0x0c08, 0x0d03, 0x0e04, 0x0f11,
+    0x10c2, 0x1121, 0x1201, 0x1300, 0x1400, 0x1500, 0x1600, 0x17f0,
+    0x181f, 0x1950, 0x1a1f, 0x1b10, 0x1cbe, 0x1d0e, 0x1e46, 0x1f20,
+    0x2008, 0x2101, 0x221c, 0x5400, 0x5400, 0x5400, 0x5400, 0x5400,
+    0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x2300
+};
+static constexpr uint16_t FM6373_64S_SEQ_B[] = {
+    0x0000, 0x0100, 0x023f, 0x033f, 0x0402, 0x0508, 0x0602, 0x0710,
+    0x0810, 0x0900, 0x0a00, 0x0b00, 0x0c08, 0x0d01, 0x0e04, 0x0f11,
+    0x10c2, 0x1121, 0x1201, 0x1300, 0x1400, 0x1500, 0x1600, 0x17f0,
+    0x182f, 0x1900, 0x1a1f, 0x1b10, 0x1cbe, 0x1d0e, 0x1e48, 0x1f20,
+    0x2010, 0x2101, 0x221c, 0x5400, 0x5400, 0x5400, 0x5400, 0x5400,
+    0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x5403, 0x2300
+};
+
+// ICND1065L config registers.  From kingdo9/rpi-rgb-led-matrix_pwm_experiment
+// (lib/spwm/registertest/data/icnd1065l.profiles, icnd1065l_regtype1 - the
+// project's built-in default, captured from a 1/43 scan panel).  The chip
+// takes the same upload grammar as the FM6373, so only the payload differs.
+static constexpr uint16_t ICND1065L_SEQ_R[] = {
+    0x0000, 0x026a, 0x0322, 0x0412, 0x0500, 0x0601, 0x0712, 0x0c10,
+    0x0d02, 0x0e84, 0x0f01, 0x1040, 0x1127, 0x1800, 0x1926, 0x1c60,
+    0x1d02, 0x1e71, 0x2040, 0x2101, 0x2380, 0x74a0
+};
+static constexpr uint16_t ICND1065L_SEQ_G[] = {
+    0x0000, 0x026a, 0x0322, 0x0412, 0x0500, 0x0601, 0x0712, 0x0c10,
+    0x0d04, 0x0e84, 0x0f01, 0x1040, 0x1127, 0x1800, 0x1908, 0x1c60,
+    0x1d02, 0x1e92, 0x2060, 0x2101, 0x2305, 0x74a0
+};
+static constexpr uint16_t ICND1065L_SEQ_B[] = {
+    0x0000, 0x026a, 0x0322, 0x0412, 0x0500, 0x0601, 0x0712, 0x0c10,
+    0x0d03, 0x0e84, 0x0f11, 0x1040, 0x1127, 0x1800, 0x190a, 0x1c60,
+    0x1d02, 0x1eb5, 0x2060, 0x2101, 0x2300, 0x74a0
+};
+constexpr int ICND1065L_SEQ_LEN = 22;
+
+// SM16380SH config registers, same source (spwm-panel-registers.cc built-in
+// main block, a 1/32 scan capture).  This chip takes a sixth slot carrying
+// 0xF003 ahead of the commit pair, and skips the FM6373's middle LAT burst.
+static constexpr uint16_t SM16380SH_SEQ_R[] = {
+    0x021f, 0x0300, 0x0400, 0x0500, 0x0600, 0x078c, 0x0800, 0x0900,
+    0x0a02, 0x0b0c, 0x0c08, 0x0d00, 0x0e05, 0x0f00, 0x1000, 0x1100,
+    0x1200, 0x1308, 0x1414, 0x1500, 0x1630, 0x1700, 0x1801, 0x1904,
+    0x1a03, 0x1b14, 0x1c12, 0x1d00, 0x1e00, 0x1f0c, 0x2000, 0x2200
+};
+static constexpr uint16_t SM16380SH_SEQ_G[] = {
+    0x021f, 0x0300, 0x0400, 0x0500, 0x0600, 0x078c, 0x0800, 0x0900,
+    0x0a02, 0x0b0c, 0x0c18, 0x0d00, 0x0e05, 0x0f00, 0x1000, 0x1100,
+    0x1200, 0x1308, 0x1422, 0x1500, 0x1630, 0x1700, 0x1801, 0x1903,
+    0x1a01, 0x1b14, 0x1c8f, 0x1d00, 0x1e00, 0x1f0c, 0x2000, 0x2200
+};
+static constexpr uint16_t SM16380SH_SEQ_B[] = {
+    0x021f, 0x0300, 0x0400, 0x0500, 0x0600, 0x078c, 0x0800, 0x0900,
+    0x0a02, 0x0b0c, 0x0c30, 0x0d00, 0x0e05, 0x0f00, 0x1000, 0x1100,
+    0x1200, 0x1308, 0x1432, 0x1500, 0x1630, 0x1700, 0x1801, 0x1903,
+    0x1a01, 0x1b14, 0x1c8f, 0x1d00, 0x1e00, 0x1f0c, 0x2000, 0x2200
+};
+constexpr int SM16380SH_SEQ_LEN = 32;
+
+// The FM6373, ICND1065L and SM16380SH uploads are one grammar: a few bare LAT
+// bursts, then N 16-bit slots each latched over their last 5 clocks, with slot
+// 3 rotating through the chip's config sequence one word per frame.  They
+// differ only in the payload, whether the middle (11 clock) LAT burst is sent,
+// how many slots follow, and which register carries the scan count.
+// A capture taken at one scan rate.  Registers other than the scan count
+// change with the scan rate on these chips, so a table is only really valid
+// for the geometry it came from; where a second capture is known the closest
+// one is used instead of stretching the default.
+struct PWMChipSeqVariant {
+    int scan;
+    const uint16_t* r;
+    const uint16_t* g;
+    const uint16_t* b;
+};
+
+struct PWMChipSeq {
+    const uint16_t* r;
+    const uint16_t* g;
+    const uint16_t* b;
+    int len;
+    int slots;          // 5, or 6 for a chip with an extra pre-commit word
+    uint16_t extraWord; // that word; only read when slots == 6
+    bool midLatch;      // send the 11 clock LAT burst
+    uint8_t scanReg;    // register address holding the scan row count
+    int defaultScan;    // scan rate the tables above were captured at
+    const PWMChipSeqVariant* variants;
+    int variantCount;
+};
+
+static const PWMChipSeq* pwmChipSeqFor(int addressingMode) {
+    // Scan count: every profile in the kingdo9 catalog puts (rows - 1) in the
+    // low 6 bits of this register and leaves the upper 2 bits as a chip
+    // constant, so the patch preserves whatever the table above carries there
+    // (ICND1065L sets bit 6; the other two leave it clear).
+    static const PWMChipSeqVariant FM6373_VARIANTS[] = {
+        { 64, FM6373_64S_SEQ_R, FM6373_64S_SEQ_G, FM6373_64S_SEQ_B },
+    };
+    static const PWMChipSeq FM6373_SEQ = {
+        FM6373_SEQ_R, FM6373_SEQ_G, FM6373_SEQ_B, FM6373_SEQ_LEN, 5, 0, true, 0x02,
+        32, FM6373_VARIANTS, 1
+    };
+    static const PWMChipSeq ICND1065L_SEQ = {
+        ICND1065L_SEQ_R, ICND1065L_SEQ_G, ICND1065L_SEQ_B, ICND1065L_SEQ_LEN, 5, 0, true, 0x02,
+        43, nullptr, 0
+    };
+    static const PWMChipSeq SM16380SH_SEQ = {
+        SM16380SH_SEQ_R, SM16380SH_SEQ_G, SM16380SH_SEQ_B, SM16380SH_SEQ_LEN, 6, 0xF003, false, 0x02,
+        32, nullptr, 0
+    };
+    switch (addressingMode) {
+    case ADDRESSING_MODE_FM6373:
+        return &FM6373_SEQ;
+    case ADDRESSING_MODE_ICND1065L:
+        return &ICND1065L_SEQ;
+    case ADDRESSING_MODE_SM16380SH:
+        return &SM16380SH_SEQ;
+    }
+    return nullptr;
+}
+
+// DP3364S config registers, one {address, value} word per register, different
+// per color line.  Captured from a working 128x64 1/64 scan panel and posted
+// to hzeller/rpi-rgb-led-matrix issue #1821; the chip's own datasheet
+// documents the access protocol but not the register map.
+//
+// The datasheet says 15 valid register addresses and that 15 frames complete
+// a full refresh, which is exactly 0x02-0x0F plus 0x15 - the addresses the
+// capture carries values for (0x10-0x14 all read back zero and are taken as
+// reserved).  Documented meanings, for the ones that are documented:
+//   0x03[6:0] PWM display packet count - 1 (0x3f = 64, the async mode default)
+//   0x04[6:0] row PWM display length - 1
+//   0x06[2:0] internal GCLK multiplier, FGCLK = FDCLK * (n + 1)
+//   0x08[7:0] linear output current multiplier - the brightness knob, patched
+//             at runtime; the captured 0x7f is what the panel was built for,
+//             so that is full brightness and FPP only scales down from it
+//   0x0b[5]   1.5x current gain
+//   0x0c[7:6] PWM display mode (01 = high gray data independent refresh, the
+//             free running row scan this driver generates); [1] = drop open
+//             circuit bad spots
+//   0x0f[6:0] current reference
+// 0x02 is undocumented but holds 0x3f on a 64 row panel and is patched at
+// runtime with the scan count, the same as 0x02 on the FM6373.
+static constexpr uint16_t DP3364_SEQ_R[] = {
+    0x023f, 0x033f, 0x041a, 0x0504, 0x0639, 0x0700, 0x087f, 0x0968,
+    0x0abe, 0x0b28, 0x0c58, 0x0d08, 0x0e08, 0x0f20, 0x1500
+};
+static constexpr uint16_t DP3364_SEQ_G[] = {
+    0x023f, 0x033f, 0x041a, 0x0504, 0x0639, 0x070c, 0x087f, 0x096b,
+    0x0abf, 0x0b2b, 0x0c58, 0x0d12, 0x0e0b, 0x0f20, 0x1504
+};
+static constexpr uint16_t DP3364_SEQ_B[] = {
+    0x023f, 0x033f, 0x041a, 0x0500, 0x0639, 0x070c, 0x087f, 0x0961,
+    0x0abe, 0x0b31, 0x0c58, 0x0d18, 0x0e01, 0x0f20, 0x1504
+};
+constexpr int DP3364_SEQ_LEN = 15;
+// setupGCLKConfig reads the group count out of the 0x03 entry
+static_assert((DP3364_SEQ_R[1] >> 8) == 0x03);
+static_assert(sizeof(DP3364_SEQ_R) == DP3364_SEQ_LEN * sizeof(uint16_t));
+static_assert(sizeof(DP3364_SEQ_G) == DP3364_SEQ_LEN * sizeof(uint16_t));
+static_assert(sizeof(DP3364_SEQ_B) == DP3364_SEQ_LEN * sizeof(uint16_t));
+
+// Approximate DCLK period in nanoseconds for the two PWM firmware variants,
+// from the instruction counts in BBShiftPanel_pwm.asm at the AM62x PRU's 4ns
+// cycle: OUTPUT_PIXEL is 24 cycles for 8 outputs and 42 for 16, plus a ~26
+// cycle LOAD_DATA every 8 (resp. 4) pixels.
+constexpr int DCLK_NS_8 = 109;
+constexpr int DCLK_NS_16 = 194;
+
+// Minimum DCLK periods the DP3364S needs per displayed row, from the "time of
+// one line" formula the datasheet repeats for each PWM display mode:
+//   (2*(reg0x05[7:4]+1) + 2*(reg0x05[3:0]+1) + 4*(reg0x04[6:0]+1))
+//       / (reg0x06[2:0]+1)
+// The three color lines are separate chips and need not agree, so the scan has
+// to hold for the slowest of them.
+static int dp3364MinLineDCLKs(const uint16_t* seq, int len) {
+    int r04 = 0, r05 = 0, r06 = 0;
+    for (int i = 0; i < len; i++) {
+        switch (seq[i] >> 8) {
+        case 0x04:
+            r04 = seq[i] & 0x7F;
+            break;
+        case 0x05:
+            r05 = seq[i] & 0xFF;
+            break;
+        case 0x06:
+            r06 = seq[i] & 0x07;
+            break;
+        }
+    }
+    return (2 * (((r05 >> 4) & 0x0F) + 1) + 2 * ((r05 & 0x0F) + 1) + 4 * (r04 + 1)) / (r06 + 1);
+}
 
 constexpr int PWM_COMMAND_SYNC = 0x0001;
 constexpr int PWM_COMMAND_REGISTERS = 0x0002;
@@ -567,6 +790,18 @@ BBShiftPanelManager::PanelParams BBShiftPanelManager::parsePanelParams(const Jso
     } else if (p.panelType == PANEL_TYPE_FM6373) {
         p.addressingMode = ADDRESSING_MODE_FM6373;
         p.panelType = 0;
+    } else if (p.panelType == PANEL_TYPE_DP3364) {
+        p.addressingMode = ADDRESSING_MODE_DP3364;
+        p.panelType = 0;
+    } else if (p.panelType == PANEL_TYPE_ICND1065L) {
+        p.addressingMode = ADDRESSING_MODE_ICND1065L;
+        p.panelType = 0;
+    } else if (p.panelType == PANEL_TYPE_SM16380SH) {
+        p.addressingMode = ADDRESSING_MODE_SM16380SH;
+        p.panelType = 0;
+    } else if (p.panelType == PANEL_TYPE_ICND2153) {
+        p.addressingMode = ADDRESSING_MODE_ICND2153;
+        p.panelType = 0;
     }
     bool pwm = p.addressingMode >= ADDRESSING_MODE_FM6353C;
 
@@ -607,6 +842,27 @@ BBShiftPanelManager::PanelParams BBShiftPanelManager::parsePanelParams(const Jso
     if (p.panelScan == 0) {
         //  default scan is 1/2 the height of the panel
         p.panelScan = p.panelHeight / 2;
+    }
+
+    // Full height data layouts.  Only meaningful when every row has its own
+    // scan address, because that is what frees the second RGB lane to carry
+    // the other half of the same row instead of the other half of the panel.
+    p.dataLayout = config["panelDataLayout"].asInt();
+    if (p.dataLayout) {
+        if (p.panelScan != p.panelHeight) {
+            LogErr(VB_CHANNELOUT, "BBShiftPanel: full height data layout needs scan (%d) to equal panel height (%d); using the standard layout\n",
+                   p.panelScan, p.panelHeight);
+            WarningHolder::AddWarning("LED panel data layout requires the scan rate to equal the panel height");
+            p.dataLayout = 0;
+        } else if (p.panelWidth & 1) {
+            LogErr(VB_CHANNELOUT, "BBShiftPanel: full height data layout needs an even panel width (%d); using the standard layout\n",
+                   p.panelWidth);
+            p.dataLayout = 0;
+        } else if (!p.panelInterleave.empty()) {
+            LogErr(VB_CHANNELOUT, "BBShiftPanel: full height data layout cannot be combined with panel interleave; using the standard layout\n");
+            WarningHolder::AddWarning("LED panel data layout cannot be combined with panel interleave");
+            p.dataLayout = 0;
+        }
     }
     return p;
 }
@@ -674,6 +930,7 @@ bool BBShiftPanelManager::adoptPanelParams(const PanelParams& p) {
     m_panelInterleave = p.panelInterleave;
     m_addressingMode = p.addressingMode;
     m_panelType = p.panelType;
+    m_dataLayout = p.dataLayout;
     m_pwmDirectRow = p.pwmDirectRow;
     m_colorDepth = p.colorDepth;
     m_outputByRow = p.outputByRow;
@@ -683,7 +940,7 @@ bool BBShiftPanelManager::adoptPanelParams(const PanelParams& p) {
     if (m_sharedPRUSS) {
         if (isPWMPanel()) {
             LogErr(VB_CHANNELOUT, "PWM panel types require both PRUs and cannot be used on a shared panels+strings cape\n");
-            WarningHolder::AddWarning("PWM panel types (FM6363C/FM6353/FM6373) cannot be used on a shared panels+strings cape");
+            WarningHolder::AddWarning("PWM panel types cannot be used on a shared panels+strings cape");
             return false;
         }
         singlePRU = true;
@@ -712,6 +969,8 @@ bool BBShiftPanelManager::checkCompatible(const PanelParams& p) const {
         bad = "panel interleave";
     } else if (p.addressingMode != m_addressingMode || p.panelType != m_panelType) {
         bad = "panel type / row addressing";
+    } else if (p.dataLayout != m_dataLayout) {
+        bad = "panel data layout";
     } else if (p.colorDepth != m_colorDepth) {
         bad = "color depth";
     } else if (p.outputByRow != m_outputByRow || p.outputBlankData != m_outputBlankData) {
@@ -796,6 +1055,17 @@ void BBShiftPanelManager::computeGeometry() {
         }
     }
     if (!anyPanels) {
+        return;
+    }
+
+    if (m_dataLayout) {
+        // Full height: every row has its own scan address, and the two RGB
+        // lanes split that row down the middle rather than splitting the
+        // panel top from bottom.  Interleave is rejected in parsePanelParams
+        // for this layout, so there is no handler to consult.
+        numRows = m_panelHeight;
+        maxRowLen = m_panelWidth / 2;
+        rowLen = maxRowLen * m_longestChain;
         return;
     }
 
@@ -935,7 +1205,20 @@ int BBShiftPanelManager::StartPRU() {
     // and, for the shift firmware, before the ring attach below.
     uint32_t addrCfg;
     if (isPWMPanel()) {
-        addrCfg = (m_addressingMode == ADDRESSING_MODE_FM6373) ? 1 : 0;
+        // b0 = chip family, b1 = register slot count, b2 = middle LAT burst
+        // length (0 = skip it).  Only the FM6373 family reads b1/b2.
+        if (const PWMChipSeq* seq = pwmChipSeqFor(m_addressingMode)) {
+            addrCfg = 1 | ((uint32_t)seq->slots << 8) | ((seq->midLatch ? 11u : 0u) << 16);
+        } else if (m_addressingMode == ADDRESSING_MODE_DP3364) {
+            // The DP3364S upload is the same shape as the FM6373 one with a
+            // single register slot and no middle LAT burst: VSYNC (LE 3),
+            // PRE_ACT (LE 14), then one word latched over its last 5 clocks.
+            // Sharing that code rather than duplicating it matters - the
+            // 16 output firmware only just fits in the PRU's 12KB IMEM.
+            addrCfg = 1 | (1u << 8) | (0u << 16);
+        } else {
+            addrCfg = 0;
+        }
     } else {
         addrCfg = (uint32_t)(m_addressingMode & 0xFF) | (((uint32_t)numRows) << 8);
     }
@@ -974,6 +1257,14 @@ int BBShiftPanelManager::StartPRU() {
     }
     m_heapBuffers = true;
     m_frontBuffer = nullptr;
+    // Reset the handshake counters with it.  These outlive the pump thread, so
+    // on a restart (teardownHardware() then back through here) stale values
+    // would leave the new thread thinking a frame from the previous
+    // configuration is still owed, and SendData waiting on a priming that
+    // already happened.
+    m_pumpSeq.store(0, std::memory_order_relaxed);
+    m_pumpedSeq = 0;
+    m_pumpPrimed.store(0, std::memory_order_relaxed);
     m_pumpRunning = true;
     m_pumpThread = std::thread(&BBShiftPanelManager::runPumpThread, this);
     return 1;
@@ -1004,6 +1295,13 @@ void BBShiftPanelManager::runPumpThread() {
             }
             ++m_pumpedSeq;
             uint8_t* src = m_frontBuffer.load(std::memory_order_acquire);
+            if (!src) {
+                // The sequence can be ahead of the buffer if a reconfigure
+                // republished it while a frame was in flight; there is nothing
+                // to stream, and the shift path below makes the same check.
+                m_pumpPrimed.store(m_pumpedSeq, std::memory_order_release);
+                continue;
+            }
             uint32_t srcOff = 0;
             bool primed = false;
             while (srcOff < m_frameBytes && m_pumpRunning) {
@@ -1450,12 +1748,20 @@ void BBShiftPanelManager::publishFrame() {
         // Send the command to setup the registers
         pruData->numBlocks = rowLen / 16;
         pruData->numRows = numRows;
-        if (m_addressingMode == ADDRESSING_MODE_FM6373) {
+        if (const PWMChipSeq* seq = pwmChipSeqFor(m_addressingMode)) {
             // rotate the config sequence one word per frame as a continuous
             // refresh; the vsync is part of the FM6373 register upload so
             // PWM_COMMAND_SYNC is not set for this family
             writeFM6373SeqWord(m_pwmSeqIdx);
-            m_pwmSeqIdx = (m_pwmSeqIdx + 1) % FM6373_SEQ_LEN;
+            m_pwmSeqIdx = (m_pwmSeqIdx + 1) % seq->len;
+            pruData->cmd = PWM_COMMAND_REGISTERS | PWM_COMMAND_STARTGCLK;
+        } else if (m_addressingMode == ADDRESSING_MODE_DP3364) {
+            // same one-register-per-frame rotation; the datasheet frames it
+            // as the intended way to refresh all 15 registers without paying
+            // for a full upload every frame.  The VSYNC is the first LE pulse
+            // of the DP3364S register upload, so PWM_COMMAND_SYNC is not set.
+            writeDP3364SeqWord(m_pwmSeqIdx);
+            m_pwmSeqIdx = (m_pwmSeqIdx + 1) % DP3364_SEQ_LEN;
             pruData->cmd = PWM_COMMAND_REGISTERS | PWM_COMMAND_STARTGCLK;
         } else {
             pruData->cmd = PWM_COMMAND_REGISTERS | PWM_COMMAND_SYNC | PWM_COMMAND_STARTGCLK;
@@ -1561,28 +1867,73 @@ void BBShiftPanelManager::setupPWMRegisters() {
     // create the "data" array of for all outputs of r/g/b triplets for the registers
     // 16 clocks * bytesPerClock * 5 registers
     int bytesPerClock = m_numOutputSlots == 16 ? 12 : 6;
-    uint8_t odata[192 * 5];
+    uint8_t odata[192 * 6];
 
-    if (m_addressingMode == ADDRESSING_MODE_FM6373) {
-        // FM6373 family: the five per-frame words are the 0x00AA/0x01AA
-        // write-enable pair, one word of the config register sequence, and
-        // the 0x0055/0x0155 commit pair (see OUTPUT_REGISTERS_FM6373 in the
-        // asm).  Load the fixed slots once, then clock the entire sequence
-        // through the rotating slot so the panel is fully configured before
-        // the first frame; SendData keeps rotating it afterwards as a
-        // continuous refresh (DMD_STM32 and kingdo9 both do the same).
+    if (m_addressingMode == ADDRESSING_MODE_DP3364) {
+        // DP3364S: one config register per frame, so only the single rotating
+        // word slot is used (the VSYNC and PRE_ACT that precede it are bare LE
+        // pulses with the data lines "not care" - see OUTPUT_REGISTERS_DP3364
+        // in the asm).  Clock the whole sequence through before the first
+        // frame, then SendData keeps rotating it as the continuous refresh the
+        // datasheet asks for.
+        setupGCLKConfig();
+        pruData->numBlocks = rowLen / 16;
+        pruData->numRows = numRows;
+        m_pwmSeqIdx = 0;
+        for (int i = 0; i < DP3364_SEQ_LEN; i++) {
+            while (pruData->command) {
+                std::this_thread::sleep_for(std::chrono::microseconds(100));
+                __asm__ __volatile__("" ::
+                                         : "memory");
+            }
+            writeDP3364SeqWord(i);
+            pruData->cmd = PWM_COMMAND_REGISTERS;
+            __asm__ __volatile__("" ::
+                                     : "memory");
+            // the command word clears when the PRU *starts* the upload, so
+            // give it time to finish before rewriting the rotating slot
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return;
+    }
+
+    if (const PWMChipSeq* seq = pwmChipSeqFor(m_addressingMode)) {
+        // FM6373 family: the per-frame words are the 0x00AA/0x01AA
+        // write-enable pair, one word of the config register sequence, an
+        // optional chip specific word, and the 0x0055/0x0155 commit pair (see
+        // OUTPUT_REGISTERS_FM6373 in the asm).  Load the fixed slots once,
+        // then clock the entire sequence through the rotating slot so the
+        // panel is fully configured before the first frame; SendData keeps
+        // rotating it afterwards as a continuous refresh (DMD_STM32 and
+        // kingdo9 both do the same).
         int idx = outputRegData(0, odata, 0x00AA, 0x00AA, 0x00AA, m_numOutputSlots);
         idx = outputRegData(idx, odata, 0x01AA, 0x01AA, 0x01AA, m_numOutputSlots);
-        idx = outputRegData(idx, odata, FM6373_SEQ_R[0], FM6373_SEQ_G[0], FM6373_SEQ_B[0], m_numOutputSlots);
+        idx = outputRegData(idx, odata, seq->r[0], seq->g[0], seq->b[0], m_numOutputSlots);
+        if (seq->slots == 6) {
+            idx = outputRegData(idx, odata, seq->extraWord, seq->extraWord, seq->extraWord, m_numOutputSlots);
+        }
         idx = outputRegData(idx, odata, 0x0055, 0x0055, 0x0055, m_numOutputSlots);
         idx = outputRegData(idx, odata, 0x0155, 0x0155, 0x0155, m_numOutputSlots);
         pru->memcpyToPRU((uint8_t*)&pruData->registers[0], &odata[0], idx);
+
+        bool haveScan = ((int)numRows == seq->defaultScan);
+        for (int v = 0; v < seq->variantCount && !haveScan; v++) {
+            haveScan = (seq->variants[v].scan == (int)numRows);
+        }
+        if (!haveScan) {
+            // These tables are per-capture, not per-chip: on this family the
+            // current, subfield and tail registers move with the scan rate as
+            // well as the scan count itself, so an unmatched rate is a
+            // starting point rather than a correct configuration.
+            LogWarn(VB_CHANNELOUT, "BBShiftPanel: no register table captured at 1/%u scan for this panel type; using the 1/%d table with only the scan count adjusted\n",
+                    numRows, seq->defaultScan);
+        }
 
         setupGCLKConfig();
         pruData->numBlocks = rowLen / 16;
         pruData->numRows = numRows;
         m_pwmSeqIdx = 0;
-        for (int i = 0; i < FM6373_SEQ_LEN; i++) {
+        for (int i = 0; i < seq->len; i++) {
             while (pruData->command) {
                 std::this_thread::sleep_for(std::chrono::microseconds(100));
                 __asm__ __volatile__("" ::
@@ -1602,8 +1953,21 @@ void BBShiftPanelManager::setupPWMRegisters() {
     // register 1 contains the number of scan lines (rows)
     uint16_t rn = ((numRows - 1) << 8) & 0x3F00;
     int curidx;
-    if (m_addressingMode == ADDRESSING_MODE_FM6353C) {
-        // FM6353 / ICN2153, values from DMD_STM32 (board707/DMD_STM32,
+    if (m_addressingMode == ADDRESSING_MODE_ICND2153) {
+        // ICND2153.  Same {4,6,8,10,2} latch grammar as the FM6353 below, and
+        // the same 0x0070 base for the scan register, but its own payload -
+        // from kingdo9/rpi-rgb-led-matrix_pwm_experiment (branch
+        // icnd2153_bsparacino, SPWM_ICND2153_REGISTER_ENTRIES), captured from
+        // a 64x32 1/8 scan panel.  Unlike the FM6353 this chip does carry
+        // per-color current words in register 2.
+        uint16_t r1 = 0x0070 | rn;
+        curidx = outputRegData(0, odata, r1, r1, r1, m_numOutputSlots);
+        curidx = outputRegData(curidx, odata, 0x7dfe, 0x71fe, 0x5dfe, m_numOutputSlots);
+        curidx = outputRegData(curidx, odata, 0x4207, 0x4207, 0x4207, m_numOutputSlots);
+        curidx = outputRegData(curidx, odata, 0x0040, 0x0040, 0x0040, m_numOutputSlots);
+        curidx = outputRegData(curidx, odata, 0x0008, 0x0008, 0x0008, m_numOutputSlots);
+    } else if (m_addressingMode == ADDRESSING_MODE_FM6353C) {
+        // FM6353, values from DMD_STM32 (board707/DMD_STM32,
         // DMD_SPWM_Driver.h conf_6353 = {0x0008, 0x1f70, 0x6707, 0x40f7,
         // 0x0040} written in latch order 2,4,6,8,10).  The latch length
         // selects the register, so the 4,6,8,10,2 order the PRU sends
@@ -1675,23 +2039,69 @@ void BBShiftPanelManager::writeFM6373SeqWord(int idx) {
     // uploading frame data, which never reads the register slots, and the
     // previous REGISTERS upload completed before that DATA was dispatched)
     // and from the serialized init loop in setupPWMRegisters.
-    uint16_t rw = FM6373_SEQ_R[idx];
-    uint16_t gw = FM6373_SEQ_G[idx];
-    uint16_t bw = FM6373_SEQ_B[idx];
-    if ((rw >> 8) == 0x02) {
-        // register 0x02 holds the scan row count (DMD_STM32 patches the
-        // same entry)
-        rw = gw = bw = 0x0200 | ((numRows - 1) & 0xFF);
+    const PWMChipSeq* seq = pwmChipSeqFor(m_addressingMode);
+    const uint16_t* sr = seq->r;
+    const uint16_t* sg = seq->g;
+    const uint16_t* sb = seq->b;
+    for (int v = 0; v < seq->variantCount; v++) {
+        if (seq->variants[v].scan == (int)numRows) {
+            sr = seq->variants[v].r;
+            sg = seq->variants[v].g;
+            sb = seq->variants[v].b;
+            break;
+        }
+    }
+    uint16_t rw = sr[idx];
+    uint16_t gw = sg[idx];
+    uint16_t bw = sb[idx];
+    if ((rw >> 8) == seq->scanReg) {
+        // the scan row count lives in the low 6 bits; the upper 2 are a chip
+        // constant carried over from the table (DMD_STM32 patches the same
+        // entry for the FM6373)
+        rw = gw = bw = (uint16_t)(((uint32_t)seq->scanReg << 8) | (rw & 0xC0) | ((numRows - 1) & 0x3F));
     }
     int slotSize = 16 * (m_numOutputSlots == 16 ? 12 : 6);
     uint8_t buf[192 * 2];
     int len = outputRegData(0, buf, rw, gw, bw, m_numOutputSlots);
     if (slotSize & 63) {
-        // memcpyToPRU copies in 64 byte chunks; include the (constant)
-        // commit word slot after it so the write length is a multiple of 64
-        len = outputRegData(len, buf, 0x0055, 0x0055, 0x0055, m_numOutputSlots);
+        // memcpyToPRU copies in 64 byte chunks, so the write spills into the
+        // slot after the rotating one and has to rewrite it with its own
+        // (constant) value: the commit word for a five slot chip, the extra
+        // pre-commit word for a six slot one.
+        uint16_t next = seq->slots == 6 ? seq->extraWord : 0x0055;
+        len = outputRegData(len, buf, next, next, next, m_numOutputSlots);
     }
     pru->memcpyToPRU((uint8_t*)&pruData->registers[0] + 2 * slotSize, buf, len);
+}
+
+void BBShiftPanelManager::writeDP3364SeqWord(int idx) {
+    // rewrite the single rotating register slot with sequence word idx.  Same
+    // in-flight rules as writeFM6373SeqWord: only safe while no register
+    // upload is running.
+    uint16_t rw = DP3364_SEQ_R[idx];
+    uint16_t gw = DP3364_SEQ_G[idx];
+    uint16_t bw = DP3364_SEQ_B[idx];
+    if ((rw >> 8) == 0x02) {
+        // scan row count
+        rw = gw = bw = 0x0200 | ((numRows - 1) & 0x3F);
+    } else if ((rw >> 8) == 0x08) {
+        // linear output current multiplier.  The captured 0x7f is the value
+        // the panel was designed around, so it is full brightness and this
+        // only ever scales down from it; the per-color trim in 0x09/0x0b is
+        // left alone so the white balance does not move with brightness.
+        uint16_t cur = std::clamp(0x7F * m_brightness / 10, 8, 0x7F);
+        rw = gw = bw = 0x0800 | cur;
+    }
+    int slotSize = 16 * (m_numOutputSlots == 16 ? 12 : 6);
+    uint8_t buf[192 * 2];
+    int len = outputRegData(0, buf, rw, gw, bw, m_numOutputSlots);
+    if (slotSize & 63) {
+        // memcpyToPRU copies in 64 byte chunks; pad with a second copy of the
+        // word so the write length is a multiple of 64.  Nothing reads the
+        // padding - DP3364S only sends one word per frame.
+        len = outputRegData(len, buf, rw, gw, bw, m_numOutputSlots);
+    }
+    pru->memcpyToPRU((uint8_t*)&pruData->registers[0], buf, len);
 }
 
 void BBShiftPanelManager::setupGCLKConfig() {
@@ -1700,22 +2110,58 @@ void BBShiftPanelManager::setupGCLKConfig() {
     // packets (the brightness knob), [1] = row select mode, [2]/[3] = GCLK
     // pulses in the first packet after a restart / every packet after
     pwmPru->data_ram[0] = m_brightness > 8 ? 3 : 11 - m_brightness;
-    if (m_addressingMode == ADDRESSING_MODE_FM6373) {
+    if (m_addressingMode == ADDRESSING_MODE_DP3364) {
+        // DP3364S generates its own GCLK from an internal PLL, so this side
+        // only emits the per-row ROW strobe (which replaces OE on this chip)
+        // and advances the row driver.  Unlike the FM6373 the addressing
+        // dropdown is honored: a panel with more than 32 scan rows cannot be
+        // addressed by the 5 SEL lines at all and needs the token shift
+        // register, which is what the row driver chips on these panels want.
+        // Brightness comes from config register 0x08, not from blanking time.
+        //   [2] = W4 ROW pulse width in 100ns units (W12 is emitted as 3x
+        //         this; the chip only has to tell the two apart)
+        //   [3] = row period in us
+        int dclkNs = m_numOutputSlots == 16 ? DCLK_NS_16 : DCLK_NS_8;
+        int minLine = std::max({ dp3364MinLineDCLKs(DP3364_SEQ_R, DP3364_SEQ_LEN),
+                                 dp3364MinLineDCLKs(DP3364_SEQ_G, DP3364_SEQ_LEN),
+                                 dp3364MinLineDCLKs(DP3364_SEQ_B, DP3364_SEQ_LEN) });
+        pwmPru->data_ram[1] = 4 | (m_pwmDirectRow ? 1 : 0);
+        // W4 is 4 DCLK periods; the pulse is emitted as a time because the
+        // DCLK comes from the other PRU with no phase relationship to this one
+        pwmPru->data_ram[2] = std::clamp((4 * dclkNs + 99) / 100, 2, 40);
+        // The datasheet's line time is a minimum, and the row scan free runs,
+        // so a row that is too short simply will not have finished displaying.
+        // 2x the minimum is the margin for that; the scan still revisits every
+        // row far faster than the eye at any supported scan count.
+        pwmPru->data_ram[3] = std::clamp((2 * minLine * dclkNs + 999) / 1000, 4, 255);
+        // [4] = PWM display group count, config register 0x03 + 1.  One W12
+        // ROW pulse is emitted per (groups x rows) cycle, so this has to
+        // track whatever DP3364_SEQ_* sets 0x03 to.
+        pwmPru->data_ram[4] = (DP3364_SEQ_R[1] & 0x7F) + 1;
+        return;
+    }
+    if (pwmChipSeqFor(m_addressingMode)) {
         // FM6373 family: single OE pulse per row, direct row select (the
         // only transport implemented for this family; the DP32019B boards
-        // use it).  Brightness comes from the chip's config registers, not
-        // the blanking time.  [2] = opener pulse width us, [3] = row period
-        // us (~128 DCLKs at the data clock rate, so the scan rate is about
-        // the same while uploading and while free-running between frames)
+        // use it).  kingdo9 gives ICND1065L and SM16380SH the same OE style,
+        // so they run this scan too.  Brightness comes from the chip's config
+        // registers, not the blanking time.  [2] = opener pulse width us,
+        // [3] = row period us (~128 DCLKs at the data clock rate, so the scan
+        // rate is about the same while uploading and while free-running
+        // between frames)
         pwmPru->data_ram[1] = 3;
         pwmPru->data_ram[2] = 2;
         pwmPru->data_ram[3] = 20;
         return;
     }
     pwmPru->data_ram[1] = m_pwmDirectRow ? 1 : 0;
-    if (m_addressingMode == ADDRESSING_MODE_FM6353C) {
+    if (m_addressingMode == ADDRESSING_MODE_FM6353C ||
+        m_addressingMode == ADDRESSING_MODE_ICND2153) {
         // DMD_STM32 GCLK_NUM: FM6353 row switching takes 138 GCLK pulses
-        // (uniform; no first-packet extension is documented for this chip)
+        // (uniform; no first-packet extension is documented for this chip).
+        // kingdo9's ICND2153 capture independently lands on 138 pulses per
+        // scan, though it drives them as a half-rate waveform (one pulse per
+        // two clock slots) that this GCLK program does not reproduce.
         pwmPru->data_ram[2] = 138;
         pwmPru->data_ram[3] = 138;
     } else {
@@ -1941,6 +2387,44 @@ bool BBShiftPanelOutput::buildScatterMap() {
             // simply shifts the leading pixels off the end of its own chain
             int chain = mgr.m_longestChain - c - 1;
             int xOff = chain * maxRowLen;
+
+            if (mgr.m_dataLayout) {
+                // Full height layout: lane 1 and lane 2 carry the two halves
+                // of the SAME row.  Layout 2 puts the left half on lane 1,
+                // layout 1 swaps them.  Every row is its own scan address, so
+                // yOut is just y and the row is half a panel wide.
+                const int half = m_panelWidth / 2;
+                const int leftLane1 = (mgr.m_dataLayout == 2);
+                for (int y = 0; y < m_panelHeight; y++) {
+                    int yw = y * m_panelWidth * 3;
+                    for (int x = 0; x < half; ++x) {
+                        int lane1x = leftLane1 ? x : x + half;
+                        int lane2x = leftLane1 ? x + half : x;
+                        uint32_t r1 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane1x * 3];
+                        uint32_t g1 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane1x * 3 + 1];
+                        uint32_t b1 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane1x * 3 + 2];
+
+                        uint32_t r2 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane2x * 3];
+                        uint32_t g2 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane2x * 3 + 1];
+                        uint32_t b2 = m_panelMatrix->m_panels[panel].pixelMap[yw + lane2x * 3 + 2];
+
+                        int yOut = y;
+                        int xOut = x + xOff;
+                        if (mgr.isPWMPanel()) {
+                            int xo2 = xOut % 16;
+                            int xo3 = xOut / 16;
+                            xOut = xo2 * (rowLen / 16) + xo3;
+                        }
+                        channelOffsets[r1] = yOut * totalRowLen + xOut * pixelStride + outputIdx;
+                        channelOffsets[g1] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 8;
+                        channelOffsets[b1] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 16;
+                        channelOffsets[r2] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 24;
+                        channelOffsets[g2] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 32;
+                        channelOffsets[b2] = yOut * totalRowLen + xOut * pixelStride + outputIdx + 40;
+                    }
+                }
+                continue;
+            }
 
             for (int y = 0; y < (m_panelHeight / 2); y++) {
                 int yw1 = y * m_panelWidth * 3;

@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
+#include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 #include "Events.h"
 
 #include <array>
@@ -326,7 +327,7 @@ HttpResponsePtr GPIOManager::render_POST(const HttpRequestPtr& req) {
 
                 // Update the last value tracking (for Opposite command functionality and GET requests)
                 GPIOManager::INSTANCE.fppCommandLastValue[pinName] = value;
-                LogDebug(VB_HTTP, "GPIO POST: Set pin %s to %d, cached value\n", pinName.c_str(), value ? 1 : 0);
+                LogDebug(VB_COMMAND, "POST /api/gpio/%s from %s: set to %d, cached value\n", pinName.c_str(), getEffectiveClientIP(req).c_str(), value ? 1 : 0);
 
                 result["pin"] = pinName;
                 result["value"] = value ? 1 : 0;

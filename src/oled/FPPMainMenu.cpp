@@ -155,7 +155,7 @@ public:
             return;
         } else if (item == "Perform Reset") {
             PromptOLEDPage* p = new PromptOLEDPage("Reset FPP?", "Reset FPP?", "", { "No", "Yes" }, [parent = this->parent, it = this->items](const std::string& i) {
-                printf("Item: %s\n", i.c_str());
+                LogInfo(VB_GENERAL, "Item: %s\n", i.c_str());
                 if (i == "No") {
                     SetCurrentPage(parent);
                 } else if (i == "Yes") {
@@ -181,7 +181,7 @@ public:
 
     static void performReset(OLEDPage* parent, const std::vector<std::string>& items) {
         std::string areas;
-        printf("Performing reset\n");
+        LogInfo(VB_GENERAL, "Performing reset\n");
         for (int x = 4; x < items.size(); x++) {
             if (items[x][0] == '*') {
                 std::string i = items[x].substr(2);
@@ -206,11 +206,11 @@ public:
         }
         if (!areas.empty()) {
             areas = areas.substr(0, areas.length() - 1);
-            printf("Areas: %s\n", areas.c_str());
+            LogInfo(VB_GENERAL, "Areas: %s\n", areas.c_str());
             std::string url = "http://127.0.0.1/resetConfig.php?areas=" + areas;
-            printf("Reset URL: %s\n", url.c_str());
+            LogInfo(VB_GENERAL, "Reset URL: %s\n", url.c_str());
             std::string d = doCurlGet(url, 10000);
-            printf("%s\n", d.c_str());
+            LogInfo(VB_GENERAL, "%s\n", d.c_str());
         }
         SetCurrentPage(parent);
     }

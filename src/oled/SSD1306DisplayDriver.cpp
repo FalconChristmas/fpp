@@ -6,6 +6,7 @@
 #include "I2C.h"
 #include "RobotoFont-14.h"
 #include "SSD1306_OLED.h"
+#include "../log.h"
 
 extern I2C_DeviceT I2C_DEV_2;
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
@@ -42,7 +43,7 @@ int SSD1306DisplayDriver::getHeight() {
 
 bool SSD1306DisplayDriver::initialize(int& i2cBus) {
     if (init_i2c_dev2(I2C_DEV_PATH, SSD1306_OLED_ADDR) != 0) {
-        printf("(Main)i2c: OOPS! Something Went Wrong\n");
+        LogErr(VB_GENERAL, "(Main)i2c: OOPS! Something Went Wrong\n");
         return false;
     }
     if (ledType && display_Init_seq()) {
@@ -59,15 +60,15 @@ bool SSD1306DisplayDriver::initialize(int& i2cBus) {
         }
 
         if (init_i2c_dev2(I2C_DEV1_PATH, SSD1306_OLED_ADDR) != 0) {
-            printf("(Main)i2c1: OOPS! Something Went Wrong\n");
+            LogErr(VB_GENERAL, "(Main)i2c1: OOPS! Something Went Wrong\n");
             return false;
         }
         if (display_Init_seq()) {
-            printf("Could not initialize display\n");
+            LogErr(VB_GENERAL, "Could not initialize display\n");
             return false;
         }
 #else
-        printf("Could not initialize display\n");
+        LogErr(VB_GENERAL, "Could not initialize display\n");
         return false;
 #endif
     }

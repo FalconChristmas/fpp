@@ -226,9 +226,16 @@ char* ProcessCommand(char* command, char* response) {
         if (s) {
             // Bounded copy - the token can be longer than the 128-byte buffer.
             snprintf(name, sizeof(name), "%s", s);
-            s = strtok_r(NULL, ",", &saveptr);
-            if (s)
-                SetSetting(name, s);
+            // Don't use strtok_r for the value: it skips empty fields, so a
+            // command clearing a setting to "" (e.g. "SetSetting,foo,,")
+            // would otherwise never call SetSetting() at all. saveptr points
+            // at the start of the value here; split it on the next comma
+            // manually so an empty value still comes through.
+            char* value = saveptr;
+            char* comma = strchr(value, ',');
+            if (comma)
+                *comma = '\0';
+            SetSetting(name, value);
         }
     } else if (!strcmp(CommandStr, "StartSequence")) {
         if ((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) &&
@@ -377,10 +384,22 @@ void CommandProc() {
         // was - only that it was local. A native C++ plugin calling
         // CommandManager in-process never reaches this socket at all, but a
         // plugin's own PHP page using commandsocket.php's SendCommand() looks
-        // identical to any other FPP UI page here. Realistic callers: the FPP
-        // UI, a plugin's own PHP page, the "fpp" CLI tool, or a local script
-        // talking to the socket directly.
-        LogDebug(VB_COMMAND, "Local command socket (FPP UI, plugin, FPP cli, script, etc) running \"%s\"\n", &command[0]);
+        // identical to any other FPP UI page here - hence "plugin web page"
+        // rather than a bare "plugin", which would invite exactly the wrong
+        // inference when tracking down what a C++ plugin did. Realistic
+        // callers: the FPP UI, a plugin's own PHP page, the "fpp" CLI tool, or
+        // a local script talking to the socket directly.
+        //
+        // Naming the real caller is possible but not free: the receiver would
+        // set SO_PASSCRED on the socket and switch the recvfrom() calls below
+        // to recvmsg() to read the sender's pid out of SCM_CREDENTIALS, then
+        // resolve /proc/<pid>/comm. Worth doing; deliberately not done here.
+        //
+        // command is NUL-terminated and bounded by MAX_COMMAND_SIZE (4096), so
+        // this can't run away - but 4095 chars is still ~17 crash-ring slots,
+        // so truncate for the log like every other caller-supplied string.
+        LogDebug(VB_COMMAND, "Local command socket (FPP UI, plugin web page, fpp CLI, script, etc) running \"%s\"\n",
+                 TruncateForLog(&command[0]).c_str());
         char* response2 = ProcessCommand(&command[0], &response[0]);
         errno = 0;
         if (response2) {

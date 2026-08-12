@@ -23,7 +23,12 @@
 #include "channeloutput/PixelString.h"
 #include "util/BBBPruUtils.h"
 
-constexpr int NUM_STRINGS_PER_PIN = 8;
+// How deep the cape's shift register chain is, i.e. how many strings hang off
+// each data pin.  8 is the long standing layout; 16 doubles the strings a
+// single PRU can drive and is AM62x only - see the SHIFT16 firmware variant in
+// BBShiftString.asm and the makefile.  Buffers and maps are sized for the
+// maximum; the live depth is m_stringsPerPin, from the cape's "stringsPerPin".
+constexpr int MAX_STRINGS_PER_PIN = 16;
 constexpr int MAX_PINS_PER_PRU = 8;
 
 // when output restarts, there are some packets that need to be sent first
@@ -105,7 +110,7 @@ private:
     public:
         FrameData() {
             for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
-                for (int x = 0; x < NUM_STRINGS_PER_PIN; ++x) {
+                for (int x = 0; x < MAX_STRINGS_PER_PIN; ++x) {
                     stringMap[y][x] = -1;
                 }
             }
@@ -128,7 +133,7 @@ private:
                 }
             }
         }
-        std::array<std::array<int, NUM_STRINGS_PER_PIN>, MAX_PINS_PER_PRU> stringMap;
+        std::array<std::array<int, MAX_STRINGS_PER_PIN>, MAX_PINS_PER_PRU> stringMap;
         BBBPru* pru = nullptr;
         BBShiftStringData* pruData = nullptr;
 
@@ -188,6 +193,12 @@ private:
     // the shared RAM or the other PRU's memory, no FalconV5 listeners
     bool m_sharedPRUSS = false;
 
+    // shift register chain depth: strings per data pin, 8 or 16.  Everything
+    // the PRU consumes scales with stringsPerPru(): one shift phase clocks
+    // that many bytes, so a frame is outputStringLen * stringsPerPru() bytes.
+    int m_stringsPerPin = 8;
+    int stringsPerPru() const { return MAX_PINS_PER_PRU * m_stringsPerPin; }
+
     uint32_t m_curFrame = 0;
     uint32_t m_licensedOutputs = 0;
 
@@ -205,6 +216,13 @@ private:
     void prepData(FrameData& d, unsigned char* channelData);
     void sendData(FrameData& d);
     void bitFlipData(uint8_t* stringChannelData, uint8_t* bitSwapped, size_t len);
+    // The hot paths are templated on the chain depth and dispatched once per
+    // frame rather than reading m_stringsPerPin in the inner loops, so the 8
+    // deep path keeps the compile time constants (and the codegen) it had.
+    template<int SPP>
+    void prepDataT(FrameData& d, unsigned char* channelData);
+    template<int SPP>
+    void bitFlipDataT(uint8_t* stringChannelData, uint8_t* bitSwapped, size_t len);
 
     // AM62x shared-memory ring pump (see pru/SMEMRing.hp)
     std::thread m_pumpThread;
@@ -214,6 +232,25 @@ private:
     bool pumpFrameData(FrameData& d);
 
     void createOutputLengths(FrameData& d, const std::string& pfx);
+
+    // Bit cell timing in ns, published to the firmware as cycle counts.  These
+    // are the values the firmware used to have compiled in; keeping them here
+    // is what lets a different bit cell (a 400kHz part) be selected without a
+    // separate firmware image.
+    int m_t0Ns = 320;
+    int m_t1Ns = 750;
+    int m_lowNs = 1120;
+
+    // ordering so a Timing can key a map; the values are small and exact
+    struct TimingLess {
+        bool operator()(const PixelString::Timing& a, const PixelString::Timing& b) const {
+            return std::tie(a.t0Ns, a.t1Ns, a.periodNs) < std::tie(b.t0Ns, b.t1Ns, b.periodNs);
+        }
+    };
+    // pick the controller's bit cell from the protocols actually in use
+    void resolveTiming(const Json::Value& config);
+
+    void demoteInvertedReceiverChains();
 
     void setupFalconV5Support(const Json::Value& root, uint8_t* memLoc);
     void encodeFalconV5Packet(std::vector<std::array<uint8_t, 64>>& packets, uint8_t* memLocPru0, uint8_t* memLocPru1);

@@ -11,6 +11,26 @@
  * included LICENSE.LGPL file.
  */
 
+#include <mutex>
+
+// Held by the channel output thread for the whole of each output cycle -- the
+// cycle that runs PrepareChannelData()/SendChannelData(), both of which walk
+// the channelOutputs list and call into every ChannelOutput on it.  It is
+// released only while the thread waits out the rest of the frame interval, so
+// anything that mutates that list, and in particular anything that destroys a
+// ChannelOutput, has to hold this to avoid pulling an instance out from under
+// a walk that is already in progress.
+//
+// Two things it is NOT safe to do with it.  Do not call
+// StartChannelOutputThread() while holding it: that function waits for
+// ThreadIsRunning, which the new thread sets only after taking this lock.  And
+// do not take it on a path an FSEQ-triggered command can reach -- the output
+// thread holds it across Sequence::SendSequenceData(), which runs those
+// commands, so anything they call that takes it deadlocks that thread.  It is
+// a plain mutex on purpose: the output thread waits on a condition_variable
+// with it, which rules out making it recursive.
+extern std::mutex outputThreadLock;
+
 void DisableChannelOutput(void);
 void EnableChannelOutput(void);
 void InitChannelOutputSyncVars(void);

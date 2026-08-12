@@ -39,6 +39,76 @@ echo "Generating crash report in: $TEMP_DIR"
 cp /tmp/fppd_crash.log "$TEMP_DIR/" 2>/dev/null || true
 cp fpp-info.json "$TEMP_DIR/" 2>/dev/null || true
 
+# Installed plugin versions.
+#
+# fpp-info.json carries FPP's own build string with its git hash, which is what
+# lets the crash bucketer ancestry-check an FPP fix commit against the build a
+# report came from. A fix that lands in a plugin repo has no such gate: nothing
+# else in this bundle says which plugin build the device is running, so a plugin
+# bucket can only be aged out by date. Plugins are git checkouts, so record what
+# each one is actually sitting on.
+#
+# Included at every crash level, alongside fpp-info.json: the crashing plugin's
+# .so path already appears in the stack at every level, and these are public
+# repo commits. Nothing here is more identifying than fpp-info.json itself.
+#
+# Three things this must not get wrong:
+#   - The plugin trees are owned by 'fpp' and this runs as root, so a bare git
+#     call fails with "detected dubious ownership" and prints NOTHING at all.
+#     Downstream that reads as "no plugins installed" rather than "the probe
+#     failed", so pass safe.directory and record an explicit error on failure
+#     instead of an empty string.
+#   - A tree can be dirty, or parked on an older pinned sha than its repo's
+#     head (pluginInfo.json pins a sha per FPP version), so report describe
+#     output -- including any -dirty suffix -- and not just the commit.
+#   - A remote cloned over https can have credentials embedded in the URL, so
+#     strip any userinfo before recording it.
+crash_report_json_escape() {
+    printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr -d '\000-\037'
+}
+
+{
+    printf '{\n  "plugins": [\n'
+    sep=""
+    for plugin_dir in /home/fpp/media/plugins/*/; do
+        [ -d "$plugin_dir" ] || continue
+        plugin_name=$(basename "$plugin_dir")
+        printf '%s' "$sep"
+        sep=$',\n'
+        printf '    {"name": "%s"' "$(crash_report_json_escape "$plugin_name")"
+
+        if [ ! -e "$plugin_dir/.git" ]; then
+            printf ', "error": "not a git checkout"}'
+            continue
+        fi
+
+        plugin_git=(git -C "$plugin_dir" -c safe.directory=* )
+        plugin_err=$("${plugin_git[@]}" rev-parse --short HEAD 2>&1 >/dev/null | head -1)
+        plugin_commit=$("${plugin_git[@]}" rev-parse --short HEAD 2>/dev/null)
+
+        if [ -z "$plugin_commit" ]; then
+            printf ', "error": "%s"}' "$(crash_report_json_escape "${plugin_err:-git rev-parse produced no output}")"
+            continue
+        fi
+
+        plugin_desc=$("${plugin_git[@]}" describe --tags --always --dirty 2>/dev/null)
+        plugin_branch=$("${plugin_git[@]}" rev-parse --abbrev-ref HEAD 2>/dev/null)
+        # Strip any user:password@ from an https remote before recording it.
+        plugin_remote=$("${plugin_git[@]}" config --get remote.origin.url 2>/dev/null | sed -E 's|://[^/@]*@|://|')
+
+        printf ', "commit": "%s"' "$(crash_report_json_escape "$plugin_commit")"
+        [ -n "$plugin_desc" ] && printf ', "describe": "%s"' "$(crash_report_json_escape "$plugin_desc")"
+        case "$plugin_desc" in
+            *-dirty) printf ', "dirty": true' ;;
+            *)       printf ', "dirty": false' ;;
+        esac
+        [ -n "$plugin_branch" ] && printf ', "branch": "%s"' "$(crash_report_json_escape "$plugin_branch")"
+        [ -n "$plugin_remote" ] && printf ', "remote": "%s"' "$(crash_report_json_escape "$plugin_remote")"
+        printf '}'
+    done
+    printf '\n  ]\n}\n'
+} > "$TEMP_DIR/plugins.json" 2>/dev/null || true
+
 # When fppd fell back from gdb, the stack is raw addresses. Resolve them here,
 # on the box, against the binaries that actually crashed -- see the header of
 # symbolize_crash_frames.py for why this cannot correctly be done elsewhere.

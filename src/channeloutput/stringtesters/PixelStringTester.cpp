@@ -24,7 +24,7 @@
 void PixelStringTester::fillInSmartReceiver(PixelString* ps, VirtualString& vs, uint8_t* inChannelData, uint32_t& offset, uint8_t*& outChannelData) const {
     for (int x = 0; x < vs.pixelCount * vs.channelsPerNode(); ++x) {
         int cn = ps->m_outputMap[offset];
-        uint8_t* brightness = ps->m_brightnessMaps[offset++];
+        const uint8_t* brightness = ps->m_brightnessMaps[offset++];
         *outChannelData = brightness[inChannelData[cn]];
         ++outChannelData;
     }

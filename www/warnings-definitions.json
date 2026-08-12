@@ -428,6 +428,13 @@
             "HelpTxt": "The configured audio output sound card is no longer present - it may have been unplugged or dropped off the USB bus. Audio will fall back to the default output device until the card is reconnected.",
             "HelpPageType": "",
             "WarningGroup": "Device_Warnings"
+        },
+        {
+            "id": 61,
+            "Title": "Command Not Found",
+            "HelpTxt": "A command was referenced that does not exist, most likely because a plugin that used to provide it was removed or updated. Check your Playlists (Command entries), Command Presets, and GPIO Input bindings for a reference to the command name shown, and check the Plugin Manager to see if a plugin providing it needs reinstalling. This warning clears itself automatically 15 minutes after the last time it was triggered.",
+            "HelpPageType": "",
+            "WarningGroup": "Plugin_Warnings"
         }
     ]
 }

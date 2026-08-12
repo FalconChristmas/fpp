@@ -318,9 +318,9 @@ DONELE?:
     .endm
 
 // data RAM offset of the PWM chip config (u32: b0 = chip family, 0 =
-// FM6363C/FM6353 fixed-register style, 1 = FM6373 style), written by the
-// ARM after the firmware starts.  Must match BBShiftPanel.cpp.  (The shift
-// firmware uses the same offset for its row addressing config.)
+// FM6363C/FM6353 fixed-register style, 1 = the FM6373 slot-based style),
+// written by the ARM after the firmware starts.  Must match BBShiftPanel.cpp.
+// (The shift firmware uses the same offset for its row addressing config.)
 #define PWM_CHIP_CONFIG_OFFSET 0x1DF8
 
 
@@ -924,9 +924,11 @@ DONEDATAOUT_LOOP:
 
 OUTPUT_REGISTERS:
     .newblock
+    // r26 holds the whole chip config for the duration of the upload:
+    // b0 = family, b1 = register slot count, b2 = middle LAT burst length
     LDI     tmpReg1, PWM_CHIP_CONFIG_OFFSET
-    LBCO    &tmpReg2.b0, CONST_PRUDRAM, tmpReg1, 1
-    QBNE    NOTFM6373?, tmpReg2.b0, 1
+    LBCO    &r26, CONST_PRUDRAM, tmpReg1, 4
+    QBNE    NOTFM6373?, r26.b0, 1
     JMP     OUTPUT_REGISTERS_FM6373
 NOTFM6373?:
     // Signal the GCLK to do 4 ticks
@@ -1055,25 +1057,37 @@ REG5_LAST:
 
 
 // FM6373 family register upload (from DMD_STM32 load_config_regs and the
-// kingdo9 rpi-rgb-led-matrix captures): vsync + 11 and 14 clock LAT bursts,
-// then five 16-bit words - the 0x00AA/0x01AA write-enable pair, one word of
-// the chip's config register sequence (the ARM rotates it through the whole
-// sequence across frames), and the 0x0055/0x0155 commit pair - each latched
-// with LE high for the last 5 clocks.  The vsync lives here, so the ARM does
-// not set PWM_COMMAND_SYNC for this chip family.
+// kingdo9 rpi-rgb-led-matrix captures): vsync + an optional 11 and a 14 clock
+// LAT burst, then N 16-bit words - the 0x00AA/0x01AA write-enable pair, one
+// word of the chip's config register sequence (the ARM rotates it through the
+// whole sequence across frames), an optional chip specific word, and the
+// 0x0055/0x0155 commit pair - each latched with LE high for the last 5 clocks.
+// The vsync lives here, so the ARM does not set PWM_COMMAND_SYNC for this
+// chip family.
+//
+// FM6373 and ICND1065L send the 11 clock burst and five slots; SM16380SH
+// skips the burst and sends six.  Both come from r26 (see OUTPUT_REGISTERS).
+//
+// The LAT-low spacers stay at a uniform 8 clocks here.  kingdo9's captures
+// have them varying per chip and per burst (12/3/9 for ICND1065L, 6/8 for
+// SM16380SH); these are idle gaps between latched words rather than anything
+// the chips count, so the uniform value is the first thing to revisit if a
+// panel takes the registers but comes up wrong.
 OUTPUT_REGISTERS_FM6373:
     .newblock
 	LE_FOR_CLOCKS_NO_CLR 3
     LOW_FOR_CLOCKS 8
+    QBEQ    FMREGS_NOMID, r26.b2, 0
 	LE_FOR_CLOCKS_NO_CLR 11
     LOW_FOR_CLOCKS 8
+FMREGS_NOMID:
 	LE_FOR_CLOCKS_NO_CLR 14
     LOW_FOR_CLOCKS 8
 
-    // all five words latch identically (LE for the last 5 clocks), so one
-    // loop walks the five register slots; r24 = slot offset, r25.b0 = count
+    // every word latches identically (LE for the last 5 clocks), so one loop
+    // walks the register slots; r24 = slot offset, r25.b0 = count
     LDI     r24, REG1_OFF
-    LDI     r25.b0, 5
+    MOV     r25.b0, r26.b1
 FMREGS_LOOP:
     MOV     curReg, numBlocks
 FMREG_CHAIN:
@@ -1096,6 +1110,8 @@ FMREG_CHAINLAST:
     QBNE    FMREGS_LOOP, r25.b0, 0
 
     JMP SKIPREGISTERS
+
+
 
 
 

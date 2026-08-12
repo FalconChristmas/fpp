@@ -457,6 +457,7 @@
         ["LEDPanelsRowAddressType", "panelRowAddressType"],
         ["LEDPanelsType", "panelType"],
         ["LEDPanelInterleave", "panelInterleave"],
+        ["LEDPanelDataLayout", "panelDataLayout"],
         ["LEDPanelsOutputByRow", "panelOutputOrder", val => val ? 1 : 0],
         ["LEDPanelsOutputBlankRow", "panelOutputBlankRow", val => val ? 1 : 0],
         ["LEDPanelUIFrontView", "LEDPanelUIFrontView"],
@@ -661,7 +662,7 @@
     const SHARED_CAPE_CONFIG_KEYS = [
         'ledPanelsSize', 'panelWidth', 'panelHeight', 'panelScan', 'panelColorDepth',
         'panelRowAddressType', 'panelType', 'panelOutputOrder', 'panelOutputBlankRow',
-        'panelInterleave', 'wiringPinout', 'LEDPanelAddressing', 'gpioSlowdown', 'cpuPWM',
+        'panelInterleave', 'panelDataLayout', 'wiringPinout', 'LEDPanelAddressing', 'gpioSlowdown', 'cpuPWM',
         'colorOrder',
         // cape capabilities, not panel settings, but equally not per matrix -
         // a new matrix must know the real output count for the Auto Layout
@@ -924,7 +925,19 @@
             console.trace("checkInterleave called for panelMatrixID: " + panelMatrixID);
         }
         let mp = channelOutputsLookup.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
-        if ((mp.panelScan * 2) === mp.panelHeight) {
+        // Full height panels address every row on their own, so the two RGB
+        // lanes split a row rather than the panel: they need a data layout
+        // and cannot be interleaved.  Everything else is the reverse.
+        const fullHeight = (mp.panelScan === mp.panelHeight);
+        if (fullHeight) {
+            $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayout`).show();
+            $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayoutLabel`).show();
+        } else {
+            $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayout`).hide();
+            $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayoutLabel`).hide();
+            $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayout`).val(0);
+        }
+        if (fullHeight || (mp.panelScan * 2) === mp.panelHeight) {
             $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
             $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
         } else if (!(($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "ColorLight5a75") || ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix"))) {
@@ -1490,6 +1503,10 @@
         if (matrixDiv.find('.LEDPanelInterleave').length > 0) {
             var rat = matrixDiv.find('.LEDPanelInterleave').val();
             config.panelInterleave = rat;
+        }
+
+        if (matrixDiv.find('.LEDPanelDataLayout').length > 0) {
+            config.panelDataLayout = parseInt(matrixDiv.find('.LEDPanelDataLayout').val() || 0);
         }
         config.panels = [];
 
@@ -2386,6 +2403,10 @@
                 html += "<option value='64x64x32'>64x64 1/32 Scan</option>"
                 html += "<option value='128x64x16'>128x64 1/16 Scan</option>"
                 html += "<option value='128x64x32'>128x64 1/32 Scan</option>"
+                // full height panels: every row has its own scan address, so
+                // they need a Panel Data Layout other than Standard
+                html += "<option value='64x64x64'>64x64 1/64 Scan</option>"
+                html += "<option value='128x64x64'>128x64 1/64 Scan</option>"
             <? } ?>
             html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
             html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
@@ -3196,7 +3217,15 @@
             let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
             lastVendorPanelSelect = JSON.parse(request.responseText);
             Object.entries(lastVendorPanelSelect).forEach(function ([idx, details]) {
-                if (details["settings"]["all"] !== undefined || details) {
+                // Was `|| details`, which is always truthy, so every entry was
+                // listed even when nothing in it applied to this player.  List
+                // an entry only when it actually carries settings we would use.
+                var applicable = details["settings"] !== undefined &&
+                    (details["settings"]["all"] !== undefined ||
+                        vendorSettingsKeysFor(mp.subType, details["settings"]).some(function (k) {
+                            return details["settings"][k] !== undefined;
+                        }));
+                if (applicable) {
                     $('#vendorPanelSelectDialog .selectPanel').append(
                         `<option value="${details['name']}">${details['name']}</option>`
                     );
@@ -3206,6 +3235,28 @@
         };
         request.send();
     }
+    // Vendor settings blocks that this FPP is new enough to understand.
+    //
+    // Older FPP only ever looks up settings["all"] and settings[<subType>], so
+    // a block under "<subType>-vN" is invisible to it.  That is what lets the
+    // data file describe panels using options an older UI has no <option> for
+    // without breaking it: an unmatched value would leave the select with
+    // nothing selected, and a null panel size then throws in the size parsing.
+    // Returns the applicable keys in ascending version order so a later tier
+    // refines an earlier one.
+    function vendorSettingsKeysFor(subType, settings) {
+        var re = new RegExp("^" + subType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "-v(\\d+)$");
+        var tiers = [];
+        Object.keys(settings || {}).forEach(function (k) {
+            var m = re.exec(k);
+            if (m && parseInt(m[1], 10) <= FPP_MAJOR_VERSION) {
+                tiers.push([parseInt(m[1], 10), k]);
+            }
+        });
+        tiers.sort(function (a, b) { return a[0] - b[0]; });
+        return [subType].concat(tiers.map(function (t) { return t[1]; }));
+    }
+
     function applyPanelProperties(panelMatrixID, details) {
         let mp = channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID];
         var matrixDivName = 'panelMatrix' + panelMatrixID;
@@ -3228,6 +3279,10 @@
             } else if (name == "panelInterleave") {
                 mp.ledPanelsInterleave = value;
                 $(`#${matrixDivName} .LEDPanelInterleave`).val(value);
+                LEDPanelLayoutChanged();
+            } else if (name == "panelDataLayout") {
+                mp.panelDataLayout = value;
+                $(`#${matrixDivName} .LEDPanelDataLayout`).val(value);
                 LEDPanelLayoutChanged();
             } else if (name == "panelColorOrder") {
                 mp.colorOrder = value;
@@ -3278,9 +3333,11 @@
                                     if (details["settings"]["all"] != undefined) {
                                         applyPanelProperties(panelMatrixID, details["settings"]["all"]);
                                     }
-                                    if (details["settings"][mp.subType] != undefined) {
-                                        applyPanelProperties(panelMatrixID, details["settings"][mp.subType]);
-                                    }
+                                    vendorSettingsKeysFor(mp.subType, details["settings"]).forEach(function (k) {
+                                        if (details["settings"][k] != undefined) {
+                                            applyPanelProperties(panelMatrixID, details["settings"][k]);
+                                        }
+                                    });
                                 }
                             });
                             CloseModalDialog("PanelSelectDialog");
@@ -3652,8 +3709,12 @@
                                     <?
                                     if ($panelCapesDriver == "BBShiftPanel") {
                                         echo "<option value='3'>FM6363C</option>";
-                                        echo "<option value='4'>FM6353 / ICN2153</option>";
+                                        echo "<option value='4'>FM6353</option>";
                                         echo "<option value='5'>FM6373 / DP32019B</option>";
+                                        echo "<option value='6'>DP3364S</option>";
+                                        echo "<option value='7'>ICND1065L</option>";
+                                        echo "<option value='8'>SM16380SH</option>";
+                                        echo "<option value='9'>ICND2153</option>";
                                     }
                                     ?>
                                 </select>
@@ -3682,6 +3743,17 @@
                         <div class="printSettingFieldCol col-md-4 col-lg-4">
                             <? printLEDPanelInterleaveSelect(); ?>
                         </div>
+                        <? if ($panelCapesDriver == "BBShiftPanel") { ?>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                    class='LEDPanelDataLayoutLabel'><b>Panel Data Layout:</b></span></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4">
+                                <select class='form-select LEDPanelDataLayout' onchange="LEDPanelLayoutChanged();">
+                                    <option value='0' selected>Standard (Top/Bottom)</option>
+                                    <option value='1'>Full Height - Left on RGB2</option>
+                                    <option value='2'>Full Height - Left on RGB1</option>
+                                </select>
+                            </div>
+                        <? } ?>
                     </div>
 
                     <div class="row">

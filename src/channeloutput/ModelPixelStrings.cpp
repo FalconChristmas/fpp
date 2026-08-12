@@ -97,13 +97,13 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
         if (!newString->Init(s))
             return 0;
 
-        if ((newString->m_outputChannels / 3) <= model->getWidth()) {
+        if ((newString->m_outputBytes / 3) <= model->getWidth()) {
             strings.push_back(newString);
         } else {
             delete newString;
 
             LogErr(VB_CHANNELOUT, "ERROR, string length of %d is too long for model width of %d\n",
-                   (newString->m_outputChannels / 3), model->getWidth());
+                   (newString->m_outputBytes / 3), model->getWidth());
         }
     }
 
@@ -131,7 +131,7 @@ void ModelPixelStringsOutput::GetRequiredChannelRanges(const std::function<void(
     for (int s = 0; s < strings.size(); s++) {
         ps = strings[s];
         int inCh = 0;
-        for (int p = 0; p < ps->m_outputChannels; p++) {
+        for (int p = 0; p < ps->m_outputBytes; p++) {
             int ch = ps->m_outputMap[inCh++];
             if (ch < (FPPD_MAX_CHANNELS - 3)) {
                 min = std::min(min, ch);
@@ -162,7 +162,7 @@ void ModelPixelStringsOutput::PrepData(unsigned char* channelData) {
         d = buffer + (s * stride);
         inCh = 0;
 
-        for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
+        for (int p = 0, pix = 0; p < ps->m_outputBytes; pix++) {
             *(d++) = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
             *(d++) = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
             *(d++) = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];

@@ -376,6 +376,8 @@
     <script>
         // ─── State ─────────────────────────────────────────────────────
         var inputGroups = { inputGroups: [] };
+        // Set when the config has been modified but not yet saved
+        var hasUnsavedChanges = false;
         var availableSources = [];
         var availableOutputGroups = [];
         var availableCards = [];
@@ -409,6 +411,7 @@
         }
 
         function LoadAll() {
+            hasUnsavedChanges = false;
             // Load all data in parallel
             var p1 = $.get('/api/pipewire/audio/input-groups');
             var p2 = $.get('/api/pipewire/audio/sources');
@@ -491,13 +494,31 @@
             });
         }
 
+        // Clear the unsaved-changes state once the config has been written to disk.
+        // The banner is removed in place rather than re-rendering the cards.
+        function ClearUnsavedChanges() {
+            hasUnsavedChanges = false;
+            $('#unsavedChangesBanner').remove();
+        }
+
+        // Banner shown while added/removed groups are not yet written to disk
+        function UnsavedChangesBanner() {
+            if (!hasUnsavedChanges) return '';
+            return '<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" id="unsavedChangesBanner">' +
+                '<i class="fas fa-exclamation-triangle"></i>' +
+                '<div>Input groups have been added or removed but <b>not saved yet</b>. ' +
+                'Click <b>Save &amp; Apply</b> to make the change permanent.</div>' +
+                '</div>';
+        }
+
         // ─── Render ────────────────────────────────────────────────────
         function RenderAll() {
             var container = $('#inputGroupsContainer');
             container.empty();
+            container.append(UnsavedChangesBanner());
 
             if (!inputGroups.inputGroups || inputGroups.inputGroups.length === 0) {
-                container.html(
+                container.append(
                     '<div class="no-groups-msg" id="noGroupsMsg">' +
                     '<i class="fas fa-sliders-h"></i>' +
                     '<h4>No Input Groups Configured</h4>' +
@@ -508,7 +529,14 @@
                     '<i class="fas fa-plus"></i> Create First Input Group</button>' +
                     '</div>'
                 );
-                $('#bottomToolbar').hide();
+                // Keep the toolbar (and its Save buttons) available when the last group
+                // has just been removed, otherwise the removal can never be saved and
+                // the group reappears on reload.
+                if (hasUnsavedChanges) {
+                    $('#bottomToolbar').show();
+                } else {
+                    $('#bottomToolbar').hide();
+                }
                 return;
             }
 
@@ -780,13 +808,16 @@
                 outputs: []
             });
 
+            hasUnsavedChanges = true;
             RenderAll();
         }
 
         function RemoveGroup(idx) {
             if (!confirm('Remove this input group?')) return;
             inputGroups.inputGroups.splice(idx, 1);
+            hasUnsavedChanges = true;
             RenderAll();
+            $.jGrowl('Input group removed — click "Save & Apply" to make the change permanent.', { themeState: 'warning' });
         }
 
         function UpdateGroupField(idx, field, value) {
@@ -1035,6 +1066,7 @@
                     if (result.data) {
                         inputGroups = result.data;
                     }
+                    ClearUnsavedChanges();
                     $.jGrowl('Input groups saved.', { theme: 'success' });
                 },
                 error: function (xhr) {
@@ -1056,6 +1088,7 @@
                     if (saveResult.data) {
                         inputGroups = saveResult.data;
                     }
+                    ClearUnsavedChanges();
                     $.jGrowl('Saving input groups...', { theme: 'info' });
 
                     // Now apply

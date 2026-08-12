@@ -72,6 +72,7 @@ var FPP_UPDATE_STATE = {
 	remoteCommit: '',
 	currentBranch: '',
 	localCommit: '',
+	versionUnknown: false,
 	isEndOfLife: false,
 	latestMajorVersion: 0,
 	checked: false
@@ -1524,6 +1525,13 @@ function StreamURL (
 		contentType: postContentType,
 		data: postData,
 		processData: postProcessData,
+		// Every terminal-output popup in FPP streams through here. Without this,
+		// a re-run whose URL happens to match a prior run byte-for-byte (same
+		// remote IP, same firmware filename, same version, or a no-param action
+		// like kiosk install/disable) can be served straight from the browser's
+		// HTTP cache -- the popup opens already "full" of the previous run's
+		// output instead of streaming the current one.
+		cache: false,
 		xhrFields: {
 			onprogress: function (e) {
 				var this_response,
@@ -5553,39 +5561,23 @@ function updateWarnings (jsonStatus) {
 					}
 				}
 
-				//determine click through behavior
-				var clickFunction = null;
-				if (currentWarnings[i]['HelpPage'] !== (null || '')) {
-					switch (currentWarnings[i]['HelpPageType']) {
-						case 'php':
-							clickFunction =
-								'doWarningPHPModal(' + warningID + ",'" + warningMessage + "')";
-							break;
-						case 'md':
-							clickFunction =
-								'doWarningMDModal(' + warningID + ",'" + warningMessage + "')";
-							break;
-						default:
-							clickFunction =
-								'doWarningBasicModal(' +
-								warningID +
-								",'" +
-								warningMessage +
-								"','" +
-								currentWarnings[i]['HelpTxt'] +
-								"')";
-					}
-				}
-
 				//create output link string for each warning with a valid definition
 				if (
 					currentWarnings[i]['HelpPageType'] !== (null || '') ||
 					currentWarnings[i]['HelpTxt'] !== (null || '')
 				) {
+					// Click-through behavior is wired up after the HTML is inserted
+					// into the DOM (see the addEventListener loop below), not via an
+					// inline onclick= built from string concatenation - the warning
+					// message/help text are free-form and may contain quote
+					// characters (a warning naming a specific command in quotes, for
+					// instance), which broke the attribute/JS-string quoting when
+					// embedded directly. data-warning-idx is always just a plain
+					// integer, so it needs no escaping.
 					txt +=
-						'<li><span class="warning-link"><a href="javascript:void(0)" onclick="' +
-						clickFunction +
-						';"><i class="fas fa-' +
+						'<li><span class="warning-link"><a href="javascript:void(0)" data-warning-idx="' +
+						i +
+						'"><i class="fas fa-' +
 						currentWarnings[i]['icon'] +
 						'"></i> ' +
 						currentWarnings[i]['message'] +
@@ -5609,6 +5601,29 @@ function updateWarnings (jsonStatus) {
 		txt += '</ul>';
 
 		document.getElementById('warningsDiv').innerHTML = txt;
+
+		// Wire up click-through behavior here instead of via an inline onclick=
+		// built from string concatenation (see the data-warning-idx comment
+		// above) - message/HelpTxt are passed as real JS values through this
+		// closure, never serialized into markup, so there's nothing to escape.
+		document
+			.querySelectorAll('#warningsDiv a[data-warning-idx]')
+			.forEach(function (a) {
+				var w = currentWarnings[parseInt(a.getAttribute('data-warning-idx'), 10)];
+				a.addEventListener('click', function () {
+					switch (w['HelpPageType']) {
+						case 'php':
+							doWarningPHPModal(w['id'], w['message']);
+							break;
+						case 'md':
+							doWarningMDModal(w['id'], w['message']);
+							break;
+						default:
+							doWarningBasicModal(w['id'], w['message'], w['HelpTxt']);
+					}
+				});
+			});
+
 		$('#warningsRow').show();
 	} else {
 		$('#warningsRow').hide();
@@ -12911,7 +12926,17 @@ function startFppdWS () {
 		fppdWSReconnectTimer = null;
 	}
 	var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-	var url = proto + '//' + window.location.host + '/fppdws';
+	// Keep whatever path prefix the current page is under, rather than hardcoding
+	// root - needed so this still reaches the right fppd when viewed through
+	// FPP's built-in /proxy/<ip>/ relay (etc/apache2.site), which serves another
+	// FPP's pages under a path prefix instead of at the root. A plain '/fppdws'
+	// here connects to THIS Apache's own fppd instead of the one being proxied
+	// to; mod_proxy_html can't fix this the way it rewrites static markup,
+	// since this URL is only ever built at runtime in the browser. The /proxy/
+	// Directory block's own WebSocket-upgrade rule already relays a prefixed
+	// path (e.g. /proxy/<ip>/fppdws) correctly - it just never receives one.
+	var pathPrefix = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+	var url = proto + '//' + window.location.host + pathPrefix + 'fppdws';
 	try {
 		fppdWS = new WebSocket(url);
 	} catch (e) {
@@ -13617,6 +13642,7 @@ function checkForFppUpdate () {
 			FPP_UPDATE_STATE.remoteCommit = data.remoteCommit;
 			FPP_UPDATE_STATE.currentBranch = data.currentBranch;
 			FPP_UPDATE_STATE.localCommit = data.localCommit;
+			FPP_UPDATE_STATE.versionUnknown = data.versionUnknown || false;
 			FPP_UPDATE_STATE.isEndOfLife = data.isEndOfLife || false;
 			FPP_UPDATE_STATE.latestMajorVersion = data.latestMajorVersion || 0;
 			FPP_UPDATE_STATE.checked = true;
@@ -13629,6 +13655,18 @@ function checkForFppUpdate () {
 		})
 		.fail(function () {
 			console.log('Failed to check for updates via API');
+
+			// A cleaned/never-built tree reports an "Unknown" branch, which matches
+			// no remote branch and makes every release branch look like an
+			// available upgrade. There is nothing to compare, so don't guess.
+			if (
+				typeof FPP_BRANCH === 'undefined' ||
+				!FPP_BRANCH ||
+				FPP_BRANCH === 'Unknown'
+			) {
+				FPP_UPDATE_STATE.versionUnknown = true;
+				return;
+			}
 
 			// Fallback to legacy fppstats check for navbar only
 			const epochTimeMilliseconds = Date.now();
