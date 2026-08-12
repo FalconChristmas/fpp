@@ -26,7 +26,7 @@ fsequtils: $(OBJECTS_fsequtils) $(PCH_FILE)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -o $@
 
 fseq/%.o: fseq/%.cpp fseq/%.h fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
+	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 ifeq '$(ARCH)' 'OSX'
 OBJECTS_ALL+=libjsoncpp.25.dylib fsequtils.zip

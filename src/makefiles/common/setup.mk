@@ -241,3 +241,27 @@ endif
 -include $(wildcard *.d)
 -include $(wildcard */*.d)
 endif
+
+# The core build needs the same header dependency generation, for the same
+# reason: its pattern rules list only a .cpp's *own* same-basename header
+# ("%.o: %.cpp %.h"), so a change to any other header does not rebuild the
+# objects that include it.  That silently links stale objects into libfpp.so
+# while reporting success - a cross-file header edit could be built, tested
+# and shipped without ever taking effect.
+#
+# Applied through $(DEPFLAGS) on the individual compile recipes rather than
+# CFLAGS, because the core also passes CFLAGS to the link lines that produce
+# the libfpp-co-*.so plugins, where -MMD has nothing to generate from and
+# would only write stray .d files named after the library.
+#
+# Left empty when the branch above already added the flags to CFLAGS, so an
+# out-of-tree core build - which takes that branch, since it sets SRCDIR to
+# ../src and so trips the CURDIR != SRCDIR test - does not get them twice.
+#
+# Paired with the -include of $(DEPFILES) at the end of Makefile; the flags
+# alone only write the .d files, they do not make anything read them.
+ifeq ($(filter -MMD,$(CFLAGS)),)
+DEPFLAGS := -MMD -MP
+else
+DEPFLAGS :=
+endif

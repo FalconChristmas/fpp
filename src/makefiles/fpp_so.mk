@@ -175,7 +175,7 @@ endif
 
 
 util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk $(PCH_FILE)
-	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
+	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 TARGETS += libfpp.$(SHLIB_EXT)
 OBJECTS_ALL+=$(OBJECTS_fpp_so)
