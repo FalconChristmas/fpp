@@ -1139,18 +1139,19 @@ function ConfirmPasswordEnable () {
 	var password = $('#password').val();
 	var value = $('#passwordEnable').val();
 
-	if (
-		value == '1' &&
-		(password == '' ||
-			confirm(
-				'Click "OK" to reset the existing password to "falcon" before enabling, click "Cancel" to reuse the existing saved password.  Warning: If you do not know the existing password, enabling without resetting could lock you out of the system.  The default password is "falcon" if you have not previously set a UI password.'
-			))
-	) {
-		$('#password').val('falcon');
+	// Selecting "Enter a Password" only reveals/seeds the password fields, it must
+	// never overwrite an already-saved password with the 'falcon' default: doing
+	// that installed a password the user had not chosen and left them having to
+	// authenticate with 'falcon' before their own password would be accepted
+	// (issue #2829). Seed the fields only when no password has been set yet.
+	if (value == '1') {
+		if (password == '') {
+			password = 'falcon';
+			$('#password').val(password);
+		}
+		$('#passwordVerify').val(password);
 		window['passwordChanged']();
-		$('#passwordVerify').val('falcon');
 		window['passwordVerifyChanged']();
-		password = 'falcon';
 	}
 
 	window['passwordEnableChanged']();
