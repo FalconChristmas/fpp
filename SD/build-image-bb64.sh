@@ -548,6 +548,22 @@ if [ -n "\$POST_PURGE_INSTALLED" ]; then
     apt-get remove -y --autoremove --purge \$POST_PURGE_INSTALLED
 fi
 
+# Kernel headers (~70MB of /usr/src). The rcn-ee base image installs
+# bbb.io-headers-<series>, which PreDepends on the matching
+# linux-headers-<kver>; nothing on a headless FPP builds against them (the
+# Pi image strips its headers for the same reason), and they are dead weight
+# in every .fppos download. Matched by prefix rather than by hardcoded kernel
+# version so this doesn't rot as the base image's kernel series moves.
+# Deliberately NOT --autoremove: the kernel image itself is an automatic
+# install held in place by bbb.io-kernel-<series>, and there is no reason to
+# let a header purge start pulling on that thread.
+HDR_INSTALLED=\$(dpkg-query -W -f='\${Package} \${Status}\n' 'bbb.io-headers-*' 'linux-headers-*' 2>/dev/null | awk '\$4=="installed" {print \$1}')
+if [ -n "\$HDR_INSTALLED" ]; then
+    echo "FPP - Removing kernel header packages:\$HDR_INSTALLED"
+    apt-get remove -y --purge \$HDR_INSTALLED 2>/dev/null || true
+fi
+rm -rf /usr/src/linux-headers-*
+
 # Finalization (mirrors SD/README.BB64 post-install cleanup)
 apt-get clean
 journalctl --flush --rotate --vacuum-time=1s || true
