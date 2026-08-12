@@ -696,35 +696,28 @@ function DetectAlsaCardMaxChannels($cardNum, $aplayLine, $isUsbCard)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Verify a candidate PCM format can actually carry the target sample rate.
+// Open the device in one PCM format and report the sample rate the driver
+// actually settled on -- 0 if the format is unusable or the probe could not run.
 //
-// Some I2S cards run a fixed bit clock (e.g. TI McASP driving a PCM5102A on a
-// BeagleBone cape): widening the sample size shrinks the achievable rate, so
-// S32_LE is reachable only at 22050 while S16_LE reaches 44100.  The bit clock
-// is the constant, not the rate -- 32 bits/frame x 44100 == 64 bits/frame x 22050.
+// This has to be an open.  `aplay --dump-hw-params` reports the unrefined
+// capability space and ignores both -f and -r, so a fixed-bit-clock I2S card
+// (TI McASP driving a PCM5102A on a BeagleBone cape) lists "FORMAT: S16_LE
+// S32_LE" and "RATE: [11025 44100]" while in fact only S16_LE reaches 44100:
+// the bit clock is the constant, not the rate, so 32 bits/frame x 44100 ==
+// 64 bits/frame x 22050.  Nothing in the advertised space shows that coupling.
 //
-// `aplay --dump-hw-params` cannot see this.  It reports the unrefined capability
-// space and ignores both -f and -r, so it lists "FORMAT: S16_LE S32_LE" and
-// "RATE: [22050 44100]" with no hint that the S32_LE/44100 pair is invalid.  The
-// only way to observe the coupling is to actually open the device.
+// Feeding 8KB of zeros opens the device, negotiates, and exits in ~250ms.  The
+// payload is silence, so nothing audible is emitted.
 //
-// Getting this wrong is expensive: PipeWire asks for the impossible pair, fails
-// adapter creation ("no format found (def:267)"), aborts context creation and
-// exits, and systemd restarts it every few seconds forever -- stalling boot and
-// burning CPU indefinitely.
-//
-// Feeding 8KB of zeros opens the device, reports the negotiated rate and exits
-// in ~250ms.  The payload is silence, so nothing audible is emitted.
-//
-// Judge the attempt by aplay's exit status, not by its output.  aplay prints the
-// "Playing raw data ..." banner from header() *before* set_params() negotiates
-// anything, so the banner appears even when the card then rejects the request
-// with "Sample format non available" -- matching on it reports success for a
-// format the device cannot produce.  The two failures look different and both
-// have to be caught: an unusable format makes aplay exit non-zero, while a rate
-// the driver quietly refines to something else only warns and still exits 0.
-// Keep in sync with formatHoldsRate() in src/boot/FPPINIT_Audio.cpp.
-function PipeWireFormatHoldsRate($alsaPath, $pwFmt, $rate, $channels)
+// Two different failures have to be told apart, and neither can be read off the
+// banner: aplay prints "Playing raw data ..." from header() *before*
+// set_params() negotiates anything, so it appears even for a format the card
+// then rejects.  An unusable format exits non-zero ("Sample format non
+// available"); a rate the driver refines to something else only warns
+// ("rate is not accurate (requested = X, got = Y)") and still exits 0.  So:
+// judge usability by exit status, and take the achieved rate from the warning.
+// Keep in sync with achievedRateForFormat() in src/boot/FPPINIT_Audio.cpp.
+function PipeWireProbeFormatRate($alsaPath, $pwFmt, $rate, $channels)
 {
     $alsaFmt = array(
         'S32LE' => 'S32_LE',
@@ -733,7 +726,7 @@ function PipeWireFormatHoldsRate($alsaPath, $pwFmt, $rate, $channels)
         'S16LE' => 'S16_LE',
     );
     if (!isset($alsaFmt[$pwFmt]))
-        return false;
+        return 0;
     $rate = intval($rate) > 0 ? intval($rate) : 44100;
     $channels = intval($channels) > 0 ? intval($channels) : 2;
     $out = array();
@@ -741,15 +734,86 @@ function PipeWireFormatHoldsRate($alsaPath, $pwFmt, $rate, $channels)
     exec('head -c 8192 /dev/zero | timeout 2 aplay -D ' . escapeshellarg($alsaPath)
         . ' -t raw -f ' . $alsaFmt[$pwFmt] . ' -r ' . $rate . ' -c ' . $channels . ' - 2>&1',
         $out, $rc);
-    // Unverifiable (device busy, probe timed out, aplay missing): decline to
-    // widen.  S16LE at the target rate is universally supported, so a needlessly
-    // narrow format costs only bit depth, while a wrongly wide one costs a
-    // permanent PipeWire crash loop.  Bias to the cheap failure.
+    // Unverifiable (device busy, probe timed out, aplay missing).
     if ($rc !== 0)
-        return false;
-    // aplay exits 0 after refining an unreachable rate to a reachable one, warning
-    // "rate is not accurate" on the way past.  That pair is still a rejection.
-    return stripos(implode("\n", $out), 'not accurate') === false;
+        return 0;
+    if (preg_match('/not accurate \(requested = \d+Hz, got = (\d+)Hz\)/i', implode("\n", $out), $m))
+        return intval($m[1]);
+    return $rate; // negotiated exactly what was asked for
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Pick the widest PCM format in $fmtLine that costs no sample rate relative to
+// the universally-safe S16LE fallback.
+//
+// The question is NOT "does this format hold the rate we asked for".  A card can
+// be unable to deliver the requested rate in ANY format -- an AM62x PCM5102A cape
+// clocks no lower than 88200, so a 44100 request is refined upward for S16_LE and
+// S32_LE alike.  Treating any refinement as a rejection there throws away S32 for
+// a card that pays nothing to provide it.  Meanwhile the AM335x cape refines
+// S32_LE from 44100 down to 22050 while S16_LE holds 44100 exactly, and taking
+// S32 there is what makes PipeWire fail adapter creation, abort context creation,
+// exit, and get restarted by systemd every few seconds forever (issue #2811).
+//
+// Both are the same rule once the comparison is made against what the fallback
+// actually achieves rather than against what we asked for: widen only when it is
+// free.  Keep in sync with bestFormatForRate() in src/boot/FPPINIT_Audio.cpp.
+function PipeWireBestFormatForRate($fmtLine, $alsaPath, $rate, $channels)
+{
+    $wider = array('S32_LE' => 'S32LE', 'S24_LE' => 'S24_32LE', 'S24_3LE' => 'S24LE');
+    $anyWider = false;
+    foreach ($wider as $alsaName => $pwName) {
+        if (strpos($fmtLine, $alsaName) !== false)
+            $anyWider = true;
+    }
+    if (!$anyWider)
+        return 'S16LE';
+    // The rate to beat. If this cannot be established (device busy, probe timed
+    // out) there is nothing to compare against, so decline to widen: a needlessly
+    // narrow format costs only bit depth, a wrongly wide one costs all audio.
+    $baselineRate = PipeWireProbeFormatRate($alsaPath, 'S16LE', $rate, $channels);
+    if ($baselineRate <= 0)
+        return 'S16LE';
+    foreach ($wider as $alsaName => $pwName) {
+        if (strpos($fmtLine, $alsaName) === false)
+            continue;
+        if (PipeWireProbeFormatRate($alsaPath, $pwName, $rate, $channels) >= $baselineRate)
+            return $pwName;
+    }
+    return 'S16LE';
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// ALSA HW params for a card, as an aplay-style block.
+//
+// A device PipeWire already holds cannot be opened, so aplay returns nothing at
+// all.  It is still readable through /proc, which reports what the hardware is
+// running *right now* -- observed fact, and a better answer than the probe could
+// give even if it could run.  Returns '' when the device is neither openable nor
+// open (genuinely dead, e.g. HDMI with nothing connected).  $live is set true
+// when the result came from /proc, which tells the caller the format is already
+// established and must not be re-probed.
+// Keep in sync with the same fallback in setupAudio(), src/boot/FPPINIT_Audio.cpp.
+function PipeWireCardHwParams($cidSafe, $cardNum, &$live)
+{
+    $live = false;
+    $out = shell_exec('timeout 2 aplay -D hw:' . escapeshellarg($cidSafe)
+        . ' --dump-hw-params /dev/zero 2>&1 | head -40');
+    if ($out !== null && strpos($out, 'HW Params') !== false)
+        return $out;
+    if ($cardNum < 0)
+        return '';
+    $procHw = @file_get_contents('/proc/asound/card' . intval($cardNum) . '/pcm0p/sub0/hw_params');
+    if ($procHw === false || $procHw === '' || strpos($procHw, 'closed') !== false)
+        return '';
+    $fmt = 'S16_LE';
+    $ch = '2';
+    if (preg_match('/format:\s*(\S+)/', $procHw, $m))
+        $fmt = $m[1];
+    if (preg_match('/channels:\s*(\d+)/', $procHw, $m))
+        $ch = $m[1];
+    $live = true;
+    return "HW Params of device (busy — synthesised from /proc)\nFORMAT:  $fmt\nCHANNELS: $ch\n";
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -4274,23 +4338,12 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                             && preg_match('/^\s*' . intval($cardNum) . '\s+\[[^\]]*\]:\s*(.*)$/m', $procCards, $pcM)) {
                             $unresolvedMaxCh = min(8, max($unresolvedMaxCh, PipeWireCardChannelQuirk($pcM[1])));
                         }
-                        // Detect best audio format: S32 > S24 > S16.  A format
-                        // only counts if the card can hold the target rate in it
-                        // -- fixed-bit-clock I2S cards list S32_LE but reach it
-                        // only at half the rate.  Try widest first and fall back
-                        // through the narrower ones, ending at the S16LE default.
+                        // Detect best audio format: widest that costs no rate
+                        // against the S16LE fallback (see PipeWireBestFormatForRate).
                         $unresolvedFmt = 'S16LE';
                         if (preg_match('/FORMAT[^:]*:\s+(.+)/i', $testOutput, $fmtM)) {
-                            $fmtLine = $fmtM[1];
                             $fmtProbePath = ($needsSysdefault ? 'sysdefault:' : 'hw:') . $cardId;
-                            foreach (array('S32_LE' => 'S32LE', 'S24_LE' => 'S24_32LE', 'S24_3LE' => 'S24LE') as $alsaName => $pwName) {
-                                if (strpos($fmtLine, $alsaName) === false)
-                                    continue;
-                                if (PipeWireFormatHoldsRate($fmtProbePath, $pwName, 44100, $unresolvedMaxCh)) {
-                                    $unresolvedFmt = $pwName;
-                                    break;
-                                }
-                            }
+                            $unresolvedFmt = PipeWireBestFormatForRate($fmtM[1], $fmtProbePath, 44100, $unresolvedMaxCh);
                         }
                         $customAlsaAdaptersForUnresolved[$cardId] = array(
                             'nodeName' => $adapterName,
@@ -4374,7 +4427,10 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                 $adapterNeedsSysdefault = false;
                 $cidSafe = preg_match('/^[a-zA-Z0-9_]+$/', $cid) ? $cid : strval(ResolveCardIdToNumber($cid));
                 if (!empty($cidSafe)) {
-                    $fmtOut = shell_exec("timeout 2 aplay -D hw:" . escapeshellarg($cidSafe) . " --dump-hw-params /dev/zero 2>&1 | head -40");
+                    // A card PipeWire already holds cannot be opened, so this
+                    // falls back to /proc, and $fmtFromLiveDevice says so.
+                    $fmtFromLiveDevice = false;
+                    $fmtOut = PipeWireCardHwParams($cidSafe, ResolveCardIdToNumber($cid), $fmtFromLiveDevice);
                     // If hw: only exposes IEC958 (e.g. Pi Zero 2 W HDMI with
                     // KMS), fall back to sysdefault: for PCM format conversion.
                     // Using sysdefault: instead of plughw: avoids PipeWire's SPA
@@ -4388,19 +4444,20 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                             $adapterNeedsSysdefault = true;
                         }
                     }
-                    if ($fmtOut && preg_match('/FORMAT[^:]*:\s+(.+)/i', $fmtOut, $fmtM)) {
-                        $fmtLine = $fmtM[1];
-                        // Only widen past S16LE when the card can actually hold
-                        // the target rate in that format (see the helper).
-                        $fmtProbePath = ($adapterNeedsSysdefault ? 'sysdefault:' : 'hw:') . $cidSafe;
-                        foreach (array('S32_LE' => 'S32LE', 'S24_LE' => 'S24_32LE', 'S24_3LE' => 'S24LE') as $alsaName => $pwName) {
-                            if (strpos($fmtLine, $alsaName) === false)
-                                continue;
-                            if (PipeWireFormatHoldsRate($fmtProbePath, $pwName, $memberRate, $memberCh)) {
-                                $adapterFmt = $pwName;
-                                break;
-                            }
+                    if ($fmtOut && $fmtFromLiveDevice) {
+                        // The single format in /proc is not an advertisement, it
+                        // is what the hardware is running right now.  Re-probing
+                        // it would only reopen a device we already know is busy,
+                        // get EBUSY, and (by the bias-to-safe rule) demote a
+                        // working S32 card to S16LE.  Take the live format.
+                        if (preg_match('/FORMAT[^:]*:\s+(\S+)/i', $fmtOut, $fmtM)) {
+                            $pwNames = array('S32_LE' => 'S32LE', 'S24_LE' => 'S24_32LE',
+                                'S24_3LE' => 'S24LE', 'S16_LE' => 'S16LE');
+                            $adapterFmt = isset($pwNames[$fmtM[1]]) ? $pwNames[$fmtM[1]] : 'S16LE';
                         }
+                    } elseif ($fmtOut && preg_match('/FORMAT[^:]*:\s+(.+)/i', $fmtOut, $fmtM)) {
+                        $fmtProbePath = ($adapterNeedsSysdefault ? 'sysdefault:' : 'hw:') . $cidSafe;
+                        $adapterFmt = PipeWireBestFormatForRate($fmtM[1], $fmtProbePath, $memberRate, $memberCh);
                     }
                 }
                 $customAlsaAdapters[$cid] = array(
