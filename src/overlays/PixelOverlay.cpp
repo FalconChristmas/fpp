@@ -330,6 +330,20 @@ void PixelOverlayManager::modelStateChanged(PixelOverlayModel* m, const PixelOve
     }
 }
 
+// Runs on the channel output thread, once per frame.
+//
+// LOCK ORDER: nothing reached from here may take modelsLock. This function
+// holds activeModelsLock for the whole pass, while every HTTP handler takes
+// modelsLock first and then activeModelsLock (via setState() ->
+// modelStateChanged()). Acquiring them in this order deadlocks the two threads
+// against each other, and the symptom is nasty: fppd keeps running and
+// /api/fppd/status keeps answering 200, but every /api/overlays and /api/models
+// request hangs forever and overlays stop updating, so a health check will not
+// notice. PixelOverlayModelSub::doOverlay() used to resolve its parent through
+// getModel() from here; see the note on PixelOverlayModelSub::foundParent().
+//
+// removeAutoOverlayModel() and getActiveOverlayEffects() both drop modelsLock
+// (or snapshot) before touching activeModelsLock for the same reason.
 void PixelOverlayManager::doOverlays(uint8_t* channels) {
     if (numActive == 0) {
         return;
