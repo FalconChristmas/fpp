@@ -3833,6 +3833,100 @@ function CheckIfDeviceIsUsable($deviceName)
     return "";
 }
 
+/**
+ * Enumerate the whole disks that a copy of FPP can be flashed onto.
+ *
+ * Every platform is treated the same way: any real disk that is neither the one we
+ * booted from nor the one holding the media directory is a candidate. That is what
+ * lets a Pi with both a USB stick and an NVMe offer both -- the old hardcoded
+ * if/else chain showed USB *or* NVMe and could never reach the NVMe when a USB
+ * device happened to be plugged in.
+ *
+ * @return array of ['name', 'kind', 'size', 'model', 'desc']
+ */
+function GetFlashTargetDevices()
+{
+    $devices = array();
+
+    // The disk we booted from is never a candidate.
+    $bootedDisk = '';
+    $rootSource = trim(shell_exec("findmnt -no SOURCE / 2>/dev/null"));
+    if ($rootSource != '') {
+        $bootedDisk = trim(shell_exec("lsblk -no PKNAME " . escapeshellarg($rootSource) . " 2>/dev/null | head -1"));
+        if ($bootedDisk == '') {
+            // root directly on a whole disk, or lsblk could not resolve it
+            $bootedDisk = preg_replace('/p?[0-9]*$/', '', basename($rootSource));
+        }
+    }
+
+    // Neither is the disk currently holding the media directory.
+    $storageDisk = '';
+    $mediaDir = GetSettingValue('mediaDirectory');
+    if ($mediaDir != '') {
+        $storageSource = trim(shell_exec("findmnt -no SOURCE -T " . escapeshellarg($mediaDir) . " 2>/dev/null | head -1"));
+        if ($storageSource != '' && strpos($storageSource, '/dev/') === 0) {
+            $storageDisk = trim(shell_exec("lsblk -no PKNAME " . escapeshellarg($storageSource) . " 2>/dev/null | head -1"));
+        }
+    }
+
+    $names = array();
+    exec("lsblk -dno NAME 2>/dev/null", $names);
+
+    foreach ($names as $name) {
+        $name = trim($name);
+        if ($name == '') {
+            continue;
+        }
+        // Virtual devices, and the eMMC boot/rpmb areas a BeagleBone exposes as disks.
+        if (preg_match('/^(loop|ram|zram|dm-|md|sr|fd)/', $name)) {
+            continue;
+        }
+        if (preg_match('/(boot[0-9]+|rpmb)$/', $name)) {
+            continue;
+        }
+        if ($name === $bootedDisk || ($storageDisk != '' && $name === $storageDisk)) {
+            continue;
+        }
+
+        $dev = escapeshellarg("/dev/" . $name);
+        $size = trim(shell_exec("lsblk -dno SIZE $dev 2>/dev/null"));
+        $tran = trim(shell_exec("lsblk -dno TRAN $dev 2>/dev/null"));
+        $model = trim(shell_exec("lsblk -dno MODEL $dev 2>/dev/null"));
+        $removable = trim(@file_get_contents("/sys/block/$name/removable"));
+
+        if (preg_match('/^nvme/', $name)) {
+            $kind = 'NVMe';
+        } else if (preg_match('/^mmcblk/', $name)) {
+            // An eMMC is soldered down and reports non-removable; an SD card does not.
+            $kind = ($removable === '1') ? 'SD Card' : 'eMMC';
+        } else if ($tran == 'usb') {
+            $kind = 'USB';
+        } else if ($tran == 'sata' || $tran == 'ata') {
+            $kind = 'SATA';
+        } else {
+            $kind = 'Disk';
+        }
+
+        $desc = $kind;
+        if ($model != '') {
+            $desc .= ' - ' . $model;
+        }
+        if ($size != '') {
+            $desc .= ' (' . $size . ')';
+        }
+
+        $devices[] = array(
+            'name' => $name,
+            'kind' => $kind,
+            'size' => $size,
+            'model' => $model,
+            'desc' => $desc,
+        );
+    }
+
+    return $devices;
+}
+
 //additional function
 if (!function_exists('json_validate')) {
     /**

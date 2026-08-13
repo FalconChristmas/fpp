@@ -78,34 +78,19 @@ require_once('common.php');
         }
     }
 
-    <?php
-    if ($settings['BeaglePlatform']) {
-        ?>
-        function flashEMMC() {
-            DisplayConfirmationDialog("flashEMMC", "Copy FPP to eMMC", $("#dialog-confirm-emmc"), function () {
-                DisplayProgressDialog("flashEMMCProgress", "Copy FPP to eMMC");
-                StreamURL("flashbbbemmc.php", 'flashEMMCProgressText', 'ProgressDialogDone', 'ProgressDialogDone');
-            });
-        }
-        function flashEMMCBtrfs() {
-            DisplayConfirmationDialog("flashEMMC", "Copy FPP to eMMC", $("#dialog-confirm-emmc"), function () {
-                DisplayProgressDialog("flashEMMCProgress", "Copy FPP to eMMC");
-                StreamURL("flashbbbemmc-btrfs.php", 'flashEMMCProgressText', 'ProgressDialogDone', 'ProgressDialogDone');
-            });
-        }
-        <?php
-    }
-    ?>
-    function flashUSB(device) {
-        DisplayConfirmationDialog("flashUSB", "Create new FPP on NVMe/USB/SD", $("#dialog-confirm-usb"), function () {
-            DisplayProgressDialog("flashUSBProgress", "Create new FPP on NVMe/USB/SD");
-            StreamURL("flash-pi-usb.php?cone=false&dev=" + device, 'flashUSBProgressText', 'ProgressDialogDone', 'ProgressDialogDone');
-        });
-    }
-    function cloneUSB(device) {
-        DisplayConfirmationDialog("flashUSB", "Copy existing FPP to NVMe/USB/SD", $("#dialog-confirm-usb"), function () {
-            DisplayProgressDialog("flashUSBProgress", "Copy existing FPP to NVMe/USB/SD");
-            StreamURL("flash-pi-usb.php?clone=true&dev=" + device, 'flashUSBProgressText', 'ProgressDialogDone', 'ProgressDialogDone');
+    // One entry point for every platform and every target.  flash_storage.sh works
+    // out the partition layout and boot configuration for the hardware it is on.
+    function flashStorage(device, mode, label, btrfs) {
+        var title = (mode == 'copy' ? 'Copy FPP to ' : 'Create new FPP on ') + label;
+
+        $('#flash-target-name').text(label + ' - /dev/' + device);
+        DisplayConfirmationDialog("flashStorage", title, $("#dialog-confirm-flash"), function () {
+            DisplayProgressDialog("flashStorageProgress", title);
+            var url = "flash-storage.php?dev=" + encodeURIComponent(device) + "&mode=" + encodeURIComponent(mode);
+            if (btrfs) {
+                url += "&btrfs=true";
+            }
+            StreamURL(url, 'flashStorageProgressText', 'ProgressDialogDone', 'ProgressDialogDone');
         });
     }
 
@@ -222,38 +207,22 @@ function PrintStorageDeviceSelect($platform)
 
 
 $addnewfsbutton = false;
-$addflashbutton = false;
 exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
 $rootDevice = $output[0];
 if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2' || $rootDevice == 'mmcblk0p3' || $rootDevice == 'nvme0n1p2' || $rootDevice == 'sda2') {
     if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 0) {
         $addnewfsbutton = true;
     }
-    if ($settings['Platform'] == "BeagleBone Black") {
-        if (strpos($settings['SubPlatform'], 'PocketBeagle') === FALSE) {
-            $addflashbutton = true;
-        }
-    }
-
-    if (
-        strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false ||
-        strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false ||
-        strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false
-    ) {
-
-        if (
-            file_exists("/dev/sda") || file_exists("/dev/nvme0n1") ||
-            ($rootDevice == 'sda2' && file_exists("/dev/mmcblk0"))
-        ) {
-            $addflashbutton = true;
-        }
-    }
 }
-if ($rootDevice == "mmcblk1p3" && strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) {
-    if (file_exists("/dev/mmcblk0")) {
-        $addflashbutton = true;
-    }
-}
+
+// Every disk that is neither the booted one nor the media drive can be flashed, on
+// every platform.  No per-platform lists: GetFlashTargetDevices() decides, and
+// flash_storage.sh picks the right layout for the platform it is running on.
+$flashTargets = GetFlashTargetDevices();
+
+// BTRFS is a BeagleBone-only root filesystem option, and not on the PocketBeagle2.
+$offerBtrfs = ($settings['Platform'] == "BeagleBone Black")
+    && (strpos($settings['SubPlatform'], 'PocketBeagle') === FALSE);
 
 if ($addnewfsbutton) {
     ?>
@@ -278,67 +247,45 @@ if ($addnewfsbutton) {
     <hr class="mt-2 mb-2">
     <?php
 }
-if ($addflashbutton) {
-    if ($settings['BeaglePlatform']) {
+if (!empty($flashTargets)) {
+    ?>
+    <h3>Flash FPP to Another Device:</h3>
+    <p>
+        <b>Create</b> writes a clean FPP install, leaving your media, sequences and settings behind.
+        <b>Copy</b> does the same but brings them along.
+        Both give the copy its own ssh host keys, so it can safely run as a separate player
+        alongside this one. Either way, everything currently on the target device is erased.
+    </p>
+    <?php foreach ($flashTargets as $flashTarget) {
+        $jsName = htmlspecialchars(json_encode($flashTarget['name']), ENT_QUOTES);
+        $jsDesc = htmlspecialchars(json_encode($flashTarget['desc']), ENT_QUOTES);
         ?>
-        <h3>eMMC Actions:</h3>
-
-        <div class="row">
-            <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Copy to eMMC'
-                    onClick='flashEMMC();'></div>
-            <div class="col-auto">&nbsp;This will copy FPP to the internal eMMC.</div>
-        </div>
-        <? if ($uiLevel >= 1 && strpos($settings['SubPlatform'], 'PocketBeagle2') === false) { ?>
-            <div class="row mt-2">
-                <div class="col-auto"><input style='width:13em;' type='button' class='buttons' value='Copy to eMMC (BTRFS)'
-                        onClick='flashEMMCBtrfs();'></div>
-                <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i>&nbsp;This will copy FPP to the internal
-                    eMMC, but use BTRFS for the root filesystem.<br>BTRFS uses compression to save a lot of space on the eMMC, but
-                    at the expense of extra CPU usage.</div>
+        <div class="row align-items-center mt-2">
+            <div class="col-md-4">
+                <span class="fw-semibold"><?php echo htmlspecialchars($flashTarget['desc']); ?></span>
+                <small class="text-body-secondary d-block">/dev/<?php echo htmlspecialchars($flashTarget['name']); ?></small>
             </div>
-            <?
-        }
-    } else if ($settings['Platform'] == "Raspberry Pi") {
-        ?>
-        <? if (($rootDevice == 'mmcblk0p2') && !($storageDevice == 'sda2') && file_exists("/dev/sda")) { ?>
-                <h3>USB Actions:</h3>
-                <div class="row">
-                    <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Create new FPP on USB'
-                            onClick='flashUSB("sda");'></div>
-                    <div class="col-auto">&nbsp;This will create a new FPP on the USB device.</div>
+            <div class="col-auto">
+                <input type="button" class="buttons" value="Create"
+                    onClick="flashStorage(<?php echo $jsName; ?>, 'create', <?php echo $jsDesc; ?>)">
+            </div>
+            <div class="col-auto">
+                <input type="button" class="buttons" value="Copy"
+                    onClick="flashStorage(<?php echo $jsName; ?>, 'copy', <?php echo $jsDesc; ?>)">
+            </div>
+            <?php if ($offerBtrfs && $uiLevel >= 1 && $flashTarget['kind'] == 'eMMC') { ?>
+                <div class="col-auto">
+                    <input type="button" class="buttons" value="Create (BTRFS)"
+                        onClick="flashStorage(<?php echo $jsName; ?>, 'create', <?php echo $jsDesc; ?>, true)">
+                    <i class="fas fa-fw fa-graduation-cap ui-level-1"></i>
+                    <small class="text-body-secondary">BTRFS compresses the root filesystem to save space on the
+                        eMMC, at the cost of extra CPU.</small>
                 </div>
-                <div class="row">
-                    <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Copy existing FPP to USB'
-                            onClick='cloneUSB("sda");'></div>
-                    <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the USB device.</div>
-                </div>
-        <? } else if (($rootDevice == 'mmcblk0p2') && !($storageDevice == 'nvme0n1p2') && file_exists("/dev/nvme0n1")) { ?>
-                    <h3>NVMe Actions:</h3>
-                    <div class="row">
-                        <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Create new FPP on NVMe'
-                                onClick='flashUSB("nvme0n1");'></div>
-                        <div class="col-auto">&nbsp;This will create a new FPP on the NVMe device.</div>
-                    </div>
-                    <div class="row">
-                        <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Copy existing FPP to NVMe'
-                                onClick='cloneUSB("nvme0n1");'></div>
-                        <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the NVMe device.</div>
-                    </div>
-        <? } else { ?>
-                    <h3>SD Card Actions:</h3>
-                    <div class="row">
-                        <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Create new FPP on SD card'
-                                onClick='flashUSB("mmcblk0");'></div>
-                        <div class="col-auto">&nbsp;This will create a new FPP on the SD Card.</div>
-                    </div>
-                    <div class="row">
-                        <div class="col-auto"><input style='width:20em;' type='button' class='buttons' value='Copy existing FPP to SD card'
-                                onClick='cloneUSB("mmcblk0");'></div>
-                        <div class="col-auto">&nbsp;This will copy FPP, media, sequences, settings, etc... to the SD Card.</div>
-                    </div>
-            <?
-            }
-    }
+            <?php } ?>
+        </div>
+    <?php } ?>
+    <hr class="mt-3 mb-2">
+    <?php
 }
 
 if ($settings['Platform'] != "Docker") { ?>
@@ -363,13 +310,23 @@ if ($settings['Platform'] != "Docker") { ?>
             NVMe/USB
             storage device, you assume much higher risk of problems and issues than when selecting an SD partition.
         </div>
-    <? } else { ?>
-        <? if (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false) { ?>
+        <?php
+        // This warning used to sit in the else branch below, which a Pi 5 can never
+        // reach because it already matched the condition above -- so it never once
+        // displayed on the hardware it is about.
+        if (
+            strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false ||
+            strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false
+        ) { ?>
             <div class="callout callout-warning">
-                Warning: Raspberry Pi 5 will only boot from USB when using the 27W power adapter
-                <br><br>
+                <b>Power:</b> a Raspberry Pi 5 limits its USB ports to 600mA in total unless it detects a 5A (27W)
+                supply. That is not enough for many SSDs and drive enclosures &mdash; they brown out and reset
+                mid-transfer, or never appear at all, and the Pi will not boot from them. Use the 27W adapter.
+                Flashing to a USB device adds <code>usb_max_current_enabled=1</code> to the new install so it can
+                draw the full 1.6A; only run that with an adequate supply.
             </div>
         <? } ?>
+    <? } else { ?>
         <div class="callout callout-warning">
             If using a USB storage device, it is STRONGLY recommended that the device be a USB 3.0 SATA/SSD device or other fast
             storage and not a generic USB Thumb drive. Older USB devices, even on the USB 3.0 ports, are known to cause all
@@ -386,19 +343,16 @@ if ($settings['Platform'] != "Docker") { ?>
 ?>
 
 <div id="dialog-confirm" class="hidden">
-    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Growing the filesystem will
+    <p><i class="fas fa-exclamation-triangle text-danger me-2"></i>Growing the filesystem will
         require a reboot to take effect. Do you wish to proceed?</p>
 </div>
-<div id="dialog-confirm-emmc" class="hidden">
-    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the eMMC can take a
-        long time. Do you wish to proceed?</p>
-</div>
-<div id="dialog-confirm-usb" class="hidden">
-    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing to NVMe/USB/SD can
-        take a long time and will destroy all content on the target device. Do you wish to proceed?</p>
+<div id="dialog-confirm-flash" class="hidden">
+    <p><i class="fas fa-exclamation-triangle text-danger me-2"></i>This will <b>erase everything</b> on:</p>
+    <p class="fw-semibold" id="flash-target-name"></p>
+    <p>Flashing can take a long time. Do you wish to proceed?</p>
 </div>
 <div id="dialog-confirm-newpartition" class="hidden">
-    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating a new partition in
+    <p><i class="fas fa-exclamation-triangle text-danger me-2"></i>Creating a new partition in
         the unused space will require a reboot to take effect. Do you wish to proceed?</p>
 </div>
 
