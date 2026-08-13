@@ -21,7 +21,34 @@ Reformat Storage Filesystem
 <?php
 		echo "==================================================================================\n";
 
-		$command = "sudo /opt/fpp/scripts/format_storage.sh " . escapeshellcmd($_GET['fs']) . " " . escapeshellcmd($_GET['storageLocation']) . " 2>&1";
+		$fs = $_GET['fs'];
+		$storageLocation = $_GET['storageLocation'];
+
+		$validFS = array('FAT', 'ext4', 'exFAT', 'btrfs');
+		if (!in_array($fs, $validFS)) {
+			echo "ERROR: Invalid filesystem type requested.\n";
+			echo "==========================================================================\n";
+			exit;
+		}
+
+		if (!preg_match('/^(sd[a-z][0-9]+|mmcblk[0-9]+p[0-9]+|nvme[0-9]+n[0-9]+p[0-9]+)$/', $storageLocation)) {
+			echo "ERROR: Invalid storage device requested.\n";
+			echo "==========================================================================\n";
+			exit;
+		}
+
+		// Refuse to format anything currently mounted - this is the only server-side
+		// safety net preventing a format request from wiping the running SD/NVMe
+		// install, the active media storage, or a backup drive that's still in use.
+		// This also naturally covers root/boot, since those are always mounted.
+		$mountedError = CheckIfDeviceIsUsable($storageLocation);
+		if ($mountedError != "") {
+			echo "ERROR: Refusing to format '$storageLocation' - $mountedError\n";
+			echo "==========================================================================\n";
+			exit;
+		}
+
+		$command = "sudo /opt/fpp/scripts/format_storage.sh " . escapeshellarg($fs) . " " . escapeshellarg($storageLocation) . " 2>&1";
 
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";
