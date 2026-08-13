@@ -77,10 +77,9 @@ What the script does
      - SD/FPP_Install.sh --img --yes --branch ${FPPBRANCH}
        with FPPPLATFORM_OVERRIDE="BeagleBone Black"
      - Reclaim /opt/source AFTER the install: drop everything except
-       bb.org-overlays and the dtb-<series>.x tree that
-       capes/drivers/*/Makefile includes (do NOT "rm -rf /opt/source/dtb-*"
-       by hand -- the overlay build needs those include paths, on the
-       device as well as here)
+       the dtb-<series>.x tree that capes/drivers/*/Makefile includes
+       (do NOT "rm -rf /opt/source/dtb-*" by hand -- the overlay build
+       needs those include paths, on the device as well as here)
      - dpkg -i the FPP kernel as the LAST step (after FPP_Install.sh's apt
        activity, so package deps can't silently reinstate a stock kernel);
        identify and remove old kernel modules via /lib/modules snapshot

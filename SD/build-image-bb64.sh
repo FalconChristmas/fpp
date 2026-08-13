@@ -533,13 +533,7 @@ cd /root
 # a device-tree build tree per kernel series (dtb-6.1.x ... dtb-7.2.x), the
 # BeagleBoard-DeviceTrees checkout and TI's open-pru examples.
 #
-# Two things under here have to survive:
-#   bb.org-overlays   nothing in the tree reads this any more. Its only consumer
-#                     was BBB-FlashMMC.sh's btrfs layout, which staged its build
-#                     output onto a separate boot partition; that layout is now a
-#                     single btrfs partition and stages nothing. Kept for now
-#                     because removing it changes what ships in the image --
-#                     it looks like a safe reclaim, but that is a separate call.
+# One thing under here has to survive:
 #   dtb-<series>.x    capes/drivers/*/Makefile compiles the base overlay with
 #                     -I/opt/source/dtb-<series>.x/include. Keeping it only
 #                     until FPP_Install has run is not enough: an on-device
@@ -561,7 +555,7 @@ if [ -d /opt/source ]; then
         echo "FPP -          keeping every dtb-* tree rather than risk breaking an overlay build"
         DTB_KEEP="\$(find /opt/source -mindepth 1 -maxdepth 1 -name 'dtb-*' -printf '%f ')"
     fi
-    KEEP_SRC="bb.org-overlays \$DTB_KEEP"
+    KEEP_SRC="\$DTB_KEEP"
     echo "FPP - Reclaiming /opt/source, keeping: \$KEEP_SRC"
     find /opt/source -mindepth 1 -maxdepth 1 -printf '%f\n' | while read -r entry; do
         case " \$KEEP_SRC " in

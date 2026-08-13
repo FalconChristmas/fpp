@@ -2214,12 +2214,6 @@ finalize_platform_beaglebone_black() {
     systemctl disable bbbio-set-sysconf
     echo "USB_UMTPRD_DISABLED=yes" >> /etc/default/bb-boot
 
-    if [ ! -f "/opt/source/bb.org-overlays/Makefile" ]; then
-        mkdir -p /opt/source
-        cd /opt/source
-        git clone https://github.com/beagleboard/bb.org-overlays
-    fi
-
     cd /opt/fpp/capes/drivers/bbb
     make -j ${CPUS}
     make install

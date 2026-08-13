@@ -68,10 +68,9 @@ What the script does
      - SD/FPP_Install.sh --img --yes --branch ${FPPBRANCH}
        with FPPPLATFORM_OVERRIDE="BeagleBone 64"
      - Reclaim /opt/source AFTER the install: drop everything except
-       bb.org-overlays and the dtb-<series>.x tree that
-       capes/drivers/*/Makefile includes (do NOT "rm -rf /opt/source/dtb-*"
-       by hand -- the overlay build needs those include paths, on the
-       device as well as here)
+       the dtb-<series>.x tree that capes/drivers/*/Makefile includes
+       (do NOT "rm -rf /opt/source/dtb-*" by hand -- the overlay build
+       needs those include paths, on the device as well as here)
      - Cleanup (apt clean, logs, keys, machine-id reset)
 5. Touches /boot/firmware/fpp_expand_rootfs and writes the resolved base
    image filename to /etc/fpp/base_image_name.
