@@ -542,7 +542,15 @@ if [ -n "\$BB_PURGE_INSTALLED" ]; then
     apt-get remove -y --autoremove --purge \$BB_PURGE_INSTALLED
 fi
 
-rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1.x* /opt/source/dtb-6.6.x* /opt/source/dtb-6.12.x /opt/source/dtb-6.16.x /opt/source/dtb-6.17.x /opt/source/spi* /opt/source/py*
+# Reclaim /opt/source: the base image keeps a device-tree build tree per kernel
+# series plus assorted vendor sources, none of which FPP uses. The one exception
+# is bb.org-overlays (read by BBB-FlashMMC.sh, cloned by FPP_Install when
+# absent). Matched by exclusion so it cannot rot the way the per-series name
+# list did -- each new kernel series silently added another tree the list did
+# not cover.
+if [ -d /opt/source ]; then
+    find /opt/source -mindepth 1 -maxdepth 1 ! -name 'bb.org-overlays' -exec rm -rf {} +
+fi
 
 cd /root
 /root/FPP_Install.sh --img --yes --branch ${FPPBRANCH} ${INSTALLER_EXTRA_ARGS}

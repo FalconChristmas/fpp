@@ -524,8 +524,17 @@ if [ -n "\$BB_PURGE_INSTALLED" ]; then
     apt-get remove -y --autoremove --purge \$BB_PURGE_INSTALLED
 fi
 
-# Reclaim space from old DTB packages that ship in the rcn-ee image.
-rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1-* /opt/source/dtb-6.6-* /opt/source/dtb-6.12-* /opt/source/spi*
+# Reclaim /opt/source, which the rcn-ee image fills with ~150MB in 12k+ files:
+# a device-tree build tree per kernel series (dtb-6.1.x ... dtb-7.2.x), the
+# BeagleBoard-DeviceTrees checkout and TI's open-pru examples. FPP uses exactly
+# one thing under here -- bb.org-overlays (BBB-FlashMMC.sh reads it, and
+# FPP_Install clones it if it is missing) -- so keep that and drop the rest.
+# Matched by exclusion rather than by listing names: the old globs were written
+# for the pre-".x" directory names and had silently stopped matching anything,
+# which is how ten kernel series' worth of DTB sources ended up in the image.
+if [ -d /opt/source ]; then
+    find /opt/source -mindepth 1 -maxdepth 1 ! -name 'bb.org-overlays' -exec rm -rf {} +
+fi
 rm -rf /opt/bb-code-server /opt/vsx-examples
 
 cd /root

@@ -664,8 +664,13 @@ install_base_packages() {
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black"  -o "$FPPPLATFORM" == "BeagleBone 64" ]; then
             # firmware-misc-nonfree carries the rt2x00 / Mediatek (mt7601u, mt76xx) USB
-            # wifi blobs
-            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity firmware-misc-nonfree zram-tools"
+            # wifi blobs.
+            # No firmware-iwlwifi: every part it covers is Intel PCIe/M.2, which
+            # none of these boards can take, and it is the single largest firmware
+            # package in the archive (~170MB unpacked). The Pi image build already
+            # purged it back out after the fact; not installing it in the first
+            # place does the same for the BeagleBone images.
+            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-brcm80211 firmware-libertas firmware-zd1211 firmware-ti-connectivity firmware-misc-nonfree zram-tools"
             if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
                 PACKAGE_LIST="$PACKAGE_LIST libva-dev smartmontools edid-decode kms++-utils"
             fi
@@ -2451,7 +2456,64 @@ configure_swap() {
     fi
 }
 
+# Strip payload that a shipped image has no use for.
+#
+# This is not only about download size. BBB-FlashMMC.sh copies the running root
+# filesystem to eMMC with a file-level rsync, so on the "Copy FPP to eMMC" path
+# every file costs a create + metadata write on top of its bytes -- and the
+# stock rootfs carries roughly ten thousand tiny man/locale files, which show up
+# as flash time out of all proportion to the megabytes they occupy.
+#
+# The dpkg drop-in is what makes this stick: without it, the next apt install on
+# the device (a plugin's dependency, a user package) unpacks a fresh set of man
+# pages and translations right back onto the image.
+slim_image() {
+    echo "FPP - Slimming image: docs, man pages, non-English locales"
+    mkdir -p /etc/dpkg/dpkg.cfg.d
+    cat > /etc/dpkg/dpkg.cfg.d/01_fpp_slim <<'DPKG_EOF'
+# FPP ships an appliance image: no changelogs, no man pages, English only.
+# path-include lines are evaluated after the excludes, so the en* catalogs,
+# locale.alias and the per-package copyright files survive the exclusions
+# above them. The copyright files stay because these images are redistributed
+# publicly and that is where each package's license text lives.
+path-exclude=/usr/share/doc/*
+path-include=/usr/share/doc/*/copyright
+path-exclude=/usr/share/man/*
+path-exclude=/usr/share/info/*
+path-exclude=/usr/share/groff/*
+path-exclude=/usr/share/locale/*
+path-include=/usr/share/locale/en*
+path-include=/usr/share/locale/locale.alias
+DPKG_EOF
+
+    rm -rf /usr/share/man/* /usr/share/info/* /usr/share/groff/*
+    rm -rf /var/cache/man/*
+    find /usr/share/doc -mindepth 1 ! -type d ! -name copyright -delete
+    find /usr/share/doc -mindepth 1 -type d -empty -delete
+    # Message catalogs only -- the generated locale-archive that programs
+    # actually run against lives in /usr/lib/locale and is untouched.
+    find /usr/share/locale -mindepth 1 -maxdepth 1 -type d ! -name 'en*' -exec rm -rf {} +
+
+    # Wifi firmware for buses these boards do not have: ath10k/ath11k/ath12k and
+    # rtw89 are PCIe/SDIO-only parts. An FPP controller's wifi is a USB dongle
+    # (ath9k_htc, rtl8xxx/rtw88, mt7601u et al), whose blobs live in other
+    # directories and are left alone. Deleted rather than dpkg path-excluded so
+    # "apt-get install --reinstall firmware-atheros" can put them back if some
+    # PCIe-equipped board ever does need them.
+    echo "FPP - Removing PCIe-only wifi firmware"
+    rm -rf /usr/lib/firmware/ath10k /usr/lib/firmware/ath11k \
+           /usr/lib/firmware/ath12k /usr/lib/firmware/rtw89
+
+    # apt's binary caches, rebuilt on demand by the next apt run. (The package
+    # lists in /var/lib/apt/lists are deliberately kept: third-party plugin
+    # installers run apt-get install without always running apt-get update
+    # first, and an empty list turns that into "unable to locate package".)
+    rm -f /var/cache/apt/*.bin
+}
+
 finalize_image_post_build() {
+    slim_image
+
     systemctl disable dnsmasq
     systemctl unmask hostapd
     systemctl disable hostapd
