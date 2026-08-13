@@ -30,6 +30,7 @@ using namespace std::filesystem;
 using namespace Magick;
 
 #include "overlays/PixelOverlay.h"
+#include "overlays/PixelOverlayEffects.h" // ScaleOverlayImage - shared sizing
 
 void StartPrepLoopThread(PlaylistEntryImage* fb);
 
@@ -294,31 +295,10 @@ void PlaylistEntryImage::PrepImage(void) {
         if ((cols != m_width) && (rows != m_height)) {
             needToCache = true;
 
-            image.modifyImage();
-
-            // Resize to slightly larger since trying to get exact can
-            // leave us off by one pixel.  Going slightly larger will let
-            // us crop to exact size later.
-            image.resize(Geometry(m_width + 4, m_height + 4, 0, 0));
-
-            cols = image.columns();
-            rows = image.rows();
-
-            if (cols < m_width) // center horizontally
-            {
-                int diff = m_width - cols;
-
-                image.borderColor(Color("black"));
-                image.border(Geometry(diff / 2 + 1, 1, 0, 0));
-            } else if (rows < m_height) // center vertically
-            {
-                int diff = m_height - rows;
-
-                image.borderColor(Color("black"));
-                image.border(Geometry(1, diff / 2 + 1, 0, 0));
-            }
-
-            image.crop(Geometry(m_width, m_height, 1, 1));
+            // Shared with the Image overlay effect so a given image lands on a
+            // model identically whether it arrives via a playlist entry or a
+            // command.  See ScaleOverlayImage() in PixelOverlayEffects.cpp.
+            ScaleOverlayImage(image, m_width, m_height, "Scale to Fit");
         }
 
         image.type(TrueColorType);

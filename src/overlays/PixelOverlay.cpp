@@ -19,7 +19,9 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
+#include <algorithm> // std::sort/std::transform in the image file listing
 #include <fcntl.h>
+#include <filesystem> // image file listing for the Image effect's picker
 #include <fstream> // virtualdisplaymap parse for model preview endpoint
 #include <unistd.h> // write -- needed directly for NOPCH builds
 
@@ -654,6 +656,52 @@ static std::string normalizeOverlayModelName(const std::string& name) {
     return out;
 }
 
+// Collect the names of usable image files under the media images directory,
+// relative to it, sorted, for the Image overlay effect's file picker.
+static void collectOverlayImageNames(Json::Value& result) {
+    static const char* const IMAGE_EXTENSIONS[] = {
+        ".bmp", ".gif", ".jpeg", ".jpg", ".png", ".ppm", ".tga", ".tif", ".tiff", ".webp"
+    };
+
+    std::string dir = FPP_DIR_IMAGE("");
+    std::vector<std::string> names;
+
+    try {
+        if (!std::filesystem::exists(dir)) {
+            result.resize(0);
+            return;
+        }
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
+            if (!entry.is_regular_file()) {
+                continue;
+            }
+            std::string ext = entry.path().extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            bool isImage = false;
+            for (const char* known : IMAGE_EXTENSIONS) {
+                if (ext == known) {
+                    isImage = true;
+                    break;
+                }
+            }
+            if (!isImage) {
+                continue;
+            }
+            names.push_back(std::filesystem::relative(entry.path(), dir).string());
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        LogErr(VB_CHANNELOUT, "Error listing overlay images: %s\n", e.what());
+    }
+
+    std::sort(names.begin(), names.end());
+    for (auto& n : names) {
+        result.append(n);
+    }
+    if (names.empty()) {
+        result.resize(0); // an empty Json::Value would serialize as null, not []
+    }
+}
+
 // Collect the per-pixel [x, y, channel] preview coordinates for one model from
 // config/virtualdisplaymap, appending them to pixels. Matches the model section
 // on exact or normalized name. Parsing on demand (only when a preview is
@@ -765,6 +813,12 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
             for (auto& a : fonts) {
                 result.append(a.first);
             }
+        } else if (p2 == "images") {
+            // Flat list of image files under the media images directory, as
+            // paths relative to it, for the Image effect's file picker.  The
+            // api/files/Images endpoint returns per-file metadata objects; the
+            // command-argument dropdowns want a plain array of strings.
+            collectOverlayImageNames(result);
         } else if (p2 == "settings") {
             result["autoCreate"] = autoCreate;
         } else if (p2 == "models") {

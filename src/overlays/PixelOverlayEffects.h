@@ -20,6 +20,21 @@
 
 class PixelOverlayModel;
 
+namespace Magick
+{
+    class Image;
+};
+
+// Scale an already-decoded image to exactly w x h pixels.  Shared by the Image
+// overlay effect and PlaylistEntryImage so both size images identically.
+//
+// mode:
+//   "Scale to Fit"  - preserve aspect, letterbox/pillarbox the remainder black
+//   "Crop to Fill"  - preserve aspect, cover the box, centre-crop the overflow
+//   "Stretch"       - ignore aspect, resize to exactly w x h
+// Any other value (including "None") leaves the image untouched.
+void ScaleOverlayImage(Magick::Image& image, int w, int h, const std::string& mode);
+
 class RunningEffect {
 public:
     static constexpr int32_t EFFECT_DONE = 0;
