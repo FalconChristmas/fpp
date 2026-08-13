@@ -60,6 +60,8 @@ function help_help()
         ['GET /overlays/model/:ModelName', 'Gets the given overlay model and it\'s state', '', '{"ChannelCount":6144,"Name":"Matrix","Orientation":"horizontal","StartChannel":1,"StartCorner":"TL","StrandsPerString":1,"StringCount":32,"isActive":0}'],
         ['GET /overlays/model/:ModelName/clear', 'Clears the given model', '', 'OK'],
         ['GET /overlays/model/:ModelName/data', 'Gets the current channel data for the model', '', '{"data":[0,0,0,0,0,0],"isLocked":false}'],
+        ['GET /overlays/model/:ModelName/data/raw', 'Gets the current channel data as raw binary (width*height*bytesPerPixel bytes)', '', '(binary)'],
+        ['PUT /overlays/model/:ModelName/data', 'Writes bulk pixel data in one request: raw bytes, an encoded image (PNG/JPEG/...), or base64 in JSON. Query args: x, y, w, h, fmt, blend, scale, target, autoEnable, stopEffect. See docs/PixelOverlayBulkData.md', '(raw pixel bytes, an image, or {"X":0,"Y":0,"W":32,"H":32,"Format":"rgb","Data":"<base64>"})', '{"Status":"OK","Message":"","Model":"Matrix","X":0,"Y":0,"W":32,"H":32,"Target":"channel","BytesPerPixel":3,"Clipped":false}'],
         ['PUT /overlays/model/:ModelName/state', 'Sets the state of the overlay model', '{"State": 1}', 'OK'],
         ['PUT /overlays/model/:ModelName/fill', 'Fills the entire overlay with the given color', '{"RGB": [255, 0, 0]}', 'OK'],
         ['PUT /overlays/model/:ModelName/pixel', 'Sets a specific pixel in the model to the given color', '{"X": 10, "Y": 12, "RGB": [255, 0, 0]}', 'OK'],

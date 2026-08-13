@@ -19,6 +19,7 @@
 #include "../commands/Commands.h"
 
 class PixelOverlayModel;
+class PixelOverlayState;
 
 namespace Magick
 {
@@ -34,6 +35,26 @@ namespace Magick
 //   "Stretch"       - ignore aspect, resize to exactly w x h
 // Any other value (including "None") leaves the image untouched.
 void ScaleOverlayImage(Magick::Image& image, int w, int h, const std::string& mode);
+
+// Decode an encoded image held in memory (PNG/JPEG/GIF/BMP/...) and draw it on
+// a model. Shared by the Image overlay effect's file path and the bulk-data
+// HTTP endpoint so an uploaded image is sized and placed exactly like a local
+// one.
+//
+// The image is scaled to a boxW x boxH box using ScaleOverlayImage()'s mode
+// vocabulary ("Scale to Fit", "Crop to Fill", "Stretch", "None"), then drawn
+// with its top-left at (xOffset, yOffset) -- or centred within the box when
+// `center` is set, which is what "None" wants by default. Anything falling
+// outside the model is clipped. `st` is the per-blit blend, not the model's
+// enable state.
+//
+// Returns false and fills `err` on a decode failure or if nothing landed
+// inside the model.
+bool DrawEncodedImageOnModel(PixelOverlayModel* m, const void* data, size_t len,
+                             const std::string& scaling, int boxW, int boxH,
+                             int xOffset, int yOffset, bool center,
+                             const PixelOverlayState& st, bool toOverlayBuffer,
+                             std::string& err);
 
 class RunningEffect {
 public:

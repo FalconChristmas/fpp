@@ -206,6 +206,60 @@ static void setModelDataFromRGB(PixelOverlayModel* m, const uint8_t* rgb) {
     m->setData(expanded.data());
 }
 
+bool DrawEncodedImageOnModel(PixelOverlayModel* m, const void* data, size_t len,
+                             const std::string& scaling, int boxW, int boxH,
+                             int xOffset, int yOffset, bool center,
+                             const PixelOverlayState& st, bool toOverlayBuffer,
+                             std::string& err) {
+    if (!m || !data || len == 0) {
+        err = "empty image body";
+        return false;
+    }
+
+    Magick::Image image;
+    try {
+        image.quiet(true); // squelch warning exceptions
+        Magick::Blob blob(data, len);
+        image.read(blob);
+        image.autoOrient();
+        image.type(Magick::TrueColorType);
+        image.depth(8);
+        ScaleOverlayImage(image, boxW, boxH, scaling);
+    } catch (Magick::Exception& error_) {
+        err = std::string("could not decode image: ") + error_.what();
+        return false;
+    } catch (const std::exception& ex) {
+        // Not everything thrown here is a Magick::Exception (std::bad_alloc,
+        // for one), and an escape would unwind through the HTTP handler while
+        // it holds the models lock.
+        err = std::string("could not decode image: ") + ex.what();
+        return false;
+    }
+
+    int cols = image.columns();
+    int rows = image.rows();
+    uint8_t* rgb = imageToRGBBuffer(image);
+    if (!rgb) {
+        err = "could not read pixels from the decoded image";
+        return false;
+    }
+
+    int x = xOffset;
+    int y = yOffset;
+    if (center) {
+        x += (boxW - cols) / 2;
+        y += (boxH - rows) / 2;
+    }
+
+    bool ok = toOverlayBuffer ? m->blitOverlayBuffer(rgb, cols, rows, 3, x, y)
+                              : m->blitData(rgb, cols, rows, 3, x, y, st);
+    free(rgb);
+    if (!ok) {
+        err = "the image landed entirely outside the model";
+    }
+    return ok;
+}
+
 static uint32_t applyColorPct(uint32_t c, float pct) {
     uint32_t r = (c >> 16) & 0xFF;
     uint32_t g = (c >> 8) & 0xFF;

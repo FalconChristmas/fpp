@@ -15,6 +15,7 @@
 #include "fpp-json.h"
 #include <mutex>
 #include <thread>
+#include <vector>
 
 class RunningEffect;
 
@@ -80,6 +81,9 @@ public:
 
     void toJson(Json::Value& v);
     void getDataJson(Json::Value& v, bool rle = false);
+    // Binary equivalent of getDataJson(): the current pixel data as a flat
+    // width*height*bytesPerPixel buffer.
+    void getData(std::vector<uint8_t>& out);
 
     // Access to the channelData.  The channelData is a minimal array of bytes
     // If the model is a "custom" model or using singleChannel nodes or similar,
@@ -88,6 +92,24 @@ public:
     void saveOverlayAsImage(std::string filename = "");
     virtual void setData(const uint8_t* data); // full pixel data, width*height*bytesPerPixel
     virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState& st = PixelOverlayState(PixelOverlayState::Enabled));
+
+    // Blit externally supplied pixel data onto the model. src is srcW*srcH
+    // pixels of srcBpp bytes each (1 = greyscale, 3 = RGB, 4 = RGBW); it is
+    // converted to this model's bytesPerPixel and CLIPPED to the model bounds,
+    // so a rect hanging off an edge draws the part that is visible instead of
+    // being rejected the way setData()'s rect form is. That is what lets a
+    // caller slide a sprite off the edge by reposting it at moving offsets.
+    // Returns false only when nothing landed inside the model at all.
+    //
+    // blitData() writes the output channel data (honoring st as the per-blit
+    // blend); blitOverlayBuffer() writes the mmapped overlay image buffer and
+    // marks it dirty, so the write composites into the same persistent canvas
+    // external mmap clients use and is flushed on the next output pass.
+    bool blitData(const uint8_t* src, int srcW, int srcH, int srcBpp,
+                  int xOffset, int yOffset, const PixelOverlayState& st);
+    bool blitOverlayBuffer(const uint8_t* src, int srcW, int srcH, int srcBpp,
+                           int xOffset, int yOffset);
+
     void setScaledData(uint8_t* data, int w, int h);
     void setPixelValue(int x, int y, int r, int g, int b);
     void setPixelValue(int x, int y, int r, int g, int b, int w);
