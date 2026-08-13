@@ -524,21 +524,26 @@ if [ -n "\$BB_PURGE_INSTALLED" ]; then
     apt-get remove -y --autoremove --purge \$BB_PURGE_INSTALLED
 fi
 
-# Reclaim /opt/source, which the rcn-ee image fills with ~150MB in 12k+ files:
-# a device-tree build tree per kernel series (dtb-6.1.x ... dtb-7.2.x), the
-# BeagleBoard-DeviceTrees checkout and TI's open-pru examples. FPP uses exactly
-# one thing under here -- bb.org-overlays (BBB-FlashMMC.sh reads it, and
-# FPP_Install clones it if it is missing) -- so keep that and drop the rest.
-# Matched by exclusion rather than by listing names: the old globs were written
-# for the pre-".x" directory names and had silently stopped matching anything,
-# which is how ten kernel series' worth of DTB sources ended up in the image.
-if [ -d /opt/source ]; then
-    find /opt/source -mindepth 1 -maxdepth 1 ! -name 'bb.org-overlays' -exec rm -rf {} +
-fi
 rm -rf /opt/bb-code-server /opt/vsx-examples
 
 cd /root
 /root/FPP_Install.sh --img --yes --branch ${FPPBRANCH} ${INSTALLER_EXTRA_ARGS}
+
+# Reclaim /opt/source, which the rcn-ee image fills with ~150MB in 12k+ files:
+# a device-tree build tree per kernel series (dtb-6.1.x ... dtb-7.2.x), the
+# BeagleBoard-DeviceTrees checkout and TI's open-pru examples. FPP uses exactly
+# one thing under here at runtime -- bb.org-overlays (BBB-FlashMMC.sh reads it,
+# and FPP_Install clones it if it is missing) -- so keep that and drop the
+# rest. Matched by exclusion rather than by listing names: the old globs were
+# written for the pre-".x" directory names and had silently stopped matching
+# anything, which is how ten kernel series' worth of DTB sources ended up in
+# the image. Done AFTER FPP_Install runs, not before: FPP_Install builds the
+# capes overlays, which compile against the current kernel series' dtb-*.x
+# tree under here (see capes/drivers/bb64/Makefile) -- purging it earlier
+# deletes the include paths those builds need.
+if [ -d /opt/source ]; then
+    find /opt/source -mindepth 1 -maxdepth 1 ! -name 'bb.org-overlays' -exec rm -rf {} +
+fi
 
 # Purge packages that FPP_Install pulls back in as (recommended) deps but that
 # a headless FPP has no use for. Done here, after the install, because the

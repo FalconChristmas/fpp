@@ -542,18 +542,21 @@ if [ -n "\$BB_PURGE_INSTALLED" ]; then
     apt-get remove -y --autoremove --purge \$BB_PURGE_INSTALLED
 fi
 
+cd /root
+/root/FPP_Install.sh --img --yes --branch ${FPPBRANCH} ${INSTALLER_EXTRA_ARGS}
+
 # Reclaim /opt/source: the base image keeps a device-tree build tree per kernel
-# series plus assorted vendor sources, none of which FPP uses. The one exception
-# is bb.org-overlays (read by BBB-FlashMMC.sh, cloned by FPP_Install when
-# absent). Matched by exclusion so it cannot rot the way the per-series name
-# list did -- each new kernel series silently added another tree the list did
-# not cover.
+# series plus assorted vendor sources, none of which FPP uses at runtime. The
+# one exception is bb.org-overlays (read by BBB-FlashMMC.sh, cloned by
+# FPP_Install when absent). Matched by exclusion so it cannot rot the way the
+# per-series name list did -- each new kernel series silently added another
+# tree the list did not cover. Done AFTER FPP_Install runs, not before: it
+# builds the capes overlays, which compile against the current kernel
+# series' dtb-*.x tree under here (see capes/drivers/bbb/Makefile) -- purging
+# it earlier deletes the include paths those builds need.
 if [ -d /opt/source ]; then
     find /opt/source -mindepth 1 -maxdepth 1 ! -name 'bb.org-overlays' -exec rm -rf {} +
 fi
-
-cd /root
-/root/FPP_Install.sh --img --yes --branch ${FPPBRANCH} ${INSTALLER_EXTRA_ARGS}
 
 # Purge packages that FPP_Install pulls back in as (recommended) deps but that
 # a headless FPP has no use for. Done here, after the install, because the
