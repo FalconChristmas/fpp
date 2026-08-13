@@ -108,7 +108,7 @@ eMMC AutoFlash
 --------------
 
 The flashable .img.zip can be flashed to either an SD card or directly to
-eMMC via the BBB-AutoFlash.sh / BBB-FlashMMC.sh mechanism documented
+eMMC via the BBB-AutoFlash.sh / flash_storage.sh mechanism documented
 separately in those scripts. Image build itself doesn't wire that in --
 you'd burn the .img to a microSD, set the AutoFlash hook, and let the
 device flash itself on first boot.

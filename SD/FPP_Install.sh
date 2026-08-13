@@ -2458,8 +2458,8 @@ configure_swap() {
 
 # Strip payload that a shipped image has no use for.
 #
-# This is not only about download size. BBB-FlashMMC.sh copies the running root
-# filesystem to eMMC with a file-level rsync, so on the "Copy FPP to eMMC" path
+# This is not only about download size. flash_storage.sh copies the running root
+# filesystem to eMMC with a file-level rsync, so on the "Copy to eMMC" path
 # every file costs a create + metadata write on top of its bytes -- and the
 # stock rootfs carries roughly ten thousand tiny man/locale files, which show up
 # as flash time out of all proportion to the megabytes they occupy.

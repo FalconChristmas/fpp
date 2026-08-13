@@ -547,7 +547,12 @@ cd /root
 
 # Reclaim /opt/source: the base image keeps a device-tree build tree per kernel
 # series plus assorted vendor sources. Two things under here have to survive:
-#   bb.org-overlays   read by BBB-FlashMMC.sh, cloned by FPP_Install if absent.
+#   bb.org-overlays   nothing in the tree reads this any more. Its only consumer
+#                     was BBB-FlashMMC.sh's btrfs layout, which staged its build
+#                     output onto a separate boot partition; that layout is now a
+#                     single btrfs partition and stages nothing. Kept for now
+#                     because removing it changes what ships in the image --
+#                     it looks like a safe reclaim, but that is a separate call.
 #   dtb-<series>.x    capes/drivers/*/Makefile compiles the overlays with
 #                     -I/opt/source/dtb-<series>.x/include (DTD_BASE in
 #                     capes/drivers/bbb/Makefile). Keeping it only until

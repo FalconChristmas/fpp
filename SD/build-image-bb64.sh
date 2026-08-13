@@ -534,7 +534,12 @@ cd /root
 # BeagleBoard-DeviceTrees checkout and TI's open-pru examples.
 #
 # Two things under here have to survive:
-#   bb.org-overlays   BBB-FlashMMC.sh reads it; FPP_Install clones it if absent.
+#   bb.org-overlays   nothing in the tree reads this any more. Its only consumer
+#                     was BBB-FlashMMC.sh's btrfs layout, which staged its build
+#                     output onto a separate boot partition; that layout is now a
+#                     single btrfs partition and stages nothing. Kept for now
+#                     because removing it changes what ships in the image --
+#                     it looks like a safe reclaim, but that is a separate call.
 #   dtb-<series>.x    capes/drivers/*/Makefile compiles the base overlay with
 #                     -I/opt/source/dtb-<series>.x/include. Keeping it only
 #                     until FPP_Install has run is not enough: an on-device
