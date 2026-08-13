@@ -283,12 +283,29 @@ static void entry_group_callback(AvahiEntryGroup* g, AvahiEntryGroupState state,
 #endif
 
 #if HAVE_AVAHI
+// Defined in fppd.cpp; cleared when FPP begins shutting down.  Declared the same way
+// httpAPI.cpp does rather than adding a header for one flag.
+extern volatile int runMainFPPDLoop;
+
+// WarningHolder matches on the id AND the exact message text, so the add and the
+// remove have to use the same string.  Naming them once is what keeps a warning from
+// becoming permanent because the two copies drifted apart.
+static constexpr int MDNS_WARNING_ID = 43;
+static constexpr const char* MDNS_WARN_CLIENT = "Network discovery: mDNS/Avahi client failure (is avahi-daemon running?)";
+static constexpr const char* MDNS_WARN_FPPD = "Network discovery: could not browse for FPP devices (_fppd._udp)";
+static constexpr const char* MDNS_WARN_WLED = "Network discovery: could not browse for WLED devices (_wled._tcp)";
+
 static void client_callback(AvahiClient* c, AvahiClientState state, void* userdata) {
     MDNSManager* mgr = static_cast<MDNSManager*>(userdata);
     if (!mgr)
         return;
 
     if (state == AVAHI_CLIENT_S_RUNNING) {
+        // The client is up, so whatever we said about it being down is no longer
+        // true.  Avahi restarts on its own and reconnects us, and without this the
+        // warning stayed on screen for the rest of the session.
+        WarningHolder::RemoveWarning(MDNS_WARNING_ID, MDNS_WARN_CLIENT);
+
         // Register local service
         mgr->RegisterService(c);
 
@@ -297,9 +314,10 @@ static void client_callback(AvahiClient* c, AvahiClientState state, void* userda
         if (!sb) {
             LogErr(VB_SYNC, "Failed to create Avahi service browser for _fppd._udp: %s\n",
                    avahi_strerror(avahi_client_errno(c)));
-            WarningHolder::AddWarning(43, "Network discovery: could not browse for FPP devices (_fppd._udp)");
+            WarningHolder::AddWarning(MDNS_WARNING_ID, MDNS_WARN_FPPD);
         } else {
             mgr->SetServiceBrowser(sb);
+            WarningHolder::RemoveWarning(MDNS_WARNING_ID, MDNS_WARN_FPPD);
         }
 
         // Also browse for _wled._tcp so WLED nodes show up in the systems
@@ -309,13 +327,19 @@ static void client_callback(AvahiClient* c, AvahiClientState state, void* userda
         if (!wsb) {
             LogErr(VB_SYNC, "Failed to create Avahi service browser for _wled._tcp: %s\n",
                    avahi_strerror(avahi_client_errno(c)));
-            WarningHolder::AddWarning(43, "Network discovery: could not browse for WLED devices (_wled._tcp)");
+            WarningHolder::AddWarning(MDNS_WARNING_ID, MDNS_WARN_WLED);
         } else {
             mgr->SetWLEDServiceBrowser(wsb);
+            WarningHolder::RemoveWarning(MDNS_WARNING_ID, MDNS_WARN_WLED);
         }
     } else if (state == AVAHI_CLIENT_FAILURE) {
         LogErr(VB_SYNC, "Avahi client failure: %s\n", avahi_strerror(avahi_client_errno(c)));
-        WarningHolder::AddWarning(43, "Network discovery: mDNS/Avahi client failure (is avahi-daemon running?)");
+        // Not while the machine is on its way down: systemd is free to stop
+        // avahi-daemon before fppd, and reporting that as an abnormal condition puts
+        // a red banner on screen for every clean reboot and shutdown.
+        if (runMainFPPDLoop) {
+            WarningHolder::AddWarning(MDNS_WARNING_ID, MDNS_WARN_CLIENT);
+        }
     }
 }
 #endif
