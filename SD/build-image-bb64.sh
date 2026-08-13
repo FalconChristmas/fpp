@@ -531,18 +531,39 @@ cd /root
 
 # Reclaim /opt/source, which the rcn-ee image fills with ~150MB in 12k+ files:
 # a device-tree build tree per kernel series (dtb-6.1.x ... dtb-7.2.x), the
-# BeagleBoard-DeviceTrees checkout and TI's open-pru examples. FPP uses exactly
-# one thing under here at runtime -- bb.org-overlays (BBB-FlashMMC.sh reads it,
-# and FPP_Install clones it if it is missing) -- so keep that and drop the
-# rest. Matched by exclusion rather than by listing names: the old globs were
-# written for the pre-".x" directory names and had silently stopped matching
-# anything, which is how ten kernel series' worth of DTB sources ended up in
-# the image. Done AFTER FPP_Install runs, not before: FPP_Install builds the
-# capes overlays, which compile against the current kernel series' dtb-*.x
-# tree under here (see capes/drivers/bb64/Makefile) -- purging it earlier
-# deletes the include paths those builds need.
+# BeagleBoard-DeviceTrees checkout and TI's open-pru examples.
+#
+# Two things under here have to survive:
+#   bb.org-overlays   BBB-FlashMMC.sh reads it; FPP_Install clones it if absent.
+#   dtb-<series>.x    capes/drivers/*/Makefile compiles the base overlay with
+#                     -I/opt/source/dtb-<series>.x/include. Keeping it only
+#                     until FPP_Install has run is not enough: an on-device
+#                     rebuild (an upgrade script, or a user re-running
+#                     FPP_Install) needs those same include paths, so the tree
+#                     the Makefiles name has to ship in the image.
+#
+# Which series to keep is read back out of the Makefiles instead of being
+# hardcoded here. They are what moves to a new kernel series, and a name list
+# kept in sync with them by hand is exactly how this went wrong before: the
+# original globs were written for the pre-".x" directory names and had quietly
+# stopped matching anything at all. If that lookup ever comes up empty, keep
+# every dtb-* tree rather than delete the ones a build needs -- the failure
+# mode of this cleanup should be a fat image, never a broken one.
 if [ -d /opt/source ]; then
-    find /opt/source -mindepth 1 -maxdepth 1 ! -name 'bb.org-overlays' -exec rm -rf {} +
+    DTB_KEEP="\$(grep -rhoE '/opt/source/dtb-[0-9.]+x' /opt/fpp/capes/drivers 2>/dev/null | sed 's|.*/||' | sort -u | tr '\n' ' ')"
+    if [ -z "\$DTB_KEEP" ]; then
+        echo "FPP - WARNING: no /opt/source/dtb-*.x reference found under capes/drivers;"
+        echo "FPP -          keeping every dtb-* tree rather than risk breaking an overlay build"
+        DTB_KEEP="\$(find /opt/source -mindepth 1 -maxdepth 1 -name 'dtb-*' -printf '%f ')"
+    fi
+    KEEP_SRC="bb.org-overlays \$DTB_KEEP"
+    echo "FPP - Reclaiming /opt/source, keeping: \$KEEP_SRC"
+    find /opt/source -mindepth 1 -maxdepth 1 -printf '%f\n' | while read -r entry; do
+        case " \$KEEP_SRC " in
+            *" \$entry "*) continue ;;
+        esac
+        rm -rf "/opt/source/\$entry"
+    done
 fi
 
 # Purge packages that FPP_Install pulls back in as (recommended) deps but that

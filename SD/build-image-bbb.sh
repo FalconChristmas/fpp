@@ -546,16 +546,34 @@ cd /root
 /root/FPP_Install.sh --img --yes --branch ${FPPBRANCH} ${INSTALLER_EXTRA_ARGS}
 
 # Reclaim /opt/source: the base image keeps a device-tree build tree per kernel
-# series plus assorted vendor sources, none of which FPP uses at runtime. The
-# one exception is bb.org-overlays (read by BBB-FlashMMC.sh, cloned by
-# FPP_Install when absent). Matched by exclusion so it cannot rot the way the
-# per-series name list did -- each new kernel series silently added another
-# tree the list did not cover. Done AFTER FPP_Install runs, not before: it
-# builds the capes overlays, which compile against the current kernel
-# series' dtb-*.x tree under here (see capes/drivers/bbb/Makefile) -- purging
-# it earlier deletes the include paths those builds need.
+# series plus assorted vendor sources. Two things under here have to survive:
+#   bb.org-overlays   read by BBB-FlashMMC.sh, cloned by FPP_Install if absent.
+#   dtb-<series>.x    capes/drivers/*/Makefile compiles the overlays with
+#                     -I/opt/source/dtb-<series>.x/include (DTD_BASE in
+#                     capes/drivers/bbb/Makefile). Keeping it only until
+#                     FPP_Install has run is not enough -- an on-device rebuild
+#                     needs the same include paths, so it ships in the image.
+#
+# Which series to keep is read back out of the Makefiles rather than hardcoded:
+# they are what moves to a new kernel series, and a hand-maintained name list is
+# how this went wrong before (the original globs were written for the pre-".x"
+# names and had quietly stopped matching anything). An empty lookup keeps every
+# dtb-* tree -- this cleanup should fail fat, never broken.
 if [ -d /opt/source ]; then
-    find /opt/source -mindepth 1 -maxdepth 1 ! -name 'bb.org-overlays' -exec rm -rf {} +
+    DTB_KEEP="\$(grep -rhoE '/opt/source/dtb-[0-9.]+x' /opt/fpp/capes/drivers 2>/dev/null | sed 's|.*/||' | sort -u | tr '\n' ' ')"
+    if [ -z "\$DTB_KEEP" ]; then
+        echo "FPP - WARNING: no /opt/source/dtb-*.x reference found under capes/drivers;"
+        echo "FPP -          keeping every dtb-* tree rather than risk breaking an overlay build"
+        DTB_KEEP="\$(find /opt/source -mindepth 1 -maxdepth 1 -name 'dtb-*' -printf '%f ')"
+    fi
+    KEEP_SRC="bb.org-overlays \$DTB_KEEP"
+    echo "FPP - Reclaiming /opt/source, keeping: \$KEEP_SRC"
+    find /opt/source -mindepth 1 -maxdepth 1 -printf '%f\n' | while read -r entry; do
+        case " \$KEEP_SRC " in
+            *" \$entry "*) continue ;;
+        esac
+        rm -rf "/opt/source/\$entry"
+    done
 fi
 
 # Purge packages that FPP_Install pulls back in as (recommended) deps but that
