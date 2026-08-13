@@ -1,108 +1,28 @@
-#! /bin/sh
+#!/bin/bash
+#
+# Compatibility wrapper.  The flash itself now lives in flash_storage.sh, which is
+# shared with the BeagleBone eMMC path.
+#
+# This used to drive SD/rpi-clone, which decided what to copy by looking at the live
+# mount table.  When /boot/firmware was not mounted -- most often because its
+# boot-time fsck failed, which is silent because the system boots fine without it --
+# the boot partition dropped out of the copy and the flash still reported success.
+# flash_storage.sh names the boot filesystem explicitly, refuses to start if it is
+# not mounted, and verifies the destination before saying it worked.
+#
+# Usage (unchanged):  Pi-FlashUSB.sh [-clone] <device>
+#
+BINDIR=$(cd "$(dirname "$0")" && pwd)
 
-# Boot config directory -- see the matching block in scripts/common.  Probe for the
-# config file rather than the directory: a /boot/firmware directory can exist on
-# systems that do not boot from it.
-FPPBOOTDIR=/boot
-for __d in /boot/firmware /boot; do
-    if [ -f "${__d}/config.txt" ] || [ -f "${__d}/uEnv.txt" ] || [ -f "${__d}/extlinux/extlinux.conf" ]; then
-        FPPBOOTDIR="${__d}"
-        break
-    fi
-done
-unset __d
+ARGS=()
 
-echo "Checking for updated eeprom to allow booting from USB/NVMe"
-echo ""
-rpi-eeprom-update -a
-
-if [ -f "${FPPBOOTDIR}/recovery.bin" ]; then
-    echo ""
-    echo ""
-    echo "******  EEPROM update required before flashing.  Please reboot to apply updated EEPROM.  ******"
-    echo ""
-    exit 0
-fi
-
-export EXCLUDE_FLAGS="--exclude=/home/fpp/media/* --exclude=/etc/ssh/*key*"
-export ISCLONE=0
 if [ "$1" = "-clone" ]; then
-    EXCLUDE_FLAGS=""
-    ISCLONE=1
+    # "Copy existing FPP to ..." -- same box, bigger disk: bring media and identity.
+    ARGS+=(--clone)
     shift
-fi
-
-export DEVICE=$1
-
-/opt/fpp/SD/rpi-clone -v -U $EXCLUDE_FLAGS $DEVICE
-
-
-if [ "$DEVICE" = "sda" ]; then
-    fatlabel /dev/sda1 bootsda
-    e2label /dev/sda2 rootfssda
-    mount /dev/sda2 /mnt
-    mount /dev/sda1 /mnt${FPPBOOTDIR}
-
-    echo "program_usb_boot_mode=1" >> /mnt${FPPBOOTDIR}/config.txt
-    sed -i 's/root=\/dev\/[a-zA-Z0-9]* /root=\/dev\/sda2 /g' /mnt${FPPBOOTDIR}/cmdline.txt
-    sed -i 's/LABEL=boot[a-zA-Z0-9]* /LABEL=bootsda /g' /mnt/etc/fstab
-    sed -i 's/LABEL=root[a-zA-Z0-9]* /LABEL=rootfssda /g' /mnt/etc/fstab
-elif [ "$DEVICE" = "nvme0n1" ]; then
-    fatlabel /dev/nvme0n1p1 bootnvme
-    e2label /dev/nvme0n1p2 rootfsnvme
-    mount /dev/nvme0n1p2 /mnt
-    mount /dev/nvme0n1p1 /mnt${FPPBOOTDIR}
-
-    # Set BOOT_ORDER in the EEPROM configuration
-    BOOT_ORDER=0xf61
-
-    # Create a temporary configuration file
-    echo "[all]\nBOOT_ORDER=${BOOT_ORDER}" > /tmp/boot.conf
-    
-    # Apply the configuration using the rpi-eeprom-config tool
-    sudo rpi-eeprom-config --apply /tmp/boot.conf 
-    
-    rm /tmp/boot.conf 
-    
-    echo "BOOT_ORDER set to ${BOOT_ORDER}."
-
-    sed -i 's/root=\/dev\/[a-zA-Z0-9]* /root=\/dev\/nvme0n1p2 /g' /mnt${FPPBOOTDIR}/cmdline.txt
-    sed -i 's/LABEL=boot[a-zA-Z0-9]* /LABEL=bootnvme /g' /mnt/etc/fstab
-    sed -i 's/LABEL=root[a-zA-Z0-9]* /LABEL=rootfsnvme /g' /mnt/etc/fstab
-else 
-    fatlabel /dev/mmcblk0p1 boot
-    e2label /dev/mmcblk0p2 rootfs
-    mount /dev/mmcblk0p2 /mnt
-    mount /dev/mmcblk0p1 /mnt${FPPBOOTDIR}
-
-    sed -i 's/root=\/dev\/[a-zA-Z0-9]* /root=\/dev\/mmcblk0p2 /g' /mnt${FPPBOOTDIR}/cmdline.txt
-    sed -i 's/LABEL=boot[a-zA-Z0-9]* /LABEL=boot /g' /mnt/etc/fstab
-    sed -i 's/LABEL=root[a-zA-Z0-9]* /LABEL=rootfs /g' /mnt/etc/fstab
-    sed -i  "s/^program_usb_boot_mode=.*//g" /mnt${FPPBOOTDIR}/config.txt
-fi
-
-if [ "$ISCLONE" = "0" ]; then
-    rm -rf /mnt/var/log/*
-    mkdir /mnt/var/log/chrony
-    chown _chrony:_chrony /mnt/var/log/chrony 2>/dev/null || true
-    mkdir /mnt/var/log/exim4
-    chown Debian-exim /mnt/var/log/exim4
-    chgrp Debian-exim /mnt/var/log/exim4
-
-    rm /mnt/home/fpp/.bash_history
-fi
-#umount /mnt${FPPBOOTDIR}
-#umount /mnt
-
-echo ""
-echo ""
-echo ""
-echo ""
-if [ "$ISCLONE" = "1" ]; then
-    echo "******  Clone to $DEVICE complete.  ******"
 else
-    echo "******  Flash to $DEVICE complete.  ******"
-fi 
+    # "Create new FPP on ..." -- a clean install that can run beside this one.
+    ARGS+=(--fresh)
+fi
 
-echo ""
-
+exec "${BINDIR}/flash_storage.sh" -y "${ARGS[@]}" "$1"

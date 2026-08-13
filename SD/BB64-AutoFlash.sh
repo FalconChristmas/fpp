@@ -109,15 +109,48 @@ echo ""
 /opt/u-boot/bb-u-boot-pocketbeagle2/install-emmc.sh
 
 
-/opt/fpp/SD/BBB-FlashMMC.sh -noreboot ext4
+# Mark a failure the only two ways an unattended flash can be read: leave the board
+# powered on, and blink every user LED together.  A finished board goes dark, so
+# neither can be mistaken for success.  flash_storage.sh does this for its own
+# failures; this covers the steps after it.  Note the PocketBeagle2 exposes
+# usr1-usr4 where the BeagleBone Black exposes usr0-usr3, hence the glob.
+fail() {
+    echo ""
+    echo "############################################################"
+    echo "#  FLASH FAILED -- this board is NOT ready and must not be"
+    echo "#  shipped.  $1"
+    echo "############################################################"
+    for led in /sys/class/leds/*usr[0-9]; do
+        [ -e "$led/trigger" ] || continue
+        echo timer > "$led/trigger" 2>/dev/null || continue
+        echo 120 > "$led/delay_on" 2>/dev/null
+        echo 120 > "$led/delay_off" 2>/dev/null
+    done
+    exit 1
+}
 
+# flash_storage.sh partitions, copies, configures and then VERIFIES the eMMC.
+/opt/fpp/SD/flash_storage.sh -y --clone --no-reboot ${DEVICE} \
+    || fail "See the errors above."
 
+# flash_storage.sh's bb64 fixup already does both of these; repeated here because
+# they are idempotent and a board that boots to the flasher again is unrecoverable
+# without a serial console.
 mkdir -p /mnt
-mount ${DEVICE}p1 /mnt
+mount ${DEVICE}p1 /mnt || fail "could not mount the flashed eMMC boot partition."
 sed -i "s|default flashEMMC|default microSD|g" /mnt/extlinux/extlinux.conf
 # Don't need to check if we have to expand the FS on the eMMC
 rm -f /mnt/fpp_expand_rootfs
 umount /mnt
+
+# Done.  A sweep means working and a synchronised blink means failed, so darkness is
+# the only remaining state -- and unlike "powered off" it survives the shutdown below
+# failing, which in this environment it usually does.
+for led in /sys/class/leds/*usr[0-9]; do
+    [ -e "$led/trigger" ] || continue
+    echo none > "$led/trigger" 2>/dev/null
+    echo 0 > "$led/brightness" 2>/dev/null
+done
 
 echo 1 > /proc/sys/kernel/sysrq
 echo s > /proc/sysrq-trigger
