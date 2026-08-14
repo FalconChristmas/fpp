@@ -1153,25 +1153,21 @@ init_uart_clock=16000000
 dtoverlay=miniuart-bt
 
 # Model Specific configuration
-# GPU memory set to 128 to deal with error in omxplayer with hi-def videos
+#
+# No gpu_mem here, deliberately. The firmware GPU split is a legacy setting and
+# nothing in FPP draws on it any more: video goes through GStreamer (the old
+# omxplayer/MMAL path is long gone), and the display, DPI and virtual-matrix
+# buffers all come from the vc4-KMS CMA pool sized above. A Pi 5 ignores
+# gpu_mem outright; on a Pi 4 the 3D block has its own MMU and allocates from
+# Linux instead, where the documented ceiling is 76 -- so the 256 this used to
+# set just carved ~180MB out of usable RAM. Unset lets the firmware pick its
+# own default (64 below 1GB, 76 at 1GB and above), which is what we want.
 [pi5]
-gpu_mem=256
 dtparam=uart0=on
-[pi4]
-gpu_mem=256
-[pi3]
-gpu_mem=128
-[pi0]
-gpu_mem=64
 [pi02]
-gpu_mem=128
-dtparam=audio=off                                                                                                                                                                                                            
-hdmi_force_hotplug=1                                                                                                                                                                                                         
+dtparam=audio=off
+hdmi_force_hotplug=1
 hdmi_drive=2
-[pi1]
-gpu_mem=64
-[pi2]
-gpu_mem=64
 
 [all]
 
