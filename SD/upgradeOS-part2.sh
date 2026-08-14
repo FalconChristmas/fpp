@@ -7,6 +7,22 @@ cd /
 
 logStage "Updating boot filesystem"
 echo "Running rsync to update boot file system:"
+
+# User-supplied inputs that live on the boot partition. fppinit's
+# handleBootPartition() (src/boot/FPPINIT_Config.cpp) runs <bootDir>/fpp_boot.sh
+# on every boot and copies <bootDir>/fpp/ into the media directory, so both are
+# the user's files, not ours -- neither ships in the image. They must survive an
+# OS upgrade. rsync applies --exclude on the receiving side as a protect rule
+# too (we deliberately do not pass --delete-excluded), so listing them here
+# keeps --delete from throwing them away.
+#
+# Both bootDir spellings are covered because fppinit selects /boot/firmware
+# whenever that directory merely EXISTS -- which is true on the BeagleBone
+# Black, where the boot files themselves still live in /boot. Paths are
+# anchored with a leading / so they match at the transfer root (/boot/) only.
+BOOT_KEEP=(--exclude=/fpp/ --exclude=/fpp_boot.sh
+           --exclude=/firmware/fpp/ --exclude=/firmware/fpp_boot.sh)
+
 case "${FPPPLATFORM}" in
     "Raspberry Pi"|"BeagleBone 64")
         # Both Trixie-era Pi and BB64 use /boot/firmware as the FAT boot
@@ -33,7 +49,26 @@ case "${FPPPLATFORM}" in
             mount "${BOOTMOUNTDEV}" /mnt/boot/firmware
         fi
 
-        rsync --outbuf=N -aAXxvc /boot/ /mnt/boot/ --delete-before
+        # Deliberately NO -x here. /mnt/boot/firmware is the FAT boot
+        # partition -- a different filesystem from /mnt/boot -- and rsync's
+        # --one-file-system also stops its *deletion* recursion at the
+        # receiving side's mount points. With -x, --delete-before silently
+        # did nothing at all inside the boot partition, so stale files there
+        # survived every upgrade forever.
+        #
+        # That is how a leftover kernel image bricked the web UI: the Pi
+        # firmware picks the kernel to boot by filename and prefers
+        # kernel_2712.img over kernel8.img. FPP ships only kernel8.img and
+        # only its matching /lib/modules tree, so a kernel_2712.img left
+        # behind by raspi-firmware's kernel postinst hook (images from
+        # before /etc/default/raspi-firmware pinned KERNEL=none) makes the
+        # upgraded box boot a stock Debian kernel with no modules at all --
+        # no ipv6, so apache dies on "Listen [::]:80", and no zram, so boot
+        # stalls 90s on a dev-zram0.device timeout.
+        #
+        # The source side does not need -x: /boot inside the mounted image
+        # has no submounts.
+        rsync --outbuf=N -aAXvc /boot/ /mnt/boot/ --delete-before "${BOOT_KEEP[@]}"
 
         if $OLD_BOOT_AT_ROOT; then
             echo "Adjusting /etc/fstab: /boot -> /boot/firmware"
@@ -46,8 +81,35 @@ case "${FPPPLATFORM}" in
         fi
         ;;
     *)
-        # BeagleBone Black (still /boot, not /boot/firmware)
-        rsync -aAXxvc /boot/ /mnt/boot/ --delete-during
+        # BeagleBone Black. Three layouts are in the field, so this assumes
+        # nothing about where /boot/firmware is or whether it is a mount:
+        #   older images -- no /boot/firmware at all; boot files in /boot.
+        #   some images  -- /boot/firmware exists as an empty stub DIRECTORY
+        #                   while the board still boots from /boot.
+        #   newer images -- /boot/firmware is a real (small, ~36M) FAT mount.
+        # Testing for the directory therefore proves nothing; only findmnt does,
+        # which is what upgradeOS-part1.sh already uses to pick BOOTMOUNT.
+        #
+        # Unlike the Pi, that FAT partition is NOT where the kernel lives: on
+        # the newer images vmlinuz, uEnv.txt and dtbs/ are still in /boot on the
+        # root filesystem, and the FAT holds the Beagle presentation files
+        # (ID.txt, START.HTM, services/) plus sysconf.txt.
+        #
+        # No -x, same reason as the Pi branch above: where /boot/firmware IS a
+        # separate filesystem, --one-file-system also stops rsync's deletion
+        # recursion at that mount point on the receiving side, silently turning
+        # --delete into a no-op there. Where it is not, -x was doing nothing
+        # anyway. Deleting is safe because the image is a superset: the .fppos
+        # is built with that FAT partition still mounted (it is MOUNTS[1] in
+        # build-image-bbb.sh, which the pre-mksquashfs unmount loop skips), so
+        # sysconf.txt and friends are inside the image.
+        #
+        # BOOT_KEEP matters most here -- on the no-separate-partition layout -x
+        # never suppressed anything, so this branch has always been deleting the
+        # user's fpp_boot.sh and fpp/ on every OS upgrade. On the newer images
+        # fppinit resolves bootDir to /boot/firmware (it only checks that the
+        # directory exists), so there it is the /firmware/ spelling that is live.
+        rsync -aAXvc /boot/ /mnt/boot/ --delete-during "${BOOT_KEEP[@]}"
         ;;
 esac
 
