@@ -360,7 +360,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
             allCommands = LoadJsonFromFile(commandsFile);
         }
         if (plen > 1) {
-            if (allCommands.isMember("commands")) {
+            if (allCommands.isObject() && allCommands.isMember("commands")) {
                 std::string p2 = req.get_path_pieces()[1];
                 for (int x = 0; x < allCommands["commands"].size(); x++) {
                     if (allCommands["commands"][x]["name"].asString() == p2) {
@@ -372,7 +372,7 @@ HTTP_RESPONSE_CONST std::shared_ptr<httpserver::http_response> CommandManager::r
         } else {
             if (std::string(req.get_arg("names")) == "true") {
                 Json::Value names;
-                if (allCommands.isMember("commands")) {
+                if (allCommands.isObject() && allCommands.isMember("commands")) {
                     for (int x = 0; x < allCommands["commands"].size(); x++) {
                         names.append(allCommands["commands"][x]["name"].asString());
                     }
@@ -633,7 +633,13 @@ void CommandManager::LoadPresets() {
         lastPresetTimeStamp = FileTimestamp(commandsFile);
     }
 
-    if (allCommands.isMember("commands")) {
+    // isObject() first: jsoncpp throws Json::LogicError from isMember() on a
+    // value that is not an object or null, and nothing here catches it, so a
+    // commandPresets.json holding an array (or a scalar) aborted fppd at
+    // startup and again on every FileMonitor reload of the file. Master gets
+    // this from LoadJsonFromFile(..., JsonRoot::Object), which does not exist
+    // on this branch.
+    if (allCommands.isObject() && allCommands.isMember("commands")) {
         for (int i = 0; i < allCommands["commands"].size(); i++) {
             if (presets.isMember(allCommands["commands"][i]["name"].asString())) {
                 presets[allCommands["commands"][i]["name"].asString()].append(allCommands["commands"][i]);
