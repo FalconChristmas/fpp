@@ -196,6 +196,50 @@ function custom_parse_ini_file($filename)
     return $settings;
 }
 
+/**
+ * Re-assert fpp ownership on a config file the web user cannot write.
+ *
+ * FPP runs "chown -R fpp:fpp" over the media directory at every boot (see
+ * setFileOwnership() in src/boot/FPPINIT_Config.cpp), so the correct owner is
+ * not a guess.  Anything running as root that replaces one of these files with
+ * a fresh inode - an editor, a shell redirect, a restore run by hand - leaves
+ * it root-owned, and every later write from the web UI fails until the next
+ * boot.  Repair it here so a single stray root write doesn't silently disable
+ * saving for the rest of the uptime.
+ *
+ * Returns true only if the file is writable afterwards.
+ */
+function RepairConfigFileOwnership($filename)
+{
+    global $SUDO;
+
+    // Nothing to repair if the file isn't there (fopen will create it) and
+    // nothing to repair to on a system with no fpp user, e.g. macOS.
+    if (!file_exists($filename) || posix_getpwnam('fpp') === false) {
+        return false;
+    }
+
+    $ids = GetFPPUserIds();
+    $file = escapeshellarg($filename);
+    exec($SUDO . " chown " . $ids['uid'] . ":" . $ids['gid'] . " " . $file .
+        " && " . $SUDO . " chmod 664 " . $file, $output, $return_val);
+
+    if ($return_val != 0 || !is_writable($filename)) {
+        return false;
+    }
+
+    error_log("Repaired ownership of '$filename', which was not writable by the web user.");
+    return true;
+}
+
+/**
+ * Write a single setting to the settings file, or to a plugin's config file.
+ *
+ * Returns true once the value is on disk (including when it was already the
+ * stored value), false if it could not be written.  Callers that tell a user
+ * the setting was saved MUST check the return - reporting success on a failed
+ * write shows a "saved" toast for a value that reverts on the next page load.
+ */
 function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
 {
     global $settingsFile;
@@ -207,6 +251,13 @@ function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
     }
 
     $fd = @fopen($filename, "c+");
+    if ($fd === false) {
+        $fd = RepairConfigFileOwnership($filename) ? @fopen($filename, "c+") : false;
+        if ($fd === false) {
+            error_log("WriteSettingToFile: cannot open '$filename' for writing; '$settingName' was NOT saved.");
+            return false;
+        }
+    }
     flock($fd, LOCK_EX);
     $tmpSettings = custom_parse_ini_file($filename);
     if (!isset($tmpSettings[$settingName]) || $tmpSettings[$settingName] != $new_setting_value) {
@@ -220,13 +271,19 @@ function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
                 $RevisedSettingsStr .= $key . " = \"" . $value . "\"\n";
             }
         }
-        file_put_contents($filename, $RevisedSettingsStr);
+        if (@file_put_contents($filename, $RevisedSettingsStr) === false) {
+            error_log("WriteSettingToFile: write to '$filename' failed; '$settingName' was NOT saved.");
+            flock($fd, LOCK_UN);
+            fclose($fd);
+            return false;
+        }
     }
     if ($plugin == "") {
         $settings[$settingName] = $new_setting_value;
     }
     flock($fd, LOCK_UN);
     fclose($fd);
+    return true;
 }
 
 /**
