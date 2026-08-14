@@ -66,8 +66,8 @@ FPPBRANCH=${FPPBRANCH:-"master"}
 # and shown in /etc/issue. Override via env (build-image-pi.sh passes the
 # user-supplied --os-version so the .img / .fppos filenames match what's
 # baked into the image itself).
-FPPIMAGEVER=${FPPIMAGEVER:-"2026-04"}
-FPPCFGVER="129"
+FPPIMAGEVER=${FPPIMAGEVER:-"2026-08"}
+FPPCFGVER="131"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
