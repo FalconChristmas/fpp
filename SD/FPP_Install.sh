@@ -2082,10 +2082,52 @@ configure_apache() {
     sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=${FPPUSER}/"   /etc/apache2/envvars
     sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=${FPPUSER}/" /etc/apache2/envvars
     sed -i -e "s#APACHE_LOG_DIR=.*#APACHE_LOG_DIR=${FPPHOME}/media/logs#" /etc/apache2/envvars
-    # Listen on the IPv6 wildcard; with net.ipv6.bindv6only=0 (the
-    # Linux default) this dual-binds and serves both v4 and v6 clients
-    # from a single socket.
-    sed -i -e "s/Listen 8080.*/Listen [::]:80/" -e "s/^Listen 80$/Listen [::]:80/" /etc/apache2/ports.conf
+    # Port 80 listener. The IPv6 wildcard is preferred: with
+    # net.ipv6.bindv6only=0 (the Linux default) it dual-binds and serves
+    # both v4 and v6 clients from a single socket. But that bind is *fatal*
+    # to apache when the kernel has no IPv6 at all --
+    #   AH00078: alloc_listener: failed to get a socket for ::
+    #   AH00526: Syntax error on line 5 of /etc/apache2/ports.conf
+    # -- and apache then refuses to start, taking the entire web UI with it.
+    # That happens on any box booted with ipv6.disable=1, and on any box
+    # running a kernel whose ipv6 module is missing.
+    #
+    # So decide at *start* time rather than install time: apachectl sources
+    # envvars on every start/restart/configtest, so a box that gains or
+    # loses IPv6 later recovers on its own without reinstalling.
+    cat > /etc/apache2/ports.conf <<'PORTS_EOF'
+# Managed by FPP -- see configure_apache() in SD/FPP_Install.sh.
+# FPP_HAVE_IPV6 is defined from /etc/apache2/envvars when the running
+# kernel actually has IPv6, so a box without it still serves over IPv4
+# instead of failing to start apache at all.
+<IfDefine FPP_HAVE_IPV6>
+Listen [::]:80
+</IfDefine>
+<IfDefine !FPP_HAVE_IPV6>
+Listen 80
+</IfDefine>
+
+<IfModule ssl_module>
+	Listen 443
+</IfModule>
+
+<IfModule mod_gnutls.c>
+	Listen 443
+</IfModule>
+PORTS_EOF
+
+    if ! grep -q FPP_HAVE_IPV6 /etc/apache2/envvars; then
+        cat >> /etc/apache2/envvars <<'ENVVARS_EOF'
+
+## FPP: only ask apache for the IPv6 wildcard listener when the running
+## kernel has IPv6. /proc/sys/net/ipv6 is absent both when the module is
+## missing and when the kernel booted with ipv6.disable=1, which are exactly
+## the cases where "Listen [::]:80" aborts apache startup.
+if [ -d /proc/sys/net/ipv6 ]; then
+	export APACHE_ARGUMENTS="${APACHE_ARGUMENTS} -D FPP_HAVE_IPV6"
+fi
+ENVVARS_EOF
+    fi
 
     cat /opt/fpp/etc/apache2.site   > /etc/apache2/sites-enabled/000-default.conf
     cat /opt/fpp/etc/apache2.status > /etc/apache2/mods-enabled/status.conf
