@@ -30,7 +30,11 @@ std::unique_ptr<Command::Result> StopPlaylistCommand::run(const std::vector<std:
 
 StopGracefullyPlaylistCommand::StopGracefullyPlaylistCommand() :
     Command("Stop Gracefully") {
-    args.push_back(CommandArg("loop", "bool", "After Loop", false));
+    // Optional: run() has always treated a missing argument as "false", and
+    // "Stop Gracefully" with no arguments at all is a normal way to call it.
+    // Saying so here is what keeps CommandManager's missing-argument check
+    // (invokeCommand(), Commands.cpp) from refusing that call.
+    args.push_back(CommandArg("loop", "bool", "After Loop", true).setDefaultValue("false"));
 }
 std::unique_ptr<Command::Result> StopGracefullyPlaylistCommand::run(const std::vector<std::string>& args) {
     bool loop = false;

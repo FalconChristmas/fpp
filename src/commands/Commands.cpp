@@ -459,6 +459,35 @@ static std::string FormatArgsForLog(const std::vector<std::string>& args) {
     return argString;
 }
 
+// The one place a Command is actually invoked, so the one place its argument
+// contract can be enforced.
+//
+// A command that declares arguments reads args[0] to get its subject - the
+// playlist name, the media file, the volume. Most check that it is there
+// first; several index it bare, and operator[](0) on an empty vector hands
+// run() a reference to nothing. That is not a theoretical hazard: a bare
+// "/api/command/Play Media" (no arguments at all) walked a garbage
+// std::string down to GStreamerOutput's constructor and segfaulted there,
+// and "Insert Playlist Immediate" did the same through Playlist::Play - the
+// POST form reaching zero args because a form-urlencoded body fails to parse
+// as JSON and leaves an empty array behind.
+//
+// Enforcing it here rather than in each run() covers every entry path at once
+// - GET, POST, MQTT, presets, GPIO, playlist entries, MultiSync - and covers
+// plugin commands, which FPP cannot audit. A command that genuinely works
+// with no arguments says so by declaring its first argument optional (or by
+// declaring none).
+static std::unique_ptr<Command::Result> invokeCommand(Command* cmd, const std::vector<std::string>& args) {
+    if (args.empty() && !cmd->args.empty() && !cmd->args.front().optional) {
+        const std::string& argName = cmd->args.front().name;
+        LogWarn(VB_COMMAND, "Command \"%s\" requires the \"%s\" argument, none given - not running it\n",
+                cmd->name.c_str(), argName.c_str());
+        return std::make_unique<Command::ErrorResult>(
+            "Command \"" + cmd->name + "\" requires the \"" + argName + "\" argument");
+    }
+    return cmd->run(args);
+}
+
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const std::vector<std::string>& args) {
     auto f = commands.find(command);
     if (f != commands.end()) {
@@ -484,7 +513,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         std::string topic = "command/run";
         Events::Publish(topic, SaveJsonToString(payload));
 
-        return f->second->run(resolvedArgs);
+        return invokeCommand(f->second, resolvedArgs);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     // A playlist "FPP Command" entry (or preset, GPIO binding, etc.) can
@@ -525,7 +554,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         LogExcess(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
         Events::Publish(topic, payloadStr);
 
-        return f->second->run(args);
+        return invokeCommand(f->second, args);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     // A playlist "FPP Command" entry (or preset, GPIO binding, etc.) can
@@ -705,7 +734,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             LogExcess(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
             Events::Publish(topic, payloadStr);
 
-            std::unique_ptr<Command::Result> r = f->second->run(args);
+            std::unique_ptr<Command::Result> r = invokeCommand(f->second, args);
             int count = 0;
             while (!r->isDone() && count < 1000) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -754,7 +783,16 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
     if (p1 == "command") {
         if (parts.size() > 1) {
             std::string command = parts[1];
-            Json::Value val = LoadJsonFromString(std::string(getRequestContent(req)));
+            std::string content(getRequestContent(req));
+            Json::Value val;
+            // A body that does not parse used to yield an empty Json::Value and
+            // the command then ran with zero arguments, which is how a
+            // form-urlencoded POST ("name=...&startItem=0&...") reached
+            // "Insert Playlist Immediate" with nothing to insert. Tell the
+            // caller their body was wrong rather than running something else.
+            if (!content.empty() && !LoadJsonFromString(content, val)) {
+                return makeStringResponse("Body is not valid JSON - expected an array of arguments", 400, "text/plain");
+            }
             std::vector<std::string> args;
             for (int x = 0; x < val.size(); x++) {
                 // Direct Command call, so substitute here - same reason as the
@@ -782,7 +820,7 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                 LogExcess(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
                 Events::Publish(topic, payloadStr);
 
-                std::unique_ptr<Command::Result> r = f->second->run(args);
+                std::unique_ptr<Command::Result> r = invokeCommand(f->second, args);
                 int count = 0;
                 while (!r->isDone() && count < 1000) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
