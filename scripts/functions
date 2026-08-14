@@ -413,8 +413,21 @@ compileBinaries() {
         MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
         FPPDPID=$(pgrep fppd)
         if [ ${MEMORY} -lt 512000 -a "${FPPDPID}" != "" ]; then
-            SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
-            
+            # Count only DISK-backed swap. /proc/meminfo's SwapTotal also counts
+            # zram, which is compressed swap living in RAM -- it cannot hand
+            # cc1plus headroom the box does not already have, so it must not
+            # satisfy the "do we need a build swapfile?" test. A Pi Zero 2 W
+            # ships ~415MB of zram and no disk swap: that sailed past the old
+            # SwapTotal check, no swapfile was created, and the PCH compile was
+            # OOM-killed on roughly two runs in three.
+            #
+            # /proc/swaps is the right source, not just a filtered SwapTotal: on
+            # the Trixie Pi images rpi-swap runs in "zram+file" mode, where
+            # /var/swap is looped in as zram0's writeback backing device rather
+            # than swapped on. It adds no capacity and never appears here, which
+            # is exactly how it should be counted. Field 3 is the size in kB.
+            SWAPTOTAL=$(awk 'NR > 1 && $1 !~ /^\/dev\/zram/ { s += $3 } END { print s + 0 }' /proc/swaps)
+
             if [ ${SWAPTOTAL} -lt 384000 ]; then
                 echo "System has less than 512MB RAM and little swap, activating more swap."
                 # Create swapfile in fpp media so it will go onto the
@@ -427,7 +440,7 @@ compileBinaries() {
                 # we'll allocate a swap file so it shouldn't fail, but
                 # will likely be slow.   We DON'T want an "always" swapfile
                 # to avoid killing the SD cards.
-                ${SUDO} fallocate -l 384M "${FPPHOME}/media/tmp/swapfile"
+                ${SUDO} fallocate -l 448M "${FPPHOME}/media/tmp/swapfile"
                 ${SUDO} chmod 600 "${FPPHOME}/media/tmp/swapfile"
                 ${SUDO} mkswap -q "${FPPHOME}/media/tmp/swapfile"
                 ${SUDO} swapon "${FPPHOME}/media/tmp/swapfile"
