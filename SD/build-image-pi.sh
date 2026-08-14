@@ -642,7 +642,7 @@ RASPI_FW_EOF
 # KERNEL=none stops raspi-firmware from *copying* a stock kernel into
 # /boot/firmware, but it does not stop apt from installing one in the first
 # place, and a Pi5/CM5 boots by filename: the firmware prefers
-# kernel_2712.img over kernel8.img. So a single `apt-get upgrade` that pulls
+# kernel_2712.img over kernel8.img. So a single \`apt-get upgrade\` that pulls
 # a newer linux-image-*-rpi-2712 is enough to put a 16K-page stock kernel
 # back on the boot partition, and the box then boots a kernel whose
 # /lib/modules tree was stripped above -- no modules at all, which shows up
