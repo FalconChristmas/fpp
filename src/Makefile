@@ -45,6 +45,15 @@ DEPFILES := $(OBJECTS_ALL:.o=.d)
 
 PWD := $(shell pwd)
 
+# Delete a target whose recipe failed. GNU Make keeps it by default, which on a
+# memory-tight board turns one OOM-killed compile into a permanently wrong tree:
+# when the OOM killer takes cc1plus partway through writing fpp-pch.h.gch, the
+# truncated .gch is left behind with a fresh mtime, so make reports it "up to
+# date" and never rebuilds it. GCC then silently ignores the invalid PCH (no
+# error, not even with -Winvalid-pch) and re-parses the header in every single
+# TU -- the build still succeeds, just slower, forever, with nothing to say why.
+.DELETE_ON_ERROR:
+
 .PHONY: all
 all: gitsubmodules $(TARGETS)
 .DEFAULT_GOAL := all
@@ -124,8 +133,13 @@ cleanplugins:
 cleanfpp:
 	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(DEPFILES) $(TARGETS) $(TARGETS_PHP)
 
+# fpp-pch.h.gch is named literally rather than as $(PCH_FILE): when the PCH is
+# disabled, PCH_FILE is empty, and a .gch left behind by an
+# earlier PCH-enabled build in the same tree would survive every clean.  However
+# leave the PCH_FILE versions there so if a different filename contruct is used
+# in the future, it may be cleaned
 clean::
-	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(DEPFILES) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE) $(PCH_FILE).sum
+	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(DEPFILES) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE) $(PCH_FILE).sum fpp-pch.h.gch fpp-pch.h.gch.sum
 
 restart: fppd
 	sudo ../scripts/fppd_stop
