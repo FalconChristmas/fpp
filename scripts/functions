@@ -171,6 +171,22 @@ populateCCACHE() {
 }
 
 
+# Total DISK-backed swap, in kB.
+#
+# /proc/meminfo's SwapTotal must not be used for "can this box lean on swap?"
+# decisions: it counts zram, which is compressed swap living in RAM. zram buys
+# effective capacity, but it cannot hand a compile headroom the box does not
+# physically have, so a zram-only board looks well-provisioned and then gets
+# cc1plus OOM-killed anyway.
+#
+# /proc/swaps is also the right source rather than a filtered SwapTotal: on the
+# Trixie Pi images rpi-swap runs in "zram+file" mode, where /var/swap is looped
+# in as zram0's writeback backing device rather than swapped on. It adds no
+# capacity and correctly never appears here. Field 3 is the size in kB.
+function DiskBackedSwapKB() {
+    awk 'NR > 1 && $1 !~ /^\/dev\/zram/ { s += $3 } END { print s + 0 }' /proc/swaps 2>/dev/null
+}
+
 function ComputeMakeParallelism() {
     local CPUS=1
     if [ -f "/proc/cpuinfo" ]; then
@@ -201,7 +217,11 @@ function ComputeMakeParallelism() {
                     # we need to stick with a single core or it will swap
                     CPUS=1
                 else
-                    SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
+                    # Disk-backed swap only -- see DiskBackedSwapKB. A BeagleBone
+                    # ships ~240MB of zram and no disk swap, which used to satisfy
+                    # this test and pick -j2; two cc1plus at ~200MB each on a 493MB
+                    # board just thrashes it.
+                    SWAPTOTAL=$(DiskBackedSwapKB)
                     # Limited memory, if we have some swap, we'll go ahead with -j 2
                     # otherwise we'll need to stick with -j 1 or we run out of memory
                     if [[ ${SWAPTOTAL} -gt 49000 ]]; then
@@ -421,12 +441,8 @@ compileBinaries() {
             # SwapTotal check, no swapfile was created, and the PCH compile was
             # OOM-killed on roughly two runs in three.
             #
-            # /proc/swaps is the right source, not just a filtered SwapTotal: on
-            # the Trixie Pi images rpi-swap runs in "zram+file" mode, where
-            # /var/swap is looped in as zram0's writeback backing device rather
-            # than swapped on. It adds no capacity and never appears here, which
-            # is exactly how it should be counted. Field 3 is the size in kB.
-            SWAPTOTAL=$(awk 'NR > 1 && $1 !~ /^\/dev\/zram/ { s += $3 } END { print s + 0 }' /proc/swaps)
+            # See DiskBackedSwapKB for why /proc/swaps rather than SwapTotal.
+            SWAPTOTAL=$(DiskBackedSwapKB)
 
             if [ ${SWAPTOTAL} -lt 384000 ]; then
                 echo "System has less than 512MB RAM and little swap, activating more swap."

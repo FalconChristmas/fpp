@@ -129,7 +129,13 @@ if [[ ${CPUS} -gt 1 ]]; then
         # will be very slow as we constantly swap in/out
         CPUS=1
     elif [[ ${MEMORY} -lt 512000 ]]; then
-        SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
+        # Disk-backed swap only. SwapTotal also counts zram, which is compressed
+        # swap living in RAM: it cannot give a compile headroom the box does not
+        # physically have, so a zram-only board (e.g. a BeagleBone, ~240MB of
+        # zram and no disk swap) used to satisfy this test and pick -j2, then
+        # thrash. Mirrors DiskBackedSwapKB in scripts/functions, spelled out
+        # here because this file runs before the FPP source is available.
+        SWAPTOTAL=$(awk 'NR > 1 && $1 !~ /^\/dev\/zram/ { s += $3 } END { print s + 0 }' /proc/swaps 2>/dev/null)
         # Limited memory, if we have some swap, we'll go ahead with -j 2
         # otherwise we'll need to stick with -j 1 or we run out of memory
         if [[ ${SWAPTOTAL} -gt 49000 ]]; then
