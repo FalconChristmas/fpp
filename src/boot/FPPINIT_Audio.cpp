@@ -469,7 +469,7 @@ static std::string bestFormatForRate(const std::string& fmtLine, const std::stri
 //
 // Bump this whenever the probe can produce a different conf for unchanged
 // hardware.  Costs one extra probe on the first boot after the upgrade.
-static constexpr int kAlsaSinkConfGeneration = 2;
+static constexpr int kAlsaSinkConfGeneration = 3;
 
 static std::string alsaSinkConfGenerationTag() {
     return "# FPP ALSA sink adapters (generation " + std::to_string(kAlsaSinkConfGeneration) + ")";
@@ -1352,6 +1352,18 @@ static void runAudioSetup(bool recoveryPass) {
             }
         }
     }
+    // The persisted conf pins the graph clock rate (and each adapter's
+    // audio.rate) to whatever AudioFormat was set when it was written.  Changing
+    // that setting has to regenerate, which the card-set comparison above cannot
+    // see -- the same cards are still present, just at a different rate.
+    if (usePipeWireBackend && sinkConfStillValid) {
+        std::smatch rateM;
+        if (!std::regex_search(existingSinkConf, rateM, std::regex(R"(default\.clock\.rate = (\d+))")) ||
+            std::stoi(rateM[1].str()) != pipewireSampleRate) {
+            printf("FPP - PipeWire: configured sample rate is now %d; regenerating\n", pipewireSampleRate);
+            sinkConfStillValid = false;
+        }
+    }
     if (usePipeWireBackend && sinkConfStillValid) {
         printf("FPP - PipeWire: ALSA sink adapters already match present cards; skipping probe\n");
         // bootAdapterCids must still reflect the conf's adapters for the
@@ -1368,6 +1380,18 @@ static void runAudioSetup(bool recoveryPass) {
         std::ostringstream pipewireSink;
         // First line, and matched as a prefix by the generation check above.
         pipewireSink << alsaSinkConfGenerationTag() << "\n";
+        // Run the graph at the rate the cards are actually configured for.  The
+        // daemon default in 90-fpp.conf is 48000, and whenever that differs from
+        // the device rate the ALSA sink adapter resamples on every single cycle
+        // for as long as the graph runs -- not just while media is playing.
+        // Measured on a single-core AM335x board driving a 44100-only I2S cape:
+        // sink work per cycle 478us -> 171us, which is ~2 points of the core off
+        // both idle and playback.  This file sorts after 90-fpp.conf, so the
+        // property set here wins.  allowed-rates is left to 90-fpp.conf, which
+        // already lists every rate the switch below can select.
+        pipewireSink << "context.properties = {\n"
+                     << "    default.clock.rate = " << pipewireSampleRate << "\n"
+                     << "}\n";
         pipewireSink << "context.objects = [\n";
         for (const auto& [key, cardName] : cards) {
             int cardNum = std::stoi(key.substr(5)); // "card N" -> N
