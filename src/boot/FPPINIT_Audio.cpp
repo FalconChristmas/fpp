@@ -469,7 +469,7 @@ static std::string bestFormatForRate(const std::string& fmtLine, const std::stri
 //
 // Bump this whenever the probe can produce a different conf for unchanged
 // hardware.  Costs one extra probe on the first boot after the upgrade.
-static constexpr int kAlsaSinkConfGeneration = 3;
+static constexpr int kAlsaSinkConfGeneration = 4;
 
 static std::string alsaSinkConfGenerationTag() {
     return "# FPP ALSA sink adapters (generation " + std::to_string(kAlsaSinkConfGeneration) + ")";
@@ -1392,20 +1392,13 @@ static void runAudioSetup(bool recoveryPass) {
         // by GeneratePipeWireGroupsConfig() in pipewire.php.
         std::string arecordAll = execAndReturn("/usr/bin/arecord -l 2>/dev/null");
         std::ostringstream pipewireSink;
-        // First line, and matched as a prefix by the generation check above.
-        pipewireSink << alsaSinkConfGenerationTag() << "\n";
-        // Run the graph at the rate the cards are actually configured for.  The
-        // daemon default in 90-fpp.conf is 48000, and whenever that differs from
-        // the device rate the ALSA sink adapter resamples on every single cycle
-        // for as long as the graph runs -- not just while media is playing.
-        // Measured on a single-core AM335x board driving a 44100-only I2S cape:
-        // sink work per cycle 478us -> 171us, which is ~2 points of the core off
-        // both idle and playback.  This file sorts after 90-fpp.conf, so the
-        // property set here wins.  allowed-rates is left to 90-fpp.conf, which
-        // already lists every rate the switch below can select.
-        pipewireSink << "context.properties = {\n"
-                     << "    default.clock.rate = " << pipewireSampleRate << "\n"
-                     << "}\n";
+        // The rate the graph clock has to run at: what the *selected* card's PCM
+        // actually ends up clocked at, which is not always what was asked for.
+        // A fixed-bit-clock cape can refine the request upward -- an AM62x
+        // PCM5102A cape clocks no lower than 88200, so a 44100 request lands on
+        // 88200 -- and a graph pinned to the requested rate then resamples for
+        // the life of the process.  Filled in from the device below.
+        int graphClockRate = pipewireSampleRate;
         pipewireSink << "context.objects = [\n";
         for (const auto& [key, cardName] : cards) {
             int cardNum = std::stoi(key.substr(5)); // "card N" -> N
@@ -1444,6 +1437,8 @@ static void runAudioSetup(bool recoveryPass) {
             // Set when hwParams below is synthesised from /proc rather than read
             // from the device, which changes how much the format line is worth.
             bool paramsFromLiveDevice = false;
+            // Rate read straight off a device that is already open, if it is.
+            int liveRate = 0;
             if (!contains(hwParams, "HW Params")) {
                 std::string procHw = GetFileContents("/proc/asound/card" + std::to_string(cardNum) + "/pcm0p/sub0/hw_params");
                 bool busy = contains(hwParams, "resource busy") || contains(hwParams, "Resource busy");
@@ -1461,6 +1456,11 @@ static void runAudioSetup(bool recoveryPass) {
                 std::string synthFmt = "S16_LE";
                 std::string synthCh = "2";
                 std::smatch pm;
+                // /proc reports the rate the driver actually settled on, which is
+                // exactly what the graph clock needs and costs no probe.
+                if (std::regex_search(procHw, pm, std::regex(R"(rate:\s*(\d+))"))) {
+                    liveRate = std::stoi(pm[1].str());
+                }
                 if (std::regex_search(procHw, pm, std::regex(R"(format:\s*(\S+))"))) {
                     synthFmt = pm[1].str();
                 }
@@ -1606,6 +1606,27 @@ static void runAudioSetup(bool recoveryPass) {
             };
             const char* posStr = (maxChannels >= 1 && maxChannels <= 8) ? positionArrays[maxChannels] : "[ FL FR ]";
 
+            // The graph clock follows the card FPP actually outputs on.  Only that
+            // one matters: there is a single graph rate, and any other card is
+            // resampled to it regardless.  Prefer the live rate off an already-open
+            // device (free, and it is the negotiated truth); otherwise ask the
+            // device what it would settle on for the format just chosen, which is
+            // the only way to see an upward refinement -- --dump-hw-params reports
+            // the unrefined capability space and ignores -r entirely.
+            if (cardNum == card) {
+                int achieved = liveRate > 0
+                                   ? liveRate
+                                   : achievedRateForFormat("hw:" + cId, audioFormat, pipewireSampleRate, maxChannels);
+                if (achieved > 0 && achieved != graphClockRate) {
+                    printf("FPP - PipeWire: card %d (%s) clocks at %d, not the configured %d; "
+                           "running the graph at %d to avoid resampling\n",
+                           cardNum, cId.c_str(), achieved, pipewireSampleRate, achieved);
+                }
+                if (achieved > 0) {
+                    graphClockRate = achieved;
+                }
+            }
+
             // USB audio cards need extra headroom: their independent oscillators
             // drift relative to the PipeWire graph driver clock, causing resyncs.
             int headroom = isUsbCard ? 4096 : 256;
@@ -1668,8 +1689,29 @@ static void runAudioSetup(bool recoveryPass) {
             }
         }
         pipewireSink << "]\n";
-        if (pipewireSink.str() != existingSinkConf) {
-            PutFileContents(pipewireSinkConfPath, pipewireSink.str());
+        // Assembled here rather than streamed from the top: the clock rate is only
+        // known once the selected card has been probed.  Section order does not
+        // matter to SPA-JSON, but the generation tag must stay the first line --
+        // the cache check above matches it as a prefix.
+        //
+        // Whenever the graph rate differs from the device rate the ALSA sink
+        // adapter resamples on every cycle, for as long as the graph runs, not
+        // just while media is playing.  The daemon default in 90-fpp.conf is
+        // 48000; this file sorts after it, so the value set here wins.  Measured
+        // per graph cycle in the sink node: 478us -> 171us on a 44100 I2S cape,
+        // 538us -> 107us on a 44100 USB card, 779us -> 86us on an 88200 cape.
+        // allowed-rates is deliberately left to 90-fpp.conf -- a clock rate
+        // outside that list is honoured anyway (verified with 88200 against the
+        // stock [44100 48000 96000]), and narrowing it here would only forbid
+        // switches that already do not happen.
+        std::ostringstream sinkConf;
+        sinkConf << alsaSinkConfGenerationTag() << "\n"
+                 << "context.properties = {\n"
+                 << "    default.clock.rate = " << graphClockRate << "\n"
+                 << "}\n"
+                 << pipewireSink.str();
+        if (sinkConf.str() != existingSinkConf) {
+            PutFileContents(pipewireSinkConfPath, sinkConf.str());
             // PipeWire only reads this file at startup; a card add/remove (or a
             // capability change) rewrites it, so flag a restart below to load it.
             sinkConfigChanged = true;
