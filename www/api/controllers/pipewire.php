@@ -4015,6 +4015,17 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
 {
     global $SUDO, $settings;
 
+    // Passive links let the graph reach idle so PipeWire can suspend the card.
+    // A non-passive playback link keeps the ALSA sink running forever, so the
+    // whole chain (combine -> filter-chain -> sink, plus any resampling) is
+    // recomputed every quantum even with nothing playing -- measured at 4-5% of
+    // a core on single-core boards.  Kept in sync with the Simple-mode C++
+    // generator in FPPINIT_Audio.cpp; defaults on, settable so it can be turned
+    // off if a card misbehaves coming out of suspend.
+    $passiveLine = (!isset($settings['PipeWirePassiveSinks']) || $settings['PipeWirePassiveSinks'] != '0')
+        ? "        node.passive = true\n"
+        : "";
+
     $channelPositions = array(
         1 => "[ MONO ]",
         2 => "[ FL FR ]",
@@ -4728,6 +4739,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             $conf .= "      playback.props = {\n";
             $conf .= "        node.name = \"$fxOutName\"\n";
             $conf .= "        node.target = \"$realNodeName\"\n";
+            $conf .= $passiveLine;
             $conf .= "        stream.dont-remix = true\n";
             $conf .= "        audio.channels = $numCh\n";
             $conf .= "        audio.position = $posStr\n";
@@ -4783,6 +4795,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
         $conf .= "";
         $conf .= "      }\n";
         $conf .= "      stream.props = {\n";
+        $conf .= $passiveLine;
         $conf .= "        stream.dont-remix = true\n";
         $conf .= "      }\n";
         $conf .= "      stream.rules = [\n";

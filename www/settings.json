@@ -175,6 +175,7 @@
 		"pipeWireGeneral": {
 			"description": "General PipeWire",
 			"settings": [
+				"PipeWirePassiveSinks",
 				"PipeWireRoutingMatrix",
 				"PipeWireGraph"
 			]
@@ -1352,6 +1353,20 @@
 			"gatherStats": true,
 			"tip": "During boot, the current IP addresses will be announced over the audio output.  This setting allows disabling this announcement for production use when FPP is connected to a FM transmitter or speakers.",
 			"type": "checkbox",
+			"platforms": [
+				"!MacOS"
+			]
+		},
+		"PipeWirePassiveSinks": {
+			"name": "PipeWirePassiveSinks",
+			"description": "Suspend Audio Device When Idle",
+			"gatherStats": true,
+			"tip": "Lets PipeWire suspend the sound card while nothing is playing. Without this the audio graph runs continuously and keeps the card clocked, which costs roughly 4-5% of a CPU core on single-core boards even when the player is idle. Turn this off if a sound card does not resume correctly when playback starts.",
+			"level": 1,
+			"default": "1",
+			"type": "checkbox",
+			"restart": 0,
+			"reboot": 1,
 			"platforms": [
 				"!MacOS"
 			]

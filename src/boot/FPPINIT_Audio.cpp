@@ -607,6 +607,14 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
         c << "]\n\n";
     }
 
+    // Passive links let the graph reach idle so PipeWire can suspend the card.
+    // A non-passive playback link keeps the ALSA sink running forever, so the
+    // whole chain (combine -> filter-chain -> sink, plus any resampling) is
+    // recomputed every quantum on a box that is playing nothing -- measured at
+    // 4-5% of a core on single-core boards.  Marking these links passive means
+    // only a real stream starts the graph.  Settable so it can be turned off if
+    // a card misbehaves coming out of suspend.
+    const bool passiveSinks = getRawSettingInt("PipeWirePassiveSinks", 1) != 0;
     c << "context.modules = [\n";
     // Delay filter-chain (0s) — always emitted, matching the PHP, so the
     // running graph has the fpp_fx_g1_* nodes the UI adjusts during calibration.
@@ -633,6 +641,9 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
     c << "      playback.props = {\n";
     c << "        node.name = \"" << fxOut << "\"\n";
     c << "        node.target = \"" << nodeName << "\"\n";
+    if (passiveSinks) {
+        c << "        node.passive = true\n";
+    }
     c << "        stream.dont-remix = true\n";
     c << "        audio.channels = 2\n";
     c << "        audio.position = [ FL FR ]\n";
@@ -650,6 +661,9 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
     c << "        audio.position = [ FL FR ]\n";
     c << "      }\n";
     c << "      stream.props = {\n";
+    if (passiveSinks) {
+        c << "        node.passive = true\n";
+    }
     c << "        stream.dont-remix = true\n";
     c << "      }\n";
     c << "      stream.rules = [\n";
@@ -1987,7 +2001,15 @@ static void runAudioSetup(bool recoveryPass) {
                 std::string cached = GetFileContents(groupsConfCache);
                 const std::string& activeJson =
                     (mediaBackendLower == "pipewire-simple") ? simpleGroupsJsonPath : groupsJsonPath;
+                // The cached conf bakes in the passive-link choice, and neither
+                // the card-presence check nor the dest comparison can see a
+                // change to PipeWirePassiveSinks -- both sides stay consistent
+                // with each other while disagreeing with the setting.  Only this
+                // file carries the marker; the input groups live in 96-*.conf.
+                const bool wantPassive = getRawSettingInt("PipeWirePassiveSinks", 1) != 0;
+                const bool cachedPassive = cached.find("node.passive = true") != std::string::npos;
                 if (cached.find("# WARNING:") == std::string::npos
+                    && wantPassive == cachedPassive
                     && cached == GetFileContents(groupsConfDest)
                     && pipewireConfigCardsPresent(activeJson)) {
                     needRegen = false;
