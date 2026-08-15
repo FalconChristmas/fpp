@@ -55,9 +55,9 @@
             ]
         },
         {
-            "name": "FPP v10.0-beta3 Pi64",
+            "name": "FPP v10.0-beta4 Pi64",
             "description": "Falcon Player for 64-bit capable RPi models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/10.0-beta3/FPP-v10.0-beta3-Pi64.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/10.0-beta4/FPP-v10.0-beta4-Pi64.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
@@ -66,24 +66,24 @@
                 "pi4-64bit",
                 "pi3-64bit"
             ],
-            "image_download_size": 1771693593,
-            "image_download_sha256": "dbedcf3bcc820f345bd4785ba71f1b3b7d8c995ee95d86c6ee7bdc28cdd81ea5",
+            "image_download_size": 1778129813,
+            "image_download_sha256": "a19cc3eac4319e5fde7ce6c0c1045f74b6b8e2f214ad9af69b1c0da30b593c58",
             "extract_size": 7549747200,
-            "extract_sha256": "d45917b2a710173bb2a0ce9b6a7215796907d68ef9169735aa6307c0e7ff385f",
-            "release_date": "2026-08-08"
+            "extract_sha256": "bd045846d5732ec73918e71ea6d27f6e8d695e7ff9df027c4463e2695fa6852f",
+            "release_date": "2026-08-12"
         },
         {
-            "name": "FPP v10.0-beta3 Pi",
+            "name": "FPP v10.0-beta4 Pi",
             "description": "Falcon Player for all RPi models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/10.0-beta3/FPP-v10.0-beta3-Pi.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/10.0-beta4/FPP-v10.0-beta4-Pi.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 7549747200,
-            "extract_sha256": "a40583cf700b940cae743aacff1ca1c0cb0b5262a310886bf27327e6d6bc27f5",
-            "image_download_size": 1773687699,
-            "image_download_sha256": "c57cd0145bf447375a8f7b6d63e9ebff920f568bd8ef5def0de61c020e8dba60",
-            "release_date": "2026-08-08",
+            "extract_sha256": "9e61d07efa532f4971055b13101a7b11e1fcedc751ff78e1de05078d3136cba6",
+            "image_download_size": 1776534519,
+            "image_download_sha256": "1cb0bab1b69b352a9e95d1cb5738047ea9548fea1dff346c857f9ccae9289998",
+            "release_date": "2026-08-12",
             "devices": [
                 "pi5-32bit",
                 "pi4-32bit",
@@ -93,34 +93,34 @@
             ]
         },
         {
-            "name": "FPP v10.0-beta3 BB64/PB2",
+            "name": "FPP v10.0-beta4 BB64/PB2",
             "description": "Falcon Player for BBB64/PB2 models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/10.0-beta3/FPP-v10.0-beta3-BB64.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/10.0-beta4/FPP-v10.0-beta4-BB64.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 7818182656,
-            "extract_sha256": "b15931894940f6e5b81ab40bc7cfa8aabdbcfa1e357fc75393aa4dc9e9dca612",
-            "image_download_size": 1650950482,
-            "image_download_sha256": "678c93ab91f31ca182b40cfaa2318e0f4df9b11fea4240ada6aec52e0101de04",
-            "release_date": "2026-08-08",
+            "extract_sha256": "ca08c05c02b178edcde67481eb4961489a6a28b32c19dca867556fd4542efe2a",
+            "image_download_size": 1653043096,
+            "image_download_sha256": "a1829d806439a6abd10cc4d8946b1d3bdf383009d882238ec529d63cc0124d80",
+            "release_date": "2026-08-12",
             "devices": [
                 "pi1-32bit",
                 "pocketbeagle2-am62"
             ]
         },
         {
-            "name": "FPP v10.0-beta3 BBB/PB",
+            "name": "FPP v10.0-beta4 BBB/PB",
             "description": "Falcon Player for BBB/PB models",
-            "url": "https://github.com/FalconChristmas/fpp/releases/download/10.0-beta3/FPP-v10.0-beta3-BBB.img.zip",
+            "url": "https://github.com/FalconChristmas/fpp/releases/download/10.0-beta4/FPP-v10.0-beta4-BBB.img.zip",
             "icon": "https://raw.githubusercontent.com/FalconChristmas/fpp/master/rpi-imager/rpi-imager_fpp_logo.png",
             "init_format": "none",
             "website": "https://www.falconplayer.com/",
             "extract_size": 7340032000,
-            "extract_sha256": "d695e3b58c049bd735fdc9d8dbb48b3927530bd909841ed99f824febe4eed4a1",
-            "image_download_size": 1420222954,
-            "image_download_sha256": "5a00a000e7d6f4da39c8b3dc5d790e7b2e0683a3723d7aa95752412b3e0a6cbe",
-            "release_date": "2026-08-08",
+            "extract_sha256": "0380e9a68ac2104b5e8df738e544bf033951d4dbea02ec04a81073c35a33a4d0",
+            "image_download_size": 1368776548,
+            "image_download_sha256": "6988447236a16d191ca904345b07ac502f5973f4cd9ad5c093c347e90ee3eb1b",
+            "release_date": "2026-08-12",
             "devices": [
                 "pi1-32bit",
                 "beagle-am335"
