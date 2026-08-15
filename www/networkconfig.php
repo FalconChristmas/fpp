@@ -496,7 +496,7 @@
                     ).done(function (data) {
                         LoadGlobalGateway();
                         $.jGrowl("Global gateway configuration saved", { themeState: 'success' });
-                        $('#btnConfigNetwork').show(); // Gateway is applied on next network restart
+                        ShowNetworkApplyPrompt(); // Gateway is applied on next network restart
                     }).fail(function (xhr, status, error) {
                         DialogError("Save Global Gateway", "Save Failed: " + error);
                     });
@@ -580,7 +580,7 @@
                     ).done(function (data) {
                         LoadDNSConfig();
                         $.jGrowl(" DNS configuration saved", { themeState: 'success' });
-                        $('#btnConfigNetwork').show(); // DNS is applied on next network restart
+                        ShowNetworkApplyPrompt(); // DNS is applied on next network restart
                     }).fail(function () {
                         DialogError("Save DNS Config", "Save Failed");
                     });
@@ -633,11 +633,68 @@
             });
         }
 
+        // Is FPP's WiFi hotspot broadcasting right now?
+        //
+        // api/network/wifi/status is per-interface, but its "hotspotActive" field
+        // is deliberately unqualified - hostapd is a single system-wide unit, so
+        // any wireless interface returns the same global answer. And a box with no
+        // wireless interface at all can't be broadcasting, which is why the empty
+        // case short-circuits to false without a request.
+        //
+        // A save touches several endpoints, each of which wants this answer; the
+        // short cache keeps that to one round trip and keeps them consistent.
+        var hotspotActiveCache = { value: null, at: 0 };
+
+        function CheckHotspotActive(callback) {
+            if (hotspotActiveCache.value !== null && (Date.now() - hotspotActiveCache.at) < 5000) {
+                callback(hotspotActiveCache.value);
+                return;
+            }
+            function finish(active) {
+                hotspotActiveCache = { value: active, at: Date.now() };
+                callback(active);
+            }
+            getNetworkState(function (state) {
+                var wl = null;
+                (state && state.interfaces ? state.interfaces : []).forEach(function (row) {
+                    if (!wl && row.ifname && row.ifname.indexOf('wl') === 0) {
+                        wl = row.ifname;
+                    }
+                });
+                if (!wl) {
+                    finish(false);
+                    return;
+                }
+                $.get('api/network/wifi/status/' + encodeURIComponent(wl))
+                    .done(function (data) { finish(!!(data && data.hotspotActive)); })
+                    .fail(function () { finish(false); });
+            });
+        }
+
+        // Surface how a saved network change should be applied.
+        //
+        // Normally that's the "Restart Network" banner: setupNetwork() applies the
+        // OS network config live, so no reboot is needed. But a network restart
+        // also bounces hostapd, which would drop any device tethered through the
+        // hotspot - including, most likely, whoever is looking at this page. When
+        // the hotspot is up, ask for a reboot instead so the drop is expected
+        // rather than a silent disconnect mid-restart.
+        function ShowNetworkApplyPrompt() {
+            CheckHotspotActive(function (active) {
+                if (active) {
+                    ClearRestartFlag();
+                    SetRebootFlag();
+                } else {
+                    $('#btnConfigNetwork').show();
+                }
+            });
+        }
+
         function ShowTetherRestartBanner() {
             // Tethering settings are re-read live by setupNetwork(), so a full
             // reboot isn't required - just surface the same Restart Network
             // banner/confirm flow the interface tab uses.
-            $('#btnConfigNetwork').show();
+            ShowNetworkApplyPrompt();
         }
 
         function ApplyNetworkConfig() {
@@ -773,7 +830,7 @@
                                     loadInterfaceConfiguration(currentInterface);
                                 }
                                 $.jGrowl(iface + " network interface configuration saved", { themeState: 'success' });
-                                $('#btnConfigNetwork').show();
+                                ShowNetworkApplyPrompt();
 
                                 // Check gateway availability after saving interface config
                                 setTimeout(checkGatewayAvailability, 200);
@@ -793,7 +850,7 @@
                         if (currentInterface) {
                             loadInterfaceConfiguration(currentInterface);
                         }
-                        $('#btnConfigNetwork').show();
+                        ShowNetworkApplyPrompt();
                         setTimeout(checkGatewayAvailability, 200);
                     }
                 }).fail(function () {
@@ -806,7 +863,7 @@
                                 loadInterfaceConfiguration(currentInterface);
                             }
                             $.jGrowl(iface + " network interface configuration saved", { themeState: 'success' });
-                            $('#btnConfigNetwork').show();
+                            ShowNetworkApplyPrompt();
 
                             // Check gateway availability after saving interface config
                             setTimeout(checkGatewayAvailability, 200);
@@ -825,9 +882,16 @@
 
                 SaveDNSConfig();
                 SaveGlobalGateway(); // Save global gateway along with other settings
-                // No reboot needed: "Restart Network" (setupNetwork) applies the OS network
-                // config live. Use a quick fppd restart so outputs rebind to any new address.
-                SetRestartFlag(2);
+                CheckHotspotActive(function (active) {
+                    if (!active) {
+                        // No reboot needed: "Restart Network" (setupNetwork) applies the OS
+                        // network config live. Use a quick fppd restart so outputs rebind to
+                        // any new address. When the hotspot is up, ShowNetworkApplyPrompt()
+                        // asks for a reboot instead, which setting the restart flag here
+                        // would undo.
+                        SetRestartFlag(2);
+                    }
+                });
             });
         }
 
