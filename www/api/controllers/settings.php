@@ -124,7 +124,17 @@ function PutSetting()
         $value = round(($value - 32) * 5 / 9);
     }
 
-    WriteSettingToFile($setting, $value);
+    // A failed write must not fall through to the apply/restart steps below:
+    // applying a value that isn't on disk leaves the running system and the
+    // settings file disagreeing, and the UI would show "setting saved" for a
+    // value that reverts on the next page load.
+    if (!WriteSettingToFile($setting, $value)) {
+        http_response_code(500);
+        return json(array(
+            "status" => "ERROR",
+            "message" => "Unable to save the '" . $setting . "' setting.  The settings file is not writable - check the FPP logs."
+        ));
+    }
 
     // Callers can pass ?skipApply=1 to persist the value WITHOUT running the
     // (sometimes expensive) side effects that apply it. This is used to write a

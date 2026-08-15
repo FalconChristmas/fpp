@@ -4441,10 +4441,144 @@
           "overlays"
         ],
         "summary": "overlays/model/{model}/data",
-        "description": "Get the current pixel buffer of an overlay model. Append /rle for run-length-encoded data.",
+        "description": "Get the current pixel buffer of an overlay model. Append /rle for run-length-encoded data, or /raw for the binary form.",
         "responses": {
           "200": {
             "description": "Object with a `data` array (and `rle` flag)."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "Write bulk pixel data to an overlay model in a single request, as an alternative to one round trip per pixel via `.../pixel`.",
+        "description": "The body may be any of three things, and FPP works out which: - **Raw pixel bytes** (`application/octet-stream`) laid out row-major from the top-left of the region, `w * h * fmt` bytes exactly. A wrong length is an error, never a partial write. - **An encoded image** (PNG, JPEG, GIF, BMP, TIFF, WebP), by `Content-Type: image/*` or `fmt=image`. Decoded and scaled server-side, so a 32x32 PNG costs a few hundred bytes instead of 3KB and no file has to exist on the player first. - **JSON** with the payload base64 in a `Data` member: `{\"X\":0,\"Y\":0,\"W\":32,\"H\":32,\"Format\":\"rgb\",\"Data\":\"...\"}`. Members given here override the equivalent query arguments. A region that hangs off an edge is clipped to what is visible rather than rejected, so a caller can slide an image across a model (and off it) by reposting at moving offsets.",
+        "parameters": [
+          {
+            "name": "x",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Left edge of the region. Default 0; may be negative."
+          },
+          {
+            "name": "y",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Top edge of the region. Default 0; may be negative."
+          },
+          {
+            "name": "w",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Region width. Defaults to the model width less `x`. For an image, the box it is scaled into."
+          },
+          {
+            "name": "h",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Region height. Defaults to the model height less `y`. For an image, the box it is scaled into."
+          },
+          {
+            "name": "fmt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Raw pixel layout: `rgb` (default), `rgbw`, `mono`, or `image` to force image decoding."
+          },
+          {
+            "name": "blend",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "How this write combines with what is there: `opaque` (default), `transparent`, `transparentrgb`."
+          },
+          {
+            "name": "scale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Image scaling: `fit` (default), `fill`, `stretch`, `none`."
+          },
+          {
+            "name": "target",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "`channel` (default) writes the output channel data; `overlay` composites into the mmapped overlay buffer shared with external clients."
+          },
+          {
+            "name": "autoEnable",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Enable the model if it is currently Disabled: `true`, `Enabled`, `Transparent`, or `TransparentRGB`."
+          },
+          {
+            "name": "stopEffect",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Evict a running effect on the model first. Default true."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pixel data written; body reports the region and whether it was clipped."
+          },
+          "400": {
+            "description": "Malformed arguments, wrong body length, undecodable image, or a region entirely off the model."
+          },
+          "404": {
+            "description": "No model with that name exists."
+          }
+        }
+      }
+    },
+    "/api/overlays/model/{model}/data/raw": {
+      "parameters": [
+        {
+          "name": "model",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "overlays"
+        ],
+        "summary": "Get the current pixel buffer of an overlay model as raw binary: width * height * bytesPerPixel bytes, row-major from the top-left, which is the exact layout `PUT /api/overlays/model/{model}/data` accepts. The model geometry is repeated in the `X-FPP-Model-Width`, `X-FPP-Model-Height` and `X-FPP-Model-BytesPerPixel` response headers.",
+        "description": "The JSON form spends 4-6 wire bytes per payload byte; this one spends one.",
+        "responses": {
+          "200": {
+            "description": "Binary pixel data (application/octet-stream)."
           }
         }
       }

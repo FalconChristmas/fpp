@@ -36,7 +36,23 @@ include ${SRCDIR}/makefiles/*.mk
 
 TARGETS_PHP := ../www/fppversion.php ../www/fppdefines.php
 
+# Header dependency files written by $(DEPFLAGS) (see makefiles/common/setup.mk).
+# -MMD puts each one next to its object, so this has to be expanded after every
+# fragment above has finished appending to OBJECTS_ALL.  Derived from the object
+# list rather than a */*.d wildcard because the core nests three deep
+# (channeloutput/processors, overlays/wled, non-gpl/BBShiftPanel).
+DEPFILES := $(OBJECTS_ALL:.o=.d)
+
 PWD := $(shell pwd)
+
+# Delete a target whose recipe failed. GNU Make keeps it by default, which on a
+# memory-tight board turns one OOM-killed compile into a permanently wrong tree:
+# when the OOM killer takes cc1plus partway through writing fpp-pch.h.gch, the
+# truncated .gch is left behind with a fresh mtime, so make reports it "up to
+# date" and never rebuilds it. GCC then silently ignores the invalid PCH (no
+# error, not even with -Winvalid-pch) and re-parses the header in every single
+# TU -- the build still succeeds, just slower, forever, with nothing to say why.
+.DELETE_ON_ERROR:
 
 .PHONY: all
 all: gitsubmodules $(TARGETS)
@@ -87,13 +103,13 @@ fpp-pch.h.gch: fpp-pch.h common.h settings.h Sequence.h fppversion.h log.h mqtt.
 endif
 
 %.o: %.cpp %.h $(PCH_FILE) fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
+	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 %.o: %.cpp $(PCH_FILE) fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
+	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 %.o: %.c $(PCH_FILE) fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
+	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 
 rebuildplugins: cleanplugins plugins
@@ -115,13 +131,27 @@ cleanplugins:
 	done
 
 cleanfpp:
-	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP)
+	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(DEPFILES) $(TARGETS) $(TARGETS_PHP)
 
+# fpp-pch.h.gch is named literally rather than as $(PCH_FILE): when the PCH is
+# disabled, PCH_FILE is empty, and a .gch left behind by an
+# earlier PCH-enabled build in the same tree would survive every clean.  However
+# leave the PCH_FILE versions there so if a different filename contruct is used
+# in the future, it may be cleaned
 clean::
-	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE) $(PCH_FILE).sum
+	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(DEPFILES) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE) $(PCH_FILE).sum fpp-pch.h.gch fpp-pch.h.gch.sum
 
 restart: fppd
 	sudo ../scripts/fppd_stop
 	sudo ../scripts/fppd_start
 
-
+# Read back the header dependencies recorded by the last build.  Kept last so
+# the rules these files carry can never win GNU Make's "first target seen
+# becomes the default goal" race - .DEFAULT_GOAL is pinned above as well.
+#
+# Wrapped in $(wildcard ...) rather than left to -include: a bare -include of a
+# name that does not exist yet sends Make looking for a rule to build it, and
+# on a clean tree that is ~200 fruitless implicit-rule searches.  The wildcard
+# drops the missing ones up front, and -include keeps a build working if one is
+# deleted by hand.
+-include $(wildcard $(DEPFILES))

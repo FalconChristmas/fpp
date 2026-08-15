@@ -143,6 +143,16 @@ void PixelOverlayModelSub::buildGrid() {
 PixelOverlayModelSub::~PixelOverlayModelSub() {
 }
 
+// Resolve the parent model, caching the pointer.
+//
+// MUST NOT be called from the channel output thread. It takes modelsLock (via
+// getModel()), and the output thread reaches doOverlay() from
+// PixelOverlayManager::doOverlays() with activeModelsLock already held. Every
+// HTTP handler takes those two the other way round -- modelsLock for the model
+// lookup, then activeModelsLock when setState() reaches modelStateChanged() --
+// so acquiring them in this order deadlocks the two threads against each other.
+// setState() below is the only place that resolves, and it does so before the
+// model can become visible to the output thread at all.
 bool PixelOverlayModelSub::foundParent() {
     if (parent)
         return true;
@@ -153,17 +163,31 @@ bool PixelOverlayModelSub::foundParent() {
         return true;
     }
 
-    LogErr(VB_CHANNELOUT, "Unable to find parent\n");
+    LogErr(VB_CHANNELOUT, "Unable to find parent \"%s\" for submodel \"%s\"\n",
+           config["Parent"].asString().c_str(), name.c_str());
     return false;
 }
 void PixelOverlayModelSub::setState(const PixelOverlayState& st) {
-    PixelOverlayModel::setState(st);
     if (gridMode) {
         // Grid submodels scatter directly to the parent's output channels; they
-        // do not register as a rectangular child of the parent.
+        // never dereference `parent`, so they need no resolution at all, and
+        // they do not register as a rectangular child of the parent.
+        PixelOverlayModel::setState(st);
         return;
     }
-    if (foundParent()) {
+
+    // Resolve BEFORE the base class publishes this model into the manager's
+    // active list. From the moment it lands there the channel output thread can
+    // call doOverlay() on it, and resolving from that side takes modelsLock
+    // while doOverlays() holds activeModelsLock -- the inversion described on
+    // foundParent(). Doing it here is free: setState() already runs under
+    // modelsLock on every path that reaches it, so this is a recursive
+    // re-acquire rather than a new one.
+    bool haveParent = foundParent();
+
+    PixelOverlayModel::setState(st);
+
+    if (haveParent) {
         parent->setChildState(name, st, xOffset, yOffset, width, height);
     }
 }
@@ -181,7 +205,15 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
         return;
     }
 
-    if (!foundParent())
+    // Deliberately the cached pointer, NOT foundParent(): this runs on the
+    // channel output thread with activeModelsLock held, where taking modelsLock
+    // deadlocks (see foundParent()). setState() has already resolved it by the
+    // time we can be reached. Null here means the parent genuinely does not
+    // exist -- a submodel left pointing at a renamed or deleted model -- and
+    // retrying every frame would both spam the log and hold that deadlock
+    // window open permanently rather than for a single lookup. setState()
+    // reports the failure once instead.
+    if (!parent)
         return;
 
     dirtyBuffer = dirtyBuffer | parent->needRefresh();

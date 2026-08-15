@@ -524,12 +524,46 @@ if [ -n "\$BB_PURGE_INSTALLED" ]; then
     apt-get remove -y --autoremove --purge \$BB_PURGE_INSTALLED
 fi
 
-# Reclaim space from old DTB packages that ship in the rcn-ee image.
-rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1-* /opt/source/dtb-6.6-* /opt/source/dtb-6.12-* /opt/source/spi*
 rm -rf /opt/bb-code-server /opt/vsx-examples
 
 cd /root
 /root/FPP_Install.sh --img --yes --branch ${FPPBRANCH} ${INSTALLER_EXTRA_ARGS}
+
+# Reclaim /opt/source, which the rcn-ee image fills with ~150MB in 12k+ files:
+# a device-tree build tree per kernel series (dtb-6.1.x ... dtb-7.2.x), the
+# BeagleBoard-DeviceTrees checkout and TI's open-pru examples.
+#
+# One thing under here has to survive:
+#   dtb-<series>.x    capes/drivers/*/Makefile compiles the base overlay with
+#                     -I/opt/source/dtb-<series>.x/include. Keeping it only
+#                     until FPP_Install has run is not enough: an on-device
+#                     rebuild (an upgrade script, or a user re-running
+#                     FPP_Install) needs those same include paths, so the tree
+#                     the Makefiles name has to ship in the image.
+#
+# Which series to keep is read back out of the Makefiles instead of being
+# hardcoded here. They are what moves to a new kernel series, and a name list
+# kept in sync with them by hand is exactly how this went wrong before: the
+# original globs were written for the pre-".x" directory names and had quietly
+# stopped matching anything at all. If that lookup ever comes up empty, keep
+# every dtb-* tree rather than delete the ones a build needs -- the failure
+# mode of this cleanup should be a fat image, never a broken one.
+if [ -d /opt/source ]; then
+    DTB_KEEP="\$(grep -rhoE '/opt/source/dtb-[0-9.]+x' /opt/fpp/capes/drivers 2>/dev/null | sed 's|.*/||' | sort -u | tr '\n' ' ')"
+    if [ -z "\$DTB_KEEP" ]; then
+        echo "FPP - WARNING: no /opt/source/dtb-*.x reference found under capes/drivers;"
+        echo "FPP -          keeping every dtb-* tree rather than risk breaking an overlay build"
+        DTB_KEEP="\$(find /opt/source -mindepth 1 -maxdepth 1 -name 'dtb-*' -printf '%f ')"
+    fi
+    KEEP_SRC="\$DTB_KEEP"
+    echo "FPP - Reclaiming /opt/source, keeping: \$KEEP_SRC"
+    find /opt/source -mindepth 1 -maxdepth 1 -printf '%f\n' | while read -r entry; do
+        case " \$KEEP_SRC " in
+            *" \$entry "*) continue ;;
+        esac
+        rm -rf "/opt/source/\$entry"
+    done
+fi
 
 # Purge packages that FPP_Install pulls back in as (recommended) deps but that
 # a headless FPP has no use for. Done here, after the install, because the
@@ -547,6 +581,22 @@ done
 if [ -n "\$POST_PURGE_INSTALLED" ]; then
     apt-get remove -y --autoremove --purge \$POST_PURGE_INSTALLED
 fi
+
+# Kernel headers (~70MB of /usr/src). The rcn-ee base image installs
+# bbb.io-headers-<series>, which PreDepends on the matching
+# linux-headers-<kver>; nothing on a headless FPP builds against them (the
+# Pi image strips its headers for the same reason), and they are dead weight
+# in every .fppos download. Matched by prefix rather than by hardcoded kernel
+# version so this doesn't rot as the base image's kernel series moves.
+# Deliberately NOT --autoremove: the kernel image itself is an automatic
+# install held in place by bbb.io-kernel-<series>, and there is no reason to
+# let a header purge start pulling on that thread.
+HDR_INSTALLED=\$(dpkg-query -W -f='\${Package} \${Status}\n' 'bbb.io-headers-*' 'linux-headers-*' 2>/dev/null | awk '\$4=="installed" {print \$1}')
+if [ -n "\$HDR_INSTALLED" ]; then
+    echo "FPP - Removing kernel header packages:\$HDR_INSTALLED"
+    apt-get remove -y --purge \$HDR_INSTALLED 2>/dev/null || true
+fi
+rm -rf /usr/src/linux-headers-*
 
 # Finalization (mirrors SD/README.BB64 post-install cleanup)
 apt-get clean

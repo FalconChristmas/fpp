@@ -25,9 +25,9 @@ fppcapedetect: $(OBJECTS_fppcapedetect) libfpp_capeutils.so
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -o $@
 	
 CapeUtils.o: CapeUtils.cpp CapeUtils.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
+	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 fppcapedetect.o: fppcapedetect.cpp fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
+	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 
 endif

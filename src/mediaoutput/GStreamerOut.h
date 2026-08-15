@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "AES67Manager.h"
+#include "OpusRTPManager.h"
 
 class PixelOverlayModel;
 

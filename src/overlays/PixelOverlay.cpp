@@ -19,7 +19,9 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
+#include <algorithm> // std::sort/std::transform in the image file listing
 #include <fcntl.h>
+#include <filesystem> // image file listing for the Image effect's picker
 #include <fstream> // virtualdisplaymap parse for model preview endpoint
 #include <unistd.h> // write -- needed directly for NOPCH builds
 
@@ -328,6 +330,20 @@ void PixelOverlayManager::modelStateChanged(PixelOverlayModel* m, const PixelOve
     }
 }
 
+// Runs on the channel output thread, once per frame.
+//
+// LOCK ORDER: nothing reached from here may take modelsLock. This function
+// holds activeModelsLock for the whole pass, while every HTTP handler takes
+// modelsLock first and then activeModelsLock (via setState() ->
+// modelStateChanged()). Acquiring them in this order deadlocks the two threads
+// against each other, and the symptom is nasty: fppd keeps running and
+// /api/fppd/status keeps answering 200, but every /api/overlays and /api/models
+// request hangs forever and overlays stop updating, so a health check will not
+// notice. PixelOverlayModelSub::doOverlay() used to resolve its parent through
+// getModel() from here; see the note on PixelOverlayModelSub::foundParent().
+//
+// removeAutoOverlayModel() and getActiveOverlayEffects() both drop modelsLock
+// (or snapshot) before touching activeModelsLock for the same reason.
 void PixelOverlayManager::doOverlays(uint8_t* channels) {
     if (numActive == 0) {
         return;
@@ -591,10 +607,23 @@ HttpResponsePtr PixelOverlayManager::render_HEAD(const HttpRequestPtr& req) {
 
 /**
  * Get the current pixel buffer of an overlay model. Append /rle for
- * run-length-encoded data.
+ * run-length-encoded data, or /raw for the binary form.
  *
  * @route GET /api/overlays/model/{model}/data
  * @response 200 Object with a `data` array (and `rle` flag).
+ */
+
+/**
+ * Get the current pixel buffer of an overlay model as raw binary:
+ * width * height * bytesPerPixel bytes, row-major from the top-left, which is
+ * the exact layout `PUT /api/overlays/model/{model}/data` accepts. The model
+ * geometry is repeated in the `X-FPP-Model-Width`, `X-FPP-Model-Height` and
+ * `X-FPP-Model-BytesPerPixel` response headers.
+ *
+ * The JSON form spends 4-6 wire bytes per payload byte; this one spends one.
+ *
+ * @route GET /api/overlays/model/{model}/data/raw
+ * @response 200 Binary pixel data (application/octet-stream).
  */
 
 /**
@@ -654,6 +683,52 @@ static std::string normalizeOverlayModelName(const std::string& name) {
     return out;
 }
 
+// Collect the names of usable image files under the media images directory,
+// relative to it, sorted, for the Image overlay effect's file picker.
+static void collectOverlayImageNames(Json::Value& result) {
+    static const char* const IMAGE_EXTENSIONS[] = {
+        ".bmp", ".gif", ".jpeg", ".jpg", ".png", ".ppm", ".tga", ".tif", ".tiff", ".webp"
+    };
+
+    std::string dir = FPP_DIR_IMAGE("");
+    std::vector<std::string> names;
+
+    try {
+        if (!std::filesystem::exists(dir)) {
+            result.resize(0);
+            return;
+        }
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
+            if (!entry.is_regular_file()) {
+                continue;
+            }
+            std::string ext = entry.path().extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            bool isImage = false;
+            for (const char* known : IMAGE_EXTENSIONS) {
+                if (ext == known) {
+                    isImage = true;
+                    break;
+                }
+            }
+            if (!isImage) {
+                continue;
+            }
+            names.push_back(std::filesystem::relative(entry.path(), dir).string());
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        LogErr(VB_CHANNELOUT, "Error listing overlay images: %s\n", e.what());
+    }
+
+    std::sort(names.begin(), names.end());
+    for (auto& n : names) {
+        result.append(n);
+    }
+    if (names.empty()) {
+        result.resize(0); // an empty Json::Value would serialize as null, not []
+    }
+}
+
 // Collect the per-pixel [x, y, channel] preview coordinates for one model from
 // config/virtualdisplaymap, appending them to pixels. Matches the model section
 // on exact or normalized name. Parsing on demand (only when a preview is
@@ -692,6 +767,368 @@ static void collectModelPreviewPixels(const std::string& modelName, Json::Value&
             pixels.append(px);
         }
     }
+}
+
+// ---- Bulk pixel data ------------------------------------------------------
+//
+// Backing code for PUT /api/overlays/model/{model}/data. The per-pixel endpoint
+// costs one HTTP round trip per pixel, and the only bulk alternative was the
+// mmapped shm buffer -- which is local-only and awkward from anything that is
+// not C. This moves a whole frame, or a rectangle of one, per request.
+
+// Query args are parsed with "absent" and "malformed" kept apart so a typo
+// reports as an error instead of silently taking the default.
+enum class ArgState {
+    Missing,
+    Bad,
+    Ok
+};
+static ArgState getIntArg(const HttpRequestPtr& req, const char* name, int& out) {
+    std::string v = getRequestArg(req, name);
+    if (v.empty()) {
+        return ArgState::Missing;
+    }
+    try {
+        std::size_t pos = 0;
+        int i = std::stoi(v, &pos, 10);
+        if (pos != v.size()) {
+            return ArgState::Bad;
+        }
+        out = i;
+        return ArgState::Ok;
+    } catch (const std::exception&) {
+        return ArgState::Bad;
+    }
+}
+
+// Wire layouts accepted for a raw pixel body. 0 means "not a raw format".
+static int bytesForPixelFormat(const std::string& fmt) {
+    if (fmt.empty() || fmt == "rgb") {
+        return 3;
+    }
+    if (fmt == "rgbw") {
+        return 4;
+    }
+    if (fmt == "mono" || fmt == "grey" || fmt == "gray") {
+        return 1;
+    }
+    return 0;
+}
+
+// ?blend= selects how this one write combines with what is already in the
+// model, reusing the overlay state blend rules. Deliberately NOT named "state":
+// PUT .../state sets the model's *enable* state, and one arg name meaning both
+// things would be a trap.
+static bool parseBlend(const std::string& v, PixelOverlayState& out) {
+    if (v.empty() || v == "opaque" || v == "Enabled") {
+        out = PixelOverlayState(PixelOverlayState::Enabled);
+    } else if (v == "transparent" || v == "Transparent") {
+        out = PixelOverlayState(PixelOverlayState::Transparent);
+    } else if (v == "transparentrgb" || v == "TransparentRGB") {
+        out = PixelOverlayState(PixelOverlayState::TransparentRGB);
+    } else {
+        return false;
+    }
+    return true;
+}
+
+// ?scale= for encoded-image bodies, onto ScaleOverlayImage()'s vocabulary.
+static bool parseImageScaling(const std::string& v, std::string& out) {
+    if (v.empty() || v == "fit") {
+        out = "Scale to Fit";
+    } else if (v == "fill" || v == "crop") {
+        out = "Crop to Fill";
+    } else if (v == "stretch") {
+        out = "Stretch";
+    } else if (v == "none") {
+        out = "None";
+    } else {
+        return false;
+    }
+    return true;
+}
+
+// Does this body look like an encoded image?
+//
+// Only ever consulted AFTER the body has failed to match the raw pixel geometry
+// the request describes. Raw pixel data can legitimately begin with any byte
+// sequence at all -- 0xFF 0xD8 0xFF is a perfectly ordinary red-ish pixel, not
+// necessarily a JPEG -- so sniffing before the length check would misread real
+// pixel data as an image. Length first, magic second, is unambiguous.
+static bool looksLikeEncodedImage(std::string_view b) {
+    auto starts = [&](const char* magic, std::size_t n) {
+        return b.size() >= n && memcmp(b.data(), magic, n) == 0;
+    };
+    return starts("\x89PNG\r\n\x1a\n", 8) ||                     // PNG
+           starts("\xff\xd8\xff", 3) ||                          // JPEG
+           starts("GIF8", 4) ||                                  // GIF
+           starts("BM", 2) ||                                    // BMP
+           starts("II*\0", 4) ||                                 // TIFF little-endian
+           starts("MM\0*", 4) ||                                 // TIFF big-endian
+           (b.size() >= 12 && memcmp(b.data(), "RIFF", 4) == 0 && // WebP
+            memcmp(b.data() + 8, "WEBP", 4) == 0);
+}
+
+// `lock` is render_PUT()'s hold on modelsLock. It is released before the
+// expensive part of the request (image decode, the blit itself) for two
+// reasons, and the caller must not use it afterwards:
+//
+//  * The Text branch below already unlocks before dispatching, because
+//    touching a model's running effect under modelsLock inverts the order the
+//    effect thread uses (effectLock, then modelsLock via a submodel's parent
+//    lookup). Evicting an effect here has to follow the same rule.
+//  * Holding modelsLock across a GraphicsMagick decode -- milliseconds -- while
+//    this endpoint is designed to be called at frame rates widens an existing
+//    window in which the channel output thread sits blocked in doOverlays()
+//    holding activeModelsLock and waiting on modelsLock. See
+//    docs/PixelOverlayBulkData.md.
+static HttpResponsePtr bulkPixelDataPut(const HttpRequestPtr& req, PixelOverlayModel* m,
+                                        std::unique_lock<std::recursive_mutex>& lock) {
+    auto errorResp = [](const std::string& msg) {
+        Json::Value r;
+        r["Status"] = "ERROR";
+        r["Message"] = msg;
+        return makeStringResponse(SaveJsonToString(r, ""), 400, "application/json");
+    };
+
+    const int modelW = m->getWidth();
+    const int modelH = m->getHeight();
+
+    int x = 0, y = 0, w = 0, h = 0;
+    bool xExplicit = false, yExplicit = false, wExplicit = false, hExplicit = false;
+    struct {
+        const char* name;
+        int* val;
+        bool* explicitly;
+    } intArgs[] = {
+        { "x", &x, &xExplicit },
+        { "y", &y, &yExplicit },
+        { "w", &w, &wExplicit },
+        { "h", &h, &hExplicit },
+    };
+    for (auto& a : intArgs) {
+        ArgState st = getIntArg(req, a.name, *a.val);
+        if (st == ArgState::Bad) {
+            return errorResp(std::string("Argument \"") + a.name + "\" is not an integer");
+        }
+        *a.explicitly = (st == ArgState::Ok);
+    }
+
+    std::string fmtArg = getRequestArg(req, "fmt");
+    std::string scaleArg = getRequestArg(req, "scale");
+    std::string targetArg = getRequestArg(req, "target");
+    std::string autoEnableArg = getRequestArg(req, "autoEnable");
+    std::string stopEffectArg = getRequestArg(req, "stopEffect");
+
+    PixelOverlayState blend;
+    if (!parseBlend(getRequestArg(req, "blend"), blend)) {
+        return errorResp("Unknown blend \"" + getRequestArg(req, "blend") +
+                         "\"; expected opaque, transparent, or transparentrgb");
+    }
+
+    bool toOverlay = false;
+    if (targetArg == "overlay") {
+        toOverlay = true;
+    } else if (!targetArg.empty() && targetArg != "channel") {
+        return errorResp("Unknown target \"" + targetArg + "\"; expected channel or overlay");
+    }
+
+    // string_view, not getRequestContent(): the body is a whole frame and there
+    // is no reason to copy it before we know what it is.
+    std::string_view body = req->body();
+    if (body.empty()) {
+        return errorResp("Empty body");
+    }
+
+    std::string ctype = req->getHeader("content-type");
+    std::transform(ctype.begin(), ctype.end(), ctype.begin(), ::tolower);
+
+    enum class BodyKind {
+        Raw,
+        Json,
+        Image
+    };
+    BodyKind kind = BodyKind::Raw;
+    if (fmtArg == "image" || startsWith(ctype, "image/")) {
+        kind = BodyKind::Image;
+    } else if (startsWith(ctype, "application/json")) {
+        kind = BodyKind::Json;
+    } else {
+        std::size_t i = 0;
+        while (i < body.size() && isspace((unsigned char)body[i])) {
+            i++;
+        }
+        if (i < body.size() && body[i] == '{') {
+            kind = BodyKind::Json;
+        }
+    }
+
+    // Where the pixel (or encoded image) bytes actually live. The JSON form
+    // decodes into `decoded`; the other two point straight at the body.
+    std::vector<uint8_t> decoded;
+    const uint8_t* data = (const uint8_t*)body.data();
+    std::size_t dataLen = body.size();
+
+    if (kind == BodyKind::Json) {
+        Json::Value root;
+        if (!LoadJsonFromString(std::string(body), root)) {
+            return errorResp("Could not parse the JSON body");
+        }
+        if (!root.isMember("Data")) {
+            return errorResp("A JSON body needs a base64 \"Data\" member");
+        }
+        // JSON members win over query args -- one request, one source of truth.
+        struct {
+            const char* key;
+            int* val;
+            bool* explicitly;
+        } jsonInts[] = {
+            { "X", &x, &xExplicit },
+            { "Y", &y, &yExplicit },
+            { "W", &w, &wExplicit },
+            { "H", &h, &hExplicit },
+        };
+        for (auto& a : jsonInts) {
+            if (root.isMember(a.key)) {
+                if (!root[a.key].isIntegral()) {
+                    return errorResp(std::string("JSON member \"") + a.key + "\" is not an integer");
+                }
+                *a.val = root[a.key].asInt();
+                *a.explicitly = true;
+            }
+        }
+        if (root.isMember("Format")) {
+            fmtArg = root["Format"].asString();
+        }
+        decoded = base64Decode(root["Data"].asString());
+        if (decoded.empty()) {
+            return errorResp("The \"Data\" member did not decode to any bytes");
+        }
+        data = decoded.data();
+        dataLen = decoded.size();
+        if (fmtArg == "image") {
+            kind = BodyKind::Image;
+        }
+    }
+
+    // An omitted w/h means "from the offset to the far edge", which makes a
+    // plain full-frame post need no args at all.
+    if (!wExplicit) {
+        w = modelW - std::max(0, x);
+    }
+    if (!hExplicit) {
+        h = modelH - std::max(0, y);
+    }
+    if (w <= 0 || h <= 0) {
+        return errorResp("Region " + std::to_string(w) + "x" + std::to_string(h) +
+                         " has no area (model is " + std::to_string(modelW) + "x" +
+                         std::to_string(modelH) + ")");
+    }
+
+    int srcBpp = 3;
+    if (kind != BodyKind::Image) {
+        srcBpp = bytesForPixelFormat(fmtArg);
+        if (!srcBpp) {
+            return errorResp("Unknown fmt \"" + fmtArg + "\"; expected rgb, rgbw, mono, or image");
+        }
+        std::size_t expect = (std::size_t)w * h * srcBpp;
+        if (dataLen != expect) {
+            // Wrong length for the geometry given. If the bytes are an encoded
+            // image, the caller almost certainly meant to post one, so take it
+            // rather than making them add ?fmt=image.
+            if (looksLikeEncodedImage(std::string_view((const char*)data, dataLen))) {
+                kind = BodyKind::Image;
+            } else {
+                return errorResp("Body is " + std::to_string(dataLen) + " bytes; a " +
+                                 std::to_string(w) + "x" + std::to_string(h) + " " +
+                                 (fmtArg.empty() ? "rgb" : fmtArg) + " region needs " +
+                                 std::to_string(expect) +
+                                 " (w * h * " + std::to_string(srcBpp) + ")");
+            }
+        }
+    }
+
+    std::string scaling;
+    if (kind == BodyKind::Image) {
+        if (!parseImageScaling(scaleArg, scaling)) {
+            return errorResp("Unknown scale \"" + scaleArg + "\"; expected fit, fill, stretch, or none");
+        }
+        // For an image, w/h are the box it gets scaled into, and unlike the raw
+        // path there is no body length to cross-check them against. Clamp to the
+        // model: a bigger box cannot draw anything more (the excess is clipped
+        // away), but it would have GraphicsMagick allocate for it first --
+        // ?w=9999&h=9999 is a ~300MB resize, which is fatal on a BeagleBone.
+        w = std::min(w, modelW);
+        h = std::min(h, modelH);
+    }
+
+    // autoEnable takes the same vocabulary as the Text and Image effects and,
+    // like them, only ever promotes a Disabled model. Done while modelsLock is
+    // still held, because that is the order every other state change uses.
+    if (!autoEnableArg.empty()) {
+        PixelOverlayState st(autoEnableArg);
+        if (st.getState() != PixelOverlayState::Disabled &&
+            m->getState().getState() == PixelOverlayState::Disabled) {
+            m->setState(st);
+        }
+    }
+
+    // Everything below is either slow or touches the effect lock, so drop
+    // modelsLock first. See the note on this function.
+    lock.unlock();
+
+    // Take the model over. An effect still ticking on it (scrolling text, a
+    // moving image) would overwrite whatever we draw on its very next update;
+    // the Image effect's static path evicts the running effect for exactly this
+    // reason. ?stopEffect=false opts out for a caller deliberately drawing over
+    // one. Note this differs from the older .../pixel and .../fill endpoints,
+    // which leave a running effect alone.
+    if (stopEffectArg != "false" && stopEffectArg != "0") {
+        std::unique_lock<std::recursive_mutex> l(m->getRunningEffectMutex());
+        if (m->getRunningEffect()) {
+            m->setRunningEffect(nullptr, 25); // one no-op tick, then dropped
+        }
+    }
+
+    bool ok = false;
+    std::string err;
+    if (kind == BodyKind::Image) {
+        // With no x/y given, centre the image in the box the way the Image
+        // effect does; with either given, honour it as the top-left corner.
+        bool center = !xExplicit && !yExplicit;
+        ok = DrawEncodedImageOnModel(m, data, dataLen, scaling, w, h,
+                                     x, y, center, blend, toOverlay, err);
+    } else {
+        ok = toOverlay ? m->blitOverlayBuffer(data, w, h, srcBpp, x, y)
+                       : m->blitData(data, w, h, srcBpp, x, y, blend);
+        if (!ok) {
+            err = "the region landed entirely outside the model";
+        }
+    }
+    if (!ok) {
+        return errorResp(err);
+    }
+
+    LogDebug(VB_CHANNELOUT, "PUT overlay data from %s: model \"%s\", %zu bytes, %s, %dx%d @ %d,%d -> %s\n",
+             getEffectiveClientIP(req).c_str(), m->getName().c_str(), dataLen,
+             kind == BodyKind::Image ? "image" : (fmtArg.empty() ? "rgb" : fmtArg.c_str()),
+             w, h, x, y, toOverlay ? "overlay buffer" : "channel data");
+
+    Json::Value r;
+    r["Status"] = "OK";
+    r["Message"] = "";
+    r["Model"] = m->getName();
+    r["X"] = x;
+    r["Y"] = y;
+    r["W"] = w;
+    r["H"] = h;
+    r["Target"] = toOverlay ? "overlay" : "channel";
+    r["BytesPerPixel"] = m->getBytesPerPixel();
+    // True when part of the region fell outside the model and was clipped away
+    // rather than rejected -- that is what lets a caller slide something off an
+    // edge by reposting it at moving offsets.
+    r["Clipped"] = (x < 0) || (y < 0) || ((x + w) > modelW) || ((y + h) > modelH);
+    return makeStringResponse(SaveJsonToString(r, ""), 200, "application/json");
 }
 
 HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
@@ -765,6 +1202,12 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
             for (auto& a : fonts) {
                 result.append(a.first);
             }
+        } else if (p2 == "images") {
+            // Flat list of image files under the media images directory, as
+            // paths relative to it, for the Image effect's file picker.  The
+            // api/files/Images endpoint returns per-file metadata objects; the
+            // command-argument dropdowns want a plain array of strings.
+            collectOverlayImageNames(result);
         } else if (p2 == "settings") {
             result["autoCreate"] = autoCreate;
         } else if (p2 == "models") {
@@ -794,9 +1237,29 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
         } else if (p2 == "model") {
             std::unique_lock<std::recursive_mutex> lock(modelsLock);
             auto m = getModelLocked(p3); // resolves lazy submodels too
+            if (!m && p4 == "data" && p5 == "raw") {
+                // The legacy JSON paths fall through and answer 200 with a bare
+                // "null" for an unknown model. That is left alone for
+                // compatibility, but a binary endpoint must not hand back a
+                // 4-byte JSON literal that a caller would read as pixel data.
+                return makeStringResponse("Model not found: " + p3, 404);
+            }
             if (m) {
                 std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
                 if (p4 == "data") {
+                    if (p5 == "raw") {
+                        // Binary read-back: width*height*bytesPerPixel bytes,
+                        // the exact layout PUT .../data takes. The JSON form
+                        // below spends 4-6 wire bytes per payload byte.
+                        std::vector<uint8_t> buf;
+                        m->getData(buf);
+                        auto resp = makeStringResponse(std::string((const char*)buf.data(), buf.size()),
+                                                       200, "application/octet-stream");
+                        resp->addHeader("X-FPP-Model-Width", std::to_string(m->getWidth()));
+                        resp->addHeader("X-FPP-Model-Height", std::to_string(m->getHeight()));
+                        resp->addHeader("X-FPP-Model-BytesPerPixel", std::to_string(m->getBytesPerPixel()));
+                        return resp;
+                    }
                     Json::Value data;
                     m->getDataJson(data, p5 == "rle");
                     result["data"] = data;
@@ -930,6 +1393,43 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
  */
 
 /**
+ * Write bulk pixel data to an overlay model in a single request, as an
+ * alternative to one round trip per pixel via `.../pixel`.
+ *
+ * The body may be any of three things, and FPP works out which:
+ *
+ * - **Raw pixel bytes** (`application/octet-stream`) laid out row-major from
+ *   the top-left of the region, `w * h * fmt` bytes exactly. A wrong length is
+ *   an error, never a partial write.
+ * - **An encoded image** (PNG, JPEG, GIF, BMP, TIFF, WebP), by `Content-Type:
+ *   image/*` or `fmt=image`. Decoded and scaled server-side, so a 32x32 PNG
+ *   costs a few hundred bytes instead of 3KB and no file has to exist on the
+ *   player first.
+ * - **JSON** with the payload base64 in a `Data` member:
+ *   `{"X":0,"Y":0,"W":32,"H":32,"Format":"rgb","Data":"..."}`. Members given
+ *   here override the equivalent query arguments.
+ *
+ * A region that hangs off an edge is clipped to what is visible rather than
+ * rejected, so a caller can slide an image across a model (and off it) by
+ * reposting at moving offsets.
+ *
+ * @route PUT /api/overlays/model/{model}/data
+ * @param integer x Left edge of the region. Default 0; may be negative.
+ * @param integer y Top edge of the region. Default 0; may be negative.
+ * @param integer w Region width. Defaults to the model width less `x`. For an image, the box it is scaled into.
+ * @param integer h Region height. Defaults to the model height less `y`. For an image, the box it is scaled into.
+ * @param string fmt Raw pixel layout: `rgb` (default), `rgbw`, `mono`, or `image` to force image decoding.
+ * @param string blend How this write combines with what is there: `opaque` (default), `transparent`, `transparentrgb`.
+ * @param string scale Image scaling: `fit` (default), `fill`, `stretch`, `none`.
+ * @param string target `channel` (default) writes the output channel data; `overlay` composites into the mmapped overlay buffer shared with external clients.
+ * @param string autoEnable Enable the model if it is currently Disabled: `true`, `Enabled`, `Transparent`, or `TransparentRGB`.
+ * @param boolean stopEffect Evict a running effect on the model first. Default true.
+ * @response 200 Pixel data written; body reports the region and whether it was clipped.
+ * @response 400 Malformed arguments, wrong body length, undecodable image, or a region entirely off the model.
+ * @response 404 No model with that name exists.
+ */
+
+/**
  * Save an overlay model's current buffer to an image file. Body: `{"File":"name"}`.
  *
  * @route PUT /api/overlays/model/{model}/save
@@ -967,8 +1467,11 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
     if (p1 == "overlays") {
         if (p2 == "model") {
             std::unique_lock<std::recursive_mutex> lock(modelsLock);
-            auto mit = models.find(p3);
-            auto m = (mit != models.end()) ? mit->second.model : nullptr;
+            // getModelLocked(), not models.find(): this resolves lazy xLights
+            // submodels the same way render_GET() does. The raw map lookup used
+            // here before meant every PUT (state, fill, pixel, ...) 404'd on a
+            // submodel that GET could see perfectly well.
+            auto m = getModelLocked(p3);
             if (m) {
                 if (p4 == "state") {
                     Json::Value root;
@@ -1010,6 +1513,9 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                         }
                     }
+                } else if (p4 == "data") {
+                    // Takes over `lock` and releases it before the slow work.
+                    return bulkPixelDataPut(req, m, lock);
                 } else if (p4 == "save") {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {

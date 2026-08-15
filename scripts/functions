@@ -171,6 +171,22 @@ populateCCACHE() {
 }
 
 
+# Total DISK-backed swap, in kB.
+#
+# /proc/meminfo's SwapTotal must not be used for "can this box lean on swap?"
+# decisions: it counts zram, which is compressed swap living in RAM. zram buys
+# effective capacity, but it cannot hand a compile headroom the box does not
+# physically have, so a zram-only board looks well-provisioned and then gets
+# cc1plus OOM-killed anyway.
+#
+# /proc/swaps is also the right source rather than a filtered SwapTotal: on the
+# Trixie Pi images rpi-swap runs in "zram+file" mode, where /var/swap is looped
+# in as zram0's writeback backing device rather than swapped on. It adds no
+# capacity and correctly never appears here. Field 3 is the size in kB.
+function DiskBackedSwapKB() {
+    awk 'NR > 1 && $1 !~ /^\/dev\/zram/ { s += $3 } END { print s + 0 }' /proc/swaps 2>/dev/null
+}
+
 function ComputeMakeParallelism() {
     local CPUS=1
     if [ -f "/proc/cpuinfo" ]; then
@@ -201,7 +217,11 @@ function ComputeMakeParallelism() {
                     # we need to stick with a single core or it will swap
                     CPUS=1
                 else
-                    SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
+                    # Disk-backed swap only -- see DiskBackedSwapKB. A BeagleBone
+                    # ships ~240MB of zram and no disk swap, which used to satisfy
+                    # this test and pick -j2; two cc1plus at ~200MB each on a 493MB
+                    # board just thrashes it.
+                    SWAPTOTAL=$(DiskBackedSwapKB)
                     # Limited memory, if we have some swap, we'll go ahead with -j 2
                     # otherwise we'll need to stick with -j 1 or we run out of memory
                     if [[ ${SWAPTOTAL} -gt 49000 ]]; then
@@ -413,8 +433,17 @@ compileBinaries() {
         MEMORY=$(grep MemTot /proc/meminfo | awk '{print $2}')
         FPPDPID=$(pgrep fppd)
         if [ ${MEMORY} -lt 512000 -a "${FPPDPID}" != "" ]; then
-            SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
-            
+            # Count only DISK-backed swap. /proc/meminfo's SwapTotal also counts
+            # zram, which is compressed swap living in RAM -- it cannot hand
+            # cc1plus headroom the box does not already have, so it must not
+            # satisfy the "do we need a build swapfile?" test. A Pi Zero 2 W
+            # ships ~415MB of zram and no disk swap: that sailed past the old
+            # SwapTotal check, no swapfile was created, and the PCH compile was
+            # OOM-killed on roughly two runs in three.
+            #
+            # See DiskBackedSwapKB for why /proc/swaps rather than SwapTotal.
+            SWAPTOTAL=$(DiskBackedSwapKB)
+
             if [ ${SWAPTOTAL} -lt 384000 ]; then
                 echo "System has less than 512MB RAM and little swap, activating more swap."
                 # Create swapfile in fpp media so it will go onto the
@@ -427,7 +456,7 @@ compileBinaries() {
                 # we'll allocate a swap file so it shouldn't fail, but
                 # will likely be slow.   We DON'T want an "always" swapfile
                 # to avoid killing the SD cards.
-                ${SUDO} fallocate -l 384M "${FPPHOME}/media/tmp/swapfile"
+                ${SUDO} fallocate -l 448M "${FPPHOME}/media/tmp/swapfile"
                 ${SUDO} chmod 600 "${FPPHOME}/media/tmp/swapfile"
                 ${SUDO} mkswap -q "${FPPHOME}/media/tmp/swapfile"
                 ${SUDO} swapon "${FPPHOME}/media/tmp/swapfile"

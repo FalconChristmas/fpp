@@ -600,6 +600,112 @@ void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, i
     dirtyBuffer = true;
 }
 
+// Clip a srcW x srcH rect placed at (xOffset, yOffset) against a w x h model.
+// On success sx/sy are the first source pixel to read, dx/dy where it lands,
+// and cw/ch the visible size. Returns false when nothing is visible.
+static bool clipBlitRect(int srcW, int srcH, int xOffset, int yOffset,
+                         int w, int h,
+                         int& sx, int& sy, int& dx, int& dy, int& cw, int& ch) {
+    sx = 0;
+    sy = 0;
+    dx = xOffset;
+    dy = yOffset;
+    cw = srcW;
+    ch = srcH;
+    if (dx < 0) {
+        sx = -dx;
+        cw += dx;
+        dx = 0;
+    }
+    if (dy < 0) {
+        sy = -dy;
+        ch += dy;
+        dy = 0;
+    }
+    if (cw > (w - dx)) {
+        cw = w - dx;
+    }
+    if (ch > (h - dy)) {
+        ch = h - dy;
+    }
+    return (cw > 0) && (ch > 0);
+}
+
+// Expand one source pixel to the model's channel layout. srcBpp 1 is greyscale
+// (replicated to RGB), 3 is RGB, 4 is RGBW. When an RGBW source lands on an RGB
+// model the white is folded into RGB the same way getOverlayPixelValue() does,
+// so it dims rather than disappearing.
+static inline void convertPixel(const uint8_t* s, int srcBpp, uint8_t* d, int dstBpp) {
+    uint8_t px[4] = { 0, 0, 0, 0 };
+    if (srcBpp == 1) {
+        px[0] = px[1] = px[2] = s[0];
+    } else {
+        px[0] = s[0];
+        px[1] = s[1];
+        px[2] = s[2];
+        if (srcBpp > 3) {
+            px[3] = s[3];
+        }
+    }
+    if (dstBpp < 4 && px[3]) {
+        px[0] = std::min(px[0] + px[3], 255);
+        px[1] = std::min(px[1] + px[3], 255);
+        px[2] = std::min(px[2] + px[3], 255);
+    }
+    for (int i = 0; i < dstBpp && i < 4; i++) {
+        d[i] = px[i];
+    }
+}
+
+bool PixelOverlayModel::blitData(const uint8_t* src, int srcW, int srcH, int srcBpp,
+                                 int xOffset, int yOffset, const PixelOverlayState& st) {
+    if (!src || srcW <= 0 || srcH <= 0 || srcBpp < 1 || srcBpp > 4) {
+        return false;
+    }
+    int sx, sy, dx, dy, cw, ch;
+    if (!clipBlitRect(srcW, srcH, xOffset, yOffset, width, height, sx, sy, dx, dy, cw, ch)) {
+        return false;
+    }
+
+    // setData()'s rect form wants a tightly packed cw x ch buffer in the
+    // model's own pixel format, so convert into a temporary rather than
+    // duplicating its channelMap walk here.
+    const int bpp = bytesPerPixel;
+    std::vector<uint8_t> rect((size_t)cw * ch * bpp, 0);
+    for (int y = 0; y < ch; y++) {
+        const uint8_t* s = src + (((size_t)(sy + y) * srcW) + sx) * srcBpp;
+        uint8_t* d = &rect[(size_t)y * cw * bpp];
+        for (int x = 0; x < cw; x++, s += srcBpp, d += bpp) {
+            convertPixel(s, srcBpp, d, bpp);
+        }
+    }
+    setData(rect.data(), dx, dy, cw, ch, st);
+    return true;
+}
+
+bool PixelOverlayModel::blitOverlayBuffer(const uint8_t* src, int srcW, int srcH, int srcBpp,
+                                          int xOffset, int yOffset) {
+    if (!src || srcW <= 0 || srcH <= 0 || srcBpp < 1 || srcBpp > 4) {
+        return false;
+    }
+    int sx, sy, dx, dy, cw, ch;
+    if (!clipBlitRect(srcW, srcH, xOffset, yOffset, width, height, sx, sy, dx, dy, cw, ch)) {
+        return false;
+    }
+
+    const int bpp = bytesPerPixel;
+    uint8_t* buf = getOverlayBuffer();
+    for (int y = 0; y < ch; y++) {
+        const uint8_t* s = src + (((size_t)(sy + y) * srcW) + sx) * srcBpp;
+        uint8_t* d = buf + ((size_t)(dy + y) * width + dx) * bpp;
+        for (int x = 0; x < cw; x++, s += srcBpp, d += bpp) {
+            convertPixel(s, srcBpp, d, bpp);
+        }
+    }
+    setOverlayBufferDirty(true);
+    return true;
+}
+
 void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel) {
     int start;
     int end;
@@ -768,6 +874,15 @@ void PixelOverlayModel::getDataJson(Json::Value& v, bool rle) {
             }
             v.append(i);
         }
+    }
+}
+
+void PixelOverlayModel::getData(std::vector<uint8_t>& out) {
+    const int bpp = bytesPerPixel;
+    const size_t sz = (size_t)width * height * bpp;
+    out.resize(sz);
+    for (size_t c = 0; c < sz; c++) {
+        out[c] = (channelMap[c] != FPPD_OFF_CHANNEL) ? channelData[channelMap[c]] : 0;
     }
 }
 

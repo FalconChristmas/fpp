@@ -66,8 +66,8 @@ FPPBRANCH=${FPPBRANCH:-"master"}
 # and shown in /etc/issue. Override via env (build-image-pi.sh passes the
 # user-supplied --os-version so the .img / .fppos filenames match what's
 # baked into the image itself).
-FPPIMAGEVER=${FPPIMAGEVER:-"2026-04"}
-FPPCFGVER="129"
+FPPIMAGEVER=${FPPIMAGEVER:-"2026-08"}
+FPPCFGVER="131"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -129,7 +129,13 @@ if [[ ${CPUS} -gt 1 ]]; then
         # will be very slow as we constantly swap in/out
         CPUS=1
     elif [[ ${MEMORY} -lt 512000 ]]; then
-        SWAPTOTAL=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
+        # Disk-backed swap only. SwapTotal also counts zram, which is compressed
+        # swap living in RAM: it cannot give a compile headroom the box does not
+        # physically have, so a zram-only board (e.g. a BeagleBone, ~240MB of
+        # zram and no disk swap) used to satisfy this test and pick -j2, then
+        # thrash. Mirrors DiskBackedSwapKB in scripts/functions, spelled out
+        # here because this file runs before the FPP source is available.
+        SWAPTOTAL=$(awk 'NR > 1 && $1 !~ /^\/dev\/zram/ { s += $3 } END { print s + 0 }' /proc/swaps 2>/dev/null)
         # Limited memory, if we have some swap, we'll go ahead with -j 2
         # otherwise we'll need to stick with -j 1 or we run out of memory
         if [[ ${SWAPTOTAL} -gt 49000 ]]; then
@@ -664,8 +670,13 @@ install_base_packages() {
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black"  -o "$FPPPLATFORM" == "BeagleBone 64" ]; then
             # firmware-misc-nonfree carries the rt2x00 / Mediatek (mt7601u, mt76xx) USB
-            # wifi blobs
-            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity firmware-misc-nonfree zram-tools"
+            # wifi blobs.
+            # No firmware-iwlwifi: every part it covers is Intel PCIe/M.2, which
+            # none of these boards can take, and it is the single largest firmware
+            # package in the archive (~170MB unpacked). The Pi image build already
+            # purged it back out after the fact; not installing it in the first
+            # place does the same for the BeagleBone images.
+            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-brcm80211 firmware-libertas firmware-zd1211 firmware-ti-connectivity firmware-misc-nonfree zram-tools"
             if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
                 PACKAGE_LIST="$PACKAGE_LIST libva-dev smartmontools edid-decode kms++-utils"
             fi
@@ -1148,25 +1159,21 @@ init_uart_clock=16000000
 dtoverlay=miniuart-bt
 
 # Model Specific configuration
-# GPU memory set to 128 to deal with error in omxplayer with hi-def videos
+#
+# No gpu_mem here, deliberately. The firmware GPU split is a legacy setting and
+# nothing in FPP draws on it any more: video goes through GStreamer (the old
+# omxplayer/MMAL path is long gone), and the display, DPI and virtual-matrix
+# buffers all come from the vc4-KMS CMA pool sized above. A Pi 5 ignores
+# gpu_mem outright; on a Pi 4 the 3D block has its own MMU and allocates from
+# Linux instead, where the documented ceiling is 76 -- so the 256 this used to
+# set just carved ~180MB out of usable RAM. Unset lets the firmware pick its
+# own default (64 below 1GB, 76 at 1GB and above), which is what we want.
 [pi5]
-gpu_mem=256
 dtparam=uart0=on
-[pi4]
-gpu_mem=256
-[pi3]
-gpu_mem=128
-[pi0]
-gpu_mem=64
 [pi02]
-gpu_mem=128
-dtparam=audio=off                                                                                                                                                                                                            
-hdmi_force_hotplug=1                                                                                                                                                                                                         
+dtparam=audio=off
+hdmi_force_hotplug=1
 hdmi_drive=2
-[pi1]
-gpu_mem=64
-[pi2]
-gpu_mem=64
 
 [all]
 
@@ -2077,10 +2084,52 @@ configure_apache() {
     sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=${FPPUSER}/"   /etc/apache2/envvars
     sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=${FPPUSER}/" /etc/apache2/envvars
     sed -i -e "s#APACHE_LOG_DIR=.*#APACHE_LOG_DIR=${FPPHOME}/media/logs#" /etc/apache2/envvars
-    # Listen on the IPv6 wildcard; with net.ipv6.bindv6only=0 (the
-    # Linux default) this dual-binds and serves both v4 and v6 clients
-    # from a single socket.
-    sed -i -e "s/Listen 8080.*/Listen [::]:80/" -e "s/^Listen 80$/Listen [::]:80/" /etc/apache2/ports.conf
+    # Port 80 listener. The IPv6 wildcard is preferred: with
+    # net.ipv6.bindv6only=0 (the Linux default) it dual-binds and serves
+    # both v4 and v6 clients from a single socket. But that bind is *fatal*
+    # to apache when the kernel has no IPv6 at all --
+    #   AH00078: alloc_listener: failed to get a socket for ::
+    #   AH00526: Syntax error on line 5 of /etc/apache2/ports.conf
+    # -- and apache then refuses to start, taking the entire web UI with it.
+    # That happens on any box booted with ipv6.disable=1, and on any box
+    # running a kernel whose ipv6 module is missing.
+    #
+    # So decide at *start* time rather than install time: apachectl sources
+    # envvars on every start/restart/configtest, so a box that gains or
+    # loses IPv6 later recovers on its own without reinstalling.
+    cat > /etc/apache2/ports.conf <<'PORTS_EOF'
+# Managed by FPP -- see configure_apache() in SD/FPP_Install.sh.
+# FPP_HAVE_IPV6 is defined from /etc/apache2/envvars when the running
+# kernel actually has IPv6, so a box without it still serves over IPv4
+# instead of failing to start apache at all.
+<IfDefine FPP_HAVE_IPV6>
+Listen [::]:80
+</IfDefine>
+<IfDefine !FPP_HAVE_IPV6>
+Listen 80
+</IfDefine>
+
+<IfModule ssl_module>
+	Listen 443
+</IfModule>
+
+<IfModule mod_gnutls.c>
+	Listen 443
+</IfModule>
+PORTS_EOF
+
+    if ! grep -q FPP_HAVE_IPV6 /etc/apache2/envvars; then
+        cat >> /etc/apache2/envvars <<'ENVVARS_EOF'
+
+## FPP: only ask apache for the IPv6 wildcard listener when the running
+## kernel has IPv6. /proc/sys/net/ipv6 is absent both when the module is
+## missing and when the kernel booted with ipv6.disable=1, which are exactly
+## the cases where "Listen [::]:80" aborts apache startup.
+if [ -d /proc/sys/net/ipv6 ]; then
+	export APACHE_ARGUMENTS="${APACHE_ARGUMENTS} -D FPP_HAVE_IPV6"
+fi
+ENVVARS_EOF
+    fi
 
     cat /opt/fpp/etc/apache2.site   > /etc/apache2/sites-enabled/000-default.conf
     cat /opt/fpp/etc/apache2.status > /etc/apache2/mods-enabled/status.conf
@@ -2208,12 +2257,6 @@ finalize_platform_beaglebone_black() {
     # sysconf requires a vfat partition which the BBB images currently don't have
     systemctl disable bbbio-set-sysconf
     echo "USB_UMTPRD_DISABLED=yes" >> /etc/default/bb-boot
-
-    if [ ! -f "/opt/source/bb.org-overlays/Makefile" ]; then
-        mkdir -p /opt/source
-        cd /opt/source
-        git clone https://github.com/beagleboard/bb.org-overlays
-    fi
 
     cd /opt/fpp/capes/drivers/bbb
     make -j ${CPUS}
@@ -2451,7 +2494,64 @@ configure_swap() {
     fi
 }
 
+# Strip payload that a shipped image has no use for.
+#
+# This is not only about download size. flash_storage.sh copies the running root
+# filesystem to eMMC with a file-level rsync, so on the "Copy to eMMC" path
+# every file costs a create + metadata write on top of its bytes -- and the
+# stock rootfs carries roughly ten thousand tiny man/locale files, which show up
+# as flash time out of all proportion to the megabytes they occupy.
+#
+# The dpkg drop-in is what makes this stick: without it, the next apt install on
+# the device (a plugin's dependency, a user package) unpacks a fresh set of man
+# pages and translations right back onto the image.
+slim_image() {
+    echo "FPP - Slimming image: docs, man pages, non-English locales"
+    mkdir -p /etc/dpkg/dpkg.cfg.d
+    cat > /etc/dpkg/dpkg.cfg.d/01_fpp_slim <<'DPKG_EOF'
+# FPP ships an appliance image: no changelogs, no man pages, English only.
+# path-include lines are evaluated after the excludes, so the en* catalogs,
+# locale.alias and the per-package copyright files survive the exclusions
+# above them. The copyright files stay because these images are redistributed
+# publicly and that is where each package's license text lives.
+path-exclude=/usr/share/doc/*
+path-include=/usr/share/doc/*/copyright
+path-exclude=/usr/share/man/*
+path-exclude=/usr/share/info/*
+path-exclude=/usr/share/groff/*
+path-exclude=/usr/share/locale/*
+path-include=/usr/share/locale/en*
+path-include=/usr/share/locale/locale.alias
+DPKG_EOF
+
+    rm -rf /usr/share/man/* /usr/share/info/* /usr/share/groff/*
+    rm -rf /var/cache/man/*
+    find /usr/share/doc -mindepth 1 ! -type d ! -name copyright -delete
+    find /usr/share/doc -mindepth 1 -type d -empty -delete
+    # Message catalogs only -- the generated locale-archive that programs
+    # actually run against lives in /usr/lib/locale and is untouched.
+    find /usr/share/locale -mindepth 1 -maxdepth 1 -type d ! -name 'en*' -exec rm -rf {} +
+
+    # Wifi firmware for buses these boards do not have: ath10k/ath11k/ath12k and
+    # rtw89 are PCIe/SDIO-only parts. An FPP controller's wifi is a USB dongle
+    # (ath9k_htc, rtl8xxx/rtw88, mt7601u et al), whose blobs live in other
+    # directories and are left alone. Deleted rather than dpkg path-excluded so
+    # "apt-get install --reinstall firmware-atheros" can put them back if some
+    # PCIe-equipped board ever does need them.
+    echo "FPP - Removing PCIe-only wifi firmware"
+    rm -rf /usr/lib/firmware/ath10k /usr/lib/firmware/ath11k \
+           /usr/lib/firmware/ath12k /usr/lib/firmware/rtw89
+
+    # apt's binary caches, rebuilt on demand by the next apt run. (The package
+    # lists in /var/lib/apt/lists are deliberately kept: third-party plugin
+    # installers run apt-get install without always running apt-get update
+    # first, and an empty list turns that into "unable to locate package".)
+    rm -f /var/cache/apt/*.bin
+}
+
 finalize_image_post_build() {
+    slim_image
+
     systemctl disable dnsmasq
     systemctl unmask hostapd
     systemctl disable hostapd

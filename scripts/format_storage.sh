@@ -5,7 +5,7 @@ LEN=${#DEVICE}-1
 PARTNUM=${DEVICE:$LEN}
 RAWDEV=${DEVICE:0:$LEN}
 
-if [[ $DEVICE == mmcb* ]] ; then
+if [[ $DEVICE == mmcb* || $DEVICE == nvme* ]] ; then
     LEN=${#DEVICE}-2
     RAWDEV=${DEVICE:0:$LEN}
 fi

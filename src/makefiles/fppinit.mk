@@ -2,7 +2,7 @@ ifeq '$(BUILD_FPPINIT)' '1'
 OBJECTS_fppinit += \
 	boot/FPPINIT.o  boot/FPPINIT_Config.o  boot/FPPINIT_Network.o  boot/FPPINIT_Audio.o  common_mini.o
 
-TARGETS += fppinit
+TARGETS := fppinit $(TARGETS)
 OBJECTS_ALL+=$(OBJECTS_fppinit)
 LIBS_fppinit = -ljsoncpp -lsystemd $(LIBS_GPIO_ADDITIONS)
 

@@ -346,6 +346,34 @@ function network_wifi_scan()
  * {"status":"OK","connected":false,"wpa_state":"SCANNING","ssid":"","configuredSSID":"MyNet","ip":"","signal":null,"ssidVisible":false,"reason":"Network 'MyNet' not found in range (or it is hidden)."}
  * ```
  */
+/////////////////////////////////////////////////////////////////////////////
+// Is FPP's own WiFi hotspot (hostapd) broadcasting right now?
+//
+// This asks the running system rather than reading EnableTethering, because
+// the setting alone can't answer the question: mode 0 ("If no connection")
+// only brings the hotspot up some of the time. hostapd's actual unit state
+// covers every tethering mode at once.
+//
+// Pass $interface to additionally require that the hotspot is running on that
+// specific interface (per /etc/hostapd/hostapd.conf); omit it to ask only
+// whether a hotspot is up at all.
+function WifiHotspotIsActive($interface = "")
+{
+    $hostapdConf = "/etc/hostapd/hostapd.conf";
+    if (!file_exists($hostapdConf)) {
+        return false;
+    }
+    if ($interface !== "") {
+        $hc = file_get_contents($hostapdConf);
+        if (!preg_match('/^interface=(.+)$/m', $hc, $m) || trim($m[1]) !== $interface) {
+            return false;
+        }
+    }
+    $activeOut = array();
+    exec("systemctl is-active hostapd 2>/dev/null", $activeOut);
+    return (isset($activeOut[0]) && trim($activeOut[0]) === "active");
+}
+
 function network_wifi_status()
 {
     global $settings;
@@ -380,16 +408,7 @@ function network_wifi_status()
     // won't reflect a real connection attempt at all - the config was saved
     // but won't take effect until tethering is turned off and networking is
     // restarted (or the device reboots).
-    $apActive = false;
-    $hostapdConf = "/etc/hostapd/hostapd.conf";
-    if (file_exists($hostapdConf)) {
-        $hc = file_get_contents($hostapdConf);
-        if (preg_match('/^interface=(.+)$/m', $hc, $m) && trim($m[1]) === $interface) {
-            $activeOut = array();
-            exec("systemctl is-active hostapd 2>/dev/null", $activeOut);
-            $apActive = (isset($activeOut[0]) && trim($activeOut[0]) === "active");
-        }
-    }
+    $apActive = WifiHotspotIsActive($interface);
     $tetheringMode = isset($settings['EnableTethering']) ? intval($settings['EnableTethering']) : 0;
     $tetheringEnabled = ($tetheringMode === 1);
     $tetheringDisabled = ($tetheringMode === 2);
@@ -513,6 +532,10 @@ function network_wifi_status()
     return json(array(
         "status" => "OK",
         "connected" => $connected,
+        // Whether a hotspot is up on ANY interface - deliberately unqualified,
+        // unlike the per-interface $apActive behind "reason" below, so a caller
+        // editing some other interface still knows a tethered client is at risk.
+        "hotspotActive" => WifiHotspotIsActive(),
         "wpa_state" => $wpaState,
         "ssid" => $ssid,
         "configuredSSID" => $configuredSSID,

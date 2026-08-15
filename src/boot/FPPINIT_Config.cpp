@@ -12,7 +12,9 @@
 
 #include <chrono>
 #include "fpp-json.h"
+#include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
@@ -935,6 +937,93 @@ void startDiskSwap() {
          "| while read -r dev; do /sbin/swapon \"$dev\" 2>/dev/null || true; done");
 }
 
+#ifdef PLATFORM_PI
+// Shrink an oversized vc4-KMS CMA pool on boards that cannot afford it.
+//
+// The image ships "dtoverlay=vc4-kms-v3d,cma-256" for every Pi (FPP_Install.sh
+// adds it to cap the Pi4's 512MB firmware default -- issue #2679). But the
+// overlay's own README documents cma-256, and everything above cma-128, as
+// "needs 1GB", and the firmware does NOT clamp it: a 512MB Pi Zero 2 W really
+// comes up with CmaTotal 262144 kB. That is half the board handed to a GPU pool
+// on a headless controller, and it is enough to break a source rebuild -- it
+// leaves ~163MB usable, well under what cc1plus needs.
+//
+// So cap at cma-128, the largest size the overlay does not gate behind 1GB.
+// FPP's real DMA needs are far below that: the DPI envelope declared below is
+// 1920x997 RGB888, about 7.6MB.
+//
+// Only ever REDUCE: a deliberate smaller override (cma-64) is left alone, since
+// raising it would defeat the purpose. Rewrites `content` in place and sets
+// `changed` so the caller's existing reboot handles it; comparing before writing
+// keeps it idempotent, so it fires once and never loops.
+// MemTotal counts the CMA reservation, so it is the board's usable total, not
+// its marketing size: a 512MB board reports ~425-500MB, a 1GB board ~900MB+.
+// 700MB separates them with room on both sides.
+static constexpr long CMA_ONE_GB_BOARD_KB = 700000;
+static constexpr int CMA_MAX_UNDER_1GB = 128;
+
+// Pure half: no file I/O, so it can be lifted out between the markers below and
+// exercised directly against sample config.txt text. Edits `content` in place
+// and returns true if it changed anything.
+// --- BEGIN capVC4CMALine ---
+static bool capVC4CMALine(std::string& content, long memKB) {
+    if (memKB <= 0 || memKB >= CMA_ONE_GB_BOARD_KB) {
+        return false;
+    }
+    // Match the overlay line itself, never a commented-out or indented copy.
+    // Covers both the generic overlay and the -pi5 variant.
+    size_t vidx = content.find("dtoverlay=vc4-kms-v3d");
+    while (vidx != std::string::npos && vidx != 0 && content[vidx - 1] != '\n') {
+        vidx = content.find("dtoverlay=vc4-kms-v3d", vidx + 1);
+    }
+    if (vidx == std::string::npos) {
+        return false;
+    }
+    size_t eol = content.find("\n", vidx);
+    if (eol == std::string::npos) {
+        eol = content.size();
+    }
+    std::string line = content.substr(vidx, eol - vidx);
+
+    size_t cidx = line.find("cma-");
+    if (cidx == std::string::npos) {
+        return false;
+    }
+    size_t dstart = cidx + strlen("cma-");
+    size_t dend = dstart;
+    while (dend < line.size() && isdigit(static_cast<unsigned char>(line[dend]))) {
+        dend++;
+    }
+    if (dend == dstart) {
+        // "cma-size" (a raw byte count) or some other spelling -- leave it be.
+        return false;
+    }
+    int current = static_cast<int>(strtol(line.c_str() + dstart, nullptr, 10));
+    if (current <= CMA_MAX_UNDER_1GB) {
+        return false;
+    }
+    line.replace(cidx, dend - cidx, "cma-" + std::to_string(CMA_MAX_UNDER_1GB));
+    printf("FPP - %ldkB board: capping vc4 CMA at %dMB (was %dMB)\n",
+           memKB, CMA_MAX_UNDER_1GB, current);
+    content.replace(vidx, eol - vidx, line);
+    return true;
+}
+// --- END capVC4CMALine ---
+
+static void capVC4CMAForBoard(std::string& content, bool& changed) {
+    std::string meminfo = GetFileContents("/proc/meminfo");
+    size_t midx = meminfo.find("MemTotal:");
+    if (midx == std::string::npos) {
+        return;
+    }
+    long memKB = strtol(meminfo.c_str() + midx + strlen("MemTotal:"), nullptr, 10);
+    if (capVC4CMALine(content, memKB)) {
+        PutFileContents("/boot/firmware/config.txt", content);
+        changed = true;
+    }
+}
+#endif
+
 void setupChannelOutputs() {
 #ifdef PLATFORM_PI
     bool hasDPI = false;
@@ -1008,6 +1097,7 @@ void setupChannelOutputs() {
         exec("modprobe snd_usb_audio");
     }
     std::string content = GetFileContents("/boot/firmware/config.txt");
+    capVC4CMAForBoard(content, changed);
     size_t idx = content.find("dtoverlay=vc4-kms-dpi-fpp");
     std::string origLine = "";
     if (idx != std::string::npos) {

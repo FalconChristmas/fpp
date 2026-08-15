@@ -57,7 +57,7 @@ IMG_SIZE_MB="${IMG_SIZE_MB:-7000}"
 
 # FPP-patched kernel deb (the rcn-ee base ships a stock kernel; FPP requires
 # its PRU/cape patches). Override env vars to point at a different build.
-FPP_KERNEL_VER="${FPP_KERNEL_VER:-7.1.6-fpp16_1}"
+FPP_KERNEL_VER="${FPP_KERNEL_VER:-7.1.6-fpp17_1}"
 FPP_KERNEL_URL="${FPP_KERNEL_URL:-https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${FPP_KERNEL_VER}_armhf.deb}"
 SKIP_KERNEL_UPDATE="${SKIP_KERNEL_UPDATE:-0}"
 
@@ -542,10 +542,38 @@ if [ -n "\$BB_PURGE_INSTALLED" ]; then
     apt-get remove -y --autoremove --purge \$BB_PURGE_INSTALLED
 fi
 
-rm -rf /opt/source/dtb-5* /opt/source/dtb-6.1.x* /opt/source/dtb-6.6.x* /opt/source/dtb-6.12.x /opt/source/dtb-6.16.x /opt/source/dtb-6.17.x /opt/source/spi* /opt/source/py*
-
 cd /root
 /root/FPP_Install.sh --img --yes --branch ${FPPBRANCH} ${INSTALLER_EXTRA_ARGS}
+
+# Reclaim /opt/source: the base image keeps a device-tree build tree per kernel
+# series plus assorted vendor sources. Two things under here have to survive:
+#   dtb-<series>.x    capes/drivers/*/Makefile compiles the overlays with
+#                     -I/opt/source/dtb-<series>.x/include (DTD_BASE in
+#                     capes/drivers/bbb/Makefile). Keeping it only until
+#                     FPP_Install has run is not enough -- an on-device rebuild
+#                     needs the same include paths, so it ships in the image.
+#
+# Which series to keep is read back out of the Makefiles rather than hardcoded:
+# they are what moves to a new kernel series, and a hand-maintained name list is
+# how this went wrong before (the original globs were written for the pre-".x"
+# names and had quietly stopped matching anything). An empty lookup keeps every
+# dtb-* tree -- this cleanup should fail fat, never broken.
+if [ -d /opt/source ]; then
+    DTB_KEEP="\$(grep -rhoE '/opt/source/dtb-[0-9.]+x' /opt/fpp/capes/drivers 2>/dev/null | sed 's|.*/||' | sort -u | tr '\n' ' ')"
+    if [ -z "\$DTB_KEEP" ]; then
+        echo "FPP - WARNING: no /opt/source/dtb-*.x reference found under capes/drivers;"
+        echo "FPP -          keeping every dtb-* tree rather than risk breaking an overlay build"
+        DTB_KEEP="\$(find /opt/source -mindepth 1 -maxdepth 1 -name 'dtb-*' -printf '%f ')"
+    fi
+    KEEP_SRC="\$DTB_KEEP"
+    echo "FPP - Reclaiming /opt/source, keeping: \$KEEP_SRC"
+    find /opt/source -mindepth 1 -maxdepth 1 -printf '%f\n' | while read -r entry; do
+        case " \$KEEP_SRC " in
+            *" \$entry "*) continue ;;
+        esac
+        rm -rf "/opt/source/\$entry"
+    done
+fi
 
 # Purge packages that FPP_Install pulls back in as (recommended) deps but that
 # a headless FPP has no use for. Done here, after the install, because the

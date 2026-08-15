@@ -196,6 +196,50 @@ function custom_parse_ini_file($filename)
     return $settings;
 }
 
+/**
+ * Re-assert fpp ownership on a config file the web user cannot write.
+ *
+ * FPP runs "chown -R fpp:fpp" over the media directory at every boot (see
+ * setFileOwnership() in src/boot/FPPINIT_Config.cpp), so the correct owner is
+ * not a guess.  Anything running as root that replaces one of these files with
+ * a fresh inode - an editor, a shell redirect, a restore run by hand - leaves
+ * it root-owned, and every later write from the web UI fails until the next
+ * boot.  Repair it here so a single stray root write doesn't silently disable
+ * saving for the rest of the uptime.
+ *
+ * Returns true only if the file is writable afterwards.
+ */
+function RepairConfigFileOwnership($filename)
+{
+    global $SUDO;
+
+    // Nothing to repair if the file isn't there (fopen will create it) and
+    // nothing to repair to on a system with no fpp user, e.g. macOS.
+    if (!file_exists($filename) || posix_getpwnam('fpp') === false) {
+        return false;
+    }
+
+    $ids = GetFPPUserIds();
+    $file = escapeshellarg($filename);
+    exec($SUDO . " chown " . $ids['uid'] . ":" . $ids['gid'] . " " . $file .
+        " && " . $SUDO . " chmod 664 " . $file, $output, $return_val);
+
+    if ($return_val != 0 || !is_writable($filename)) {
+        return false;
+    }
+
+    error_log("Repaired ownership of '$filename', which was not writable by the web user.");
+    return true;
+}
+
+/**
+ * Write a single setting to the settings file, or to a plugin's config file.
+ *
+ * Returns true once the value is on disk (including when it was already the
+ * stored value), false if it could not be written.  Callers that tell a user
+ * the setting was saved MUST check the return - reporting success on a failed
+ * write shows a "saved" toast for a value that reverts on the next page load.
+ */
 function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
 {
     global $settingsFile;
@@ -207,6 +251,13 @@ function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
     }
 
     $fd = @fopen($filename, "c+");
+    if ($fd === false) {
+        $fd = RepairConfigFileOwnership($filename) ? @fopen($filename, "c+") : false;
+        if ($fd === false) {
+            error_log("WriteSettingToFile: cannot open '$filename' for writing; '$settingName' was NOT saved.");
+            return false;
+        }
+    }
     flock($fd, LOCK_EX);
     $tmpSettings = custom_parse_ini_file($filename);
     if (!isset($tmpSettings[$settingName]) || $tmpSettings[$settingName] != $new_setting_value) {
@@ -220,13 +271,19 @@ function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
                 $RevisedSettingsStr .= $key . " = \"" . $value . "\"\n";
             }
         }
-        file_put_contents($filename, $RevisedSettingsStr);
+        if (@file_put_contents($filename, $RevisedSettingsStr) === false) {
+            error_log("WriteSettingToFile: write to '$filename' failed; '$settingName' was NOT saved.");
+            flock($fd, LOCK_UN);
+            fclose($fd);
+            return false;
+        }
     }
     if ($plugin == "") {
         $settings[$settingName] = $new_setting_value;
     }
     flock($fd, LOCK_UN);
     fclose($fd);
+    return true;
 }
 
 /**
@@ -3831,6 +3888,100 @@ function CheckIfDeviceIsUsable($deviceName)
     }
 
     return "";
+}
+
+/**
+ * Enumerate the whole disks that a copy of FPP can be flashed onto.
+ *
+ * Every platform is treated the same way: any real disk that is neither the one we
+ * booted from nor the one holding the media directory is a candidate. That is what
+ * lets a Pi with both a USB stick and an NVMe offer both -- the old hardcoded
+ * if/else chain showed USB *or* NVMe and could never reach the NVMe when a USB
+ * device happened to be plugged in.
+ *
+ * @return array of ['name', 'kind', 'size', 'model', 'desc']
+ */
+function GetFlashTargetDevices()
+{
+    $devices = array();
+
+    // The disk we booted from is never a candidate.
+    $bootedDisk = '';
+    $rootSource = trim(shell_exec("findmnt -no SOURCE / 2>/dev/null"));
+    if ($rootSource != '') {
+        $bootedDisk = trim(shell_exec("lsblk -no PKNAME " . escapeshellarg($rootSource) . " 2>/dev/null | head -1"));
+        if ($bootedDisk == '') {
+            // root directly on a whole disk, or lsblk could not resolve it
+            $bootedDisk = preg_replace('/p?[0-9]*$/', '', basename($rootSource));
+        }
+    }
+
+    // Neither is the disk currently holding the media directory.
+    $storageDisk = '';
+    $mediaDir = GetSettingValue('mediaDirectory');
+    if ($mediaDir != '') {
+        $storageSource = trim(shell_exec("findmnt -no SOURCE -T " . escapeshellarg($mediaDir) . " 2>/dev/null | head -1"));
+        if ($storageSource != '' && strpos($storageSource, '/dev/') === 0) {
+            $storageDisk = trim(shell_exec("lsblk -no PKNAME " . escapeshellarg($storageSource) . " 2>/dev/null | head -1"));
+        }
+    }
+
+    $names = array();
+    exec("lsblk -dno NAME 2>/dev/null", $names);
+
+    foreach ($names as $name) {
+        $name = trim($name);
+        if ($name == '') {
+            continue;
+        }
+        // Virtual devices, and the eMMC boot/rpmb areas a BeagleBone exposes as disks.
+        if (preg_match('/^(loop|ram|zram|dm-|md|sr|fd)/', $name)) {
+            continue;
+        }
+        if (preg_match('/(boot[0-9]+|rpmb)$/', $name)) {
+            continue;
+        }
+        if ($name === $bootedDisk || ($storageDisk != '' && $name === $storageDisk)) {
+            continue;
+        }
+
+        $dev = escapeshellarg("/dev/" . $name);
+        $size = trim(shell_exec("lsblk -dno SIZE $dev 2>/dev/null"));
+        $tran = trim(shell_exec("lsblk -dno TRAN $dev 2>/dev/null"));
+        $model = trim(shell_exec("lsblk -dno MODEL $dev 2>/dev/null"));
+        $removable = trim(@file_get_contents("/sys/block/$name/removable"));
+
+        if (preg_match('/^nvme/', $name)) {
+            $kind = 'NVMe';
+        } else if (preg_match('/^mmcblk/', $name)) {
+            // An eMMC is soldered down and reports non-removable; an SD card does not.
+            $kind = ($removable === '1') ? 'SD Card' : 'eMMC';
+        } else if ($tran == 'usb') {
+            $kind = 'USB';
+        } else if ($tran == 'sata' || $tran == 'ata') {
+            $kind = 'SATA';
+        } else {
+            $kind = 'Disk';
+        }
+
+        $desc = $kind;
+        if ($model != '') {
+            $desc .= ' - ' . $model;
+        }
+        if ($size != '') {
+            $desc .= ' (' . $size . ')';
+        }
+
+        $devices[] = array(
+            'name' => $name,
+            'kind' => $kind,
+            'size' => $size,
+            'model' => $model,
+            'desc' => $desc,
+        );
+    }
+
+    return $devices;
 }
 
 //additional function

@@ -109,7 +109,8 @@ PHP-based REST API using Limonade micro-framework. 24 controllers, 150+ endpoint
 
 - **`FPP_Install.sh`** (62KB) — Master installer for Pi/BBB (dependency install, repo clone, build, systemd services)
 - **`FPP_Install_Mac.sh`** — macOS dev setup (Homebrew, Apache/PHP-FPM, LaunchAgent)
-- **Platform flashers**: `BBB-FlashMMC.sh`, `BB64-AutoFlash.sh`, `Pi-FlashUSB.sh`
+- **Flashing**: `flash_storage.sh` (shared engine, all platforms), with `Pi-FlashUSB.sh`,
+  `BBB-AutoFlash.sh` and `BB64-AutoFlash.sh` as its callers
 - **OS upgrade**: `upgradeOS-part1.sh`, `upgradeOS-part2.sh`
 
 ## External Dependencies (`external/`)

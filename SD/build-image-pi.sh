@@ -639,6 +639,29 @@ cat > /etc/default/raspi-firmware <<'RASPI_FW_EOF'
 KERNEL=none
 RASPI_FW_EOF
 
+# KERNEL=none stops raspi-firmware from *copying* a stock kernel into
+# /boot/firmware, but it does not stop apt from installing one in the first
+# place, and a Pi5/CM5 boots by filename: the firmware prefers
+# kernel_2712.img over kernel8.img. So a single \`apt-get upgrade\` that pulls
+# a newer linux-image-*-rpi-2712 is enough to put a 16K-page stock kernel
+# back on the boot partition, and the box then boots a kernel whose
+# /lib/modules tree was stripped above -- no modules at all, which shows up
+# as apache refusing to start ("Listen [::]:80" with no ipv6 module) and a
+# 90s dev-zram0.device timeout at boot.
+#
+# Nothing depends on these packages (verified: linux-image-rpi-2712 has no
+# reverse-depends beyond itself), so refusing them outright is safe.
+cat > /etc/apt/preferences.d/fpp-no-2712-kernel <<'APT_PIN_EOF'
+# FPP ships only the 4K-page kernel8.img and its matching /lib/modules tree.
+# The stock linux-image-*-rpi-2712 packages are 16K-page kernels
+# (CONFIG_ARM64_16K_PAGES) that some FPP libs are incompatible with, and
+# installing one drops a kernel_2712.img into /boot/firmware which the Pi
+# firmware then PREFERS over kernel8.img. Refuse them outright.
+Package: linux-image-rpi-2712 linux-image-*-rpi-2712
+Pin: release *
+Pin-Priority: -1
+APT_PIN_EOF
+
 # Finalization (mirrors SD/README.RaspberryPi post-install cleanup)
 apt-get clean
 journalctl --flush --rotate --vacuum-time=1s || true

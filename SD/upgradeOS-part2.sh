@@ -7,6 +7,22 @@ cd /
 
 logStage "Updating boot filesystem"
 echo "Running rsync to update boot file system:"
+
+# User-supplied inputs that live on the boot partition. fppinit's
+# handleBootPartition() (src/boot/FPPINIT_Config.cpp) runs <bootDir>/fpp_boot.sh
+# on every boot and copies <bootDir>/fpp/ into the media directory, so both are
+# the user's files, not ours -- neither ships in the image. They must survive an
+# OS upgrade. rsync applies --exclude on the receiving side as a protect rule
+# too (we deliberately do not pass --delete-excluded), so listing them here
+# keeps --delete from throwing them away.
+#
+# Both bootDir spellings are covered because fppinit selects /boot/firmware
+# whenever that directory merely EXISTS -- which is true on the BeagleBone
+# Black, where the boot files themselves still live in /boot. Paths are
+# anchored with a leading / so they match at the transfer root (/boot/) only.
+BOOT_KEEP=(--exclude=/fpp/ --exclude=/fpp_boot.sh
+           --exclude=/firmware/fpp/ --exclude=/firmware/fpp_boot.sh)
+
 case "${FPPPLATFORM}" in
     "Raspberry Pi"|"BeagleBone 64")
         # Both Trixie-era Pi and BB64 use /boot/firmware as the FAT boot
@@ -33,7 +49,26 @@ case "${FPPPLATFORM}" in
             mount "${BOOTMOUNTDEV}" /mnt/boot/firmware
         fi
 
-        rsync --outbuf=N -aAXxvc /boot/ /mnt/boot/ --delete-before
+        # Deliberately NO -x here. /mnt/boot/firmware is the FAT boot
+        # partition -- a different filesystem from /mnt/boot -- and rsync's
+        # --one-file-system also stops its *deletion* recursion at the
+        # receiving side's mount points. With -x, --delete-before silently
+        # did nothing at all inside the boot partition, so stale files there
+        # survived every upgrade forever.
+        #
+        # That is how a leftover kernel image bricked the web UI: the Pi
+        # firmware picks the kernel to boot by filename and prefers
+        # kernel_2712.img over kernel8.img. FPP ships only kernel8.img and
+        # only its matching /lib/modules tree, so a kernel_2712.img left
+        # behind by raspi-firmware's kernel postinst hook (images from
+        # before /etc/default/raspi-firmware pinned KERNEL=none) makes the
+        # upgraded box boot a stock Debian kernel with no modules at all --
+        # no ipv6, so apache dies on "Listen [::]:80", and no zram, so boot
+        # stalls 90s on a dev-zram0.device timeout.
+        #
+        # The source side does not need -x: /boot inside the mounted image
+        # has no submounts.
+        rsync --outbuf=N -aAXvc /boot/ /mnt/boot/ --delete-before "${BOOT_KEEP[@]}"
 
         if $OLD_BOOT_AT_ROOT; then
             echo "Adjusting /etc/fstab: /boot -> /boot/firmware"
@@ -46,8 +81,35 @@ case "${FPPPLATFORM}" in
         fi
         ;;
     *)
-        # BeagleBone Black (still /boot, not /boot/firmware)
-        rsync -aAXxvc /boot/ /mnt/boot/ --delete-during
+        # BeagleBone Black. Three layouts are in the field, so this assumes
+        # nothing about where /boot/firmware is or whether it is a mount:
+        #   older images -- no /boot/firmware at all; boot files in /boot.
+        #   some images  -- /boot/firmware exists as an empty stub DIRECTORY
+        #                   while the board still boots from /boot.
+        #   newer images -- /boot/firmware is a real (small, ~36M) FAT mount.
+        # Testing for the directory therefore proves nothing; only findmnt does,
+        # which is what upgradeOS-part1.sh already uses to pick BOOTMOUNT.
+        #
+        # Unlike the Pi, that FAT partition is NOT where the kernel lives: on
+        # the newer images vmlinuz, uEnv.txt and dtbs/ are still in /boot on the
+        # root filesystem, and the FAT holds the Beagle presentation files
+        # (ID.txt, START.HTM, services/) plus sysconf.txt.
+        #
+        # No -x, same reason as the Pi branch above: where /boot/firmware IS a
+        # separate filesystem, --one-file-system also stops rsync's deletion
+        # recursion at that mount point on the receiving side, silently turning
+        # --delete into a no-op there. Where it is not, -x was doing nothing
+        # anyway. Deleting is safe because the image is a superset: the .fppos
+        # is built with that FAT partition still mounted (it is MOUNTS[1] in
+        # build-image-bbb.sh, which the pre-mksquashfs unmount loop skips), so
+        # sysconf.txt and friends are inside the image.
+        #
+        # BOOT_KEEP matters most here -- on the no-separate-partition layout -x
+        # never suppressed anything, so this branch has always been deleting the
+        # user's fpp_boot.sh and fpp/ on every OS upgrade. On the newer images
+        # fppinit resolves bootDir to /boot/firmware (it only checks that the
+        # directory exists), so there it is the /firmware/ spelling that is live.
+        rsync -aAXvc /boot/ /mnt/boot/ --delete-during "${BOOT_KEEP[@]}"
         ;;
 esac
 
@@ -175,6 +237,40 @@ echo "Restoring system ssh keys"
 cp -a tmp/ssh/* mnt/etc/ssh
 echo
 
+# Neutralize the incoming image's FIRST-BOOT identity setup.
+#
+# Both markers below exist so that a freshly flashed card gives itself a unique
+# identity the first time it boots. An in-place OS upgrade is not a fresh flash:
+# the device already has an identity, which the restores here deliberately
+# preserve, so letting the image's markers through undoes that work on the very
+# next boot -- after this script has already "restored" everything.
+#
+#   /etc/bbb.io/ssh_regenerate     bbbio-set-sysconf (generic-sys-mods) sees it
+#                                  and runs bb-regenerate-ssh-host-keys, which
+#                                  deletes /etc/ssh/ssh_host_* and runs
+#                                  ssh-keygen -A. That is what made every OS
+#                                  upgrade hand out new host keys and greet the
+#                                  user with "REMOTE HOST IDENTIFICATION HAS
+#                                  CHANGED" (the keys restored above were wiped
+#                                  ~1 minute later, on first boot).
+#   sysconf.txt user_name/password  written into the image by the build script
+#                                  for first-boot user creation. bbbio-set-sysconf
+#                                  applies them, resetting the user's password
+#                                  back to the image default even if it had been
+#                                  changed.
+#
+# Acting on either also triggers an extra "Rebooting after setting up
+# sysconf.txt options" reboot immediately after the upgrade.
+#
+# Both are cleaned unconditionally: they only exist on Beagle images, and rm/sed
+# on an absent file is a no-op everywhere else.
+rm -f mnt/etc/bbb.io/ssh_regenerate
+for SYSCONF in mnt/boot/firmware/sysconf.txt mnt/boot/sysconf.txt; do
+    if [ -f "${SYSCONF}" ]; then
+        sed -i -E '/^[[:space:]]*(user_name|user_password)[[:space:]]*=/d' "${SYSCONF}"
+    fi
+done
+
 echo "Restoring hostname"
 cp -af tmp/etc/hostname mnt/etc/hostname
 rm -f  tmp/etc/hostname
@@ -198,10 +294,18 @@ chown -R fpp:fpp mnt/home/fpp
 # create a file in root to detect that we just did an FPPOS Upgrade
 touch mnt/fppos_upgraded
 
-if [ -f mnt/etc/ssh/ssh_host_dsa_key -a -f mnt/etc/ssh/ssh_host_dsa_key.pub -a -f mnt/etc/ssh/ssh_host_ecdsa_key -a -f mnt/etc/ssh/ssh_host_ecdsa_key.pub -a -f mnt/etc/ssh/ssh_host_ed25519_key -a -f mnt/etc/ssh/ssh_host_ed25519_key.pub -a -f mnt/etc/ssh/ssh_host_rsa_key -a -f mnt/etc/ssh/ssh_host_rsa_key.pub ]
+# Old images shipped a first-boot unit that regenerated the host keys; with the
+# keys restored above it must not run. Gate on the key types OpenSSH actually
+# has today: this test used to require ssh_host_dsa_key as well, which Debian
+# has not shipped in years (OpenSSH dropped DSA entirely), so it never fired.
+if [ -f mnt/etc/ssh/ssh_host_ed25519_key -a -f mnt/etc/ssh/ssh_host_ed25519_key.pub -a -f mnt/etc/ssh/ssh_host_rsa_key -a -f mnt/etc/ssh/ssh_host_rsa_key.pub ]
 then
-    echo "Found all SSH key files, disabling first-boot SSH key regeneration"
-    rm mnt/etc/systemd/system/multi-user.target.wants/regenerate_ssh_host_keys.service
+    if [ -f mnt/etc/systemd/system/multi-user.target.wants/regenerate_ssh_host_keys.service ]; then
+        echo "Found all SSH key files, disabling first-boot SSH key regeneration"
+        rm mnt/etc/systemd/system/multi-user.target.wants/regenerate_ssh_host_keys.service
+    fi
+else
+    echo "WARNING: SSH host keys were not restored - clients will see a changed host key"
 fi
 
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then

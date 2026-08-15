@@ -674,6 +674,21 @@ void APIServer::Init(void) {
     app.setThreadNum(10);
     app.disableSession();
 
+    // Drogon's defaults are a 1MB max request body and a 64KB in-memory body,
+    // above which it spools the body to a temp file. Both are too small for
+    // FPP. The bulk pixel endpoints (PUT /api/overlays/model/{m}/data) send a
+    // whole frame per request -- a 1024x1024 RGB model is 3MB, well past the
+    // 1MB cap -- and spooling every frame of a repeating client to the SD card
+    // would make that endpoint slower than the per-pixel API it replaces.
+    // POST /api/models (model-overlays.json) was silently capped at 1MB too.
+    //
+    // The in-memory limit is what bounds worst-case RAM: setThreadNum(10) means
+    // up to 10 concurrent bodies held in memory, so 4MB each is ~40MB worst
+    // case -- affordable even on a 480MB BeagleBone. Requests larger than that
+    // still work, they just go through a temp file.
+    app.setClientMaxBodySize(32 * 1024 * 1024);
+    app.setClientMaxMemoryBodySize(4 * 1024 * 1024);
+
     // Replace drogon's default SIGINT and SIGTERM handlers. Drogon's defaults
     // only stop drogon's own threads, leaving fppd's main loop spinning.
     // Drogon calls app().quit() itself before invoking these callbacks, so

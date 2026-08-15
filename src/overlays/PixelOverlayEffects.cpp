@@ -22,6 +22,7 @@
 #include <Magick++/TypeMetric.h>
 #include <magick/image.h>
 #include <algorithm>
+#include <cmath> // std::ceil/std::lround in the image scaling helpers
 #include <cstdint>
 #include <cstdlib>
 #include <list>
@@ -35,12 +36,229 @@
 #include "../commands/Commands.h"
 #include "../common.h"
 #include "../log.h"
+#include "../settings.h" // FPP_DIR_IMAGE for the Image effect
 
 #include "PixelOverlay.h"
 #include "PixelOverlayModel.h"
 #include "WLEDEffects.h"
 
 #include "PixelOverlayEffects.h"
+
+// Map the long-form scroll directions used in the UI onto the short codes
+// ImageMovementEffect understands.  Shared by the Text and Image effects.
+static const std::string MapOverlayPosition(const std::string& p) {
+    if (p == "Center") {
+        return p;
+    } else if (p == "Right to Left" || p == "R2L") {
+        return "R2L";
+    } else if (p == "Left to Right" || p == "L2R") {
+        return "L2R";
+    } else if (p == "Bottom to Top" || p == "B2T") {
+        return "B2T";
+    } else if (p == "Top to Bottom" || p == "T2B") {
+        return "T2B";
+    }
+    return "Center";
+}
+
+void ScaleOverlayImage(Magick::Image& image, int w, int h, const std::string& mode) {
+    if (w <= 0 || h <= 0 || image.columns() == 0 || image.rows() == 0) {
+        return;
+    }
+    image.modifyImage();
+
+    if (mode == "Stretch") {
+        // aspect(true) is Magick's '!' flag: resize to exactly this geometry
+        // rather than fitting inside it.
+        Magick::Geometry g(w, h);
+        g.aspect(true);
+        image.resize(g);
+        return;
+    }
+
+    if (mode == "Crop to Fill") {
+        // Cover the box: the larger of the two scale factors is the one that
+        // leaves no gap on either axis.  The overflow is then cropped centred.
+        double sx = (double)w / (double)image.columns();
+        double sy = (double)h / (double)image.rows();
+        double s = std::max(sx, sy);
+        Magick::Geometry g((size_t)std::ceil(image.columns() * s),
+                           (size_t)std::ceil(image.rows() * s));
+        g.aspect(true);
+        image.resize(g);
+
+        int xoff = ((int)image.columns() - w) / 2;
+        int yoff = ((int)image.rows() - h) / 2;
+        image.crop(Magick::Geometry(w, h, xoff < 0 ? 0 : xoff, yoff < 0 ? 0 : yoff));
+        return;
+    }
+
+    if (mode != "Scale to Fit") {
+        return; // "None" or unrecognized - leave the image alone
+    }
+
+    // Resize to slightly larger since trying to get exact can leave us off by
+    // one pixel.  Going slightly larger lets us crop to exact size below.
+    image.resize(Magick::Geometry(w + 4, h + 4, 0, 0));
+
+    int cols = image.columns();
+    int rows = image.rows();
+
+    if (cols < w) // center horizontally
+    {
+        int diff = w - cols;
+
+        image.borderColor(Magick::Color("black"));
+        image.border(Magick::Geometry(diff / 2 + 1, 1, 0, 0));
+    } else if (rows < h) // center vertically
+    {
+        int diff = h - rows;
+
+        image.borderColor(Magick::Color("black"));
+        image.border(Magick::Geometry(1, diff / 2 + 1, 0, 0));
+    }
+
+    image.crop(Magick::Geometry(w, h, 1, 1));
+}
+
+// Preserve aspect while matching the axis the image is NOT scrolling along, so
+// a scrolling banner fills the model's height (or width) and runs off the ends.
+static void scaleToCrossAxis(Magick::Image& image, int w, int h, bool horizontal) {
+    if (image.columns() == 0 || image.rows() == 0) {
+        return;
+    }
+    int nw, nh;
+    if (horizontal) {
+        nh = h;
+        nw = (int)std::lround((double)image.columns() * h / (double)image.rows());
+    } else {
+        nw = w;
+        nh = (int)std::lround((double)image.rows() * w / (double)image.columns());
+    }
+    nw = std::max(nw, 1);
+    nh = std::max(nh, 1);
+
+    image.modifyImage();
+    Magick::Geometry g(nw, nh);
+    g.aspect(true);
+    image.resize(g);
+}
+
+// Extract an image into a freshly malloc'd RGB (3 bytes/pixel) buffer sized
+// columns*rows*3.  The caller owns the buffer; ImageMovementEffect frees the
+// one it is handed.  Returns nullptr on allocation/pixel-cache failure.
+static uint8_t* imageToRGBBuffer(Magick::Image& image) {
+    image.modifyImage();
+
+    int cols = image.columns();
+    int rows = image.rows();
+    if (cols <= 0 || rows <= 0) {
+        return nullptr;
+    }
+
+    const MagickLib::PixelPacket* pixel_cache = image.getConstPixels(0, 0, cols, rows);
+    if (!pixel_cache) {
+        return nullptr;
+    }
+
+    uint8_t* newData = (uint8_t*)malloc((size_t)cols * rows * 3);
+    if (!newData) {
+        return nullptr;
+    }
+
+    for (int yi = 0; yi < rows; yi++) {
+        int idx = yi * cols;
+        int nidx = yi * cols * 3;
+
+        for (int xi = 0; xi < cols; xi++) {
+            const MagickLib::PixelPacket* ptr2 = &pixel_cache[idx + xi];
+            uint8_t* np = &newData[nidx + (xi * 3)];
+
+            float r = Magick::Color::scaleQuantumToDouble(ptr2->red);
+            float g = Magick::Color::scaleQuantumToDouble(ptr2->green);
+            float b = Magick::Color::scaleQuantumToDouble(ptr2->blue);
+            r *= 255;
+            g *= 255;
+            b *= 255;
+            np[0] = r;
+            np[1] = g;
+            np[2] = b;
+        }
+    }
+    return newData;
+}
+
+// Push a full model-sized RGB frame at the model, expanding to RGBW first if
+// the model wants more than 3 bytes per pixel.
+static void setModelDataFromRGB(PixelOverlayModel* m, const uint8_t* rgb) {
+    int bpp = m->getBytesPerPixel();
+    if (bpp == 3) {
+        m->setData(rgb);
+        return;
+    }
+    int pixels = m->getWidth() * m->getHeight();
+    std::vector<uint8_t> expanded((size_t)pixels * bpp, 0);
+    for (int p = 0; p < pixels; p++) {
+        expanded[p * bpp] = rgb[p * 3];
+        expanded[p * bpp + 1] = rgb[p * 3 + 1];
+        expanded[p * bpp + 2] = rgb[p * 3 + 2];
+    }
+    m->setData(expanded.data());
+}
+
+bool DrawEncodedImageOnModel(PixelOverlayModel* m, const void* data, size_t len,
+                             const std::string& scaling, int boxW, int boxH,
+                             int xOffset, int yOffset, bool center,
+                             const PixelOverlayState& st, bool toOverlayBuffer,
+                             std::string& err) {
+    if (!m || !data || len == 0) {
+        err = "empty image body";
+        return false;
+    }
+
+    Magick::Image image;
+    try {
+        image.quiet(true); // squelch warning exceptions
+        Magick::Blob blob(data, len);
+        image.read(blob);
+        image.autoOrient();
+        image.type(Magick::TrueColorType);
+        image.depth(8);
+        ScaleOverlayImage(image, boxW, boxH, scaling);
+    } catch (Magick::Exception& error_) {
+        err = std::string("could not decode image: ") + error_.what();
+        return false;
+    } catch (const std::exception& ex) {
+        // Not everything thrown here is a Magick::Exception (std::bad_alloc,
+        // for one), and an escape would unwind through the HTTP handler while
+        // it holds the models lock.
+        err = std::string("could not decode image: ") + ex.what();
+        return false;
+    }
+
+    int cols = image.columns();
+    int rows = image.rows();
+    uint8_t* rgb = imageToRGBBuffer(image);
+    if (!rgb) {
+        err = "could not read pixels from the decoded image";
+        return false;
+    }
+
+    int x = xOffset;
+    int y = yOffset;
+    if (center) {
+        x += (boxW - cols) / 2;
+        y += (boxH - rows) / 2;
+    }
+
+    bool ok = toOverlayBuffer ? m->blitOverlayBuffer(rgb, cols, rows, 3, x, y)
+                              : m->blitData(rgb, cols, rows, 3, x, y, st);
+    free(rgb);
+    if (!ok) {
+        err = "the image landed entirely outside the model";
+    }
+    return ok;
+}
 
 static uint32_t applyColorPct(uint32_t c, float pct) {
     uint32_t r = (c >> 16) & 0xFF;
@@ -455,6 +673,22 @@ public:
     }
     virtual int32_t update() override {
         if (!done) {
+            if (endTimeMS && GetTimeMS() >= endTimeMS) {
+                // Duration expired mid-scroll.  Wipe the partial frame so a
+                // timeout leaves the model blank, matching what the static path
+                // does, rather than freezing half an image on the display.
+                //
+                // Return a timed delay rather than EFFECT_AFTER_NEXT_OUTPUT:
+                // the completion handshake below itself waits on an output
+                // cycle, and returning AFTER_NEXT_OUTPUT here consumes the one
+                // our flush just produced, leaving the effect wedged holding
+                // the model enabled forever.  This mirrors what the natural
+                // scroll-off end does - flush a frame, return a delay.
+                done = true;
+                model->clearOverlayBuffer();
+                model->flushOverlayBuffer();
+                return 1000 / std::max(1, speed);
+            }
             if (direction == "R2L") {
                 --x;
                 if (x <= (-imageDataCols)) {
@@ -477,7 +711,9 @@ public:
                 }
             }
             copyImageData(x, y);
-            int msDelay = 1000 / speed;
+            // A UI/command speed of 0 is in range for both the Text and Image
+            // effects; dividing by it raised SIGFPE and took fppd down.
+            int msDelay = 1000 / std::max(1, speed);
             return msDelay;
         }
         if (disableWhenDone) {
@@ -502,6 +738,11 @@ public:
     int y = 0;
     int speed = 0;
     bool disableWhenDone = false;
+
+    // Absolute stop time in ms, or 0 to run until the image scrolls off the
+    // model.  Only the Image effect sets this; the Text effect leaves it 0 so
+    // its long-standing "scroll once, ignore Duration" behaviour is unchanged.
+    long long endTimeMS = 0;
 };
 
 class TextEffect : public PixelOverlayEffect {
@@ -532,21 +773,6 @@ public:
             return NAME;
         }
     };
-
-    const std::string mapPosition(const std::string& p) {
-        if (p == "Center") {
-            return p;
-        } else if (p == "Right to Left" || p == "R2L") {
-            return "R2L";
-        } else if (p == "Left to Right" || p == "L2R") {
-            return "L2R";
-        } else if (p == "Bottom to Top" || p == "B2T") {
-            return "B2T";
-        } else if (p == "Top to Bottom" || p == "T2B") {
-            return "T2B";
-        }
-        return "Center";
-    }
 
     void doText(PixelOverlayModel* m,
                 const std::string& msg,
@@ -636,21 +862,7 @@ public:
             Magick::Blob blob;
             image->write(&blob);
 
-            if (m->getBytesPerPixel() == 3) {
-                m->setData((uint8_t*)blob.data());
-            } else {
-                // Expand RGB blob to RGBW for setData
-                int pixels = m->getWidth() * m->getHeight();
-                int bpp = m->getBytesPerPixel();
-                std::vector<uint8_t> rgbw(pixels * bpp, 0);
-                const uint8_t* rgb = (const uint8_t*)blob.data();
-                for (int p = 0; p < pixels; p++) {
-                    rgbw[p * bpp] = rgb[p * 3];
-                    rgbw[p * bpp + 1] = rgb[p * 3 + 1];
-                    rgbw[p * bpp + 2] = rgb[p * 3 + 2];
-                }
-                m->setData(rgbw.data());
-            }
+            setModelDataFromRGB(m, (const uint8_t*)blob.data());
 
             if (disableWhenDone) {
                 int nd = 25;
@@ -695,28 +907,10 @@ public:
             } else if (position == "T2B") {
                 y = -metrics.ascent();
             }
-            image2.modifyImage();
-
-            const MagickLib::PixelPacket* pixel_cache = image2.getConstPixels(0, 0, image2.columns(), image2.rows());
-            uint8_t* newData = (uint8_t*)malloc(image2.columns() * image2.rows() * 3);
-            for (int yi = 0; yi < image2.rows(); yi++) {
-                int idx = yi * image2.columns();
-                int nidx = yi * image2.columns() * 3;
-
-                for (int xi = 0; xi < image2.columns(); xi++) {
-                    const MagickLib::PixelPacket* ptr2 = &pixel_cache[idx + xi];
-                    uint8_t* np = &newData[nidx + (xi * 3)];
-
-                    float r = Magick::Color::scaleQuantumToDouble(ptr2->red);
-                    float g = Magick::Color::scaleQuantumToDouble(ptr2->green);
-                    float b = Magick::Color::scaleQuantumToDouble(ptr2->blue);
-                    r *= 255;
-                    g *= 255;
-                    b *= 255;
-                    np[0] = r;
-                    np[1] = g;
-                    np[2] = b;
-                }
+            uint8_t* newData = imageToRGBBuffer(image2);
+            if (!newData) {
+                LogErr(VB_CHANNELOUT, "Text Overlay Effect - could not read rendered text pixels\n");
+                return;
             }
 
             std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
@@ -758,7 +952,7 @@ public:
             fontSize = 12;
         }
         bool aa = args[3] == "true" || args[3] == "1";
-        std::string position = mapPosition(args[4]);
+        std::string position = MapOverlayPosition(args[4]);
         int pps = std::atoi(args[5].c_str());
         int duration = std::atoi(args[6].c_str());
         std::string msg = args[7];
@@ -779,6 +973,210 @@ public:
     }
 };
 
+class ImageEffect : public PixelOverlayEffect {
+public:
+    ImageEffect() :
+        PixelOverlayEffect("Image") {
+        args.push_back(CommandArg("Scaling", "string", "Scaling").setContentList({ "Scale to Fit", "Crop to Fill", "Stretch", "None" }).setDefaultValue("Scale to Fit"));
+        args.push_back(CommandArg("Position", "string", "Position").setContentList({ "Center", "Right to Left", "Left to Right", "Bottom to Top", "Top to Bottom" }));
+        args.push_back(CommandArg("Speed", "range", "Scroll Speed").setRange(0, 200).setDefaultValue("10"));
+        args.push_back(CommandArg("Duration", "int", "Duration (0 = leave up)").setRange(0, 2000).setDefaultValue("0"));
+
+        // keep the filename as the last argument so the MQTT commands can, by
+        // default, carry it as the payload while everything above is a topic
+        // path.  Same reasoning as the Text effect's Text argument.
+        args.push_back(CommandArg("Image", "string", "Image").setContentListUrl("api/overlays/images", false).setAdjustable());
+    }
+
+    // Compose an arbitrarily sized RGB image into a model-sized RGB frame,
+    // centred, clipping whatever falls outside.  Used for the static case so a
+    // "None"-scaled or odd-sized image can never run off the end of setData's
+    // width*height*bpp buffer.
+    void centerIntoFrame(const uint8_t* src, int srcCols, int srcRows,
+                         std::vector<uint8_t>& frame, int w, int h) {
+        int xoff = (w - srcCols) / 2;
+        int yoff = (h - srcRows) / 2;
+
+        for (int y = 0; y < srcRows; y++) {
+            int ny = yoff + y;
+            if (ny < 0 || ny >= h) {
+                continue;
+            }
+            int sx = 0;
+            int dx = xoff;
+            int count = srcCols;
+            if (dx < 0) {
+                sx = -dx;
+                count += dx;
+                dx = 0;
+            }
+            if (count > (w - dx)) {
+                count = w - dx;
+            }
+            if (count <= 0) {
+                continue;
+            }
+            memcpy(&frame[((size_t)ny * w + dx) * 3],
+                   src + (((size_t)y * srcCols + sx) * 3),
+                   (size_t)count * 3);
+        }
+    }
+
+    bool doImage(PixelOverlayModel* m,
+                 const std::string& path,
+                 const std::string& scaling,
+                 const std::string& position,
+                 int pixelsPerSecond,
+                 const std::string& autoEnable,
+                 int duration) {
+        if (path.empty()) {
+            WarningHolder::AddWarningTimeout(60, 34, "Image Overlay Effect - no image specified");
+            return false;
+        }
+
+        std::string fullPath = startsWith(path, "/") ? path : FPP_DIR_IMAGE("/" + path);
+        if (!FileExists(fullPath)) {
+            WarningHolder::AddWarningTimeout(60, 34, "Image Overlay Effect - file not found: " + fullPath);
+            LogErr(VB_CHANNELOUT, "Image Overlay Effect - file not found: %s\n", fullPath.c_str());
+            return false;
+        }
+
+        int w = m->getWidth();
+        int h = m->getHeight();
+        bool horizontal = (position == "R2L") || (position == "L2R");
+
+        // Decode and scale before touching the model or the effect slot: a slow
+        // read here should not leave a half-applied effect behind.
+        Magick::Image image;
+        try {
+            image.quiet(true); // squelch warning exceptions
+            image.read(fullPath);
+            image.autoOrient();
+            image.type(Magick::TrueColorType);
+            image.depth(8);
+
+            if (position == "Center" || scaling != "Scale to Fit") {
+                ScaleOverlayImage(image, w, h, scaling);
+            } else {
+                // Scrolling with aspect preserved: match the axis we are not
+                // travelling along and let the other run past the model edge.
+                scaleToCrossAxis(image, w, h, horizontal);
+            }
+        } catch (Magick::Exception& error_) {
+            LogErr(VB_CHANNELOUT, "GraphicsMagick exception reading %s: %s\n", fullPath.c_str(), error_.what());
+            WarningHolder::AddWarningTimeout(60, 34, "Image Overlay Effect - could not read " + fullPath);
+            return false;
+        } catch (const std::exception& ex) {
+            // Not everything thrown here is a Magick::Exception (std::bad_alloc,
+            // filesystem errors), and an escape would unwind through the
+            // command dispatch holding the models lock.
+            LogErr(VB_CHANNELOUT, "Exception preparing image %s: %s\n", fullPath.c_str(), ex.what());
+            WarningHolder::AddWarningTimeout(60, 34, "Image Overlay Effect - could not read " + fullPath);
+            return false;
+        }
+
+        bool disableWhenDone = false;
+        PixelOverlayState st(autoEnable);
+        if ((st.getState() != PixelOverlayState::PixelState::Disabled) && (m->getState().getState() == PixelOverlayState::PixelState::Disabled)) {
+            m->setState(st);
+            disableWhenDone = true;
+        }
+
+        uint8_t* imageRGB = imageToRGBBuffer(image);
+        if (!imageRGB) {
+            LogErr(VB_CHANNELOUT, "Image Overlay Effect - could not read pixels from %s\n", fullPath.c_str());
+            return false;
+        }
+
+        int cols = image.columns();
+        int rows = image.rows();
+
+        if (position == "Center") {
+            std::vector<uint8_t> frame((size_t)w * h * 3, 0);
+            centerIntoFrame(imageRGB, cols, rows, frame, w, h);
+            free(imageRGB);
+
+            // We are taking the model over, so drop any effect still running on
+            // it: its next tick would clear or overwrite the image we are about
+            // to draw.  The Text effect gets this incidentally because it always
+            // installs a StopRunningEffect here; with Duration 0 meaning "leave
+            // it up" we install nothing, so the eviction has to be explicit.
+            // The scrolling path below needs no equivalent - setRunningEffect
+            // deletes the previous effect for us.
+            {
+                std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
+                if (m->getRunningEffect()) {
+                    m->setRunningEffect(nullptr, 25); // one no-op tick, then dropped
+                }
+            }
+
+            setModelDataFromRGB(m, frame.data());
+
+            // Duration > 0 clears the image (and disables the model if we were
+            // the one that enabled it) after that many seconds; 0 leaves it up
+            // until something else changes the model.  This deliberately
+            // differs from the Text effect, where Duration is honoured only in
+            // the auto-enable case and a Duration of 0 wipes the model after
+            // 25ms - which for an image means the default arguments would draw
+            // and immediately erase.  Text's behaviour is left alone so
+            // existing presets do not shift under people.
+            if (duration > 0) {
+                m->setRunningEffect(new StopRunningEffect(m, "Image", disableWhenDone), duration * 1000);
+            }
+            return true;
+        }
+
+        // Scrolling: hand the pixels to the same mover the Text effect uses.
+        double y = (h / 2.0) - (rows / 2.0);
+        double x = (w / 2.0) - (cols / 2.0);
+        if (position == "R2L") {
+            x = w;
+        } else if (position == "L2R") {
+            x = -cols;
+        } else if (position == "B2T") {
+            y = h;
+        } else if (position == "T2B") {
+            y = -rows;
+        }
+
+        std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
+        ImageMovementEffect* ef = new ImageMovementEffect(m);
+        ef->x = (int)x;
+        ef->y = (int)y;
+        ef->speed = std::max(1, pixelsPerSecond);
+        ef->disableWhenDone = disableWhenDone;
+        ef->direction = position;
+        if (duration > 0) {
+            ef->endTimeMS = GetTimeMS() + ((long long)duration * 1000);
+        }
+        ef->imageData = imageRGB; // effect owns it from here, frees in its dtor
+        ef->imageDataCols = cols;
+        ef->imageDataRows = rows;
+        ef->copyImageData(ef->x, ef->y);
+
+        int32_t t = 1000 / ef->speed;
+        if (t == 0) {
+            t = 1;
+        }
+        m->setRunningEffect(ef, t);
+        return true;
+    }
+
+    virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
+        if (args.size() < 5) {
+            LogInfo(VB_CHANNELOUT, "Image Effect: not enough args\n");
+            return false;
+        }
+        std::string scaling = args[0];
+        std::string position = MapOverlayPosition(args[1]);
+        int pps = std::atoi(args[2].c_str());
+        int duration = std::atoi(args[3].c_str());
+        std::string file = args[4];
+
+        return doImage(model, file, scaling, position, pps, autoEnable, duration);
+    }
+};
+
 class StopEffect : public PixelOverlayEffect {
 public:
     StopEffect() :
@@ -796,6 +1194,7 @@ public:
         add(new ColorFadeEffect());
         add(new BarsEffect());
         add(new TextEffect());
+        add(new ImageEffect());
 
         std::list<PixelOverlayEffect*> wled = WLEDEffect::getWLEDEffects();
         for (auto a : wled) {

@@ -137,9 +137,29 @@ public:
         // for (auto& a : args) {
         //     printf("%s\n", a.c_str());
         // }
+        // The two CommandArgs declared above are only the fixed head of this
+        // command's argument list; the rest come from the "subcommand" arg,
+        // whose shape render_GET() publishes per test pattern (a channel
+        // range plus at least one pattern-specific value, so four in total,
+        // five for "Single Channel Chase"). Nothing between here and the
+        // caller knows that, so an under-supplied call - "Test Start" with
+        // just an interval and a pattern name, as arrived from an API client -
+        // used to index args[3] off the end of the vector and read a
+        // std::string out of unrelated memory.
+        //
+        // The interval is parsed with atoi() rather than std::stoi() for the
+        // same reason: an empty or non-numeric value is reachable from the
+        // API, and stoi() throws where nothing catches it. The remaining
+        // std::stoi/stoul/substr reads below can still throw on a malformed
+        // argument value - that is a separate defect from this one.
+        size_t needed = (args.size() > 1 && args[1] == "Single Channel Chase") ? 5 : 4;
+        if (args.size() < needed) {
+            return std::make_unique<ErrorResult>("Test Start needs " + std::to_string(needed) +
+                                                 " arguments, found " + std::to_string(args.size()));
+        }
         Json::Value config;
         config["enabled"] = 1;
-        config["cycleMS"] = std::stoi(args[0], nullptr, 10);
+        config["cycleMS"] = atoi(args[0].c_str());
         std::string effect = args[1];
         config["colorPattern"] = "";
         if (effect == "RGB Chase") {

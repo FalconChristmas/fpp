@@ -342,9 +342,16 @@ public:
         nargs.push_back("999");
         LogDebug(VB_COMMAND, "\"Check Pixel Count\" command starting Test Mode to measure current draw\n");
         CommandManager::INSTANCE.run("Test Start", nargs);
-        Timers::INSTANCE.addPeriodicTimer("CheckPixelCount", 1000, [args]() {
+        // Resolved here, against the defaults declared above, rather than
+        // indexed inside the timer: all three arguments are optional in
+        // practice, and a caller that supplied fewer than three left the
+        // lambda reading past the end of its captured vector a second later.
+        std::string ports = args.size() > 0 ? args[0] : "--ALL--";
+        int sensitivity = args.size() > 1 ? std::atoi(args[1].c_str()) : 2;
+        std::string action = args.size() > 2 ? args[2] : "Warn";
+        Timers::INSTANCE.addPeriodicTimer("CheckPixelCount", 1000, [ports, sensitivity, action]() {
             if (CurrentBasedPixelCountPixelStringTester::INSTANCE.getCurrentStatus() == CurrentBasedPixelCountPixelStringTester::Status::Complete) {
-                OutputMonitor::INSTANCE.checkPixelCounts(args[0], args[2], std::atoi(args[1].c_str()));
+                OutputMonitor::INSTANCE.checkPixelCounts(ports, action, sensitivity);
                 std::vector<std::string> args;
                 LogDebug(VB_COMMAND, "\"Check Pixel Count\" command stopping Test Mode, current-based detection complete\n");
                 CommandManager::INSTANCE.run("Test Stop", args);
