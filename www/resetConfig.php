@@ -259,6 +259,11 @@ if (in_array('audiobackend', $areas)) {
     } else {
         printf("  WARNING: PipeWire services restart returned exit code %d.\n", $ret);
     }
+    // fppd's GStreamer PipeWire connection is cached process-wide and does not
+    // survive the daemon restarting under it: playback would go silent with
+    // nothing logged until fppd was restarted by hand.
+    exec($SUDO . ' systemctl restart fppd 2>&1');
+    printf("  FPPD restarted to reconnect to PipeWire.\n");
     flush();
 }
 ?>

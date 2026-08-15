@@ -1769,6 +1769,33 @@ int GStreamerOutput::Start(int msTime) {
                     g_object_set(volume, "volume", targetVolume, NULL);
             }
 
+            // Confirm the async transition actually completed.  ASYNC only means
+            // "in progress": if a sink never prerolls, the pipeline sits in
+            // PAUSED forever, produces silence, and posts NOTHING on the bus, so
+            // nothing above notices.  That is exactly what a PipeWire daemon
+            // restart under a live fppd leaves behind -- the GStreamer PipeWire
+            // plugin caches its daemon connection process-wide, so every later
+            // pipewiresink reuses a dead one.  Process()'s preroll watchdog
+            // catches this for playlist media, but a standalone Play Media never
+            // runs Process() (only PlaylistEntryMedia calls it), so without this
+            // the failure is completely invisible.
+            if (!cancel->load()) {
+                GstState startedState = GST_STATE_NULL;
+                if (gst_element_get_state(pipeline, &startedState, nullptr,
+                                          (GstClockTime)PREROLL_TIMEOUT_MS * GST_MSECOND) != GST_STATE_CHANGE_SUCCESS ||
+                    startedState != GST_STATE_PLAYING) {
+                    if (!cancel->load()) {
+                        LogErr(VB_MEDIAOUT,
+                               "GStreamer: pipeline never reached PLAYING within %dms (state=%d) — output will be "
+                               "silent. A PipeWire restart under a running fppd does this; fppd must be restarted "
+                               "to reconnect.\n",
+                               PREROLL_TIMEOUT_MS, startedState);
+                        WarningHolder::AddWarningTimeout(60, 30,
+                                                        "Media playback did not start (audio backend connection lost — restart FPPD)");
+                    }
+                }
+            }
+
             // Deferred: attach pipewiresink to video tee and start consumer
             // pipelines.  Pipewiresink must be added AFTER the pipeline has
             // fully reached PLAYING because gst_element_sync_state_with_parent

@@ -2220,6 +2220,24 @@ static void runAudioSetup(bool recoveryPass) {
         if (audioStackTouched && hasGroupsConfig && !noRealSoundcard && !cppGeneratedSimpleConfig) {
             restorePipeWireVolumes();
         }
+
+        // fppd cannot survive the daemon being restarted underneath it.  The
+        // GStreamer PipeWire plugin caches its connection to the daemon process
+        // wide, so once that connection dies every later pipewiresink reuses the
+        // dead one: the pipeline reports PLAYING, no error is ever posted on the
+        // bus, and playback is silent until the process restarts.  Verified by
+        // wedging a box this way and then playing the same pipeline from a
+        // separate process, which worked -- the daemon and graph were healthy
+        // and only fppd's own connection was dead.
+        //
+        // So whenever this run restarted the stack, restart fppd too.  Gated on
+        // fppd actually running, which at boot it is not: setupAudio runs in
+        // postNetwork, before fppd starts, so a normal boot never takes this.
+        // Only a later re-run -- an audio settings apply -- does.
+        if (pipewireRestarted && system("/usr/bin/systemctl is-active --quiet fppd") == 0) {
+            printf("FPP - PipeWire was restarted under a running fppd; restarting fppd so it reconnects\n");
+            exec("/usr/bin/systemctl restart fppd");
+        }
     } else if (!runningInDocker) {
         exec("/usr/bin/systemctl stop fpp-pipewire-pulse.service fpp-wireplumber.service fpp-pipewire.service");
     }

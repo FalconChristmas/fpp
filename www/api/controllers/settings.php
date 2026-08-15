@@ -290,7 +290,13 @@ function PutSetting()
             "sleep 0.5\n" .
             $SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service\n" .
             "for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /run/pipewire-fpp/pipewire-0 ] && break; sleep 0.25; done\n" .
-            $SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service\n";
+            $SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service\n" .
+            // Last, and only after every daemon above is back: fppd's GStreamer
+            // PipeWire connection is cached process-wide and does not survive the
+            // daemon restarting under it -- playback goes silent with nothing
+            // logged.  This has to be the final step; restarting fppd earlier
+            // would just leave the new process wedged by the restarts after it.
+            $SUDO . " /usr/bin/systemctl restart fppd\n";
         exec("nohup bash -c " . escapeshellarg($bgScript) . " < /dev/null > /dev/null 2>&1 &");
     } else if ($setting == "EnableTethering") {
         $ssid = ReadSettingFromFile("TetherSSID");

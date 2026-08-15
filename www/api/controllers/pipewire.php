@@ -219,12 +219,20 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
             unlink($cachedConf);
         }
         // Restart PipeWire to pick up removal (order matters — pulse depends on pipewire socket)
+        // Stop playback first and restart fppd after, exactly as
+        // RestartPipeWireStack() does: fppd's GStreamer PipeWire connection is
+        // cached process-wide and does not survive the daemon restarting under
+        // it, leaving silent playback with nothing logged.  The other restart in
+        // this function is already covered by the StopFppdPlaybackSafe() below;
+        // this early path returns before reaching it.
         if (!$skipRestart) {
+            StopFppdPlaybackSafe();
             exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
             usleep(500000);
             exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
             usleep(500000);
             exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
+            @SendCommand('restart');
         }
         return json(array("status" => "OK", "message" => "Audio groups cleared, PipeWire restarted"));
     }
