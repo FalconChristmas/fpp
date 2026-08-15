@@ -143,7 +143,6 @@
 			"description": "ALSA Hardware Audio",
 			"settings": [
 				"AudioOutput",
-				"AudioMixerDevice",
 				"AudioFormat",
 				"AudioPeriodSize",
 				"AudioBufferSize",

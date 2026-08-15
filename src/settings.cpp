@@ -510,7 +510,11 @@ int getSettingInt(const char* setting, int defaultVal) {
 }
 
 bool isPipeWireBackend() {
-    std::string mb = settings.getSetting("MediaBackend", "");
+    // Default to the settings.json default rather than "".  ALSA is retired --
+    // the UI offers only the two PipeWire modes and FPPINIT migrates a stored
+    // "alsa" away -- so a box that simply has no MediaBackend key must not fall
+    // through to the retired path.
+    std::string mb = settings.getSetting("MediaBackend", "pipewire-simple");
     // Lowercase compare without pulling in toLowerCopy here
     for (char& c : mb) {
         if (c >= 'A' && c <= 'Z')

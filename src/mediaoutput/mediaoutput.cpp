@@ -21,9 +21,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <cstdio> // popen/pclose for the amixer control probe
+#include <map>
+#include <mutex>
 #include <set>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "MultiSync.h"
 #include "common.h"
@@ -201,6 +205,90 @@ static int lastPipeWireVolume = -1;  // Track last volume to avoid redundant mut
 int getVolume() {
     return volume;
 }
+
+// Read a command's stdout.  Local to the mixer handling below, which has to parse
+// amixer's output; libfpp has no shared helper for this.
+static std::string readCommandOutput(const std::string& cmd) {
+    std::string out;
+    FILE* f = popen(cmd.c_str(), "r");
+    if (!f) {
+        return out;
+    }
+    char buf[512];
+    while (fgets(buf, sizeof(buf), f) != nullptr) {
+        out += buf;
+    }
+    pclose(f);
+    return out;
+}
+
+// The playback volume controls on a card, cached: enumerating them costs an
+// amixer per control, and setVolume() is called repeatedly while a slider moves.
+// Most FPP capes are bare I2S DACs and return an empty list, so this is normally
+// one amixer at startup and nothing thereafter.
+static const std::vector<std::string>& playbackVolumeControls(int card) {
+    static std::mutex cacheLock;
+    static std::map<int, std::vector<std::string>> cache;
+    std::unique_lock<std::mutex> lk(cacheLock);
+    auto it = cache.find(card);
+    if (it != cache.end()) {
+        return it->second;
+    }
+    std::vector<std::string> ctls;
+    std::string list = readCommandOutput("amixer -c " + std::to_string(card) + " scontrols 2>/dev/null");
+    std::istringstream iss(list);
+    std::string line;
+    while (std::getline(iss, line)) {
+        // "Simple mixer control 'Main Digital',0"
+        std::size_t b = line.find('\'');
+        std::size_t e = line.rfind('\'');
+        if (b == std::string::npos || e <= b) {
+            continue;
+        }
+        std::string name = line.substr(b + 1, e - b - 1);
+        // The name is interpolated into a shell command.  Control names are plain
+        // text, so anything that could escape the quoting is a reason to skip it
+        // rather than to quote harder.
+        if (name.empty() || name.find_first_of("\"'`$\\") != std::string::npos) {
+            continue;
+        }
+        // Only controls that actually carry a playback volume.  A card like a
+        // PCM512x cape also exposes switches and tuning enums (Deemphasis, DSP
+        // Program, Auto Mute, Overclock...) that must not be written.
+        if (readCommandOutput("amixer -c " + std::to_string(card) + " sget \"" + name +
+                              "\" 2>/dev/null")
+                .find("pvolume") != std::string::npos) {
+            ctls.push_back(name);
+        }
+    }
+    return cache.emplace(card, std::move(ctls)).first->second;
+}
+
+// Put the card's hardware playback path at unity, so PipeWire's software volume
+// is the only thing attenuating.
+//
+// This replaces pinning the single control named by the AudioMixerDevice setting
+// to 100%, which was wrong in two directions.  100% is not unity on a control
+// whose range runs above 0 dB: a PCM512x cape's "Main Digital" spans 0..255 with
+// 0 dB at 207 and +24 dB at 255, so selecting the one control on that card that
+// genuinely is the volume -- the obvious choice -- pinned it 24 dB into clipping.
+// And pinning only the selected control left any other volume control sitting
+// wherever the driver happened to leave it.  The setting itself only ever picked
+// the alphabetically first control anyway (amixer scontrols | head -1).
+//
+// bcm2835 keeps the old behaviour deliberately: its mixer reaches +4 dB and FPP
+// wants that headroom available above the software stage.
+static void pinCardPlaybackToUnity(int card, bool useMax) {
+    for (const std::string& name : playbackVolumeControls(card)) {
+        const std::string base = "amixer -c " + std::to_string(card) + " sset \"" + name + "\" ";
+        if (useMax) {
+            system((base + "100% >/dev/null 2>&1").c_str());
+        } else if (system((base + "0dB >/dev/null 2>&1").c_str()) != 0) {
+            // No dB scale on this control; 100% is the top of a plain range.
+            system((base + "100% >/dev/null 2>&1").c_str());
+        }
+    }
+}
 #else
 int getVolume() {
     return MacOSGetVolume();
@@ -220,7 +308,9 @@ void setVolume(int vol) {
     std::string mixerDevice = getSetting("AudioMixerDevice");
     int audioOutput = resolveAudioOutputCardNum();
     std::string audio0Type = getSetting("AudioCard0Type");
-    std::string mediaBackend = toLowerCopy(getSetting("MediaBackend"));
+    // Same default as settings.json: a missing key must not select the retired
+    // ALSA path.
+    std::string mediaBackend = toLowerCopy(getSetting("MediaBackend", "pipewire-simple"));
 
     bool usePipeWireBackend = (mediaBackend == "pipewire" || mediaBackend == "pipewire-simple");
 
@@ -228,35 +318,30 @@ void setVolume(int vol) {
     volume = vol;
     float fvol = volume;
 
-    // === ALSA hardware volume ===
-    // For PipeWire backend (all modes): pin hardware at 100% so that the
-    // PipeWire software volume (pactl, see below) is the sole attenuator.
-    // This avoids double attenuation and matches WirePlumber's expectation
-    // that hardware mixers are left at full output.
+    // === Hardware mixer ===
+    // PipeWire mode: put the card's playback controls at unity so the software
+    // volume further down is the sole attenuator.  The 0 dB choice, the bcm2835
+    // exception, and why only pvolume controls are touched all live in
+    // pinCardPlaybackToUnity().  Many capes are bare I2S DACs with no playback
+    // mixer at all, so the control list is empty and nothing is shelled out --
+    // and nothing is lost, because the software volume is what actually
+    // attenuates, verified at the ALSA boundary through a loopback card (a sink
+    // node at 50% delivers 0.125 amplitude with no mixer involved).
     //
-    // For bcm2835 this is especially important: its hardware mixer can go
-    // above 0 dBFS (+4 dB), while WirePlumber defaults to 0 dB.  Keeping
-    // it at hardware max ensures the full dynamic range is available to the
-    // PipeWire software volume stage.
-    //
-    // For ALSA mode (no PipeWire): set hardware volume directly to the FPP
-    // percentage, exactly as legacy ALSA behaviour.
-    // Plenty of cards have no playback mixer control at all -- an I2S PCM5102A
-    // cape is a bare DAC, so "Audio Output Mixer Device" is legitimately empty
-    // on the settings page.  amixer with an empty control name just fails, so
-    // skip it rather than shell out on every volume change to no effect.  In
-    // PipeWire mode nothing is lost: the software volume below is what actually
-    // attenuates (verified at the ALSA boundary through a loopback card -- a
-    // sink node at 50% delivers 0.125 amplitude with no mixer involved).  In
-    // ALSA mode such a card simply has no volume control, which is not new.
-    if (mixerDevice.empty()) {
+    // The ALSA branch below is legacy.  "alsa" is no longer offered as a
+    // MediaBackend and FPPINIT migrates a stored one to pipewire-simple at boot,
+    // so it is unreachable in a supported configuration; it is kept as a
+    // fallback, and given the same taper as the PipeWire path so that the same
+    // number would still mean the same loudness if it ever did run.
+    if (usePipeWireBackend) {
+        bool useMax = false;
+#ifdef PLATFORM_PI
+        useMax = (audioOutput == 0 && audio0Type == "bcm2");
+#endif
+        pinCardPlaybackToUnity(audioOutput, useMax);
+    } else if (mixerDevice.empty()) {
         LogDebug(VB_MEDIAOUT, "No ALSA mixer control for card %d; skipping hardware volume\n",
                  audioOutput);
-    } else if (usePipeWireBackend) {
-        snprintf(buffer, sizeof(buffer), "amixer set -c %d '%s' -- 100%% >/dev/null 2>&1",
-                 audioOutput, mixerDevice.c_str());
-        LogDebug(VB_MEDIAOUT, "PipeWire mode: pinning ALSA hardware to max: %s \n", buffer);
-        system(buffer);
     } else {
         // Follow the same taper as the PipeWire path, where pactl's percentage
         // is PulseAudio's cubic (perceptual) scale -- the same FPP volume should
