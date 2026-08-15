@@ -4906,7 +4906,15 @@ function RestorePipeWireGroupVolumes($groups = null)
     global $SUDO, $settings;
 
     if ($groups === null) {
-        $configFile = $settings['mediaDirectory'] . "/config/pipewire-audio-groups.json";
+        // Match the running graph, not whichever file happens to exist.  Simple
+        // mode's groups are in pipewire-audio-groups-simple.json and its single
+        // group is "Default" (node fpp_group_default); the advanced file holds a
+        // different set under different names, so reading it in Simple mode
+        // pactl'd nodes that do not exist and restored nothing.  Kept in sync
+        // with restorePipeWireVolumes() in FPPINIT_Audio.cpp.
+        $backend = isset($settings['MediaBackend']) ? strtolower($settings['MediaBackend']) : 'pipewire-simple';
+        $configFile = $settings['mediaDirectory'] . "/config/" .
+            ($backend === 'pipewire-simple' ? "pipewire-audio-groups-simple.json" : "pipewire-audio-groups.json");
         if (!file_exists($configFile))
             return;
         $data = json_decode(file_get_contents($configFile), true);

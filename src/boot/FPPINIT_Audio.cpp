@@ -772,10 +772,23 @@ static void setPipeWireSinkVolume(const std::string& node, int volPct) {
 // GeneratePipeWireGroupsConfig(); normalizeCardIdForNode() already mirrors its
 // slugging rule, and this reuses it rather than re-deriving it.
 static void restorePipeWireVolumes() {
-    // Advanced-mode config only, matching the PHP: Simple mode has a single
-    // auto-generated group created at full volume, and the PHP reads this same
-    // path unconditionally, so a simple-mode box is a no-op here either way.
-    const std::string groupsJsonPath = FPP_MEDIA_DIR + "/config/pipewire-audio-groups.json";
+    // Read the config that describes the graph actually running.  Simple mode's
+    // groups live in pipewire-audio-groups-simple.json and its single group is
+    // named "Default" (node fpp_group_default, what buildSimplePipeWireGroupsConf
+    // emits); the advanced file is a different set of groups under different
+    // names.  Reading the advanced one unconditionally -- which is what this did,
+    // and what the PHP still did -- meant a Simple-mode box with a leftover
+    // advanced config pactl'd node names that do not exist, so every restore was
+    // a silent no-op and any volume stored for the running group was ignored.
+    std::string mediaBackend = "pipewire-simple";
+    getRawSetting("MediaBackend", mediaBackend);
+    std::transform(mediaBackend.begin(), mediaBackend.end(), mediaBackend.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+    const std::string groupsJsonPath = FPP_MEDIA_DIR + "/config/" +
+                                       (mediaBackend == "pipewire-simple"
+                                            ? "pipewire-audio-groups-simple.json"
+                                            : "pipewire-audio-groups.json");
     if (!FileExists(groupsJsonPath)) {
         return;
     }
