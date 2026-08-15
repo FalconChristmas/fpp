@@ -208,7 +208,9 @@ int getVolume() {
 #endif
 
 void setVolume(int vol) {
-    char buffer[256];
+    // Large enough for the pactl sink-enumeration command below, which with its
+    // environment prefix runs past 256 and was silently truncated by snprintf.
+    char buffer[1024];
 
     if (vol < 0)
         vol = 0;
@@ -226,14 +228,6 @@ void setVolume(int vol) {
     volume = vol;
     float fvol = volume;
 
-    // Detect the PipeWire sink name for volume control.
-    // Audio groups use a combine-stream named "fpp_group_*"; direct sinks
-    // may have a specific name or be empty (default sink).
-    std::string pipewireSink;
-    if (usePipeWireBackend) {
-        pipewireSink = getSetting("PipeWireSinkName");
-    }
-
     // === ALSA hardware volume ===
     // For PipeWire backend (all modes): pin hardware at 100% so that the
     // PipeWire software volume (pactl, see below) is the sole attenuator.
@@ -247,15 +241,34 @@ void setVolume(int vol) {
     //
     // For ALSA mode (no PipeWire): set hardware volume directly to the FPP
     // percentage, exactly as legacy ALSA behaviour.
-    if (usePipeWireBackend) {
+    // Plenty of cards have no playback mixer control at all -- an I2S PCM5102A
+    // cape is a bare DAC, so "Audio Output Mixer Device" is legitimately empty
+    // on the settings page.  amixer with an empty control name just fails, so
+    // skip it rather than shell out on every volume change to no effect.  In
+    // PipeWire mode nothing is lost: the software volume below is what actually
+    // attenuates (verified at the ALSA boundary through a loopback card -- a
+    // sink node at 50% delivers 0.125 amplitude with no mixer involved).  In
+    // ALSA mode such a card simply has no volume control, which is not new.
+    if (mixerDevice.empty()) {
+        LogDebug(VB_MEDIAOUT, "No ALSA mixer control for card %d; skipping hardware volume\n",
+                 audioOutput);
+    } else if (usePipeWireBackend) {
         snprintf(buffer, sizeof(buffer), "amixer set -c %d '%s' -- 100%% >/dev/null 2>&1",
                  audioOutput, mixerDevice.c_str());
         LogDebug(VB_MEDIAOUT, "PipeWire mode: pinning ALSA hardware to max: %s \n", buffer);
         system(buffer);
     } else {
+        // Follow the same taper as the PipeWire path, where pactl's percentage
+        // is PulseAudio's cubic (perceptual) scale -- the same FPP volume should
+        // not mean a different loudness just because the backend changed.  Only
+        // the taper can be matched, not the absolute level: amixer's percentage
+        // is of the control's own raw range, and cards routinely describe that
+        // range uselessly (a USB DAC measured here spans 0.00 to -0.12 dB across
+        // all 31 of its steps), so there is no portable dB to aim at.
+        const float v = volume / 100.0f;
+        fvol = 100.0f * v * v * v;
 #ifdef PLATFORM_PI
         if (audioOutput == 0 && audio0Type == "bcm2") {
-            fvol = volume;
             fvol /= 2;
             fvol += 50;
         }
@@ -274,9 +287,15 @@ void setVolume(int vol) {
     // lookup and correctly respects PIPEWIRE_RUNTIME_DIR / XDG_RUNTIME_DIR
     // rather than PIPEWIRE_REMOTE.
     //
-    // For audio groups: target the named combine-stream sink (fpp_group_*).
-    // For direct PipeWire sinks: target the configured sink name, or
-    // @DEFAULT_SINK@ if none is configured.
+    // The master targets the CARD sinks (fpp_alsa_*), not PipeWireSinkName.
+    // PipeWireSinkName points at the primary output group, which is also the
+    // node the group volume control and RestorePipeWireGroupVolumes() write --
+    // so master and that group's slider were one knob, and whoever wrote last
+    // won.  At boot that is always fppd (the volume restore runs in fppinit,
+    // before fppd starts), which silently discarded whatever the user had set
+    // on the group.  A group left above the master therefore came back quieter
+    // after every reboot.  The card sinks sit downstream of every group, so
+    // master, group and member volumes now multiply rather than overwrite.
     //
     // Volume 0 is expressed as a real 0% so the sink goes silent without
     // needing a separate mute call; any non-zero restore includes an explicit
@@ -287,32 +306,38 @@ void setVolume(int vol) {
                                "XDG_RUNTIME_DIR=/run/pipewire-fpp "
                                "PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse ";
 
-        // Choose the pactl sink target: named sink if available, else default.
-        std::string paTarget = pipewireSink.empty() ? "@DEFAULT_SINK@" : pipewireSink;
+        // Every FPP-owned output sink -- local cards and AES67 senders alike, so
+        // the master stays a master for a box whose output is a network stream.
+        // Falls back to the default sink if there are none (no
+        // 95-fpp-alsa-sink.conf adapters), which is the old behaviour and still
+        // better than attenuating nothing at all.
+        // Deliberately no single quotes in here: the whole thing is embedded in
+        // an sh -c '...' string, so an inner ' would close it early (awk
+        // '{print $2}' silently truncated the command and left the volume
+        // unset).  pactl's short listing is tab separated, so cut does the job.
+        const char* sinkList = "S=$(pactl list sinks short 2>/dev/null | cut -f2 | "
+                               "grep -e ^fpp_alsa_ -e ^aes67_); "
+                               "[ -z \"$S\" ] && S=@DEFAULT_SINK@; ";
 
         if (shouldMute) {
             // Set volume to 0% and explicitly mute for true silence.
             snprintf(buffer, sizeof(buffer),
-                 "%s sh -c 'pactl set-sink-volume %s 0%% && pactl set-sink-mute %s 1' >/dev/null 2>&1",
-                 pwPrefix.c_str(), paTarget.c_str(), paTarget.c_str());
-            LogDebug(VB_MEDIAOUT, "Muting PipeWire sink: %s \n", buffer);
-            system(buffer);
+                 "%s sh -c '%sfor s in $S; do pactl set-sink-volume $s 0%%; pactl set-sink-mute $s 1; done' >/dev/null 2>&1",
+                 pwPrefix.c_str(), sinkList);
+            LogDebug(VB_MEDIAOUT, "Muting PipeWire card sinks: %s \n", buffer);
+        } else if (lastPipeWireVolume == 0) {
+            // Unmute and set volume together, undoing a prior 0%.
+            snprintf(buffer, sizeof(buffer),
+                 "%s sh -c '%sfor s in $S; do pactl set-sink-mute $s 0; pactl set-sink-volume $s %d%%; done' >/dev/null 2>&1",
+                 pwPrefix.c_str(), sinkList, volume);
+            LogDebug(VB_MEDIAOUT, "Unmuting and setting PipeWire card sink volume: %s \n", buffer);
         } else {
-            bool wasZero = (lastPipeWireVolume == 0);
-            if (wasZero) {
-                // Unmute and set volume atomically.
-                snprintf(buffer, sizeof(buffer),
-                     "%s sh -c 'pactl set-sink-mute %s 0 && pactl set-sink-volume %s %d%%' >/dev/null 2>&1",
-                     pwPrefix.c_str(), paTarget.c_str(), paTarget.c_str(), volume);
-                LogDebug(VB_MEDIAOUT, "Unmuting and setting PipeWire sink volume: %s \n", buffer);
-            } else {
-                snprintf(buffer, sizeof(buffer),
-                     "%s pactl set-sink-volume %s %d%% >/dev/null 2>&1",
-                     pwPrefix.c_str(), paTarget.c_str(), volume);
-                LogDebug(VB_MEDIAOUT, "Setting PipeWire sink volume: %s \n", buffer);
-            }
-            system(buffer);
+            snprintf(buffer, sizeof(buffer),
+                 "%s sh -c '%sfor s in $S; do pactl set-sink-volume $s %d%%; done' >/dev/null 2>&1",
+                 pwPrefix.c_str(), sinkList, volume);
+            LogDebug(VB_MEDIAOUT, "Setting PipeWire card sink volume: %s \n", buffer);
         }
+        system(buffer);
 
         lastPipeWireVolume = volume;
     }

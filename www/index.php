@@ -676,6 +676,7 @@
                                                         </button>
                                                         <input type="range" min="0" max="100" class="slider" id="slider"
                                                             aria-label="VolumeSlider"
+                                                            title="Master volume. Uses a perceptual (cubic) scale, so the number is not a percentage of amplitude: 70 is about -9 dB and 50 about -18 dB. Per-output trim lives in the PipeWire Audio Groups settings and multiplies with this."
                                                             oninput="VolumeControlChange(this.value)">
                                                         <button class='volumeButton buttons'
                                                             onClick="IncrementVolume();" aria-label="IncrementVolume">
