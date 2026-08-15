@@ -2,12 +2,14 @@
 Description=FPPd
 After=fpp_postnetwork.service
 Requires=fpp_postnetwork.service
-# fppd is an Avahi client, so avahi-daemon has to outlive it.  systemd stops units in
+# fppd is an Avahi client, so avahi-daemon has to outlive it: systemd stops units in
 # the reverse of the start order, and without this ordering it is free to stop
-# avahi-daemon first -- fppd is then still running to notice the client drop and put
-# an "Abnormal Conditions" banner on screen during an ordinary reboot or shutdown.
+# avahi-daemon while fppd is still running.  dbus.service is here for the same reason
+# and is the one that actually matters -- avahi-daemon exits on its own the moment the
+# system bus goes away ("Disconnected from D-Bus, exiting"), so ordering against avahi
+# alone still let it die seconds before fppd was told to stop.
 # Wants, not Requires: no mDNS is a degraded FPP, not a broken one.
-After=avahi-daemon.service
+After=avahi-daemon.service dbus.service
 Wants=avahi-daemon.service
 Conflicts=shutdown.target
 Before=shutdown.target

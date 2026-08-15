@@ -1,6 +1,7 @@
 #include "fpp-pch.h"
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+#include <chrono>
 #include <thread>
 
 #include "MDNSManager.h"
@@ -11,6 +12,7 @@
 #include "ping.h"
 #include "MultiSync.h"
 
+#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <dirent.h>
@@ -295,6 +297,30 @@ static constexpr const char* MDNS_WARN_CLIENT = "Network discovery: mDNS/Avahi c
 static constexpr const char* MDNS_WARN_FPPD = "Network discovery: could not browse for FPP devices (_fppd._udp)";
 static constexpr const char* MDNS_WARN_WLED = "Network discovery: could not browse for WLED devices (_wled._tcp)";
 
+// Reconnect backoff, and how long the daemon has to stay gone before it counts as an
+// abnormal condition.  A restart of avahi-daemon is back inside a second or two, and
+// on the way to a reboot it goes down some seconds before fppd is told to stop -
+// warning on either of those puts a red banner on screen for something that is not
+// wrong.  Retries keep running for as long as fppd does, so a real outage is still
+// picked up the moment it ends.
+static constexpr int MDNS_RECONNECT_MIN_MS = 2000;
+static constexpr int MDNS_RECONNECT_MAX_MS = 30000;
+static constexpr long long MDNS_WARN_AFTER_MS = 30000;
+
+// Deliberately not the wall clock: these boxes have no RTC, so the NTP step early in
+// a boot would otherwise read as a half-hour outage.
+static long long MDNSMonotonicMS() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+
+// -1 is set during teardown, after the main loop is already gone, so it is not
+// "running" for our purposes even though it is truthy.
+static bool fppdIsRunning() {
+    return runMainFPPDLoop > 0;
+}
+
 static void client_callback(AvahiClient* c, AvahiClientState state, void* userdata) {
     MDNSManager* mgr = static_cast<MDNSManager*>(userdata);
     if (!mgr)
@@ -302,9 +328,9 @@ static void client_callback(AvahiClient* c, AvahiClientState state, void* userda
 
     if (state == AVAHI_CLIENT_S_RUNNING) {
         // The client is up, so whatever we said about it being down is no longer
-        // true.  Avahi restarts on its own and reconnects us, and without this the
-        // warning stayed on screen for the rest of the session.
-        WarningHolder::RemoveWarning(MDNS_WARNING_ID, MDNS_WARN_CLIENT);
+        // true.  Without this the warning stayed on screen for the rest of the
+        // session.
+        mgr->NoteClientRunning();
 
         // Register local service
         mgr->RegisterService(c);
@@ -333,13 +359,13 @@ static void client_callback(AvahiClient* c, AvahiClientState state, void* userda
             WarningHolder::RemoveWarning(MDNS_WARNING_ID, MDNS_WARN_WLED);
         }
     } else if (state == AVAHI_CLIENT_FAILURE) {
-        LogErr(VB_SYNC, "Avahi client failure: %s\n", avahi_strerror(avahi_client_errno(c)));
-        // Not while the machine is on its way down: systemd is free to stop
-        // avahi-daemon before fppd, and reporting that as an abnormal condition puts
-        // a red banner on screen for every clean reboot and shutdown.
-        if (runMainFPPDLoop) {
-            WarningHolder::AddWarning(MDNS_WARNING_ID, MDNS_WARN_CLIENT);
-        }
+        LogWarn(VB_SYNC, "Avahi client failure: %s - will rebuild the client\n",
+                avahi_strerror(avahi_client_errno(c)));
+        // This client is finished; everything it owns (browsers, entry group) died
+        // with it.  Freeing it here would be freeing the object whose callback we are
+        // in, so hand the rebuild to the reconnect timer, which runs on the main loop
+        // once Avahi is off the stack.
+        mgr->NoteClientDown();
     }
 }
 #endif
@@ -370,24 +396,132 @@ void MDNSManager::Initialize(std::map<int, std::function<bool(int)>>& callbacks)
     poll->timeout_free     = fpp_timeout_free;
     poll->userdata         = this;
     m_avahiPoll = poll;
+    m_running = true;
 
-    int error;
-    AvahiClient* client = avahi_client_new(poll, (AvahiClientFlags)0, client_callback, this, &error);
-    if (!client) {
-        LogWarn(VB_SYNC, "Failed to create Avahi client: %s\n", avahi_strerror(error));
-        delete poll;
-        m_avahiPoll = nullptr;
-    } else {
-        m_avahiClient = client;
-        m_running = true;
-    }
+    // Failing here is not fatal and not permanent: fppd starts before avahi-daemon
+    // on a cold boot often enough that giving up would leave mDNS off for the whole
+    // session.  StartAvahiClient() arms the retry.
+    StartAvahiClient();
 #else
     LogWarn(VB_SYNC, "Avahi development headers not available; MDNS disabled\n");
 #endif
 }
 
+// Build the connection to avahi-daemon.  Returns false (and schedules a retry) when
+// the daemon isn't there to talk to.
+bool MDNSManager::StartAvahiClient() {
+#if HAVE_AVAHI
+    if (m_avahiClient)
+        return true;
+    if (!m_avahiPoll)
+        return false;
+
+    int error = 0;
+    AvahiClient* client = avahi_client_new(static_cast<AvahiPoll*>(m_avahiPoll),
+                                           (AvahiClientFlags)0, client_callback, this, &error);
+    if (!client) {
+        LogWarn(VB_SYNC, "Failed to create Avahi client: %s\n", avahi_strerror(error));
+        NoteClientDown();
+        return false;
+    }
+    m_avahiClient = client;
+    return true;
+#else
+    return false;
+#endif
+}
+
+void MDNSManager::NoteClientRunning() {
+#if HAVE_AVAHI
+    if (m_clientDownSinceMS) {
+        LogInfo(VB_SYNC, "Avahi client connected after %lld ms down\n",
+                MDNSMonotonicMS() - m_clientDownSinceMS);
+    }
+    m_clientDownSinceMS = 0;
+    m_reconnectDelayMS = MDNS_RECONNECT_MIN_MS;
+    if (m_reconnectTimerFd >= 0) {
+        struct itimerspec its = {};  // all-zero disarms
+        timerfd_settime(m_reconnectTimerFd, 0, &its, NULL);
+    }
+    WarningHolder::RemoveWarning(MDNS_WARNING_ID, MDNS_WARN_CLIENT);
+#endif
+}
+
+void MDNSManager::NoteClientDown() {
+#if HAVE_AVAHI
+    long long now = MDNSMonotonicMS();
+    if (m_clientDownSinceMS == 0) {
+        m_clientDownSinceMS = now;
+        m_reconnectDelayMS = MDNS_RECONNECT_MIN_MS;
+    } else {
+        m_reconnectDelayMS *= 2;
+        if (m_reconnectDelayMS > MDNS_RECONNECT_MAX_MS)
+            m_reconnectDelayMS = MDNS_RECONNECT_MAX_MS;
+
+        // Only once the daemon has stayed gone, and never while fppd is on its way
+        // down - a shutdown takes avahi-daemon with it, and that is not a fault.
+        if ((now - m_clientDownSinceMS) >= MDNS_WARN_AFTER_MS && fppdIsRunning()) {
+            WarningHolder::AddWarning(MDNS_WARNING_ID, MDNS_WARN_CLIENT);
+        }
+    }
+    ScheduleClientReconnect();
+#endif
+}
+
+void MDNSManager::ScheduleClientReconnect() {
+#if HAVE_AVAHI
+    if (m_reconnectTimerFd < 0) {
+        m_reconnectTimerFd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+        if (m_reconnectTimerFd < 0) {
+            LogWarn(VB_SYNC, "Failed to create timerfd for Avahi reconnect: %s\n",
+                    FPPstrerror(errno));
+            return;
+        }
+        m_reconnectCallback = [this](int) -> bool {
+            uint64_t expirations = 0;
+            ssize_t n = read(m_reconnectTimerFd, &expirations, sizeof(expirations));
+            (void)n;
+            ReconnectAvahiClient();
+            return false;
+        };
+        EPollManager::INSTANCE.addFileDescriptor(m_reconnectTimerFd, m_reconnectCallback);
+    }
+
+    struct itimerspec its = {};
+    its.it_value.tv_sec = m_reconnectDelayMS / 1000;
+    its.it_value.tv_nsec = (m_reconnectDelayMS % 1000) * 1000000L;
+    timerfd_settime(m_reconnectTimerFd, 0, &its, NULL);
+#endif
+}
+
+// Runs on the main loop, not from inside an Avahi callback, so the dead client can
+// safely be freed here.
+void MDNSManager::ReconnectAvahiClient() {
+#if HAVE_AVAHI
+    if (m_avahiClient) {
+        // avahi_client_free() frees every object the client owns, so drop our handles
+        // to the browsers and the entry group first rather than free them twice.
+        m_serviceBrowser = nullptr;
+        m_wledServiceBrowser = nullptr;
+        m_entryGroup = nullptr;
+        avahi_client_free(static_cast<AvahiClient*>(m_avahiClient));
+        m_avahiClient = nullptr;
+    }
+    StartAvahiClient();
+#endif
+}
+
 void MDNSManager::Cleanup() {
 #if HAVE_AVAHI
+    // Stop the reconnect retries first: it must not fire (and rebuild the client we
+    // are about to free) part way through this.
+    if (m_reconnectTimerFd >= 0) {
+        EPollManager::INSTANCE.removeFileDescriptor(m_reconnectTimerFd);
+        close(m_reconnectTimerFd);
+        m_reconnectTimerFd = -1;
+    }
+    m_clientDownSinceMS = 0;
+
     // Free Avahi objects in dependency order.
     // Freeing the client triggers watch_free / timeout_free for its internal
     // watches and timeouts, which removes them from EPollManager automatically.

@@ -47,8 +47,26 @@ public:
     void RegisterService(void* client);  // register local _fppd._udp service
     void PickAlternativeServiceName();    // pick new name on collision
 
+    // Client liveness, driven from the Avahi client state callback.
+    void NoteClientRunning();   // connected: clear the retry state and the warning
+    void NoteClientDown();      // disconnected: start/continue the reconnect retries
+
 private:
+    // Set once Initialize() has built the poll adapter.  It does NOT mean there is a
+    // live connection to avahi-daemon - that is m_avahiClient, which comes and goes.
     bool m_running = false;
+
+    // Avahi's client never reconnects: once avahi-daemon goes away the client is
+    // dead for good and a new one has to be built.  These drive that retry, and hold
+    // off the "is avahi-daemon running?" warning until the outage looks real rather
+    // than like the daemon restarting or the machine shutting down.
+    int m_reconnectTimerFd = -1;
+    std::function<bool(int)> m_reconnectCallback;
+    long long m_clientDownSinceMS = 0;  // 0 == client is up
+    int m_reconnectDelayMS = 0;
+    bool StartAvahiClient();
+    void ScheduleClientReconnect();
+    void ReconnectAvahiClient();
 
     std::set<std::string> m_knownHosts;
 
