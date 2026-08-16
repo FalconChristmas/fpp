@@ -2252,6 +2252,174 @@ int GStreamerOutput::Stop(void) {
     return 1;
 }
 
+// ---------------------------------------------------------------------------
+// Audio sink latency
+//
+// gst_element_query_position() on pipewiresink reports what the sink has
+// rendered into the PipeWire graph, not what has left the card, and
+// pipewiresink adds nothing of its own to the GStreamer LATENCY query -- it
+// answers min = upstream + processing-deadline + render-delay with render-delay
+// at 0, identically no matter which node it targets, so it never asks PipeWire
+// how far the data still has to travel.  Everything queued downstream is
+// therefore invisible to mediaSeconds, and the sequence -- which
+// CalculateNewChannelOutputDelay() servos to exactly that number -- runs ahead
+// of the sound by the whole downstream depth.
+//
+// Measured with the sequence's own frame index captured off the wire against a
+// sample-accurate audio reference: lights ahead by 22 ms on an AM62x I2S cape,
+// 56 ms on a Pi 5 I2S cape, and 160 ms on a BeagleBone with a full-speed USB
+// dongle.  It is a per-platform constant, which is why it cannot be a setting.
+//
+// The card's own delay figure is the closest estimate obtainable without a new
+// library or a patched GStreamer plugin: /proc/asound/cardN/pcmMp/sub0/status
+// reports `delay` in frames -- the distance from PipeWire's write pointer to
+// the DAC.  It matched the measured offset to within 3 ms on the two platforms
+// where both could be cross-checked (157 vs 160 ms, 21 vs 22 ms).  PipeWire's
+// own declared SPA_PARAM_Latency was tried and is worse: it is the nominal
+// quantum + headroom + period, which under-reports the live queue by 30 ms on
+// the USB box.
+//
+// This corrects the *reported position*.  It deliberately does not touch
+// mediaOffset, which stays a user knob applied on top in setMediaElapsed().
+// ---------------------------------------------------------------------------
+
+// Card the running graph actually feeds, taken from the adapter FPP generated
+// rather than from the AudioOutput setting -- the setting can have moved on
+// since the graph was built.
+static std::string AlsaSinkCardId() {
+    std::string conf = GetFileContents("/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf");
+    std::size_t k = conf.find("api.alsa.path");
+    if (k == std::string::npos) {
+        return "";
+    }
+    std::size_t a = conf.find('"', k);
+    if (a == std::string::npos) {
+        return "";
+    }
+    std::size_t b = conf.find('"', a + 1);
+    if (b == std::string::npos) {
+        return "";
+    }
+    std::string path = conf.substr(a + 1, b - a - 1); // e.g. hw:CardId
+    std::size_t colon = path.find(':');
+    return colon == std::string::npos ? "" : path.substr(colon + 1);
+}
+
+static int AlsaCardNumber(const std::string& cardId) {
+    if (cardId.empty()) {
+        return -1;
+    }
+    std::istringstream iss(GetFileContents("/proc/asound/cards"));
+    std::string line;
+    while (std::getline(iss, line)) {
+        // " 2 [KulpLightsHIFI ]: simple-card - ..."
+        std::size_t lb = line.find('[');
+        std::size_t rb = line.find(']');
+        if (lb == std::string::npos || rb == std::string::npos || rb < lb) {
+            continue;
+        }
+        std::string id = line.substr(lb + 1, rb - lb - 1);
+        while (!id.empty() && id.back() == ' ') {
+            id.pop_back();
+        }
+        if (id == cardId) {
+            return std::atoi(line.c_str());
+        }
+    }
+    return -1;
+}
+
+// First playback substream of the card; the device index is not always 0.
+static std::string AlsaPlaybackStatusPath(int card) {
+    std::string base = "/proc/asound/card" + std::to_string(card);
+    DIR* d = opendir(base.c_str());
+    if (!d) {
+        return "";
+    }
+    std::vector<std::string> devs;
+    while (struct dirent* e = readdir(d)) {
+        std::string n = e->d_name;
+        if (n.size() > 4 && n.compare(0, 3, "pcm") == 0 && n.back() == 'p') {
+            devs.push_back(n);
+        }
+    }
+    closedir(d);
+    if (devs.empty()) {
+        return "";
+    }
+    std::sort(devs.begin(), devs.end());
+    return base + "/" + devs[0] + "/sub0/status";
+}
+
+static int ReadIntField(const std::string& text, const char* key) {
+    std::size_t k = text.find(key);
+    if (k == std::string::npos) {
+        return -1;
+    }
+    std::size_t c = text.find(':', k);
+    if (c == std::string::npos) {
+        return -1;
+    }
+    return std::atoi(text.c_str() + c + 1);
+}
+
+int64_t GStreamerOutput::AudioSinkLatencyNs() {
+    // The queue depth is essentially constant while a track plays; re-reading
+    // it on every Process() would put a /proc read in the main loop at frame
+    // rate for no benefit.
+    uint64_t now = GetTimeMS();
+    if (m_sinkLatencyCheckedMs != 0 && (now - m_sinkLatencyCheckedMs) < 250) {
+        return m_sinkLatencyNs;
+    }
+    m_sinkLatencyCheckedMs = now;
+
+    if (m_alsaStatusPath.empty()) {
+        int card = AlsaCardNumber(AlsaSinkCardId());
+        if (card < 0) {
+            m_sinkLatencyNs = 0;
+            return 0;
+        }
+        m_alsaStatusPath = AlsaPlaybackStatusPath(card);
+        m_alsaHwParamsPath = m_alsaStatusPath;
+        std::size_t s = m_alsaHwParamsPath.rfind("/status");
+        if (s != std::string::npos) {
+            m_alsaHwParamsPath.replace(s, 7, "/hw_params");
+        }
+        if (m_alsaStatusPath.empty()) {
+            m_sinkLatencyNs = 0;
+            return 0;
+        }
+    }
+
+    std::string status = GetFileContents(m_alsaStatusPath);
+    if (status.empty() || status.compare(0, 6, "closed") == 0) {
+        // Suspended between tracks: keep the last good value rather than
+        // snapping the reported position by tens of ms at every gap.
+        return m_sinkLatencyNs;
+    }
+    int delayFrames = ReadIntField(status, "delay");
+    if (delayFrames <= 0) {
+        return m_sinkLatencyNs;
+    }
+    if (m_alsaRate <= 0) {
+        m_alsaRate = ReadIntField(GetFileContents(m_alsaHwParamsPath), "rate");
+    }
+    if (m_alsaRate <= 0) {
+        m_sinkLatencyNs = 0;
+        return 0;
+    }
+    int64_t ns = (int64_t)delayFrames * 1000000000LL / m_alsaRate;
+    // A sane sink is a few ms to a few hundred; anything past a second means
+    // the field was misread (dmix, for one, leaves appl_ptr at 0 and reports a
+    // hugely negative delay) and is not worth trusting.
+    if (ns < 0 || ns > 1000000000LL) {
+        m_sinkLatencyNs = 0;
+        return 0;
+    }
+    m_sinkLatencyNs = ns;
+    return ns;
+}
+
 int GStreamerOutput::Process(void) {
     if (!m_pipeline || !m_bus) {
         return 0;
@@ -2281,10 +2449,16 @@ int GStreamerOutput::Process(void) {
             posSource = gst_bin_get_by_name(GST_BIN(m_pipeline), name.c_str());
             if (posSource) ownPosSource = true;
         }
+        // Only the audio sink's position gets the ALSA-queue correction below;
+        // a kmssink is reporting video playout, which is a different path.
+        bool posFromAudioSink = false;
         if (!posSource) {
             SetMainLoopPhase("GStreamer get pwsink");
             posSource = gst_bin_get_by_name(GST_BIN(m_pipeline), "pwsink");
-            if (posSource) ownPosSource = true;
+            if (posSource) {
+                ownPosSource = true;
+                posFromAudioSink = true;
+            }
         }
         if (!posSource) posSource = m_pipeline;
         SetMainLoopPhase("GStreamer query position");
@@ -2407,6 +2581,25 @@ int GStreamerOutput::Process(void) {
 
             float elapsed = (float)pos / GST_SECOND;
             float remaining = (effectiveDur > pos) ? (float)(effectiveDur - pos) / GST_SECOND : 0.0f;
+
+            // Back the position up to what is actually leaving the DAC, so the
+            // sequence servo and the MultiSync packets both follow the sound
+            // rather than the graph's write pointer.  See AudioSinkLatencyNs().
+            if (posFromAudioSink) {
+                float latSec = (float)AudioSinkLatencyNs() / 1000000000.0f;
+                if (latSec > 0.0f) {
+                    elapsed -= latSec;
+                    if (elapsed < 0.0f) {
+                        elapsed = 0.0f;
+                    }
+                    remaining += latSec;
+                    if (!m_loggedSinkLatency) {
+                        m_loggedSinkLatency = true;
+                        LogInfo(VB_MEDIAOUT, "GStreamer: correcting reported position by %.1f ms of audio sink latency\n",
+                                latSec * 1000.0f);
+                    }
+                }
+            }
             setMediaElapsed(elapsed, remaining);
 
             // Only the primary slot represents the show's synced position;
