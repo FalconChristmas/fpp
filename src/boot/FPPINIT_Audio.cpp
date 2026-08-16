@@ -469,10 +469,25 @@ static std::string bestFormatForRate(const std::string& fmtLine, const std::stri
 //
 // Bump this whenever the probe can produce a different conf for unchanged
 // hardware.  Costs one extra probe on the first boot after the upgrade.
-static constexpr int kAlsaSinkConfGeneration = 4;
+static constexpr int kAlsaSinkConfGeneration = 5;
 
 static std::string alsaSinkConfGenerationTag() {
     return "# FPP ALSA sink adapters (generation " + std::to_string(kAlsaSinkConfGeneration) + ")";
+}
+
+// Marker recording the rate the AudioFormat setting asked for when the conf was
+// written, so the boot-time cache check can tell that the setting has changed.
+//
+// It cannot read that back off default.clock.rate: since the graph clock started
+// following the hardware, that field holds the rate the card *achieved*, which a
+// fixed-bit-clock cape refines upward (an AM62x PCM5102A asks for 44100 and lands
+// on 88200).  Comparing it against the configured rate therefore mismatched on
+// every boot for exactly the capes that refine, forcing a full re-probe each time
+// -- several seconds of aplay --dump-hw-params -- only to regenerate a
+// byte-identical file.  Nor can audio.rate serve: the capture adapters emit a
+// fixed 44100, so a plain search finds the wrong one on a card with a mic.
+static std::string alsaSinkConfRateTag(int configuredRate) {
+    return "# configured rate: " + std::to_string(configuredRate);
 }
 
 // Build the contents of 97-fpp-audio-groups.conf for the Simple-mode synthetic
@@ -1379,17 +1394,18 @@ static void runAudioSetup(bool recoveryPass) {
             }
         }
     }
-    // The persisted conf pins the graph clock rate (and each adapter's
-    // audio.rate) to whatever AudioFormat was set when it was written.  Changing
+    // The persisted conf pins each adapter's audio.rate (and, via the probe, the
+    // graph clock) to whatever AudioFormat was set when it was written.  Changing
     // that setting has to regenerate, which the card-set comparison above cannot
     // see -- the same cards are still present, just at a different rate.
-    if (usePipeWireBackend && sinkConfStillValid) {
-        std::smatch rateM;
-        if (!std::regex_search(existingSinkConf, rateM, std::regex(R"(default\.clock\.rate = (\d+))")) ||
-            std::stoi(rateM[1].str()) != pipewireSampleRate) {
-            printf("FPP - PipeWire: configured sample rate is now %d; regenerating\n", pipewireSampleRate);
-            sinkConfStillValid = false;
-        }
+    //
+    // Compared against the recorded request, NOT against default.clock.rate: that
+    // field holds the rate the card achieved, so on a cape that refines the
+    // request upward it never equals pipewireSampleRate and every boot re-probed.
+    if (usePipeWireBackend && sinkConfStillValid &&
+        !contains(existingSinkConf, alsaSinkConfRateTag(pipewireSampleRate) + "\n")) {
+        printf("FPP - PipeWire: configured sample rate is now %d; regenerating\n", pipewireSampleRate);
+        sinkConfStillValid = false;
     }
     if (usePipeWireBackend && sinkConfStillValid) {
         printf("FPP - PipeWire: ALSA sink adapters already match present cards; skipping probe\n");
@@ -1719,6 +1735,9 @@ static void runAudioSetup(bool recoveryPass) {
         // switches that already do not happen.
         std::ostringstream sinkConf;
         sinkConf << alsaSinkConfGenerationTag() << "\n"
+                 // What AudioFormat asked for, which default.clock.rate below no
+                 // longer records once a cape refines it.  See alsaSinkConfRateTag().
+                 << alsaSinkConfRateTag(pipewireSampleRate) << "\n"
                  << "context.properties = {\n"
                  << "    default.clock.rate = " << graphClockRate << "\n"
                  << "}\n"
