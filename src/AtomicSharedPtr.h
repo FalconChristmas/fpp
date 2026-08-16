@@ -13,26 +13,80 @@
 
 #include <atomic>
 #include <memory>
-
-// A portable atomic<shared_ptr<T>>.
-//
-// The C++20 std::atomic<std::shared_ptr<T>> specialization (P0718) is only
-// implemented in newer standard libraries (libstdc++ in GCC 12+, libc++ 19+).
-// Apple's libc++ shipped with current Xcode does not provide it, so using it
-// directly fails to compile on macOS.  This wrapper uses the native
-// specialization where available and otherwise falls back to a tiny
-// mutex-guarded shared_ptr exposing the same load()/store() subset.
-
-#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-
-template<typename T>
-using AtomicSharedPtr = std::atomic<std::shared_ptr<T>>;
-
-#else
-
 #include <mutex>
+#include <pthread.h>
+#include <unistd.h>
 #include <utility>
 
+// A mutex that lends its holder the priority of whoever is waiting.
+//
+// Blocking (rather than spinning) is what stops the real-time reader from
+// livelocking, but on its own it still allows unbounded priority inversion: the
+// normal-priority lock holder can be preempted by any of the other
+// normal-priority threads while a real-time thread waits behind it, and on a
+// single core that costs a scheduling round.  PTHREAD_PRIO_INHERIT bounds the
+// wait to the length of the critical section instead, by boosting the holder --
+// Linux will promote a SCHED_OTHER owner to the waiter's real-time priority for
+// as long as it holds the lock.
+class PriorityInheritingMutex {
+public:
+    PriorityInheritingMutex() {
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+#ifdef _POSIX_THREAD_PRIO_INHERIT
+        // Deliberately unchecked: where inheritance is unavailable (macOS
+        // accepts the call without implementing it) the mutex is still a
+        // correct mutex, just without the boost.  Nothing here depends on the
+        // boost for correctness.
+        pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT);
+#endif
+        pthread_mutex_init(&m_mutex, &attr);
+        pthread_mutexattr_destroy(&attr);
+    }
+    ~PriorityInheritingMutex() { pthread_mutex_destroy(&m_mutex); }
+
+    PriorityInheritingMutex(const PriorityInheritingMutex&) = delete;
+    PriorityInheritingMutex& operator=(const PriorityInheritingMutex&) = delete;
+
+    void lock() { pthread_mutex_lock(&m_mutex); }
+    void unlock() { pthread_mutex_unlock(&m_mutex); }
+    bool try_lock() { return pthread_mutex_trylock(&m_mutex) == 0; }
+
+private:
+    pthread_mutex_t m_mutex;
+};
+
+// A portable atomic<shared_ptr<T>>, deliberately implemented with a mutex.
+//
+// This used to prefer the C++20 std::atomic<std::shared_ptr<T>> specialization
+// (P0718) where the standard library provided it, falling back to the mutex
+// only for Apple's libc++, which does not.  That preference is gone: the
+// native specialization must not be used here.
+//
+// libstdc++ implements atomic<shared_ptr<T>> with an internal spinlock whose
+// backoff calls sched_yield().  Sequence::m_seqFile is read several times per
+// frame from the channel output thread, which runs at real-time priority, and
+// is written/read by the frame reader thread at normal priority.  On a
+// single-core board that combination livelocks: when the normal-priority
+// thread holds the spinlock and is preempted, the real-time thread spins on
+// sched_yield(), which by definition only yields to threads of equal or higher
+// priority -- so the lock holder can never be scheduled to release it.  It only
+// breaks when kernel RT throttling (sched_rt_runtime_us, ~95%) forcibly
+// deschedules the spinner.
+//
+// Measured on a single-core AM335x board: roughly a third of one-minute
+// playbacks hit a ~1 s freeze of every non-RT thread on the system, with
+// 115,000+ sched_yield() calls from the output thread and almost no other
+// syscalls, costing a second of frozen output and leaving the sequence
+// permanently ~600 ms out of step with the audio.  Forcing this mutex
+// implementation took that from 5 freezes in 16 runs to 0 in 10.  Multi-core
+// boards do not show it -- the lock holder simply runs on another CPU -- which
+// is why it looked platform-specific rather than like the scheduling bug it is.
+//
+// A mutex blocks on a futex instead of spinning, so the real-time thread sleeps
+// and the lock holder runs.  The cost is one uncontended lock per load(), a
+// handful of times per frame, which does not register against a 20 ms frame.
+// PriorityInheritingMutex above additionally bounds how long that wait can be.
 template<typename T>
 class AtomicSharedPtr {
 public:
@@ -44,11 +98,11 @@ public:
     AtomicSharedPtr& operator=(const AtomicSharedPtr&) = delete;
 
     std::shared_ptr<T> load(std::memory_order = std::memory_order_seq_cst) const {
-        std::lock_guard<std::mutex> lk(m_lock);
+        std::lock_guard<PriorityInheritingMutex> lk(m_lock);
         return m_ptr;
     }
     void store(std::shared_ptr<T> p, std::memory_order = std::memory_order_seq_cst) {
-        std::lock_guard<std::mutex> lk(m_lock);
+        std::lock_guard<PriorityInheritingMutex> lk(m_lock);
         m_ptr = std::move(p);
     }
     AtomicSharedPtr& operator=(std::shared_ptr<T> p) {
@@ -57,8 +111,6 @@ public:
     }
 
 private:
-    mutable std::mutex m_lock;
+    mutable PriorityInheritingMutex m_lock;
     std::shared_ptr<T> m_ptr;
 };
-
-#endif
