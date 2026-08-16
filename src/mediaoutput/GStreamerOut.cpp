@@ -2319,8 +2319,22 @@ static int AlsaCardNumber(const std::string& cardId) {
 // (idle cards suspend), and so applied no correction at all -- the sequence
 // stayed ahead of the sound, which is the whole defect this is here to remove.
 //
-// So: match the adapters against the configured output card, and fall back to
-// the first adapter only when the setting resolves to no adapter at all.
+// The order of preference is what the graph feeds, then what the setting says,
+// then anything at all:
+//
+//   1. a card the group config actually targets, matching AudioOutput
+//   2. any card the group config targets
+//   3. a declared adapter matching AudioOutput
+//   4. the first declared adapter
+//
+// Steps 1 and 2 exist because AudioOutput can legitimately disagree with the
+// running graph.  The setting is flagged reboot-required, so between changing
+// the output card and rebooting, the setting names the new card while the graph
+// still feeds the old one -- reading the setting there picks a card that is not
+// playing, whose PCM is closed, and applies no correction at all.  The group
+// config is what PipeWire actually loaded, so it is the better authority; this
+// is what the original code was reaching for by reading the conf rather than the
+// setting, before it settled on "first adapter in the file" and got card 0.
 //
 // Both generated confs have to be searched, not just the boot-time one.  The
 // boot probe deliberately skips a card it cannot drive directly -- an
@@ -2334,10 +2348,40 @@ static int AlsaCardNumber(const std::string& cardId) {
 static int AlsaSinkCardNumber() {
     // 95 first: where a card FPP can drive directly is declared.  97 second: the
     // group config's own adapters, for the cards 95 had to skip.
+    const std::string groupsConf = GetFileContents("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf");
     const std::string confs[] = {
         GetFileContents("/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf"),
-        GetFileContents("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf")
+        groupsConf
     };
+    // Reads the value of `key = "..."` at or after `from`, or "" if absent.
+    auto quotedValue = [](const std::string& s, const std::string& key, std::size_t from) {
+        std::size_t k = s.find(key, from);
+        if (k == std::string::npos) {
+            return std::string();
+        }
+        std::size_t a = s.find('"', k + key.size());
+        if (a == std::string::npos) {
+            return std::string();
+        }
+        std::size_t b = s.find('"', a + 1);
+        if (b == std::string::npos) {
+            return std::string();
+        }
+        return s.substr(a + 1, b - a - 1);
+    };
+
+    // Adapters the group config's filter chains actually play into.  Only
+    // fpp_alsa_* targets count: the combine streams carry node.target too, but
+    // theirs name the fpp_fx_* filter chains rather than a card.
+    std::set<std::string> graphTargets;
+    for (std::size_t t = groupsConf.find("node.target"); t != std::string::npos;
+         t = groupsConf.find("node.target", t + 1)) {
+        std::string target = quotedValue(groupsConf, "node.target", t);
+        if (startsWith(target, "fpp_alsa_")) {
+            graphTargets.insert(target);
+        }
+    }
+
     // AudioOutput is a stable ALSA card ID on current installs, a bare card
     // number on older ones; resolveAudioOutputCardNum() accepts both, so match
     // its handling here rather than assuming either spelling.
@@ -2350,27 +2394,18 @@ static int AlsaSinkCardNumber() {
                          : AlsaCardNumber(wanted);
     }
 
-    int firstCard = -1;
+    int targetedCard = -1; // first adapter the graph plays into
+    int settingCard = -1;  // first adapter matching AudioOutput
+    int firstCard = -1;    // first adapter of any kind
     // Sink adapters only -- the capture adapters FPP also declares are named
     // fpp_alsain_, which this needle does not match.
     const std::string nameKey = "node.name = \"fpp_alsa_";
     for (const std::string& conf : confs) {
         for (std::size_t n = conf.find(nameKey); n != std::string::npos; n = conf.find(nameKey, n + 1)) {
-            std::size_t k = conf.find("api.alsa.path", n);
-            if (k == std::string::npos) {
-                break;
-            }
-            std::size_t a = conf.find('"', k);
-            if (a == std::string::npos) {
-                break;
-            }
-            std::size_t b = conf.find('"', a + 1);
-            if (b == std::string::npos) {
-                break;
-            }
+            std::string nodeName = quotedValue(conf, "node.name", n);
             // "hw:CardId", or "sysdefault:CardId" for a card reached through the
             // ALSA plug layer -- the card ID is what follows the colon either way.
-            std::string path = conf.substr(a + 1, b - a - 1);
+            std::string path = quotedValue(conf, "api.alsa.path", n);
             std::size_t colon = path.find(':');
             if (colon == std::string::npos) {
                 continue;
@@ -2379,13 +2414,26 @@ static int AlsaSinkCardNumber() {
             if (card < 0) {
                 continue;
             }
-            if (card == wantedCard) {
-                return card;
+            const bool targeted = graphTargets.count(nodeName) > 0;
+            if (targeted && card == wantedCard) {
+                return card; // the graph feeds it and the setting names it
+            }
+            if (targeted && targetedCard < 0) {
+                targetedCard = card;
+            }
+            if (card == wantedCard && settingCard < 0) {
+                settingCard = card;
             }
             if (firstCard < 0) {
                 firstCard = card;
             }
         }
+    }
+    if (targetedCard >= 0) {
+        return targetedCard;
+    }
+    if (settingCard >= 0) {
+        return settingCard;
     }
     return firstCard;
 }
