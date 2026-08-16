@@ -962,7 +962,11 @@ static void generateSimplePipeWireAudioConfig(int card, const std::string& cId,
 // which discards the cached audio config and re-runs the whole setup once when
 // the stack it just started produced no sink at all.  It exists solely to bound
 // that retry to one attempt.
-static void runAudioSetup(bool recoveryPass) {
+//
+// `skipFppdRestart` is for callers that own the restart sequence themselves --
+// settings.php restarts the PipeWire daemons again after this returns, so fppd
+// has to come last, after those, rather than here in the middle.
+static void runAudioSetup(bool recoveryPass, bool skipFppdRestart) {
     if (!FileExists("/root/.libao")) {
         PutFileContents("/root/.libao", "dev=default");
     }
@@ -2192,6 +2196,10 @@ static void runAudioSetup(bool recoveryPass) {
                 // Config was changed — restart PipeWire to pick up the new config
                 printf("FPP - PipeWire group config changed, restarting PipeWire...\n");
                 exec("/usr/bin/systemctl restart fpp-pipewire.service fpp-wireplumber.service fpp-pipewire-pulse.service");
+                // Counts as a restart for the fppd reconnect below: a live fppd's
+                // cached daemon connection dies here just as surely as it does in
+                // the restart paths above.
+                pipewireRestarted = true;
                 // Wait for WirePlumber & combine-stream/filter-chain nodes to come up
                 std::this_thread::sleep_for(std::chrono::seconds(3));
             }
@@ -2221,7 +2229,7 @@ static void runAudioSetup(bool recoveryPass) {
                 unlink(pipewireSinkConfPath.c_str());
                 unlink((FPP_MEDIA_DIR + "/config/pipewire-audio-groups-simple.json").c_str());
                 unlink(groupsConfCache.c_str());
-                runAudioSetup(true);
+                runAudioSetup(true, skipFppdRestart);
                 return;
             }
             printf("FPP - PipeWire still has no sinks after re-probing the audio hardware; audio will not work.\n");
@@ -2249,11 +2257,23 @@ static void runAudioSetup(bool recoveryPass) {
         // separate process, which worked -- the daemon and graph were healthy
         // and only fppd's own connection was dead.
         //
-        // So whenever this run restarted the stack, restart fppd too.  Gated on
-        // fppd actually running, which at boot it is not: setupAudio runs in
-        // postNetwork, before fppd starts, so a normal boot never takes this.
+        // So whenever this run brought the stack up or down, restart fppd too.
+        // Gated on fppd actually running, which at boot it is not: setupAudio runs
+        // in postNetwork, before fppd starts, so a normal boot never takes this.
         // Only a later re-run -- an audio settings apply -- does.
-        if (pipewireRestarted && system("/usr/bin/systemctl is-active --quiet fppd") == 0) {
+        //
+        // pipewireColdStarted counts as well: a stack that was down while fppd was
+        // up leaves fppd's cached connection just as dead as a restart does, and
+        // starting the daemons underneath it does not revive it.
+        //
+        // Skipped when the caller says it will restart fppd itself.  settings.php
+        // backgrounds this and then restarts the daemons again before restarting
+        // fppd last; doing it here as well would restart fppd twice, and the first
+        // of those lands *before* that script's daemon restarts -- re-wedging the
+        // very process it just replaced, which is the ordering trap this whole
+        // change exists to avoid.
+        if ((pipewireRestarted || pipewireColdStarted) && !skipFppdRestart &&
+            system("/usr/bin/systemctl is-active --quiet fppd") == 0) {
             printf("FPP - PipeWire was restarted under a running fppd; restarting fppd so it reconnects\n");
             exec("/usr/bin/systemctl restart fppd");
         }
@@ -2265,6 +2285,6 @@ static void runAudioSetup(bool recoveryPass) {
     // No external daemons to start here.
 }
 
-void setupAudio() {
-    runAudioSetup(false);
+void setupAudio(bool skipFppdRestart) {
+    runAudioSetup(false, skipFppdRestart);
 }

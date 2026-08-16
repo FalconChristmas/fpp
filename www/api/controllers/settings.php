@@ -285,7 +285,12 @@ function PutSetting()
         // Using < /dev/null ensures the background process fully detaches from Apache.
         $fppDir = $settings['fppDir'];
         $bgScript =
-            $SUDO . " " . escapeshellarg($fppDir . "/src/fppinit") . " setupAudio\n" .
+            // --no-fppd-restart: setupAudio restarts fppd itself when it has
+            // restarted the PipeWire stack, but this script restarts those
+            // daemons again below and then restarts fppd last.  Letting it fire
+            // there would restart fppd twice and land the first one before those
+            // daemon restarts -- re-wedging the process it had just replaced.
+            $SUDO . " " . escapeshellarg($fppDir . "/src/fppinit") . " setupAudio --no-fppd-restart\n" .
             $SUDO . " /usr/bin/systemctl restart fpp-pipewire.service\n" .
             "sleep 0.5\n" .
             $SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service\n" .

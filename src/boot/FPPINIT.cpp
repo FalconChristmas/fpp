@@ -452,7 +452,11 @@ int main(int argc, char* argv[]) {
     } else if (action == "runPostStopScripts") {
         runScripts("postStop", false);
     } else if (action == "setupAudio") {
-        setupAudio();
+        // --no-fppd-restart: the caller restarts the PipeWire daemons again after
+        // this returns and then restarts fppd itself, so leave fppd alone here --
+        // restarting it now would only wedge the new process against those later
+        // restarts, and it would be restarted a second time regardless.
+        setupAudio(argc > 2 && std::string(argv[2]) == "--no-fppd-restart");
     } else if (action == "announceIP") {
         // Run from fpp-announce-ip.service, after fpp_postnetwork + PipeWire, so
         // the flite synthesis doesn't slow the tail of postNetwork / fppd start.
