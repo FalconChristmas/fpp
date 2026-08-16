@@ -121,6 +121,4 @@ void removeDummyInterface();
 // ---------------------------------------------------------------------------
 // Audio (defined in FPPINIT_Audio.cpp)
 // ---------------------------------------------------------------------------
-// skipFppdRestart: the caller will restart fppd itself once it has finished its
-// own PipeWire service restarts, so setupAudio must not do it in the middle.
-void setupAudio(bool skipFppdRestart = false);
+void setupAudio();

@@ -51,6 +51,85 @@ function StopFppdPlaybackSafe($timeoutSec = 3)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Helper: wait until fppd answers again after a restart.
+//
+// Callers that resume playback or push volumes immediately after restarting the
+// stack would otherwise race a daemon that is still coming back, and their
+// requests would be silently dropped.  Uses the same status endpoint
+// StopFppdPlaybackSafe() probes.
+function WaitForFppdReady($timeoutSec = 20)
+{
+    $deadline = time() + $timeoutSec;
+    $ctx = stream_context_create(array('http' => array('timeout' => 1)));
+    while (time() < $deadline) {
+        if (@file_get_contents('http://localhost:32322/fppd/status', false, $ctx) !== false) {
+            return true;
+        }
+        usleep(250000);
+    }
+    return false;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Helper: restart the PipeWire daemons in dependency order, then bring fppd
+// back on top of them.
+//
+// The fppd restart is not optional and not a separate concern: fppd cannot
+// survive the daemons restarting under it.  The GStreamer PipeWire plugin
+// caches its connection process-wide, so every later pipewiresink reuses a dead
+// one -- the pipeline reports PLAYING, nothing is posted on the bus, and
+// playback is silent with nothing logged.  Measured directly: after a bare
+// daemon restart with fppd left alone, the card never opens and hw_ptr never
+// advances; fppd's own preroll watchdog eventually notices and self-restarts,
+// but only after three wedges of 15s each.  Restarting it here turns 45s of
+// silent failure into a controlled restart.
+//
+// SendCommand('restart') rather than `systemctl restart fppd`: fppd re-execs
+// itself, which is an equally fresh process image (it is what clears the cached
+// connection), and it resumes a playlist it was running, which systemctl cannot.
+// It also keeps the PID, so repeated applies do not burn the unit's start limit.
+//
+// Playback is deliberately NOT stopped here.  Callers that resume afterwards
+// have to stop it themselves, because stopping is how they capture what to
+// resume; doing it here as well would double-stop and lose that state.
+function RestartPipeWireStack($restartFppd = true)
+{
+    global $SUDO;
+
+    $services = array();
+    exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1", $o1, $r1);
+    $services['fpp-pipewire'] = ($r1 === 0);
+    usleep(500000);
+
+    exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1", $o2, $r2);
+    $services['fpp-wireplumber'] = ($r2 === 0);
+
+    // Wait for the PipeWire core socket before starting pulse, which depends on it.
+    for ($i = 0; $i < 10; $i++) {
+        if (file_exists('/run/pipewire-fpp/pipewire-0'))
+            break;
+        usleep(250000);
+    }
+    exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1", $o3, $r3);
+    $services['fpp-pipewire-pulse'] = ($r3 === 0);
+
+    // And for the PulseAudio compat socket: most callers run pactl-based volume
+    // restores immediately after this.
+    for ($i = 0; $i < 10; $i++) {
+        if (file_exists('/run/pipewire-fpp/pulse/native'))
+            break;
+        usleep(250000);
+    }
+
+    if ($restartFppd) {
+        @SendCommand('restart');
+        WaitForFppdReady();
+    }
+
+    return $services;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // Helper: Send a setting to fppd, tolerating a non-responsive daemon.
 // Writes to the settings file (always works) then best-effort sends via
 // the command socket (1-second timeout built into SendCommand).
@@ -79,7 +158,7 @@ function SetFppdSetting($key, $value)
 //   3. Restart fppd (full re-exec) to rebuild the media stack cleanly.
 function RestartPipeWireServices()
 {
-    global $SUDO, $settings;
+    global $settings;
 
     // The services only exist on real FPP platforms, not macOS dev boxes.
     if (isset($settings['Platform']) && $settings['Platform'] == "MacOS") {
@@ -90,27 +169,8 @@ function RestartPipeWireServices()
     // 1. Stop playback so fppd releases its PipeWire client cleanly.
     $playback = StopFppdPlaybackSafe();
 
-    // 2. Restart the three services in dependency order.
-    $services = array();
-    exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1", $o1, $r1);
-    $services['fpp-pipewire'] = ($r1 === 0);
-    usleep(500000);
-
-    exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1", $o2, $r2);
-    $services['fpp-wireplumber'] = ($r2 === 0);
-
-    // Wait for the PipeWire core socket before starting pulse.
-    for ($i = 0; $i < 10; $i++) {
-        if (file_exists('/run/pipewire-fpp/pipewire-0'))
-            break;
-        usleep(250000);
-    }
-    exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1", $o3, $r3);
-    $services['fpp-pipewire-pulse'] = ($r3 === 0);
-
-    // 3. Restart fppd so its GStreamer pipelines reconnect to the new daemons.
-    //    Tolerate a non-responsive daemon — fppd re-inits media on next start.
-    @SendCommand('restart');
+    // 2/3. Restart the services in dependency order, then fppd on top of them.
+    $services = RestartPipeWireStack();
 
     $allOk = $services['fpp-pipewire'] && $services['fpp-wireplumber'] && $services['fpp-pipewire-pulse'];
 
@@ -218,21 +278,11 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
         if (file_exists($cachedConf)) {
             unlink($cachedConf);
         }
-        // Restart PipeWire to pick up removal (order matters — pulse depends on pipewire socket)
-        // Stop playback first and restart fppd after, exactly as
-        // RestartPipeWireStack() does: fppd's GStreamer PipeWire connection is
-        // cached process-wide and does not survive the daemon restarting under
-        // it, leaving silent playback with nothing logged.  The other restart in
-        // this function is already covered by the StopFppdPlaybackSafe() below;
-        // this early path returns before reaching it.
+        // Restart the stack to pick up the removal.  Stop playback first so fppd
+        // releases its client cleanly; RestartPipeWireStack() brings fppd back.
         if (!$skipRestart) {
             StopFppdPlaybackSafe();
-            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
-            usleep(500000);
-            exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
-            usleep(500000);
-            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
-            @SendCommand('restart');
+            RestartPipeWireStack();
         }
         return json(array("status" => "OK", "message" => "Audio groups cleared, PipeWire restarted"));
     }
@@ -241,6 +291,16 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
     $genResult = GeneratePipeWireGroupsConfig($data['groups'], true);
     $conf = $genResult['conf'];
     $resolvedCardMap = $genResult['cardNodeMap'];
+
+    // Does this apply actually change the graph?
+    //
+    // PipeWire only reads these confs at startup, so a change means a stack
+    // restart, which means stopping the show and restarting fppd.  An apply that
+    // produces byte-identical config needs none of that -- and most do, because
+    // Apply is pressed after looking at a page as often as after editing it.
+    // Comparing here, before playback is stopped, means a no-op apply costs
+    // nothing at all rather than a silent gap in the show.
+    $graphUnchanged = ($conf === @file_get_contents("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf"));
 
     // Store resolved PipeWire node names (nodeTarget) back into the JSON
     // so future regenerations (including boot-time) work even when
@@ -292,6 +352,11 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
             if (is_array($igData) && isset($igData['inputGroups']) && !empty($igData['inputGroups'])) {
                 $igConf = GeneratePipeWireInputGroupsConfig($igData['inputGroups'], $data['groups']);
                 $igConfPath = "/etc/pipewire/pipewire.conf.d/96-fpp-input-groups.conf";
+                // This conf is loaded at daemon startup too, so a change here
+                // needs the restart just as much as a change to the 97 conf.
+                if ($igConf !== @file_get_contents($igConfPath)) {
+                    $graphUnchanged = false;
+                }
                 $igTmpFile = tempnam(sys_get_temp_dir(), 'fpp_pw_ig_');
                 file_put_contents($igTmpFile, $igConf);
                 exec($SUDO . " cp " . escapeshellarg($igTmpFile) . " " . escapeshellarg($igConfPath));
@@ -346,6 +411,17 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
             }
         }
         return;
+    }
+
+    // Nothing PipeWire loads at startup has changed, so there is nothing for a
+    // restart to pick up.  Leave the running graph and the show alone; the
+    // volume restore below still runs, since that applies live.
+    if ($graphUnchanged) {
+        RestorePipeWireGroupVolumes($data['groups']);
+        return json(array(
+            "status" => "OK",
+            "message" => "Audio groups already match the running graph; nothing to restart"
+        ));
     }
 
     // Stop fppd playback before restarting PipeWire to avoid race conditions
@@ -431,24 +507,12 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
         }
     }
 
-    // Restart PipeWire services to apply (order matters — pulse depends on pipewire socket)
-    exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
-    usleep(500000);
-    exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
-    // Wait for PipeWire core socket to be ready before starting pulse
-    for ($i = 0; $i < 10; $i++) {
-        if (file_exists('/run/pipewire-fpp/pipewire-0'))
-            break;
-        usleep(250000);
-    }
-    exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
-
-    // Wait for PulseAudio compat socket to be ready
-    for ($i = 0; $i < 10; $i++) {
-        if (file_exists('/run/pipewire-fpp/pulse/native'))
-            break;
-        usleep(250000);
-    }
+    // Restart the stack, and fppd with it.  fppd was NOT being restarted here,
+    // which left it holding a dead PipeWire connection after every audio-groups
+    // Apply -- silent playback with nothing logged, until its own preroll
+    // watchdog gave up 45s later and restarted it anyway.  Playback was already
+    // stopped above, and is resumed at the end of this function.
+    RestartPipeWireStack();
 
     // Restore ALSA hardware mixer levels to 100% for every member card.
     // WirePlumber auto-detects ALSA devices and may restore saved volume
@@ -1877,12 +1941,13 @@ function ApplyPipeWireInputGroups($skipRestart = false)
             unlink($cachedConf);
         }
         // Restart PipeWire
+        // Stop playback first so fppd releases its client cleanly, and let
+        // RestartPipeWireStack() bring fppd back -- it was left holding a dead
+        // PipeWire connection here, so clearing input groups silently killed
+        // audio until something else restarted it.
         if (!$skipRestart) {
-            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
-            usleep(500000);
-            exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
-            usleep(500000);
-            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
+            StopFppdPlaybackSafe();
+            RestartPipeWireStack();
         }
         return json(array("status" => "OK", "message" => "Input groups cleared, PipeWire restarted"));
     }
@@ -1896,12 +1961,13 @@ function ApplyPipeWireInputGroups($skipRestart = false)
         if (file_exists($cachedConf)) {
             unlink($cachedConf);
         }
+        // Stop playback first so fppd releases its client cleanly, and let
+        // RestartPipeWireStack() bring fppd back -- it was left holding a dead
+        // PipeWire connection here, so clearing input groups silently killed
+        // audio until something else restarted it.
         if (!$skipRestart) {
-            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
-            usleep(500000);
-            exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
-            usleep(500000);
-            exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
+            StopFppdPlaybackSafe();
+            RestartPipeWireStack();
         }
         return json(array("status" => "OK", "message" => "Input groups cleared, PipeWire restarted"));
     }
@@ -1997,22 +2063,12 @@ function ApplyPipeWireInputGroups($skipRestart = false)
         }
     }
 
-    // Restart PipeWire services (skipped when $skipRestart=true — caller backgrounds it)
+    // Restart the stack, and fppd with it (skipped when $skipRestart=true — the
+    // caller owns the sequence).  fppd was not being restarted here either, so
+    // applying input groups left it on a dead PipeWire connection.
     if (!$skipRestart) {
-        exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire.service 2>&1");
-        usleep(500000);
-        exec($SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service 2>&1");
-        for ($i = 0; $i < 10; $i++) {
-            if (file_exists('/run/pipewire-fpp/pipewire-0'))
-                break;
-            usleep(250000);
-        }
-        exec($SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service 2>&1");
-        for ($i = 0; $i < 10; $i++) {
-            if (file_exists('/run/pipewire-fpp/pulse/native'))
-                break;
-            usleep(250000);
-        }
+        StopFppdPlaybackSafe();
+        RestartPipeWireStack();
     }
 
     // Set PipeWire default sink and push setting to fppd (best-effort)
@@ -4110,6 +4166,58 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
     // Card IDs are read from /proc/asound/cardN/id which is the kernel's
     // stable identifier (e.g. "S3", "ICUSBAUDIO7D").
     // -----------------------------------------------------------
+    // Boot-time fpp_alsa_* adapters, read from the conf that declares them
+    // rather than from the live graph.
+    //
+    // Whether this function must emit a custom adapter for a card cannot be
+    // decided from whether the node currently exists, because an fpp_alsa_* node
+    // exists precisely when FPP declared it -- and one of the two places it can
+    // be declared is the conf this function is generating.  Deciding from live
+    // state therefore feeds back on itself: the adapter is present, so it is
+    // judged unnecessary and dropped; the next restart removes it, so it is
+    // judged necessary and re-added.  The config oscillated between two shapes,
+    // every apply differed from the last, and in the half of the cycle where the
+    // adapter was dropped its member targeted a node that did not exist -- a
+    // silent output.  (Observed on a vc4hdmi0 the boot probe skips as IEC958.)
+    //
+    // 95-fpp-alsa-sink.conf is unaffected by what happens here, so asking it
+    // "does something else already provide this adapter" is stable.
+    $bootAdapterChannels = array(); // node.name => declared audio.channels
+    $bootConf = @file_get_contents("/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf");
+    if ($bootConf) {
+        if (preg_match_all('/node\.name\s*=\s*"(fpp_alsa_[a-z0-9_]+)"(.*?)audio\.channels\s*=\s*(\d+)/s',
+                           $bootConf, $bm, PREG_SET_ORDER)) {
+            foreach ($bm as $row) {
+                $bootAdapterChannels[$row[1]] = intval($row[3]);
+            }
+        }
+    }
+
+    // What the custom adapters in the CURRENT graph were built with.
+    //
+    // Deciding between hw: and sysdefault: needs the card's capability list,
+    // which is only readable while the card is free.  With it busy -- which it
+    // is whenever a show is playing -- /proc reports the single format the
+    // device is RUNNING, never the IEC958-only capability that made sysdefault:
+    // necessary, so the decision silently flips back to hw:.  The next apply,
+    // with the card idle, flips it back.  That made every apply during playback
+    // differ from the one before it, so the gate below could never conclude
+    // "nothing changed" and every apply restarted the stack mid-show.
+    //
+    // The running graph was built from a probe taken when the card was free, so
+    // it is the best evidence available; carry it forward rather than re-deriving
+    // it from a device that cannot answer.
+    $prevAdapters = array(); // node.name => ['path' => ..., 'format' => ...]
+    $prevConf = @file_get_contents("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf");
+    if ($prevConf) {
+        if (preg_match_all('/node\.name\s*=\s*"(fpp_alsa_[a-z0-9_]+)".*?api\.alsa\.path\s*=\s*"([^"]+)".*?audio\.format\s*=\s*"([^"]+)"/s',
+                           $prevConf, $pm, PREG_SET_ORDER)) {
+            foreach ($pm as $row) {
+                $prevAdapters[$row[1]] = array('path' => $row[2], 'format' => $row[3]);
+            }
+        }
+    }
+
     $existingSinks = array(); // node.name => true
     $sinkCardNumMap = array(); // ALSA card number (int) => node.name
     $sinkCardIdMap = array();  // ALSA card ID (string) => node.name
@@ -4421,12 +4529,14 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             // members whose cardId resolved via the stored-nodeTarget
             // fallback (Priority 4) instead of a live WirePlumber sink.
             $resolvedTarget = isset($cardNodeMap[$cid]) ? $cardNodeMap[$cid] : '';
+            // Judged against the boot conf, not the live graph: see
+            // $bootAdapterChannels above for why live state cannot answer this.
             $targetIsMissingFppAdapter = (strpos($resolvedTarget, 'fpp_alsa_') === 0)
-                && !isset($existingSinks[$resolvedTarget]);
+                && !isset($bootAdapterChannels[$resolvedTarget]);
             // If an fpp_alsa_* boot-time adapter already exists with enough channels,
             // don't create a duplicate — the boot-time node already covers this card.
-            $existingAdapterChannels = (strpos($resolvedTarget, 'fpp_alsa_') === 0 && isset($existingSinks[$resolvedTarget]))
-                ? $existingSinks[$resolvedTarget] : 0;
+            $existingAdapterChannels = isset($bootAdapterChannels[$resolvedTarget])
+                ? $bootAdapterChannels[$resolvedTarget] : 0;
             $bootAdapterSufficient = ($existingAdapterChannels >= $memberCh);
             // Need a custom adapter if channels >2 (and not already covered by boot node),
             // explicit rate/period override, or the config references an fpp_alsa_* node
@@ -4463,7 +4573,16 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                             $adapterNeedsSysdefault = true;
                         }
                     }
-                    if ($fmtOut && $fmtFromLiveDevice) {
+                    if ($fmtOut && $fmtFromLiveDevice && isset($prevAdapters['fpp_alsa_' . $cidNorm])) {
+                        // Busy card, and we already know what the running graph
+                        // was built with.  Neither the format nor the hw: vs
+                        // sysdefault: choice can be re-derived from /proc, so
+                        // reuse both rather than letting them flip.  See
+                        // $prevAdapters above.
+                        $prev = $prevAdapters['fpp_alsa_' . $cidNorm];
+                        $adapterNeedsSysdefault = (strpos($prev['path'], 'sysdefault:') === 0);
+                        $adapterFmt = $prev['format'];
+                    } elseif ($fmtOut && $fmtFromLiveDevice) {
                         // The single format in /proc is not an advertisement, it
                         // is what the hardware is running right now.  Re-probing
                         // it would only reopen a device we already know is busy,
@@ -5096,16 +5215,12 @@ function RebuildAudioGraphForSenderChange()
         return false; // wiring unchanged -- nothing to restart
     }
 
-    // Writes the conf and restarts the PipeWire services, preserving/resuming
-    // playback around it.
+    // Writes the conf, restarts the stack and brings fppd back on top of it,
+    // preserving and resuming playback around the whole thing.  fppd coming back
+    // is what starts the sender against the rebuilt graph.
     ob_start();
     ApplyPipeWireAudioGroups();
     ob_end_clean();
-
-    // fppd's GStreamer PipeWire connection is cached process-wide and does not
-    // survive the daemons restarting under it, so it has to come back too --
-    // and doing so is what starts the sender against the rebuilt graph.
-    @SendCommand('restart');
     return true;
 }
 

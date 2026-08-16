@@ -988,11 +988,7 @@ static void generateSimplePipeWireAudioConfig(int card, const std::string& cId,
 // which discards the cached audio config and re-runs the whole setup once when
 // the stack it just started produced no sink at all.  It exists solely to bound
 // that retry to one attempt.
-//
-// `skipFppdRestart` is for callers that own the restart sequence themselves --
-// settings.php restarts the PipeWire daemons again after this returns, so fppd
-// has to come last, after those, rather than here in the middle.
-static void runAudioSetup(bool recoveryPass, bool skipFppdRestart) {
+static void runAudioSetup(bool recoveryPass) {
     if (!FileExists("/root/.libao")) {
         PutFileContents("/root/.libao", "dev=default");
     }
@@ -2264,7 +2260,7 @@ static void runAudioSetup(bool recoveryPass, bool skipFppdRestart) {
                 unlink(pipewireSinkConfPath.c_str());
                 unlink((FPP_MEDIA_DIR + "/config/pipewire-audio-groups-simple.json").c_str());
                 unlink(groupsConfCache.c_str());
-                runAudioSetup(true, skipFppdRestart);
+                runAudioSetup(true);
                 return;
             }
             printf("FPP - PipeWire still has no sinks after re-probing the audio hardware; audio will not work.\n");
@@ -2301,16 +2297,16 @@ static void runAudioSetup(bool recoveryPass, bool skipFppdRestart) {
         // up leaves fppd's cached connection just as dead as a restart does, and
         // starting the daemons underneath it does not revive it.
         //
-        // Skipped when the caller says it will restart fppd itself.  settings.php
-        // backgrounds this and then restarts the daemons again before restarting
-        // fppd last; doing it here as well would restart fppd twice, and the first
-        // of those lands *before* that script's daemon restarts -- re-wedging the
-        // very process it just replaced, which is the ordering trap this whole
-        // change exists to avoid.
-        if ((pipewireRestarted || pipewireColdStarted) && !skipFppdRestart &&
+        // `fpp -r` rather than `systemctl restart fppd`: it asks fppd to re-exec
+        // itself, which is an equally fresh process image -- that is what clears
+        // the cached connection -- and it resumes a playlist that was running,
+        // which systemctl cannot.  It also keeps the PID, so repeated applies do
+        // not burn the unit's start limit.  Matches RestartPipeWireStack() in
+        // pipewire.php, which is the same decision on the PHP side.
+        if ((pipewireRestarted || pipewireColdStarted) &&
             system("/usr/bin/systemctl is-active --quiet fppd") == 0) {
             printf("FPP - PipeWire was restarted under a running fppd; restarting fppd so it reconnects\n");
-            exec("/usr/bin/systemctl restart fppd");
+            exec("/opt/fpp/src/fpp -r");
         }
     } else if (!runningInDocker) {
         exec("/usr/bin/systemctl stop fpp-pipewire-pulse.service fpp-wireplumber.service fpp-pipewire.service");
@@ -2320,6 +2316,6 @@ static void runAudioSetup(bool recoveryPass, bool skipFppdRestart) {
     // No external daemons to start here.
 }
 
-void setupAudio(bool skipFppdRestart) {
-    runAudioSetup(false, skipFppdRestart);
+void setupAudio() {
+    runAudioSetup(false);
 }

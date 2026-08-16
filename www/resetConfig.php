@@ -262,7 +262,12 @@ if (in_array('audiobackend', $areas)) {
     // fppd's GStreamer PipeWire connection is cached process-wide and does not
     // survive the daemon restarting under it: playback would go silent with
     // nothing logged until fppd was restarted by hand.
-    exec($SUDO . ' systemctl restart fppd 2>&1');
+    //
+    // `fpp -r` asks fppd to re-exec itself -- an equally fresh process image, so
+    // it clears the cached connection just as well, and it keeps the PID rather
+    // than spending the unit's start limit.  Same choice as RestartPipeWireStack()
+    // in pipewire.php and setupAudio() in FPPINIT_Audio.cpp.
+    exec($SUDO . ' /opt/fpp/src/fpp -r 2>&1');
     printf("  FPPD restarted to reconnect to PipeWire.\n");
     flush();
 }

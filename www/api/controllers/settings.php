@@ -284,24 +284,14 @@ function PutSetting()
         // PipeWire service restarts so the HTTP response returns immediately.
         // Using < /dev/null ensures the background process fully detaches from Apache.
         $fppDir = $settings['fppDir'];
+        // setupAudio owns the whole sequence: it decides whether the generated
+        // config actually changed, restarts the PipeWire daemons only if it did,
+        // and brings fppd back afterwards.  This script used to repeat all of
+        // that unconditionally, which restarted the stack (and the show) even
+        // when nothing had changed, and restarted fppd twice on the runs that
+        // had.  One owner, one decision.
         $bgScript =
-            // --no-fppd-restart: setupAudio restarts fppd itself when it has
-            // restarted the PipeWire stack, but this script restarts those
-            // daemons again below and then restarts fppd last.  Letting it fire
-            // there would restart fppd twice and land the first one before those
-            // daemon restarts -- re-wedging the process it had just replaced.
-            $SUDO . " " . escapeshellarg($fppDir . "/src/fppinit") . " setupAudio --no-fppd-restart\n" .
-            $SUDO . " /usr/bin/systemctl restart fpp-pipewire.service\n" .
-            "sleep 0.5\n" .
-            $SUDO . " /usr/bin/systemctl restart fpp-wireplumber.service\n" .
-            "for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /run/pipewire-fpp/pipewire-0 ] && break; sleep 0.25; done\n" .
-            $SUDO . " /usr/bin/systemctl restart fpp-pipewire-pulse.service\n" .
-            // Last, and only after every daemon above is back: fppd's GStreamer
-            // PipeWire connection is cached process-wide and does not survive the
-            // daemon restarting under it -- playback goes silent with nothing
-            // logged.  This has to be the final step; restarting fppd earlier
-            // would just leave the new process wedged by the restarts after it.
-            $SUDO . " /usr/bin/systemctl restart fppd\n";
+            $SUDO . " " . escapeshellarg($fppDir . "/src/fppinit") . " setupAudio\n";
         exec("nohup bash -c " . escapeshellarg($bgScript) . " < /dev/null > /dev/null 2>&1 &");
     } else if ($setting == "EnableTethering") {
         $ssid = ReadSettingFromFile("TetherSSID");
