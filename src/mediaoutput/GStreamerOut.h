@@ -149,12 +149,15 @@ private:
     // Cached: the depth barely moves while a track plays, and Process() runs at
     // frame rate.
     int64_t AudioSinkLatencyNs();
+    // One-shot note that the position is going out uncorrected, and why.
+    void NoteNoSinkLatency(const std::string& why);
     int64_t m_sinkLatencyNs = 0;
     uint64_t m_sinkLatencyCheckedMs = 0;
     std::string m_alsaStatusPath;
     std::string m_alsaHwParamsPath;
     int m_alsaRate = 0;
     bool m_loggedSinkLatency = false;
+    bool m_warnedNoSinkLatency = false;
     uint64_t m_playStartMs = 0;   // wall time Start() set m_playing=true — anchors the preroll watchdog
     static constexpr int STALL_TIMEOUT_MS = 5000; // 5 seconds before declaring stall
     // Preroll watchdog: if the pipeline is set to PLAYING but never produces a

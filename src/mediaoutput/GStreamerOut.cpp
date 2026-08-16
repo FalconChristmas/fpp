@@ -2321,8 +2321,23 @@ static int AlsaCardNumber(const std::string& cardId) {
 //
 // So: match the adapters against the configured output card, and fall back to
 // the first adapter only when the setting resolves to no adapter at all.
+//
+// Both generated confs have to be searched, not just the boot-time one.  The
+// boot probe deliberately skips a card it cannot drive directly -- an
+// IEC958-only vc4-hdmi is the common one ("no standard PCM format") -- and the
+// group config then creates that card's adapter itself, through sysdefault:
+// rather than hw:.  A Pi playing audio over HDMI therefore has its only sink
+// adapter in 97-fpp-audio-groups.conf and none in the 95 conf, so searching the
+// 95 conf alone finds either the wrong card or no card, and silently applies no
+// correction at all.  That configuration is Simple mode's default on a board
+// with no other sound card, which is most of them.
 static int AlsaSinkCardNumber() {
-    std::string conf = GetFileContents("/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf");
+    // 95 first: where a card FPP can drive directly is declared.  97 second: the
+    // group config's own adapters, for the cards 95 had to skip.
+    const std::string confs[] = {
+        GetFileContents("/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf"),
+        GetFileContents("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf")
+    };
     // AudioOutput is a stable ALSA card ID on current installs, a bare card
     // number on older ones; resolveAudioOutputCardNum() accepts both, so match
     // its handling here rather than assuming either spelling.
@@ -2339,33 +2354,37 @@ static int AlsaSinkCardNumber() {
     // Sink adapters only -- the capture adapters FPP also declares are named
     // fpp_alsain_, which this needle does not match.
     const std::string nameKey = "node.name = \"fpp_alsa_";
-    for (std::size_t n = conf.find(nameKey); n != std::string::npos; n = conf.find(nameKey, n + 1)) {
-        std::size_t k = conf.find("api.alsa.path", n);
-        if (k == std::string::npos) {
-            break;
-        }
-        std::size_t a = conf.find('"', k);
-        if (a == std::string::npos) {
-            break;
-        }
-        std::size_t b = conf.find('"', a + 1);
-        if (b == std::string::npos) {
-            break;
-        }
-        std::string path = conf.substr(a + 1, b - a - 1); // "hw:CardId"
-        std::size_t colon = path.find(':');
-        if (colon == std::string::npos) {
-            continue;
-        }
-        int card = AlsaCardNumber(path.substr(colon + 1));
-        if (card < 0) {
-            continue;
-        }
-        if (card == wantedCard) {
-            return card;
-        }
-        if (firstCard < 0) {
-            firstCard = card;
+    for (const std::string& conf : confs) {
+        for (std::size_t n = conf.find(nameKey); n != std::string::npos; n = conf.find(nameKey, n + 1)) {
+            std::size_t k = conf.find("api.alsa.path", n);
+            if (k == std::string::npos) {
+                break;
+            }
+            std::size_t a = conf.find('"', k);
+            if (a == std::string::npos) {
+                break;
+            }
+            std::size_t b = conf.find('"', a + 1);
+            if (b == std::string::npos) {
+                break;
+            }
+            // "hw:CardId", or "sysdefault:CardId" for a card reached through the
+            // ALSA plug layer -- the card ID is what follows the colon either way.
+            std::string path = conf.substr(a + 1, b - a - 1);
+            std::size_t colon = path.find(':');
+            if (colon == std::string::npos) {
+                continue;
+            }
+            int card = AlsaCardNumber(path.substr(colon + 1));
+            if (card < 0) {
+                continue;
+            }
+            if (card == wantedCard) {
+                return card;
+            }
+            if (firstCard < 0) {
+                firstCard = card;
+            }
         }
     }
     return firstCard;
@@ -2405,6 +2424,21 @@ static int ReadIntField(const std::string& text, const char* key) {
     return std::atoi(text.c_str() + c + 1);
 }
 
+// Say once, per media, that the position is going out uncorrected and why.
+// Deliberately not a WarningHolder banner: on a board with no usable sink this
+// would fire on every track forever, and the condition is a tuning shortfall
+// rather than a fault the user must act on immediately.
+void GStreamerOutput::NoteNoSinkLatency(const std::string& why) {
+    if (m_warnedNoSinkLatency) {
+        return;
+    }
+    m_warnedNoSinkLatency = true;
+    LogWarn(VB_MEDIAOUT,
+            "GStreamer: no audio sink latency available (%s) — reported position is not "
+            "corrected for the card's queue, so the sequence may lead the audio by tens of ms\n",
+            why.c_str());
+}
+
 int64_t GStreamerOutput::AudioSinkLatencyNs() {
     // The queue depth is essentially constant while a track plays; re-reading
     // it on every Process() would put a /proc read in the main loop at frame
@@ -2418,6 +2452,12 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
     if (m_alsaStatusPath.empty()) {
         int card = AlsaSinkCardNumber();
         if (card < 0) {
+            // Nothing to read means no correction, which is not a small thing:
+            // uncorrected, the sequence leads the sound by the whole ALSA queue
+            // depth -- 22 to 160 ms on the boards this was measured on.  That is
+            // audible and looks exactly like a misconfigured show, so say so
+            // once rather than leaving the user to find it by ear.
+            NoteNoSinkLatency("no FPP ALSA sink adapter matches the configured audio output");
             m_sinkLatencyNs = 0;
             return 0;
         }
@@ -2428,6 +2468,7 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
             m_alsaHwParamsPath.replace(s, 7, "/hw_params");
         }
         if (m_alsaStatusPath.empty()) {
+            NoteNoSinkLatency("card " + std::to_string(card) + " exposes no playback substream status");
             m_sinkLatencyNs = 0;
             return 0;
         }
@@ -2447,6 +2488,7 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
         m_alsaRate = ReadIntField(GetFileContents(m_alsaHwParamsPath), "rate");
     }
     if (m_alsaRate <= 0) {
+        NoteNoSinkLatency("could not read the card's rate from hw_params");
         m_sinkLatencyNs = 0;
         return 0;
     }
@@ -2455,6 +2497,9 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
     // the field was misread (dmix, for one, leaves appl_ptr at 0 and reports a
     // hugely negative delay) and is not worth trusting.
     if (ns < 0 || ns > 1000000000LL) {
+        NoteNoSinkLatency("card reports an implausible queue depth (" +
+                          std::to_string(delayFrames) + " frames at " +
+                          std::to_string(m_alsaRate) + " Hz)");
         m_sinkLatencyNs = 0;
         return 0;
     }
