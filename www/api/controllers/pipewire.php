@@ -5046,6 +5046,69 @@ function SaveAES67Instances()
 }
 
 // POST /api/pipewire/aes67/apply
+// Rebuild the audio group graph if an AES67/Opus RTP change has altered it.
+//
+// A group member targets a network sender by a node name derived from the
+// instance -- aes67_<slug of instance name>_send.  Enabling, disabling or
+// renaming an instance therefore changes what the group config must contain,
+// and GeneratePipeWireGroupsConfig() drops a member whose instance is disabled
+// ("# WARNING: Could not find PipeWire sinks for: aes67_1").
+//
+// Applying the instance without rebuilding leaves those two disagreeing: fppd
+// starts the send pipeline, but no filter chain targets its node, and the
+// pipeline uses node.autoconnect=false so it cannot preroll with nothing
+// feeding it.  gst_element_set_state() then blocks and returns FAILURE, which
+// surfaces only as "AES67: audio send stream failed to start" -- with no hint
+// that the audio groups are the thing that is stale.  A user enabling a stream
+// has no way to know they must also re-apply the audio groups, so do it here.
+//
+// Generation is pure, so compare first and only pay for the rebuild (which
+// restarts the PipeWire stack and fppd) when the graph actually changes.
+// Editing an already-wired instance's bitrate, ptime or multicast address does
+// not alter the group config and so does not restart anything.
+//
+// Returns true if the graph was rebuilt, in which case fppd has been restarted
+// and will apply the instance config itself as it initialises.
+function RebuildAudioGraphForSenderChange()
+{
+    global $settings;
+
+    $groupsFile = $settings['mediaDirectory'] . "/config/pipewire-audio-groups.json";
+    if (!file_exists($groupsFile)) {
+        return false;
+    }
+    $gd = json_decode(file_get_contents($groupsFile), true);
+    if (!is_array($gd) || empty($gd['groups'])) {
+        return false;
+    }
+
+    ob_start();
+    $gen = GeneratePipeWireGroupsConfig($gd['groups'], true);
+    ob_end_clean();
+    $newConf = is_array($gen) ? (isset($gen['conf']) ? $gen['conf'] : '') : $gen;
+    if ($newConf === '') {
+        return false;
+    }
+
+    $destConf = "/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf";
+    $curConf = file_exists($destConf) ? file_get_contents($destConf) : '';
+    if ($newConf === $curConf) {
+        return false; // wiring unchanged -- nothing to restart
+    }
+
+    // Writes the conf and restarts the PipeWire services, preserving/resuming
+    // playback around it.
+    ob_start();
+    ApplyPipeWireAudioGroups();
+    ob_end_clean();
+
+    // fppd's GStreamer PipeWire connection is cached process-wide and does not
+    // survive the daemons restarting under it, so it has to come back too --
+    // and doing so is what starts the sender against the rebuilt graph.
+    @SendCommand('restart');
+    return true;
+}
+
 function ApplyAES67Instances()
 {
     global $settings;
@@ -5065,6 +5128,16 @@ function ApplyAES67Instances()
             )
         )));
         return json(array("status" => "OK", "message" => "No AES67 instances configured"));
+    }
+
+    // If this change alters which sender nodes the groups feed, the graph has to
+    // be rebuilt first -- otherwise the send pipeline starts with nothing
+    // connected to it and fails.  See RebuildAudioGraphForSenderChange().
+    if (RebuildAudioGraphForSenderChange()) {
+        return json(array(
+            "status" => "OK",
+            "message" => "AES67 configuration applied; audio graph rebuilt and FPPD restarted"
+        ));
     }
 
     // Signal fppd to apply config
@@ -5221,6 +5294,16 @@ function ApplyOpusRTPInstances()
             )
         )));
         return json(array("status" => "OK", "message" => "No Opus RTP instances configured"));
+    }
+
+    // Same coupling as AES67: an Opus RTP instance being enabled, disabled or
+    // renamed changes the opusrtp_*_send node a group member targets, and the
+    // send pipeline cannot start until a filter chain feeds it.
+    if (RebuildAudioGraphForSenderChange()) {
+        return json(array(
+            "status" => "OK",
+            "message" => "Opus RTP configuration applied; audio graph rebuilt and FPPD restarted"
+        ));
     }
 
     $result = @file_get_contents('http://localhost/api/command', false, stream_context_create(array(
