@@ -375,6 +375,75 @@ function ResolveAlsaCardIdToNumber($cardId)
 }
 
 /**
+ * Sets the Audio Output device
+ *
+ * Lives here, beside ResolveAlsaCardIdToNumber() which it depends on, because
+ * both callers need it and they do not share anything smaller: backup.php (on
+ * restore) and the settings API's AudioOutput branch.  It used to be defined in
+ * backup.php alone, which the API never includes, so every
+ * PUT /api/settings/AudioOutput died on "Call to undefined function
+ * SetAudioOutput()".  The setting had already been written by then, but the
+ * apply that follows it -- in Simple mode, the call that rebuilds the whole
+ * audio graph for the newly chosen card -- never ran, so picking a sound card
+ * persisted the choice and changed nothing.
+ *
+ * @param $card String soundcard
+ * @return  string
+ */
+function SetAudioOutput($card)
+{
+    global $SUDO, $debug, $settings;
+
+    // $card is a stable ALSA card ID (legacy callers may still pass a numeric
+    // index). Resolve to the current ALSA card number for the ALSA tools below.
+    $cardNum = ResolveAlsaCardIdToNumber($card);
+    if ($cardNum === '') {
+        $cardNum = ctype_digit((string) $card) ? (string) $card : '0';
+    }
+
+    if ($cardNum != 0 && file_exists("/proc/asound/card$cardNum")) {
+        exec($SUDO . " sed -i 's/card [0-9]/card " . $cardNum . "/' /root/.asoundrc", $output, $return_val);
+        unset($output);
+        if ($return_val) {
+            error_log("Failed to set audio to card $card ($cardNum)!");
+            return;
+        }
+        if ($debug) {
+            error_log("Setting to audio output $card ($cardNum)");
+        }
+    } else if ($cardNum == 0) {
+        exec($SUDO . " sed -i 's/card [0-9]/card " . $cardNum . "/' /root/.asoundrc", $output, $return_val);
+        unset($output);
+        if ($return_val) {
+            error_log("Failed to set audio back to default!");
+            return;
+        }
+        if ($debug) {
+            error_log("Setting default audio");
+        }
+
+    }
+    // need to also reset mixer device
+    $AudioMixerDevice = exec("sudo amixer -c $cardNum scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+    unset($output);
+    if ($return_val == 0) {
+        WriteSettingToFile("AudioMixerDevice", $AudioMixerDevice);
+        if ($settings['Platform'] == "Raspberry Pi" && $cardNum == 0) {
+            $type = exec("sudo aplay -l | grep \"card $cardNum\"", $output, $return_val);
+            if (strpos($type, '[bcm') !== false) {
+                WriteSettingToFile("AudioCard0Type", "bcm");
+            } else {
+                WriteSettingToFile("AudioCard0Type", "unknown");
+            }
+            unset($output);
+        } else {
+            WriteSettingToFile("AudioCard0Type", "unknown");
+        }
+    }
+    return $card;
+}
+
+/**
  * Normalize a stored AudioOutput value to a stable ALSA card ID.  AudioOutput is
  * persisted as a card ID, but legacy installs (and the brief window before
  * FPPINIT migrates the value at boot) may still hold a numeric card index, so
