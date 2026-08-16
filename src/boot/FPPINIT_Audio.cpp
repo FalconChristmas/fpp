@@ -469,7 +469,7 @@ static std::string bestFormatForRate(const std::string& fmtLine, const std::stri
 //
 // Bump this whenever the probe can produce a different conf for unchanged
 // hardware.  Costs one extra probe on the first boot after the upgrade.
-static constexpr int kAlsaSinkConfGeneration = 5;
+static constexpr int kAlsaSinkConfGeneration = 6;
 
 static std::string alsaSinkConfGenerationTag() {
     return "# FPP ALSA sink adapters (generation " + std::to_string(kAlsaSinkConfGeneration) + ")";
@@ -488,6 +488,32 @@ static std::string alsaSinkConfGenerationTag() {
 // fixed 44100, so a plain search finds the wrong one on a card with a mic.
 static std::string alsaSinkConfRateTag(int configuredRate) {
     return "# configured rate: " + std::to_string(configuredRate);
+}
+
+// Marker recording the cards the probe *considered*, which is not the same as
+// the cards it ended up writing an adapter for.
+//
+// The validity check used to compare the adapters in the conf against the
+// present candidate cards, but the probe drops a candidate whenever the device
+// turns out to be unusable -- an IEC958-only HDMI card, or one that will not
+// open.  Those cards are still present and still candidates on the next boot,
+// so the two sets could never agree and the fast path was dead: a Pi with a
+// connected display re-ran the whole ALSA probe, several seconds of aplay
+// --dump-hw-params, on every single boot, and silently -- none of the three
+// checks that print a reason was the one rejecting it.
+//
+// Comparing the candidate sets instead asks the question that actually matters:
+// the hardware on offer is unchanged, so the probe would reach the same
+// conclusions, skips included.  A card that was merely busy at probe time gets
+// its skip cached too, which the no-sinks recovery at the end of runAudioSetup()
+// already exists to catch, and a probe-rule change is what the generation tag
+// above is for.
+static std::string alsaSinkConfCardsTag(const std::set<std::string>& cids) {
+    std::string tag = "# cards:";
+    for (const auto& c : cids) {
+        tag += " " + c;
+    }
+    return tag;
 }
 
 // Build the contents of 97-fpp-audio-groups.conf for the Simple-mode synthetic
@@ -1375,8 +1401,14 @@ static void runAudioSetup(bool recoveryPass, bool skipFppdRestart) {
     if (usePipeWireBackend && !existingSinkConf.empty() && !sinkConfGenerationCurrent) {
         printf("FPP - PipeWire: ALSA sink config predates the current probe rules; re-probing\n");
     }
+    // Compared against the recorded candidate list, not against the adapters the
+    // conf declares: the probe legitimately writes fewer adapters than there are
+    // candidates.  See alsaSinkConfCardsTag().
     bool sinkConfStillValid = !existingSinkConf.empty() && sinkConfGenerationCurrent &&
-                              existingAdapterCids == adapterCandidateCids;
+                              contains(existingSinkConf, alsaSinkConfCardsTag(adapterCandidateCids) + "\n");
+    if (usePipeWireBackend && !existingSinkConf.empty() && sinkConfGenerationCurrent && !sinkConfStillValid) {
+        printf("FPP - PipeWire: set of present sound cards has changed; re-probing\n");
+    }
     // A conf written before a card's channel-count quirk existed (or while the
     // card was held open at a stale stereo negotiation) can cover all cards yet
     // still pin a known multi-channel card to too few channels.  Verify each
@@ -1742,6 +1774,9 @@ static void runAudioSetup(bool recoveryPass, bool skipFppdRestart) {
                  // What AudioFormat asked for, which default.clock.rate below no
                  // longer records once a cape refines it.  See alsaSinkConfRateTag().
                  << alsaSinkConfRateTag(pipewireSampleRate) << "\n"
+                 // The cards considered, including any the probe then skipped as
+                 // unusable.  See alsaSinkConfCardsTag().
+                 << alsaSinkConfCardsTag(adapterCandidateCids) << "\n"
                  << "context.properties = {\n"
                  << "    default.clock.rate = " << graphClockRate << "\n"
                  << "}\n"
