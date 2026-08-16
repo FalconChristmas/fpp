@@ -255,6 +255,16 @@
         var channelOutputConfigCache = {};
         var channelInputConfigCache = {};
 
+        // Authoritative checked-state for the per-remote unicast checkboxes
+        // (.syncCheckbox), keyed by remote address.  These checkboxes live inside
+        // Bootstrap Table cell HTML, which is regenerated from the item model on
+        // every poll-driven re-render, so the DOM cannot own this state: a
+        // "checked" attribute baked into that HTML would silently re-check a box
+        // the user just cleared on the next render.  parseFPPSystems() seeds this
+        // from MultiSyncRemotes, toggleUnicastRemote() updates it on click, and
+        // applyUnicastCheckboxes() pushes it back onto the freshly rendered nodes.
+        var unicastRemotes = {};
+
         // Universe type ID to display name mapping
         const universeTypeNames = {
             0: 'E1.31 Multicast',
@@ -479,9 +489,17 @@
          *               the original insertion order.  initBody() re-renders from
          *               bt.data, discarding any drag the user just performed.
          *
-         *   3. CHECKS — row checkboxes (.multisyncRowCheckbox / .syncCheckbox) are
+         *   3. CHECKS — the row action checkboxes (.multisyncRowCheckbox) are
          *               generated as static HTML strings without a "checked" attr.
          *               initBody() rebuilds them all unchecked.
+         *
+         *               The per-remote unicast checkboxes (.syncCheckbox) are NOT
+         *               handled here.  Their state is persisted config, not
+         *               ephemeral UI state, so it is owned by the unicastRemotes
+         *               map and re-applied by applyUnicastCheckboxes() from inside
+         *               the patched initBody().  Snapshot/restore is the wrong
+         *               tool for them: it can only re-check, never un-check, so a
+         *               box the user just cleared would come back on next render.
          *
          * HOW IT WORKS
          * ------------
@@ -517,7 +535,7 @@
             // (a) Snapshot checked action-checkboxes by IP/name so we can restore
             //     them after initBody() rebuilds the rows from static HTML.
             var checkedNames = {};
-            $tbl.find('input.multisyncRowCheckbox, input.syncCheckbox').each(function () {
+            $tbl.find('input.multisyncRowCheckbox').each(function () {
                 if (this.checked) checkedNames[this.name] = true;
             });
 
@@ -575,8 +593,10 @@
             }
 
             // (f) Restore checked state on freshly rebuilt checkbox nodes.
+            //     (.syncCheckbox is handled by applyUnicastCheckboxes() — see the
+            //     CHECKS note in this function's header comment.)
             if (Object.keys(checkedNames).length) {
-                $tbl.find('input.multisyncRowCheckbox, input.syncCheckbox').each(function () {
+                $tbl.find('input.multisyncRowCheckbox').each(function () {
                     if (checkedNames[this.name]) this.checked = true;
                 });
             }
@@ -1625,12 +1645,23 @@
             var falconV3Addresses = [];
 
             var remotes = [];
+            // Rebuild the checkbox state from the saved setting on every full
+            // re-parse.  Entries that are no longer discoverable simply stop
+            // having a checkbox to apply to; they are still preserved in the
+            // setting via the leftover-`remotes` -> MultiSyncExtraRemotes fold
+            // further down.
+            unicastRemotes = {};
             if ((settings['MultiSyncEnabled'] == '1') &&
                 (settings['fppMode'] == 'player')) {
                 if (typeof settings['MultiSyncRemotes'] === 'string') {
                     var tarr = settings['MultiSyncRemotes'].split(',');
                     for (var i = 0; i < tarr.length; i++) {
                         remotes[tarr[i]] = 1;
+                        if (tarr[i] != '' &&
+                            tarr[i] != '255.255.255.255' &&
+                            tarr[i] != '239.70.80.80') {
+                            unicastRemotes[tarr[i]] = true;
+                        }
 
                         if ((tarr[i] == "255.255.255.255") &&
                             (!$('#MultiSyncBroadcast').is(":checked")))
@@ -1714,12 +1745,18 @@
                     if ((settings['MultiSyncEnabled'] == '1') &&
                         (settings['fppMode'] == 'player') &&
                         (data[i].fppModeString == "remote")) {
+                        // No "checked" attribute here on purpose — this HTML is
+                        // stored in the item model and re-rendered on every poll,
+                        // so a baked-in attribute would resurrect a box the user
+                        // just cleared.  applyUnicastCheckboxes() sets the state
+                        // from unicastRemotes after each render instead.
                         star = " <input type='checkbox' class='syncCheckbox' name='" + data[i].address + "'";
                         if (typeof remotes[data[i].address] !== 'undefined') {
-                            star += " checked";
+                            // Mark as "still discoverable" so it is not folded
+                            // into MultiSyncExtraRemotes as an unreachable entry.
                             delete remotes[data[i].address];
                         }
-                        star += " onClick='updateMultiSyncRemotes(true);'>";
+                        star += " onClick='toggleUnicastRemote(this);'>";
                     }
                 }
 
@@ -1965,6 +2002,10 @@
                     });
                     var $childRows = $liveChildRows.detach();
                     origInitBody.call(this, fixedScroll, updatedUid);
+                    // Every render — the initial 'load' and every poll-driven
+                    // safeInitBody() — funnels through here, so this is the one
+                    // place the unicast checkboxes need re-applying.
+                    applyUnicastCheckboxes($tbl);
                     if ($childRows.length) {
                         reattachChildRows($tbl, $childRows);
                         // Restore scroll position once the rows are back in the layout.
@@ -2594,22 +2635,7 @@
                 if (broadcastChecked) $('#MultiSyncBroadcast').prop('checked', false).trigger('change');
             }
 
-            // Re-read after any of the above may have changed.
-            multicastChecked = $('#MultiSyncMulticast').is(":checked");
-            broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
-            unicastAllChecked = $('#MultiSyncUnicast').is(":checked");
-
-            var anyUnicast = 0;
-            $('input.syncCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    anyUnicast = 1;
-                }
-            });
-
-            if (!anyUnicast && !multicastChecked && !broadcastChecked && !unicastAllChecked) {
-                $('#MultiSyncMulticast').prop('checked', true).trigger('change');
-                alert('FPP will use multicast if no other sync methods are chosen.');
-            }
+            ensureSomeSyncMethod();
         }
 
         // ============================================================
@@ -3430,27 +3456,78 @@
             });
         }
 
+        /**
+         * Push the authoritative unicastRemotes state onto the per-remote
+         * checkboxes.  Sets BOTH directions — an address absent from the map is
+         * explicitly unchecked — so a freshly rendered row can never resurrect a
+         * selection the user cleared.
+         */
+        function applyUnicastCheckboxes($tbl) {
+            var $scope = ($tbl && $tbl.length) ? $tbl : $(document);
+            $scope.find('input.syncCheckbox').each(function () {
+                this.checked = !!unicastRemotes[this.name];
+            });
+        }
+
+        /**
+         * Click handler for a per-remote unicast checkbox.  Records the new state
+         * in unicastRemotes (the source of truth) before saving, so the pending
+         * poll re-render and the in-flight save both see the same thing.
+         */
+        function toggleUnicastRemote(el) {
+            if (el.checked) {
+                unicastRemotes[el.name] = true;
+            } else {
+                delete unicastRemotes[el.name];
+            }
+            updateMultiSyncRemotes(true);
+        }
+
+        /**
+         * FPP falls back to multicast when no send method at all is configured, so
+         * the UI makes that explicit rather than leaving every box clear.  Shared
+         * by syncModeUpdated() and updateMultiSyncRemotes(), which previously each
+         * carried their own copy — and the copy here had never been taught about
+         * MultiSyncUnicast, so clearing the last individual remote while
+         * "send to ALL KNOWN remotes via Unicast" was on would force multicast on
+         * and silently override the user's chosen mode.
+         *
+         * Returns true if it had to turn multicast on.
+         */
+        function ensureSomeSyncMethod() {
+            if ($('#MultiSyncMulticast').is(":checked") ||
+                $('#MultiSyncBroadcast').is(":checked") ||
+                $('#MultiSyncUnicast').is(":checked")) {
+                return false;
+            }
+
+            var anyUnicast = false;
+            $('input.syncCheckbox').each(function () {
+                if (this.checked) anyUnicast = true;
+            });
+            if (anyUnicast) {
+                return false;
+            }
+
+            $('#MultiSyncMulticast').prop('checked', true).trigger('change');
+            $.jGrowl('No sync method was selected, so FPP will use Multicast.', { themeState: 'notice' });
+            return true;
+        }
+
         async function updateMultiSyncRemotes(verbose = false) {
             var remotes = "";
 
-            $('input.syncCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    if (remotes != "") {
-                        remotes += ",";
-                    }
-                    remotes += $(this).attr("name");
+            // Built from the state map rather than a DOM scan: the table may be
+            // mid-rebuild on a poll tick, and the map is what the user's click
+            // actually changed.
+            Object.keys(unicastRemotes).sort().forEach(function (addr) {
+                if (remotes != "") {
+                    remotes += ",";
                 }
+                remotes += addr;
             });
 
-            var multicastChecked = $('#MultiSyncMulticast').is(":checked");
-            var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
-
-            if ((remotes == '') &&
-                (!$('#MultiSyncMulticast').is(":checked")) &&
-                (!$('#MultiSyncBroadcast').is(":checked"))) {
-                $('#MultiSyncMulticast').prop('checked', true).trigger('change');
-                alert('FPP will use multicast if no other sync methods are chosen.');
-            }
+            ensureSomeSyncMethod();
 
             try {
                 const r = await fetch("api/settings/MultiSyncRemotes", {

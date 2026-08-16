@@ -858,13 +858,38 @@ static bool anyPluginsInstalled() {
 // (Fresh installs and normal in-place `fpp upgrade`s are handled separately,
 // by upgrade/122/upgrade.sh via the version-gated upgrade_config path.)
 static void migrateMultiSyncDefaultToMulticast() {
-    if (getRawSettingInt("MultiSyncEnabled", 0) == 1) {
-        if (getRawSettingInt("MultiSyncMulticast", 0) != 1 &&
-            getRawSettingInt("MultiSyncBroadcast", 0) != 1 &&
-            getRawSettingInt("MultiSyncUnicast", 0) != 1) {
-            setRawSetting("MultiSyncMulticast", "1");
-            setRawSetting("MultiSyncUnicast", "0");
-        }
+    if (getRawSettingInt("MultiSyncEnabled", 0) != 1) {
+        return;
+    }
+
+    // No send method recorded at all -> the user was relying on the pre-FPP-10
+    // implicit multicast behavior.  Make it explicit.
+    if (getRawSettingInt("MultiSyncMulticast", 0) != 1 &&
+        getRawSettingInt("MultiSyncBroadcast", 0) != 1 &&
+        getRawSettingInt("MultiSyncUnicast", 0) != 1) {
+        setRawSetting("MultiSyncMulticast", "1");
+    }
+
+    // Pin MultiSyncUnicast off whenever the key is simply ABSENT, independent of
+    // what the other two are set to.  This must not be folded into the branch
+    // above: a user who had explicitly chosen multicast or broadcast skips that
+    // branch entirely, so the key stayed absent -- and an absent key is not
+    // neutral.  It resolves differently depending on who is asking:
+    //
+    //   www/common.php IfSettingEqualPrint() -> settings.json "default": 1
+    //   src/settings.cpp LoadSettingsInfo()  -> settings.json "default": 1
+    //   getRawSettingInt() (right here)      -> 0, the file is read directly
+    //
+    // So an upgraded box would show "Send MultiSync to ALL KNOWN remotes via
+    // Unicast" ticked in the UI *and* have fppd genuinely unicast to every
+    // remote, on top of whatever method the user actually chose -- while this
+    // migration, reading raw, saw nothing wrong.  Writing the key makes all
+    // three readers agree.
+    //
+    // Only absence is corrected: an explicit 0 or 1 is the user's own choice.
+    std::string existing;
+    if (!getRawSetting("MultiSyncUnicast", existing)) {
+        setRawSetting("MultiSyncUnicast", "0");
     }
 }
 
