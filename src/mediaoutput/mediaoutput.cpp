@@ -264,6 +264,63 @@ static const std::vector<std::string>& playbackVolumeControls(int card) {
     return cache.emplace(card, std::move(ctls)).first->second;
 }
 
+// Output sinks the master volume has to attenuate that are NOT FPP-owned.
+//
+// The master targets the terminal output sinks so it multiplies with the group
+// and member volumes instead of fighting them, and finds them by prefix
+// (fpp_alsa_*, aes67_*).  But a group member does not always target an FPP
+// adapter: when WirePlumber already publishes a node for the card, the member
+// targets that instead -- an HDMI output comes through as
+// alsa_output.platform-<addr>.hdmi.hdmi-stereo.  Those match no prefix, so the
+// master silently skipped them: on a group with one fpp_alsa_ member and one
+// HDMI member, moving the master attenuated half the group and unbalanced it,
+// and on an HDMI-only box the master did nothing at all.
+//
+// RestorePipeWireGroupVolumes() already has to know about exactly these nodes
+// (it pins them to 100% because WirePlumber initialises them at ~40%), so read
+// the same member list it does and hand the names to the master too.
+//
+// KEEP IN SYNC with restorePipeWireVolumes() in FPPINIT_Audio.cpp and
+// RestorePipeWireGroupVolumes() in pipewire.php -- same file selection, same
+// "not fpp_/aes67_" test.
+static std::set<std::string> nonFppOutputSinkNames() {
+    std::set<std::string> names;
+    // Same default as settings.json: a missing key must not select the retired
+    // ALSA backend, and Simple mode's groups live in a different file.
+    std::string backend = toLowerCopy(getSetting("MediaBackend", "pipewire-simple"));
+    // Named separately: FPP_DIR_CONFIG does not parenthesise its argument, so a
+    // ternary passed straight in binds to the concatenation instead.
+    const char* groupsFile = (backend == "pipewire-simple") ? "/pipewire-audio-groups-simple.json"
+                                                            : "/pipewire-audio-groups.json";
+    std::string path = FPP_DIR_CONFIG(groupsFile);
+    Json::Value root;
+    if (!LoadJsonFromFile(path, root) || !root.isMember("groups")) {
+        return names;
+    }
+    for (const auto& grp : root["groups"]) {
+        if (!grp.get("enabled", false).asBool() || !grp.isMember("members")) {
+            continue;
+        }
+        for (const auto& mbr : grp["members"]) {
+            std::string t = mbr.get("nodeTarget", "").asString();
+            if (t.empty() || startsWith(t, "fpp_") || startsWith(t, "aes67_")) {
+                continue; // already covered by the prefix match
+            }
+            // Interpolated into a shell command below.  WirePlumber node names
+            // are plain identifiers; anything that could escape the quoting is a
+            // reason to skip the node rather than to quote harder.
+            if (t.find_first_not_of("abcdefghijklmnopqrstuvwxyz"
+                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                    "0123456789_.-") != std::string::npos) {
+                LogWarn(VB_MEDIAOUT, "Skipping master volume for node with unexpected name: %s\n", t.c_str());
+                continue;
+            }
+            names.insert(t);
+        }
+    }
+    return names;
+}
+
 // Put the card's hardware playback path at unity, so PipeWire's software volume
 // is the only thing attenuating.
 //
@@ -296,8 +353,8 @@ int getVolume() {
 #endif
 
 void setVolume(int vol) {
-    // Large enough for the pactl sink-enumeration command below, which with its
-    // environment prefix runs past 256 and was silently truncated by snprintf.
+    // Only the amixer command below still uses this; the pactl commands are
+    // built as std::strings because their length depends on the user's config.
     char buffer[1024];
 
     if (vol < 0)
@@ -392,37 +449,53 @@ void setVolume(int vol) {
                                "PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse ";
 
         // Every FPP-owned output sink -- local cards and AES67 senders alike, so
-        // the master stays a master for a box whose output is a network stream.
-        // Falls back to the default sink if there are none (no
-        // 95-fpp-alsa-sink.conf adapters), which is the old behaviour and still
-        // better than attenuating nothing at all.
+        // the master stays a master for a box whose output is a network stream --
+        // plus the WirePlumber-managed nodes group members target directly (an
+        // HDMI output, say), which match no FPP prefix and were being skipped.
+        // Those are appended by name rather than folded into the grep: they may
+        // legitimately be absent from the graph right now (an unplugged card
+        // whose stored nodeTarget is still in the config), and pactl shrugging
+        // at a name it does not know is exactly what the volume-restore path
+        // already relies on.
+        // Falls back to the default sink only when that leaves nothing at all
+        // (no 95-fpp-alsa-sink.conf adapters and no member targets), which is
+        // the old behaviour and still better than attenuating nothing.
         // Deliberately no single quotes in here: the whole thing is embedded in
         // an sh -c '...' string, so an inner ' would close it early (awk
         // '{print $2}' silently truncated the command and left the volume
         // unset).  pactl's short listing is tab separated, so cut does the job.
-        const char* sinkList = "S=$(pactl list sinks short 2>/dev/null | cut -f2 | "
+        std::string extraSinks;
+        for (const std::string& n : nonFppOutputSinkNames()) {
+            extraSinks += " " + n;
+        }
+        std::string sinkList = "E=\"" + extraSinks + "\"; " +
+                               "S=$(pactl list sinks short 2>/dev/null | cut -f2 | "
                                "grep -e ^fpp_alsa_ -e ^aes67_); "
-                               "[ -z \"$S\" ] && S=@DEFAULT_SINK@; ";
+                               "[ -z \"$S\" ] && [ -z \"$E\" ] && S=@DEFAULT_SINK@; "
+                               "S=\"$S $E\"; ";
 
+        // Built as a string, not into the fixed buffer above: the member-target
+        // names make the length depend on the user's config, and this command
+        // silently losing its tail is precisely how the volume went unset before.
+        std::string cmd;
         if (shouldMute) {
             // Set volume to 0% and explicitly mute for true silence.
-            snprintf(buffer, sizeof(buffer),
-                 "%s sh -c '%sfor s in $S; do pactl set-sink-volume $s 0%%; pactl set-sink-mute $s 1; done' >/dev/null 2>&1",
-                 pwPrefix.c_str(), sinkList);
-            LogDebug(VB_MEDIAOUT, "Muting PipeWire card sinks: %s \n", buffer);
+            cmd = pwPrefix + " sh -c '" + sinkList +
+                  "for s in $S; do pactl set-sink-volume $s 0%; pactl set-sink-mute $s 1; done' >/dev/null 2>&1";
+            LogDebug(VB_MEDIAOUT, "Muting PipeWire output sinks: %s \n", cmd.c_str());
         } else if (lastPipeWireVolume == 0) {
             // Unmute and set volume together, undoing a prior 0%.
-            snprintf(buffer, sizeof(buffer),
-                 "%s sh -c '%sfor s in $S; do pactl set-sink-mute $s 0; pactl set-sink-volume $s %d%%; done' >/dev/null 2>&1",
-                 pwPrefix.c_str(), sinkList, volume);
-            LogDebug(VB_MEDIAOUT, "Unmuting and setting PipeWire card sink volume: %s \n", buffer);
+            cmd = pwPrefix + " sh -c '" + sinkList +
+                  "for s in $S; do pactl set-sink-mute $s 0; pactl set-sink-volume $s " +
+                  std::to_string(volume) + "%; done' >/dev/null 2>&1";
+            LogDebug(VB_MEDIAOUT, "Unmuting and setting PipeWire output sink volume: %s \n", cmd.c_str());
         } else {
-            snprintf(buffer, sizeof(buffer),
-                 "%s sh -c '%sfor s in $S; do pactl set-sink-volume $s %d%%; done' >/dev/null 2>&1",
-                 pwPrefix.c_str(), sinkList, volume);
-            LogDebug(VB_MEDIAOUT, "Setting PipeWire card sink volume: %s \n", buffer);
+            cmd = pwPrefix + " sh -c '" + sinkList +
+                  "for s in $S; do pactl set-sink-volume $s " + std::to_string(volume) +
+                  "%; done' >/dev/null 2>&1";
+            LogDebug(VB_MEDIAOUT, "Setting PipeWire output sink volume: %s \n", cmd.c_str());
         }
-        system(buffer);
+        system(cmd.c_str());
 
         lastPipeWireVolume = volume;
     }
