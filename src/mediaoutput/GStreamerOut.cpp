@@ -513,6 +513,123 @@ static int GetMaxPipeWireGroupDelayMs() {
     return maxDelay;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Sample rate the PipeWire graph clock is running at, or 0 if it can't be
+// determined.  Every stream that arrives at a different rate is resampled by
+// its client-side adapter for as long as it plays, so this is what the decode
+// chain wants to line up with.
+//
+// The live daemon is the authority (a card can refine the configured rate
+// upward, and force-rate can override it outright), so ask it; the generated
+// conf is only a fallback for when the query fails.  Cached for the life of
+// the process: the graph rate only changes when the PipeWire daemon restarts,
+// and fppd restarts with it.
+// ──────────────────────────────────────────────────────────────────────────────
+static int GetPipeWireGraphRate() {
+    static int cachedRate = -1;
+    if (cachedRate >= 0)
+        return cachedRate;
+
+    // pw-metadata prints lines of the form
+    //   update: id:0 key:'clock.rate' value:'44100' type:''
+    auto metadataValue = [](const std::string& out, const std::string& key) -> int {
+        std::string needle = "key:'" + key + "' value:'";
+        size_t p = out.find(needle);
+        if (p == std::string::npos)
+            return 0;
+        p += needle.size();
+        size_t e = out.find('\'', p);
+        if (e == std::string::npos)
+            return 0;
+        return atoi(out.substr(p, e - p).c_str());
+    };
+
+    std::string dump;
+    if (FILE* p = popen("/usr/bin/pw-metadata -n settings 2>/dev/null", "r")) {
+        char buf[1024];
+        size_t r;
+        while ((r = fread(buf, 1, sizeof(buf), p)) > 0)
+            dump.append(buf, r);
+        pclose(p);
+    }
+    // force-rate pins the graph outright; clock.rate is the default it would
+    // otherwise settle on.
+    int rate = metadataValue(dump, "clock.force-rate");
+    if (rate <= 0)
+        rate = metadataValue(dump, "clock.rate");
+
+    if (rate <= 0) {
+        // Daemon unreachable — fall back to what FPP told it to run at.  The
+        // per-card file is written from the rate the hardware actually clocks
+        // at and sorts after the defaults, so it wins where both exist.
+        static const char* confs[] = {
+            "/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf",
+            "/etc/pipewire/pipewire.conf.d/90-fpp.conf"
+        };
+        for (const char* conf : confs) {
+            std::string contents = GetFileContents(conf);
+            size_t p = contents.find("default.clock.rate");
+            if (p == std::string::npos)
+                continue;
+            p = contents.find('=', p);
+            if (p == std::string::npos)
+                continue;
+            rate = atoi(contents.c_str() + p + 1);
+            if (rate > 0)
+                break;
+        }
+    }
+
+    cachedRate = rate > 0 ? rate : 0;
+    LogDebug(VB_MEDIAOUT, "GStreamer: PipeWire graph clock rate: %d\n", cachedRate);
+    return cachedRate;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Rate to pin the decode chain to before the tee, or 0 to leave it
+// unconstrained and let the source's own rate flow through.
+//
+// A file whose rate differs from the graph's gets resampled by somebody; the
+// only question is who.  Measured on a single-core AM335x feeding a 44100 Hz
+// graph, 30 s of stereo audio, summing gstreamer + pipewire + wireplumber as a
+// percentage of the one core:
+//
+//   source    pinned 48000     unpinned    pinned to graph rate
+//   44.1 kHz     25.2%           18.0%           18.0%
+//   48 kHz       20.9%           20.6%           24.0%
+//   88.2 kHz       --            41.0%           34.5%
+//   96 kHz       42.8%           41.2%           37.0%
+//
+// PipeWire's resampler is roughly three times cheaper than audioresample here,
+// so leaving the rate alone wins whenever the two are close — including the
+// 48 kHz-into-44.1 kHz case, where GStreamer converting costs more than the
+// 9% extra samples it would save.  That flips once the source runs at twice
+// the graph rate or more: carrying that many extra samples through volume, the
+// tee, the sample tap and the sink outweighs the slower resampler, so drop the
+// rate early.
+//
+// The old unconditional 48000 was the worst of both worlds on a 44.1 kHz
+// graph, which is what an I2S cape or a 44.1 kHz USB card gives you:
+// audioresample converted 44100 up to 48000 and PipeWire converted it straight
+// back down.
+// ──────────────────────────────────────────────────────────────────────────────
+static int ChooseDecodeRate(int mediaRate, bool usePipeWire) {
+    // Only PipeWire has a fixed graph rate to line up with.  With alsasink the
+    // sink negotiates against the device directly and audioresample fills in
+    // whatever conversion that needs.
+    if (!usePipeWire || mediaRate <= 0)
+        return 0;
+    // No graph FPP configures runs below 44100, so nothing at or under 48000
+    // can reach the 2x threshold — skip the query entirely for the rates
+    // essentially all show media uses.
+    if (mediaRate <= 48000)
+        return 0;
+    int graphRate = GetPipeWireGraphRate();
+    if (graphRate > 0 && mediaRate >= 2 * graphRate)
+        return graphRate;
+    return 0;
+}
+
 // ---------------------------------------------------------------------------
 // gst-pipewire channel-order quirk detection (FalconChristmas/fpp#2620)
 //
@@ -748,10 +865,12 @@ int GStreamerOutput::Start(int msTime) {
     // has queried the duration, causing m_duration to track elapsed time
     // and seconds_remaining to always report 0.
     int mediaChannels = 0; // used by the pipewire channel-order workaround below
+    int mediaRate = 0;     // used by the decode-rate choice below
     {
         MediaDetails details;
         details.ParseMedia(fullPath.c_str());
         mediaChannels = details.channels;
+        mediaRate = details.sampleRate;
         if (details.lengthMS > 0) {
             int totalSecs = details.lengthMS / 1000;
             m_mediaOutputStatus->minutesTotal = totalSecs / 60;
@@ -889,6 +1008,16 @@ int GStreamerOutput::Start(int msTime) {
 
     bool usePipeWire = usePipeWireBackendLocal;
 
+    // Rate to hand the sink, or 0 to pass the file's own rate straight through
+    // (see ChooseDecodeRate).  Shared by all three pipeline shapes below.
+    int decodeRate = ChooseDecodeRate(mediaRate, usePipeWire);
+    if (decodeRate) {
+        LogDebug(VB_MEDIAOUT, "GStreamer: media rate %d Hz, resampling to the %d Hz graph rate\n",
+                 mediaRate, decodeRate);
+    } else {
+        LogDebug(VB_MEDIAOUT, "GStreamer: media rate %d Hz passed through unconstrained\n", mediaRate);
+    }
+
     std::string pipelineSinkName;
     if (usePipeWire) {
         pipelineSinkName = getSetting("PipeWireSinkName");
@@ -1017,10 +1146,10 @@ int GStreamerOutput::Start(int msTime) {
         g_object_set(m_appsink, "emit-signals", TRUE, "sync", FALSE,
                      "max-buffers", 3, "drop", TRUE, NULL);
 
-        // Force 48kHz output so PipeWire doesn't need to resample
         GstElement* rateCapsfilter = gst_element_factory_make("capsfilter", "ratecaps");
-        GstCaps* rateCaps = gst_caps_new_simple("audio/x-raw",
-            "rate", G_TYPE_INT, 48000, NULL);
+        GstCaps* rateCaps = decodeRate
+                                ? gst_caps_new_simple("audio/x-raw", "rate", G_TYPE_INT, decodeRate, NULL)
+                                : gst_caps_new_empty_simple("audio/x-raw");
         g_object_set(rateCapsfilter, "caps", rateCaps, NULL);
         gst_caps_unref(rateCaps);
 
@@ -1187,10 +1316,10 @@ int GStreamerOutput::Start(int msTime) {
         g_object_set(m_appsink, "emit-signals", TRUE, "sync", FALSE,
                      "max-buffers", 3, "drop", TRUE, NULL);
 
-        // Force 48kHz output so PipeWire doesn't need to resample
         GstElement* rateCapsfilter = gst_element_factory_make("capsfilter", "ratecaps");
-        GstCaps* rateCaps = gst_caps_new_simple("audio/x-raw",
-            "rate", G_TYPE_INT, 48000, NULL);
+        GstCaps* rateCaps = decodeRate
+                                ? gst_caps_new_simple("audio/x-raw", "rate", G_TYPE_INT, decodeRate, NULL)
+                                : gst_caps_new_empty_simple("audio/x-raw");
         g_object_set(rateCapsfilter, "caps", rateCaps, NULL);
         gst_caps_unref(rateCaps);
 
@@ -1535,9 +1664,10 @@ int GStreamerOutput::Start(int msTime) {
             LogWarn(VB_MEDIAOUT, "GStreamer: applying %dch channel-order workaround for quirky gst-pipewire plugin\n",
                     mediaChannels);
         }
+        std::string rateCaps = decodeRate ? ",rate=" + std::to_string(decodeRate) : "";
         std::string pipelineStr =
             "filesrc location=\"" + fullPath + "\" ! decodebin expose-all-streams=false caps=\"audio/x-raw\" ! audioconvert ! audioresample ! "
-            "audio/x-raw,rate=48000" + chOrderCaps + " ! " + chOrderPermute +
+            "audio/x-raw" + rateCaps + chOrderCaps + " ! " + chOrderPermute +
             "tee name=t "
             "t. ! queue ! volume name=vol ! " + sinkStr + " "
             "t. ! queue max-size-buffers=3 leaky=downstream ! "
