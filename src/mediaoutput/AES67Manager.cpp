@@ -608,13 +608,35 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     //
     // Pipeline:
     //   pipewiresrc stream-properties="props,node.name=<node>"
-    //   ! audioconvert ! audio/x-raw,format=S24BE,rate=48000,channels=N
+    //   ! audioconvert ! audioresample ! audioconvert
+    //   ! audio/x-raw,format=S24BE,rate=48000,channels=N
     //   ! rtpL24pay pt=96 min-ptime=<ns> max-ptime=<ns>
     //   ! application/x-rtp,clock-rate=48000
     //   ! udpsink host=<multicast> port=<port> multicast-iface=<iface> ttl-mc=4 auto-multicast=true sync=true
+    //
+    // The resampler is not optional.  AES67 mandates 48 kHz on the wire, and the
+    // PipeWire graph no longer runs there: since the graph clock started
+    // following the output card it sits at whatever that card is configured for,
+    // 44100 by default.  pipewiresrc cannot satisfy a caps filter that asks for
+    // a different rate AND a format PipeWire does not carry natively (S24BE, the
+    // big-endian packing L24 needs) -- it does not fail, it simply never
+    // negotiates, so set_state() blocks and eventually returns FAILURE, which is
+    // the "AES67: audio send stream failed to start" warning.
+    //
+    // Measured against the live 44100 graph:
+    //   audioconvert ! S24BE@48000                            hangs
+    //   audioconvert ! S24BE@44100                             works (no rate change)
+    //   audioresample ! audioconvert ! S24BE@48000            hangs
+    //   audioconvert ! audioresample ! audioconvert ! S24BE@48000   works
+    //
+    // So the conversion has to be split: reach a format the resampler is happy
+    // to work in, resample, and only then pack to S24BE.  This costs nothing
+    // when the graph already runs at 48000, where the resampler passes through.
 
     std::ostringstream oss;
     oss << "pipewiresrc name=pwsrc min-buffers=2 "
+        << "! audioconvert "
+        << "! audioresample "
         << "! audioconvert "
         << "! audio/x-raw,format=S24BE,rate=" << AES67::AUDIO_RATE
         << ",channels=" << inst.channels << " "
