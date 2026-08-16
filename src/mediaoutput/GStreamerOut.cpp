@@ -2283,28 +2283,6 @@ int GStreamerOutput::Stop(void) {
 // mediaOffset, which stays a user knob applied on top in setMediaElapsed().
 // ---------------------------------------------------------------------------
 
-// Card the running graph actually feeds, taken from the adapter FPP generated
-// rather than from the AudioOutput setting -- the setting can have moved on
-// since the graph was built.
-static std::string AlsaSinkCardId() {
-    std::string conf = GetFileContents("/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf");
-    std::size_t k = conf.find("api.alsa.path");
-    if (k == std::string::npos) {
-        return "";
-    }
-    std::size_t a = conf.find('"', k);
-    if (a == std::string::npos) {
-        return "";
-    }
-    std::size_t b = conf.find('"', a + 1);
-    if (b == std::string::npos) {
-        return "";
-    }
-    std::string path = conf.substr(a + 1, b - a - 1); // e.g. hw:CardId
-    std::size_t colon = path.find(':');
-    return colon == std::string::npos ? "" : path.substr(colon + 1);
-}
-
 static int AlsaCardNumber(const std::string& cardId) {
     if (cardId.empty()) {
         return -1;
@@ -2327,6 +2305,70 @@ static int AlsaCardNumber(const std::string& cardId) {
         }
     }
     return -1;
+}
+
+// Card the running graph actually feeds.
+//
+// Taken from the adapters FPP generated rather than trusting AudioOutput
+// outright -- the setting can name a card that has since been unplugged, and
+// the queue depth is only readable for a card the graph really holds.  But the
+// conf declares an adapter for EVERY playback-capable card, emitted in
+// card-number order, so simply reading its first api.alsa.path yields card 0
+// whether or not that is the output.  On a box with three USB cards and
+// AudioOutput=ICUSBAUDIO7D (card 2) that read card 0, found its PCM 'closed'
+// (idle cards suspend), and so applied no correction at all -- the sequence
+// stayed ahead of the sound, which is the whole defect this is here to remove.
+//
+// So: match the adapters against the configured output card, and fall back to
+// the first adapter only when the setting resolves to no adapter at all.
+static int AlsaSinkCardNumber() {
+    std::string conf = GetFileContents("/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf");
+    // AudioOutput is a stable ALSA card ID on current installs, a bare card
+    // number on older ones; resolveAudioOutputCardNum() accepts both, so match
+    // its handling here rather than assuming either spelling.
+    std::string wanted = getSetting("AudioOutput");
+    TrimWhiteSpace(wanted);
+    int wantedCard = -1;
+    if (!wanted.empty()) {
+        wantedCard = (wanted.find_first_not_of("0123456789") == std::string::npos)
+                         ? std::atoi(wanted.c_str())
+                         : AlsaCardNumber(wanted);
+    }
+
+    int firstCard = -1;
+    // Sink adapters only -- the capture adapters FPP also declares are named
+    // fpp_alsain_, which this needle does not match.
+    const std::string nameKey = "node.name = \"fpp_alsa_";
+    for (std::size_t n = conf.find(nameKey); n != std::string::npos; n = conf.find(nameKey, n + 1)) {
+        std::size_t k = conf.find("api.alsa.path", n);
+        if (k == std::string::npos) {
+            break;
+        }
+        std::size_t a = conf.find('"', k);
+        if (a == std::string::npos) {
+            break;
+        }
+        std::size_t b = conf.find('"', a + 1);
+        if (b == std::string::npos) {
+            break;
+        }
+        std::string path = conf.substr(a + 1, b - a - 1); // "hw:CardId"
+        std::size_t colon = path.find(':');
+        if (colon == std::string::npos) {
+            continue;
+        }
+        int card = AlsaCardNumber(path.substr(colon + 1));
+        if (card < 0) {
+            continue;
+        }
+        if (card == wantedCard) {
+            return card;
+        }
+        if (firstCard < 0) {
+            firstCard = card;
+        }
+    }
+    return firstCard;
 }
 
 // First playback substream of the card; the device index is not always 0.
@@ -2374,7 +2416,7 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
     m_sinkLatencyCheckedMs = now;
 
     if (m_alsaStatusPath.empty()) {
-        int card = AlsaCardNumber(AlsaSinkCardId());
+        int card = AlsaSinkCardNumber();
         if (card < 0) {
             m_sinkLatencyNs = 0;
             return 0;
