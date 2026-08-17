@@ -113,6 +113,16 @@ if ($oldheader != "FPP02") {
     return 0;
 }
 
+// Capture the pre-upgrade EEPROM in memory now, before anything below modifies
+// it in place. The signature-preservation step used to re-read this from the
+// on-disk backup file instead, which made it silently no-op whenever that
+// copy() failed (e.g. a permissions hiccup writing to media/upload) -- a
+// previously-licensed cape would come out of the upgrade looking unlicensed
+// with nothing in the output to explain why.
+$origData = file_get_contents($eepromFile);
+$origInfo = find_eeprom_offsets($origData);
+$hadSignature = $origInfo['sig_offset'] !== null;
+
 $newdata = fopen($newFirmwareFile, 'rb');
 
 $oldcape = trim(fread($olddata, 26)); // cape name + nulls
@@ -206,37 +216,43 @@ fclose($olddata);
 
 // Issue #1314: If the previous EEPROM was signed and the new EEPROM image does
 // not contain its own signature, inherit the signature section from the
-// previous EEPROM so that the user does not need to re-sign their cape after
-// every EEPROM upgrade.  The signature only covers the bytes within the signed
-// section itself, so splicing those bytes verbatim into the new EEPROM keeps
-// the signature cryptographically valid.
-if (file_exists($backupFile)) {
-    $origData = file_get_contents($backupFile);
-    if ($origData !== false && strlen($origData) >= 64 && substr($origData, 0, 5) === 'FPP02') {
-        $origInfo = find_eeprom_offsets($origData);
-        if ($origInfo['sig_offset'] !== null) {
-            $upgradedData = file_get_contents($eepromFile);
-            if ($upgradedData !== false) {
-                $upgInfo = find_eeprom_offsets($upgradedData);
-                if ($upgInfo['sig_offset'] === null && $upgInfo['end_offset'] >= 6) {
-                    // Splice in the previous signature section in place of the
-                    // upgraded EEPROM's terminator (which sits at end_offset - 6).
-                    $insertPos = $upgInfo['end_offset'] - 6;
-                    $signedTail = substr(
-                        $origData,
-                        $origInfo['sig_offset'],
-                        $origInfo['end_offset'] - $origInfo['sig_offset']
-                    );
-                    $sfh = fopen($eepromFile, 'r+b');
-                    if ($sfh) {
-                        set_file_buffer($sfh, 32768);
-                        fseek($sfh, $insertPos, SEEK_SET);
-                        fwrite($sfh, $signedTail);
-                        fflush($sfh);
-                        fclose($sfh);
-                        echo "Preserved signature section from previous EEPROM.\n";
-                    }
-                }
+// previous EEPROM (captured in memory above as $origData/$origInfo, not
+// re-read from the backup file) so that the user does not need to re-sign
+// their cape after every EEPROM upgrade.  The signature only covers the bytes
+// within the signed section itself, so splicing those bytes verbatim into the
+// new EEPROM keeps the signature cryptographically valid.
+if ($hadSignature) {
+    $upgradedData = file_get_contents($eepromFile);
+    if ($upgradedData === false) {
+        echo "\n*** WARNING: could not re-read the upgraded EEPROM to check for a signature.\n";
+        echo "*** The previous license/signature was NOT carried across.  Restore $backupFile and re-sign the cape. ***\n\n";
+    } else {
+        $upgInfo = find_eeprom_offsets($upgradedData);
+        if ($upgInfo['sig_offset'] !== null) {
+            // The new firmware already brings its own signature; nothing to preserve.
+        } else if ($upgInfo['end_offset'] < 6) {
+            echo "\n*** WARNING: upgraded EEPROM data too short to carry the previous signature across.\n";
+            echo "*** Restore $backupFile and re-sign the cape. ***\n\n";
+        } else {
+            // Splice in the previous signature section in place of the
+            // upgraded EEPROM's terminator (which sits at end_offset - 6).
+            $insertPos = $upgInfo['end_offset'] - 6;
+            $signedTail = substr(
+                $origData,
+                $origInfo['sig_offset'],
+                $origInfo['end_offset'] - $origInfo['sig_offset']
+            );
+            $sfh = fopen($eepromFile, 'r+b');
+            if ($sfh) {
+                set_file_buffer($sfh, 32768);
+                fseek($sfh, $insertPos, SEEK_SET);
+                fwrite($sfh, $signedTail);
+                fflush($sfh);
+                fclose($sfh);
+                echo "Preserved signature section from previous EEPROM.\n";
+            } else {
+                echo "\n*** WARNING: could not open $eepromFile to carry the previous signature across.\n";
+                echo "*** Restore $backupFile and re-sign the cape. ***\n\n";
             }
         }
     }
