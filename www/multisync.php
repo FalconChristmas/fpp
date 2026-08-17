@@ -1440,7 +1440,7 @@
                                     "</table>";
                             }
 
-                            if (data.advancedView.HostDescription !== "") {
+                            if (data.advancedView.HostDescription) {
                                 if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                                     item.hostname = item.hostname.replace(
                                         "class='hostDescriptionSM'></small>",
@@ -2080,6 +2080,7 @@
 
         var ESPSockets = {};
         function espUpdateDescription(item, desc) {
+            if (desc == null || desc === "") return;
             if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                 item.hostname = item.hostname.replace(
                     "class='hostDescriptionSM'></small>",
@@ -2462,10 +2463,11 @@
                     if (!item) return;
                     item.utilization = u;
                     item.status = data.status_name;
-                    if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
+                    var friendlyName = (data.system && data.system.friendly_name) ? data.system.friendly_name : "";
+                    if (friendlyName != "" && item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                         item.hostname = item.hostname.replace(
                             "class='hostDescriptionSM'></small>",
-                            "class='hostDescriptionSM'>" + data.system.friendly_name + "</small>"
+                            "class='hostDescriptionSM'>" + friendlyName + "</small>"
                         );
                     }
                 });
@@ -2514,10 +2516,11 @@
                     if (!item) return;
 
                     item.utilization = u;
-                    if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
+                    var boardDesc = data.board_model || data.hostname || "";
+                    if (boardDesc != "" && item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                         item.hostname = item.hostname.replace(
                             "class='hostDescriptionSM'></small>",
-                            "class='hostDescriptionSM'>" + (data.board_model || data.hostname) + "</small>"
+                            "class='hostDescriptionSM'>" + boardDesc + "</small>"
                         );
                     }
 
