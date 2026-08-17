@@ -50,10 +50,13 @@ if (isset($settings["cape-info"])) {
     }
 
     $channelOutputDriver = '';
-    $file = '/home/fpp/media/config/co-bbbStrings.json';
-    if (!file_exists($file)) {
-        $file = '/home/fpp/media/config/co-pixelStrings.json';
-    }
+    // Pick the strings config the running platform actually uses, the same way
+    // CapeUtils does.  Taking whichever file happens to exist reports the driver
+    // from a stale config left behind by another controller -- a Pi with an old
+    // co-bbbStrings.json would claim to be running BBB48String.
+    $file = $settings['BeaglePlatform']
+        ? '/home/fpp/media/config/co-bbbStrings.json'
+        : '/home/fpp/media/config/co-pixelStrings.json';
     if (file_exists($file)) {
         $json = file_get_contents($file);
         $data = json_decode($json, true);
