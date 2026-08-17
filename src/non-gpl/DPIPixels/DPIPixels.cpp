@@ -667,8 +667,37 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     // Match the DPI output rate to the running sequence, capped by what the
     // longest string physically allows.  A change only happens when a sequence
     // with a different frame rate starts, so the (brief) modeset is rare.
+    //
+    // With no sequence running, the rate this follows is whatever the last
+    // sequence left behind -- nothing in core lowers or restores it -- or the
+    // 20fps default at boot.  That pinned live control (pixel overlays, effects,
+    // a lighting desk driving overlays) to a 50ms vblank, so a colour change
+    // waited up to a full frame to reach the string on top of the output
+    // thread's own period.  Running fast while idle costs nothing: SetRefreshRate
+    // only shortens vertical blanking, so the pixel clock and the WS bit timing
+    // are untouched and the string is simply rescanned more often.
+    //
+    // Only raise after a settle window, though.  A rate change is a full
+    // drmModeSetCrtc that drains the pending flip and restarts the vblank
+    // stream, so bouncing on the brief gaps between playlist items would glitch
+    // the output every time.  Dropping back to a sequence's rate stays immediate
+    // -- that direction has to track the data.
     if (m_initialized && m_configuredMaxFps > 0) {
+        constexpr long long IDLE_SETTLE_US = 3000000;
+
         int target = (int)std::lround(GetChannelOutputRefreshRate());
+        bool idle = !sequence->IsSequenceRunning();
+        if (!idle) {
+            m_idleSinceUS = 0;
+        } else {
+            long long now = GetTime();
+            if (m_idleSinceUS == 0) {
+                m_idleSinceUS = now;
+            }
+            if ((now - m_idleSinceUS) >= IDLE_SETTLE_US) {
+                target = m_configuredMaxFps;
+            }
+        }
         if (target < 1) {
             target = 1;
         }
@@ -676,8 +705,9 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
             target = m_configuredMaxFps;
         }
         if (target != m_currentFps && fb->SetRefreshRate(target)) {
-            LogInfo(VB_CHANNELOUT, "DPIPixels: DPI refresh -> %d fps (sequence rate %.1f, max %d)\n",
-                    target, GetChannelOutputRefreshRate(), m_configuredMaxFps);
+            LogInfo(VB_CHANNELOUT, "DPIPixels: DPI refresh -> %d fps (%s, sequence rate %.1f, max %d)\n",
+                    target, idle ? "idle" : "playing",
+                    GetChannelOutputRefreshRate(), m_configuredMaxFps);
             m_currentFps = target;
         }
     }
