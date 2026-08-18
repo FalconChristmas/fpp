@@ -219,18 +219,53 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
 
 
 # General Proxy Settings
+#
+# /proxy/<ip>/... is a byte-for-byte passthrough to the controller's own web
+# server, with exactly one exception (the <If> below).
+#
+# This block used to carry an unconditional "SetOutputFilter INFLATE;DEFLATE"
+# plus a set of ProxyHTML* directives. The ProxyHTML* ones never did anything -
+# they only configure mod_proxy_html's filter, and that filter is never inserted
+# because nothing here (or in Debian's proxy_html.conf) sets "ProxyHTMLEnable
+# On". The INFLATE;DEFLATE chain exists to hand mod_proxy_html decompressed HTML
+# to rewrite links in, so with that filter absent it was gunzipping and
+# re-gzipping every proxied byte - js, css, fonts, images - to feed a consumer
+# that was not in the chain.
+#
+# Re-compressing is not free of side effects. Apache cannot know the compressed
+# length up front, so it drops the controller's Content-Length and switches the
+# response to Transfer-Encoding: chunked. Genius 2.x serves its assets with a
+# plain Content-Length plus Content-Encoding: gzip, so the chunking the browser
+# complained about in FalconChristmas/fpp#2836 was ours, added on the way out -
+# and when such a response ended early the browser got "HTTP 200 +
+# net::ERR_INCOMPLETE_CHUNKED_ENCODING" with a truncated body rather than the
+# plain length mismatch it actually was.
+#
+# The one thing the filter did earn its keep for: controllers such as
+# ESPixelStick store their web assets pre-gzipped and have no CPU headroom to
+# expand them, so they answer with Content-Encoding: gzip even when the client
+# never asked. A client that cannot handle gzip (curl and wget send no
+# Accept-Encoding by default) would otherwise get a body it cannot read. So keep
+# INFLATE - but only for those clients. Browsers all send Accept-Encoding: gzip
+# and therefore now get the controller's bytes through untouched.
+#
+# Note this is an *output* filter either way, so it has never had any bearing on
+# what we ask the controller FOR: mod_proxy forwards the client's Accept-Encoding
+# upstream verbatim whether or not this filter is configured.
+#
+# If HTML link rewriting is ever actually wanted here, it needs
+# "ProxyHTMLEnable On" AND the INFLATE;DEFLATE chain back, scoped to text/html
+# only (AddOutputFilterByType) so assets stay untouched.
 <Directory "/opt/fpp/www/proxy">
     Options Indexes FollowSymLinks
     AllowOverride None
     Require all granted
 
-    SetOutputFilter INFLATE;DEFLATE
-    ProxyHTMLBufSize 32768
-    ProxyHTMLStripComments Off
-    ProxyHTMLMeta On
-    ProxyHTMLDocType HTML
-    ProxyHTMLExtended On
-    ProxyHTMLCharsetOut UTF-8
+    # Expand gzip only for clients that cannot decode it themselves; everything
+    # else is passed through exactly as the controller sent it.
+    <If "%{HTTP:Accept-Encoding} !~ /gzip/">
+        SetOutputFilter INFLATE
+    </If>
 
     RewriteEngine On
 
