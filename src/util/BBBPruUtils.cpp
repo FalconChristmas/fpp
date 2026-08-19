@@ -446,11 +446,26 @@ void BBBPru::memcpyToPRU(uint8_t* dst, uint8_t* src, size_t sz) {
 // The optimized memset and memcpy on Arm64 will segfault
 // when doing certain sized operations to un-cacheable
 // ram segments.  Need to use ldnp/stnp instructions
+//
+// The block loop moves whole 64 byte units and needs 16 byte aligned operands
+// (the PRU memories map uncached, where an unaligned vector access faults), so
+// the head/tail and anything that does not qualify go through the byte loop
+// instead - slower, but correct for every size and alignment.  Exactly sztotal
+// bytes are written and no more.
 void memcpy_ldnp(volatile unsigned char* dst, volatile unsigned char* src, int sztotal) {
-    int sz = sztotal - sztotal & 64;
-
+    // NB: "sztotal - sztotal & 64" parses as "(sztotal - sztotal) & 64", i.e.
+    // always zero, which left the block loop below writing one fixed 64 byte
+    // store - past the end for anything shorter - and everything else crawling
+    // through the byte loop.  Mask off the low bits instead.
+    int sz = 0;
+    if (sztotal >= 64 && ((((uintptr_t)dst | (uintptr_t)src) & 15) == 0)) {
+        sz = sztotal & ~63;
+    }
     for (int x = sz; x < sztotal; x++) {
         dst[x] = src[x];
+    }
+    if (sz == 0) {
+        return;
     }
     asm volatile(
         "NEONCopyPLD: \n"

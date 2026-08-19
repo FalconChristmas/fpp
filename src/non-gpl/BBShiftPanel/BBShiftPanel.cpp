@@ -440,7 +440,7 @@ void BBShiftPanelManager::sendPanelInitPackets() {
         return;
     }
     // the PRU data RAM cannot take a plain memcpy (uncacheable segment,
-    // SIGBUS on aarch64) - memcpyToPRU handles it, in 64 byte chunks
+    // SIGBUS on aarch64) - memcpyToPRU handles it
     uint32_t buf[16] = { 0 };
     buf[0] = (uint32_t)regs.size() | (((uint32_t)rowLen) << 16);
     for (size_t i = 0; i < regs.size(); i++) {
@@ -2064,10 +2064,11 @@ void BBShiftPanelManager::writeFM6373SeqWord(int idx) {
     uint8_t buf[192 * 2];
     int len = outputRegData(0, buf, rw, gw, bw, m_numOutputSlots);
     if (slotSize & 63) {
-        // memcpyToPRU copies in 64 byte chunks, so the write spills into the
-        // slot after the rotating one and has to rewrite it with its own
-        // (constant) value: the commit word for a five slot chip, the extra
-        // pre-commit word for a six slot one.
+        // A slot that is not a whole number of 64 byte units shares a unit
+        // with the one after it, so extend the write to cover that slot with
+        // its own (constant) value rather than leave a partial unit: the
+        // commit word for a five slot chip, the extra pre-commit word for a
+        // six slot one.
         uint16_t next = seq->slots == 6 ? seq->extraWord : 0x0055;
         len = outputRegData(len, buf, next, next, next, m_numOutputSlots);
     }
@@ -2096,9 +2097,10 @@ void BBShiftPanelManager::writeDP3364SeqWord(int idx) {
     uint8_t buf[192 * 2];
     int len = outputRegData(0, buf, rw, gw, bw, m_numOutputSlots);
     if (slotSize & 63) {
-        // memcpyToPRU copies in 64 byte chunks; pad with a second copy of the
-        // word so the write length is a multiple of 64.  Nothing reads the
-        // padding - DP3364S only sends one word per frame.
+        // A slot that is not a whole number of 64 byte units shares a unit
+        // with the one after it, so pad with a second copy of the word to keep
+        // the write on a unit boundary.  Nothing reads the padding - DP3364S
+        // only sends one word per frame.
         len = outputRegData(len, buf, rw, gw, bw, m_numOutputSlots);
     }
     pru->memcpyToPRU((uint8_t*)&pruData->registers[0], buf, len);
