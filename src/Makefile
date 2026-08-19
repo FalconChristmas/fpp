@@ -97,6 +97,18 @@ fppversion_defines.h: fppversion.c
 
 # non-clang == g++ (incl. target-triplet g++ names); see note in setup.mk
 ifeq '$(findstring clang,$(CXXCOMPILER))' ''
+# Target-specific variables are inherited by a target's prerequisites, and
+# $(PCH_FILE) is a prerequisite of every %.o -- including the fppinit objects,
+# which do "CFLAGS := $(filter-out -fpch-preprocess -g1,$(CFLAGS))".  fppinit is
+# prepended to TARGETS, so it is built first and its objects are always what
+# pulls the shared .gch in, which means the .gch ends up built with flags that
+# no translation unit ever uses.  gcc then silently discards it for every TU
+# ("created with 'none' debug info, but used with 'dwarf-2'", or a _REENTRANT
+# mismatch where -pthread is also dropped -- visible only under -Winvalid-pch),
+# so the whole tree compiles as though there were no PCH while still paying to
+# build one.  Pin the .gch's own flags so no dependent's target-specific CFLAGS
+# can reach it.
+fpp-pch.h.gch: CFLAGS := $(CFLAGS)
 fpp-pch.h.gch: fpp-pch.h common.h settings.h Sequence.h fppversion.h log.h mqtt.h Warnings.h commands/Commands.h
 	CCACHE_NOHARDLINK=true CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 	shasum $(PCH_FILE) > $(PCH_FILE).sum
