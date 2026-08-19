@@ -35,7 +35,11 @@ ifeq '$(ISLINUX)' '1'
 # do something Linux-y
 
 ifeq ($(wildcard /usr/include/Magick++.h),)
-CFLAGS += $(shell GraphicsMagick++-config --cppflags)
+# := so the helper runs once at parse time rather than on every expansion of the
+# recursively-expanded CFLAGS, i.e. once per compile recipe. See the pkg-config
+# note in makefiles/fpp_so.mk.
+GMAGICK_CFLAGS := $(shell GraphicsMagick++-config --cppflags)
+CFLAGS += $(GMAGICK_CFLAGS)
 endif
 
 ifneq ($(wildcard /etc/fpp/container),)

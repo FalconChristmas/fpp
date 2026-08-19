@@ -160,16 +160,25 @@ LIBS_fpp_so += \
     $(LIBS_GPIO_ADDITIONS)
 
 # GStreamer support
+#
+# Resolve pkg-config with := so it runs once while the makefiles are read.
+# CFLAGS is a recursively-expanded variable, so a bare "CFLAGS += $(shell ...)"
+# appends the shell call itself rather than its result, and make then re-runs
+# pkg-config every time CFLAGS is expanded -- which is once per compile recipe,
+# several hundred forks per build on boards that can least afford them.
 ifneq ($(wildcard /usr/include/gstreamer-1.0/gst/gst.h),)
-CFLAGS += $(shell pkg-config --cflags gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0)
-LIBS_fpp_so += $(shell pkg-config --libs gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0)
+GSTREAMER_CFLAGS := $(shell pkg-config --cflags gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0)
+GSTREAMER_LIBS := $(shell pkg-config --libs gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0)
+CFLAGS += $(GSTREAMER_CFLAGS)
+LIBS_fpp_so += $(GSTREAMER_LIBS)
 endif
 
 # DRM/KMS. fpp.cpp and framebuffer/KMSFrameBuffer.h enable the KMS code on
 # __has_include(<xf86drm.h>), so the flags have to key off that same header --
 # xf86drm.h itself pulls in <drm.h>, which only resolves with libdrm's -I.
 ifneq ($(wildcard /usr/include/xf86drm.h),)
-CFLAGS += $(shell pkg-config --cflags libdrm)
+LIBDRM_CFLAGS := $(shell pkg-config --cflags libdrm)
+CFLAGS += $(LIBDRM_CFLAGS)
 LIBS_fpp_so += -ldrm
 endif
 
