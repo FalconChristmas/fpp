@@ -610,7 +610,31 @@ profile_bb64_fixup() {
 	EOF
 }
 
-profile_bb64_preflight() { :; }
+# The PocketBeagle2 Industrial is the only board this profile ever flashes: mmcblk0
+# is the eMMC, and only the industrial has it populated.  Some of those boards leave
+# the factory with a blank or half-written identity EEPROM, which makes u-boot bring
+# them up as the 512MB base board -- so the EEPROM gets checked, and repaired if it
+# can be, before anything is written to the eMMC.
+#
+# A board with no EEPROM at all cannot be repaired, and check_pb2_eeprom.sh exits
+# non-zero for it.  Dying here is what the factory flow needs: preflight runs under
+# the same EXIT trap as every other phase, so the abort ends with all the user LEDs
+# blinking rather than with a board that looks finished.
+profile_bb64_preflight() {
+    local check="${BINDIR}/../capes/drivers/bb64/check_pb2_eeprom.sh"
+
+    if [ ! -f "${check}" ]; then
+        info "  ${check} not found; skipping the EEPROM check"
+        return 0
+    fi
+
+    /bin/bash "${check}" || die \
+"the on-board EEPROM is not usable.  See the message above.
+
+ Flashing would produce a board that misreports its variant, and on the
+ industrial that means booting with half its RAM."
+    info "  on-board EEPROM  OK"
+}
 
 profile_bb64_finish() { :; }
 
