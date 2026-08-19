@@ -728,6 +728,19 @@ public:
     std::vector<std::pair<uint32_t, uint32_t>> m_ranges;
 };
 
+// A frame whose channel buffer could not be allocated is handed back untouched:
+// readFrame() already reports false for a null buffer, whereas the read/memcpy
+// paths below would write through it.  malloc() failing here is not hypothetical --
+// a channel range that starts past the end of the sequence turns m_dataBlockSize
+// into a multi-gigabyte request, which no controller can satisfy.
+static bool frameBufferAllocated(const UncompressedFrameData* data, uint32_t frame, uint32_t sz) {
+    if (data->m_data != nullptr) {
+        return true;
+    }
+    LogErr(VB_SEQUENCE, "Failed to allocate %u bytes of channel data for frame %d\n", sz, (int)frame);
+    return false;
+}
+
 void V1FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>>& ranges, uint32_t startFrame) {
     m_rangesToRead.clear();
     m_dataBlockSize = 0;
@@ -767,6 +780,9 @@ FrameData* V1FSEQFile::getFrame(uint32_t frame) {
     offset += m_seqChanDataOffset;
 
     UncompressedFrameData* data = new UncompressedFrameData(frame, m_dataBlockSize, m_rangesToRead);
+    if (!frameBufferAllocated(data, frame, m_dataBlockSize)) {
+        return data;
+    }
     if (seek(offset, SEEK_SET)) {
         LogErr(VB_SEQUENCE, "Failed to seek to proper offset for channel data for frame %d! %" PRIu64 "\n", frame, offset);
         return data;
@@ -885,6 +901,9 @@ public:
     }
     virtual FrameData* getFrame(uint32_t frame) override {
         UncompressedFrameData* data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
+        if (!frameBufferAllocated(data, frame, m_file->m_dataBlockSize)) {
+            return data;
+        }
         uint64_t offset = m_file->getChannelCount();
         offset *= frame;
         offset += m_seqChanDataOffset;
@@ -1509,6 +1528,9 @@ public:
         }
         BulkSlot* b = bulkGetBlock(block);
         UncompressedFrameData* data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
+        if (!frameBufferAllocated(data, frame, m_file->m_dataBlockSize)) {
+            return data;
+        }
         if (b == nullptr) {
             LogErr(VB_SEQUENCE, "Failed to get block %d for frame %d\n", (int)block, (int)frame);
             return data;
@@ -1579,6 +1601,9 @@ public:
             m_curFrameInBlock = 0;
         }
         UncompressedFrameData* data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
+        if (!frameBufferAllocated(data, frame, m_file->m_dataBlockSize)) {
+            return data;
+        }
 
         uint32_t blockStart = m_file->m_frameOffsets[m_curBlock].first;
         uint64_t frameEnd = frame < blockStart ? 0 : ((uint64_t)(frame - blockStart) + 1) * m_file->getChannelCount();
@@ -1807,6 +1832,9 @@ public:
             m_stream = nullptr;
         }
         UncompressedFrameData* data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
+        if (!frameBufferAllocated(data, frame, m_file->m_dataBlockSize)) {
+            return data;
+        }
 
         uint32_t blockStart = m_file->m_frameOffsets[m_curBlock].first;
         uint64_t frameEnd = frame < blockStart ? 0 : ((uint64_t)(frame - blockStart) + 1) * m_file->getChannelCount();
