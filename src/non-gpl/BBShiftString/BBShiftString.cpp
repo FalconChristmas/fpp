@@ -1170,6 +1170,25 @@ void BBShiftStringOutput::prepDataT(FrameData& d, unsigned char* channelData) {
     }
 }
 
+// The firmware counts the frames it had to re-seat onto the published frame
+// start (see CONT_DATA in BBShiftString.asm).  In a healthy system this stays
+// zero for the life of the output; anything else means the two sides disagreed
+// about a frame's length and the resync covered for it, at the cost of one
+// glitched frame.
+void BBShiftStringOutput::reportRingResync(FrameData& d, int pru) {
+#ifndef PLATFORM_BBB
+    if (!d.pruData) {
+        return;
+    }
+    uint32_t n = *(volatile uint32_t*)((uint8_t*)d.pruData + SMEM_RING_RESYNC_OFFSET);
+    if (n != d.resyncCount) {
+        LogWarn(VB_CHANNELOUT, "BBShiftString: PRU%d ring read position re-seated %u time(s) (%u total); a frame was glitched but the output is aligned\n",
+                pru, n - d.resyncCount, n);
+        d.resyncCount = n;
+    }
+#endif
+}
+
 void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
     if (m_stringsPerPin == 16) {
         prepDataT<16>(d, channelData);
@@ -1185,6 +1204,13 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
     }
     // auto start = std::chrono::high_resolution_clock::now();
     m_curFrame++;
+
+    // the firmware heals a ring misalignment on its own, but it should never
+    // have to - surface it rather than let it stay silent
+    if ((m_curFrame % 100) == 0) {
+        reportRingResync(m_pru0, 0);
+        reportRingResync(m_pru1, 1);
+    }
 
     prepData(m_pru0, channelData);
     prepData(m_pru1, channelData);
@@ -1370,9 +1396,31 @@ bool BBShiftStringOutput::pumpFrameData(FrameData& d) {
         // still buffered when the first command went out, and every frame
         // after that renders that many bytes into the previous one.  Streaming
         // ahead within a frame is unaffected (that is the loop below).
-        if (seq == d.pumpedSeq || d.pruData->command != 0 || !d.ring.drained()) {
+        if (seq == d.pumpedSeq) {
             return false;
         }
+        if (d.pruData->command != 0 || !d.ring.drained()) {
+            // The firmware has not finished with what it was already given.
+            // That clears inside a frame time in normal operation; if it does
+            // not, it is starved on a frame whose data never arrived (or on a
+            // command that went missing), and waiting on the ring alone would
+            // leave the output dead for good.  Re-seat on its read pointer and
+            // carry on rather than wedge.
+            uint32_t rendered = *(volatile uint32_t*)((uint8_t*)d.pruData + SMEM_RING_FRAMES_OFFSET);
+            auto now = std::chrono::steady_clock::now();
+            if (rendered != d.renderedFrames || d.stalledSince.time_since_epoch().count() == 0) {
+                d.renderedFrames = rendered;
+                d.stalledSince = now;
+            } else if ((now - d.stalledSince) > std::chrono::milliseconds(250)) {
+                LogWarn(VB_CHANNELOUT, "BBShiftString: firmware rendered no frame for 250ms (command 0x%X, %u bytes unread); resynchronizing the ring\n",
+                        (unsigned)d.pruData->command, d.ring.usedBytes());
+                d.pruData->command = 0;
+                d.ring.seekToConsumer();
+                d.stalledSince = now;
+            }
+            return false;
+        }
+        d.stalledSince = {};
         // snapshot the newest pending frame; retry if SendData raced us
         do {
             d.pumpedSeq = seq;
@@ -1381,6 +1429,16 @@ bool BBShiftStringOutput::pumpFrameData(FrameData& d) {
         } while (seq != d.pumpedSeq);
         d.activeOff = 0;
         d.pumpActive = true;
+        // Publish where in the ring this frame starts before the command that
+        // makes the firmware act on it - nothing has been written for this
+        // frame yet, so the write position is its first byte.  The firmware
+        // takes its read position from this and zeroes it, so the two only
+        // ever move together.  This is what keeps a one-off disagreement about
+        // a frame's length from becoming permanent: the drain gate above
+        // cannot catch that on its own, because a frame offset by a whole
+        // number of blocks empties the ring exactly like one offset by none.
+        d.pruData->address_dma = d.ring.writePos();
+        __sync_synchronize();
         d.pruData->command = d.activeFrame.command;
     }
     uint32_t total = d.activeFrame.frameBytes + d.activeFrame.packetBytes;

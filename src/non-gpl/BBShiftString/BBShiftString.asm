@@ -623,6 +623,36 @@ CONT_DATA:
     PRELOAD_DATA  data_addr
     ENABLE_SEND
 
+#ifndef AM33XX
+    // Start this frame where the ARM says it starts, not wherever the last one
+    // happened to stop.  The command word only carries a block count, so any
+    // one-off disagreement about a frame's length used to be permanent: both
+    // sides go on moving the same number of blocks per frame, so the ring still
+    // empties every frame and the drain gate in pumpFrameData() cannot see the
+    // offset.  Re-seating here turns that into one glitched frame.
+    //
+    // data_addr is the ring address the ARM is about to write this frame at.
+    // It is already in hand from the command load above and is unused on the
+    // AM62x otherwise (the ring feeds LOAD_NEXT_DATABLOCK, not a DDR pointer).
+    // Consume it - zero it once used - so it can only ever be acted on paired
+    // with the command it was published with; a command that arrives without
+    // one leaves us where we are rather than jumping to a stale position.
+    QBEQ    NO_FRAME_START, data_addr, 0
+    LDI     r1, 0
+    SBCO    &r1, CONST_PRUDRAM, 0, 4
+    QBEQ    NO_FRAME_START, data_addr, ringReadPtr
+    // count the corrections; healing is silent otherwise and this should never
+    // be needed twice
+    LDI     tmpReg2, SMEM_RING_RESYNC_OFFSET
+    LBCO    &tmpReg1, CONST_PRUDRAM, tmpReg2, 4
+    ADD     tmpReg1, tmpReg1, 1
+    SBCO    &tmpReg1, CONST_PRUDRAM, tmpReg2, 4
+    MOV     ringReadPtr, data_addr
+    // keep the published read pointer honest, the ARM sizes its writes off it
+    SBBO    &ringReadPtr, ringCtrl, 4, 4
+NO_FRAME_START:
+#endif
+
     // reset command to 0 so ARM side will send more data
     LDI     r1, 0
     SBCO    &r1, CONST_PRUDRAM, 8, 4
@@ -702,6 +732,20 @@ WORD_LOOP_DONE:
     // Delay at least 300 usec; this is the required reset
 	// time for the LED strip to update with the new pixels.
 	SLEEPNS	300000, tmpReg1, 0
+
+#ifndef AM33XX
+    // Publish that this frame is done.  The command word is cleared at frame
+    // start, not at frame end, so it cannot tell the ARM whether we have
+    // finished; without this the pump has to infer it from the ring positions,
+    // and a frame offset by a whole number of blocks empties the ring exactly
+    // like one that is not offset at all.  Counting whole frames is the one
+    // thing both sides can agree on, so the pump gates the next command on it
+    // and re-seats itself on our read pointer while we are known idle.
+    LDI     tmpReg2, SMEM_RING_FRAMES_OFFSET
+    LBCO    &tmpReg1, CONST_PRUDRAM, tmpReg2, 4
+    ADD     tmpReg1, tmpReg1, 1
+    SBCO    &tmpReg1, CONST_PRUDRAM, tmpReg2, 4
+#endif
 
 	// Go back to waiting for the next frame buffer
 	JMP	_LOOP

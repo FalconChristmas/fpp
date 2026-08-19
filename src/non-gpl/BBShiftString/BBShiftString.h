@@ -13,6 +13,7 @@
  */
 
 #include <atomic>
+#include <chrono>
 #include <string>
 #include "fpp-json-fwd.h"
 #include <thread>
@@ -161,6 +162,13 @@ private:
             uint32_t command = 0;
         } pendingFrame;
         std::atomic<uint32_t> pendingSeq{ 0 };
+        // last values read back out of the firmware's counters, so only new
+        // events get reported
+        uint32_t renderedFrames = 0;
+        uint32_t resyncCount = 0;
+        // when the firmware first stopped making progress on a pending frame;
+        // zero while it is keeping up
+        std::chrono::steady_clock::time_point stalledSince{};
         // pump-internal streaming state
         uint32_t pumpedSeq = 0;
         PumpFrame activeFrame;
@@ -232,6 +240,8 @@ private:
     bool pumpFrameData(FrameData& d);
 
     void createOutputLengths(FrameData& d, const std::string& pfx);
+    // report ring resynchronizations the firmware has had to make
+    void reportRingResync(FrameData& d, int pru);
 
     // Bit cell timing in ns, published to the firmware as cycle counts.  These
     // are the values the firmware used to have compiled in; keeping them here

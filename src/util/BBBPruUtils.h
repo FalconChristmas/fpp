@@ -119,6 +119,41 @@ public:
     // bytes written, limited by the available space
     uint32_t write(const uint8_t* src, uint32_t len);
 
+    // PRU address the next byte will be written at.  A producer that hands
+    // its consumer an explicit frame start publishes this one: at a frame
+    // boundary nothing of the new frame has been written yet, so it is that
+    // frame's first byte.
+    uint32_t writePos() const { return basePru + writeOff; }
+
+    // PRU address the consumer has published as its read position
+    uint32_t readPos() const { return ctrl ? ctrl[1] : basePru; }
+
+    // Re-seat the write position onto the consumer's published read position,
+    // abandoning anything still unread.  This is a recovery path, not a
+    // steady-state one: it is for a producer that has given up waiting for a
+    // consumer that will never read what it was handed, where carrying on from
+    // the old write position would leave the ring permanently non-empty and
+    // the output dead.  Returns true if it actually had to move.
+    bool seekToConsumer() {
+        if (!ctrl || !pointerMode) {
+            return false;
+        }
+        uint32_t off = (ctrl[1] - basePru) % size;
+        // Republish unconditionally.  The published write position is the one
+        // the consumer compares against, and it can be wrong on its own - if
+        // this returned early whenever the local offset already agreed with
+        // the consumer, a stale published value would never be corrected and
+        // the ring would read as permanently occupied.
+        bool moved = off != writeOff || ctrl[0] != basePru + off;
+        writeOff = off;
+        __sync_synchronize();
+        ctrl[0] = basePru + writeOff;
+        return moved;
+    }
+
+    // bytes the consumer has not caught up on, from the published positions
+    uint32_t usedBytes() const { return ctrl ? (uint32_t)((ctrl[0] - ctrl[1]) % size) : 0; }
+
     // true once the consumer has caught up with every byte written; both
     // conventions publish positions that compare equal only when empty.
     // Producers that stop on a frame boundary can use this to know the PRU

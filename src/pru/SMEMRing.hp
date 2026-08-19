@@ -38,6 +38,16 @@
  * the 8KB data RAM to stay clear of the driver structures (BBShiftString's
  * command table reaches ~0x1C24). */
 #define SMEM_RING_STATS_OFFSET 0x1FE0  /* [0]=ring wait iterations, [1]=frames output */
+/* Frames the consumer has finished, incremented by the firmware once a frame
+ * is fully rendered.  A producer that hands the consumer discrete frames needs
+ * this: the ring positions alone cannot tell it whether a frame has finished,
+ * because a frame offset by a whole number of blocks reaches empty exactly like
+ * one that is not offset at all.  See BBShiftString's pumpFrameData(). */
+#define SMEM_RING_FRAMES_OFFSET 0x1FE4
+/* How many times the consumer has had to re-seat its read position on a frame
+ * start the producer published, i.e. how many times the two had drifted apart.
+ * Healthy output never touches this. */
+#define SMEM_RING_RESYNC_OFFSET 0x1FEC
 #define SMEM_RING_CONFIG_OFFSET 0x1FF0 /* [0]=ring base (PRU address), [1]=ring size */
 
 /* Single user: the whole 32KB shared RAM minus the control words */
