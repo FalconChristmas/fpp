@@ -99,7 +99,7 @@ fppversion_defines.h: fppversion.c
 ifeq '$(findstring clang,$(CXXCOMPILER))' ''
 # Target-specific variables are inherited by a target's prerequisites, and
 # $(PCH_FILE) is a prerequisite of every %.o -- including the fppinit objects,
-# which do "CFLAGS := $(filter-out -fpch-preprocess -g1,$(CFLAGS))".  fppinit is
+# which do "CFLAGS := $(filter-out $(PCH_CFLAGS) -g1,$(CFLAGS))".  fppinit is
 # prepended to TARGETS, so it is built first and its objects are always what
 # pulls the shared .gch in, which means the .gch ends up built with flags that
 # no translation unit ever uses.  gcc then silently discards it for every TU

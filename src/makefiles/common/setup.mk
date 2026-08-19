@@ -129,12 +129,18 @@ ifeq '$(findstring clang,$(CXXCOMPILER))' ''
     # Common CFLAGS
 ifeq ($(DISTRIBUTED_COMPILE),)
     PCH_FILE=fpp-pch.h.gch
+	# Flags that mean something only to a compile that consumes the PCH.  Objects
+	# which deliberately opt out filter this same variable back out rather than
+	# repeating its contents, so the two lists cannot drift apart -- see
+	# makefiles/fppinit.mk.
+	#
 	# -Winvalid-pch: a .gch gcc decides it cannot use is discarded SILENTLY, and
 	# the build then re-parses the whole of fpp-pch.h in every TU -- slower than
 	# having no PCH at all, with nothing in the output to say so. That state went
 	# unnoticed for two months (see the note on the fpp-pch.h.gch rule in
 	# ../Makefile). This makes the next one loud instead: one warning per TU.
-	CFLAGS+=-fpch-preprocess -Winvalid-pch
+	PCH_CFLAGS := -fpch-preprocess -Winvalid-pch
+	CFLAGS+=$(PCH_CFLAGS)
 else
 	CFLAGS+=-DNOPCH
 endif
