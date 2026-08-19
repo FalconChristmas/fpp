@@ -21,8 +21,14 @@
 # MSPM0L1105 emulates a 24c32 at 0x50, and the kernel's at24 driver talks to that.
 # If the MSPM0's own firmware was never flashed, 0x50 does not ACK, at24's probe-time
 # test read fails, and the driver never binds.  Nothing this script can write will
-# help: the fix is reflashing the MSPM0 over BSL/SWD.  So it refuses -- see the exit
-# codes.
+# help, because the thing that would serve the write is what is missing.  So it
+# refuses -- see the exit codes.
+#
+# That is recoverable, but not from here: the MSPM0's ROM bootstrap loader answers on
+# i2c at 0x48 once it is reset with the backdoor asserted, and the AM62 drives both
+# of those lines itself (the NRST and BSL_Invoke pins, already in FPP's pin table).
+# So no external programmer is needed -- but reflashing starts with a mass erase, so
+# it must never be attempted on a board whose MSPM0 is merely misbehaving.
 #
 # The same MSPM0 also emulates the ad7291 ADC at 0x20, so the two appear and
 # disappear together.  That is what separates "the MSPM0 is not running at all" from
@@ -114,7 +120,9 @@ if [ ! -f "${EEPROM}" ]; then
   MSPM0 that was never flashed at the factory looks like.
 
   Nothing this script can write will fix it: with 0x50 silent there is nothing
-  to write to.  The MSPM0 has to be reflashed over BSL/SWD first.
+  to write to.  The MSPM0 has to be reflashed first, over its ROM bootstrap
+  loader at i2c 0x48 -- the AM62 drives the NRST and BSL_Invoke lines itself, so
+  this needs no external programmer, but it does start with a mass erase.
 
   Until then u-boot cannot identify the board and will configure it as the
   512MB base variant.  This board must not be flashed or shipped."
