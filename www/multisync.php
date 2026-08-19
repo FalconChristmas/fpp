@@ -1791,7 +1791,7 @@
                 var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
 
                 if ((data[i].fppModeString == 'remote') && (star != ""))
-                    ipTxt = "<small>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
+                    ipTxt = "<small class='unicastPickerLabel'>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
 
                 var hostTxt = (!isWLED(data[i].typeId) && (fppConfig.hideExternalURLs || data[i].local || data[i].address == hostname))
                     ? hostname
@@ -2639,6 +2639,7 @@
             }
 
             ensureSomeSyncMethod();
+            updateUnicastPickerVisibility();
         }
 
         // ============================================================
@@ -3470,6 +3471,23 @@
             $scope.find('input.syncCheckbox').each(function () {
                 this.checked = !!unicastRemotes[this.name];
             });
+            updateUnicastPickerVisibility();
+        }
+
+        /**
+         * The per-remote unicast checkboxes only affect delivery when "Send
+         * MultiSync to ALL KNOWN remotes via Unicast" is off.  With it on, every
+         * FPP remote is unicast to regardless of these boxes -- there is no
+         * per-remote exclusion in UpdateUnicastDestinations() -- so leaving the
+         * picker visible/clickable there implies a control that doesn't
+         * actually do anything.  Hide it (label + checkboxes) while all-known
+         * unicast is active; unicastRemotes itself is left untouched so the
+         * picker comes back exactly as the user left it if all-known is turned
+         * back off.
+         */
+        function updateUnicastPickerVisibility() {
+            var hide = $('#MultiSyncUnicast').is(":checked");
+            $('.unicastPickerLabel, input.syncCheckbox').toggle(!hide);
         }
 
         /**
