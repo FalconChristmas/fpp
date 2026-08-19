@@ -469,7 +469,7 @@ static std::string bestFormatForRate(const std::string& fmtLine, const std::stri
 //
 // Bump this whenever the probe can produce a different conf for unchanged
 // hardware.  Costs one extra probe on the first boot after the upgrade.
-static constexpr int kAlsaSinkConfGeneration = 6;
+static constexpr int kAlsaSinkConfGeneration = 7;
 
 static std::string alsaSinkConfGenerationTag() {
     return "# FPP ALSA sink adapters (generation " + std::to_string(kAlsaSinkConfGeneration) + ")";
@@ -511,6 +511,88 @@ static std::string alsaSinkConfRateTag(int configuredRate) {
 static std::string alsaSinkConfCardsTag(const std::set<std::string>& cids) {
     std::string tag = "# cards:";
     for (const auto& c : cids) {
+        tag += " " + c;
+    }
+    return tag;
+}
+
+// api.alsa.headroom for a USB card, which is decided by whether the card can end
+// up *following* someone else's clock.
+//
+// A USB card's oscillator is its own, unrelated to whatever drives the PipeWire
+// graph, so when several sinks share one driver graph the followers need slack
+// for the adaptive resampler to absorb the drift in -- without it the resampler
+// hard-resyncs, which is audible as crackle and pitch wobble.  That is what
+// kUsbHeadroomSharedGroup buys.
+//
+// A card that is the only sink in its group has nobody to follow: PipeWire makes
+// it the graph driver (pw-top shows it as the one node with a non-zero quantum),
+// so the graph clock *is* that card's oscillator and there is no drift to absorb.
+// Every frame of headroom is then pure added output latency.
+//
+// Measured through fppd/GStreamer on a Pi 5 with a full-speed USB dongle at
+// 44.1 kHz, reading the card's own queue depth from
+// /proc/asound/cardN/pcm0p/sub0/status (the same figure GStreamerOut.cpp uses to
+// correct reported position): 156 ms of delay at 4096, 109 ms at 2048, 86 ms at
+// 1024 -- with zero xruns on the sink node through sustained playback under a
+// fully loaded CPU at each value.  Below 1024 PipeWire's own minimum buffer fill
+// dominates and further cuts stop paying: 512 saves only 13 ms more than 1024,
+// and 256 only 3 ms beyond that, for a steadily thinner scheduling margin.  1024
+// is that knee, and it is what a non-drifting card actually needs.
+static constexpr int kUsbHeadroomSoleSink = 1024;
+static constexpr int kUsbHeadroomSharedGroup = 4096;
+static constexpr int kHeadroomNonUsb = 256;
+
+// How many members the largest audio group containing each card has, keyed by
+// stable ALSA card ID -- i.e. how many sinks that card may have to share a
+// driver graph with.  Cards absent from the result are in no group at all: they
+// still get an adapter, but nothing links to it, so they can only ever drive
+// their own (idle) graph and count as sole sinks.
+//
+// Read straight from the groups JSON rather than from the live graph because
+// this runs while 95-fpp-alsa-sink.conf is being written, before any of those
+// nodes exist.  The file persists across reboots, so the answer is available at
+// the point the decision has to be made.
+static std::map<std::string, int> pipewireGroupSizeByCard(const std::string& jsonPath) {
+    std::map<std::string, int> sizes;
+    if (!FileExists(jsonPath)) {
+        return sizes;
+    }
+    Json::Value root;
+    if (!LoadJsonFromString(GetFileContents(jsonPath), root) || !root.isMember("groups")) {
+        return sizes;
+    }
+    for (const auto& grp : root["groups"]) {
+        // A disabled group is not built into the graph, so its members are not
+        // sharing anything and must not be charged the follower's headroom.
+        if (grp.isMember("enabled") && !grp["enabled"].asBool()) {
+            continue;
+        }
+        const int count = static_cast<int>(grp["members"].size());
+        for (const auto& mbr : grp["members"]) {
+            const std::string cid = mbr.get("cardId", "").asString();
+            if (cid.empty()) {
+                continue;
+            }
+            if (count > sizes[cid]) {
+                sizes[cid] = count;
+            }
+        }
+    }
+    return sizes;
+}
+
+// Marker recording which cards the conf charged the shared-group USB headroom.
+//
+// Group membership changes without the set of present cards changing -- adding a
+// second card to a group in the UI is exactly that -- so the cards tag above
+// cannot see it, and the fast path would keep serving a conf whose headroom no
+// longer matches the graph.  Recording the decision itself makes the check able
+// to notice.  Empty (the common single-card case) is a meaningful value, not a
+// missing one, so the tag is always written.
+static std::string alsaSinkConfUsbHeadroomTag(const std::set<std::string>& sharedCids) {
+    std::string tag = "# usb shared-group cards:";
+    for (const auto& c : sharedCids) {
         tag += " " + c;
     }
     return tag;
@@ -1358,6 +1440,23 @@ static void runAudioSetup(bool recoveryPass) {
     // hw-params dump each, all via popen, which is the slowest part of audio
     // setup -- since it only changes anything when a card was added or removed.
     // The conf persists in /etc across reboots, so the common boot hits this.
+    //
+    // Which cards share an audio group with another sink, which is what decides
+    // the USB headroom below.  Derived here, before the probe, so the validity
+    // check can compare it: it needs nothing the probe produces, only the groups
+    // JSON and the aplay lines already in hand.
+    const std::map<std::string, int> groupSizeByCard = pipewireGroupSizeByCard(
+        FPP_MEDIA_DIR + "/config/" +
+        (mediaBackendLower == "pipewire-simple" ? "pipewire-audio-groups-simple.json"
+                                                : "pipewire-audio-groups.json"));
+    auto cardSharesGroup = [&groupSizeByCard](const std::string& cId) {
+        auto it = groupSizeByCard.find(cId);
+        return it != groupSizeByCard.end() && it->second > 1;
+    };
+    auto lineIsUsbCard = [](const std::string& l) {
+        return l.find("USB Audio") != std::string::npos;
+    };
+    std::set<std::string> sharedGroupUsbCids;   // USB cards that must keep the follower headroom
     std::set<std::string> adapterCandidateCids; // present cards that would get an adapter
     std::set<std::string> adapterCardNames;     // ...and their ALSA short-names, for the WirePlumber rule
     for (const auto& [key, cardId] : cards) {
@@ -1365,6 +1464,9 @@ static void runAudioSetup(bool recoveryPass) {
         if (cId.empty()) cId = cardId;
         if (cId == "Dummy" || cardIsDeadHDMI(key)) continue;
         adapterCandidateCids.insert(normalizeCardIdForNode(cId));
+        if (cardLines.count(key) && lineIsUsbCard(cardLines[key]) && cardSharesGroup(cId)) {
+            sharedGroupUsbCids.insert(normalizeCardIdForNode(cId));
+        }
         // "card N: <id> [<short name>], device M: ..." -- that first bracketed
         // field is exactly what the ALSA monitor exposes as api.alsa.card.name,
         // which is what ensureWirePlumberAlsaDupeSuppression() matches on.
@@ -1400,10 +1502,19 @@ static void runAudioSetup(bool recoveryPass) {
     // Compared against the recorded candidate list, not against the adapters the
     // conf declares: the probe legitimately writes fewer adapters than there are
     // candidates.  See alsaSinkConfCardsTag().
+    const bool sinkConfCardsMatch =
+        contains(existingSinkConf, alsaSinkConfCardsTag(adapterCandidateCids) + "\n");
+    // Group membership moves independently of the card set, so this has to be
+    // reported separately -- blaming a headroom change on the hardware would send
+    // anyone reading the boot log looking for a card that did not actually move.
+    const bool sinkConfHeadroomMatch =
+        contains(existingSinkConf, alsaSinkConfUsbHeadroomTag(sharedGroupUsbCids) + "\n");
     bool sinkConfStillValid = !existingSinkConf.empty() && sinkConfGenerationCurrent &&
-                              contains(existingSinkConf, alsaSinkConfCardsTag(adapterCandidateCids) + "\n");
+                              sinkConfCardsMatch && sinkConfHeadroomMatch;
     if (usePipeWireBackend && !existingSinkConf.empty() && sinkConfGenerationCurrent && !sinkConfStillValid) {
-        printf("FPP - PipeWire: set of present sound cards has changed; re-probing\n");
+        printf("FPP - PipeWire: %s; re-probing\n",
+               !sinkConfCardsMatch ? "set of present sound cards has changed"
+                                   : "USB audio group membership has changed");
     }
     // A conf written before a card's channel-count quirk existed (or while the
     // card was held open at a stale stereo negotiation) can cover all cards yet
@@ -1688,13 +1799,25 @@ static void runAudioSetup(bool recoveryPass) {
                 }
             }
 
-            // USB audio cards need extra headroom: their independent oscillators
-            // drift relative to the PipeWire graph driver clock, causing resyncs.
-            int headroom = isUsbCard ? 4096 : 256;
+            // See kUsbHeadroomSoleSink: a USB card only pays the drift headroom
+            // when it shares a group with another sink and so may have to follow
+            // that sink's clock.  Alone in its group it is the graph driver, and
+            // the extra frames are latency bought for nothing.
+            const bool usbSharesGroup = isUsbCard && sharedGroupUsbCids.count(cidNorm) > 0;
+            int headroom = kHeadroomNonUsb;
+            if (isUsbCard) {
+                headroom = usbSharesGroup ? kUsbHeadroomSharedGroup : kUsbHeadroomSoleSink;
+            }
 
+            std::string usbNote;
+            if (isUsbCard) {
+                usbNote = std::string(" (USB, ") +
+                          (usbSharesGroup ? "shares a group" : "sole sink in its group") +
+                          ", headroom=" + std::to_string(headroom) + ")";
+            }
             printf("FPP - PipeWire: creating adapter fpp_alsa_%s for card %d (%s) [%dch %s]%s\n",
                    cidNorm.c_str(), cardNum, cId.c_str(), maxChannels, audioFormat.c_str(),
-                   isUsbCard ? " (USB, headroom=4096)" : "");
+                   usbNote.c_str());
             pipewireSink << "  { factory = adapter\n"
                          << "    args = {\n"
                          << "      factory.name = api.alsa.pcm.sink\n"
@@ -1773,6 +1896,10 @@ static void runAudioSetup(bool recoveryPass) {
                  // The cards considered, including any the probe then skipped as
                  // unusable.  See alsaSinkConfCardsTag().
                  << alsaSinkConfCardsTag(adapterCandidateCids) << "\n"
+                 // Which USB cards were charged the follower headroom, which
+                 // group membership can change without the card set changing.
+                 // See alsaSinkConfUsbHeadroomTag().
+                 << alsaSinkConfUsbHeadroomTag(sharedGroupUsbCids) << "\n"
                  << "context.properties = {\n"
                  << "    default.clock.rate = " << graphClockRate << "\n"
                  << "}\n"

@@ -2270,6 +2270,14 @@ int GStreamerOutput::Stop(void) {
 // 56 ms on a Pi 5 I2S cape, and 160 ms on a BeagleBone with a full-speed USB
 // dongle.  It is a per-platform constant, which is why it cannot be a setting.
 //
+// The USB figure is not fixed for all time: it is dominated by that card's
+// api.alsa.headroom, and a USB card that is the sole sink in its audio group is
+// now given a quarter of what it used to get (see kUsbHeadroomSoleSink in
+// FPPINIT_Audio.cpp), which took the same BeagleBone from 160 ms to ~80 ms.
+// Nothing below needs changing for that -- the queue depth is read live and
+// scaled by the card's own rate, so the correction simply gets smaller -- but do
+// not treat the numbers above as the values a current box will report.
+//
 // The card's own delay figure is the closest estimate obtainable without a new
 // library or a patched GStreamer plugin: /proc/asound/cardN/pcmMp/sub0/status
 // reports `delay` in frames -- the distance from PipeWire's write pointer to

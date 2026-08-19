@@ -367,6 +367,13 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
         }
     }
 
+    // Group membership decides the USB headroom in the boot-time sink conf too,
+    // and that conf is loaded at daemon startup like the others, so a change
+    // there needs the restart just as much as a change to 97.
+    if (SyncBootAdapterUsbHeadroom($data['groups'], $SUDO)) {
+        $graphUnchanged = false;
+    }
+
     // Write via temp file + sudo cp (directory is root-owned)
     $confPath = "/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf";
     $tmpFile = tempnam(sys_get_temp_dir(), 'fpp_pw_');
@@ -4075,6 +4082,89 @@ function GroupsAreDummyOnly($groups)
 
 /////////////////////////////////////////////////////////////////////////////
 // Helper: Generate PipeWire combine-stream config from groups
+// Re-decide the USB headroom in the boot-time 95-fpp-alsa-sink.conf for the
+// groups being applied here, and rewrite it if the answer changed.
+//
+// That conf is written once per boot by fppinit, which picks each USB card's
+// api.alsa.headroom from the audio groups as they stood at the time -- see
+// pipewireGroupSizeByCard() in src/boot/FPPINIT_Audio.cpp for why the answer
+// depends on the groups at all.  Editing a group here can invalidate it, and in
+// the direction that matters: moving a second card into a USB card's group makes
+// that card a follower, but its boot adapter would keep the sole-sink headroom
+// until the next reboot, which is exactly the crackle the headroom exists to
+// prevent.  Rewriting it now keeps the conf and the graph in agreement, and the
+// caller's restart is what makes PipeWire read it.
+//
+// Only fpp_alsa_* sink adapters already carrying a USB headroom value are
+// touched.  Non-USB adapters are written with 256 and are never a candidate, so
+// the value on the line is itself a reliable marker of which cards are in scope
+// -- which matters because the conf records normalised node names, not card IDs,
+// and a card dropped from every group must still be walked back down.
+//
+// Returns true if the file changed, i.e. the stack needs a restart to pick it up.
+function SyncBootAdapterUsbHeadroom($groups, $SUDO)
+{
+    $confPath = "/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf";
+    $conf = @file_get_contents($confPath);
+    if ($conf === false || $conf === '')
+        return false;
+
+    // Normalised node suffixes of cards sharing a group with another sink.
+    // Same rule as $cardSharesGroup in GeneratePipeWireGroupsConfig().
+    $sharedNorm = array();
+    foreach ($groups as $group) {
+        if (!isset($group['enabled']) || !$group['enabled'])
+            continue;
+        if (!isset($group['members']) || count($group['members']) < 2)
+            continue;
+        foreach ($group['members'] as $member) {
+            if (empty($member['cardId']))
+                continue;
+            $sharedNorm[preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($member['cardId']))] = true;
+        }
+    }
+
+    $seenShared = array();
+    $updated = preg_replace_callback(
+        '/(node\.name = "fpp_alsa_([a-z0-9_]+)"(?:(?!node\.name)[\s\S])*?api\.alsa\.headroom = )(\d+)/',
+        function ($m) use ($sharedNorm, &$seenShared) {
+            $current = intval($m[3]);
+            if ($current != 1024 && $current != 4096)
+                return $m[0]; // non-USB (256) — not ours to touch
+            $shared = !empty($sharedNorm[$m[2]]);
+            if ($shared)
+                $seenShared[$m[2]] = true;
+            return $m[1] . ($shared ? 4096 : 1024);
+        },
+        $conf
+    );
+    if ($updated === null)
+        return false;
+
+    // Keep the marker fppinit compares against in step with the values above,
+    // so its boot-time fast path does not see a mismatch it would answer with a
+    // full (slow) re-probe.  See alsaSinkConfUsbHeadroomTag() in FPPINIT_Audio.cpp.
+    $sharedList = array_keys($seenShared);
+    sort($sharedList);
+    $tag = "# usb shared-group cards:" . (empty($sharedList) ? "" : " " . implode(" ", $sharedList));
+    $updated = preg_replace('/^# usb shared-group cards:.*$/m', $tag, $updated, 1, $tagCount);
+    if (!$tagCount) {
+        // Conf predates the marker (generation <= 6): fppinit will rewrite the
+        // whole file on the next boot because the generation tag no longer
+        // matches, so leave the header alone rather than half-upgrading it.
+    }
+
+    if ($updated === $conf)
+        return false;
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'fpp_pw_sink_');
+    file_put_contents($tmpFile, $updated);
+    exec($SUDO . " cp " . escapeshellarg($tmpFile) . " " . escapeshellarg($confPath));
+    exec($SUDO . " chmod 644 " . escapeshellarg($confPath));
+    unlink($tmpFile);
+    return true;
+}
+
 function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
 {
     global $SUDO, $settings;
@@ -4504,6 +4594,25 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
     // ---------------------------------------------------------------
     $customAlsaAdapters = array(); // cardId -> array('nodeName','channels','rate','periodSize','format')
 
+    // Which cards share a group with another sink, which decides their USB
+    // headroom below.  KEEP IN SYNC with pipewireGroupSizeByCard() in
+    // src/boot/FPPINIT_Audio.cpp, which makes the same call for the boot-time
+    // adapters in 95-fpp-alsa-sink.conf; that function's comment carries the
+    // reasoning and the measurements.  Built up front rather than inside the
+    // member loop because a card can appear in more than one group and sharing
+    // any of them is enough.
+    $cardSharesGroup = array();
+    foreach ($groups as $group) {
+        if (!isset($group['enabled']) || !$group['enabled'])
+            continue;
+        if (!isset($group['members']) || count($group['members']) < 2)
+            continue;
+        foreach ($group['members'] as $member) {
+            if (!empty($member['cardId']))
+                $cardSharesGroup[$member['cardId']] = true;
+        }
+    }
+
     foreach ($groups as $group) {
         if (!isset($group['enabled']) || !$group['enabled'])
             continue;
@@ -4682,15 +4791,22 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             $conf .= "      api.alsa.path = \"$alsaPrefix:$cid\"\n";
             $adapterPeriod = isset($info['periodSize']) && $info['periodSize'] > 0 ? intval($info['periodSize']) : 1024;
             $conf .= "      api.alsa.period-size = $adapterPeriod\n";
-            // USB audio cards need extra headroom: their independent oscillators
-            // drift relative to the PipeWire graph driver clock, causing resyncs.
+            // A USB card's oscillator is its own, so when it shares a driver
+            // graph with another sink it may end up following that sink's clock
+            // and needs headroom for the adaptive resampler to absorb the drift.
+            // Alone in its group it *is* the graph driver and the extra frames
+            // are latency bought for nothing.  See pipewireGroupSizeByCard() in
+            // src/boot/FPPINIT_Audio.cpp for the reasoning and the measurements;
+            // these values must match kUsbHeadroom* there.
             $cardNum = ResolveCardIdToNumber($cid);
             $isUsb = false;
             if ($cardNum >= 0) {
                 $driverLink = @readlink("/sys/class/sound/card$cardNum/device/driver");
                 $isUsb = ($driverLink !== false && str_contains(basename($driverLink), 'usb'));
             }
-            $adapterHeadroom = $isUsb ? 4096 : 256;
+            $adapterHeadroom = 256;
+            if ($isUsb)
+                $adapterHeadroom = !empty($cardSharesGroup[$cid]) ? 4096 : 1024;
             $conf .= "      api.alsa.headroom = $adapterHeadroom\n";
             $adapterFormat = isset($info['format']) ? $info['format'] : 'S16LE';
             $conf .= "      audio.format = \"$adapterFormat\"\n";
