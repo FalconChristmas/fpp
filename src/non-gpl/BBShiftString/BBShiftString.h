@@ -207,6 +207,12 @@ private:
     int m_stringsPerPin = 8;
     int stringsPerPru() const { return MAX_PINS_PER_PRU * m_stringsPerPin; }
 
+    // whether anything at all was mapped onto a PRU.  maxStringLen is set
+    // alongside every stringMap entry Init() fills in, so it is zero exactly
+    // when there is no frame to build or send.  (stringMap is a std::array,
+    // so its empty() is a compile time false and cannot answer this.)
+    bool hasStrings() const { return m_pru0.maxStringLen || m_pru1.maxStringLen; }
+
     uint32_t m_curFrame = 0;
     uint32_t m_licensedOutputs = 0;
 

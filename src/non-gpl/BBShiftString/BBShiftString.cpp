@@ -1199,7 +1199,7 @@ void BBShiftStringOutput::prepData(FrameData& d, unsigned char* channelData) {
 
 void BBShiftStringOutput::PrepData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBShiftStringOutput::PrepData(%p)\n", channelData);
-    if (m_pru1.stringMap.empty() && m_pru0.stringMap.empty()) {
+    if (!hasStrings()) {
         return;
     }
     // auto start = std::chrono::high_resolution_clock::now();
@@ -1302,7 +1302,7 @@ void BBShiftStringOutput::sendData(FrameData& d) {
 
 int BBShiftStringOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBShiftStringOutput::SendData(%p)\n", channelData);
-    if (m_pru1.stringMap.empty() && m_pru0.stringMap.empty()) {
+    if (!hasStrings()) {
         return 0;
     }
 
