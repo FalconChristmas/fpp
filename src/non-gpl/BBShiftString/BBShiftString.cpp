@@ -1289,8 +1289,20 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
     __asm__ __volatile__("" ::
                              : "memory");
 
-    // Send the start command
-    if (m_pru0.pruData) {
+    // Send the start command.  A port set with no data to send must not get a
+    // command at all: sendData() above leaves pendingFrame empty in that case,
+    // so the command would name a frame the pump never streams.  The length is
+    // also not enough on its own to make it a no-op - a zero length still ORs
+    // in the custom-length flag below, and the firmware's render loop reads its
+    // first block before testing the count, so a "zero byte" frame still eats a
+    // ring block the ARM never wrote.  That block offsets every later frame by
+    // one byte per string for as long as the output lives, and because both
+    // sides still move the same number of blocks per frame the ring keeps
+    // reaching empty and drained() never notices.  A freshly Init()ed output
+    // hits this on a config reload: PrepareChannelData() and SendChannelData()
+    // are separate walks of the output list, so the replacement can pick up its
+    // first SendData() before its first PrepData() has set outputStringLen.
+    if (m_pru0.pruData && m_pru0.outputStringLen) {
         uint32_t c = m_pru0.outputStringLen;
         if (m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket]) {
             c |= m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket]->getCommandFlags();
@@ -1314,7 +1326,7 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
         m_pru0.pendingSeq.fetch_add(1, std::memory_order_release);
 #endif
     }
-    if (m_pru1.pruData) {
+    if (m_pru1.pruData && m_pru1.outputStringLen) {
         uint32_t c = m_pru1.outputStringLen;
         if (m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket]) {
             c |= m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket]->getCommandFlags();

@@ -649,6 +649,13 @@ NO_CUSTOM_CHECKS:
     //start the clock
     RESET_PRU_CLOCK tmpReg1, tmpReg2
 
+    // WORD_LOOP reads its block before testing the count, so a zero length
+    // frame would still consume one block.  Nothing on the ARM side writes a
+    // block for it, and the resulting one block skew is permanent and
+    // invisible to the drain gate (both sides keep moving the same number of
+    // blocks per frame), so refuse the frame here rather than absorb it.
+    QBEQ    WORD_LOOP_DONE, data_len, 0
+
 WORD_LOOP:
     LOAD_NEXT_DATABLOCK data_addr
     LDI r1.b0, &pixelData
