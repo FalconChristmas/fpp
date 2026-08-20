@@ -291,12 +291,14 @@ function SetGPIOFanProperties()
 {
     global $settings;
     $fanOn = ReadSettingFromFile('GPIOFan');
-    $fanTemp = ReadSettingFromFile('GPIOFanTemperature') . "000";
+    // The overlay wants millidegrees.  Multiply rather than appending "000":
+    // the setting is degrees C to one decimal place so that whole degrees F
+    // survive the conversion both ways (see PutSetting() in
+    // www/api/controllers/settings.php), and "29.4" . "000" is not a number.
+    $fanTempSetting = ReadSettingFromFile('GPIOFanTemperature');
+    $fanTemp = is_numeric($fanTempSetting) ? (string) ((int) round(floatval($fanTempSetting) * 1000)) : '70000';
     $pfx = "";
 
-    if ($fanTemp == '000') {
-        $fanTemp = '70000';
-    }
     if ($fanOn == '0') {
         $pfx = "#";
     }

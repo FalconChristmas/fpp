@@ -13,6 +13,7 @@
 #include <chrono>
 #include "fpp-json.h"
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -410,10 +411,18 @@ void applyThermalSettings(bool captureDefaults) {
                 defaultsChanged = true;
             }
         }
-        int temp = getRawSettingInt("FanTrip_" + key, -1);
-        if (temp > 0) {
-            printf("FPP - Setting fan trip point %s to %dC\n", key.c_str(), temp);
-            PutFileContents(tripFile, std::to_string(temp * 1000));
+        // Read as a string and parse a float: the setting holds degrees C to one
+        // decimal place so that whole degrees F survive the conversion both ways
+        // (see PutSetting() in www/api/controllers/settings.php).  getRawSettingInt()
+        // must not be used here - its hand-rolled digit loop does not stop at the
+        // decimal point and would turn "29.4" into 2884.
+        std::string tempStr;
+        if (getRawSetting("FanTrip_" + key, tempStr)) {
+            double temp = strtod(tempStr.c_str(), nullptr);
+            if (temp > 0) {
+                printf("FPP - Setting fan trip point %s to %.1fC\n", key.c_str(), temp);
+                PutFileContents(tripFile, std::to_string((int) std::lround(temp * 1000.0)));
+            }
         }
     });
     if (defaultsChanged) {

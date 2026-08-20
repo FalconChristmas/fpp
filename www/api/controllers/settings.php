@@ -121,7 +121,15 @@ function PutSetting()
     $setting = params('SettingName');
 
     if (($setting == 'GPIOFanTemperature' || str_starts_with($setting, 'FanTrip_')) && isset($settings['temperatureInF']) && $settings['temperatureInF'] == 1) {
-        $value = round(($value - 32) * 5 / 9);
+        // Store one decimal place, not a whole degree C.  A whole degree C is too
+        // coarse to name every whole degree F: 85F rounds to 29C, which reads back
+        // as 84F, and 60 of the 136 values in range drift like that.  A tenth of a
+        // degree C is 0.18F, so the worst case error is 0.09F and every whole
+        // degree F survives the round trip.  Consumers of the stored value must
+        // therefore parse a float - see applyThermalSettings() in
+        // src/boot/FPPINIT_Config.cpp and SetGPIOFanProperties() in
+        // www/common/settings.php.  A value entered in C stays a whole number.
+        $value = round(($value - 32) * 5 / 9, 1);
     }
 
     // A failed write must not fall through to the apply/restart steps below:

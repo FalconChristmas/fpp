@@ -821,7 +821,7 @@ function PrintFanThermalSettings()
                 'description' => $desc,
                 'tip' => $tip,
                 'type' => 'number',
-                'default' => (int) round($currentTemp),
+                'default' => round($currentTemp, 1),
                 'min' => 20,
                 'max' => 95,
                 'step' => 1,
@@ -1096,13 +1096,25 @@ function PrintSetting($setting, $callback = '', $options = array(), $plugin = ''
                 $step = isset($s['step']) ? $s['step'] : 1;
                 $default = isset($s['default']) ? $s['default'] : "0";
 
-                if (($setting == 'GPIOFanTemperature' || str_starts_with($setting, 'FanTrip_')) && isset($settings['temperatureInF']) && $settings['temperatureInF'] == 1) {
-                    $origVal = isset($settings[$setting]) ? $settings[$setting] : $default;
-                    $settings[$setting] = round(($origVal * 9 / 5) + 32);
-                    $min = round(($min * 9 / 5) + 32);
-                    $max = round(($max * 9 / 5) + 32);
-                    $default = round(($default * 9 / 5) + 32);
-                    $suffix = ' F';
+                // Temperature settings are always stored in C because that is what the
+                // kernel wants, but may be entered and displayed in F.  A whole number
+                // of C cannot represent every whole number of F, so the stored value is
+                // allowed a decimal (see PutSetting()); without it 60 of the 136 usable
+                // F values come back a degree lower after a save/reload round trip.
+                if ($setting == 'GPIOFanTemperature' || str_starts_with($setting, 'FanTrip_')) {
+                    if (isset($settings['temperatureInF']) && $settings['temperatureInF'] == 1) {
+                        $origVal = isset($settings[$setting]) ? $settings[$setting] : $default;
+                        $settings[$setting] = round(($origVal * 9 / 5) + 32);
+                        $min = round(($min * 9 / 5) + 32);
+                        $max = round(($max * 9 / 5) + 32);
+                        $default = round(($default * 9 / 5) + 32);
+                        $suffix = ' F';
+                    } else {
+                        // Displaying C: the value may carry the tenth left behind by an
+                        // earlier entry in F, which a step of 1 would flag as invalid.
+                        // "any" still steps the spinner arrows by 1.
+                        $s['step'] = 'any';
+                    }
                 }
 
                 PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, $plugin, $default, $callback, '', 'number', $s);
