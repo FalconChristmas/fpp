@@ -154,8 +154,14 @@ public:
         // argument value - that is a separate defect from this one.
         size_t needed = (args.size() > 1 && args[1] == "Single Channel Chase") ? 5 : 4;
         if (args.size() < needed) {
-            return std::make_unique<ErrorResult>("Test Start needs " + std::to_string(needed) +
-                                                 " arguments, found " + std::to_string(args.size()));
+            // Built by appending rather than as one operator+ chain: GCC 12-14
+            // cannot bound std::to_string() in a chain and mis-reports the
+            // temporary's small-string buffer as overflowed (-Wstringop-overflow).
+            std::string msg = "Test Start needs ";
+            msg += std::to_string(needed);
+            msg += " arguments, found ";
+            msg += std::to_string(args.size());
+            return std::make_unique<ErrorResult>(msg);
         }
         Json::Value config;
         config["enabled"] = 1;
