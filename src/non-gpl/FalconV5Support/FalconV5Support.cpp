@@ -92,9 +92,17 @@ public:
 
 FalconV5Support::FalconV5Support() {
     OutputMonitor::INSTANCE.setSmartReceiverEventCallback([this](int port, int index, const std::string& cmd) {
-        togglePort = port;
-        toggleIndex = index;
-        command = cmd;
+        PendingToggle pt;
+        pt.port = (int16_t)port;
+        pt.index = (uint8_t)index;
+        if (cmd == "ToggleOutput") {
+            pt.cmd = ToggleCommand::Toggle;
+        } else if (cmd == "ResetOutput") {
+            pt.cmd = ToggleCommand::Reset;
+        } else {
+            return;
+        }
+        pendingToggle.store(pt);
     });
 }
 FalconV5Support::~FalconV5Support() {
@@ -425,6 +433,9 @@ bool FalconV5Support::generateDynamicPacket(std::vector<std::array<uint8_t, 64>>
         }
     }
     curCount++;
+    // Snapshot the pending toggle once for this pass so every chain sees the
+    // same port/index/command triple.
+    PendingToggle toggle = pendingToggle.load();
     for (auto& g : queryData[curMux]) {
         auto rc = g.second.front();
         if (!rc->hasMoreQueries()) {
@@ -434,13 +445,18 @@ bool FalconV5Support::generateDynamicPacket(std::vector<std::array<uint8_t, 64>>
             rc = g.second.front();
         }
         int rcP = rc->getPixelStrings().front()->m_portNumber;
-        if (rcP <= togglePort && (rcP + 4) > togglePort) {
-            if (command == "ToggleOutput") {
-                rc->generateToggleEFusePacket(&packets[rc->getPixelStrings().front()->m_portNumber][0], toggleIndex, togglePort % 4);
-            } else if (command == "ResetOutput") {
-                rc->generateResetEFusePacket(&packets[rc->getPixelStrings().front()->m_portNumber][0], toggleIndex, togglePort % 4);
+        if (toggle.cmd != ToggleCommand::None && rcP <= toggle.port && (rcP + 4) > toggle.port) {
+            if (toggle.cmd == ToggleCommand::Toggle) {
+                rc->generateToggleEFusePacket(&packets[rc->getPixelStrings().front()->m_portNumber][0], toggle.index, toggle.port % 4);
+            } else {
+                rc->generateResetEFusePacket(&packets[rc->getPixelStrings().front()->m_portNumber][0], toggle.index, toggle.port % 4);
             }
-            togglePort = -1;
+            // Clear only the toggle we just acted on: a compare_exchange keeps
+            // a request that arrived since the snapshot from being dropped.
+            // 'expected' is a copy because a failed exchange writes through it.
+            PendingToggle expected = toggle;
+            pendingToggle.compare_exchange_strong(expected, PendingToggle());
+            toggle = PendingToggle();
         } else if (triggerPixelCount) {
             rc->generatePixelCountPacket(&packets[rc->getPixelStrings().front()->m_portNumber][0]);
             listen = false;

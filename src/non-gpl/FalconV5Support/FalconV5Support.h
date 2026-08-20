@@ -12,6 +12,8 @@
  * personal use, but modified copies MAY NOT be redistributed in any form.
  */
 
+#include <atomic>
+#include <cstdint>
 #include <functional>
 #include "fpp-json-fwd.h"
 #include <list>
@@ -85,7 +87,27 @@ private:
     int curCount = 0;
     bool triggerPixelCount = false;
 
-    int togglePort = -1;
-    int toggleIndex = -1;
-    std::string command;
+    // A pending smart-receiver eFuse action.  Published by the OutputMonitor
+    // callback (API/MQTT/GPIO/scheduler threads) and consumed by
+    // generateDynamicPacket() on the output thread, so it has to be a single
+    // atomic word: as three separate fields the consumer could pair a new
+    // port with the previous command, and the std::string it replaces was
+    // being assigned and compared concurrently, which is a torn read of a
+    // heap pointer.  Kept to 4 bytes so the atomic is lock-free on 32-bit ARM
+    // as well.
+    enum class ToggleCommand : uint8_t {
+        None = 0,
+        Toggle,
+        Reset
+    };
+    struct PendingToggle {
+        int16_t port = -1;
+        uint8_t index = 0;
+        ToggleCommand cmd = ToggleCommand::None;
+    };
+    // compare_exchange compares the object representation, so padding here
+    // would make the exchange in generateDynamicPacket() fail at random.
+    static_assert(sizeof(PendingToggle) == 4, "PendingToggle must be a single unpadded word");
+    static_assert(std::atomic<PendingToggle>::is_always_lock_free, "PendingToggle atomic must be lock-free");
+    std::atomic<PendingToggle> pendingToggle{ PendingToggle() };
 };

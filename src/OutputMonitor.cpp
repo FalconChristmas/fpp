@@ -516,7 +516,7 @@ void OutputMonitor::DisableOutputs() {
 }
 
 void OutputMonitor::SetOutput(const std::string& port, bool on) {
-    // Smart-receiver commands are collected under the lock and dispatched
+    // Smart-receiver commands are collected under gpioLock and dispatched
     // after it is released: srCallback lands in FalconV5Support, and calling
     // out of the monitor with gpioLock held invites re-entry deadlocks.
     struct SRAction {
@@ -525,7 +525,6 @@ void OutputMonitor::SetOutput(const std::string& port, bool on) {
         const char* cmd;
     };
     std::vector<SRAction> srActions;
-    std::function<void(int, int, const std::string&)> cb;
     {
         std::unique_lock<std::shared_mutex> lock(gpioLock);
         int pn = 0;
@@ -551,16 +550,22 @@ void OutputMonitor::SetOutput(const std::string& port, bool on) {
             }
             pn++;
         }
-        cb = srCallback;
     }
-    if (cb) {
-        for (auto& a : srActions) {
-            cb(a.port, a.index, a.cmd);
+    if (!srActions.empty()) {
+        // Call through the member under srCallbackLock rather than copying it
+        // out first: a copy captures FalconV5Support's raw 'this' without
+        // owning it, so a config reload destroying that object between the
+        // copy and the call leaves us writing into freed memory.
+        std::unique_lock<std::mutex> cbLock(srCallbackLock);
+        if (srCallback) {
+            for (auto& a : srActions) {
+                srCallback(a.port, a.index, a.cmd);
+            }
         }
     }
 }
 void OutputMonitor::setSmartReceiverEventCallback(std::function<void(int port, int index, const std::string& cmd)>&& f) {
-    std::unique_lock<std::shared_mutex> lock(gpioLock);
+    std::unique_lock<std::mutex> lock(srCallbackLock);
     srCallback = std::move(f);
 }
 void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config) {

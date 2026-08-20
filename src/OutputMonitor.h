@@ -81,9 +81,9 @@ private:
     // than assume the pre-output state.
     std::atomic<bool> outputsEnabled{ false };
     // Guards portPins, the pull-high/low pin lists, fusePins, eFuseRetries,
-    // pendingEFusePresets, and srCallback.  Writers (config reload, the eFuse
-    // GPIO callbacks, retry processing, enable/disable) take it exclusive;
-    // status readers (HTTP/MQTT port status, the pixel-count tester) take it
+    // and pendingEFusePresets.  Writers (config reload, the eFuse GPIO
+    // callbacks, retry processing, enable/disable) take it exclusive; status
+    // readers (HTTP/MQTT port status, the pixel-count tester) take it
     // shared.  Presets and the smart-receiver callback must NOT be invoked
     // while it is held: command presets run synchronously and can re-enter
     // EnableOutputs/DisableOutputs/SetOutput on the same thread.
@@ -94,6 +94,18 @@ private:
     int eFuseRetryCount = 0;
     int eFuseRetryInterval = 100;
 
+    // The smart-receiver callback is owned by a FalconV5Support that is
+    // destroyed on a config reload while commands ("Set Port Status") are
+    // still arriving on the API/MQTT/GPIO threads.  The callback captures that
+    // object, so it must never be copied out and invoked after the lock is
+    // dropped -- the copy carries no ownership and the object can be freed in
+    // between.  Invoking it under this mutex, which ~FalconV5Support() also
+    // takes to clear the callback, means the unregister blocks behind any
+    // in-flight call and no call can start after it returns.
+    //
+    // Deliberately not gpioLock: dispatch has to happen with the port state
+    // unlocked so a callback that re-enters the monitor can't self-deadlock.
+    std::mutex srCallbackLock;
     std::function<void(int port, int index, const std::string& cmd)> srCallback;
     // Port names whose EFUSE_TRIGGERED preset still needs to fire.  Queued by
     // addEFuseWarning() (called with gpioLock held) and drained by
