@@ -576,6 +576,11 @@ bool MultiSync::FillLocalSystemInfo(void) {
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
 
     for (auto address : addresses) {
+        if (address.empty()) {
+            // A failed GetInterfaceAddress()/inet_ntop() leaves the buffer empty;
+            // skip it rather than record a bogus local system.
+            continue;
+        }
         bool found = false;
         for (auto& sys : m_localSystems) {
             if (sys.address == address) {
@@ -587,10 +592,17 @@ bool MultiSync::FillLocalSystemInfo(void) {
             changed = true;
             newSystem.address = address;
             std::vector<std::string> parts = split(newSystem.address, '.');
-            newSystem.ipa = atoi(parts[0].c_str());
-            newSystem.ipb = atoi(parts[1].c_str());
-            newSystem.ipc = atoi(parts[2].c_str());
-            newSystem.ipd = atoi(parts[3].c_str());
+            if (parts.size() >= 4) {
+                newSystem.ipa = atoi(parts[0].c_str());
+                newSystem.ipb = atoi(parts[1].c_str());
+                newSystem.ipc = atoi(parts[2].c_str());
+                newSystem.ipd = atoi(parts[3].c_str());
+            } else {
+                newSystem.ipa = 0;
+                newSystem.ipb = 0;
+                newSystem.ipc = 0;
+                newSystem.ipd = 0;
+            }
             m_localSystems.push_back(newSystem);
         }
     }
@@ -808,7 +820,7 @@ static std::string createRanges(std::vector<std::pair<uint32_t, uint32_t>> range
         //  we'll find the smallest gap and combine into a larger range
         int minGap = 9999999;
         int minIdx = -1;
-        int last = ranges[0].first + ranges[1].second - 1;
+        int last = ranges[0].first + ranges[0].second - 1;
         for (int x = 1; x < ranges.size(); x++) {
             int gap = ranges[x].first - last;
             if (gap < minGap) {
@@ -817,7 +829,7 @@ static std::string createRanges(std::vector<std::pair<uint32_t, uint32_t>> range
             }
             last = ranges[x].first + ranges[x].second - 1;
         }
-        if (minIdx) {
+        if (minIdx > 0) {
             int newLast = ranges[minIdx].first + ranges[minIdx].second;
             ranges[minIdx - 1].second = newLast - ranges[minIdx - 1].first;
             ranges.erase(ranges.begin() + minIdx);
