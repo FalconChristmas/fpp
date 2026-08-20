@@ -1661,6 +1661,7 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 													<div class="col-md-6">
 														<div class="backdrop">
 															<h3>Chase Patterns</h3>
+															<h5 class="mt-2 mb-2">3-Channel (RGB)</h5>
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
@@ -1672,27 +1673,11 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
-																	name='testModeMode' value='RGBChase-RGBW'
-																	id='RGBChase-RGBW' onChange='SetTestMode();'><label
-																	class="custom-control-label"
-																	for='RGBChase-RGBW'>Chase:
-																	R-G-B-W</label></div>
-															<div
-																class="testPatternOptionRow custom-control custom-radio">
-																<input type='radio' class="custom-control-input"
 																	name='testModeMode' value='RGBChase-RGBA'
 																	id='RGBChase-RGBA' onChange='SetTestMode();'><label
 																	class="custom-control-label"
 																	for='RGBChase-RGBA'>Chase:
 																	R-G-B-All</label></div>
-															<div
-																class="testPatternOptionRow custom-control custom-radio">
-																<input type='radio' class="custom-control-input"
-																	name='testModeMode' value='RGBChase-RGBWA'
-																	id='RGBChase-RGBWA' onChange='SetTestMode();'><label
-																	class="custom-control-label"
-																	for='RGBChase-RGBWA'>Chase:
-																	R-G-B-W-All</label></div>
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
@@ -1704,6 +1689,31 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
+																	name='testModeMode' value='RGBChase-RGBAN'
+																	id='RGBChase-RGBAN' onChange='SetTestMode();'><label
+																	class="custom-control-label"
+																	for='RGBChase-RGBAN'>Chase:
+																	R-G-B-All-None</label></div>
+															<h5 class="mt-3 mb-2">4-Channel (RGBW)</h5>
+															<div
+																class="testPatternOptionRow custom-control custom-radio">
+																<input type='radio' class="custom-control-input"
+																	name='testModeMode' value='RGBChase-RGBW'
+																	id='RGBChase-RGBW' onChange='SetTestMode();'><label
+																	class="custom-control-label"
+																	for='RGBChase-RGBW'>Chase:
+																	R-G-B-W</label></div>
+															<div
+																class="testPatternOptionRow custom-control custom-radio">
+																<input type='radio' class="custom-control-input"
+																	name='testModeMode' value='RGBChase-RGBWA'
+																	id='RGBChase-RGBWA' onChange='SetTestMode();'><label
+																	class="custom-control-label"
+																	for='RGBChase-RGBWA'>Chase:
+																	R-G-B-W-All</label></div>
+															<div
+																class="testPatternOptionRow custom-control custom-radio">
+																<input type='radio' class="custom-control-input"
 																	name='testModeMode' value='RGBChase-RGBWN'
 																	id='RGBChase-RGBWN' onChange='SetTestMode();'><label
 																	class="custom-control-label"
@@ -1712,20 +1722,12 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
-																	name='testModeMode' value='RGBChase-RGBAN'
-																	id='RGBChase-RGBAN' onChange='SetTestMode();'><label
-																	class="custom-control-label"
-																	for='RGBChase-RGBAN'>Chase:
-																	R-G-B-All-None</label></div>
-															<div
-																class="testPatternOptionRow custom-control custom-radio">
-																<input type='radio' class="custom-control-input"
 																	name='testModeMode' value='RGBChase-RGBWAN'
-																	id='RGBChase-RGBWAN'
-																	onChange='SetTestMode();'><label
+																	id='RGBChase-RGBWAN' onChange='SetTestMode();'><label
 																	class="custom-control-label"
 																	for='RGBChase-RGBWAN'>Chase:
 																	R-G-B-W-All-None</label></div>
+															<h5 class="mt-3 mb-2">Custom</h5>
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
@@ -1771,23 +1773,15 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 													<div class="col-md-6">
 														<div class="backdrop ">
 															<h3>Cycle Patterns</h3>
+															<h5 class="mt-2 mb-2">3-Channel (RGB)</h5>
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
 																	name='testModeMode' value='RGBCycle-RGB'
-																	id='RGBCycle-RGB' checked
-																	onChange='SetTestMode();'><label
+																	id='RGBCycle-RGB' checked onChange='SetTestMode();'><label
 																	class="custom-control-label"
 																	for='RGBCycle-RGB'>Cycle:
 																	R-G-B</label></div>
-															<div
-																class="testPatternOptionRow custom-control custom-radio">
-																<input type='radio' class="custom-control-input"
-																	name='testModeMode' value='RGBCycle-RGBW'
-																	id='RGBCycle-RGBW' onChange='SetTestMode();'><label
-																	class="custom-control-label"
-																	for='RGBCycle-RGBW'>Cycle:
-																	R-G-B-W</label></div>
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
@@ -1799,19 +1793,36 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
-																	name='testModeMode' value='RGBCycle-RGBWA'
-																	id='RGBCycle-RGBWA' onChange='SetTestMode();'><label
-																	class="custom-control-label"
-																	for='RGBCycle-RGBWA'>Cycle:
-																	R-G-B-W-All</label></div>
-															<div
-																class="testPatternOptionRow custom-control custom-radio">
-																<input type='radio' class="custom-control-input"
 																	name='testModeMode' value='RGBCycle-RGBN'
 																	id='RGBCycle-RGBN' onChange='SetTestMode();'><label
 																	class="custom-control-label"
 																	for='RGBCycle-RGBN'>Cycle:
 																	R-G-B-None</label></div>
+															<div
+																class="testPatternOptionRow custom-control custom-radio">
+																<input type='radio' class="custom-control-input"
+																	name='testModeMode' value='RGBCycle-RGBAN'
+																	id='RGBCycle-RGBAN' onChange='SetTestMode();'><label
+																	class="custom-control-label"
+																	for='RGBCycle-RGBAN'>Cycle:
+																	R-G-B-All-None</label></div>
+															<h5 class="mt-3 mb-2">4-Channel (RGBW)</h5>
+															<div
+																class="testPatternOptionRow custom-control custom-radio">
+																<input type='radio' class="custom-control-input"
+																	name='testModeMode' value='RGBCycle-RGBW'
+																	id='RGBCycle-RGBW' onChange='SetTestMode();'><label
+																	class="custom-control-label"
+																	for='RGBCycle-RGBW'>Cycle:
+																	R-G-B-W</label></div>
+															<div
+																class="testPatternOptionRow custom-control custom-radio">
+																<input type='radio' class="custom-control-input"
+																	name='testModeMode' value='RGBCycle-RGBWA'
+																	id='RGBCycle-RGBWA' onChange='SetTestMode();'><label
+																	class="custom-control-label"
+																	for='RGBCycle-RGBWA'>Cycle:
+																	R-G-B-W-All</label></div>
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
@@ -1823,20 +1834,12 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
-																	name='testModeMode' value='RGBCycle-RGBAN'
-																	id='RGBCycle-RGBAN' onChange='SetTestMode();'><label
-																	class="custom-control-label"
-																	for='RGBCycle-RGBAN'>Cycle:
-																	R-G-B-All-None</label></div>
-															<div
-																class="testPatternOptionRow custom-control custom-radio">
-																<input type='radio' class="custom-control-input"
 																	name='testModeMode' value='RGBCycle-RGBWAN'
-																	id='RGBCycle-RGBWAN'
-																	onChange='SetTestMode();'><label
+																	id='RGBCycle-RGBWAN' onChange='SetTestMode();'><label
 																	class="custom-control-label"
 																	for='RGBCycle-RGBWAN'>Cycle:
 																	R-G-B-W-All-None</label></div>
+															<h5 class="mt-3 mb-2">Custom</h5>
 															<div
 																class="testPatternOptionRow custom-control custom-radio">
 																<input type='radio' class="custom-control-input"
