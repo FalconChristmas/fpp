@@ -22,7 +22,7 @@ ProcessSequenceData()
   1. Bridge/E1.31 merge        memcpy non-expired m_bridgeData ranges into m_seqData
   2. PluginManager::modifySequenceData()
   3. OverlayEffects()          legacy effects
-  4. SDLOutput::ProcessVideoOverlay()
+  4. GStreamerOutput::ProcessVideoOverlay()
   5. PixelOverlayManager::doOverlays()
      - flush dirty buffers
      - sub-models (children first)
@@ -30,10 +30,10 @@ ProcessSequenceData()
   6. ChannelTester::OverlayTestData()
   7. PluginManager::modifyChannelData()
   8. PrepareChannelData()
-     - OutputProcessors chain (in order):
-         Remap -> SetValue -> Brightness+Gamma -> ColorOrder ->
-         HoldValue -> ThreeToFour -> OverrideZero -> Fold ->
-         ClampValue -> ScaleValue
+     - OutputProcessors chain, in the user's configured row order
+         (loadFromJSON push_backs the outputprocessors.json array as-is and
+          the UI table is drag-sortable; the type enum is not a sort key)
+         Remaps added at runtime by PlaylistEntryRemap append, so they run last
      - Each output's PrepData()
        |
        v
@@ -139,7 +139,7 @@ T+Nms   update() returns EFFECT_DONE(0) -> effect deleted
 | File | Role |
 |------|------|
 | `../Sequence.cpp` | ReadSequenceData, ProcessSequenceData, SendSequenceData, bridge merge |
-| `channeloutputthread.cpp` | Main output loop (50ms idle, 10ms playing) |
+| `channeloutputthread.cpp` | Main output loop (playing: 1000000/RefreshRate us, so 50ms at 20fps; idle/bridge: the `E131BridgingInterval` setting, default 50ms) |
 | `ChannelOutputSetup.cpp` | PrepareChannelData, SendChannelData, output initialization |
 | `ChannelOutput.h` | Base class: Init, SendData, PrepData, GetRequiredChannelRanges |
 | `ThreadedChannelOutput.h/cpp` | Async double-buffered output base class |
