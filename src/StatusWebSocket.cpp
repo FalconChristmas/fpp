@@ -26,12 +26,15 @@
 // far less often.  fppd already has this data in hand, so producing it costs
 // ~0.7ms and nothing when nobody is connected.
 //
-// Wire format (server -> client), mirroring a versioned-snapshot scheme:
-//     {"type":"snapshot","v":{"status":<n>},"data":{"status":{...}}}
-// `v` is a per-key monotonic version map; `data` carries only the keys that
-// changed this round.  A client compares versions to detect a key it missed
-// across a reconnect.  Today the only key is "status"; the envelope leaves
-// room to add more (e.g. a slow "system" key) later without a protocol change.
+// Wire format (server -> client):
+//     {"type":"snapshot","data":{"status":{...}}}
+// `data` carries the keys that changed this round; today the only key is
+// "status", and the envelope leaves room to add more (e.g. a slow "system"
+// key) later without a protocol change.  Each snapshot is complete for the
+// keys it contains -- there are no deltas to miss, so there is no sequence
+// number to compare: a client that drops the socket re-syncs by doing one full
+// status poll when it reconnects, which it must do anyway to pick up the PHP
+// augmentation.
 //
 // Client -> server: only "pong" is expected (drogon answers pings itself);
 // anything else is ignored.  The endpoint is read-only — it never accepts
@@ -63,7 +66,6 @@ namespace {
 
 std::mutex g_mutex;
 std::set<WebSocketConnectionPtr> g_conns;
-uint64_t g_statusVersion = 0;
 std::string g_lastStatusJson; // last pushed status payload, for change detection
 // Set by StatusWebSocketShutdown() under g_mutex. Once set, no producer builds
 // or sends a payload and no new connection is tracked, so a connection that
@@ -80,14 +82,10 @@ std::string buildStatusJson() {
 
 // Wrap an already-serialized data payload for one key in the snapshot
 // envelope.  dataJson is spliced in verbatim so we don't parse-then-reserialize.
-std::string makeSnapshot(const char* key, const std::string& dataJson, uint64_t version) {
+std::string makeSnapshot(const char* key, const std::string& dataJson) {
     std::string out;
     out.reserve(dataJson.size() + 64);
-    out += "{\"type\":\"snapshot\",\"v\":{\"";
-    out += key;
-    out += "\":";
-    out += std::to_string(version);
-    out += "},\"data\":{\"";
+    out += "{\"type\":\"snapshot\",\"data\":{\"";
     out += key;
     out += "\":";
     out += dataJson;
@@ -99,28 +97,31 @@ std::string makeSnapshot(const char* key, const std::string& dataJson, uint64_t 
 // new client needs it), push it to all connected clients.  Cheap and a no-op
 // when nobody is connected, so the 1s timer costs nothing on an idle system.
 void broadcastStatusIfChanged() {
-    // Check for connections before doing any work: with nobody listening the
-    // 1s timer must cost nothing, so an idle system pays no price for this
-    // endpoint existing.  (A client can appear between this check and the
-    // build below; it gets its own snapshot in handleNewConnection, so a
-    // missed broadcast here is harmless.)
-    {
-        std::lock_guard<std::mutex> lk(g_mutex);
-        if (g_shutdown || g_conns.empty())
-            return;
-    }
-    std::string js = buildStatusJson();
     std::string msg;
     std::vector<WebSocketConnectionPtr> targets;
     {
         std::lock_guard<std::mutex> lk(g_mutex);
+        // Check for connections before doing any work: with nobody listening
+        // the 1s timer must cost nothing, so an idle system pays no price for
+        // this endpoint existing.  (A client can appear right after this check;
+        // it gets its own snapshot in handleNewConnection, so a missed
+        // broadcast here is harmless.)
         if (g_shutdown || g_conns.empty())
             return;
+        // The build is deliberately inside the lock.  Three thread contexts
+        // reach this -- the drogon timer, the FPP-Warnings notify thread, and
+        // an IO thread via handleNewConnection -- and building outside it let a
+        // slower thread win the lock after a faster one and publish an older
+        // payload as the newest state (a warning could blink away for a second).
+        // g_mutex is file-static and only ever taken from those entry points,
+        // none of which hold any of the locks buildStatusJson() reaches, so the
+        // nesting is one-directional and this cannot deadlock.  The hold is the
+        // ~0.7ms build.
+        std::string js = buildStatusJson();
         if (js == g_lastStatusJson)
             return;
-        g_lastStatusJson = js;
-        ++g_statusVersion;
-        msg = makeSnapshot("status", js, g_statusVersion);
+        g_lastStatusJson = std::move(js);
+        msg = makeSnapshot("status", g_lastStatusJson);
         targets.assign(g_conns.begin(), g_conns.end());
     }
     for (auto& c : targets) {
@@ -149,6 +150,7 @@ class StatusWebSocket : public drogon::WebSocketController<StatusWebSocket> {
 public:
     void handleNewConnection(const HttpRequestPtr& /*req*/,
                              const WebSocketConnectionPtr& conn) override {
+        std::string msg;
         {
             // A connection can still land after shutdown has begun (drogon's
             // quit() only queues teardown). Building a payload then would read
@@ -156,23 +158,18 @@ public:
             std::lock_guard<std::mutex> lk(g_mutex);
             if (g_shutdown)
                 return;
-        }
-        // Send this client a full snapshot immediately so it doesn't have to
-        // wait for the next change.  Force a build (bypass the change check).
-        std::string js = buildStatusJson();
-        std::string msg;
-        {
-            std::lock_guard<std::mutex> lk(g_mutex);
-            if (g_shutdown)
-                return;
+            // Send this client a full snapshot immediately so it doesn't have
+            // to wait for the next change.  Force a build (bypass the change
+            // check), inside the lock for the same reason
+            // broadcastStatusIfChanged() builds inside it: this runs on an IO
+            // thread alongside the other two producers, and a build outside the
+            // lock could overwrite g_lastStatusJson with an older payload.
+            std::string js = buildStatusJson();
             g_conns.insert(conn);
-            // Advance the shared cache/version so the timer doesn't
-            // immediately re-broadcast identical data to everyone.
-            if (js != g_lastStatusJson) {
-                g_lastStatusJson = js;
-                ++g_statusVersion;
-            }
-            msg = makeSnapshot("status", js, g_statusVersion);
+            // Advance the shared cache so the timer doesn't immediately
+            // re-broadcast identical data to everyone.
+            g_lastStatusJson = std::move(js);
+            msg = makeSnapshot("status", g_lastStatusJson);
         }
         conn->send(msg);
     }
