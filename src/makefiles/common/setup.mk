@@ -191,6 +191,44 @@ CFLAGS+=$(OPTIMIZE_FLAGS) -pipe \
 	-I /usr/include/jsoncpp \
 	-fpic
 
+# Library detection that changes CFLAGS lives HERE, in the fragment every
+# external plugin includes -- not in fpp_so.mk, which only the core reads.
+# Anything that alters the preprocessor state has to reach both, or the two
+# disagree in two ways that are easy to miss:
+#
+#   * The PCH is built with the core's CFLAGS, and gcc refuses a .gch whose
+#     macro state differs from the consuming TU's.  gstreamer's pkg-config
+#     emits -pthread, so every plugin built against a gstreamer-enabled core
+#     silently lost the PCH ("not used because `_REENTRANT' not defined").
+#   * Headers in mediaoutput/ gate class members on
+#     __has_include(<gst/gst.h>), so a plugin compiled without gstreamer's -I
+#     sees a DIFFERENT layout for those classes than libfpp.so was built with.
+#     That one has no diagnostic at all.
+#
+# Resolve pkg-config with := so it runs once while the makefiles are read.
+# CFLAGS is a recursively-expanded variable, so a bare "CFLAGS += $(shell ...)"
+# appends the shell call itself rather than its result, and make then re-runs
+# pkg-config every time CFLAGS is expanded -- which is once per compile recipe,
+# several hundred forks per build on boards that can least afford them.
+#
+# The matching link flags stay in fpp_so.mk; only the core links them.
+
+# GStreamer support
+ifneq ($(wildcard /usr/include/gstreamer-1.0/gst/gst.h),)
+GSTREAMER_CFLAGS := $(shell pkg-config --cflags gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0)
+GSTREAMER_LIBS := $(shell pkg-config --libs gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0)
+CFLAGS += $(GSTREAMER_CFLAGS)
+endif
+
+# DRM/KMS. fpp.cpp and framebuffer/KMSFrameBuffer.h enable the KMS code on
+# __has_include(<xf86drm.h>), so the flags have to key off that same header --
+# xf86drm.h itself pulls in <drm.h>, which only resolves with libdrm's -I.
+ifneq ($(wildcard /usr/include/xf86drm.h),)
+LIBDRM_CFLAGS := $(shell pkg-config --cflags libdrm)
+LIBDRM_LIBS := -ldrm
+CFLAGS += $(LIBDRM_CFLAGS)
+endif
+
 # Auto-generate per-object header dependency files (-MMD) with phony targets
 # for removed headers (-MP), so a change to a core header (e.g. Commands.h)
 # correctly invalidates any plugin object that transitively includes it -

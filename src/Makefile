@@ -109,7 +109,12 @@ ifeq '$(findstring clang,$(CXXCOMPILER))' ''
 # build one.  Pin the .gch's own flags so no dependent's target-specific CFLAGS
 # can reach it.
 fpp-pch.h.gch: CFLAGS := $(CFLAGS)
-fpp-pch.h.gch: fpp-pch.h common.h settings.h Sequence.h fppversion.h log.h mqtt.h Warnings.h commands/Commands.h
+# The makefile fragments are prerequisites for the same reason they are on every
+# %.o rule: they decide the flags.  A CFLAGS edit that rebuilds every object but
+# leaves the .gch alone leaves the two disagreeing on macro state, and gcc then
+# drops the PCH for the whole tree (loudly now, thanks to -Winvalid-pch, but
+# still for the rest of that tree's life).
+fpp-pch.h.gch: fpp-pch.h common.h settings.h Sequence.h fppversion.h log.h mqtt.h Warnings.h commands/Commands.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	CCACHE_NOHARDLINK=true CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 	shasum $(PCH_FILE) > $(PCH_FILE).sum
 endif
