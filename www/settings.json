@@ -139,14 +139,12 @@
 				"AudioCardAliases"
 			]
 		},
-		"alsaHardwareAudio": {
-			"description": "ALSA Hardware Audio",
+		"simplePipeWireAudio": {
+			"description": "Simple PipeWire Audio",
 			"settings": [
 				"AudioOutput",
 				"AudioFormat",
 				"AudioPeriodSize",
-				"AudioBufferSize",
-				"AudioLayout",
 				"ForceAudioId"
 			]
 		},
@@ -179,8 +177,8 @@
 				"PipeWireGraph"
 			]
 		},
-		"generalVideo": {
-			"description": "Hardware Direct Video",
+		"simplePipeWireVideo": {
+			"description": "Simple PipeWire Video",
 			"settings": [
 				"VideoOutput",
 				"ForceHDMI",
@@ -659,8 +657,8 @@
 		},
 		"AudioFormat": {
 			"name": "AudioFormat",
-			"description": "Audio Output Format",
-			"tip": "Sets the sample rate and bit depth for Direct ALSA audio output. In PipeWire mode, per-card sample rates are configured in the PipeWire Audio Groups settings instead.",
+			"description": "Audio Sample Rate",
+			"tip": "The sample rate PipeWire's audio graph runs at.  Default lets FPP use 44100 unless the selected sound card clocks at something else.  The sample format (bit depth) is not set here; FPP probes the card and uses the widest format it can hold the rate in.  In PipeWire (Advanced) mode, per-card rates are configured in the PipeWire Audio Groups settings instead.",
 			"gatherStats": true,
 			"level": 1,
 			"restart": 0,
@@ -669,70 +667,15 @@
 			"type": "select",
 			"options": {
 				"Default": 0,
-				"44100/S16": 1,
-				"44100/S32": 2,
-				"44100/FLT": 3,
-				"48000/S16": 4,
-				"48000/S32": 5,
-				"48000/FLT": 6,
-				"96000/S16": 7,
-				"96000/S32": 8,
-				"96000/FLT": 9
-			}
-		},
-		"AudioLayout": {
-			"name": "AudioLayout",
-			"description": "Audio Channel Layout",
-			"tip": "The Audio Channel Layout.  This controls the number of channels of audio that is output and how the channels are mapped.   Note: this only applies to SOUND files played on the master, not videos or files played on a remote.",
-			"gatherStats": true,
-			"level": 1,
-			"restart": 1,
-			"reboot": 0,
-			"default": 0,
-			"type": "select",
-			"options": {
-				"Stereo": 0,
-				"Left/Right/LFE (2.1)": 1,
-				"Left/Right/Back Center": 2,
-				"Left/Right/Front Center": 3,
-				"Left/Right/Front Center/LFE (3.1)": 4,
-				"Left/Right/Front Center/Back Center": 5,
-				"Left/Right/Side Left/Side Right": 6,
-				"Left/Right/Back Left/Back Right": 7,
-				"Left/Right/Front Center/Back Center/LFE (4.1)": 8,
-				"Left/Right/Front Center/Side Left/Side Right (5.0)": 9,
-				"Left/Right/Front Center/Side Left/Side Right/LFE (5.1)": 10,
-				"Left/Right/Front Center/Back Left/Back Right": 11,
-				"Left/Right/Front Center/Back Left/Back Right/LFE": 12,
-				"Left/Right/Front Center/Side Left/Side Right/Back Center/LFE (6.1)": 13,
-				"Left/Right/Front Center/Side Left/Side Right/Back Left/Back Right (7.0)": 14,
-				"Left/Right/Front Center/Side Left/Side Right/Back Left/Back Right/LFE (7.1)": 15
-			}
-		},
-		"AudioBufferSize": {
-			"name": "AudioBufferSize",
-			"description": "Audio Buffer Size",
-			"tip": "The size of the buffer used to prepare audio to send to the sound card.  Larger values increase latency, but may reduce audio static/glitches",
-			"gatherStats": true,
-			"level": 1,
-			"restart": 0,
-			"reboot": 1,
-			"default": 3072,
-			"type": "select",
-			"options": {
-				"2048": 2048,
-				"3072": 3072,
-				"4096": 4096,
-				"5120": 5120,
-				"6144": 6144,
-				"7168": 7168,
-				"8192": 8192
+				"44100": 1,
+				"48000": 4,
+				"96000": 7
 			}
 		},
 		"AudioPeriodSize": {
 			"name": "AudioPeriodSize",
 			"description": "Audio Period Size",
-			"tip": "The size of the DMA transfer from the audio buffer to the hardware for Direct ALSA mode. Should be an even fraction of the Audio Buffer Size. In PipeWire mode, per-card period sizes are configured in the PipeWire Audio Groups settings instead.",
+			"tip": "The number of samples PipeWire hands to the sound card at a time (the graph quantum).  Smaller values lower latency, larger values are less likely to glitch on a busy player.  In PipeWire (Advanced) mode, per-card period sizes are configured in the PipeWire Audio Groups settings instead.",
 			"gatherStats": true,
 			"level": 1,
 			"restart": 0,

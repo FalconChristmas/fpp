@@ -42,10 +42,12 @@ PrintSettingGroup('generalAudio');
 
 // PipeWire-advanced section — always rendered, visibility controlled dynamically by MediaBackend
 {
-    $mediaBackend = isset($settings['MediaBackend']) ? $settings['MediaBackend'] : 'alsa';
+    // Only two backends exist: pipewire-simple (the default) and pipewire
+    // (advanced).  The retired "alsa" backend is migrated to pipewire-simple by
+    // FPPINIT at boot, so anything that is not the advanced mode renders as
+    // Simple.
+    $mediaBackend = isset($settings['MediaBackend']) ? $settings['MediaBackend'] : 'pipewire-simple';
     $isPipeWireAdv = ($mediaBackend === 'pipewire');
-    $isPipeWireSimple = ($mediaBackend === 'pipewire-simple');
-    $isAlsa = (!$isPipeWireAdv && !$isPipeWireSimple);
     ?>
     <div id="pipeWireSection" <?= $isPipeWireAdv ? '' : ' style="display:none;"' ?>>
         <h2>PipeWire Routing</h2>
@@ -68,9 +70,8 @@ PrintSettingGroup('generalAudio');
 
     </div>
 
-    <div id="alsaHardwareAudioSection" <?= $isPipeWireAdv ? ' style="display:none;"' : '' ?>>
-        <h2 id="alsaHardwareAudioHeader"><?= $isPipeWireSimple ? 'Simple PipeWire Audio' : 'ALSA Hardware Audio' ?></h2>
-        <? PrintSettingGroup('alsaHardwareAudio', '', '', 1, '', '', false); ?>
+    <div id="simplePipeWireAudioSection" <?= $isPipeWireAdv ? ' style="display:none;"' : '' ?>>
+        <? PrintSettingGroup('simplePipeWireAudio'); ?>
     </div>
     <script>
         (function () {
@@ -78,27 +79,20 @@ PrintSettingGroup('generalAudio');
                 if (val === 'pipewire') {
                     $('#pipeWireSection').show();
                     $('#pipeWireVideoSection').show();
-                    $('#alsaHardwareAudioSection').hide();
-                    $('#hardwareDirectVideoSection').hide();
-                } else if (val === 'pipewire-simple') {
+                    $('#simplePipeWireAudioSection').hide();
+                    $('#simplePipeWireVideoSection').hide();
+                } else {
+                    // Simple mode (and any legacy backend value, which FPPINIT
+                    // migrates to Simple at boot).
                     $('#pipeWireSection').hide();
                     $('#pipeWireVideoSection').hide();
-                    $('#alsaHardwareAudioSection').show();
-                    $('#hardwareDirectVideoSection').show();
-                    $('#alsaHardwareAudioHeader').text('Simple PipeWire Audio');
-                    $('#hardwareDirectVideoHeader').text('Simple PipeWire Video');
-                    // AudioOutput / VideoOutput live in the 'alsa' children
+                    $('#simplePipeWireAudioSection').show();
+                    $('#simplePipeWireVideoSection').show();
+                    // AudioOutput / VideoOutput are not in the Simple children
                     // list, so the children logic hides them here.  Re-show
                     // them — they are the primary controls in Simple mode.
                     $('#AudioOutputRow').show();
                     $('#VideoOutputRow').show();
-                } else {
-                    $('#pipeWireSection').hide();
-                    $('#pipeWireVideoSection').hide();
-                    $('#alsaHardwareAudioSection').show();
-                    $('#hardwareDirectVideoSection').show();
-                    $('#alsaHardwareAudioHeader').text('ALSA Hardware Audio');
-                    $('#hardwareDirectVideoHeader').text('Hardware Direct Video');
                 }
             }
             var origChildFn = window.UpdateMediaBackendChildren;
@@ -123,9 +117,6 @@ PrintSettingGroup('generalAudio');
     ?>
 </div>
 
-<div id="hardwareDirectVideoSection" <?= ($mediaBackend === 'pipewire') ? ' style="display:none;"' : '' ?>>
-    <h2 id="hardwareDirectVideoHeader">
-        <?= ($mediaBackend === 'pipewire-simple') ? 'Simple PipeWire Video' : 'Hardware Direct Video' ?>
-    </h2>
-    <? PrintSettingGroup('generalVideo', '', '', 1, '', '', false); ?>
+<div id="simplePipeWireVideoSection" <?= ($mediaBackend === 'pipewire') ? ' style="display:none;"' : '' ?>>
+    <? PrintSettingGroup('simplePipeWireVideo'); ?>
 </div>

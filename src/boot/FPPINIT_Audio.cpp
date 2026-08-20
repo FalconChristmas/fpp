@@ -1394,33 +1394,52 @@ static void runAudioSetup(bool recoveryPass) {
             }
         }
     }
-    int bufSize = getRawSettingInt("AudioBufferSize", 3072);
+    // The legacy ALSA templates carry a BUFFERSIZE token; the PipeWire one does
+    // not, and the ALSA backend is retired (see the migration above), so nothing
+    // reachable consumes this any more.  The old AudioBufferSize setting was
+    // removed rather than left in the UI doing nothing; substitute the value it
+    // defaulted to so the templates stay valid if one is ever used again.
+    constexpr int LEGACY_ALSA_BUFFER_SIZE = 3072;
     int perSize = getRawSettingInt("AudioPeriodSize", 1024);
     replaceAll(asoundrc, "CARDTYPE", cardType);
-    replaceAll(asoundrc, "BUFFERSIZE", std::to_string(bufSize));
+    replaceAll(asoundrc, "BUFFERSIZE", std::to_string(LEGACY_ALSA_BUFFER_SIZE));
     replaceAll(asoundrc, "PERIODSIZE", std::to_string(perSize));
     for (int x = 0; x < 10; x++) {
         if (x != card) {
             replaceAll(asoundrc, "card " + std::to_string(x), "card " + std::to_string(card));
         }
     }
+    // AudioFormat used to encode both a rate and a sample format (44100/S16,
+    // 44100/S32, ...), but only the rate has been used since the ALSA backend
+    // was retired -- PipeWire probes the card for the format.  The setting now
+    // offers just the rates (0 default, 1 = 44100, 4 = 48000, 7 = 96000), so
+    // fold any stored bit-depth variant onto its rate.  Without this the box
+    // keeps a value the dropdown no longer lists, which renders as no selection
+    // and silently drops to 44100 the first time the page is saved.
     int rate = getRawSettingInt("AudioFormat", 0);
+    int normalizedRate = rate;
+    if (rate >= 7) {
+        normalizedRate = 7;
+    } else if (rate >= 4) {
+        normalizedRate = 4;
+    } else if (rate >= 1) {
+        normalizedRate = 1;
+    }
+    if (normalizedRate != rate) {
+        printf("FPP - AudioFormat %d no longer selects a sample format; storing %d\n", rate, normalizedRate);
+        setRawSetting("AudioFormat", std::to_string(normalizedRate));
+        rate = normalizedRate;
+    }
     int pipewireSampleRate = 44100;
     switch (rate) {
     case 1:
-    case 2:
-    case 3:
         // replaceAll(asoundrc, "rate 44100", "rate 44100");
         break;
     case 4:
-    case 5:
-    case 6:
         replaceAll(asoundrc, "rate 44100", "rate 48000");
         pipewireSampleRate = 48000;
         break;
     case 7:
-    case 8:
-    case 9:
         replaceAll(asoundrc, "rate 44100", "rate 96000");
         pipewireSampleRate = 96000;
         break;
