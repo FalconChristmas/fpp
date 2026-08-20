@@ -589,69 +589,65 @@ void ScheduleEntry::GetDateRangeForYear(int year, int& sDate, int& eDate) {
     }
 }
 
+int ScheduleEntry::DayIndexToMask(int dayIndex) {
+    switch (dayIndex) {
+    case INX_SUN:
+        return INX_DAY_MASK_SUNDAY;
+    case INX_MON:
+        return INX_DAY_MASK_MONDAY;
+    case INX_TUE:
+        return INX_DAY_MASK_TUESDAY;
+    case INX_WED:
+        return INX_DAY_MASK_WEDNESDAY;
+    case INX_THU:
+        return INX_DAY_MASK_THURSDAY;
+    case INX_FRI:
+        return INX_DAY_MASK_FRIDAY;
+    case INX_SAT:
+        return INX_DAY_MASK_SATURDAY;
+    case INX_EVERYDAY:
+        return INX_DAY_MASK_EVERYDAY;
+    case INX_WKDAYS:
+        return INX_DAY_MASK_WEEKDAYS;
+    case INX_WKEND:
+        return INX_DAY_MASK_WEEKEND;
+    case INX_M_W_F:
+        return INX_DAY_MASK_M_W_F;
+    case INX_T_TH:
+        return INX_DAY_MASK_T_TH;
+    case INX_SUN_TO_THURS:
+        return INX_DAY_MASK_SUN_TO_THURS;
+    case INX_FRI_SAT:
+        return INX_DAY_MASK_FRI_SAT;
+    }
+
+    // A custom day mask (INX_DAY_MASK set) or an odd/even index carries no
+    // enumerated case; it is already a mask or is resolved separately, so
+    // return it unchanged.
+    return dayIndex;
+}
+
+bool ScheduleEntry::IsOddEvenMatch(time_t dayTime) const {
+    // Odd/Even is based on the FPP 'epoch', the date of the first commit to
+    // the FPP repository on github, July 15, 2013.
+    struct std::tm FPPEpoch = { 0, 0, 0, 15, 6, 113 };
+    std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
+    int daysSince = (int)std::difftime(dayTime, FPPEpochTimeT) / SECONDS_PER_DAY;
+
+    if (daysSince % 2)
+        return dayIndex == INX_ODD_DAY;
+
+    return dayIndex == INX_EVEN_DAY;
+}
+
 /*
  * Does this entry's day selection include the given absolute date?
  */
 bool ScheduleEntry::OccursOnDate(int year, int month, int mday) {
-    if ((dayIndex == INX_ODD_DAY) || (dayIndex == INX_EVEN_DAY)) {
-        // Odd/Even is based on the FPP 'epoch', the date of the first
-        // commit to the FPP repository on github, July 15, 2013
-        struct std::tm FPPEpoch = { 0, 0, 0, 15, 6, 113 };
-        std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
-        std::time_t dayTime = GetTimeOnDate(year, month, mday, 12, 0, 0);
-        int daysSince = (int)std::difftime(dayTime, FPPEpochTimeT) / SECONDS_PER_DAY;
+    if ((dayIndex == INX_ODD_DAY) || (dayIndex == INX_EVEN_DAY))
+        return IsOddEvenMatch(GetTimeOnDate(year, month, mday, 12, 0, 0));
 
-        if (daysSince % 2)
-            return dayIndex == INX_ODD_DAY;
-
-        return dayIndex == INX_EVEN_DAY;
-    }
-
-    int mask = dayIndex;
-    switch (dayIndex) {
-    case INX_SUN:
-        mask = INX_DAY_MASK_SUNDAY;
-        break;
-    case INX_MON:
-        mask = INX_DAY_MASK_MONDAY;
-        break;
-    case INX_TUE:
-        mask = INX_DAY_MASK_TUESDAY;
-        break;
-    case INX_WED:
-        mask = INX_DAY_MASK_WEDNESDAY;
-        break;
-    case INX_THU:
-        mask = INX_DAY_MASK_THURSDAY;
-        break;
-    case INX_FRI:
-        mask = INX_DAY_MASK_FRIDAY;
-        break;
-    case INX_SAT:
-        mask = INX_DAY_MASK_SATURDAY;
-        break;
-    case INX_EVERYDAY:
-        mask = INX_DAY_MASK_EVERYDAY;
-        break;
-    case INX_WKDAYS:
-        mask = INX_DAY_MASK_WEEKDAYS;
-        break;
-    case INX_WKEND:
-        mask = INX_DAY_MASK_WEEKEND;
-        break;
-    case INX_M_W_F:
-        mask = INX_DAY_MASK_M_W_F;
-        break;
-    case INX_T_TH:
-        mask = INX_DAY_MASK_T_TH;
-        break;
-    case INX_SUN_TO_THURS:
-        mask = INX_DAY_MASK_SUN_TO_THURS;
-        break;
-    case INX_FRI_SAT:
-        mask = INX_DAY_MASK_FRI_SAT;
-        break;
-    }
+    int mask = DayIndexToMask(dayIndex);
 
     // Day masks run Sunday (0x04000) through Saturday (0x00100)
     int dowBit = INX_DAY_MASK_SUNDAY >> GetDOWOnDate(year, month, mday);

@@ -78,6 +78,17 @@ public:
     int LoadFromString(std::string entryStr);
     int LoadFromJson(Json::Value& entry);
 
+    // Map a UI dayIndex (INX_SUN..INX_FRI_SAT) to its INX_DAY_MASK_* bitmask.
+    // A custom mask or an odd/even index is returned unchanged, matching the
+    // switch this replaces: both the live scheduler and the calendar preview
+    // resolve day selections through here so they cannot drift apart.
+    static int DayIndexToMask(int dayIndex);
+
+    // For an INX_ODD_DAY / INX_EVEN_DAY entry, does the given day's parity
+    // (counted from the FPP epoch, the first commit on 2013-07-15) match this
+    // entry's odd/even selection?  Meaningless for non-odd/even entries.
+    bool IsOddEvenMatch(time_t dayTime) const;
+
     void pushStartEndTimes(int day, int &delta, int deltaThreshold);
 
     // Occurrence expansion anchored to an absolute calendar date rather than to
