@@ -511,7 +511,15 @@ Json::Value Playlist::LoadJSON(const std::string& filename) {
         warn += filename;
         WarningHolder::AddWarningTimeout(30, 24, warn);
         LogErr(VB_PLAYLIST, "Error loading %s\n", filename.c_str());
-        return root;
+        // Signal load failure with a null root.  LoadJsonFromFile normalizes a
+        // failure to an empty object, which is indistinguishable from a valid
+        // but empty playlist -- returning null instead lets ReloadPlaylist tell
+        // "file missing / half-written / unparseable" (null) apart from "a real
+        // playlist that happens to be empty" (a parsed object), so a transient
+        // read failure can't Cleanup() a playing show. Callers that treat this
+        // as an empty playlist (isMember checks, Load()) behave as before: a
+        // null Json::Value reports no members and loads nothing.
+        return Json::Value();
     }
 
     if (m_filename == filename) {
@@ -739,6 +747,19 @@ int Playlist::ReloadPlaylist(void) {
     long long startTime = m_startTime;
 
     Json::Value root = LoadJSON(m_filename);
+
+    // Invariant: a reload must never replace a playing playlist with nothing.
+    // LoadJSON returns a null root when the file is missing, half-written, or
+    // unparseable (a non-atomic UI save leaves a brief window where a reload
+    // was already triggered).  Load() would Cleanup() the running playlist and
+    // then load an empty one, silently stopping the show.  Bail here instead so
+    // ReloadIfNeeded takes its "continuing with existing copy" path and keeps
+    // the current playlist.  A genuinely empty playlist still parses to an
+    // object (not null), so a real reload -- even to an empty playlist -- works.
+    if (root.isNull()) {
+        LogErr(VB_PLAYLIST, "Playlist::ReloadPlaylist() got no usable playlist from %s; keeping the running playlist\n", m_filename.c_str());
+        return 0;
+    }
 
     if (!Load(root))
         return 0;
@@ -1088,7 +1109,15 @@ int Playlist::FileHasBeenModified(void) {
     }
 
     struct stat attr;
-    stat(m_filename.c_str(), &attr);
+    if (stat(m_filename.c_str(), &attr) != 0) {
+        // The file is momentarily unstat-able -- a non-atomic UI save (write a
+        // temp then rename, or a slow write) makes it briefly absent.  attr is
+        // uninitialized on failure, so comparing attr.st_mtime would read stack
+        // garbage and fabricate a spurious "modified", triggering a reload that
+        // wipes the running playlist.  A file we can't stat right now is not a
+        // reason to reload: report unmodified and let the next tick retry.
+        return 0;
+    }
 
     char timeBuf[32];
     LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime_r(&attr.st_mtime, timeBuf));
