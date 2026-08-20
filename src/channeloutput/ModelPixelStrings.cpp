@@ -174,7 +174,8 @@ void ModelPixelStringsOutput::PrepData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "ModelPixelStringsOutput::PrepData(%p)\n", channelData);
 
     unsigned char* d = prepBuffer;
-    int stride = model->getWidth() * 3; // RGB
+    int bpp = model->getBytesPerPixel();
+    int stride = model->getWidth() * bpp;
 
     PixelString* ps = NULL;
     int inCh = 0;
@@ -184,10 +185,15 @@ void ModelPixelStringsOutput::PrepData(unsigned char* channelData) {
         d = prepBuffer + (s * stride);
         inCh = 0;
 
+        // Only the first 3 (RGB) bytes of each pixel are written; on an RGBW
+        // model the 4th byte is left as-is, which the calloc'd buffers keep
+        // at 0. Advancing by bpp (not a fixed 3) keeps rows aligned to the
+        // model's real layout instead of RGB-packing them.
         for (int p = 0, pix = 0; p < ps->m_outputBytes; pix++) {
-            *(d++) = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-            *(d++) = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
-            *(d++) = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+            d[0] = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+            d[1] = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+            d[2] = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+            d += bpp;
         }
     }
 
