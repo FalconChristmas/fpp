@@ -45,6 +45,13 @@ Scheduler* scheduler = NULL;
 // Test assumptions
 static_assert(std::is_move_constructible_v<ScheduledItem>);
 
+// Warning 23 is removed by an exact match on its text, so every site that adds
+// or removes it for an entry has to produce the identical string.
+static std::string missingEntryWarning(const ScheduleEntry& entry) {
+    return std::string("Scheduled ") + (entry.sequence ? "Sequence" : "Playlist") +
+           " '" + entry.playlist + "' does not exist";
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 Scheduler::Scheduler() :
@@ -191,19 +198,13 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
 
     if (!entry->playlist.empty()) {
         std::string playlistFile;
-        std::string warning = "Scheduled ";
+        std::string warning = missingEntryWarning(*entry);
 
         if (entry->sequence) {
             playlistFile = FPP_DIR_SEQUENCE("/" + entry->playlist);
-
-            warning = "Sequence";
         } else {
             playlistFile = FPP_DIR_PLAYLIST("/" + entry->playlist + ".json");
-
-            warning = "Playlist";
         }
-        warning = " '";
-        warning += entry->playlist + "' does not exist";
 
         if (FileExists(playlistFile)) {
             WarningHolder::RemoveWarning(23, warning);
@@ -706,20 +707,13 @@ void Scheduler::LoadScheduleFromFile(void) {
         if (!scheduleEntry.LoadFromJson(sch[i]))
             continue;
 
-        std::string warning = "Scheduled ";
+        std::string warning = missingEntryWarning(scheduleEntry);
 
         if (scheduleEntry.sequence) {
             playlistFile = FPP_DIR_SEQUENCE("/" + scheduleEntry.playlist);
-
-            warning += "Sequence";
         } else {
             playlistFile = FPP_DIR_PLAYLIST("/" + scheduleEntry.playlist + ".json");
-
-            warning += "Playlist";
         }
-
-        warning += " '";
-        warning += scheduleEntry.playlist + "' does not exist";
 
         if ((getFPPmode() != PLAYER_MODE) &&
             (scheduleEntry.enabled) &&
