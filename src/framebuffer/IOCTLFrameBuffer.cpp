@@ -49,6 +49,11 @@ IOCTLFrameBuffer::IOCTLFrameBuffer() {
  *
  */
 IOCTLFrameBuffer::~IOCTLFrameBuffer() {
+    // Stop the loop before tearing anything down - see FrameBuffer::StopDrawLoop().
+    StopDrawLoop();
+    // ~FrameBuffer() can only reach the base override, so the tty mode and the
+    // rgb565 map were never restored/freed on delete.
+    IOCTLFrameBuffer::DestroyFrameBuffer();
 }
 
 int IOCTLFrameBuffer::InitializeFrameBuffer() {
@@ -304,6 +309,7 @@ void IOCTLFrameBuffer::DestroyFrameBuffer(void) {
         }
 
         delete[] m_rgb565map;
+        m_rgb565map = nullptr;
     }
     FrameBuffer::DestroyFrameBuffer();
 }

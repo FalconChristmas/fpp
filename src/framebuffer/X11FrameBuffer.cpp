@@ -24,7 +24,10 @@ X11FrameBuffer::X11FrameBuffer() {
  *
  */
 X11FrameBuffer::~X11FrameBuffer() {
-    DestroyFrameBuffer();
+    // The draw loop draws into m_buffer and calls the virtual SyncDisplay();
+    // it must be dead before DestroyFrameBuffer() frees any of that.
+    StopDrawLoop();
+    X11FrameBuffer::DestroyFrameBuffer();
 }
 
 int X11FrameBuffer::InitializeFrameBuffer(void) {

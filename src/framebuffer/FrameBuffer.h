@@ -114,6 +114,14 @@ public:
     void NextPage(bool producer = false);
 
 protected:
+    // Stops and joins the draw/sync loop thread.  MUST be the first statement of
+    // every subclass destructor: the loop calls virtuals (SyncDisplay()) and
+    // writes into buffers the subclass destructor tears down, so it has to be
+    // dead before any derived state goes away.  ~FrameBuffer() runs last, so
+    // joining only there leaves the thread running across the whole derived
+    // teardown.  Idempotent - safe to call again from ~FrameBuffer().
+    void StopDrawLoop(void);
+
     int FBInit(const Json::Value& config);
     void FBDrawNormal(void);
     void FBDrawSlideUp(void);

@@ -46,12 +46,19 @@ SocketFrameBuffer::SocketFrameBuffer() {
  *
  */
 SocketFrameBuffer::~SocketFrameBuffer() {
+    // Stop the loop before tearing anything down - see FrameBuffer::StopDrawLoop().
+    StopDrawLoop();
+    // ~FrameBuffer() can only reach the base override (and skips it entirely,
+    // since this class leaves m_fbFd at -1), so the shmem buffer was never
+    // unmapped or unlinked on delete.
+    SocketFrameBuffer::DestroyFrameBuffer();
 }
 
 void SocketFrameBuffer::DestroyFrameBuffer(void) {
     if (m_buffer) {
         memset(m_buffer, 0, m_bufferSize);
         munmap(m_buffer, m_bufferSize);
+        m_buffer = nullptr;
     }
     if (shmemFile != -1) {
         close(shmemFile);

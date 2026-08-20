@@ -80,27 +80,48 @@ FrameBuffer::FrameBuffer() {
 /*
  *
  */
-FrameBuffer::~FrameBuffer() {
-    if (!m_runLoop)
-        return; // never initialized/run so no need to tear down
+void FrameBuffer::StopDrawLoop(void) {
+    if (!m_drawThread) {
+        m_runLoop = false;
+        return;
+    }
 
-    m_runLoop = false;
+    // Flip the predicate under the same lock DrawLoop() waits on, otherwise a
+    // notify that lands between its m_runLoop check and its wait() is lost and
+    // the join() below never returns.
+    {
+        std::unique_lock<std::mutex> lock(m_bufferLock);
+        m_runLoop = false;
+    }
     m_drawSignal.notify_all();
 
-    if (m_drawThread) {
-        m_drawThread->join();
-        delete m_drawThread;
-    }
+    m_drawThread->join();
+    delete m_drawThread;
+    m_drawThread = nullptr;
+}
 
-    if (m_outputBuffer)
+FrameBuffer::~FrameBuffer() {
+    // Subclasses stop the loop in their own destructors (where their state is
+    // still alive); this covers a bare FrameBuffer and is a no-op once they have.
+    StopDrawLoop();
+
+    if (m_outputBuffer) {
         free(m_outputBuffer);
-
-    if (m_fbFd > -1) {
-        DestroyFrameBuffer();
+        m_outputBuffer = nullptr;
     }
 
-    if (m_dirtyPages)
+    // Only the base teardown - the vtable is already demoted to FrameBuffer here,
+    // so this can never reach a subclass override.  Subclasses call their own
+    // DestroyFrameBuffer() from their destructor; this is the no-subclass case
+    // and a no-op once one has run (it clears m_fbFd).
+    if (m_fbFd > -1) {
+        FrameBuffer::DestroyFrameBuffer();
+    }
+
+    if (m_dirtyPages) {
         delete[] m_dirtyPages;
+        m_dirtyPages = nullptr;
+    }
 }
 
 /*
@@ -260,6 +281,7 @@ void FrameBuffer::DestroyFrameBuffer(void) {
     if (m_buffer) {
         memset(m_buffer, 0, m_bufferSize);
         munmap(m_buffer, m_bufferSize);
+        m_buffer = nullptr;
     }
 
     if (m_fbFd != -1) {

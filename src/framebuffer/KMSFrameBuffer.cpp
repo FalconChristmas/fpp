@@ -204,6 +204,12 @@ KMSFrameBuffer::KMSFrameBuffer() {
 }
 
 KMSFrameBuffer::~KMSFrameBuffer() {
+    // The draw loop writes into the mapped dumb buffers and calls the virtual
+    // SyncDisplay(); it has to be dead before this destructor releases any of
+    // that.  ~FrameBuffer() joins far too late - by then the vtable is already
+    // demoted and the card fds below may be closed.
+    StopDrawLoop();
+
     if (m_displayEnabled && m_crtcId && m_planeId) {
         LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::~KMSFrameBuffer() disabling display before destruction\n");
         std::unique_lock<std::mutex> lock(mediaOutputLock);
@@ -215,6 +221,12 @@ KMSFrameBuffer::~KMSFrameBuffer() {
             ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
         }
     }
+
+    // Must run here, not from ~FrameBuffer(): the base destructor can only reach
+    // FrameBuffer::DestroyFrameBuffer(), so the dumb buffers and the connector /
+    // CRTC / plane reservations were never released on delete.  It also has to
+    // happen before the card fds are closed below.
+    KMSFrameBuffer::DestroyFrameBuffer();
 
     --FRAMEBUFFER_COUNT;
     if (FRAMEBUFFER_COUNT == 0) {
