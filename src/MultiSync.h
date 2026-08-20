@@ -452,7 +452,14 @@ private:
     std::vector<struct mmsghdr> m_unicastDestMsgs;
     std::vector<struct sockaddr_in> m_unicastDestAddr;
 
+    // Guards m_plugins against add/removeMultiSyncPlugin() (which can run on any
+    // thread that owns a plugin) racing the many Send*/Received*/Process* sites
+    // that iterate it, some of which run on the output thread or the main loop.
+    // Iteration sites take a snapshot under this lock via getPluginsCopy() and
+    // iterate the copy so callbacks never run with the lock held.
+    std::mutex m_pluginsLock;
     std::vector<MultiSyncPlugin*> m_plugins;
+    std::vector<MultiSyncPlugin*> getPluginsCopy();
 
 #define MAX_MS_RCV_MSG 12
 #define MAX_MS_RCV_BUFSIZE 1500

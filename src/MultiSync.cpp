@@ -1562,8 +1562,19 @@ int MultiSync::CreatePingPacket(MultiSyncSystem& sysInfo, char* outBuf, int disc
     return sizeof(ControlPkt) + cpkt->extraDataLen;
 }
 
+// The sync senders below all write filename into a fixed-size SyncPkt within a
+// 2048-byte outBuf; a filename that wouldn't fit must be rejected before the
+// strcpy rather than silently truncated or overflowed.
+static bool FitsInSyncOutBuf(const std::string& filename, size_t bufSize) {
+    return (sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length() + 1) <= bufSize;
+}
+
 void MultiSync::SendSeqOpenPacket(const std::string& filename) {
     if (filename.empty()) {
+        return;
+    }
+    if (!FitsInSyncOutBuf(filename, 2048)) {
+        LogErr(VB_SYNC, "ERROR: SendSeqOpenPacket filename '%s' is too long to send\n", filename.c_str());
         return;
     }
 
@@ -1573,7 +1584,7 @@ void MultiSync::SendSeqOpenPacket(const std::string& filename) {
     }
 
     LogDebug(VB_SYNC, "SendSeqOpenPacket('%s')\n", filename.c_str());
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendSeqOpenPacket(filename);
     }
     m_lastFrame = -1;
@@ -1603,6 +1614,10 @@ void MultiSync::SendSeqSyncStartPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
+    if (!FitsInSyncOutBuf(filename, 2048)) {
+        LogErr(VB_SYNC, "ERROR: SendSeqSyncStartPacket filename '%s' is too long to send\n", filename.c_str());
+        return;
+    }
 
     if (m_controlSock < 0) {
         LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
@@ -1610,7 +1625,7 @@ void MultiSync::SendSeqSyncStartPacket(const std::string& filename) {
     }
 
     LogDebug(VB_SYNC, "SendSeqSyncStartPacket('%s')\n", filename.c_str());
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendSeqSyncStartPacket(filename);
     }
     m_lastFrame = -1;
@@ -1643,13 +1658,17 @@ void MultiSync::SendSeqSyncStopPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
+    if (!FitsInSyncOutBuf(filename, 2048)) {
+        LogErr(VB_SYNC, "ERROR: SendSeqSyncStopPacket filename '%s' is too long to send\n", filename.c_str());
+        return;
+    }
     if (m_controlSock < 0) {
         LogErr(VB_SYNC, "ERROR: Tried to send stop packet but sync socket is not open.\n");
         return;
     }
     LogDebug(VB_SYNC, "SendSeqSyncStopPacket(%s)\n", filename.c_str());
 
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendSeqSyncStopPacket(filename);
     }
 
@@ -1683,11 +1702,15 @@ void MultiSync::SendSeqSyncPacket(const std::string& filename, int frames, float
     if (filename.empty()) {
         return;
     }
+    if (!FitsInSyncOutBuf(filename, 2048)) {
+        LogErr(VB_SYNC, "ERROR: SendSeqSyncPacket filename '%s' is too long to send\n", filename.c_str());
+        return;
+    }
     if (m_controlSock < 0) {
         LogErr(VB_SYNC, "ERROR: Tried to send sync packet but sync socket is not open.\n");
         return;
     }
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendSeqSyncPacket(filename, frames, seconds);
     }
     m_lastFrame = frames;
@@ -1730,6 +1753,10 @@ void MultiSync::SendMediaOpenPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
+    if (!FitsInSyncOutBuf(filename, 2048)) {
+        LogErr(VB_SYNC, "ERROR: SendMediaOpenPacket filename '%s' is too long to send\n", filename.c_str());
+        return;
+    }
 
     if (m_controlSock < 0) {
         LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
@@ -1737,7 +1764,7 @@ void MultiSync::SendMediaOpenPacket(const std::string& filename) {
     }
     LogDebug(VB_SYNC, "SendMediaOpenPacket('%s')\n", filename.c_str());
 
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendMediaOpenPacket(filename);
     }
 
@@ -1766,6 +1793,10 @@ void MultiSync::SendMediaSyncStartPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
+    if (!FitsInSyncOutBuf(filename, 2048)) {
+        LogErr(VB_SYNC, "ERROR: SendMediaSyncStartPacket filename '%s' is too long to send\n", filename.c_str());
+        return;
+    }
 
     if (m_controlSock < 0) {
         LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
@@ -1773,7 +1804,7 @@ void MultiSync::SendMediaSyncStartPacket(const std::string& filename) {
     }
     LogDebug(VB_SYNC, "SendMediaSyncStartPacket('%s')\n", filename.c_str());
 
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendMediaSyncStartPacket(filename);
     }
 
@@ -1806,13 +1837,17 @@ void MultiSync::SendMediaSyncStopPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
+    if (!FitsInSyncOutBuf(filename, 2048)) {
+        LogErr(VB_SYNC, "ERROR: SendMediaSyncStopPacket filename '%s' is too long to send\n", filename.c_str());
+        return;
+    }
 
     if (m_controlSock < 0) {
         LogErr(VB_SYNC, "ERROR: Tried to send stop packet but sync socket is not open.\n");
         return;
     }
     LogDebug(VB_SYNC, "SendMediaSyncStopPacket(%s)\n", filename.c_str());
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendMediaSyncStopPacket(filename);
     }
 
@@ -1843,13 +1878,17 @@ void MultiSync::SendMediaSyncPacket(const std::string& filename, float seconds) 
     if (filename.empty()) {
         return;
     }
+    if (!FitsInSyncOutBuf(filename, 2048)) {
+        LogErr(VB_SYNC, "ERROR: SendMediaSyncPacket filename '%s' is too long to send\n", filename.c_str());
+        return;
+    }
 
     if (m_controlSock < 0) {
         LogErr(VB_SYNC, "ERROR: Tried to send sync packet but sync socket is not open.\n");
         return;
     }
 
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendMediaSyncPacket(filename, seconds);
     }
 
@@ -1887,7 +1926,7 @@ void MultiSync::SendPluginData(const std::string& name, const uint8_t* data, int
     if (name.empty()) {
         return;
     }
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendPluginData(name, data, len);
     }
 
@@ -1905,6 +1944,11 @@ void MultiSync::SendPluginData(const std::string& name, const uint8_t* data, int
 
     InitControlPacket(cpkt);
     int nlen = strlen(name.c_str()) + 1; // add the null
+    if ((sizeof(ControlPkt) + (size_t)nlen + (size_t)len) > sizeof(outBuf)) {
+        LogErr(VB_SYNC, "ERROR: Plugin data packet for '%s' (%d bytes) is too large to send\n",
+               name.c_str(), len);
+        return;
+    }
     cpkt->pktType = CTRL_PKT_PLUGIN;
     cpkt->extraDataLen = len + nlen;
 
@@ -1924,7 +1968,7 @@ void MultiSync::SendBlankingDataPacket(void) {
         LogErr(VB_SYNC, "ERROR: Tried to send blanking data packet but control socket is not open.\n");
         return;
     }
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendBlankingDataPacket();
     }
     char outBuf[2048];
@@ -1939,10 +1983,16 @@ void MultiSync::SendBlankingDataPacket(void) {
 
     SendControlPacket(outBuf, sizeof(ControlPkt));
 }
+std::vector<MultiSyncPlugin*> MultiSync::getPluginsCopy() {
+    std::unique_lock<std::mutex> lock(m_pluginsLock);
+    return m_plugins;
+}
 void MultiSync::addMultiSyncPlugin(MultiSyncPlugin* p) {
+    std::unique_lock<std::mutex> lock(m_pluginsLock);
     m_plugins.push_back(p);
 }
 void MultiSync::removeMultiSyncPlugin(MultiSyncPlugin* p) {
+    std::unique_lock<std::mutex> lock(m_pluginsLock);
     auto a = std::find(m_plugins.begin(), m_plugins.end(), p);
     if (a != m_plugins.end()) {
         m_plugins.erase(a);
@@ -1970,10 +2020,18 @@ void MultiSync::ShutdownSync(void) {
         }
     }
 
-    for (auto a : m_plugins) {
-        a->ShutdownSync();
+    {
+        std::unique_lock<std::mutex> pluginLock(m_pluginsLock);
+        auto plugins = m_plugins;
+        pluginLock.unlock();
+        for (auto a : plugins) {
+            a->ShutdownSync();
+        }
     }
-    m_plugins.clear();
+    {
+        std::unique_lock<std::mutex> pluginLock(m_pluginsLock);
+        m_plugins.clear();
+    }
 
     std::unique_lock<std::mutex> lock(m_socketLock);
     if (m_broadcastSock >= 0) {
@@ -2778,7 +2836,7 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                     break;
                 case CTRL_PKT_BLANK:
                     if (getFPPmode() == REMOTE_MODE) {
-                        for (auto a : m_plugins) {
+                        for (auto a : getPluginsCopy()) {
                             a->ReceivedBlankingDataPacket();
                         }
                         stats->pktBlank++;
@@ -2809,7 +2867,7 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
 void MultiSync::OpenSyncedSequence(const std::string& filename) {
     LogDebug(VB_SYNC, "OpenSyncedSequence(%s)\n", filename.c_str());
 
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->ReceivedSeqOpenPacket(filename);
     }
     ResetMasterPosition();
@@ -2820,7 +2878,7 @@ void MultiSync::StartSyncedSequence(const std::string& filename) {
     LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename.c_str());
 
     ResetMasterPosition();
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->ReceivedSeqSyncStartPacket(filename);
     }
     if (!sequence->IsSequenceRunning(filename) && !sequence->IsSequenceRunning("fallback.fseq")) {
@@ -2830,7 +2888,7 @@ void MultiSync::StartSyncedSequence(const std::string& filename) {
 
 void MultiSync::StopSyncedSequence(const std::string& filename) {
     LogDebug(VB_SYNC, "StopSyncedSequence(%s)\n", filename.c_str());
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->ReceivedSeqSyncStopPacket(filename);
     }
     sequence->CloseIfOpen(filename);
@@ -2920,7 +2978,7 @@ void MultiSync::SyncSyncedSequence(const std::string& filename, int frameNumber,
     LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f)\n",
               filename.c_str(), frameNumber, secondsElapsed);
 
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->ReceivedSeqSyncPacket(filename, frameNumber, secondsElapsed);
     }
     if (!sequence->IsSequenceRunning(filename) && !sequence->IsSequenceRunning("fallback.fseq")) {
@@ -2946,7 +3004,7 @@ void MultiSync::OpenSyncedMedia(const std::string& filename) {
 
         CloseMediaOutput();
     }
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->ReceivedMediaOpenPacket(filename);
     }
 
@@ -2956,7 +3014,7 @@ void MultiSync::OpenSyncedMedia(const std::string& filename) {
 
 void MultiSync::StartSyncedMedia(const std::string& filename, float secondsElapsed) {
     LogDebug(VB_SYNC, "StartSyncedMedia(%s, %.2f)\n", filename.c_str(), secondsElapsed);
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->ReceivedMediaSyncStartPacket(filename);
     }
     int msTime = (secondsElapsed > 0.0f) ? (int)(secondsElapsed * 1000.0f) : 0;
@@ -2969,7 +3027,7 @@ void MultiSync::StartSyncedMedia(const std::string& filename, float secondsElaps
  */
 void MultiSync::StopSyncedMedia(const std::string& filename) {
     LogDebug(VB_SYNC, "StopSyncedMedia(%s)\n", filename.c_str());
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->ReceivedMediaSyncStopPacket(filename);
     }
 
@@ -3043,7 +3101,7 @@ void MultiSync::CheckSyncedMediaIdleTimeout() {
 void MultiSync::SyncSyncedMedia(const std::string& filename, int frameNumber, float secondsElapsed) {
     LogExcess(VB_SYNC, "SyncSyncedMedia('%s', %d, %.2f)\n",
               filename.c_str(), frameNumber, secondsElapsed);
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->ReceivedMediaSyncPacket(filename, secondsElapsed);
     }
 
@@ -3308,7 +3366,7 @@ void MultiSync::ProcessPluginPacket(ControlPkt* pkt, int plen, MultiSyncStats* s
     len -= nlen;
     uint8_t* data = (uint8_t*)&cpkt->command[nlen];
 
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->ReceivedPluginData(pn, data, len);
     }
     PluginManager::INSTANCE.multiSyncData(pn, data, len);
@@ -3385,13 +3443,26 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
         }
         args.push_back(std::move(arg));
     }
-    if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
+    bool matches;
+    if (host == "") {
+        matches = true;
+    } else {
+        // Copy m_localSystems under m_systemsLock and release it before
+        // evaluating/running -- MyHostMatches only needs a snapshot, and this
+        // function must not hold m_systemsLock across CommandManager::run() or
+        // the plugin callbacks below.
+        std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+        std::vector<MultiSyncSystem> localSystems = m_localSystems;
+        lock.unlock();
+        matches = MyHostMatches(host, m_hostname, localSystems);
+    }
+    if (matches) {
         stats->pktFPPCommand++;
         // Remote-supplied and unbounded - truncate. (The args are covered by
         // CommandManager::run()'s own log line below.)
         LogDebug(VB_COMMAND, "Command \"%s\" received from remote host %s (%s)\n",
                 TruncateForLog(cmd).c_str(), stats->hostname.c_str(), stats->sourceIP.c_str());
-        for (auto a : m_plugins) {
+        for (auto a : getPluginsCopy()) {
             a->ReceivedFPPCommandPacket(cmd, args);
         }
         CommandManager::INSTANCE.run(cmd, args);
@@ -3408,7 +3479,7 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
         return;
     }
     LogDebug(VB_SYNC, "SendFPPCommandPacket\n");
-    for (auto a : m_plugins) {
+    for (auto a : getPluginsCopy()) {
         a->SendFPPCommandPacket(host, cmd, args);
     }
     char outBuf[2048];
@@ -3440,8 +3511,17 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
     }
     cpkt->extraDataLen = pos - sizeof(ControlPkt);
 
+    // SendFPPCommandPacket can run on API/command threads, so m_localSystems
+    // must not be read without m_systemsLock; take a snapshot for both
+    // MyHostMatches() calls below rather than locking per-call.
+    std::vector<MultiSyncSystem> localSystems;
+    {
+        std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+        localSystems = m_localSystems;
+    }
+
     if (host != "" && host.find(",") == std::string::npos) {
-        if (MyHostMatches(host, m_hostname, m_localSystems)) {
+        if (MyHostMatches(host, m_hostname, localSystems)) {
             // only targetting myself, just run and don't send the packet
             LogDebug(VB_COMMAND, "Command \"%s\" self-targeted, running locally without sending\n", cmd.c_str());
             CommandManager::INSTANCE.run(cmd, args);
@@ -3452,7 +3532,7 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
         SendControlPacket(outBuf, pos);
         // the packet won't loop back so if it's supposed to run on this host as well,
         // we need to force it
-        if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
+        if (host == "" || MyHostMatches(host, m_hostname, localSystems)) {
             LogDebug(VB_COMMAND, "Command \"%s\" broadcast includes this host, running locally too\n", cmd.c_str());
             CommandManager::INSTANCE.run(cmd, args);
         }
