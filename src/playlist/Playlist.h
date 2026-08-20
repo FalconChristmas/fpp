@@ -129,7 +129,10 @@ private:
     // one home.  Caller must hold m_playlistMutex.
     PlaylistEntryBase* CurrentEntry();
 
-    volatile PlaylistStatus m_status;
+    // Written under m_playlistMutex, but read by unlocked getters from other
+    // threads (status paths, the scheduler) -- atomic so those reads are
+    // well-defined; volatile never made them so.
+    std::atomic<PlaylistStatus> m_status;
 
     Playlist* m_parent;
     std::string m_filename;

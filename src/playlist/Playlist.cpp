@@ -59,6 +59,11 @@
 // still holding a snapshot of survives until that reader is done with it.
 // Between push and drain the instance is fully alive, which is what SetIdle's
 // "is this parent condemned" walk below relies on.
+// Both lists are reached from command threads as well as the main loop --
+// SetIdle/SwitchToInsertedPlaylist condemn instances from whatever thread runs
+// the transition, and a Load() on a command thread parks replaced entries -- so
+// every access holds PL_CLEANUPS_LOCK.  Deletes never run under it.
+static std::mutex PL_CLEANUPS_LOCK;
 static std::list<Playlist*> PL_CLEANUPS;
 // Entries deleted while one of their own methods may still be on the
 // call stack (e.g. a "Start Playlist" command entry that reloads this
@@ -1135,27 +1140,48 @@ int Playlist::Process(void) {
     // LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
 
     if (tl_processDepth == 1) {
-        if (!PL_CLEANUPS.empty()) {
-            PL_CLEANUPS.sort();
-            PL_CLEANUPS.unique();
-            while (!PL_CLEANUPS.empty()) {
-                Playlist* p = PL_CLEANUPS.front();
-                // Drops the player's owning reference rather than deleting.
-                // If a reader thread still holds a snapshot of p, the instance
-                // stays alive until that snapshot releases; its destructor then
-                // runs on this thread in a later DrainRetiredPlaylists().
-                Player::INSTANCE.ReleasePlaylist(p);
-                PL_CLEANUPS.pop_front();
+        {
+            // Held across the whole condemned pass (not swap-and-release) so
+            // SetIdle's condemned-parent walk on another thread sees either the
+            // full pre-drain list or the post-release state, never a moment
+            // where a condemned instance has left the list but still looks
+            // current-able.  ReleasePlaylist only nests the owner's registry
+            // lock inside; nothing takes these two in the other order.
+            std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+            if (!PL_CLEANUPS.empty()) {
+                PL_CLEANUPS.sort();
+                PL_CLEANUPS.unique();
+                while (!PL_CLEANUPS.empty()) {
+                    Playlist* p = PL_CLEANUPS.front();
+                    // Drops the player's owning reference rather than deleting.
+                    // If a reader thread still holds a snapshot of p, the
+                    // instance stays alive until that snapshot releases; its
+                    // destructor then runs on this thread in a later
+                    // DrainRetiredPlaylists().
+                    Player::INSTANCE.ReleasePlaylist(p);
+                    PL_CLEANUPS.pop_front();
+                }
             }
         }
         // Runs the destructors the shared_ptr deleter deferred — here, between
         // the two lists, because ~Playlist parks its entries on
         // PL_ENTRY_CLEANUPS and those must be freed in the same tick, exactly
-        // as when the drain above did the delete itself.
+        // as when the drain above did the delete itself.  Not under the lock:
+        // those destructors push onto PL_ENTRY_CLEANUPS themselves.
         Player::INSTANCE.DrainRetiredPlaylists();
-        while (!PL_ENTRY_CLEANUPS.empty()) {
-            delete PL_ENTRY_CLEANUPS.front();
-            PL_ENTRY_CLEANUPS.pop_front();
+        // Entry destructors can park further entries (nested sub-entries), so
+        // swap-and-delete until a pass drains nothing.
+        while (true) {
+            std::list<PlaylistEntryBase*> entries;
+            {
+                std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+                entries.swap(PL_ENTRY_CLEANUPS);
+            }
+            if (entries.empty())
+                break;
+            for (auto* e : entries) {
+                delete e;
+            }
         }
     }
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
@@ -1431,15 +1457,20 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
             Player::INSTANCE.SetCurrentPlaylist(pl);
             if (replaceSelf) {
                 m_parent = nullptr;
+                std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
                 PL_CLEANUPS.push_back(this);
             }
             return pl;
         }
-        PL_CLEANUPS.push_back(pl);
+        {
+            std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+            PL_CLEANUPS.push_back(pl);
+        }
         if (replaceSelf && Player::INSTANCE.PlaylistSnapshot().get() != this) {
             // pl failed to start and its own SetIdle() already handed the
             // player on to our parent, so nothing will process us again.
             m_parent = nullptr;
+            std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
             PL_CLEANUPS.push_back(this);
         }
     }
@@ -1499,8 +1530,11 @@ void Playlist::SetIdle(bool exit) {
     // parent can be condemned while we're exiting when a re-entrant stop tore
     // down an intermediate level of an inserted-playlist stack.
     Playlist* par = m_parent;
-    while (par && std::find(PL_CLEANUPS.begin(), PL_CLEANUPS.end(), par) != PL_CLEANUPS.end()) {
-        par = par->m_parent;
+    {
+        std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+        while (par && std::find(PL_CLEANUPS.begin(), PL_CLEANUPS.end(), par) != PL_CLEANUPS.end()) {
+            par = par->m_parent;
+        }
     }
     if (par && exit) {
         // par is still owned: it is on the parent chain and not condemned, so
@@ -1509,7 +1543,10 @@ void Playlist::SetIdle(bool exit) {
         if (par->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PAUSED) {
             par->Resume();
         }
-        PL_CLEANUPS.push_back(this);
+        {
+            std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+            PL_CLEANUPS.push_back(this);
+        }
 
         if (par->getPlaylistStatus() != FPP_STATUS_IDLE)
             publishIdle = false;
@@ -1554,19 +1591,28 @@ int Playlist::Cleanup(void) {
     while (m_leadIn.size()) {
         PlaylistEntryBase* entry = m_leadIn.back();
         m_leadIn.pop_back();
-        PL_ENTRY_CLEANUPS.push_back(entry);
+        {
+            std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+            PL_ENTRY_CLEANUPS.push_back(entry);
+        }
     }
 
     while (m_mainPlaylist.size()) {
         PlaylistEntryBase* entry = m_mainPlaylist.back();
         m_mainPlaylist.pop_back();
-        PL_ENTRY_CLEANUPS.push_back(entry);
+        {
+            std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+            PL_ENTRY_CLEANUPS.push_back(entry);
+        }
     }
 
     while (m_leadOut.size()) {
         PlaylistEntryBase* entry = m_leadOut.back();
         m_leadOut.pop_back();
-        PL_ENTRY_CLEANUPS.push_back(entry);
+        {
+            std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+            PL_ENTRY_CLEANUPS.push_back(entry);
+        }
     }
     return 1;
 }
