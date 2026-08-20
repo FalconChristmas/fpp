@@ -49,6 +49,16 @@ FoldOutputProcessor::FoldOutputProcessor(const Json::Value& config) {
         WarningHolder::AddWarning(warning);
         count = 0;
     }
+    // "source" is the 1-based channel the UI shows, so anything below 1 puts
+    // sourceChannel before the start of the buffer ProcessData indexes.
+    if (sourceChannel < 0) {
+        std::string warning = "Fold output processor has an invalid start channel (" +
+                              std::to_string(config["source"].asInt()) + "), disabling it";
+        LogWarn(VB_CHANNELOUT, "%s\n", warning.c_str());
+        WarningHolder::AddWarning(warning);
+        sourceChannel = 0;
+        count = 0;
+    }
     LogInfo(VB_CHANNELOUT, "Fold: channels: %d-%d, node size: %d\n",
             sourceChannel, sourceChannel + count, nodesize);
     if (count % nodesize != 0) {
