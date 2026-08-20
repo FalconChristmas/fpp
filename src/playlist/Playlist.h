@@ -111,6 +111,12 @@ public:
     std::string ReplaceMatches(std::string in);
     Json::Value GetMqttStatusJSON(); // Returns Status as JSON
 
+    // Single source of truth for the human-facing status string.  Derived from
+    // m_status so the string and the enum can never disagree: a paused playlist
+    // used to report "playing" because Pause() moved only the enum while the
+    // old m_currentState string mirror had no paused value.
+    static const char* PlaylistStatusToString(PlaylistStatus status);
+
 private:
     void GetParentPlaylistNames(std::list<std::string>& names);
     int ReloadPlaylist(void);
@@ -156,7 +162,6 @@ private:
     time_t m_configTime;
     Json::Value m_playlistInfo;
 
-    std::string m_currentState;
     std::string m_currentSectionStr;
     int m_sectionPosition;
     int m_startPosition;

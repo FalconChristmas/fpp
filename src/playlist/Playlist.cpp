@@ -284,7 +284,6 @@ Playlist::Playlist(Playlist* parent) :
     m_loadEndPos(-1),
     m_fileTime(0),
     m_configTime(0),
-    m_currentState("idle"),
     m_currentSection(nullptr),
     m_currentSectionStr("New"),
     m_sectionPosition(0),
@@ -325,6 +324,33 @@ Playlist::~Playlist() {
 
 PlaylistStatus Playlist::getPlaylistStatus() {
     return m_status;
+}
+
+// Maps each status to the exact camelCase string the code has always used for
+// the "status"/"currentState" fields and the "status" event, plus the "paused"
+// value the paused state never had.  This is the ONLY place m_status becomes a
+// string, which is what keeps the two from drifting.  (The space-separated
+// human names "stopping gracefully" etc. are a separate representation built
+// from the same enum in httpAPI.cpp's status_name / Variables.cpp; those are
+// unaffected.)  FPP_STATUS_STOPPING_NOW never had a string mirror -- SetIdle()
+// overwrites the status within the same lock hold in StopNowImpl(), so no
+// reader observes it -- "stoppingNow" simply completes the mapping.
+const char* Playlist::PlaylistStatusToString(PlaylistStatus status) {
+    switch (status) {
+    case FPP_STATUS_IDLE:
+        return "idle";
+    case FPP_STATUS_PLAYLIST_PLAYING:
+        return "playing";
+    case FPP_STATUS_STOPPING_GRACEFULLY:
+        return "stoppingGracefully";
+    case FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP:
+        return "stoppingAfterLoop";
+    case FPP_STATUS_STOPPING_NOW:
+        return "stoppingNow";
+    case FPP_STATUS_PLAYLIST_PAUSED:
+        return "paused";
+    }
+    return "idle";
 }
 
 /*
@@ -862,10 +888,11 @@ int Playlist::Start(void) {
         return 0;
     }
 
+    // Capture the pre-start status before we flip to PLAYING: the callback
+    // below distinguishes a fresh start from a restart of an already-playing
+    // playlist.
+    PlaylistStatus origStatus = m_status;
     m_status = FPP_STATUS_PLAYLIST_PLAYING;
-
-    std::string origCurState = m_currentState;
-    m_currentState = "playing";
 
     m_startTime = GetTime();
     m_loop = 0;
@@ -910,14 +937,14 @@ int Playlist::Start(void) {
         // state now, deliver after the transition completes (see
         // PlaylistTransitionGuard).
         Json::Value info = GetInfo();
-        std::string action = (origCurState == "playing") ? "playing" : "start";
+        std::string action = (origStatus == FPP_STATUS_PLAYLIST_PLAYING) ? "playing" : "start";
         std::string sec = m_currentSectionStr;
         int pos = m_sectionPosition;
         QueuePlaylistNotification([info, action, sec, pos]() {
             PluginManager::INSTANCE.playlistCallback(info, action, sec, pos);
         });
     }
-    Events::Publish("status", m_currentState);
+    Events::Publish("status", PlaylistStatusToString(m_status));
     Events::Publish("playlist/section/status", m_currentSectionStr);
     Events::Publish("playlist/sectionPosition/status", m_sectionPosition);
 
@@ -1024,7 +1051,6 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
             });
         }
         m_status = FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP;
-        m_currentState = "stoppingAfterLoop";
     } else {
         if (CommandManager::INSTANCE.HasPreset("PLAYLIST_STOPPING_GRACEFULLY")) {
             QueuePlaylistNotification([keywords]() mutable {
@@ -1032,7 +1058,6 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
             });
         }
         m_status = FPP_STATUS_STOPPING_GRACEFULLY;
-        m_currentState = "stoppingGracefully";
     }
     m_forceStop = forceStop;
     if (m_parent) {
@@ -1070,7 +1095,7 @@ void Playlist::Resume() {
 
             // Notify of current playlists because was likely changed when Paused.
             Events::Publish("playlist/name/status", m_name);
-            Events::Publish("status", m_currentState);
+            Events::Publish("status", PlaylistStatusToString(m_status));
             Events::Publish("playlist/section/status", m_currentSectionStr);
             Events::Publish("playlist/sectionPosition/status", m_sectionPosition);
             {
@@ -1522,7 +1547,6 @@ void Playlist::ProcessMedia(void) {
 void Playlist::SetIdle(bool exit) {
     PlaylistTransitionGuard guard;
     m_status = FPP_STATUS_IDLE;
-    m_currentState = "idle";
 
     std::map<std::string, std::string> keywords;
     if (m_name != "") {
@@ -1902,7 +1926,7 @@ void Playlist::Dump(void) {
 void Playlist::RestartItem(void) {
     LogDebug(VB_PLAYLIST, "RestartItem called for '%s'\n", m_name.c_str());
     PlaylistTransitionGuard guard;
-    if (m_currentState == "idle") {
+    if (m_status == FPP_STATUS_IDLE) {
         return;
     }
     if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
@@ -1927,7 +1951,7 @@ void Playlist::RestartItem(void) {
 void Playlist::NextItem(void) {
     LogDebug(VB_PLAYLIST, "NextItem called for '%s'\n", m_name.c_str());
     PlaylistTransitionGuard guard;
-    if (m_currentState == "idle") {
+    if (m_status == FPP_STATUS_IDLE) {
         return;
     }
     if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
@@ -1995,7 +2019,7 @@ void Playlist::NextItem(void) {
 void Playlist::PrevItem(void) {
     LogDebug(VB_PLAYLIST, "PrevItem called for '%s'\n", m_name.c_str());
     PlaylistTransitionGuard guard;
-    if (m_currentState == "idle") {
+    if (m_status == FPP_STATUS_IDLE) {
         return;
     }
     if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
@@ -2049,7 +2073,7 @@ PlaylistEntryBase* Playlist::CurrentEntry(void) {
 int Playlist::GetPosition(void) {
     int result = 0;
 
-    if (m_currentState == "idle")
+    if (m_status == FPP_STATUS_IDLE)
         return result;
 
     if (m_currentSectionStr == "LeadIn")
@@ -2068,7 +2092,7 @@ int Playlist::GetPosition(void) {
  *
  */
 int Playlist::GetSize(void) {
-    if (m_currentState == "idle")
+    if (m_status == FPP_STATUS_IDLE)
         return 0;
 
     return m_leadIn.size() + m_mainPlaylist.size() + m_leadOut.size();
@@ -2080,7 +2104,7 @@ int Playlist::GetSize(void) {
 Json::Value Playlist::GetCurrentEntry(void) {
     Json::Value result;
 
-    if (m_currentState == "idle")
+    if (m_status == FPP_STATUS_IDLE)
         return result;
 
     PlaylistEntryBase* entry = CurrentEntry();
@@ -2198,7 +2222,7 @@ uint64_t Playlist::GetCurrentPosInMS(int& position, uint64_t& posms, bool itemDe
 
     position = -1;
     posms = 0;
-    if (m_currentState == "idle") {
+    if (m_status == FPP_STATUS_IDLE) {
         return 0;
     }
     PlaylistEntryBase* entry = CurrentEntry();
@@ -2267,10 +2291,10 @@ Json::Value Playlist::GetMqttStatusJSON(void) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
     Json::Value result;
-    result["status"] = m_currentState; // Works because single playlist
+    result["status"] = PlaylistStatusToString(m_status); // Works because single playlist
     Json::Value playlistArray = Json::Value(Json::arrayValue);
 
-    PlaylistEntryBase* entry = (m_currentState != "idle") ? CurrentEntry() : nullptr;
+    PlaylistEntryBase* entry = (m_status != FPP_STATUS_IDLE) ? CurrentEntry() : nullptr;
     if (entry) {
         Json::Value entryArray = Json::Value(Json::arrayValue);
         Json::Value playlist;
@@ -2291,7 +2315,7 @@ Json::Value Playlist::GetMqttStatusJSON(void) {
 
 void Playlist::GetCurrentStatus(Json::Value& result) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
-    if (m_currentState == "idle" || m_currentSection == nullptr) {
+    if (m_status == FPP_STATUS_IDLE || m_currentSection == nullptr) {
         result["repeat_mode"] = "0";
         result["current_playlist"]["description"] = "";
         result["current_playlist"]["playlist"] = "";
@@ -2455,8 +2479,8 @@ Json::Value Playlist::GetInfo(void) {
 
 void Playlist::GetInfo(Json::Value& result) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
-    result["currentState"] = m_currentState;
-    if (m_currentState == "idle") {
+    result["currentState"] = PlaylistStatusToString(m_status);
+    if (m_status == FPP_STATUS_IDLE) {
         result["name"] = "";
         result["desc"] = "";
         result["repeat"] = 0;
