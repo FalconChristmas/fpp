@@ -37,6 +37,9 @@ public:
         tokens = config["tokens"].asString();
         port = config["port"].asInt();
 
+        // s_addr is left unset when the output is inactive, so it has to start
+        // zeroed: the address classification below reads it either way.
+        memset(&udpAddress, 0, sizeof(udpAddress));
         udpAddress.sin_family = AF_INET;
         udpAddress.sin_port = htons(port);
         if (active) {
@@ -47,13 +50,19 @@ public:
             }
         }
 
-        int fp = (udpAddress.sin_addr.s_addr >> 24) & 0xFF;
-        printf("ip: %s    %X\n", ipAddress.c_str(), udpAddress.sin_addr.s_addr);
-        printf("fp: %d\n", fp);
-        printf("fp2: %d\n", udpAddress.sin_addr.s_addr & 0xFF);
-        if (fp >= 239 && fp <= 224) {
+        // s_addr is network byte order, so the octets have to be read out of the
+        // host-order value: on a little-endian host the top byte of the raw word
+        // is the LAST octet, not the first.
+        uint32_t hostAddr = ntohl(udpAddress.sin_addr.s_addr);
+        int firstOctet = (hostAddr >> 24) & 0xFF;
+        int lastOctet = hostAddr & 0xFF;
+        if (firstOctet >= 224 && firstOctet <= 239) {
             isMulticast = true;
-        } else if (fp == 255) {
+        } else if (lastOctet == 255) {
+            // Directed (x.y.z.255) and limited (255.255.255.255) broadcast.  This
+            // is matched deliberately - the old byte-swapped math happened to
+            // catch the same addresses, so dropping it silently would take
+            // working broadcast configs with it.
             isBroadcast = true;
         }
 
