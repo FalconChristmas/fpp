@@ -36,6 +36,7 @@ RemapOutputProcessor::RemapOutputProcessor(const Json::Value& config) {
 
     // channel numbers need to be 0 based
     --destChannel;
+    tempBuffer.resize(count > 0 ? count : 0);
 }
 
 RemapOutputProcessor::RemapOutputProcessor(int src, int dst, int c, int l, int r) {
@@ -45,6 +46,7 @@ RemapOutputProcessor::RemapOutputProcessor(int src, int dst, int c, int l, int r
     count = c;
     loops = l;
     reverse = r;
+    tempBuffer.resize(count > 0 ? count : 0);
 }
 
 RemapOutputProcessor::~RemapOutputProcessor() {
@@ -74,14 +76,11 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
         for (int l = 0; l < loops; l++) {
             if (count > 1) {
                 if (!l) { // First loop, reverse while copying
-                    // Copy the required section of channel data to a temporary buffer
-                    unsigned char* tempBuffer = new unsigned char[count];
-                    memcpy(tempBuffer, channelData + sourceChannel, count);
+                    // Copy the required section of channel data to the scratch buffer
+                    memcpy(tempBuffer.data(), channelData + sourceChannel, count);
                     for (int c = 0; c < count; c++) {
                         channelData[destChannel + c] = tempBuffer[count - 1 - c];
                     }
-                    // Delete the temporary buffer
-                    delete[] tempBuffer;
                 } else { // Subsequent loops, just copy first reversed block for speed
                     memcpy(channelData + destChannel + (l * count),
                            channelData + destChannel,
@@ -97,17 +96,14 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
         for (int l = 0; l < loops; l++) {
             if (count > 1) {
                 if (!l) { // First loop, reverse pixels while copying
-                    // Copy the required section of channel data to a temporary buffer
-                    unsigned char* tempBuffer = new unsigned char[count];
-                    memcpy(tempBuffer, channelData + sourceChannel, count);
+                    // Copy the required section of channel data to the scratch buffer
+                    memcpy(tempBuffer.data(), channelData + sourceChannel, count);
                     for (int c = 0; c < count - 2;) {
                         channelData[destChannel + c + 0] = tempBuffer[count - 1 - c - 2];
                         channelData[destChannel + c + 1] = tempBuffer[count - 1 - c - 1];
                         channelData[destChannel + c + 2] = tempBuffer[count - 1 - c - 0];
                         c += 3;
                     }
-                    // Delete the temporary buffer
-                    delete[] tempBuffer;
                 } else { // Subsequent loops, just copy first reversed block for speed
                     memcpy(channelData + destChannel + (l * count),
                            channelData + destChannel,
@@ -124,9 +120,8 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
         for (int l = 0; l < loops; l++) {
             if (count > 1) {
                 if (!l) { // First loop, reverse pixels while copying
-                    // Copy the required section of channel data to a temporary buffer
-                    unsigned char* tempBuffer = new unsigned char[count];
-                    memcpy(tempBuffer, channelData + sourceChannel, count);
+                    // Copy the required section of channel data to the scratch buffer
+                    memcpy(tempBuffer.data(), channelData + sourceChannel, count);
                     for (int c = 0; c < count - 3;) {
                         channelData[destChannel + c + 0] = tempBuffer[count - 1 - c - 3];
                         channelData[destChannel + c + 1] = tempBuffer[count - 1 - c - 2];
@@ -134,8 +129,6 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
                         channelData[destChannel + c + 3] = tempBuffer[count - 1 - c - 0];
                         c += 4;
                     }
-                    // Delete the temporary buffer
-                    delete[] tempBuffer;
                 } else { // Subsequent loops, just copy first reversed block for speed
                     memcpy(channelData + destChannel + (l * count),
                            channelData + destChannel,

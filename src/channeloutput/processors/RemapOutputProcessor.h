@@ -14,6 +14,8 @@
 #include "OutputProcessor.h"
 #include "fpp-json-fwd.h"
 
+#include <vector>
+
 class RemapOutputProcessor : public OutputProcessor {
 public:
     RemapOutputProcessor(const Json::Value& config);
@@ -39,4 +41,9 @@ protected:
     int loops;
     int reverse;
     std::string model;
+
+    // Scratch copy of the source channels for the reversing modes, sized at
+    // construction: ProcessData must read the pre-reverse values while it
+    // overwrites them in place.
+    mutable std::vector<unsigned char> tempBuffer;
 };
