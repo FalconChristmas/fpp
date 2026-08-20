@@ -121,7 +121,7 @@ void LOREnhancedOutput::DumpConfig(void) {
         LogDebug(VB_CHANNELOUT, "    port speed   : %d\n", data->speed);
         LogDebug(VB_CHANNELOUT, "    lastHeartbeat: %d\n", data->lastHeartbeat);
     }
-    for (auto unit : data->units) {
+    for (auto& unit : data->units) {
         LogDebug(VB_CHANNELOUT, "    Unit Id     : %d\n", unit.unitId);
         LogDebug(VB_CHANNELOUT, "      Pixels    : %d\n", unit.numOfPixels);
         LogDebug(VB_CHANNELOUT, "      Lor Start : %d\n", unit.lorStartPixel);
@@ -293,7 +293,7 @@ void LOREnhancedOutput::SendUnitData(unsigned char* channelData, LOREnhancedOutp
 int LOREnhancedOutput::SendData(unsigned char* channelData) {
     LogDebug(VB_CHANNELDATA, "LOREnhancedOutput::SendData()\n");
 
-    for (auto unit : data->units) {
+    for (auto& unit : data->units) {
         SendUnitData(channelData, &unit);
     }
 

@@ -101,7 +101,7 @@ public:
                     } else if (token == "{p2}") {
                         addLittleEndian(bytes, channelCount / 3);
                     } else {
-                        printf("Unknown token -%s-", token.c_str());
+                        LogWarn(VB_CHANNELOUT, "Unknown token -%s-\n", token.c_str());
                         for (int x = 0; x < token.size(); x++) {
                             bytes.push_back((uint8_t)token[x]);
                         }

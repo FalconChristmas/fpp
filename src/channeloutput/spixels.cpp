@@ -76,28 +76,7 @@ SpixelsOutput::~SpixelsOutput() {
 int SpixelsOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "SpixelsOutput::Init(JSON)\n");
 
-    bool haveWS2801 = false;
-
-    for (int i = 0; i < config["outputs"].size(); i++) {
-        Json::Value s = config["outputs"][i];
-
-        if (s["protocol"].asString() == "ws2801")
-            haveWS2801 = true;
-    }
-
-#if 0
-// Can't use ws2801 DMA for now until mailbox issue is resolved.
-// spixels includes its own copy of the mailbox code, but
-// ends up calling the copy from jgarff's rpi-ws281x library
-// since the functions have the same names.  Do we fork and
-// rename or patch and submit a pull request?
-// WS2801 is disabled in the UI, but code is left here for
-// debugging.
-
-	if (haveWS2801)
-		m_spi = CreateDMAMultiSPI(); // WS2801 needs DMA for accurate timing
-	else
-#endif
+    // WS2801 wants CreateDMAMultiSPI() for accurate timing, but that path is disabled.
     m_spi = CreateDirectMultiSPI();
 
     for (int i = 0; i < config["outputs"].size(); i++) {
