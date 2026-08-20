@@ -205,7 +205,7 @@ static void addRange(uint32_t min, uint32_t max, std::vector<std::pair<uint32_t,
     max += 8;
     max &= 0xFFFFFFF8;
     max -= 1;
-    for (auto& r : outputRanges) {
+    for (auto& r : normal) {
         int rm = r.first + r.second - 1;
         if (min >= r.first && max <= rm) {
             // within the range, don't add it
