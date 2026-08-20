@@ -38,6 +38,7 @@
 #include "../../settings.h"
 
 #include "BBShiftPanel.h"
+#include "../../channeloutput/GammaLUT.h"
 #include "../CapeUtils/CapeUtils.h"
 #include "../../pru/SMEMRing.hp"
 #include "util/BBBUtils.h"
@@ -2504,10 +2505,6 @@ bool BBShiftPanelOutput::buildScatterMap() {
 
 void BBShiftPanelOutput::setupGamma() {
     auto& mgr = BBShiftPanelManager::INSTANCE;
-    float gamma = m_gamma;
-    if (gamma < 0.01 || gamma > 50.0) {
-        gamma = 2.2;
-    }
     // The OE on-time is shared by every matrix on the cape, so a matrix that
     // asked for less brightness than the cape ended up running at makes up the
     // difference here.  With one matrix, or with matrices that agree, the
@@ -2524,54 +2521,7 @@ void BBShiftPanelOutput::setupGamma() {
         colorDepth = 12;
     }
 
-    for (int x = 0; x < 256; x++) {
-        int v = x;
-        if (colorDepth == 6 && (v == 3 || v == 2)) {
-            v = 4;
-        } else if (colorDepth == 7 && v == 1) {
-            v = 2;
-        }
-        float max = 255.0f;
-        switch (colorDepth) {
-        case 16:
-            max = 65535.0f;
-            break;
-        case 15:
-            max = 32767.0f;
-            break;
-        case 14:
-            max = 16383.0f;
-            break;
-        case 13:
-            max = 8191.0f;
-            break;
-        case 12:
-            max = 4095.0f;
-            break;
-        case 11:
-            max = 2047.0f;
-            break;
-        case 10:
-            max = 1023.0f;
-            break;
-        case 9:
-            max = 511.0f;
-            break;
-        }
-        float f = v;
-        f = max * std::pow(f / 255.0f, gamma) * brightnessScale;
-        if (f > max) {
-            f = max;
-        }
-        if (f < 0.0) {
-            f = 0.0;
-        }
-        gammaCurve[x] = std::round(f);
-        if (gammaCurve[x] == 0 && f > 0.25) {
-            // don't drop as much of the low end to 0
-            gammaCurve[x] = 1;
-        }
-    }
+    GammaLUT::BuildForColorDepth(gammaCurve, GammaLUT::Clamp(m_gamma, 2.2f), colorDepth, brightnessScale);
     /*
     for (int x = 0; x < 256; x++) {
         printf("%d: %04x\n", x, gammaCurve[x]);

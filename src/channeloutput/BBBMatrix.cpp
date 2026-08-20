@@ -29,6 +29,7 @@
 #include "../log.h"
 #include "../settings.h"
 
+#include "GammaLUT.h"
 #include "PanelInterleaveHandler.h"
 #include "overlays/PixelOverlay.h"
 #include "util/BBBUtils.h"
@@ -699,50 +700,7 @@ int BBBMatrix::Init(Json::Value config) {
         return 0;
     }
 
-    float gamma = 2.2;
-    if (config.isMember("gamma")) {
-        gamma = atof(config["gamma"].asString().c_str());
-    }
-    if (gamma < 0.01 || gamma > 50.0) {
-        gamma = 2.2;
-    }
-    for (int x = 0; x < 256; x++) {
-        int v = x;
-        if (m_colorDepth == 6 && (v == 3 || v == 2)) {
-            v = 4;
-        } else if (m_colorDepth == 7 && v == 1) {
-            v = 2;
-        }
-        float max = 255.0f;
-        switch (m_colorDepth) {
-        case 12:
-            max = 4095.0f;
-            break;
-        case 11:
-            max = 2047.0f;
-            break;
-        case 10:
-            max = 1023.0f;
-            break;
-        case 9:
-            max = 511.0f;
-            break;
-        }
-        float f = v;
-        f = max * pow(f / 255.0f, gamma);
-        if (f > max) {
-            f = max;
-        }
-        if (f < 0.0) {
-            f = 0.0;
-        }
-        gammaCurve[x] = round(f);
-        if (gammaCurve[x] == 0 && f > 0.25) {
-            // don't drop as much of the low end to 0
-            gammaCurve[x] = 1;
-        }
-        // printf("%d   %d  (%f)\n", x, gammaCurve[x], f);
-    }
+    GammaLUT::BuildForColorDepth(gammaCurve, GammaLUT::ParseConfig(config, 2.2f), m_colorDepth);
 
     if (isPWM) {
         // need to calculate the clock counts for the PWM subsystem

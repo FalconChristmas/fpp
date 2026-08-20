@@ -184,6 +184,7 @@
 #include "../settings.h"
 
 #include "ColorLight-5a-75.h"
+#include "GammaLUT.h"
 #include "overlays/PixelOverlay.h"
 
 #include "Plugin.h"
@@ -389,24 +390,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
         }
     }
 
-    float gamma = 1.0;
-    if (config.isMember("gamma")) {
-        gamma = atof(config["gamma"].asString().c_str());
-    }
-    if (gamma < 0.01 || gamma > 50.0) {
-        gamma = 1.0;
-    }
-    for (int x = 0; x < 256; x++) {
-        float f = x;
-        f = 255.0 * pow(f / 255.0f, gamma);
-        if (f > 255.0) {
-            f = 255.0;
-        }
-        if (f < 0.0) {
-            f = 0.0;
-        }
-        m_gammaCurve[x] = round(f);
-    }
+    GammaLUT::Build(m_gammaCurve, GammaLUT::ParseConfig(config, 1.0f));
 
     if (config.isMember("interface"))
         m_ifName = config["interface"].asString();
