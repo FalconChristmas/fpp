@@ -536,3 +536,23 @@
 [data-bs-theme="dark"] .modal-backdrop.show {
     opacity: 0.7;
 }
+
+/* ------------------------------------------------------------- */
+/* Loading skeletons                                             */
+/* fpp-bootstrap ships these in light greys (#f8f9fa/#dee2e6),   */
+/* which read as a glaring white block against a dark page —     */
+/* most obvious as the large rounded bar standing in for the     */
+/* playlist controls on the status page. Re-tint to match the    */
+/* dark surfaces they sit on.                                    */
+/* ------------------------------------------------------------- */
+
+[data-bs-theme="dark"] .skeleton-loader div {
+    background: #20222e;
+    background: linear-gradient(
+        90deg,
+        #2c3048 0%,
+        #20222e 39%,
+        #20222e 57%,
+        #2c3048 100%
+    );
+}

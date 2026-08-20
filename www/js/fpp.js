@@ -156,7 +156,20 @@ once in place pageSpecific_ViewPortChange() - loads any actions unique to the pa
 occur on a viewport size change
 
 */
+// Loading skeletons only earn their keep on a slow load. Against a local FPP
+// the status APIs answer in tens of milliseconds, so painting the placeholders
+// immediately just flashes a big grey block where the playlist controls are
+// about to appear. Hold them back and reveal them only if the page is still
+// loading once the delay is up; a fast refresh then never shows them at all.
+var SKELETON_REVEAL_DELAY_MS = 400;
+
 $(function () {
+	setTimeout(function () {
+		if (document.body && document.body.classList.contains('is-loading')) {
+			document.body.classList.add('show-loading-skeleton');
+		}
+	}, SKELETON_REVEAL_DELAY_MS);
+
 	// do any page DOM manipulation required
 	common_PageLoad_DOM_Setup();
 	if (typeof pageSpecific_PageLoad_DOM_Setup === 'function') {
@@ -5304,7 +5317,7 @@ function SetupUIForMode (fppMode) {
 		}
 	}
 	if ($('body').hasClass('is-loading')) {
-		$('body').removeClass('is-loading');
+		$('body').removeClass('is-loading show-loading-skeleton');
 	}
 }
 

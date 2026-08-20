@@ -1120,22 +1120,35 @@ body.modal-open #scrollTopButton {
 	min-height: 300px;
 }
 
-body.is-loading .statusPageLoading {
+/* Gated on .show-loading-skeleton, not on .is-loading alone: fpp.js only adds
+   that class if the page is still loading after a short delay, so a fast
+   refresh settles without ever painting these placeholders. */
+body.is-loading.show-loading-skeleton .statusPageLoading {
 	display: block;
+	animation: fppSkeletonFadeIn 0.2s ease-in both;
 }
 
-body.is-loading #schedulerInfo .labelHeading,
-body.is-loading #schedulerInfo .labelValue {
+@keyframes fppSkeletonFadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+body.is-loading.show-loading-skeleton #schedulerInfo .labelHeading,
+body.is-loading.show-loading-skeleton #schedulerInfo .labelValue {
 	position: relative;
 	color: rgba(0, 0, 0, 0);
 }
 
-body.is-loading #schedulerInfo .labelAction {
+body.is-loading.show-loading-skeleton #schedulerInfo .labelAction {
 	opacity: 0;
 }
 
-body.is-loading #schedulerInfo .labelHeading:before,
-body.is-loading #schedulerInfo .labelValue:before {
+body.is-loading.show-loading-skeleton #schedulerInfo .labelHeading:before,
+body.is-loading.show-loading-skeleton #schedulerInfo .labelValue:before {
 	display: block;
 	content: '';
 	top: 0;
@@ -1158,12 +1171,12 @@ body.is-loading #schedulerInfo .labelValue:before {
 	);
 }
 
-body.is-loading #schedulerInfo .labelHeading:before {
+body.is-loading.show-loading-skeleton #schedulerInfo .labelHeading:before {
 	right: 0;
 	height: 14px;
 }
 
-body.is-loading #schedulerInfo .labelValue:before {
+body.is-loading.show-loading-skeleton #schedulerInfo .labelValue:before {
 	height: 14px;
 	width: 60px;
 }
@@ -3235,12 +3248,14 @@ pre.testData,
 #rebootFlag,
 #unsupportedBrowser,
 #warningsRow,
-#bannerRow {
+#bannerRow,
+#bannerHostnameRow {
 	display: none;
 	clear: both;
 }
 
-#bannerRow a {
+#bannerRow a,
+#bannerHostnameRow a {
 	color: white;
 }
 
