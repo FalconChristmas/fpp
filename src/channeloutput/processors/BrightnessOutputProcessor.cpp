@@ -19,6 +19,7 @@
 
 #include "fpp-json.h"
 
+#include "../../Warnings.h"
 #include "../../log.h"
 
 #include "BrightnessOutputProcessor.h"
@@ -31,6 +32,25 @@ BrightnessOutputProcessor::BrightnessOutputProcessor(const Json::Value& config) 
     count = config["count"].asInt();
     brightness = config["brightness"].asInt();
     gamma = config["gamma"].asFloat();
+
+    // A blank UI field arrives as JSON null and a config predating the field
+    // has no key at all; both read back as 0 -- and pow(x, 0) is 1, so an
+    // unvalidated zero gamma builds a table that drives EVERY input, including
+    // dark channels, at the full brightness value.
+    if (!config.isMember("brightness") || config["brightness"].isNull()) {
+        WarningHolder::AddWarning("Brightness output processor '" + description + "' has no brightness value, using 100");
+        brightness = 100;
+    } else if (brightness < 0 || brightness > 100) {
+        WarningHolder::AddWarning("Brightness output processor '" + description + "' has an invalid brightness (" + std::to_string(brightness) + "), clamping");
+        brightness = brightness < 0 ? 0 : 100;
+    }
+    if (!config.isMember("gamma") || config["gamma"].isNull()) {
+        WarningHolder::AddWarning("Brightness output processor '" + description + "' has no gamma value, using 1.0");
+        gamma = 1.0f;
+    } else if (gamma < 0.01f || gamma > 50.0f) {
+        WarningHolder::AddWarning("Brightness output processor '" + description + "' has an invalid gamma (" + std::to_string(gamma) + "), using 1.0");
+        gamma = 1.0f;
+    }
 
     ProcessModelConfig(config, model, start, count);
 
