@@ -84,12 +84,14 @@ public:
     }
     virtual float getRawValue() override {
         if (currentMonitorFile >= 0) {
-            char buf[12] = { 0 };
             float f = 0;
             for (int x = 0; x < 3; x++) {
-                lseek(currentMonitorFile, 0, SEEK_SET);
-                read(currentMonitorFile, buf, sizeof(buf));
-                f += atoi(buf);
+                // pread: multiple status readers can sample the same monitor
+                // concurrently; a shared lseek+read would interleave offsets.
+                char buf[12] = { 0 };
+                if (pread(currentMonitorFile, buf, sizeof(buf) - 1, 0) > 0) {
+                    f += atoi(buf);
+                }
             }
             f /= 3.0;
             return f;
@@ -388,7 +390,7 @@ void OutputMonitor::Initialize(std::map<int, std::function<bool(int)>>& callback
         eFuseRetryCount = getSettingInt("eFuseRetryCount", 0);
     });
     registerSettingsListener("OutputMonitor", "eFuseRetryInterval", [this](const std::string& value) {
-        eFuseRetryCount = getSettingInt("eFuseRetryInterval", 100);
+        eFuseRetryInterval = getSettingInt("eFuseRetryInterval", 100);
     });
     CommandManager::INSTANCE.addCategorizedCommand(&FPPEnableOutputsCommand::INSTANCE, "Outputs", 1);
     CommandManager::INSTANCE.addCategorizedCommand(&FPPDisableOutputsCommand::INSTANCE, "Outputs", 1);
@@ -406,6 +408,8 @@ void OutputMonitor::Cleanup() {
         CommandManager::INSTANCE.removeCommand(&FPPCheckConfiguredPixelsCommand::INSTANCE);
         CommandManager::INSTANCE.removeCommand(&FPPEnablePortCommand::INSTANCE);
     }
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
+    eFuseRetries.clear();
     for (auto pi : portPins) {
         if (pi) {
             delete pi;
@@ -418,6 +422,7 @@ void OutputMonitor::Cleanup() {
 }
 
 void OutputMonitor::checkPixelCounts(const std::string& portList, const std::string& action, int sensitivty) {
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
     std::set<std::string> ports;
     for (auto p : split(portList, ',')) {
         if (p == "--ALL--") {
@@ -438,7 +443,7 @@ void OutputMonitor::checkPixelCounts(const std::string& portList, const std::str
                 if (diff > sensitivty) {
                     newWarn = p->name;
                     if (p->isSmartReceiver) {
-                        p += (char)('A' + x);
+                        newWarn += (char)('A' + x);
                     }
                     newWarn += " configured for " + std::to_string(p->receivers[x].configuredCount) + " pixels but " + std::to_string(p->receivers[x].pixelCount) + " pixels detected.";
                 }
@@ -459,10 +464,10 @@ void OutputMonitor::checkPixelCounts(const std::string& portList, const std::str
 }
 
 void OutputMonitor::EnableOutputs() {
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
     if (!pullHighOutputPins.empty() || !pullLowOutputPins.empty()) {
         LogDebug(VB_CHANNELOUT, "Enabling outputs\n");
     }
-    std::unique_lock<std::mutex> lock(gpioLock);
     outputsEnabled = true;
     PinCapabilities::SetMultiPinValue(pullHighOutputPins, 1);
     PinCapabilities::SetMultiPinValue(pullLowOutputPins, 0);
@@ -487,10 +492,10 @@ void OutputMonitor::EnableOutputs() {
     }
 }
 void OutputMonitor::DisableOutputs() {
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
     if (!pullHighOutputPins.empty() || !pullLowOutputPins.empty()) {
         LogDebug(VB_CHANNELOUT, "Disabling outputs\n");
     }
-    std::unique_lock<std::mutex> lock(gpioLock);
     outputsEnabled = false;
     for (auto p : portPins) {
         if (p) {
@@ -511,32 +516,55 @@ void OutputMonitor::DisableOutputs() {
 }
 
 void OutputMonitor::SetOutput(const std::string& port, bool on) {
-    std::unique_lock<std::mutex> lock(gpioLock);
-    int pn = 0;
-    for (auto p : portPins) {
-        if (p && p->name == port && p->enablePin) {
-            p->receivers[0].hasTriggered = false;
-            p->receivers[0].isOn = on;
-            int value = p->highToEnable ? on : !on;
-            clearEFuseWarning(p, 0);
-            p->enablePin->setValue(value);
-            return;
-        } else if (p && p->isSmartReceiver) {
-            for (int x = 0; x < 6; x++) {
-                if (port == std::string(p->name) + std::string(1, 'A' + x)) {
-                    bool isOn = p->receivers[x].isOn && !p->receivers[x].hasTriggered;
-                    if (p->receivers[x].hasTriggered) {
-                        srCallback(pn, x, "ResetOutput");
-                    } else if (on != isOn) {
-                        srCallback(pn, x, "ToggleOutput");
+    // Smart-receiver commands are collected under the lock and dispatched
+    // after it is released: srCallback lands in FalconV5Support, and calling
+    // out of the monitor with gpioLock held invites re-entry deadlocks.
+    struct SRAction {
+        int port;
+        int index;
+        const char* cmd;
+    };
+    std::vector<SRAction> srActions;
+    std::function<void(int, int, const std::string&)> cb;
+    {
+        std::unique_lock<std::shared_mutex> lock(gpioLock);
+        int pn = 0;
+        for (auto p : portPins) {
+            if (p && p->name == port && p->enablePin) {
+                p->receivers[0].hasTriggered = false;
+                p->receivers[0].isOn = on;
+                int value = p->highToEnable ? on : !on;
+                clearEFuseWarning(p, 0);
+                p->enablePin->setValue(value);
+                return;
+            } else if (p && p->isSmartReceiver) {
+                for (int x = 0; x < 6; x++) {
+                    if (port == std::string(p->name) + std::string(1, 'A' + x)) {
+                        bool isOn = p->receivers[x].isOn && !p->receivers[x].hasTriggered;
+                        if (p->receivers[x].hasTriggered) {
+                            srActions.push_back({ pn, x, "ResetOutput" });
+                        } else if (on != isOn) {
+                            srActions.push_back({ pn, x, "ToggleOutput" });
+                        }
                     }
                 }
             }
+            pn++;
         }
-        pn++;
+        cb = srCallback;
+    }
+    if (cb) {
+        for (auto& a : srActions) {
+            cb(a.port, a.index, a.cmd);
+        }
     }
 }
+void OutputMonitor::setSmartReceiverEventCallback(std::function<void(int port, int index, const std::string& cmd)>&& f) {
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
+    srCallback = std::move(f);
+}
 void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config) {
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
     std::string name = "Port " + std::to_string(port + 1);
     if (port < portPins.size() && portPins[port] && portPins[port]->name == name) {
         PortPinInfo* pi = portPins[port];
@@ -557,12 +585,28 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
             }
             pi->enablePin->releasePin();
         }
-        if (pi->eFusePin) {
-            fusePins.erase(pi->eFusePin->name);
-        }
         if (pi->eFuseInterruptPin) {
-            GPIOManager::INSTANCE.RemoveGPIOCallback(pi->eFuseInterruptPin);
-            pi->eFuseInterruptPin->releasePin();
+            // One interrupt pin (and its GPIO callback) can serve several
+            // ports; only unregister it when the last port using it goes away.
+            // fusePins is keyed by the interrupt pin's name -- erasing it here
+            // is what lets a later AddPortConfiguration re-register the
+            // callback; leaving it behind means fuse trips are silently
+            // ignored after a config reload.
+            bool sharedInterrupt = false;
+            for (auto other : portPins) {
+                if (other && other != pi && other->eFuseInterruptPin == pi->eFuseInterruptPin) {
+                    sharedInterrupt = true;
+                    break;
+                }
+            }
+            if (!sharedInterrupt) {
+                GPIOManager::INSTANCE.RemoveGPIOCallback(pi->eFuseInterruptPin);
+                fusePins.erase(pi->eFuseInterruptPin->name);
+                pi->eFuseInterruptPin->releasePin();
+            }
+            if (pi->eFusePin) {
+                pi->eFusePin->releasePin();
+            }
         } else if (pi->eFusePin) {
             GPIOManager::INSTANCE.RemoveGPIOCallback(pi->eFusePin);
             pi->eFusePin->releasePin();
@@ -576,6 +620,7 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
 }
 
 void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig, bool enabled) {
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
     std::string name = "Port " + std::to_string(port + 1);
     if (port >= portPins.size()) {
         portPins.resize(port + 1);
@@ -595,7 +640,7 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         std::string ep = pinConfig.get("enablePin", "").asString();
         if (ep != "") {
             pi->highToEnable = (ep[0] != '!');
-            pi->enablePin = AddOutputPin(name, ep, enabled);
+            pi->enablePin = addOutputPinInternal(name, ep, enabled);
             if (!pi->enablePin) {
                 enabled = false;
             }
@@ -617,7 +662,7 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
             std::string eFuseInterruptPin = pinConfig.get("eFuseInterruptPin", "").asString();
             bool eFuseInterruptHigh = false;
             if (eFuseInterruptPin[0] == '!') {
-                eFuseInterruptPin = true;
+                eFuseInterruptHigh = true;
                 eFuseInterruptPin = eFuseInterruptPin.substr(1);
             }
             std::string postFix = "";
@@ -637,11 +682,15 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
                 if (fusePins[eFuseInterruptPin] == nullptr) {
                     pi->eFuseInterruptPin->configPin("gpio" + postFix, false, "eFuseInterrupt");
                     fusePins[eFuseInterruptPin] = pi->eFuseInterruptPin;
-                    GPIOManager::INSTANCE.AddGPIOCallback(pi->eFuseInterruptPin, [this, pi](int v) {
-                        // printf("\n\n\nInterrupt Pin!!!   %d   %d\n\n\n", v, pi->eFuseInterruptPin->getValue());
-                        std::unique_lock<std::mutex> lock(gpioLock);
+                    // Capture the pin, not the registering port: several ports
+                    // share one interrupt pin, and the port that happened to
+                    // register it can be reset by a config reload while the
+                    // callback (and the other ports) live on.
+                    const PinCapabilities* intPin = pi->eFuseInterruptPin;
+                    GPIOManager::INSTANCE.AddGPIOCallback(intPin, [this, intPin](int v) {
+                        std::unique_lock<std::shared_mutex> lock(gpioLock);
                         for (auto a : portPins) {
-                            if (a && a->eFuseInterruptPin == pi->eFuseInterruptPin) {
+                            if (a && a->eFuseInterruptPin == intPin && a->eFusePin) {
                                 int v = a->eFusePin->getValue();
                                 if (v != a->eFuseOKValue) {
                                     if (a->enablePin) {
@@ -658,6 +707,8 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
                                 }
                             }
                         }
+                        lock.unlock();
+                        triggerEFusePresets();
                         return true;
                     });
                 }
@@ -686,8 +737,12 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
             pi->eFusePin->configPin("gpio" + postFix, false, "eFuse" + std::to_string(port + 1));
             if (pi->eFuseInterruptPin == nullptr) {
                 GPIOManager::INSTANCE.AddGPIOCallback(pi->eFusePin, [this, pi](int v) {
-                    std::unique_lock<std::mutex> lock(gpioLock);
-                    // printf("eFuse for %s trigger: %d    %d\n", pi->name.c_str(), v, pi->eFusePin->getValue());
+                    std::unique_lock<std::shared_mutex> lock(gpioLock);
+                    // The callback is unregistered before a reload resets pi,
+                    // but a dispatch already in flight can still land here.
+                    if (!pi->eFusePin) {
+                        return true;
+                    }
                     v = pi->eFusePin->getValue();
                     if (v != pi->eFuseOKValue) {
                         if (pi->enablePin) {
@@ -701,6 +756,8 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
                             }
                         }
                     }
+                    lock.unlock();
+                    triggerEFusePresets();
                     return true;
                 });
             }
@@ -778,6 +835,11 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
 }
 
 const PinCapabilities* OutputMonitor::AddOutputPin(const std::string& name, const std::string& pinName, bool addToList) {
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
+    return addOutputPinInternal(name, pinName, addToList);
+}
+// gpioLock must be held exclusively.
+const PinCapabilities* OutputMonitor::addOutputPinInternal(const std::string& name, const std::string& pinName, bool addToList) {
     std::string pin = pinName;
     bool highToEnable = true;
     if (pin[0] == '!') {
@@ -797,7 +859,6 @@ const PinCapabilities* OutputMonitor::AddOutputPin(const std::string& name, cons
         WarningHolder::AddWarning(51, "Could not find pin " + pin + " to enable output " + name);
         return nullptr;
     }
-    std::unique_lock<std::mutex> lock(gpioLock);
     if (addToList) {
         op.push_back(pc);
     }
@@ -827,13 +888,15 @@ void OutputMonitor::lockToGroup(int i) {
     Sensors::INSTANCE.lockToGroup(i);
 }
 bool OutputMonitor::isPortInGroup(int group, int port) {
+    std::shared_lock<std::shared_mutex> lock(gpioLock);
     return ((port < portPins.size()) && portPins[port] && (group == portPins[port]->group));
 }
 
 std::vector<float> OutputMonitor::GetPortCurrentValues() {
+    Sensors::INSTANCE.updateSensorSources(true);
+    std::shared_lock<std::shared_mutex> lock(gpioLock);
     std::vector<float> ret;
     ret.reserve(portPins.size());
-    Sensors::INSTANCE.updateSensorSources(true);
     for (auto a : portPins) {
         if (a && a->currentMonitor && ((curGroup == -1) || (curGroup == a->group))) {
             ret.push_back(a->currentMonitor->getValue());
@@ -844,12 +907,14 @@ std::vector<float> OutputMonitor::GetPortCurrentValues() {
     return ret;
 }
 void OutputMonitor::SetPixelCount(int port, int pc, int cc) {
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
     if (port < portPins.size() && portPins[port] && ((curGroup == -1) || (curGroup == portPins[port]->group))) {
         portPins[port]->receivers[0].pixelCount = pc;
         portPins[port]->receivers[0].configuredCount = cc;
     }
 }
 int OutputMonitor::GetPixelCount(int port) {
+    std::shared_lock<std::shared_mutex> lock(gpioLock);
     if (port < portPins.size() && portPins[port]) {
         return portPins[port]->receivers[0].pixelCount;
     }
@@ -857,12 +922,12 @@ int OutputMonitor::GetPixelCount(int port) {
 }
 
 void OutputMonitor::GetCurrentPortStatusJson(Json::Value& result) {
-    if (!portPins.empty()) {
-        Sensors::INSTANCE.updateSensorSources();
-        for (auto a : portPins) {
-            if (a) {
-                a->appendTo(result);
-            }
+    // The sensor refresh does its own locking; keep it outside ours.
+    Sensors::INSTANCE.updateSensorSources();
+    std::shared_lock<std::shared_mutex> lock(gpioLock);
+    for (auto a : portPins) {
+        if (a) {
+            a->appendTo(result);
         }
     }
 }
@@ -887,11 +952,27 @@ void OutputMonitor::addEFuseWarning(PortPinInfo* pi, int rec) {
             WarningHolder::AddWarning(16, warn);
             pi->receivers[rec].warning = warn;
 
+            // Presets run commands synchronously, and an EFUSE_TRIGGERED
+            // preset that flips outputs ("Outputs Off", "Set Port Status")
+            // re-enters this class -- firing it here, with gpioLock held,
+            // self-deadlocks.  Queue it; every caller drains the queue via
+            // triggerEFusePresets() once it has released the lock.
+            pendingEFusePresets.push_back(name);
+        }
+    }
+}
+void OutputMonitor::triggerEFusePresets() {
+    // Must be called WITHOUT gpioLock held.
+    std::vector<std::string> ports;
+    {
+        std::unique_lock<std::shared_mutex> lock(gpioLock);
+        ports.swap(pendingEFusePresets);
+    }
+    for (auto& name : ports) {
+        if (CommandManager::INSTANCE.HasPreset("EFUSE_TRIGGERED")) {
             std::map<std::string, std::string> keywords;
             keywords["PORT"] = name;
-            if (CommandManager::INSTANCE.HasPreset("EFUSE_TRIGGERED")) {
-                CommandManager::INSTANCE.TriggerPreset("EFUSE_TRIGGERED", keywords);
-            }
+            CommandManager::INSTANCE.TriggerPreset("EFUSE_TRIGGERED", keywords);
         }
     }
 }
@@ -921,17 +1002,20 @@ bool OutputMonitor::checkEFuseRetry(PortPinInfo* port) {
     return true;
 }
 void OutputMonitor::processRetries() {
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
     long long ft = GetTimeMS();
     std::list<PortPinInfo*> toRemove;
     for (auto p : eFuseRetries) {
-        if (p->eFusePin->getValue() == p->eFuseOKValue) {
+        if (!p->eFusePin || !p->enablePin) {
+            // A port with an eFuse but no enable pin has no way to retry, and
+            // a port reset by a config reload has neither.
+            toRemove.push_back(p);
+        } else if (p->eFusePin->getValue() == p->eFuseOKValue) {
             p->receivers[0].okCount++;
             // must be good for at least two seconds
             long long resetTime = p->receivers[0].nextRetryTime;
             resetTime += 2000;
             if (ft > resetTime) {
-                long long ft2 = ft % 20000;
-                long long rt2 = resetTime % 20000;
                 p->receivers[0].retryCount = 0;
                 toRemove.push_back(p);
             }
@@ -959,9 +1043,12 @@ void OutputMonitor::processRetries() {
         Timers::INSTANCE.stopPeriodicTimer("eFuse Retry");
         retryTimerRunning = false;
     }
+    lock.unlock();
+    triggerEFusePresets();
 }
 void OutputMonitor::setSmartReceiverInfo(int port, int index, bool enabled, bool tripped, int current, int pixelCount) {
     // printf("      %d  %c:     Current:  %d     PC:  %d    EN: %d    TR: %d\n", port + 1, (char)('A' + index), current, pixelCount, enabled, tripped);
+    std::unique_lock<std::shared_mutex> lock(gpioLock);
     if (port < portPins.size() && portPins[port]) {
         portPins[port]->receivers[index].enabled = true;
         portPins[port]->receivers[index].isOn = enabled;
@@ -970,12 +1057,13 @@ void OutputMonitor::setSmartReceiverInfo(int port, int index, bool enabled, bool
         portPins[port]->receivers[index].current = current;
 
         if (tripped) {
-            // printf("      %d  %c:     Current:  %d     PC:  %d    EN: %d    TR: %d\n", port + 1, (char)('A' + index), current, pixelCount, enabled, tripped);
             addEFuseWarning(portPins[port], index);
         } else {
             clearEFuseWarning(portPins[port], index);
         }
     }
+    lock.unlock();
+    triggerEFusePresets();
 }
 
 // --------------------------------------------------------------------------
@@ -1022,6 +1110,7 @@ HttpResponsePtr OutputMonitor::render_GET(const HttpRequestPtr& req) {
         if (plen > 2 && parts[2] == "list") {
             Json::Value result;
             result.append("--ALL--");
+            std::shared_lock<std::shared_mutex> lock(gpioLock);
             for (auto a : portPins) {
                 if (a && a->isSmartReceiver) {
                     for (int x = 0; x < 6; x++) {
@@ -1033,11 +1122,15 @@ HttpResponsePtr OutputMonitor::render_GET(const HttpRequestPtr& req) {
                     result.append(a->name);
                 }
             }
+            lock.unlock();
             std::string resultStr = SaveJsonToString(result);
             return makeStringResponse(resultStr, 200, "application/json");
         }
-        if (portPins.empty()) {
-            return makeStringResponse("[]", 200, "application/json");
+        {
+            std::shared_lock<std::shared_mutex> lock(gpioLock);
+            if (portPins.empty()) {
+                return makeStringResponse("[]", 200, "application/json");
+            }
         }
         if (plen > 2 && parts[2] == "pixelCount") {
             std::vector<std::string> args;

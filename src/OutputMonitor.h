@@ -17,7 +17,9 @@
 #include <list>
 #include <map>
 #include <mutex>
+#include <shared_mutex>
 #include <string>
+#include <vector>
 
 #include "fpphttp_types.h"
 
@@ -58,9 +60,7 @@ public:
     void checkPixelCounts(const std::string& portList, const std::string& action, int sensitivy);
 
     void setSmartReceiverInfo(int port, int index, bool enabled, bool tripped, int current, int pixelCount);
-    void setSmartReceiverEventCallback(std::function<void(int port, int index, const std::string& cmd)>&& f) {
-        srCallback = f;
-    }
+    void setSmartReceiverEventCallback(std::function<void(int port, int index, const std::string& cmd)>&& f);
 
 private:
     OutputMonitor();
@@ -80,7 +80,14 @@ private:
     // has to bring a port up in the state the monitor is already in rather
     // than assume the pre-output state.
     std::atomic<bool> outputsEnabled{ false };
-    std::mutex gpioLock;
+    // Guards portPins, the pull-high/low pin lists, fusePins, eFuseRetries,
+    // pendingEFusePresets, and srCallback.  Writers (config reload, the eFuse
+    // GPIO callbacks, retry processing, enable/disable) take it exclusive;
+    // status readers (HTTP/MQTT port status, the pixel-count tester) take it
+    // shared.  Presets and the smart-receiver callback must NOT be invoked
+    // while it is held: command presets run synchronously and can re-enter
+    // EnableOutputs/DisableOutputs/SetOutput on the same thread.
+    std::shared_mutex gpioLock;
     int numGroups = 1;
     int curGroup = -1;
 
@@ -88,9 +95,15 @@ private:
     int eFuseRetryInterval = 100;
 
     std::function<void(int port, int index, const std::string& cmd)> srCallback;
+    // Port names whose EFUSE_TRIGGERED preset still needs to fire.  Queued by
+    // addEFuseWarning() (called with gpioLock held) and drained by
+    // triggerEFusePresets() after the lock is released.
+    std::vector<std::string> pendingEFusePresets;
 
+    const PinCapabilities* addOutputPinInternal(const std::string& name, const std::string& pin, bool addToList);
     void addEFuseWarning(PortPinInfo* port, int rec = 0);
     void clearEFuseWarning(PortPinInfo* port, int rec = 0);
     bool checkEFuseRetry(PortPinInfo* port);
     void processRetries();
+    void triggerEFusePresets();
 };
