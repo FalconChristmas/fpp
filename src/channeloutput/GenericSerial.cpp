@@ -57,6 +57,10 @@ GenericSerialOutput::GenericSerialOutput(unsigned int startChannel, unsigned int
  */
 GenericSerialOutput::~GenericSerialOutput() {
     LogDebug(VB_CHANNELOUT, "GenericSerialOutput::~GenericSerialOutput()\n");
+    // An output whose Init() failed is deleted without Close() ever running --
+    // the packet buffer is allocated before the serial port opens, so it must
+    // be released here too.
+    delete[] m_data;
 }
 
 int GenericSerialOutput::Init(Json::Value config) {
@@ -106,6 +110,7 @@ int GenericSerialOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "GenericSerialOutput::Close()\n");
     closeSerialPort();
     delete[] m_data;
+    m_data = nullptr;
     return ThreadedChannelOutput::Close();
 }
 

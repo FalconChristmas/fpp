@@ -90,6 +90,11 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
     }
     m_deviceName = "/dev/" + m_deviceName;
     m_fd = SerialOpen(m_deviceName.c_str(), baud, mode, true, pin == nullptr, desc.c_str());
+    if (m_fd < 0) {
+        LogErr(VB_CHANNELOUT, "Could not open serial port %s\n", m_deviceName.c_str());
+        WarningHolder::AddWarning(26, desc + ": could not open " + m_deviceName + ". Is the device connected?");
+        return false;
+    }
     return true;
 }
 

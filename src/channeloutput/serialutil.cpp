@@ -12,7 +12,8 @@
 
 #include "fpp-pch.h"
 
-#include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+#include "Warnings.h"       // WarningHolder -- needed directly for NOPCH builds
+#include "../common_mini.h" // FPPstrerror() -- needed directly for NOPCH builds
 
 #include <sys/ioctl.h>
 #include <errno.h>
@@ -111,8 +112,13 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
     }
 
     fd = open(device, (output ? O_RDWR : O_RDONLY) | O_NOCTTY | O_NONBLOCK);
-    if (fd < 0)
+    if (fd < 0) {
+        // errno has to be captured before LogErr, which can clobber it
+        int err = errno;
+        LogErr(VB_CHANNELOUT, "%s: Error opening serial port: %s\n", device, FPPstrerror(err));
+        WarningHolder::AddWarning(38, std::string(device) + ": could not open serial port (" + FPPstrerror(err) + ")");
         return -1;
+    }
 
     if (ioctl(fd, TIOCEXCL) == -1) {
         LogErr(VB_CHANNELOUT, "%s: Error setting port to exclusive mode\n", device);
