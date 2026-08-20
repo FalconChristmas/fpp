@@ -214,6 +214,16 @@ static void sortRanges(std::vector<std::pair<uint32_t, uint32_t>>& rngs, bool ga
     }
 }
 static void addRange(uint32_t min, uint32_t max, std::vector<std::pair<uint32_t, uint32_t>>& prec, std::vector<std::pair<uint32_t, uint32_t>>& normal) {
+    // Range lengths below are max - min + 1 in unsigned arithmetic, so an
+    // inverted range underflows to a ~4GB length that reaches the memset in
+    // BlankSequenceData().  The callers pass ints, so a negative max arrives
+    // here as a near-UINT32_MAX value that is not inverted -- bound it against
+    // the sequence buffer as well.  Both checks are on the incoming values:
+    // max is aligned upward further down, which would hide an inversion.
+    if (max < min || max >= FPPD_MAX_CHANNELS) {
+        LogErr(VB_CHANNELOUT, "Ignoring invalid channel range %u - %u\n", min, max);
+        return;
+    }
     for (auto& r : prec) {
         int rm = r.first + r.second - 1;
         if (min >= r.first && max <= rm) {
