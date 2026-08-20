@@ -153,6 +153,17 @@ int LOREnhancedOutput::Init(Json::Value config) {
             if ((*it).isMember("fppStartAddr")) {
                 newUnit.fppStartAddr = (*it)["fppStartAddr"].asInt();
             }
+            // SendUnitData indexes channelData[fppStartAddr - 1 + ...], so the
+            // channel is 1-based and there is no valid zero.  The key is
+            // optional and a blank UI field arrives as JSON null, both of which
+            // asInt() turns into 0, so the unit has to be dropped here rather
+            // than reaching the output path.
+            if (newUnit.fppStartAddr < 1) {
+                LogErr(VB_CHANNELOUT, "Invalid FPP Start Channel %d for LOR unit %d, ignoring the unit\n",
+                       newUnit.fppStartAddr, newUnit.unitId);
+                WarningHolder::AddWarning(39, "LOR unit " + std::to_string(newUnit.unitId) + ": invalid FPP start channel " + std::to_string(newUnit.fppStartAddr) + " - unit disabled");
+                continue;
+            }
             data->units.push_back(newUnit);
         }
     }
@@ -212,6 +223,13 @@ void LOREnhancedOutput::SendUnitData(unsigned char* channelData, LOREnhancedOutp
         LogErr(VB_CHANNELOUT, "More than 510 Channels, ie 170 pixels, per unit. Unit %d, Total channels: %d\n",
                unit->unitId, (unit->lorStartPixel - 1) * 3 + unit->numOfPixels * 3);
         WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit->unitId) + ": more than 510 channels (170 pixels) per unit");
+        return;
+    }
+
+    if (unit->fppStartAddr < 1) {
+        LogErr(VB_CHANNELOUT, "Invalid FPP Start Channel. Unit %d, Start Channel %d\n",
+               unit->unitId, unit->fppStartAddr);
+        WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit->unitId) + ": invalid FPP start channel");
         return;
     }
 

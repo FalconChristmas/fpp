@@ -852,7 +852,10 @@
                     unitId: parseInt(unitId),
                     numOfPixels: parseInt(numOfPixels),
                     lorStartPixel: parseInt(lorStartPixel),
-                    fppStartAddr: parseInt(fppStartAddr)
+                    // A blank field parses as NaN, which JSON.stringify writes
+                    // as null and fppd reads back as channel 0 - one below the
+                    // start of the buffer it indexes.
+                    fppStartAddr: parseInt(fppStartAddr) || 1
                 })
             });
             return result;
