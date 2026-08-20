@@ -345,7 +345,14 @@ private:
     // Rebuild the cached "all known remotes" unicast destination list from the
     // currently-known remote systems that support unicast.  Only used when the
     // MultiSyncUnicast ("send to ALL known remotes") setting is enabled.
+    // Neither form may be called with m_systemsLock held: they take
+    // m_unicastUpdateLock, and that lock is only ever acquired ahead of
+    // m_systemsLock, never behind it.  The no-arg form snapshots the addresses
+    // under m_systemsLock and then releases it before doing the rebuild; a
+    // caller that already holds m_systemsLock takes its own snapshot while it
+    // has the lock and passes it to the overload after releasing it.
     void UpdateUnicastDestinations();
+    void UpdateUnicastDestinations(const std::vector<std::string>& addrsToResolve);
     // Re-read the sync send methods (MultiSyncBroadcast/Multicast/Unicast) and
     // the statically-configured unicast remote list (MultiSyncRemotes plus
     // MultiSyncExtraRemotes) from the settings and swap the resulting
@@ -406,10 +413,12 @@ private:
     std::mutex m_socketLock;
 
     // Serializes UpdateUnicastDestinations() calls against each other (DNS
-    // resolution happens without m_systemsLock held, so overlapping calls are
-    // otherwise possible). Never held together with m_systemsLock or
-    // m_socketLock for more than the brief snapshot/swap steps inside that
-    // function.
+    // resolution happens without any other lock held, so overlapping calls are
+    // otherwise possible).  Lock order: this lock is never acquired while
+    // m_systemsLock is held -- ReloadSyncDestinations() takes it first and then
+    // reaches m_systemsLock only indirectly, so the reverse order would be an
+    // ABBA deadlock against the discovery paths.  m_socketLock is taken under
+    // it, for the brief swap step only.
     std::mutex m_unicastUpdateLock;
 
     unsigned long m_lastPingTime;

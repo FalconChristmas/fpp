@@ -395,11 +395,22 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
     }
 
     // If a remote became (or stopped being) a unicast target, refresh the
-    // cached "all known remotes" destination list.  We still hold m_systemsLock
-    // here; UpdateUnicastDestinations() acquires m_socketLock, preserving the
-    // m_systemsLock -> m_socketLock ordering used elsewhere.
-    if (m_sendUnicast && unicastChanged) {
-        UpdateUnicastDestinations();
+    // cached "all known remotes" destination list.  The snapshot is taken here
+    // while we still hold m_systemsLock, but the rebuild has to run after it is
+    // released: UpdateUnicastDestinations() takes m_unicastUpdateLock, which is
+    // never acquired while m_systemsLock is held.
+    bool rebuildUnicast = m_sendUnicast && unicastChanged;
+    std::vector<std::string> unicastAddrs;
+    if (rebuildUnicast) {
+        for (auto& sys : m_remoteSystems) {
+            if (sys.supportsUnicast) {
+                unicastAddrs.push_back(sys.address);
+            }
+        }
+    }
+    lock.unlock();
+    if (rebuildUnicast) {
+        UpdateUnicastDestinations(unicastAddrs);
     }
 }
 
@@ -928,6 +939,10 @@ Json::Value MultiSync::GetSyncStats() {
         MultiSyncStats* stats = (MultiSyncStats*)a.second;
         systems.append(stats->toJSON());
     }
+    // m_syncMaster is rewritten from the sync-receive path on the main loop, so
+    // it is only ever touched under m_statsLock.  Copy it out here and use the
+    // copy below: m_statsLock and m_systemsLock are never held together.
+    std::string syncMaster = m_syncMaster;
     slock.unlock();
 
     result["systems"] = systems;
@@ -936,12 +951,12 @@ Json::Value MultiSync::GetSyncStats() {
 
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
     for (auto& sys : m_remoteSystems) {
-        if (sys.address == m_syncMaster)
+        if (sys.address == syncMaster)
             masterHostname = sys.hostname;
     }
     lock.unlock();
 
-    result["masterIP"] = m_syncMaster;
+    result["masterIP"] = syncMaster;
     result["masterHostname"] = masterHostname;
 
     return result;
@@ -1412,10 +1427,22 @@ void MultiSync::PeriodicPing() {
             }
         }
         // Drop any removed remotes from the cached unicast destination list.
-        if (m_sendUnicast && unicastChanged) {
-            UpdateUnicastDestinations();
+        // Snapshot the surviving targets under m_systemsLock, rebuild after
+        // releasing it -- m_unicastUpdateLock is never acquired while
+        // m_systemsLock is held.
+        bool rebuildUnicast = m_sendUnicast && unicastChanged;
+        std::vector<std::string> unicastAddrs;
+        if (rebuildUnicast) {
+            for (auto& sys : m_remoteSystems) {
+                if (sys.supportsUnicast) {
+                    unicastAddrs.push_back(sys.address);
+                }
+            }
         }
         lock.unlock();
+        if (rebuildUnicast) {
+            UpdateUnicastDestinations(unicastAddrs);
+        }
         if (!httpPingAddresses.empty()) {
             // These are blocking curl probes (connect timeout of a couple
             // seconds each) to remotes we haven't heard from in a while.  This
@@ -2010,8 +2037,10 @@ void MultiSync::ReloadSyncDestinations() {
     // resolve step below is slow and runs without m_socketLock, so two
     // overlapping reloads could otherwise finish out of order and leave the
     // older result in place.  Holding it also keeps UpdateUnicastDestinations()
-    // from reading m_destAddr for its dedupe set mid-swap.  Released before the
-    // UpdateUnicastDestinations() call at the end, which takes it itself.
+    // from reading m_destAddr for its dedupe set mid-swap.  Nothing in this
+    // function may take m_systemsLock while it is held; it is released before
+    // the UpdateUnicastDestinations() call at the end, which snapshots the
+    // remote list under m_systemsLock and then takes this lock itself.
     std::unique_lock<std::mutex> updateLock(m_unicastUpdateLock);
 
     std::string remotesString = getSetting("MultiSyncRemotes");
@@ -2138,8 +2167,8 @@ void MultiSync::ReloadSyncDestinations() {
 
     // Rebuild the "all known remotes" list too: it dedupes itself against
     // m_destAddr, which just changed.  Must run with both locks released --
-    // UpdateUnicastDestinations() takes m_unicastUpdateLock, then m_systemsLock,
-    // then m_socketLock, itself.
+    // UpdateUnicastDestinations() snapshots the remote list under m_systemsLock
+    // and then takes m_unicastUpdateLock and m_socketLock itself.
     if (sendUnicast) {
         UpdateUnicastDestinations();
     }
@@ -2220,19 +2249,11 @@ void MultiSync::SendControlPacket(void* outBuf, int len) {
 }
 
 void MultiSync::UpdateUnicastDestinations() {
-    // Serialize rebuilds against each other -- DNS resolution below happens
-    // without m_systemsLock held, so without this, two overlapping calls could
-    // interleave and the slower resolution could finish last and clobber a
-    // newer result.
-    std::unique_lock<std::mutex> updateLock(m_unicastUpdateLock);
-
     // Snapshot the addresses to resolve while holding m_systemsLock only
-    // briefly, then resolve outside of it. getaddrinfo() (via GetIPForHost())
-    // is an unbounded, potentially slow DNS/mDNS lookup; resolving while
-    // m_systemsLock was held used to stall every other m_systemsLock caller
-    // (notably the frequently-polled GetSystems()) for as long as the lookup
-    // took. GetIPForHost() itself is reentrant/thread-safe, so it's fine to
-    // call without any MultiSync lock held.
+    // briefly, then release it before the rebuild.  The rebuild takes
+    // m_unicastUpdateLock, which must never be acquired while m_systemsLock is
+    // held (see the overload below), so the snapshot and the rebuild cannot
+    // share a lock scope.
     std::vector<std::string> addrsToResolve;
     {
         std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
@@ -2242,7 +2263,24 @@ void MultiSync::UpdateUnicastDestinations() {
             }
         }
     }
+    UpdateUnicastDestinations(addrsToResolve);
+}
 
+void MultiSync::UpdateUnicastDestinations(const std::vector<std::string>& addrsToResolve) {
+    // Serialize rebuilds against each other -- DNS resolution below happens
+    // without any other lock held, so without this, two overlapping calls could
+    // interleave and the slower resolution could finish last and clobber a
+    // newer result.  Callers must not hold m_systemsLock here: ReloadSyncDestinations()
+    // holds this lock and its tail reaches m_systemsLock through the no-arg
+    // overload, so taking the two in the other order would deadlock.
+    std::unique_lock<std::mutex> updateLock(m_unicastUpdateLock);
+
+    // getaddrinfo() (via GetIPForHost()) is an unbounded, potentially slow
+    // DNS/mDNS lookup, which is why the caller resolves from a snapshot rather
+    // than iterating m_remoteSystems here: resolving under m_systemsLock used to
+    // stall every other m_systemsLock caller (notably the frequently-polled
+    // GetSystems()) for as long as the lookup took.  GetIPForHost() itself is
+    // reentrant/thread-safe, so it's fine to call without any MultiSync lock held.
     std::vector<struct sockaddr_in> newAddrs;
     for (auto& address : addrsToResolve) {
         struct sockaddr_in addr;
@@ -2265,8 +2303,8 @@ void MultiSync::UpdateUnicastDestinations() {
     }
 
     // Build the new sockaddr list, then swap it into place under m_socketLock.
-    // We never hold m_socketLock while taking m_systemsLock, matching the
-    // m_systemsLock -> m_socketLock order used by Ping().
+    // m_socketLock is the innermost lock here and is never held while acquiring
+    // m_systemsLock, matching the m_systemsLock -> m_socketLock order used by Ping().
     std::unique_lock<std::mutex> lock(m_socketLock);
     // Skip any address already covered by the statically-configured remote list
     // (m_destAddr, rebuilt by ReloadSyncDestinations(), which holds the same
@@ -2625,25 +2663,31 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
             std::string sourceIP(tmpIP);
             std::string hostname;
 
-            std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+            // Both system lists have to be read under m_systemsLock: UpdateSystem()
+            // runs on the HTTP/mDNS probe threads and can push_back onto
+            // m_remoteSystems, reallocating it out from under this loop.  The
+            // stats map work below then runs under m_statsLock alone -- the two
+            // locks are never held at the same time.
             bool isLocal = false;
-            for (auto& sys : m_localSystems) {
-                if (sys.address == sourceIP) {
-                    isLocal = true;
+            {
+                std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+                for (auto& sys : m_localSystems) {
+                    if (sys.address == sourceIP) {
+                        isLocal = true;
+                    }
+                }
+                if (!isLocal) {
+                    for (auto& sys : m_remoteSystems) {
+                        if (sys.address == sourceIP)
+                            hostname = sys.hostname;
+                    }
                 }
             }
-            lock.unlock();
 
             MultiSyncStats tempStats("", "");
             MultiSyncStats* stats = &tempStats;
-            std::unique_lock<std::recursive_mutex> slock(m_statsLock);
-
             if (!isLocal) {
-                for (auto& sys : m_remoteSystems) {
-                    if (sys.address == sourceIP)
-                        hostname = sys.hostname;
-                }
-
+                std::unique_lock<std::recursive_mutex> slock(m_statsLock);
                 auto a = m_syncStats.find(sourceIP);
                 if (a != m_syncStats.end()) {
                     stats = (MultiSyncStats*)a->second;
@@ -2653,7 +2697,6 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                 }
                 stats->lastReceiveTime = time(NULL);
             }
-            slock.unlock();
 
             pkt = (ControlPkt*)inBuf;
 
@@ -2973,7 +3016,12 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
         return;
     }
 
-    m_syncMaster = stats->sourceIP;
+    {
+        // Read by GetSyncStats() on an API thread; m_statsLock is the lock the
+        // two sides share.  Do not reach for m_systemsLock while holding it.
+        std::unique_lock<std::recursive_mutex> slock(m_statsLock);
+        m_syncMaster = stats->sourceIP;
+    }
 
     SyncPkt* spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
