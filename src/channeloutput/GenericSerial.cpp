@@ -67,7 +67,7 @@ int GenericSerialOutput::Init(Json::Value config) {
     }
     if (config.isMember("footer")) {
         m_footer = config["footer"].asString();
-        m_footerSize = m_header.length();
+        m_footerSize = m_footer.length();
     }
     if (config.isMember("header")) {
         m_header = config["header"].asString();
