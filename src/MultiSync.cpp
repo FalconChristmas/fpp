@@ -2603,16 +2603,33 @@ void MultiSync::setupMulticastReceive(bool cycle) {
     }
 }
 
-static bool shouldSkipPacket(int i, int num, std::vector<unsigned char*>& rcvBuffers) {
-    ControlPkt* pkt = (ControlPkt*)(rcvBuffers[i]);
+// True if a later message in this recvmmsg batch supersedes message i (same
+// sync file type and sync packet type), so only the newest need be acted on.
+// Entries are one per received message, with a null buffer for messages that
+// were not received or are too short to hold a ControlPkt, so the indexes line
+// up with the msg indexes the caller uses.  Only packets long enough to hold
+// the SyncPkt that follows the header can be compared.
+static bool shouldSkipPacket(int i, int num, const std::vector<std::pair<unsigned char*, int>>& rcvBuffers) {
+    constexpr int MIN_SYNC_LEN = (int)(sizeof(ControlPkt) + sizeof(SyncPkt));
+    if (rcvBuffers[i].first == nullptr || rcvBuffers[i].second < MIN_SYNC_LEN) {
+        return false;
+    }
+    ControlPkt* pkt = (ControlPkt*)(rcvBuffers[i].first);
+    if (pkt->pktType != CTRL_PKT_SYNC) {
+        return false;
+    }
+    SyncPkt* spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
     for (int x = i + 1; x < num; x++) {
-        ControlPkt* npkt = (ControlPkt*)(rcvBuffers[x]);
-        if (pkt->pktType == npkt->pktType && pkt->pktType == CTRL_PKT_SYNC) {
-            SyncPkt* spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
-            SyncPkt* snpkt = (SyncPkt*)(((char*)npkt) + sizeof(ControlPkt));
-            if (spkt->fileType == snpkt->fileType && spkt->pktType == snpkt->pktType) {
-                return true;
-            }
+        if (rcvBuffers[x].first == nullptr || rcvBuffers[x].second < MIN_SYNC_LEN) {
+            continue;
+        }
+        ControlPkt* npkt = (ControlPkt*)(rcvBuffers[x].first);
+        if (npkt->pktType != CTRL_PKT_SYNC) {
+            continue;
+        }
+        SyncPkt* snpkt = (SyncPkt*)(((char*)npkt) + sizeof(ControlPkt));
+        if (spkt->fileType == snpkt->fileType && spkt->pktType == snpkt->pktType) {
+            return true;
         }
     }
     return false;
@@ -2628,16 +2645,24 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
 
     int msgcnt = recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
     while (msgcnt > 0) {
-        std::vector<unsigned char*> v;
+        // One entry per received message, buffer and length, so that the
+        // indexes shouldSkipPacket() walks are the same msg indexes used below.
+        // Messages that failed or are too short for a ControlPkt get a null
+        // placeholder rather than being left out of the vector.
+        std::vector<std::pair<unsigned char*, int>> v;
+        v.reserve(msgcnt);
         for (int msg = 0; msg < msgcnt; msg++) {
             int len = rcvMsgs[msg].msg_len;
             if (len <= 0) {
                 LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", FPPstrerror(errno));
+            }
+            if (len < (int)sizeof(ControlPkt)) {
+                v.emplace_back(nullptr, 0);
                 continue;
             }
             unsigned char* inBuf = rcvBuffers[msg];
             inBuf[len] = 0;
-            v.push_back(inBuf);
+            v.emplace_back(inBuf, len);
         }
         LogExcess(VB_SYNC, "ProcessControlPacket msgcnt: %d\n", msgcnt);
         for (int msg = 0; msg < msgcnt; msg++) {
@@ -3247,7 +3272,18 @@ void MultiSync::ProcessPluginPacket(ControlPkt* pkt, int plen, MultiSyncStats* s
     CommandPkt* cpkt = (CommandPkt*)(((char*)pkt) + sizeof(ControlPkt));
     int len = pkt->extraDataLen;
     char* pn = &cpkt->command[0];
-    int nlen = strlen(pn) + 1;
+    // The plugin name must be NUL-terminated within the extra data.  An
+    // unterminated name would otherwise run strlen() out to the terminator the
+    // receive loop writes one byte past the datagram, making nlen larger than
+    // the data actually present and leaving a negative len for the plugins --
+    // which they take as a size_t and read far past the buffer.
+    int nlen = (int)strnlen(pn, (size_t)len);
+    if (nlen >= len) {
+        LogErr(VB_SYNC, "Error: plugin packet name is not terminated within %d bytes of data\n", len);
+        stats->pktError++;
+        return;
+    }
+    nlen++; // include the terminator
     len -= nlen;
     uint8_t* data = (uint8_t*)&cpkt->command[nlen];
 
@@ -3275,18 +3311,58 @@ static bool MyHostMatches(const std::string& host, const std::string& hostName, 
 }
 
 void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* stats) {
-    char* b = (char*)pkt;
-    int pos = sizeof(ControlPkt);
-    int numArgs = b[pos++];
-    std::string host = &b[pos];
-    pos += host.length() + 1;
-    std::string cmd = &b[pos];
-    pos += cmd.length() + 1;
+    // The caller has already checked len == sizeof(ControlPkt) + extraDataLen,
+    // so the packet's own data ends at `end`.  Every field below has to be
+    // parsed strictly against that bound: a truncated or crafted packet whose
+    // strings are not terminated inside it would otherwise be read out of the
+    // stale contents of this reusable receive buffer -- and, for the last row of
+    // that array, past the end of it -- and the result handed to CommandManager.
+    const char* b = (const char*)pkt;
+    const char* end = b + sizeof(ControlPkt) + pkt->extraDataLen;
+    const char* pos = b + sizeof(ControlPkt);
+
+    auto readString = [&pos, end](std::string& out) {
+        if (pos >= end) {
+            return false;
+        }
+        size_t avail = (size_t)(end - pos);
+        size_t slen = strnlen(pos, avail);
+        if (slen == avail) {
+            // ran to the end of the packet without finding a terminator
+            return false;
+        }
+        out.assign(pos, slen);
+        pos += slen + 1;
+        return true;
+    };
+
+    if (pos >= end) {
+        LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
+        stats->pktError++;
+        return;
+    }
+    // Unsigned: as a signed char an argument count above 127 reads as negative
+    // and silently skips the whole argument list.
+    uint8_t numArgs = (uint8_t)*pos++;
+
+    std::string host;
+    std::string cmd;
+    if (!readString(host) || !readString(cmd)) {
+        LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
+        stats->pktError++;
+        return;
+    }
+
     std::vector<std::string> args;
-    for (int x = 0; x < numArgs; x++) {
-        std::string arg = &b[pos];
-        pos += arg.length() + 1;
-        args.push_back(arg);
+    for (uint8_t x = 0; x < numArgs; x++) {
+        std::string arg;
+        if (!readString(arg)) {
+            LogErr(VB_SYNC, "Error: FPP Command packet claims %d arguments but only holds %d\n",
+                   (int)numArgs, (int)args.size());
+            stats->pktError++;
+            return;
+        }
+        args.push_back(std::move(arg));
     }
     if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
         stats->pktFPPCommand++;
