@@ -160,7 +160,10 @@ void RunChannelOutputThread(void) {
     while (RunThread) {
         startTime = GetTime();
         if (multiSync->isMultiSyncEnabled() && sequence->IsSequenceRunning()) {
-            multiSync->SendSeqSyncPacket(sequence->m_seqFilename, channelOutputFrame, 1.0 * ((float)channelOutputFrame) / RefreshRate);
+            // Per-frame string copy under an uncontended leaf lock: the name is
+            // short and the only writers are the open/close paths, so this costs
+            // far less than the sync packet it feeds.
+            multiSync->SendSeqSyncPacket(sequence->GetSeqFilenameCopy(), channelOutputFrame, 1.0 * ((float)channelOutputFrame) / RefreshRate);
         }
 
         doForceOutput |= forceOutput();

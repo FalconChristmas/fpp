@@ -306,7 +306,10 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
         m_readThread = new std::thread(ReadSequenceDataThread, this);
     }
 
-    m_seqFilename = filename;
+    {
+        std::unique_lock<std::mutex> nameLock(m_seqFilenameLock);
+        m_seqFilename = filename;
+    }
 
     char tmpFilename[2048];
     unsigned char tmpData[2048];
@@ -335,7 +338,10 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
                 return 0;
 
             } else {
-                m_seqFilename = "fallback.fseq";
+                {
+                    std::unique_lock<std::mutex> nameLock(m_seqFilenameLock);
+                    m_seqFilename = "fallback.fseq";
+                }
                 LogDebug(VB_SEQUENCE, "Playing Fallback Sequence file %s\n", tmpFilename);
             }
 
@@ -484,10 +490,13 @@ void Sequence::ProcessVariableHeaders() {
 }
 
 void Sequence::StartSequence() {
+    // Callers reach this without m_sequenceLock (the command handler and the
+    // playlist), so the name has to be snapshotted rather than read raw.
+    std::string seqName = GetSeqFilenameCopy();
     if (!IsSequenceRunning() && m_seqFile.load()) {
         if (multiSync->isMultiSyncEnabled()) {
             ResetChannelOutputFrameNumber();
-            multiSync->SendSeqSyncStartPacket(m_seqFilename);
+            multiSync->SendSeqSyncStartPacket(seqName);
         }
         m_seqStarting = 0;
         SetChannelOutputRefreshRate(m_seqRefreshRate);
@@ -495,7 +504,7 @@ void Sequence::StartSequence() {
     }
 
     std::map<std::string, std::string> keywords;
-    keywords["SEQUENCE_NAME"] = m_seqFilename;
+    keywords["SEQUENCE_NAME"] = seqName;
     if (CommandManager::INSTANCE.HasPreset("SEQUENCE_STARTED")) {
         CommandManager::INSTANCE.TriggerPreset("SEQUENCE_STARTED", keywords);
     }
@@ -553,6 +562,11 @@ void Sequence::SeekSequenceFile(int frameNumber) {
     }
     lock.unlock();
     frameLoadSignal.notify_all();
+}
+
+std::string Sequence::GetSeqFilenameCopy() const {
+    std::unique_lock<std::mutex> nameLock(m_seqFilenameLock);
+    return m_seqFilename;
 }
 
 int Sequence::IsSequenceRunning(void) {
@@ -809,14 +823,17 @@ void Sequence::SendSequenceData() {
         if (!commandPresets.empty()) {
             const auto& p = commandPresets.find(frame);
             if (p != commandPresets.end()) {
-                std::map<std::string, std::string> keywords({ { "SEQUENCE_NAME", m_seqFilename } });
+                // This runs on the channel output thread while the open/close
+                // paths can be reassigning the name on another thread.
+                std::string seqName = GetSeqFilenameCopy();
+                std::map<std::string, std::string> keywords({ { "SEQUENCE_NAME", seqName } });
                 uint32_t elapsedMS = frame * (uint32_t)m_seqStepTime;
                 uint32_t totalSeconds = elapsedMS / 1000;
                 char timeBuf[16];
                 snprintf(timeBuf, sizeof(timeBuf), "%02u:%02u.%03u",
                          totalSeconds / 60, totalSeconds % 60, elapsedMS % 1000);
                 for (auto& cmd : p->second) {
-                    LogDebug(VB_COMMAND, "Sequence \"%s\" @ %s triggering preset \"%s\"\n", m_seqFilename.c_str(), timeBuf, cmd.c_str());
+                    LogDebug(VB_COMMAND, "Sequence \"%s\" @ %s triggering preset \"%s\"\n", seqName.c_str(), timeBuf, cmd.c_str());
                     CommandManager::INSTANCE.TriggerPreset(cmd, keywords);
                 }
             }
@@ -865,10 +882,14 @@ void Sequence::CloseIfOpen(const std::string& filename) {
 }
 
 void Sequence::CloseSequenceFile(void) {
-    LogDebug(VB_SEQUENCE, "CloseSequenceFile() %s\n", m_seqFilename.c_str());
+    // These two reads happen before m_sequenceLock is taken below, so they need
+    // the snapshot; callers arrive here from the playlist, MultiSync and the
+    // API threads.
+    std::string seqName = GetSeqFilenameCopy();
+    LogDebug(VB_SEQUENCE, "CloseSequenceFile() %s\n", seqName.c_str());
 
     if (multiSync->isMultiSyncEnabled())
-        multiSync->SendSeqSyncStopPacket(m_seqFilename);
+        multiSync->SendSeqSyncStopPacket(seqName);
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
 
@@ -898,7 +919,10 @@ void Sequence::CloseSequenceFile(void) {
     lock.unlock();
     frameLoadedSignal.notify_all();
 
-    m_seqFilename = "";
+    {
+        std::unique_lock<std::mutex> nameLock(m_seqFilenameLock);
+        m_seqFilename = "";
+    }
     m_seqPaused = 0;
 
     if ((!IsEffectRunning()) &&

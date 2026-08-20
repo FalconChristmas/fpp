@@ -2785,7 +2785,7 @@ void MultiSync::SyncPlaylistToMS(uint64_t ms, int pos, const std::string& pl, bo
             if (!sequence->IsSequenceRunning(seq)) {
                 if (sequence->IsSequenceRunning()) {
                     if (sendSyncPackets)
-                        SendSeqSyncStopPacket(sequence->m_seqFilename);
+                        SendSeqSyncStopPacket(sequence->GetSeqFilenameCopy());
                     sequence->CloseSequenceFile();
                 }
                 ResetMasterPosition();

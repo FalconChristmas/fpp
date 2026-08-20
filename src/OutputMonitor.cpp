@@ -877,7 +877,7 @@ void OutputMonitor::addEFuseWarning(PortPinInfo* pi, int rec) {
 
         if (!pi->receivers[rec].warning.starts_with(warn)) {
             if (sequence->IsSequenceRunning()) {
-                std::string seq = sequence->m_seqFilename;
+                std::string seq = sequence->GetSeqFilenameCopy();
                 int sTime = sequence->m_seqMSElapsed / 1000;
                 warn += " (" + seq + "/" + std::to_string(sTime / 60) + ":" + std::to_string(sTime % 60) + ")";
             }

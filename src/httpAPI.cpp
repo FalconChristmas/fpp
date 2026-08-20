@@ -223,7 +223,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
         std::string seqFilename;
         std::string mediaFilename;
         if (sequence->IsSequenceRunning()) {
-            seqFilename = sequence->m_seqFilename;
+            seqFilename = sequence->GetSeqFilenameCopy();
             secsElapsed = sequence->m_seqMSElapsed / 1000;
             secsRemaining = sequence->m_seqMSRemaining / 1000;
         }

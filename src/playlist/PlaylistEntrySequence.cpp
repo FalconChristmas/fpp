@@ -182,7 +182,7 @@ Json::Value PlaylistEntrySequence::GetConfig(void) {
     Json::Value result = PlaylistEntryBase::GetConfig();
 
     result["sequenceName"] = m_sequenceName;
-    if (sequence->m_seqFilename == m_sequenceName) {
+    if (sequence->GetSeqFilenameCopy() == m_sequenceName) {
         if (IsPaused()) {
             int pos = m_pausedFrame * m_sequenceFrameTime;
             result["millisecondsElapsed"] = pos;

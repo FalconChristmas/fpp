@@ -457,6 +457,10 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
     LogErr(VB_ALL, "Crash handler called in thread %u:  signal=%d addr=%p\n", tid, s, si ? si->si_addr : nullptr);
 #endif
 
+    // Deliberately the raw member, not GetSeqFilenameCopy(): this is a signal
+    // handler, so it can interrupt a thread that already holds m_seqFilenameLock
+    // and taking it here would self-deadlock the crash report.  A torn read is
+    // the acceptable trade for a log line that is already best-effort.
     if (!sequence->m_seqFilename.empty()) {
         LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", sequence->m_seqFilename.c_str(), sequence->m_seqMSElapsed);
     }

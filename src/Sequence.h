@@ -67,6 +67,12 @@ public:
     char* m_seqData;
     std::string m_seqFilename;
 
+    // Every read of m_seqFilename from a thread that is not holding
+    // m_sequenceLock must go through this.  The open/close paths reassign the
+    // string, and a reallocating assignment hands a concurrent raw reader a
+    // freed buffer; copying under m_seqFilenameLock is the only safe read.
+    std::string GetSeqFilenameCopy() const;
+
     int GetSeqStepTime() const { return m_seqStepTime; }
     void BlankSequenceData(bool clearBridge = false);
 
@@ -108,6 +114,11 @@ private:
     int m_blankBetweenSequences;
 
     std::recursive_mutex m_sequenceLock;
+    // Covers m_seqFilename only, and is always the innermost lock taken.  The
+    // three assignments to m_seqFilename all happen under m_sequenceLock, so
+    // readers that hold m_sequenceLock need nothing more; this exists for the
+    // readers that don't (the status producers, the output thread, MultiSync).
+    mutable std::mutex m_seqFilenameLock;
 
     std::atomic_int m_lastFrameRead;
     volatile bool m_doneRead;
