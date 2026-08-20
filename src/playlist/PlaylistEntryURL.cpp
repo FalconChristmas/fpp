@@ -115,7 +115,10 @@ int PlaylistEntryURL::StartPlaying(void) {
     }
 
     if (m_method == "POST") {
-        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, 4096);
+        // Not a fixed 4096: curl copies exactly this many bytes out of the
+        // buffer, so a shorter body used to ship whatever heap followed it to
+        // the remote end, and a longer one was truncated.
+        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, (long)repData.size());
         status = curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, repData.c_str());
         if (status != CURLE_OK) {
             LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting post data: %s\n", curl_easy_strerror(status));

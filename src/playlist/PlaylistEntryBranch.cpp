@@ -16,6 +16,7 @@
 
 #include "../Player.h"
 #include "../common.h"
+#include "../Warnings.h"
 #include "../log.h"
 
 #include "PlaylistEntryBranch.h"
@@ -122,30 +123,38 @@ int PlaylistEntryBranch::Init(Json::Value& config) {
     if (config.isMember("startTime")) {
         m_startTime = config["startTime"].asString();
 
-        if (m_startTime != "") {
-            std::vector<std::string> parts = split(m_startTime, ':');
-            m_sHour = atoi(parts[0].c_str());
-            m_sMinute = atoi(parts[1].c_str());
-            m_sSecond = atoi(parts[2].c_str());
+        if ((m_startTime != "") &&
+            !ParseTimeString(m_startTime, m_sHour, m_sMinute, m_sSecond)) {
+            LogErr(VB_PLAYLIST, "Invalid branch start time '%s'\n", m_startTime.c_str());
+            WarningHolder::AddWarning(62, "Playlist branch has an invalid start time '" + m_startTime + "'");
         }
     }
 
     if (config.isMember("endTime")) {
         m_endTime = config["endTime"].asString();
 
-        if (m_endTime != "") {
-            std::vector<std::string> parts = split(m_endTime, ':');
-            m_eHour = atoi(parts[0].c_str());
-            m_eMinute = atoi(parts[1].c_str());
-            m_eSecond = atoi(parts[2].c_str());
+        if ((m_endTime != "") &&
+            !ParseTimeString(m_endTime, m_eHour, m_eMinute, m_eSecond)) {
+            LogErr(VB_PLAYLIST, "Invalid branch end time '%s'\n", m_endTime.c_str());
+            WarningHolder::AddWarning(62, "Playlist branch has an invalid end time '" + m_endTime + "'");
         }
     }
 
     if (config.isMember("iterationStart"))
         m_iterationStart = config["iterationStart"].asInt();
 
-    if (config.isMember("iterationCount"))
+    if (config.isMember("iterationCount")) {
         m_iterationCount = config["iterationCount"].asInt();
+
+        // The editor enforces a minimum of 1, but playlist JSON also arrives
+        // hand-written and over the API.  The Loop test takes curLoop modulo
+        // this, so a 0 here is a SIGFPE the first time the branch is reached.
+        if (m_iterationCount < 1) {
+            LogErr(VB_PLAYLIST, "Invalid branch iteration count %d, using 1\n", m_iterationCount);
+            WarningHolder::AddWarning(62, "Playlist branch has an invalid iteration count");
+            m_iterationCount = 1;
+        }
+    }
 
     if (config.isMember("mqttTopic"))
         m_mqttTopic = config["mqttTopic"].asString();
