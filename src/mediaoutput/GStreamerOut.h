@@ -226,6 +226,18 @@ private:
     bool m_audioLinked = false;            // true when audio pad was connected
     bool m_videoLinked = false;            // true when video pad was connected
 
+    // True when Start() built the audio-only fallback (no video output for this
+    // item), which is the one pipeline shape that cannot survive a file with no
+    // playable audio -- see the no-audio handling in BusSyncHandler().
+    bool m_audioOnlyPipeline = false;
+    // Whether decodebin ever exposed a decoded audio pad.  Written on the
+    // streaming thread from OnPadAdded, read on the bus thread.
+    std::atomic<bool> m_sawAudioPad{false};
+    // Set once the "file has no playable audio" case has been reported, so the
+    // demuxer's follow-on "Internal data stream error" is not logged as a second,
+    // unrelated-looking failure.
+    std::atomic<bool> m_reportedNoAudio{false};
+
 #ifdef HAS_AES67_GSTREAMER
     // Zero-hop AES67 RTP branches attached to the audio tee (Phase 7.9)
     std::vector<AES67Manager::InlineRTPBranch> m_aes67Branches;

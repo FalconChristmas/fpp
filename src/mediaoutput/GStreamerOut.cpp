@@ -1666,7 +1666,7 @@ int GStreamerOutput::Start(int msTime) {
         }
         std::string rateCaps = decodeRate ? ",rate=" + std::to_string(decodeRate) : "";
         std::string pipelineStr =
-            "filesrc location=\"" + fullPath + "\" ! decodebin expose-all-streams=false caps=\"audio/x-raw\" ! audioconvert ! audioresample ! "
+            "filesrc location=\"" + fullPath + "\" ! decodebin name=decoder expose-all-streams=false caps=\"audio/x-raw\" ! audioconvert ! audioresample ! "
             "audio/x-raw" + rateCaps + chOrderCaps + " ! " + chOrderPermute +
             "tee name=t "
             "t. ! queue ! volume name=vol ! " + sinkStr + " "
@@ -1683,6 +1683,18 @@ int GStreamerOutput::Start(int msTime) {
             LogErr(VB_MEDIAOUT, "GStreamer pipeline error: %s\n", error->message);
             g_error_free(error);
             return 0;
+        }
+
+        // This pipeline's only sink is audio, so a file with nothing decodable
+        // to feed it cannot play at all -- and the caps filter above turns that
+        // into an autoplug failure decodebin reports as a missing plug-in, which
+        // sends people off installing packages that were never the problem.
+        // Watch the pads so the real reason can be given instead; the linking
+        // itself stays with gst_parse_launch's own delayed-link handler.
+        m_audioOnlyPipeline = true;
+        if (GstElement* fbDecoder = gst_bin_get_by_name(GST_BIN(m_pipeline), "decoder")) {
+            g_signal_connect(fbDecoder, "pad-added", G_CALLBACK(OnPadAdded), this);
+            gst_object_unref(fbDecoder);
         }
 
         // Get the volume element for later control
@@ -1911,17 +1923,34 @@ int GStreamerOutput::Start(int msTime) {
             // the failure is completely invisible.
             if (!cancel->load()) {
                 GstState startedState = GST_STATE_NULL;
-                if (gst_element_get_state(pipeline, &startedState, nullptr,
-                                          (GstClockTime)PREROLL_TIMEOUT_MS * GST_MSECOND) != GST_STATE_CHANGE_SUCCESS ||
-                    startedState != GST_STATE_PLAYING) {
+                GstStateChangeReturn scr = gst_element_get_state(pipeline, &startedState, nullptr,
+                                                                 (GstClockTime)PREROLL_TIMEOUT_MS * GST_MSECOND);
+                if (scr != GST_STATE_CHANGE_SUCCESS || startedState != GST_STATE_PLAYING) {
                     if (!cancel->load()) {
-                        LogErr(VB_MEDIAOUT,
-                               "GStreamer: pipeline never reached PLAYING within %dms (state=%d) — output will be "
-                               "silent. A PipeWire restart under a running fppd does this; fppd must be restarted "
-                               "to reconnect.\n",
-                               PREROLL_TIMEOUT_MS, startedState);
-                        WarningHolder::AddWarningTimeout(60, 30,
-                                                        "Media playback did not start (audio backend connection lost — restart FPPD)");
+                        // FAILURE and "still not there after the timeout" are
+                        // different faults and want different advice, but this
+                        // reported both as the stale-PipeWire-connection case.
+                        // An element that errors out returns FAILURE straight
+                        // away, so the message claimed a 15-second timeout it
+                        // had not waited for and blamed a PipeWire restart that
+                        // had not happened -- for any failure at all, including
+                        // a media file the pipeline simply could not play.  The
+                        // bus error handler has already logged the real cause in
+                        // that case, so say nothing more than the outcome here.
+                        if (scr == GST_STATE_CHANGE_FAILURE) {
+                            LogErr(VB_MEDIAOUT,
+                                   "GStreamer: pipeline failed to start (state=%s) — see the error logged above "
+                                   "for the cause.\n",
+                                   gst_element_state_get_name(startedState));
+                        } else {
+                            LogErr(VB_MEDIAOUT,
+                                   "GStreamer: pipeline never reached PLAYING within %dms (state=%s) — output will "
+                                   "be silent. A PipeWire restart under a running fppd does this; fppd must be "
+                                   "restarted to reconnect.\n",
+                                   PREROLL_TIMEOUT_MS, gst_element_state_get_name(startedState));
+                            WarningHolder::AddWarningTimeout(60, 30,
+                                                            "Media playback did not start (audio backend connection lost — restart FPPD)");
+                        }
                     }
                 }
             }
@@ -2963,7 +2992,60 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
         // disconnected during playback — treat as non-fatal.
         bool isDirectKmsSink = (strncmp(srcName, "dkms_", 5) == 0);
 
-        if (isAES67Branch || isVideoPWSink || isDirectKmsSink) {
+        // A file with nothing decodable to feed the audio-only pipeline fails
+        // here, and the raw GStreamer wording is actively misleading: decodebin
+        // reports its autoplug failure as "your installation is missing a
+        // plug-in" (nothing is missing -- there is simply no audio to plug), and
+        // the demuxer then follows with a generic "Internal data stream error".
+        // A video-only clip played on an item whose video output is disabled or
+        // whose display is unplugged lands exactly here, so say what actually
+        // happened and what to do about it.  Everything else keeps the raw
+        // message -- this only claims the case it can prove, which is that
+        // decodebin never produced an audio pad.
+        // "No audio pad yet" is not on its own evidence that the file has no
+        // audio: anything that fails before decodebin gets that far leaves the
+        // flag clear too.  Stopping PipeWire under a running fppd and playing a
+        // plain WAV does exactly that -- pwsink errors first, and blaming the
+        // file for an audio-backend outage is a worse lie than the one being
+        // fixed.  So the source has to be the decode chain as well.
+        bool errorFromDecoder = false;
+        for (GstObject* o = GST_MESSAGE_SRC(msg); o; o = GST_OBJECT_PARENT(o)) {
+            const gchar* n = GST_OBJECT_NAME(o);
+            if (n && strcmp(n, "decoder") == 0) {
+                errorFromDecoder = true;
+                break;
+            }
+        }
+        if (self->m_audioOnlyPipeline && errorFromDecoder &&
+            !self->m_sawAudioPad.load(std::memory_order_acquire)) {
+            if (!self->m_reportedNoAudio.exchange(true, std::memory_order_acq_rel)) {
+                LogErr(VB_MEDIAOUT,
+                       "GStreamer: '%s' has no playable audio stream, and no video output is "
+                       "configured for it, so there is nothing to play.  If this is a video-only "
+                       "file, set the item's Video Output to a connected display; FPP falls back to "
+                       "audio-only whenever the chosen display is disabled or unplugged.\n",
+                       self->m_mediaFilename.c_str());
+                WarningHolder::AddWarningTimeout(60, 30,
+                                                "No playable audio in " + self->m_mediaFilename +
+                                                    " and no video output — nothing to play");
+                LogDebug(VB_MEDIAOUT, "GStreamer no-audio underlying error (src=%s): %s\n",
+                         srcName, err->message);
+#ifdef HAS_AES67_GSTREAMER
+                self->DetachAES67Branches();
+#endif
+                self->m_playing = false;
+                if (self->m_mediaOutputStatus) {
+                    self->m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+                }
+                self->Stopping();
+                self->Stopped();
+            } else {
+                // The demuxer's follow-on error describes the same event; logging
+                // it again reads as a second, unrelated failure.
+                LogDebug(VB_MEDIAOUT, "GStreamer no-audio follow-on error (src=%s): %s\n",
+                         srcName, err->message);
+            }
+        } else if (isAES67Branch || isVideoPWSink || isDirectKmsSink) {
             LogWarn(VB_MEDIAOUT, "GStreamer non-fatal error (src=%s): %s\n",
                     srcName, err->message);
             LogDebug(VB_MEDIAOUT, "GStreamer AES67 branch debug: %s\n",
@@ -3566,6 +3648,15 @@ void GStreamerOutput::OnPadAdded(GstElement* element, GstPad* pad, gpointer user
 
     const gchar* name = gst_structure_get_name(gst_caps_get_structure(caps, 0));
     LogDebug(VB_MEDIAOUT, "GStreamer decodebin pad-added: %s\n", name);
+
+    // Record that the file yielded decodable audio, independently of whether
+    // this pipeline has an audio chain to link it into.  The audio-only fallback
+    // links its pads through gst_parse_launch rather than here, so m_audioChain
+    // is null there and the branch below is skipped -- but that pipeline is
+    // exactly the one that needs to know, so the flag is set before the check.
+    if (g_str_has_prefix(name, "audio/")) {
+        self->m_sawAudioPad.store(true, std::memory_order_release);
+    }
 
     if (g_str_has_prefix(name, "audio/") && self->m_audioChain) {
         GstPad* sinkPad = gst_element_get_static_pad(self->m_audioChain, "sink");
