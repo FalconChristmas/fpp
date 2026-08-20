@@ -373,7 +373,10 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
             m_lastFrameRead = -1;
     }
 
-    seqFile->prepareRead(GetOutputRanges(), startFrame < 0 ? 0 : startFrame);
+    // prepareRead() copies the ranges into its own member before returning, so
+    // it's safe to pass the temporary snapshot directly -- it lives through the
+    // full expression.
+    seqFile->prepareRead(*GetOutputRangesSnapshot(), startFrame < 0 ? 0 : startFrame);
     // Calculate duration
     m_seqMSRemaining = seqFile->getNumFrames() * seqFile->getStepTime();
     m_seqMSDuration = m_seqMSRemaining;
@@ -571,11 +574,12 @@ int Sequence::IsSequenceRunning(const std::string& filename) {
 
 void Sequence::BlankSequenceData(bool clearBridge) {
     LogExcess(VB_SEQUENCE, "BlankSequenceData()\n");
-    for (auto& a : GetOutputRanges()) {
+    auto ranges = GetOutputRangesSnapshot();
+    for (auto& a : *ranges) {
         memset(&m_seqData[a.first], 0, a.second);
     }
     if (m_bridgeData && clearBridge) {
-        for (auto& a : GetOutputRanges()) {
+        for (auto& a : *ranges) {
             memset(&m_bridgeData[a.first], 0, a.second);
         }
         std::unique_lock<std::mutex> lock(m_bridgeRangesLock);

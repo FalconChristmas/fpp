@@ -13,6 +13,7 @@
 
 #include <pthread.h>
 #include "fpp-json-fwd.h"
+#include <memory>
 #include <set>
 #include <stdint.h>
 #include <string>
@@ -39,5 +40,17 @@ void ResetChannelOutputFrameNumber();
 void StartingOutput();
 void StoppingOutput();
 
+// Returns a snapshot of the current output ranges. The caller should hold the
+// returned shared_ptr for as long as it iterates the ranges, rather than
+// calling this once per element -- a later ComputeOutputRanges() on another
+// thread publishes a new vector instead of mutating this one. Never null,
+// never empty (defaults to a single {0,8} range).
+std::shared_ptr<const std::vector<std::pair<uint32_t, uint32_t>>> GetOutputRangesSnapshot(bool precise = true);
+// Plugin-compatibility form (external plugins call this; do not remove or
+// change the signature -- the return type is not mangled, so a change breaks
+// compiled plugins silently instead of at link time). Returns a reference to
+// a thread-local copy that stays stable until the same thread calls again
+// with the same `precise` value. In-tree code should prefer the snapshot
+// form above.
 const std::vector<std::pair<uint32_t, uint32_t>>& GetOutputRanges(bool precise = true);
 std::string GetOutputRangesAsString(bool precise = true, bool oneBased = false);

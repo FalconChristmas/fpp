@@ -104,7 +104,8 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
     int end = 0;
 
     int max = 0;
-    for (auto& a : GetOutputRanges()) {
+    auto outputRanges = GetOutputRangesSnapshot();
+    for (auto& a : *outputRanges) {
         int e = a.first + a.second - 1;
         max = std::max(max, e);
     }

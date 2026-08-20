@@ -33,6 +33,7 @@
 #include "common.h"
 #include "log.h"
 #include "settings.h"
+#include "../AtomicSharedPtr.h"
 #include "../FileMonitor.h"
 #include "../OutputMonitor.h"
 #include "../Plugin.h"
@@ -114,21 +115,45 @@ bool HasUniverseOutputs() {
 }
 
 static std::map<std::string, std::set<std::string>> outputLoadWarnings;
-static std::vector<std::pair<uint32_t, uint32_t>> outputRanges;
-static std::vector<std::pair<uint32_t, uint32_t>> preciseOutputRanges;
 
-const std::vector<std::pair<uint32_t, uint32_t>>& GetOutputRanges(bool precise) {
-    if (outputRanges.empty()) {
-        outputRanges.push_back(std::pair<uint32_t, uint32_t>(0, 8));
-        preciseOutputRanges.push_back(std::pair<uint32_t, uint32_t>(0, 8));
-    }
-    return precise ? preciseOutputRanges : outputRanges;
+using OutputRangeVec = std::vector<std::pair<uint32_t, uint32_t>>;
+// Snapshots published by ComputeOutputRanges() and handed out by
+// GetOutputRangesSnapshot(). Both are seeded here with the {0,8} default so a
+// snapshot is never null and never empty -- readers never mutate these, so no
+// lock is needed to see a consistent list while ComputeOutputRanges()
+// publishes a new one from another thread.
+static AtomicSharedPtr<const OutputRangeVec> outputRanges(std::make_shared<const OutputRangeVec>(OutputRangeVec{ { 0, 8 } }));
+static AtomicSharedPtr<const OutputRangeVec> preciseOutputRanges(std::make_shared<const OutputRangeVec>(OutputRangeVec{ { 0, 8 } }));
+
+// Returns a snapshot of the current ranges; the caller should hold the
+// returned shared_ptr for the duration of any iteration over it rather than
+// calling this repeatedly. Never null, never empty.
+std::shared_ptr<const OutputRangeVec> GetOutputRangesSnapshot(bool precise) {
+    return precise ? preciseOutputRanges.load() : outputRanges.load();
 }
+
+// Plugin-compatibility API (fpp-brightness and fpp-Capture call this; the
+// return type is not part of the C++ name mangling, so changing it would let
+// an already-compiled plugin misread the return value rather than fail to
+// link).  Each calling thread gets its own copy of the snapshot, so the
+// reference stays valid and immutable for that thread until IT calls again --
+// a recompute on another thread can no longer mutate a list a plugin is
+// iterating.  In-tree code should use GetOutputRangesSnapshot() instead.
+const OutputRangeVec& GetOutputRanges(bool precise) {
+    // One copy per flavor, so holding the precise and non-precise references
+    // at the same time works, as it did when these were two distinct vectors.
+    static thread_local OutputRangeVec copies[2];
+    OutputRangeVec& copy = copies[precise ? 1 : 0];
+    copy = *GetOutputRangesSnapshot(precise);
+    return copy;
+}
+
 std::string GetOutputRangesAsString(bool precise, bool oneBased) {
     std::string ret;
     bool first = true;
     int offset = oneBased ? 1 : 0;
-    for (auto& a : GetOutputRanges(precise)) {
+    auto ranges = GetOutputRangesSnapshot(precise);
+    for (auto& a : *ranges) {
         if (!first) {
             ret += ",";
         } else {
@@ -237,8 +262,8 @@ static void ComputeOutputRanges() {
     for (auto& r : precise) {
         LogInfo(VB_CHANNELOUT, "Determined range needed %d - %d\n", r.first, r.first + r.second - 1);
     }
-    preciseOutputRanges.swap(precise);
-    outputRanges.swap(normal);
+    preciseOutputRanges.store(std::make_shared<const OutputRangeVec>(std::move(precise)));
+    outputRanges.store(std::make_shared<const OutputRangeVec>(std::move(normal)));
     MultiSync::INSTANCE.Ping();
     MultiSync::INSTANCE.WriteRuntimeInfoFile();
 }
@@ -613,7 +638,7 @@ int SendChannelData(const char* channelData) {
     FPPChannelOutputInstance* inst;
 
     if (WillLog(LOG_DEBUG, VB_CHANNELDATA)) {
-        uint32_t minimumNeededChannel = GetOutputRanges(false)[0].first;
+        uint32_t minimumNeededChannel = GetOutputRangesSnapshot(false)->at(0).first;
         char buf[128];
         snprintf(buf, sizeof(buf), "Channel Data starting at channel %d", minimumNeededChannel);
         HexDump(buf, &channelData[minimumNeededChannel], 16, VB_CHANNELDATA);
