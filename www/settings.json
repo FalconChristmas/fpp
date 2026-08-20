@@ -2365,7 +2365,6 @@
 			"description": "Send MultiSync to ALL remotes via Broadcast",
 			"tip": "Use a network broadcast to send MultiSync messages to all remotes.",
 			"type": "checkbox",
-			"restart": 2,
 			"fppModes": [
 				"player"
 			],
@@ -2379,7 +2378,6 @@
 			"description": "Send MultiSync to ALL KNOWN remotes via Unicast",
 			"tip": "Unicast MultiSync messages individually to every known FPP remote that is running in Remote mode.  Remotes are added to the list automatically as they are discovered (via mDNS or the normal FPP discovery).  Non-FPP devices (WLED, ESPixelStick, Falcon controllers, etc.) and FPP instances not in Remote mode are skipped.  Useful when multicast/broadcast is unreliable across your network.",
 			"type": "checkbox",
-			"restart": 2,
 			"default": 1,
 			"fppModes": [
 				"player"
@@ -2442,7 +2440,6 @@
 			"description": "MultiSync Unicast Discovery IPs (CSV list)",
 			"tip": "FPP will send unicast MultiSync discovery messages to the IPs in this list to allow discovery of devices which are unable to be discovered via FPP's normal multicast discovery.  This may include systems on remote networks or connected to certain routers which do not pass multicast packets between wired and wireless interfaces.",
 			"level": 1,
-			"restart": 2,
 			"size": 64,
 			"maxlength": 128,
 			"type": "text",
@@ -2495,7 +2492,6 @@
 			"description": "Send MultiSync to ALL remotes via Multicast (239.70.80.80)",
 			"tip": "Send MultiCast to 239.70.80.80 to send MultiSync messages to all remotes.",
 			"type": "checkbox",
-			"restart": 2,
 			"fppModes": [
 				"player"
 			],

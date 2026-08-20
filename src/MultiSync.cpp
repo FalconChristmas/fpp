@@ -309,6 +309,23 @@ int MultiSync::Init(void) {
     };
     NetworkMonitor::INSTANCE.registerCallback(f);
 
+    // The sync send methods and the unicast remote list are picked up live.
+    // fppd already re-reads /media/settings whenever the web UI writes it
+    // (FileMonitor in fppd.cpp), so all that was missing was rebuilding the
+    // destination list these settings feed -- editing the remote list on the
+    // MultiSync page no longer needs an fppd restart to take effect.  The
+    // control socket itself is unaffected by any of them; if it isn't open yet
+    // (MultiSync disabled, or nothing has needed it), OpenControlSockets()
+    // reads the current settings when it does open.
+    for (const char* s : { "MultiSyncRemotes", "MultiSyncExtraRemotes",
+                           "MultiSyncBroadcast", "MultiSyncMulticast", "MultiSyncUnicast" }) {
+        registerSettingsListener("MultiSync", s, [this](const std::string& v) {
+            if (m_controlSock >= 0) {
+                ReloadSyncDestinations();
+            }
+        });
+    }
+
     return 1;
 }
 
@@ -1890,6 +1907,21 @@ void MultiSync::removeMultiSyncPlugin(MultiSyncPlugin* p) {
 void MultiSync::ShutdownSync(void) {
     LogDebug(VB_SYNC, "ShutdownSync()\n");
 
+    // Idempotent, like WLEDAudioSync::Cleanup(): fppd's shutdown calls this and
+    // ~MultiSync() calls it again at static-destruction time, by which point the
+    // global SettingsConfig may already be gone -- locking its destroyed mutex
+    // would throw out of a noexcept destructor.  Unregistering also acts as a
+    // barrier: unregisterSettingsListener() takes the listener list's write
+    // lock, which the firing loop holds for reading while a callback runs, so it
+    // cannot return while ReloadSyncDestinations() is still in flight on the
+    // settings-reload thread.
+    if (!m_settingsListenersRemoved.exchange(true)) {
+        for (const char* s : { "MultiSyncRemotes", "MultiSyncExtraRemotes",
+                               "MultiSyncBroadcast", "MultiSyncMulticast", "MultiSyncUnicast" }) {
+            unregisterSettingsListener("MultiSync", s);
+        }
+    }
+
     for (auto a : m_plugins) {
         a->ShutdownSync();
     }
@@ -1966,6 +1998,22 @@ int MultiSync::OpenControlSockets() {
         return 0;
     }
 
+    ReloadSyncDestinations();
+
+    FillInInterfaces();
+
+    return 1;
+}
+
+void MultiSync::ReloadSyncDestinations() {
+    // Same lock UpdateUnicastDestinations() uses, for the same reason: the
+    // resolve step below is slow and runs without m_socketLock, so two
+    // overlapping reloads could otherwise finish out of order and leave the
+    // older result in place.  Holding it also keeps UpdateUnicastDestinations()
+    // from reading m_destAddr for its dedupe set mid-swap.  Released before the
+    // UpdateUnicastDestinations() call at the end, which takes it itself.
+    std::unique_lock<std::mutex> updateLock(m_unicastUpdateLock);
+
     std::string remotesString = getSetting("MultiSyncRemotes");
     std::string extraRemotes = getSetting("MultiSyncExtraRemotes");
     if (extraRemotes != "") {
@@ -1981,36 +2029,51 @@ int MultiSync::OpenControlSockets() {
     std::set<std::string> remotes;
     for (auto& token : tokens) {
         TrimWhiteSpace(token);
+        // The web UI PUTs this setting as a JSON string, so an empty list is
+        // stored as a literal pair of quote characters rather than as an empty
+        // value.  Left in, that becomes a "hostname" of "" and every reload
+        // spends a full DNS timeout (~4s, on the settings-reload thread)
+        // failing to resolve it.
+        while (token.size() >= 2 && token.front() == '"' && token.back() == '"') {
+            token = token.substr(1, token.size() - 2);
+            TrimWhiteSpace(token);
+        }
         if (token != "") {
             remotes.insert(token);
         }
     }
 
-    if (getSettingInt("MultiSyncBroadcast")) {
-        m_sendBroadcast = true;
-    }
-
-    if (getSettingInt("MultiSyncMulticast")) {
-        m_sendMulticast = true;
-    }
-    if (getSettingInt("MultiSyncUnicast")) {
-        m_sendUnicast = true;
-    }
-    if (remotesString == "" && !m_sendBroadcast && !m_sendMulticast && !m_sendUnicast && m_multiSyncEnabled) {
+    // Assign rather than |=: this runs again on every settings change, so a
+    // method the user just turned off has to go back to false.
+    bool sendBroadcast = getSettingInt("MultiSyncBroadcast") != 0;
+    bool sendMulticast = getSettingInt("MultiSyncMulticast") != 0;
+    bool sendUnicast = getSettingInt("MultiSyncUnicast") != 0;
+    if (remotesString == "" && !sendBroadcast && !sendMulticast && !sendUnicast && m_multiSyncEnabled) {
         // No explicit remotes or send method configured; default to multicast.
-        m_sendMulticast = true;
+        sendMulticast = true;
     }
 
+    // Resolve into a local list first: getaddrinfo() below is an unbounded
+    // network lookup and must not run while m_socketLock is held, since that
+    // lock is taken by the send path on the output thread every frame.
+    std::vector<struct sockaddr_in> newAddrs;
     for (auto& s : remotes) {
         LogDebug(VB_SYNC, "Setting up Remote Sync for %s\n", s.c_str());
         struct sockaddr_in newRemote;
+        memset(&newRemote, 0, sizeof(newRemote));
 
         newRemote.sin_family = AF_INET;
         newRemote.sin_port = htons(FPP_CTRL_PORT);
 
-        bool isAlpha = std::find_if(s.begin(), s.end(), [](char c) { return (isalpha(c) || (c == ' ')); }) == s.end();
+        // A letter (or a space) means this is a hostname and has to be resolved;
+        // anything else is a dotted-quad to parse directly.  The test used to
+        // read `... == s.end()`, i.e. "contains no letters", which is backwards:
+        // hostnames took the inet_addr() path, came back INADDR_NONE, and were
+        // then installed as a destination of 255.255.255.255 -- so every entry
+        // that wasn't already an IP address quietly broadcast its sync packets.
+        bool isHostname = std::find_if(s.begin(), s.end(), [](char c) { return (isalpha(c) || (c == ' ')); }) != s.end();
         bool valid = true;
-        if (isAlpha) {
+        if (isHostname) {
             // Use the reentrant getaddrinfo() rather than gethostbyname(), which
             // shares a single static hostent across the process.
             struct addrinfo hints{};
@@ -2028,33 +2091,58 @@ int MultiSync::OpenControlSockets() {
             }
         } else {
             newRemote.sin_addr.s_addr = inet_addr(s.c_str());
+            if (newRemote.sin_addr.s_addr == INADDR_NONE) {
+                LogErr(VB_SYNC, "Error parsing Remote IP address: %s\n", s.c_str());
+                valid = false;
+            }
         }
         if (valid) {
-            m_destAddr.push_back(newRemote);
+            newAddrs.push_back(newRemote);
         }
     }
-    for (int x = 0; x < m_destAddr.size(); x++) {
-        struct mmsghdr msg;
-        memset(&msg, 0, sizeof(msg));
 
-        msg.msg_hdr.msg_name = &m_destAddr[x];
-        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-        msg.msg_hdr.msg_iov = &m_destIovec;
-        msg.msg_hdr.msg_iovlen = 1;
-        msg.msg_len = 0;
-        m_destMsgs.push_back(msg);
+    m_sendBroadcast = sendBroadcast;
+    m_sendMulticast = sendMulticast;
+    m_sendUnicast = sendUnicast;
+
+    {
+        // Swap the whole list in at once.  Each mmsghdr points at its own
+        // element of m_destAddr, so the two vectors must be rebuilt together
+        // and never observed half-updated by SendControlPacketViaMsgs().
+        std::unique_lock<std::mutex> lock(m_socketLock);
+        m_destAddr = std::move(newAddrs);
+        m_destMsgs.clear();
+        m_destMsgs.reserve(m_destAddr.size());
+        for (size_t x = 0; x < m_destAddr.size(); x++) {
+            struct mmsghdr msg;
+            memset(&msg, 0, sizeof(msg));
+
+            msg.msg_hdr.msg_name = &m_destAddr[x];
+            msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+            msg.msg_hdr.msg_iov = &m_destIovec;
+            msg.msg_hdr.msg_iovlen = 1;
+            msg.msg_len = 0;
+            m_destMsgs.push_back(msg);
+        }
+        LogDebug(VB_SYNC, "%d Remote Sync systems configured\n",
+                 (int)m_destAddr.size());
+
+        if (!sendUnicast) {
+            // "Send to ALL KNOWN remotes" is off, so drop that list rather than
+            // leaving a stale copy behind for the next time it is turned on.
+            m_unicastDestMsgs.clear();
+            m_unicastDestAddr.clear();
+        }
     }
+    updateLock.unlock();
 
-    LogDebug(VB_SYNC, "%d Remote Sync systems configured\n",
-             m_destAddr.size());
-    FillInInterfaces();
-
-    // Seed the "all known remotes" unicast list from anything already known.
-    // (Typically empty at startup; it fills in as remotes are discovered.)
-    if (m_sendUnicast) {
+    // Rebuild the "all known remotes" list too: it dedupes itself against
+    // m_destAddr, which just changed.  Must run with both locks released --
+    // UpdateUnicastDestinations() takes m_unicastUpdateLock, then m_systemsLock,
+    // then m_socketLock, itself.
+    if (sendUnicast) {
         UpdateUnicastDestinations();
     }
-    return 1;
 }
 
 void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, struct iovec& iovec, void* outBuf, int len) {
@@ -2181,7 +2269,8 @@ void MultiSync::UpdateUnicastDestinations() {
     // m_systemsLock -> m_socketLock order used by Ping().
     std::unique_lock<std::mutex> lock(m_socketLock);
     // Skip any address already covered by the statically-configured remote list
-    // (m_destAddr, built once in OpenControlSockets and immutable thereafter) so
+    // (m_destAddr, rebuilt by ReloadSyncDestinations(), which holds the same
+    // m_unicastUpdateLock we hold here while it swaps) so
     // a remote that is both individually selected for unicast AND picked up by
     // "all known remotes" only receives each packet once.  The same set also
     // dedupes the all-known list against itself (e.g. a remote known under both

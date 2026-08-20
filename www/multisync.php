@@ -3559,17 +3559,15 @@
                 if (!r.ok) throw new Error(r.status);
                 settings['MultiSyncRemotes'] = remotes;
                 if (verbose) {
+                    // No restart flag: fppd re-reads /media/settings when it
+                    // changes and MultiSync rebuilds its unicast destination
+                    // list from this setting live (MultiSync::ReloadSyncDestinations).
                     if (remotes == "") {
-                        $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.", { themeState: 'success' });
+                        $.jGrowl("Remote List Cleared.", { themeState: 'success' });
                     } else {
-                        $.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.", { themeState: 'success' });
+                        $.jGrowl("Remote List set to: '" + remotes + "'.", { themeState: 'success' });
                     }
                 }
-                //Mark FPPD as needing restart
-                SetRestartFlag(2);
-                settings['restartFlag'] = 2;
-                //Get the resart banner showing
-                CheckRestartRebootFlags();
                 validateMultiSyncSettings();
             } catch {
                 DialogError("Save Remotes", "Save Failed");

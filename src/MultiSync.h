@@ -346,6 +346,14 @@ private:
     // currently-known remote systems that support unicast.  Only used when the
     // MultiSyncUnicast ("send to ALL known remotes") setting is enabled.
     void UpdateUnicastDestinations();
+    // Re-read the sync send methods (MultiSyncBroadcast/Multicast/Unicast) and
+    // the statically-configured unicast remote list (MultiSyncRemotes plus
+    // MultiSyncExtraRemotes) from the settings and swap the resulting
+    // destination list into place.  Called once from OpenControlSockets() and
+    // again from a settings listener whenever any of those settings change, so
+    // editing the remote list on the MultiSync page takes effect immediately
+    // instead of requiring an fppd restart.
+    void ReloadSyncDestinations();
     bool FillInInterfaces();
     bool RemoveInterface(const std::string& interface);
 
@@ -377,13 +385,20 @@ private:
     std::map<std::string, std::string> m_configuredOutputRanges;
 
     std::map<std::string, NetInterfaceInfo> m_interfaces;
-    bool m_sendMulticast;
-    bool m_sendBroadcast;
-    bool m_sendUnicast = false;
+    // Which send methods are active.  Read on the output thread from
+    // SendControlPacket() without any lock and rewritten by
+    // ReloadSyncDestinations() on the settings-reload thread, hence atomic.
+    std::atomic<bool> m_sendMulticast;
+    std::atomic<bool> m_sendBroadcast;
+    std::atomic<bool> m_sendUnicast = false;
 
     int m_broadcastSock;
     int m_controlSock;
     int m_receiveSock;
+
+    // Guards the one-shot listener teardown in ShutdownSync(); see the comment
+    // there for why the second call has to be a no-op.
+    std::atomic<bool> m_settingsListenersRemoved{ false };
 
     std::string m_hostname;
     struct sockaddr_in m_srcAddr;
@@ -414,6 +429,9 @@ private:
 
     float m_remoteOffset;
 
+    // Statically-configured unicast remotes (MultiSyncRemotes plus
+    // MultiSyncExtraRemotes).  Rebuilt by ReloadSyncDestinations() whenever
+    // those settings change.  Guarded by m_socketLock (same as the send path).
     struct iovec m_destIovec;
     std::vector<struct mmsghdr> m_destMsgs;
     std::vector<struct sockaddr_in> m_destAddr;
