@@ -94,13 +94,103 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 
 </head>
 
-<body onunload='DisableTestMode();DisableDMXTestMode();'>
+<body onunload='HandlePageUnload();'>
 
 	<script type="text/javascript">
 		if (!window.console) console = { log: function () { } };
 
 		var modelInfos = [];
 		var lastEnabledState = 0;
+
+		// fppd runs one test at a time, but the Channel Testing and Channel Fader
+		// tabs each have their own Enable Test Mode checkbox. Remember which tab
+		// started the running test so switching tabs shows the truth rather than an
+		// unticked box sitting next to output that is still running. sessionStorage
+		// carries the owner across navigating away from and back to this page.
+		var TEST_OWNER_KEY = 'fppTestOwner';
+		var testOwner = null;
+		var pageUnloading = false;
+
+		function StoreTestOwner(owner) {
+			// The Test Stop we fire on unload usually doesn't make it out before the
+			// page goes away, so keep the stored owner rather than clearing it - the
+			// test is most likely still running when we come back.
+			if (pageUnloading && !owner) {
+				return;
+			}
+			testOwner = owner;
+			try {
+				if (owner) {
+					sessionStorage.setItem(TEST_OWNER_KEY, owner);
+				} else {
+					sessionStorage.removeItem(TEST_OWNER_KEY);
+				}
+			} catch (e) {
+				// sessionStorage blocked; the in-memory owner still covers this page view
+			}
+		}
+
+		function LoadTestOwner() {
+			try {
+				return sessionStorage.getItem(TEST_OWNER_KEY);
+			} catch (e) {
+				return null;
+			}
+		}
+
+		// Each tab warns when the other tab owns the running test, since enabling
+		// test mode here replaces it.
+		function UpdateTakeoverNotices() {
+			$('#channelTestTakeover').toggleClass('d-none', testOwner != 'dmx');
+			$('#dmxTestTakeover').toggleClass('d-none', testOwner != 'channels');
+		}
+
+		// Point both tabs' checkboxes at the one test fppd is actually running.
+		// 'enabled' is fppd's real state, from api/testmode.
+		function ApplyTestOwnership(enabled) {
+			var owner = null;
+			if (enabled) {
+				// A test we never started (another browser, or a page load with no
+				// stored owner) is attributed to the Channel Testing tab, whose
+				// controls GetTestMode() fills in from the running test.
+				owner = testOwner || LoadTestOwner() || 'channels';
+			}
+			StoreTestOwner(owner);
+
+			lastEnabledState = (owner == 'channels') ? 1 : 0;
+			dmxLastEnabled = (owner == 'dmx') ? 1 : 0;
+			$('#testModeEnabled').prop('checked', owner == 'channels');
+			$('#dmxTestEnabled').prop('checked', owner == 'dmx');
+			if (owner != 'dmx') {
+				DMXSineStop();
+			}
+			UpdateTakeoverNotices();
+		}
+
+		// Re-read fppd's test state when switching between the top-level tabs.
+		function RefreshTestState() {
+			$.ajax({
+				url: "api/testmode",
+				dataType: 'json',
+				success: function (data) {
+					ApplyTestOwnership(data.enabled ? true : false);
+				}
+			});
+		}
+
+		function StopRunningTest() {
+			var data = {
+				"command": "Test Stop",
+				"multisyncCommand": $('#multisyncEnabled').is(':checked') || $('#dmxMultisyncEnabled').is(':checked'),
+				"multisyncHosts": "",
+				"args": []
+			};
+			$.post("api/command", JSON.stringify(data)).done(function () {
+				ApplyTestOwnership(false);
+			}).fail(function () {
+				DialogError("Failed to stop Test Mode", "Stop failed");
+			});
+		}
 
 		function StringsChanged() {
 			var id = parseInt($('#modelName').val());
@@ -256,8 +346,7 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 				dataType: 'json',
 				success: function (data) {
 					if (data.enabled) {
-						$('#testModeEnabled').prop('checked', true);
-						lastEnabledState = 1;
+						ApplyTestOwnership(true);
 
 						if (data.hasOwnProperty('cycleMS')) {
 							$("#testModeCycleMSText").html(data.cycleMS);
@@ -299,11 +388,11 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 						}
 					}
 					else {
-						$('#testModeEnabled').prop('checked', false);
+						ApplyTestOwnership(false);
 					}
 				},
 				failure: function (data) {
-					$('#testModeEnabled').prop('checked', false);
+					ApplyTestOwnership(false);
 				}
 			});
 		}
@@ -551,6 +640,24 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			}
 
 			lastEnabledState = enabled;
+
+			if (enabled) {
+				// This tab now owns the one fppd test, replacing anything the Channel
+				// Fader tab had running.
+				StoreTestOwner('channels');
+				$('#dmxTestEnabled').prop('checked', false);
+				dmxLastEnabled = 0;
+				DMXSineStop();
+			} else if (testOwner == 'channels') {
+				StoreTestOwner(null);
+			}
+			UpdateTakeoverNotices();
+		}
+
+		function HandlePageUnload() {
+			pageUnloading = true;
+			DisableTestMode();
+			DisableDMXTestMode();
 		}
 
 		function DisableTestMode() {
@@ -1082,6 +1189,13 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			});
 
 			dmxLastEnabled = enabled;
+
+			if (enabled && count > 0) {
+				StoreTestOwner('dmx');
+			} else if (testOwner == 'dmx') {
+				StoreTestOwner(null);
+			}
+			UpdateTakeoverNotices();
 		}
 
 		function DisableDMXTestMode() {
@@ -1268,6 +1382,12 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			})
 				.css('background-color', '#ff00ff');
 
+			// Switching tabs doesn't stop the running test, so re-read its state to
+			// keep the checkbox on the newly shown tab honest.
+			$('#tab-channels-tab, #tab-dmx-tab, #tab-sequence-tab').on('shown.bs.tab', function () {
+				RefreshTestState();
+			});
+
 			UpdateWhiteSliderState();
 			GetTestMode();
 			RebuildDMXSliders();
@@ -1447,6 +1567,14 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 								aria-labelledby="interface-settings-tab">
 
 
+								<div id='channelTestTakeover' class="alert alert-warning d-none d-flex flex-wrap align-items-center gap-2"
+									role="alert">
+									<i class="fas fa-exclamation-triangle"></i>
+									<span>A test started on the <b>Channel Fader</b> tab is still running. Enabling
+										test mode here will take it over.</span>
+									<button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+										onclick="StopRunningTest();">Stop Test</button>
+								</div>
 								<!-- Page-Wide Settings -->
 								<div class="backdrop-dark mb-3">
 									<div class="row">
@@ -2000,6 +2128,14 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 								</div>
 							</div>
 							<div id='tab-dmx' class="tab-pane fade" role="tabpanel" aria-labelledby="tab-dmx-tab">
+								<div id='dmxTestTakeover' class="alert alert-warning d-none d-flex flex-wrap align-items-center gap-2"
+									role="alert">
+									<i class="fas fa-exclamation-triangle"></i>
+									<span>A test started on the <b>Channel Testing</b> tab is still running. Enabling
+										test mode here will take it over.</span>
+									<button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+										onclick="StopRunningTest();">Stop Test</button>
+								</div>
 								<div class="row">
 									<div class="col-md-3">
 										<div class="backdrop-dark">
