@@ -35,12 +35,15 @@ ClampValueOutputProcessor::~ClampValueOutputProcessor() {
 
 void ClampValueOutputProcessor::ProcessData(unsigned char* channelData) const {
     const int maxVal = value;
+    int clamped = 0;
     for (int x = 0; x < count; x++) {
-        unsigned char& val = channelData[start+x];
+        unsigned char& val = channelData[start + x];
         if (val > maxVal) {
-          val = static_cast<unsigned char>(maxVal);
-          LogExcess(VB_CHANNELOUT, "Clamping Channel Value from %d to %d\n",
-            maxVal, val);
+            val = static_cast<unsigned char>(maxVal);
+            clamped++;
         }
+    }
+    if (clamped) {
+        LogExcess(VB_CHANNELOUT, "Clamped %d channel(s) to %d\n", clamped, maxVal);
     }
 }
