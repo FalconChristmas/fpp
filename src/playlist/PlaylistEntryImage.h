@@ -81,11 +81,11 @@ private:
 
     unsigned int m_fileSeed;
 
-    volatile bool m_runLoop;
-    volatile bool m_imagePrepped;
-    volatile bool m_imageDrawn;
+    volatile bool m_runLoop = false;
+    volatile bool m_imagePrepped = false;
+    volatile bool m_imageDrawn = false;
 
-    std::thread* m_prepThread;
+    std::thread* m_prepThread = nullptr;
     std::mutex m_bufferLock;
 
     std::condition_variable m_prepSignal;

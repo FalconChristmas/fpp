@@ -65,6 +65,11 @@ PlaylistEntryImage::~PlaylistEntryImage() {
         delete m_prepThread;
     }
 
+    // Freed only after the prep thread is joined above, so no PrepImage() write
+    // to m_buffer can race this.  m_buffer is NULL until Init() allocates it, so
+    // delete[] is a safe no-op on an entry that failed (or never ran) Init.
+    delete[] m_buffer;
+
     if (m_modelOrigState == PixelOverlayState::PixelState::Disabled) {
         m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
 
@@ -292,7 +297,13 @@ void PlaylistEntryImage::PrepImage(void) {
             rows = image.rows();
         }
 
-        if ((cols != m_width) && (rows != m_height)) {
+        // Scale when the image differs from the model in EITHER dimension: the
+        // RGB blob must be exactly m_width*m_height*3 to fill m_buffer, and
+        // ScaleOverlayImage() crops to precisely m_width x m_height.  An image
+        // matching one axis but not the other still needs scaling; with && it
+        // was left at the wrong size and the guarded memcpy below truncated it,
+        // rendering garbled.  Matching both axes still skips (||-of-two-falses).
+        if ((cols != m_width) || (rows != m_height)) {
             needToCache = true;
 
             // Shared with the Image overlay effect so a given image lands on a
