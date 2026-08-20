@@ -65,6 +65,10 @@ UDMXOutput::UDMXOutput(unsigned int startChannel, unsigned int channelCount) :
     m_maxWait = 250;
     m_dataOffset = 1;
     memset(m_outputData, 0, sizeof(m_outputData));
+    if (m_channelCount > DMX_MAX_CHANNELS) {
+        WarningHolder::AddWarning(28, "UDMX: Invalid Config.  Channel count of " + std::to_string(m_channelCount) + " exceeds the DMX universe size of 512");
+        m_channelCount = DMX_MAX_CHANNELS;
+    }
 
     if (libusb_init(&m_ctx) != 0) {
         LogErr(VB_CHANNELOUT, "Error Starting LibUSB\n");
