@@ -1256,6 +1256,13 @@ void MultiSync::DiscoverViaHTTP(const std::set<std::string>& ipSet, const std::s
                             break;
                         }
                     }
+                    if (idx == ips) {
+                        // Handle not one of ours; nothing to update in ipList, but
+                        // still remove/cleanup so it isn't leaked.
+                        curl_multi_remove_handle(multi_handle, e);
+                        curl_easy_cleanup(e);
+                        continue;
+                    }
                     if (msg->data.result == CURLE_OK || msg->data.result == 0) {
                         long responseCode = 0;
                         curl_easy_getinfo(e, CURLINFO_HTTP_CODE, &responseCode);
@@ -1282,7 +1289,9 @@ void MultiSync::DiscoverViaHTTP(const std::set<std::string>& ipSet, const std::s
         int res = curl_multi_wait(multi_handle, NULL, 0, 100, &numfds);
         if (res != CURLM_OK) {
             LogErr(VB_SYNC, "error: curl_multi_wait() returned %d\n", res);
-            return;
+            // Fall through to the cleanup below instead of leaking the
+            // remaining easy handles and the multi handle.
+            break;
         }
         curl_multi_perform(multi_handle, &still_running);
     }
