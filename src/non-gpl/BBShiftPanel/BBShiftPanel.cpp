@@ -676,9 +676,9 @@ int BBShiftPanelOutput::Init(Json::Value config) {
         Json::Value p = config["panels"][i];
         if (p["outputNumber"].asInt() <= outputs) {
             char orientation = 'N';
-            const char* o = p["orientation"].asString().c_str();
+            std::string o = p["orientation"].asString();
 
-            if (o && *o) {
+            if (!o.empty()) {
                 orientation = o[0];
             }
 

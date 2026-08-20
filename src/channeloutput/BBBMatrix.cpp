@@ -375,9 +375,9 @@ int BBBMatrix::Init(Json::Value config) {
     for (int i = 0; i < config["panels"].size(); i++) {
         Json::Value p = config["panels"][i];
         char orientation = 'N';
-        const char* o = p["orientation"].asString().c_str();
+        std::string o = p["orientation"].asString();
 
-        if (o && *o)
+        if (!o.empty())
             orientation = o[0];
 
         if (p["colorOrder"].asString() == "")
