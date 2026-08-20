@@ -168,19 +168,26 @@ void ProcessModelConfig(const Json::Value& config, std::string& model, int& star
                 LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", model.c_str());
             } else {
                 int m_channel = m_model->getChannelCount();
-                LogDebug(VB_CHANNELOUT, "Before Model applied:   %d-%d => Model: %s model\n",
+                LogDebug(VB_CHANNELOUT, "Before Model applied:   %d-%d => Model: %s (%d channels)\n",
                          start, start + count - 1,
                          model.c_str(), m_channel);
 
+                // start arrives 1-based within the model; getStartChannel() is the
+                // model's 0-based absolute start, so the span still available from
+                // offset is m_channel - offset + 1 channels.
                 int offset = start;
                 start = m_model->getStartChannel() + start - 1;
 
-                if (count > m_channel) {
-                    count = m_channel - offset;
-                    LogWarn(VB_CHANNELOUT, "Output processor for Model: %s tried to go past end channel of model.  Restricting to %d channels\n", model.c_str(), count);
-                } else if (count < m_channel) {
-                    LogInfo(VB_CHANNELOUT, "Output processor for Model: %s is using less channels (%d) than overlay model has (%d).  This may be intentional\n",
-                            model.c_str(), count, m_channel);
+                if (offset + count - 1 > m_channel) {
+                    count = m_channel - offset + 1;
+                    if (count < 0) {
+                        count = 0;
+                    }
+                    LogWarn(VB_CHANNELOUT, "Output processor for Model: %s starting at channel %d would run past the end of the model (%d channels).  Restricting to %d channels\n",
+                            model.c_str(), offset, m_channel, count);
+                } else if (offset + count - 1 < m_channel) {
+                    LogInfo(VB_CHANNELOUT, "Output processor for Model: %s is using less channels (%d starting at %d) than overlay model has (%d).  This may be intentional\n",
+                            model.c_str(), count, offset, m_channel);
                 }
             }
         } else {
