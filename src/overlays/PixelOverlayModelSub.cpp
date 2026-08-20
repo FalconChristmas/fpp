@@ -145,19 +145,30 @@ PixelOverlayModelSub::~PixelOverlayModelSub() {
 
 // Resolve the parent model, caching the pointer.
 //
-// MUST NOT be called from the channel output thread. It takes modelsLock (via
-// getModel()), and the output thread reaches doOverlay() from
-// PixelOverlayManager::doOverlays() with activeModelsLock already held. Every
-// HTTP handler takes those two the other way round -- modelsLock for the model
-// lookup, then activeModelsLock when setState() reaches modelStateChanged() --
-// so acquiring them in this order deadlocks the two threads against each other.
-// setState() below is the only place that resolves, and it does so before the
-// model can become visible to the output thread at all.
+// MUST NOT be called from the channel output thread. The output thread reaches
+// doOverlay() from PixelOverlayManager::doOverlays() with activeModelsLock
+// already held, and every HTTP handler takes modelsLock before
+// activeModelsLock (via setState() -> modelStateChanged()), so a lookup from
+// that side would invert them. setState() below is the only caller, and the
+// resolution itself uses tryGetModel(): setState() can also run on the effect
+// update threads (an effect stopping calls model->setState() under this
+// model's effectLock), where BLOCKING on modelsLock is the reverse of the
+// HTTP/command paths' modelsLock -> effectLock order and deadlocks outright --
+// the same shape 37c8f92a8 fixed one lock over. The try-acquire never blocks:
+// from the manager paths (which already hold modelsLock recursively) it always
+// succeeds, and a contended effect-side resolve just stays unresolved until
+// the next setState().
 bool PixelOverlayModelSub::foundParent() {
     if (parent)
         return true;
 
-    parent = PixelOverlayManager::INSTANCE.getModel(config["Parent"].asString());
+    PixelOverlayModel* p = nullptr;
+    if (!PixelOverlayManager::INSTANCE.tryGetModel(config["Parent"].asString(), p)) {
+        // modelsLock contended and not ours; do not log -- the parent may be
+        // perfectly valid, we just can't look it up without risking deadlock.
+        return false;
+    }
+    parent = p;
 
     if (parent) {
         return true;

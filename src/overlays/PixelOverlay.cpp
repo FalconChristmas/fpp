@@ -388,6 +388,14 @@ PixelOverlayModel* PixelOverlayManager::getModel(const std::string& name) {
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
     return getModelLocked(name);
 }
+bool PixelOverlayManager::tryGetModel(const std::string& name, PixelOverlayModel*& model) {
+    std::unique_lock<std::recursive_mutex> lock(modelsLock, std::try_to_lock);
+    if (!lock.owns_lock()) {
+        return false;
+    }
+    model = getModelLocked(name);
+    return true;
+}
 PixelOverlayModel* PixelOverlayManager::getModelLocked(const std::string& name) {
     auto a = models.find(name);
     if (a != models.end()) {

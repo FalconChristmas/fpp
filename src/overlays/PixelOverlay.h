@@ -40,6 +40,15 @@ public:
 
     void addModel(Json::Value config);
     PixelOverlayModel* getModel(const std::string& name);
+    // Non-blocking lookup for callers that may hold a model's effectLock (the
+    // effect update threads).  modelsLock -> effectLock is the sanctioned
+    // order everywhere else; blocking on modelsLock from under an effectLock
+    // is the reverse edge and deadlocks against any HTTP/command path.  This
+    // try-acquires modelsLock instead: returns false with model untouched if
+    // the lock is contended (caller retries on a later call), true with the
+    // lookup result (possibly nullptr for an unknown name) otherwise.  A
+    // thread already holding modelsLock always succeeds (recursive).
+    bool tryGetModel(const std::string& name, PixelOverlayModel*& model);
 
     void addModelListener(const std::string& name, const std::string& id, std::function<void(PixelOverlayModel*)> listener);
     void removeModelListener(const std::string& name, const std::string& id);
