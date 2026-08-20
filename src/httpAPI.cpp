@@ -281,6 +281,12 @@ APIServer::APIServer() {
  *
  */
 APIServer::~APIServer() {
+    // Before drogon stops: the status push registers a WarningHolder listener
+    // and holds connection pointers, both of which outlive quit() (which only
+    // queues teardown, so the close callbacks may never run). Init() turned it
+    // on from here, so it gets turned off from here too.
+    StatusWebSocketShutdown();
+
     drogon::app().quit();
     // Join the server thread so Drogon is fully stopped before we return.
     // PluginManager::Cleanup() (called from main() after MainLoop() exits)

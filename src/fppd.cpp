@@ -1158,14 +1158,19 @@ int main(int argc, char* argv[]) {
     MultiSync::INSTANCE.ShutdownSync();
     GPIOManager::INSTANCE.Cleanup();
 
+    // Stop the notify thread before the deletes below, not after: its listeners
+    // run arbitrary code on a warning change or notify timeout, and the status
+    // listeners among them build a full status payload from scheduler and
+    // sequence. Leaving it running across the deletes gives every shutdown a
+    // window where a warning change reads freed objects.
+    WarningHolder::StopNotifyThread();
+
     delete scheduler;
     delete sequence;
     runMainFPPDLoop = -1;
     Sensors::INSTANCE.Close();
     RecurringTasks::INSTANCE.Close();
     Variables::INSTANCE.Close();
-
-    WarningHolder::StopNotifyThread();
 
     if (mqtt) {
         Events::RemoveEventHandler(mqtt);

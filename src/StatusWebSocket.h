@@ -21,3 +21,9 @@
 // translation unit (and thus the controller's self-registration) from being
 // dropped by the linker.
 void StatusWebSocketInit();
+
+// Tear down the push side: unregister the warning listener and drop every
+// tracked connection.  Must run while WarningHolder is still alive and BEFORE
+// drogon is stopped and before fppd deletes the objects the status payload is
+// built from (scheduler, sequence).  Idempotent; safe if Init was never called.
+void StatusWebSocketShutdown();

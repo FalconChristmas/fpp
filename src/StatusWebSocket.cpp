@@ -65,6 +65,10 @@ std::mutex g_mutex;
 std::set<WebSocketConnectionPtr> g_conns;
 uint64_t g_statusVersion = 0;
 std::string g_lastStatusJson; // last pushed status payload, for change detection
+// Set by StatusWebSocketShutdown() under g_mutex. Once set, no producer builds
+// or sends a payload and no new connection is tracked, so a connection that
+// arrives while fppd is tearing down can't re-populate g_conns after the clear.
+bool g_shutdown = false;
 
 // Build the current /fppd/status payload as a compact JSON string.  This is
 // the identical data the GET /fppd/status handler returns.
@@ -102,7 +106,7 @@ void broadcastStatusIfChanged() {
     // missed broadcast here is harmless.)
     {
         std::lock_guard<std::mutex> lk(g_mutex);
-        if (g_conns.empty())
+        if (g_shutdown || g_conns.empty())
             return;
     }
     std::string js = buildStatusJson();
@@ -110,7 +114,7 @@ void broadcastStatusIfChanged() {
     std::vector<WebSocketConnectionPtr> targets;
     {
         std::lock_guard<std::mutex> lk(g_mutex);
-        if (g_conns.empty())
+        if (g_shutdown || g_conns.empty())
             return;
         if (js == g_lastStatusJson)
             return;
@@ -145,12 +149,22 @@ class StatusWebSocket : public drogon::WebSocketController<StatusWebSocket> {
 public:
     void handleNewConnection(const HttpRequestPtr& /*req*/,
                              const WebSocketConnectionPtr& conn) override {
+        {
+            // A connection can still land after shutdown has begun (drogon's
+            // quit() only queues teardown). Building a payload then would read
+            // producers that are being destroyed, so answer nothing at all.
+            std::lock_guard<std::mutex> lk(g_mutex);
+            if (g_shutdown)
+                return;
+        }
         // Send this client a full snapshot immediately so it doesn't have to
         // wait for the next change.  Force a build (bypass the change check).
         std::string js = buildStatusJson();
         std::string msg;
         {
             std::lock_guard<std::mutex> lk(g_mutex);
+            if (g_shutdown)
+                return;
             g_conns.insert(conn);
             // Advance the shared cache/version so the timer doesn't
             // immediately re-broadcast identical data to everyone.
@@ -196,4 +210,30 @@ void StatusWebSocketInit() {
     // playback.  broadcastStatusIfChanged() is a no-op with no clients, so
     // this is effectively free until a page connects.
     drogon::app().getLoop()->runEvery(1.0, []() { broadcastStatusIfChanged(); });
+}
+
+void StatusWebSocketShutdown() {
+    static bool shutdownDone = false;
+    if (shutdownDone)
+        return;
+    shutdownDone = true;
+
+    // Order matters here. Removing the listener first is what makes the rest
+    // safe: WarningHolder holds its listener lock across the whole notify pass,
+    // so once RemoveWarningListener() returns, no handleWarnings() call on our
+    // listener is running or can start, and the warning thread can no longer
+    // drive a status build. The listener object itself is deliberately leaked --
+    // the notify thread is the only user and it is done with it by now, and a
+    // delete buys nothing on a process that _exit()s.
+    if (g_warningListener) {
+        WarningHolder::RemoveWarningListener(g_warningListener);
+    }
+
+    // The remaining producer is the drogon timer, which is still ticking (this
+    // runs before drogon is stopped). g_shutdown stops it building, and clearing
+    // g_conns drops the connection references drogon's quit() is not guaranteed
+    // to release through the close callbacks.
+    std::lock_guard<std::mutex> lk(g_mutex);
+    g_shutdown = true;
+    g_conns.clear();
 }
