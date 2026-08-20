@@ -392,6 +392,9 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr) {
         if (!playlistEntry->Init(pe)) {
             LogErr(VB_PLAYLIST, "Error initializing %s Playlist Entry\n", pe["type"].asString().c_str());
             WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist entry failed to initialize: " + pe["type"].asString());
+            // Not yet pushed into m_playlistEntries (that happens only after a
+            // successful Init below), so ClearPlaylistEntries() won't free it.
+            delete playlistEntry;
             ClearPlaylistEntries();
             return 0;
         }

@@ -752,6 +752,9 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry) {
     if (result->Init(entry))
         return result;
 
+    // Init failed: the entry was never handed to a caller, so this is its only
+    // owner and it must be destroyed here rather than leaked.
+    delete result;
     return NULL;
 }
 
