@@ -942,8 +942,9 @@ int Playlist::StopNowImpl(int forceStop) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     m_status = FPP_STATUS_STOPPING_NOW;
 
-    if (m_currentSection && m_sectionPosition < m_currentSection->size() && m_currentSection->at(m_sectionPosition)->IsPlaying())
-        m_currentSection->at(m_sectionPosition)->Stop();
+    PlaylistEntryBase* entry = CurrentEntry();
+    if (entry && entry->IsPlaying())
+        entry->Stop();
 
     m_forceStop = forceStop;
     SetIdle();
@@ -996,9 +997,10 @@ void Playlist::Pause() {
     PlaylistTransitionGuard guard;
     if (IsPlaying()) {
         std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
-        if (m_currentSection && m_sectionPosition < m_currentSection->size() && m_currentSection->at(m_sectionPosition)->IsPlaying()) {
-            m_currentSection->at(m_sectionPosition)->Pause();
-            if (m_currentSection->at(m_sectionPosition)->IsPaused()) {
+        PlaylistEntryBase* entry = CurrentEntry();
+        if (entry && entry->IsPlaying()) {
+            entry->Pause();
+            if (entry->IsPaused()) {
                 m_status = FPP_STATUS_PLAYLIST_PAUSED;
             }
         }
@@ -1010,7 +1012,10 @@ void Playlist::Resume() {
     if (IsPlaying()) {
         std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
         if (m_status == FPP_STATUS_PLAYLIST_PAUSED) {
-            m_currentSection->at(m_sectionPosition)->Resume();
+            PlaylistEntryBase* entry = CurrentEntry();
+            if (entry) {
+                entry->Resume();
+            }
             m_status = FPP_STATUS_PLAYLIST_PLAYING;
 
             // Notify of current playlists because was likely changed when Paused.
@@ -1595,8 +1600,9 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
 
         if ((m_filename == fullfilename) && (repeat == m_repeat) && m_currentSection && position >= 0) {
             // the requested playlist is already running and loaded, we can jump right to the index
-            if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
-                m_currentSection->at(m_sectionPosition)->Stop();
+            PlaylistEntryBase* entry = CurrentEntry();
+            if (entry && entry->IsPlaying()) {
+                entry->Stop();
             }
 
             m_sectionPosition = 0;
@@ -1796,8 +1802,9 @@ void Playlist::RestartItem(void) {
     m_isInGlobalPause = false;
     
     int pos = GetPosition() - 1;
-    if (m_currentSection->at(m_sectionPosition)->IsPlaying())
-        m_currentSection->at(m_sectionPosition)->Stop();
+    PlaylistEntryBase* entry = CurrentEntry();
+    if (entry && entry->IsPlaying())
+        entry->Stop();
 
     m_sectionPosition = 0;
     m_startPosition = pos;
@@ -1856,8 +1863,9 @@ void Playlist::NextItem(void) {
         return;
     }
 
-    if (m_currentSection && m_sectionPosition < m_currentSection->size() && m_currentSection->at(m_sectionPosition)->IsPlaying())
-        m_currentSection->at(m_sectionPosition)->Stop();
+    PlaylistEntryBase* entry = CurrentEntry();
+    if (entry && entry->IsPlaying())
+        entry->Stop();
 
     if (somewhereToGo) {
         pos--;
@@ -1905,12 +1913,20 @@ void Playlist::PrevItem(void) {
         }
     }
 
-    if (m_currentSection->at(m_sectionPosition)->IsPlaying())
-        m_currentSection->at(m_sectionPosition)->Stop();
+    PlaylistEntryBase* entry = CurrentEntry();
+    if (entry && entry->IsPlaying())
+        entry->Stop();
 
     m_sectionPosition = 0;
     m_startPosition = pos - 1;
     Start();
+}
+
+PlaylistEntryBase* Playlist::CurrentEntry(void) {
+    if (m_currentSection == nullptr || m_sectionPosition >= (int)m_currentSection->size())
+        return nullptr;
+
+    return m_currentSection->at(m_sectionPosition);
 }
 
 /*
@@ -1950,11 +1966,12 @@ int Playlist::GetSize(void) {
 Json::Value Playlist::GetCurrentEntry(void) {
     Json::Value result;
 
-    if (m_currentState == "idle" || m_currentSection == nullptr)
+    if (m_currentState == "idle")
         return result;
 
-    if (m_sectionPosition < m_currentSection->size())
-        result = m_currentSection->at(m_sectionPosition)->GetConfig();
+    PlaylistEntryBase* entry = CurrentEntry();
+    if (entry)
+        result = entry->GetConfig();
 
     return result;
 }
@@ -2067,13 +2084,17 @@ uint64_t Playlist::GetCurrentPosInMS(int& position, uint64_t& posms, bool itemDe
 
     position = -1;
     posms = 0;
-    if (m_currentState == "idle" || m_currentSection == nullptr) {
+    if (m_currentState == "idle") {
         return 0;
     }
-    position = m_currentSection->at(m_sectionPosition)->GetPositionInPlaylist();
-    posms = m_currentSection->at(m_sectionPosition)->GetElapsedMS();
+    PlaylistEntryBase* entry = CurrentEntry();
+    if (entry == nullptr) {
+        return 0;
+    }
+    position = entry->GetPositionInPlaylist();
+    posms = entry->GetElapsedMS();
     if (itemDefinedOnly) {
-        int pos = m_currentSection->at(m_sectionPosition)->GetTimeCode();
+        int pos = entry->GetTimeCode();
         if (pos >= 0) {
             return pos + posms;
         } else {
@@ -2135,11 +2156,12 @@ Json::Value Playlist::GetMqttStatusJSON(void) {
     result["status"] = m_currentState; // Works because single playlist
     Json::Value playlistArray = Json::Value(Json::arrayValue);
 
-    if (m_currentState != "idle" && m_currentSection != nullptr && m_sectionPosition < m_currentSection->size()) {
+    PlaylistEntryBase* entry = (m_currentState != "idle") ? CurrentEntry() : nullptr;
+    if (entry) {
         Json::Value entryArray = Json::Value(Json::arrayValue);
         Json::Value playlist;
         // Only one entry right now.
-        Json::Value playlistEntry = m_currentSection->at(m_sectionPosition)->GetMqttStatus();
+        Json::Value playlistEntry = entry->GetMqttStatus();
         entryArray.append(playlistEntry);
 
         playlist["name"] = m_name;
@@ -2199,18 +2221,16 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         result["global_pause"]["remaining_seconds"] = static_cast<Json::Int64>((remaining + 999) / 1000); // Round up
     }
 
-    // m_sectionPosition is allowed to sit at exactly m_currentSection->size()
-    // while the playlist is between items -- Process() sets it to size() when
+    // CurrentEntry() returns null while the playlist is between items --
+    // Process() parks m_sectionPosition at exactly the section size when
     // advancing past the end of a section, and checks for that state rather
-    // than treating it as invalid.  Using at() unguarded here therefore throws
+    // than treating it as invalid.  Indexing unguarded here would throw
     // std::out_of_range out of the /api/fppd/status handler on a drogon I/O
-    // thread, which aborts fppd.  Every other at() on this vector is guarded
-    // the same way; treat "no current entry" as the null case the code below
-    // already handles.
-    PlaylistEntryBase* ple = nullptr;
+    // thread, which aborts fppd; treat "no current entry" as the null case
+    // the code below already handles.
+    PlaylistEntryBase* ple = CurrentEntry();
     std::string type;
-    if (m_sectionPosition < m_currentSection->size()) {
-        ple = m_currentSection->at(m_sectionPosition);
+    if (ple) {
         type = ple->GetType();
     }
 

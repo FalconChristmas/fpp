@@ -120,6 +120,14 @@ private:
     bool WillStopAfterCurrent();
     Playlist* SwitchToInsertedPlaylist(bool isStopping = false);
 
+    // The entry at the current section position, or nullptr if there is none.
+    // "None" is a normal state, not an error: m_sectionPosition is allowed to
+    // sit at exactly m_currentSection->size() while the playlist is between
+    // items, and m_currentSection is null until a playlist is loaded.  Every
+    // access to the current entry goes through here so that single guard has
+    // one home.  Caller must hold m_playlistMutex.
+    PlaylistEntryBase* CurrentEntry();
+
     volatile PlaylistStatus m_status;
 
     Playlist* m_parent;
