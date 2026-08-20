@@ -43,7 +43,11 @@ constexpr uint32_t SMART_RECEIVER_V2_GAP = 10;
         return 0;                                                                          \
     }
 
-const char* SMART_RECEIVER_LABELS[] = {
+// one config key per receiver; the hasChannels array in Init() is sized to
+// match, so nothing may index either of them past this
+constexpr int MAX_SMART_RECEIVERS = 6;
+
+const char* SMART_RECEIVER_LABELS[MAX_SMART_RECEIVERS] = {
     "virtualStrings",
     "virtualStringsB",
     "virtualStringsC",
@@ -284,6 +288,16 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
                 receiverCount = rt - 3;
                 smartReceiverType = ReceiverType::v2;
             }
+            if (receiverCount > MAX_SMART_RECEIVERS) {
+                // only the Falcon v4 range is open ended (rt - 15), so a hand
+                // edited differentialType is the only way to get here
+                LogWarn(VB_CHANNELOUT, "Invalid smart receiver count %d on port %d; using %d\n",
+                        receiverCount, m_portNumber + 1, MAX_SMART_RECEIVERS);
+                WarningHolder::AddWarning("PixelString: invalid smart receiver count on port " +
+                                          std::to_string(m_portNumber + 1) + ", using " +
+                                          std::to_string(MAX_SMART_RECEIVERS));
+                receiverCount = MAX_SMART_RECEIVERS;
+            }
         }
         m_isSmartReceiver = smartReceiverType != ReceiverType::Standard;
         if (m_bytesPerChannel != 1 &&
@@ -312,7 +326,7 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
         }
         AddVirtualString(vs);
     }
-    std::array<bool, 6> hasChannels;
+    std::array<bool, MAX_SMART_RECEIVERS> hasChannels;
     hasChannels[0] = startMaxChan != m_outputBytes;
     if (!hasChannels[0] && (smartReceiverType == ReceiverType::v1 || smartReceiverType == ReceiverType::v2)) {
         // we need to output at least 1 pixel
@@ -720,18 +734,24 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
     DumpMap("BEFORE ZIGZAG");
 
     if (vs.zigZag) {
-        int segment = 0;
-        int pixel = 0;
-        int zigChannelCount = vs.zigZag * vs.channelsPerNode();
+        int chanCount = vs.channelsPerNode();
+        int zigChannelCount = vs.zigZag * chanCount;
+        // the folds belong to this virtual string, so they are counted from
+        // its first pixel and stop at its last.  Anchoring at the port instead
+        // re-flips segments owned by the other strings sharing the port, and
+        // any lead in or null nodes ahead of this one shift every boundary.
+        int vsEnd = vsOffset + (vs.pixelCount * chanCount);
 
-        for (int i = 0; i < m_outputBytes; i += zigChannelCount) {
-            segment = i / zigChannelCount;
+        for (int i = vsOffset; i < vsEnd; i += zigChannelCount) {
+            int segment = (i - vsOffset) / zigChannelCount;
             if (segment % 2) {
                 int offset1 = i;
-                int offset2 = i + zigChannelCount - vs.channelsPerNode();
+                int offset2 = i + zigChannelCount - chanCount;
 
-                if ((offset2 + 2) < m_outputBytes)
-                    FlipPixels(offset1, offset2, vs.channelsPerNode());
+                // the whole of the segment's last node has to be there - it is
+                // chanCount channels wide, which is 4 for RGBW, not 3
+                if ((offset2 + chanCount) <= vsEnd)
+                    FlipPixels(offset1, offset2, chanCount);
             }
         }
 
@@ -761,32 +781,16 @@ void PixelString::DumpMap(const char* msg) {
  *
  */
 void PixelString::FlipPixels(int offset1, int offset2, int chanCount) {
-    int ch1 = 0;
-    int ch2 = 0;
-    int ch3 = 0;
-    int ch4 = 0;
     int flipPixels = (offset2 - offset1 + chanCount) / chanCount / 2;
 
     for (int i = 0; i < flipPixels; i++) {
-        ch1 = m_outputMap[offset1];
-        ch2 = m_outputMap[offset1 + 1];
-        ch3 = m_outputMap[offset1 + 2];
-        if (chanCount == 4) {
-            ch4 = m_outputMap[offset1 + 3];
-        }
-
-        m_outputMap[offset1] = m_outputMap[offset2];
-        m_outputMap[offset1 + 1] = m_outputMap[offset2 + 1];
-        m_outputMap[offset1 + 2] = m_outputMap[offset2 + 2];
-        if (chanCount == 4) {
-            m_outputMap[offset1 + 3] = m_outputMap[offset2 + 3];
-        }
-
-        m_outputMap[offset2] = ch1;
-        m_outputMap[offset2 + 1] = ch2;
-        m_outputMap[offset2 + 2] = ch3;
-        if (chanCount == 4) {
-            m_outputMap[offset2 + 3] = ch4;
+        // a node is exactly chanCount channels wide - 1 for a single colour
+        // string, 3 for RGB, 4 for RGBW - so swapping a fixed three either
+        // steps outside the node or leaves part of it behind
+        for (int c = 0; c < chanCount; c++) {
+            int ch = m_outputMap[offset1 + c];
+            m_outputMap[offset1 + c] = m_outputMap[offset2 + c];
+            m_outputMap[offset2 + c] = ch;
         }
 
         offset1 += chanCount;
