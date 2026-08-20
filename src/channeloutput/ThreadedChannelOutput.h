@@ -41,14 +41,21 @@ protected:
     virtual void DumpConfig(void) override;
     virtual int RawSendData(unsigned char* channelData) = 0;
     virtual void WaitTimedOut() {}
-    int StartOutputThread(void);
+    // Returns false if the worker thread could not be created; Init() fails
+    // the output in that case rather than waiting for a thread that will
+    // never run.
+    bool StartOutputThread(void);
     int StopOutputThread(void);
     int SendOutputBuffer(void);
 
     unsigned int m_maxWait;
     unsigned int m_threadIsRunning;
+
+    // m_runThread and m_dataWaiting are the worker's wait predicate: every
+    // write to either, and every read the worker acts on, is under m_sendLock.
     unsigned int m_runThread;
     volatile unsigned int m_dataWaiting;
+
     unsigned int m_useDoubleBuffer;
 
     // Converted from pthread_t/pthread_mutex_t/pthread_cond_t to the

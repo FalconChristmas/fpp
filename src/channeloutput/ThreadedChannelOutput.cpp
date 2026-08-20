@@ -58,7 +58,19 @@ int ThreadedChannelOutput::Init(void) {
         m_inBuf = new unsigned char[m_channelCount];
         m_outBuf = new unsigned char[m_channelCount];
     }
-    StartOutputThread();
+    if (!StartOutputThread()) {
+        // Nothing can consume the buffers without a worker and the caller
+        // discards an output whose Init() failed, so release them here.
+        // Close() may still run on the way out; nulling keeps its delete[]
+        // a no-op rather than a double free.
+        if (m_useDoubleBuffer) {
+            delete[] m_inBuf;
+            delete[] m_outBuf;
+            m_inBuf = nullptr;
+            m_outBuf = nullptr;
+        }
+        return 0;
+    }
     DumpConfig();
 
     return 1;
@@ -87,9 +99,19 @@ int ThreadedChannelOutput::SendData(unsigned char* channelData) {
     if (m_useDoubleBuffer) {
         std::lock_guard<std::mutex> lock(m_bufLock);
         memcpy(m_inBuf, channelData, m_channelCount);
-        m_dataWaiting = 1;
     } else {
         m_outBuf = channelData;
+    }
+
+    // The flag has to be raised under m_sendLock: a store outside it can land
+    // between the worker's predicate check and its wait(), and the notify that
+    // follows is then delivered to nobody.  The two locks are taken in
+    // sequence, never nested, so no ordering against the worker exists to
+    // violate.  Publishing m_outBuf/m_inBuf before the lock is enough for the
+    // worker to see them - it reads them only after acquiring m_sendLock and
+    // observing the flag.
+    {
+        std::lock_guard<std::mutex> lock(m_sendLock);
         m_dataWaiting = 1;
     }
 
@@ -100,12 +122,20 @@ int ThreadedChannelOutput::SendData(unsigned char* channelData) {
 int ThreadedChannelOutput::SendOutputBuffer(void) {
     LogExcess(VB_CHANNELOUT, "ChannelOutput::SendOutputBuffer()\n");
 
+    // Claim the pending frame BEFORE copying it out.  Clearing after the copy
+    // opens a window where a SendData landing between the copy and the clear
+    // has its flag wiped and its frame is never sent - fatal for a final
+    // blanking frame, which has no successor.  Claim-first means a frame
+    // arriving mid-send leaves the flag raised and the newer data goes out on
+    // the worker's next pass (at worst the newest frame is sent twice).
+    {
+        std::lock_guard<std::mutex> lock(m_sendLock);
+        m_dataWaiting = 0;
+    }
+
     if (m_useDoubleBuffer) {
         std::lock_guard<std::mutex> lock(m_bufLock);
         memcpy(m_outBuf, m_inBuf, m_channelCount);
-        m_dataWaiting = 0;
-    } else {
-        m_dataWaiting = 0;
     }
 
     RawSendData(m_outBuf);
@@ -119,7 +149,7 @@ void ThreadedChannelOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "    Data Waiting     : %u\n", m_dataWaiting);
 }
 
-int ThreadedChannelOutput::StartOutputThread(void) {
+bool ThreadedChannelOutput::StartOutputThread(void) {
     LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput::StartOutputThread()\n");
 
     m_runThread = 1;
@@ -162,12 +192,18 @@ int ThreadedChannelOutput::StartOutputThread(void) {
             break;
         }
         LogErr(VB_CHANNELOUT, "ERROR creating ChannelOutput thread: %s\n", msg);
+
+        // Only OutputThread() ever raises m_threadIsRunning, so falling into
+        // the wait below would spin forever.
+        return false;
     }
 
-    while (!m_threadIsRunning)
+    // m_runThread can only be 0 here if construction failed, which returns
+    // above; the check keeps the wait bounded if that ever stops holding.
+    while (m_runThread && !m_threadIsRunning)
         usleep(10000);
 
-    return 0;
+    return true;
 }
 
 int ThreadedChannelOutput::StopOutputThread(void) {
@@ -176,34 +212,38 @@ int ThreadedChannelOutput::StopOutputThread(void) {
     if (!m_thread.joinable())
         return -1;
 
-    m_runThread = 0;
+    // Half of the worker's wait predicate, so it must change under m_sendLock;
+    // a store outside the lock can be missed by a worker that is between its
+    // predicate check and its wait(), leaving it parked until the next frame
+    // that will never come.
+    {
+        std::lock_guard<std::mutex> lock(m_sendLock);
+        m_runThread = 0;
+    }
 
     m_sendCond.notify_one();
 
+    // Wait up to 110ms for a pending frame to be sent. The worker flushes
+    // m_dataWaiting before it honors the stop, so this is what lets the final
+    // blanking frame of a sequence reach the hardware.
     int loops = 0;
-    // Wait up to 110ms for data to be sent
-    while ((m_dataWaiting) &&
-           (m_threadIsRunning) &&
-           (loops++ < 11))
+    while (loops++ < 11) {
+        {
+            std::lock_guard<std::mutex> lock(m_sendLock);
+            if (!m_dataWaiting || !m_threadIsRunning)
+                break;
+        }
         usleep(10000);
-
-    // NOTE: preserved as-is from the pthread version. m_bufLock is held
-    // across the join() below. This only avoids deadlock because by this
-    // point OutputThread() is expected to be parked in
-    // m_sendCond.wait()/wait_for() on m_sendLock (not holding m_bufLock)
-    // per the 110ms settle loop above; OutputThread() does not need
-    // m_bufLock again on its way out once m_runThread is 0 (it just
-    // `continue`s straight to the top-of-loop check and exits). Do not
-    // "fix" this ordering without auditing that invariant.
-    std::unique_lock<std::mutex> lock(m_bufLock);
-
-    if (!m_thread.joinable()) {
-        lock.unlock();
-        return -1;
     }
 
+    if (!m_thread.joinable())
+        return -1;
+
+    // m_bufLock must NOT be held across the join(): the worker takes it while
+    // flushing that pending frame on its way out. It guards only the contents
+    // of m_inBuf/m_outBuf, which join() does not touch, and Close() does not
+    // free them until after this returns.
     m_thread.join();
-    lock.unlock();
 
     return 0;
 }
@@ -214,30 +254,28 @@ void ThreadedChannelOutput::OutputThread(void) {
 
     long long wakeTime = GetTime();
 
-    // unique_lock, not locked yet (mirrors the pthread version which did
-    // not hold m_sendLock outside the loop body either); locked/unlocked
-    // explicitly at the same points the old pthread_mutex_lock/unlock
-    // calls were, rather than relying on scope-based RAII, so the
-    // lock/unlock coverage stays a 1:1 match with the original.
+    // Deferred: m_sendLock is held only while the predicate state is read or
+    // written, never across SendOutputBuffer()/WaitTimedOut(), which can block
+    // on hardware for as long as they like.
     std::unique_lock<std::mutex> sendLock(m_sendLock, std::defer_lock);
 
+    sendLock.lock();
     m_threadIsRunning = 1;
+    sendLock.unlock();
     LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput thread started\n");
 
-    while (m_runThread) {
+    // m_dataWaiting and m_runThread are both owned by m_sendLock, so this
+    // closes the window SendData's store-then-notify used to leave open.
+    auto ready = [this]() { return m_dataWaiting || !m_runThread; };
+
+    while (true) {
         // Wait for more data
         sendLock.lock();
         long long nowTime = GetTime();
         LogExcess(VB_CHANNELOUT, "ThreadedChannelOutput thread: sent: %lld, elapsed: %lld\n",
                   nowTime, nowTime - wakeTime);
 
-        if (m_useDoubleBuffer)
-            m_bufLock.lock();
-
         if (m_dataWaiting || m_maxWait) {
-            if (m_useDoubleBuffer)
-                m_bufLock.unlock();
-
             // Old code computed an absolute CLOCK_REALTIME deadline
             // (now + duration) via gettimeofday()/timespec math for
             // pthread_cond_timedwait(). That duration was:
@@ -247,44 +285,41 @@ void ThreadedChannelOutput::OutputThread(void) {
             // timespec/overflow-carry arithmetic is no longer needed.
             std::chrono::milliseconds waitDuration(m_maxWait ? m_maxWait : 200);
 
-            // No predicate is passed (matches pthread_cond_timedwait,
-            // which also does not loop internally): a spurious or timed
-            // wakeup here just falls through to the checks below, and
-            // the outer while(m_runThread) loop is what re-evaluates
-            // state on the next pass, exactly as before.
-            m_sendCond.wait_for(sendLock, waitDuration);
+            // The predicate overload computes the deadline once, so spurious
+            // wakeups do not extend it and m_maxWait keeps its meaning: the
+            // interval at which a subclass wants WaitTimedOut() called.
+            m_sendCond.wait_for(sendLock, waitDuration, ready);
         } else {
-            if (m_useDoubleBuffer)
-                m_bufLock.unlock();
-
-            // No predicate here either, matching pthread_cond_wait().
-            m_sendCond.wait(sendLock);
+            m_sendCond.wait(sendLock, ready);
         }
 
-        sendLock.unlock();
+        // Sampled together under the lock so the two decisions below cannot
+        // see a half-updated state.
+        bool haveData = m_dataWaiting;
+        bool keepRunning = m_runThread;
 
-        if (!m_runThread)
-            continue;
+        sendLock.unlock();
 
         wakeTime = GetTime();
         LogExcess(VB_CHANNELOUT, "ThreadedChannelOutput thread: woke: %lld\n", wakeTime);
 
-        // See if there is any data waiting to process or if we timed out
-        if (m_useDoubleBuffer)
-            m_bufLock.lock();
-
-        if (m_dataWaiting) {
-            if (m_useDoubleBuffer)
-                m_bufLock.unlock();
-
+        // A pending frame is flushed even once a stop has been requested: the
+        // last frame of a sequence is the blanking frame and StopOutputThread
+        // follows it immediately, so honoring the stop first leaves the lights
+        // lit.  Reaching here with neither data nor a stop means the wait
+        // timed out, which is the only thing WaitTimedOut() is for.
+        if (haveData) {
             SendOutputBuffer();
-        } else {
-            if (m_useDoubleBuffer)
-                m_bufLock.unlock();
+        } else if (keepRunning) {
             WaitTimedOut();
         }
+
+        if (!keepRunning)
+            break;
     }
 
     LogDebug(VB_CHANNELOUT, "ThreadedChannelOutput thread complete\n");
+    sendLock.lock();
     m_threadIsRunning = 0;
+    sendLock.unlock();
 }
