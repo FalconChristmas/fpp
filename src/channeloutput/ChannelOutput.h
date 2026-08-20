@@ -52,7 +52,6 @@ public:
 
 protected:
     virtual void DumpConfig(void);
-    virtual void ConvertToCSV(Json::Value config, char* configStr);
 
     std::string m_outputType;
     unsigned int m_startChannel;
