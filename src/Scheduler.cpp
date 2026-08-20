@@ -59,6 +59,7 @@ Scheduler::Scheduler() :
     m_loadSchedule(true),
     m_lastLoadDate(0),
     m_lastProcTime(0),
+    m_lastCommandCheckTime(0),
     m_timeDelta(0),
     m_timeDeltaThreshold(0),
     m_forcedNextPlaylist(SCHEDULE_INDEX_INVALID),
@@ -260,66 +261,14 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         }
     }
 
-    // Convert everything to a day mask to simplify code below
-    switch (dayIndex) {
-    case INX_SUN:
-        dayIndex = INX_DAY_MASK_SUNDAY;
-        break;
-    case INX_MON:
-        dayIndex = INX_DAY_MASK_MONDAY;
-        break;
-    case INX_TUE:
-        dayIndex = INX_DAY_MASK_TUESDAY;
-        break;
-    case INX_WED:
-        dayIndex = INX_DAY_MASK_WEDNESDAY;
-        break;
-    case INX_THU:
-        dayIndex = INX_DAY_MASK_THURSDAY;
-        break;
-    case INX_FRI:
-        dayIndex = INX_DAY_MASK_FRIDAY;
-        break;
-    case INX_SAT:
-        dayIndex = INX_DAY_MASK_SATURDAY;
-        break;
-    case INX_EVERYDAY:
-        dayIndex = INX_DAY_MASK_EVERYDAY;
-        break;
-    case INX_WKDAYS:
-        dayIndex = INX_DAY_MASK_WEEKDAYS;
-        break;
-    case INX_WKEND:
-        dayIndex = INX_DAY_MASK_WEEKEND;
-        break;
-    case INX_M_W_F:
-        dayIndex = INX_DAY_MASK_M_W_F;
-        break;
-    case INX_T_TH:
-        dayIndex = INX_DAY_MASK_T_TH;
-        break;
-    case INX_SUN_TO_THURS:
-        dayIndex = INX_DAY_MASK_SUN_TO_THURS;
-        break;
-    case INX_FRI_SAT:
-        dayIndex = INX_DAY_MASK_FRI_SAT;
-        break;
-    case INX_ODD_DAY:
-    case INX_EVEN_DAY:
-        // Odd/Even is based on the FPP 'epoch', the date of the first
-        // commit to the FPP repository on github, July 15, 2013
-        struct std::tm FPPEpoch = { 0, 0, 0, 15, 6, 113 };
-        std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
-        int daysSince = (int)std::difftime(currTime, FPPEpochTimeT) / (60 * 60 * 24);
-
-        int dayOffset = 0;
-        if (daysSince % 2) { // Today is an odd day
-            if (entry->dayIndex == INX_EVEN_DAY)
-                dayOffset = 1;
-        } else { // Today is an even day
-            if (entry->dayIndex == INX_ODD_DAY)
-                dayOffset = 1;
-        }
+    // Convert everything to a day mask to simplify code below.  Odd/even is
+    // not a fixed set of weekdays, so it schedules its own occurrences here
+    // rather than through the mask; dayIndex is left as INX_ODD_DAY/EVEN_DAY.
+    if ((dayIndex == INX_ODD_DAY) || (dayIndex == INX_EVEN_DAY)) {
+        // dayOffset is 0 when today already matches this entry's parity, 1
+        // when it does not (so the next - and previous - matching day is one
+        // day away, since odd/even parity alternates daily).
+        int dayOffset = entry->IsOddEvenMatch(currTime) ? 0 : 1;
 
         // Schedule yesterday if needed to handle midnight crossovers
         if (dayOffset)
@@ -328,12 +277,20 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
         for (int i = now.tm_wday + dayOffset; i <= scheduleDistance; i += 2) {
             entry->pushStartEndTimes(i, m_timeDelta, m_timeDeltaThreshold);
         }
-
-        break;
+    } else {
+        dayIndex = ScheduleEntry::DayIndexToMask(dayIndex);
     }
 
-    // Special case if today is Sunday, handle any Saturday night crossovers
-    if (now.tm_wday == 0)
+    // Special case: if today is Sunday, a Saturday-night start that crosses
+    // midnight (e.g. 22:00->02:00) bleeds into Sunday morning.  Push it only
+    // for entries that actually run on Saturday - hence the Saturday-mask
+    // test - so a Monday-only crossover entry no longer plays early Sunday.
+    // Odd/even entries are excluded because the block above already pushes
+    // yesterday (Saturday, when today is Sunday) whenever today's parity does
+    // not match; firing here too would double-push or push the wrong parity.
+    if ((now.tm_wday == 0) &&
+        (entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY) &&
+        (dayIndex & INX_DAY_MASK_SATURDAY))
         entry->pushStartEndTimes(-1, m_timeDelta, m_timeDeltaThreshold);
 
     if ((entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY)) {
@@ -701,6 +658,12 @@ void Scheduler::CheckScheduledItems(bool restarted) {
     std::vector<PlayerAction> actions;
     std::vector<CountdownPreset> presets;
 
+    // Longest a scheduled FPP command may fire after its second passed.  Bounds
+    // the (m_lastCommandCheckTime, now] catch-up window so a forward clock step
+    // does not replay a batch of stale commands; anything older is logged and
+    // marked ran instead of run.
+    constexpr std::time_t maxCommandCatchup = 60;
+
     // Each pass decides what to do while holding m_scheduleLock and runs it
     // after releasing the lock, since starting or stopping a playlist takes
     // m_playlistMutex in the opposite order (see Scheduler.h).  A pass stops
@@ -730,9 +693,27 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                             continue;
                         }
                     } else {
-                        if (itemTime.first < now) {
+                        // An FPP Command has no duration to catch up to, so a
+                        // missed second would silently drop it.  Fire any
+                        // command whose second falls in the (lastCheck, now]
+                        // window this run has not examined yet, but never one
+                        // more than maxCommandCatchup seconds late so a large
+                        // clock step cannot replay a batch of stale commands.
+                        if (itemTime.first <= m_lastCommandCheckTime) {
+                            // A prior run already had its chance at this second.
+                            // A reload can reset item.ran (FPP-command ran-state
+                            // is not restored from m_ranItems), so gate on the
+                            // check window, not on item.ran, to avoid re-firing.
                             SetItemRan(item, true);
-                            continue; // skip any FPP Commands that are in the past
+                            continue;
+                        }
+                        if ((now - itemTime.first) > maxCommandCatchup) {
+                            LogWarn(VB_SCHEDULE,
+                                    "Scheduled command '%s' skipped, %ld seconds late (catch-up cap is %ld s)\n",
+                                    item.command.c_str(), (long)(now - itemTime.first),
+                                    (long)maxCommandCatchup);
+                            SetItemRan(item, true);
+                            continue;
                         }
                         doScheduledCommand(itemTime.first, item);
                     }
@@ -751,6 +732,14 @@ void Scheduler::CheckScheduledItems(bool restarted) {
         RunPlayerActions(actions);
         RunCountdownPresets(presets);
     } while (!actions.empty());
+
+    // Advance the command catch-up window past every second this call examined.
+    // Done once, after all rescans, so each rescan judges commands against the
+    // same window; within a call the item.ran flag prevents a second firing.
+    // Left unchanged if the clock ran backwards so the window never moves ahead
+    // of the wall clock.
+    if (now > m_lastCommandCheckTime)
+        m_lastCommandCheckTime = now;
 }
 
 void Scheduler::ClearScheduledItems() {

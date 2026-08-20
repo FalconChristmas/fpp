@@ -144,6 +144,16 @@ private:
 
     time_t m_lastProcTime;
 
+    // The wall-clock second CheckScheduledItems last finished examining for
+    // scheduled FPP commands.  A command fires when its second falls in the
+    // (m_lastCommandCheckTime, now] window not yet examined, so a missed second
+    // (a slow midnight reload, an NTP step, a stalled main loop) still fires it
+    // on the next pass instead of dropping it silently.  A per-pass catch-up
+    // cap keeps a large forward clock step from replaying a batch of stale
+    // commands.  Playlists need no such window - they already tolerate a late
+    // start by checking their own end time.
+    time_t m_lastCommandCheckTime;
+
     // Lock ordering: m_scheduleLock may be taken while holding no other lock,
     // or from inside Playlist's m_playlistMutex (a playlist entry can run an
     // FPP Command inline, and several of those call back into the scheduler).
