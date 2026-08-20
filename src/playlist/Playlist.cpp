@@ -1065,6 +1065,22 @@ int Playlist::FileHasBeenModified(void) {
     return 0;
 }
 
+// Process() re-enters itself on this thread: after switching to an inserted
+// playlist it tail-calls `return pl->Process()` while the outer frame still
+// holds its own m_playlistMutex -- and that outer instance may already be on
+// PL_CLEANUPS.  Draining only in the outermost frame is what makes the
+// PL_CLEANUPS/PL_ENTRY_CLEANUPS promise ("freed after the stack has unwound")
+// true; without it the nested drain deletes the object whose mutex an outer
+// frame is about to unlock.
+static thread_local int tl_processDepth = 0;
+namespace {
+class ProcessDepthGuard {
+public:
+    ProcessDepthGuard() { tl_processDepth++; }
+    ~ProcessDepthGuard() { tl_processDepth--; }
+};
+} // namespace
+
 /*
  *
  */
@@ -1073,6 +1089,7 @@ int Playlist::Process(void) {
     time_t procTime = time(nullptr);
 
     PlaylistTransitionGuard guard;
+    ProcessDepthGuard depthGuard;
 
     // Process any background stream slots (2-5) — fire-and-forget media on secondary streams
     StreamSlotManager::Instance().ProcessBackgroundSlots();
@@ -1088,18 +1105,20 @@ int Playlist::Process(void) {
 
     // LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
 
-    if (!PL_CLEANUPS.empty()) {
-        PL_CLEANUPS.sort();
-        PL_CLEANUPS.unique();
-        while (!PL_CLEANUPS.empty()) {
-            Playlist* p = PL_CLEANUPS.front();
-            delete p;
-            PL_CLEANUPS.pop_front();
+    if (tl_processDepth == 1) {
+        if (!PL_CLEANUPS.empty()) {
+            PL_CLEANUPS.sort();
+            PL_CLEANUPS.unique();
+            while (!PL_CLEANUPS.empty()) {
+                Playlist* p = PL_CLEANUPS.front();
+                delete p;
+                PL_CLEANUPS.pop_front();
+            }
         }
-    }
-    while (!PL_ENTRY_CLEANUPS.empty()) {
-        delete PL_ENTRY_CLEANUPS.front();
-        PL_ENTRY_CLEANUPS.pop_front();
+        while (!PL_ENTRY_CLEANUPS.empty()) {
+            delete PL_ENTRY_CLEANUPS.front();
+            PL_ENTRY_CLEANUPS.pop_front();
+        }
     }
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (m_currentSectionStr == "New") {
@@ -1138,7 +1157,8 @@ int Playlist::Process(void) {
     Playlist* pl = nullptr;
     if (m_currentSection->at(m_sectionPosition)->IsPaused() && ((pl = SwitchToInsertedPlaylist()) != nullptr)) {
         std::unique_lock<std::recursive_mutex> lck(pl->m_playlistMutex);
-        pl->Start();
+        // SwitchToInsertedPlaylist() already started pl (via PlayImpl) --
+        // starting it again would replay its first entry.
         return pl->Process();
     }
 
@@ -1184,7 +1204,6 @@ int Playlist::Process(void) {
         }
         if (m_stopAtPos != -1 && m_stopAtPos <= (GetPosition() - 1)) {
             if ((pl = SwitchToInsertedPlaylist(true)) != nullptr) {
-                pl->Start();
                 return pl->Process();
             }
             LogDebug(VB_PLAYLIST, "Stopping after end position\n");
@@ -1192,7 +1211,6 @@ int Playlist::Process(void) {
             return 1;
         }
         if ((pl = SwitchToInsertedPlaylist(WillStopAfterCurrent())) != nullptr) {
-            pl->Start();
             return pl->Process();
         }
 
@@ -1351,28 +1369,37 @@ bool Playlist::WillStopAfterCurrent() {
 
 Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
     if (m_insertedPlaylist != "") {
-        Playlist* pl;
-        if (isStopping && m_parent) {
-            // we are exiting so there is no point wasting our memory on the stack of playlists
-            // so we'll point the new playlists parent at our parent and then cleanup ourselves
-            PL_CLEANUPS.push_back(this);
-            pl = new Playlist(m_parent);
-            m_parent = nullptr;
-        } else {
-            pl = new Playlist(this);
-        }
+        // We are exiting, so there is no point wasting our memory on the stack
+        // of playlists: the new playlist takes our place by inheriting our
+        // parent, and we clean ourselves up once it is known to be running.
+        bool replaceSelf = isStopping && m_parent;
+        Playlist* pl = new Playlist(replaceSelf ? m_parent : this);
         std::string plname = m_insertedPlaylist;
         // PlayImpl, not Play: this runs inside the parent's transition
         // (depth > 1) and the child MUST start inline as part of the switch —
         // the public Play() would defer it.
         pl->PlayImpl(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition, 0, m_scheduleEntry, m_insertedPlaylistEndPosition);
         m_insertedPlaylist = "";
+        // An instance is condemned to PL_CLEANUPS only once it is no longer
+        // the global `playlist` — the drain deletes unconditionally, so
+        // condemning the instance the player is still running frees it out
+        // from under the next Process() tick.  That is why the cleanup of
+        // `this` waits until the replacement is known to be playing.
         if (pl->IsPlaying()) {
-            LogDebug(VB_PLAYLIST, "Switching to inserted playlist '%s'\n", m_insertedPlaylist.c_str());
+            LogDebug(VB_PLAYLIST, "Switching to inserted playlist '%s'\n", plname.c_str());
             playlist = pl;
+            if (replaceSelf) {
+                m_parent = nullptr;
+                PL_CLEANUPS.push_back(this);
+            }
             return playlist;
-        } else {
-            PL_CLEANUPS.push_back(pl);
+        }
+        PL_CLEANUPS.push_back(pl);
+        if (replaceSelf && playlist != this) {
+            // pl failed to start and its own SetIdle() already handed the
+            // global on to our parent, so nothing will process us again.
+            m_parent = nullptr;
+            PL_CLEANUPS.push_back(this);
         }
     }
     return nullptr;
