@@ -50,6 +50,14 @@ var _wsWarningInfo = [];
 var _systemWarnings = [];
 var _systemWarningInfo = [];
 
+// Bumped every time this page sets restartFlag/rebootFlag locally.  A status
+// response carries the value PHP read out of /media/settings when the request
+// started, so one that was already in flight when the page changed a flag is
+// older than what we know and has to be discarded -- otherwise saving a setting
+// while a poll is outstanding hides the banner it just raised.  See
+// applyServerRestartRebootFlags().
+var gblRestartRebootFlagEpoch = 0;
+
 // Track fppd running state across status callbacks to detect a restart
 // transition (not-running → running), at which point we re-fetch the
 // command list and refresh the page if it has changed (e.g. plugin
@@ -6553,6 +6561,7 @@ function setTopScrollText (text = 'Top') {
 }
 
 function ClearRestartFlag () {
+	gblRestartRebootFlagEpoch++;
 	settings['restartFlag'] = 0;
 	SetSetting('restartFlag', 0, 0, 0);
 }
@@ -6563,11 +6572,13 @@ function SetRestartFlag (newValue) {
 	// 2 - quick restart is OK
 	if (newValue == 2 && settings['restartFlag'] == 1) return;
 
+	gblRestartRebootFlagEpoch++;
 	settings['restartFlag'] = newValue;
 	SetSetting('restartFlag', newValue, newValue, 0);
 }
 
 function ClearRebootFlag () {
+	gblRestartRebootFlagEpoch++;
 	settings['rebootFlag'] = 0;
 	SetSetting('rebootFlag', 0, 0, 0);
 }
@@ -6577,8 +6588,44 @@ function SetRebootFlag () {
 		// no reboot on MacOS, just restart
 		SetRestartFlag(2);
 	} else {
+		gblRestartRebootFlagEpoch++;
 		settings['rebootFlag'] = 1;
 		SetSettingReboot('rebootFlag', 1);
+	}
+}
+
+/*
+ * Copy the restart/reboot flags out of a status response into settings[] and
+ * refresh the banners.
+ *
+ * Only api/system/status produces these two fields -- fppd's own status (and so
+ * the WebSocket push) has never carried them.  They therefore refresh at the
+ * PHP poll's cadence, which in WebSocket mode is gblSystemAugRefreshSeconds
+ * (30s), and must only be applied when a response actually delivered them.
+ * Applying whatever happens to be sitting in the merged lastStatusJSON cache on
+ * every WebSocket tick instead re-asserts a value up to 30s old once a second,
+ * which showed up as the restart banner flashing and vanishing right after a
+ * setting was saved.
+ *
+ * `epoch` is gblRestartRebootFlagEpoch as of when the request was issued; a
+ * mismatch means the page changed a flag while this response was in flight, so
+ * the response predates the change and is dropped.
+ */
+function applyServerRestartRebootFlags (response, epoch) {
+	if (!response || typeof settings === 'undefined') return;
+	if (epoch !== gblRestartRebootFlagEpoch) return;
+
+	var applied = false;
+	if (response.rebootFlag != undefined) {
+		settings['rebootFlag'] = response.rebootFlag;
+		applied = true;
+	}
+	if (response.restartFlag != undefined) {
+		settings['restartFlag'] = response.restartFlag;
+		applied = true;
+	}
+	if (applied) {
+		CheckRestartRebootFlags();
 	}
 }
 
@@ -12855,6 +12902,10 @@ function LoadSystemStatus () {
 	// doesn't overwrite the fresh pushed status with a stale copy.  Otherwise it
 	// fetches the full status exactly as before.
 	var wsActive = fppdWSConnected;
+	// This request is the only source of restartFlag/rebootFlag; snapshot the
+	// epoch so a flag the page sets while it is in flight wins over the older
+	// value this response will carry.
+	var flagEpoch = gblRestartRebootFlagEpoch;
 	$.ajax({
 		url: wsActive ? 'api/system/status?systemonly=1' : 'api/system/status',
 		dataType: 'json',
@@ -12863,6 +12914,7 @@ function LoadSystemStatus () {
 			if (wsActive && fppdWSConnected) {
 				// Augmentation only; merge onto the WebSocket-supplied base.
 				applySystemAugmentation(response);
+				applyServerRestartRebootFlags(response, flagEpoch);
 			} else if (!wsActive) {
 				// Full status (no WebSocket) -- original behavior.
 				_wsWarnings = response.warnings || [];
@@ -12872,6 +12924,7 @@ function LoadSystemStatus () {
 				lastStatusJSON = response;
 				lastStatus = response.status;
 				triggerStatusChangeFunctions();
+				applyServerRestartRebootFlags(response, flagEpoch);
 			}
 			// else: WS dropped mid-request; its close handler triggers a full
 			// reload, so this systemonly response (which lacks the fppd base) is
@@ -13400,17 +13453,12 @@ function RefreshHeaderBar () {
 		}
 	}
 
-	if (data.rebootFlag != undefined && typeof settings !== 'undefined') {
-		settings['rebootFlag'] = data.rebootFlag;
-	}
-
-	if (data.restartFlag != undefined && typeof settings !== 'undefined') {
-		settings['restartFlag'] = data.restartFlag;
-	}
-
-	if (data.rebootFlag != undefined || data.restartFlag != undefined) {
-		CheckRestartRebootFlags();
-	}
+	// restartFlag/rebootFlag are deliberately NOT read from lastStatusJSON here.
+	// This function runs on every status change, including each WebSocket push
+	// (~1/s), but those two fields only ever arrive from the PHP status poll --
+	// so reading them out of the merged cache re-applies a value up to
+	// gblSystemAugRefreshSeconds old at 1Hz.  applyServerRestartRebootFlags()
+	// applies them from the response that actually delivered them instead.
 }
 
 /*
