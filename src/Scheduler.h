@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <atomic>
 #include <map>
 #include "fpp-json.h"
 #include <mutex>
@@ -134,7 +135,9 @@ private:
                              std::vector<PlayerAction>& actions);
 
     bool m_schedulerDisabled;
-    bool m_loadSchedule;
+    // Set lock-free from ScheduleProc, ReloadScheduleFile and SetTimeDelta on
+    // different threads; atomic so those unsynchronized writes/reads are defined.
+    std::atomic<bool> m_loadSchedule;
     int m_lastLoadDate;
     int m_timeDelta;
     time_t m_timeDeltaThreshold;

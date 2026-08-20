@@ -95,8 +95,11 @@ void Scheduler::ScheduleProc(void) {
         (abs(timeDelta) > 5)) {
         m_loadSchedule = true;
 
-        // Cleanup any ran items older than 2 days
+        // Cleanup any ran items older than 2 days.  SetItemRan mutates m_ranItems
+        // under m_scheduleLock from HTTP/MQTT/detached command threads, so this
+        // prune has to hold the lock too.
         const time_t twoDaysAgo = time(NULL) - (2 * 24 * 60 * 60);
+        std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
         for (auto it = m_ranItems.begin(); it != m_ranItems.end(); /* in loop */) {
             if (it->first >= twoDaysAgo)
                 break;
