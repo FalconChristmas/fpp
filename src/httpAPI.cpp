@@ -227,10 +227,19 @@ void GetCurrentFPPDStatus(Json::Value& result) {
             secsElapsed = sequence->m_seqMSElapsed / 1000;
             secsRemaining = sequence->m_seqMSRemaining / 1000;
         }
-        if (mediaOutput) {
-            mediaFilename = mediaOutput->m_mediaFilename;
-            secsElapsed = mediaOutputStatus.secondsElapsed;
-            secsRemaining = mediaOutputStatus.secondsRemaining;
+        {
+            // CloseMediaOutput() deletes mediaOutput under mediaOutputLock at
+            // every media transition, and this status build runs on the HTTP
+            // threads, the drogon status-push timer and the warning notify
+            // thread. Copy the fields out under the lock rather than reading
+            // through the raw pointer while building the JSON. Nothing in here
+            // re-enters media code, so the hold is a string copy long.
+            std::unique_lock<std::mutex> lock(mediaOutputLock);
+            if (mediaOutput) {
+                mediaFilename = mediaOutput->m_mediaFilename;
+                secsElapsed = mediaOutputStatus.secondsElapsed;
+                secsRemaining = mediaOutputStatus.secondsRemaining;
+            }
         }
 
         if (seqFilename != "" || mediaFilename != "") {
