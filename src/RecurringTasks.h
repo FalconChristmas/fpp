@@ -39,11 +39,6 @@ public:
     // match. Safe to call after the admin UI saves a new config.
     void Reload();
 
-    // Polls in-flight (async) task results to completion. Must be called
-    // once per main-loop iteration, same convention as
-    // CurlManager::INSTANCE.processCurls().
-    void tick();
-
     // Merges each configured task's settings with last-run bookkeeping
     // (lastRunMS/lastStatus/lastError), keyed by task name, for the admin
     // page's status column.
@@ -116,6 +111,11 @@ private:
                                          const std::string& betweenEnd, const std::string& regexPattern);
     void load();
     void startTimers();
+    // Polls in-flight (async) task results to completion. Driven by a
+    // self-re-arming one-shot Timers timer that exists only while m_pending
+    // is non-empty - see armPollTimer() in RecurringTasks.cpp.
+    void pollPending();
+    void armPollTimer();
     void runTask(const RecurringTask& task);
     void finish(PendingResult& pending);
     void recordStatus(const std::string& name, bool ok, const std::string& err);

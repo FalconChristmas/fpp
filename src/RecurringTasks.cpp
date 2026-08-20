@@ -38,6 +38,13 @@ static constexpr long long PENDING_RESULT_MAX_MS = 60000;
 // running - 30s is a more realistic floor for I/O-bound work.
 static constexpr long long MIN_TASK_INTERVAL_MS = 30000;
 
+// How often to re-check in-flight async Results while any are pending.
+// Results actually complete inside CurlManager::processCurls() (run every
+// main-loop iteration), so this only bounds how soon after completion the
+// value lands in its Variable - plenty fine against a 30s interval floor.
+static constexpr long long PENDING_POLL_MS = 100;
+static const std::string PENDING_POLL_TIMER_NAME = "RecurringTasks-pendingPoll";
+
 RecurringTasks RecurringTasks::INSTANCE;
 
 RecurringTasks::RecurringTasks() {
@@ -277,8 +284,26 @@ void RecurringTasks::runTask(const RecurringTask& task) {
         return;
     }
 
-    std::unique_lock<std::mutex> l(m_pendingLock);
-    m_pending.push_back(std::move(pending));
+    {
+        std::unique_lock<std::mutex> l(m_pendingLock);
+        m_pending.push_back(std::move(pending));
+    }
+    armPollTimer();
+}
+
+// A one-shot (not periodic) timer that pollPending() re-arms itself while
+// work remains: a periodic timer would have to stop itself from inside its
+// own callback, and Timers::stopPeriodicTimer() deletes the TimerInfo -
+// including the std::function currently executing - out from under it. A
+// one-shot is removed from the timer list before its callback runs and
+// deleted only after it returns, so re-adding under the same name from
+// within the callback is safe. Every push into m_pending is followed by an
+// arm on the same thread, so a poll can never be missed; at worst an arm
+// races an in-progress poll and the extra fire finds nothing to do.
+void RecurringTasks::armPollTimer() {
+    Timers::INSTANCE.addTimer(PENDING_POLL_TIMER_NAME, GetTimeMS() + PENDING_POLL_MS, [this]() {
+        pollPending();
+    });
 }
 
 void RecurringTasks::finish(PendingResult& pending) {
@@ -418,8 +443,9 @@ void RecurringTasks::reportStatus(Json::Value& root) {
     }
 }
 
-void RecurringTasks::tick() {
+void RecurringTasks::pollPending() {
     std::vector<PendingResult> toFinish;
+    bool morePending;
     {
         std::unique_lock<std::mutex> l(m_pendingLock);
         std::vector<PendingResult> stillPending;
@@ -435,6 +461,10 @@ void RecurringTasks::tick() {
             }
         }
         m_pending = std::move(stillPending);
+        morePending = !m_pending.empty();
+    }
+    if (morePending) {
+        armPollTimer();
     }
     for (auto& pending : toFinish) {
         if (pending.result->isDone()) {

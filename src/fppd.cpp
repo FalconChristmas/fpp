@@ -82,7 +82,6 @@
 #include "channeloutput/channeloutputthread.h"
 #include "channeltester/ChannelTester.h"
 #include "commands/Commands.h"
-#include "commands/IfCommand.h"
 #include "mediaoutput/AES67Manager.h"
 #include "mediaoutput/OpusRTPManager.h"
 #include "mediaoutput/MediaOutputBase.h"
@@ -1958,9 +1957,6 @@ void MainLoop(void) {
         Timers::INSTANCE.fireTimers();
         MAIN_LOOP_PHASE("curls");
         CurlManager::INSTANCE.processCurls();
-        MAIN_LOOP_PHASE("recurring tasks");
-        RecurringTasks::INSTANCE.tick();
-        IfCommand::tick();
         MAIN_LOOP_PHASE("GPIO inputs");
         GPIOManager::INSTANCE.CheckGPIOInputs();
     }

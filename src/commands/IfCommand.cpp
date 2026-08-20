@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 
 #include "Condition.h"
+#include "../Timers.h"
 #include "../common.h"
 #include "../log.h"
 
@@ -115,9 +116,10 @@ namespace
     // A Sequential Then/Else list that isn't finished yet - the next entry
     // in "remaining" starts as soon as "inFlight" (the currently-running
     // entry's Result) reports isDone(). Never blocks the thread that called
-    // If::run(): IfCommand::tick() (below) is what actually advances this,
-    // called once per fppd main-loop iteration, same as
-    // RecurringTasks::tick(). This is what replaces the old sleep-loop -
+    // If::run(): AdvancePendingChains() (below) is what actually advances
+    // this, driven by a self-re-arming one-shot Timers timer that exists
+    // only while chains are pending (same pattern as
+    // RecurringTasks::armPollTimer()). This replaces the old sleep-loop -
     // busy-waiting was fine from an HTTP handler thread, but If is also
     // reached synchronously from Sequence::SendSequenceData() (the
     // per-frame playback path, via a frame-triggered Command Preset) and
@@ -134,8 +136,29 @@ namespace
     // Sequential wait giving up after its own bounded poll used to.
     constexpr long long PENDING_CHAIN_MAX_MS = 60000;
 
+    // How often to re-check an in-flight entry's Result while chains are
+    // pending - roughly the old worst-case advance latency, when the fppd
+    // main loop called a tick every iteration at up to 50ms sleeps.
+    constexpr long long PENDING_POLL_MS = 50;
+
     std::mutex g_pendingLock;
     std::vector<PendingChain> g_pendingChains;
+
+    void AdvancePendingChains();
+
+    // One-shot rather than periodic for the same reason as
+    // RecurringTasks::armPollTimer(): a periodic timer stopping itself from
+    // inside its own callback would delete the std::function currently
+    // executing. Every push into g_pendingChains is followed by an arm on
+    // the same thread (RunCommandList runs on arbitrary threads - HTTP
+    // handlers, GPIO edges, the frame path - and Timers::addTimer is
+    // thread-safe), so an advance can never be missed; at worst an arm
+    // races an in-progress advance and the extra fire finds nothing to do.
+    void ArmChainPollTimer() {
+        Timers::INSTANCE.addTimer("IfCommand-pendingChains", GetTimeMS() + PENDING_POLL_MS, []() {
+            AdvancePendingChains();
+        });
+    }
 
     // Starts chain.remaining.front() (removing it from the queue) as the new
     // inFlight entry, or clears inFlight if the chain is exhausted - the
@@ -192,45 +215,51 @@ namespace
                 return; // fully drained synchronously
             }
         }
-        std::unique_lock<std::mutex> l(g_pendingLock);
-        g_pendingChains.push_back(std::move(chain));
+        {
+            std::unique_lock<std::mutex> l(g_pendingLock);
+            g_pendingChains.push_back(std::move(chain));
+        }
+        ArmChainPollTimer();
+    }
+
+    void AdvancePendingChains() {
+        std::vector<PendingChain> toAdvance;
+        {
+            std::unique_lock<std::mutex> l(g_pendingLock);
+            if (g_pendingChains.empty()) {
+                return;
+            }
+            toAdvance = std::move(g_pendingChains);
+            g_pendingChains.clear();
+        }
+        std::vector<PendingChain> stillPending;
+        for (auto& chain : toAdvance) {
+            bool timedOut = (GetTimeMS() - chain.startTimeMS) > PENDING_CHAIN_MAX_MS;
+            if (timedOut && chain.inFlight && !chain.inFlight->isDone()) {
+                LogWarn(VB_COMMAND, "If: a Sequential command did not finish within %lldms, abandoning the rest of its chain\n",
+                        PENDING_CHAIN_MAX_MS);
+                continue; // drop the whole chain, same as RecurringTasks giving up on a hung task
+            }
+            while (chain.inFlight && chain.inFlight->isDone() && !chain.remaining.empty()) {
+                StartNextEntry(chain);
+            }
+            if (chain.inFlight && !chain.inFlight->isDone()) {
+                stillPending.push_back(std::move(chain));
+            }
+            // else: inFlight finished and remaining is empty - chain is done, drop it.
+        }
+        if (!stillPending.empty()) {
+            {
+                std::unique_lock<std::mutex> l(g_pendingLock);
+                for (auto& chain : stillPending) {
+                    g_pendingChains.push_back(std::move(chain));
+                }
+            }
+            ArmChainPollTimer();
+        }
     }
 
 } // namespace
-
-void IfCommand::tick() {
-    std::vector<PendingChain> toAdvance;
-    {
-        std::unique_lock<std::mutex> l(g_pendingLock);
-        if (g_pendingChains.empty()) {
-            return;
-        }
-        toAdvance = std::move(g_pendingChains);
-        g_pendingChains.clear();
-    }
-    std::vector<PendingChain> stillPending;
-    for (auto& chain : toAdvance) {
-        bool timedOut = (GetTimeMS() - chain.startTimeMS) > PENDING_CHAIN_MAX_MS;
-        if (timedOut && chain.inFlight && !chain.inFlight->isDone()) {
-            LogWarn(VB_COMMAND, "If: a Sequential command did not finish within %lldms, abandoning the rest of its chain\n",
-                    PENDING_CHAIN_MAX_MS);
-            continue; // drop the whole chain, same as RecurringTasks giving up on a hung task
-        }
-        while (chain.inFlight && chain.inFlight->isDone() && !chain.remaining.empty()) {
-            StartNextEntry(chain);
-        }
-        if (chain.inFlight && !chain.inFlight->isDone()) {
-            stillPending.push_back(std::move(chain));
-        }
-        // else: inFlight finished and remaining is empty - chain is done, drop it.
-    }
-    if (!stillPending.empty()) {
-        std::unique_lock<std::mutex> l(g_pendingLock);
-        for (auto& chain : stillPending) {
-            g_pendingChains.push_back(std::move(chain));
-        }
-    }
-}
 
 std::unique_ptr<Command::Result> IfCommand::run(const std::vector<std::string>& args) {
     if (args.size() < 5) {

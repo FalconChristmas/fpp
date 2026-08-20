@@ -26,13 +26,10 @@ public:
     IfCommand();
     virtual ~IfCommand() {}
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
-    // Advances any in-progress Sequential Then/Else command chains - called
-    // once per fppd main-loop iteration (fppd.cpp), same as
-    // RecurringTasks::INSTANCE.tick(). See RunCommandList in IfCommand.cpp
-    // for why this exists: Sequential mode used to sleep-loop on whichever
-    // thread called If::run(), which is fine from an HTTP handler but not
-    // from a frame-triggered Command Preset or a GPIO edge handler - both
-    // call CommandManager::run() synchronously on threads a lighting
-    // player can't afford to stall.
-    static void tick();
+    // In-progress Sequential Then/Else command chains are advanced by a
+    // self-re-arming Timers timer that exists only while chains are pending
+    // - see AdvancePendingChains() in IfCommand.cpp for why Sequential
+    // never waits on the calling thread: If is reached synchronously from
+    // frame-triggered Command Presets and GPIO edge handlers, threads a
+    // lighting player can't afford to stall.
 };
