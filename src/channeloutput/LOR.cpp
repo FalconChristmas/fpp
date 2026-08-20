@@ -30,6 +30,11 @@
 #define LOR_HEARTBEAT_SIZE 5
 #define LOR_MAX_CHANNELS 3840
 
+// A frame can change every channel, so the worst case is LOR_MAX_CHANNELS
+// intensity commands (23040 bytes).  The batch is flushed in chunks of at most
+// this size so a single write() is never handed more than the tty can queue.
+#define LOR_MAX_BATCH_SIZE 4096
+
 /////////////////////////////////////////////////////////////////////////////
 
 class LOROutputData : public SerialChannelOutput {
@@ -38,7 +43,8 @@ public:
         SerialChannelOutput(),
         speed(19200),
         controllerOffset(0),
-        lastHeartbeat(0) {
+        lastHeartbeat(0),
+        batchLen(0) {
         memset(lastValue, 0, LOR_MAX_CHANNELS);
         memset(intensityData, 0, LOR_INTENSITY_SIZE);
         memset(heartbeatData, 0, LOR_HEARTBEAT_SIZE);
@@ -52,6 +58,8 @@ public:
     unsigned char intensityData[LOR_INTENSITY_SIZE];
     unsigned char heartbeatData[LOR_HEARTBEAT_SIZE];
     char lastValue[LOR_MAX_CHANNELS];
+    unsigned char batchData[LOR_MAX_BATCH_SIZE];
+    int batchLen;
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -155,6 +163,13 @@ int LOROutput::Init(Json::Value config) {
     return ChannelOutput::Init(config);
 }
 
+static void LOR_FlushBatch(LOROutputData* privData) {
+    if (privData->batchLen) {
+        write(privData->getFD(), privData->batchData, privData->batchLen);
+        privData->batchLen = 0;
+    }
+}
+
 /*
  *
  */
@@ -192,11 +207,18 @@ int LOROutput::SendData(unsigned char* channelData) {
             data->intensityData[3] = data->intensityMap[channelData[i]];
             data->intensityData[4] = 0x80 | (i % 16);
 
-            write(data->getFD(), data->intensityData, LOR_INTENSITY_SIZE);
+            if ((data->batchLen + LOR_INTENSITY_SIZE) > LOR_MAX_BATCH_SIZE)
+                LOR_FlushBatch(data);
+
+            memcpy(&data->batchData[data->batchLen], data->intensityData, LOR_INTENSITY_SIZE);
+            data->batchLen += LOR_INTENSITY_SIZE;
 
             data->lastValue[i] = channelData[i];
         }
     }
+    // The heartbeat has always trailed the frame's intensity commands; flush
+    // before sending it so batching cannot reorder it ahead of them.
+    LOR_FlushBatch(data);
     LOR_SendHeartbeat(data);
     return m_channelCount;
 }

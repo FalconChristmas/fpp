@@ -114,6 +114,13 @@ int USBRelayOutput::Init(Json::Value config) {
         LogInfo(VB_CHANNELOUT, "Initializing CH340 USB Relay with %d channels\n", m_relayCount);
     }
 
+    // Sized here rather than above since ICStation detection can override the
+    // configured relay count.
+    if (m_relayCount > 0) {
+        m_lastState.assign(m_relayCount, -1);
+        m_outputBuffer.resize(m_relayCount * 4);
+    }
+
     return ChannelOutput::Init(config);
 }
 
@@ -126,23 +133,34 @@ int USBRelayOutput::Close(void) {
 int USBRelayOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "USBRelayOutput::RawSendData(%p)\n", channelData);
 
+    int len = 0;
+
     if (m_subType == RELAY_DVC_CH340) {
-        // CH340-specific logic: Send a 4-byte command for each relay to control its state
-        unsigned char cmd[4] = { 0xA0, 0, 0, 0 }; // Initialize the command array: byte 0 is the start flag (0xA0)
-        for (int i = 0; i < m_relayCount; i++) {  // Loop over each relay channel (1 to m_relayCount)
-            cmd[1] = i + 1;                       // Byte 1: Relay number (1-based: 1 to 8 for an 8-channel relay)
-            cmd[2] = channelData[i] ? 1 : 0;      // Byte 2: Relay state (1 for ON, 0 for OFF), based on channelData[i]
-            cmd[3] = cmd[0] + cmd[1] + cmd[2];    // Byte 3: Checksum, sum of bytes 0, 1, and 2
-            write(m_fd, cmd, 4);                  // Write the 4-byte command to the serial device (m_fd) to control the relay
+        // CH340-specific logic: Send a 4-byte command for each relay to control its state.
+        // The relays latch, and a full refresh of 8 relays at 40fps is 1280 B/s
+        // through a 9600-baud (960 B/s) port, so only changed relays are sent.
+        for (int i = 0; i < m_relayCount; i++) { // Loop over each relay channel (1 to m_relayCount)
+            signed char state = channelData[i] ? 1 : 0;
+            if (m_lastState[i] == state)
+                continue;
+
+            unsigned char* cmd = &m_outputBuffer[len];
+            cmd[0] = 0xA0;                     // Byte 0: the start flag (0xA0)
+            cmd[1] = i + 1;                    // Byte 1: Relay number (1-based: 1 to 8 for an 8-channel relay)
+            cmd[2] = state;                    // Byte 2: Relay state (1 for ON, 0 for OFF), based on channelData[i]
+            cmd[3] = cmd[0] + cmd[1] + cmd[2]; // Byte 3: Checksum, sum of bytes 0, 1, and 2
+            len += 4;
+
+            m_lastState[i] = state;
         }
     } else {
         // Non-CH340 (Bit or ICStation) logic: Send data as a bitstream, 8 bits per byte
-        char out = 0x00;
+        unsigned char out = 0x00;
         int shiftBits = 0;
 
         for (int i = 0; i < m_relayCount; i++) {
             if ((i > 0) && ((i % 8) == 0)) {
-                write(m_fd, &out, 1);
+                m_outputBuffer[len++] = out;
                 out = 0x00;
                 shiftBits = 0;
             }
@@ -152,8 +170,11 @@ int USBRelayOutput::SendData(unsigned char* channelData) {
         }
 
         if (shiftBits)
-            write(m_fd, &out, 1);
+            m_outputBuffer[len++] = out;
     }
+
+    if (len)
+        write(m_fd, m_outputBuffer.data(), len); // Write the frame's commands to the serial device (m_fd)
 
     return m_relayCount;
 }

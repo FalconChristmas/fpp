@@ -12,6 +12,7 @@
  */
 
 #include <string>
+#include <vector>
 #include "fpp-json-fwd.h"
 
 #include "ChannelOutput.h"
@@ -41,4 +42,13 @@ private:
 
     RelayType m_subType;
     int m_relayCount;
+
+    // CH340 only.  -1 means "unknown", so the first frame transmits every relay
+    // even if it is asking for the off state.
+    std::vector<signed char> m_lastState;
+
+    // One frame's worth of commands, sized for the worst case of every relay
+    // changing (4 bytes each), which also covers the bitstream path's 1 byte
+    // per 8 relays.
+    std::vector<unsigned char> m_outputBuffer;
 };
