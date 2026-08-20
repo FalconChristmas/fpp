@@ -269,13 +269,22 @@ int X11PanelMatrixOutput::Close(void) {
     return ThreadedChannelOutput::Close();
 }
 
+// The submatrix overlay has to see the whole sequence buffer: a submatrix
+// names its source and its enable flag by absolute channel, and those live
+// outside this output's own range.  RawSendData only ever gets the double
+// buffered copy of this output's channels, so the overlay belongs here, on the
+// absolute buffer, which is where the other Matrix users do it too.
+void X11PanelMatrixOutput::PrepData(unsigned char* channelData) {
+    LogExcess(VB_CHANNELOUT, "X11PanelMatrixOutput::PrepData(%p)\n", channelData);
+    m_matrix->OverlaySubMatrices(channelData);
+}
+
 /*
  *
  */
 int X11PanelMatrixOutput::RawSendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "X11PanelMatrixOutput::RawSendData(%p)\n",
               channelData);
-    m_matrix->OverlaySubMatrices(channelData);
 
     unsigned char r;
     unsigned char g;
@@ -283,7 +292,8 @@ int X11PanelMatrixOutput::RawSendData(unsigned char* channelData) {
     unsigned char* c;
     unsigned int stride = m_scaleWidth * 4;
 
-    channelData += m_startChannel;
+    // channelData is this output's channels only, already based at its start
+    // channel, and the panel pixel maps are relative to that same base
 
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();

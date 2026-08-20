@@ -33,6 +33,7 @@ public:
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
+    virtual void PrepData(unsigned char* channelData) override;
     virtual int RawSendData(unsigned char* channelData) override;
 
     virtual void DumpConfig(void) override;
@@ -53,8 +54,8 @@ private:
     int m_longestChain;
     int m_invertedData;
 
-    Matrix* m_matrix;
-    PanelMatrix* m_panelMatrix;
+    Matrix* m_matrix = nullptr;
+    PanelMatrix* m_panelMatrix = nullptr;
 
     uint8_t m_gammaCurve[256];
 
