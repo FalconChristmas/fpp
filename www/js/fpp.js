@@ -40,6 +40,11 @@ var fppdWSReconnectDelay = 1000; // ms, backoff up to 30s
 var fppdWSReconnectTimer = null;
 var fppdWSLastMsgTime = 0;
 var fppdWSWatchdog = null;
+// Latest snapshot received while the page was hidden.  A hidden tab keeps the
+// socket open (so it is instantly up to date when the user comes back) but skips
+// the statusChangeFuncs/DOM work for every push; this holds the last one so the
+// page can catch up in a single pass on the way back to visible.
+var fppdWSPendingStatus = null;
 var gblSystemAugRefreshSeconds = 30; // WS-mode PHP poll interval for the augmentation
 // Warnings have two independent sources that must be unioned for display: fppd's
 // live warnings (over the WS) and PHP's warnings (crash report / "fppd Not
@@ -8286,13 +8291,26 @@ function bindVisibilityListener () {
 }
 
 function handleVisibilityChange () {
-	if (isHidden() && statusTimeout != null) {
-		clearTimeout(statusTimeout);
-		statusTimeout = null;
-	} else {
-		LoadSystemStatus();
-		// GetFPPStatus();
+	if (isHidden()) {
+		if (statusTimeout != null) {
+			clearTimeout(statusTimeout);
+			statusTimeout = null;
+		}
+		return;
 	}
+	// Visible again.  Apply the most recent snapshot the WebSocket delivered
+	// while we were hidden (its DOM work was deliberately skipped) so the page is
+	// current before the poll round-trip, then restart the poll loop.
+	// LoadSystemStatus() picks its own URL and cadence from fppdWSConnected, so
+	// this resumes the cheap ?systemonly=1 augmentation poll when the socket is
+	// up and the full status poll when it is not.
+	if (fppdWSPendingStatus) {
+		var pending = fppdWSPendingStatus;
+		fppdWSPendingStatus = null;
+		applyWsStatus(pending);
+	}
+	LoadSystemStatus();
+	// GetFPPStatus();
 }
 
 // syntaxHighlight() from
@@ -12915,8 +12933,13 @@ function LoadSystemStatus () {
 				// Augmentation only; merge onto the WebSocket-supplied base.
 				applySystemAugmentation(response);
 				applyServerRestartRebootFlags(response, flagEpoch);
-			} else if (!wsActive) {
-				// Full status (no WebSocket) -- original behavior.
+			} else if (!wsActive && !fppdWSConnected) {
+				// Full status (no WebSocket) -- original behavior.  Both the
+				// captured and the live flag have to be clear: if the socket
+				// connected and pushed while this request was in flight, this
+				// response is the older copy and applying it would replace the
+				// fresher pushed status and wipe _wsWarnings (a warning would
+				// blink out until the next slow poll).
 				_wsWarnings = response.warnings || [];
 				_wsWarningInfo = response.warningInfo || [];
 				_systemWarnings = [];
@@ -12926,9 +12949,12 @@ function LoadSystemStatus () {
 				triggerStatusChangeFunctions();
 				applyServerRestartRebootFlags(response, flagEpoch);
 			}
-			// else: WS dropped mid-request; its close handler triggers a full
-			// reload, so this systemonly response (which lacks the fppd base) is
-			// intentionally ignored.
+			// else the socket changed state while the request was in flight, and
+			// either way the response is dropped: it dropped (this systemonly
+			// response lacks the fppd base, and the close handler already
+			// triggered a full reload), or it connected (this full response is
+			// older than the status already pushed, and the transition's own
+			// immediate systemonly poll re-fetches the augmentation).
 		},
 		complete: function () {
 			clearTimeout(statusTimeout);
@@ -12949,13 +12975,44 @@ function mergeWarningsInto (obj) {
 	obj.warningInfo = _wsWarningInfo.concat(_systemWarningInfo);
 }
 
+// The keys api/system/status adds on top of fppd's own /fppd/status payload --
+// see finalizeStatusJson() in www/api/controllers/system.php.  fppd's WebSocket
+// snapshot carries none of them, so these are exactly the keys that have to
+// survive a snapshot; everything else in lastStatusJSON is fppd-owned.
+// warnings/warningInfo are deliberately NOT listed: both sources produce them
+// and mergeWarningsInto() reassembles them from _wsWarnings/_systemWarnings.
+var STATUS_AUGMENTATION_KEYS = [
+	'advancedView',
+	'wifi',
+	'interfaces',
+	'rebootFlag',
+	'restartFlag',
+	'bootDelayActive',
+	'bootDelayStart',
+	'bootDelayDuration',
+	'pluginHeaderIndicators'
+];
+
 // A status snapshot pushed by fppd over the WebSocket.
 function applyWsStatus (status) {
 	if (!status || typeof status !== 'object') return;
-	if (!lastStatusJSON) lastStatusJSON = {};
+	// Rebuild rather than merge.  fppd emits a number of keys only conditionally
+	// -- breadcrumbs only while a nested playlist runs, the media/sequence and
+	// milliseconds_elapsed fields only while playing, others per mode -- so
+	// merging each snapshot into the previous object leaves the last value of
+	// each key in place forever.  That rendered a stale "(Main -> ...)"
+	// breadcrumb label in the player status heading long after the nested
+	// playlist ended.  The snapshot therefore replaces the whole fppd-owned
+	// object and only the PHP augmentation above is carried across.
+	var rebuilt = Object.assign({}, status);
+	if (lastStatusJSON) {
+		STATUS_AUGMENTATION_KEYS.forEach(function (key) {
+			if (key in lastStatusJSON) rebuilt[key] = lastStatusJSON[key];
+		});
+	}
 	_wsWarnings = status.warnings || [];
 	_wsWarningInfo = status.warningInfo || [];
-	Object.assign(lastStatusJSON, status);
+	lastStatusJSON = rebuilt;
 	mergeWarningsInto(lastStatusJSON);
 	lastStatus = status.status;
 	triggerStatusChangeFunctions();
@@ -12991,46 +13048,83 @@ function startFppdWS () {
 	// path (e.g. /proxy/<ip>/fppdws) correctly - it just never receives one.
 	var pathPrefix = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
 	var url = proto + '//' + window.location.host + pathPrefix + 'fppdws';
+	// Detach the socket being replaced.  Belt and suspenders for the generation
+	// check below: an abandoned socket is unreachable once nothing points at its
+	// handlers, but the check is what makes a late event harmless either way.
+	if (fppdWS) {
+		fppdWS.onopen = null;
+		fppdWS.onmessage = null;
+		fppdWS.onclose = null;
+		fppdWS.onerror = null;
+	}
+	var sock;
 	try {
-		fppdWS = new WebSocket(url);
+		sock = new WebSocket(url);
 	} catch (e) {
 		scheduleFppdWSReconnect();
 		return;
 	}
-	fppdWS.onopen = function () {
+	fppdWS = sock;
+	// Every handler below is bound to the socket generation that installed it.
+	// The watchdog abandons a wedged socket by calling close() and reconnecting,
+	// but a closing handshake can take a TCP timeout to complete: the old
+	// socket's onclose then fires long after the new one is live, and without
+	// this check it would tear down the NEW connection's state and clear its
+	// watchdog -- which only onopen restarts -- leaving the page showing frozen
+	// status forever while still claiming to be WebSocket-fed.
+	sock.onopen = function () {
+		if (sock !== fppdWS) return;
 		fppdWSReconnectDelay = 1000;
 		fppdWSLastMsgTime = Date.now();
 		// Connected marker is set on the first message (proves data actually
 		// flows through the proxy, not just that the handshake completed).
 		startFppdWSWatchdog();
 	};
-	fppdWS.onmessage = function (evt) {
+	sock.onmessage = function (evt) {
+		if (sock !== fppdWS) return;
+		// Any frame proves the transport is alive, so the watchdog clock resets
+		// before the payload is even looked at.
 		fppdWSLastMsgTime = Date.now();
-		var wasConnected = fppdWSConnected;
-		fppdWSConnected = true;
 		var msg;
 		try {
 			msg = JSON.parse(evt.data);
 		} catch (e) {
 			return;
 		}
-		if (msg && msg.type === 'snapshot' && msg.data && msg.data.status) {
+		if (!msg || msg.type !== 'snapshot' || !msg.data || !msg.data.status) return;
+		// Only a parsed status snapshot may flip the page into WebSocket-fed
+		// mode.  Setting the flag on any received frame instead means a garbage
+		// or future non-snapshot frame switches the poll to ?systemonly=1 -- and
+		// skips the immediate poll below -- while the page has no fppd status
+		// base at all.
+		var wasConnected = fppdWSConnected;
+		fppdWSConnected = true;
+		if (isHidden()) {
+			// Hidden tab: keep the socket (so the page is current the instant it
+			// comes back) but skip the status callbacks -- dozens of jQuery
+			// operations per second against a document nobody is looking at.
+			// handleVisibilityChange() applies this on the way back to visible.
+			fppdWSPendingStatus = msg.data.status;
+		} else {
 			applyWsStatus(msg.data.status);
 		}
-		if (!wasConnected) {
+		if (!wasConnected && !isHidden()) {
 			// Just transitioned to WS-fed.  Poll the augmentation once
 			// immediately (now that fppdWSConnected is set, this fetches
 			// ?systemonly=1) so advancedView and the PHP-sourced crash-report
 			// warning populate right away instead of blinking out until the
 			// first slow poll; subsequent polls settle to the slow cadence.
+			// While hidden there is no poll timer to preserve and nothing to
+			// render, so the augmentation waits for the visibility handler.
 			clearTimeout(statusTimeout);
 			LoadSystemStatus();
 		}
 	};
-	fppdWS.onclose = function () {
+	sock.onclose = function () {
+		if (sock !== fppdWS) return;
 		handleFppdWSDown();
 	};
-	fppdWS.onerror = function () {
+	sock.onerror = function () {
 		// onclose fires after onerror; let it do the teardown.
 	};
 }
@@ -13060,10 +13154,16 @@ function handleFppdWSDown () {
 	// Drop the fppd-sourced warnings; the full poll below re-supplies everything.
 	_wsWarnings = [];
 	_wsWarningInfo = [];
-	if (wasConnected) {
+	// Anything buffered for a hidden tab predates the drop, so the full poll is
+	// the authority now.
+	fppdWSPendingStatus = null;
+	if (wasConnected && !isHidden()) {
 		// Fall back to the full status poll immediately so the fppd half (and,
 		// if fppd itself is down, the "Not Running" state) refreshes without
-		// waiting out the slow cadence.
+		// waiting out the slow cadence.  Not while hidden: polling is stopped
+		// there, and starting it here would resurrect it permanently (the
+		// response reschedules itself) in a tab nobody is looking at.
+		// handleVisibilityChange() runs this poll when the page comes back.
 		clearTimeout(statusTimeout);
 		LoadSystemStatus();
 	}
@@ -13081,7 +13181,17 @@ function scheduleFppdWSReconnect () {
 
 function triggerStatusChangeFunctions () {
 	statusChangeFuncs.forEach(func => {
-		func();
+		// One consumer must not be able to kill the chain.  These callbacks run
+		// against whatever the current status source supplied, and the WebSocket
+		// and PHP payloads do not carry the same key set -- a consumer that
+		// dereferences a key only one of them has throws, and an uncaught throw
+		// here skips every remaining callback for that tick and propagates back
+		// into the WebSocket onmessage handler.
+		try {
+			func();
+		} catch (e) {
+			console.error('Status change callback failed:', e);
+		}
 	});
 }
 
@@ -13441,7 +13551,11 @@ function RefreshHeaderBar () {
 		);
 	}
 
-	if (data.advancedView.HostDescription) {
+	// advancedView comes only from the PHP status poll, never from the WebSocket
+	// push, so it is legitimately absent on every snapshot that arrives before
+	// the first poll lands.  Leave the tooltip at whatever the last poll set
+	// rather than throwing (or clearing it once a second).
+	if (data.advancedView && data.advancedView.HostDescription) {
 		var hostDetails =
 			'Host: ' +
 			data.advancedView.HostName +
