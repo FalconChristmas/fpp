@@ -63,6 +63,9 @@ ModelPixelStringsOutput::~ModelPixelStringsOutput() {
 
     if (buffer)
         free(buffer);
+
+    if (prepBuffer)
+        free(prepBuffer);
 }
 
 /*
@@ -94,22 +97,42 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
         Json::Value s = config["outputs"][i];
         PixelString* newString = new PixelString();
 
-        if (!newString->Init(s))
-            return 0;
-
-        if ((newString->m_outputBytes / 3) <= model->getWidth()) {
-            strings.push_back(newString);
-        } else {
+        if (!newString->Init(s)) {
             delete newString;
+            return 0;
+        }
 
+        if ((newString->m_outputBytes / 3) > model->getWidth()) {
             LogErr(VB_CHANNELOUT, "ERROR, string length of %d is too long for model width of %d\n",
                    (newString->m_outputBytes / 3), model->getWidth());
+            delete newString;
+        } else if (strings.size() >= (size_t)model->getHeight()) {
+            // PrepData lays one string per model row, so a string past the last
+            // row would write off the end of the buffer.
+            LogErr(VB_CHANNELOUT, "ERROR, more strings configured than the model height of %d\n",
+                   model->getHeight());
+            WarningHolder::AddWarning(35, "ModelPixelStringsOutput: model " + modelName + " has fewer rows than the configured strings");
+            delete newString;
+        } else {
+            strings.push_back(newString);
         }
     }
 
     LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", strings.size());
 
-    buffer = (unsigned char*)malloc(model->getWidth() * model->getHeight() * 3);
+    // setData() reads width*height*bytesPerPixel while PrepData writes 3 bytes
+    // per pixel, so the allocation has to cover whichever is larger.  Zeroed
+    // because only the rows that have a string are ever written.
+    size_t bufSize = (size_t)model->getWidth() * model->getHeight() *
+                     std::max(3, model->getBytesPerPixel());
+    buffer = (unsigned char*)calloc(1, bufSize);
+    prepBuffer = (unsigned char*)calloc(1, bufSize);
+    if (!buffer || !prepBuffer) {
+        LogErr(VB_CHANNELOUT, "ERROR, could not allocate %zu bytes for model '%s'\n",
+               bufSize, modelName.c_str());
+        WarningHolder::AddWarning(35, "ModelPixelStringsOutput: could not allocate buffers for model " + modelName);
+        return 0;
+    }
 
     return ThreadedChannelOutput::Init(config);
 }
@@ -148,10 +171,9 @@ void ModelPixelStringsOutput::GetRequiredChannelRanges(const std::function<void(
  *
  */
 void ModelPixelStringsOutput::PrepData(unsigned char* channelData) {
-    LogExcess(VB_CHANNELOUT, "ModelPixelStringsOutput::RawSendData(%p)\n", channelData);
+    LogExcess(VB_CHANNELOUT, "ModelPixelStringsOutput::PrepData(%p)\n", channelData);
 
-    unsigned char* c = channelData;
-    unsigned char* d = buffer;
+    unsigned char* d = prepBuffer;
     int stride = model->getWidth() * 3; // RGB
 
     PixelString* ps = NULL;
@@ -159,7 +181,7 @@ void ModelPixelStringsOutput::PrepData(unsigned char* channelData) {
 
     for (int s = 0; s < strings.size(); s++) {
         ps = strings[s];
-        d = buffer + (s * stride);
+        d = prepBuffer + (s * stride);
         inCh = 0;
 
         for (int p = 0, pix = 0; p < ps->m_outputBytes; pix++) {
@@ -168,9 +190,15 @@ void ModelPixelStringsOutput::PrepData(unsigned char* channelData) {
             *(d++) = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
         }
     }
+
+    // Publish the finished frame.  The worker touches `buffer` only under this
+    // lock, so what it hands to the model is never the frame being filled.
+    std::lock_guard<std::mutex> lock(bufferLock);
+    std::swap(buffer, prepBuffer);
 }
 
 int ModelPixelStringsOutput::RawSendData(unsigned char* channelData) {
+    std::lock_guard<std::mutex> lock(bufferLock);
     model->setData(buffer);
 
     return m_channelCount;

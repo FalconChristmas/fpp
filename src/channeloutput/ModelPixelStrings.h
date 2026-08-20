@@ -11,6 +11,7 @@
  * included LICENSE.GPL file.
  */
 
+#include <mutex>
 #include <vector>
 #include "fpp-json-fwd.h"
 
@@ -37,7 +38,13 @@ private:
     std::string modelName;
     PixelOverlayModel* model = nullptr;
 
+    // PrepData runs on the output thread and RawSendData on this output's
+    // worker, so the frame being filled and the frame being handed to the model
+    // have to be different allocations.  PrepData fills prepBuffer and swaps the
+    // two under bufferLock; the worker reads buffer under the same lock.
     unsigned char* buffer = nullptr;
+    unsigned char* prepBuffer = nullptr;
+    std::mutex bufferLock;
 
     std::vector<PixelString*> strings;
 };
