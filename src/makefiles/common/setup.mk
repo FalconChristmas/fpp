@@ -170,6 +170,11 @@ endif
 # If the mold or gold linker is availabe and we're using g++, we'll
 # go ahead and use it as it's MUCH faster (non-clang == g++, see note above)
 ifeq '$(findstring clang,$(CXXCOMPILER))' ''
+# Give every shared object an $ORIGIN RUNPATH: a dlopen()ed plugin resolves its
+# OWN dependencies (libfpp-co-GenericUDP needs libfpp-co-UDPOutput) through its
+# own RUNPATH, not the executable's -- without this, such a plugin only loads
+# if something else already pulled its dependency into the process.
+LDFLAGS += -Wl,-rpath,'$$ORIGIN'
 ifneq ($(wildcard /usr/bin/ld.mold),)
 # Use a wrapper ld.mold (via -B) that strips a harmless, un-suppressible
 # mimalloc over-allocation warning printed by mold's bundled allocator.
