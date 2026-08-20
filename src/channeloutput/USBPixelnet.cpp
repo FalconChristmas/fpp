@@ -83,6 +83,10 @@ int USBPixelnetOutput::Init(Json::Value config) {
         if (!setupSerialPort(config, 1000000, "8N2")) {
             return 0;
         }
+    } else {
+        LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown dongle type.\n");
+        WarningHolder::AddWarning(28, "USBPixelnet: Invalid Config.  Unknown dongle type.");
+        return 0;
     }
 
     if (m_dongleType == PIXELNET_DVC_LYNX) {
