@@ -25,10 +25,12 @@ HoldValueOutputProcessor::HoldValueOutputProcessor(const Json::Value& config) {
     count = config["count"].asInt();
     ProcessModelConfig(config, model, start, count);
 
-    LogInfo(VB_CHANNELOUT, "Hold Channel Values:   %d-%d, Model: %S\n",
+    LogInfo(VB_CHANNELOUT, "Hold Channel Values:   %d-%d, Model: %s\n",
             start + 1, start + count, model.c_str());
 
-    lastValues = new unsigned char[count];
+    // Zero means "hold", so an unset entry would substitute uninitialized memory
+    // for every channel that has not yet gone non-zero.
+    lastValues = new unsigned char[count]();
 }
 
 HoldValueOutputProcessor::~HoldValueOutputProcessor() {
