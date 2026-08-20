@@ -113,9 +113,15 @@ fpp-pch.h.gch: CFLAGS := $(CFLAGS)
 # %.o rule: they decide the flags.  A CFLAGS edit that rebuilds every object but
 # leaves the .gch alone leaves the two disagreeing on macro state, and gcc then
 # drops the PCH for the whole tree (loudly now, thanks to -Winvalid-pch, but
-# still for the rest of that tree's life).
-fpp-pch.h.gch: fpp-pch.h common.h settings.h Sequence.h fppversion.h log.h mqtt.h Warnings.h commands/Commands.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	CCACHE_NOHARDLINK=true CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
+# still for the rest of that tree's life).  The headers, by contrast, come from
+# $(DEPFLAGS) below: the hand-written list this replaced named only what
+# fpp-pch.h included at the time and nothing transitive, so it had already
+# drifted (fpp-json.h and Events.h are included directly and were both absent,
+# as was common_mini.h one level under common.h).  Editing one of those left
+# make reporting the .gch up to date, and every TU then compiled against the
+# stale declarations in it.
+fpp-pch.h.gch: fpp-pch.h Makefile makefiles/*.mk makefiles/platform/*.mk
+	CCACHE_NOHARDLINK=true CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 	shasum $(PCH_FILE) > $(PCH_FILE).sum
 endif
 
@@ -156,7 +162,7 @@ cleanfpp:
 # leave the PCH_FILE versions there so if a different filename contruct is used
 # in the future, it may be cleaned
 clean::
-	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(DEPFILES) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE) $(PCH_FILE).sum fpp-pch.h.gch fpp-pch.h.gch.sum
+	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(DEPFILES) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE) $(PCH_FILE).sum fpp-pch.h.gch fpp-pch.h.gch.sum fpp-pch.h.d
 
 restart: fppd
 	sudo ../scripts/fppd_stop
@@ -172,3 +178,7 @@ restart: fppd
 # drops the missing ones up front, and -include keeps a build working if one is
 # deleted by hand.
 -include $(wildcard $(DEPFILES))
+# The PCH's own dep file needs its own -include: gcc names it after the -o
+# argument with the suffix replaced, so it is fpp-pch.h.d, which $(DEPFILES) -
+# built from the object list - never matches.
+-include $(wildcard fpp-pch.h.d)
