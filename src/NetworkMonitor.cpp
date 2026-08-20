@@ -37,15 +37,19 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
     int nl_socket = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
     if (nl_socket < 0) {
         LogWarn(VB_GENERAL, "Could not create NETLINK socket.\n");
+        return;
     }
 
     struct sockaddr_nl addr;
+    memset(&addr, 0, sizeof(addr));
     addr.nl_family = AF_NETLINK;
     addr.nl_pid = getpid();
     addr.nl_groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR;
 
     if (bind(nl_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         LogWarn(VB_GENERAL, "Could not bind NETLINK socket.\n");
+        close(nl_socket);
+        return;
     }
     callbacks[nl_socket] = [nl_socket, this](int i) {
         int status;
