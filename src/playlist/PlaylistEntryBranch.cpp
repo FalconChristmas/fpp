@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 
+#include "../Player.h"
 #include "../common.h"
 #include "../log.h"
 
@@ -279,7 +280,7 @@ void PlaylistEntryBranch::SetNext(int isTrue) {
     if (GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Playlist) {
         std::string branchPlaylist = GetNextData();
         if (branchPlaylist != "") {
-            playlist->InsertPlaylistAsNext(branchPlaylist, 0, -1);
+            Player::INSTANCE.InsertPlaylistAsNext(branchPlaylist, 0, -1);
         }
     }
 }

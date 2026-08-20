@@ -14,6 +14,7 @@
 #include <atomic>
 #include "fpp-json.h"
 #include <list>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -187,8 +188,43 @@ private:
     std::vector<PlaylistEntryBase*>* m_currentSection;
 };
 
-// Temporary singleton during conversion
-extern Playlist* playlist;
+// Source-compatibility façade for the old `extern Playlist* playlist;` global.
+//
+// The player now owns its playlists through shared_ptr (see Player.h), so
+// nothing in-tree touches this: FPP's own code calls Player::INSTANCE, which
+// snapshots the current playlist per call.  External plugins, however, were
+// written against a raw global and dereference it as `playlist->Method(...)`.
+//
+// That expression still compiles, through two chained operator->s: PlaylistRef
+// hands back a PlaylistHandle holding a snapshot, and the handle's operator->
+// yields the raw pointer.  The handle is a temporary of the full expression, so
+// the snapshot — and therefore the instance — outlives the call even if the
+// main loop retires that playlist mid-call.  That makes the old plugin
+// expression lifetime-safe rather than merely still-compiling.
+//
+// ABI is NOT preserved (this used to be a pointer object); plugins are
+// recompiled against these headers at update, which is what makes that fine.
+//
+// Before Player::Init() the snapshot is empty and `playlist->` dereferences
+// null, exactly as the old NULL-initialized global did.  It is deliberately not
+// papered over with a dummy instance: constructing a Playlist needs Events,
+// PluginManager and CommandManager, so a plugin calling this from its own
+// static initialization has a startup-order bug that a stand-in would hide.
+class PlaylistHandle {
+public:
+    Playlist* operator->() const { return p.get(); }
+    std::shared_ptr<Playlist> p;
+};
+
+class PlaylistRef {
+public:
+    PlaylistHandle operator->() const;
+    // So `if (playlist)` in external code still compiles and still means
+    // "is there a playlist to talk to".
+    explicit operator bool() const;
+};
+
+extern PlaylistRef playlist;
 
 // Write the last-known playing state to fd for a crash report.
 //

@@ -31,6 +31,7 @@
 
 #include "../fseq/FSEQFile.h"
 
+#include "../Player.h"
 #include "Playlist.h"
 #include "Plugins.h"
 #include "fpp.h"
@@ -50,13 +51,33 @@
 #include "../mediaoutput/StreamSlotManager.h"
 #include "../util/RegExCache.h"
 
+// Playlists the player is done with.  Retiring is still a two-step deferral:
+// pushed here at the moment the instance stops being current, and only at the
+// top of Process() — after the stack has unwound — handed back to the owner.
+// What changed in stage 2 is the second step: the drain drops the player's
+// owning reference instead of calling delete, so an instance a reader thread is
+// still holding a snapshot of survives until that reader is done with it.
+// Between push and drain the instance is fully alive, which is what SetIdle's
+// "is this parent condemned" walk below relies on.
 static std::list<Playlist*> PL_CLEANUPS;
 // Entries deleted while one of their own methods may still be on the
 // call stack (e.g. a "Start Playlist" command entry that reloads this
 // playlist from inside StartPlaying) are parked here and freed at the
 // top of Process(), after the stack has unwound.  Mirrors PL_CLEANUPS.
 static std::list<PlaylistEntryBase*> PL_ENTRY_CLEANUPS;
-Playlist* playlist = NULL;
+
+// See the façade's comment in Playlist.h.  Stateless, so no static
+// initialization order concerns of its own; the snapshot it hands out comes
+// from Player::INSTANCE.
+PlaylistRef playlist;
+
+PlaylistHandle PlaylistRef::operator->() const {
+    return PlaylistHandle{ Player::INSTANCE.PlaylistSnapshot() };
+}
+
+PlaylistRef::operator bool() const {
+    return Player::INSTANCE.PlaylistSnapshot() != nullptr;
+}
 
 // ──────────────────────────────────────────────────────────────────────────
 // Crash snapshot
@@ -229,10 +250,11 @@ public:
                 sched = s_pendingStartScheduleEntry;
                 endPos = s_pendingStartEndPosition;
             }
-            if (playlist) {
+            std::shared_ptr<Playlist> cur = Player::INSTANCE.PlaylistSnapshot();
+            if (cur) {
                 // Runs at depth 0 → executes inline; its notifications land
                 // back on this queue and the loop continues.
-                playlist->Play(nm, pos, rep, sched, endPos);
+                cur->Play(nm, pos, rep, sched, endPos);
             }
         }
         tl_drainingNotifications = false;
@@ -893,16 +915,18 @@ int Playlist::StopNow(int forceStop) {
         // which pre-stops) command executing from inside a playlist entry's
         // own StartPlaying frame.  Running inline would tear the playlist
         // stack out from under the frames above us: with inserted (nested)
-        // playlists, SetIdle() switches the global `playlist` to the parent
-        // and condemns levels to PL_CLEANUPS while SwitchToInsertedPlaylist/
-        // Start frames still reference them.  Queue it; the outermost
-        // transition drains it (before any deferred start — queue order is
-        // preserved), targeting whatever playlist is current at that point.
+        // playlists, SetIdle() switches the player's current playlist to the
+        // parent and condemns levels to PL_CLEANUPS while
+        // SwitchToInsertedPlaylist/Start frames still reference them.  Queue
+        // it; the outermost transition drains it (before any deferred start —
+        // queue order is preserved), targeting whatever playlist is current at
+        // that point.
         LogDebug(VB_PLAYLIST, "Playlist::StopNow(%d) re-entrant (depth %d) — deferring until current transition completes\n",
                  forceStop, tl_transitionDepth);
         QueuePlaylistNotification([forceStop]() {
-            if (playlist) {
-                playlist->StopNowImpl(forceStop);
+            std::shared_ptr<Playlist> cur = Player::INSTANCE.PlaylistSnapshot();
+            if (cur) {
+                cur->StopNowImpl(forceStop);
             }
         });
         return 1;
@@ -959,7 +983,7 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
     LogDebug(VB_PLAYLIST, "Playlist::StopGracefully(%d, %d)\n", forceStop, afterCurrentLoop);
 
     PlaylistTransitionGuard guard;
-    if (m_status == FPP_STATUS_PLAYLIST_PAUSED && this == playlist) {
+    if (m_status == FPP_STATUS_PLAYLIST_PAUSED && this == Player::INSTANCE.PlaylistSnapshot().get()) {
         Resume();
     }
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
@@ -1116,10 +1140,19 @@ int Playlist::Process(void) {
             PL_CLEANUPS.unique();
             while (!PL_CLEANUPS.empty()) {
                 Playlist* p = PL_CLEANUPS.front();
-                delete p;
+                // Drops the player's owning reference rather than deleting.
+                // If a reader thread still holds a snapshot of p, the instance
+                // stays alive until that snapshot releases; its destructor then
+                // runs on this thread in a later DrainRetiredPlaylists().
+                Player::INSTANCE.ReleasePlaylist(p);
                 PL_CLEANUPS.pop_front();
             }
         }
+        // Runs the destructors the shared_ptr deleter deferred — here, between
+        // the two lists, because ~Playlist parks its entries on
+        // PL_ENTRY_CLEANUPS and those must be freed in the same tick, exactly
+        // as when the drain above did the delete itself.
+        Player::INSTANCE.DrainRetiredPlaylists();
         while (!PL_ENTRY_CLEANUPS.empty()) {
             delete PL_ENTRY_CLEANUPS.front();
             PL_ENTRY_CLEANUPS.pop_front();
@@ -1378,7 +1411,10 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
         // of playlists: the new playlist takes our place by inheriting our
         // parent, and we clean ourselves up once it is known to be running.
         bool replaceSelf = isStopping && m_parent;
-        Playlist* pl = new Playlist(replaceSelf ? m_parent : this);
+        // The player owns the new instance from birth; plRef only keeps it
+        // alive across the start attempt below, before it is published.
+        std::shared_ptr<Playlist> plRef = Player::INSTANCE.CreatePlaylist(replaceSelf ? m_parent : this);
+        Playlist* pl = plRef.get();
         std::string plname = m_insertedPlaylist;
         // PlayImpl, not Play: this runs inside the parent's transition
         // (depth > 1) and the child MUST start inline as part of the switch —
@@ -1386,23 +1422,23 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
         pl->PlayImpl(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition, 0, m_scheduleEntry, m_insertedPlaylistEndPosition);
         m_insertedPlaylist = "";
         // An instance is condemned to PL_CLEANUPS only once it is no longer
-        // the global `playlist` — the drain deletes unconditionally, so
-        // condemning the instance the player is still running frees it out
-        // from under the next Process() tick.  That is why the cleanup of
+        // the current playlist — the drain drops the owning reference
+        // unconditionally, so condemning the instance the player is still
+        // running would leave nothing owning it.  That is why the cleanup of
         // `this` waits until the replacement is known to be playing.
         if (pl->IsPlaying()) {
             LogDebug(VB_PLAYLIST, "Switching to inserted playlist '%s'\n", plname.c_str());
-            playlist = pl;
+            Player::INSTANCE.SetCurrentPlaylist(pl);
             if (replaceSelf) {
                 m_parent = nullptr;
                 PL_CLEANUPS.push_back(this);
             }
-            return playlist;
+            return pl;
         }
         PL_CLEANUPS.push_back(pl);
-        if (replaceSelf && playlist != this) {
+        if (replaceSelf && Player::INSTANCE.PlaylistSnapshot().get() != this) {
             // pl failed to start and its own SetIdle() already handed the
-            // global on to our parent, so nothing will process us again.
+            // player on to our parent, so nothing will process us again.
             m_parent = nullptr;
             PL_CLEANUPS.push_back(this);
         }
@@ -1457,17 +1493,19 @@ void Playlist::SetIdle(bool exit) {
     }
 
     bool publishIdle = true;
-    // Walk up past parents that are already condemned to PL_CLEANUPS — handing
-    // the global `playlist` pointer to one would resurrect an object the next
-    // Process() tick deletes (crash), or double-play it.  A parent can be
-    // condemned while we're exiting when a re-entrant stop tore down an
-    // intermediate level of an inserted-playlist stack.
+    // Walk up past parents that are already condemned to PL_CLEANUPS — making
+    // one current again would resurrect an object the next Process() tick
+    // releases (leaving the player pointing at a corpse), or double-play it.  A
+    // parent can be condemned while we're exiting when a re-entrant stop tore
+    // down an intermediate level of an inserted-playlist stack.
     Playlist* par = m_parent;
     while (par && std::find(PL_CLEANUPS.begin(), PL_CLEANUPS.end(), par) != PL_CLEANUPS.end()) {
         par = par->m_parent;
     }
     if (par && exit) {
-        playlist = par;
+        // par is still owned: it is on the parent chain and not condemned, so
+        // the player has never released it.
+        Player::INSTANCE.SetCurrentPlaylist(par);
         if (par->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PAUSED) {
             par->Resume();
         }
@@ -1477,9 +1515,10 @@ void Playlist::SetIdle(bool exit) {
             publishIdle = false;
     } else if (exit) {
         if (m_parent) {
-            // Whole remaining chain was condemned — the global `playlist`
-            // still points at us, so we must NOT be condemned too (the
-            // PL_CLEANUPS drain deletes unconditionally).  We become the
+            // Whole remaining chain was condemned — we are still the current
+            // playlist, so we must NOT be condemned too (the PL_CLEANUPS drain
+            // releases unconditionally, and the player's own reference is the
+            // only thing that would be left holding us).  We become the
             // resident idle playlist, like any top-level SetIdle; just drop
             // the dangling pointer into the condemned chain.
             m_parent = nullptr;
@@ -1616,19 +1655,19 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
             // stop the current playlist and load the new one directly.
             StopNowImpl(1);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            if (playlist != this) {
+            std::shared_ptr<Playlist> cur = Player::INSTANCE.PlaylistSnapshot();
+            if (cur.get() != this) {
                 // This was an inserted (nested) playlist: StopNow's SetIdle
-                // unwound ONE level — the global `playlist` now points at
-                // our parent (resumed), and `this` is already queued on
-                // PL_CLEANUPS.  Loading the new playlist into `this` would
-                // start it on a condemned object the player never processes
-                // and the next Process() tick deletes (the historical
-                // "started a playlist from inside nested playlists and it
-                // blipped and vanished while the outer playlist resumed"
-                // bug).  Delegate to the now-active level instead; this
-                // repeats per level until the stack is flat and the root
-                // object (which IS the global) performs the load.
-                return playlist->PlayImpl(filename, position, repeat, scheduleEntry, endPosition);
+                // unwound ONE level — the current playlist is now our parent
+                // (resumed), and `this` is already queued on PL_CLEANUPS.
+                // Loading the new playlist into `this` would start it on a
+                // condemned object the player never processes and the next
+                // Process() tick releases (the historical "started a playlist
+                // from inside nested playlists and it blipped and vanished
+                // while the outer playlist resumed" bug).  Delegate to the
+                // now-active level instead; this repeats per level until the
+                // stack is flat and the resident object performs the load.
+                return cur->PlayImpl(filename, position, repeat, scheduleEntry, endPosition);
             }
         }
     }

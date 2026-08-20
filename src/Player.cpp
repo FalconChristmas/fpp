@@ -28,6 +28,24 @@
 
 #include "Player.h"
 
+// Playlists retired by the main loop are destroyed HERE, on the main thread,
+// never by whichever thread happened to drop the last snapshot: ~Playlist runs
+// Cleanup(), which parks every entry on Playlist.cpp's PL_ENTRY_CLEANUPS — an
+// unsynchronized list that only the main thread drains.  So the shared_ptr
+// deleter does not delete; it parks the raw pointer here, and
+// Playlist::Process() calls DrainRetiredPlaylists() at exactly the point in the
+// frame where the old drain ran `delete p`.
+//
+// Declared ahead of Player::INSTANCE so it is constructed first and therefore
+// destroyed last — ~Player drains it during static destruction.
+static std::mutex s_retiredPlaylistLock;
+static std::vector<Playlist*> s_retiredPlaylists;
+
+static void RetirePlaylist(Playlist* p) {
+    std::lock_guard<std::mutex> lk(s_retiredPlaylistLock);
+    s_retiredPlaylists.push_back(p);
+}
+
 Player Player::INSTANCE;
 
 Player::Player() :
@@ -43,8 +61,80 @@ Player::Player() :
 }
 
 Player::~Player() {
-    if (playlist)
-        delete playlist;
+    // Static destruction: nothing will call Process() again, so drop the owning
+    // references and run the deferred deletes inline.  The entries those
+    // destructors park on PL_ENTRY_CLEANUPS are left for the process to
+    // reclaim, exactly as the old `delete playlist` did.
+    m_playlist.store(nullptr);
+    std::vector<std::shared_ptr<Playlist>> owned;
+    {
+        std::lock_guard<std::mutex> lk(m_ownedPlaylistsLock);
+        owned.swap(m_ownedPlaylists);
+    }
+    owned.clear();
+    DrainRetiredPlaylists();
+}
+
+std::shared_ptr<Playlist> Player::CreatePlaylist(Playlist* parent) {
+    std::shared_ptr<Playlist> pl(new Playlist(parent), RetirePlaylist);
+    std::lock_guard<std::mutex> lk(m_ownedPlaylistsLock);
+    m_ownedPlaylists.push_back(pl);
+    return pl;
+}
+
+void Player::SetCurrentPlaylist(Playlist* p) {
+    std::shared_ptr<Playlist> owned;
+    {
+        std::lock_guard<std::mutex> lk(m_ownedPlaylistsLock);
+        for (auto& sp : m_ownedPlaylists) {
+            if (sp.get() == p) {
+                owned = sp;
+                break;
+            }
+        }
+    }
+    if (!owned) {
+        // Invariant: only an instance this player created and has not yet
+        // released can become current.  Getting here means a raw Playlist*
+        // outlived its ownership — publishing it (or publishing null) would
+        // hand every reader a dangling or absent playlist, so keep the current
+        // one and make the breakage visible instead.
+        LogErr(VB_PLAYLIST, "Player::SetCurrentPlaylist() called with an unowned Playlist %p — keeping the current playlist\n",
+               (void*)p);
+        return;
+    }
+    m_playlist.store(std::move(owned));
+}
+
+void Player::ReleasePlaylist(Playlist* p) {
+    // Declared before the lock so the reference is dropped — and the deleter
+    // run, if this was the last one — after m_ownedPlaylistsLock is released.
+    std::shared_ptr<Playlist> dropped;
+    {
+        std::lock_guard<std::mutex> lk(m_ownedPlaylistsLock);
+        for (auto it = m_ownedPlaylists.begin(); it != m_ownedPlaylists.end(); ++it) {
+            if (it->get() == p) {
+                dropped = std::move(*it);
+                m_ownedPlaylists.erase(it);
+                break;
+            }
+        }
+    }
+}
+
+void Player::DrainRetiredPlaylists() {
+    while (true) {
+        Playlist* p = nullptr;
+        {
+            std::lock_guard<std::mutex> lk(s_retiredPlaylistLock);
+            if (s_retiredPlaylists.empty())
+                return;
+            p = s_retiredPlaylists.back();
+            s_retiredPlaylists.pop_back();
+        }
+        // Deliberately unlocked: ~Playlist runs arbitrary entry destructors.
+        delete p;
+    }
 }
 
 void Player::Init() {
@@ -79,14 +169,25 @@ void Player::Init() {
                 Player::INSTANCE.StartPlaylist(newPlaylistName, -1, pos);
                 LogDebug(VB_CONTROL, "Call to Player::INSTANCE.StartPlaylist complete\n");
             } else {
-                playlist->MQTTHandler(topic, payload);
+                // Runs on the MQTT thread; the snapshot pins the instance for
+                // the call.
+                std::shared_ptr<Playlist> pl = Player::INSTANCE.PlaylistSnapshot();
+                if (pl)
+                    pl->MQTTHandler(topic, payload);
             };
 
             LogDebug(VB_CONTROL, "exit playlist_callback (MQTT)\n");
         };
     Events::AddCallback("/set/playlist/#", playlist_callback);
 
-    playlist = new Playlist();
+    // The resident playlist.  Created here rather than in the constructor
+    // because Playlist's own constructor reaches for Events, PluginManager and
+    // CommandManager, which are not yet built during static initialization.
+    // From this point on PlaylistSnapshot() never returns null: the resident
+    // instance is only ever replaced (SwitchToInsertedPlaylist, SetIdle's walk
+    // back up the parent chain), never cleared.
+    std::shared_ptr<Playlist> pl = CreatePlaylist(nullptr);
+    SetCurrentPlaylist(pl.get());
 }
 
 int Player::StartPlaylist(const std::string& name, const int repeat,
@@ -106,11 +207,12 @@ int Player::StartPlaylist(const std::string& name, const int repeat,
     forceStopped = false;
     forceStoppedPlaylist = "";
 
+    std::shared_ptr<Playlist> pl = PlaylistSnapshot();
     LogDebug(VB_PLAYLIST, "Manually starting %srepeating playlist '%s'\n",
-             (repeat == -1 ? playlist->GetRepeat() : repeat) ? "" : "non-",
+             (repeat == -1 ? pl->GetRepeat() : repeat) ? "" : "non-",
              playlistName.c_str());
 
-    return playlist->Play(playlistName.c_str(), startPosition, repeat, -1, endPosition);
+    return pl->Play(playlistName.c_str(), startPosition, repeat, -1, endPosition);
 }
 
 int Player::StartScheduledPlaylist(const std::string& name, const int position,
@@ -134,7 +236,7 @@ int Player::StartScheduledPlaylist(const std::string& name, const int position,
                                                                  : "",
              (int)(stopTime - std::time(nullptr)));
 
-    return playlist->Play(playlistName.c_str(), position, repeat, scheduleEntry);
+    return PlaylistSnapshot()->Play(playlistName.c_str(), position, repeat, scheduleEntry);
 }
 
 int Player::AdjustPlaylistStopTime(const int seconds) {
@@ -173,11 +275,11 @@ int Player::AdjustPlaylistStopTime(const int seconds) {
 }
 
 void Player::InsertPlaylistAsNext(const std::string& filename, const int startPosition, const int endPos) {
-    playlist->InsertPlaylistAsNext(filename, startPosition, endPos);
+    PlaylistSnapshot()->InsertPlaylistAsNext(filename, startPosition, endPos);
 }
 
 void Player::InsertPlaylistImmediate(const std::string& filename, const int startPosition, const int endPos) {
-    playlist->InsertPlaylistImmediate(filename, startPosition, endPos);
+    PlaylistSnapshot()->InsertPlaylistImmediate(filename, startPosition, endPos);
 }
 
 int Player::StopNow(int forceStop) {
@@ -186,7 +288,7 @@ int Player::StopNow(int forceStop) {
         forceStoppedPlaylist = playlistName;
     else
         forceStoppedPlaylist = "";
-    return playlist->StopNow(forceStop);
+    return PlaylistSnapshot()->StopNow(forceStop);
 }
 
 int Player::StopGracefully(int forceStop, int afterCurrentLoop) {
@@ -196,14 +298,14 @@ int Player::StopGracefully(int forceStop, int afterCurrentLoop) {
     else
         forceStoppedPlaylist = "";
 
-    return playlist->StopGracefully(forceStop, afterCurrentLoop);
+    return PlaylistSnapshot()->StopGracefully(forceStop, afterCurrentLoop);
 }
 
 int Player::Process() {
     std::time_t procTime = std::time(nullptr);
 
     // See if we need to stop a scheduled playlist
-    if ((playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) &&
+    if ((PlaylistSnapshot()->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) &&
         (stopTime) &&
         (lastCheckTime != procTime)) {
         lastCheckTime = procTime;
@@ -251,27 +353,32 @@ int Player::Process() {
         }
     }
 
-    return playlist->Process();
+    // Deliberately a second snapshot rather than one hoisted to the top of the
+    // method: the stop handling above can legitimately change which playlist is
+    // current (a hard stop of an inserted playlist unwinds one level and hands
+    // the player back to the parent), and this tick must process whichever one
+    // is current now — which is what the raw global did.
+    return PlaylistSnapshot()->Process();
 }
 
 void Player::ProcessMedia() {
-    playlist->ProcessMedia();
+    PlaylistSnapshot()->ProcessMedia();
 }
 
 int Player::IsPlaying() {
-    return playlist->IsPlaying();
+    return PlaylistSnapshot()->IsPlaying();
 }
 
 std::string Player::GetPlaylistName() {
-    return playlist->GetPlaylistName();
+    return PlaylistSnapshot()->GetPlaylistName();
 }
 
 PlaylistStatus Player::GetStatus() {
-    return playlist->getPlaylistStatus();
+    return PlaylistSnapshot()->getPlaylistStatus();
 }
 
 int Player::GetRepeat() {
-    return playlist->GetRepeat();
+    return PlaylistSnapshot()->GetRepeat();
 }
 
 int Player::GetStopMethod() {
@@ -279,75 +386,75 @@ int Player::GetStopMethod() {
 }
 
 int Player::GetPosition() {
-    return playlist->GetPosition();
+    return PlaylistSnapshot()->GetPosition();
 }
 
 Json::Value Player::GetInfo(void) {
-    return playlist->GetInfo();
+    return PlaylistSnapshot()->GetInfo();
 }
 
 int Player::GetScheduleEntry() {
-    return playlist->GetScheduleEntry();
+    return PlaylistSnapshot()->GetScheduleEntry();
 }
 
 uint64_t Player::GetFileTime() {
-    return playlist->GetFileTime();
+    return PlaylistSnapshot()->GetFileTime();
 }
 
 Json::Value Player::GetConfig() {
-    return playlist->GetConfig();
+    return PlaylistSnapshot()->GetConfig();
 }
 
 Json::Value Player::GetMqttStatusJSON() {
-    return playlist->GetMqttStatusJSON();
+    return PlaylistSnapshot()->GetMqttStatusJSON();
 }
 
 int Player::WasScheduled() {
-    return playlist->WasScheduled();
+    return PlaylistSnapshot()->WasScheduled();
 }
 
 int Player::FindPosForMS(uint64_t& ms, bool itemDefinedOnly) {
-    return playlist->FindPosForMS(ms, itemDefinedOnly);
+    return PlaylistSnapshot()->FindPosForMS(ms, itemDefinedOnly);
 }
 
 void Player::GetFilenamesForPos(int pos, std::string& seq, std::string& med) {
-    playlist->GetFilenamesForPos(pos, seq, med);
+    PlaylistSnapshot()->GetFilenamesForPos(pos, seq, med);
 }
 
 int Player::Load(const std::string filename) {
-    return playlist->Load(filename.c_str());
+    return PlaylistSnapshot()->Load(filename.c_str());
 }
 
 int Player::Start() {
-    return playlist->Start();
+    return PlaylistSnapshot()->Start();
 }
 
 void Player::RestartItem() {
-    playlist->RestartItem();
+    PlaylistSnapshot()->RestartItem();
 }
 
 void Player::NextItem() {
-    playlist->NextItem();
+    PlaylistSnapshot()->NextItem();
 }
 
 void Player::PrevItem() {
-    playlist->PrevItem();
+    PlaylistSnapshot()->PrevItem();
 }
 
 void Player::Pause() {
-    playlist->Pause();
+    PlaylistSnapshot()->Pause();
 }
 
 void Player::Resume() {
-    playlist->Resume();
+    PlaylistSnapshot()->Resume();
 }
 
 int Player::Cleanup(void) {
-    return playlist->Cleanup();
+    return PlaylistSnapshot()->Cleanup();
 }
 
 void Player::GetCurrentStatus(Json::Value& result) {
-    playlist->GetCurrentStatus(result);
+    PlaylistSnapshot()->GetCurrentStatus(result);
 }
 
 Json::Value Player::GetStatusJSON() {
@@ -355,12 +462,15 @@ Json::Value Player::GetStatusJSON() {
     Json::Value playlists(Json::arrayValue);
     Json::Value pl;
 
-    pl = playlist->GetInfo();
-    pl["details"] = playlist->GetConfig();
-    pl["status"] = (int)playlist->getPlaylistStatus();
-    pl["scheduled"] = playlist->WasScheduled() ? true : false;
-    pl["position"] = playlist->GetPosition();
-    pl["lastModified"] = (Json::UInt64)playlist->GetFileTime();
+    // One snapshot for the whole object: six separate loads could straddle a
+    // playlist switch and report a mix of two playlists in one status blob.
+    std::shared_ptr<Playlist> cur = PlaylistSnapshot();
+    pl = cur->GetInfo();
+    pl["details"] = cur->GetConfig();
+    pl["status"] = (int)cur->getPlaylistStatus();
+    pl["scheduled"] = cur->WasScheduled() ? true : false;
+    pl["position"] = cur->GetPosition();
+    pl["lastModified"] = (Json::UInt64)cur->GetFileTime();
 
     // things we store locally that would need to be in an array if we can
     // play multiple playlists concurrently
@@ -414,7 +524,7 @@ HttpResponsePtr Player::render_GET(const HttpRequestPtr& req) {
     } else if ((plen == 2) && (pieces[1] == "current")) {
         Json::Value result;
         Json::Value pl;
-        pl = playlist->GetInfo();
+        pl = PlaylistSnapshot()->GetInfo();
         result["playlist"] = pl;
         return makeStringResponse(SaveJsonToString(result, "  "), 200, "application/json");
     }

@@ -15,7 +15,11 @@
 #include "fpp-json-fwd.h"
 #include "fpphttp_types.h"
 #include <map>
+#include <memory>
+#include <mutex>
+#include <vector>
 
+#include "AtomicSharedPtr.h"
 #include "playlist/Playlist.h"
 
 class Player {
@@ -90,7 +94,50 @@ public:
 
     static Player INSTANCE;
 
+    // ────────────────────────────────────────────────────────────────────
+    // Ownership of the current playlist.
+    //
+    // The player owns every Playlist that can become "the one playing".  A
+    // caller on any thread takes a snapshot and calls through it; holding the
+    // shared_ptr keeps that instance alive for the whole call even if the main
+    // loop retires it mid-flight.  That is what closes the cross-thread
+    // use-after-free: a status poll from a drogon thread can no longer be
+    // reading an instance the main loop just freed.
+    //
+    // Take ONE snapshot per call, not one per dereference — two snapshots in
+    // one method can straddle a switch and report a torn mix of two playlists.
+    // ────────────────────────────────────────────────────────────────────
+    std::shared_ptr<Playlist> PlaylistSnapshot() const { return m_playlist.load(); }
+
+    // The rest of this API is main-thread only; it is the lifecycle half that
+    // Playlist.cpp's own machinery (PL_CLEANUPS, the m_parent chain,
+    // SwitchToInsertedPlaylist) drives.  Raw Playlist* keeps flowing through
+    // that machinery unchanged; these calls are where it meets ownership.
+
+    // Construct a Playlist and take ownership of it.  Returns the reference so
+    // the caller can use it before publishing it as current.
+    std::shared_ptr<Playlist> CreatePlaylist(Playlist* parent);
+
+    // Publish an already-owned instance as the current playlist.
+    void SetCurrentPlaylist(Playlist* p);
+
+    // Retire an instance: drop the player's owning reference.  The object
+    // itself survives until the last outstanding snapshot releases it.
+    void ReleasePlaylist(Playlist* p);
+
+    // Run the destructors deferred by the shared_ptr deleter.  MAIN THREAD
+    // ONLY — ~Playlist parks its entries on an unsynchronized list that only
+    // the main thread drains, so the deleter never destroys inline.
+    void DrainRetiredPlaylists();
+
 private:
+    // Every live instance, keyed by nothing but its own identity: the current
+    // playlist plus every ancestor still on the m_parent chain.  A parent is
+    // reachable only by raw pointer, so this is what keeps it alive.
+    AtomicSharedPtr<Playlist> m_playlist;
+    std::mutex m_ownedPlaylistsLock;
+    std::vector<std::shared_ptr<Playlist>> m_ownedPlaylists;
+
     std::string playlistName;
 
     std::time_t lastCheckTime;
