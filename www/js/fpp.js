@@ -13240,6 +13240,84 @@ function formatIPWithCIDR (ip, prefixlen) {
 	return ip;
 }
 
+// Plugin header indicators are built by third-party plugin code (each plugin's
+// /api/plugin/<name>/headerIndicator endpoint, collected by
+// GetPluginHeaderIndicators), so every field of one is untrusted input.  The
+// three that land somewhere escaping alone can't make safe get a whitelist
+// instead: a class list and a CSS animation name have to stay identifiers so
+// they can't start a second declaration, a color has to be a color and not a
+// url(), and a link has to be checked by scheme -- a perfectly escaped
+// "javascript:..." still runs when clicked.  Everything else is set through the
+// DOM (.text()/.attr()/.css()), never concatenated into markup.
+var PLUGIN_INDICATOR_COLOR_RE = /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$/;
+var PLUGIN_INDICATOR_CLASS_RE = /^[a-zA-Z][a-zA-Z0-9 _-]*$/;
+var PLUGIN_INDICATOR_ANIMATION_RE = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+
+// Same scheme check plugins.php applies to plugin-declared page URLs.  Returns
+// the resolved absolute URL, or null when the link is unusable/unsafe -- in
+// which case the indicator simply isn't clickable.
+function PluginIndicatorSafeLink (link) {
+	try {
+		var parsed = new URL(link, window.location.href);
+		if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+			return null;
+		}
+		return parsed.href;
+	} catch (e) {
+		return null;
+	}
+}
+
+// Builds one header indicator element.  Rejected values fall back to the
+// same defaults an absent value gets, so a malformed plugin still shows its
+// (generic) indicator rather than disappearing.
+function BuildPluginHeaderIndicator (indicator) {
+	var pluginName = String(indicator.pluginName == null ? '' : indicator.pluginName);
+	var icon = indicator.icon || 'fa-puzzle-piece';
+	var color = indicator.color || '#999';
+	var animate = indicator.animate || '';
+	var link = PluginIndicatorSafeLink(indicator.link || '#');
+
+	if (!PLUGIN_INDICATOR_CLASS_RE.test(icon)) {
+		console.warn('Plugin ' + pluginName + ' header indicator: ignoring icon', icon);
+		icon = 'fa-puzzle-piece';
+	}
+	if (!PLUGIN_INDICATOR_COLOR_RE.test(color)) {
+		console.warn('Plugin ' + pluginName + ' header indicator: ignoring color', color);
+		color = '#999';
+	}
+	if (animate && !PLUGIN_INDICATOR_ANIMATION_RE.test(animate)) {
+		console.warn('Plugin ' + pluginName + ' header indicator: ignoring animation', animate);
+		animate = '';
+	}
+	if (link === null) {
+		console.warn('Plugin ' + pluginName + ' header indicator: ignoring link', indicator.link);
+	}
+
+	var $icon = $('<i>').addClass('fas').addClass(icon);
+	if (animate) {
+		$icon.css('animation', animate + ' 2s infinite');
+	}
+
+	// margin-left/transition are not set here: .pluginIndicator in fpp.css
+	// already carries both.
+	var $indicator = $('<span>')
+		.addClass('pluginIndicator headerBox')
+		.attr('data-plugin', pluginName)
+		.attr('title', String(indicator.tooltip || 'Plugin Indicator'))
+		.css('cursor', 'pointer')
+		.css('color', color)
+		.append($icon);
+
+	if (link !== null) {
+		$indicator.on('click', function () {
+			window.location.href = link;
+		});
+	}
+
+	return $indicator;
+}
+
 /*
  * Called each time the system status JSON is updated to refresh icons in the header bar.
  */
@@ -13502,46 +13580,37 @@ function RefreshHeaderBar () {
 			headerCache.Player = row;
 		}
 	}
-	// Render plugin header indicators
+	// Render plugin header indicators.  Every field here is plugin-supplied and
+	// untrusted, so the elements are built through the DOM rather than
+	// concatenated into markup -- see BuildPluginHeaderIndicator above.
 	if (data.pluginHeaderIndicators != undefined) {
 		var indicators = [];
 		data.pluginHeaderIndicators.forEach(function (indicator) {
 			if (indicator && indicator.visible) {
-				var icon = indicator.icon || 'fa-puzzle-piece';
-				var color = indicator.color || '#999';
-				var tooltip = indicator.tooltip || 'Plugin Indicator';
-				var link = indicator.link || '#';
-				var animate = indicator.animate || '';
-				var animStyle = animate
-					? ' style="animation: ' + animate + ' 2s infinite;"'
-					: '';
-
-				var row =
-					'<span class="pluginIndicator headerBox" data-plugin="' +
-					indicator.pluginName +
-					'"' +
-					' style="cursor: pointer; color: ' +
-					color +
-					'; margin-left: 5px; transition: color 0.3s ease;"' +
-					' title="' +
-					tooltip +
-					'"' +
-					' onclick="window.location.href=\'' +
-					link +
-					'\'">' +
-					'<i class="fas ' +
-					icon +
-					'"' +
-					animStyle +
-					'></i>' +
-					'</span>';
-				indicators.push(row);
+				indicators.push(indicator);
 			}
 		});
-		var indicatorsJoined = indicators.join('');
-		if (headerCache.PluginIndicators != indicatorsJoined) {
-			$('#header_plugin_indicators').html(indicatorsJoined);
-			headerCache.PluginIndicators = indicatorsJoined;
+		// Keyed off the raw values rather than the rendered markup: the link
+		// now lives only in the click closure, so a markup-derived key would
+		// miss a link-only change and leave the stale handler attached.
+		var indicatorsKey = JSON.stringify(
+			indicators.map(function (indicator) {
+				return [
+					indicator.pluginName,
+					indicator.icon,
+					indicator.color,
+					indicator.tooltip,
+					indicator.link,
+					indicator.animate
+				];
+			})
+		);
+		if (headerCache.PluginIndicators != indicatorsKey) {
+			var $indicatorBox = $('#header_plugin_indicators').empty();
+			indicators.forEach(function (indicator) {
+				$indicatorBox.append(BuildPluginHeaderIndicator(indicator));
+			});
+			headerCache.PluginIndicators = indicatorsKey;
 		}
 	}
 
