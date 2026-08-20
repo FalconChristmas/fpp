@@ -16,8 +16,12 @@
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
+#include <atomic>
+#include <chrono>
 #include <fstream>
+#include <thread>
 
+#include "../CurlManager.h"
 #include "../common.h"
 #include "../log.h"
 
@@ -37,22 +41,33 @@
  */
 PlaylistEntryDynamic::PlaylistEntryDynamic(Playlist* playlist, PlaylistEntryBase* parent) :
     PlaylistEntryBase(playlist, parent),
-    m_curl(NULL),
     m_drainQueue(0),
     m_currentEntry(-1) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::PlaylistEntryDynamic()\n");
 
     m_type = "dynamic";
+
+    static std::atomic<uint64_t> s_dynamicCounter{ 0 };
+    m_curlToken = "PlaylistEntryDynamic-" + std::to_string(s_dynamicCounter.fetch_add(1));
 }
 
 /*
  *
  */
 PlaylistEntryDynamic::~PlaylistEntryDynamic() {
-    ClearPlaylistEntries();
+    // Ordering matters for UAF/lifecycle safety:
+    //  1) cancelRequests() removes this entry's in-flight handles from
+    //     CurlManager and destroys their callbacks (each captures `this`)
+    //     WITHOUT invoking them, so no callback can run against a half-torn-down
+    //     object. Safe from the dtor because processCurls() and this dtor both
+    //     run on the main loop, so no callback is executing right now.
+    //  2) only then release the cookie session: once the requests are gone, no
+    //     easy handle still points CURLOPT_SHARE at the share, so
+    //     curl_share_cleanup() is safe.
+    CurlManager::INSTANCE.cancelRequests(m_curlToken);
+    CurlManager::INSTANCE.releaseCookieSession(m_curlToken);
 
-    if (m_curl)
-        curl_easy_cleanup(m_curl);
+    ClearPlaylistEntries();
 }
 
 /*
@@ -75,39 +90,10 @@ int PlaylistEntryDynamic::Init(Json::Value& config) {
     else if (m_subType == "url")
         m_data = config["url"].asString();
 
-    if ((m_subType == "plugin") || (m_subType == "url")) {
-        CURLcode status;
-        m_curl = curl_easy_init();
-        if (!m_curl) {
-            LogErr(VB_PLAYLIST, "Unable to create curl instance\n");
-            return 0;
-        }
-
-        curl_easy_setopt(m_curl, CURLOPT_NOSIGNAL, 1);
-        status = curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, &PlaylistEntryDynamic::write_data);
-        if (status != CURLE_OK) {
-            LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));
-            return 0;
-        }
-
-        status = curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, this);
-        if (status != CURLE_OK) {
-            LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting class pointer: %s\n", curl_easy_strerror(status));
-            return 0;
-        }
-
-        status = curl_easy_setopt(m_curl, CURLOPT_COOKIEFILE, "");
-        if (status != CURLE_OK) {
-            LogErr(VB_PLAYLIST, "curl_easy_setopt() Error initializing cookie jar: %s\n", curl_easy_strerror(status));
-            return 0;
-        }
-
-        status = curl_easy_setopt(m_curl, CURLOPT_TIMEOUT, 5L);
-        if (status != CURLE_OK) {
-            LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting timeout: %s\n", curl_easy_strerror(status));
-            return 0;
-        }
-    }
+    // The plugin/url HTTP requests go through CurlManager now (see Prep()/
+    // ReadFromURL()); there is no longer a per-instance curl handle to set up.
+    // Cookie persistence across the plugin's prep/load/started calls is provided
+    // by CurlManager's cookie session keyed on m_curlToken.
 
     return PlaylistEntryBase::Init(config);
 }
@@ -276,16 +262,22 @@ int PlaylistEntryDynamic::ReadFromFile(void) {
 int PlaylistEntryDynamic::ReadFromPlugin(void) {
     LogDebug(VB_PLAYLIST, "ReadFromPlugin: %s\n", m_data.c_str());
 
-    std::string url;
+    // The loadNextItem response was fetched (or is being fetched) asynchronously
+    // by the prep chain; consume the buffered JSON. EnsurePluginItemReady()
+    // returns immediately in the common ahead-of-time case and only blocks
+    // (bounded) for the rare cold start / inline-prep case.
+    if (!EnsurePluginItemReady()) {
+        return 0;
+    }
 
-    url = "http://";
-    if (m_pluginHost != "")
-        url += m_pluginHost;
-    else
-        url += "127.0.0.1";
-    url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=loadNextItem";
-
-    return ReadFromURL(url);
+    std::string item;
+    {
+        std::lock_guard<std::mutex> g(m_pluginMutex);
+        item = std::move(m_pluginItem);
+        m_pluginItem.clear();
+        m_pluginPrep = PluginPrep::Idle; // consumed; the next transition re-preps
+    }
+    return ReadFromString(item);
 }
 
 /*
@@ -294,27 +286,19 @@ int PlaylistEntryDynamic::ReadFromPlugin(void) {
 int PlaylistEntryDynamic::ReadFromURL(std::string url) {
     LogDebug(VB_PLAYLIST, "ReadFromURL: %s\n", url.c_str());
 
-    m_response = "";
-
-    if (!m_curl) {
-        LogErr(VB_PLAYLIST, "m_curl is null\n");
+    // Only the "url" subtype reaches here now (the plugin subtype consumes its
+    // buffered async response in ReadFromPlugin()). A single one-shot GET; it
+    // stays synchronous, matching the prior behaviour for this subtype. rc==0
+    // means the transfer never got an HTTP response (connect/timeout failure).
+    int rc = 0;
+    std::string resp = CurlManager::INSTANCE.doGet(url, rc);
+    if (rc == 0) {
+        LogErr(VB_PLAYLIST, "Dynamic playlist URL request failed (%s): %s\n", url.c_str(), resp.c_str());
+        WarningHolder::AddWarningTimeout(60, 32, "Dynamic playlist URL request failed (" + url + "): " + resp);
         return 0;
     }
 
-    CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
-        return 0;
-    }
-
-    status = curl_easy_perform(m_curl);
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
-        WarningHolder::AddWarningTimeout(60, 32, "Dynamic playlist URL request failed (" + url + "): " + curl_easy_strerror(status));
-        return 0;
-    }
-
-    return ReadFromString(m_response);
+    return ReadFromString(resp);
 }
 
 /*
@@ -434,27 +418,16 @@ int PlaylistEntryDynamic::Started(void) {
  *
  */
 int PlaylistEntryDynamic::StartedPlugin(void) {
-    std::string url;
-
-    url = "http://";
-    if (m_pluginHost != "")
-        url += m_pluginHost;
-    else
-        url += "127.0.0.1";
-    url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=startedNextItem";
-
-    CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
-        return 0;
-    }
-
-    status = curl_easy_perform(m_curl);
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_perform returned an error: %d\n", status);
-        return 0;
-    }
-
+    // Fire-and-forget notification. The response is discarded and the entry does
+    // not wait on it, so it runs async through CurlManager. It uses the same
+    // cookie session (m_curlToken) so the plugin sees one PHP session, and it is
+    // ordered after loadNextItem because we only get here once the buffered item
+    // has been consumed and started. The callback captures nothing (no `this`),
+    // so it is safe even if this entry is destroyed before it completes; the
+    // owner tag still lets the dtor's cancelRequests() reclaim it.
+    std::string url = PluginCommandURL("startedNextItem");
+    CurlManager::INSTANCE.addGet(
+        url, [](int rc, const std::string& resp) {}, m_curlToken, m_curlToken);
     return 1;
 }
 
@@ -480,28 +453,36 @@ int PlaylistEntryDynamic::Prep(void) {
  *
  */
 int PlaylistEntryDynamic::PrepPlugin(void) {
-    std::string url;
-
-    url = "http://";
-    if (m_pluginHost != "")
-        url += m_pluginHost;
-    else
-        url += "127.0.0.1";
-    url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=prepNextItem";
-
-    LogDebug(VB_PLAYLIST, "URL: %s\n", url.c_str());
-
-    CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
-        return 0;
+    // Idempotent: if a prep/load chain is already running or has already buffered
+    // an item (an ahead-of-time Prep() primed it), leave it be. Only fire when
+    // Idle or after a prior Failed attempt (an inline-prep retry).
+    {
+        std::lock_guard<std::mutex> g(m_pluginMutex);
+        if (m_pluginPrep == PluginPrep::Running || m_pluginPrep == PluginPrep::Ready) {
+            return 1;
+        }
+        m_pluginPrep = PluginPrep::Running;
+        m_pluginItem.clear();
     }
 
-    status = curl_easy_perform(m_curl);
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_perform returned an error: %d\n", status);
-        return 0;
-    }
+    std::string url = PluginCommandURL("prepNextItem");
+    LogDebug(VB_PLAYLIST, "PrepPlugin URL: %s\n", url.c_str());
+
+    // prepNextItem's response is a notification (discarded). Its completion
+    // callback chains loadNextItem, guaranteeing the stateful prep->load order
+    // over the shared cookie session. rc==0 means the transfer never reached the
+    // host (connect/timeout) -> abort the chain and mark Failed.
+    CurlManager::INSTANCE.addGet(
+        url,
+        [this](int rc, const std::string& resp) {
+            if (rc == 0) {
+                std::lock_guard<std::mutex> g(m_pluginMutex);
+                m_pluginPrep = PluginPrep::Failed;
+                return;
+            }
+            FireLoadNextItem();
+        },
+        m_curlToken, m_curlToken);
 
     return 1;
 }
@@ -509,14 +490,73 @@ int PlaylistEntryDynamic::PrepPlugin(void) {
 /*
  *
  */
-int PlaylistEntryDynamic::ProcessData(void* buffer, size_t size, size_t nmemb) {
-    LogDebug(VB_PLAYLIST, "ProcessData( %p, %d, %d)\n", buffer, size, nmemb);
+void PlaylistEntryDynamic::FireLoadNextItem(void) {
+    std::string url = PluginCommandURL("loadNextItem");
+    LogDebug(VB_PLAYLIST, "FireLoadNextItem URL: %s\n", url.c_str());
 
-    m_response.append(static_cast<const char*>(buffer), size * nmemb);
+    // loadNextItem's response IS the next item's JSON; buffer it for
+    // StartPlaying() to consume. Runs on the main-loop thread (processCurls()),
+    // same as the consumer, so the lock only guards against the defensive case
+    // of a callback landing on another processCurls() call site.
+    CurlManager::INSTANCE.addGet(
+        url,
+        [this](int rc, const std::string& resp) {
+            std::lock_guard<std::mutex> g(m_pluginMutex);
+            if (rc == 0) {
+                m_pluginPrep = PluginPrep::Failed;
+            } else {
+                m_pluginItem = resp;
+                m_pluginPrep = PluginPrep::Ready;
+            }
+        },
+        m_curlToken, m_curlToken);
+}
 
-    LogDebug(VB_PLAYLIST, "m_response length: %d\n", m_response.size());
+/*
+ *
+ */
+bool PlaylistEntryDynamic::EnsurePluginItemReady(void) {
+    // Make sure a prep/load chain is in flight. PrepPlugin() is idempotent: a
+    // no-op if one is already running or an item is already buffered, and it
+    // (re)fires for the inline-prep / cold-start / post-failure retry case.
+    PrepPlugin();
 
-    return size * nmemb;
+    // Pump CurlManager on this (main-loop) thread until the chain resolves or a
+    // bounded deadline passes. processCurls() runs our own callbacks on this
+    // thread, so pumping drives our requests to completion; the ahead-of-time
+    // case usually already sees Ready and never spins. The deadline caps the
+    // rare cold-start block - the old path was fully synchronous (up to ~15s of
+    // stacked 5s timeouts), so a bounded wait here is no regression.
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    while (true) {
+        {
+            std::lock_guard<std::mutex> g(m_pluginMutex);
+            if (m_pluginPrep == PluginPrep::Ready) {
+                return true;
+            }
+            if (m_pluginPrep == PluginPrep::Failed) {
+                return false;
+            }
+        }
+        if (std::chrono::steady_clock::now() >= deadline) {
+            LogErr(VB_PLAYLIST, "Dynamic playlist plugin prep did not complete in time\n");
+            WarningHolder::AddWarningTimeout(60, 32, "Dynamic playlist plugin request timed out");
+            return false;
+        }
+        CurlManager::INSTANCE.processCurls();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+/*
+ *
+ */
+std::string PlaylistEntryDynamic::PluginCommandURL(const char* command) const {
+    std::string url = "http://";
+    url += (m_pluginHost != "") ? m_pluginHost : "127.0.0.1";
+    url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=";
+    url += command;
+    return url;
 }
 
 /*
@@ -529,13 +569,4 @@ void PlaylistEntryDynamic::ClearPlaylistEntries(void) {
     }
 
     m_currentEntry = -1;
-}
-
-/*
- *
- */
-size_t PlaylistEntryDynamic::write_data(void* buffer, size_t size, size_t nmemb, void* userp) {
-    PlaylistEntryDynamic* peDynamic = (PlaylistEntryDynamic*)userp;
-
-    return static_cast<PlaylistEntryDynamic*>(userp)->ProcessData(buffer, size, nmemb);
 }
