@@ -104,8 +104,6 @@ void Scheduler::ScheduleProc(void) {
         }
     }
 
-    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
-
     if (m_loadSchedule)
         LoadScheduleFromFile();
 
@@ -121,35 +119,37 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
     LogDebug(VB_SCHEDULE, "CheckIfShouldBePlayingNow(%d, %d)\n", ignoreRepeat, forceStopped);
 
     std::time_t now = time(nullptr);
-    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
+    {
+        std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
 
-    for (auto& itemTime : m_scheduledItems) {
-        if (itemTime.first > now) {
-            break; // no need to look at items that are further in the future
-        }
+        for (auto& itemTime : m_scheduledItems) {
+            if (itemTime.first > now) {
+                break; // no need to look at items that are further in the future
+            }
 
-        LogExcess(VB_SCHEDULE, "Checking scheduled items:\n");
-        for (auto& item : itemTime.second) {
-            if (WillLog(LOG_EXCESSIVE, VB_SCHEDULE))
-                DumpScheduledItem(item.startTime, item);
-            if (item.command == "Start Playlist") {
-                if (item.endTime <= now) {
-                    LogExcess(VB_SCHEDULE, "End time is in the past, skipping item\n");
-                    continue;
-                }
+            LogExcess(VB_SCHEDULE, "Checking scheduled items:\n");
+            for (auto& item : itemTime.second) {
+                if (WillLog(LOG_EXCESSIVE, VB_SCHEDULE))
+                    DumpScheduledItem(item.startTime, item);
+                if (item.command == "Start Playlist") {
+                    if (item.endTime <= now) {
+                        LogExcess(VB_SCHEDULE, "End time is in the past, skipping item\n");
+                        continue;
+                    }
 
-                bool ir = ignoreRepeat;
-                if (m_forcedNextPlaylist == item.entryIndex) {
-                    LogExcess(VB_SCHEDULE, "This item entry index == m_forcedNextPlaylist\n");
-                    ir = true;
-                }
+                    bool ir = ignoreRepeat;
+                    if (m_forcedNextPlaylist == item.entryIndex) {
+                        LogExcess(VB_SCHEDULE, "This item entry index == m_forcedNextPlaylist\n");
+                        ir = true;
+                    }
 
-                if (((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) ||
-                     (Player::INSTANCE.GetPlaylistName() != item.entry->playlist)) &&
-                    (forceStopped != item.entryIndex) &&
-                    (item.entry->repeat || ir)) {
-                    LogExcess(VB_SCHEDULE, "Item run status reset\n");
-                    item.ran = false;
+                    if (((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) ||
+                         (Player::INSTANCE.GetPlaylistName() != item.entry->playlist)) &&
+                        (forceStopped != item.entryIndex) &&
+                        (item.entry->repeat || ir)) {
+                        LogExcess(VB_SCHEDULE, "Item run status reset\n");
+                        item.ran = false;
+                    }
                 }
             }
         }
@@ -449,7 +449,8 @@ void Scheduler::DumpScheduledItems() {
     }
 }
 
-void Scheduler::doCountdown(const std::time_t now, const std::time_t itemTime, const std::vector<ScheduledItem>& items) {
+void Scheduler::doCountdown(const std::time_t now, const std::time_t itemTime, const std::vector<ScheduledItem>& items,
+                            std::vector<CountdownPreset>& presets) {
     // Check to see if we should be counting down to the next item
     bool logItems = false;
     int diff = itemTime - now;
@@ -472,16 +473,50 @@ void Scheduler::doCountdown(const std::time_t now, const std::time_t itemTime, c
             if ((item.command == "Start Playlist") &&
                 (diff < 1000)) {
                 char tmpStr[27];
-                std::map<std::string, std::string> keywords;
                 snprintf(tmpStr, 26, "PLAYLIST_START_TMINUS_%03d", diff);
-                keywords["PLAYLIST_NAME"] = item.entry->playlist;
-                CommandManager::INSTANCE.TriggerPreset(tmpStr, keywords);
+                presets.push_back({ .name = tmpStr, .playlist = item.entry->playlist });
             }
 
             DumpScheduledItem(itemTime, item);
         }
     }
 }
+
+void Scheduler::RunCountdownPresets(const std::vector<CountdownPreset>& presets) {
+    for (const auto& preset : presets) {
+        std::map<std::string, std::string> keywords;
+        keywords["PLAYLIST_NAME"] = preset.playlist;
+        CommandManager::INSTANCE.TriggerPreset(preset.name, keywords);
+    }
+}
+
+void Scheduler::RunPlayerActions(const std::vector<PlayerAction>& actions) {
+    for (const auto& action : actions) {
+        switch (action.type) {
+        case PlayerAction::Type::StopUntilIdle:
+            while (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
+                Player::INSTANCE.StopNow(action.forceStop);
+            }
+            break;
+        case PlayerAction::Type::StopNow:
+            Player::INSTANCE.StopNow(action.forceStop);
+            break;
+        case PlayerAction::Type::StopGracefully:
+            Player::INSTANCE.StopGracefully(action.forceStop);
+            break;
+        case PlayerAction::Type::StopGracefullyAfterLoop:
+            Player::INSTANCE.StopGracefully(action.forceStop, 1);
+            break;
+        case PlayerAction::Type::StartPlaylist:
+            Player::INSTANCE.StartScheduledPlaylist(action.playlist, action.position,
+                                                    action.repeat, action.entryIndex,
+                                                    action.priority,
+                                                    action.startTime, action.endTime, action.stopType);
+            break;
+        }
+    }
+}
+
 void Scheduler::doScheduledCommand(const std::time_t itemTime, const ScheduledItem& item) {
     LogDebug(VB_SCHEDULE, "Running scheduled item:\n");
     DumpScheduledItem(itemTime, item);
@@ -505,7 +540,8 @@ void Scheduler::doScheduledCommand(const std::time_t itemTime, const ScheduledIt
     th.detach();
 }
 
-bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t itemTime, ScheduledItem& item, bool restarted) {
+bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t itemTime, ScheduledItem& item, bool restarted,
+                                    std::vector<PlayerAction>& actions) {
     LogDebug(VB_SCHEDULE, "Checking scheduled 'Start Playlist'\n");
     DumpScheduledItem(itemTime, item);
 
@@ -559,9 +595,8 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
                 LogInfo(VB_SCHEDULE, "Stopping manual playlist '%s' (priority %d) for scheduled playlist '%s' (priority %d)\n",
                         Player::INSTANCE.GetPlaylistName().c_str(), Player::INSTANCE.GetPriority(),
                         item.entry->playlist.c_str(), item.priority);
-                while (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
-                    Player::INSTANCE.StopNow(1);
-                }
+                actions.push_back({ .type = PlayerAction::Type::StopUntilIdle,
+                                    .forceStop = 1 });
             } else {
                 // Manual playlist has higher or equal priority, let it continue
                 LogDebug(VB_SCHEDULE, "Manual playlist '%s' (priority %d) has higher priority than scheduled playlist '%s' (priority %d), not overriding\n",
@@ -593,14 +628,17 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
             // Stop whatever is playing, and the next time through this loop we'll
             switch (Player::INSTANCE.GetStopMethod()) {
             case 0:
-                Player::INSTANCE.StopGracefully(forceStop);
+                actions.push_back({ .type = PlayerAction::Type::StopGracefully,
+                                    .forceStop = forceStop });
                 break;
             case 2:
-                Player::INSTANCE.StopGracefully(forceStop, 1);
+                actions.push_back({ .type = PlayerAction::Type::StopGracefullyAfterLoop,
+                                    .forceStop = forceStop });
                 break;
             case 1:
             default:
-                Player::INSTANCE.StopNow(forceStop);
+                actions.push_back({ .type = PlayerAction::Type::StopNow,
+                                    .forceStop = forceStop });
                 break;
             }
         } else {
@@ -625,10 +663,15 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
         SetSetting("resumePosition", 0);
     }
 
-    Player::INSTANCE.StartScheduledPlaylist(item.entry->playlist, position,
-                                            item.entry->repeat, item.entryIndex,
-                                            item.entryIndex, // priority is entry index for now
-                                            item.startTime, item.endTime, item.entry->stopType);
+    actions.push_back({ .type = PlayerAction::Type::StartPlaylist,
+                        .playlist = item.entry->playlist,
+                        .position = position,
+                        .repeat = item.entry->repeat,
+                        .entryIndex = item.entryIndex,
+                        .priority = item.entryIndex, // priority is entry index for now
+                        .startTime = item.startTime,
+                        .endTime = item.endTime,
+                        .stopType = item.entry->stopType });
     return true;
 }
 
@@ -637,32 +680,59 @@ void Scheduler::CheckScheduledItems(bool restarted) {
         return;
 
     std::time_t now = time(nullptr);
+    std::vector<PlayerAction> actions;
+    std::vector<CountdownPreset> presets;
 
-    for (auto& itemTime : m_scheduledItems) {
-        if (itemTime.first > now) {
-            doCountdown(now, itemTime.first, itemTime.second);
-            break; // no need to look at items that are further in the future
-        }
+    // Each pass decides what to do while holding m_scheduleLock and runs it
+    // after releasing the lock, since starting or stopping a playlist takes
+    // m_playlistMutex in the opposite order (see Scheduler.h).  A pass stops
+    // scanning as soon as it has an action so that the item after it is still
+    // judged against the player's real state rather than the state the player
+    // had before the action ran, which is what deciding for every item up
+    // front would do.
+    do {
+        actions.clear();
+        presets.clear();
 
-        for (auto& item : itemTime.second) {
-            if (item.ran)
-                continue; // skip over any items that ran already
+        {
+            std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
 
-            if (item.command == "Start Playlist") {
-                if (!doScheduledPlaylist(now, itemTime.first, item, restarted)) {
-                    continue;
+            for (auto& itemTime : m_scheduledItems) {
+                if (itemTime.first > now) {
+                    doCountdown(now, itemTime.first, itemTime.second, presets);
+                    break; // no need to look at items that are further in the future
                 }
-            } else {
-                if (itemTime.first < now) {
+
+                for (auto& item : itemTime.second) {
+                    if (item.ran)
+                        continue; // skip over any items that ran already
+
+                    if (item.command == "Start Playlist") {
+                        if (!doScheduledPlaylist(now, itemTime.first, item, restarted, actions)) {
+                            continue;
+                        }
+                    } else {
+                        if (itemTime.first < now) {
+                            SetItemRan(item, true);
+                            continue; // skip any FPP Commands that are in the past
+                        }
+                        doScheduledCommand(itemTime.first, item);
+                    }
+
                     SetItemRan(item, true);
-                    continue; // skip any FPP Commands that are in the past
-                }
-                doScheduledCommand(itemTime.first, item);
-            }
 
-            SetItemRan(item, true);
+                    if (!actions.empty())
+                        break;
+                }
+
+                if (!actions.empty())
+                    break;
+            }
         }
-    }
+
+        RunPlayerActions(actions);
+        RunCountdownPresets(presets);
+    } while (!actions.empty());
 }
 
 void Scheduler::ClearScheduledItems() {
@@ -1321,28 +1391,41 @@ void Scheduler::SetTimeDelta(int delta, int timeLimit) {
 }
 
 bool Scheduler::StartNextScheduledItemNow() {
-    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
+    // Decide under the lock and copy everything the player calls need, then
+    // release it before calling the player.  See Scheduler.h for why.
+    std::vector<PlayerAction> actions;
 
-    ScheduledItem* item = GetNextScheduledPlaylist();
+    {
+        std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
 
-    if (item) {
+        ScheduledItem* item = GetNextScheduledPlaylist();
+
+        if (!item)
+            return false;
+
         if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
             LogDebug(VB_SCHEDULE, "Force-Stopping running playlist\n");
-            Player::INSTANCE.StopNow(1);
+            actions.push_back({ .type = PlayerAction::Type::StopNow,
+                                .forceStop = 1 });
         }
 
         LogDebug(VB_SCHEDULE, "Force-Starting next scheduled playlist now:\n");
         DumpScheduledItem(item->startTime, *item);
 
-        time_t now = time(NULL);
-        Player::INSTANCE.StartScheduledPlaylist(item->entry->playlist, 0,
-                                                item->entry->repeat, item->entryIndex,
-                                                item->entryIndex, // priority is entry index for now
-                                                now, item->endTime, item->entry->stopType);
-        return true;
+        actions.push_back({ .type = PlayerAction::Type::StartPlaylist,
+                            .playlist = item->entry->playlist,
+                            .position = 0,
+                            .repeat = item->entry->repeat,
+                            .entryIndex = item->entryIndex,
+                            .priority = item->entryIndex, // priority is entry index for now
+                            .startTime = time(NULL),
+                            .endTime = item->endTime,
+                            .stopType = item->entry->stopType });
     }
 
-    return false;
+    RunPlayerActions(actions);
+
+    return true;
 }
 
 class ScheduleCommand : public Command {

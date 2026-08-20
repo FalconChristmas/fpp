@@ -78,6 +78,41 @@ private:
                                        const Occurrence& occurrence,
                                        const std::string& timeFmt);
 
+    // A player start/stop the scheduler decided on while holding
+    // m_scheduleLock, carried by value so it can be run after the lock is
+    // released.  See the m_scheduleLock declaration below.
+    struct PlayerAction {
+        enum class Type {
+            StopUntilIdle,
+            StopNow,
+            StopGracefully,
+            StopGracefullyAfterLoop,
+            StartPlaylist
+        };
+
+        Type type;
+        int forceStop = 0;
+        std::string playlist;
+        int position = 0;
+        int repeat = 0;
+        int entryIndex = 0;
+        int priority = 0;
+        time_t startTime = 0;
+        time_t endTime = 0;
+        int stopType = 0;
+    };
+
+    // A countdown preset to trigger once the lock is released.  Presets run
+    // their commands synchronously, so they are subject to the same rule as
+    // PlayerAction.
+    struct CountdownPreset {
+        std::string name;
+        std::string playlist;
+    };
+
+    void RunPlayerActions(const std::vector<PlayerAction>& actions);
+    void RunCountdownPresets(const std::vector<CountdownPreset>& presets);
+
     void AddScheduledItems(ScheduleEntry* entry, int index);
     void DumpScheduledItem(const std::time_t itemTime, const ScheduledItem& item);
     void DumpScheduledItems();
@@ -92,9 +127,11 @@ private:
 
     void RegisterCommands();
 
-    void doCountdown(const std::time_t now, const std::time_t itemTime, const std::vector<ScheduledItem>& items);
+    void doCountdown(const std::time_t now, const std::time_t itemTime, const std::vector<ScheduledItem>& items,
+                     std::vector<CountdownPreset>& presets);
     void doScheduledCommand(const std::time_t itemTime, const ScheduledItem& item);
-    bool doScheduledPlaylist(const std::time_t now, const std::time_t itemTime, ScheduledItem& item, bool restarted);
+    bool doScheduledPlaylist(const std::time_t now, const std::time_t itemTime, ScheduledItem& item, bool restarted,
+                             std::vector<PlayerAction>& actions);
 
     bool m_schedulerDisabled;
     bool m_loadSchedule;
@@ -104,6 +141,17 @@ private:
 
     time_t m_lastProcTime;
 
+    // Lock ordering: m_scheduleLock may be taken while holding no other lock,
+    // or from inside Playlist's m_playlistMutex (a playlist entry can run an
+    // FPP Command inline, and several of those call back into the scheduler).
+    // That makes m_playlistMutex -> m_scheduleLock the established order, so
+    // scheduler code must never start or stop the Player/Playlist while
+    // holding m_scheduleLock - doing so takes the two locks in the opposite
+    // order and deadlocks against a playlist thread.  Both mutexes are
+    // recursive, which does not help across threads.  Decide under the lock,
+    // copy out what the call needs, release, then call the Player (see
+    // CheckScheduledItems).  The read-only Player/Playlist getters do not take
+    // m_playlistMutex and are safe to call under this lock.
     std::recursive_mutex m_scheduleLock;
     std::vector<ScheduleEntry> m_Schedule;
     std::map<std::time_t, std::vector<ScheduledItem>> m_scheduledItems;
