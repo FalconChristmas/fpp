@@ -1213,7 +1213,7 @@ Json::Value Scheduler::GetScheduleRange(time_t rangeStart, time_t rangeEnd,
         int month = timeStruct.tm_mon + 1;
         int mday = timeStruct.tm_mday;
 
-        for (int i = 0; i < m_Schedule.size(); i++) {
+        for (int i = 0; i < schedule.size(); i++) {
             ScheduleEntry& entry = schedule[i];
 
             if (!entry.enabled && !includeDisabled)
