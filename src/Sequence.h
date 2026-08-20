@@ -137,6 +137,18 @@ private:
     std::map<uint32_t, std::vector<std::string>> effectsOn;
     std::map<uint32_t, std::vector<std::string>> effectsOff;
 
+    // Sequence-fired presets (SEQUENCE_STARTED/SEQUENCE_STOPPED and the FSEQ
+    // frame-triggered commands) must never run at the call site: the open/close
+    // paths hold m_sequenceLock (often recursively, from callers that also hold
+    // it) and SendSequenceData runs on the channel output thread under
+    // outputThreadLock, so a preset that touches the playlist deadlocks against
+    // a playlist thread opening a sequence (m_playlistMutex -> m_sequenceLock
+    // vs m_sequenceLock -> m_playlistMutex).  They are queued here and drained
+    // in FIFO order by a main-loop timer with no sequence locks held.
+    std::mutex m_pendingPresetsLock;
+    std::list<std::pair<std::string, std::map<std::string, std::string>>> m_pendingPresets;
+    void queuePreset(const std::string& preset, std::map<std::string, std::string>&& keywords);
+
 public:
     void ReadFramesLoop();
 };

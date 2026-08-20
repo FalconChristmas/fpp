@@ -34,6 +34,7 @@
 
 #include "MultiSync.h"
 #include "Player.h"
+#include "Timers.h"
 #include "Plugins.h"
 #include "Warnings.h"
 #include "common.h"
@@ -489,6 +490,31 @@ void Sequence::ProcessVariableHeaders() {
     }
 }
 
+void Sequence::queuePreset(const std::string& preset, std::map<std::string, std::string>&& keywords) {
+    if (!CommandManager::INSTANCE.HasPreset(preset)) {
+        return;
+    }
+    {
+        std::unique_lock<std::mutex> l(m_pendingPresetsLock);
+        m_pendingPresets.emplace_back(preset, std::move(keywords));
+    }
+    // One shared timer name: a queue while an entry is already armed just
+    // refreshes it, and the drain empties the whole FIFO, so nothing is lost
+    // to the replace-same-name semantics.  The drain runs on the main loop
+    // with no sequence locks held; a preset that re-enters the sequence (or
+    // queues further presets) is therefore safe.
+    Timers::INSTANCE.addTimer("SequencePresets", GetTimeMS(), [this]() {
+        std::unique_lock<std::mutex> l(m_pendingPresetsLock);
+        while (!m_pendingPresets.empty()) {
+            auto p = std::move(m_pendingPresets.front());
+            m_pendingPresets.pop_front();
+            l.unlock();
+            CommandManager::INSTANCE.TriggerPreset(p.first, p.second);
+            l.lock();
+        }
+    });
+}
+
 void Sequence::StartSequence() {
     // Callers reach this without m_sequenceLock (the command handler and the
     // playlist), so the name has to be snapshotted rather than read raw.
@@ -503,11 +529,11 @@ void Sequence::StartSequence() {
         StartChannelOutputThread();
     }
 
-    std::map<std::string, std::string> keywords;
-    keywords["SEQUENCE_NAME"] = seqName;
-    if (CommandManager::INSTANCE.HasPreset("SEQUENCE_STARTED")) {
-        CommandManager::INSTANCE.TriggerPreset("SEQUENCE_STARTED", keywords);
-    }
+    // Deferred to the main loop: callers can hold m_sequenceLock (recursively,
+    // via StartSequence(filename, frame)), and a preset that starts/stops a
+    // playlist takes m_playlistMutex - the reverse of the playlist thread's
+    // m_playlistMutex -> m_sequenceLock order.
+    queuePreset("SEQUENCE_STARTED", { { "SEQUENCE_NAME", seqName } });
 }
 
 void Sequence::StartSequence(const std::string& filename, int frameNumber) {
@@ -834,7 +860,14 @@ void Sequence::SendSequenceData() {
                          totalSeconds / 60, totalSeconds % 60, elapsedMS % 1000);
                 for (auto& cmd : p->second) {
                     LogDebug(VB_COMMAND, "Sequence \"%s\" @ %s triggering preset \"%s\"\n", seqName.c_str(), timeBuf, cmd.c_str());
-                    CommandManager::INSTANCE.TriggerPreset(cmd, keywords);
+                    // Deferred to the main loop: this thread holds
+                    // outputThreadLock for the whole frame, so running a
+                    // command here couples the output thread to every lock
+                    // any command can take (playlist, scheduler via
+                    // %VAR:fpp_*%, media...). The preset fires on the next
+                    // main-loop tick, a few ms after the frame it was
+                    // authored on.
+                    queuePreset(cmd, std::map<std::string, std::string>(keywords));
                 }
             }
         }
@@ -901,11 +934,11 @@ void Sequence::CloseSequenceFile(void) {
         fclock.unlock();
         checkForReplacementFile(fn);
 
-        std::map<std::string, std::string> keywords;
-        keywords["SEQUENCE_NAME"] = m_seqFilename;
-        if (CommandManager::INSTANCE.HasPreset("SEQUENCE_STOPPED")) {
-            CommandManager::INSTANCE.TriggerPreset("SEQUENCE_STOPPED", keywords);
-        }
+        // Deferred to the main loop: this runs under m_sequenceLock +
+        // readFileLock (and on the channel output thread when the sequence
+        // ends via ReadSequenceData), so firing the preset here inverts
+        // against the playlist thread's m_playlistMutex -> m_sequenceLock.
+        queuePreset("SEQUENCE_STOPPED", { { "SEQUENCE_NAME", m_seqFilename } });
         commandPresets.clear();
         effectsOn.clear();
         effectsOff.clear();
