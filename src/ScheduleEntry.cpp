@@ -448,57 +448,6 @@ std::string ScheduleEntry::CheckHoliday(std::string date, int refYear) {
     return date;
 }
 
-int ScheduleEntry::LoadFromString(std::string entryStr) {
-    std::vector<std::string> elems = split(entryStr, ',');
-
-    if (elems.size() < 10) {
-        LogErr(VB_SCHEDULE, "Invalid Schedule Entry: '%s', %d elements\n",
-               entryStr.c_str(), elems.size());
-        WarningHolder::AddWarning(47, "Schedule: incomplete entry (missing fields)");
-        return 0;
-    }
-
-    enabled = atoi(elems[0].c_str());
-    playlist = elems[1];
-    dayIndex = atoi(elems[2].c_str());
-    startHour = atoi(elems[3].c_str());
-    startMinute = atoi(elems[4].c_str());
-    startSecond = atoi(elems[5].c_str());
-    endHour = atoi(elems[6].c_str());
-    endMinute = atoi(elems[7].c_str());
-    endSecond = atoi(elems[8].c_str());
-    repeat = atoi(elems[9].c_str());
-
-    if (elems.size() > 10) {
-        startDateStr = elems[10];
-        std::string tempStr = CheckHoliday(startDateStr);
-
-        if (tempStr.length() == 10) {
-            startDate = DateStrToInt(tempStr.c_str());
-        } else {
-            startDate = 20190101;
-            startDateStr = "20190101";
-        }
-    }
-
-    if (elems.size() > 11) {
-        endDateStr = elems[11];
-        std::string tempStr = CheckHoliday(endDateStr);
-
-        if (tempStr.length() == 10) {
-            endDate = DateStrToInt(tempStr.c_str());
-        } else {
-            endDate = 20991231;
-            endDateStr = "20991231";
-        }
-    }
-
-    if (elems.size() > 12)
-        stopType = atoi(elems[12].c_str());
-
-    return 1;
-}
-
 static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
     if (!ParseTimeString(tm, h, m, s)) {
         LogErr(VB_SCHEDULE, "Invalid time '%s' in schedule, using midnight\n", tm.c_str());

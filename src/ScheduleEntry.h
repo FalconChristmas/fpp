@@ -75,7 +75,6 @@ public:
     std::string DateFromLocaleHoliday(Json::Value& holiday, int refYear = 0);
     std::string CheckHoliday(std::string date, int refYear = 0);
 
-    int LoadFromString(std::string entryStr);
     int LoadFromJson(Json::Value& entry);
 
     // Map a UI dayIndex (INX_SUN..INX_FRI_SAT) to its INX_DAY_MASK_* bitmask.
