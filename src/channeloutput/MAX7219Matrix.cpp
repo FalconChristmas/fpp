@@ -122,7 +122,7 @@ int MAX7219MatrixOutput::Init(Json::Value config) {
 }
 
 void MAX7219MatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
-    addRange(m_startChannel, m_channelCount - 1);
+    addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
 /*
