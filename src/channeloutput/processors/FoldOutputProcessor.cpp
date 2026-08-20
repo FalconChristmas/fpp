@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 
+#include "../../Warnings.h"
 #include "../../log.h"
 
 #include "FoldOutputProcessor.h"
@@ -25,32 +26,47 @@ FoldOutputProcessor::FoldOutputProcessor(const Json::Value& config) {
     count = config["count"].asInt();
     node = config["node"].asInt(); // By channel, RGB Pixel, RGBW Pixel
 
-    nodesize = 1;
+    // node is the UI selector, nodesize the channels per node it selects.  All of
+    // the fold index math below is in nodesize, never in the raw selector.
     if (node == 1) {
         nodesize = 3;
     } else if (node == 2) {
         nodesize = 4;
+    } else {
+        if (node != 0) {
+            std::string warning = "Fold output processor has an unknown node option (" +
+                                  std::to_string(node) + "), falling back to By Channel";
+            LogWarn(VB_CHANNELOUT, "%s\n", warning.c_str());
+            WarningHolder::AddWarning(warning);
+            node = 0;
+        }
+        nodesize = 1;
+    }
+    if (count < 0) {
+        std::string warning = "Fold output processor has a negative channel count (" +
+                              std::to_string(count) + "), disabling it";
+        LogWarn(VB_CHANNELOUT, "%s\n", warning.c_str());
+        WarningHolder::AddWarning(warning);
+        count = 0;
     }
     LogInfo(VB_CHANNELOUT, "Fold: channels: %d-%d, node size: %d\n",
-            sourceChannel, sourceChannel + count * nodesize, nodesize);
-    if (node < 0 || node > 2) {
-        LogWarn(VB_CHANNELOUT,
-                "Unknown node option (%d), defaulting to 0 (By Channel)\n",
-                node);
-    }
-    if (count % node != 0) {
+            sourceChannel, sourceChannel + count, nodesize);
+    if (count % nodesize != 0) {
         LogWarn(VB_CHANNELOUT,
                 "Channel count (%d) is not a multiple of the node size "
                 "(%d channels/node), the dangling channels will be ignored\n",
-                sourceChannel, sourceChannel + count, nodesize, node);
+                count, nodesize);
     }
+    tempBuffer.resize(count);
 }
 
 FoldOutputProcessor::FoldOutputProcessor(int src, int c, int n) {
     active = true;
     sourceChannel = src;
-    count = c;
-    nodesize = n;
+    count = c < 0 ? 0 : c;
+    nodesize = n > 0 ? n : 1;
+    node = nodesize == 4 ? 2 : (nodesize == 3 ? 1 : 0);
+    tempBuffer.resize(count);
 }
 
 FoldOutputProcessor::~FoldOutputProcessor() {
@@ -60,17 +76,18 @@ void FoldOutputProcessor::GetRequiredChannelRanges(const std::function<void(int,
 }
 
 void FoldOutputProcessor::ProcessData(unsigned char* channelData) const {
-    size_t nsize = 3; // Node size, 3 bytes for an RGB pixel
-    size_t len = count / nodesize;
-    // Copy the required section of channel data to a temporary buffer
-    unsigned char* tempBuffer = new unsigned char[count];
-    memcpy(tempBuffer, channelData + sourceChannel, count);
+    size_t len = count / nodesize; // Number of whole nodes; trailing channels are left alone
+    if (len == 0) {
+        return;
+    }
+    // The fold reads every source node and writes it elsewhere in the same span,
+    // so the pre-fold values have to be snapshotted first.
+    memcpy(tempBuffer.data(), channelData + sourceChannel, count);
     for (unsigned int node = 0; node < len; ++node) {
         memcpy(
             channelData + sourceChannel +
                 (node % 2 ? len - node / 2 - 1 : node / 2) * nodesize,
-            tempBuffer + node * nsize,
-            nsize);
+            tempBuffer.data() + node * nodesize,
+            nodesize);
     }
-    delete[] tempBuffer; // Delete the temporary buffer
 }

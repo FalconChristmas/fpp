@@ -14,6 +14,8 @@
 #include "OutputProcessor.h"
 #include "fpp-json-fwd.h"
 
+#include <vector>
+
 class FoldOutputProcessor : public OutputProcessor {
 public:
     FoldOutputProcessor(const Json::Value& config);
@@ -35,4 +37,8 @@ protected:
     int node;
     int nodesize;
     int sourceChannel;
+
+    // Scratch copy of the source channels, sized at construction: ProcessData
+    // must read the pre-fold values while it overwrites them in place.
+    mutable std::vector<unsigned char> tempBuffer;
 };
