@@ -568,6 +568,20 @@ std::vector<std::string> split(const std::string& s, char delim) {
     return elems;
 }
 
+bool ParseTimeString(const std::string& str, int& hour, int& minute, int& second) {
+    std::vector<std::string> parts = split(str, ':');
+
+    if (parts.size() < 2) {
+        return false;
+    }
+
+    hour = atoi(parts[0].c_str());
+    minute = atoi(parts[1].c_str());
+    second = parts.size() > 2 ? atoi(parts[2].c_str()) : 0;
+
+    return true;
+}
+
 inline std::string dequote(const std::string& s) {
     if ((s[0] == '\'' || s[0] == '"') && s[0] == s[s.length() - 1] && s.length() > 2) {
         return s.substr(1, s.length() - 2);

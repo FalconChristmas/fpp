@@ -94,6 +94,12 @@ std::vector<std::string> split(const std::string& s, char delim);
 // splits the string on , but also honors any double/single quotes so commas within strings are preserved
 std::vector<std::string> splitWithQuotes(const std::string& s, char delim = ',');
 
+// Parse an "HH:MM:SS" (or "HH:MM", seconds defaulting to 0) time string.
+// Returns false and leaves the outputs untouched when the string doesn't carry
+// at least an hour and a minute.  Callers used to index split()'s vector blind,
+// which walked off the end of it for a short value such as "8:00".
+bool ParseTimeString(const std::string& str, int& hour, int& minute, int& second);
+
 bool startsWith(const std::string& str, const std::string& prefix);
 bool endsWith(const std::string& str, const std::string& suffix);
 

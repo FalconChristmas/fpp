@@ -294,20 +294,32 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
 
         if ((type == "head") || (type == "tail")) {
             month = c["month"].asInt();
+            if ((month < 1) || (month > 12)) {
+                LogErr(VB_SCHEDULE, "Invalid month %d in holiday definition, using January\n", month);
+                WarningHolder::AddWarning(47, "Schedule: invalid month in holiday definition");
+                month = 1;
+            }
             if (rollForward && (month < (now.tm_mon + 1)))
                 year++;
         }
 
-        // https://en.wikipedia.org/wiki/Determination_of_the_day_of_the_week
         int mdays[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-        static int t[] = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
-        int d = 1;
-        int m = month;
-        int y = year - (m < 3);
-        int wday = (y + y / 4 - y / 100 + y / 400 + t[m - 1] + d) % 7;
+        int wday = 0;
 
         if ((year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0)))
             mdays[1]++; // add one day to February for leap year
+
+        if ((type == "head") || (type == "tail")) {
+            // Day of week of the 1st of the month.  Only head/tail use wday,
+            // and only they set `month` - computing it unconditionally up here
+            // indexed t[month - 1] with month still 0 for every easter/lunar
+            // holiday, i.e. t[-1].
+            // https://en.wikipedia.org/wiki/Determination_of_the_day_of_the_week
+            static const int t[] = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
+            int d = 1;
+            int y = year - (month < 3);
+            wday = (y + y / 4 - y / 100 + y / 400 + t[month - 1] + d) % 7;
+        }
 
         if (type == "easter") {
             CalculateEaster(year, month, day);
@@ -488,10 +500,13 @@ int ScheduleEntry::LoadFromString(std::string entryStr) {
 }
 
 static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
-    std::vector<std::string> sparts = split(tm, ':');
-    h = atoi(sparts[0].c_str());
-    m = atoi(sparts[1].c_str());
-    s = atoi(sparts[2].c_str());
+    if (!ParseTimeString(tm, h, m, s)) {
+        LogErr(VB_SCHEDULE, "Invalid time '%s' in schedule, using midnight\n", tm.c_str());
+        WarningHolder::AddWarning(47, "Schedule: invalid time '" + tm + "'");
+        h = 0;
+        m = 0;
+        s = 0;
+    }
 }
 
 void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
@@ -534,10 +549,10 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
         }
     }
 
-    if ((repeatInterval) && (startTime != endTime)) {
+    if ((repeatInterval > 0) && (startTime != endTime)) {
         time_t newEnd = startTime + repeatInterval - 1;
         while (startTime < endTime) {
-            startEndTimes.push_back(std::pair<int, int>(startTime, newEnd));
+            startEndTimes.emplace_back(startTime, newEnd);
             newEnd += repeatInterval;
             if (newEnd > endTime) {
                 newEnd = endTime;
@@ -545,7 +560,7 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
             startTime += repeatInterval;
         }
     } else {
-        startEndTimes.push_back(std::pair<int, int>(startTime, endTime));
+        startEndTimes.emplace_back(startTime, endTime);
     }
 }
 
@@ -687,7 +702,7 @@ void ScheduleEntry::GetOccurrencesOnDate(int year, int month, int mday,
     if (!DateInRange(startTime, sDate, eDate))
         return;
 
-    if ((repeatInterval) && (startTime != endTime)) {
+    if ((repeatInterval > 0) && (startTime != endTime)) {
         time_t newEnd = startTime + repeatInterval - 1;
         while (startTime < endTime) {
             occurrences.push_back(std::pair<time_t, time_t>(startTime, newEnd));
@@ -702,6 +717,39 @@ void ScheduleEntry::GetOccurrencesOnDate(int year, int month, int mday,
     }
 }
 
+// Raised whenever the Latitude/Longitude settings can't be used, whether they
+// are unset or unparseable, so that the add and the remove always pair on the
+// same text.  See www/help/warning-helpers/warning-48.md.
+static const char* LATLON_WARNING = "Schedule: Latitude/Longitude not set or not numeric — dawn/dusk times use default coordinates";
+
+// strtod() plus an end-pointer check.  A coordinate has to consume the whole
+// string, so "38.9N" is rejected rather than silently becoming 38.9.
+static bool ParseCoordinate(const std::string& str, double& out) {
+    if (str.empty()) {
+        return false;
+    }
+
+    const char* start = str.c_str();
+    char* end = nullptr;
+    errno = 0;
+    double v = strtod(start, &end);
+
+    if ((end == start) || (errno == ERANGE)) {
+        return false;
+    }
+
+    while ((*end == ' ') || (*end == '\t') || (*end == '\r') || (*end == '\n')) {
+        end++;
+    }
+
+    if (*end != '\0') {
+        return false;
+    }
+
+    out = v;
+    return true;
+}
+
 void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
                                    const int infoOffset,
                                    int& h, int& m, int& s) {
@@ -709,20 +757,26 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
     std::string latStr = getSetting("Latitude");
     std::string lonStr = getSetting("Longitude");
 
-    if ((latStr == "") || (lonStr == "")) {
-        latStr = "38.938524";
-        lonStr = "-104.600945";
+    double lat = 0.0;
+    double lon = 0.0;
 
-        LogErr(VB_SCHEDULE, "Error, Latitude/Longitude not filled in, using Falcon, Colorado coordinates!\n");
-        WarningHolder::AddWarning(48, "Schedule: Latitude/Longitude not set — dawn/dusk times use default coordinates");
+    // Latitude/Longitude are free-text settings living in a hand-editable file,
+    // so they can hold anything - "N38.9", a stray unit, an empty string.
+    // std::stod() throws on those, and this runs on the daemon startup path
+    // (Scheduler ctor -> LoadScheduleFromFile -> pushStartEndTimes) with no
+    // catch anywhere above it, which turned one bad character into a boot loop.
+    // Parse without exceptions and fall back to the defaults instead.
+    if (!ParseCoordinate(latStr, lat) || !ParseCoordinate(lonStr, lon)) {
+        lat = 38.938524;
+        lon = -104.600945;
+
+        LogErr(VB_SCHEDULE, "Error, Latitude/Longitude not usable ('%s', '%s'), using Falcon, Colorado coordinates!\n",
+               latStr.c_str(), lonStr.c_str());
+        WarningHolder::AddWarning(48, LATLON_WARNING);
     } else {
-        // Coordinates are now set — clear the warning if it was previously raised.
-        WarningHolder::RemoveWarning(48, "Schedule: Latitude/Longitude not set — dawn/dusk times use default coordinates");
+        // Coordinates are usable - clear the warning if it was previously raised.
+        WarningHolder::RemoveWarning(48, LATLON_WARNING);
     }
-
-    std::string::size_type sz;
-    double lat = std::stod(latStr, &sz);
-    double lon = std::stod(lonStr, &sz);
     double sunOffset = 0;
     time_t currTime = when;
     time_t midnight = when;
@@ -808,6 +862,17 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     playlist = entry["playlist"].asString();
     dayIndex = entry["day"].asInt();
     repeatInterval = entry["repeat"].asInt();
+    if (repeatInterval < 0) {
+        // The UI only offers values from a dropdown, but schedule.json is
+        // hand- and API-editable.  A negative interval walks startTime
+        // backwards in both occurrence-expansion loops, so they never reach
+        // endTime and spin forever appending pairs until the box is out of
+        // memory - on the scheduler thread or the calendar API thread.
+        LogErr(VB_SCHEDULE, "Negative repeat interval %d for playlist %s, treating as no repeat\n",
+               repeatInterval, playlist.c_str());
+        WarningHolder::AddWarning(47, "Schedule: negative repeat interval for playlist '" + playlist + "'");
+        repeatInterval = 0;
+    }
     repeat = repeatInterval == 1;
 
     if (entry.isMember("sequence"))

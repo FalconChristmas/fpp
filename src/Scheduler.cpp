@@ -534,7 +534,22 @@ void Scheduler::doScheduledCommand(const std::time_t itemTime, const ScheduledIt
         // entry's "id" (see BuildScheduleRangeItem / the scheduledItem["id"]
         // below), so this is the value to cross-reference against.
         LogDebug(VB_COMMAND, "Scheduler entry id %d running command \"%s\"\n", entryIndex, cmd["command"].asString().c_str());
-        CommandManager::INSTANCE.run(cmd);
+        // This thread is detached, so an exception escaping the command is not
+        // a failed command - it is std::terminate and the whole daemon goes
+        // down at whatever second the schedule fires.  Commands parse
+        // user-supplied arguments (and plugins supply their own), so catch
+        // everything here and let the show keep running.
+        try {
+            CommandManager::INSTANCE.run(cmd);
+        } catch (const std::exception& e) {
+            LogErr(VB_COMMAND, "Scheduler entry id %d command \"%s\" threw: %s\n",
+                   entryIndex, cmd["command"].asString().c_str(), e.what());
+            WarningHolder::AddWarningTimeout(60, 47, "Schedule: command '" + cmd["command"].asString() + "' failed: " + e.what());
+        } catch (...) {
+            LogErr(VB_COMMAND, "Scheduler entry id %d command \"%s\" threw an unknown exception\n",
+                   entryIndex, cmd["command"].asString().c_str());
+            WarningHolder::AddWarningTimeout(60, 47, "Schedule: command '" + cmd["command"].asString() + "' failed");
+        }
     },
                    std::move(cmd));
     th.detach();
@@ -1452,6 +1467,32 @@ public:
     }
 };
 
+// Command arguments arrive as strings after %VAR% replacement, so an unset
+// variable hands us "" and a typo hands us anything at all.  std::stoi() throws
+// on both, and these commands run on a detached scheduler thread.
+static bool ParseIntArg(const std::string& str, int& out) {
+    if (str.empty()) {
+        return false;
+    }
+
+    const char* start = str.c_str();
+    char* end = nullptr;
+    errno = 0;
+    long v = strtol(start, &end, 10);
+
+    while ((*end == ' ') || (*end == '\t')) {
+        end++;
+    }
+
+    if ((end == start) || (*end != '\0') || (errno == ERANGE) ||
+        (v < INT_MIN) || (v > INT_MAX)) {
+        return false;
+    }
+
+    out = (int)v;
+    return true;
+}
+
 class ExtendScheduleCommand : public ScheduleCommand {
 public:
     ExtendScheduleCommand(Scheduler* s) :
@@ -1464,11 +1505,19 @@ public:
         if (args.size() < 1) {
             return std::make_unique<Command::ErrorResult>("Command needs at least 1 argument, found " + std::to_string(args.size()));
         }
-        if (Player::INSTANCE.AdjustPlaylistStopTime(std::stoi(args[0]))) {
-            if (args.size() > 1) {
-                if (std::stoi(args[1]) != 0) {
-                    scheduler->SetTimeDelta(std::stoi(args[0]), std::stoi(args[1]));
-                }
+        int seconds = 0;
+        if (!ParseIntArg(args[0], seconds)) {
+            return std::make_unique<Command::ErrorResult>("Seconds argument '" + args[0] + "' is not a number");
+        }
+
+        int limit = 0;
+        if ((args.size() > 1) && !args[1].empty() && !ParseIntArg(args[1], limit)) {
+            return std::make_unique<Command::ErrorResult>("Limit argument '" + args[1] + "' is not a number");
+        }
+
+        if (Player::INSTANCE.AdjustPlaylistStopTime(seconds)) {
+            if (limit != 0) {
+                scheduler->SetTimeDelta(seconds, limit);
             }
             return std::make_unique<Command::Result>("Schedule Updated");
         }
