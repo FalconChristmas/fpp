@@ -281,9 +281,28 @@ void RunChannelOutputThread(void) {
         }
     }
 
+    // StoppingOutput() fires the OUTPUTS_DISABLED presets, which run arbitrary
+    // commands on this thread. It must run while outputThreadLock is still held
+    // so a replacement thread's StartingOutput() cannot interleave with it (a
+    // disable landing after the new thread's enable would leave outputs dark),
+    // but ThreadIsRunning must still be set and statusLock must be released.
+    // Previously ThreadIsRunning was cleared first: a preset that reached
+    // StartChannelOutputThread() spawned a replacement that blocked on
+    // outputThreadLock (held here) while the preset spun on
+    // ChannelOutputThreadIsRunning() -- which only the blocked replacement
+    // could set -- wedging this thread, the replacement, and then the main
+    // loop at the next config reload. With ThreadIsRunning still set, such a
+    // preset queues its replacement on outputThreadLock (it runs once this
+    // thread releases) and its startup wait returns immediately.
+    // ThreadIsExiting is set so a Start during this window falls through to
+    // spawn rather than early-returning against a thread already on its way
+    // out.
+    statusLock.lock();
+    ThreadIsExiting = 1;
+    statusLock.unlock();
+    StoppingOutput();
     statusLock.lock();
     ThreadIsRunning = 0;
-    StoppingOutput();
     statusLock.unlock();
     lock.unlock();
     statusLock.lock();
@@ -361,9 +380,16 @@ void StartChannelOutputThread(void) {
         return;
     }
 
-    // Wait for thread to start
-    while (!ChannelOutputThreadIsRunning())
+    // Wait for thread to start, but bounded (mirrors StopChannelOutputThread's
+    // cap): if the new thread cannot come up — e.g. it is queued on
+    // outputThreadLock behind an exiting thread that is stuck in a slow
+    // OUTPUTS_DISABLED command — spinning here forever would pin the calling
+    // thread (which can be an HTTP handler or a command preset) as well.
+    int waitLoops = 0;
+    while (!ChannelOutputThreadIsRunning() && (waitLoops++ < 1000))
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    if (!ChannelOutputThreadIsRunning())
+        LogErr(VB_CHANNELOUT, "Channel output thread did not start within 5 seconds\n");
 }
 
 /*
