@@ -14,8 +14,6 @@
 #include <string>
 #include "fpp-json-fwd.h"
 
-#include <curl/curl.h>
-
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryURL : public PlaylistEntryBase {
@@ -35,15 +33,7 @@ public:
     Json::Value GetConfig(void) override;
 
 private:
-    int ProcessData(void* buffer, size_t size, size_t nmemb);
-
-    static size_t write_data(void* ptr, size_t size, size_t nmemb,
-                             void* ourpointer);
-
     std::string m_url;
     std::string m_method;
     std::string m_data;
-    std::string m_response;
-
-    CURL* m_curl;
 };

@@ -16,6 +16,7 @@
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
+#include "../CurlManager.h"
 #include "../log.h"
 
 #include "PlaylistEntryURL.h"
@@ -24,8 +25,7 @@
  *
  */
 PlaylistEntryURL::PlaylistEntryURL(Playlist* playlist, PlaylistEntryBase* parent) :
-    PlaylistEntryBase(playlist, parent),
-    m_curl(NULL) {
+    PlaylistEntryBase(playlist, parent) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryURL::PlaylistEntryURL()\n");
 
     m_type = "url";
@@ -35,8 +35,6 @@ PlaylistEntryURL::PlaylistEntryURL(Playlist* playlist, PlaylistEntryBase* parent
  *
  */
 PlaylistEntryURL::~PlaylistEntryURL() {
-    if (m_curl)
-        curl_easy_cleanup(m_curl);
 }
 
 /*
@@ -50,38 +48,6 @@ int PlaylistEntryURL::Init(Json::Value& config) {
 
     if (config.isMember("data"))
         m_data = config["data"].asString();
-
-    m_curl = curl_easy_init();
-    if (!m_curl) {
-        LogErr(VB_PLAYLIST, "Unable to create curl instance\n");
-        return 0;
-    }
-
-    CURLcode status;
-    curl_easy_setopt(m_curl, CURLOPT_NOSIGNAL, 1);
-    status = curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, &PlaylistEntryURL::write_data);
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));
-        return 0;
-    }
-
-    status = curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, this);
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting class pointer: %s\n", curl_easy_strerror(status));
-        return 0;
-    }
-
-    status = curl_easy_setopt(m_curl, CURLOPT_CONNECTTIMEOUT, 2L);
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting connect timeout: %s\n", curl_easy_strerror(status));
-        return 0;
-    }
-
-    status = curl_easy_setopt(m_curl, CURLOPT_TIMEOUT, 30L);
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting timeout: %s\n", curl_easy_strerror(status));
-        return 0;
-    }
 
     return PlaylistEntryBase::Init(config);
 }
@@ -97,45 +63,31 @@ int PlaylistEntryURL::StartPlaying(void) {
         return 0;
     }
 
-    std::string repURL;
+    std::string repURL = ReplaceMatches(m_url);
     std::string repData;
-
-    repURL = ReplaceMatches(m_url);
-
     if (m_data.size())
         repData = ReplaceMatches(m_data);
 
-    m_response = "";
+    std::string method = m_method.empty() ? "GET" : m_method;
 
-    CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, repURL.c_str());
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
-        FinishPlay();
-        return 0;
-    }
-
-    if (m_method == "POST") {
-        // Not a fixed 4096: curl copies exactly this many bytes out of the
-        // buffer, so a shorter body used to ship whatever heap followed it to
-        // the remote end, and a longer one was truncated.
-        curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, (long)repData.size());
-        status = curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, repData.c_str());
-        if (status != CURLE_OK) {
-            LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting post data: %s\n", curl_easy_strerror(status));
-            FinishPlay();
-            return 0;
-        }
-    }
-
-    status = curl_easy_perform(m_curl);
-    if (status != CURLE_OK) {
-        LogErr(VB_PLAYLIST, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
-        WarningHolder::AddWarningTimeout(60, 32, "Playlist URL request failed (" + m_url + "): " + curl_easy_strerror(status));
-        FinishPlay();
-        return 0;
-    }
-
-    LogDebug(VB_PLAYLIST, "m_resp: %s\n", m_response.c_str());
+    // Fire-and-forget: the entry does not use the response and finishes the
+    // moment the request is dispatched, so the request runs asynchronously
+    // through CurlManager (pumped by the main loop) rather than blocking the
+    // show for up to the request timeout on the main thread.  The callback
+    // captures only the URL string by value, never `this`, so it is safe even
+    // if this entry has been destroyed by the time the request completes.
+    std::string urlForLog = repURL;
+    CurlManager::INSTANCE.add(
+        repURL, method, repData, {},
+        [urlForLog](int rc, const std::string& resp) {
+            if (rc < 200 || rc >= 300) {
+                LogErr(VB_PLAYLIST, "Playlist URL request failed (%s): rc=%d\n", urlForLog.c_str(), rc);
+                WarningHolder::AddWarningTimeout(60, 32, "Playlist URL request failed (" + urlForLog + ")");
+            } else {
+                LogDebug(VB_PLAYLIST, "Playlist URL response (%s): %s\n", urlForLog.c_str(), resp.c_str());
+            }
+        },
+        "PlaylistEntryURL");
 
     PlaylistEntryBase::StartPlaying();
 
@@ -183,26 +135,4 @@ Json::Value PlaylistEntryURL::GetConfig(void) {
     result["method"] = m_method;
 
     return result;
-}
-
-/*
- *
- */
-int PlaylistEntryURL::ProcessData(void* buffer, size_t size, size_t nmemb) {
-    LogDebug(VB_PLAYLIST, "ProcessData( %p, %d, %d)\n", buffer, size, nmemb);
-
-    m_response.append(static_cast<const char*>(buffer), size * nmemb);
-
-    LogDebug(VB_PLAYLIST, "m_response length: %d\n", m_response.size());
-
-    return size * nmemb;
-}
-
-/*
- *
- */
-size_t PlaylistEntryURL::write_data(void* buffer, size_t size, size_t nmemb, void* userp) {
-    PlaylistEntryURL* peURL = (PlaylistEntryURL*)userp;
-
-    return static_cast<PlaylistEntryURL*>(userp)->ProcessData(buffer, size, nmemb);
 }
