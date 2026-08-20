@@ -930,7 +930,7 @@ Json::Value Scheduler::GetInfo(void) {
             struct tm timeStruct;
             time_t currTime = time(NULL);
 
-            localtime_r(&timeT, &timeStruct);
+            localtime_r(&currTime, &timeStruct);
             strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             cp["currentTime"] = (Json::UInt64)currTime;
             cp["currentTimeStr"] = timeStr;
