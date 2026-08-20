@@ -33,6 +33,62 @@ CurlManager::~CurlManager() {
     if (curlMulti) {
         curl_multi_cleanup(curlMulti);
     }
+    // No handle should still reference these shares by the time the singleton is
+    // torn down at process exit; free whatever cookie sessions were left behind.
+    for (auto& p : cookieSessions) {
+        if (p.second->share) {
+            curl_share_cleanup(p.second->share);
+        }
+        delete p.second;
+    }
+    cookieSessions.clear();
+}
+
+// curl calls these around every access to shared data (only COOKIE is shared
+// here). The userdata is the session's own std::mutex; a single mutex is
+// sufficient because only one data class is shared, so curl never nests locks.
+static void curlShareLockCB(CURL* handle, curl_lock_data data, curl_lock_access access, void* userptr) {
+    static_cast<std::mutex*>(userptr)->lock();
+}
+static void curlShareUnlockCB(CURL* handle, curl_lock_data data, void* userptr) {
+    static_cast<std::mutex*>(userptr)->unlock();
+}
+
+CURLSH* CurlManager::getCookieShare(const std::string& token) {
+    std::unique_lock<std::mutex> l(lock);
+    CookieSession*& cs = cookieSessions[token];
+    if (cs == nullptr) {
+        cs = new CookieSession();
+        cs->share = curl_share_init();
+        curl_share_setopt(cs->share, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE);
+        curl_share_setopt(cs->share, CURLSHOPT_LOCKFUNC, curlShareLockCB);
+        curl_share_setopt(cs->share, CURLSHOPT_UNLOCKFUNC, curlShareUnlockCB);
+        curl_share_setopt(cs->share, CURLSHOPT_USERDATA, &cs->mutex);
+    }
+    return cs->share;
+}
+
+void CurlManager::releaseCookieSession(const std::string& token) {
+    CookieSession* cs = nullptr;
+    {
+        std::unique_lock<std::mutex> l(lock);
+        auto it = cookieSessions.find(token);
+        if (it == cookieSessions.end()) {
+            return;
+        }
+        cs = it->second;
+        cookieSessions.erase(it);
+    }
+    // Caller contract: no easy handle still has CURLOPT_SHARE pointing at this
+    // share (the owner's requests have completed or been cancelled). If curl
+    // still sees it in use we must NOT free it - the share holds &cs->mutex, so
+    // deleting cs would leave curl calling into a freed mutex. Leak + shout.
+    CURLSHcode sc = curl_share_cleanup(cs->share);
+    if (sc == CURLSHE_IN_USE) {
+        LogErr(VB_GENERAL, "CurlManager cookie session '%s' still in use at release; leaking share to avoid a UAF\n", token.c_str());
+        return;
+    }
+    delete cs;
 }
 
 void CurlManager::addCURL(const std::string& furl, CURL* curl, std::function<void(CURL*)>&& callback, bool autoCleanCurl,
@@ -81,13 +137,19 @@ static size_t urlReadData(void* ptr, size_t size, size_t nmemb, void* userp) {
     dt->curPos += numb;
     return numb;
 }
-CURL* CurlManager::createCurl(const std::string& fullUrl, CurlPrivateData** cpd, bool upload) {
+CURL* CurlManager::createCurl(const std::string& fullUrl, CurlPrivateData** cpd, bool upload, CURLSH* share) {
     static std::string USERAGENT = std::string("FPP/") + getFPPVersionTriplet();
 
     const std::string host = getHost(fullUrl);
     HostData* hd = getHostData(host);
     CURL* c = curl_easy_init();
     curl_easy_setopt(c, CURLOPT_URL, fullUrl.c_str());
+    if (share) {
+        // Join the cookie session: arm the cookie engine (empty COOKIEFILE) and
+        // point at the shared jar so cookies persist across handles in the group.
+        curl_easy_setopt(c, CURLOPT_COOKIEFILE, "");
+        curl_easy_setopt(c, CURLOPT_SHARE, share);
+    }
     curl_easy_setopt(c, CURLOPT_USERAGENT, USERAGENT.c_str());
     curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT_MS, 2000L);
     curl_easy_setopt(c, CURLOPT_TIMEOUT_MS, 10000L);
@@ -121,8 +183,9 @@ CURL* CurlManager::createCurl(const std::string& fullUrl, CurlPrivateData** cpd,
 void CurlManager::add(const std::string& furl, const std::string& method, const std::string& data,
                       const std::list<std::string>& extraHeaders,
                       std::function<void(int rc, const std::string& resp)>&& callback,
-                      const std::string& owner) {
-    CURL* curl = createCurl(furl);
+                      const std::string& owner, const std::string& cookieSession) {
+    CURLSH* share = cookieSession.empty() ? nullptr : getCookieShare(cookieSession);
+    CURL* curl = createCurl(furl, nullptr, false, share);
 
     if (method == "POST") {
         curl_easy_setopt(curl, CURLOPT_POST, 1);
@@ -170,8 +233,8 @@ void CurlManager::add(const std::string& furl, const std::string& method, const 
     }, true, owner);
 }
 void CurlManager::addGet(const std::string& url, std::function<void(int rc, const std::string& resp)>&& callback,
-                         const std::string& owner) {
-    add(url, "GET", "", {}, [callback](int rc, const std::string& resp) { callback(rc, resp); }, owner);
+                         const std::string& owner, const std::string& cookieSession) {
+    add(url, "GET", "", {}, [callback](int rc, const std::string& resp) { callback(rc, resp); }, owner, cookieSession);
 }
 
 void CurlManager::addPost(const std::string& url, const std::string& data, const std::string& contentType,
@@ -217,8 +280,9 @@ int CurlManager::cancelRequests(const std::string& owner) {
     return (int)doomed.size();
 }
 
-std::string CurlManager::doGet(const std::string& furl, int& rc) {
-    CURL* curl = createCurl(furl);
+std::string CurlManager::doGet(const std::string& furl, int& rc, const std::string& cookieSession) {
+    CURLSH* share = cookieSession.empty() ? nullptr : getCookieShare(cookieSession);
+    CURL* curl = createCurl(furl, nullptr, false, share);
 
     bool done = false;
     addCURL(
