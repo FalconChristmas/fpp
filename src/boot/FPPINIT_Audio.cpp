@@ -145,7 +145,13 @@ static bool deviceTreeDeclaresSoundCard() {
         std::string name = ep->d_name;
         // the node is "sound" or, when addressed, "sound@<unit>"
         if (name == "sound" || name.starts_with("sound@")) {
-            found = true;
+            // Some boards ship the node with status "disabled" (an audio cape
+            // overlay flips it to "okay"). A disabled node can never bind, so
+            // it must not count as "audio is expected". No status property
+            // means enabled per the DT spec.
+            std::string status = GetFileContents("/proc/device-tree/" + name + "/status");
+            TrimWhiteSpace(status);
+            found = status.empty() || status.starts_with("ok");
         }
     }
     closedir(dp);
@@ -1108,6 +1114,15 @@ static void runAudioSetup(bool recoveryPass) {
     TrimWhiteSpace(audioOutputId);
     bool legacyNumeric = !audioOutputId.empty() && audioOutputId.find_first_not_of("0123456789") == std::string::npos;
 
+    // "Dummy" selects the synthetic snd-dummy card (a box that wants no real
+    // audio). It only ever registers because we modprobe it, so waiting for it
+    // below could never succeed -- load it now and every wait in this function
+    // is already satisfied.
+    if (audioOutputId == "Dummy" && getAlsaCardNumForId("Dummy") < 0) {
+        printf("FPP - Audio device 'Dummy' selected; loading snd-dummy\n");
+        modprobe("snd-dummy");
+    }
+
     // A card selected by ID may not have registered yet: cape modules are
     // modprobed back at cape detect, but an ASoC card (e.g. the K32Max's
     // CapeAudio-pcm5102a) binds asynchronously and can land after we get here.
@@ -1164,7 +1179,10 @@ static void runAudioSetup(bool recoveryPass) {
                 v = v.substr(0, idx);
                 cards[k] = v;
                 cardLines[k] = l;
-                hasNonHDMI |= !lineHasHDMI(l);
+                // The synthetic snd-dummy is not real hardware; with an explicit
+                // "Dummy" selection it is loaded before this probe runs and must
+                // not defeat the no-real-soundcard fast paths below.
+                hasNonHDMI |= !lineHasHDMI(l) && v != "Dummy";
             }
         }
     };
@@ -1201,7 +1219,9 @@ static void runAudioSetup(bool recoveryPass) {
     // already satisfied -- it only pays out when the driver is still being
     // autoloaded. Gated so a board with neither (a BeagleBone with no audio cape,
     // the common case) waits zero.
-    if (noRealSoundcard && countRealAlsaCards() == 0 && (deviceTreeDeclaresSoundCard() || usbAudioDevicePresent())) {
+    // An explicit "Dummy" selection also skips this: the user asked for no real
+    // audio, so there is nothing worth waiting on even if hardware is present.
+    if (noRealSoundcard && audioOutputId != "Dummy" && countRealAlsaCards() == 0 && (deviceTreeDeclaresSoundCard() || usbAudioDevicePresent())) {
         printf("FPP - No soundcard yet, but audio hardware is present; waiting...\n");
         // Don't just wait on udev -- it may not have autoloaded the CPU DAI or
         // machine driver yet, and without them the card can never bind no matter
@@ -1225,7 +1245,7 @@ static void runAudioSetup(bool recoveryPass) {
             printf("FPP - No soundcard appeared after %d seconds\n", waited / 10);
         }
     }
-    if (noRealSoundcard) {
+    if (noRealSoundcard && getAlsaCardNumForId("Dummy") < 0) {
         printf("FPP - No Soundcard Detected, loading snd-dummy\n");
         modprobe("snd-dummy");
     }
