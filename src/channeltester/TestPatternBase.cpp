@@ -116,7 +116,24 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
     m_channelSet.clear();
     m_channelCount = 0;
 
-    std::vector<std::string> ranges = split(channelSetStr, ';');
+    // Ranges may be separated by ';' or ','.  Only ';' was ever parsed, but the
+    // value the API advertises for this argument - GetOutputRangesAsString(),
+    // published as the ChannelRange contents by /api/fppd/testing/tests/<pattern>
+    // - joins its ranges with ',', so a caller sending that value back got only
+    // the first range: the rest were swallowed by the atoi() below without any
+    // error.  A token is looked up as a model name before being split on ',' so
+    // a model whose name contains one still resolves.
+    std::vector<std::string> ranges;
+    for (const auto& tok : split(channelSetStr, ';')) {
+        if (tok.find(',') == std::string::npos ||
+            PixelOverlayManager::INSTANCE.getModel(tok) != nullptr) {
+            ranges.push_back(tok);
+        } else {
+            for (const auto& sub : split(tok, ',')) {
+                ranges.push_back(sub);
+            }
+        }
+    }
 
     for (int r = 0; r < ranges.size(); r++) {
         PixelOverlayModel* model = PixelOverlayManager::INSTANCE.getModel(ranges[r]);
