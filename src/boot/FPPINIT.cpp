@@ -371,7 +371,11 @@ int main(int argc, char* argv[]) {
                 removeDummyInterface();
                 checkWLANInterface();
                 removeDummyInterface();
-                waitForInterfacesUp(100, true); // wait for an IP (needed for the time-sync wait); boot path may recover a dead USB adapter
+                // Wait for an actual IP, not just link: fppd starts right after
+                // this service and needs the address in place (socket binds,
+                // MultiSync), and the time-sync wait below may need the network
+                // too. The boot path may also recover a dead USB adapter.
+                waitForInterfacesUp(100, true);
                 // A wedged USB adapter has queued a reboot. Everything below is
                 // setup for a boot that is about to end, and this service is on
                 // fppd's dependency chain -- overrunning its start timeout here

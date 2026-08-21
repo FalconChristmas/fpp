@@ -755,26 +755,15 @@ void handleBootDelay() {
         unlink(delayFile.c_str());
         unlink(skipFile.c_str());
     } else if (i == -1) {
-        // Auto mode: check if we have any network interfaces that could get NTP
-        // If not, skip the time wait entirely and clean up flag file now
-
-        // On a Pi5, it takes about 4.1s from when fppinit is called to when eth0
-        // will report a link up. Since we want to wait for NTP if the network is
-        // available, we need to wait
-        const auto processor_count = std::thread::hardware_concurrency();
-        if (processor_count > 2) {
-            int count = 0;
-            while (!hasNetworkInterfaceForNTP() && count < 50) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                count++;
-            }
-            if (!hasNetworkInterfaceForNTP()) {
-                printf("FPP - No network interface found, skipping boot delay\n");
-                unlink(delayFile.c_str());
-                unlink(skipFile.c_str());
-                return;
-            }
-        }
+        // Auto mode: nothing to wait on here. The is-there-an-NTP-capable-network
+        // decision and the quick SNTP set both happen in handleTimeSyncWait(),
+        // which runs on the network thread after waitForInterfacesUp() has
+        // already waited for link/IP properly. This used to pre-poll up to 5s
+        // for an interface, but that only serialized boot ahead of the
+        // concurrent audio/network threads and its verdict was recomputed
+        // later anyway. Just clean up any stale flag files.
+        unlink(delayFile.c_str());
+        unlink(skipFile.c_str());
     }
 }
 
@@ -1193,6 +1182,13 @@ void announceIPAddresses() {
         return;
     }
     std::string announce = buildIPAnnounceString();
+    // postNetwork's IP wait can time out with the DHCP lease landing moments
+    // later; this service is off fppd's critical path, so give the address a
+    // bounded chance to appear rather than silently skipping the announcement.
+    for (int i = 0; announce.empty() && i < 75; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        announce = buildIPAnnounceString();
+    }
     if (announce.empty()) {
         printf("FPP - announceIP: no usable IP address to announce\n");
         return;
