@@ -13,9 +13,11 @@
 # actually gets fed. Measured ~3x faster full builds on a BBB.
 #
 # This is OPT-IN. A client only uses the helper when its build env points at it
-# (NOCC_SERVERS=thishost:43210; FPP's makefiles then run nocc as the compiler
-# launcher directly). The nocc binaries and the (disabled) nocc-server unit come
-# from the FPP apt repo:  apt-get install nocc
+# -- either explicitly (NOCC_SERVERS=thishost:43210) or by finding it on the LAN,
+# since this script makes the helper advertise itself over mDNS as _nocc._tcp
+# (clients pick "nocc + mdns" under Settings -> Developer). FPP's makefiles then
+# run nocc as the compiler launcher directly. The nocc binaries and the
+# (disabled) nocc-server unit come from the FPP apt repo:  apt-get install nocc
 #
 # ---------------------------------------------------------------------------
 # Serving both 32-bit and 64-bit clients: YES, one host.
@@ -39,6 +41,7 @@
 #   sudo PORT=43210 ./setup_nocc_host.sh         # override port
 #   sudo NOCC_FIREWALL=1 ./setup_nocc_host.sh    # + LAN-only nftables rule
 #   sudo NOCC_FIREWALL=1 ./setup_nocc_host.sh 192.168.7.0/24   # force LAN CIDR(s)
+#   sudo NOCC_MDNS=0 ./setup_nocc_host.sh        # do not advertise over mDNS
 #   sudo ./setup_nocc_host.sh disable            # stop & disable the helper
 #####################################
 
@@ -94,6 +97,30 @@ if [ "$PORT" != "43210" ] && [ -f "$ENVF" ]; then
     sed -i -E "s/-port [0-9]+/-port ${PORT}/" "$ENVF"
 fi
 
+# ---- advertise over mDNS so clients can find this helper --------------------
+# The nocc package ships with advertising OFF, because a server answering
+# anything on the LAN should be a decision, not a default. Running THIS script
+# is that decision: it is what turns a box into a helper. NOCC_MDNS=0 opts out.
+if [ -f "$ENVF" ]; then
+    if [ "${NOCC_MDNS:-1}" = "1" ]; then
+        if grep -q -- "-advertise-mdns" "$ENVF"; then
+            echo "==> Already advertising over mDNS (_nocc._tcp)"
+        elif nocc-server -help 2>&1 | grep -q -- "-advertise-mdns"; then
+            echo "==> Enabling mDNS advertisement (_nocc._tcp) in ${ENVF}"
+            sed -i -E 's/^(NOCC_SERVER_OPTS=")/\1-advertise-mdns /' "$ENVF"
+        else
+            echo "NOTE: this nocc-server predates -advertise-mdns; upgrade the nocc package"
+            echo "      to let clients discover this helper automatically."
+        fi
+    else
+        # NOCC_MDNS=0 on a host that was advertising: take it back off
+        if grep -q -- "-advertise-mdns" "$ENVF"; then
+            echo "==> Disabling mDNS advertisement in ${ENVF}"
+            sed -i -E 's/ ?-advertise-mdns//' "$ENVF"
+        fi
+    fi
+fi
+
 # ---- optional LAN-only firewall (nocc-server has no ACL of its own) ----------
 if [ "${NOCC_FIREWALL:-0}" = "1" ]; then
     if command -v nft >/dev/null 2>&1; then
@@ -120,9 +147,13 @@ else
 fi
 
 # ---- enable + (re)start -----------------------------------------------------
+# Always restart, never just "enable --now": on a host where the helper is
+# already running, --now is a no-op, so the options edited above (port, mDNS)
+# would sit in the env file while the running server kept its old ones.
 echo "==> Enabling and starting nocc-server"
 systemctl daemon-reload
-systemctl enable --now nocc-server
+systemctl enable nocc-server
+systemctl restart nocc-server
 sleep 1
 
 echo
@@ -134,6 +165,9 @@ else
 fi
 ss -ltn 2>/dev/null | grep -q ":${PORT}" && echo "Listening on TCP ${PORT}." || \
     echo "NOTE: did not see a listener on ${PORT} yet."
+if grep -q -- "-advertise-mdns" "$ENVF" 2>/dev/null; then
+    echo "Advertising over mDNS as _nocc._tcp (clients can select 'nocc + mdns')."
+fi
 
 echo
 echo "Installed compilers on this host (clients MUST match the major version):"
@@ -160,8 +194,11 @@ CLIENT USAGE (on the SLOW board you want to speed up):
       cd /opt/fpp/src && make -j6 CXXCOMPILER=<triplet>-g++ ...
 
   <triplet> is arm-linux-gnueabihf (32-bit) or aarch64-linux-gnu (64-bit).
-  nocc has no host auto-discovery (unlike distcc's mDNS); list this helper
-  explicitly in NOCC_SERVERS.
+
+  Or skip the host list entirely: in the FPP UI, Settings -> Developer ->
+  Distributed Compile -> "nocc + mdns" finds this helper on the LAN by itself.
+  Outside FPP, that is NOCC_DISCOVER_MDNS=1 (and 'nocc -print-discovered-servers'
+  prints what is out there).
 
 To turn the helper back off:  sudo $0 disable
 ============================================================

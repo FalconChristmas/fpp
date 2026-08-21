@@ -1714,7 +1714,7 @@
 		"DistributedCompile": {
 			"name": "DistributedCompile",
 			"description": "Distributed Compile",
-			"tip": "Distribute FPP source compiles to a helper host to speed up full rebuilds (e.g. after a branch switch or a header change that invalidates ccache). Set up the helper with scripts/setup_distcc_host.sh (distcc) or scripts/setup_nocc_host.sh (nocc), running the same compiler major version. Any distributed mode disables the precompiled header. 'nocc' does NOT preprocess locally, so it is far faster on slow single-core boards (BeagleBone Black, Pi Zero); 'distcc' preprocesses locally then compiles on the helper; 'distcc + zeroconf' auto-discovers distcc helpers on the LAN via mDNS.",
+			"tip": "Distribute FPP source compiles to a helper host to speed up full rebuilds (e.g. after a branch switch or a header change that invalidates ccache). Set up the helper with scripts/setup_distcc_host.sh (distcc) or scripts/setup_nocc_host.sh (nocc), running the same compiler major version. Any distributed mode disables the precompiled header. 'nocc' does NOT preprocess locally, so it is far faster on slow single-core boards (BeagleBone Black, Pi Zero); 'distcc' preprocesses locally then compiles on the helper; 'distcc + zeroconf' auto-discovers distcc helpers on the LAN via mDNS, and 'nocc + mdns' does the same for nocc helpers (set one up with 'sudo scripts/setup_nocc_host.sh', which makes it advertise itself).",
 			"level": 3,
 			"restart": 0,
 			"reboot": 0,
@@ -1724,7 +1724,8 @@
 				"Off": "off",
 				"distcc": "distcc",
 				"distcc + zeroconf": "distcc-zeroconf",
-				"nocc": "nocc"
+				"nocc": "nocc",
+				"nocc + mdns": "nocc-zeroconf"
 			},
 			"children": {
 				"distcc": [
@@ -1738,7 +1739,7 @@
 		"DistccHosts": {
 			"name": "DistccHosts",
 			"description": "Compile Hosts",
-			"tip": "Space separated list of helper hosts. distcc: host[:port][/jobs][,options], e.g. 'fpppi5:3632/6,lzo'. nocc: host[:port] (default port 43210), e.g. 'fpppi5'. Not used for 'distcc + zeroconf' (helpers are discovered via mDNS).",
+			"tip": "Space separated list of helper hosts. distcc: host[:port][/jobs][,options], e.g. 'fpppi5:3632/6,lzo'. nocc: host[:port] (default port 43210), e.g. 'fpppi5'. Not used for 'distcc + zeroconf' or 'nocc + mdns' (helpers are discovered via mDNS).",
 			"level": 3,
 			"restart": 0,
 			"reboot": 0,

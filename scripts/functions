@@ -315,8 +315,33 @@ function DiscoverDistccHosts() {
     echo "${out# }"
 }
 
+# Discover nocc helpers advertised on the LAN via mDNS and emit a list of
+# "host:port" (space separated; SetupBuildEnv joins them with ';'). Helpers
+# advertise _nocc._tcp when set up with setup_nocc_host.sh.
+#
+# We ask nocc itself rather than browsing with avahi-browse as the distcc path
+# does. A helper with more than one interface announces more than one address,
+# and nocc resolves each helper to ONE address that is routable from here --
+# a raw browse would list that helper twice (handing it a double share of the
+# build, since nocc shards files across the server list by index) and might
+# pick the address on a subnet this board cannot reach. Empty if nocc is too
+# old to know the flag, or if no helper answers.
+function DiscoverNoccHosts() {
+    command -v nocc-daemon >/dev/null 2>&1 || return 0
+    local out="" line
+    while read -r line; do
+        # Accept only bare "host:port". An older nocc-daemon does not know the flag
+        # and prints its whole usage text instead, which must not be parsed as hosts.
+        case "${line}" in
+            *[[:space:]]*) continue ;;
+            *:[0-9]*)      out="${out} ${line}" ;;
+        esac
+    done < <(timeout 10 nocc-daemon -print-discovered-servers 2>/dev/null)
+    echo "${out# }"
+}
+
 # Prepare the environment for a source rebuild based on the "Distributed Compile"
-# developer setting (off | distcc | distcc-zeroconf | nocc). MUST be called
+# developer setting (off | distcc | distcc-zeroconf | nocc | nocc-zeroconf). MUST be called
 # directly (not in a $(...) subshell) so the exports survive into the make that
 # follows. Sets these globals:
 #   DISTCC_HOSTS / NOCC_SERVERS / NOCC_GO_EXECUTABLE / NOCC_LOG_FILENAME
@@ -369,8 +394,14 @@ function SetupBuildEnv() {
                 BUILD_CPUS=$(ComputeMakeParallelism)
             fi
             ;;
-        nocc)
-            hosts=$(getSetting DistccHosts)
+        nocc|nocc-zeroconf)
+            if [ "${mode}" = "nocc-zeroconf" ]; then
+                # Ask nocc what is advertising itself on the LAN (see DiscoverNoccHosts).
+                hosts=$(DiscoverNoccHosts)
+                [ -z "${hosts}" ] && echo "nocc: mDNS enabled but no helpers were discovered on the network"
+            else
+                hosts=$(getSetting DistccHosts)
+            fi
             if [ -n "${hosts}" ]; then
                 # nocc wants a ';'-delimited list of host:port and REQUIRES the
                 # port (unlike distcc's space-delimited host[:port][/jobs,opts]).
@@ -398,7 +429,11 @@ function SetupBuildEnv() {
                 BUILD_CPUS=$(ComputeDistccParallelism "${hosts}" nocc)
                 echo "Building with nocc: NOCC_SERVERS='${NOCC_SERVERS}', -j ${BUILD_CPUS} (PCH disabled; makefile selects the triplet compiler)"
             else
-                echo "nocc selected but no Compile Hosts configured -- building locally"
+                if [ "${mode}" = "nocc-zeroconf" ]; then
+                    echo "nocc + mdns selected but no helpers were discovered -- building locally"
+                else
+                    echo "nocc selected but no Compile Hosts configured -- building locally"
+                fi
                 BUILD_CPUS=$(ComputeMakeParallelism)
             fi
             ;;
