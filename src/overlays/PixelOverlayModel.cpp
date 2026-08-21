@@ -56,6 +56,24 @@
 #include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
 
+// The channel order a model reads and writes.  This is the order of fppd's
+// channel data, not of the wire: setPixelValue() stores r, then g, then b,
+// then w into consecutive channels, and the output driver is what permutes
+// those into the hardware's colour order.  It therefore follows entirely from
+// how many channels a node occupies.
+static const char* ChannelDataOrder(int channelsPerNode) {
+    switch (channelsPerNode) {
+    case 1:
+        return "W";
+    case 2:
+        return "RG";
+    case 3:
+        return "RGB";
+    default:
+        return "RGBW";
+    }
+}
+
 static uint8_t* createChannelDataMemory(const std::string& dataName, uint32_t size) {
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
     int f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
@@ -122,11 +140,12 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     }
     bytesPerPixel = (channelsPerNode >= 4) ? 4 : 3;
 
-    // Color order is consumed by the web UI (testing.php) via the model's JSON
-    // config; ensure it always has a value so the API exposes it.
-    if (!config.isMember("ColorOrder")) {
-        config["ColorOrder"] = "RGB";
-    }
+    // A model addresses fppd's channel data, which is always R,G,B[,W] - the
+    // output driver is what applies the hardware wire order.  So the order the
+    // model sees is fully determined by the node width and is derived here
+    // rather than stored: any ColorOrder in the saved config is overwritten.
+    // Exported read-only through the API so the UI can show it.
+    config["ColorOrder"] = ChannelDataOrder(channelsPerNode);
 
     if (config["Type"].asString() != "Channel") {
         if (config.isMember("PixelSize") && config["PixelSize"].asInt() > 1) {            

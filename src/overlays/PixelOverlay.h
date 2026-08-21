@@ -58,6 +58,8 @@ public:
     bool isAutoCreatePixelOverlayModels() const {
         return autoCreate;
     }
+    // colorOrder is ignored - the model's channel order follows from channelPerNode.
+    // The parameter is retained so plugins built against older headers still link.
     void addAutoOverlayModel(const std::string& name,
                              uint32_t startChannel, uint32_t channelCount, uint32_t channelPerNode,
                              const std::string& orientation, const std::string& startLocation,

@@ -1888,6 +1888,9 @@ void PixelOverlayManager::RegisterCommands() {
     CommandManager::INSTANCE.addCategorizedCommand(new ApplyEffectOverlayCommand(this), "Pixel Overlay", 1);
 }
 
+// colorOrder is accepted for source compatibility with existing channel output
+// plugins but is no longer used: a model addresses fppd's channel data, which is
+// always R,G,B[,W], so PixelOverlayModel derives the order from the node width.
 void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
                                               uint32_t startChannel, uint32_t channelCount, uint32_t channelPerNode,
                                               const std::string& orientation, const std::string& startLocation,
@@ -1902,7 +1905,6 @@ void PixelOverlayManager::addAutoOverlayModel(const std::string& name,
     val["Orientation"] = orientation;
     val["StartCorner"] = startLocation;
     val["ChannelCountPerNode"] = channelPerNode;
-    val["ColorOrder"] = colorOrder;
     val["autoCreated"] = true;
 
     addModel(val);

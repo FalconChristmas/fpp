@@ -252,18 +252,26 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			StringsChanged();
 		}
 
-		// 4-channel (RGBW) color orders contain a 'W', 3-channel do not.
-		// val() can be null if the select was set to a value not in its list.
-		function ColorOrderIsRGBW() {
-			var colorOrder = $('#colorOrder').val() || 'RGB';
-			return colorOrder.length >= 4 && colorOrder.indexOf('W') != -1;
+		// How many channels one pixel occupies.  Test patterns are written into
+		// fppd's channel data, which is always R,G,B[,W]; the hardware colour order
+		// is applied afterwards by the output, so all this page needs is the stride.
+		function ChannelsPerPixel() {
+			var cpp = parseInt($('#channelsPerPixel').val());
+			// 1, 3 and 4 are the only node widths FPP produces, and RGBFill clamps
+			// anything else to 3, so offering more would promise a stride the
+			// backend will not use.
+			return (cpp == 1 || cpp == 4) ? cpp : 3;
 		}
 
-		// The White channel slider only applies to 4-channel (RGBW) color orders.
-		// Disable and zero it for plain RGB orders so a stray W value can't change
-		// the channel stride sent to the backend.
+		function PixelIsRGBW() {
+			return ChannelsPerPixel() == 4;
+		}
+
+		// The White channel slider only applies to 4-channel (RGBW) pixels.
+		// Disable and zero it otherwise so a stray W value can't change the
+		// channel stride sent to the backend.
 		function UpdateWhiteSliderState() {
-			var isRGBW = ColorOrderIsRGBW();
+			var isRGBW = PixelIsRGBW();
 			$('#testModeColorW').prop('disabled', !isRGBW);
 			if (!isRGBW) {
 				$('#testModeColorW').val(0);
@@ -271,10 +279,53 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			}
 		}
 
-		function UpdateIncrementFromColorOrder() {
-			$('#channelIncrement').val(ColorOrderIsRGBW() ? 4 : 3);
+		function UpdateIncrementFromChannelsPerPixel() {
+			$('#channelIncrement').val(ChannelsPerPixel());
 			UpdateWhiteSliderState();
+			UpdateStrideNotice();
 			SetButtonIncrements();
+		}
+
+		// Channel range the stride notice is describing, or [null, null] for a
+		// single model.  Held so the notice can be refreshed when only the width
+		// selection changes.
+		var noticeRange = [null, null];
+
+		// Call out the two cases where the stride will not line up with the hardware:
+		// a range spanning models of different node widths, and single colour strings,
+		// which the RGB patterns cannot address one channel at a time.
+		function UpdateStrideNotice() {
+			var msgs = [];
+			var start = noticeRange[0];
+			var end = noticeRange[1];
+
+			if (start != null) {
+				var widths = {};
+				for (var i = 0; i < modelInfos.length; i++) {
+					var m = modelInfos[i];
+					if (m.StartChannel > 0 && m.StartChannel <= end && m.EndChannel >= start) {
+						widths[m.ChannelCountPerNode] = true;
+					}
+				}
+				var list = Object.keys(widths).sort();
+				if (list.length > 1) {
+					msgs.push('Models in this range use ' + list.join(' and ') + ' channels per'
+						+ ' pixel. A single stride cannot align them all &mdash; select an'
+						+ ' individual model to test it accurately.');
+				}
+			}
+
+			if (ChannelsPerPixel() == 1) {
+				msgs.push('The RGB test patterns always write 3 channels per pixel. On single'
+					+ ' colour strings use the Single Channel patterns, which step one'
+					+ ' channel at a time.');
+			}
+
+			if (msgs.length > 0) {
+				$('#strideNotice').html(msgs.join(' ')).show();
+			} else {
+				$('#strideNotice').hide();
+			}
 		}
 
 		function UpdateStartEndFromModel() {
@@ -284,24 +335,30 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 				$('#testModeStartChannel').val(parseInt(parts[0]));
 				$('#testModeEndChannel').val(parseInt(parts[1]));
 				$('.stringRow').hide();
-				// Whole-house ranges span mixed pixel types; reset to plain RGB so a
-				// previously selected RGBW model doesn't leak its 4-channel stride.
-				$('#colorOrder').val('RGB');
+				// A whole-house range has no single node width to read; fall back to
+				// 3 but leave the control editable so an all-RGBW or all-single-colour
+				// setup can still pick its own stride.
+				$('#channelsPerPixel').val(3);
 				$('#channelIncrement').val(3);
+				noticeRange = [parseInt(parts[0]), parseInt(parts[1])];
 				UpdateWhiteSliderState();
+				UpdateStrideNotice();
 				SetButtonIncrements();
 			} else {
 				var id = parseInt(val);
 				$('#testModeStartChannel').val(modelInfos[id].StartChannel);
 				$('#testModeEndChannel').val(modelInfos[id].EndChannel);
 
-				// Set color order from model, falling back to a value the select
-				// actually offers (e.g. "WRGB" or single-channel "W" are not listed)
-				$('#colorOrder').val(modelInfos[id].ColorOrder);
-				if ($('#colorOrder').val() == null) {
-					$('#colorOrder').val(modelInfos[id].ChannelCountPerNode == 4 ? 'RGBW' : 'RGB');
+				// The select only offers the widths FPP produces; a hand-entered
+				// oddity falls back to 3, which is what RGBFill would clamp it to
+				// anyway, so the control and ChannelsPerPixel() cannot disagree.
+				$('#channelsPerPixel').val(modelInfos[id].ChannelCountPerNode);
+				if ($('#channelsPerPixel').val() == null) {
+					$('#channelsPerPixel').val(3);
 				}
+				noticeRange = [null, null];
 				UpdateWhiteSliderState();
+				UpdateStrideNotice();
 
 				if (modelInfos[id].StringCount > 1) {
 					$('#startString').attr('max', modelInfos[id].StringCount);
@@ -311,9 +368,9 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 					$('#channelIncrement').val(modelInfos[id].ChannelsPerString);
 					$('.stringRow').show();
 				} else {
-					// Use ChannelCountPerNode if available (supports RGBW = 4 channels)
-					var channelsPerPixel = modelInfos[id].ChannelCountPerNode || 3;
-					$('#channelIncrement').val(channelsPerPixel);
+					// Step by the model's real node width even when the selector had
+					// to clamp it - the increment only drives the +/- buttons.
+					$('#channelIncrement').val(modelInfos[id].ChannelCountPerNode);
 					$('.stringRow').hide();
 				}
 				SetButtonIncrements();
@@ -406,104 +463,17 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			var colorG = parseInt($('#testModeColorGText').html());
 			var colorB = parseInt($('#testModeColorBText').html());
 			var colorW = parseInt($('#testModeColorWText').html());
-			var color1;
-			var color2;
-			var color3;
-			var strR = "FF0000";
-			var strG = "00FF00";
-			var strB = "0000FF";
+			// Test patterns are written straight into fppd's channel data, which is
+			// always R,G,B[,W]; the output driver applies the hardware colour order on
+			// the way to the wire.  Permuting here as well would apply it twice.
+			var color1 = colorR;
+			var color2 = colorG;
+			var color3 = colorB;
 			var startChannel = parseInt($('#testModeStartChannel').val());
 			var endChannel = parseInt($('#testModeEndChannel').val());
 			var chaseSize = parseInt($('#testModeChaseSize').val());
 			var maxChannel = 8 * 1024 * 1024;
 			var channelSetType = "channelRange";
-			var colorOrder = $('#colorOrder').val();
-
-			if (colorOrder == "RGB") {
-				color1 = colorR;
-				color2 = colorG;
-				color3 = colorB;
-				strR = "FF0000";
-				strG = "00FF00";
-				strB = "0000FF";
-			} else if (colorOrder == "RBG") {
-				color1 = colorR;
-				color3 = colorG;
-				color2 = colorB;
-				strR = "FF0000";
-				strG = "0000FF";
-				strB = "00FF00";
-			} else if (colorOrder == "GRB") {
-				color2 = colorR;
-				color1 = colorG;
-				color3 = colorB;
-				strR = "00FF00";
-				strG = "FF0000";
-				strB = "0000FF";
-			} else if (colorOrder == "GBR") {
-				color3 = colorR;
-				color1 = colorG;
-				color2 = colorB;
-				strR = "0000FF";
-				strG = "FF0000";
-				strB = "00FF00";
-			} else if (colorOrder == "BRG") {
-				color2 = colorR;
-				color3 = colorG;
-				color1 = colorB;
-				strR = "00FF00";
-				strG = "0000FF";
-				strB = "FF0000";
-			} else if (colorOrder == "BGR") {
-				color3 = colorR;
-				color2 = colorG;
-				color1 = colorB;
-				strR = "0000FF";
-				strG = "00FF00";
-				strB = "FF0000";
-			} else if (colorOrder == "RGBW") {
-				color1 = colorR;
-				color2 = colorG;
-				color3 = colorB;
-				strR = "FF0000";
-				strG = "00FF00";
-				strB = "0000FF";
-			} else if (colorOrder == "RBGW") {
-				color1 = colorR;
-				color3 = colorG;
-				color2 = colorB;
-				strR = "FF0000";
-				strG = "0000FF";
-				strB = "00FF00";
-			} else if (colorOrder == "GRBW") {
-				color2 = colorR;
-				color1 = colorG;
-				color3 = colorB;
-				strR = "00FF00";
-				strG = "FF0000";
-				strB = "0000FF";
-			} else if (colorOrder == "GBRW") {
-				color3 = colorR;
-				color1 = colorG;
-				color2 = colorB;
-				strR = "0000FF";
-				strG = "FF0000";
-				strB = "00FF00";
-			} else if (colorOrder == "BRGW") {
-				color2 = colorR;
-				color3 = colorG;
-				color1 = colorB;
-				strR = "00FF00";
-				strG = "0000FF";
-				strB = "FF0000";
-			} else if (colorOrder == "BGRW") {
-				color3 = colorR;
-				color2 = colorG;
-				color1 = colorB;
-				strR = "0000FF";
-				strG = "00FF00";
-				strB = "FF0000";
-			}
 
 			if (startChannel < 1 || startChannel > maxChannel || isNaN(startChannel)) {
 				startChannel = 1;
@@ -546,7 +516,7 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 						data["args"].push("Custom Chase");
 						data["args"].push(channelSet);
 						data["args"].push($('#testModeRGBCustomPattern').val());
-						if (ColorOrderIsRGBW()) {
+						if (PixelIsRGBW()) {
 							data["args"].push("4");
 						}
 					} else {
@@ -575,7 +545,7 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 						data["args"].push("Custom Cycle");
 						data["args"].push(channelSet);
 						data["args"].push($('#testModeRGBCycleCustomPattern').val());
-						if (ColorOrderIsRGBW()) {
+						if (PixelIsRGBW()) {
 							data["args"].push("4");
 						}
 					} else {
@@ -611,7 +581,7 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 					// For RGBW color orders, always send the 4th (White) channel - even
 					// when W is 0 - so the backend fills with a 4-channel stride and the
 					// pixels stay aligned for pure colors.
-					if (ColorOrderIsRGBW()) {
+					if (PixelIsRGBW()) {
 						hexColor += colorW.toString(16).padStart(2, '0');
 					}
 					data["args"].push("#" + hexColor); //color
@@ -748,7 +718,7 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			var colorB = dec2hex(parseInt($('#testModeColorBText').html()));
 
 			var newTriplet = colorR + colorG + colorB;
-			if (ColorOrderIsRGBW()) {
+			if (PixelIsRGBW()) {
 				newTriplet += dec2hex(parseInt($('#testModeColorWText').html()) || 0);
 			}
 
@@ -765,7 +735,7 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			var hexColor = $('#customPatternColorPicker').val();
 			// Remove the # from hex color
 			var colorTriplet = hexColor.substring(1).toUpperCase();
-			if (ColorOrderIsRGBW()) {
+			if (PixelIsRGBW()) {
 				colorTriplet += '00'; // color picker has no W; keep pixels 4-channel aligned
 			}
 
@@ -784,7 +754,7 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			var hexColor = $('#customChasePatternColorPicker').val();
 			// Remove the # from hex color
 			var colorTriplet = hexColor.substring(1).toUpperCase();
-			if (ColorOrderIsRGBW()) {
+			if (PixelIsRGBW()) {
 				colorTriplet += '00'; // color picker has no W; keep pixels 4-channel aligned
 			}
 
@@ -1219,9 +1189,8 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 						if (modelInfos[i].StartChannel > 0) {
 							modelInfos[i].EndChannel = modelInfos[i].StartChannel + modelInfos[i].ChannelCount - 1;
 							modelInfos[i].ChannelsPerString = parseInt(modelInfos[i].ChannelCount / modelInfos[i].StringCount);
-							// Store ColorOrder if present, default to RGB
-							modelInfos[i].ColorOrder = modelInfos[i].ColorOrder || 'RGB';
-							// Store ChannelCountPerNode (for RGBW support), default to 3
+							// Node width drives the stride for every test pattern; fppd
+							// derives the model's channel order from this same value.
 							modelInfos[i].ChannelCountPerNode = modelInfos[i].ChannelCountPerNode || 3;
 							var option = "<option value='" + i + "'>" + modelInfos[i].Name + "</option>\n";
 							$('#modelName').append(option);
@@ -1676,22 +1645,16 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 											</div>
 
 											<div class="form-group mt-2">
-												<label for="colorOrder"><b>Color Order:</b></label>
-												<select id='colorOrder' class='form-control'
-													onChange='UpdateIncrementFromColorOrder(); SetTestMode();'>
-													<option>RGB</option>
-													<option>RBG</option>
-													<option>GRB</option>
-													<option>GBR</option>
-													<option>BRG</option>
-													<option>BGR</option>
-													<option>RGBW</option>
-													<option>RBGW</option>
-													<option>GRBW</option>
-													<option>GBRW</option>
-													<option>BRGW</option>
-													<option>BGRW</option>
+												<label for="channelsPerPixel"><b>Channels per Pixel:</b></label>
+												<select id='channelsPerPixel' class='form-control'
+													title='How many channels one pixel occupies. The hardware colour order (GRB, BGR, ...) is set on the output, not here.'
+													onChange='UpdateIncrementFromChannelsPerPixel(); SetTestMode();'>
+													<option value='1'>1 &mdash; Single Color</option>
+													<option value='3' selected>3 &mdash; RGB</option>
+													<option value='4'>4 &mdash; RGBW</option>
 												</select>
+												<div id='strideNotice' class='form-text text-warning'
+													style='display: none;'></div>
 											</div>
 
 											<div class="mb-2 mt-3"><b>Adjust Channels</b></div>

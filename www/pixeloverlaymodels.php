@@ -220,20 +220,30 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             return str;
         }
 
-        function GetColorOrderSelect(currentValue, attr) {
-            var options = [
-                "RGB", "RBG", "GRB", "GBR", "BRG", "BGR",
-                "RGBW", "RBGW", "GRBW", "GBRW", "BRGW", "BGRW"
-            ];
-            if (!currentValue) currentValue = "RGB";
-            var str = "<select class='colorOrder'" + attr + ">";
+        // 1, 3 and 4 are the node widths FPP's outputs actually produce - a plain
+        // 1-4 spinner also offers 2, which no output can drive and which silently
+        // discards the blue channel.  A width already saved in the config is kept
+        // as an extra choice rather than quietly rewritten.
+        function GetChannelsPerNodeInput(currentValue, attr) {
+            var options = [1, 3, 4];
+            var current = parseInt(currentValue);
+            if (isNaN(current) || current < 1) {
+                current = 3;
+            }
+            if (options.indexOf(current) == -1) {
+                options.push(current);
+                options.sort(function (a, b) { return a - b; });
+            }
+
+            var str = "<select class='form-select cpn'" + attr + ">";
             for (var i = 0; i < options.length; i++) {
                 str += "<option value='" + options[i] + "'";
-                if (currentValue == options[i])
+                if (current == options[i])
                     str += " selected";
                 str += ">" + options[i] + "</option>";
             }
             str += "</select>";
+
             return str;
         }
 
@@ -334,12 +344,10 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
 
                 switch (model.Type) {
                     case "Channel":
-                        var colorOrder = model.ColorOrder || "RGB";
                         postr += "<td><span class='hidden type'>" + model.Type + "</span>" + model.Type + "</td>" +
                             "<td><input class='start' type='text' size='6' maxlength='6' value='" + model.StartChannel + "'" + attr + "></td>" +
                             "<td><input class='cnt' type='text' size='6' maxlength='6' value='" + model.ChannelCount + "'" + attr + "></td>" +
-                            "<td><input class='cpn' type='number' min='1' max='4' value='" + ChannelCountPerNode + "'" + attr + "></td>" +
-                            "<td>" + GetColorOrderSelect(colorOrder, attr) + "</td>" +
+                            "<td>" + GetChannelsPerNodeInput(ChannelCountPerNode, attr) + "</td>" +
                             "<td style=\"white-space: nowrap;\">" + GetOrientationInput(model.Orientation + orientationDetails(model), attr) + "</td>";
                         if (model.Orientation != "custom") {
                             postr += "<td>" + GetStartingCornerInput(model.StartCorner, attr) + "</td>" +
@@ -350,13 +358,21 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                                 "<td><input class='strcnt' type='hidden' value='" + model.StringCount + "'></td>" +
                                 "<td><input class='strands' type='hidden' value='" + model.StrandsPerString + "'></td>";
                         }
-                        var xlchecked = "";
-                        if (model.xLights) {
-                            xlchecked = " checked";
-                        }
-                        postr += "<td><input class='xlights' type='checkbox'" + xlchecked + " disabled>";
-                        if (model.xLights) {
-                            postr += " <i class='fas fa-eye' style='cursor:pointer; color:#5bc0de;' title='Preview model layout' onclick='showModelPreview(" + JSON.stringify(model.Name) + ")'></i>";
+                        // This column is headed "xLights Generated" on the editable
+                        // table and "Submodels" on the auto created one.  The checkbox
+                        // is meaningless for an auto created model - it is never an
+                        // xLights import - but the submodel expander still applies, so
+                        // the cell is always emitted and only its contents differ.
+                        postr += "<td>";
+                        if (!model.autoCreated) {
+                            var xlchecked = "";
+                            if (model.xLights) {
+                                xlchecked = " checked";
+                            }
+                            postr += "<input class='xlights' type='checkbox'" + xlchecked + " disabled>";
+                            if (model.xLights) {
+                                postr += " <i class='fas fa-eye' style='cursor:pointer; color:#5bc0de;' title='Preview model layout' onclick='showModelPreview(" + JSON.stringify(model.Name) + ")'></i>";
+                            }
                         }
                         var subModels = getSubModels(model.Name);
                         if (subModels && subModels.length > 0) {
@@ -579,8 +595,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                             model.StartCorner = $this.find("select.corner").val();
                             model.StringCount = parseInt($this.find("input.strcnt").val());
                             model.StrandsPerString = parseInt($this.find("input.strands").val());
-                            model.ChannelCountPerNode = parseInt($this.find("input.cpn").val());
-                            model.ColorOrder = $this.find("select.colorOrder").val();
+                            model.ChannelCountPerNode = parseInt($this.find(".cpn").val());
                             model.xLights = $this.find("input.xlights").is(':checked');
 
                             if ((model.StartChannel > 0) &&
@@ -656,8 +671,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                 "<td><span class='hidden type'>Channel</span>Channel</td>" +
                 "<td><input class='start' type='text' size='6' maxlength='6' value='1'></td>" +
                 "<td><input class='cnt' type='text' size='6' maxlength='6' value='150'></td>" +
-                "<td><input class='cpn' type='number' min='1' max='4' value='3'></td>" +
-                "<td>" + GetColorOrderSelect("RGB", "") + "</td>" +
+                "<td>" + GetChannelsPerNodeInput(3, "") + "</td>" +
                 "<td>" + GetOrientationInput("", "") + "</td>" +
                 "<td>" + GetStartingCornerInput('') + "</td>" +
                 "<td><input class='strcnt' type='text' size='3' maxlength='3' value='1'></td>" +
@@ -987,38 +1001,6 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                     DisableButtonClass('btnDelete');
                 }
             });
-
-            // Keep Ch./Node consistent with the selected Color Order: RGBW orders are
-            // 4 channels per node, RGB orders 3.  Leave 1/2-channel models alone when
-            // a plain RGB order is selected since color order doesn't apply to them.
-            $('#channelMemMaps').on('change', 'select.colorOrder', function () {
-                var cpnInput = $(this).closest('tr').find('input.cpn');
-                if (cpnInput.length == 0) {
-                    return;
-                }
-                var isRGBW = $(this).val().indexOf('W') != -1;
-                if (isRGBW) {
-                    cpnInput.val(4);
-                } else if (parseInt(cpnInput.val()) == 4) {
-                    cpnInput.val(3);
-                }
-            });
-
-            // And the reverse: dropping Ch./Node below 4 on an RGBW model reverts the
-            // Color Order to a 3-channel one, raising it to 4 selects RGBW.
-            $('#channelMemMaps').on('change', 'input.cpn', function () {
-                var orderSelect = $(this).closest('tr').find('select.colorOrder');
-                if (orderSelect.length == 0) {
-                    return;
-                }
-                var order = orderSelect.val() || 'RGB';
-                var isRGBW = order.indexOf('W') != -1;
-                if (parseInt($(this).val()) == 4 && !isRGBW) {
-                    orderSelect.val(order + 'W');
-                } else if (parseInt($(this).val()) != 4 && isRGBW) {
-                    orderSelect.val(order.replace('W', ''));
-                }
-            });
         }
 
     </script>
@@ -1073,8 +1055,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                                     <th><span title='Type'>Type</span></th>
                                     <th><span title='Start Channel'>Start Ch.</span></th>
                                     <th><span title='Channel Count'>Ch. Count</span></th>
-                                    <th><span title='Chan Per Node'>Ch./Node</span></th>
-                                    <th><span title='Color Order (RGB, RGBW, etc.)'>Color Order</span></th>
+                                    <th><span title='Channels each node occupies. 1, 3 and 4 are the widths FPP&apos;s outputs produce.'>Ch./Node</span></th>
                                     <th><span title='String Orientation'>Orientation</span></th>
                                     <th><span title='Starting Corner'>Start Corner</span></th>
                                     <th><span title='Number of Strings or Width of FB/X11/Sub-Model'>Strings</span></th>
@@ -1108,14 +1089,14 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                                     <th><span title='Type'>Type</span></th>
                                     <th><span title='Start Channel'>Start Ch.</span></th>
                                     <th><span title='Channel Count'>Ch. Count</span></th>
-                                    <th><span title='Chan Per Node'>Ch./Node</span></th>
-                                    <th><span title='Color Order (RGB, RGBW, etc.)'>Color Order</span></th>
+                                    <th><span title='Channels each node occupies. 1, 3 and 4 are the widths FPP&apos;s outputs produce.'>Ch./Node</span></th>
                                     <th><span title='String Orientation'>Orientation</span></th>
                                     <th><span title='Starting Corner'>Start Corner</span></th>
                                     <th><span title='Number of Strings or Width of FB/X11/Sub-Model'>Strings</span></th>
                                     <th><span
                                             title='Number of Strands Per String or Height of FB/X11/Sub-Model'>Strands</span>
                                     </th>
+                                    <th><span title='xLights submodels defined for this model'>Submodels</span></th>
                                     <th><span title='Running Effect'>Running Effect</span></th>
                                 </tr>
                             </thead>

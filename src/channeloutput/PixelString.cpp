@@ -897,20 +897,31 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
             uint32_t strings = vs.size();
             uint32_t strands = 1;
             uint32_t maxChan = 0;
+            uint32_t minChannelsPerNode = UINT32_MAX;
             int8_t rn = -1;
             for (auto& a : vs) {
                 if (a) {
                     startChannel = std::min(startChannel, (uint32_t)a->startChannel);
                     maxChan = std::max(maxChan, (uint32_t)a->startChannel + (a->pixelCount * a->channelsPerNode() / (a->groupCount ? a->groupCount : 1)));
                     channelsPerNode = std::max(channelsPerNode, (uint32_t)a->channelsPerNode());
+                    minChannelsPerNode = std::min(minChannelsPerNode, (uint32_t)a->channelsPerNode());
                     rn = std::max(rn, a->receiverNum);
                 } else {
                     --strings;
                 }
             }
-            // Channel data is always in R,G,B[,W] order; the output driver remaps to the
-            // hardware wire order.  The model's ColorOrder describes the channel data.
-            std::string colorOrder = (channelsPerNode >= 4) ? "RGBW" : "RGB";
+            if (strings && minChannelsPerNode != channelsPerNode) {
+                // One model cannot describe two node widths.  Taking the wider of
+                // them mis-addresses every pixel on the narrower strings, and the
+                // channel order reported for the model is wrong for them too, so
+                // say so rather than creating a silently broken model.
+                LogWarn(VB_CHANNELOUT, "Overlay model %s spans strings of %u and %u channels per node; using %u - pixels on the narrower strings will not line up\n",
+                        name.c_str(), minChannelsPerNode, channelsPerNode, channelsPerNode);
+            }
+            // The model's channel order is derived from channelsPerNode by
+            // PixelOverlayModel - the virtual string's own colour order describes
+            // the wire, which is applied later by prepareOutput(), and must not be
+            // copied onto the model or it would be applied twice.
             int32_t channelCount = maxChan - startChannel;
 
             if (name.find("Tree") != std::string::npos || name.find("TREE") != std::string::npos || name.find("tree") != std::string::npos || name.find("Vert") != std::string::npos || name.find("vert") != std::string::npos) {
@@ -921,7 +932,7 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
             if ((channelCount > 0) && (rn == -1)) {
                 autoModelNames.push_back(name);
                 PixelOverlayManager::INSTANCE.addAutoOverlayModel(name, startChannel, channelCount, channelsPerNode, orientation,
-                                                                  startLocation, strings, strands, colorOrder);
+                                                                  startLocation, strings, strands);
             }
         }
     }
