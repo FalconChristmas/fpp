@@ -13478,58 +13478,90 @@ function RefreshHeaderBar () {
 	}
 
 	if (data.sensors != undefined) {
-		var nonFanSensors = data.sensors.filter(function(s) {
+		var nonFanSensors = data.sensors.filter(function (s) {
 			return s.valueType !== 'FanSpeed';
 		});
-		var sensors = [];
 		var tooltip = '';
 		// Tooltip shows all sensors (including fans)
 		data.sensors.forEach(function (e) {
 			var tv = e.formatted;
-			if (e.valueType === 'Temperature' && typeof temperatureUnit !== 'undefined' && temperatureUnit) {
+			if (
+				e.valueType === 'Temperature' &&
+				typeof temperatureUnit !== 'undefined' &&
+				temperatureUnit
+			) {
 				tv = (parseFloat(e.value) * 1.8 + 32).toFixed(2) + '&deg;F';
 			}
 			tooltip += '<b>' + e.label + '</b>' + tv + '<br/>';
 		});
+		// The tooltip text changes on every refresh.  Bootstrap resolves a
+		// function title at show time, so stash the current text here and the
+		// tooltip objects never have to be recreated.  Recreating them is what
+		// used to make an open tooltip blink away and back once a second.
+		headerCache.SensorTooltip = tooltip;
+
 		// Header rotating display excludes fan speed sensors
+		var sensorIcons = [];
+		var sensorLabels = [];
+		var sensorValues = [];
 		nonFanSensors.forEach(function (e) {
 			var icon = 'bolt';
 			var val = e.formatted;
 			if (e.valueType == 'Temperature') {
 				icon = 'thermometer-half';
 				if (typeof temperatureUnit !== 'undefined' && temperatureUnit) {
-					val = val * 1.8 + 32;
-					val = parseFloat(val).toFixed(2);
+					val = parseFloat(val * 1.8 + 32).toFixed(2);
 					val += '&deg;F';
 				} else {
 					val += '&deg;C';
 				}
 			}
-			row =
-				'<span class="sensorSpan hiddenSensor" onclick="RotateHeaderSensor(' +
-				(sensors.length + 1) +
-				')" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" data-sensorcount="' +
-				sensors.length +
-				'" class="hiddenSensor" data-bs-title="TOOLTIP_DETAILS"><i class="fas fa-' +
-				icon +
-				'"></i><small>' +
-				e.label +
-				val +
-				'</small></span>';
-			sensors.push(row);
+			sensorIcons.push(icon);
+			sensorLabels.push(e.label);
+			sensorValues.push(e.label + val);
 		});
-		var sensorsJoined = sensors.join('');
-		sensorsJoined = sensorsJoined.replace(/TOOLTIP_DETAILS/g, tooltip);
-		if (headerCache.Sensors != sensorsJoined) {
-			$('.sensorSpan').each(function () {
-				$(this).tooltip('hide');
-			});
-			$('#header_sensors').html(sensorsJoined);
-			$('.sensorSpan').each(function () {
-				$(this).tooltip();
-			});
-			headerCache.Sensors = sensorsJoined;
-			if (sensors.length > 1) $('#header_sensors').css('cursor', 'pointer');
+
+		// Only the readings change from one refresh to the next, so rebuild the
+		// spans (and the tooltips attached to them) only when the set of
+		// sensors itself changes.
+		var structure = sensorIcons.join('|') + '||' + sensorLabels.join('|');
+		var values = sensorValues.join('|');
+		if (headerCache.Sensors != structure) {
+			$('#header_sensors')
+				.find('.sensorSpan')
+				.each(function () {
+					var tip = bootstrap.Tooltip.getInstance(this);
+					if (tip) tip.dispose();
+				});
+			var spans = '';
+			for (var i = 0; i < sensorValues.length; i++) {
+				spans +=
+					'<span class="sensorSpan hiddenSensor" onclick="RotateHeaderSensor(' +
+					(i + 1) +
+					')" data-sensorcount="' +
+					i +
+					'"><i class="fas fa-' +
+					sensorIcons[i] +
+					'"></i><small>' +
+					sensorValues[i] +
+					'</small></span>';
+			}
+			$('#header_sensors').html(spans);
+			$('#header_sensors')
+				.find('.sensorSpan')
+				.each(function () {
+					new bootstrap.Tooltip(this, {
+						placement: 'bottom',
+						html: true,
+						title: function () {
+							return headerCache.SensorTooltip;
+						}
+					});
+				});
+			headerCache.Sensors = structure;
+			headerCache.SensorValues = values;
+			if (sensorValues.length > 1)
+				$('#header_sensors').css('cursor', 'pointer');
 			if (
 				$('#header_sensors').data('defaultsensor') != undefined &&
 				Number.isInteger($('#header_sensors').data('defaultsensor'))
@@ -13538,7 +13570,33 @@ function RefreshHeaderBar () {
 			} else {
 				RotateHeaderSensor(0);
 			}
+		} else if (headerCache.SensorValues != values) {
+			// Same sensors, new readings.  Update the text in place so the
+			// tooltips (and which sensor is currently rotated into view) are
+			// left alone.
+			$('#header_sensors')
+				.find('.sensorSpan')
+				.each(function (i) {
+					if (i < sensorValues.length) {
+						$(this).find('small').html(sensorValues[i]);
+					}
+				});
+			headerCache.SensorValues = values;
 		}
+
+		// If a tooltip is open right now, refresh its text in place rather than
+		// letting it close and reopen.
+		$('#header_sensors')
+			.find('.sensorSpan[aria-describedby]')
+			.each(function () {
+				var tip = document.getElementById(
+					this.getAttribute('aria-describedby')
+				);
+				var inner = tip ? tip.querySelector('.tooltip-inner') : null;
+				if (inner && inner.innerHTML != tooltip) {
+					inner.innerHTML = tooltip;
+				}
+			});
 	}
 
 	if (data.timeStr != undefined && data.dateStr != undefined) {
