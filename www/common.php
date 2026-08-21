@@ -1289,6 +1289,50 @@ function PrintSettingGroupTable($group, $appendData = "", $prependData = "", $in
     echo "</div>\n";
 }
 
+// Emits the Update<setting>Children(mode) JS function.
+//
+// $conditions is an ordered map of JS boolean expression => array of child
+// setting names to show when that expression is true.  A child may appear
+// under more than one condition (e.g. Compile Hosts under both 'distcc' and
+// 'nocc'); the show set is computed first and only children not in it are
+// hidden, otherwise a non-matching branch would mark a child hidden and the
+// two-pass UpdateChildSettingsVisibility() would never show it again.
+//
+// mode: 0 = show/hide immediately, 1 = show pass only, 2 = hide pass only
+function PrintSettingChildrenFunction($setting, $conditions, $preamble = "")
+{
+    $names = array();
+    foreach ($conditions as $v) {
+        foreach ($v as $name) {
+            $names[$name] = 1;
+        }
+    }
+
+    echo "function Update$setting" . "Children(mode) {\n";
+    echo $preamble;
+    echo "    var show = {};\n";
+    foreach ($conditions as $cond => $v) {
+        echo "    if ($cond) {\n";
+        foreach ($v as $name) {
+            echo "        show['$name'] = 1;\n";
+        }
+        echo "    }\n";
+    }
+    echo "    var kids = " . json_encode(array_keys($names)) . ";\n";
+    echo "    for (var i = 0; i < kids.length; i++) {\n";
+    echo "        var kid = kids[i];\n";
+    echo "        var row = \$('#' + kid.replace(/\\./g, '\\\\.') + 'Row');\n";
+    echo "        if (show[kid]) {\n";
+    echo "            if ((mode != 2) && ((mode == 0) || (hiddenChildren[kid] != 1)))\n";
+    echo "                row.show();\n";
+    echo "        } else if (mode != 1) {\n";
+    echo "            row.hide();\n";
+    echo "            hiddenChildren[kid] = 1;\n";
+    echo "        }\n";
+    echo "    }\n";
+    echo "}\n\n";
+}
+
 function PrintSettingCheckbox($title, $setting, $restart, $reboot, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "", $sData = array())
 {
     global $settings;
@@ -1312,10 +1356,9 @@ function PrintSettingCheckbox($title, $setting, $restart, $reboot, $checkedValue
 
     echo "<script>\n";
     if (isset($sData['children'])) {
-        echo "function Update$setting" . "Children(mode) {
-	var checked = 0;
-	if ($('#$escSetting').is(':checked')) {
-		checked = 1;
+        $preamble = "    var checked = 0;
+    if ($('#$escSetting').is(':checked')) {
+        checked = 1;
     }
 
     if (checked)
@@ -1324,27 +1367,13 @@ function PrintSettingCheckbox($title, $setting, $restart, $reboot, $checkedValue
         $('.$escSetting' + 'Child').hide();
 
 ";
+        $conditions = array();
         foreach ($sData['children'] as $k => $v) {
             if ($k == "1") {
-                echo "if (checked) {\n";
-                echo "    if (mode != 2) {\n";
-                foreach ($v as $name) {
-                    echo "    if ((mode == 0) || (hiddenChildren.$name != 1))\n";
-                    echo "        $('#" . $name . "Row').show();\n";
-                }
-                echo "    }\n";
-                echo "} else {\n";
-                echo "    if (mode != 1) {\n";
-                foreach ($v as $name) {
-                    echo "$('#" . $name . "Row').hide();\n";
-                    echo "hiddenChildren.$name = 1;\n";
-                }
-                echo "    }\n";
-                echo "}\n";
+                $conditions["checked"] = $v;
             }
         }
-
-        echo "}\n\n";
+        PrintSettingChildrenFunction($setting, $conditions, $preamble);
     }
 
     echo "
@@ -1435,28 +1464,12 @@ function PrintSettingSelectInternal($title, $setting, $restart, $reboot, $defaul
     echo "<script>\n";
 
     if (isset($sData['children'])) {
-        echo "function Update$setting" . "Children(mode) {
-    var val = $('#$escSetting').val();
-";
+        $preamble = "    var val = $('#$escSetting').val();\n";
+        $conditions = array();
         foreach ($sData['children'] as $k => $v) {
-            echo "if (val == '$k') {\n";
-            echo "    if (mode != 2) {\n";
-            foreach ($v as $name) {
-                echo "    if ((mode == 0) || (hiddenChildren.$name != 1))\n";
-                echo "        $('#" . $name . "Row').show();\n";
-            }
-            echo "    }\n";
-            echo "} else {\n";
-            echo "    if (mode != 1) {\n";
-            foreach ($v as $name) {
-                echo "$('#" . $name . "Row').hide();\n";
-                echo "hiddenChildren.$name = 1;\n";
-            }
-            echo "    }\n";
-            echo "}\n";
+            $conditions["val == '" . $k . "'"] = $v;
         }
-
-        echo "}\n\n";
+        PrintSettingChildrenFunction($setting, $conditions, $preamble);
     }
 
     if (isset($sData['reloadOther'])) {
@@ -1670,28 +1683,12 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 
     echo "<script>\n";
     if (isset($sData['children'])) {
-        echo "function Update$setting" . "Children(mode) {
-    var val = $('#$escSetting').val();
-";
+        $preamble = "    var val = $('#$escSetting').val();\n";
+        $conditions = array();
         foreach ($sData['children'] as $k => $v) {
-            echo "if (val != '') {\n";
-            echo "    if (mode != 2) {\n";
-            foreach ($v as $name) {
-                echo "    if ((mode == 0) || (hiddenChildren.$name != 1))\n";
-                echo "        $('#" . $name . "Row').show();\n";
-            }
-            echo "    }\n";
-            echo "} else {\n";
-            echo "    if (mode != 1) {\n";
-            foreach ($v as $name) {
-                echo "$('#" . $name . "Row').hide();\n";
-                echo "hiddenChildren.$name = 1;\n";
-            }
-            echo "    }\n";
-            echo "}\n";
+            $conditions["val != ''"] = array_merge(isset($conditions["val != ''"]) ? $conditions["val != ''"] : array(), $v);
         }
-
-        echo "}\n\n";
+        PrintSettingChildrenFunction($setting, $conditions, $preamble);
     }
 
     echo "
