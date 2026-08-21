@@ -504,15 +504,19 @@ void Sequence::queuePreset(const std::string& preset, std::map<std::string, std:
     // with no sequence locks held; a preset that re-enters the sequence (or
     // queues further presets) is therefore safe.
     Timers::INSTANCE.addTimer("SequencePresets", GetTimeMS(), [this]() {
-        std::unique_lock<std::mutex> l(m_pendingPresetsLock);
-        while (!m_pendingPresets.empty()) {
-            auto p = std::move(m_pendingPresets.front());
-            m_pendingPresets.pop_front();
-            l.unlock();
-            CommandManager::INSTANCE.TriggerPreset(p.first, p.second);
-            l.lock();
-        }
+        drainPendingPresets();
     });
+}
+
+void Sequence::drainPendingPresets() {
+    std::unique_lock<std::mutex> l(m_pendingPresetsLock);
+    while (!m_pendingPresets.empty()) {
+        auto p = std::move(m_pendingPresets.front());
+        m_pendingPresets.pop_front();
+        l.unlock();
+        CommandManager::INSTANCE.TriggerPreset(p.first, p.second);
+        l.lock();
+    }
 }
 
 void Sequence::StartSequence() {

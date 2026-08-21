@@ -73,6 +73,14 @@ public:
     // freed buffer; copying under m_seqFilenameLock is the only safe read.
     std::string GetSeqFilenameCopy() const;
 
+    // Run every queued sequence preset now, on the calling thread.  Normally
+    // driven by the main-loop timer queuePreset() arms; called directly once
+    // during shutdown, because a preset queued in the last loop iteration
+    // (a sequence that ended, or a stop command, right as the loop exits) has
+    // no later tick to fire on and would otherwise be dropped.  MUST be called
+    // with no sequence lock held -- presets run arbitrary commands.
+    void drainPendingPresets();
+
     int GetSeqStepTime() const { return m_seqStepTime; }
     void BlankSequenceData(bool clearBridge = false);
 

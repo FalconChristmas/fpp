@@ -1122,6 +1122,17 @@ int main(int argc, char* argv[]) {
     // incomplete and cause problems with summary
     // PublishStatsForce("Shutdown"); // not background
 
+    // Sequence presets (SEQUENCE_STOPPED and the FSEQ frame-triggered commands)
+    // are queued for the main loop rather than run at their call site, which
+    // holds the sequence locks.  A preset queued during the final loop
+    // iteration -- a sequence that ended, or a stop command, landing just as
+    // runMainFPPDLoop goes to 0 -- has no later tick to fire on.  Drain it here
+    // instead: still before FPPD_STOPPED, so the ordering a user would expect
+    // between the two is preserved, and well before CommandManager::Cleanup().
+    if (sequence) {
+        sequence->drainPendingPresets();
+    }
+
     if (CommandManager::INSTANCE.HasPreset("FPPD_STOPPED")) {
         CommandManager::INSTANCE.TriggerPreset("FPPD_STOPPED");
     }

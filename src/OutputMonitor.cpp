@@ -596,7 +596,9 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
             // fusePins is keyed by the interrupt pin's name -- erasing it here
             // is what lets a later AddPortConfiguration re-register the
             // callback; leaving it behind means fuse trips are silently
-            // ignored after a config reload.
+            // ignored after a config reload.  getPinByName() matches on name
+            // exactly (there are no aliases), so the name here is the same
+            // string the add side keyed on.
             bool sharedInterrupt = false;
             for (auto other : portPins) {
                 if (other && other != pi && other->eFuseInterruptPin == pi->eFuseInterruptPin) {
@@ -665,9 +667,14 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
     if (pinConfig.isMember("eFusePin")) {
         if (pinConfig.isMember("eFuseInterruptPin")) {
             std::string eFuseInterruptPin = pinConfig.get("eFuseInterruptPin", "").asString();
-            bool eFuseInterruptHigh = false;
+            // A leading '!' is stripped but carries no meaning here, and there
+            // is deliberately no inverted-interrupt flag to go with it: the
+            // callback below ignores the edge value it is handed and re-reads
+            // every affected port's eFusePin, so which edge announced the trip
+            // cannot change the outcome.  (The pin is registered for BOTH edges
+            // anyway -- some i2c expanders mislabel a single-edge request -- so
+            // a polarity flag would have nothing to act on.)
             if (eFuseInterruptPin[0] == '!') {
-                eFuseInterruptHigh = true;
                 eFuseInterruptPin = eFuseInterruptPin.substr(1);
             }
             std::string postFix = "";

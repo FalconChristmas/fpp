@@ -75,6 +75,16 @@ Scheduler::Scheduler() :
     }
 
     m_lastProcTime = time(NULL);
+    // Seed the FPP-command catch-up window to now rather than leaving it at the
+    // epoch.  CheckScheduledItems() fires any command whose second falls in
+    // (m_lastCommandCheckTime, now], which exists so a second this process
+    // MISSED -- a slow midnight reload, an NTP step -- still runs.  A second
+    // that passed before this process existed was never missed by it, and the
+    // 60s catch-up cap is not a substitute: from 0 every start would replay the
+    // preceding minute of commands, so a scheduled "Outputs Off" or a restart
+    // would run a second time on every restart, and repeatedly in a restart
+    // loop.
+    m_lastCommandCheckTime = m_lastProcTime;
     LoadScheduleFromFile();
 }
 
@@ -1472,11 +1482,20 @@ static bool ParseIntArg(const std::string& str, int& out) {
     errno = 0;
     long v = strtol(start, &end, 10);
 
+    // "Consumed nothing" has to be decided BEFORE the trailing-whitespace skip
+    // below moves `end`: strtol() skips leading whitespace itself, so an
+    // all-whitespace argument leaves end == start with v == 0, and skipping
+    // first walks end to the terminator and makes the test pass -- reporting a
+    // successful parse of 0 for an argument that held no number at all.
+    if (end == start) {
+        return false;
+    }
+
     while ((*end == ' ') || (*end == '\t')) {
         end++;
     }
 
-    if ((end == start) || (*end != '\0') || (errno == ERANGE) ||
+    if ((*end != '\0') || (errno == ERANGE) ||
         (v < INT_MIN) || (v > INT_MAX)) {
         return false;
     }
