@@ -86,6 +86,14 @@ public:
 
     void SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS);
 
+    // Bridge data arrives in bursts (one recvmmsg drain can be hundreds of
+    // packets). WriteBridgeData copies one packet's channels into the bridge
+    // buffer without touching the range bookkeeping; CommitBridgeRanges then
+    // records all of a burst's ranges under a single lock acquisition.
+    // SetBridgeData above is the two combined, for single-packet callers.
+    bool WriteBridgeData(uint8_t* data, int startChannel, int len);
+    void CommitBridgeRanges(const std::vector<std::pair<uint32_t, uint32_t>>& ranges, uint64_t expireMS);
+
 private:
     void ProcessVariableHeaders();
     void SetLastFrameData(FSEQFile::FrameData* data);
@@ -106,6 +114,13 @@ private:
     std::map<uint64_t, BridgeRangeData> m_bridgeRanges;
     std::mutex m_bridgeRangesLock;
     uint8_t* m_bridgeData;
+    // Mirrors !m_bridgeRanges.empty(); updated wherever the map is modified
+    // (under m_bridgeRangesLock) so hasBridgeData() - called several times a
+    // frame from both the main loop and the output thread - needs no lock.
+    std::atomic<bool> m_hasBridgeRanges{ false };
+    // Per-frame scratch for the merge in ProcessSequenceData, kept as a
+    // member so its allocation is reused frame to frame.
+    std::vector<std::pair<uint32_t, uint32_t>> m_bridgeRangeScratch;
 
     AtomicSharedPtr<FSEQFile> m_seqFile;
 

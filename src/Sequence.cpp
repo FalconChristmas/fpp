@@ -628,6 +628,7 @@ void Sequence::BlankSequenceData(bool clearBridge) {
         }
         std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
         m_bridgeRanges.clear();
+        m_hasBridgeRanges.store(false, std::memory_order_relaxed);
     }
 
     m_dataProcessed = false;
@@ -765,41 +766,44 @@ void Sequence::ProcessSequenceData(int ms) {
             m_lastFrameData->readFrame((uint8_t*)m_seqData, FPPD_MAX_CHANNELS);
     }
 
-    std::unique_lock<std::mutex> bridgesLock(m_bridgeRangesLock);
-    if (m_bridgeData && !m_bridgeRanges.empty()) {
-        // copy the latest bridge data to the sequence data
+    if (m_bridgeData && hasBridgeData()) {
+        // Prune expired ranges and snapshot the live ones under the lock;
+        // m_bridgeRanges is keyed by startChannel so the scratch vector comes
+        // out sorted. The memcpys below run after unlocking so the receive
+        // path is never blocked on the merge - the packet data itself was
+        // never protected by this lock anyway (the writer memcpys into
+        // m_bridgeData before taking it), so a concurrent packet can tear a
+        // universe mid-merge exactly as it always could.
         uint64_t nt = GetTimeMS();
-        std::map<uint32_t, uint32_t> rngs;
-        for (auto& a : m_bridgeRanges) {
-            BridgeRangeData& rd = a.second;
-            auto it = rd.expires.begin();
+        m_bridgeRangeScratch.clear();
+        std::unique_lock<std::mutex> bridgesLock(m_bridgeRangesLock);
+        auto rit = m_bridgeRanges.begin();
+        while (rit != m_bridgeRanges.end()) {
+            BridgeRangeData& rd = rit->second;
             uint32_t len = 0;
+            auto it = rd.expires.begin();
             while (it != rd.expires.end()) {
                 if (it->second < nt) {
-                    rd.expires.erase(it);
-                    it = rd.expires.begin();
+                    it = rd.expires.erase(it);
                 } else {
                     len = std::max(len, it->first);
                     ++it;
                 }
             }
             if (len > 0) {
-                rngs[rd.startChannel] = len;
-            }
-        }
-        auto it = m_bridgeRanges.begin();
-        while (it != m_bridgeRanges.end()) {
-            if (it->second.expires.empty()) {
-                m_bridgeRanges.erase(it);
-                it = m_bridgeRanges.begin();
+                m_bridgeRangeScratch.emplace_back(rd.startChannel, len);
+                ++rit;
             } else {
-                ++it;
+                rit = m_bridgeRanges.erase(rit);
             }
         }
+        m_hasBridgeRanges.store(!m_bridgeRanges.empty(), std::memory_order_relaxed);
+        bridgesLock.unlock();
 
+        // copy the latest bridge data to the sequence data
         uint32_t curStart = 0xFFFFFFFF;
         uint32_t nextStart = 0xFFFFFFFF;
-        for (auto& a : rngs) {
+        for (auto& a : m_bridgeRangeScratch) {
             if (curStart == 0xFFFFFFFF) {
                 curStart = a.first;
                 nextStart = a.first + a.second;
@@ -817,7 +821,6 @@ void Sequence::ProcessSequenceData(int ms) {
             memcpy(&m_seqData[curStart], &m_bridgeData[curStart], nextStart - curStart);
         }
     }
-    bridgesLock.unlock();
     PluginManager::INSTANCE.modifySequenceData(ms, (uint8_t*)m_seqData);
 
     if (IsEffectRunning())
@@ -970,13 +973,13 @@ void Sequence::CloseSequenceFile(void) {
     }
 }
 
-void Sequence::SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS) {
+bool Sequence::WriteBridgeData(uint8_t* data, int startChannel, int len) {
     if (this->IsSequenceRunning()) {
         if (m_warn_if_bridging) {
             WarningHolder::AddWarningTimeout(60 ,11, "Received bridging data while sequence is running.");
         }
         if (m_prioritize_sequence_over_bridge) {
-            return;
+            return false;
         }
     }
 
@@ -987,20 +990,42 @@ void Sequence::SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t 
     // m_bridgeData (FPPD_MAX_CHANNEL_NUM). Unsigned arithmetic avoids overflow.
     if (startChannel < 0 || len < 0 ||
         ((unsigned long long)startChannel + (unsigned long long)len) > (unsigned long long)FPPD_MAX_CHANNEL_NUM) {
-        return;
+        return false;
     }
     memcpy(&m_bridgeData[startChannel], data, len);
+    return true;
+}
 
+void Sequence::CommitBridgeRanges(const std::vector<std::pair<uint32_t, uint32_t>>& ranges, uint64_t expireMS) {
+    if (ranges.empty()) {
+        return;
+    }
+    std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
+    for (auto& r : ranges) {
+        auto& a = m_bridgeRanges[r.first];
+        a.startChannel = r.first;
+        a.expires[r.second] = expireMS;
+    }
+    m_hasBridgeRanges.store(true, std::memory_order_relaxed);
+    lock.unlock();
+
+    setDataNotProcessed();
+}
+
+void Sequence::SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS) {
+    if (!WriteBridgeData(data, startChannel, len)) {
+        return;
+    }
     std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
     auto& a = m_bridgeRanges[startChannel];
     a.startChannel = startChannel;
     a.expires[len] = expireMS;
+    m_hasBridgeRanges.store(true, std::memory_order_relaxed);
     lock.unlock();
 
     setDataNotProcessed();
 }
 
 bool Sequence::hasBridgeData() {
-    std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
-    return !m_bridgeRanges.empty();
+    return m_hasBridgeRanges.load(std::memory_order_relaxed);
 }

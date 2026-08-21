@@ -6272,14 +6272,21 @@ function GetUniverseBytesReceived () {
 				if (maxRows < 32) {
 					maxRows = 32;
 				}
+				// Only show the Suppressed column when the priority feature has
+				// actually suppressed something; it is "-" or 0 otherwise.
+				var showSuppressed = data.universes.some(function (u) {
+					return parseInt(u.suppressedPackets) > 0;
+				});
+				var tableHeader =
+					'<thead><tr id="rowReceivedBytesHeader"><th>Universe</th><th>Start Address</th><th>Packets</th><th>Bytes</th><th>Errors</th>' +
+					(showSuppressed ? '<th>Suppressed</th>' : '') +
+					'</tr></thead><tbody>';
 				var nextRows = maxRows;
 				if (data.universes.length > 0) {
 					html.push(
 						'<table class="fppBridgeStatsTable fppSelectableRowTable">'
 					);
-					html.push(
-						'<thead><tr id="rowReceivedBytesHeader"><th>Universe</th><th>Start Address</th><th>Packets</th><th>Bytes</th><th>Errors</th></tr></thead><tbody>'
-					);
+					html.push(tableHeader);
 				}
 				for (i = 0; i < data.universes.length; i++) {
 					if (i == nextRows) {
@@ -6294,9 +6301,7 @@ function GetUniverseBytesReceived () {
 						html.push(
 							'<table class="fppBridgeStatsTable fppSelectableRowTable">'
 						);
-						html.push(
-							'<thead><tr id="rowReceivedBytesHeader"><th>Universe</th><th>Start Address</th><th>Packets</th><th>Bytes</th><th>Errors</th></tr></thead><tbody>'
-						);
+						html.push(tableHeader);
 					}
 					html.push('<tr><td>');
 					html.push(data.universes[i].id);
@@ -6308,6 +6313,14 @@ function GetUniverseBytesReceived () {
 					html.push(data.universes[i].bytesReceived);
 					html.push('</td><td>');
 					html.push(data.universes[i].errors);
+					if (showSuppressed) {
+						html.push('</td><td>');
+						html.push(
+							data.universes[i].suppressedPackets === undefined ?
+								'-'
+							:	data.universes[i].suppressedPackets
+						);
+					}
 					html.push('</td></tr>');
 				}
 				html.push('</tbody></table>');
