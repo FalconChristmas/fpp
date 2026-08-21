@@ -10,25 +10,25 @@ if (((!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == 
 <script type="text/javascript" src="js/jquery-latest.min.js?ref=<?= filemtime('js/jquery-latest.min.js'); ?>"></script>
 <script type="text/javascript" src="js/jquery4-compat.js?ref=<?= filemtime('js/jquery4-compat.js'); ?>"></script>
 <!-- <script src="https://code.jquery.com/jquery-migrate-3.4.1.js"></script> -->
-<script type="text/javascript" src="js/jquery-ui.min.js"></script>
-<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
+<script type="text/javascript" src="js/jquery-ui.min.js?ref=<?= filemtime('js/jquery-ui.min.js'); ?>"></script>
+<script type="text/javascript" src="js/jquery.ui.touch-punch.js?ref=<?= filemtime('js/jquery.ui.touch-punch.js'); ?>"></script>
 <?
 if ((!isset($settings['disableUIPopoverAlerts'])) || ($settings['disableUIPopoverAlerts'] == '0')) {
     // Enable popover alerts
-    echo "<script type='text/javascript' src='js/jquery.jgrowl.min.js'></script>";
+    echo "<script type='text/javascript' src='js/jquery.jgrowl.min.js?ref=" . filemtime('js/jquery.jgrowl.min.js') . "'></script>";
 } elseif (isset($settings['disableUIPopoverAlerts']) && ($settings['disableUIPopoverAlerts'] == '1')) {
-    echo "<script type='text/javascript' src='js/jquery.jgrowl.disabled.js'></script>";
+    echo "<script type='text/javascript' src='js/jquery.jgrowl.disabled.js?ref=" . filemtime('js/jquery.jgrowl.disabled.js') . "'></script>";
 }
 ?>
 
-<script type="text/javascript" src="js/zebra_pin.min.js"></script>
-<script type="text/javascript" src="js/popper.min.js"></script>
-<script type="text/javascript" src="jquery/jquery.floatThead/jquery.floatThead.min.js"></script>
+<script type="text/javascript" src="js/zebra_pin.min.js?ref=<?= filemtime('js/zebra_pin.min.js'); ?>"></script>
+<script type="text/javascript" src="js/popper.min.js?ref=<?= filemtime('js/popper.min.js'); ?>"></script>
+<script type="text/javascript" src="jquery/jquery.floatThead/jquery.floatThead.min.js?ref=<?= filemtime('jquery/jquery.floatThead/jquery.floatThead.min.js'); ?>"></script>
 <script type="text/javascript"
     src="js/bootstrap.bundle.min.js?ref=<?= filemtime('js/bootstrap.bundle.min.js'); ?>"></script>
 
-<link rel="stylesheet" href="css/jquery-ui.css">
-<link rel="stylesheet" href="css/jquery.jgrowl.min.css">
+<link rel="stylesheet" href="css/jquery-ui.css?ref=<?= filemtime('css/jquery-ui.css'); ?>">
+<link rel="stylesheet" href="css/jquery.jgrowl.min.css?ref=<?= filemtime('css/jquery.jgrowl.min.css'); ?>">
 
 <link rel="icon" href="favicon.ico" type="image/x-icon">
 
@@ -36,8 +36,8 @@ if ((!isset($settings['disableUIPopoverAlerts'])) || ($settings['disableUIPopove
         Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com
         License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)
     -->
-<link rel="stylesheet" href="css/fontawesome.all.min.css">
-<link rel="stylesheet" href="webfonts/fpp-icons/styles.css">
+<link rel="stylesheet" href="css/fontawesome.all.min.css?ref=<?= filemtime('css/fontawesome.all.min.css'); ?>">
+<link rel="stylesheet" href="webfonts/fpp-icons/styles.css?ref=<?= filemtime('webfonts/fpp-icons/styles.css'); ?>">
 
 <!--
     ZERO-MD 3.1.2 - https://github.com/zerodevx/zero-md

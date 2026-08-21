@@ -570,8 +570,22 @@ AddDefaultCharset utf-8
         Header merge Cache-Control immutable
 
         # 2) Remove the value for all resources that shouldn't be have it.
+        #
+        # js/css are in this list deliberately. They inherit ExpiresDefault
+        # (1 year) above, and FPP's pages append ?ref=<filemtime> so an
+        # upgraded asset is fetched under a new URL. `immutable` would be
+        # correct only if EVERY asset carried that buster -- and any tag that
+        # is missing one becomes unrecoverable, because `immutable` tells the
+        # browser not to revalidate even on a normal reload. The user is then
+        # left running a stale library against fresh FPP script with no way
+        # out short of a hard reload (Ctrl+F5), which is exactly the failure
+        # this caused in the file manager: bootstrap-table.min.js had no
+        # buster, so an upgrade left the cached copy in place and every tab
+        # rendered empty. Dropping `immutable` here costs one conditional GET
+        # per asset per session (a 304, no body) and makes that class of
+        # mistake self-healing on the next reload.
 
-        <FilesMatch "\.(appcache|cur|geojson|json(ld)?|x?html?|topojson|xml)$">
+        <FilesMatch "\.(appcache|css|cur|geojson|m?js|json(ld)?|x?html?|topojson|xml)$">
             Header edit Cache-Control immutable ""
         </FilesMatch>
 

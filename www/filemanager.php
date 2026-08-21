@@ -44,11 +44,11 @@
     ?>
 
     <!-- Bootstrap Table (v1.27.1) - New table sorting/filtering library -->
-    <script type="text/javascript" src="bootstrap-table/js/bootstrap-table.min.js"></script>
-    <script type="text/javascript" src="bootstrap-table/extensions/bootstrap-table-filter-control.min.js"></script>
-    <script type="text/javascript" src="bootstrap-table/extensions/bootstrap-table-export.min.js"></script>
+    <script type="text/javascript" src="bootstrap-table/js/bootstrap-table.min.js?ref=<?= filemtime('bootstrap-table/js/bootstrap-table.min.js'); ?>"></script>
+    <script type="text/javascript" src="bootstrap-table/extensions/bootstrap-table-filter-control.min.js?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-filter-control.min.js'); ?>"></script>
+    <script type="text/javascript" src="bootstrap-table/extensions/bootstrap-table-export.min.js?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-export.min.js'); ?>"></script>
 
-    <script type="text/javascript" src="js/sugar/sugar.min.js"></script>
+    <script type="text/javascript" src="js/sugar/sugar.min.js?ref=<?= filemtime('js/sugar/sugar.min.js'); ?>"></script>
     <script type="text/javascript" src="js/fpp-filemanager.js?ref=<?= filemtime('js/fpp-filemanager.js'); ?>"></script>
     <script type="text/javascript"
         src="js/fpp-bootstrap-table.js?ref=<?= filemtime('js/fpp-bootstrap-table.js'); ?>"></script>
@@ -70,14 +70,14 @@
     <title><? echo $pageTitle; ?></title>
 
 
-    <script src="jquery/jQuery-Form-Plugin/js/jquery.form.js"></script>
-    <script src="js/filepond.min.js"></script>
+    <script src="jquery/jQuery-Form-Plugin/js/jquery.form.js?ref=<?= filemtime('jquery/jQuery-Form-Plugin/js/jquery.form.js'); ?>"></script>
+    <script src="js/filepond.min.js?ref=<?= filemtime('js/filepond.min.js'); ?>"></script>
 
     <!-- Bootstrap Table CSS -->
-    <link rel="stylesheet" href="bootstrap-table/css/bootstrap-table.min.css" />
-    <link rel="stylesheet" href="bootstrap-table/extensions/bootstrap-table-filter-control.min.css" />
+    <link rel="stylesheet" href="bootstrap-table/css/bootstrap-table.min.css?ref=<?= filemtime('bootstrap-table/css/bootstrap-table.min.css'); ?>" />
+    <link rel="stylesheet" href="bootstrap-table/extensions/bootstrap-table-filter-control.min.css?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-filter-control.min.css'); ?>" />
     <!-- Filepond CSS -->
-    <link rel="stylesheet" href="css/filepond.min.css" />
+    <link rel="stylesheet" href="css/filepond.min.css?ref=<?= filemtime('css/filepond.min.css'); ?>" />
 
 
 </head>
