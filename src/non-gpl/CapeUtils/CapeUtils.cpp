@@ -1313,6 +1313,9 @@ private:
                     }
                 }
 
+                if (ORIGEEPROM.find("sys/bus/i2c") == std::string::npos && devsn == "" && validSignature) {
+                    removes.insert("FetchVendorLogos");
+                }
                 if (result["id"].asString() != "Unsupported" && result["id"].asString() != "Unknown") {
                     result["serialNumber"] = capesn;
                 }
