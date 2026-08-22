@@ -39,6 +39,12 @@
 # not ACK there even on a healthy board, so its silence proves nothing.  Whether the
 # emulated devices bound is the only signal that means anything.
 #
+# But "did not bind" only means something once the driver exists to bind.  at24 and
+# ad7291 are modules, loaded by udev off each client's MODALIAS -- and the boot-time
+# flasher runs as init with no udev, where an entirely healthy board presents the
+# unprogrammed-MSPM0 signature exactly.  Hence the modprobe below, and the separate
+# verdict for "the driver is not there" ahead of any verdict about the board.
+#
 # Usage:  check_pb2_eeprom.sh [--quiet]
 #
 # Exit codes:
@@ -85,6 +91,18 @@ case "${MODEL}" in
         ;;
 esac
 
+# udev is what loads the driver module for an i2c client, off the MODALIAS in its
+# uevent.  The boot-time flasher runs this script from init= with no udev at all,
+# and at24/ad7291 are both modules -- so on that path the clients exist with no
+# driver bound, which from sysfs is indistinguishable from an MSPM0 that never came
+# up.  Load them here so the verdict below is about the board and not about the
+# environment the script was called from.  A no-op when they are already loaded,
+# built in, or when running against fixtures.
+if [ -z "${PB2_EEPROM}${PB2_I2CDEV}${PB2_ADCDEV}" ] && command -v modprobe >/dev/null 2>&1; then
+    modprobe at24 2>/dev/null || true
+    modprobe ad7291 2>/dev/null || true
+fi
+
 # The EEPROM has to be present before anything else can be decided.
 i=0
 while [ ! -f "${EEPROM}" ] && [ "${i}" -lt "${EEPROM_WAIT}" ]; do
@@ -94,6 +112,20 @@ done
 if [ ! -f "${EEPROM}" ]; then
     # Both of these end the flash, but they point at different repairs, and the
     # message is the only thing whoever picks the board up gets to work from.
+    #
+    # Before any of them: if the at24 driver is not even registered, nothing could
+    # have bound to 0x50 whatever the hardware did, and every verdict below would be
+    # an accusation against a board that was never asked.  That is a broken image or
+    # a missing module, not a broken board.
+    if [ -z "${PB2_EEPROM}${PB2_I2CDEV}${PB2_ADCDEV}" ] && [ ! -d /sys/bus/i2c/drivers/at24 ]; then
+        fatal "the at24 driver is not loaded, so nothing can bind to the EEPROM at 0x50.
+
+  This says nothing about the board -- the driver that would read it is missing.
+  It is a module in the FPP kernel and is normally loaded by udev; check that
+  /lib/modules/$(uname -r) matches the running kernel.
+
+  Re-run this once at24 is loaded before judging the hardware."
+    fi
     if [ -d "${I2CDEV}" ]; then
         # The client exists but at24 did not bind, so 0x50 did not ACK its probe
         # read.  On a PocketBeagle2 that EEPROM is emulated by the on-board
