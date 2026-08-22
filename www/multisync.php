@@ -243,6 +243,7 @@
         const wledPoller    = new AutoRefreshController();
         const geniusPoller  = new AutoRefreshController();
         const baldrickPoller = new AutoRefreshController();
+        const jboardsPoller = new AutoRefreshController();
 
         var unavailables = [];
         var reorderModeActive = false;
@@ -316,6 +317,8 @@
             WLED:          new Set([0xFB]),
             // 0xC4 = 196
             BALDRICK:      new Set([0xC4]),
+            // 0xC5 = 197
+            JBOARDS:       new Set([0xC5]),
         };
 
         function isDeviceType(typeId, category) {
@@ -335,6 +338,7 @@
         function isGenius(typeId)         { return isDeviceType(typeId, 'GENIUS'); }
         function isWLED(typeId)           { return isDeviceType(typeId, 'WLED'); }
         function isBaldrick(typeId)       { return isDeviceType(typeId, 'BALDRICK'); }
+        function isJBoards(typeId)        { return isDeviceType(typeId, 'JBOARDS'); }
 
         // ============================================================
         // SECTION: Utilities
@@ -1641,6 +1645,7 @@
             var wledIpAddresses = [];
             var geniusIpAddresses = [];
             var baldrickIpAddresses = [];
+            var jboardsIpAddresses = [];
             var falconV4Addresses = [];
             var falconV3Addresses = [];
 
@@ -1904,12 +1909,15 @@
                     geniusIpAddresses.push(ip);
                 } else if (isBaldrick(data[i].typeId)) {
                     baldrickIpAddresses.push(ip);
+                } else if (isJBoards(data[i].typeId)) {
+                    jboardsIpAddresses.push(ip);
                 }
             }
             getFPPSystemStatus(fppIpAddresses, false);
             getWLEDControllerStatus(wledIpAddresses, false);
             getGeniusControllerStatus(geniusIpAddresses, false);
             getBaldrickControllerStatus(baldrickIpAddresses, false);
+            getJBoardsControllerStatus(jboardsIpAddresses, false);
             getFalconControllerStatus(falconV3Addresses, falconV4Addresses, false);
 
             var extraRemotes = [];
@@ -2552,6 +2560,67 @@
         }
 
         // ============================================================
+        // SECTION: JBoards polling
+        // ============================================================
+
+        async function getJBoardsControllerStatus(ipAddresses, refreshing = false) {
+            ips = "";
+            if (Array.isArray(ipAddresses)) {
+                jboardsPoller.cancel();
+                ipAddresses.forEach(function (entry) {
+                    ips += "&ip[]=" + entry;
+                });
+            } else {
+                ips = "&ip[]=" + ipAddresses;
+            }
+            if (ips == "") {
+                return;
+            }
+            try {
+                const r = await fetch("api/system/status?type=JBoards" + ips);
+                const alldata = await r.json();
+                var $tbl = $('#fppSystemsTable');
+                Object.entries(alldata).forEach(function (entry) {
+                    var ip = entry[0], data = entry[1];
+                    if (data == null || data == "" || data == "null") {
+                        return;
+                    }
+
+                    var rowId = hostRows[ip.replace(/\./g, '_')];
+                    var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+                    if (!item) return;
+
+                    if (data.status_name) {
+                        var status = data.status_name.charAt(0).toUpperCase() +
+                                     data.status_name.slice(1);
+                        if (data.current_playlist && data.current_playlist.playlist) {
+                            status += ":<br>" + data.current_playlist.playlist;
+                        }
+                        item.status = status;
+                    }
+                    item.elapsed = data.time_elapsed ? data.time_elapsed : '';
+
+                    if (data.host_description &&
+                        item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
+                        item.hostname = item.hostname.replace(
+                            "class='hostDescriptionSM'></small>",
+                            "class='hostDescriptionSM'>" + data.host_description + "</small>"
+                        );
+                    }
+
+                    if (data.version) {
+                        item.version = data.version;
+                    }
+                });
+                safeInitBody($tbl);
+            } finally {
+                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked") && !isUserInteracting()) {
+                    jboardsPoller.schedule(() => getJBoardsControllerStatus(ipAddresses, true));
+                }
+            }
+        }
+
+        // ============================================================
         // SECTION: Refresh orchestration
         // ============================================================
 
@@ -2561,11 +2630,12 @@
             wledPoller.cancel();
             geniusPoller.cancel();
             baldrickPoller.cancel();
+            jboardsPoller.cancel();
         }
 
         function RefreshStats() {
             var $tbl = $('#fppSystemsTable');
-            var ips = [], gips = [], wips = [], bips = [], fv3ips = [], fv4ips = [];
+            var ips = [], gips = [], wips = [], bips = [], jips = [], fv3ips = [], fv4ips = [];
             var seenRows = {};
 
             Object.keys(hostRows).forEach(function (key) {
@@ -2598,6 +2668,8 @@
                     gips.push(ip);
                 } else if (isBaldrick(typeId)) {
                     bips.push(ip);
+                } else if (isJBoards(typeId)) {
+                    jips.push(ip);
                 }
             });
 
@@ -2605,6 +2677,7 @@
             getGeniusControllerStatus(gips, true);
             getWLEDControllerStatus(wips, true);
             getBaldrickControllerStatus(bips, true);
+            getJBoardsControllerStatus(jips, true);
             getFalconControllerStatus(fv3ips, fv4ips, true);
         }
 
@@ -4037,7 +4110,9 @@
                 'Falcon': 'Falcon',
                 'FalconV4': 'FalconV4',
                 'ESPixelStick': 'ESPixelStick',
+                'Baldrick': 'Baldrick',
                 'Genius': 'Genius',
+                'JBoards': 'JBoards',
                 'SanDevices': 'SanDevices',
                 'WLED': 'WLED',
                 'Unknown': 'Unknown'
@@ -4058,7 +4133,9 @@
                     case 'falcon': return isFalcon(typeId);
                     case 'falconv4': return isFalconV4(typeId);
                     case 'espixelstick': return isESPixelStick(typeId);
+                    case 'baldrick': return isBaldrick(typeId);
                     case 'genius': return isGenius(typeId);
+                    case 'jboards': return isJBoards(typeId);
                     case 'sandevices': return isSanDevices(typeId);
                     case 'wled': return isWLED(typeId);
                     case 'unknown': return isUnknownController(typeId);
