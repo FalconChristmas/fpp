@@ -81,10 +81,12 @@ int TestPatternRGBCycle::SetupTest(void) {
         m_colorPattern.push_back(0);
     }
 
+    // A trailing partial pixel (a channel count that is not a multiple of the
+    // stride, as an arbitrary set of discrete channels gives) gets the leading
+    // channels of the color rather than being skipped and left dark.
     char* c = m_testData;
-    for (int i = 0; i + stride <= m_channelCount; i += stride) {
-        for (int j = 0; j < stride; j++)
-            *(c++) = m_colorPattern[j];
+    for (int i = 0; i < m_channelCount; i++) {
+        *(c++) = m_colorPattern[i % stride];
     }
 
     m_patternOffset = 0;
@@ -102,10 +104,12 @@ void TestPatternRGBCycle::CycleData(void) {
     if (m_patternOffset >= m_colorPattern.size()) {
         m_patternOffset = 0;
     }
+    // Same trailing-partial-pixel handling as SetupTest(): unlike the chase,
+    // which shifts the whole buffer with memmove(), every cycle here rewrites
+    // the data from scratch, so skipping the tail left it dark permanently.
     char* c = m_testData;
-    for (int i = 0; i + stride <= m_channelCount; i += stride) {
-        for (int j = 0; j < stride; j++)
-            *(c++) = m_colorPattern[m_patternOffset + j];
+    for (int i = 0; i < m_channelCount; i++) {
+        *(c++) = m_colorPattern[m_patternOffset + (i % stride)];
     }
 }
 

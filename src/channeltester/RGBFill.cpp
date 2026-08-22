@@ -88,19 +88,17 @@ int TestPatternRGBFill::SetupTest(void) {
     // Stride is driven by the model/color order (3 for RGB, 4 for RGBW), not by
     // whether the white value happens to be non-zero, so RGBW pixels stay aligned
     // even when filling a pure color (W = 0).
-    if (m_channelsPerNode == 4) {
-        for (int i = 0; i + 4 <= m_channelCount; i += 4) {
-            *(c++) = m_color1;
-            *(c++) = m_color2;
-            *(c++) = m_color3;
-            *(c++) = m_color4;
-        }
-    } else {
-        for (int i = 0; i + 3 <= m_channelCount; i += 3) {
-            *(c++) = m_color1;
-            *(c++) = m_color2;
-            *(c++) = m_color3;
-        }
+    //
+    // The channel set need not be a whole number of pixels - eight discrete
+    // channels ("151;167;...;263") tested as RGB is a channelCount of 8 with a
+    // stride of 3 - so the trailing partial pixel is filled too rather than
+    // left at the bzero() value, which used to leave those channels dark for
+    // the whole test.
+    const char colors[4] = { (char)m_color1, (char)m_color2, (char)m_color3, (char)m_color4 };
+    const int stride = m_channelsPerNode;
+
+    for (int i = 0; i < m_channelCount; i++) {
+        *(c++) = colors[i % stride];
     }
 
     return TestPatternBase::SetupTest();

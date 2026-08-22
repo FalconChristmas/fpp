@@ -90,12 +90,19 @@ int TestPatternRGBChase::SetupTest(void) {
         bzero(m_testData, m_channelCount);
     }
 
+    // A trailing partial pixel (a channel count that is not a multiple of the
+    // stride, as an arbitrary set of discrete channels gives) is filled with as
+    // much of its color as fits instead of being skipped and left dark. The
+    // pattern offset still advances by a whole stride so the wrap point is
+    // unchanged for the whole-pixel case.
     char* c = m_testData;
     int offset = 0;
-    for (int i = 0; i + stride <= m_channelCount; i += stride) {
-        for (int j = 0; j < stride; j++)
-            *(c++) = m_colorPattern[offset++];
+    for (int i = 0; i < m_channelCount; i += stride) {
+        int count = std::min(stride, m_channelCount - i);
+        for (int j = 0; j < count; j++)
+            *(c++) = m_colorPattern[offset + j];
 
+        offset += stride;
         if (offset >= m_colorPattern.size())
             offset = 0;
     }

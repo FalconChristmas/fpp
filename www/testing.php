@@ -1121,18 +1121,12 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 				for (var i = 0; i < count; i++) {
 					pattern += dmxToHex(dmxValues[i]);
 				}
-				// Pad to a multiple of 6 hex chars (RGB triplet) so the pattern parser
-				// doesn't append zeros that would alter our channel count.
-				while ((pattern.length % 6) !== 0) {
-					pattern += '00';
-				}
-
+				// Neither the pattern nor the range is padded out to a whole RGB
+				// triplet: fppd fills a trailing partial pixel, so the fixture's
+				// channels are driven exactly as selected. Rounding the range up (as
+				// this did while the test patterns skipped that partial pixel) drove
+				// up to two channels past the end of the fixture.
 				var endCh = startCh + count - 1;
-				// Ensure channel range is a multiple of 3 to align with the pattern's
-				// triplet-based padding above.
-				while (((endCh - startCh + 1) % 3) !== 0) {
-					endCh++;
-				}
 
 				data = {
 					"command": "Test Start",
