@@ -33,7 +33,7 @@ if [ $CNT -eq 0 ]; then
 fi
 
 echo "Stopping fppd"
-${SUDO} ${FPPDIR}/scripts/fppd_stop
+stopFppdForRebuild
 
 echo "Cleaning up any compiled binaries"
 cleanCompiledBinaries

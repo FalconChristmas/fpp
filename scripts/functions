@@ -45,6 +45,30 @@ runGitLocked() {
 }
 
 #############################################################################
+# Stop fppd ahead of a rebuild (branch switch / version upgrade), in a way
+# that won't race the rebuild.
+#
+# fppd.service has Restart=always with a 5-restart/200s burst limit, and its
+# ExecStop is this same fppd_stop script -- so fppd_stop can't safely call
+# "systemctl stop" itself (systemd would still be mid-way through running it
+# as ExecStop, and a second stop request for the same job just blocks
+# waiting on the first, deadlocking). Callers that are about to delete and
+# rebuild the fppd binary need systemd to know the stop is intentional
+# *before* the binary disappears, so it doesn't spend its whole restart
+# burst failing against a missing/half-built binary and land the unit in
+# "failed" -- which then also refuses the legitimate restart once the build
+# finishes, if that happens inside the same burst window. Going through
+# "systemctl stop" (which invokes fppd_stop as ExecStop, once, cleanly)
+# does that; fppd_stop run directly does not.
+stopFppdForRebuild() {
+    if [ ! -f "/etc/fpp/container" ] && [ "${FPPPLATFORM}" != "MacOS" ]; then
+        systemctl stop fppd
+    else
+        ${SUDO} ${FPPDIR}/scripts/fppd_stop
+    fi
+}
+
+#############################################################################
 # Functions for compiling and cleaning up compiled binaries
 BINARIES="fppd fpp fppmm"
 cleanCompiledBinaries() {

@@ -20,7 +20,7 @@ startUpgradeLog "fpp-upgrade" "$1"
 echo "$0 Upgrading FPP version to $1"
 
 echo "Stopping fppd"
-${SUDO} ${FPPDIR}/scripts/fppd_stop
+stopFppdForRebuild
 
 # Same safe.directory hardening as git_pull -- /opt/fpp is owned by fpp:fpp,
 # so root running git via sudo (which keeps HOME=/home/fpp) trips the
