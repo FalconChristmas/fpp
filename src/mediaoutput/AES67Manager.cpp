@@ -168,6 +168,28 @@ void AES67Manager::Shutdown() {
 // ──────────────────────────────────────────────────────────────────────────────
 // Config loading — reads pipewire-aes67-instances.json
 // ──────────────────────────────────────────────────────────────────────────────
+// Accessors -- see m_configMutex.  Each copies out under the lock so callers
+// never hold a reference into a vector or string LoadConfig() may reallocate.
+AES67Config AES67Manager::GetConfigSnapshot() {
+    std::lock_guard<std::mutex> lock(m_configMutex);
+    return m_config;
+}
+
+bool AES67Manager::IsPtpEnabled() {
+    std::lock_guard<std::mutex> lock(m_configMutex);
+    return m_config.ptpEnabled;
+}
+
+int AES67Manager::GetPtpDomain() {
+    std::lock_guard<std::mutex> lock(m_configMutex);
+    return m_config.ptpDomain;
+}
+
+std::string AES67Manager::GetPtpInterface() {
+    std::lock_guard<std::mutex> lock(m_configMutex);
+    return m_config.ptpInterface;
+}
+
 bool AES67Manager::LoadConfig() {
     Json::Value root;
     if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
@@ -176,25 +198,29 @@ bool AES67Manager::LoadConfig() {
         return false;
     }
 
-    m_config.instances.clear();
-    m_config.ptpEnabled = root.get("ptpEnabled", true).asBool();
-    m_config.ptpInterface = root.get("ptpInterface", "eth0").asString();
-    m_config.ptpDomain = root.get("ptpDomain", AES67::DEFAULT_PTP_DOMAIN).asInt();
-    m_config.ptpRole = root.get("ptpRole", "auto").asString();
+    // Parse into a local config and publish it in one locked swap at the end.
+    // Filling m_config in place would let a status query on another thread
+    // observe a half-built instance list, or iterate the vector while
+    // push_back() reallocates it.
+    AES67Config cfg;
+    cfg.ptpEnabled = root.get("ptpEnabled", true).asBool();
+    cfg.ptpInterface = root.get("ptpInterface", "eth0").asString();
+    cfg.ptpDomain = root.get("ptpDomain", AES67::DEFAULT_PTP_DOMAIN).asInt();
+    cfg.ptpRole = root.get("ptpRole", "auto").asString();
 
     // A domain outside 0-127 is not representable in the PTP header; an
     // unknown role would silently fall through to the "auto" branch below,
     // so normalise both here where we can tell the user about it.
-    if (m_config.ptpDomain < 0 || m_config.ptpDomain > 127) {
+    if (cfg.ptpDomain < 0 || cfg.ptpDomain > 127) {
         LogWarn(VB_MEDIAOUT, "AES67Manager: Invalid PTP domain %d, using %d\n",
-                m_config.ptpDomain, AES67::DEFAULT_PTP_DOMAIN);
-        m_config.ptpDomain = AES67::DEFAULT_PTP_DOMAIN;
+                cfg.ptpDomain, AES67::DEFAULT_PTP_DOMAIN);
+        cfg.ptpDomain = AES67::DEFAULT_PTP_DOMAIN;
     }
-    if (m_config.ptpRole != "auto" && m_config.ptpRole != "follower" &&
-        m_config.ptpRole != "master") {
+    if (cfg.ptpRole != "auto" && cfg.ptpRole != "follower" &&
+        cfg.ptpRole != "master") {
         LogWarn(VB_MEDIAOUT, "AES67Manager: Unknown PTP role '%s', using 'auto'\n",
-                m_config.ptpRole.c_str());
-        m_config.ptpRole = "auto";
+                cfg.ptpRole.c_str());
+        cfg.ptpRole = "auto";
     }
 
     if (root.isMember("instances") && root["instances"].isArray()) {
@@ -218,16 +244,21 @@ bool AES67Manager::LoadConfig() {
                 inst.ptime = AES67::DEFAULT_PTIME_MS;
             }
 
-            m_config.instances.push_back(inst);
+            cfg.instances.push_back(inst);
         }
     }
 
     LogInfo(VB_MEDIAOUT, "AES67Manager: Loaded config with %d instances, PTP=%s interface=%s domain=%d role=%s\n",
-            (int)m_config.instances.size(),
-            m_config.ptpEnabled ? "enabled" : "disabled",
-            m_config.ptpInterface.c_str(),
-            m_config.ptpDomain,
-            m_config.ptpRole.c_str());
+            (int)cfg.instances.size(),
+            cfg.ptpEnabled ? "enabled" : "disabled",
+            cfg.ptpInterface.c_str(),
+            cfg.ptpDomain,
+            cfg.ptpRole.c_str());
+
+    {
+        std::lock_guard<std::mutex> lock(m_configMutex);
+        m_config = std::move(cfg);
+    }
     return true;
 }
 
@@ -718,7 +749,8 @@ void AES67Manager::RefreshPtpCache(bool force) {
     }
 
     // Grandmaster / offset
-    std::string output = RunPmcQuery("GET TIME_STATUS_NP", m_config.ptpDomain);
+    int domain = GetPtpDomain();
+    std::string output = RunPmcQuery("GET TIME_STATUS_NP", domain);
     std::istringstream iss(output);
     std::string line;
     while (std::getline(iss, line)) {
@@ -749,7 +781,7 @@ void AES67Manager::RefreshPtpCache(bool force) {
     }
 
     // Port state
-    std::string portOutput = RunPmcQuery("GET PORT_DATA_SET", m_config.ptpDomain);
+    std::string portOutput = RunPmcQuery("GET PORT_DATA_SET", domain);
     std::istringstream pss(portOutput);
     while (std::getline(pss, line)) {
         std::istringstream ls(line);
@@ -802,7 +834,7 @@ bool AES67Manager::QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity
 // converging, so callers can avoid announcing a refclk that is about to
 // change.
 std::string AES67Manager::GetActiveGrandmasterId() {
-    if (!m_config.ptpEnabled || !IsPtp4lRunning()) {
+    if (!IsPtpEnabled() || !IsPtp4lRunning()) {
         return "";
     }
 
@@ -823,7 +855,7 @@ std::string AES67Manager::GetPTPClockId() {
     // Derive EUI-64 clock ID from interface MAC address
     // Read /sys/class/net/<iface>/address → AA:BB:CC:DD:EE:FF
     // Insert FF:FE → AA-BB-CC-FF-FE-DD-EE-FF
-    std::string macPath = "/sys/class/net/" + m_config.ptpInterface + "/address";
+    std::string macPath = "/sys/class/net/" + GetPtpInterface() + "/address";
     std::ifstream macFile(macPath);
     if (!macFile.is_open()) {
         LogWarn(VB_MEDIAOUT, "AES67Manager: Cannot read MAC from %s\n", macPath.c_str());
@@ -2164,6 +2196,15 @@ void AES67Manager::DetachInlineRTPBranches(GstElement* pipeline,
 AES67Manager::Status AES67Manager::GetStatus() {
     Status status;
 
+    // Snapshot the config BEFORE taking the pipeline lock, and use the copy
+    // from here on.  Reading m_config directly would race LoadConfig(), which
+    // reallocates the instance vector on another thread -- and taking the two
+    // locks together would create an ordering to get wrong.  See m_configMutex.
+    AES67Config config = GetConfigSnapshot();
+    status.ptpEnabled = config.ptpEnabled;
+    status.ptpDomain = config.ptpDomain;
+    status.ptpRole = config.ptpRole;
+
     // Pipeline status — use try_lock to avoid blocking HTTP handlers
     // indefinitely if another thread holds m_pipelineMutex during a
     // long GStreamer state change.
@@ -2177,7 +2218,7 @@ AES67Manager::Status AES67Manager::GetStatus() {
                 ps.running = p.running;
                 ps.error = p.errorMessage;
 
-                for (const auto& inst : m_config.instances) {
+                for (const auto& inst : config.instances) {
                     if (inst.id == id) {
                         ps.name = inst.name;
                         break;
@@ -2193,7 +2234,7 @@ AES67Manager::Status AES67Manager::GetStatus() {
                 ps.running = p.running;
                 ps.error = p.errorMessage;
 
-                for (const auto& inst : m_config.instances) {
+                for (const auto& inst : config.instances) {
                     if (inst.id == id) {
                         ps.name = inst.name;
                         break;
@@ -2260,6 +2301,9 @@ AES67Manager::Status AES67Manager::GetStatus() {
 // Self-test — validates AES67 subsystem components (7.10)
 // ──────────────────────────────────────────────────────────────────────────────
 std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
+    // Snapshot once -- this runs on an HTTP/command thread and would otherwise
+    // read m_config while ApplyConfig() reloads it.  See m_configMutex.
+    AES67Config config = GetConfigSnapshot();
     std::vector<TestResult> results;
 
     // Test 1: GStreamer initialization
@@ -2335,15 +2379,15 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
         r.testName = "ptp_grandmaster";
         std::string gm = GetActiveGrandmasterId();
         std::string state = IsPtp4lRunning() ? GetPtp4lState() : "not running";
-        r.passed = !m_config.ptpEnabled || !gm.empty();
-        if (!m_config.ptpEnabled) {
+        r.passed = !config.ptpEnabled || !gm.empty();
+        if (!config.ptpEnabled) {
             r.message = "PTP is disabled — SDP advertises this node's own clock identity";
         } else if (gm.empty()) {
             r.message = "No grandmaster selected yet (port state " + state + ") — domain " +
-                        std::to_string(m_config.ptpDomain) + ", role " + m_config.ptpRole;
+                        std::to_string(config.ptpDomain) + ", role " + config.ptpRole;
         } else {
             r.message = "Grandmaster " + gm + " (port state " + state + ") — domain " +
-                        std::to_string(m_config.ptpDomain) + ", role " + m_config.ptpRole +
+                        std::to_string(config.ptpDomain) + ", role " + config.ptpRole +
                         (IsGrandmasterPortState(state) ? " — this node holds the role" : "");
         }
         results.push_back(r);
@@ -2365,9 +2409,9 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
     {
         TestResult r;
         r.testName = "config_instances";
-        r.passed = !m_config.instances.empty();
+        r.passed = !config.instances.empty();
         r.message = r.passed
-            ? std::to_string(m_config.instances.size()) + " instance(s) configured"
+            ? std::to_string(config.instances.size()) + " instance(s) configured"
             : "No instances configured";
         results.push_back(r);
     }
@@ -2376,11 +2420,11 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
     {
         TestResult r;
         r.testName = "network_interface";
-        std::string ip = GetInterfaceIP(m_config.ptpInterface);
+        std::string ip = GetInterfaceIP(config.ptpInterface);
         r.passed = !ip.empty();
         r.message = r.passed
-            ? "Interface " + m_config.ptpInterface + " has IP: " + ip
-            : "Interface " + m_config.ptpInterface + " not found or has no IP";
+            ? "Interface " + config.ptpInterface + " has IP: " + ip
+            : "Interface " + config.ptpInterface + " not found or has no IP";
         results.push_back(r);
     }
 
@@ -2464,10 +2508,10 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
     {
         TestResult r;
         r.testName = "sdp_generation";
-        if (!m_config.instances.empty()) {
-            std::string sourceIP = GetInterfaceIP(m_config.ptpInterface);
+        if (!config.instances.empty()) {
+            std::string sourceIP = GetInterfaceIP(config.ptpInterface);
             std::string clockId = GetPTPClockId();
-            std::string sdp = BuildSDP(m_config.instances[0], sourceIP, clockId, NextSDPVersion());
+            std::string sdp = BuildSDP(config.instances[0], sourceIP, clockId, NextSDPVersion());
             r.passed = !sdp.empty() && sdp.find("v=0") != std::string::npos
                        && sdp.find("ts-refclk") != std::string::npos
                        && sdp.find("mediaclk") != std::string::npos
@@ -2525,9 +2569,9 @@ HttpResponsePtr AES67Manager::render_GET(const HttpRequestPtr& req) {
         ptp["grandmasterId"] = st.ptpGrandmasterId;
         ptp["portState"] = st.ptpPortState;
         ptp["isGrandmaster"] = st.ptpIsGrandmaster;
-        ptp["enabled"] = m_config.ptpEnabled;
-        ptp["domain"] = m_config.ptpDomain;
-        ptp["role"] = m_config.ptpRole;
+        ptp["enabled"] = st.ptpEnabled;
+        ptp["domain"] = st.ptpDomain;
+        ptp["role"] = st.ptpRole;
         result["ptp"] = ptp;
 
         // Discovered streams

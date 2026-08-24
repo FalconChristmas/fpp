@@ -206,6 +206,11 @@ public:
         std::string ptpGrandmasterId;
         std::string ptpPortState;    // ptp4l portState (MASTER/SLAVE/LISTENING/...)
         bool ptpIsGrandmaster = false;  // true when *we* hold the grandmaster role
+        // Copied out of m_config under m_configMutex so the HTTP handler can
+        // render them without touching shared config itself.
+        bool ptpEnabled = false;
+        int ptpDomain = 0;
+        std::string ptpRole;
         std::vector<SAPDiscoveredStream> discoveredStreams;
     };
     Status GetStatus();
@@ -267,6 +272,29 @@ private:
     AES67Config m_config;
     std::string m_configPath;
     bool LoadConfig();
+
+    // Guards every access to m_config.
+    //
+    // LoadConfig() clears and refills m_config.instances, which reallocates
+    // the vector and reassigns its std::strings.  ApplyConfig() and the SAP
+    // threads are safe (ApplyConfig joins those threads before loading), but
+    // GetStatus(), RunSelfTest() and the PTP query helpers all run on HTTP or
+    // command threads and read m_config concurrently -- iterating a vector
+    // that is being reallocated, or reading a std::string that is being
+    // reassigned, is a use-after-free.  UIs poll status, so this is the
+    // likeliest crash in the field.
+    //
+    // Held only for the duration of a read or the final swap in LoadConfig(),
+    // and NEVER together with m_pipelineMutex -- readers snapshot what they
+    // need, release, then take the pipeline lock.  That keeps the two locks
+    // unordered with respect to each other and makes deadlock impossible.
+    std::mutex m_configMutex;
+
+    // Snapshot accessors -- copy under the lock, use the copy afterwards.
+    AES67Config GetConfigSnapshot();
+    bool IsPtpEnabled();
+    int GetPtpDomain();
+    std::string GetPtpInterface();
 
     // PTP (managed via ptp4l subprocess)
     bool m_ptpInitialized = false;

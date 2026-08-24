@@ -168,6 +168,21 @@ private:
     std::string m_configPath;
     bool LoadConfig();
 
+    // Guards every access to m_config.
+    //
+    // LoadConfig() clears and refills m_config.instances, which reallocates
+    // the vector and reassigns its std::strings.  ApplyConfig() is safe (it
+    // holds m_applyMutex and joins the watchdog first), but GetStatus() runs
+    // on an HTTP thread and iterates the same vector -- and UIs poll status,
+    // so a reload landing mid-poll is a use-after-free.
+    //
+    // Held only for the duration of a read or the final swap in LoadConfig(),
+    // and NEVER together with m_pipelineMutex -- GetStatus() snapshots the
+    // config, releases, then takes the pipeline lock.  The two locks are
+    // therefore never held at once and cannot deadlock against each other.
+    std::mutex m_configMutex;
+    OpusRTPConfig GetConfigSnapshot();
+
     // Pipeline watchdog -- polls bus messages and recovers crashed pipelines
     bool PollPipelinesWatchdog();
 

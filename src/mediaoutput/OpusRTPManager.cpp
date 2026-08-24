@@ -130,6 +130,11 @@ void OpusRTPManager::Shutdown() {
 // ──────────────────────────────────────────────────────────────────────────────
 // Config loading
 // ──────────────────────────────────────────────────────────────────────────────
+OpusRTPConfig OpusRTPManager::GetConfigSnapshot() {
+    std::lock_guard<std::mutex> lock(m_configMutex);
+    return m_config;
+}
+
 bool OpusRTPManager::LoadConfig() {
     Json::Value root;
     if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
@@ -138,7 +143,10 @@ bool OpusRTPManager::LoadConfig() {
         return false;
     }
 
-    m_config.instances.clear();
+    // Parse into a local config and publish it in one locked swap at the end.
+    // Filling m_config in place would let a status query on another thread
+    // iterate the vector while push_back() reallocates it.
+    OpusRTPConfig cfg;
 
     if (root.isMember("instances") && root["instances"].isArray()) {
         for (const auto& instJson : root["instances"]) {
@@ -161,12 +169,17 @@ bool OpusRTPManager::LoadConfig() {
                 inst.bitrate = OpusRTP::DEFAULT_BITRATE;
             }
 
-            m_config.instances.push_back(inst);
+            cfg.instances.push_back(inst);
         }
     }
 
     LogInfo(VB_MEDIAOUT, "OpusRTPManager: Loaded config with %d instances\n",
-            (int)m_config.instances.size());
+            (int)cfg.instances.size());
+
+    {
+        std::lock_guard<std::mutex> lock(m_configMutex);
+        m_config = std::move(cfg);
+    }
     return true;
 }
 
@@ -836,6 +849,11 @@ bool OpusRTPManager::HasActiveSendInstances() {
 OpusRTPManager::Status OpusRTPManager::GetStatus() {
     Status status;
 
+    // Snapshot the config BEFORE taking the pipeline lock and use the copy
+    // from here on -- reading m_config directly would race LoadConfig()
+    // reallocating the instance vector on another thread.  See m_configMutex.
+    OpusRTPConfig config = GetConfigSnapshot();
+
     std::unique_lock<std::mutex> lock(m_pipelineMutex, std::try_to_lock);
     if (lock.owns_lock()) {
         for (const auto& [id, p] : m_sendPipelines) {
@@ -845,7 +863,7 @@ OpusRTPManager::Status OpusRTPManager::GetStatus() {
             ps.running = p.running;
             ps.error = p.errorMessage;
 
-            for (const auto& inst : m_config.instances) {
+            for (const auto& inst : config.instances) {
                 if (inst.id == id) {
                     ps.name = inst.name;
                     break;
@@ -861,7 +879,7 @@ OpusRTPManager::Status OpusRTPManager::GetStatus() {
             ps.running = p.running;
             ps.error = p.errorMessage;
 
-            for (const auto& inst : m_config.instances) {
+            for (const auto& inst : config.instances) {
                 if (inst.id == id) {
                     ps.name = inst.name;
                     break;
