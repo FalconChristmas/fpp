@@ -354,9 +354,10 @@ void AES67Manager::OnPipeWireReady() {
 // participate in PTP as either grandmaster or follower (via BMCA).
 //
 // We launch ptp4l as a managed subprocess with an AES67-appropriate config:
-//   - Domain 0, two-step, 8 announces/sec, 8 syncs/sec
+//   - Domain 0, two-step, announce every 2s, 8 syncs/sec
 //   - Hardware timestamping when available (/dev/ptp0)
 //   - priority1=128 (default BMCA priority)
+//   - DSCP EF (46) on PTP event/general messages -- see AES67::PTP_DSCP
 //
 // phc2sys is also launched to synchronize the system clock to the PTP
 // hardware clock, so that GStreamer pipelines (which use the system clock)
@@ -393,15 +394,17 @@ bool AES67Manager::InitPTP() {
              << "clockClass\t\t248\n"
              << "clockAccuracy\t\t0xFE\n"
              << "offsetScaledLogVariance\t0xFFFF\n"
-             << "logAnnounceInterval\t-3\n"    // 8/sec (AES67 recommends -3)
+             << "logAnnounceInterval\t1\n"     // 1 announce/2s — matches announceReceiptTimeout cadence
              << "logSyncInterval\t\t-3\n"      // 8/sec (AES67 recommends -3)
-             << "logMinDelayReqInterval\t-3\n"
+             << "logMinDelayReqInterval\t0\n"
              << "announceReceiptTimeout\t3\n"
              << "syncReceiptTimeout\t0\n"
              << "transportSpecific\t0x0\n"
              << "network_transport\tUDPv4\n"
              << "delay_mechanism\t\tE2E\n"
              << "time_stamping\t\thardware\n"
+             << "dscp_event\t\t" << AES67::PTP_DSCP << "\n"   // EF (46) -- Sync/Delay_Req
+             << "dscp_general\t\t" << AES67::PTP_DSCP << "\n" // EF (46) -- Announce/Follow_Up/etc.
              << "# AES67 uses L2 multicast on 224.0.1.129/224.0.0.107\n";
         conf.close();
     }
@@ -453,15 +456,17 @@ bool AES67Manager::InitPTP() {
                      << "clockClass\t\t248\n"
                      << "clockAccuracy\t\t0xFE\n"
                      << "offsetScaledLogVariance\t0xFFFF\n"
-                     << "logAnnounceInterval\t-3\n"
+                     << "logAnnounceInterval\t1\n"
                      << "logSyncInterval\t\t-3\n"
-                     << "logMinDelayReqInterval\t-3\n"
+                     << "logMinDelayReqInterval\t0\n"
                      << "announceReceiptTimeout\t3\n"
                      << "syncReceiptTimeout\t0\n"
                      << "transportSpecific\t0x0\n"
                      << "network_transport\tUDPv4\n"
                      << "delay_mechanism\t\tE2E\n"
-                     << "time_stamping\t\tsoftware\n";
+                     << "time_stamping\t\tsoftware\n"
+                     << "dscp_event\t\t" << AES67::PTP_DSCP << "\n"
+                     << "dscp_general\t\t" << AES67::PTP_DSCP << "\n";
                 conf.close();
             }
         }
@@ -551,14 +556,111 @@ bool AES67Manager::IsPtp4lRunning() const {
     return (kill(m_ptp4lPid, 0) == 0);
 }
 
+// Runs a `pmc` management query against ptp4l's UDS socket and returns the
+// raw text output, or an empty string if ptp4l isn't running / pmc fails.
+static std::string RunPmcQuery(const std::string& tlv) {
+    struct PipeCloser {
+        void operator()(FILE* f) const {
+            if (f) pclose(f);
+        }
+    };
+    std::string cmd = "pmc -u -b 0 '" + tlv + "' 2>/dev/null";
+    std::unique_ptr<FILE, PipeCloser> pipe(popen(cmd.c_str(), "r"));
+    if (!pipe) {
+        return "";
+    }
+    std::string output;
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), pipe.get()) != nullptr) {
+        output += buffer;
+    }
+    return output;
+}
+
+// Reformats a pmc clockIdentity like "aabbcc.fffe.ddeeff" into the dashed
+// EUI-64 form used elsewhere in this file ("AA-BB-CC-FF-FE-DD-EE-FF").
+static std::string FormatPmcClockId(const std::string& raw) {
+    std::string hex;
+    for (char c : raw) {
+        if (c != '.') hex += c;
+    }
+    if (hex.length() != 16) {
+        return raw;
+    }
+    std::string dashed;
+    for (size_t i = 0; i < hex.length(); i += 2) {
+        if (i) dashed += '-';
+        dashed += (char)toupper((unsigned char)hex[i]);
+        dashed += (char)toupper((unsigned char)hex[i + 1]);
+    }
+    return dashed;
+}
+
 std::string AES67Manager::GetPtp4lState() {
     if (!IsPtp4lRunning()) {
         return "not running";
     }
-    // Quick check via /proc — if ptp4l is in the process list, it's active.
-    // Full pmc (PTP management client) queries could be added later for
-    // detailed state (MASTER, SLAVE, LISTENING, etc.)
-    return "running";
+    // Query ptp4l's own port state (MASTER/SLAVE/LISTENING/PASSIVE/...) via pmc.
+    std::string output = RunPmcQuery("GET PORT_DATA_SET");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        std::istringstream ls(line);
+        std::string key;
+        ls >> key;
+        if (key == "portState") {
+            std::string val;
+            ls >> val;
+            if (!val.empty()) {
+                return val;
+            }
+        }
+    }
+    return "running (state unknown)";
+}
+
+// Queries the *actual* domain grandmaster via `pmc GET TIME_STATUS_NP` —
+// this is the remote/upstream clock ptp4l has selected via BMCA, which may
+// or may not be this node.  GetPTPClockId() (below) only ever returns this
+// node's own identity and must not be used to report "who is the master".
+bool AES67Manager::QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity, int64_t& offsetNs) {
+    if (!IsPtp4lRunning()) {
+        return false;
+    }
+    std::string output = RunPmcQuery("GET TIME_STATUS_NP");
+    if (output.empty()) {
+        return false;
+    }
+    bool found = false;
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        std::istringstream ls(line);
+        std::string key;
+        ls >> key;
+        if (key == "gmPresent") {
+            std::string val;
+            ls >> val;
+            gmPresent = (val == "true");
+            found = true;
+        } else if (key == "gmIdentity") {
+            std::string val;
+            ls >> val;
+            if (!val.empty()) {
+                gmIdentity = FormatPmcClockId(val);
+                found = true;
+            }
+        } else if (key == "master_offset") {
+            std::string val;
+            ls >> val;
+            try {
+                offsetNs = std::stoll(val);
+            } catch (...) {
+                // leave offsetNs untouched on parse failure
+            }
+        }
+    }
+    return found;
 }
 
 std::string AES67Manager::GetPTPClockId() {
@@ -647,6 +749,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         << "! udpsink name=usink host=" << inst.multicastIP
         << " port=" << inst.port
         << " ttl-mc=" << AES67::AUDIO_RTP_TTL
+        << " qos-dscp=" << AES67::AUDIO_DSCP
         << " auto-multicast=true sync=false";
 
     if (!inst.interface.empty()) {
@@ -1293,7 +1396,29 @@ void AES67Manager::SAPAnnounceLoop() {
     sapAddr.sin_port = htons(AES67::SAP_PORT);
     inet_pton(AF_INET, AES67::SAP_MCAST_ADDRESS, &sapAddr.sin_addr);
 
-    std::string ptpClockId = GetPTPClockId();
+    // SDP's ts-refclk must identify the domain's actual grandmaster (RFC 7273),
+    // not this node's own identity — otherwise a follower incorrectly
+    // advertises itself as the clock source.  Fall back to our own derived
+    // ID only if PTP is disabled or ptp4l hasn't selected a grandmaster yet.
+    //
+    // ptp4l needs a few seconds after startup to complete BMCA and adopt an
+    // upstream master -- until then it reports itself as its own grandmaster,
+    // so querying only once at thread-start can freeze the SDP on this node's
+    // own identity if that race is lost.  To self-correct once BMCA settles
+    // (and self-heal if the grandmaster ever changes later), re-query and
+    // rebuild the announced SDP on every announce cycle rather than once.
+    auto queryPtpClockId = [this]() -> std::string {
+        std::string clockId = GetPTPClockId();
+        if (m_config.ptpEnabled) {
+            bool gmPresent = false;
+            std::string realGmId;
+            int64_t gmOffsetNs = 0;
+            if (QueryPtp4lTimeStatus(gmPresent, realGmId, gmOffsetNs) && gmPresent && !realGmId.empty()) {
+                clockId = realGmId;
+            }
+        }
+        return clockId;
+    };
 
     // Build all SAP packets for send instances
     struct SAPEntry {
@@ -1301,24 +1426,29 @@ void AES67Manager::SAPAnnounceLoop() {
         std::vector<uint8_t> announcePacket;
         std::vector<uint8_t> deletePacket;
     };
-    std::vector<SAPEntry> entries;
+    auto buildEntries = [this](const std::string& ptpClockId) -> std::vector<SAPEntry> {
+        std::vector<SAPEntry> result;
+        for (const auto& inst : m_config.instances) {
+            if (!inst.enabled) continue;
+            if (!inst.sapEnabled) continue;
+            if (inst.mode != "send" && inst.mode != "both") continue;
 
-    for (const auto& inst : m_config.instances) {
-        if (!inst.enabled) continue;
-        if (!inst.sapEnabled) continue;
-        if (inst.mode != "send" && inst.mode != "both") continue;
+            std::string sourceIP = GetInterfaceIP(inst.interface.empty() ?
+                                                  m_config.ptpInterface : inst.interface);
+            uint16_t hash = ComputeSAPHash(inst);
+            std::string sdp = BuildSDP(inst, sourceIP, ptpClockId);
 
-        std::string sourceIP = GetInterfaceIP(inst.interface.empty() ?
-                                              m_config.ptpInterface : inst.interface);
-        uint16_t hash = ComputeSAPHash(inst);
-        std::string sdp = BuildSDP(inst, sourceIP, ptpClockId);
+            SAPEntry entry;
+            entry.hash = hash;
+            entry.announcePacket = BuildSAPPacket(sourceIP, hash, sdp, false);
+            entry.deletePacket = BuildSAPPacket(sourceIP, hash, sdp, true);
+            result.push_back(entry);
+        }
+        return result;
+    };
 
-        SAPEntry entry;
-        entry.hash = hash;
-        entry.announcePacket = BuildSAPPacket(sourceIP, hash, sdp, false);
-        entry.deletePacket = BuildSAPPacket(sourceIP, hash, sdp, true);
-        entries.push_back(entry);
-    }
+    std::string ptpClockId = queryPtpClockId();
+    std::vector<SAPEntry> entries = buildEntries(ptpClockId);
 
     if (entries.empty()) {
         LogWarn(VB_MEDIAOUT, "AES67 SAP: No SAP-enabled send instances — announcer has nothing to send\n");
@@ -1330,6 +1460,14 @@ void AES67Manager::SAPAnnounceLoop() {
 
     // Announce loop
     while (m_sapAnnounceRunning.load()) {
+        std::string currentPtpClockId = queryPtpClockId();
+        if (currentPtpClockId != ptpClockId) {
+            LogInfo(VB_MEDIAOUT, "AES67 SAP: PTP refclk changed (%s -> %s), rebuilding SDP\n",
+                    ptpClockId.c_str(), currentPtpClockId.c_str());
+            ptpClockId = currentPtpClockId;
+            entries = buildEntries(ptpClockId);
+        }
+
         for (const auto& entry : entries) {
             ssize_t sent = sendto(sock, entry.announcePacket.data(), entry.announcePacket.size(), 0,
                    (struct sockaddr*)&sapAddr, sizeof(sapAddr));
@@ -1671,6 +1809,7 @@ std::vector<AES67Manager::InlineRTPBranch> AES67Manager::AttachInlineRTPBranches
             "host", inst.multicastIP.c_str(),
             "port", inst.port,
             "ttl-mc", AES67::AUDIO_RTP_TTL,
+            "qos-dscp", AES67::AUDIO_DSCP,
             "auto-multicast", TRUE,
             "sync", FALSE,
             NULL);
@@ -1818,10 +1957,25 @@ AES67Manager::Status AES67Manager::GetStatus() {
             status.pipelines.push_back(ps);
         }
     }
-    // PTP status — check if ptp4l is running
-    status.ptpSynced = IsPtp4lRunning();
-    status.ptpGrandmasterId = GetPTPClockId();
-    status.ptpOffsetNs = 0;  // detailed offset from pmc could be added later
+    // PTP status — query ptp4l for the actual selected grandmaster (may be a
+    // remote/upstream clock) rather than assuming this node is the master.
+    {
+        bool gmPresent = false;
+        std::string gmId;
+        int64_t offsetNs = 0;
+        if (QueryPtp4lTimeStatus(gmPresent, gmId, offsetNs) && gmPresent && !gmId.empty()) {
+            status.ptpSynced = true;
+            status.ptpGrandmasterId = gmId;
+            status.ptpOffsetNs = offsetNs;
+        } else {
+            // ptp4l not running, or no grandmaster selected yet (e.g. still
+            // in LISTENING) — do not claim we're synced or report our own
+            // identity as if it were the grandmaster.
+            status.ptpSynced = false;
+            status.ptpGrandmasterId = "";
+            status.ptpOffsetNs = 0;
+        }
+    }
 
     // Discovered streams
     {
