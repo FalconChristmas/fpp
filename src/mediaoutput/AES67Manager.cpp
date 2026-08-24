@@ -33,9 +33,12 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <memory>
 #include <sstream>
 
 #include "common.h"
@@ -176,6 +179,23 @@ bool AES67Manager::LoadConfig() {
     m_config.instances.clear();
     m_config.ptpEnabled = root.get("ptpEnabled", true).asBool();
     m_config.ptpInterface = root.get("ptpInterface", "eth0").asString();
+    m_config.ptpDomain = root.get("ptpDomain", AES67::DEFAULT_PTP_DOMAIN).asInt();
+    m_config.ptpRole = root.get("ptpRole", "auto").asString();
+
+    // A domain outside 0-127 is not representable in the PTP header; an
+    // unknown role would silently fall through to the "auto" branch below,
+    // so normalise both here where we can tell the user about it.
+    if (m_config.ptpDomain < 0 || m_config.ptpDomain > 127) {
+        LogWarn(VB_MEDIAOUT, "AES67Manager: Invalid PTP domain %d, using %d\n",
+                m_config.ptpDomain, AES67::DEFAULT_PTP_DOMAIN);
+        m_config.ptpDomain = AES67::DEFAULT_PTP_DOMAIN;
+    }
+    if (m_config.ptpRole != "auto" && m_config.ptpRole != "follower" &&
+        m_config.ptpRole != "master") {
+        LogWarn(VB_MEDIAOUT, "AES67Manager: Unknown PTP role '%s', using 'auto'\n",
+                m_config.ptpRole.c_str());
+        m_config.ptpRole = "auto";
+    }
 
     if (root.isMember("instances") && root["instances"].isArray()) {
         for (const auto& instJson : root["instances"]) {
@@ -202,10 +222,12 @@ bool AES67Manager::LoadConfig() {
         }
     }
 
-    LogInfo(VB_MEDIAOUT, "AES67Manager: Loaded config with %d instances, PTP=%s interface=%s\n",
+    LogInfo(VB_MEDIAOUT, "AES67Manager: Loaded config with %d instances, PTP=%s interface=%s domain=%d role=%s\n",
             (int)m_config.instances.size(),
             m_config.ptpEnabled ? "enabled" : "disabled",
-            m_config.ptpInterface.c_str());
+            m_config.ptpInterface.c_str(),
+            m_config.ptpDomain,
+            m_config.ptpRole.c_str());
     return true;
 }
 
@@ -354,15 +376,107 @@ void AES67Manager::OnPipeWireReady() {
 // participate in PTP as either grandmaster or follower (via BMCA).
 //
 // We launch ptp4l as a managed subprocess with an AES67-appropriate config:
-//   - Domain 0, two-step, announce every 2s, 8 syncs/sec
+//   - Configurable domain (default 0), two-step, announce every 2s, 8 syncs/sec
 //   - Hardware timestamping when available (/dev/ptp0)
-//   - priority1=128 (default BMCA priority)
+//   - BMCA priority driven by the "ptpRole" setting -- see AES67Config
 //   - DSCP EF (46) on PTP event/general messages -- see AES67::PTP_DSCP
 //
-// phc2sys is also launched to synchronize the system clock to the PTP
-// hardware clock, so that GStreamer pipelines (which use the system clock)
-// stay in sync with PTP time.
+// phc2sys is also launched to align the system clock with PTP time, so that
+// GStreamer pipelines (which use the system clock) track the PTP frequency.
 // ──────────────────────────────────────────────────────────────────────────────
+
+// Absolute path so we do not depend on whatever PATH systemd handed fppd --
+// the ptp4l presence check below is absolute for the same reason.
+static const char* PMC_BINARY = "/usr/sbin/pmc";
+
+bool AES67Manager::WritePtpConf(const std::string& path, bool hwTimestamping, bool includeDscp) {
+    std::ofstream conf(path);
+    if (!conf.is_open()) {
+        LogErr(VB_MEDIAOUT, "AES67Manager: Cannot write PTP config to %s\n", path.c_str());
+        WarningHolder::AddWarning(45, "AES67: could not write PTP configuration file");
+        return false;
+    }
+
+    // BMCA behaviour.  "auto" deliberately runs at a worse priority1 than the
+    // 128 that professional gear ships with: a tie on priority is broken by
+    // clock identity (lowest MAC wins), which is how an FPP box ends up
+    // grandmastering a Q-SYS or Yamaha domain it should have been following.
+    int priority1 = AES67::PTP_PRIORITY_AUTO;
+    bool slaveOnly = false;
+    if (m_config.ptpRole == "master") {
+        priority1 = AES67::PTP_PRIORITY_PREFER_MASTER;
+    } else if (m_config.ptpRole == "follower") {
+        slaveOnly = true;
+    }
+
+    // AES67 media profile: announce every 2s, sync 8/sec, delay req 1/sec.
+    conf << "[global]\n"
+         << "domainNumber\t\t" << m_config.ptpDomain << "\n"
+         << "twoStepFlag\t\t1\n"
+         << "slaveOnly\t\t" << (slaveOnly ? 1 : 0) << "\n"
+         << "priority1\t\t" << priority1 << "\n"
+         << "priority2\t\t128\n"
+         << "clockClass\t\t248\n"
+         << "clockAccuracy\t\t0xFE\n"
+         << "offsetScaledLogVariance\t0xFFFF\n"
+         << "logAnnounceInterval\t1\n"     // 1 announce/2s — matches announceReceiptTimeout cadence
+         << "logSyncInterval\t\t-3\n"      // 8/sec (AES67 recommends -3)
+         << "logMinDelayReqInterval\t0\n"
+         << "announceReceiptTimeout\t3\n"
+         << "syncReceiptTimeout\t0\n"
+         << "transportSpecific\t0x0\n"
+         << "network_transport\tUDPv4\n"
+         << "delay_mechanism\t\tE2E\n"
+         << "time_stamping\t\t" << (hwTimestamping ? "hardware" : "software") << "\n";
+
+    if (includeDscp) {
+        conf << "dscp_event\t\t" << AES67::PTP_DSCP << "\n"   // EF (46) -- Sync/Delay_Req
+             << "dscp_general\t\t" << AES67::PTP_DSCP << "\n"; // EF (46) -- Announce/Follow_Up/etc.
+    }
+    conf << "# AES67 uses L2 multicast on 224.0.1.129/224.0.0.107\n";
+    conf.close();
+    return true;
+}
+
+bool AES67Manager::StartPtp4l(bool hwTimestamping, bool includeDscp) {
+    if (!WritePtpConf(m_ptpConfPath, hwTimestamping, includeDscp)) {
+        return false;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        LogErr(VB_MEDIAOUT, "AES67Manager: fork() failed for ptp4l: %s\n", FPPstrerror(errno));
+        WarningHolder::AddWarning(45, "AES67: could not start the ptp4l clock-sync process");
+        return false;
+    }
+    if (pid == 0) {
+        // Child process — exec ptp4l (-m: log to stderr)
+        execlp("ptp4l", "ptp4l",
+               "-i", m_config.ptpInterface.c_str(),
+               "-f", m_ptpConfPath.c_str(),
+               "-m",
+               nullptr);
+        // If exec fails
+        _exit(127);
+    }
+    m_ptp4lPid = pid;
+
+    // Give ptp4l a moment to start, then check it did not exit immediately
+    // (bad config key, no hardware timestamping, interface down, ...).
+    usleep(500000);  // 500ms
+    if (!IsPtp4lRunning()) {
+        m_ptp4lPid = -1;
+        return false;
+    }
+
+    LogInfo(VB_MEDIAOUT, "AES67Manager: ptp4l started (PID %d) on %s — %s timestamping%s, domain %d, role %s\n",
+            (int)m_ptp4lPid, m_config.ptpInterface.c_str(),
+            hwTimestamping ? "hardware" : "software",
+            includeDscp ? "" : ", DSCP disabled",
+            m_config.ptpDomain, m_config.ptpRole.c_str());
+    return true;
+}
+
 bool AES67Manager::InitPTP() {
     if (m_ptpInitialized) {
         return true;
@@ -375,145 +489,66 @@ bool AES67Manager::InitPTP() {
         return false;
     }
 
-    // Write AES67-profile PTP config to a temp file
     m_ptpConfPath = "/tmp/fpp-ptp4l.conf";
-    {
-        std::ofstream conf(m_ptpConfPath);
-        if (!conf.is_open()) {
-            LogErr(VB_MEDIAOUT, "AES67Manager: Cannot write PTP config to %s\n",
-                   m_ptpConfPath.c_str());
-            WarningHolder::AddWarning(45, "AES67: could not write PTP configuration file");
-            return false;
-        }
-        // AES67 PTP profile: domain 0, two-step, high announce/sync rate
-        conf << "[global]\n"
-             << "domainNumber\t\t0\n"
-             << "twoStepFlag\t\t1\n"
-             << "priority1\t\t128\n"
-             << "priority2\t\t128\n"
-             << "clockClass\t\t248\n"
-             << "clockAccuracy\t\t0xFE\n"
-             << "offsetScaledLogVariance\t0xFFFF\n"
-             << "logAnnounceInterval\t1\n"     // 1 announce/2s — matches announceReceiptTimeout cadence
-             << "logSyncInterval\t\t-3\n"      // 8/sec (AES67 recommends -3)
-             << "logMinDelayReqInterval\t0\n"
-             << "announceReceiptTimeout\t3\n"
-             << "syncReceiptTimeout\t0\n"
-             << "transportSpecific\t0x0\n"
-             << "network_transport\tUDPv4\n"
-             << "delay_mechanism\t\tE2E\n"
-             << "time_stamping\t\thardware\n"
-             << "dscp_event\t\t" << AES67::PTP_DSCP << "\n"   // EF (46) -- Sync/Delay_Req
-             << "dscp_general\t\t" << AES67::PTP_DSCP << "\n" // EF (46) -- Announce/Follow_Up/etc.
-             << "# AES67 uses L2 multicast on 224.0.1.129/224.0.0.107\n";
-        conf.close();
-    }
 
-    LogInfo(VB_MEDIAOUT, "AES67Manager: Starting ptp4l on %s (AES67 profile, domain 0)\n",
-            m_config.ptpInterface.c_str());
+    LogInfo(VB_MEDIAOUT, "AES67Manager: Starting ptp4l on %s (AES67 profile, domain %d, role %s)\n",
+            m_config.ptpInterface.c_str(), m_config.ptpDomain, m_config.ptpRole.c_str());
 
-    // Fork and exec ptp4l
-    pid_t pid = fork();
-    if (pid < 0) {
-        LogErr(VB_MEDIAOUT, "AES67Manager: fork() failed for ptp4l: %s\n", FPPstrerror(errno));
-        WarningHolder::AddWarning(45, "AES67: could not start the ptp4l clock-sync process");
-        return false;
-    }
-    if (pid == 0) {
-        // Child process — exec ptp4l
-        // ptp4l -i eth0 -f /tmp/fpp-ptp4l.conf -m (log to stderr)
-        execlp("ptp4l", "ptp4l",
-               "-i", m_config.ptpInterface.c_str(),
-               "-f", m_ptpConfPath.c_str(),
-               "-m",      // log to stderr
-               nullptr);
-        // If exec fails
-        _exit(127);
-    }
-    m_ptp4lPid = pid;
-    LogInfo(VB_MEDIAOUT, "AES67Manager: ptp4l started (PID %d) on %s\n",
-            (int)m_ptp4lPid, m_config.ptpInterface.c_str());
-
-    // Give ptp4l a moment to start
-    usleep(500000);  // 500ms
-
-    // Check if it's still running (might have failed immediately)
-    if (!IsPtp4lRunning()) {
+    // Start attempts, most capable first.  The last one drops the DSCP keys:
+    // they are only understood by linuxptp >= 2.0, and an unknown key is a
+    // hard config-parse failure, which would otherwise take PTP down entirely
+    // on an older install rather than just losing the QoS marking.
+    if (!StartPtp4l(true, true)) {
         LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l exited immediately — "
                "check hardware timestamping support on %s\n",
                m_config.ptpInterface.c_str());
-
-        // Try again with software timestamping
         LogInfo(VB_MEDIAOUT, "AES67Manager: Retrying ptp4l with software timestamping\n");
-        {
-            std::ofstream conf(m_ptpConfPath);
-            if (conf.is_open()) {
-                conf << "[global]\n"
-                     << "domainNumber\t\t0\n"
-                     << "twoStepFlag\t\t1\n"
-                     << "priority1\t\t128\n"
-                     << "priority2\t\t128\n"
-                     << "clockClass\t\t248\n"
-                     << "clockAccuracy\t\t0xFE\n"
-                     << "offsetScaledLogVariance\t0xFFFF\n"
-                     << "logAnnounceInterval\t1\n"
-                     << "logSyncInterval\t\t-3\n"
-                     << "logMinDelayReqInterval\t0\n"
-                     << "announceReceiptTimeout\t3\n"
-                     << "syncReceiptTimeout\t0\n"
-                     << "transportSpecific\t0x0\n"
-                     << "network_transport\tUDPv4\n"
-                     << "delay_mechanism\t\tE2E\n"
-                     << "time_stamping\t\tsoftware\n"
-                     << "dscp_event\t\t" << AES67::PTP_DSCP << "\n"
-                     << "dscp_general\t\t" << AES67::PTP_DSCP << "\n";
-                conf.close();
+
+        if (!StartPtp4l(false, true)) {
+            LogInfo(VB_MEDIAOUT, "AES67Manager: Retrying ptp4l without DSCP marking "
+                    "(linuxptp may predate dscp_event/dscp_general)\n");
+
+            if (!StartPtp4l(false, false)) {
+                LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l failed to start\n");
+                WarningHolder::AddWarning(45, "AES67: PTP clock sync (ptp4l) could not start on the configured interface");
+                m_ptp4lPid = -1;
+                return false;
             }
-        }
-
-        pid = fork();
-        if (pid < 0) {
-            LogErr(VB_MEDIAOUT, "AES67Manager: fork() failed for ptp4l retry: %s\n", FPPstrerror(errno));
-            return false;
-        }
-        if (pid == 0) {
-            execlp("ptp4l", "ptp4l",
-                   "-i", m_config.ptpInterface.c_str(),
-                   "-f", m_ptpConfPath.c_str(),
-                   "-m",
-                   nullptr);
-            _exit(127);
-        }
-        m_ptp4lPid = pid;
-        LogInfo(VB_MEDIAOUT, "AES67Manager: ptp4l retry started (PID %d) software timestamping\n",
-                (int)m_ptp4lPid);
-
-        usleep(500000);
-        if (!IsPtp4lRunning()) {
-            LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l failed even with software timestamping\n");
-            WarningHolder::AddWarning(45, "AES67: PTP clock sync (ptp4l) could not start on the configured interface");
-            m_ptp4lPid = -1;
-            return false;
         }
     }
 
-    // Start phc2sys to synchronize system clock to PTP hardware clock
-    // Only needed with hardware timestamping
+    // Start phc2sys to align the system clock with PTP time.
+    //
+    // -a: autoconfiguration -- take the sync direction from ptp4l's port
+    //     states instead of assuming one, and pick up currentUtcOffset from
+    //     it.  When we follow an upstream master the PHC drives
+    //     CLOCK_REALTIME; when we hold the grandmaster role no port is in
+    //     SLAVE state, so there is no source clock and phc2sys idles instead
+    //     of dragging the system clock onto a free-running PHC.
+    // -r: allow CLOCK_REALTIME to be disciplined (needed for the follower
+    //     case).  Deliberately not repeated -- "-r -r" would let a Pi with no
+    //     NTP steer the whole domain's clock while acting as grandmaster.
+    // -n: match our PTP domain.  phc2sys talks to ptp4l with the same
+    //     domain-filtered management messages pmc uses, so the default of 0
+    //     would silently find nothing on any other domain.
+    //
+    // The previous invocation ("-s /dev/ptp0 -c CLOCK_REALTIME -O 0") was
+    // wrong in both directions: it unconditionally slaved the system clock to
+    // the PHC even when that PHC was our own free-running one, and its fixed
+    // zero offset ignored that PTP distributes TAI -- so locking to a real
+    // grandmaster pushed the wall clock 37 seconds ahead of UTC, corrupting
+    // schedules and logs while NTP fought to pull it back.
     if (FileExists("/dev/ptp0") && FileExists("/usr/sbin/phc2sys")) {
+        std::string domainArg = std::to_string(m_config.ptpDomain);
         pid_t phcPid = fork();
         if (phcPid < 0) {
             LogWarn(VB_MEDIAOUT, "AES67Manager: fork() failed for phc2sys: %s\n", FPPstrerror(errno));
         } else if (phcPid == 0) {
-            // phc2sys -s /dev/ptp0 -c CLOCK_REALTIME -O 0 -m
-            // -s: source clock (PTP hardware clock)
-            // -c: target clock (system)  
-            // -O 0: zero UTC offset
-            // -m: log to stderr
             execlp("phc2sys", "phc2sys",
-                   "-s", "/dev/ptp0",
-                   "-c", "CLOCK_REALTIME",
-                   "-O", "0",
-                   "-m",
+                   "-a",
+                   "-r",
+                   "-n", domainArg.c_str(),
+                   "-m",      // log to stderr
                    nullptr);
             _exit(127);
         } else {
@@ -528,43 +563,98 @@ bool AES67Manager::InitPTP() {
     return true;
 }
 
+// SIGTERM then SIGKILL, polling until the process is really gone.
+//
+// fppd installs SIGCHLD with SA_NOCLDWAIT (see fppd.cpp), so children are
+// reaped by init and waitpid() here fails with ECHILD immediately -- it never
+// actually waited.  That let ApplyConfig() launch a replacement ptp4l while
+// the old one still held /var/run/ptp4l and the PTP ports, leaving two
+// daemons briefly running BMCA against each other on one interface.
+static void StopChildProcess(pid_t& pid, const char* name) {
+    if (pid <= 0) {
+        return;
+    }
+    LogInfo(VB_MEDIAOUT, "AES67Manager: Stopping %s (PID %d)\n", name, (int)pid);
+    kill(pid, SIGTERM);
+
+    // Up to ~3s for a clean exit, then insist.
+    for (int i = 0; i < 60; i++) {
+        // Harmless no-op under SA_NOCLDWAIT; reaps the child if a future
+        // change turns that off.
+        int status = 0;
+        waitpid(pid, &status, WNOHANG);
+        if (kill(pid, 0) != 0) {
+            pid = -1;
+            return;
+        }
+        usleep(50000);
+    }
+
+    LogWarn(VB_MEDIAOUT, "AES67Manager: %s (PID %d) did not exit, sending SIGKILL\n",
+            name, (int)pid);
+    kill(pid, SIGKILL);
+    for (int i = 0; i < 20; i++) {
+        int status = 0;
+        waitpid(pid, &status, WNOHANG);
+        if (kill(pid, 0) != 0) {
+            break;
+        }
+        usleep(50000);
+    }
+    pid = -1;
+}
+
 void AES67Manager::ShutdownPTP() {
-    if (m_phc2sysPid > 0) {
-        LogInfo(VB_MEDIAOUT, "AES67Manager: Stopping phc2sys (PID %d)\n", (int)m_phc2sysPid);
-        kill(m_phc2sysPid, SIGTERM);
-        int status;
-        waitpid(m_phc2sysPid, &status, 0);
-        m_phc2sysPid = -1;
-    }
-    if (m_ptp4lPid > 0) {
-        LogInfo(VB_MEDIAOUT, "AES67Manager: Stopping ptp4l (PID %d)\n", (int)m_ptp4lPid);
-        kill(m_ptp4lPid, SIGTERM);
-        int status;
-        waitpid(m_ptp4lPid, &status, 0);
-        m_ptp4lPid = -1;
-    }
+    StopChildProcess(m_phc2sysPid, "phc2sys");
+    StopChildProcess(m_ptp4lPid, "ptp4l");
+
     if (!m_ptpConfPath.empty()) {
         unlink(m_ptpConfPath.c_str());
         m_ptpConfPath.clear();
     }
     m_ptpInitialized = false;
+
+    std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
+    m_ptpCache = PtpQueryCache();
 }
 
 bool AES67Manager::IsPtp4lRunning() const {
     if (m_ptp4lPid <= 0) return false;
-    // kill(pid, 0) checks if process exists without sending a signal
-    return (kill(m_ptp4lPid, 0) == 0);
+    // kill(pid, 0) checks if process exists without sending a signal.  That
+    // alone is not enough here: SA_NOCLDWAIT means a dead ptp4l leaves no
+    // zombie holding its slot, so the PID can be recycled by an unrelated
+    // process and we would report a long-dead daemon as healthy.  Confirm the
+    // name too.
+    if (kill(m_ptp4lPid, 0) != 0) {
+        return false;
+    }
+    std::string comm = "/proc/" + std::to_string((int)m_ptp4lPid) + "/comm";
+    std::ifstream f(comm);
+    if (!f.is_open()) {
+        // No procfs (macOS) — fall back to the signal probe alone.
+        return true;
+    }
+    std::string name;
+    std::getline(f, name);
+    return name == "ptp4l";
 }
 
 // Runs a `pmc` management query against ptp4l's UDS socket and returns the
 // raw text output, or an empty string if ptp4l isn't running / pmc fails.
-static std::string RunPmcQuery(const std::string& tlv) {
+static std::string RunPmcQuery(const std::string& tlv, int domain) {
     struct PipeCloser {
         void operator()(FILE* f) const {
+            // pclose() returns -1 under fppd's SA_NOCLDWAIT (init already
+            // reaped the child); the output has been read by then, so the
+            // status is of no use to us either way.
             if (f) pclose(f);
         }
     };
-    std::string cmd = "pmc -u -b 0 '" + tlv + "' 2>/dev/null";
+    // ptp4l silently drops a management message whose domainNumber does not
+    // match its own -- even over the UDS socket -- so -d is not optional once
+    // the domain is configurable.
+    std::string cmd = std::string(PMC_BINARY) + " -u -b 0 -d " +
+                      std::to_string(domain) + " '" + tlv + "' 2>/dev/null";
     std::unique_ptr<FILE, PipeCloser> pipe(popen(cmd.c_str(), "r"));
     if (!pipe) {
         return "";
@@ -603,15 +693,65 @@ static bool IsGrandmasterPortState(const std::string& portState) {
     return portState == "MASTER" || portState == "GRAND_MASTER";
 }
 
-std::string AES67Manager::GetPtp4lState() {
-    if (!IsPtp4lRunning()) {
-        return "not running";
+// Runs both management queries at most once per PTP_QUERY_CACHE_MS and keeps
+// the parsed results.  /aes67/status is HTTP-facing and the SAP thread polls
+// once a second while BMCA settles; without this each of those forks a pmc.
+void AES67Manager::RefreshPtpCache(bool force) {
+    std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
+
+    auto now = std::chrono::steady_clock::now();
+    if (!force && m_ptpCache.valid) {
+        auto age = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_ptpCache.when);
+        if (age.count() < AES67::PTP_QUERY_CACHE_MS) {
+            return;
+        }
     }
-    // Query ptp4l's own port state (MASTER/SLAVE/LISTENING/PASSIVE/...) via pmc.
-    std::string output = RunPmcQuery("GET PORT_DATA_SET");
+
+    PtpQueryCache fresh;
+    fresh.when = now;
+
+    if (!IsPtp4lRunning()) {
+        fresh.valid = true;
+        fresh.portState = "not running";
+        m_ptpCache = fresh;
+        return;
+    }
+
+    // Grandmaster / offset
+    std::string output = RunPmcQuery("GET TIME_STATUS_NP", m_config.ptpDomain);
     std::istringstream iss(output);
     std::string line;
     while (std::getline(iss, line)) {
+        std::istringstream ls(line);
+        std::string key;
+        ls >> key;
+        if (key == "gmPresent") {
+            std::string val;
+            ls >> val;
+            fresh.gmPresent = (val == "true");
+            fresh.valid = true;
+        } else if (key == "gmIdentity") {
+            std::string val;
+            ls >> val;
+            if (!val.empty()) {
+                fresh.gmIdentity = FormatPmcClockId(val);
+                fresh.valid = true;
+            }
+        } else if (key == "master_offset") {
+            std::string val;
+            ls >> val;
+            try {
+                fresh.offsetNs = std::stoll(val);
+            } catch (...) {
+                // leave offsetNs at 0 on parse failure
+            }
+        }
+    }
+
+    // Port state
+    std::string portOutput = RunPmcQuery("GET PORT_DATA_SET", m_config.ptpDomain);
+    std::istringstream pss(portOutput);
+    while (std::getline(pss, line)) {
         std::istringstream ls(line);
         std::string key;
         ls >> key;
@@ -619,11 +759,22 @@ std::string AES67Manager::GetPtp4lState() {
             std::string val;
             ls >> val;
             if (!val.empty()) {
-                return val;
+                fresh.portState = val;
+                break;
             }
         }
     }
-    return "running (state unknown)";
+    if (fresh.portState.empty()) {
+        fresh.portState = "running (state unknown)";
+    }
+
+    m_ptpCache = fresh;
+}
+
+std::string AES67Manager::GetPtp4lState() {
+    RefreshPtpCache();
+    std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
+    return m_ptpCache.portState;
 }
 
 // Queries the *actual* domain grandmaster via `pmc GET TIME_STATUS_NP` —
@@ -634,40 +785,38 @@ bool AES67Manager::QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity
     if (!IsPtp4lRunning()) {
         return false;
     }
-    std::string output = RunPmcQuery("GET TIME_STATUS_NP");
-    if (output.empty()) {
+    RefreshPtpCache();
+
+    std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
+    if (!m_ptpCache.valid || m_ptpCache.gmIdentity.empty()) {
         return false;
     }
-    bool found = false;
-    std::istringstream iss(output);
-    std::string line;
-    while (std::getline(iss, line)) {
-        std::istringstream ls(line);
-        std::string key;
-        ls >> key;
-        if (key == "gmPresent") {
-            std::string val;
-            ls >> val;
-            gmPresent = (val == "true");
-            found = true;
-        } else if (key == "gmIdentity") {
-            std::string val;
-            ls >> val;
-            if (!val.empty()) {
-                gmIdentity = FormatPmcClockId(val);
-                found = true;
-            }
-        } else if (key == "master_offset") {
-            std::string val;
-            ls >> val;
-            try {
-                offsetNs = std::stoll(val);
-            } catch (...) {
-                // leave offsetNs untouched on parse failure
-            }
-        }
+    gmPresent = m_ptpCache.gmPresent;
+    gmIdentity = m_ptpCache.gmIdentity;
+    offsetNs = m_ptpCache.offsetNs;
+    return true;
+}
+
+// The clock identity to advertise/report: the upstream grandmaster we follow,
+// or our own identity when we hold the role.  Empty while ptp4l is still
+// converging, so callers can avoid announcing a refclk that is about to
+// change.
+std::string AES67Manager::GetActiveGrandmasterId() {
+    if (!m_config.ptpEnabled || !IsPtp4lRunning()) {
+        return "";
     }
-    return found;
+
+    bool gmPresent = false;
+    std::string gmId;
+    int64_t offsetNs = 0;
+    if (QueryPtp4lTimeStatus(gmPresent, gmId, offsetNs) && gmPresent && !gmId.empty()) {
+        return gmId;
+    }
+    if (IsGrandmasterPortState(GetPtp4lState())) {
+        // We won the BMCA -- we are the refclk.
+        return GetPTPClockId();
+    }
+    return "";
 }
 
 std::string AES67Manager::GetPTPClockId() {
@@ -794,9 +943,15 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         gst_object_unref(pwsrc);
     }
 
-    // Note: The pipeline uses the system clock.  PTP synchronization is
-    // handled externally by ptp4l + phc2sys, which keeps the system clock
-    // aligned with PTP time.  We do NOT call gst_pipeline_use_clock() here.
+    // Note: the pipeline runs on GStreamer's system clock, which is
+    // CLOCK_MONOTONIC.  phc2sys disciplines CLOCK_REALTIME, and the frequency
+    // correction it applies is shared with CLOCK_MONOTONIC -- so the media
+    // *rate* tracks PTP and does not drift, but the *phase* does not: RTP
+    // timestamps still start from rtpL24pay's own offset, unrelated to PTP
+    // time.  Fully honouring the "a=mediaclk:direct=0" we advertise needs a
+    // GstPtpClock plus an explicit payloader timestamp-offset; see the AES67
+    // media-clock note in BuildSDP().  We do NOT call gst_pipeline_use_clock()
+    // here.
 
     // Store the bus for polling in the watchdog thread.
     // gst_bus_add_watch() requires a running GLib main loop which fppd does
@@ -1097,6 +1252,48 @@ void AES67Manager::FlushSendPipelines() {
 // fppd does not run a GLib main loop, so gst_bus_add_watch() callbacks would
 // never fire.  We poll the bus manually and promote any ERROR/WARNING messages.
 // ──────────────────────────────────────────────────────────────────────────────
+// Restart ptp4l/phc2sys if they have died.  Nothing else supervised them: a
+// link flap, an OOM kill or a stray `killall ptp4l` left FPP silently running
+// with no clock discipline at all, reporting "not running" forever.
+//
+// Called from the SAP announcer alongside the pipeline watchdog, so it shares
+// that thread's cadence.  Note this means PTP is only supervised while the SAP
+// announcer runs (i.e. there is at least one SAP-enabled send instance).
+void AES67Manager::CheckPtpWatchdog() {
+    if (!m_config.ptpEnabled || !m_ptpInitialized) {
+        return;
+    }
+
+    if (!IsPtp4lRunning()) {
+        LogWarn(VB_MEDIAOUT, "AES67 watchdog: ptp4l is gone — restarting PTP\n");
+        // Tear down first: InitPTP() is a no-op while m_ptpInitialized is set,
+        // and phc2sys must not be left pointed at a dead daemon.
+        ShutdownPTP();
+        if (InitPTP()) {
+            LogInfo(VB_MEDIAOUT, "AES67 watchdog: ptp4l restarted\n");
+        } else {
+            LogErr(VB_MEDIAOUT, "AES67 watchdog: ptp4l restart failed\n");
+        }
+        return;
+    }
+
+    // ptp4l is fine but its helper died — restart just that.
+    if (m_phc2sysPid > 0 && kill(m_phc2sysPid, 0) != 0) {
+        LogWarn(VB_MEDIAOUT, "AES67 watchdog: phc2sys is gone — restarting it\n");
+        m_phc2sysPid = -1;
+        if (FileExists("/dev/ptp0") && FileExists("/usr/sbin/phc2sys")) {
+            std::string domainArg = std::to_string(m_config.ptpDomain);
+            pid_t phcPid = fork();
+            if (phcPid == 0) {
+                execlp("phc2sys", "phc2sys", "-a", "-r", "-n", domainArg.c_str(), "-m", nullptr);
+                _exit(127);
+            } else if (phcPid > 0) {
+                m_phc2sysPid = phcPid;
+            }
+        }
+    }
+}
+
 bool AES67Manager::PollPipelinesWatchdog() {
     bool needsRebuild = false;
 
@@ -1277,22 +1474,41 @@ std::string AES67Manager::SafeNodeName(const std::string& name) {
 // SAP Announcer — RFC 2974 compliant
 // Replaces external fpp_aes67_sap Python daemon
 // ──────────────────────────────────────────────────────────────────────────────
-uint16_t AES67Manager::ComputeSAPHash(const AES67Instance& inst) {
-    // Stable hash from "multicastIP:port:name" — matches fpp_aes67_sap
-    std::string key = inst.multicastIP + ":" + std::to_string(inst.port) + ":" + inst.name;
-
-    // Simple FNV-1a hash truncated to 16 bits
+uint16_t AES67Manager::ComputeSAPHash(const std::string& sdp) {
+    // RFC 2974 §6: the message id hash identifies "the precise version of this
+    // announcement" and MUST change when the payload changes.  It is therefore
+    // computed over the SDP text, not over the instance: an announcement whose
+    // refclk we corrected but whose hash stayed put is discarded as a repeat by
+    // a compliant receiver, which is how a stale ts-refclk survives forever.
+    //
+    // Session *identity* is carried by the SDP o= line (stable sess-id, rising
+    // sess-version), so a changed hash reads as "this session was modified",
+    // not as a second session.
     uint32_t hash = 2166136261u;
-    for (char c : key) {
-        hash ^= (uint32_t)c;
+    for (char c : sdp) {
+        hash ^= (uint32_t)(unsigned char)c;
         hash *= 16777619u;
     }
     return (uint16_t)(hash & 0xFFFF);
 }
 
+// Monotonic SDP o= version.  Seeded from the wall clock so it keeps rising
+// across fppd restarts -- a receiver that has cached version N ignores a
+// re-announcement numbered below it.
+uint32_t AES67Manager::NextSDPVersion() {
+    uint32_t candidate = (uint32_t)time(nullptr);
+    uint32_t prev = m_lastSdpVersion.load(std::memory_order_relaxed);
+    uint32_t next;
+    do {
+        next = (candidate > prev) ? candidate : prev + 1;
+    } while (!m_lastSdpVersion.compare_exchange_weak(prev, next, std::memory_order_relaxed));
+    return next;
+}
+
 std::string AES67Manager::BuildSDP(const AES67Instance& inst,
                                     const std::string& sourceIP,
-                                    const std::string& ptpClockId) {
+                                    const std::string& ptpClockId,
+                                    uint32_t sdpVersion) {
     // AES67-compliant SDP — unique session ID per device + stream.
     // Combine source IP, stream name, multicast IP, and port so that
     // different FPP boxes (or different streams on the same box) always
@@ -1307,9 +1523,13 @@ std::string AES67Manager::BuildSDP(const AES67Instance& inst,
     }
     int sessionId = (int)(h & 0x3FFFFFFFu);  // 30-bit positive value
 
+    // o=<user> <sess-id> <sess-version> ...  RFC 4566: sess-id identifies the
+    // session and must stay put for its lifetime; sess-version rises each time
+    // the description is modified, which is how a receiver knows to re-read a
+    // session it already has (e.g. after BMCA changed the ts-refclk).
     std::ostringstream sdp;
     sdp << "v=0\r\n"
-        << "o=- " << sessionId << " " << sessionId << " IN IP4 " << sourceIP << "\r\n"
+        << "o=- " << sessionId << " " << sdpVersion << " IN IP4 " << sourceIP << "\r\n"
         << "s=" << inst.sessionName << "\r\n"
         << "c=IN IP4 " << inst.multicastIP << "/" << AES67::AUDIO_RTP_TTL << "\r\n"
         << "t=0 0\r\n"
@@ -1320,6 +1540,13 @@ std::string AES67Manager::BuildSDP(const AES67Instance& inst,
         << "a=ptime:" << inst.ptime << "\r\n"
         << "a=ts-refclk:ptp=IEEE1588-2008:" << ptpClockId << ":0\r\n"
         << "a=mediaclk:direct=0\r\n";
+    // NOTE: AES67 requires a=mediaclk:direct, and "direct=0" asserts that the
+    // RTP timestamp is derived directly from the reference clock with zero
+    // offset.  That is not yet true here -- the payloader's timestamps come
+    // from the pipeline's monotonic clock with its own start offset, so the
+    // rate is PTP-locked but the phase is arbitrary.  Making the assertion
+    // true needs a GstPtpClock on the send pipeline plus an explicit
+    // rtpL24pay timestamp-offset derived from PTP time.
 
     return sdp.str();
 }
@@ -1407,24 +1634,9 @@ void AES67Manager::SAPAnnounceLoop() {
     // not this node's own identity — otherwise a follower incorrectly
     // advertises itself as the clock source.  Fall back to our own derived
     // ID only if PTP is disabled or ptp4l hasn't selected a grandmaster yet.
-    //
-    // ptp4l needs a few seconds after startup to complete BMCA and adopt an
-    // upstream master -- until then it reports itself as its own grandmaster,
-    // so querying only once at thread-start can freeze the SDP on this node's
-    // own identity if that race is lost.  To self-correct once BMCA settles
-    // (and self-heal if the grandmaster ever changes later), re-query and
-    // rebuild the announced SDP on every announce cycle rather than once.
     auto queryPtpClockId = [this]() -> std::string {
-        std::string clockId = GetPTPClockId();
-        if (m_config.ptpEnabled) {
-            bool gmPresent = false;
-            std::string realGmId;
-            int64_t gmOffsetNs = 0;
-            if (QueryPtp4lTimeStatus(gmPresent, realGmId, gmOffsetNs) && gmPresent && !realGmId.empty()) {
-                clockId = realGmId;
-            }
-        }
-        return clockId;
+        std::string gm = GetActiveGrandmasterId();
+        return gm.empty() ? GetPTPClockId() : gm;
     };
 
     // Build all SAP packets for send instances
@@ -1435,6 +1647,7 @@ void AES67Manager::SAPAnnounceLoop() {
     };
     auto buildEntries = [this](const std::string& ptpClockId) -> std::vector<SAPEntry> {
         std::vector<SAPEntry> result;
+        uint32_t sdpVersion = NextSDPVersion();
         for (const auto& inst : m_config.instances) {
             if (!inst.enabled) continue;
             if (!inst.sapEnabled) continue;
@@ -1442,8 +1655,8 @@ void AES67Manager::SAPAnnounceLoop() {
 
             std::string sourceIP = GetInterfaceIP(inst.interface.empty() ?
                                                   m_config.ptpInterface : inst.interface);
-            uint16_t hash = ComputeSAPHash(inst);
-            std::string sdp = BuildSDP(inst, sourceIP, ptpClockId);
+            std::string sdp = BuildSDP(inst, sourceIP, ptpClockId, sdpVersion);
+            uint16_t hash = ComputeSAPHash(sdp);
 
             SAPEntry entry;
             entry.hash = hash;
@@ -1465,33 +1678,66 @@ void AES67Manager::SAPAnnounceLoop() {
                 AES67::SAP_ANNOUNCE_INTERVAL_S);
     }
 
-    // Announce loop
-    while (m_sapAnnounceRunning.load()) {
-        std::string currentPtpClockId = queryPtpClockId();
-        if (currentPtpClockId != ptpClockId) {
-            LogInfo(VB_MEDIAOUT, "AES67 SAP: PTP refclk changed (%s -> %s), rebuilding SDP\n",
-                    ptpClockId.c_str(), currentPtpClockId.c_str());
-            ptpClockId = currentPtpClockId;
-            entries = buildEntries(ptpClockId);
-        }
-
+    auto announceAll = [&]() {
         for (const auto& entry : entries) {
             ssize_t sent = sendto(sock, entry.announcePacket.data(), entry.announcePacket.size(), 0,
-                   (struct sockaddr*)&sapAddr, sizeof(sapAddr));
+                                  (struct sockaddr*)&sapAddr, sizeof(sapAddr));
             if (sent < 0) {
                 LogErr(VB_MEDIAOUT, "AES67 SAP: sendto failed: %s\n", FPPstrerror(errno));
             }
         }
+    };
 
-        // Sleep for SAP_ANNOUNCE_INTERVAL_S, checking shutdown flag every second
+    // Rebuild and re-announce immediately when BMCA changes the refclk, rather
+    // than letting a wrong ts-refclk stand for the rest of the announce cycle.
+    auto refreshRefclk = [&]() -> bool {
+        std::string current = queryPtpClockId();
+        if (current == ptpClockId) {
+            return false;
+        }
+        LogInfo(VB_MEDIAOUT, "AES67 SAP: PTP refclk changed (%s -> %s), rebuilding SDP\n",
+                ptpClockId.c_str(), current.c_str());
+        ptpClockId = current;
+        // The rebuilt entries carry a new msg id hash (it is derived from the
+        // SDP text).  We deliberately do NOT delete the old hash first: the
+        // o= sess-id is unchanged, so a receiver reads this as a modification
+        // of a session it already has, whereas a deletion could make it tear
+        // the stream down for the moment before the new announcement lands.
+        entries = buildEntries(ptpClockId);
+        return true;
+    };
+
+    // Announce loop
+    auto threadStart = std::chrono::steady_clock::now();
+    while (m_sapAnnounceRunning.load()) {
+        refreshRefclk();
+        announceAll();
+
+        // Sleep for SAP_ANNOUNCE_INTERVAL_S, checking shutdown flag every second.
+        //
+        // ptp4l needs several seconds after startup to finish BMCA and adopt an
+        // upstream master; until then it reports itself as its own grandmaster.
+        // Poll every second through that window so the corrected refclk goes out
+        // within a second of the election settling instead of up to a full
+        // announce interval later.  Results are cached (PTP_QUERY_CACHE_MS), so
+        // this is one pmc query per second at worst, and only for a minute.
         for (int i = 0; i < AES67::SAP_ANNOUNCE_INTERVAL_S && m_sapAnnounceRunning.load(); i++) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
+
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                               std::chrono::steady_clock::now() - threadStart).count();
+            if (elapsed < AES67::PTP_CONVERGENCE_WINDOW_S && m_sapAnnounceRunning.load()) {
+                if (refreshRefclk()) {
+                    announceAll();
+                }
+            }
         }
 
         // Poll pipeline bus messages and recover any crashed pipelines.
         // Runs every SAP_ANNOUNCE_INTERVAL_S (30s) — fast enough to detect
         // silent failures without adding significant overhead.
         if (m_sapAnnounceRunning.load()) {
+            CheckPtpWatchdog();
             if (PollPipelinesWatchdog()) {
                 // A full pipeline rebuild is needed.  We cannot call
                 // ApplyConfig() from this thread because ApplyConfig()
@@ -1868,8 +2114,9 @@ std::vector<AES67Manager::InlineRTPBranch> AES67Manager::AttachInlineRTPBranches
         // NOTE: Do NOT call gst_pipeline_use_clock() here.
         // The playback pipeline's own clock (e.g. system clock) must remain.
         // An unsynced PTP clock returns GST_CLOCK_TIME_NONE which crashes
-        // the pipeline.  PTP clock is only set on standalone AES67 send
-        // pipelines via CreateSendPipeline().
+        // the pipeline.  (No AES67 pipeline sets a PTP clock today --
+        // CreateSendPipeline() does not either, despite what this note used
+        // to claim.)
 
         InlineRTPBranch branch;
         branch.instanceId = inst.id;
@@ -1970,11 +2217,15 @@ AES67Manager::Status AES67Manager::GetStatus() {
         bool gmPresent = false;
         std::string gmId;
         int64_t offsetNs = 0;
+
+        status.ptpPortState = IsPtp4lRunning() ? GetPtp4lState() : "not running";
+        status.ptpIsGrandmaster = IsGrandmasterPortState(status.ptpPortState);
+
         if (QueryPtp4lTimeStatus(gmPresent, gmId, offsetNs) && gmPresent && !gmId.empty()) {
             status.ptpSynced = true;
             status.ptpGrandmasterId = gmId;
             status.ptpOffsetNs = offsetNs;
-        } else if (IsPtp4lRunning() && IsGrandmasterPortState(GetPtp4lState())) {
+        } else if (status.ptpIsGrandmaster) {
             // We won the BMCA and ARE the domain grandmaster.  pmc reports
             // gmPresent=false in that case because there is no *remote* GM to
             // report -- which is not the same thing as "unsynced".  Being the
@@ -2063,6 +2314,38 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
         r.testName = "ptp4l_binary";
         r.passed = FileExists("/usr/sbin/ptp4l");
         r.message = r.passed ? "ptp4l binary found at /usr/sbin/ptp4l" : "ptp4l binary NOT found — install linuxptp package";
+        results.push_back(r);
+    }
+    {
+        // Without pmc every grandmaster query fails, and PTP silently reports
+        // "not synced" no matter how well it is actually locked.
+        TestResult r;
+        r.testName = "pmc_binary";
+        r.passed = FileExists(PMC_BINARY);
+        r.message = r.passed
+            ? std::string("pmc binary found at ") + PMC_BINARY
+            : std::string("pmc binary NOT found at ") + PMC_BINARY +
+              " — grandmaster status cannot be queried (install linuxptp)";
+        results.push_back(r);
+    }
+    {
+        // Surfaces the two settings behind "why did my Pi become the master?"
+        // and "why does the Q-SYS core not see us?".
+        TestResult r;
+        r.testName = "ptp_grandmaster";
+        std::string gm = GetActiveGrandmasterId();
+        std::string state = IsPtp4lRunning() ? GetPtp4lState() : "not running";
+        r.passed = !m_config.ptpEnabled || !gm.empty();
+        if (!m_config.ptpEnabled) {
+            r.message = "PTP is disabled — SDP advertises this node's own clock identity";
+        } else if (gm.empty()) {
+            r.message = "No grandmaster selected yet (port state " + state + ") — domain " +
+                        std::to_string(m_config.ptpDomain) + ", role " + m_config.ptpRole;
+        } else {
+            r.message = "Grandmaster " + gm + " (port state " + state + ") — domain " +
+                        std::to_string(m_config.ptpDomain) + ", role " + m_config.ptpRole +
+                        (IsGrandmasterPortState(state) ? " — this node holds the role" : "");
+        }
         results.push_back(r);
     }
 
@@ -2184,7 +2467,7 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
         if (!m_config.instances.empty()) {
             std::string sourceIP = GetInterfaceIP(m_config.ptpInterface);
             std::string clockId = GetPTPClockId();
-            std::string sdp = BuildSDP(m_config.instances[0], sourceIP, clockId);
+            std::string sdp = BuildSDP(m_config.instances[0], sourceIP, clockId, NextSDPVersion());
             r.passed = !sdp.empty() && sdp.find("v=0") != std::string::npos
                        && sdp.find("ts-refclk") != std::string::npos
                        && sdp.find("mediaclk") != std::string::npos
@@ -2240,6 +2523,11 @@ HttpResponsePtr AES67Manager::render_GET(const HttpRequestPtr& req) {
         ptp["synced"] = st.ptpSynced;
         ptp["offsetNs"] = (Json::Int64)st.ptpOffsetNs;
         ptp["grandmasterId"] = st.ptpGrandmasterId;
+        ptp["portState"] = st.ptpPortState;
+        ptp["isGrandmaster"] = st.ptpIsGrandmaster;
+        ptp["enabled"] = m_config.ptpEnabled;
+        ptp["domain"] = m_config.ptpDomain;
+        ptp["role"] = m_config.ptpRole;
         result["ptp"] = ptp;
 
         // Discovered streams

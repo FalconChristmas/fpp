@@ -33,6 +33,8 @@
 #include "fpphttp_types.h"
 
 #include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -56,6 +58,24 @@ constexpr int DEFAULT_LATENCY_MS    = 10;
 // DSCP codepoints (AES67-2018 / AES-R16 QoS recommendations)
 constexpr int AUDIO_DSCP             = 34;      // AF41 -- RTP audio (udpsink qos-dscp)
 constexpr int PTP_DSCP                = 46;     // EF   -- PTP event/general messages (ptp4l dscp_event/dscp_general)
+
+// PTP (IEEE 1588) profile defaults
+constexpr int DEFAULT_PTP_DOMAIN     = 0;
+
+// BMCA priority1 values selected by the "ptpRole" setting.  Most professional
+// AES67 gear ships priority1=128, so an FPP box left at 128 ties on priority
+// and wins on clock identity (lowest MAC) -- silently hijacking the clock
+// domain of a console or DSP.  See issue #2848.
+constexpr int PTP_PRIORITY_PREFER_MASTER = 127; // deliberately beat the usual 128
+constexpr int PTP_PRIORITY_AUTO          = 248; // yield to real gear; still GM when alone
+
+// How long the SAP announcer re-checks the grandmaster every second after
+// startup, to catch BMCA settling rather than waiting a whole announce cycle.
+constexpr int PTP_CONVERGENCE_WINDOW_S   = 60;
+
+// TTL for the cached pmc query result.  /aes67/status is HTTP-facing and each
+// query forks a pmc process, so repeated hits must not fork per request.
+constexpr int PTP_QUERY_CACHE_MS         = 1000;
 
 constexpr const char* DEFAULT_MULTICAST_IP = "239.69.0.1";
 constexpr const char* AUDIO_FORMAT         = "S24BE";
@@ -95,6 +115,15 @@ struct AES67Config {
     std::vector<AES67Instance> instances;
     bool ptpEnabled = true;
     std::string ptpInterface = "eth0";
+    int ptpDomain = AES67::DEFAULT_PTP_DOMAIN;
+
+    // BMCA participation:
+    //   "auto"     (default) -- priority1 248: still becomes grandmaster when
+    //                           it is the only clock on the domain, but yields
+    //                           to gear that wants the role.
+    //   "follower" -- ptp4l slaveOnly: never becomes grandmaster.
+    //   "master"   -- priority1 127: prefer to win the election.
+    std::string ptpRole = "auto";
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -175,6 +204,8 @@ public:
         bool ptpSynced = false;
         int64_t ptpOffsetNs = 0;     // offset from PTP master
         std::string ptpGrandmasterId;
+        std::string ptpPortState;    // ptp4l portState (MASTER/SLAVE/LISTENING/...)
+        bool ptpIsGrandmaster = false;  // true when *we* hold the grandmaster role
         std::vector<SAPDiscoveredStream> discoveredStreams;
     };
     Status GetStatus();
@@ -248,10 +279,41 @@ private:
     std::string GetPTPClockId();         // EUI-64 from interface MAC (this node's own identity)
     std::string GetPtp4lState();         // query ptp4l port state via pmc (MASTER/SLAVE/LISTENING/...)
 
+    // Write an AES67-profile ptp4l config.  Split out so the three start
+    // attempts (hardware, software, software-without-DSCP) cannot drift apart
+    // -- they used to be copy-pasted blocks.
+    bool WritePtpConf(const std::string& path, bool hwTimestamping, bool includeDscp);
+
+    // fork/exec ptp4l with the given config.  Returns true if it is still
+    // alive shortly afterwards.
+    bool StartPtp4l(bool hwTimestamping, bool includeDscp);
+
+    // Restart ptp4l/phc2sys if they have died (link flap, OOM, manual kill).
+    // Called from the SAP threads alongside the pipeline watchdog.
+    void CheckPtpWatchdog();
+
     // Query the actual PTP grandmaster (may be a remote clock, not this node)
     // via `pmc GET TIME_STATUS_NP`.  Returns false if ptp4l isn't running or
     // the query fails, leaving the out-params untouched.
     bool QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity, int64_t& offsetNs);
+
+    // Grandmaster identity to advertise in SDP / report over HTTP: the remote
+    // clock we follow, or our own identity when we hold the role.  Empty when
+    // PTP is enabled but no grandmaster has been settled on yet.
+    std::string GetActiveGrandmasterId();
+
+    // Cached pmc results -- see AES67::PTP_QUERY_CACHE_MS.
+    struct PtpQueryCache {
+        std::chrono::steady_clock::time_point when{};
+        bool valid = false;
+        bool gmPresent = false;
+        std::string gmIdentity;
+        int64_t offsetNs = 0;
+        std::string portState;
+    };
+    PtpQueryCache m_ptpCache;
+    std::mutex m_ptpCacheMutex;
+    void RefreshPtpCache(bool force = false);
 
     // Pipeline watchdog — called from SAP thread to poll bus messages
     // and restart any pipeline that isn't in PLAYING state.
@@ -298,12 +360,24 @@ private:
     std::atomic<bool> m_sapAnnounceRunning{false};
     void SAPAnnounceLoop();
     std::string BuildSDP(const AES67Instance& inst, const std::string& sourceIP,
-                         const std::string& ptpClockId);
+                         const std::string& ptpClockId, uint32_t sdpVersion);
     std::vector<uint8_t> BuildSAPPacket(const std::string& sourceIP,
                                         uint16_t msgIdHash,
                                         const std::string& sdp,
                                         bool isDeletion = false);
-    uint16_t ComputeSAPHash(const AES67Instance& inst);
+
+    // RFC 2974 requires the message id hash to change whenever the announced
+    // payload changes, so it is computed over the SDP text itself rather than
+    // over the instance -- otherwise receivers dedupe an updated announcement
+    // as a repeat and never see the corrected refclk.
+    uint16_t ComputeSAPHash(const std::string& sdp);
+
+    // Monotonic SDP o= version.  Seeded from wall clock so it keeps rising
+    // across fppd restarts (a version that went backwards would be ignored).
+    uint32_t NextSDPVersion();
+    // Bumped from the SAP thread on every rebuild and from RunSelfTest() on
+    // whichever thread asked for the test, so it cannot be a plain int.
+    std::atomic<uint32_t> m_lastSdpVersion{0};
 
     // SAP receiver thread
     std::thread m_sapRecvThread;

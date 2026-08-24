@@ -207,17 +207,38 @@
                                     data-bs-html="true" data-bs-placement="auto"
                                     title="IEEE 1588 Precision Time Protocol (PTP) provides sample-accurate clock synchronization between AES67 devices on the network. Enable this if you need tight sync between multiple FPP instances or professional AES67 gear.">
                             </h5>
-                            <div style="display:flex; gap:2rem; align-items:center; flex-wrap:wrap;">
+                            <div class="d-flex gap-4 align-items-center flex-wrap">
                                 <label>
                                     <input type="checkbox" class="form-check-input" id="ptpEnabledCheck"
                                         onchange="UpdatePTPEnabled(this.checked)"> Enable PTP
                                 </label>
                                 <div>
                                     <label for="ptpInterfaceSelect">Network Interface:</label>
-                                    <select class="form-select form-select-sm" id="ptpInterfaceSelect"
-                                        style="display:inline-block;width:auto;" onchange="UpdatePTPInterface(this.value)">
+                                    <select class="form-select form-select-sm d-inline-block w-auto"
+                                        id="ptpInterfaceSelect" onchange="UpdatePTPInterface(this.value)">
                                         <option value="">(Default)</option>
                                     </select>
+                                </div>
+                                <div>
+                                    <label for="ptpDomainInput">Domain:</label>
+                                    <input type="number" min="0" max="127"
+                                        class="form-control form-control-sm d-inline-block w-auto"
+                                        id="ptpDomainInput" onchange="UpdatePTPDomain(this.value)">
+                                    <img src="images/redesign/help-icon.svg" class="icon-help" data-bs-toggle="tooltip"
+                                        data-bs-html="true" data-bs-placement="auto"
+                                        title="PTP domain number (0-127).  All devices that must share a clock have to be on the same domain.  AES67 gear normally uses domain 0; leave this alone unless your console or DSP is configured otherwise.">
+                                </div>
+                                <div>
+                                    <label for="ptpRoleSelect">Clock Role:</label>
+                                    <select class="form-select form-select-sm d-inline-block w-auto"
+                                        id="ptpRoleSelect" onchange="UpdatePTPRole(this.value)">
+                                        <option value="auto">Auto (prefer other devices)</option>
+                                        <option value="follower">Follower only (never master)</option>
+                                        <option value="master">Prefer master</option>
+                                    </select>
+                                    <img src="images/redesign/help-icon.svg" class="icon-help" data-bs-toggle="tooltip"
+                                        data-bs-html="true" data-bs-placement="auto"
+                                        title="Who provides the clock.  <b>Auto</b> joins the election at a low priority: FPP still becomes the clock when it is the only device on the domain, but yields to a console or DSP that wants the role.  <b>Follower only</b> never becomes the clock.  <b>Prefer master</b> tries to win the election &mdash; only use this if FPP is intended to be the master clock for the network.">
                                 </div>
                             </div>
                         </div>
@@ -265,7 +286,7 @@
         <?php } ?>
 
         <script>
-            var aes67Data = { instances: [], ptpEnabled: true, ptpInterface: '' };
+            var aes67Data = { instances: [], ptpEnabled: true, ptpInterface: '', ptpDomain: 0, ptpRole: 'auto' };
             var availableInterfaces = [];
             var nextInstanceId = 1;
             var hasUnsavedChanges = false;
@@ -287,6 +308,7 @@
 
             $(document).ready(function () {
                 CheckPipeWireStatus();
+                setInterval(RefreshAES67Status, 10000);
                 LoadInterfaces().then(function () {
                     LoadInstances();
                 });
@@ -309,20 +331,72 @@
                         );
                     });
 
+                RefreshAES67Status();
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
+            // PTP state moves for the first minute or so after fppd starts
+            // (LISTENING -> MASTER/SLAVE as BMCA settles), so this is polled
+            // rather than read once on page load.
+            function RefreshAES67Status() {
+                // Field names here must track AES67Manager::render_GET() —
+                // pipelines[] and ptp{} — not the older PipeWire-module shape.
                 $.getJSON('api/pipewire/aes67/status')
                     .done(function (data) {
                         var parts = [];
-                        if (data.sinks && data.sinks.length > 0)
-                            parts.push(data.sinks.length + ' AES67 sink' + (data.sinks.length !== 1 ? 's' : ''));
-                        if (data.sources && data.sources.length > 0)
-                            parts.push(data.sources.length + ' AES67 source' + (data.sources.length !== 1 ? 's' : ''));
-                        if (data.ptpRunning)
-                            parts.push('<span class="status-indicator status-running"></span>PTP synced');
-
-                        if (parts.length > 0) {
-                            $('#ptpStatus').html(parts.join(' &nbsp;|&nbsp; '));
+                        var pipelines = data.pipelines || [];
+                        var running = 0;
+                        for (var i = 0; i < pipelines.length; i++) {
+                            if (pipelines[i].running)
+                                running++;
                         }
+                        if (pipelines.length > 0) {
+                            parts.push('<span class="status-indicator ' +
+                                (running === pipelines.length ? 'status-running' : 'status-stopped') +
+                                '"></span>' + running + ' of ' + pipelines.length + ' stream' +
+                                (pipelines.length !== 1 ? 's' : '') + ' running');
+                        }
+
+                        var ptp = data.ptp || {};
+                        if (ptp.enabled === false) {
+                            parts.push('PTP disabled');
+                        } else if (ptp.synced) {
+                            var label = ptp.isGrandmaster
+                                ? 'PTP master (this device)'
+                                : 'PTP synced to ' + EscapeHtml(ptp.grandmasterId || 'grandmaster');
+                            if (!ptp.isGrandmaster && typeof ptp.offsetNs === 'number')
+                                label += ' (' + FormatPTPOffset(ptp.offsetNs) + ')';
+                            parts.push('<span class="status-indicator status-running"></span>' + label);
+                        } else {
+                            parts.push('<span class="status-indicator status-stopped"></span>PTP not synced' +
+                                (ptp.portState ? ' (' + EscapeHtml(ptp.portState) + ')' : ''));
+                        }
+
+                        var discovered = data.discoveredStreams || [];
+                        if (discovered.length > 0) {
+                            parts.push(discovered.length + ' stream' +
+                                (discovered.length !== 1 ? 's' : '') + ' discovered');
+                        }
+
+                        $('#ptpStatus').html(parts.join(' &nbsp;|&nbsp; '));
+                    })
+                    .fail(function () {
+                        $('#ptpStatus').html(
+                            '<span class="status-indicator status-stopped"></span>AES67 status unavailable'
+                        );
                     });
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
+            // PTP offsets are reported in nanoseconds and swing over several
+            // orders of magnitude while a clock settles, so scale the unit.
+            function FormatPTPOffset(ns) {
+                var abs = Math.abs(ns);
+                if (abs < 1000)
+                    return ns + ' ns';
+                if (abs < 1000000)
+                    return (ns / 1000).toFixed(1) + ' \u00b5s';
+                return (ns / 1000000).toFixed(2) + ' ms';
             }
 
             /////////////////////////////////////////////////////////////////////////////
@@ -344,7 +418,7 @@
                 hasUnsavedChanges = false;
                 $.getJSON('api/pipewire/aes67/instances')
                     .done(function (data) {
-                        aes67Data = data || { instances: [], ptpEnabled: true, ptpInterface: '' };
+                        aes67Data = data || { instances: [], ptpEnabled: true, ptpInterface: '', ptpDomain: 0, ptpRole: 'auto' };
                         if (!aes67Data.instances) aes67Data.instances = [];
 
                         // Calculate next ID
@@ -358,11 +432,13 @@
                         // Set PTP controls
                         $('#ptpEnabledCheck').prop('checked', aes67Data.ptpEnabled !== false);
                         $('#ptpInterfaceSelect').val(aes67Data.ptpInterface || '');
+                        $('#ptpDomainInput').val(aes67Data.ptpDomain != null ? aes67Data.ptpDomain : 0);
+                        $('#ptpRoleSelect').val(aes67Data.ptpRole || 'auto');
 
                         RenderInstances();
                     })
                     .fail(function () {
-                        aes67Data = { instances: [], ptpEnabled: true, ptpInterface: '' };
+                        aes67Data = { instances: [], ptpEnabled: true, ptpInterface: '', ptpDomain: 0, ptpRole: 'auto' };
                         RenderInstances();
                     });
             }
@@ -590,6 +666,19 @@
 
             function UpdatePTPInterface(iface) {
                 aes67Data.ptpInterface = iface;
+            }
+
+            function UpdatePTPDomain(domain) {
+                var d = parseInt(domain, 10);
+                if (isNaN(d) || d < 0 || d > 127) {
+                    d = 0;
+                    $('#ptpDomainInput').val(d);
+                }
+                aes67Data.ptpDomain = d;
+            }
+
+            function UpdatePTPRole(role) {
+                aes67Data.ptpRole = role;
             }
 
             /////////////////////////////////////////////////////////////////////////////

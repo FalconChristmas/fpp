@@ -5225,7 +5225,8 @@ function GetAES67Instances()
             return json($data);
         }
     }
-    return json(array("instances" => array(), "ptpEnabled" => true, "ptpInterface" => ""));
+    return json(array("instances" => array(), "ptpEnabled" => true, "ptpInterface" => "",
+        "ptpDomain" => 0, "ptpRole" => "auto"));
 }
 
 // POST /api/pipewire/aes67/instances
@@ -5244,6 +5245,31 @@ function SaveAES67Instances()
     if (!isset($parsed['instances']) || !is_array($parsed['instances'])) {
         http_response_code(400);
         return json(array("status" => "ERROR", "message" => "Missing instances array"));
+    }
+
+    // Global PTP settings.  fppd clamps these too, but rejecting here means
+    // the user gets told rather than silently having the value changed.
+    if (!isset($parsed['ptpEnabled']))
+        $parsed['ptpEnabled'] = true;
+    if (!isset($parsed['ptpInterface']))
+        $parsed['ptpInterface'] = "";
+    if (!isset($parsed['ptpDomain'])) {
+        $parsed['ptpDomain'] = 0;
+    } else {
+        $domain = intval($parsed['ptpDomain']);
+        if ($domain < 0 || $domain > 127) {
+            http_response_code(400);
+            return json(array("status" => "ERROR",
+                "message" => "PTP domain must be between 0 and 127"));
+        }
+        $parsed['ptpDomain'] = $domain;
+    }
+    if (!isset($parsed['ptpRole'])) {
+        $parsed['ptpRole'] = "auto";
+    } else if (!in_array($parsed['ptpRole'], array("auto", "follower", "master"))) {
+        http_response_code(400);
+        return json(array("status" => "ERROR",
+            "message" => "PTP role must be auto, follower or master"));
     }
     // Validate each instance
     $nextId = 1;
@@ -5407,12 +5433,24 @@ function GetAES67Status()
         }
     }
 
-    // Fallback: fppd not running or endpoint not available
+    // Fallback: fppd not running or endpoint not available.
+    // Shape must match AES67Manager::render_GET() so the page does not have to
+    // handle two different layouts -- it previously returned a flat ptpSynced
+    // while fppd returns a nested ptp{} object.
     return json(array(
         "pipelines" => array(),
-        "ptpSynced" => false,
-        "ptpOffsetNs" => 0,
-        "discoveredStreams" => array()
+        "ptp" => array(
+            "synced" => false,
+            "offsetNs" => 0,
+            "grandmasterId" => "",
+            "portState" => "fppd not responding",
+            "isGrandmaster" => false,
+            "enabled" => false,
+            "domain" => 0,
+            "role" => "auto"
+        ),
+        "discoveredStreams" => array(),
+        "active" => false
     ));
 }
 
