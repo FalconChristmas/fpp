@@ -100,6 +100,22 @@ void OpusRTPManager::Shutdown() {
 
     LogInfo(VB_MEDIAOUT, "OpusRTPManager: Shutting down\n");
 
+    // Clear this first so a rebuild thread that is mid-sleep sees
+    // shutdown-in-progress and skips calling ApplyConfig() instead of
+    // rebuilding everything we are about to tear down.
+    m_initialized.store(false);
+
+    // Join the rebuild thread BEFORE taking m_applyMutex: that thread calls
+    // ApplyConfig(), which itself takes the lock -- holding it across the
+    // join would deadlock.
+    if (m_rebuildThread.joinable()) {
+        m_rebuildThread.join();
+    }
+
+    // Only now take the apply lock -- it blocks until any in-flight
+    // ApplyConfig() (e.g. from a command thread) has finished.
+    std::lock_guard<std::mutex> applyLock(m_applyMutex);
+
     m_watchdogRunning.store(false);
     if (m_watchdogThread.joinable()) {
         m_watchdogThread.join();
@@ -108,7 +124,6 @@ void OpusRTPManager::Shutdown() {
     StopAllPipelines();
 
     m_active.store(false);
-    m_initialized.store(false);
     LogInfo(VB_MEDIAOUT, "OpusRTPManager: Shutdown complete\n");
 }
 
@@ -159,6 +174,12 @@ bool OpusRTPManager::LoadConfig() {
 // ApplyConfig
 // ──────────────────────────────────────────────────────────────────────────────
 bool OpusRTPManager::ApplyConfig() {
+    // Serialize against concurrent ApplyConfig()/Shutdown()/Cleanup() calls -
+    // see m_applyMutex.  Without this, two callers can both get past the
+    // watchdog join below and both reach the std::thread assignment at the
+    // end, where assigning over a joinable thread calls std::terminate().
+    std::lock_guard<std::mutex> applyLock(m_applyMutex);
+
     if (!m_initialized.load()) {
         if (!Init()) {
             return false;
@@ -236,6 +257,8 @@ bool OpusRTPManager::ApplyConfig() {
 void OpusRTPManager::Cleanup() {
     LogInfo(VB_MEDIAOUT, "OpusRTPManager: Cleanup\n");
 
+    std::lock_guard<std::mutex> applyLock(m_applyMutex);
+
     m_watchdogRunning.store(false);
     if (m_watchdogThread.joinable()) {
         m_watchdogThread.join();
@@ -310,15 +333,29 @@ bool OpusRTPManager::CreateSendPipeline(const OpusRTPInstance& inst) {
 
     // Pipeline:
     //   pipewiresrc stream-properties="props,node.name=<node>,node.autoconnect=false"
-    //   ! audioconvert
+    //   ! queue ! audioconvert ! audioresample ! audioconvert ! audiorate
     //   ! audio/x-raw,rate=48000,channels=N
     //   ! opusenc bitrate=<bps> dtx=<bool> inband-fec=<bool> packet-loss-percentage=<int>
     //   ! rtpopuspay pt=96
-    //   ! udpsink host=<ip> port=<port> [multicast options]
+    //   ! udpsink host=<ip> port=<port> qos-dscp=34 [multicast options]
+    //
+    // The resampler is not optional, and audiorate is not a substitute for it:
+    // audiorate only inserts/drops samples to patch timestamp gaps, it cannot
+    // change the rate ("audiorate0 can't handle caps rate=48000").  Opus needs
+    // 48 kHz, and the PipeWire graph does not necessarily run there -- it
+    // follows the output card and sits at 44100 by default -- so without a
+    // resampler this chain has nothing in it that can bridge the two.  See the
+    // matching note in AES67Manager::CreateSendPipeline(): the failure mode
+    // when the rates do not line up is that negotiation never completes and
+    // set_state() blocks, not a clean error.  The split around audioresample
+    // mirrors what was measured to work there; it costs nothing when the graph
+    // already runs at 48000, where the resampler passes through.
 
     std::ostringstream oss;
     oss << "pipewiresrc name=pwsrc min-buffers=2 do-timestamp=true "
         << "! queue max-size-buffers=0 max-size-bytes=0 max-size-time=200000000 leaky=downstream "
+        << "! audioconvert "
+        << "! audioresample "
         << "! audioconvert "
         << "! audiorate "
         << "! audio/x-raw,rate=" << OpusRTP::AUDIO_RATE
@@ -331,6 +368,7 @@ bool OpusRTPManager::CreateSendPipeline(const OpusRTPInstance& inst) {
         << "! rtpopuspay pt=" << OpusRTP::RTP_PAYLOAD_TYPE << " "
         << "! udpsink name=usink host=" << inst.destIP
         << " port=" << inst.port
+        << " qos-dscp=" << OpusRTP::AUDIO_DSCP
         << " sync=false";
 
     if (multicast) {
@@ -676,12 +714,26 @@ void OpusRTPManager::WatchdogLoop() {
             // ApplyConfig() once we've exited.
             LogWarn(VB_MEDIAOUT, "OpusRTPManager: Watchdog detected failed pipelines, scheduling rebuild\n");
             m_watchdogRunning.store(false);
-            std::thread([this]() {
+            // Track this as m_rebuildThread (rather than detaching) so
+            // Shutdown() can join it before tearing anything else down -- a
+            // detached thread could otherwise call ApplyConfig() and
+            // resurrect pipelines after Shutdown() has already run, and a
+            // detached thread racing Shutdown()'s own join of
+            // m_watchdogThread is undefined behavior.
+            if (m_rebuildThread.joinable()) {
+                m_rebuildThread.join();
+            }
+            m_rebuildThread = std::thread([this]() {
                 // Brief delay to let this watchdog thread finish exiting
                 // and become joinable.
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                // If Shutdown() ran while we were sleeping, don't resurrect
+                // pipelines -- just exit quietly.
+                if (!m_initialized.load()) {
+                    return;
+                }
                 ApplyConfig();
-            }).detach();
+            });
             break;
         }
     }

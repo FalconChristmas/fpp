@@ -171,14 +171,15 @@
                             </ul>
                         </div>
 
-                        <div
-                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                             <div>
                                 <span id="pwStatus">
                                     <span class="status-indicator status-stopped"></span>Checking PipeWire...
                                 </span>
+                                &nbsp;&nbsp;
+                                <span id="opusStatus"></span>
                             </div>
-                            <div style="display:flex; gap:0.5rem;">
+                            <div class="d-flex gap-2">
                                 <button class="buttons btn-outline-success" onclick="AddInstance()">
                                     <i class="fas fa-plus"></i> Add Opus RTP Instance
                                 </button>
@@ -248,6 +249,7 @@
 
             $(document).ready(function () {
                 CheckPipeWireStatus();
+                setInterval(RefreshOpusRTPStatus, 10000);
                 LoadInterfaces().then(function () {
                     LoadInstances();
                 });
@@ -267,6 +269,49 @@
                         $('#pwStatus').html(
                             '<span class="status-indicator status-stopped"></span>' +
                             'PipeWire not responding'
+                        );
+                    });
+
+                RefreshOpusRTPStatus();
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
+            // Whether the streams are actually running is only knowable from
+            // fppd -- the page used to show PipeWire's state alone, so a
+            // pipeline that failed to start looked identical to a healthy one.
+            // Field names track OpusRTPManager::render_GET().
+            function RefreshOpusRTPStatus() {
+                $.getJSON('api/pipewire/opusrtp/status')
+                    .done(function (data) {
+                        var pipelines = data.pipelines || [];
+                        if (pipelines.length === 0) {
+                            $('#opusStatus').html(data.active
+                                ? '<span class="status-indicator status-stopped"></span>No Opus RTP streams running'
+                                : '');
+                            return;
+                        }
+
+                        var running = 0;
+                        var errors = [];
+                        for (var i = 0; i < pipelines.length; i++) {
+                            if (pipelines[i].running)
+                                running++;
+                            if (pipelines[i].error)
+                                errors.push(pipelines[i].name + ': ' + pipelines[i].error);
+                        }
+
+                        var html = '<span class="status-indicator ' +
+                            (running === pipelines.length ? 'status-running' : 'status-stopped') +
+                            '"></span>' + running + ' of ' + pipelines.length + ' stream' +
+                            (pipelines.length !== 1 ? 's' : '') + ' running';
+                        if (errors.length > 0)
+                            html += ' <span class="text-danger">(' + EscapeHtml(errors.join('; ')) + ')</span>';
+
+                        $('#opusStatus').html(html);
+                    })
+                    .fail(function () {
+                        $('#opusStatus').html(
+                            '<span class="status-indicator status-stopped"></span>Opus RTP status unavailable'
                         );
                     });
             }

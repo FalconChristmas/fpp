@@ -52,6 +52,12 @@ constexpr int DEFAULT_BITRATE       = 128000;    // 128 kbps
 constexpr int DEFAULT_PACKET_LOSS   = 5;         // 5% expected loss
 constexpr int MULTICAST_TTL         = 4;
 
+// DSCP codepoint for the RTP audio stream (udpsink qos-dscp).  AF41, the same
+// marking AES67 audio uses.  It matters more here than there: this is the WiFi
+// transport, and WiFi maps DSCP onto WMM access categories (AF41 -> AC_VI), so
+// the marking decides how the stream contends on a busy AP.
+constexpr int AUDIO_DSCP            = 34;      // AF41
+
 constexpr const char* DEFAULT_DEST_IP = "239.69.1.1";
 
 // Valid bitrates (bps)
@@ -169,6 +175,31 @@ private:
     std::thread m_watchdogThread;
     std::atomic<bool> m_watchdogRunning{false};
     void WatchdogLoop();
+
+    // Deferred pipeline-rebuild thread -- spawned by WatchdogLoop()'s rebuild
+    // path to call ApplyConfig() from a thread other than the one
+    // ApplyConfig() needs to join (m_watchdogThread).  Tracked as a member
+    // (rather than detached) so Shutdown() can join it before tearing
+    // anything else down -- a detached thread could otherwise call
+    // ApplyConfig() and resurrect pipelines after Shutdown() has already run,
+    // and a detached thread racing Shutdown()'s own join of m_watchdogThread
+    // is undefined behavior.
+    std::thread m_rebuildThread;
+
+    // Serializes the whole tear-down/rebuild sequence in ApplyConfig(),
+    // Shutdown() and Cleanup().  ApplyConfig() joins the watchdog thread at
+    // the top and re-creates it ~50 lines later, after loading config and
+    // building pipelines; that window is wide, and ApplyConfig() has four
+    // independent callers (the boot sequence, OpusRTPApplyCommand::run on a
+    // command thread, OnPipeWireReady(), and m_rebuildThread from the
+    // watchdog).  Two overlapping calls both pass the join, then both assign
+    // m_watchdogThread -- and assigning over a still-joinable std::thread is
+    // an unconditional std::terminate().
+    //
+    // Shutdown() must join m_rebuildThread BEFORE taking this lock: that
+    // thread calls ApplyConfig(), so holding the lock across the join would
+    // deadlock.
+    std::mutex m_applyMutex;
 
     // Pipeline management
     std::map<int, OpusRTPPipeline> m_sendPipelines;
