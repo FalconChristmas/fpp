@@ -596,6 +596,13 @@ static std::string FormatPmcClockId(const std::string& raw) {
     return dashed;
 }
 
+// True if a ptp4l portState string means "this node is the domain master".
+// PRE_MASTER is deliberately excluded -- it is a transitional state on the
+// way to MASTER, not a settled BMCA outcome.
+static bool IsGrandmasterPortState(const std::string& portState) {
+    return portState == "MASTER" || portState == "GRAND_MASTER";
+}
+
 std::string AES67Manager::GetPtp4lState() {
     if (!IsPtp4lRunning()) {
         return "not running";
@@ -1967,10 +1974,20 @@ AES67Manager::Status AES67Manager::GetStatus() {
             status.ptpSynced = true;
             status.ptpGrandmasterId = gmId;
             status.ptpOffsetNs = offsetNs;
+        } else if (IsPtp4lRunning() && IsGrandmasterPortState(GetPtp4lState())) {
+            // We won the BMCA and ARE the domain grandmaster.  pmc reports
+            // gmPresent=false in that case because there is no *remote* GM to
+            // report -- which is not the same thing as "unsynced".  Being the
+            // clock source is a legitimate AES67 configuration (FPP driving
+            // the show clock), so report ourselves as the grandmaster with a
+            // zero offset rather than showing the user a broken PTP status.
+            status.ptpSynced = true;
+            status.ptpGrandmasterId = GetPTPClockId();
+            status.ptpOffsetNs = 0;
         } else {
             // ptp4l not running, or no grandmaster selected yet (e.g. still
-            // in LISTENING) — do not claim we're synced or report our own
-            // identity as if it were the grandmaster.
+            // in LISTENING/PRE_MASTER) — do not claim we're synced or report
+            // our own identity as if it were the grandmaster.
             status.ptpSynced = false;
             status.ptpGrandmasterId = "";
             status.ptpOffsetNs = 0;
