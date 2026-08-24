@@ -53,6 +53,10 @@ constexpr int DEFAULT_PORT          = 5004;
 constexpr int DEFAULT_CHANNELS      = 2;
 constexpr int DEFAULT_LATENCY_MS    = 10;
 
+// DSCP codepoints (AES67-2018 / AES-R16 QoS recommendations)
+constexpr int AUDIO_DSCP             = 34;      // AF41 -- RTP audio (udpsink qos-dscp)
+constexpr int PTP_DSCP                = 46;     // EF   -- PTP event/general messages (ptp4l dscp_event/dscp_general)
+
 constexpr const char* DEFAULT_MULTICAST_IP = "239.69.0.1";
 constexpr const char* AUDIO_FORMAT         = "S24BE";
 constexpr const char* SAP_MCAST_ADDRESS    = "239.255.255.255";
@@ -241,8 +245,13 @@ private:
     bool InitPTP();
     void ShutdownPTP();
     bool IsPtp4lRunning() const;         // check if ptp4l process is alive
-    std::string GetPTPClockId();         // EUI-64 from interface MAC
-    std::string GetPtp4lState();         // query ptp4l state via pmc
+    std::string GetPTPClockId();         // EUI-64 from interface MAC (this node's own identity)
+    std::string GetPtp4lState();         // query ptp4l port state via pmc (MASTER/SLAVE/LISTENING/...)
+
+    // Query the actual PTP grandmaster (may be a remote clock, not this node)
+    // via `pmc GET TIME_STATUS_NP`.  Returns false if ptp4l isn't running or
+    // the query fails, leaving the out-params untouched.
+    bool QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity, int64_t& offsetNs);
 
     // Pipeline watchdog — called from SAP thread to poll bus messages
     // and restart any pipeline that isn't in PLAYING state.
