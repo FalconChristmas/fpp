@@ -219,6 +219,30 @@ private:
     std::set<int> m_directConnectorIds;                // HDMI connectors driven by direct kmssink on vtee
 
     // Dynamic pad linking for decodebin (video requires pad-added signal)
+    //
+    // decodebin emits these from its own streaming thread, on a pipeline that
+    // can outlive this GStreamerOutput: Start() hands an owning pipeline ref to
+    // a detached state-change thread, so Close()/~GStreamerOutput can complete
+    // while decodebin is still exposing pads.  The callbacks therefore must not
+    // dereference `this` directly.  Each Start() allocates a fresh guard whose
+    // `self` Close() clears while holding `mtx`; a callback holding a shared_ptr
+    // to it either runs to completion before that clear or sees nullptr and
+    // returns.  Old pipelines keep their own (already cleared) guard, so a
+    // restarted output is never reached through a stale connection.
+    struct CallbackGuard {
+        std::mutex mtx;
+        GStreamerOutput* self = nullptr;
+    };
+    std::shared_ptr<CallbackGuard> m_cbGuard;
+    // Connects pad-added (and optionally no-more-pads) on `decoder`, passing a
+    // guard reference as the closure data.  Takes no ref on `decoder`.
+    void ConnectPadSignals(GstElement* decoder, bool wantNoMorePads);
+    static void ReleaseCallbackGuard(gpointer data, GClosure* closure);
+    // Resolves the closure data back to a live output.  Returns nullptr (with
+    // `lock` left unlocked) once the owning Close() has run.
+    static GStreamerOutput* LockCallbackGuard(gpointer userData,
+                                              std::shared_ptr<CallbackGuard>& guard,
+                                              std::unique_lock<std::mutex>& lock);
     static void OnPadAdded(GstElement* element, GstPad* pad, gpointer userData);
     static void OnNoMorePads(GstElement* element, gpointer userData);
     GstElement* m_audioChain = nullptr;    // audio sub-bin for pad linking

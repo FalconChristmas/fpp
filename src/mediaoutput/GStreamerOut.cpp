@@ -834,6 +834,12 @@ int GStreamerOutput::Start(int msTime) {
     // Fresh pipeline — allow Stop()'s teardown to run for this track
     m_teardownComplete = false;
 
+    // Fresh lifetime guard for this pipeline's decodebin pad callbacks.  Any
+    // connection left over from a previous pipeline holds the previous guard,
+    // which Close() already cleared, so it can never reach this object again.
+    m_cbGuard = std::make_shared<CallbackGuard>();
+    m_cbGuard->self = this;
+
     // Reset MultiSync rate-matching state for the new track
     m_currentRate = 1.0f;
     m_diffsSize = 0;
@@ -1235,8 +1241,7 @@ int GStreamerOutput::Start(int msTime) {
 
         // Connect decodebin pad-added signal for dynamic linking
         GstElement* decoder = gst_bin_get_by_name(GST_BIN(m_pipeline), "decoder");
-        g_signal_connect(decoder, "pad-added", G_CALLBACK(OnPadAdded), this);
-        g_signal_connect(decoder, "no-more-pads", G_CALLBACK(OnNoMorePads), this);
+        ConnectPadSignals(decoder, true);
         gst_object_unref(decoder);
 
     } else if (wantHDMI) {
@@ -1639,8 +1644,7 @@ int GStreamerOutput::Start(int msTime) {
 
         // Connect decodebin pad-added signal for dynamic linking
         GstElement* decoder = gst_bin_get_by_name(GST_BIN(m_pipeline), "decoder");
-        g_signal_connect(decoder, "pad-added", G_CALLBACK(OnPadAdded), this);
-        g_signal_connect(decoder, "no-more-pads", G_CALLBACK(OnNoMorePads), this);
+        ConnectPadSignals(decoder, true);
         gst_object_unref(decoder);
 
     } else {
@@ -1693,7 +1697,7 @@ int GStreamerOutput::Start(int msTime) {
         // itself stays with gst_parse_launch's own delayed-link handler.
         m_audioOnlyPipeline = true;
         if (GstElement* fbDecoder = gst_bin_get_by_name(GST_BIN(m_pipeline), "decoder")) {
-            g_signal_connect(fbDecoder, "pad-added", G_CALLBACK(OnPadAdded), this);
+            ConnectPadSignals(fbDecoder, false);
             gst_object_unref(fbDecoder);
         }
 
@@ -3113,6 +3117,22 @@ static long ReadMeminfoKB(const char* key) {
 
 int GStreamerOutput::Close(void) {
     LogDebug(VB_MEDIAOUT, "GStreamerOutput::Close()\n");
+
+    // Detach the decodebin pad callbacks from this object BEFORE any teardown.
+    // Start() hands an owning pipeline ref to a detached thread that calls
+    // set_state(PLAYING), so decodebin can still be exposing pads after this
+    // Close() nulls m_audioChain/m_videoChain and drops our pipeline ref -- and
+    // after ~GStreamerOutput frees the object outright.  Clearing `self` under
+    // the guard lock both blocks until any in-flight callback finishes and
+    // makes every later one a no-op.
+    if (m_cbGuard) {
+        {
+            std::lock_guard<std::mutex> lock(m_cbGuard->mtx);
+            m_cbGuard->self = nullptr;
+        }
+        m_cbGuard.reset();
+    }
+
     if (m_pipeline) {
         // Flush PipeWire filter-chain delay buffers.  Each audio group member
         // has a builtin delay node whose internal ring-buffer retains old
@@ -3628,8 +3648,47 @@ GstFlowReturn GStreamerOutput::OnNewVideoSample(GstAppSink* appsink, gpointer us
     return GST_FLOW_OK;
 }
 
+void GStreamerOutput::ReleaseCallbackGuard(gpointer data, GClosure* closure) {
+    delete static_cast<std::shared_ptr<CallbackGuard>*>(data);
+}
+
+void GStreamerOutput::ConnectPadSignals(GstElement* decoder, bool wantNoMorePads) {
+    if (!decoder || !m_cbGuard)
+        return;
+    // The closure owns its own shared_ptr to the guard, released by
+    // ReleaseCallbackGuard when the signal connection dies with the decoder --
+    // which can be well after this output is gone.
+    g_signal_connect_data(decoder, "pad-added", G_CALLBACK(OnPadAdded),
+                          new std::shared_ptr<CallbackGuard>(m_cbGuard),
+                          ReleaseCallbackGuard, (GConnectFlags)0);
+    if (wantNoMorePads) {
+        g_signal_connect_data(decoder, "no-more-pads", G_CALLBACK(OnNoMorePads),
+                              new std::shared_ptr<CallbackGuard>(m_cbGuard),
+                              ReleaseCallbackGuard, (GConnectFlags)0);
+    }
+}
+
+GStreamerOutput* GStreamerOutput::LockCallbackGuard(gpointer userData,
+                                                    std::shared_ptr<CallbackGuard>& guard,
+                                                    std::unique_lock<std::mutex>& lock) {
+    auto* held = static_cast<std::shared_ptr<CallbackGuard>*>(userData);
+    if (!held || !*held)
+        return nullptr;
+    guard = *held;
+    lock = std::unique_lock<std::mutex>(guard->mtx);
+    if (!guard->self) {
+        // Close() already ran: the pipeline this callback belongs to is being
+        // (or has been) torn down and every member below is stale.
+        lock.unlock();
+        return nullptr;
+    }
+    return guard->self;
+}
+
 void GStreamerOutput::OnPadAdded(GstElement* element, GstPad* pad, gpointer userData) {
-    GStreamerOutput* self = static_cast<GStreamerOutput*>(userData);
+    std::shared_ptr<CallbackGuard> guard;
+    std::unique_lock<std::mutex> guardLock;
+    GStreamerOutput* self = LockCallbackGuard(userData, guard, guardLock);
     if (!self)
         return;
 
@@ -3696,7 +3755,9 @@ void GStreamerOutput::OnPadAdded(GstElement* element, GstPad* pad, gpointer user
 }
 
 void GStreamerOutput::OnNoMorePads(GstElement* element, gpointer userData) {
-    GStreamerOutput* self = static_cast<GStreamerOutput*>(userData);
+    std::shared_ptr<CallbackGuard> guard;
+    std::unique_lock<std::mutex> guardLock;
+    GStreamerOutput* self = LockCallbackGuard(userData, guard, guardLock);
     if (!self)
         return;
 
