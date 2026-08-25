@@ -405,7 +405,7 @@ void FalconV5Support::ReceiverChain::handleQueryResponse(Json::Value& json) {
                                                          json["ports"][x]["pixelCount"].asInt());
         }
     } catch (std::exception& e) {
-        LogInfo(VB_CHANNELOUT, "FalconV5Support", "Error (%s) handling response JSON: %s\n", e.what(), SaveJsonToString(json, "  ").c_str());
+        LogWarn(VB_CHANNELOUT, "Error (%s) handling response JSON: %s\n", e.what(), SaveJsonToString(json, "  ").c_str());
     }
 }
 
