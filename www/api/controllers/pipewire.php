@@ -3518,6 +3518,69 @@ function GetPipeWirePluginSources()
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Helper: PipeWire channel position array for a channel count.
+// Same table the input-mixing UI uses, so a mapping synthesised here and one
+// picked by hand in the UI describe the same layout.
+function PipeWireChannelPositions($channels)
+{
+    static $positions = array(
+        1 => array("MONO"),
+        2 => array("FL", "FR"),
+        3 => array("FL", "FR", "FC"),
+        4 => array("FL", "FR", "RL", "RR"),
+        5 => array("FL", "FR", "FC", "RL", "RR"),
+        6 => array("FL", "FR", "FC", "LFE", "RL", "RR"),
+        7 => array("FL", "FR", "FC", "LFE", "RL", "RR", "RC"),
+        8 => array("FL", "FR", "FC", "LFE", "RL", "RR", "SL", "SR")
+    );
+    $channels = intval($channels);
+    return isset($positions[$channels]) ? $positions[$channels] : $positions[2];
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Helper: Channel count of a PipeWire node, by node.name.
+// Returns 0 when the node is not in the graph -- which is normal for nodes
+// fppd publishes, because PipeWire is started before fppd.  Callers must treat
+// 0 as "unknown", not as "no channels".
+// pw-dump is cached for the life of the request: config generation asks about
+// several nodes and the graph cannot change underneath a single generation.
+function ResolvePipeWireNodeChannels($nodeName)
+{
+    global $SUDO;
+    static $channelsByNode = null;
+
+    if (empty($nodeName)) {
+        return 0;
+    }
+
+    if ($channelsByNode === null) {
+        $channelsByNode = array();
+        $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
+        $raw = shell_exec($SUDO . " " . $env . " pw-dump 2>/dev/null");
+        $objects = $raw ? json_decode($raw, true) : null;
+        if (is_array($objects)) {
+            foreach ($objects as $obj) {
+                $props = isset($obj['info']['props']) ? $obj['info']['props'] : null;
+                if (!$props || !isset($props['node.name'])) {
+                    continue;
+                }
+                $ch = 0;
+                if (isset($props['audio.channels'])) {
+                    $ch = intval($props['audio.channels']);
+                } elseif (isset($obj['info']['params']['Format'][0]['channels'])) {
+                    $ch = intval($obj['info']['params']['Format'][0]['channels']);
+                }
+                if ($ch > 0) {
+                    $channelsByNode[$props['node.name']] = $ch;
+                }
+            }
+        }
+    }
+
+    return isset($channelsByNode[$nodeName]) ? $channelsByNode[$nodeName] : 0;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // Helper: Resolve ALSA card ID to exact PipeWire capture node name
 // Queries pw-dump to find the Audio/Source node matching the given card ID.
 function ResolveAlsaCaptureNodeName($cardId)
@@ -3956,7 +4019,9 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                         continue;
                 }
             } elseif ($mbrType === 'pw_source') {
-                // PipeWire Audio/Source node (e.g. from video input audio extraction)
+                // PipeWire Audio/Source node -- a video input's extracted audio,
+                // or a node published by a plugin through fppd's
+                // AudioSourceRegistry (e.g. the SMPTE plugin's LTC timecode).
                 $sourceTarget = isset($mbr['nodeName']) ? $mbr['nodeName'] : '';
                 if (empty($sourceTarget))
                     continue;
@@ -3998,6 +4063,35 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             $isMuted = isset($mbr['mute']) && $mbr['mute'] === true;
             $volume = $isMuted ? 0.0 : (isset($mbr['volume']) ? floatval($mbr['volume']) / 100.0 : 1.0);
 
+            // Channel layout for the two ends of the loopback.
+            //
+            // An explicit mapping picked in the UI wins.  Failing that, when we
+            // know the source's channel count and it differs from the group's,
+            // pin each end to its own layout.  Without this the two streams are
+            // whatever module-loopback defaults to (stereo [FL FR]) while the
+            // capture side carries stream.dont-remix, which disables up/downmix
+            // -- so a mono source lines up with neither FL nor FR and the member
+            // passes silence instead of audio.  That is what made the SMPTE
+            // plugin's mono LTC node inaudible in a stereo mix bus (issue #2754).
+            $srcChannels = isset($mbr['channels']) ? intval($mbr['channels']) : 0;
+            if ($srcChannels <= 0) {
+                $srcChannels = ResolvePipeWireNodeChannels($sourceTarget);
+            }
+            $capturePos = null;
+            $playbackPos = null;
+            $map = isset($mbr['channelMapping']) ? $mbr['channelMapping'] : null;
+            // The config file is user-editable JSON, so validate rather than
+            // letting a malformed mapping throw out of the apply.
+            if (is_array($map) &&
+                isset($map['sourceChannels']) && is_array($map['sourceChannels']) && count($map['sourceChannels']) &&
+                isset($map['groupChannels']) && is_array($map['groupChannels']) && count($map['groupChannels'])) {
+                $capturePos = $map['sourceChannels'];
+                $playbackPos = $map['groupChannels'];
+            } elseif ($srcChannels > 0 && $srcChannels !== $groupChannels) {
+                $capturePos = PipeWireChannelPositions($srcChannels);
+                $playbackPos = PipeWireChannelPositions($groupChannels);
+            }
+
             $conf .= "  # Loopback: $loopbackDesc\n";
             $conf .= "  { name = libpipewire-module-loopback\n";
             $conf .= "    args = {\n";
@@ -4009,10 +4103,9 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             $conf .= "        stream.dont-remix = true\n";
             $conf .= "        resample.disable = false\n";
 
-            // Channel mapping if specified
-            if (isset($mbr['channelMapping']) && !empty($mbr['channelMapping'])) {
-                $srcCh = $mbr['channelMapping']['sourceChannels'];
-                $conf .= "        audio.position = [ " . implode(" ", $srcCh) . " ]\n";
+            if ($capturePos !== null) {
+                $conf .= "        audio.channels = " . count($capturePos) . "\n";
+                $conf .= "        audio.position = [ " . implode(" ", $capturePos) . " ]\n";
             }
 
             $conf .= "      }\n";
@@ -4026,10 +4119,15 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                 $conf .= "        channelmix.volume = " . round($volume, 3) . "\n";
             }
 
-            // Channel mapping for the output side
-            if (isset($mbr['channelMapping']) && !empty($mbr['channelMapping'])) {
-                $grpCh = $mbr['channelMapping']['groupChannels'];
-                $conf .= "        audio.position = [ " . implode(" ", $grpCh) . " ]\n";
+            if ($playbackPos !== null) {
+                $conf .= "        audio.channels = " . count($playbackPos) . "\n";
+                $conf .= "        audio.position = [ " . implode(" ", $playbackPos) . " ]\n";
+                // Widening the capture end's layout (mono LTC into a stereo bus)
+                // needs an explicit upmix.  dont-remix is deliberately absent on
+                // this end so the mix can happen at all.
+                if (count($playbackPos) > count($capturePos)) {
+                    $conf .= "        channelmix.upmix = true\n";
+                }
             }
 
             $conf .= "      }\n";

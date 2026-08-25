@@ -383,7 +383,7 @@
         var availableCards = [];
         var availableAES67Instances = [];
         var availableOpusRTPInstances = [];
-        var availablePWSources = [];  // Audio-enabled video input sources
+        var availablePWSources = [];  // Audio-enabled video inputs + plugin-published sources
 
         // ─── Init ──────────────────────────────────────────────────────
         $(document).ready(function () {
@@ -442,6 +442,8 @@
                             availablePWSources.push({
                                 nodeName: src.audioPipeWireNodeName,
                                 name: src.name || 'Source ' + src.id,
+                                channels: src.audioChannels || 0,
+                                sampleRate: src.audioSampleRate || 0,
                             });
                         }
                     });
@@ -455,9 +457,14 @@
                         // Skip duplicates if a node is somehow listed twice
                         var exists = availablePWSources.some(function (s) { return s.nodeName === src.nodeName; });
                         if (!exists) {
+                            // channels matters: a mono source (the SMPTE
+                            // plugin's LTC node is one) needs a channel mapping
+                            // into a stereo group or it mixes in as silence.
                             availablePWSources.push({
                                 nodeName: src.nodeName,
                                 name: (src.name || src.nodeName) + (src.plugin ? ' [' + src.plugin + ']' : ''),
+                                channels: src.channels || 0,
+                                sampleRate: src.sampleRate || 0,
                             });
                         }
                     });
@@ -694,7 +701,8 @@
                     }
                 }
             } else if (type === 'pw_source') {
-                // PipeWire Audio/Source nodes from video input streams
+                // PipeWire Audio/Source nodes: video input audio, and nodes
+                // published by plugins via fppd's AudioSourceRegistry.
                 if (availablePWSources.length > 0) {
                     html += '<select class="form-select form-select-sm" style="width:auto;" ' +
                         'onchange="SelectPWSource(' + groupIdx + ',' + memberIdx + ',this.value); RenderAll();">';
@@ -705,6 +713,19 @@
                             EscapeHtml(src.name) + ' (' + EscapeHtml(src.nodeName) + ')</option>';
                     });
                     html += '</select>';
+
+                    // Channel mapping selector (when source channels != group
+                    // channels).  A mono source such as the SMPTE plugin's LTC
+                    // node mixes in as silence without one.
+                    var pwSrc = availablePWSources.find(function (s) { return s.nodeName === mbr.nodeName; });
+                    var pwChannels = pwSrc ? (pwSrc.channels || mbr.channels || 0) : (mbr.channels || 0);
+                    if (pwSrc && pwChannels > 0) {
+                        html += '<div class="source-info">' + pwChannels + 'ch' +
+                            (pwSrc.sampleRate ? ', ' + pwSrc.sampleRate + ' Hz' : '') + '</div>';
+                    }
+                    if (pwChannels > 0 && pwChannels !== groupChannels) {
+                        html += RenderChannelMapping(groupIdx, memberIdx, mbr, pwChannels, groupChannels);
+                    }
                 } else {
                     html += '<span style="color:#6c757d;font-size:0.85rem;">' +
                         'No PipeWire sources available (audio-enabled video inputs or plugin-provided sources). ' +
@@ -956,6 +977,18 @@
             if (src && !mbr.name) {
                 mbr.name = src.name.substring(0, 30);
             }
+            // Persist the channel count so config generation can lay the
+            // loopback out correctly even when the source node is absent from
+            // the graph at generation time -- which is the normal case for
+            // fppd-published nodes, since PipeWire starts before fppd.
+            if (src && src.channels > 0) {
+                mbr.channels = src.channels;
+            } else {
+                delete mbr.channels;
+            }
+
+            // Clear stale channel mapping when the source changes
+            delete mbr.channelMapping;
         }
 
         // ─── Channel Mapping ───────────────────────────────────────────

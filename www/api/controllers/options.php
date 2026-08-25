@@ -78,6 +78,104 @@ function GetOptions_AudioMixerDevice()
 }
 
 /**
+ * Enumerates PipeWire nodes of a given media.class as a label => value map.
+ *
+ * $valueKey decides which identifier is stored in the setting, and getting it
+ * wrong is a silent failure - the consumer simply never finds the device:
+ *
+ *   'node.name'        The stable PipeWire identifier.  Use it for consumers
+ *                      that address the node through PipeWire itself:
+ *                      GStreamer pipewiresrc/pipewiresink target-object,
+ *                      pw-link, module-loopback node.target.
+ *
+ *   'node.description' The human readable description.  Use it for consumers
+ *                      that reach the node through SDL.  fppd forces SDL onto
+ *                      the PulseAudio backend whenever the PipeWire backend is
+ *                      active (SDL_AUDIODRIVER=pulse, written to
+ *                      /run/fppd/fpp-audio.env by FPPINIT_Audio), and SDL's
+ *                      PulseAudio driver names devices by the PulseAudio
+ *                      description - which pipewire-pulse populates from
+ *                      node.description.  node.name never matches there.
+ *
+ * @param string $mediaClass PipeWire media.class to list, e.g. 'Audio/Sink'.
+ * @param string $valueKey   'node.name' or 'node.description', per above.
+ * @return array Map of display label => stored value.
+ */
+function GetOptions_PipeWireNodes($mediaClass, $valueKey)
+{
+    global $SUDO;
+
+    // FPP's own internal plumbing shows up as Audio/Sink but is never something
+    // a user should pick as a device: the null-sink tees that fan one fppd
+    // stream out to several input groups, and the per-output delay/EQ filter
+    // chains that sit in front of a card.  Pick the card or the output group
+    // instead - the filter chain is already in that path.
+    static $internalPrefixes = array('fpp_tee_', 'fpp_fx_');
+
+    $nodes = array();
+
+    $pwCmd = $SUDO . ' PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp pw-dump 2>/dev/null';
+    $pwJson = shell_exec($pwCmd);
+    if (!$pwJson) {
+        return $nodes;
+    }
+
+    $objects = json_decode($pwJson, true);
+    if (!is_array($objects)) {
+        return $nodes;
+    }
+
+    // User-defined sound card aliases (issue #2586)
+    $aliases = LoadAudioCardAliases();
+
+    foreach ($objects as $obj) {
+        if (!isset($obj['type']) || $obj['type'] !== 'PipeWire:Interface:Node') {
+            continue;
+        }
+        $props = isset($obj['info']['props']) ? $obj['info']['props'] : null;
+        if (
+            !$props ||
+            !isset($props['media.class']) || $props['media.class'] !== $mediaClass ||
+            !isset($props['node.name'])
+        ) {
+            continue;
+        }
+
+        $nodeName = $props['node.name'];
+        foreach ($internalPrefixes as $prefix) {
+            if (strpos($nodeName, $prefix) === 0) {
+                continue 2;
+            }
+        }
+
+        $nodeDesc = isset($props['node.description']) ? $props['node.description'] : $nodeName;
+        $nodeNick = isset($props['node.nick']) ? $props['node.nick'] : '';
+
+        $value = ($valueKey === 'node.description') ? $nodeDesc : $nodeName;
+        if ($value === '') {
+            continue;
+        }
+
+        // Build the label: always append the nick (the ALSA card ID) so users
+        // can tell identical hardware apart across different naming sources
+        // (WirePlumber SPA database vs USB product string).
+        $label = $nodeDesc;
+        if ($nodeNick && strpos($label, $nodeNick) === false) {
+            $label .= ' (' . $nodeNick . ')';
+        }
+        // Apply user-defined alias (issue #2586). The PipeWire node.nick is
+        // the ALSA card ID, which is our alias key.
+        if ($nodeNick) {
+            $label = ApplyAudioCardAlias($nodeNick, $label, $aliases);
+        }
+
+        $nodes[$label] = $value;
+    }
+
+    return $nodes;
+}
+
+/**
  * Returns the available audio output device options.
  *
  * @param bool $fulllist When true, returns detailed card/subdevice list; otherwise returns unique card names.
@@ -86,6 +184,20 @@ function GetOptions_AudioMixerDevice()
 function GetOptions_AudioOutputDevice($fulllist = false)
 {
     global $SUDO, $GET, $settings;
+
+    // In PipeWire mode with fulllist, enumerate PipeWire Audio/Sink nodes.
+    //
+    // The aplay-derived list below names cards the way ALSA does
+    // ("<card long name>, <device name>"); PipeWire names the very same card
+    // "<usb product> (<alsa card id>)" - see getAlsaCardProductName() in
+    // src/boot/FPPINIT_Audio.cpp.  Consumers of this list open the device
+    // through SDL, which fppd pins to the PulseAudio backend on a PipeWire
+    // system, so an ALSA-shaped name matches nothing and the device is simply
+    // never found (issue #2754).  Store node.description, which is exactly
+    // what SDL reports back.
+    if ($fulllist && IsPipeWireBackend($settings)) {
+        return json(GetOptions_PipeWireNodes('Audio/Sink', 'node.description'));
+    }
 
     if ($settings["Platform"] == "MacOS") {
         exec("system_profiler SPAudioDataType", $output);
@@ -200,72 +312,31 @@ function GetOptions_AudioOutputDevice($fulllist = false)
 /**
  * Returns the available audio input device options.
  *
- * @param bool $fulllist    When true, returns detailed card/subdevice list; otherwise returns unique card names.
- * @param bool $allowMedia  When true, prepends a "Playing Media" pseudo-device to the list.
+ * @param bool   $fulllist   When true, returns detailed card/subdevice list; otherwise returns unique card names.
+ * @param bool   $allowMedia When true, prepends a "Playing Media" pseudo-device to the list.
+ * @param string $valueKey   In PipeWire mode, which identifier to store:
+ *                           'node.name' for consumers that address the node
+ *                           through PipeWire (GStreamer), 'node.description'
+ *                           for consumers that go through SDL.  See
+ *                           GetOptions_PipeWireNodes().
  * @return string JSON array or object of available audio input devices.
  */
-function GetOptions_AudioInputDevice($fulllist = false, $allowMedia = false)
+function GetOptions_AudioInputDevice($fulllist = false, $allowMedia = false, $valueKey = 'node.name')
 {
 
     global $SUDO, $settings;
 
     $AlsaCards = array();
 
-    // In PipeWire mode with fulllist, enumerate PipeWire Audio/Source nodes via pw-dump.
-    // Stored value = node.name (stable PipeWire identifier), display = node.description.
+    // In PipeWire mode with fulllist, enumerate PipeWire Audio/Source nodes.
+    // $valueKey decides whether the caller gets node.name or node.description
+    // back -- see GetOptions_PipeWireNodes() for why that choice matters.
     if ($fulllist && IsPipeWireBackend($settings)) {
         if ($allowMedia) {
             $AlsaCards['-- Playing Media --'] = '-- Playing Media --';
         }
-        $pwCmd = $SUDO . ' PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp pw-dump 2>/dev/null';
-        $pwJson = shell_exec($pwCmd);
-        if ($pwJson) {
-            $objects = json_decode($pwJson, true);
-            if (is_array($objects)) {
-                // First pass: collect all Audio/Source nodes
-                $sources = array();
-                foreach ($objects as $obj) {
-                    $props = isset($obj['info']['props']) ? $obj['info']['props'] : null;
-                    if (
-                        $props &&
-                        isset($props['media.class']) && $props['media.class'] === 'Audio/Source' &&
-                        isset($props['node.name'])
-                    ) {
-                        $sources[] = array(
-                            'nodeName' => $props['node.name'],
-                            'nodeDesc' => isset($props['node.description']) ? $props['node.description'] : $props['node.name'],
-                            'nodeNick' => isset($props['node.nick']) ? $props['node.nick'] : ''
-                        );
-                    }
-                }
-
-                // Count descriptions to detect duplicates
-                $descCounts = array();
-                foreach ($sources as $src) {
-                    $d = $src['nodeDesc'];
-                    $descCounts[$d] = isset($descCounts[$d]) ? $descCounts[$d] + 1 : 1;
-                }
-
-                // User-defined sound card aliases (issue #2586)
-                $aliases = LoadAudioCardAliases();
-
-                // Build labels: always append nick (ALSA card ID) so users
-                // can identify identical hardware across different naming
-                // sources (WirePlumber SPA database vs USB product string).
-                foreach ($sources as $src) {
-                    $label = $src['nodeDesc'];
-                    $nick = $src['nodeNick'];
-                    if ($nick && strpos($label, $nick) === false) {
-                        $label .= ' (' . $nick . ')';
-                    }
-                    // Apply user-defined alias (issue #2586). The PipeWire
-                    // node.nick is the ALSA card ID, which is our alias key.
-                    if ($nick) {
-                        $label = ApplyAudioCardAlias($nick, $label, $aliases);
-                    }
-                    $AlsaCards[$label] = $src['nodeName'];
-                }
-            }
+        foreach (GetOptions_PipeWireNodes('Audio/Source', $valueKey) as $label => $value) {
+            $AlsaCards[$label] = $value;
         }
         return json($AlsaCards);
     }
@@ -574,10 +645,15 @@ function GetOptions()
             return GetOptions_AudioInputDevice(false);
         case 'AudioOutputList':
             return GetOptions_AudioOutputDevice(true);
+        // SDL consumer (the SMPTE plugin opens this device with SDL, which fppd
+        // pins to the PulseAudio backend) -- it can only find the node by its
+        // description.
         case 'AudioInputList':
-            return GetOptions_AudioInputDevice(true);
+            return GetOptions_AudioInputDevice(true, false, 'node.description');
+        // GStreamer consumer (WLEDAudioInput feeds pipewiresrc target-object in
+        // src/overlays/wled/wled.cpp) -- that wants the PipeWire node.name.
         case 'AudioInputListAllowMedia':
-            return GetOptions_AudioInputDevice(true, true);
+            return GetOptions_AudioInputDevice(true, true, 'node.name');
         case 'FrameBuffer':
             return GetOptions_FrameBuffer();
         case 'BBBLeds':
