@@ -13,9 +13,12 @@
 
 #include <list>
 #include "fpp-json.h"
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
+
+#include "../AtomicSharedPtr.h"
 
 class RunningEffect;
 
@@ -192,5 +195,42 @@ protected:
         int width = 0;
         int height = 0;
     };
-    std::list<ChildModelState> children;
+
+    // The child list is copy-on-write, published through an AtomicSharedPtr,
+    // and DELIBERATELY not guarded by any of the overlay locks.
+    //
+    // Readers (flushChildren(), doOverlay(), the FB subclass) run on the
+    // channel output thread, which reaches them from doOverlays() holding
+    // activeModelsLock.  The writer, setChildState(), is reached from
+    // PixelOverlayModelSub::setState() -- an HTTP/command thread under
+    // modelsLock, or an effect update thread under that model's effectLock.
+    // Guarding `children` with a lock that either side already holds is what
+    // makes this area deadlock: activeModelsLock -> X on the reader against
+    // modelsLock/effectLock -> X on the writer closes a cycle with the
+    // existing modelsLock -> activeModelsLock and modelsLock -> effectLock
+    // orders (see PixelOverlayModelSub::foundParent()).
+    //
+    // Copy-on-write sidesteps the ordering question entirely: a reader takes a
+    // snapshot and iterates a list nobody can mutate or free, so it needs no
+    // lock at all.  Previously readers walked the live std::list while
+    // setChildState() erased nodes out from under them, which faulted in
+    // flushChildren() on a freed node's garbage width/height.
+    //
+    // childrenWriteLock serializes only the read-copy-publish sequence in
+    // setChildState() -- writers are genuinely concurrent (HTTP vs. effect
+    // thread), so without it one update can be lost.  It is a LEAF lock: it is
+    // held across nothing but list copying and the store, never across a call
+    // that could reach another lock (notably not modelStateChanged(), which
+    // takes activeModelsLock).  Keep it that way and it cannot participate in
+    // a cycle.
+    typedef std::list<ChildModelState> ChildModelStateList;
+    AtomicSharedPtr<const ChildModelStateList> children;
+    std::mutex childrenWriteLock;
+
+    // A null snapshot means "no children" -- models without submodels never
+    // allocate a list.
+    bool hasChildren() const {
+        auto snap = children.load();
+        return snap && !snap->empty();
+    }
 };

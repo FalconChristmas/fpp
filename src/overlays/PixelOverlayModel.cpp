@@ -385,8 +385,13 @@ PixelOverlayModel::~PixelOverlayModel() {
         }
         shm_unlink(overlayBufferName.c_str());
     }
-    for (auto& c : children) {
-        PixelOverlayManager::INSTANCE.resetChildParent(c.name);
+    auto snapshot = children.load();
+    if (snapshot) {
+        // Iterate the snapshot, not under childrenWriteLock: resetChildParent()
+        // takes modelsLock.
+        for (auto& c : *snapshot) {
+            PixelOverlayManager::INSTANCE.resetChildParent(c.name);
+        }
     }
 }
 
@@ -414,40 +419,75 @@ void PixelOverlayModel::setState(const PixelOverlayState& st) {
     state = st;
     PixelOverlayManager::INSTANCE.modelStateChanged(this, old, state);
 }
+// Copy-on-write publish of the child list.  See the note on `children` in the
+// header for why this must not take (or be called under) any overlay lock.
 void PixelOverlayModel::setChildState(const std::string& n, const PixelOverlayState& st, int ox, int oy, int w, int h) {
-    bool hadChildren = !children.empty();
+    bool hadChildren = false;
+    bool hasChildren = false;
 
-    auto it = children.begin();
-    bool found = false;
-    while (it != children.end()) {
-        if (it->name == n) {
-            found = true;
-            if (st.getState() == 0) {
-                it = children.erase(it);
+    {
+        // Leaf lock. Writers really are concurrent -- an HTTP/command thread
+        // holds modelsLock while an effect update thread holds only this
+        // model's effectLock -- so the read-copy-publish below has to be
+        // serialized or one update is lost.  Nothing inside this scope calls
+        // out to code that takes another lock.
+        std::lock_guard<std::mutex> lk(childrenWriteLock);
+
+        auto cur = children.load();
+        hadChildren = cur && !cur->empty();
+
+        ChildModelStateList next = cur ? *cur : ChildModelStateList();
+        bool changed = false;
+        bool found = false;
+
+        auto it = next.begin();
+        while (it != next.end()) {
+            if (it->name == n) {
+                found = true;
+                if (st.getState() == 0) {
+                    it = next.erase(it);
+                    changed = true;
+                } else {
+                    if (it->state != st || it->xoffset != ox || it->yoffset != oy ||
+                        it->width != w || it->height != h) {
+                        it->state = st;
+                        it->xoffset = ox;
+                        it->yoffset = oy;
+                        it->width = w;
+                        it->height = h;
+                        changed = true;
+                    }
+                    ++it;
+                }
             } else {
-                it->state = st;
-                it->xoffset = ox;
-                it->yoffset = oy;
-                it->width = w;
-                it->height = h;
                 ++it;
             }
-        } else {
-            ++it;
         }
+
+        if (!found && st.getState()) {
+            ChildModelState cms;
+            cms.name = n;
+            cms.state = st;
+            cms.xoffset = ox;
+            cms.yoffset = oy;
+            cms.width = w;
+            cms.height = h;
+            next.push_back(cms);
+            changed = true;
+        }
+
+        hasChildren = !next.empty();
+        if (!changed) {
+            // Nothing to publish -- and with the list unchanged, hadChildren
+            // and hasChildren agree, so neither transition below could fire.
+            return;
+        }
+        children.store(std::make_shared<const ChildModelStateList>(std::move(next)));
     }
 
-    if (!found && st.getState()) {
-        ChildModelState cms;
-        cms.name = n;
-        cms.state = st;
-        cms.xoffset = ox;
-        cms.yoffset = oy;
-        cms.width = w;
-        cms.height = h;
-        children.push_back(cms);
-    }
-    bool hasChildren = !children.empty();
+    // Deliberately outside childrenWriteLock: modelStateChanged() takes
+    // activeModelsLock, which the channel output thread holds while it is
+    // inside the readers of `children`.
     if (hadChildren && !hasChildren) {
         PixelOverlayManager::INSTANCE.modelStateChanged(this, PixelOverlayState::Enabled, state);
     } else if (!hadChildren && hasChildren) {
@@ -456,10 +496,13 @@ void PixelOverlayModel::setChildState(const std::string& n, const PixelOverlaySt
 }
 
 bool PixelOverlayModel::flushChildren(uint8_t* dst) {
-    if (children.empty()) {
+    // Snapshot: the list this iterates cannot be mutated or freed by a
+    // concurrent setChildState(), which publishes a whole new list instead.
+    auto snapshot = children.load();
+    if (!snapshot || snapshot->empty()) {
         return false;
     }
-    for (auto& c : children) {
+    for (auto& c : *snapshot) {
         int cst = c.state.getState();
         for (int y = 0; y < c.height; y++) {
             int yoff = (y + c.yoffset) * width * bytesPerPixel;
@@ -505,7 +548,7 @@ bool PixelOverlayModel::flushChildren(uint8_t* dst) {
 void PixelOverlayModel::doOverlay(uint8_t* channels) {
     int st = state.getState();
     uint8_t* dst = &channels[startChannel];
-    if (st == 0 && !children.empty()) {
+    if (st == 0 && hasChildren()) {
         // this model is disable, but we have children that are
         // enabled.  Thus, we need to apply their blending
         // to the channel data.

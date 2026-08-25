@@ -43,7 +43,7 @@ void PixelOverlayModelFB::doOverlay(uint8_t* channels) {
         displayEnabled = true;
     }
 
-    if (children.empty() && !dirtyBuffer)
+    if (!hasChildren() && !dirtyBuffer)
         return;
 
     fb->FBCopyData(channelData);
