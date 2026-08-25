@@ -1,79 +1,305 @@
 #!/bin/bash
+#
+# Prints a stable system identifier on stdout.
+#
+# Usage:
+#   get_uuid            print the UUID
+#   get_uuid --source   print the token naming which method produced it
+#
+# Each method below is a candidate only.  A candidate that does not pass
+# uuid_valid() is discarded and the chain continues to the next method --
+# a bad value must never be emitted, because a duplicated identifier is far
+# worse than a locally generated random one.  The final method always
+# succeeds, so the chain never runs out.
+#
+
+WANT_SOURCE=0
+if [ "$1" = "--source" ] || [ "$1" = "-s" ]; then
+    WANT_SOURCE=1
+fi
+
+emit() {
+    # emit <uuid> <source>
+    if [ "$WANT_SOURCE" = "1" ]; then
+        echo "$2"
+    else
+        echo "$1"
+    fi
+    exit 0
+}
+
+#
+# Values seen on large numbers of unrelated installs: shared vendor defaults,
+# dmidecode placeholders, and the usual all-zero/all-f serials.  Compared
+# case-insensitively against the bare value, without the M<n>- prefix.
+#
+# The two truncated PocketBeagle serials here are already rejected by the
+# shape check in uuid_valid(); they are listed as well only so that the
+# specific values known to be catastrophically shared cannot come back if
+# the shape rules are ever relaxed.
+#
+UUID_DENYLIST="
+1741gpb4
+1741gpb2
+123456789
+1234567890
+0123456789
+serial
+serialnumber
+systemserialnumber
+notspecified
+not
+specified
+none
+null
+nil
+unknown
+default
+defaultstring
+tobefilledbyoem
+to
+be
+filled
+by
+oem
+n/a
+na
+invalid
+0
+00000000-0000-0000-0000-000000000000
+ffffffff-ffff-ffff-ffff-ffffffffffff
+"
+
+#
+# A candidate is usable only if it is a single whitespace-free token of at
+# least 6 characters that is not all zeros/f's and is not denylisted.
+# The whitespace test is what rejects "Not Specified" as a whole rather than
+# silently truncating it to "Not".
+#
+uuid_valid() {
+    local v="$1"
+
+    [ -z "$v" ] && return 1
+
+    # Any whitespace (including an embedded newline from a multi-line grep)
+    case "$v" in
+        *[[:space:]]*) return 1 ;;
+    esac
+
+    # Too short to plausibly be unique
+    [ "${#v}" -lt 6 ] && return 1
+
+    # All zeros, or all f's, ignoring separators
+    local stripped
+    stripped=$(echo "$v" | tr -d -- '-:_' | tr 'A-Z' 'a-z')
+    case "$stripped" in
+        *[!0]*) ;;
+        *) return 1 ;;
+    esac
+    case "$stripped" in
+        *[!f]*) ;;
+        *) return 1 ;;
+    esac
+
+    #
+    # Per-family shape check.  BeagleBoard-family serials are a 4-digit date
+    # code, a board code, then a sequence -- 3116BBBK023C, 1741GPB30297.  A
+    # serial truncated by the flashing tool keeps a valid-looking prefix and
+    # loses the tail, so the duplicates it creates are visible in the shape
+    # long before anyone notices the value.  Two such values account for a
+    # third of all hosts sharing a hardware serial, and both are the only
+    # malformed members of an otherwise well-formed family.  Check the shape
+    # rather than chasing individual values: a real sequence is at least four
+    # characters, and exactly five digits in the GPB (PocketBeagle) family.
+    #
+    local upper
+    upper=$(echo "$v" | tr 'a-z' 'A-Z')
+    if [[ "$upper" =~ ^[0-9]{4}([A-Z]+)([0-9A-Z]*)$ ]]; then
+        local board="${BASH_REMATCH[1]}"
+        local seq="${BASH_REMATCH[2]}"
+        if [ "${#seq}" -lt 4 ]; then
+            return 1
+        fi
+        if [ "$board" = "GPB" ] && ! [[ "$seq" =~ ^[0-9]{5}$ ]]; then
+            return 1
+        fi
+    fi
+
+    local lower
+    lower=$(echo "$v" | tr 'A-Z' 'a-z')
+    local bad
+    for bad in $UUID_DENYLIST; do
+        if [ "$lower" = "$bad" ]; then
+            return 1
+        fi
+    done
+
+    return 0
+}
+
 
 PLATFORM=$(uname);
 
 if [ "$PLATFORM" = "Darwin" ]; then
     PATH=$PATH:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:
-    ioreg -d2 -c IOPlatformExpertDevice | awk -F\" '/IOPlatformUUID/{print $(NF-1)}'
-    exit 0
+    UUID=$(ioreg -d2 -c IOPlatformExpertDevice | awk -F\" '/IOPlatformUUID/{print $(NF-1)}')
+    if uuid_valid "$UUID"; then
+        emit "$UUID" "ioreg"
+    fi
+    emit "Unknown" "none"
 fi
 
 
 #
-# Check for an developer-only FPP_UUID setting
+# Check for a developer-only FPP_UUID setting
 #
-
-UUID=$(grep "^FPP_UUID" /home/fpp/media/settings | cut -f2 -d= | sed -e "s/[^-A-Za-z0-9]//g")
-if [ "$UUID" != "" ]; then
-    echo "$UUID"
-    exit 0
+if [ -f /home/fpp/media/settings ]; then
+    UUID=$(grep "^FPP_UUID" /home/fpp/media/settings | cut -f2 -d= | sed -e "s/[^-A-Za-z0-9]//g")
+    if [ "$UUID" != "" ]; then
+        emit "$UUID" "setting"
+    fi
 fi
+
+#
+# Container detection.
+#
+# In a container every hardware identity source describes the HOST, not this
+# instance: /proc/cpuinfo, the device tree and dmidecode are all the host's, so
+# two containers on one machine -- or a container and the host's own FPP --
+# would report the same identity.  /etc/machine-id is worse: it comes from an
+# image layer, so every container ever started from that image is born with the
+# same one, which is where most machine-id collisions in the wild come from.
+#
+# So a container's identity has to come from its own persistent state.  The only
+# thing that survives `docker compose up --force-recreate` is the media volume
+# (see Docker/docker-compose.yml, which mounts ./media:/home/fpp/media) -- /etc
+# lives in the container's writable layer and is discarded with it.  Hence the
+# jump straight to the generated UUID below, which is kept in the media dir.
+#
+# /etc/fpp/container is what FPPINIT already keys container behaviour off (see
+# checkHostName() in src/boot/FPPINIT_Config.cpp); /.dockerenv and
+# /run/.containerenv cover docker and podman when that marker is absent.
+# The two paths are overridable so this path can be tested; nothing sets them.
+#
+DOCKERENV=${FPP_DOCKERENV:-/.dockerenv}
+CONTAINERFILE=${FPP_CONTAINERFILE:-/etc/fpp/container}
+IN_CONTAINER=n
+if [ -f "$DOCKERENV" ] || [ -f "$CONTAINERFILE" ] || [ -f /run/.containerenv ]; then
+    IN_CONTAINER=y
+fi
+
+if [ "$IN_CONTAINER" != "y" ]; then
 
 #
 # Try and use CPUInfo -- works on PI and BBB
 #
-UUID=$(grep -i serial /proc/cpuinfo | awk '{ print $3}')
-if [ "$UUID" != "" ] && [ "$UUID" != "0" ]; then
-    echo "M1-$UUID"
-    exit 0
+UUID=$(grep -i serial /proc/cpuinfo | head -1 | awk '{ print $3}')
+if uuid_valid "$UUID"; then
+    emit "M1-$UUID" "cpuinfo"
 fi
 
 if [ -f "/proc/device-tree/serial-number" ]; then
     UUID=$(tr -d '\0' </proc/device-tree/serial-number)
-    echo "M3-$UUID"
-    exit 0
+    if uuid_valid "$UUID"; then
+        emit "M3-$UUID" "device-tree"
+    fi
 fi
 
-if [ -f "/sys/bus/i2c/devices/0-0050/eeprom" ]; then 
+#
+# The board's own EEPROM.  i2c bus 0 at 0x50 is the Beagle itself -- a cape
+# EEPROM lives at 0x50 on bus 1 or 2 instead -- so this serial belongs to the
+# board and stays with it when a cape is swapped.
+#
+if [ -f "/sys/bus/i2c/devices/0-0050/eeprom" ]; then
     sn=$(dd if=/sys/bus/i2c/devices/0-0050/eeprom count=16 skip=40 bs=1 2>/dev/null || true)
-    if [[ "$sn" =~ ^[0-9]*PB[0-9A-FI]*$ ]]; then
-        echo "M5-$sn"
-        exit 0
+    if [[ "$sn" =~ ^[0-9]*PB[0-9A-FI]*$ ]] && uuid_valid "$sn"; then
+        emit "M5-$sn" "board-eeprom"
     fi
 fi
 
 
 #
-# Try dmidecode
+# Try dmidecode.  Take everything after the colon rather than a single awk
+# field so that a multi-word placeholder stays multi-word and is rejected by
+# uuid_valid() instead of being truncated into something that looks valid.
 #
 if [[ -f /sbin/dmidecode  || -f /usr/sbin/dmidecode ]]; then
-    UUID=$(sudo dmidecode | grep -i 'serial number'| head -1 | awk '{print $3}')
-    if [[ "$UUID" =~ ^\$\(.* ]]; then
-        UUID=$(sudo dmidecode | grep -i 'UUID' | head -1 | awk '{print $2}')
+    DMI=$(sudo dmidecode 2>/dev/null)
+    UUID=$(echo "$DMI" | grep -i 'serial number' | head -1 | sed -e 's/^[^:]*:[[:space:]]*//' -e 's/[[:space:]]*$//')
+    if ! uuid_valid "$UUID"; then
+        UUID=$(echo "$DMI" | grep -i 'uuid' | head -1 | sed -e 's/^[^:]*:[[:space:]]*//' -e 's/[[:space:]]*$//')
     fi
-    if [ "$UUID" == "" ] || [ "$UUID" == "0" ] || [ "$UUID" == "Serial" ] || [ "$UUID" == "123456789" ] || [[ "$UUID" =~ ^00*0 ]]; then
-        UUID=$(sudo dmidecode | grep -i 'UUID' | head -1 | awk '{print $2}')
-    fi
-    if [ "$UUID" != "" ] && [ "$UUID" != "0" ]; then
-        echo "M2-$UUID"
-        exit 0
+    if uuid_valid "$UUID"; then
+        emit "M2-$UUID" "dmidecode"
     fi
 fi
 
-
+#
+# systemd's machine-id.  The images write the literal "uninitialized" (see
+# SD/build-image-*.sh) so that each freshly flashed card generates its own on
+# first boot, and SD/upgradeOS-part2.sh saves and restores the file around the
+# upgrade rsync, so an in-place OS upgrade keeps the value the board had.
+#
+# "uninitialized" must never be emitted: it is what every image ships and what
+# the file briefly contains after an upgrade, before systemd regenerates it.
+# Older images did bake a real value in, so a board upgraded from one of those
+# can still carry an identity shared with its image siblings -- the uuidSource
+# field reports "machine-id" so those records stay distinguishable.
+#
 if [ -f "/etc/machine-id" ]; then
-    UUID=$(tr -d '\0' </etc/machine-id)
-    echo "M4-$UUID"
-    exit 0
+    UUID=$(tr -d '\0' </etc/machine-id | head -1)
+    if [ "$UUID" != "uninitialized" ] && uuid_valid "$UUID"; then
+        emit "M4-$UUID" "machine-id"
+    fi
 fi
 
-#
-# If all else fails, Genereate one
-#
-UUIDFILE="/etc/fpp/fpp_uuid"
-if [ ! -f $UUIDFILE ]; then
-    sudo cp /proc/sys/kernel/random/uuid $UUIDFILE
-    sudo chmod 644 $UUIDFILE
-fi;
+fi   # end of the host-hardware branches, skipped in a container
 
-cat $UUIDFILE
+#
+# If all else fails, generate one and persist it.
+#
+# Kept in two places: /etc/fpp/fpp_uuid is canonical and is saved/restored
+# across an OS upgrade the same way machine-id is.  The copy under the media
+# directory covers the upgrade paths that hand control to an OLDER
+# upgradeOS-part2.sh (the keepOptFPP and downgrade branches in part1), which
+# predates that save/restore and would drop the file.  Either copy is enough.
+#
+UUIDFILE=${FPP_UUIDFILE:-/etc/fpp/fpp_uuid}
+UUIDMEDIAFILE=${FPP_UUIDMEDIAFILE:-/home/fpp/media/config/fpp_uuid}
+# Recover from the media copy if the canonical one was lost
+if [ ! -f $UUIDFILE ] && [ -f $UUIDMEDIAFILE ]; then
+    UUID=$(tr -d '\0' <$UUIDMEDIAFILE | head -1)
+    if uuid_valid "$UUID"; then
+        sudo mkdir -p /etc/fpp 2>/dev/null
+        echo "$UUID" | sudo tee $UUIDFILE >/dev/null 2>&1
+        sudo chmod 644 $UUIDFILE 2>/dev/null
+    fi
+fi
+if [ ! -f $UUIDFILE ]; then
+    sudo mkdir -p /etc/fpp 2>/dev/null
+    sudo cp /proc/sys/kernel/random/uuid $UUIDFILE 2>/dev/null
+    sudo chmod 644 $UUIDFILE 2>/dev/null
+fi
+if [ -f $UUIDFILE ]; then
+    UUID=$(tr -d '\0' <$UUIDFILE | head -1)
+    if uuid_valid "$UUID"; then
+        # Keep the media copy in step.  It is what survives an upgrade run by an
+        # older upgradeOS-part2.sh, and in a container it is the ONLY copy that
+        # survives the container being recreated -- so create the directory
+        # rather than skipping the mirror when it is not there yet.
+        MEDIADIR=$(dirname $UUIDMEDIAFILE)
+        if [ ! -d "$MEDIADIR" ] && [ -d "$(dirname $MEDIADIR)" ]; then
+            mkdir -p "$MEDIADIR" 2>/dev/null || sudo mkdir -p "$MEDIADIR" 2>/dev/null
+        fi
+        if [ -d "$MEDIADIR" ] && [ "$(cat $UUIDMEDIAFILE 2>/dev/null)" != "$UUID" ]; then
+            echo "$UUID" > $UUIDMEDIAFILE 2>/dev/null || true
+        fi
+        if [ "$IN_CONTAINER" = "y" ]; then
+            emit "$UUID" "container"
+        fi
+        emit "$UUID" "generated"
+    fi
+fi
+
+
+emit "Unknown" "none"

@@ -12,6 +12,7 @@ function stats_generate($statsFile)
     //////////// MAIN ////////////
     $tasks = array(
         "uuid" => 'stats_getUUID',
+        "uuidSource" => 'stats_getUUIDSource',
         "systemInfo" => 'stats_getSystemInfo',
         "capeInfo" => 'stats_getCapeInfo',
         "outputProcessors" => 'stats_getOutputProcessors',
@@ -390,9 +391,31 @@ function stats_getFiles()
  * Queries each MultiSync system that has no UUID and attempts to fill in
  * the missing value by probing the remote device's status or identity endpoint.
  *
+ * A peer that cannot be probed, or that answers with an unusable value, gets
+ * a locally stable but globally unique substitute rather than a shared
+ * sentinel string.  Sentinels such as "Failed" collide across every install
+ * that emits them, which merges unrelated shows into a single identity.
+ *
  * @param array &$data MultiSync data array containing a "systems" key.
  * @return void
  */
+/**
+ * Derives a peer identifier for a device whose own UUID could not be read.
+ *
+ * Keyed on this host's UUID plus the peer address, so the same peer keeps the
+ * same identifier across uploads from this show while being unguessable and
+ * distinct from the identifier any other show would derive for the same
+ * address.  The address itself is not recoverable from the result and is
+ * never transmitted.
+ *
+ * @param string $ip peer address, used only as hash input
+ * @return string 16 hex characters, prefixed to mark it as derived
+ */
+function localPeerIdentity($ip)
+{
+    return "X-" . substr(hash('sha256', getSystemUUID() . '|' . $ip), 0, 16);
+}
+
 function addMultiSyncUUID(&$data)
 {
     if (!isset($data["systems"])) {
@@ -400,9 +423,7 @@ function addMultiSyncUUID(&$data)
     }
     $missing = array();
     foreach ($data["systems"] as $system) {
-        $rec = array();
-        validateAndAdd($rec, $system, $mapping);
-        if (!isset($system['uuid']) || $system['uuid'] === "") {
+        if (!isset($system['uuid']) || !isValidSystemUUID($system['uuid'])) {
             $missing[$system['address']] = $system['typeId'];
         }
     }
@@ -433,23 +454,22 @@ function addMultiSyncUUID(&$data)
 
         foreach ($curls as $ip => $curl) {
             $request_content = curl_multi_getcontent($curl);
+            $uuid = "";
 
-            if ($request_content === false || $request_content == null || $request_content == "") {
-                $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-                $missing[$ip] = "Failed";
-            } else {
+            if ($request_content !== false && $request_content !== null && $request_content !== "") {
                 $content = json_decode($request_content, true);
-                $missing[$ip] = "Not Set";
                 if (isset($content['uuid'])) {
-                    $missing[$ip] = $content['uuid'];
+                    $uuid = $content['uuid'];
                 } else if (isset($content['id'])) {
                     if (isset($content['hardware'])) {
-                        $missing[$ip] = $content['hardware'] . "-" . $content['id'];
+                        $uuid = $content['hardware'] . "-" . $content['id'];
                     } else {
-                        $missing[$ip] = $content['id'];
+                        $uuid = $content['id'];
                     }
                 }
             }
+
+            $missing[$ip] = isValidSystemUUID($uuid) ? $uuid : localPeerIdentity($ip);
             curl_multi_remove_handle($curlmulti, $curl);
         }
         curl_multi_close($curlmulti);
@@ -457,12 +477,13 @@ function addMultiSyncUUID(&$data)
         // Add them back
         foreach ($data["systems"] as &$system) {
             $ip = $system['address'];
-            if (!isset($system['uuid']) || $system['uuid'] === "") {
+            if (!isset($system['uuid']) || !isValidSystemUUID($system['uuid'])) {
                 if (isset($missing[$ip])) {
                     $system['uuid'] = $missing[$ip];
                 }
             }
         }
+        unset($system);
     }
 }
 
@@ -577,6 +598,17 @@ function stats_getPlugins()
 function stats_getUUID()
 {
     return getSystemUUID();
+}
+
+/**
+ * Returns which method produced the system UUID, so the collector can weight
+ * or exclude records by identity quality.
+ *
+ * @return string source token
+ */
+function stats_getUUIDSource()
+{
+    return getSystemUUIDSource();
 }
 
 /**

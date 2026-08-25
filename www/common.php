@@ -3583,9 +3583,92 @@ function getSystemUUID()
     if (!file_exists("/tmp/fpp_uuid")) {
         $output = array();
         exec($fppDir . "/scripts/get_uuid", $output);
-        file_put_contents("/tmp/fpp_uuid", trim($output[0]));
+        file_put_contents("/tmp/fpp_uuid", isset($output[0]) ? trim($output[0]) : "Unknown");
     }
     return file_get_contents("/tmp/fpp_uuid");
+}
+
+/**
+ * Returns a token naming which method produced the system UUID:
+ * setting, cpuinfo, device-tree, board-eeprom, dmidecode, machine-id,
+ * generated, container, ioreg or none.  "container" is a generated UUID from
+ * a containerised install, where every hardware source describes the host and
+ * machine-id comes from the image layer -- worth counting separately.  Lets a consumer weight or exclude by
+ * identity quality without having to reverse-engineer the M<n>- prefix.
+ *
+ * @return string source token
+ */
+function getSystemUUIDSource()
+{
+    global $fppDir;
+    if (!file_exists("/tmp/fpp_uuid_source")) {
+        $output = array();
+        exec($fppDir . "/scripts/get_uuid --source", $output);
+        file_put_contents("/tmp/fpp_uuid_source", isset($output[0]) ? trim($output[0]) : "none");
+    }
+    return file_get_contents("/tmp/fpp_uuid_source");
+}
+
+/**
+ * Mirrors the uuid_valid() check in scripts/get_uuid so that identifiers
+ * arriving from remote peers get the same scrutiny as locally derived ones.
+ * A value that fails this must never be stored in an identity field: a
+ * token shared by many unrelated hosts silently merges them into one.
+ *
+ * @param string $uuid candidate identifier, with or without an M<n>- prefix
+ * @return bool true if the value is usable as an identity
+ */
+function isValidSystemUUID($uuid)
+{
+    if (!is_string($uuid)) {
+        return false;
+    }
+    $uuid = trim($uuid);
+    // Strip the method prefix so the denylist compares bare values
+    $bare = preg_replace('/^M[0-9]+-/', '', $uuid);
+
+    if ($bare === '' || preg_match('/\s/', $bare) || strlen($bare) < 6) {
+        return false;
+    }
+    $stripped = strtolower(str_replace(array('-', ':', '_'), '', $bare));
+    if (preg_match('/^0+$/', $stripped) || preg_match('/^f+$/', $stripped)) {
+        return false;
+    }
+    //
+    // Per-family shape check, mirroring uuid_valid() in scripts/get_uuid.
+    // BeagleBoard-family serials are <4-digit date code><board code><sequence>.
+    // A serial truncated by the flashing tool keeps a valid-looking prefix and
+    // loses the tail, which is how a handful of values end up shared by
+    // hundreds of unrelated hosts.  A real sequence is at least four
+    // characters, and exactly five digits in the GPB (PocketBeagle) family.
+    // Peers report these too, so a peer UUID gets the same scrutiny.
+    //
+    if (preg_match('/^[0-9]{4}([A-Z]+)([0-9A-Z]*)$/', strtoupper($bare), $m)) {
+        if (strlen($m[2]) < 4) {
+            return false;
+        }
+        if ($m[1] === 'GPB' && !preg_match('/^[0-9]{5}$/', $m[2])) {
+            return false;
+        }
+    }
+
+    // Already rejected by the shape check above; listed so the specific
+    // values known to be catastrophically shared cannot come back if the
+    // shape rules are ever relaxed.
+    $denylist = array(
+        '1741gpb4', '1741gpb2', '123456789', '1234567890', '0123456789',
+        'serial', 'serialnumber', 'systemserialnumber',
+        'notspecified', 'not', 'specified', 'none', 'null', 'nil',
+        'unknown', 'default', 'defaultstring', 'tobefilledbyoem',
+        'n/a', 'na', 'invalid', 'failed', 'notset',
+    );
+    if (in_array(strtolower($bare), $denylist)) {
+        return false;
+    }
+    if (in_array(str_replace(' ', '', strtolower($uuid)), $denylist)) {
+        return false;
+    }
+    return true;
 }
 
 function GetSystemInfoJsonInternal($simple = false, $network = true)
