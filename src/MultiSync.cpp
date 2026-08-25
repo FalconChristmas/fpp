@@ -511,6 +511,8 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
         m_remoteSystems.push_back(sys);
     }
 
+    ReconcileDeviceIdentity(hostname, fppMode);
+
     // If a remote became (or stopped being) a unicast target, refresh the
     // cached "all known remotes" destination list.  The snapshot is taken here
     // while we still hold m_systemsLock, but the rebuild has to run after it is
@@ -1759,6 +1761,52 @@ void MultiSync::InvalidateSystemInfo(const std::string& address) {
         // same discover ping, which is exactly the pile-on being avoided.
         sys.infoNextFetch = 0;
     });
+}
+
+// One device, one identity.
+//
+// A box with several addresses gets an entry per address, and a real UUID only
+// ever reaches the entry that was actually probed for it -- UpdateSystem()
+// matches on the address.  The others keep whatever they were given, which
+// since MAC-derived identities exist means a stand-in rather than nothing.  Two
+// different identities for one device is worse than none: the UI keys a row on
+// the UUID and draws the device twice, and the statistics count it twice, which
+// defeats the deduplication the identity exists to provide.
+//
+// So once any entry knows a real UUID, every other entry for that device adopts
+// it.  Guarded the way the UI guards its own hostname fallback: a hostname
+// claimed by more than one real UUID is not identifying a device at all -- two
+// controllers left on the default name -- so in that case nothing is touched.
+//
+// This is only about filling in for entries that have no identity of their own.
+// A real UUID is never overwritten by another.
+void MultiSync::ReconcileDeviceIdentity(const std::string& hostname, FPPMode fppMode) {
+    if (hostname.empty()) {
+        return;
+    }
+    auto isStandIn = [](const std::string& u) {
+        return u.empty() || startsWith(u, MAC_UUID_PREFIX);
+    };
+
+    std::string real;
+    for (auto& sys : m_remoteSystems) {
+        if (sys.hostname != hostname || sys.fppMode != fppMode || isStandIn(sys.uuid)) {
+            continue;
+        }
+        if (real.empty()) {
+            real = sys.uuid;
+        } else if (real != sys.uuid) {
+            return; // hostname shared by more than one device
+        }
+    }
+    if (real.empty()) {
+        return;
+    }
+    for (auto& sys : m_remoteSystems) {
+        if (sys.hostname == hostname && sys.fppMode == fppMode && isStandIn(sys.uuid)) {
+            sys.uuid = real;
+        }
+    }
 }
 
 void MultiSync::ForEachRemoteMatching(const std::string& address,

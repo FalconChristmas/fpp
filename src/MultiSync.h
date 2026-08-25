@@ -518,6 +518,9 @@ public:
     void InvalidateSystemInfo(const std::string& address);
 
 private:
+    // Makes every entry for one device agree on its identity; see the comment
+    // above the definition.  Caller must hold m_systemsLock.
+    void ReconcileDeviceIdentity(const std::string& hostname, FPPMode fppMode);
     void FetchSystemInfo(const std::string& address);
     void FetchCapeInfo(const std::string& address);
     // Runs `apply` on every remote entry describing the same device as
