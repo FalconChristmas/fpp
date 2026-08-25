@@ -449,6 +449,30 @@ function localPeerIdentity($ip)
     return "X-" . substr(hash('sha256', getSystemUUID() . '|' . $ip), 0, 16);
 }
 
+/**
+ * Turns MultiSync's "MAC:<address>" stand-in into the form the statistics
+ * upload carries: "MH-" plus a truncated SHA-256 of the address, matching the
+ * dash used by the other identities here ("X-", "M1-").
+ *
+ * The point is to keep hardware addresses out of the payload, not to anonymise
+ * them -- with the model named alongside, the vendor prefix is known and the
+ * remaining 24 bits fall to a few seconds of brute force.  Treat the result as
+ * a hardware address that is merely inconvenient to read, and note that it is
+ * reversible if that ever matters for a retention decision.
+ *
+ * What it does preserve is the property the raw value had: it is derived only
+ * from the device, so every player reporting the same controller produces the
+ * same token, which is what deduplication and network graphs depend on.
+ */
+function peerMacIdentity($macUuid)
+{
+    $mac = strtoupper(substr($macUuid, strlen('MAC:')));
+    if ($mac === '') {
+        return '';
+    }
+    return "MH-" . substr(hash('sha256', $mac), 0, 16);
+}
+
 function addMultiSyncUUID(&$data)
 {
     if (!isset($data["systems"])) {
@@ -520,7 +544,9 @@ function addMultiSyncUUID(&$data)
                 // produce two unrelated rows -- use it only when there is no
                 // MAC to fall back on.
                 $prior = $missing[$ip]['prior'];
-                $resolved = (stripos($prior, 'MAC:') === 0) ? $prior : localPeerIdentity($ip);
+                $resolved = (stripos($prior, 'MAC:') === 0)
+                    ? peerMacIdentity($prior)
+                    : localPeerIdentity($ip);
             }
             $missing[$ip] = $resolved;
             curl_multi_remove_handle($curlmulti, $curl);
