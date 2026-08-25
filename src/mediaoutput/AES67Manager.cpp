@@ -1117,6 +1117,18 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         << "! audioconvert "
         << "! audio/x-raw,format=S24BE,rate=" << AES67::AUDIO_RATE
         << ",channels=" << inst.channels << " "
+        // Re-block the audio into exactly one packet per buffer, on a timeline
+        // aligned to sample boundaries.  pipewiresrc hands us whatever the graph
+        // quantum produced, with timestamps that do not land on packet
+        // boundaries -- and the payloader then has to choose between following
+        // those timestamps (RTP increments wobble +/-1 sample, audibly
+        // distorted) or counting samples itself (increments exact, but the
+        // timeline drifts away from PTP on every dropped buffer, measured at
+        // -180ms).  Splitting first removes the choice: buffers are exactly
+        // ptime long and correctly timestamped, so the payloader can follow the
+        // running time (= PTP time) and still step exactly one packet each time.
+        << (ptpClock ? ("! audiobuffersplit output-buffer-duration=" +
+                        std::to_string(inst.ptime) + "/1000 ") : "")
         << "! rtpL24pay pt=" << AES67::RTP_PAYLOAD_TYPE
         << " min-ptime=" << ptimeNs
         << " max-ptime=" << ptimeNs
@@ -1128,7 +1140,10 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // absorb that wobble on every single packet.  With it true the
         // payloader counts samples, so the timeline is anchored to PTP at
         // start and then advances exactly one packet at a time.
-        << (ptpClock ? " timestamp-offset=0 perfect-rtptime=true" : "")
+        // perfect-rtptime=false: follow the (now exactly aligned) running time
+        // so the RTP timeline stays anchored to PTP instead of free-running
+        // off a sample counter.  See the audiobuffersplit note above.
+        << (ptpClock ? " timestamp-offset=0 perfect-rtptime=false" : "")
         << " "
         << "! application/x-rtp,clock-rate=" << AES67::AUDIO_RATE << " "
         << "! udpsink name=usink host=" << inst.multicastIP
