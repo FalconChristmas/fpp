@@ -232,15 +232,30 @@
                                     <label for="ptpRoleSelect">Clock Role:</label>
                                     <select class="form-select form-select-sm d-inline-block w-auto"
                                         id="ptpRoleSelect" onchange="UpdatePTPRole(this.value)">
-                                        <option value="auto">Auto (prefer other devices)</option>
-                                        <option value="follower">Follower only (never master)</option>
-                                        <option value="master">Prefer master</option>
+                                        <option value="auto">Auto</option>
+                                        <option value="master">Master</option>
+                                        <option value="follower">Slave</option>
                                     </select>
                                     <img src="images/redesign/help-icon.svg" class="icon-help" data-bs-toggle="tooltip"
                                         data-bs-html="true" data-bs-placement="auto"
-                                        title="Who provides the clock.  <b>Auto</b> joins the election at a low priority: FPP still becomes the clock when it is the only device on the domain, but yields to a console or DSP that wants the role.  <b>Follower only</b> never becomes the clock.  <b>Prefer master</b> tries to win the election &mdash; only use this if FPP is intended to be the master clock for the network.">
+                                        title="Who provides the PTP clock.  This is unrelated to FPP's Master/Remote player mode.<br><br><b>Auto</b> &mdash; join the BMCA election at a low priority: FPP still becomes the clock when it is the only device on the domain, but yields to a console or DSP that wants the role.<br><b>Master</b> &mdash; prefer to win the election.  Only use this if FPP is intended to be the clock for the network.<br><b>Slave</b> &mdash; always follow another grandmaster, never become the clock.">
                                 </div>
                             </div>
+                            <!-- Live PTP state, next to the control that sets it:
+                                 commissioning needs role, lock state, grandmaster
+                                 and graph rate visible in one place. -->
+                            <dl id="ptpDetail" class="row mb-0 mt-3 small d-none">
+                                <dt class="col-sm-3 fw-normal text-body-secondary">PTP State</dt>
+                                <dd class="col-sm-9 mb-1" id="ptpDetailState">&mdash;</dd>
+                                <dt class="col-sm-3 fw-normal text-body-secondary">Grandmaster</dt>
+                                <dd class="col-sm-9 mb-1" id="ptpDetailGm">&mdash;</dd>
+                                <dt class="col-sm-3 fw-normal text-body-secondary">Domain</dt>
+                                <dd class="col-sm-9 mb-1" id="ptpDetailDomain">&mdash;</dd>
+                                <dt class="col-sm-3 fw-normal text-body-secondary">Offset</dt>
+                                <dd class="col-sm-9 mb-1" id="ptpDetailOffset">&mdash;</dd>
+                                <dt class="col-sm-3 fw-normal text-body-secondary">Stream Source Rate</dt>
+                                <dd class="col-sm-9 mb-0" id="ptpDetailRate">&mdash;</dd>
+                            </dl>
                         </div>
 
                         <!-- Instances container -->
@@ -379,12 +394,76 @@
                         }
 
                         $('#ptpStatus').html(parts.join(' &nbsp;|&nbsp; '));
+                        RenderPTPDetail(data);
                     })
                     .fail(function () {
                         $('#ptpStatus').html(
                             '<span class="status-indicator status-stopped"></span>AES67 status unavailable'
                         );
+                        $('#ptpDetail').addClass('d-none');
                     });
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
+            // Commissioning needs role, lock state, grandmaster and the audio
+            // graph rate together — chasing them across separate pages is what
+            // makes a 44.1/48 kHz mismatch so easy to miss.
+            function RenderPTPDetail(data) {
+                var ptp = data.ptp || {};
+                if (ptp.enabled === false) {
+                    $('#ptpDetail').addClass('d-none');
+                    return;
+                }
+                $('#ptpDetail').removeClass('d-none');
+
+                var state = ptp.portState || 'unknown';
+                if (ptp.synced)
+                    state += ptp.isGrandmaster ? ' — this device is the clock' : ' — locked';
+                $('#ptpDetailState').html('<span class="status-indicator ' +
+                    (ptp.synced ? 'status-running' : 'status-stopped') + '"></span>' +
+                    EscapeHtml(state));
+
+                $('#ptpDetailGm').html(ptp.grandmasterId
+                    ? EscapeHtml(ptp.grandmasterId)
+                    : '<span class="text-warning">none selected yet</span>');
+                $('#ptpDetailDomain').text(ptp.domain != null ? ptp.domain : '\u2014');
+                $('#ptpDetailOffset').text(
+                    ptp.synced && !ptp.isGrandmaster && typeof ptp.offsetNs === 'number'
+                        ? FormatPTPOffset(ptp.offsetNs)
+                        : (ptp.isGrandmaster ? 'n/a (we are the clock)' : '\u2014'));
+
+                // AES67 is 48 kHz on the wire.  What matters is the rate each
+                // send stream is actually fed — the graph clock alone does not
+                // tell you that, because per-card and per-group rates sit in
+                // between, so report what pipewiresrc negotiated.
+                var sends = [];
+                for (var j = 0; j < (data.pipelines || []).length; j++) {
+                    var pl = data.pipelines[j];
+                    if (pl.mode === 'send' && pl.sourceRate)
+                        sends.push(pl);
+                }
+                var graph = data.graphSampleRate || 0;
+                if (sends.length === 0) {
+                    $('#ptpDetailRate').text(graph ? 'graph ' + graph + ' Hz' : '\u2014');
+                } else {
+                    var bad = [];
+                    for (var k = 0; k < sends.length; k++) {
+                        if (sends[k].sourceRate !== 48000)
+                            bad.push(EscapeHtml(sends[k].name || ('#' + sends[k].instanceId)) +
+                                ': ' + sends[k].sourceRate + ' Hz');
+                    }
+                    if (bad.length === 0) {
+                        $('#ptpDetailRate').html('48000 Hz &mdash; fed directly, no resampling' +
+                            (graph && graph !== 48000
+                                ? ' <span class="text-body-secondary">(audio graph clock is ' + graph + ' Hz)</span>'
+                                : ''));
+                    } else {
+                        $('#ptpDetailRate').html('<span class="text-warning">' + bad.join(', ') +
+                            ' &mdash; resampled to 48000 Hz for AES67.</span> ' +
+                            'Set the output group feeding this stream to 48000 Hz in ' +
+                            '<b>PipeWire Audio Output Groups</b> to avoid the conversion.');
+                    }
+                }
             }
 
             /////////////////////////////////////////////////////////////////////////////

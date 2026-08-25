@@ -124,6 +124,24 @@ struct AES67Config {
     //   "follower" -- ptp4l slaveOnly: never becomes grandmaster.
     //   "master"   -- priority1 127: prefer to win the election.
     std::string ptpRole = "auto";
+
+    // Diagnostic switches for the AES67 send path.  Both default on; set
+    // either to false in pipewire-aes67-instances.json and hit Apply to take
+    // that change out of the pipeline without rebuilding, which is what makes
+    // a sender problem bisectable against real receiver hardware.
+    //
+    //   ptpMediaClock -- drive the pipeline from PTP time and derive the RTP
+    //       timestamps from it (AES67 "a=mediaclk:direct=0").
+    //   sourcePacing  -- ask PipeWire for a packet-sized quantum so RTP leaves
+    //       evenly instead of one graph quantum at a time.
+    bool ptpMediaClock = true;
+    // Default OFF: measured clean at the packet level (250 pkt/s, no gaps, no
+    // splices) but audibly distorted on a receiver.  The likely reason is that
+    // the request is expressed at the AES67 rate -- 192/48000 is 4ms, which on
+    // a 44100 graph is 176.4 samples, a fractional quantum PipeWire cannot
+    // schedule cleanly.  Needs re-testing expressed at the graph's own rate,
+    // and on a 48000 graph where it divides exactly, before it goes back on.
+    bool sourcePacing = false;
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -199,6 +217,13 @@ public:
             std::string mode;        // "send" or "receive"
             bool running;
             std::string error;
+            // Rate pipewiresrc actually negotiated with the graph, before our
+            // resampler.  48000 means the audio reaches AES67 untouched; any
+            // other value means we are rate-converting off the sound card's
+            // clock.  This is the number that matters for AES67 -- the graph's
+            // default.clock.rate does not tell you what this stream is fed,
+            // because per-card and per-group rates sit in between.
+            int sourceRate = 0;
         };
         std::vector<PipelineStatus> pipelines;
         bool ptpSynced = false;
@@ -211,6 +236,9 @@ public:
         bool ptpEnabled = false;
         int ptpDomain = 0;
         std::string ptpRole;
+        // The graph's clock rate, for context only -- see PipelineStatus::sourceRate
+        // for what actually feeds a given AES67 stream.
+        int graphSampleRate = 0;
         std::vector<SAPDiscoveredStream> discoveredStreams;
     };
     Status GetStatus();
@@ -325,6 +353,15 @@ private:
     // the query fails, leaving the out-params untouched.
     bool QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity, int64_t& offsetNs);
 
+    // The AES67 media clock -- PTP time, shared by every send pipeline so they
+    // all sit on one timeline.  Created on first use, released in Shutdown().
+    // Null when PTP is disabled or no PTP time source could be opened, in
+    // which case pipelines fall back to GStreamer's default clock.
+    GstClock* m_ptpClock = nullptr;
+    std::mutex m_ptpClockMutex;
+    GstClock* GetOrCreateMediaClock();
+    void ReleaseMediaClock();
+
     // Grandmaster identity to advertise in SDP / report over HTTP: the remote
     // clock we follow, or our own identity when we hold the role.  Empty when
     // PTP is enabled but no grandmaster has been settled on yet.
@@ -400,8 +437,19 @@ private:
     // as a repeat and never see the corrected refclk.
     uint16_t ComputeSAPHash(const std::string& sdp);
 
-    // Monotonic SDP o= version.  Seeded from wall clock so it keeps rising
-    // across fppd restarts (a version that went backwards would be ignored).
+    // SDP o= version for a given announcement body.  Only advances when the
+    // announced content actually changes: the msg id hash is derived from the
+    // SDP text, so bumping the version on every rebuild would mint a new hash
+    // each time and leave SAP receivers listing a phantom stream per restart
+    // until their timeout (~10 announce intervals) cleared it.
+    //
+    // The mapping is persisted so an fppd restart with unchanged config
+    // re-announces byte-identical SDP rather than a new session.
+    uint32_t SDPVersionFor(const std::string& body);
+    void LoadSDPVersion();
+    void SaveSDPVersion();
+    std::string m_sdpVersionPath;
+    std::string m_sdpBodyKey;    // hash of the last announced body
     uint32_t NextSDPVersion();
     // Bumped from the SAP thread on every rebuild and from RunSelfTest() on
     // whichever thread asked for the test, so it cannot be a plain int.

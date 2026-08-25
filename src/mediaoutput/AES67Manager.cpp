@@ -25,9 +25,12 @@
 
 #include <arpa/inet.h>
 #include <ifaddrs.h>
+#include <linux/ethtool.h>
+#include <linux/sockios.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <signal.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -160,6 +163,7 @@ void AES67Manager::Shutdown() {
 
     StopAllPipelines();
     ShutdownPTP();
+    ReleaseMediaClock();
 
     m_active.store(false);
     LogInfo(VB_MEDIAOUT, "AES67Manager: Shutdown complete\n");
@@ -207,6 +211,8 @@ bool AES67Manager::LoadConfig() {
     cfg.ptpInterface = root.get("ptpInterface", "eth0").asString();
     cfg.ptpDomain = root.get("ptpDomain", AES67::DEFAULT_PTP_DOMAIN).asInt();
     cfg.ptpRole = root.get("ptpRole", "auto").asString();
+    cfg.ptpMediaClock = root.get("ptpMediaClock", true).asBool();
+    cfg.sourcePacing = root.get("sourcePacing", false).asBool();
 
     // A domain outside 0-127 is not representable in the PTP header; an
     // unknown role would silently fall through to the "auto" branch below,
@@ -294,6 +300,9 @@ bool AES67Manager::ApplyConfig() {
     }
     StopAllPipelines();
     ShutdownPTP();
+    // Re-resolved below against the new config: the PTP interface (and so the
+    // PHC backing the media clock) may have changed.
+    ReleaseMediaClock();
 
     if (!FileExists(m_configPath)) {
         LogInfo(VB_MEDIAOUT, "AES67Manager: No config file, nothing to apply\n");
@@ -387,6 +396,7 @@ void AES67Manager::Cleanup() {
     }
     StopAllPipelines();
     ShutdownPTP();
+    ReleaseMediaClock();
 
     m_active.store(false);
 }
@@ -881,6 +891,176 @@ std::string AES67Manager::GetPTPClockId() {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// AES67 media clock
+//
+// AES67 requires the RTP timestamp to be the PTP media clock count, and the SDP
+// we publish asserts exactly that with "a=mediaclk:direct=0".  Honouring it
+// means the pipeline has to be driven by PTP time itself, not by GStreamer's
+// default monotonic system clock.
+//
+// Which clock actually holds PTP time depends on how ptp4l is running, and it
+// has to be right in BOTH roles:
+//
+//   hardware timestamping -- ptp4l's clock is the NIC's PHC.  As a follower it
+//       disciplines the PHC to the grandmaster; as grandmaster it distributes
+//       the PHC's own time.  Either way the PHC is the domain's time, so we
+//       read the PHC.
+//
+//   software timestamping -- there is no PHC; ptp4l uses CLOCK_REALTIME as its
+//       clock, disciplining it as a follower and distributing it as
+//       grandmaster.  So CLOCK_REALTIME is the domain's time.
+//
+// Note what we deliberately do NOT use:
+//
+//   CLOCK_TAI / GST_CLOCK_TYPE_TAI -- only correct while something is setting
+//       the kernel TAI offset, which phc2sys does as a follower and not at all
+//       as grandmaster.  Measured on a grandmaster box: adjtimex offset 0 and
+//       CLOCK_TAI == CLOCK_REALTIME, i.e. silently not PTP time.
+//
+//   GstPtpClock (gst_ptp_init) -- would run gst-ptp-helper as a second PTP
+//       client on the same domain alongside our ptp4l, adding a participant to
+//       a network we just stopped FPP from disrupting.
+// ──────────────────────────────────────────────────────────────────────────────
+
+// Linux exposes a dynamic POSIX clock for an open /dev/ptpN fd.
+#define FPP_FD_TO_CLOCKID(fd) ((clockid_t)((((unsigned int)~(fd)) << 3) | 3))
+
+// Resolve the PHC backing an interface via ETHTOOL_GET_TS_INFO.  Returns -1
+// when the NIC has no PHC (software timestamping), which is not an error.
+static int PhcIndexForInterface(const std::string& iface) {
+    if (iface.empty()) {
+        return -1;
+    }
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        return -1;
+    }
+    struct ethtool_ts_info tsi;
+    memset(&tsi, 0, sizeof(tsi));
+    tsi.cmd = ETHTOOL_GET_TS_INFO;
+
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", iface.c_str());
+    ifr.ifr_data = (char*)&tsi;
+
+    int idx = -1;
+    if (ioctl(sock, SIOCETHTOOL, &ifr) == 0) {
+        idx = tsi.phc_index;
+    }
+    close(sock);
+    return idx;
+}
+
+// GstClock reading PTP time.  Subclasses GstSystemClock so that all of its
+// wait/scheduling machinery keeps working -- only the time source changes,
+// since GstSystemClock routes its waits through the virtual get_internal_time.
+struct FppPtpClock {
+    GstSystemClock parent;
+    clockid_t clkid;   // PHC dynamic clockid, or CLOCK_REALTIME
+    int phcFd;         // open /dev/ptpN, or -1 when using CLOCK_REALTIME
+};
+struct FppPtpClockClass {
+    GstSystemClockClass parent_class;
+};
+
+G_DEFINE_TYPE(FppPtpClock, fpp_ptp_clock, GST_TYPE_SYSTEM_CLOCK)
+
+static GstClockTime fpp_ptp_clock_get_internal_time(GstClock* clock) {
+    FppPtpClock* self = (FppPtpClock*)clock;
+    struct timespec ts;
+    if (clock_gettime(self->clkid, &ts) != 0) {
+        // Losing the clock mid-stream would wedge every waiting element, so
+        // fall back rather than returning an error the caller cannot act on.
+        clock_gettime(CLOCK_REALTIME, &ts);
+    }
+    return GST_TIMESPEC_TO_TIME(ts);
+}
+
+static void fpp_ptp_clock_finalize(GObject* object) {
+    FppPtpClock* self = (FppPtpClock*)object;
+    if (self->phcFd >= 0) {
+        close(self->phcFd);
+        self->phcFd = -1;
+    }
+    G_OBJECT_CLASS(fpp_ptp_clock_parent_class)->finalize(object);
+}
+
+static void fpp_ptp_clock_class_init(FppPtpClockClass* klass) {
+    GST_CLOCK_CLASS(klass)->get_internal_time = fpp_ptp_clock_get_internal_time;
+    G_OBJECT_CLASS(klass)->finalize = fpp_ptp_clock_finalize;
+}
+
+static void fpp_ptp_clock_init(FppPtpClock* self) {
+    self->clkid = CLOCK_REALTIME;
+    self->phcFd = -1;
+}
+
+
+// Opens the PTP time source and wraps it in a GstClock.  One clock is shared by
+// every send pipeline: they must all carry the same media timeline, and a
+// second clock object would mean a second set of rate estimates.
+GstClock* AES67Manager::GetOrCreateMediaClock() {
+    std::lock_guard<std::mutex> lock(m_ptpClockMutex);
+    if (m_ptpClock) {
+        return m_ptpClock;
+    }
+    if (!IsPtpEnabled()) {
+        return nullptr;
+    }
+
+    FppPtpClock* clock = (FppPtpClock*)g_object_new(fpp_ptp_clock_get_type(),
+                                                    "name", "fppaes67ptpclock", NULL);
+    if (!clock) {
+        return nullptr;
+    }
+
+    std::string iface = GetPtpInterface();
+    int phcIndex = PhcIndexForInterface(iface);
+    if (phcIndex >= 0) {
+        std::string dev = "/dev/ptp" + std::to_string(phcIndex);
+        int fd = open(dev.c_str(), O_RDONLY);
+        if (fd >= 0) {
+            clock->phcFd = fd;
+            clock->clkid = FPP_FD_TO_CLOCKID(fd);
+            // Prove it is readable before we hand it to a pipeline -- a PHC
+            // that exists but will not answer would stall every element
+            // waiting on it.
+            struct timespec ts;
+            if (clock_gettime(clock->clkid, &ts) == 0) {
+                LogInfo(VB_MEDIAOUT, "AES67 media clock: using PHC %s (interface %s)\n",
+                        dev.c_str(), iface.c_str());
+                m_ptpClock = GST_CLOCK(clock);
+                return m_ptpClock;
+            }
+            LogWarn(VB_MEDIAOUT, "AES67 media clock: %s is not readable (%s), "
+                    "falling back to CLOCK_REALTIME\n", dev.c_str(), FPPstrerror(errno));
+            close(fd);
+            clock->phcFd = -1;
+        } else {
+            LogWarn(VB_MEDIAOUT, "AES67 media clock: cannot open %s (%s), "
+                    "falling back to CLOCK_REALTIME\n", dev.c_str(), FPPstrerror(errno));
+        }
+    }
+
+    // Software-timestamping path: ptp4l has no PHC and uses CLOCK_REALTIME as
+    // its own clock, so that is the domain's time in both roles.
+    clock->clkid = CLOCK_REALTIME;
+    LogInfo(VB_MEDIAOUT, "AES67 media clock: using CLOCK_REALTIME "
+            "(no PHC on %s — software timestamping)\n", iface.c_str());
+    m_ptpClock = GST_CLOCK(clock);
+    return m_ptpClock;
+}
+
+void AES67Manager::ReleaseMediaClock() {
+    std::lock_guard<std::mutex> lock(m_ptpClockMutex);
+    if (m_ptpClock) {
+        gst_object_unref(m_ptpClock);
+        m_ptpClock = nullptr;
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Pipeline creation — Send
 // ──────────────────────────────────────────────────────────────────────────────
 bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
@@ -924,6 +1104,13 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     // when the graph already runs at 48000, where the resampler passes through.
 
     std::ostringstream oss;
+    // Media clock -- see GetOrCreateMediaClock().  Everything below that makes
+    // the RTP timestamps mean something depends on having it.
+    GstClock* ptpClock = m_config.ptpMediaClock ? GetOrCreateMediaClock() : nullptr;
+    if (!m_config.ptpMediaClock) {
+        LogInfo(VB_MEDIAOUT, "AES67 send [%d]: PTP media clock disabled by config\n", inst.id);
+    }
+
     oss << "pipewiresrc name=pwsrc min-buffers=2 "
         << "! audioconvert "
         << "! audioresample "
@@ -932,7 +1119,17 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         << ",channels=" << inst.channels << " "
         << "! rtpL24pay pt=" << AES67::RTP_PAYLOAD_TYPE
         << " min-ptime=" << ptimeNs
-        << " max-ptime=" << ptimeNs << " "
+        << " max-ptime=" << ptimeNs
+        // timestamp-offset=0 anchors the RTP timeline to PTP (see the media
+        // clock note below).  perfect-rtptime stays TRUE -- deriving each
+        // packet's timestamp from the buffer running time instead made the
+        // increments wobble by +/-1 sample (191/193/194 rather than a clean
+        // 192), and a receiver that places samples by RTP timestamp has to
+        // absorb that wobble on every single packet.  With it true the
+        // payloader counts samples, so the timeline is anchored to PTP at
+        // start and then advances exactly one packet at a time.
+        << (ptpClock ? " timestamp-offset=0 perfect-rtptime=true" : "")
+        << " "
         << "! application/x-rtp,clock-rate=" << AES67::AUDIO_RATE << " "
         << "! udpsink name=usink host=" << inst.multicastIP
         << " port=" << inst.port
@@ -966,24 +1163,69 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     // gst_parse_launch can crash gst_value_deserialize on some platforms.
     GstElement* pwsrc = gst_bin_get_by_name(GST_BIN(pipeline), "pwsrc");
     if (pwsrc) {
+        // Ask PipeWire for a quantum no larger than one RTP packet.
+        //
+        // This is what makes the stream evenly paced.  At the stock 1024-sample
+        // quantum pipewiresrc hands us ~21ms of audio at once and the packets
+        // for it leave back-to-back in microseconds, then nothing for 21ms --
+        // which is far outside the receive window of a Dante/AES67 receiver.
+        //
+        // Pacing it at the sink instead (udpsink sync=true) does not work here:
+        // buffers arrive with a PTS already one quantum in the past, so the
+        // sink blocks, backpressure reaches the live pipewiresrc, and it drops
+        // audio rather than stalling.  Measured during playback that cost ~36%
+        // of the stream.  Fixing the cadence at the source has no such failure
+        // mode -- and it cuts sender latency, which the receiver has to absorb
+        // as link offset.
+        //
+        // PipeWire clamps this to its min-quantum, and the graph quantum is the
+        // smallest any node asks for, so this does raise CPU for the whole
+        // graph.  That is the trade for a stream that is actually usable.
+        std::string nodeLatency = std::to_string(inst.ptime * AES67::AUDIO_RATE / 1000) +
+                                  "/" + std::to_string(AES67::AUDIO_RATE);
         GstStructure* props = gst_structure_new("props",
             "node.name", G_TYPE_STRING, nodeName.c_str(),
             "node.autoconnect", G_TYPE_BOOLEAN, FALSE,
             NULL);
+        if (m_config.sourcePacing) {
+            gst_structure_set(props, "node.latency", G_TYPE_STRING, nodeLatency.c_str(), NULL);
+        } else {
+            LogInfo(VB_MEDIAOUT, "AES67 send [%d]: source pacing disabled by config\n", inst.id);
+        }
         g_object_set(pwsrc, "stream-properties", props, NULL);
         gst_structure_free(props);
         gst_object_unref(pwsrc);
     }
 
-    // Note: the pipeline runs on GStreamer's system clock, which is
-    // CLOCK_MONOTONIC.  phc2sys disciplines CLOCK_REALTIME, and the frequency
-    // correction it applies is shared with CLOCK_MONOTONIC -- so the media
-    // *rate* tracks PTP and does not drift, but the *phase* does not: RTP
-    // timestamps still start from rtpL24pay's own offset, unrelated to PTP
-    // time.  Fully honouring the "a=mediaclk:direct=0" we advertise needs a
-    // GstPtpClock plus an explicit payloader timestamp-offset; see the AES67
-    // media-clock note in BuildSDP().  We do NOT call gst_pipeline_use_clock()
-    // here.
+    // Put the pipeline on PTP time, and line the RTP timeline up with it.
+    //
+    // "a=mediaclk:direct=0" in our SDP asserts that the RTP timestamp IS the
+    // media clock count on the reference clock, with zero offset.  Three things
+    // have to be true together for that to hold:
+    //
+    //   1. the pipeline clock is PTP time            (use_clock below)
+    //   2. base time is zero, so a buffer's running time IS absolute PTP time
+    //      rather than time-since-this-pipeline-started
+    //   3. the payloader adds no offset of its own    (timestamp-offset=0)
+    //
+    // rtpL24pay computes RTP ts = timestamp-offset + running_time * 48000 / 1e9,
+    // so with (2) and (3) that is exactly PTP nanoseconds scaled to 48 kHz
+    // samples and wrapped at 2^32 -- which is what a receiver reconstructs from
+    // its own PTP time.  Previously the offset was random and the running time
+    // was relative to pipeline start, so the mapping was wrong by an arbitrary
+    // amount up to 2^32 samples (~24 hours) and no conformant receiver could
+    // place the audio.
+    //
+    // Setting the start time to NONE stops GStreamer recalculating base time on
+    // every PAUSED->PLAYING.  That is what keeps one continuous media timeline
+    // across track changes and flushes: RTP timestamps stay tied to wall-clock
+    // PTP instead of jumping whenever the pipeline is disturbed, which is how a
+    // Dante/AES67 receiver expects a transmitter to behave.
+    if (ptpClock) {
+        gst_pipeline_use_clock(GST_PIPELINE(pipeline), ptpClock);
+        gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE);
+        gst_element_set_base_time(pipeline, 0);
+    }
 
     // Store the bus for polling in the watchdog thread.
     // gst_bus_add_watch() requires a running GLib main loop which fppd does
@@ -1527,6 +1769,65 @@ uint16_t AES67Manager::ComputeSAPHash(const std::string& sdp) {
 // Monotonic SDP o= version.  Seeded from the wall clock so it keeps rising
 // across fppd restarts -- a receiver that has cached version N ignores a
 // re-announcement numbered below it.
+void AES67Manager::LoadSDPVersion() {
+    if (m_sdpVersionPath.empty()) {
+        m_sdpVersionPath = getFPPMediaDir("/config/.aes67-sdp-version");
+    }
+    std::ifstream f(m_sdpVersionPath);
+    if (!f.is_open()) {
+        return;
+    }
+    std::string key;
+    uint64_t ver = 0;
+    f >> key >> ver;
+    if (!key.empty() && ver > 0) {
+        m_sdpBodyKey = key;
+        m_lastSdpVersion.store((uint32_t)ver, std::memory_order_relaxed);
+    }
+}
+
+void AES67Manager::SaveSDPVersion() {
+    if (m_sdpVersionPath.empty()) {
+        return;
+    }
+    std::ofstream f(m_sdpVersionPath, std::ios::trunc);
+    if (f.is_open()) {
+        f << m_sdpBodyKey << " " << m_lastSdpVersion.load(std::memory_order_relaxed) << "\n";
+    }
+}
+
+// Returns the version to stamp on this announcement.  Same body as last time =
+// same version, so the SDP (and therefore the SAP msg id hash derived from it)
+// is byte-identical and receivers see one continuing session rather than a new
+// one per restart.
+uint32_t AES67Manager::SDPVersionFor(const std::string& body) {
+    if (m_sdpVersionPath.empty()) {
+        LoadSDPVersion();
+    }
+
+    uint32_t h = 2166136261u;
+    for (char c : body) {
+        h ^= (uint32_t)(unsigned char)c;
+        h *= 16777619u;
+    }
+    char keyBuf[16];
+    snprintf(keyBuf, sizeof(keyBuf), "%08x", h);
+    std::string key(keyBuf);
+
+    if (key == m_sdpBodyKey) {
+        uint32_t existing = m_lastSdpVersion.load(std::memory_order_relaxed);
+        if (existing > 0) {
+            return existing;
+        }
+    }
+
+    uint32_t v = NextSDPVersion();
+    m_sdpBodyKey = key;
+    SaveSDPVersion();
+    LogInfo(VB_MEDIAOUT, "AES67 SAP: announcement content changed, SDP version now %u\n", v);
+    return v;
+}
+
 uint32_t AES67Manager::NextSDPVersion() {
     uint32_t candidate = (uint32_t)time(nullptr);
     uint32_t prev = m_lastSdpVersion.load(std::memory_order_relaxed);
@@ -1679,7 +1980,20 @@ void AES67Manager::SAPAnnounceLoop() {
     };
     auto buildEntries = [this](const std::string& ptpClockId) -> std::vector<SAPEntry> {
         std::vector<SAPEntry> result;
-        uint32_t sdpVersion = NextSDPVersion();
+
+        // Version the announcement by what is in it.  Building the bodies with
+        // a fixed placeholder version first gives a stable key to compare
+        // against the last announcement -- see SDPVersionFor().
+        std::string bodyKey;
+        for (const auto& inst : m_config.instances) {
+            if (!inst.enabled || !inst.sapEnabled) continue;
+            if (inst.mode != "send" && inst.mode != "both") continue;
+            std::string sourceIP = GetInterfaceIP(inst.interface.empty() ?
+                                                  m_config.ptpInterface : inst.interface);
+            bodyKey += BuildSDP(inst, sourceIP, ptpClockId, 0);
+        }
+        uint32_t sdpVersion = SDPVersionFor(bodyKey);
+
         for (const auto& inst : m_config.instances) {
             if (!inst.enabled) continue;
             if (!inst.sapEnabled) continue;
@@ -2193,6 +2507,60 @@ void AES67Manager::DetachInlineRTPBranches(GstElement* pipeline,
 // ──────────────────────────────────────────────────────────────────────────────
 // Status reporting — for PHP API
 // ──────────────────────────────────────────────────────────────────────────────
+// The rate the PipeWire graph is actually clocked at.  Mirrors the fallback in
+// GStreamerOut.cpp's GetPipeWireGraphRate(), which is file-local there: the
+// per-card file carries the rate the hardware really achieved and sorts after
+// the defaults, so it wins wherever both exist.
+static int PipeWireGraphRate() {
+    static const char* confs[] = {
+        "/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf",
+        "/etc/pipewire/pipewire.conf.d/90-fpp.conf"
+    };
+    for (const char* conf : confs) {
+        std::string contents = GetFileContents(conf);
+        size_t p = contents.find("default.clock.rate");
+        if (p == std::string::npos)
+            continue;
+        p = contents.find('=', p);
+        if (p == std::string::npos)
+            continue;
+        int rate = atoi(contents.c_str() + p + 1);
+        if (rate > 0)
+            return rate;
+    }
+    return 0;
+}
+
+// The rate pipewiresrc negotiated with the graph for this pipeline, or 0 if it
+// has not negotiated yet.  Read from the live pad rather than from any config
+// file: per-card and per-group rates sit between the graph clock and what this
+// stream is actually fed, so default.clock.rate can say 44100 while the stream
+// is getting a clean 48000 (or the reverse).
+static int NegotiatedSourceRate(GstElement* pipeline) {
+    if (!pipeline) {
+        return 0;
+    }
+    GstElement* pwsrc = gst_bin_get_by_name(GST_BIN(pipeline), "pwsrc");
+    if (!pwsrc) {
+        return 0;
+    }
+    int rate = 0;
+    GstPad* pad = gst_element_get_static_pad(pwsrc, "src");
+    if (pad) {
+        GstCaps* caps = gst_pad_get_current_caps(pad);
+        if (caps) {
+            const GstStructure* st = gst_caps_get_structure(caps, 0);
+            if (st) {
+                gst_structure_get_int(st, "rate", &rate);
+            }
+            gst_caps_unref(caps);
+        }
+        gst_object_unref(pad);
+    }
+    gst_object_unref(pwsrc);
+    return rate;
+}
+
 AES67Manager::Status AES67Manager::GetStatus() {
     Status status;
 
@@ -2204,6 +2572,7 @@ AES67Manager::Status AES67Manager::GetStatus() {
     status.ptpEnabled = config.ptpEnabled;
     status.ptpDomain = config.ptpDomain;
     status.ptpRole = config.ptpRole;
+    status.graphSampleRate = PipeWireGraphRate();
 
     // Pipeline status — use try_lock to avoid blocking HTTP handlers
     // indefinitely if another thread holds m_pipelineMutex during a
@@ -2217,6 +2586,7 @@ AES67Manager::Status AES67Manager::GetStatus() {
                 ps.mode = "send";
                 ps.running = p.running;
                 ps.error = p.errorMessage;
+                ps.sourceRate = NegotiatedSourceRate(p.pipeline);
 
                 for (const auto& inst : config.instances) {
                     if (inst.id == id) {
@@ -2511,7 +2881,9 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
         if (!config.instances.empty()) {
             std::string sourceIP = GetInterfaceIP(config.ptpInterface);
             std::string clockId = GetPTPClockId();
-            std::string sdp = BuildSDP(config.instances[0], sourceIP, clockId, NextSDPVersion());
+            // Version 0: this is a rendering for the test output, not an
+            // announcement, and must not advance the announced version.
+            std::string sdp = BuildSDP(config.instances[0], sourceIP, clockId, 0);
             r.passed = !sdp.empty() && sdp.find("v=0") != std::string::npos
                        && sdp.find("ts-refclk") != std::string::npos
                        && sdp.find("mediaclk") != std::string::npos
@@ -2555,6 +2927,9 @@ HttpResponsePtr AES67Manager::render_GET(const HttpRequestPtr& req) {
             pj["name"] = p.name;
             pj["mode"] = p.mode;
             pj["running"] = p.running;
+            if (p.sourceRate > 0) {
+                pj["sourceRate"] = p.sourceRate;
+            }
             if (!p.error.empty()) {
                 pj["error"] = p.error;
             }
@@ -2589,6 +2964,7 @@ HttpResponsePtr AES67Manager::render_GET(const HttpRequestPtr& req) {
         }
         result["discoveredStreams"] = discovered;
 
+        result["graphSampleRate"] = st.graphSampleRate;
         result["active"] = m_active.load();
 
         Json::StreamWriterBuilder wbuilder;
