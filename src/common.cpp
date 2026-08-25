@@ -534,6 +534,22 @@ size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
     return size * nmemb;
 }
 
+std::string NormalizeMacAddress(const std::string& mac) {
+    std::string out;
+    for (char c : mac) {
+        if (isxdigit((unsigned char)c)) {
+            out += toupper((unsigned char)c);
+        } else if (c != ':' && c != '-' && c != '.' && c != ' ') {
+            // Anything else means this was never a MAC.
+            return "";
+        }
+    }
+    if (out.size() != 12 || out == "000000000000") {
+        return "";
+    }
+    return out;
+}
+
 std::string GetMacForAddress(const std::string& address) {
     if (address.empty() || IsLoopbackAddress(address)) {
         return "";
@@ -566,16 +582,7 @@ std::string GetMacForAddress(const std::string& address) {
         if ((strtol(flags.c_str(), nullptr, 0) & 0x2) == 0) {
             return "";
         }
-        std::string mac;
-        for (char c : hwAddr) {
-            if (isxdigit(c)) {
-                mac += toupper(c);
-            }
-        }
-        if (mac.size() != 12 || mac == "000000000000") {
-            return "";
-        }
-        return mac;
+        return NormalizeMacAddress(hwAddr);
     }
     return "";
 }

@@ -456,6 +456,35 @@ bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
 // carries no UUID field at all, and it does not reach a controller on another
 // subnet -- which is exactly the case co-universes.json seeding is there to
 // cover.
+// Pulls the hardware address out of one of these controllers' "network" object.
+// Both firmware lines report every interface, so prefer the one actually
+// answering on the address we are talking to: that is the MAC the ARP table
+// would have given for the same device, and identity must not depend on which
+// route found it.
+static std::string ExperienceNetworkMac(const std::string& ip, const Json::Value& network) {
+    if (!network.isObject()) {
+        return "";
+    }
+    std::string fallback;
+    for (const char* key : { "wired", "wifi" }) {
+        if (!JsonHas(network, key) || !network[key].isObject()) {
+            continue;
+        }
+        const Json::Value& iface = network[key];
+        std::string mac = NormalizeMacAddress(iface.get("mac_address", "").asString());
+        if (mac.empty()) {
+            continue;
+        }
+        if (iface.get("ip_address", "").asString() == ip) {
+            return mac;
+        }
+        if (fallback.empty()) {
+            fallback = mac;
+        }
+    }
+    return fallback;
+}
+
 bool NetworkController::DetectExperienceController(const std::string& ip, const std::string& html) {
     if (html.find("FriendlyNameBar()") == std::string::npos &&
         html.find("CurrentMonitoring()") == std::string::npos &&
@@ -523,6 +552,31 @@ bool NetworkController::DetectExperienceController(const std::string& ip, const 
             if (!id.empty()) {
                 uuid = hw.empty() ? id : (hw + "-" + id);
             }
+        }
+    }
+
+    // No identity of its own.  The 2.x firmware dropped the endpoint above
+    // entirely, so for that line this is the only identity there is -- and
+    // unlike the ARP table it works for a controller on another subnet, which
+    // is exactly where seeding discovery from the configured output addresses
+    // reaches.  The 1.x line carries the addresses in the state document
+    // already fetched; 2.x moved them to their own endpoint, so only ask for it
+    // when the first place came up empty.
+    if (uuid.empty() || uuid == "Unknown") {
+        std::string mac = ExperienceNetworkMac(ip, v["network"]);
+        if (mac.empty()) {
+            std::string curResp;
+            if (urlGet(buildHttpURL(ip, "/api/current_state"), curResp)) {
+                Json::Value cur;
+                if (LoadJsonFromString(curResp, cur, JsonRoot::Object)) {
+                    mac = ExperienceNetworkMac(ip, cur["network"]);
+                }
+            }
+        }
+        if (!mac.empty()) {
+            // Same spelling MultiSync uses for an ARP-derived address, so a
+            // device keeps one identity however it was discovered.
+            uuid = MAC_UUID_PREFIX + mac;
         }
     }
 

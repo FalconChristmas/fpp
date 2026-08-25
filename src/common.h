@@ -111,6 +111,12 @@ std::string buildHttpURL(const std::string& address, const std::string& path = "
 // "this box finding itself" and never as a peer -- see MultiSync::UpdateSystem().
 bool IsLoopbackAddress(const std::string& address);
 
+// Reduces a MAC in any of the usual spellings to 12 uppercase hex digits with
+// no separators, or "" if it isn't one.  Every path that derives an identity
+// from a hardware address must go through this, so that the same device gets
+// the same string whichever way it was found.
+std::string NormalizeMacAddress(const std::string& mac);
+
 // The MAC of an on-link IPv4 neighbour, as 12 uppercase hex digits with no
 // separators, or "" if it isn't known.  Read from the kernel's ARP table, so it
 // only answers for hosts on a directly attached subnet -- a routed host simply
