@@ -3580,18 +3580,62 @@ function gitBaseDirectory()
 function getSystemUUID()
 {
     global $fppDir;
-    if (!file_exists("/tmp/fpp_uuid")) {
+    static $memo = null;
+    if ($memo !== null) {
+        return $memo;
+    }
+    $cacheFile = "/tmp/fpp_uuid";
+    $uuid = file_exists($cacheFile) ? trim(file_get_contents($cacheFile)) : "";
+
+    // Do not trust the cache without checking it.  It is written once per boot,
+    // and an upgrade can replace scripts/get_uuid underneath a cache an older
+    // one wrote -- so a value this version rejects, such as a duplicated or
+    // truncated serial, would otherwise stay live until the next reboot.
+    if (!isValidSystemUUID($uuid)) {
         $output = array();
         exec($fppDir . "/scripts/get_uuid", $output);
-        file_put_contents("/tmp/fpp_uuid", isset($output[0]) ? trim($output[0]) : "Unknown");
+        $uuid = isset($output[0]) ? trim($output[0]) : "";
+        if (!isValidSystemUUID($uuid)) {
+            // "Unknown" is a placeholder, not an identity, so it is never
+            // cached -- the box has to be able to recover within this boot.
+            $memo = "Unknown";
+            return $memo;
+        }
+        cacheSystemIdentity($cacheFile, $uuid);
     }
-    return file_get_contents("/tmp/fpp_uuid");
+    $memo = $uuid;
+    return $memo;
+}
+
+/**
+ * Best-effort write of an identity cache file under /tmp.
+ *
+ * The write genuinely cannot be relied on.  /tmp is sticky and the kernel runs
+ * with fs.protected_regular set, so whichever user creates one of these files
+ * owns it and NO other user -- root included -- can reopen it for writing.  The
+ * web request path runs as fpp while fppd and the boot scripts run as root, so
+ * which of them got there first decides who can refresh it afterwards.
+ *
+ * The cache is therefore an optimisation only.  Callers must already hold a
+ * correct value before calling this, and must not care whether it succeeds.
+ *
+ * @param string $file cache path
+ * @param string $value validated value to store
+ * @return void
+ */
+function cacheSystemIdentity($file, $value)
+{
+    @file_put_contents($file, $value);
 }
 
 /**
  * Returns a token naming which method produced the system UUID:
  * setting, cpuinfo, device-tree, board-eeprom, dmidecode, machine-id,
- * generated, container, ioreg or none.  "container" is a generated UUID from
+ * generated, container, ioreg or none -- plus "unknown", which this function
+ * substitutes when the script cannot be asked (one too old to support the
+ * flag).  "unknown" is deliberately NOT in the accepted set below: it must
+ * never be cached, or a box would keep reporting it after the scripts catch
+ * up.  "container" is a generated UUID from
  * a containerised install, where every hardware source describes the host and
  * machine-id comes from the image layer -- worth counting separately.  Lets a consumer weight or exclude by
  * identity quality without having to reverse-engineer the M<n>- prefix.
@@ -3601,12 +3645,40 @@ function getSystemUUID()
 function getSystemUUIDSource()
 {
     global $fppDir;
-    if (!file_exists("/tmp/fpp_uuid_source")) {
+    // Every token scripts/get_uuid can emit for --source.  "unknown" is not
+    // one of them on purpose -- see the note above.
+    $valid = array(
+        "setting", "cpuinfo", "device-tree", "board-eeprom", "dmidecode",
+        "machine-id", "generated", "container", "ioreg", "none",
+    );
+    static $memo = null;
+    if ($memo !== null) {
+        return $memo;
+    }
+    $cacheFile = "/tmp/fpp_uuid_source";
+    $source = file_exists($cacheFile) ? trim(file_get_contents($cacheFile)) : "";
+
+    // A get_uuid that predates --source ignores the argument and prints the
+    // UUID, so during an upgrade -- new www files, old scripts, in either order
+    // -- this cache gets an identity written into it instead of a source.  It
+    // then never corrects itself, and the field silently becomes a duplicate of
+    // uuid.  Since the whole point of it is to monitor identity quality after a
+    // rollout, being wrong in exactly that window makes it worthless.  Check
+    // the value against the known set rather than trusting what is on disk.
+    if (!in_array($source, $valid)) {
         $output = array();
         exec($fppDir . "/scripts/get_uuid --source", $output);
-        file_put_contents("/tmp/fpp_uuid_source", isset($output[0]) ? trim($output[0]) : "none");
+        $source = isset($output[0]) ? trim($output[0]) : "";
+        if (!in_array($source, $valid)) {
+            // Deliberately not cached, so the box heals as soon as the scripts
+            // catch up rather than staying wrong until it reboots.
+            $memo = "unknown";
+            return $memo;
+        }
+        cacheSystemIdentity($cacheFile, $source);
     }
-    return file_get_contents("/tmp/fpp_uuid_source");
+    $memo = $source;
+    return $memo;
 }
 
 /**
