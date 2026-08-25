@@ -160,8 +160,13 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
     m_vInfo.yoffset = 0;
 
     if (m_autoSync) {
-        m_cPage = 1; // Drawing will be on the second page first
-        m_pPage = 1; // Producer gets Page(true) then NextPage(true) after checking if page is clean
+        // Drawing starts on the second page -- but only if there IS one.  With
+        // a single page m_pageBuffers[1] is never assigned, so starting at page
+        // 1 leaves FBCopyData()'s `ob = m_pageBuffers[m_cPage]` null and the
+        // first pixel write faults.
+        // Producer gets Page(true) then NextPage(true) after checking if page is clean.
+        m_cPage = m_pages > 1 ? 1 : 0;
+        m_pPage = m_cPage;
     }
 
     LogDebug(VB_CHANNELOUT, "IOCTLFrameBuffer: Setting resolution to %dx%d (virtual: %dx%d)\n",

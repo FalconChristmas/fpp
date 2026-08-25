@@ -152,7 +152,13 @@ protected:
     bool m_variableRefresh = false;
     uint8_t* m_buffer = nullptr;
     uint8_t* m_outputBuffer = nullptr;
-    uint8_t* m_pageBuffers[3] = { nullptr, nullptr, nullptr };
+    // m_pages must always be in [1, MAX_PAGES] and m_cPage/m_pPage must always
+    // be valid indices into m_pageBuffers, i.e. < m_pages.  Everything that
+    // dereferences a page goes through m_pageBuffers[m_cPage], so a page index
+    // pointing past what InitializeFrameBuffer() actually assigned reads a null
+    // pointer and faults on the first write.
+    static constexpr int MAX_PAGES = 3;
+    uint8_t* m_pageBuffers[MAX_PAGES] = { nullptr, nullptr, nullptr };
     int m_pageSize = 0;
 
     int m_pixelSize = 0;

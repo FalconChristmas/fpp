@@ -152,8 +152,19 @@ int FrameBuffer::FBInit(const Json::Value& config) {
     if (config.isMember("TransitionType"))
         m_transitionType = (ImageTransitionType)(atoi(config["TransitionType"].asString().c_str()));
 
-    if (config.isMember("Pages"))
-        m_pages = config["Pages"].asInt();
+    if (config.isMember("Pages")) {
+        // Clamp at the one place the page count enters from config.  Only
+        // m_pageBuffers[0..MAX_PAGES-1] are ever assigned, and NextPage() walks
+        // m_cPage modulo m_pages, so an out-of-range count hands the draw path
+        // an index with no buffer behind it.
+        int p = config["Pages"].asInt();
+        if (p < 1 || p > MAX_PAGES) {
+            LogWarn(VB_CHANNELOUT, "FrameBuffer: Pages=%d out of range, using %d\n",
+                    p, p < 1 ? 1 : MAX_PAGES);
+            p = p < 1 ? 1 : MAX_PAGES;
+        }
+        m_pages = p;
+    }
 
     if (config.isMember("BitsPerPixel"))
         m_bpp = config["BitsPerPixel"].asInt();
