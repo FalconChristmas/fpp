@@ -46,6 +46,7 @@
 #include <utility>
 #include <vector>
 
+#include "CurlManager.h"
 #include "FileMonitor.h"
 #include "NetworkController.h"
 #include "NetworkMonitor.h"
@@ -192,6 +193,64 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
                             (this->fppMode == REMOTE_MODE);
 }
 
+static void SetIfNotEmpty(Json::Value& v, const char* key, const std::string& s) {
+    if (!s.empty()) {
+        v[key] = s;
+    }
+}
+
+Json::Value MultiSyncSystemInfo::toJSON() const {
+    Json::Value v;
+    SetIfNotEmpty(v, "Platform", platform);
+    SetIfNotEmpty(v, "Variant", variant);
+    SetIfNotEmpty(v, "SubPlatform", subPlatform);
+    SetIfNotEmpty(v, "OSVersion", osVersion);
+    SetIfNotEmpty(v, "OSRelease", osRelease);
+    SetIfNotEmpty(v, "Kernel", kernel);
+    SetIfNotEmpty(v, "HostDescription", hostDescription);
+    SetIfNotEmpty(v, "backgroundColor", backgroundColor);
+    SetIfNotEmpty(v, "Branch", branch);
+    SetIfNotEmpty(v, "LocalGitVersion", localGitVersion);
+    SetIfNotEmpty(v, "RemoteGitVersion", remoteGitVersion);
+    SetIfNotEmpty(v, "UpgradeSource", upgradeSource);
+    if (channelInputsEnabled >= 0) {
+        v["channelInputsEnabled"] = channelInputsEnabled ? true : false;
+    }
+    if (channelOutputsEnabled >= 0) {
+        v["channelOutputsEnabled"] = channelOutputsEnabled ? true : false;
+    }
+    if (!ips.empty()) {
+        Json::Value a(Json::arrayValue);
+        for (auto& ip : ips) {
+            a.append(ip);
+        }
+        v["IPs"] = a;
+    }
+    return v;
+}
+
+Json::Value MultiSyncCapeInfo::toJSON() const {
+    Json::Value v;
+    v["present"] = present;
+    if (!present) {
+        return v;
+    }
+    SetIfNotEmpty(v, "id", id);
+    SetIfNotEmpty(v, "name", name);
+    SetIfNotEmpty(v, "description", description);
+    SetIfNotEmpty(v, "version", version);
+    SetIfNotEmpty(v, "designer", designer);
+    Json::Value vendor;
+    SetIfNotEmpty(vendor, "name", vendorName);
+    SetIfNotEmpty(vendor, "url", vendorURL);
+    SetIfNotEmpty(vendor, "email", vendorEmail);
+    SetIfNotEmpty(vendor, "image", vendorImage);
+    if (!vendor.empty()) {
+        v["vendor"] = vendor;
+    }
+    return v;
+}
+
 Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
     Json::Value system;
 
@@ -225,6 +284,17 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
         system["HostDescription"] = getSetting("HostDescription");
         system["channelInputsEnabled"] = InputsEnabled();
         system["channelOutputsEnabled"] = HasUniverseOutputs();
+    }
+
+    // Detail fetched over HTTP from FPP remotes (see CheckSystemInfoRefreshes).
+    // Absent for the local systems -- a browser rendering the multisync page
+    // already has all of this for the box serving the page -- and for anything
+    // that isn't a full FPP instance.
+    if (systemInfo.valid) {
+        system["systemInfo"] = systemInfo.toJSON();
+    }
+    if (capeInfo.valid) {
+        system["capeInfo"] = capeInfo.toJSON();
     }
 
     return system;
@@ -1489,6 +1559,300 @@ void MultiSync::PeriodicPing() {
     if (superLongGap) {
         Ping(1);
     }
+
+    CheckSystemInfoRefreshes();
+}
+
+// How often a remote's HTTP-fetched detail is refreshed, how soon a failed
+// attempt is retried, and how many fetches may be outstanding at once.  The
+// cap matters on a large show network: without it the first sweep after
+// discovery would open a connection to every remote at the same moment, from a
+// player that may be a single-core BeagleBone.  The rest are simply picked up
+// by a later sweep.
+#define INFO_REFRESH_INTERVAL (30 * 60)
+#define INFO_RETRY_INTERVAL (5 * 60)
+#define INFO_SCAN_INTERVAL 5
+#define INFO_MAX_IN_FLIGHT 4
+
+// Every fetch is delayed by a random slice of a window that grows with the size
+// of the known fleet.  INFO_MAX_IN_FLIGHT bounds what one player sends, but the
+// dangerous direction is the other one: every peer sees the same discover ping,
+// so on a 100-instance show a single fppd restart would otherwise land ~200 HTTP
+// requests on the box that just came up -- the box least able to serve them, and
+// on a BeagleBone that is a real stall.  A whole-show power-on is the same
+// pattern squared, with every box both hammering and being hammered.  Budgeting
+// roughly one second of window per known system holds the aggregate arrival rate
+// at the target near two requests a second no matter how large the show is.
+#define INFO_JITTER_BASE 5
+#define INFO_JITTER_MAX 300
+
+// The multisync page needs a fair amount of slow-changing detail about every
+// remote -- OS version, host description, background color, git branch/commit,
+// whether channel inputs/outputs are enabled, what cape is installed.  It used
+// to fetch all of it from the browser, at least one HTTP request per remote per
+// page load, which is why the table visibly reflowed as the answers trickled
+// in.  fppd already knows every remote and can collect it once per remote per
+// INFO_REFRESH_INTERVAL over the async CurlManager, so the UI gets it in the
+// very first GetSystems() response.
+//
+// Runs on the fppd main loop (from PeriodicPing), which is also the thread that
+// drains the CurlManager completions -- so a callback below can never interleave
+// with this sweep.  It must stay non-blocking: the same loop feeds the sync
+// output, which is why this uses CurlManager rather than the blocking
+// urlHelper() path PingSingleRemoteViaHTTP() uses from its own thread.
+void MultiSync::CheckSystemInfoRefreshes() {
+    time_t now = time(nullptr);
+    if (now < m_nextInfoScan) {
+        return;
+    }
+    m_nextInfoScan = now + INFO_SCAN_INTERVAL;
+
+    std::vector<std::string> toFetch;
+    {
+        std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+        // We routinely discover ourselves as a "remote" -- over loopback, and
+        // over any address that isn't one of the interface addresses in
+        // m_localSystems (a global IPv6 address, typically).  Those entries
+        // merge into the local row in the UI, which already has everything
+        // about the box serving the page, so probing them is pure waste.
+        std::set<std::string> localUUIDs;
+        for (auto& sys : m_localSystems) {
+            if (!sys.uuid.empty() && sys.uuid != "Unknown") {
+                localUUIDs.insert(sys.uuid);
+            }
+        }
+        for (size_t idx = 0; idx < m_remoteSystems.size(); ++idx) {
+            MultiSyncSystem& sys = m_remoteSystems[idx];
+            // Only full FPP instances: these are FPP's own API endpoints, and
+            // anything at or above kSysTypeFalconController is a third-party
+            // controller that would just 404 (or worse, be confused by) them.
+            if (sys.type == kSysTypeUnknown || sys.type >= kSysTypeFalconController) {
+                continue;
+            }
+            if (sys.infoFetchPending) {
+                continue;
+            }
+            if (localUUIDs.find(sys.uuid) != localUUIDs.end()) {
+                continue;
+            }
+            // Loopback and link-local addresses: not reachable from a browser
+            // either, which is why the multisync page drops these rows outright.
+            if (startsWith(sys.address, "127.") || sys.address == "::1" ||
+                startsWith(sys.address, "169.254.") || startsWith(sys.address, "fe80:")) {
+                continue;
+            }
+            // A device with more than one NIC has one entry per address.  Act
+            // on it once and stamp every sibling entry the same way, otherwise
+            // the next sweep would pick the siblings up separately;
+            // ForEachRemoteMatching() fans the single answer back out to all of
+            // them.
+            std::string uuid = sys.uuid;
+            if (uuid == "Unknown") {
+                uuid.clear();
+            }
+            std::string address = sys.address;
+            auto stampSiblings = [&](const std::function<void(MultiSyncSystem&)>& apply) {
+                for (auto& other : m_remoteSystems) {
+                    if (other.address == address || (!uuid.empty() && other.uuid == uuid)) {
+                        apply(other);
+                    }
+                }
+            };
+
+            // infoNextFetch == 0 means due but unscheduled: a remote we have
+            // just discovered, or one InvalidateSystemInfo() marked stale after
+            // its discover ping.  A changed version string means the remote was
+            // upgraded under us, which rewrites most of what we cached -- and on
+            // a fleet upgrade that fires everywhere at once, so it earns the
+            // same treatment.  Either way, pick a jittered time and come back
+            // for it on a later sweep instead of fetching right now.
+            if (sys.infoNextFetch == 0 || sys.infoFetchedVersion != sys.version) {
+                // Entry count, not device count: a multi-NIC box contributes
+                // several, as do non-FPP controllers.  That only ever widens
+                // the window, which is the safe direction.
+                int window = INFO_JITTER_BASE + (int)m_remoteSystems.size();
+                if (window > INFO_JITTER_MAX) {
+                    window = INFO_JITTER_MAX;
+                }
+                time_t when = now + (FPPrand() % window);
+                stampSiblings([&](MultiSyncSystem& other) {
+                    other.infoNextFetch = when;
+                    other.infoFetchedVersion = other.version;
+                });
+                continue;
+            }
+            if (now < sys.infoNextFetch) {
+                continue;
+            }
+            // Cap only what is actually sent.  Scheduling above is free and has
+            // to keep running even while the cap is reached, or a large fleet
+            // would never get its jittered times assigned.  Anything held back
+            // here is simply picked up by the next sweep.
+            if ((int)toFetch.size() + m_infoFetchesInFlight >= INFO_MAX_IN_FLIGHT) {
+                continue;
+            }
+
+            stampSiblings([&](MultiSyncSystem& other) {
+                other.infoFetchPending = true;
+                other.infoFetchedVersion = other.version;
+            });
+            toFetch.push_back(address);
+        }
+    }
+    for (auto& address : toFetch) {
+        FetchSystemInfo(address);
+    }
+}
+
+void MultiSync::InvalidateSystemInfo(const std::string& address) {
+    ForEachRemoteMatching(address, [](MultiSyncSystem& sys) {
+        // Due, but unscheduled: the next sweep gives it a jittered time.  Never
+        // fetch straight from here -- this runs for every peer that heard the
+        // same discover ping, which is exactly the pile-on being avoided.
+        sys.infoNextFetch = 0;
+    });
+}
+
+void MultiSync::ForEachRemoteMatching(const std::string& address,
+                                      const std::function<void(MultiSyncSystem&)>& apply) {
+    std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+    std::string uuid;
+    for (auto& sys : m_remoteSystems) {
+        if (sys.address == address) {
+            uuid = sys.uuid;
+            break;
+        }
+    }
+    if (uuid == "Unknown") {
+        uuid.clear();
+    }
+    for (auto& sys : m_remoteSystems) {
+        if (sys.address == address || (!uuid.empty() && sys.uuid == uuid)) {
+            apply(sys);
+        }
+    }
+}
+
+void MultiSync::FetchSystemInfo(const std::string& address) {
+    std::string url = buildHttpURL(address, "/api/system/info");
+    ++m_infoFetchesInFlight;
+    // `address` is captured by value on purpose: m_remoteSystems is a vector of
+    // values that UpdateSystem() push_back()s into, so any pointer or reference
+    // to an entry can be dangling by the time this callback runs.  Everything
+    // below re-finds the entries by address instead.
+    CurlManager::INSTANCE.addGet(url, [this, address](int rc, const std::string& resp) {
+        --m_infoFetchesInFlight;
+        Json::Value v;
+        if (rc != 200 || !LoadJsonFromString(resp, v, JsonRoot::Object)) {
+            LogDebug(VB_SYNC, "Could not fetch system info from %s (rc: %d)\n", address.c_str(), rc);
+            time_t retryAt = time(nullptr) + INFO_RETRY_INTERVAL;
+            ForEachRemoteMatching(address, [retryAt](MultiSyncSystem& sys) {
+                sys.infoFetchPending = false;
+                // A zero here means InvalidateSystemInfo() ran while this fetch
+                // was in flight -- the remote restarted mid-request, so what we
+                // just read may already be wrong.  Leave it zero and let the
+                // sweep schedule a fresh attempt.
+                if (sys.infoNextFetch != 0) {
+                    sys.infoNextFetch = retryAt;
+                }
+            });
+            return;
+        }
+
+        MultiSyncSystemInfo info;
+        info.valid = true;
+        info.platform = v.get("Platform", "").asString();
+        info.variant = v.get("Variant", "").asString();
+        info.subPlatform = v.get("SubPlatform", "").asString();
+        info.osVersion = v.get("OSVersion", "").asString();
+        info.osRelease = v.get("OSRelease", "").asString();
+        info.kernel = v.get("Kernel", "").asString();
+        info.hostDescription = v.get("HostDescription", "").asString();
+        info.backgroundColor = v.get("backgroundColor", "").asString();
+        info.branch = v.get("Branch", "").asString();
+        info.localGitVersion = v.get("LocalGitVersion", "").asString();
+        info.remoteGitVersion = v.get("RemoteGitVersion", "").asString();
+        info.upgradeSource = v.get("UpgradeSource", "").asString();
+        if (JsonHas(v, "channelInputsEnabled")) {
+            info.channelInputsEnabled = v["channelInputsEnabled"].asBool() ? 1 : 0;
+        }
+        if (JsonHas(v, "channelOutputsEnabled")) {
+            info.channelOutputsEnabled = v["channelOutputsEnabled"].asBool() ? 1 : 0;
+        }
+        if (JsonHas(v, "IPs") && v["IPs"].isArray()) {
+            for (const auto& ip : v["IPs"]) {
+                if (ip.isString()) {
+                    info.ips.push_back(ip.asString());
+                }
+            }
+        }
+
+        ForEachRemoteMatching(address, [&info](MultiSyncSystem& sys) {
+            sys.systemInfo = info;
+        });
+
+        // Chain the cape fetch rather than issuing both at once: it reuses the
+        // connection just established and halves the peak request count.
+        // infoFetchPending stays set until it finishes so the sweep above does
+        // not re-queue this remote in between.
+        FetchCapeInfo(address);
+    });
+}
+
+void MultiSync::FetchCapeInfo(const std::string& address) {
+    std::string url = buildHttpURL(address, "/api/cape");
+    ++m_infoFetchesInFlight;
+    CurlManager::INSTANCE.addGet(url, [this, address](int rc, const std::string& resp) {
+        --m_infoFetchesInFlight;
+        MultiSyncCapeInfo cape;
+        Json::Value v;
+        if (rc == 200 && LoadJsonFromString(resp, v, JsonRoot::Object)) {
+            cape.valid = true;
+            cape.present = true;
+            cape.id = v.get("id", "").asString();
+            cape.name = v.get("name", "").asString();
+            cape.description = v.get("description", "").asString();
+            cape.version = v.get("version", "").asString();
+            cape.designer = v.get("designer", "").asString();
+            if (JsonHas(v, "vendor") && v["vendor"].isObject()) {
+                const Json::Value& vendor = v["vendor"];
+                cape.vendorName = vendor.get("name", "").asString();
+                cape.vendorURL = vendor.get("url", "").asString();
+                cape.vendorEmail = vendor.get("email", "").asString();
+                cape.vendorImage = vendor.get("image", "").asString();
+            }
+        } else if (rc == 404) {
+            // GetCapeInfo() answers 404 with {"id": "No Cape!"} when nothing is
+            // installed.  Cache that: it is an answer, not a failure.  (An FPP
+            // old enough to predate the route would 404 the same way and be
+            // recorded as having no cape, which is what the UI shows for it
+            // anyway.)
+            cape.valid = true;
+            cape.present = false;
+        } else {
+            // Anything else (connection failure, or an FPP old enough not to
+            // have /api/cape at all) leaves capeInfo unset and untrusted.
+            LogDebug(VB_SYNC, "Could not fetch cape info from %s (rc: %d)\n", address.c_str(), rc);
+        }
+
+        // End of the chain, so this is where the next refresh is scheduled --
+        // the system info the caller already stored is good either way, so a
+        // cape that could not be read doesn't earn the shorter retry interval.
+        time_t nextAt = time(nullptr) + INFO_REFRESH_INTERVAL;
+        ForEachRemoteMatching(address, [&cape, nextAt](MultiSyncSystem& sys) {
+            if (cape.valid) {
+                sys.capeInfo = cape;
+            }
+            sys.infoFetchPending = false;
+            // Zero means the remote sent a discover ping while this fetch was
+            // in flight, i.e. it restarted mid-request and what we just stored
+            // may already be stale.  Don't paper over that with a 30 minute
+            // interval; leave it due so the sweep reschedules.
+            if (sys.infoNextFetch != 0) {
+                sys.infoNextFetch = nextAt;
+            }
+        });
+    });
 }
 
 void MultiSync::PingSingleRemoteViaHTTP(const std::string& address) {
@@ -3326,6 +3690,23 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
                                 systemMode, address, hostname, version,
                                 typeStr, ranges, localUUID.c_str(), true,
                                 systemMode & 0x04 ? true : false);
+
+        // A discover ping is what an instance sends as its fppd starts (fppd.cpp
+        // calls Discover() during startup), and a restart is exactly when most
+        // of what we cache about a peer changes -- channel inputs/outputs, host
+        // description, background color, anything else that needed a restart to
+        // take effect.  Clearing the fetch timestamp makes the next sweep re-ask
+        // within INFO_SCAN_INTERVAL instead of serving up to
+        // INFO_REFRESH_INTERVAL of stale detail.  The cached values themselves
+        // are left in place so the UI doesn't blank out mid-refetch.
+        //
+        // This cannot amplify into a fetch storm: a discover ping is only ever
+        // answered with plain (non-discover) pings, so one restart invalidates
+        // one system on each peer.  xLights' discovery ping is also a discover
+        // ping, but it carries no address and so never reaches this branch.
+        if (discover && !isLocal) {
+            multiSync->InvalidateSystemInfo(address);
+        }
     }
     if (discover) {
         if ((hostname != m_hostname) && !isLocal) {

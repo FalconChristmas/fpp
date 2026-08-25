@@ -1168,6 +1168,52 @@
             return rc;
         }
 
+        function msEscape(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        /**
+         * fppd now collects the slow-changing detail about every FPP remote
+         * itself (see MultiSync::CheckSystemInfoRefreshes) and returns it on
+         * each multiSyncSystems entry as `systemInfo`.  Fold the two channel
+         * I/O flags up to the top level so the rest of the page sees a remote
+         * exactly the way it already sees the local system -- which also means
+         * checkRemoteChannelIO() returns without issuing its per-remote
+         * universeOutputs/universeInputs fetches.
+         */
+        function foldSystemInfo(entry) {
+            var si = entry.systemInfo;
+            if (!si) return;
+            if (!entry.hasOwnProperty('channelInputsEnabled') &&
+                si.hasOwnProperty('channelInputsEnabled')) {
+                entry.channelInputsEnabled = si.channelInputsEnabled;
+            }
+            if (!entry.hasOwnProperty('channelOutputsEnabled') &&
+                si.hasOwnProperty('channelOutputsEnabled')) {
+                entry.channelOutputsEnabled = si.channelOutputsEnabled;
+            }
+        }
+
+        /**
+         * Third line of the platform cell: the cape fppd found on the remote,
+         * with designer/vendor/serial in the tooltip.  Returns '' when the
+         * remote has no cape or hasn't been asked yet.
+         */
+        function getCapeHtml(cape) {
+            if (!cape || !cape.present) return '';
+            var name = cape.name || cape.id || '';
+            if (name === '') return '';
+            var bits = [];
+            if (cape.version) bits.push('Version: ' + cape.version);
+            if (cape.designer) bits.push('Designer: ' + cape.designer);
+            if (cape.vendor && cape.vendor.name) bits.push('Vendor: ' + cape.vendor.name);
+            if (cape.description) bits.push(cape.description);
+            var attr = bits.length ? " title='" + msEscape(bits.join('\n')) + "'" : '';
+            return "<br><small class='text-muted'" + attr + ">" +
+                "<i class='fas fa-microchip'></i> " + msEscape(name) + "</small>";
+        }
+
         function getChannelIOIcons(data, ip) {
             var icons = '';
             var hasInput = data.hasOwnProperty('channelInputsEnabled') && data.channelInputsEnabled;
@@ -1405,6 +1451,7 @@
                             }
                             item.platform = "<span id='" + rowID + "_platform'>" + platformTxt + "</span>" +
                                 "<br><small id='" + rowID + "_variant'>" + variantTxt + "</small>" +
+                                (item._capeHtml || '') +
                                 "<span class='hidden typeId'> " + item._typeIdHex + " </span>" +
                                 "<span class='hidden version'>" + item._versionStr + "</span>";
 
@@ -1797,6 +1844,11 @@
                     ? hostname
                     : "<a target='host_" + data[i].address + "' href='" + wrapUrlWithProxy(data[i].address, "/") + "'>" + hostname + "</a>";
 
+                // Detail fppd already fetched from this remote over HTTP.  Every
+                // field below used to arrive only with the api/system/status poll,
+                // which is what made the table reflow after the first render.
+                var si = data[i].systemInfo || {};
+
                 var versionParts = data[i].version.split('.');
                 var majorVersion = 0;
                 if (data[i].version != 'Unknown')
@@ -1819,7 +1871,7 @@
                     }
                     versionHtml = "<table class='multiSyncVerboseTable'>" +
                         "<tr><td>FPP:</td><td>" + versionStr + "</td></tr>" +
-                        "<tr><td>OS:</td><td></td></tr>" +
+                        "<tr><td>OS:</td><td>" + msEscape(si.OSVersion || '') + "</td></tr>" +
                         "</table>";
                 } else {
                     versionHtml = data[i].version;
@@ -1833,6 +1885,37 @@
                 var ipDash = ip.replace(/\./g, '_');
                 var typeIdHex = '0x' + parseInt(data[i].typeId).toString(16);
 
+                // Prefer the remote's own SubPlatform/Variant over the model
+                // string carried in the ping packet, matching what the status
+                // poll would have replaced it with a moment later.
+                var platformInit = si.Platform || data[i].type;
+                var variantInit = si.SubPlatform || si.Variant || data[i].model;
+                var capeHtml = getCapeHtml(data[i].capeInfo);
+
+                var rowColor = '';
+                if (si.backgroundColor) {
+                    var colorInt = parseInt(si.backgroundColor, 16);
+                    if (!isNaN(colorInt)) {
+                        rowColor = colorInt;
+                    }
+                }
+
+                var gitHtml = '';
+                if (si.LocalGitVersion) {
+                    gitHtml = "<table class='multiSyncVerboseTable'>" +
+                        "<tr><td><small class='text-muted'>COMMIT:</small></td><td id='" + rowID + "_localgitvers'>" +
+                        getLocalVersionLink(data[i].address, { advancedView: si }) + "</td></tr>" +
+                        "<tr><td><small class='text-muted'>BRANCH:</small></td><td id='" + rowID + "_gitbranch'>" +
+                        msEscape(si.Branch || '') + "</td></tr>";
+                    if (si.UpgradeSource && si.UpgradeSource != 'github.com') {
+                        gitHtml += "<tr><td><small class='text-muted'>ORIGIN:</small></td><td id='" + rowID +
+                            "_origin'>" + msEscape(si.UpgradeSource) + "</td></tr>";
+                    } else {
+                        gitHtml += "<span class='d-none' id='" + rowID + "_origin'></span>";
+                    }
+                    gitHtml += "</table>";
+                }
+
                 var newItem = {
                     _id:           rowID,
                     _dataIp:       data[i].address,
@@ -1840,25 +1923,27 @@
                     _hostname:     hostname,
                     _isFPP:        isFPP(data[i].typeId),
                     _typeIdHex:    typeIdHex,
-                    _platformInit: data[i].type,
-                    _variantInit:  data[i].model,
+                    _platformInit: platformInit,
+                    _variantInit:  variantInit,
+                    _capeHtml:     capeHtml,
                     _versionStr:   versionStr,
                     _baseIpHtml:   ipTxt,
                     hostname:     "<span class='reorder-grip'><i class='rowGripIcon fpp-icon-grip'></i></span>" +
                                   "<span id='fpp_" + ipDash + "_hostname'" + hnSpanStyle + ">" + hostTxt + "</span>" +
-                                  "<br><small class='hostDescriptionSM'></small>",
+                                  "<br><small class='hostDescriptionSM'>" + msEscape(si.HostDescription || '') + "</small>",
                     ipaddress:    ipTxt,
-                    platform:     "<span id='" + rowID + "_platform'>" + data[i].type + "</span>" +
-                                  "<br><small id='" + rowID + "_variant'>" + data[i].model + "</small>" +
+                    platform:     "<span id='" + rowID + "_platform'>" + msEscape(platformInit) + "</span>" +
+                                  "<br><small id='" + rowID + "_variant'>" + msEscape(variantInit) + "</small>" +
+                                  capeHtml +
                                   "<span class='hidden typeId'> " + typeIdHex + " </span>" +
                                   "<span class='hidden version'>" + data[i].version + "</span>",
                     mode:         fppMode,
                     status:       'Last Seen:<br>' + data[i].lastSeenStr,
                     elapsed:      '',
                     version:      versionHtml,
-                    gitversions:  '',
+                    gitversions:  gitHtml,
                     utilization:  '',
-                    fppcolor:     '',
+                    fppcolor:     rowColor,
                     selectbox:    selectboxHtml
                 };
                 systemsData.push(newItem);
@@ -2070,6 +2155,7 @@
 
             const r = await fetch('api/fppd/multiSyncSystems');
             const data = await r.json();
+            data.systems.forEach(foldSystemInfo);
             systemsList = data.systems;
             parseFPPSystems(data.systems);
         }
