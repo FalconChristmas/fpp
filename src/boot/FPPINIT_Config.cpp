@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iterator>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -270,6 +271,91 @@ inline const std::string& mapBBBLedValue(const std::string& v) {
     return v;
 }
 
+#ifdef PLATFORM_BB64
+//
+// The PocketBeagle2's identity lives in an on-board EEPROM that u-boot reads to
+// decide how much DDR the board has.  Some boards leave the factory with it
+// blank or half-written, and until now that was only ever noticed by the
+// flashing paths (SD/BB64-AutoFlash.sh, SD/flash_storage.sh) -- a board that
+// reached FPP any other way kept an unusable identity, which also costs it its
+// M5- stats UUID.
+//
+// The detection is done here rather than in the shell script because the script
+// is only cheap on a board that needs nothing done to it in the *industrial*
+// case: on a healthy base board its "programmed PB20 but has eMMC" cross-check
+// waits out the full eMMC timeout, ~10s, every single boot.  That check is
+// there to stop a misidentified board being FLASHED, which is not what is
+// happening here -- by the time we boot, u-boot has already sized the RAM.  So
+// read the two fields that decide whether anything needs doing, and only fork
+// the script when they say it does.  A healthy board costs one 56-byte read.
+//
+static bool pb2EepromValid(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in.good()) {
+        return false;
+    }
+    unsigned char buf[56];
+    in.read((char*)buf, sizeof(buf));
+    if (in.gcount() != (std::streamsize)sizeof(buf)) {
+        return false;
+    }
+    // Magic header, then the six ASCII digits of the unit number at 50..55.
+    // These are exactly the fields check_pb2_eeprom.sh decides NEEDS_FIX from.
+    if (buf[0] != 0xAA || buf[1] != 0x55) {
+        return false;
+    }
+    for (int i = 50; i < 56; i++) {
+        if (buf[i] < '0' || buf[i] > '9') {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Both paths are overridable so this can be exercised against fixtures, exactly
+// as capes/drivers/bb64/*.sh already allow.  Nothing in FPP sets them, and the
+// same names are honoured by the script we fork, so a fixture run stays a
+// fixture run all the way down.
+static std::string pb2Path(const char* env, const char* dflt) {
+    const char* v = getenv(env);
+    return (v && *v) ? std::string(v) : std::string(dflt);
+}
+
+static void checkPB2EEPROM() {
+    // Only the PocketBeagle2 family has this EEPROM at this address with this
+    // layout.  The model string does not distinguish base from industrial, but
+    // it does not need to -- the script works that out if it is called.
+    std::ifstream m(pb2Path("PB2_MODEL", "/proc/device-tree/model"), std::ios::binary);
+    if (!m.good()) {
+        return;
+    }
+    std::string model((std::istreambuf_iterator<char>(m)), std::istreambuf_iterator<char>());
+    if (model.find("PocketBeagle2") == std::string::npos) {
+        return;
+    }
+
+    const std::string eeprom = pb2Path("PB2_EEPROM", "/sys/bus/i2c/devices/0-0050/eeprom");
+    if (!FileExists(eeprom)) {
+        // Nothing to repair: with 0x50 silent there is nothing to write to.
+        // The script's full diagnosis of why costs a 10s wait and cannot fix
+        // it from here, so leave that to the flashing path and just say so.
+        printf("FPP - PocketBeagle2: no EEPROM at %s, board identity unavailable\n", eeprom.c_str());
+        return;
+    }
+    if (pb2EepromValid(eeprom)) {
+        return;
+    }
+
+    printf("FPP - PocketBeagle2 EEPROM identity is blank or malformed, repairing\n");
+    exec("/bin/bash /opt/fpp/capes/drivers/bb64/check_pb2_eeprom.sh");
+    if (pb2EepromValid(eeprom)) {
+        // u-boot read the old contents at power-on, so an industrial board that
+        // came up as the 512MB base variant stays that way until it reboots.
+        printf("FPP - PocketBeagle2 EEPROM repaired; reboot for u-boot to pick up the identity\n");
+    }
+}
+#endif
+
 void configureBBB() {
 #ifdef PLATFORM_BBB
     if (FileExists("/dev/mmcblk1")) {
@@ -306,6 +392,9 @@ void configureBBB() {
         exec("/usr/sbin/i2cset -f -y 0 0x24 0x0b 0x6e");
         exec("/usr/sbin/i2cset -f -y 0 0x24 0x13 " + pled);
     }
+#endif
+#ifdef PLATFORM_BB64
+    checkPB2EEPROM();
 #endif
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
     std::string led;
