@@ -110,6 +110,14 @@ std::string buildHttpURL(const std::string& address, const std::string& path = "
 // True for an IPv4 127/8 or IPv6 ::1 address.  Discovery treats loopback as
 // "this box finding itself" and never as a peer -- see MultiSync::UpdateSystem().
 bool IsLoopbackAddress(const std::string& address);
+
+// The MAC of an on-link IPv4 neighbour, as 12 uppercase hex digits with no
+// separators, or "" if it isn't known.  Read from the kernel's ARP table, so it
+// only answers for hosts on a directly attached subnet -- a routed host simply
+// has no entry, which is what we want (we must never hand back the gateway's
+// MAC for a device behind it).  Used to give controllers that report no UUID of
+// their own a stable identity; see MultiSyncSystem::update().
+std::string GetMacForAddress(const std::string& address);
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const std::list<std::string>& headers, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, std::string& resp, const unsigned int timeout = 30);

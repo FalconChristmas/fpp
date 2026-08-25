@@ -41,12 +41,14 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <fstream>
 #include <ifaddrs.h>
 #include <iomanip>
 #include <list>
 #include <map>
 #include <netdb.h>
 #include <pwd.h>
+#include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -530,6 +532,52 @@ size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
     str->append(static_cast<const char*>(buffer), size * nmemb);
 
     return size * nmemb;
+}
+
+std::string GetMacForAddress(const std::string& address) {
+    if (address.empty() || IsLoopbackAddress(address)) {
+        return "";
+    }
+    // IPv6 neighbours are not exposed through procfs, so a v6-only peer gets no
+    // MAC here.  That is harmless: a dual-stacked device is still identified
+    // through its IPv4 entry, and the UI merges a device's addresses by the
+    // UUID any one of them carries.
+    if (address.find(':') != std::string::npos) {
+        return "";
+    }
+
+    std::ifstream arp("/proc/net/arp");
+    if (!arp.is_open()) {
+        return "";
+    }
+    std::string line;
+    std::getline(arp, line); // header
+    while (std::getline(arp, line)) {
+        std::stringstream ss(line);
+        std::string ip, hwType, flags, hwAddr;
+        if (!(ss >> ip >> hwType >> flags >> hwAddr)) {
+            continue;
+        }
+        if (ip != address) {
+            continue;
+        }
+        // Flag bit 0x2 (ATF_COM) means the entry is complete.  An incomplete
+        // entry carries a zeroed address that would otherwise look like a MAC.
+        if ((strtol(flags.c_str(), nullptr, 0) & 0x2) == 0) {
+            return "";
+        }
+        std::string mac;
+        for (char c : hwAddr) {
+            if (isxdigit(c)) {
+                mac += toupper(c);
+            }
+        }
+        if (mac.size() != 12 || mac == "000000000000") {
+            return "";
+        }
+        return mac;
+    }
+    return "";
 }
 
 bool IsLoopbackAddress(const std::string& address) {

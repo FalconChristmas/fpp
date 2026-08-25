@@ -3696,6 +3696,18 @@ function isValidSystemUUID($uuid)
         return false;
     }
     $uuid = trim($uuid);
+
+    // "MAC:" marks an identity MultiSync synthesised from a device's hardware
+    // address because the device reported none of its own.  It is good enough
+    // to key a UI row on, but it is not an identity the device chose and it is
+    // a hardware address, so it must not pass as a real UUID.  Rejecting it
+    // here keeps the statistics collector doing what it did before this
+    // stand-in existed: ask the controller for its real identity, and fall back
+    // to a salted local hash rather than reporting the MAC upstream.
+    if (stripos($uuid, 'MAC:') === 0) {
+        return false;
+    }
+
     // Strip the method prefix so the denylist compares bare values
     $bare = preg_replace('/^M[0-9]+-/', '', $uuid);
 

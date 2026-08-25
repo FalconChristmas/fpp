@@ -124,9 +124,37 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
                              const std::string& uuid,
                              const bool multiSync,
                              const bool sendingMultiSync) {
-    // Always update uuid if not Unknown
+    // UUID precedence.  A device that reports its own UUID always wins; the
+    // MAC-derived identity below is only ever a stand-in for one, so it must
+    // never overwrite a real UUID, and a real UUID arriving later must replace
+    // it.
     if (uuid != "Unknown" && uuid != "") {
-        this->uuid = uuid;
+        if (!startsWith(uuid, MAC_UUID_PREFIX) || this->uuid.empty() ||
+            startsWith(this->uuid, MAC_UUID_PREFIX)) {
+            this->uuid = uuid;
+        }
+    }
+
+    // Nothing reported a UUID for this device.  That is the normal case for
+    // every controller that isn't full FPP: the ping packet carries no UUID
+    // field at all, so ProcessPingPacket() has none to pass on, and
+    // NetworkController only fills one in for an FPP instance.  Without an
+    // identity the UI has to key the row on the hostname, which collides as
+    // soon as two controllers ship with the same default name and changes
+    // under it whenever someone renames one.
+    //
+    // The MAC is the stable identity such a device does have, and the kernel
+    // already knows it for anything on a directly attached subnet.  Only look
+    // it up while we still have nothing -- once an identity of either kind is
+    // recorded this stops running, so it costs one small read per device
+    // rather than one per ping.
+    if (this->uuid.empty()) {
+        // The parameter, not this->address: on a system being created that
+        // member is still empty here, and is only assigned further down.
+        std::string mac = GetMacForAddress(address);
+        if (!mac.empty()) {
+            this->uuid = MAC_UUID_PREFIX + mac;
+        }
     }
 
     // If this record is from info learned via the MultiSync protocol,

@@ -189,6 +189,11 @@ public:
     Json::Value toJSON() const;
 };
 
+// Identity synthesised from a device's MAC when it reports no UUID of its own.
+// The prefix marks it as a stand-in so a real UUID arriving later can replace
+// it -- see MultiSyncSystem::update().
+#define MAC_UUID_PREFIX "MAC:"
+
 class MultiSyncSystem {
 public:
     MultiSyncSystem() {
