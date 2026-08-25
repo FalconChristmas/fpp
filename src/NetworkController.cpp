@@ -490,10 +490,15 @@ bool NetworkController::DetectExperienceController(const std::string& ip, const 
     typeId = kSysTypeExperienceGenius;
     typeStr = sys["controller_model_name"].asString();
 
-    // "Genius_PRO_Controller_16 v1.3.1-2" -- take the dotted version after "v".
+    // The firmware string is not a stable shape across releases: the 1.x line
+    // reported "Genius_PRO_Controller_16 v1.3.1-2", the 2.x line reports a bare
+    // "2.2.0-0".  Accept the dotted version either at the start of the string or
+    // after a "v", and require the dot so a model number ("...16 Port") cannot
+    // be mistaken for one.  Anything unrecognised is passed through as-is rather
+    // than dropped.
     std::string fw = sys.get("firmware_version", "").asString();
     std::smatch m;
-    RegExCache re("v([0-9]+)\\.([0-9]+)(?:\\.([0-9]+))?");
+    RegExCache re("(?:^|v)([0-9]+)\\.([0-9]+)(?:\\.([0-9]+))?");
     if (std::regex_search(fw, m, *re.regex)) {
         version = m[1].str() + "." + m[2].str();
         if (m[3].matched) {
@@ -521,6 +526,7 @@ bool NetworkController::DetectExperienceController(const std::string& ip, const 
         }
     }
 
+    DumpControllerInfo();
     return true;
 }
 
