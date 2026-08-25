@@ -34,11 +34,17 @@ function stats_generate($statsFile)
         "timezone" => 'stats_timezone',
     );
 
+    $obj = array();
     foreach ($tasks as $key => $fun) {
         try {
             $obj[$key] = call_user_func($fun);
-        } catch (exception $e) {
-            echo ("Call to $t failed");
+        } catch (Throwable $e) {
+            // Never echo from inside an API request: it writes straight into the
+            // HTTP response body, so one failing collector puts a bare string
+            // ahead of the JSON and breaks parsing for every caller.  Throwable
+            // rather than Exception so a TypeError in one collector costs that
+            // collector only, instead of the whole payload.
+            error_log("stats_generate: collector '" . $key . "' failed: " . $e->getMessage());
         }
     }
     if (file_exists($statsFile)) {
@@ -128,13 +134,38 @@ function stats_network()
         if (isset($i['operstate'])) {
             $rc['interfaces'][$name]['operstate'] = $i['operstate'];
         }
-        if (isset($rc['interfaces'][$name]['config'])) {
-            $rc['interfaces'][$name]['config'] = $i['config'];
-            unset($rc['interfaces'][$name]['config']['PSK']);
-            unset($rc['interfaces'][$name]['config']['SSID']);
-            unset($rc['interfaces'][$name]['config']['ADDRESS']);
-            unset($rc['interfaces'][$name]['config']['NETMASK']);
-            unset($rc['interfaces'][$name]['config']['GATEWAY']);
+        // This tested $rc -- the array being built -- rather than $i, so it could
+        // never be true and has emitted nothing since it was written.
+        //
+        // It is deliberately not switched on as-written.  The unset() list it
+        // carried covers PSK and SSID but not BACKUPPSK and BACKUPSSID, which are
+        // a wifi passphrase and a network name, so simply fixing the condition
+        // would have started uploading credentials.  A denylist fails open every
+        // time a new key is added to the interface config; an allowlist fails
+        // closed, which is the only safe default for a payload that leaves the
+        // device.  Nothing here identifies a household or a network.
+        if (isset($i['config']) && is_array($i['config'])) {
+            $allowed = array(
+                'PROTO',            // dhcp vs static
+                'HIDDEN',
+                'WPA3',
+                'BACKUPHIDDEN',
+                'BACKUPWPA3',
+                'IPFORWARDING',
+                'DHCPSERVER',
+                'DHCPPOOLSIZE',
+                'DHCPOFFSET',
+                'ROUTEMETRIC',
+            );
+            $config = array();
+            foreach ($allowed as $key) {
+                if (isset($i['config'][$key])) {
+                    $config[$key] = $i['config'][$key];
+                }
+            }
+            if (count($config)) {
+                $rc['interfaces'][$name]['config'] = $config;
+            }
         }
     }
 
@@ -758,7 +789,10 @@ function stats_universe_out()
         "threaded" => "threaded",
         "type" => "type",
     );
-    validateAndAdd($rc, $data["channelOutputs"], $mapping);
+    // Was validateAndAdd($rc, $data["channelOutputs"], ...) -- $data is already
+    // the entry, so that index does not exist and enabled/threaded/type have
+    // never been emitted for universe outputs.
+    validateAndAdd($rc, $data, $mapping);
 
     $universeCount = 0;
     $rowCount = 0;
