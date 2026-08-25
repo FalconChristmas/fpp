@@ -135,6 +135,18 @@ cp -a mnt/etc/hostname tmp/etc
 echo "Saving machine-id"
 cp -a mnt/etc/machine-id tmp/etc
 
+# The randomly generated system identity, used when the board has no usable
+# hardware serial. Unlike machine-id it is created on the device and never
+# ships in an image, so the rsync below would simply delete it and the box
+# would generate a new one on next boot -- silently becoming a brand new
+# install in the stats on every OS upgrade. Guarded because most boards
+# derive their identity from a serial and never create this file.
+if [ -f mnt/etc/fpp/fpp_uuid ]; then
+    echo "Saving fpp_uuid"
+    mkdir -p tmp/etc/fpp
+    cp -a mnt/etc/fpp/fpp_uuid tmp/etc/fpp
+fi
+
 # --- Reconcile fpp uid/gid with the incoming image --------------------------
 # The fpp user's uid/gid has not been consistent across FPP's history (500 on
 # older installs/images, 1000 since commit f8f2f1408 for Trixie compatibility).
@@ -280,6 +292,14 @@ echo "Restoring machine-id"
 cp -af tmp/etc/machine-id mnt/etc/machine-id
 rm -f  tmp/etc/machine-id
 echo
+
+if [ -f tmp/etc/fpp/fpp_uuid ]; then
+    echo "Restoring fpp_uuid"
+    mkdir -p mnt/etc/fpp
+    cp -af tmp/etc/fpp/fpp_uuid mnt/etc/fpp/fpp_uuid
+    rm -f  tmp/etc/fpp/fpp_uuid
+    echo
+fi
 
 
 #create a file in root to mark it as requiring kiosk mode to be installed, will be checked on reboot
