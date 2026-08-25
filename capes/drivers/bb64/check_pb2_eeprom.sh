@@ -182,7 +182,11 @@ GOT=$(dd if="${EEPROM}" bs=1 count=64 2>/dev/null | wc -c)
 read_field() { dd if="${EEPROM}" bs=1 skip="$1" count="$2" 2>/dev/null; }
 
 MAGIC=$(read_field 0 2 | xxd -p)
-SERIAL=$(read_field 52 4 | xxd -p)
+# The unit number is the six ASCII digits at offset 50..55, which is the field
+# the fix scripts assign as a whole.  Testing only the low four (the old
+# behaviour) calls a board healthy when 50..51 are still 0xFF, and get_uuid
+# then rejects the serial anyway -- so check the whole field.
+UNIT=$(read_field 50 6)
 # Offset 46 holds the board ID: "PB2I" on the industrial board, "PB20" on the base
 # one.  It survives the "valid header, blank serial" failure mode, so read it
 # whenever the header is there at all.
@@ -248,13 +252,13 @@ NEEDS_FIX=false
 if [ "${MAGIC}" != "aa55" ]; then
     info "EEPROM: header invalid (expected aa55, got ${MAGIC:-empty})"
     NEEDS_FIX=true
-elif [ "${SERIAL}" = "ffffffff" ]; then
-    info "EEPROM: header valid but the serial number is blank"
+elif ! [[ "${UNIT}" =~ ^[0-9]{6}$ ]]; then
+    info "EEPROM: header valid but the unit number is blank or malformed"
     NEEDS_FIX=true
 fi
 
 if [ "${NEEDS_FIX}" = "false" ]; then
-    info "EEPROM: valid (${BOARDID}, magic=${MAGIC}, serial=$(read_field 52 4))"
+    info "EEPROM: valid (${BOARDID}, magic=${MAGIC}, unit=${UNIT})"
     exit 0
 fi
 
@@ -273,12 +277,12 @@ info "EEPROM: repairing with $(basename "${FIX}")"
 # looks like a successful `dd`.  Without this the caller is told the board was
 # repaired on exactly the boards where it was not.
 MAGIC=$(read_field 0 2 | xxd -p)
-SERIAL=$(read_field 52 4 | xxd -p)
+UNIT=$(read_field 50 6)
 BOARDID=$(read_field 46 4)
 
 [ "${MAGIC}" = "aa55" ] || fatal "still no valid header after the repair (magic=${MAGIC:-empty}).
   The EEPROM did not accept the write.  This board must not be flashed."
-[ "${SERIAL}" != "ffffffff" ] || fatal "serial number is still blank after the repair.
+[[ "${UNIT}" =~ ^[0-9]{6}$ ]] || fatal "unit number is still blank or malformed after the repair (unit=${UNIT}).
   The EEPROM did not accept the write.  This board must not be flashed."
 
 if [ "${INDUSTRIAL}" = "true" ]; then
@@ -288,5 +292,5 @@ else
     [ "${BOARDID}" = "PB20" ] || fatal "board ID reads '${BOARDID}' after the base-board repair."
 fi
 
-info "EEPROM: repaired and verified (${BOARDID}, magic=${MAGIC}, serial=$(read_field 52 4))"
+info "EEPROM: repaired and verified (${BOARDID}, magic=${MAGIC}, unit=${UNIT})"
 exit 0
