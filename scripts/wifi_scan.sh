@@ -145,20 +145,18 @@ while read -r wifi_device || [[ -n $wifi_device ]]; do
     fi
 
     if [ "$connected" -eq 1 ]; then
-        # Connected station: only the nl80211 low-priority scan avoids blindly
-        # preempting the AP's beacon schedule. `iwlist`/WEXT has no equivalent
-        # priority hint, so skip it here rather than risk dropping the link.
-        iw_scan=$(iw dev "$wifi_device" scan low-priority 2>&1)
-        if [ $? -ne 0 ]; then
-            printf "%s: connected to '%s', no safe scan method available - skipping disruptive scan\n\n" \
-                "$wifi_device" "$ssid"
-            [ "$UPORDOWN" = "down" ] && ip link set "$wifi_device" down 2>/dev/null
-            continue
+        # Connected station. Scanning from here is routine - the station tells
+        # its AP to buffer traffic before it leaves the channel, the same way
+        # wpa_supplicant's own background/roam scans do - so run the normal
+        # scans and just prefer the low-priority hint where the driver has it.
+        printf "%s: connected to '%s'\n\n" "$wifi_device" "$ssid"
+        if iw_scan=$(iw dev "$wifi_device" scan low-priority 2>&1); then
+            show "iw dev $wifi_device scan (nl80211, low-priority)" '^BSS ' parse_iw "$iw_scan"
+        else
+            # Most in-kernel drivers (brcmfmac on the Pi's onboard radio
+            # included) never advertise NL80211_FEATURE_LOW_PRIORITY_SCAN.
+            printf -- "----- iw dev %s scan (nl80211, low-priority) -----\n%s\n\n" "$wifi_device" "$iw_scan"
         fi
-        show "iw dev $wifi_device scan (nl80211, low-priority)" '^BSS ' parse_iw "$iw_scan"
-        printf -- "----- iwlist %s scan (WEXT) -----\nskipped - connected station, no safe scan method for this backend\n\n" "$wifi_device"
-        [ "$UPORDOWN" = "down" ] && ip link set "$wifi_device" down 2>/dev/null
-        continue
     fi
 
     iw_scan=$(iw dev "$wifi_device" scan 2>&1)

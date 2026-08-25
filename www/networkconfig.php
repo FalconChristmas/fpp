@@ -1483,6 +1483,14 @@
                     return;
                 }
 
+                // A cached list is still selectable, so it renders as a normal
+                // table below a note explaining that it isn't live.
+                var noticeRow = '';
+                if (data && data.status === 'Cached' && data.message) {
+                    noticeRow = '<tr><td colspan="3" class="p-2 text-center text-muted"><i class="fas fa-history"></i> ' +
+                        data.message + '</td></tr>';
+                }
+
                 if (data && data.networks && data.networks.length > 0) {
                     // Process networks and keep only the strongest signal for each SSID
                     data.networks.forEach(function (n) {
@@ -1570,7 +1578,7 @@
                 } else {
                     html = '<tr><td colspan="3">No networks found</td></tr>';
                 }
-                wifiTableBody.html(html);
+                wifiTableBody.html(noticeRow + html);
             }).fail(function () {
                 wifiTableBody.html('<tr><td colspan="3" class="p-2 text-center text-muted">Scan failed</td></tr>');
             });

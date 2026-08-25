@@ -82,16 +82,19 @@ function network_wifi_strength()
  *   ]
  * }
  * ```
- * If the interface currently has a live association that an active scan would
- * disrupt (an AP-mode hotspot with connected clients, or a managed-mode link
- * with no safe low-priority scan path), the scan is skipped entirely:
+ * If the scan could not run (the interface is an AP-mode hotspot with clients
+ * connected, which scanning would disconnect) or produced nothing, the last
+ * successful scan is returned instead, with `status` set to `Cached` and a
+ * message giving its age:
  * ```json
  * {
- *   "status": "Blocked",
- *   "networks": [],
- *   "message": "wlan0 is currently running the FPP hotspot with 2 device(s) connected. Scanning would disconnect them, so it's blocked while the hotspot has active clients."
+ *   "status": "Cached",
+ *   "networks": [{"freq": 2437, "signal": "-61.00 dBm", "SSID": "Christmas"}],
+ *   "message": "wlan0 is currently running the FPP hotspot with 2 device(s) connected. Scanning would disconnect them, so it's blocked while the hotspot has active clients. Showing the last scan, from 4 minutes ago."
  * }
  * ```
+ * With no cached scan to fall back on, a hotspot with clients returns
+ * `"status": "Blocked"` and the same explanation with an empty network list.
  */
 /**
  * Parse `iw dev <iface> scan` output into an array of network descriptors.
@@ -198,6 +201,74 @@ function network_parse_iwlist_scan($output)
 }
 
 /**
+ * Parse `wpa_cli -i <iface> scan_results` output into the same descriptor
+ * shape as network_parse_iw_scan(). This reads wpa_supplicant's own BSS cache,
+ * which it fills from the background scans it already runs while associated,
+ * so it costs the live link nothing at all.
+ *
+ * Rows are tab separated:
+ *   bssid / frequency / signal level / flags / ssid
+ *   aa:bb:cc:dd:ee:ff   2437   -61   [WPA2-PSK-CCMP][ESS]   Christmas
+ */
+function network_parse_wpa_scan_results($output)
+{
+    $networks = array();
+
+    foreach ($output as $row) {
+        $cols = explode("\t", rtrim($row, "\r\n"));
+        if (count($cols) < 4 || !preg_match('/^[0-9a-fA-F:]{17}$/', $cols[0])) {
+            // "Selected interface ...", the header row, and any error text.
+            continue;
+        }
+
+        $flags = $cols[3];
+        $current = array(
+            'bssid' => strtoupper($cols[0]),
+            'freq' => intval($cols[1]),
+            'signal' => sprintf('%.2f dBm', floatval($cols[2])),
+            // Hidden APs report an empty SSID here, same as `iw` does.
+            'SSID' => isset($cols[4]) ? $cols[4] : ''
+        );
+
+        if (preg_match('/\[(WPA|WPA2|RSN|WEP)/', $flags)) {
+            $current['encrypted'] = true;
+        }
+        $security = array();
+        // SAE (and its WPA2 transition mode) is what makes an AP WPA3.
+        if (preg_match('/\[(?:WPA2|RSN)[^\]]*\bSAE\b/', $flags)) {
+            $security[] = 'WPA3';
+        }
+        // SAE-only APs are WPA3 and nothing else; a transition-mode AP
+        // advertises a PSK/EAP suite alongside it and is both.
+        if (preg_match('/\[(?:WPA2|RSN)[^\]]*-(?:PSK|EAP)/', $flags)) {
+            $security[] = 'WPA2';
+        }
+        if (preg_match('/\[WPA-/', $flags)) {
+            $security[] = 'WPA';
+        }
+        if (preg_match('/\[WEP\]/', $flags)) {
+            $security[] = 'WEP';
+        }
+        if (count($security)) {
+            $current['security'] = implode(' ', array_unique($security));
+        }
+        if (preg_match('/-(PSK|SAE)/', $flags)) {
+            $current['auth'] = 'PSK';
+        } else if (preg_match('/-EAP/', $flags)) {
+            $current['auth'] = 'Enterprise';
+        }
+        // Mixed-cipher APs list "CCMP+TKIP"; report the stronger one they lead with.
+        if (preg_match('/-(CCMP|TKIP)/', $flags, $m)) {
+            $current['cipher'] = $m[1];
+        }
+
+        array_push($networks, $current);
+    }
+
+    return $networks;
+}
+
+/**
  * Determine whether a wifi interface currently has a live association that a
  * disruptive active scan would interrupt:
  *   - AP mode (hostapd) with station(s) connected - scanning stops beaconing
@@ -261,10 +332,120 @@ function network_interface_in_use($interface)
     return array("mode" => "idle", "clientCount" => 0, "ssid" => "");
 }
 
+/**
+ * Where the last successful scan for an interface is remembered.
+ *
+ * A scan can be impossible at the exact moment the page asks for one - the
+ * hotspot is up with clients on it, or the driver refuses a scan while one of
+ * wpa_supplicant's own is already in flight - and an empty table tells the
+ * user nothing. Remembering the last list lets the page still show something
+ * to pick from, clearly labelled with its age.
+ */
+function network_wifi_scan_cache_file($interface)
+{
+    return "/tmp/fpp_wifi_scan_" . preg_replace('/[^A-Za-z0-9_.-]/', '', $interface) . ".json";
+}
+
+function network_wifi_scan_cache_save($interface, $networks)
+{
+    if (!count($networks)) {
+        return;
+    }
+    @file_put_contents(network_wifi_scan_cache_file($interface), json_encode(array(
+        "time" => time(),
+        "networks" => $networks
+    )));
+}
+
+/**
+ * Returns array("networks" => array(...), "age" => seconds) for a usable
+ * cached scan, or null when there isn't one. Anything older than a day is
+ * treated as gone; by then the device has very likely moved or the APs around
+ * it have changed.
+ */
+function network_wifi_scan_cache_load($interface)
+{
+    $file = network_wifi_scan_cache_file($interface);
+    if (!file_exists($file)) {
+        return null;
+    }
+    $cache = json_decode(@file_get_contents($file), true);
+    if (!isset($cache['networks']) || !count($cache['networks'])) {
+        return null;
+    }
+    $age = time() - intval($cache['time']);
+    if ($age < 0 || $age > 86400) {
+        return null;
+    }
+    return array("networks" => $cache['networks'], "age" => $age);
+}
+
+function network_wifi_scan_age_desc($age)
+{
+    if ($age < 90) {
+        return $age . " second" . ($age == 1 ? "" : "s") . " ago";
+    }
+    if ($age < 5400) {
+        $mins = intval(round($age / 60));
+        return $mins . " minute" . ($mins == 1 ? "" : "s") . " ago";
+    }
+    $hours = intval(round($age / 3600));
+    return $hours . " hour" . ($hours == 1 ? "" : "s") . " ago";
+}
+
+/**
+ * Run the available scan backends in order and return the first list that came
+ * back with anything in it.
+ *
+ * Scanning while associated is routine rather than dangerous: before it leaves
+ * the channel the station tells its AP to buffer traffic (a null-data frame
+ * with PM set), which is exactly what wpa_supplicant already does for its own
+ * background and roaming scans. The low-priority hint is still preferred when
+ * the driver offers it, but its absence is not a reason to refuse - most
+ * in-kernel drivers, the Pi's onboard brcmfmac radio included, simply never
+ * advertise NL80211_FEATURE_LOW_PRIORITY_SCAN.
+ */
+function network_wifi_run_scan($interface, $connected)
+{
+    $iface = escapeshellarg($interface);
+    $attempts = array();
+
+    if ($connected) {
+        // Kindest to the live link where the driver implements it.
+        $attempts[] = array("sudo /sbin/iw dev $iface scan low-priority 2>/dev/null", 'network_parse_iw_scan');
+    }
+
+    // Preferred path: nl80211 via `iw`. Works on modern in-kernel drivers
+    // and Wi-Fi 7 hardware where the old wireless extensions are gone.
+    $attempts[] = array("sudo /sbin/iw dev $iface scan 2>/dev/null", 'network_parse_iw_scan');
+
+    if ($connected) {
+        // wpa_supplicant's own BSS cache. Costs the link nothing, and it is
+        // the only thing that answers when the driver returns -EBUSY because
+        // a supplicant scan is already running on this radio.
+        $attempts[] = array("sudo wpa_cli -i $iface scan_results 2>/dev/null", 'network_parse_wpa_scan_results');
+    }
+
+    // Fallback: some out-of-tree Realtek USB drivers (e.g. RTL8812BU /
+    // RTL8822BU on the 88x2bu driver) advertise no working nl80211 scan
+    // support, so `iw` returns an empty list even with APs in range. Those
+    // drivers still scan fine over the legacy WEXT `iwlist` path.
+    $attempts[] = array("sudo /sbin/iwlist $iface scan 2>/dev/null", 'network_parse_iwlist_scan');
+
+    foreach ($attempts as $attempt) {
+        $output = array();
+        exec($attempt[0], $output);
+        $networks = $attempt[1]($output);
+        if (count($networks)) {
+            return $networks;
+        }
+    }
+
+    return array();
+}
+
 function network_wifi_scan()
 {
-    $networks = array();
-    $current = array();
     $interface = params('interface');
 
     # Validate interface.   -- Important because of SUDO
@@ -281,56 +462,48 @@ function network_wifi_scan()
         return json(array("status" => "Invalid Interface", "networks" => array()));
     }
 
-    exec("sudo /sbin/ip link set $interface up", $output);
-
     $inUse = network_interface_in_use($interface);
 
+    // A hotspot with clients on it is the one case with no way through: a
+    // single-radio adapter stops beaconing to scan, dropping every connected
+    // device. Hand back the last known list instead of an empty table.
     if ($inUse["mode"] === "AP") {
-        return json(array(
-            "status" => "Blocked",
-            "networks" => array(),
-            "message" => "$interface is currently running the FPP hotspot with " . $inUse["clientCount"] .
-                " device(s) connected. Scanning would disconnect them, so it's blocked while the hotspot has active clients."
-        ));
-    }
-
-    if ($inUse["mode"] === "station") {
-        // Only the nl80211 low-priority scan avoids blindly preempting the
-        // AP's beacon schedule. `iwlist`/WEXT has no equivalent priority
-        // hint, so if `iw` can't do it here there is no safe path - block
-        // rather than silently falling back to a disruptive iwlist scan.
-        $output = array();
-        exec("sudo /sbin/iw dev $interface scan low-priority 2>&1", $output, $ret);
-        if ($ret !== 0) {
-            $ssidMsg = $inUse["ssid"] !== "" ? "connected to '" . $inUse["ssid"] . "'" : "connected";
+        $cached = network_wifi_scan_cache_load($interface);
+        $why = "$interface is currently running the FPP hotspot with " . $inUse["clientCount"] .
+            " device(s) connected. Scanning would disconnect them, so it's blocked while the hotspot has active clients.";
+        if ($cached !== null) {
             return json(array(
-                "status" => "Blocked",
-                "networks" => array(),
-                "message" => "$interface is currently $ssidMsg. This adapter doesn't support a safe scan while connected, so scanning is blocked to avoid dropping that connection."
+                "status" => "Cached",
+                "networks" => $cached["networks"],
+                "message" => $why . " Showing the last scan, from " . network_wifi_scan_age_desc($cached["age"]) . "."
             ));
         }
-        $networks = network_parse_iw_scan($output);
+        return json(array("status" => "Blocked", "networks" => array(), "message" => $why));
+    }
+
+    exec("sudo /sbin/ip link set " . escapeshellarg($interface) . " up");
+
+    $networks = network_wifi_run_scan($interface, $inUse["mode"] === "station");
+
+    if (count($networks)) {
+        network_wifi_scan_cache_save($interface, $networks);
         return json(array("status" => "OK", "networks" => $networks));
     }
 
-    // Preferred path: nl80211 via `iw`. Works on modern in-kernel drivers
-    // and Wi-Fi 7 hardware where the old wireless extensions are gone.
-    $output = array();
-    exec("sudo /sbin/iw dev $interface scan", $output);
-    $networks = network_parse_iw_scan($output);
-
-    // Fallback: some out-of-tree Realtek USB drivers (e.g. RTL8812BU /
-    // RTL8822BU on the 88x2bu driver) advertise no working nl80211 scan
-    // support, so `iw` returns an empty list even with APs in range. Those
-    // drivers still scan fine over the legacy WEXT `iwlist` path, so retry
-    // there before giving up and reporting "No networks found".
-    if (count($networks) == 0) {
-        $output = array();
-        exec("sudo /sbin/iwlist $interface scan 2>/dev/null", $output);
-        $networks = network_parse_iwlist_scan($output);
+    // Nothing came back from any backend. A stale list still beats nothing,
+    // and is what lets someone switch networks from a device whose radio only
+    // scans cleanly while it is idle.
+    $cached = network_wifi_scan_cache_load($interface);
+    if ($cached !== null) {
+        return json(array(
+            "status" => "Cached",
+            "networks" => $cached["networks"],
+            "message" => "No networks came back from this scan. Showing the last successful scan, from " .
+                network_wifi_scan_age_desc($cached["age"]) . "."
+        ));
     }
 
-    return json(array("status" => "OK", "networks" => $networks));
+    return json(array("status" => "OK", "networks" => array()));
 }
 
 /**
