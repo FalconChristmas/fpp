@@ -240,6 +240,10 @@ Json::Value MultiSyncCapeInfo::toJSON() const {
     SetIfNotEmpty(v, "description", description);
     SetIfNotEmpty(v, "version", version);
     SetIfNotEmpty(v, "designer", designer);
+    // Only emitted when the cape opts out, so the common case adds no bytes.
+    if (!sendStats) {
+        v["sendStats"] = 0;
+    }
     Json::Value vendor;
     SetIfNotEmpty(vendor, "name", vendorName);
     SetIfNotEmpty(vendor, "url", vendorURL);
@@ -1814,6 +1818,8 @@ void MultiSync::FetchCapeInfo(const std::string& address) {
             cape.description = v.get("description", "").asString();
             cape.version = v.get("version", "").asString();
             cape.designer = v.get("designer", "").asString();
+            // Absent (including on every unsigned cape) means no opt-out.
+            cape.sendStats = v.get("sendStats", 1).asInt() != 0;
             if (JsonHas(v, "vendor") && v["vendor"].isObject()) {
                 const Json::Value& vendor = v["vendor"];
                 cape.vendorName = vendor.get("name", "").asString();

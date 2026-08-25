@@ -547,6 +547,37 @@ function stats_getMultiSync()
     );
     // Deliberately still excluded: address, hostname, HostDescription.
 
+    // fppd now caches a subset of each remote's /api/system/info and /api/cape
+    // on the peer record. Cape identity per peer is the single biggest gap in
+    // the hardware picture: capeInfo used to be collected only for the
+    // uploading device, so a cape in someone else's yard was just "BeagleBone
+    // Black" unless that specific box opted in.
+    //
+    // Allowlists, not denylists. The peer record carries the remote's IP list
+    // and its background colour, and will carry whatever is added to it next;
+    // an allowlist is the only form that stays safe when the source grows.
+    $systemInfoMapping = array(
+        "platform" => "Platform",
+        "variant" => "Variant",
+        "subPlatform" => "SubPlatform",
+        "osVersion" => "OSVersion",
+        "osRelease" => "OSRelease",
+        "kernel" => "Kernel",
+        "branch" => "Branch",
+    );
+    // Excluded on purpose: IPs (addresses), HostDescription and backgroundColor
+    // (user-entered/user-chosen, no analytical value), UpgradeSource (can be a
+    // private mirror), Local/RemoteGitVersion (version already carries this).
+    $capeInfoMapping = array(
+        "id" => "id",
+        "name" => "name",
+        "version" => "version",
+        "designer" => "designer",
+    );
+    // Excluded on purpose: description (long free text), vendor url/email/image
+    // (contact details, no analytical value). The serial number is never
+    // carried on the peer record at all.
+
     $data = json_decode(file_get_contents("http://localhost/api/fppd/multiSyncSystems"), true);
     $rc = array();
     if (isset($data["systems"])) {
@@ -554,6 +585,19 @@ function stats_getMultiSync()
         foreach ($data["systems"] as $system) {
             $rec = array();
             validateAndAdd($rec, $system, $mapping);
+
+            if (isset($system['systemInfo']) && is_array($system['systemInfo'])) {
+                $info = array();
+                validateAndAdd($info, $system['systemInfo'], $systemInfoMapping);
+                if (count($info)) {
+                    $rec['systemInfo'] = $info;
+                }
+            }
+
+            if (isset($system['capeInfo']) && is_array($system['capeInfo'])) {
+                $rec['capeInfo'] = stats_peerCapeRecord($system['capeInfo'], $capeInfoMapping);
+            }
+
             array_push($rc, $rec);
         }
     }
@@ -931,6 +975,34 @@ function stats_universe_in()
     $rc['channelCount'] = $channelCount;
     $rc['rowType'] = $rowType;
 
+    return $rc;
+}
+
+/**
+ * Reduces a peer's cape record to the allowlisted, non-identifying fields.
+ *
+ * Honours the flag of the cape being described rather than the flag of the host
+ * doing the reporting: a cape that opted out of hardware detail is reported as
+ * present and nothing more, so it still counts toward "how many devices have a
+ * cape" without being identified.
+ *
+ * @param array $cape capeInfo as relayed on the peer record.
+ * @param array $mapping allowlist of cape fields to copy.
+ * @return array Allowlisted cape record.
+ */
+function stats_peerCapeRecord($cape, $mapping)
+{
+    $rc = array("present" => isset($cape['present']) ? $cape['present'] : false);
+    if (!$rc['present']) {
+        return $rc;
+    }
+    if (isset($cape['sendStats']) && $cape['sendStats'] == 0) {
+        return $rc;
+    }
+    validateAndAdd($rc, $cape, $mapping);
+    if (isset($cape['vendor']['name'])) {
+        $rc['vendor'] = $cape['vendor']['name'];
+    }
     return $rc;
 }
 

@@ -179,6 +179,12 @@ public:
     std::string vendorURL;
     std::string vendorEmail;
     std::string vendorImage;
+    // The cape's own opt-out of hardware detail in the usage statistics. Only
+    // a signed cape can carry it -- CapeUtils strips it from an unsigned one --
+    // and it is relayed so that a peer-side collector can honour the flag of
+    // the cape it actually describes, rather than the reporting host's.
+    // Default true: absent means the cape never asked to be excluded.
+    bool sendStats = true;
 
     Json::Value toJSON() const;
 };
