@@ -32,6 +32,8 @@ function stats_generate($statsFile)
         "output_pixel_bbb" => 'stats_pixel_bbb_out',
         "output_pwm" => 'stats_pwm_out',
         "timezone" => 'stats_timezone',
+        "sequenceShape" => 'stats_getSequenceShape',
+        "installAge" => 'stats_getInstallAge',
     );
 
     $obj = array();
@@ -536,7 +538,14 @@ function stats_getMultiSync()
         "type" => "type",
         "typeId" => "typeId",
         "uuid" => "uuid",
+        // Already on the wire, previously dropped by this table.
+        "model" => "model",                                 // board revision detail "type" flattens away
+        "local" => "local",                                 // marks the reporting host in its own list
+        "multiSyncCapable" => "multiSyncCapable",           // true participant vs discovered-but-passive
+        "channelOutputsEnabled" => "channelOutputsEnabled", // drives pixels, or player/spare only
+        "channelInputsEnabled" => "channelInputsEnabled",   // bridge/receiver role
     );
+    // Deliberately still excluded: address, hostname, HostDescription.
 
     $data = json_decode(file_get_contents("http://localhost/api/fppd/multiSyncSystems"), true);
     $rc = array();
@@ -619,6 +628,167 @@ function stats_getPlugins()
     }
     return $rc;
 
+}
+
+/**
+ * Collects the SHAPE of the sequences and playlists on the device -- how they
+ * are timed and how big they are -- rather than anything about what they are.
+ *
+ * files.sequences gives a count and a byte total, which says nothing about
+ * whether the fleet has moved to 20ms timing or how large a typical sequence
+ * has become.  Everything here comes from the fseq header, so no sequence
+ * content is read, and only numbers are kept -- never a name.
+ *
+ * @return array Histograms of step time, channel count, fseq version and
+ *               compression, plus a playlist length histogram.
+ */
+function stats_getSequenceShape()
+{
+    $rc = array("sequences" => 0, "read" => 0);
+    $raw = @file_get_contents("http://localhost/api/sequence");
+    if ($raw === false) {
+        return $rc;
+    }
+    $names = json_decode($raw, true);
+    if (!is_array($names)) {
+        return $rc;
+    }
+    $rc['sequences'] = count($names);
+
+    // One header read per sequence.  Capped so a library of thousands cannot
+    // stall stats generation, and the cap is reported rather than silently
+    // truncating -- a partial sample that looks complete is worse than no
+    // sample at all.
+    $limit = 250;
+    if (count($names) > $limit) {
+        $rc['truncated'] = true;
+        $names = array_slice($names, 0, $limit);
+    }
+
+    $stepTime = array();
+    $channels = array();
+    $version = array();
+    $compression = array();
+    $frames = 0;
+    foreach ($names as $name) {
+        $meta = @file_get_contents("http://localhost/api/sequence/" . rawurlencode($name) . "/meta");
+        if ($meta === false) {
+            continue;
+        }
+        $m = json_decode($meta, true);
+        if (!is_array($m) || !isset($m['StepTime'])) {
+            continue;
+        }
+        $rc['read'] += 1;
+
+        $key = "ms_" . strval($m['StepTime']);
+        $stepTime[$key] = isset($stepTime[$key]) ? $stepTime[$key] + 1 : 1;
+
+        if (isset($m['ChannelCount'])) {
+            $c = $m['ChannelCount'];
+            $bucket = "ch_" . ($c <= 1024 ? "0-1k" : ($c <= 8192 ? "1k-8k" : ($c <= 32768 ? "8k-32k" : ($c <= 131072 ? "32k-128k" : ($c <= 524288 ? "128k-512k" : "512k+")))));
+            $channels[$bucket] = isset($channels[$bucket]) ? $channels[$bucket] + 1 : 1;
+        }
+        if (isset($m['Version'])) {
+            $v = strval($m['Version']);
+            $version[$v] = isset($version[$v]) ? $version[$v] + 1 : 1;
+        }
+        if (isset($m['CompressionType'])) {
+            $ct = "type_" . strval($m['CompressionType']);
+            $compression[$ct] = isset($compression[$ct]) ? $compression[$ct] + 1 : 1;
+        }
+        if (isset($m['NumFrames'])) {
+            $frames += $m['NumFrames'];
+        }
+    }
+    $rc['stepTime'] = $stepTime;
+    $rc['channelCountBuckets'] = $channels;
+    $rc['fseqVersion'] = $version;
+    $rc['compression'] = $compression;
+    $rc['totalFrames'] = $frames;
+
+    // Playlist lengths, read straight off disk rather than over HTTP.
+    // $playlistDirectory is a global from www/config.php, not a $settings key.
+    global $playlistDirectory;
+    global $settings;
+    $dir = $playlistDirectory;
+    if (empty($dir) && isset($settings['mediaDirectory'])) {
+        $dir = $settings['mediaDirectory'] . "/playlists";
+    }
+    $lengths = array();
+    $playlistCount = 0;
+    if (!empty($dir) && is_dir($dir)) {
+        foreach (glob($dir . "/*.json") as $file) {
+            $pl = json_decode(file_get_contents($file), true);
+            if (!is_array($pl)) {
+                continue;
+            }
+            $playlistCount += 1;
+            $n = 0;
+            foreach (array("leadIn", "mainPlaylist", "leadOut") as $section) {
+                if (isset($pl[$section]) && is_array($pl[$section])) {
+                    $n += count($pl[$section]);
+                }
+            }
+            $bucket = "len_" . ($n == 0 ? "0" : ($n <= 5 ? "1-5" : ($n <= 20 ? "6-20" : ($n <= 50 ? "21-50" : "51+"))));
+            $lengths[$bucket] = isset($lengths[$bucket]) ? $lengths[$bucket] + 1 : 1;
+        }
+    }
+    $rc['playlists'] = $playlistCount;
+    $rc['playlistLengthBuckets'] = $lengths;
+
+    return $rc;
+}
+
+/**
+ * Reports how long this install has existed, so retention and upgrade-adoption
+ * questions are answerable at all.  Nothing in the payload distinguishes a box
+ * set up last week from one that has run for five years.
+ *
+ * Rounded to the month on purpose: a day-precision install date combined with a
+ * timezone is a re-identification handle, and no question worth asking here
+ * needs better resolution than a month.
+ *
+ * @return array Install month as YYYY-MM, and whole months since.
+ */
+function stats_getInstallAge()
+{
+    $rc = array();
+    // The identity file is written once, when the install first resolves a UUID,
+    // and is preserved across OS upgrades -- so its birth time is the closest
+    // thing to an install date that already exists.
+    $candidates = array("/etc/fpp/fpp_uuid", "/home/fpp/media/config/fpp_uuid");
+    $oldest = 0;
+    foreach ($candidates as $file) {
+        if (file_exists($file)) {
+            $t = @filemtime($file);
+            if ($t !== false && ($oldest == 0 || $t < $oldest)) {
+                $oldest = $t;
+            }
+        }
+    }
+    if ($oldest != 0) {
+        $rc['installMonth'] = gmdate("Y-m", $oldest);
+        $rc['ageMonths'] = (int)floor((time() - $oldest) / (30.44 * 86400));
+        $rc['source'] = "uuid-file";
+    }
+
+    // Reported separately and never as an install date.  The root filesystem's
+    // birth time is when the card was written, which for a prebuilt image is the
+    // date the IMAGE was built -- identical across everyone who flashed it.  It
+    // answers "which image vintage is this" rather than "how old is this
+    // install", and conflating the two would make the fleet look far younger or
+    // older than it is depending on how the image was produced.
+    $out = array();
+    exec("stat -c %W / 2>/dev/null", $out);
+    if (isset($out[0]) && is_numeric($out[0]) && $out[0] > 0) {
+        $rc['rootfsMonth'] = gmdate("Y-m", (int)$out[0]);
+    }
+
+    // Most installs derive identity from a hardware serial and so never create
+    // the uuid file, which is why installMonth is absent for them.  A dedicated
+    // first-boot marker is what would make this answerable fleet-wide.
+    return $rc;
 }
 
 /**
@@ -765,6 +935,36 @@ function stats_universe_in()
 }
 
 /**
+ * Maps each known peer address to the CLASS of device at that address, so an
+ * output row can be tagged with what it feeds without the address ever leaving
+ * the machine.  FPP already holds both halves of this join -- the multisync
+ * table knows IP to type -- and the stats payload threw one half away.
+ *
+ * @return array Map of address => device type string, e.g. "Falcon F16v4".
+ */
+function stats_multiSyncPeerTypes()
+{
+    static $map = null;
+    if ($map !== null) {
+        return $map;
+    }
+    $map = array();
+    $raw = @file_get_contents("http://localhost/api/fppd/multiSyncSystems");
+    if ($raw === false) {
+        return $map;
+    }
+    $data = json_decode($raw, true);
+    if (isset($data["systems"])) {
+        foreach ($data["systems"] as $system) {
+            if (isset($system['address']) && $system['address'] !== "" && isset($system['type'])) {
+                $map[$system['address']] = $system['type'];
+            }
+        }
+    }
+    return $map;
+}
+
+/**
  * Collects E1.31/ArtNet universe output statistics from the channel outputs
  * configuration file, counting active rows, universes, channels, de-duplicate,
  * and monitor flags by type.
@@ -783,7 +983,8 @@ function stats_universe_out()
     if (!isset($data["channelOutputs"])) {
         return $rc;
     }
-    $data = $data["channelOutputs"][0];
+    $outputs = $data["channelOutputs"];
+    $data = $outputs[0];
     $mapping = array(
         "enabled" => "enabled",
         "threaded" => "threaded",
@@ -801,25 +1002,62 @@ function stats_universe_out()
     $monitorCount = 0;
     $deDupeCount = 0;
     $rowType = array();
-    if (isset($data["universes"])) {
-        foreach ($data["universes"] as $row) {
+    $priority = array();
+    $destType = array();
+    $peers = stats_multiSyncPeerTypes();
+
+    // Every entry, not just channelOutputs[0].  A second universe-output block
+    // was silently invisible, and with it every row it carried.
+    foreach ($outputs as $entry) {
+        if (!isset($entry["universes"])) {
+            continue;
+        }
+        foreach ($entry["universes"] as $row) {
             ++$rowCount;
-            if ($row["active"] == 1) {
-                ++$activeRowCount;
-                $universeCount += $row["universeCount"];
-                $channelCount += ($row["universeCount"] * $row["channelCount"]);
-                if (isset($row["deDuplicate"])) {
-                    $deDupeCount += $row["deDuplicate"];
-                }
-                if (isset($row["monitor"])) {
-                    $monitorCount += $row["monitor"];
-                }
-                $type = "type_" . strval($row['type']);
-                if (!isset($rowType[$type])) {
-                    $rowType[$type] = 0;
-                }
-                $rowType[$type] += 1;
+            if (!isset($row["active"]) || $row["active"] != 1) {
+                continue;
             }
+            ++$activeRowCount;
+            $rowChannels = $row["universeCount"] * $row["channelCount"];
+            $universeCount += $row["universeCount"];
+            $channelCount += $rowChannels;
+            if (isset($row["deDuplicate"])) {
+                $deDupeCount += $row["deDuplicate"];
+            }
+            if (isset($row["monitor"])) {
+                $monitorCount += $row["monitor"];
+            }
+            $type = "type_" . strval($row['type']);
+            if (!isset($rowType[$type])) {
+                $rowType[$type] = 0;
+            }
+            $rowType[$type] += 1;
+
+            // How many installs layer inputs by priority
+            if (isset($row["priority"])) {
+                $p = "priority_" . strval($row["priority"]);
+                if (!isset($priority[$p])) {
+                    $priority[$p] = 0;
+                }
+                $priority[$p] += 1;
+            }
+
+            // Classify the destination, never transmit it.  An address we cannot
+            // resolve is "unknown" and an empty one is multicast, which has no
+            // single destination to classify.
+            $dest = "multicast";
+            if (isset($row["address"]) && $row["address"] !== "") {
+                $dest = isset($peers[$row["address"]]) ? $peers[$row["address"]] : "unknown";
+            }
+            if (!isset($destType[$dest])) {
+                $destType[$dest] = array("rows" => 0, "channels" => 0, "protocol" => array());
+            }
+            $destType[$dest]["rows"] += 1;
+            $destType[$dest]["channels"] += $rowChannels;
+            if (!isset($destType[$dest]["protocol"][$type])) {
+                $destType[$dest]["protocol"][$type] = 0;
+            }
+            $destType[$dest]["protocol"][$type] += 1;
         }
     }
     $rc['universeCount'] = $universeCount;
@@ -829,6 +1067,8 @@ function stats_universe_out()
     $rc['rowType'] = $rowType;
     $rc['deDupeCount'] = $deDupeCount;
     $rc['monitorCount'] = $monitorCount;
+    $rc['priority'] = $priority;
+    $rc['destType'] = $destType;
 
     return $rc;
 }
@@ -893,16 +1133,28 @@ function stats_other_out()
         $rc['status'] = "ChannelOutputs not found";
         return $rc;
     }
+    // "types" stayed a bare list of names, so one DMX universe looked identical
+    // to twelve.  Kept for compatibility; "typeCounts" carries the shape.
     $types = array();
+    $typeCounts = array();
     foreach ($data["channelOutputs"] as $row) {
         if (isset($row['enabled']) && $row['enabled'] == 1) {
             if (isset($row['type'])) {
-                array_push($types, $row['type']);
+                $type = $row['type'];
+                array_push($types, $type);
+                if (!isset($typeCounts[$type])) {
+                    $typeCounts[$type] = array("cnt" => 0, "channels" => 0);
+                }
+                $typeCounts[$type]["cnt"] += 1;
+                if (isset($row['channelCount'])) {
+                    $typeCounts[$type]["channels"] += $row['channelCount'];
+                }
             }
         }
     }
 
     $rc['types'] = $types;
+    $rc['typeCounts'] = $typeCounts;
 
     return $rc;
 }
@@ -942,24 +1194,52 @@ function stats_pixel_or_pi($file)
 
     $pixelCount = 0;
     $protocols = array();
+    $usedPortCount = 0;
+    $virtualStringCount = 0;
+    $portPixels = array();
     if (isset($data['outputs'])) {
         foreach ($data['outputs'] as $row) {
             if (isset($row['protocol'])) {
-                $protocols[$row['protocol']] = 1;
+                // Was $protocols[...] = 1, a set, so a cape with 16 ws2811 ports
+                // looked the same as one with a single port in use.
+                if (!isset($protocols[$row['protocol']])) {
+                    $protocols[$row['protocol']] = 0;
+                }
+                $protocols[$row['protocol']] += 1;
             }
 
+            $rowPixels = 0;
             if (isset($row['virtualStrings'])) {
                 foreach ($row['virtualStrings'] as $line) {
+                    // More than one virtual string on a port is what a smart
+                    // receiver or a differential split looks like from here.
+                    $virtualStringCount += 1;
                     if (isset($line['pixelCount'])) {
-                        $pixelCount += $line["pixelCount"];
+                        $rowPixels += $line["pixelCount"];
                     }
                 }
             }
+            $pixelCount += $rowPixels;
+            if ($rowPixels > 0) {
+                $usedPortCount += 1;
+            }
+            // Bucketed rather than per-port, so this says how fully ports get
+            // populated without becoming a per-install fingerprint.
+            // Prefixed: a bare "0" key becomes an int in PHP, which makes the
+            // whole map serialise as a JSON array and drops the labels.
+            $bucket = "px_" . ($rowPixels == 0 ? "0" : ($rowPixels <= 50 ? "1-50" : ($rowPixels <= 100 ? "51-100" : ($rowPixels <= 200 ? "101-200" : ($rowPixels <= 400 ? "201-400" : "401+")))));
+            if (!isset($portPixels[$bucket])) {
+                $portPixels[$bucket] = 0;
+            }
+            $portPixels[$bucket] += 1;
         }
     }
 
     $rc['pixelCount'] = $pixelCount;
     $rc['protocols'] = $protocols;
+    $rc['usedPortCount'] = $usedPortCount;
+    $rc['virtualStringCount'] = $virtualStringCount;
+    $rc['portPixelBuckets'] = $portPixels;
     return $rc;
 }
 
