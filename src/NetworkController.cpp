@@ -71,6 +71,9 @@ NetworkController* NetworkController::DetectControllerViaHTML(const std::string&
     if (nc->DetectDIYLEDExpressController(ip, html)) {
         return nc;
     }
+    if (nc->DetectExperienceController(ip, html)) {
+        return nc;
+    }
     if (nc->DetectWLEDController(ip, html)) {
         return nc;
     }
@@ -438,6 +441,87 @@ bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
     }
 
     return false;
+}
+
+// The Experience controllers -- the Genius Pixel / PRO / Long Range / Pixel Link
+// range, plus the rebadged LOR AURORA CORE and YPS VIVID units -- all serve the
+// same petite-vue app.  Their <title> carries the retail brand, so it is not
+// something we can match across the family; the app's own component markers are
+// far more stable.  Either way the HTML only decides whether it is worth asking:
+// nothing is accepted until /api/state answers with the fields this firmware
+// defines, so a stray HTML match cannot misidentify some other device.
+//
+// These controllers do answer MultiSync pings, and that ping reports an exact
+// model type.  This path exists for the two things the ping cannot do: it
+// carries no UUID field at all, and it does not reach a controller on another
+// subnet -- which is exactly the case co-universes.json seeding is there to
+// cover.
+bool NetworkController::DetectExperienceController(const std::string& ip, const std::string& html) {
+    if (html.find("FriendlyNameBar()") == std::string::npos &&
+        html.find("CurrentMonitoring()") == std::string::npos &&
+        html.find("<title>Genius") == std::string::npos) {
+        return false;
+    }
+
+    LogExcess(VB_SYNC, "%s is potentially an Experience controller, checking further\n", ip.c_str());
+
+    std::string resp;
+    if (!urlGet(buildHttpURL(ip, "/api/state"), resp)) {
+        return false;
+    }
+    Json::Value v;
+    if (!LoadJsonFromString(resp, v, JsonRoot::Object) || !JsonHas(v, "system")) {
+        return false;
+    }
+    const Json::Value& sys = v["system"];
+    if (!JsonHas(sys, "controller_model") || !JsonHas(sys, "controller_model_name")) {
+        return false;
+    }
+
+    vendor = "Experience";
+
+    // Deliberately the generic Experience type rather than a model-code lookup.
+    // A table mapping every retail code to its own kSysTypeExperience* value
+    // would be guesswork for the models we cannot test, and it would rot as the
+    // range grows.  The generic id still lands in the range the UI treats as
+    // this family, the exact model name below is the part a user reads, and
+    // where a ping does reach the device it supplies the precise type anyway --
+    // MultiSyncSystem::update() will not let this HTTP result overwrite it.
+    typeId = kSysTypeExperienceGenius;
+    typeStr = sys["controller_model_name"].asString();
+
+    // "Genius_PRO_Controller_16 v1.3.1-2" -- take the dotted version after "v".
+    std::string fw = sys.get("firmware_version", "").asString();
+    std::smatch m;
+    RegExCache re("v([0-9]+)\\.([0-9]+)(?:\\.([0-9]+))?");
+    if (std::regex_search(fw, m, *re.regex)) {
+        version = m[1].str() + "." + m[2].str();
+        if (m[3].matched) {
+            version += "." + m[3].str();
+        }
+        majorVersion = atoi(m[1].str().c_str());
+        minorVersion = atoi(m[2].str().c_str());
+    } else if (!fw.empty()) {
+        version = fw;
+    }
+
+    // The identity endpoint is the only place these report something stable and
+    // their own.  Build the same string the statistics collector has always
+    // built from it, so a controller is not identified two different ways
+    // depending on which side of FPP is asking.
+    std::string idResp;
+    if (urlGet(buildHttpURL(ip, "/update/identity"), idResp)) {
+        Json::Value idv;
+        if (LoadJsonFromString(idResp, idv, JsonRoot::Object) && JsonHas(idv, "id")) {
+            std::string id = idv["id"].asString();
+            std::string hw = idv.get("hardware", "").asString();
+            if (!id.empty()) {
+                uuid = hw.empty() ? id : (hw + "-" + id);
+            }
+        }
+    }
+
+    return true;
 }
 
 bool NetworkController::DetectWLEDController(const std::string& ip, const std::string& html) {

@@ -43,6 +43,7 @@ private:
     bool DetectHinksPixController(const std::string& ip, const std::string& html);
     bool DetectDIYLEDExpressController(const std::string& ip, const std::string& html);
     bool DetectWLEDController(const std::string& ip, const std::string& html);
+    bool DetectExperienceController(const std::string& ip, const std::string& html);
     bool DetectFPP(const std::string& ip, const std::string& html);
 
     void DumpControllerInfo(void);
