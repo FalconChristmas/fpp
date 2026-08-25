@@ -457,14 +457,20 @@ function addMultiSyncUUID(&$data)
     $missing = array();
     foreach ($data["systems"] as $system) {
         if (!isset($system['uuid']) || !isValidSystemUUID($system['uuid'])) {
-            $missing[$system['address']] = $system['typeId'];
+            $missing[$system['address']] = array(
+                'typeId' => $system['typeId'],
+                // Kept so the fallback below can prefer a MAC-derived stand-in
+                // over a per-reporter hash.
+                'prior' => isset($system['uuid']) ? $system['uuid'] : '',
+            );
         }
     }
     // Find missing UUIDs
     if (count($missing) > 0) {
         $curlmulti = curl_multi_init();
         $curls = array();
-        foreach ($missing as $ip => $tid) {
+        foreach ($missing as $ip => $info) {
+            $tid = $info['typeId'];
             //IPv6 literals must be bracketed to be usable in a URL
             $urlHost = fppUrlHost($ip);
             if ($tid >= 160 && $tid < 170) {
@@ -502,7 +508,21 @@ function addMultiSyncUUID(&$data)
                 }
             }
 
-            $missing[$ip] = isValidSystemUUID($uuid) ? $uuid : localPeerIdentity($ip);
+            $resolved = isValidSystemUUID($uuid) ? $uuid : "";
+            if ($resolved === "") {
+                // A "MAC:" value is not an identity the device chose, which is
+                // why isValidSystemUUID() rejects it and why we ask the
+                // controller for a real one first.  But it is the same value
+                // for a given device no matter which player reports it, and
+                // that is exactly what makes deduplicating a show and drawing
+                // its network possible.  localPeerIdentity() is salted with the
+                // reporting host, so two players describing one controller
+                // produce two unrelated rows -- use it only when there is no
+                // MAC to fall back on.
+                $prior = $missing[$ip]['prior'];
+                $resolved = (stripos($prior, 'MAC:') === 0) ? $prior : localPeerIdentity($ip);
+            }
+            $missing[$ip] = $resolved;
             curl_multi_remove_handle($curlmulti, $curl);
         }
         curl_multi_close($curlmulti);
