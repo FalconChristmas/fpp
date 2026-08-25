@@ -161,6 +161,45 @@ function readCapes($cd, $capes)
         return $('#PixelStringPixelTiming').val();
     }
 
+    // Which "outputs" values identify a test started from THIS page. The same
+    // fppd test mode backs the panel dropdown too, and both report mode
+    // "Outputs" with a numeric "type" - so without checking which surface owns
+    // it, a panel test would set this dropdown and vice versa.
+    function PixelTestOutputTypes() {
+        return ['BBB Pixel Strings', 'DPI Pixels'];
+    }
+
+    /**
+     * Point the Testing dropdown at whatever test is actually running.
+     *
+     * fppd knows this at all times and reports it on api/testmode, but the
+     * dropdown was static markup that always loaded as "Off" while the test kept
+     * running. Worse than cosmetic: re-selecting "Off" fires no change event, so
+     * the running test could not be stopped from here in one click - the same
+     * reasoning as RestorePanelTestPatternState() in co-ledPanels.php.
+     */
+    function RestorePixelTestPatternState() {
+        $.ajax({
+            url: "api/testmode",
+            async: true,
+            dataType: 'json',
+            success: function (data) {
+                if (!data || !data.enabled || data.mode != "Outputs" ||
+                    !data.hasOwnProperty('type')) {
+                    return;
+                }
+                // Only claim a test this page's own outputs are running.
+                if (PixelTestOutputTypes().indexOf(String(data.outputs)) === -1) {
+                    return;
+                }
+                var val = String(data.type);
+                if ($("#PixelTestPatternType option[value='" + val + "']").length) {
+                    $("#PixelTestPatternType").val(val);
+                }
+            }
+        });
+    }
+
     function SetPixelTestPattern() {
         var val = $("#PixelTestPatternType").val();
         if (val != "0") {
@@ -2860,6 +2899,10 @@ function readCapes($cd, $capes)
             .done(data => selected_string_details.gpio = data)
             .fail(err => $.jGrowl('Error: Unable to retrieve GPIO pin info.', { themeState: 'danger' }));
         populateCapeList();
+
+        // The dropdown's options are static markup, so this needs nothing else
+        // loaded first - it only has to run after the select exists.
+        RestorePixelTestPatternState();
         loadPixelStringOutputs();
         // keep the max-fps estimate live as color order / null nodes / etc. change
         $('#PixelString').on('change', 'input, select', CalculatePixelStringMaxFPS);
