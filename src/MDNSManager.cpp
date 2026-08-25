@@ -579,6 +579,14 @@ void MDNSManager::HandleResolveIP(const std::string& ip, bool isWled) {
     if (!isNew)
         return;
 
+    // Avahi resolves this host's own advertisement to 127.0.0.1, so we see
+    // ourselves here on every browse.  MultiSync rejects loopback anyway; skip
+    // it before spending a ping and a detached HTTP probe on it.
+    if (IsLoopbackAddress(ip)) {
+        LogDebug(VB_SYNC, "MDNS ignoring loopback resolve for %s\n", ip.c_str());
+        return;
+    }
+
     LogDebug(VB_SYNC, "MDNS discovered new host %s%s\n", ip.c_str(), isWled ? " (wled)" : "");
 
     // ping and notify MultiSync. The FPP discover-ping is a harmless no-op for a

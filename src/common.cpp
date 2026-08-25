@@ -532,6 +532,15 @@ size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
     return size * nmemb;
 }
 
+bool IsLoopbackAddress(const std::string& address) {
+    if (startsWith(address, "127.")) {
+        return true;
+    }
+    // "::1" is the usual spelling; the fully expanded form is legal too and
+    // shows up from some resolvers.
+    return address == "::1" || address == "0:0:0:0:0:0:0:1";
+}
+
 std::string buildHttpURL(const std::string& address, const std::string& path) {
     std::string host = address;
     // An IPv6 literal contains ':' (hostnames and IPv4 never do).  curl requires

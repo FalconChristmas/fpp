@@ -106,6 +106,10 @@ std::string getSimpleXMLTag(const std::string& xml, const std::string& tag);
 // so curl accepts them; IPv4 addresses and hostnames are passed through
 // unchanged.  This is what makes discovery work on IPv6-only networks.
 std::string buildHttpURL(const std::string& address, const std::string& path = "");
+
+// True for an IPv4 127/8 or IPv6 ::1 address.  Discovery treats loopback as
+// "this box finding itself" and never as a peer -- see MultiSync::UpdateSystem().
+bool IsLoopbackAddress(const std::string& address);
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const std::list<std::string>& headers, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, std::string& resp, const unsigned int timeout = 30);

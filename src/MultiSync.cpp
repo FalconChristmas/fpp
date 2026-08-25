@@ -434,6 +434,21 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
     std::string ipForAddress = address;
     GetIPForHost(ipForAddress);
 
+    // Loopback is this box finding itself, not a discoverable peer.  Avahi
+    // resolves our own _fppd._udp advertisement to 127.0.0.1, so mDNS hands it
+    // straight back to us; a channel output or an HTTP discovery subnet aimed
+    // at localhost does the same.  The resulting entry is useless to every
+    // consumer of the systems list -- no peer can reach it, and the multisync
+    // page drops the row rather than render a link a browser cannot follow.
+    // Reject it here, at the one place m_remoteSystems ever grows, so no
+    // discovery path can reintroduce it.  Local interface addresses come from
+    // FillInInterfaces(), which already skips "lo", so this never rejects one
+    // of our own entries.
+    if (IsLoopbackAddress(address) || IsLoopbackAddress(ipForAddress)) {
+        LogDebug(VB_SYNC, "Ignoring loopback address %s in discovery\n", address.c_str());
+        return;
+    }
+
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
     bool found = false;
     bool unicastChanged = false;
@@ -1639,10 +1654,11 @@ void MultiSync::CheckSystemInfoRefreshes() {
             if (localUUIDs.find(sys.uuid) != localUUIDs.end()) {
                 continue;
             }
-            // Loopback and link-local addresses: not reachable from a browser
-            // either, which is why the multisync page drops these rows outright.
-            if (startsWith(sys.address, "127.") || sys.address == "::1" ||
-                startsWith(sys.address, "169.254.") || startsWith(sys.address, "fe80:")) {
+            // Link-local addresses are reachable from here but not from a
+            // browser (the IPv6 zone id is specific to this host), which is why
+            // the multisync page drops those rows.  Loopback never reaches this
+            // list at all -- UpdateSystem() rejects it.
+            if (startsWith(sys.address, "169.254.") || startsWith(sys.address, "fe80:")) {
                 continue;
             }
             // A device with more than one NIC has one entry per address.  Act
