@@ -2094,20 +2094,28 @@ configure_apache() {
     # That happens on any box booted with ipv6.disable=1, and on any box
     # running a kernel whose ipv6 module is missing.
     #
-    # So decide at *start* time rather than install time: apachectl sources
-    # envvars on every start/restart/configtest, so a box that gains or
-    # loses IPv6 later recovers on its own without reinstalling.
+    # <IfFile> is evaluated every time the config is parsed -- on start, on
+    # configtest, and on the SIGUSR1 re-read behind "systemctl reload" -- so
+    # the choice is never baked into how the master happened to be started,
+    # and a box that gains or loses IPv6 later corrects itself. (Contrast an
+    # <IfDefine> fed from envvars: the define lives on the master's argv, so a
+    # reload re-reads this file with whatever defines the *running* master
+    # started with and can silently pick the wrong branch.)
+    #
+    # <IfFile> needs apache 2.4.34+; the oldest release FPP installs on is
+    # well past that (Debian buster ships 2.4.38).
     cat > /etc/apache2/ports.conf <<'PORTS_EOF'
 # Managed by FPP -- see configure_apache() in SD/FPP_Install.sh.
-# FPP_HAVE_IPV6 is defined from /etc/apache2/envvars when the running
-# kernel actually has IPv6, so a box without it still serves over IPv4
+# /proc/sys/net/ipv6 is absent both when the ipv6 module is missing and when
+# the kernel booted with ipv6.disable=1 -- exactly the cases where
+# "Listen [::]:80" aborts apache startup -- so such a box serves over IPv4
 # instead of failing to start apache at all.
-<IfDefine FPP_HAVE_IPV6>
+<IfFile /proc/sys/net/ipv6>
 Listen [::]:80
-</IfDefine>
-<IfDefine !FPP_HAVE_IPV6>
+</IfFile>
+<IfFile !/proc/sys/net/ipv6>
 Listen 80
-</IfDefine>
+</IfFile>
 
 <IfModule ssl_module>
 	Listen 443
@@ -2118,17 +2126,10 @@ Listen 80
 </IfModule>
 PORTS_EOF
 
-    if ! grep -q FPP_HAVE_IPV6 /etc/apache2/envvars; then
-        cat >> /etc/apache2/envvars <<'ENVVARS_EOF'
-
-## FPP: only ask apache for the IPv6 wildcard listener when the running
-## kernel has IPv6. /proc/sys/net/ipv6 is absent both when the module is
-## missing and when the kernel booted with ipv6.disable=1, which are exactly
-## the cases where "Listen [::]:80" aborts apache startup.
-if [ -d /proc/sys/net/ipv6 ]; then
-	export APACHE_ARGUMENTS="${APACHE_ARGUMENTS} -D FPP_HAVE_IPV6"
-fi
-ENVVARS_EOF
+    # Drop the APACHE_ARGUMENTS define an older FPP appended here; ports.conf
+    # probes for IPv6 itself now and nothing reads FPP_HAVE_IPV6 any more.
+    if grep -q FPP_HAVE_IPV6 /etc/apache2/envvars; then
+        sed -i '/^## FPP: only ask apache for the IPv6/,/^fi$/d' /etc/apache2/envvars
     fi
 
     cat /opt/fpp/etc/apache2.site   > /etc/apache2/sites-enabled/000-default.conf

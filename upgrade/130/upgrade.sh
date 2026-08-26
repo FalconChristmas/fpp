@@ -15,10 +15,10 @@
 # player is only reachable over ssh. Any box booted with ipv6.disable=1
 # lands here, as does any box running a kernel whose ipv6 module is missing.
 #
-# Replace it with a listener chosen at apache *start* time rather than at
-# install time: apachectl sources /etc/apache2/envvars on every
-# start/restart/configtest, so the probe re-runs on each start and a box
-# that gains or loses IPv6 later corrects itself with no reinstall.
+# Replace it with a listener chosen by the config itself: <IfFile> is
+# evaluated on every config parse -- start, configtest, and the SIGUSR1
+# re-read behind "systemctl reload" -- so the probe re-runs continuously and a
+# box that gains or loses IPv6 later corrects itself with no reinstall.
 #
 # Existing installs already have the unconditional ports.conf on disk, so
 # this has to be rewritten here rather than waiting for the next OS image.
@@ -32,15 +32,16 @@ echo "FPP - Upgrade 130: Make the Apache port 80 listener IPv6-optional"
 if [[ -f /etc/debian_version ]] && [[ -f /etc/apache2/ports.conf ]]; then
     cat > /etc/apache2/ports.conf <<'PORTS_EOF'
 # Managed by FPP -- see configure_apache() in SD/FPP_Install.sh.
-# FPP_HAVE_IPV6 is defined from /etc/apache2/envvars when the running
-# kernel actually has IPv6, so a box without it still serves over IPv4
+# /proc/sys/net/ipv6 is absent both when the ipv6 module is missing and when
+# the kernel booted with ipv6.disable=1 -- exactly the cases where
+# "Listen [::]:80" aborts apache startup -- so such a box serves over IPv4
 # instead of failing to start apache at all.
-<IfDefine FPP_HAVE_IPV6>
+<IfFile /proc/sys/net/ipv6>
 Listen [::]:80
-</IfDefine>
-<IfDefine !FPP_HAVE_IPV6>
+</IfFile>
+<IfFile !/proc/sys/net/ipv6>
 Listen 80
-</IfDefine>
+</IfFile>
 
 <IfModule ssl_module>
 	Listen 443
@@ -51,37 +52,31 @@ Listen 80
 </IfModule>
 PORTS_EOF
 
-    if ! grep -q FPP_HAVE_IPV6 /etc/apache2/envvars; then
-        cat >> /etc/apache2/envvars <<'ENVVARS_EOF'
-
-## FPP: only ask apache for the IPv6 wildcard listener when the running
-## kernel has IPv6. /proc/sys/net/ipv6 is absent both when the module is
-## missing and when the kernel booted with ipv6.disable=1, which are exactly
-## the cases where "Listen [::]:80" aborts apache startup.
-if [ -d /proc/sys/net/ipv6 ]; then
-	export APACHE_ARGUMENTS="${APACHE_ARGUMENTS} -D FPP_HAVE_IPV6"
-fi
-ENVVARS_EOF
+    # An earlier FPP appended an APACHE_ARGUMENTS define here to do this job
+    # from envvars instead. ports.conf probes for itself now, so drop it.
+    if grep -q FPP_HAVE_IPV6 /etc/apache2/envvars 2>/dev/null; then
+        sed -i '/^## FPP: only ask apache for the IPv6/,/^fi$/d' /etc/apache2/envvars
     fi
 
-    # Restart, NOT gracefullyReloadApacheConf. Two reasons this specific
-    # change cannot go out over a graceful reload, both verified on a Pi5:
+    # Deliberately no restart and no reload of a *running* apache.
     #
-    #  1. FPP_HAVE_IPV6 comes from the master process's command line, which
-    #     apachectl builds from envvars at *start*. A running master re-reads
-    #     ports.conf on SIGUSR1 using the defines it was originally started
-    #     with -- so a master started before this upgrade has no
-    #     FPP_HAVE_IPV6 and takes the "Listen 80" branch.
-    #  2. A graceful restart cannot change listening sockets at all.
+    # Both branches above are evaluated at parse time, so a running master is
+    # already listening on whichever one this file now selects -- the new
+    # config is a no-op for it, and only matters at its next start. Restarting
+    # to "apply" it would drop every connection, including the one streaming
+    # this upgrade's output to the browser (manualUpdate.php runs behind this
+    # very apache), which leaves the user watching a dead upgrade dialog with
+    # no idea whether the rest of the run succeeded.
     #
-    # Together those kill the server outright: reloading a pre-upgrade master
-    # against the new ports.conf leaves apache 'failed' with no listener on
-    # port 80 and the web UI gone until the next reboot.
-    #
-    # The stopped case matters too: on a box with no IPv6, apache is already
-    # down from the bug this fixes, and starting it here is the recovery.
-    echo "  Restarting Apache to pick up the new listener configuration"
-    systemctl restart apache2 || true
+    # The stopped case is the one worth acting on: on a box with no IPv6
+    # apache is already down from the bug this fixes, nobody is watching a web
+    # UI, and starting it here is the recovery.
+    if systemctl is-active --quiet apache2; then
+        echo "  Apache is running; the new listener config applies at its next start."
+    else
+        echo "  Apache is not running -- starting it with the new listener configuration"
+        systemctl start apache2 || true
+    fi
 fi
 
 exit 0
