@@ -36,6 +36,44 @@ function GetFPPUserIds()
     return array('uid' => $pwentry['uid'], 'gid' => $pwentry['gid']);
 }
 
+/**
+ * Names of the subdirectories and files that make up an FPP media directory.
+ *
+ * This is deliberately a fixed list rather than a scandir() of the live media
+ * directory: it is used to recognise "this path is a media tree, not a folder of
+ * backups", and that judgement must not change just because a stray folder has
+ * appeared in media/. 'lost+found' is included because a media directory on its
+ * own ext4 partition has one, and it is never a backup.
+ *
+ * @return array Directory/file names, without any leading path.
+ */
+function GetFPPMediaDirNames()
+{
+    return array(
+        'backups',
+        'cache',
+        'config',
+        'crashes',
+        'effects',
+        'events',
+        'exim4',
+        'images',
+        'logs',
+        'lost+found',
+        'music',
+        'playlists',
+        'plugindata',
+        'plugins',
+        'scripts',
+        'sequences',
+        'tmp',
+        'upload',
+        'uploads',
+        'videos',
+        'virtualdisplay_assets',
+    );
+}
+
 function getFileList($dir, $ext)
 {
     $i = array();

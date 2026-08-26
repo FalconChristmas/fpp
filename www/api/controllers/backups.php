@@ -60,24 +60,23 @@ function ProxyBackupToRemote($remotePath, $method = 'GET')
  * Get available backups from subdir
  *
  * Returns a list of full system backup directories within the given path,
- * excluding directories that exist in the media root.
+ * skipping entries that are FPP media subdirectories rather than backup folders
+ * (i.e. when the scanned path is itself the root of a media tree).
  *
  * @param string $backupDir Absolute path to the directory to scan.
  * @return array List of relative directory paths found under $backupDir.
  */
 function GetAvailableBackupsFromDir($backupDir)
 {
-	global $settings;
-
-	$excludeList = array();
 	$dirs = array();
 
-	foreach (scandir($settings['mediaDirectory']) as $fileName) {
-		if (($fileName != '.') &&
-			($fileName != '..')) {
-			array_push($excludeList, $fileName);
-		}
-	}
+	// The exclude list is a FIXED set of known media subdirectory names, NOT a
+	// scandir() of the live media directory. It used to be the latter, which meant
+	// any stray folder in media/ silently hid the identically named backup folder
+	// on the drive -- and restoring a backup with path '/' copies the drive's whole
+	// root into media/, creating exactly those strays. That made a single restore
+	// permanently hide every backup on the drive. See issue #2856.
+	$excludeList = GetFPPMediaDirNames();
 
 	array_push($dirs, '/');
 

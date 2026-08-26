@@ -123,7 +123,9 @@ for action in $@; do
     "All")
         # Exclude backups/* so restoring a snapshot doesn't re-import the source
         # machine's own backups folder (backups-of-backups) - issue #2714
-        rsync $EXTRA_ARGS $REMOTE_COMPRESS --exclude=music/* --exclude=sequences/* --exclude=videos/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
+        # Exclude lost+found so restoring with path '/' from a drive root doesn't
+        # drop the drive's filesystem artifacts into media/ - issue #2856
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS --exclude=music/* --exclude=sequences/* --exclude=videos/* --exclude=backups/* --exclude=lost+found $SOURCE/* $DEST  2>&1 | IgnoreWarnings
         rsync $EXTRA_ARGS $SOURCE/music $DEST  2>&1 | IgnoreWarnings
         rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/sequences $DEST  2>&1 | IgnoreWarnings
         rsync $EXTRA_ARGS $SOURCE/videos $DEST  2>&1 | IgnoreWarnings
@@ -189,7 +191,7 @@ for action in $@; do
         rsync $EXTRA_ARGS $REMOTE_COMPRESS $SOURCE/config/backups $DEST/config  2>&1 | IgnoreWarnings
         ;;
     "Configuration")
-        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* --exclude=fpp-info.json $SOURCE/* $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* --exclude=lost+found --exclude=fpp-info.json $SOURCE/* $DEST  2>&1 | IgnoreWarnings
         ;;
     *)
         echo -n "Unknown action $action"
