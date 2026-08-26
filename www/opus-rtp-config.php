@@ -165,9 +165,12 @@
                             Unlike AES67 (uncompressed, wired-only), Opus is loss-tolerant and bandwidth-efficient.
                             <ul style="margin:0.5rem 0 0 0; padding-left:1.2rem;">
                                 <li><b>WiFi:</b> Use <b>unicast</b> (the receiver's IP address) for reliable streaming.
-                                    WiFi multicast is unreliable &mdash; most access points send it without retransmission at the lowest data rate.</li>
-                                <li><b>Wired:</b> Both unicast and multicast (239.x.x.x) work well. Multicast allows one sender to reach multiple receivers.</li>
-                                <li><b>Receiver:</b> Set the Destination IP to the <em>receiver's own IP</em> for unicast, or a multicast group address (e.g. 239.69.1.x) that both sender and receiver share.</li>
+                                    WiFi multicast is unreliable &mdash; most access points send it without retransmission
+                                    at the lowest data rate.</li>
+                                <li><b>Wired:</b> Both unicast and multicast (239.x.x.x) work well. Multicast allows one
+                                    sender to reach multiple receivers.</li>
+                                <li><b>Receiver:</b> Set the Destination IP to the <em>receiver's own IP</em> for unicast,
+                                    or a multicast group address (e.g. 239.69.1.x) that both sender and receiver share.</li>
                             </ul>
                         </div>
 
@@ -370,7 +373,7 @@
                         '<i class="fas fa-wifi"></i>' +
                         '<h4>No Opus RTP Instances Configured</h4>' +
                         '<p>Create Opus RTP instances to send and/or receive compressed audio streams over the network.<br>' +
-                        'Ideal for WiFi connections where AES67 (uncompressed) would be unreliable.<br>' +
+                        'Ideal for wireless audio and instances where AES67 is not a valid cost option.<br>' +
                         'Each instance appears as a virtual sound card that can be used in Audio Output Groups.</p>' +
                         '<button class="buttons btn-outline-success" onclick="AddInstance()">' +
                         '<i class="fas fa-plus"></i> Create First Instance</button>' +
@@ -674,6 +677,6 @@
                 return String(str).replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
             }
         </script>
-</body>
+        </body>
 
 </html>

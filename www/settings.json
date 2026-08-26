@@ -855,7 +855,7 @@
 		"PipeWireOpusRTPConfig": {
 			"name": "PipeWireOpusRTPConfig",
 			"description": "Opus RTP Audio Streaming",
-			"tip": "Send and receive compressed audio streams over WiFi or wired networks using the Opus codec. Ideal for wireless audio where AES67 would be unreliable.",
+			"tip": "Send and receive compressed audio streams over WiFi or wired networks using the Opus codec. Ideal for wireless audio and instances where AES67 is not a valid cost option.",
 			"type": "modal",
 			"modalUrl": "opus-rtp-config.php?modal=1",
 			"icon": "fas fa-wifi",
