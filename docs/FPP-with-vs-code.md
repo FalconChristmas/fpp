@@ -84,7 +84,7 @@ to each file and restart php-fpm with: `service php8.2-fpm restart`
 
 ## Clang Format Extension
 
-It is recomended to install the [Clang Format Extension](https://marketplace.visualstudio.com/items?itemName=xaver.clang-format) to automatic format
+It is recommended to install the [Clang Format Extension](https://marketplace.visualstudio.com/items?itemName=xaver.clang-format) to automatic format
 the FPP source code based on the included '.clang-format' file. For this extension to work, clang-format must
 be installed on the local machine or the remote machine (i.e PI or BBB) if using the Remote-SSH extension.
 
