@@ -354,6 +354,22 @@ int BBShiftStringOutput::Init(Json::Value config) {
         return 0;
     }
 
+    // The cape's string config has to be one written for this driver.  Here an
+    // output is a place in the cape's shift register chains (numeric "pru",
+    // "pin" and "index"); on a BBB48String cape it is a header pin name
+    // ("pin": "P8-08").  Reading a pin name as an int throws out of jsoncpp and
+    // reaches the user as a bare "Value is not convertible to Int.", so name the
+    // real problem instead: the config asked for the wrong driver for this cape.
+    // Configs like that do arrive - xLights 2026.16 pointed the K16A-B, a
+    // BBB48String cape, at this driver.
+    const Json::Value& capeOutputs = root["outputs"];
+    if (!capeOutputs.empty() && capeOutputs[0].get("pin", Json::Value()).isString()) {
+        LogErr(VB_CHANNELOUT, "Cape %s is not a BBShiftString cape - its string configuration names header pins, so it needs the BBB48String output type\n",
+               m_subType.c_str());
+        WarningHolder::AddWarning("BBShiftString: " + m_subType + " needs the BBB48String output type - open the Pixel Strings page and save to correct it");
+        return 0;
+    }
+
     // A combo cape shares the PRUSS with a panel driver: this side must not
     // clear the shared RAM or the other PRU's memory on a restart, and the
     // FalconV5 listener (a PRU0 program whose capture area overlaps the
