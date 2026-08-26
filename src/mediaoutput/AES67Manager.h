@@ -135,12 +135,24 @@ struct AES67Config {
     //   sourcePacing  -- ask PipeWire for a packet-sized quantum so RTP leaves
     //       evenly instead of one graph quantum at a time.
     bool ptpMediaClock = true;
-    // Default OFF: measured clean at the packet level (250 pkt/s, no gaps, no
-    // splices) but audibly distorted on a receiver.  The likely reason is that
-    // the request is expressed at the AES67 rate -- 192/48000 is 4ms, which on
-    // a 44100 graph is 176.4 samples, a fractional quantum PipeWire cannot
-    // schedule cleanly.  Needs re-testing expressed at the graph's own rate,
-    // and on a 48000 graph where it divides exactly, before it goes back on.
+    // Default OFF, and do not turn it on without solving what follows.
+    //
+    // It does fix the transmit cadence -- no gaps over 8ms in a 500-packet
+    // capture, and a Dante receiver's subscription state goes green -- but the
+    // audio is severely distorted, on both a 44100 and a genuine 48000 graph
+    // (confirmed on Yamaha MRX7-D hardware, issue #2848).  The fractional
+    // quantum theory (192/48000 being 176.4 samples at 44100) is therefore
+    // wrong: it distorts just as badly where the request divides exactly.
+    //
+    // The cause is still unknown.  It is not packet loss or timeline damage:
+    // sequence is unbroken, timestamp increments are exact, and the payload is
+    // statistically normal music with no splices at packet boundaries.  The
+    // corruption is inside the packets, which is why no packet-level metric
+    // catches it.
+    //
+    // Note the priority this deserves: the bursty default path plays cleanly on
+    // real hardware even at the MRX7-D's minimum 0.25ms receive latency, so the
+    // cadence this would fix is not currently blocking anything.
     bool sourcePacing = false;
 };
 
