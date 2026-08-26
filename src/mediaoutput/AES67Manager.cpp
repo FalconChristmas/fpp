@@ -24,6 +24,7 @@
 #include <gst/gst.h>
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <ifaddrs.h>
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
