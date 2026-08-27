@@ -361,8 +361,12 @@ struct AES67Config {
     // are never resampled, which is exactly why the sound card stays clean
     // while the AES67 stream falls apart.
     //
-    // Turning this off restores the old behaviour for comparison.
-    bool nativeSourceRate = true;
+    // Default OFF: this was written as a candidate fix for the collapse and it
+    // is not one -- delivery degrades identically whether the source is taken
+    // at 48kHz or at the graph's own rate.  PipeWire's per-node resampling is
+    // not at fault either way; pw-record's own 48k-from-44.1k stream runs at
+    // 99.9% of realtime indefinitely.  Kept as a knob, not a fix.
+    bool nativeSourceRate = false;
 
     // Copy each buffer out of PipeWire's pool instead of referencing it, and
     // negotiate a deeper pool.
@@ -381,7 +385,15 @@ struct AES67Config {
     // pipewiresrc and udpsink hold a constant 1.010 ratio), and it is not
     // per-node resampling (it degrades identically at the graph's native rate,
     // and pw-record's own 48k-from-44.1k stream is unaffected).
-    bool sourceBufferCopy = true;
+    // THIS is the fix.  Isolated by A/B: a 16 buffer pool on its own holds the
+    // send rate flat for 26 minutes, with always-copy off and the source still
+    // taken at 48kHz.  So the copy is not needed -- the pool was simply too
+    // shallow to absorb normal downstream reference-holding, and PipeWire
+    // skipped the cycles it could not fill.
+    //
+    // always-copy remains available for the case where something downstream
+    // genuinely retains buffers, at the cost of a memcpy per buffer.
+    bool sourceBufferCopy = false;
     int sourceMinBuffers = 16;
 
     // Adaptive resampling: continuously trim the send stream's rate so the
