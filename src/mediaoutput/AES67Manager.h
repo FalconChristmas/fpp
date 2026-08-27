@@ -332,6 +332,58 @@ struct AES67Config {
     // report on #2848, which every fix so far has merely postponed.
     bool driftResample = false;
 
+    // Count bytes in at pipewiresrc and out at udpsink, and log both rates.
+    //
+    // Diagnostic for the send rate collapsing partway through a long playback
+    // (250/s to 188/s at ~11 minutes, then to 151/s at ~19 minutes, with
+    // PipeWire reporting no xruns and CPU, memory, thread and fd counts all
+    // flat).  Since PipeWire says it is delivering, the audio is going missing
+    // between pipewiresrc and udpsink, and these two counters say which side
+    // of the pipeline loses it.
+    bool pipelineStats = false;
+
+    // Take audio from PipeWire at the graph's own rate and convert to the AES67
+    // rate inside GStreamer, instead of asking PipeWire to deliver 48kHz from a
+    // 44.1kHz graph.
+    //
+    // This is the fault behind "AES67 sounds fine, then goes fragmented".  With
+    // a 44100 graph, pipewiresrc negotiates 48000 and PipeWire resamples for
+    // that node alone; measured at the pipewiresrc pad, delivery holds at
+    // 287,968 B/s for 13 minutes, then steps to exactly 0.750x, then to 0.600x,
+    // and stays there.  PipeWire reports no xruns for the node throughout, and
+    // CPU, memory, threads, fds, temperature and the graph quantum are all flat
+    // across the whole run.
+    //
+    // Our own pipeline is not involved: byte counters at pipewiresrc and
+    // udpsink track each other at a constant 1.010 ratio the entire time, so
+    // nothing downstream loses a sample -- there is simply less audio arriving.
+    // The physical sinks are unaffected because they run at the graph rate and
+    // are never resampled, which is exactly why the sound card stays clean
+    // while the AES67 stream falls apart.
+    //
+    // Turning this off restores the old behaviour for comparison.
+    bool nativeSourceRate = true;
+
+    // Copy each buffer out of PipeWire's pool instead of referencing it, and
+    // negotiate a deeper pool.
+    //
+    // Candidate fix for the send rate collapsing partway through playback.
+    // Delivery to pipewiresrc steps to exactly 3/4 then 3/5 of nominal and
+    // stays there, with no xruns on the node and every resource metric flat --
+    // the shape of PipeWire skipping cycles because no buffer is free to fill.
+    // pipewiresrc negotiates min-buffers=2 and, with always-copy off, a buffer
+    // is only returned to the pool once everything downstream has dropped its
+    // reference, so anything that holds one starves the next cycle.
+    //
+    // Ruled out first, so this is not a guess at the level above: the graph is
+    // healthy (recording the sound card's monitor gives 99.9% of realtime while
+    // AES67 is at 52%), our own pipeline loses nothing (byte counters at
+    // pipewiresrc and udpsink hold a constant 1.010 ratio), and it is not
+    // per-node resampling (it degrades identically at the graph's native rate,
+    // and pw-record's own 48k-from-44.1k stream is unaffected).
+    bool sourceBufferCopy = true;
+    int sourceMinBuffers = 16;
+
     // Adaptive resampling: continuously trim the send stream's rate so the
     // media timeline advances at exactly PTP rate.
     //

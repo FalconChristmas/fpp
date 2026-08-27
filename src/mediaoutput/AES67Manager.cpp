@@ -227,6 +227,10 @@ bool AES67Manager::LoadConfig() {
     cfg.sinkPacing = root.get("sinkPacing", false).asBool();
     cfg.sinkPacingMs = root.get("sinkPacingMs", 40).asInt();
     cfg.driftResample = root.get("driftResample", false).asBool();
+    cfg.pipelineStats = root.get("pipelineStats", false).asBool();
+    cfg.nativeSourceRate = root.get("nativeSourceRate", true).asBool();
+    cfg.sourceBufferCopy = root.get("sourceBufferCopy", true).asBool();
+    cfg.sourceMinBuffers = root.get("sourceMinBuffers", 16).asInt();
     cfg.rateMatch = root.get("rateMatch", false).asBool();
     cfg.rateMatchToleranceNs =
         (guint64)root.get("rateMatchToleranceNs", 0).asUInt64();
@@ -1326,6 +1330,70 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
 }
 #endif // FPP_HAVE_SAMPLERATE
 
+
+// Byte counters at both ends of the send pipeline.  See
+// AES67Config::pipelineStats.
+static int PipeWireGraphRate();
+
+struct PipelineStatsState {
+    int instanceId = 0;
+    guint64 inBytes = 0;
+    guint64 outBytes = 0;
+    GstClockTime start = 0;
+    GstClockTime lastLog = 0;
+    guint64 inAtLast = 0;
+    guint64 outAtLast = 0;
+};
+
+static void DestroyPipelineStatsState(gpointer data) {
+    delete static_cast<PipelineStatsState*>(data);
+}
+
+static GstPadProbeReturn PipelineStatsIn(GstPad*, GstPadProbeInfo* info,
+                                         gpointer user) {
+    auto* st = static_cast<PipelineStatsState*>(user);
+    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+    if (!b) {
+        return GST_PAD_PROBE_OK;
+    }
+    st->inBytes += gst_buffer_get_size(b);
+
+    const GstClockTime now = gst_util_get_timestamp();
+    if (st->start == 0) {
+        st->start = now;
+        st->lastLog = now;
+        return GST_PAD_PROBE_OK;
+    }
+    if (now - st->lastLog < 30 * GST_SECOND) {
+        return GST_PAD_PROBE_OK;
+    }
+    const double dt = (double)(now - st->lastLog) / GST_SECOND;
+    LogInfo(VB_MEDIAOUT,
+            "AES67 stats [%d]: pipewiresrc %.0f B/s, udpsink %.0f B/s, "
+            "ratio %.3f, totals in %llu out %llu\n",
+            st->instanceId, (double)(st->inBytes - st->inAtLast) / dt,
+            (double)(st->outBytes - st->outAtLast) / dt,
+            (st->inBytes > st->inAtLast)
+                ? (double)(st->outBytes - st->outAtLast) /
+                      (double)(st->inBytes - st->inAtLast)
+                : 0.0,
+            (unsigned long long)st->inBytes, (unsigned long long)st->outBytes);
+    st->lastLog = now;
+    st->inAtLast = st->inBytes;
+    st->outAtLast = st->outBytes;
+    return GST_PAD_PROBE_OK;
+}
+
+static GstPadProbeReturn PipelineStatsOut(GstPad*, GstPadProbeInfo* info,
+                                          gpointer user) {
+    auto* st = static_cast<PipelineStatsState*>(user);
+    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+    if (b) {
+        st->outBytes += gst_buffer_get_size(b);
+    }
+    return GST_PAD_PROBE_OK;
+}
+
 bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     std::string nodeName = SafeNodeName(inst.name) + "_send";
     std::string sourceIP = GetInterfaceIP(inst.interface);
@@ -1389,7 +1457,26 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         LogInfo(VB_MEDIAOUT, "AES67 send [%d]: PTP media clock disabled by config\n", inst.id);
     }
 
-    oss << "pipewiresrc name=pwsrc min-buffers=2 "
+    // Ask PipeWire for the graph's own rate.  Without this the AES67 rate
+    // propagates all the way up and PipeWire resamples for this node alone,
+    // which is what degrades after ~11 minutes.  See
+    // AES67Config::nativeSourceRate.  audioresample below then does the
+    // conversion, which is what it is there for.
+    const int graphRate = m_config.nativeSourceRate ? PipeWireGraphRate() : 0;
+    if (graphRate > 0 && graphRate != AES67::AUDIO_RATE) {
+        LogInfo(VB_MEDIAOUT,
+                "AES67 send [%d]: taking source at graph rate %d, converting "
+                "to %d in the pipeline\n",
+                inst.id, graphRate, AES67::AUDIO_RATE);
+    }
+
+    oss << "pipewiresrc name=pwsrc"
+        << " min-buffers=" << m_config.sourceMinBuffers
+        << " always-copy=" << (m_config.sourceBufferCopy ? "true" : "false")
+        << " "
+        << ((graphRate > 0 && graphRate != AES67::AUDIO_RATE)
+                ? ("! audio/x-raw,rate=" + std::to_string(graphRate) + " ")
+                : "")
         << "! audioconvert "
         << "! audioresample "
         << "! audioconvert "
@@ -1563,6 +1650,27 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         gst_pipeline_use_clock(GST_PIPELINE(pipeline), ptpClock);
         gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE);
         gst_element_set_base_time(pipeline, 0);
+    }
+
+    if (m_config.pipelineStats) {
+        GstElement* src = gst_bin_get_by_name(GST_BIN(pipeline), "pwsrc");
+        GstElement* snk = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
+        GstPad* sp = src ? gst_element_get_static_pad(src, "src") : nullptr;
+        GstPad* kp = snk ? gst_element_get_static_pad(snk, "sink") : nullptr;
+        if (sp && kp) {
+            auto* ps = new PipelineStatsState();
+            ps->instanceId = inst.id;
+            gst_pad_add_probe(kp, GST_PAD_PROBE_TYPE_BUFFER, PipelineStatsOut,
+                              ps, nullptr);
+            gst_pad_add_probe(sp, GST_PAD_PROBE_TYPE_BUFFER, PipelineStatsIn,
+                              ps, DestroyPipelineStatsState);
+            LogInfo(VB_MEDIAOUT, "AES67 send [%d]: pipeline stats on\n",
+                    inst.id);
+        }
+        if (sp) gst_object_unref(sp);
+        if (kp) gst_object_unref(kp);
+        if (src) gst_object_unref(src);
+        if (snk) gst_object_unref(snk);
     }
 
 #ifdef FPP_HAVE_SAMPLERATE
