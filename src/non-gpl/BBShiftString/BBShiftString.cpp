@@ -360,13 +360,23 @@ int BBShiftStringOutput::Init(Json::Value config) {
     // ("pin": "P8-08").  Reading a pin name as an int throws out of jsoncpp and
     // reaches the user as a bare "Value is not convertible to Int.", so name the
     // real problem instead: the config asked for the wrong driver for this cape.
-    // Configs like that do arrive - xLights 2026.16 pointed the K16A-B, a
-    // BBB48String cape, at this driver.
-    const Json::Value& capeOutputs = root["outputs"];
-    if (!capeOutputs.empty() && capeOutputs[0].get("pin", Json::Value()).isString()) {
-        LogErr(VB_CHANNELOUT, "Cape %s is not a BBShiftString cape - its string configuration names header pins, so it needs the BBB48String output type\n",
-               m_subType.c_str());
-        WarningHolder::AddWarning("BBShiftString: " + m_subType + " needs the BBB48String output type - open the Pixel Strings page and save to correct it");
+    // Configs like that do arrive - xLights 2026.16 pointed an early K16A-B at
+    // this driver, a revision whose eeprom predates it and so is still a
+    // BBB48String pinout (and names no "driver" at all, hence the default
+    // below; later revisions of the same cape do belong here).
+    const int capeOutputCount = root["outputs"].size();
+    for (int i = 0; i < capeOutputCount; i++) {
+        // a string "pin" is the unambiguous BBB48String signature; a missing
+        // one is left to the null-reads-as-0 behaviour the shift capes have
+        // always relied on for their unused fields
+        if (!root["outputs"][i]["pin"].isString()) {
+            continue;
+        }
+        std::string capeDriver = root.get("driver", "BBB48String").asString();
+        LogErr(VB_CHANNELOUT, "Cape %s is not a BBShiftString cape - its string configuration names header pins, so it needs the %s output type\n",
+               m_subType.c_str(), capeDriver.c_str());
+        WarningHolder::AddWarning("BBShiftString: " + m_subType + " needs the " + capeDriver +
+                                  " output type - open the Pixel Strings page and save to correct it");
         return 0;
     }
 
@@ -517,6 +527,17 @@ int BBShiftStringOutput::Init(Json::Value config) {
                 curRecPort = m_strings[x]->m_portNumber % 4;
             }
             // need to output this pin, configure it
+            if (x >= capeOutputCount) {
+                // the loop above only vetted the outputs the cape declares;
+                // a config with more ports than that has nowhere to send them
+                // (and a bare operator[] here would read a null entry as
+                // pru 0 / pin 0 / stage 0, colliding with a real port)
+                LogErr(VB_CHANNELOUT, "Output %d is past the %d the %s cape declares\n",
+                       x + 1, capeOutputCount, m_subType.c_str());
+                WarningHolder::AddWarning("BBShiftString: output " + std::to_string(x + 1) +
+                                          " is past the end of the cape's pinout");
+                continue;
+            }
             int pru = root["outputs"][x]["pru"].asInt();
             int pin = root["outputs"][x]["pin"].asInt();
             int pinIdx = root["outputs"][x]["index"].asInt();

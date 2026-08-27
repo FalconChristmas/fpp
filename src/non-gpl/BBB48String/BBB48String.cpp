@@ -362,6 +362,25 @@ int BBB48StringOutput::Init(Json::Value config) {
     }
 
     m_licensedOutputs = CapeUtils::INSTANCE.getLicensedOutputs();
+
+    // The mirror of the check in BBShiftString: this driver drives a header
+    // pin per output, so every output the cape declares has to name one.  A
+    // shift-register cape's pinout gives a shift stage instead and its
+    // integer "pin" would come back through asString() as a pin name that
+    // matches nothing, leaving every port silently unconfigured.
+    const int capeOutputCount = root["outputs"].size();
+    for (int i = 0; i < capeOutputCount; i++) {
+        if (!root["outputs"][i]["pin"].isIntegral()) {
+            continue;
+        }
+        std::string capeDriver = root.get("driver", "BBShiftString").asString();
+        LogErr(VB_CHANNELOUT, "Cape %s is not a BBB48String cape - its string configuration gives shift register stages, so it needs the %s output type\n",
+               m_subType.c_str(), capeDriver.c_str());
+        WarningHolder::AddWarning("BBB48String: " + m_subType + " needs the " + capeDriver +
+                                  " output type - open the Pixel Strings page and save to correct it");
+        return 0;
+    }
+
     config["base"] = root;
 
     int maxStringLen = 0;
@@ -436,6 +455,13 @@ int BBB48StringOutput::Init(Json::Value config) {
     int allMax = 0;
     for (int x = 0; x < m_strings.size(); x++) {
         if (m_strings[x]->m_outputBytes > 0) {
+            if (x >= capeOutputCount) {
+                LogErr(VB_CHANNELOUT, "Output %d is past the %d the %s cape declares\n",
+                       x + 1, capeOutputCount, m_subType.c_str());
+                WarningHolder::AddWarning("BBB48String: output " + std::to_string(x + 1) +
+                                          " is past the end of the cape's pinout");
+                continue;
+            }
             // need to output this pin, configure it
             std::string pinName = root["outputs"][x]["pin"].asString();
             const PinCapabilities& pin = PinCapabilities::getPinByName(pinName);
