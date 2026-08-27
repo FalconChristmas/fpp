@@ -41,6 +41,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <deque>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -1136,7 +1137,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // running time (= PTP time) and still step exactly one packet each time.
         << (ptpClock ? ("! audiobuffersplit output-buffer-duration=" +
                         std::to_string(inst.ptime) + "/1000 ") : "")
-        << "! rtpL24pay pt=" << AES67::RTP_PAYLOAD_TYPE
+        << "! rtpL24pay name=pay pt=" << AES67::RTP_PAYLOAD_TYPE
         << " min-ptime=" << ptimeNs
         << " max-ptime=" << ptimeNs
         // timestamp-offset=0 anchors the RTP timeline to PTP (see the media
@@ -1572,24 +1573,29 @@ void AES67Manager::DriftControlLoop() {
     LogInfo(VB_MEDIAOUT, "AES67 drift control thread started\n");
 
     constexpr int SAMPLE_INTERVAL_S = 2;
-    // Gains are deliberately tiny.  The rate term does nearly all the work --
-    // it is a direct multiplicative correction and nulls a crystal offset in a
-    // couple of iterations.  The offset term only has to bleed off whatever lag
-    // accumulated before that settled, over tens of seconds, so it needs to be
-    // small enough that it never fights the rate term.  A first attempt used
-    // 0.02 here and drove the stream to +890ppm -- worse than the -111ppm it
-    // was correcting -- because a 50ms lag then asked for a 1000ppm trim.
-    constexpr double KP_OFFSET = 0.0002;   // per second of accumulated lag
+    // The payloader's last-emitted RTP timestamp only advances when a burst of
+    // packets goes out -- one graph quantum at a time -- so sampling it
+    // asynchronously quantises the reading by ~21ms.  Over a 30s endpoint
+    // measurement that is +/-750ppm of noise on a signal of ~100ppm, and the
+    // loop simply hunts.  Fit a slope across the whole window instead, and make
+    // the window long: noise falls with both the span and the sample count.
+    constexpr int WINDOW_S = 120;          // measurement baseline
+    constexpr double KP_RATE = 0.2;        // fraction of the rate error to take per step
+    constexpr double KP_OFFSET = 0.00002;  // per second of accumulated lag
     constexpr double MAX_TRIM = 0.0005;    // +/-500ppm, well beyond any crystal
-    constexpr double MAX_STEP = 0.00005;   // +/-50ppm per iteration: no lurching
+    constexpr double MAX_STEP = 0.00002;   // +/-20ppm per iteration
 
+    struct Sample {
+        GstClockTime clock;
+        double samples;    // cumulative RTP samples emitted
+    };
     struct PipelineState {
+        std::deque<Sample> window;
+        double cumulative = 0.0;
+        guint lastTs = 0;
         GstClockTime lastClock = 0;
-        gint64 lastPos = 0;
-        double speed = 1.0;
-        double baselineErr = 0.0;   // ns; the sender latency we started at
         bool primed = false;
-        int settle = 2;             // skip the first couple of samples
+        double speed = 1.0;
     };
     std::map<int, PipelineState> state;
 
@@ -1603,7 +1609,7 @@ void AES67Manager::DriftControlLoop() {
 
         std::unique_lock<std::mutex> lock(m_pipelineMutex, std::try_to_lock);
         if (!lock.owns_lock()) {
-            continue;   // a rebuild is in progress; nothing worth measuring
+            continue;
         }
 
         for (auto& [id, p] : m_sendPipelines) {
@@ -1611,56 +1617,113 @@ void AES67Manager::DriftControlLoop() {
                 continue;
             }
             GstElement* drift = gst_bin_get_by_name(GST_BIN(p.pipeline), "drift");
-            if (!drift) {
-                continue;   // built without the rate trim
-            }
-            GstClock* clock = gst_element_get_clock(p.pipeline);
-            gint64 pos = 0;
-            bool havePos = gst_element_query_position(p.pipeline, GST_FORMAT_TIME, &pos);
-            if (!clock || !havePos || pos <= 0) {
-                if (clock) gst_object_unref(clock);
-                gst_object_unref(drift);
+            GstElement* pay = gst_bin_get_by_name(GST_BIN(p.pipeline), "pay");
+            if (!drift || !pay) {
+                if (drift) gst_object_unref(drift);
+                if (pay) gst_object_unref(pay);
                 continue;
             }
+            GstClock* clock = gst_element_get_clock(p.pipeline);
+            if (!clock) {
+                gst_object_unref(drift);
+                gst_object_unref(pay);
+                continue;
+            }
+
+            // Measure against the RTP timestamps we actually emitted.  These
+            // step by exactly one packet, so the only error is a single sample
+            // (21us) over the whole window -- unlike a position query, which
+            // reports the last buffer the sink handled and therefore jitters by
+            // a full graph quantum (+/-10ms measured).  That jitter is ~45x the
+            // drift being corrected, and an earlier version of this loop spent
+            // its life chasing it into the slew limit.
+            guint ts = 0;
+            g_object_get(pay, "timestamp", &ts, NULL);
             GstClockTime now = gst_clock_get_time(clock);
             gst_object_unref(clock);
+            gst_object_unref(pay);
 
             PipelineState& st = state[id];
             if (!st.primed) {
+                st.lastTs = ts;
                 st.lastClock = now;
-                st.lastPos = pos;
                 st.primed = true;
+                st.window.push_back({now, 0.0});
                 gst_object_unref(drift);
                 continue;
             }
 
-            double dClock = (double)(now - st.lastClock);
-            double dPos = (double)(pos - st.lastPos);
+            double emitted = (double)((guint32)(ts - st.lastTs));   // wraps correctly
+            st.lastTs = ts;
+
+            // Reject discontinuities rather than measuring them as drift.
+            // Between tracks, and whenever FlushSendPipelines() drops buffers,
+            // the stream simply stops for a while; the media timeline then
+            // legitimately loses time against the wall clock, which is
+            // indistinguishable from a very slow clock if taken at face value.
+            // Measured with five track restarts in a window it reported
+            // -7500ppm and nearly a second of "lag" -- all of it gaps.
+            double expected = (double)(now - st.lastClock) / 1e9 * AES67::AUDIO_RATE;
             st.lastClock = now;
-            st.lastPos = pos;
-            if (dClock <= 0 || dPos <= 0) {
+            if (expected > 0 && (emitted < expected * 0.9 || emitted > expected * 1.1)) {
+                LogDebug(VB_MEDIAOUT,
+                         "AES67 drift [%d]: stream discontinuity (%.0f of %.0f samples), "
+                         "restarting measurement\n", id, emitted, expected);
+                st.window.clear();
+                st.cumulative = 0.0;
+                st.window.push_back({now, 0.0});
                 gst_object_unref(drift);
                 continue;
             }
 
-            // How far the media timeline sits behind the wall clock right now.
-            double err = (double)now - (double)pos;
-            if (st.settle > 0) {
-                // Let the pipeline reach steady state before deciding what
-                // "normal" latency looks like, or we would chase startup.
-                st.settle--;
-                st.baselineErr = err;
+            st.cumulative += emitted;
+            st.window.push_back({now, st.cumulative});
+            while (st.window.size() > 2 &&
+                   (now - st.window.front().clock) > (GstClockTime)WINDOW_S * GST_SECOND) {
+                st.window.pop_front();
+            }
+            if (st.window.size() < 3) {
                 gst_object_unref(drift);
                 continue;
             }
 
-            double ratio = dPos / dClock;                   // 1.0 = perfectly locked
-            double offsetSec = (err - st.baselineErr) / 1e9; // >0 means falling behind
+            const Sample& a = st.window.front();
+            const Sample& b = st.window.back();
+            double dClockS = (double)(b.clock - a.clock) / 1e9;
+            if (dClockS < (double)WINDOW_S * 0.5) {
+                // Not enough baseline yet to measure anything at this precision.
+                gst_object_unref(drift);
+                continue;
+            }
 
-            double next = st.speed * ratio * (1.0 - KP_OFFSET * offsetSec);
+            // Least-squares slope of media seconds against PTP seconds across
+            // the window.  Averaging down the per-sample quantisation is the
+            // whole point; endpoints alone are far too noisy.
+            double n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+            for (const Sample& w : st.window) {
+                double x = (double)(w.clock - a.clock) / 1e9;
+                double y = (w.samples - a.samples) / (double)AES67::AUDIO_RATE;
+                n += 1; sx += x; sy += y; sxx += x * x; sxy += x * y;
+            }
+            double denom = n * sxx - sx * sx;
+            if (denom <= 0) {
+                gst_object_unref(drift);
+                continue;
+            }
+            double ratio = (n * sxy - sx * sy) / denom;   // 1.0 = locked to PTP
+            double lagS = dClockS - (b.samples - a.samples) / (double)AES67::AUDIO_RATE;
 
-            // Slew limit before clamping: a bad measurement (a stalled query, a
-            // flush) must not be able to move the rate far in one step.
+            // Sign: the "speed" element plays at `speed` x rate, so it emits
+            // FEWER samples as speed rises -- media time advances as 1/speed.
+            // Media running slow (ratio < 1) therefore needs speed to come
+            // DOWN.  Getting this backwards drives the loop straight into the
+            // clamp and makes the drift worse, which is exactly what the first
+            // rewrite of this loop did (-111ppm became -770ppm at +500ppm trim).
+            //
+            // Rate term takes a fraction of the error so the loop settles
+            // rather than ringing; offset term is tiny and only bleeds off
+            // accumulated lag.
+            double next = st.speed * (1.0 + KP_RATE * (ratio - 1.0)) * (1.0 - KP_OFFSET * lagS);
             if (next > st.speed + MAX_STEP) next = st.speed + MAX_STEP;
             if (next < st.speed - MAX_STEP) next = st.speed - MAX_STEP;
             if (next < 1.0 - MAX_TRIM) next = 1.0 - MAX_TRIM;
@@ -1672,8 +1735,8 @@ void AES67Manager::DriftControlLoop() {
             }
 
             LogDebug(VB_MEDIAOUT,
-                     "AES67 drift [%d]: media/PTP %.6f (%+.1f ppm), lag %+.2f ms, trim %+.1f ppm\n",
-                     id, ratio, (ratio - 1.0) * 1e6, offsetSec * 1000.0,
+                     "AES67 drift [%d]: over %.0fs media/PTP %.7f (%+.1f ppm), lag %+.2f ms, trim %+.1f ppm\n",
+                     id, dClockS, ratio, (ratio - 1.0) * 1e6, lagS * 1000.0,
                      (st.speed - 1.0) * 1e6);
             gst_object_unref(drift);
         }
