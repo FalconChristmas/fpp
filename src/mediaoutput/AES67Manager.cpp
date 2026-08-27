@@ -423,8 +423,8 @@ void AES67Manager::OnPipeWireReady() {
 //   - BMCA priority driven by the "ptpRole" setting -- see AES67Config
 //   - DSCP EF (46) on PTP event/general messages -- see AES67::PTP_DSCP
 //
-// phc2sys is also launched to align the system clock with PTP time, so that
-// GStreamer pipelines (which use the system clock) track the PTP frequency.
+// phc2sys is deliberately not launched -- see the note in InitPTP().  The
+// pipeline reads PTP time directly rather than via the system clock.
 // ──────────────────────────────────────────────────────────────────────────────
 
 // Absolute path so we do not depend on whatever PATH systemd handed fppd --
@@ -559,45 +559,24 @@ bool AES67Manager::InitPTP() {
         }
     }
 
-    // Start phc2sys to align the system clock with PTP time.
+    // phc2sys is deliberately NOT started.
     //
-    // -a: autoconfiguration -- take the sync direction from ptp4l's port
-    //     states instead of assuming one, and pick up currentUtcOffset from
-    //     it.  When we follow an upstream master the PHC drives
-    //     CLOCK_REALTIME; when we hold the grandmaster role no port is in
-    //     SLAVE state, so there is no source clock and phc2sys idles instead
-    //     of dragging the system clock onto a free-running PHC.
-    // -r: allow CLOCK_REALTIME to be disciplined (needed for the follower
-    //     case).  Deliberately not repeated -- "-r -r" would let a Pi with no
-    //     NTP steer the whole domain's clock while acting as grandmaster.
-    // -n: match our PTP domain.  phc2sys talks to ptp4l with the same
-    //     domain-filtered management messages pmc uses, so the default of 0
-    //     would silently find nothing on any other domain.
+    // Its only job was to copy PTP time onto the system clock, and nothing
+    // needs that any more: the media clock reads the PTP time source directly
+    // (the PHC with hardware timestamping, CLOCK_REALTIME with software), so
+    // the pipeline no longer depends on the system clock tracking PTP.
     //
-    // The previous invocation ("-s /dev/ptp0 -c CLOCK_REALTIME -O 0") was
-    // wrong in both directions: it unconditionally slaved the system clock to
-    // the PHC even when that PHC was our own free-running one, and its fixed
-    // zero offset ignored that PTP distributes TAI -- so locking to a real
-    // grandmaster pushed the wall clock 37 seconds ahead of UTC, corrupting
-    // schedules and logs while NTP fought to pull it back.
-    if (FileExists("/dev/ptp0") && FileExists("/usr/sbin/phc2sys")) {
-        std::string domainArg = std::to_string(m_config.ptpDomain);
-        pid_t phcPid = fork();
-        if (phcPid < 0) {
-            LogWarn(VB_MEDIAOUT, "AES67Manager: fork() failed for phc2sys: %s\n", FPPstrerror(errno));
-        } else if (phcPid == 0) {
-            execlp("phc2sys", "phc2sys",
-                   "-a",
-                   "-r",
-                   "-n", domainArg.c_str(),
-                   "-m",      // log to stderr
-                   nullptr);
-            _exit(127);
-        } else {
-            m_phc2sysPid = phcPid;
-            LogInfo(VB_MEDIAOUT, "AES67Manager: phc2sys started (PID %d)\n", (int)m_phc2sysPid);
-        }
-    }
+    // Running it is actively harmful against real grandmasters.  PTP's
+    // timescale is whatever the grandmaster distributes, and Dante/Brooklyn
+    // devices commonly distribute an arbitrary epoch rather than wall time --
+    // one measured at ~4411 seconds, i.e. time since the device booted.
+    // "phc2sys -a -r" faithfully slaved CLOCK_REALTIME to that and dragged the
+    // Pi's clock back to 1970 (reported on issue #2848), taking the scheduler,
+    // logs and anything else on wall time with it.
+    //
+    // A box that wants PTP-disciplined system time should run phc2sys from
+    // systemd with an offset appropriate to its grandmaster; that is a
+    // deliberate site decision, not something an audio stream should impose.
 
     m_ptpInitialized = true;
     LogInfo(VB_MEDIAOUT, "AES67Manager: PTP initialized — ptp4l PID %d on %s\n",
@@ -1364,9 +1343,8 @@ bool AES67Manager::CreateRecvPipeline(const AES67Instance& inst) {
     // Store the bus for polling in the watchdog thread (no GLib main loop).
     GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
 
-    // Note: PTP synchronization is handled externally by ptp4l + phc2sys.
-    // The system clock is kept in sync with PTP, so the default pipeline
-    // clock (system clock) inherits PTP accuracy.
+    // Note: the receive path runs on GStreamer's default clock.  Only the send
+    // path is driven by PTP time (see CreateSendPipeline).
 
     // Start pipeline OUTSIDE the mutex — GStreamer state changes can block
     // waiting for PipeWire.
@@ -1567,21 +1545,6 @@ void AES67Manager::CheckPtpWatchdog() {
         return;
     }
 
-    // ptp4l is fine but its helper died — restart just that.
-    if (m_phc2sysPid > 0 && kill(m_phc2sysPid, 0) != 0) {
-        LogWarn(VB_MEDIAOUT, "AES67 watchdog: phc2sys is gone — restarting it\n");
-        m_phc2sysPid = -1;
-        if (FileExists("/dev/ptp0") && FileExists("/usr/sbin/phc2sys")) {
-            std::string domainArg = std::to_string(m_config.ptpDomain);
-            pid_t phcPid = fork();
-            if (phcPid == 0) {
-                execlp("phc2sys", "phc2sys", "-a", "-r", "-n", domainArg.c_str(), "-m", nullptr);
-                _exit(127);
-            } else if (phcPid > 0) {
-                m_phc2sysPid = phcPid;
-            }
-        }
-    }
 }
 
 bool AES67Manager::PollPipelinesWatchdog() {
