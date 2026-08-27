@@ -176,6 +176,20 @@ struct AES67Config {
     // the speed property is not taking effect on a running pipeline.  Check
     // `ratio` in the log first: if it tracks the real drift the measurement is
     // fine and the element is at fault, and vice versa.
+    //
+    // UPDATE: the "speed" element is not a working actuator.  Driven from 0 to
+    // the full -500ppm clamp on a live stereo stream, the measured drift moved
+    // by ~35ppm (-80 -> -45) where ~500ppm was asked for.  It accepts the
+    // property and reads it back -- which is what earlier notes here wrongly
+    // took as proof of actuation -- but does not apply it to a live source,
+    // having been written for changing playback rate of seekable media.
+    //
+    // The measurement half of the loop IS sound: on a stereo stream it reads a
+    // steady -40 to -100ppm, consistent with the -110.9ppm measured
+    // independently from packet captures.  So what needs replacing is the
+    // actuator, not the control loop.  Next candidate is the "pitch" element
+    // (soundtouch), whose "rate" property is documented as controllable and
+    // which does real resampling.
     bool adaptiveResample = false;
 };
 
