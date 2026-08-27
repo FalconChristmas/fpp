@@ -1,0 +1,732 @@
+#!/usr/bin/env python3
+"""
+AES67 stream content verification harness.
+
+scripts/aes67_test checks that the plumbing exists (elements, SAP, PTP).
+This checks what actually lands on the wire: it captures the outgoing RTP,
+decodes the L24 payload back to PCM and inspects the audio itself.
+
+It exists because every earlier AES67 check measured the *envelope* of the
+stream (packet rate, timestamps, jitter) and none compared the *content*
+against the source.  A stereo->mono collapse, a resampler glitch and a
+third of the samples going missing all left the envelope looking perfect.
+
+Usage:
+  aes67_verify check                     capture 15s from the configured
+                                         instance and report
+  aes67_verify check -d 30 --wav /tmp/w.wav
+  aes67_verify check --source "/home/fpp/media/music/track.mp3"
+  aes67_verify capture -o /tmp/a.pcap    capture only
+  aes67_verify analyze /tmp/a.pcap       analyse an existing capture
+
+Exit status is non-zero if any check fails, so it can gate a test run.
+
+NOTE: /tmp on a Pi is a RAM-backed tmpfs.  Captures are deleted straight
+after analysis unless -o names a file, and a capture that would exceed
+--max-mb is refused rather than risking an OOM.
+"""
+
+import argparse
+import json
+import os
+import struct
+import subprocess
+import sys
+import tempfile
+
+import numpy as np
+
+INSTANCES = "/home/fpp/media/config/pipewire-aes67-instances.json"
+
+# ---------------------------------------------------------------- reporting
+
+class Report:
+    """Collects pass/fail lines so a run ends with one verdict."""
+
+    GREEN, RED, YELLOW, DIM, NC = (
+        "\033[0;32m", "\033[0;31m", "\033[1;33m", "\033[2m", "\033[0m"
+    )
+
+    def __init__(self):
+        self.failed = 0
+        self.warned = 0
+
+    def _emit(self, colour, tag, msg):
+        print(f"{colour}{tag}{self.NC}: {msg}")
+
+    def ok(self, msg):
+        self._emit(self.GREEN, "PASS", msg)
+
+    def fail(self, msg):
+        self._emit(self.RED, "FAIL", msg)
+        self.failed += 1
+
+    def warn(self, msg):
+        self._emit(self.YELLOW, "WARN", msg)
+        self.warned += 1
+
+    def info(self, msg):
+        print(f"{self.DIM}      {msg}{self.NC}")
+
+    def section(self, title):
+        print(f"\n=== {title} ===")
+
+    def verdict(self):
+        print()
+        if self.failed:
+            print(f"{self.RED}{self.failed} check(s) FAILED{self.NC}"
+                  + (f", {self.warned} warning(s)" if self.warned else ""))
+            return 1
+        if self.warned:
+            print(f"{self.YELLOW}All checks passed with "
+                  f"{self.warned} warning(s){self.NC}")
+            return 0
+        print(f"{self.GREEN}All checks passed{self.NC}")
+        return 0
+
+
+# ------------------------------------------------------------ configuration
+
+def load_instance(instance_id=None):
+    """Return the first enabled send instance, or the one with the given id."""
+    with open(INSTANCES) as f:
+        cfg = json.load(f)
+    for inst in cfg.get("instances", []):
+        if instance_id is not None:
+            if inst.get("id") == instance_id:
+                return inst
+        elif inst.get("enabled") and inst.get("mode") == "send":
+            return inst
+    raise SystemExit(f"no matching AES67 send instance in {INSTANCES}")
+
+
+# ---------------------------------------------------------------- capturing
+
+def capture(inst, seconds, out_path, max_mb):
+    """tcpdump the instance's RTP flow into out_path."""
+    ip, port = inst["multicastIP"], inst["port"]
+    iface = inst.get("interface") or "any"
+
+    # ~1 packet per ptime ms, ~1500 bytes each.  Refuse anything that would
+    # put a large file into the tmpfs.
+    ptime = inst.get("ptime", 1) or 1
+    est_mb = (seconds * (1000.0 / ptime) * 1500) / (1024 * 1024)
+    if est_mb > max_mb:
+        raise SystemExit(
+            f"capture would be ~{est_mb:.0f}MB (limit {max_mb}MB); "
+            f"use a shorter -d or raise --max-mb")
+
+    cmd = ["tcpdump", "-i", iface, "-w", out_path, "-q",
+           "-G", str(seconds), "-W", "1", "-s", "0",
+           f"udp and host {ip} and port {port}"]
+    print(f"Capturing {seconds}s from {ip}:{port} on {iface} "
+          f"(~{est_mb:.0f}MB)...")
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+        raise SystemExit(f"capture produced nothing:\n{proc.stderr}")
+    print(f"Captured {os.path.getsize(out_path) / 1024 / 1024:.1f}MB")
+    return out_path
+
+
+# ------------------------------------------------------------ pcap decoding
+
+def parse_pcap_rtp(path):
+    """Yield (arrival_time, seq, rtp_ts, ssrc, payload) for each RTP packet."""
+    with open(path, "rb") as f:
+        data = f.read()
+
+    magic = struct.unpack("<I", data[:4])[0]
+    if magic in (0xA1B2C3D4, 0xA1B23C4D):
+        endian, nano = "<", magic == 0xA1B23C4D
+    elif magic in (0xD4C3B2A1, 0x4D3CB2A1):
+        endian, nano = ">", magic == 0x4D3CB2A1
+    else:
+        raise SystemExit(f"{path} is not a classic pcap (magic {magic:#x})")
+
+    link_type = struct.unpack(endian + "I", data[20:24])[0]
+    pos, n = 24, len(data)
+
+    while pos + 16 <= n:
+        ts_s, ts_frac, incl, _orig = struct.unpack(
+            endian + "IIII", data[pos:pos + 16])
+        pos += 16
+        pkt, pos = data[pos:pos + incl], pos + incl
+        arrival = ts_s + ts_frac / (1e9 if nano else 1e6)
+
+        off = _l2_payload_offset(pkt, link_type)
+        if off is None:
+            continue
+        parsed = _udp_rtp(pkt, off)
+        if parsed:
+            yield (arrival,) + parsed
+
+
+def _l2_payload_offset(pkt, link_type):
+    """Skip the link and IP headers, returning the UDP offset (or None)."""
+    if link_type == 1:                      # Ethernet
+        if len(pkt) < 14:
+            return None
+        ethertype, off = struct.unpack(">H", pkt[12:14])[0], 14
+        while ethertype in (0x8100, 0x88A8):  # VLAN tags
+            if len(pkt) < off + 4:
+                return None
+            ethertype = struct.unpack(">H", pkt[off + 2:off + 4])[0]
+            off += 4
+        if ethertype != 0x0800:             # IPv4 only
+            return None
+    elif link_type == 113:                  # Linux cooked ("any")
+        if len(pkt) < 16 or struct.unpack(">H", pkt[14:16])[0] != 0x0800:
+            return None
+        off = 16
+    elif link_type == 276:                  # Linux cooked v2
+        if len(pkt) < 20 or struct.unpack(">H", pkt[0:2])[0] != 0x0800:
+            return None
+        off = 20
+    else:
+        return None
+
+    if len(pkt) < off + 20:
+        return None
+    ihl = (pkt[off] & 0x0F) * 4
+    if pkt[off + 9] != 17:                  # UDP
+        return None
+    return off + ihl
+
+
+def _udp_rtp(pkt, off):
+    """Return (seq, rtp_ts, ssrc, payload) from the UDP datagram at off."""
+    if len(pkt) < off + 8:
+        return None
+    rtp = off + 8
+    if len(pkt) < rtp + 12:
+        return None
+
+    b0 = pkt[rtp]
+    if b0 >> 6 != 2:                        # RTP version 2
+        return None
+    csrc = b0 & 0x0F
+    seq, ts, ssrc = struct.unpack(">HII", pkt[rtp + 2:rtp + 12])
+
+    hdr = 12 + csrc * 4
+    if b0 & 0x10:                           # extension header
+        if len(pkt) < rtp + hdr + 4:
+            return None
+        hdr += 4 + struct.unpack(">H", pkt[rtp + hdr + 2:rtp + hdr + 4])[0] * 4
+
+    payload = pkt[rtp + hdr:]
+    return (seq, ts, ssrc, payload) if payload else None
+
+
+def l24_to_float(payload_bytes, channels):
+    """Decode big-endian 24-bit interleaved PCM to float32 in [-1, 1)."""
+    raw = np.frombuffer(payload_bytes, dtype=np.uint8)
+    frames = len(raw) // (3 * channels)
+    raw = raw[:frames * channels * 3].reshape(-1, 3).astype(np.int32)
+
+    # Big-endian 24-bit, sign-extended via the 24-bit sign bit.
+    val = (raw[:, 0] << 16) | (raw[:, 1] << 8) | raw[:, 2]
+    val = np.where(val & 0x800000, val - 0x1000000, val)
+    return (val.astype(np.float32) / 8388608.0).reshape(frames, channels)
+
+
+# -------------------------------------------------------- transport checks
+
+def check_transport(rep, pkts, inst):
+    rep.section("Transport")
+    arrivals = np.array([p[0] for p in pkts])
+    seqs = np.array([p[1] for p in pkts], dtype=np.int64)
+    rtpts = np.array([p[2] for p in pkts], dtype=np.int64)
+    ssrcs = {p[3] for p in pkts}
+    sizes = np.array([len(p[4]) for p in pkts])
+
+    duration = arrivals[-1] - arrivals[0]
+    rep.info(f"{len(pkts)} packets over {duration:.2f}s")
+
+    if len(ssrcs) == 1:
+        rep.ok(f"single SSRC ({next(iter(ssrcs)):#010x})")
+    else:
+        rep.fail(f"{len(ssrcs)} SSRCs in one capture - overlapping streams: "
+                 + ", ".join(f"{s:#010x}" for s in sorted(ssrcs)))
+        rep.info("more than one sender is publishing to this address")
+
+    # Sequence integrity, unwrapped across the 16-bit rollover.
+    dseq = np.diff(seqs)
+    dseq = np.where(dseq < -32768, dseq + 65536,
+                    np.where(dseq > 32768, dseq - 65536, dseq))
+    lost = int(np.sum(dseq[dseq > 1] - 1))
+    dups = int(np.sum(dseq == 0))
+    reord = int(np.sum(dseq < 0))
+
+    if lost == 0 and dups == 0 and reord == 0:
+        rep.ok("sequence numbers contiguous, no loss or reordering")
+    else:
+        msg = f"{lost} lost, {dups} duplicate, {reord} reordered packets"
+        (rep.fail if lost or reord else rep.warn)(msg)
+
+    # Packet rate against the configured ptime.
+    ptime = inst.get("ptime", 1) or 1
+    expected_rate = 1000.0 / ptime
+    rate = len(pkts) / duration if duration > 0 else 0
+    if abs(rate - expected_rate) / expected_rate < 0.02:
+        rep.ok(f"packet rate {rate:.1f}/s matches ptime {ptime}ms "
+               f"({expected_rate:.0f}/s)")
+    else:
+        rep.fail(f"packet rate {rate:.1f}/s vs {expected_rate:.0f}/s expected "
+                 f"for ptime {ptime}ms")
+        rep.info("a low rate means the source is being starved; "
+                 "a high one means it is being over-pulled")
+
+    if len(set(sizes.tolist())) == 1:
+        rep.ok(f"uniform payload {sizes[0]} bytes")
+    else:
+        rep.warn(f"payload size varies: {sizes.min()}-{sizes.max()} bytes")
+
+    # RTP timestamp continuity: every step should equal the frames sent.
+    frames_per_pkt = sizes // (3 * inst.get("channels", 2))
+    dts = np.diff(rtpts)
+    dts = np.where(dts < 0, dts + (1 << 32), dts)
+    jumps = int(np.sum(dts != frames_per_pkt[:-1]))
+    if jumps == 0:
+        rep.ok("RTP timestamps advance exactly with the payload")
+    else:
+        rep.fail(f"{jumps} RTP timestamp discontinuities "
+                 f"({100.0 * jumps / len(dts):.1f}% of packets)")
+        rep.info("each one is an audible seam in the receiver's buffer")
+
+    check_pacing(rep, arrivals, ptime)
+    return arrivals, rtpts
+
+
+def check_pacing(rep, arrivals, ptime):
+    """Packets must leave one per ptime, not in per-quantum bursts.
+
+    AES67 receivers size their buffer in ptimes (a link offset of 0.25-5ms
+    is normal).  If the graph hands us a whole quantum at once and the sink
+    blasts it out unpaced, the receiver sees nothing for a quantum and then
+    a burst - it underruns every cycle and the audio fragments, even though
+    the payload itself is perfect.  Nothing else in this tool catches that:
+    the rate, sequence and timestamps all look ideal.
+    """
+    dt_ms = np.diff(arrivals) * 1000.0
+    rep.info(f"inter-arrival: median {np.median(dt_ms):.3f}ms, "
+             f"p90 {np.percentile(dt_ms, 90):.2f}ms, max {dt_ms.max():.2f}ms")
+
+    # A gap under a quarter of a ptime means back-to-back transmission.
+    back_to_back = float(np.mean(dt_ms < ptime * 0.25))
+
+    if back_to_back < 0.05:
+        rep.ok(f"packets paced at ptime "
+               f"(median gap {np.median(dt_ms):.2f}ms vs {ptime}ms)")
+    else:
+        # Group into bursts to report what the receiver actually sees.
+        starts = np.flatnonzero(np.concatenate(
+            ([True], dt_ms > ptime * 0.25)))
+        sizes = np.diff(np.concatenate((starts, [len(arrivals)])))
+        burst_ms = float(np.mean(sizes)) * ptime
+        rep.fail(f"{100 * back_to_back:.0f}% of packets are sent back-to-back "
+                 f"- the stream is bursting, not paced")
+        rep.info(f"bursts of {np.mean(sizes):.1f} packets = "
+                 f"{burst_ms:.1f}ms of audio, every "
+                 f"{np.median(np.diff(arrivals[starts])) * 1000:.2f}ms")
+        rep.info(f"a receiver with a link offset under {burst_ms:.0f}ms "
+                 f"underruns once per burst - this is what 'fragmented' "
+                 f"sounds like when the payload itself is clean")
+
+    if dt_ms.max() > ptime * 10:
+        rep.info(f"largest gap {dt_ms.max():.1f}ms "
+                 f"({dt_ms.max() / ptime:.0f}x ptime)")
+
+
+def check_media_clock(rep, arrivals, rtpts, rate):
+    """Fit RTP timestamp growth against wall time to recover drift in ppm."""
+    rep.section("Media clock")
+    if len(arrivals) < 100:
+        rep.warn("too few packets to measure drift")
+        return
+
+    ts = rtpts.astype(np.float64)
+    ts += np.cumsum(np.concatenate(
+        ([0], (np.diff(ts) < -(1 << 31)) * (1 << 32))))
+
+    t = arrivals - arrivals[0]
+    slope = np.polyfit(t, ts - ts[0], 1)[0]        # media samples per second
+    ppm = (slope / rate - 1.0) * 1e6
+
+    span = t[-1]
+    rep.info(f"media advances {slope:.2f} samples/s against a {rate}Hz clock")
+    rep.info(f"drift {ppm:+.1f} ppm = {ppm * 60 / 1000:+.2f} ms/minute")
+
+    if abs(ppm) < 20:
+        rep.ok(f"media clock within {ppm:+.1f} ppm of the RTP rate")
+    elif abs(ppm) < 100:
+        rep.warn(f"media clock drifting {ppm:+.1f} ppm")
+        rep.info(f"a 5ms receiver buffer is consumed in "
+                 f"{5000.0 / abs(ppm * 60) if ppm else 0:.1f} minutes")
+    else:
+        rep.fail(f"media clock drifting {ppm:+.1f} ppm")
+        rep.info(f"a 5ms receiver buffer is consumed in "
+                 f"{5000.0 / abs(ppm * 60):.1f} minutes - receivers will "
+                 f"glitch periodically")
+    if span < 30:
+        rep.info(f"measured over only {span:.0f}s; "
+                 f"use -d 60 or more for a trustworthy ppm figure")
+
+
+# ---------------------------------------------------------- content checks
+
+def check_content(rep, audio, rate):
+    """Inspect the decoded PCM itself - the part the old checks never did."""
+    rep.section("Audio content")
+    stats = {}
+    frames, channels = audio.shape
+    rep.info(f"{frames} frames x {channels}ch = {frames / rate:.2f}s of audio")
+
+    rms = np.sqrt(np.mean(audio ** 2, axis=0))
+    peak = np.max(np.abs(audio), axis=0)
+    for c in range(channels):
+        db = 20 * np.log10(rms[c]) if rms[c] > 0 else -np.inf
+        rep.info(f"ch{c}: rms {db:6.1f} dBFS  peak {peak[c]:.4f}")
+
+    if np.all(peak < 1e-6):
+        rep.fail("stream is digital silence")
+        return
+    rep.ok("stream carries a signal")
+
+    dead = [c for c in range(channels) if peak[c] < 1e-6]
+    if dead:
+        rep.fail(f"channel(s) {dead} are silent while others carry audio")
+
+    # Stereo collapse: the bug that a mono downmix in the graph produced,
+    # which every transport-level check passed cleanly.
+    if channels == 2 and not dead:
+        diff = np.max(np.abs(audio[:, 0] - audio[:, 1]))
+        corr = np.corrcoef(audio[:, 0], audio[:, 1])[0, 1]
+        if diff < 1e-7:
+            rep.fail("both channels are sample-identical - stereo has "
+                     "collapsed to mono somewhere in the graph")
+        elif corr > 0.9999:
+            rep.warn(f"channels correlate at {corr:.6f} - near-mono content, "
+                     f"or a partial downmix")
+        else:
+            rep.ok(f"channels are distinct (correlation {corr:.4f})")
+
+    # Sample-level discontinuities.  Fragmentation and resampler glitches
+    # both show up as steps far outside the local signal statistics.
+    mono = audio.mean(axis=1)
+    d = np.diff(mono)
+    mad = np.median(np.abs(d - np.median(d)))
+    if mad > 0:
+        thresh = max(20 * mad, 0.05 * np.max(np.abs(mono)))
+        clicks = np.flatnonzero(np.abs(d) > thresh)
+        # Collapse runs into single events.
+        if len(clicks):
+            events = clicks[np.concatenate(([True], np.diff(clicks) > 16))]
+        else:
+            events = clicks
+        per_s = len(events) / (frames / rate)
+        # Deliberately NOT a pass/fail on its own.  Percussive music trips
+        # this detector hard - the same threshold reads 0/s over one part of
+        # a dance track and 16/s over another - so an absolute number here
+        # says nothing about whether the stream is damaged.  It is only
+        # meaningful against the same measurement on the source, which
+        # check_against_source() does.
+        rep.info(f"transient rate {per_s:.2f}/s ({len(events)} events) "
+                 f"- only meaningful compared with --source")
+        stats["discontinuities_per_s"] = per_s
+
+    # Repeated frames beyond what silence explains: a resampler stalling.
+    if frames > 1:
+        same = np.all(np.diff(audio, axis=0) == 0, axis=1)
+        loud = np.abs(mono[1:]) > 1e-5
+        stuck = int(np.sum(same & loud))
+        if stuck > frames * 0.001:
+            rep.fail(f"{stuck} repeated frames on non-silent audio "
+                     f"({100.0 * stuck / frames:.2f}%) - a stage is "
+                     f"stalling and re-emitting")
+        else:
+            rep.ok("no stalled/repeated audio frames")
+
+    # Dropouts: sudden silence inside otherwise loud audio.
+    win = max(1, rate // 100)                    # 10ms blocks
+    nb = frames // win
+    if nb > 10:
+        blocks = np.sqrt(np.mean(
+            mono[:nb * win].reshape(nb, win) ** 2, axis=1))
+        overall = np.sqrt(np.mean(mono ** 2))
+        holes = int(np.sum(blocks < overall * 0.001))
+        if holes > nb * 0.01:
+            rep.fail(f"{holes} of {nb} 10ms blocks are near-silent "
+                     f"({100.0 * holes / nb:.1f}%) - dropouts")
+        else:
+            rep.ok("no dropout blocks")
+
+    # Clipping, which a badly scaled convert stage introduces.
+    clipped = int(np.sum(np.abs(audio) >= 0.999))
+    if clipped > frames * 0.0001:
+        rep.warn(f"{clipped} clipped samples "
+                 f"({100.0 * clipped / audio.size:.3f}%)")
+
+    return mono, stats
+
+
+# ------------------------------------------------------- source comparison
+
+def decode_source(path, rate, channels, start=None, duration=None):
+    """Decode any audio file to raw float32 via ffmpeg."""
+    cmd = ["ffmpeg", "-v", "error"]
+    if start is not None:
+        cmd += ["-ss", f"{start:.3f}"]
+    cmd += ["-i", path]
+    if duration is not None:
+        cmd += ["-t", f"{duration:.3f}"]
+    cmd += ["-f", "f32le", "-acodec", "pcm_f32le",
+            "-ar", str(rate), "-ac", str(channels), "-"]
+
+    proc = subprocess.run(cmd, capture_output=True)
+    if proc.returncode != 0:
+        raise SystemExit("ffmpeg failed decoding source:\n"
+                         + proc.stderr.decode(errors="replace"))
+    a = np.frombuffer(proc.stdout, dtype=np.float32)
+    return a.reshape(-1, channels) if channels > 1 else a
+
+
+def fft_align(needle, haystack):
+    """Return (offset, normalised peak) of needle within haystack."""
+    n = len(haystack) + len(needle)
+    size = 1 << (n - 1).bit_length()
+    H = np.fft.rfft(haystack, size)
+    N = np.fft.rfft(needle[::-1], size)
+    corr = np.fft.irfft(H * N, size)[:len(haystack)]
+
+    # Only consider offsets where the needle lies entirely inside the
+    # haystack.  A partial overlap at either end correlates a short slice
+    # against a short slice, and normalising by that slice's norm scores it
+    # like a full match - which produced confident, completely wrong
+    # alignments and made clean audio look 45% corrupted.
+    lo, hi = len(needle) - 1, len(haystack)
+    if hi <= lo:
+        return -1, 0.0
+    idx = lo + int(np.argmax(corr[lo:hi]))
+    offset = idx - len(needle) + 1
+    denom = np.linalg.norm(needle) * np.linalg.norm(
+        haystack[offset:offset + len(needle)])
+    score = corr[idx] / denom if denom > 0 else 0.0
+    return offset, float(min(score, 1.0))
+
+
+def transient_rate(mono, rate):
+    """Discontinuity events per second, the same measure check_content uses."""
+    d = np.diff(mono)
+    mad = np.median(np.abs(d - np.median(d)))
+    if mad <= 0:
+        return 0.0
+    thresh = max(20 * mad, 0.05 * np.max(np.abs(mono)))
+    c = np.flatnonzero(np.abs(d) > thresh)
+    if not len(c):
+        return 0.0
+    ev = c[np.concatenate(([True], np.diff(c) > 16))]
+    return len(ev) / (len(mono) / rate)
+
+
+def check_against_source(rep, mono, rate, source, stats):
+    """Two-stage align, then correlate block by block against the source."""
+    rep.section("Comparison against source")
+    rep.info(f"source: {os.path.basename(source)}")
+
+    # Stage 1: coarse alignment on a cheap 4kHz mono envelope, so a
+    # full-length album track never has to be decoded at 48kHz.
+    coarse = 4000
+    src_c = decode_source(source, coarse, 1)
+    cap_c = decode_source_from_array(mono, rate, coarse)
+    if len(src_c) < len(cap_c):
+        rep.fail("source is shorter than the capture")
+        return
+
+    off_c, peak_c = fft_align(cap_c, src_c)
+    if peak_c < 0.3 or off_c < 0:
+        rep.fail(f"cannot locate the capture in the source "
+                 f"(best correlation {peak_c:.3f})")
+        rep.info("the stream does not carry this file, or it is so damaged "
+                 "that it no longer correlates")
+        return
+    start = off_c / coarse
+    rep.info(f"capture starts {start:.2f}s into the source "
+             f"(coarse correlation {peak_c:.3f})")
+
+    # Stage 2: decode just the matched window at full rate and refine.
+    dur = len(mono) / rate
+    margin = 2.0
+    src = decode_source(source, rate, 1,
+                        start=max(0, start - margin), duration=dur + 2 * margin)
+    off, peak = fft_align(mono, src)
+    if off < 0 or peak < 0.3:
+        rep.fail(f"fine alignment failed (correlation {peak:.3f})")
+        return
+
+    aligned = src[off:off + len(mono)]
+    if len(aligned) < len(mono):
+        mono = mono[:len(aligned)]
+    rep.ok(f"aligned to source, overall correlation {peak:.4f}")
+
+    if peak > 0.99:
+        rep.ok("stream content matches the source")
+    elif peak > 0.9:
+        rep.warn(f"stream content degraded (correlation {peak:.4f})")
+    else:
+        rep.fail(f"stream content does not match the source "
+                 f"(correlation {peak:.4f})")
+
+    # Per-block correlation localises damage in time, which a single
+    # overall figure hides.
+    win = rate // 10                                    # 100ms blocks
+    nb = min(len(mono), len(aligned)) // win
+    if nb < 5:
+        return
+    bad = []
+    scores = np.empty(nb)
+    for i in range(nb):
+        a = mono[i * win:(i + 1) * win]
+        b = aligned[i * win:(i + 1) * win]
+        denom = np.linalg.norm(a) * np.linalg.norm(b)
+        scores[i] = float(np.dot(a, b) / denom) if denom > 0 else 1.0
+        if scores[i] < 0.9:
+            bad.append(i)
+
+    rep.info(f"per-100ms correlation: min {scores.min():.3f}, "
+             f"mean {scores.mean():.3f}")
+    if not bad:
+        rep.ok("every 100ms block matches the source")
+    else:
+        pct = 100.0 * len(bad) / nb
+        (rep.fail if pct > 1 else rep.warn)(
+            f"{len(bad)} of {nb} blocks ({pct:.1f}%) diverge from the source")
+        times = ", ".join(f"{i * 0.1:.1f}s" for i in bad[:8])
+        rep.info(f"first at: {times}")
+
+    # Now the transient rate means something: same measure, same audio.
+    src_rate = transient_rate(aligned, rate)
+    cap_rate = stats.get("discontinuities_per_s", 0.0)
+    rep.info(f"transient rate: stream {cap_rate:.2f}/s, "
+             f"source {src_rate:.2f}/s")
+    if cap_rate > max(src_rate * 2.0, src_rate + 2.0):
+        rep.fail(f"stream has {cap_rate:.2f} discontinuities/s against "
+                 f"{src_rate:.2f}/s in the same source audio - the extra "
+                 f"ones are damage, not music")
+    else:
+        rep.ok("no more discontinuities than the source audio itself has")
+
+
+def decode_source_from_array(mono, rate, target):
+    """Resample an in-memory mono signal by linear interpolation."""
+    n = int(len(mono) * target / rate)
+    return np.interp(np.arange(n) * (rate / target),
+                     np.arange(len(mono)), mono).astype(np.float32)
+
+
+# ------------------------------------------------------------------- output
+
+def write_wav(path, audio, rate):
+    """Write the decoded stream so it can be listened to directly."""
+    pcm = np.clip(audio, -1.0, 1.0)
+    pcm = (pcm * 32767).astype("<i2")
+    ch, data = audio.shape[1], pcm.tobytes()
+    hdr = b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt "
+    hdr += struct.pack("<IHHIIHH", 16, 1, ch, rate,
+                       rate * ch * 2, ch * 2, 16)
+    hdr += b"data" + struct.pack("<I", len(data))
+    with open(path, "wb") as f:
+        f.write(hdr + data)
+    print(f"Wrote {path} - play this to hear exactly what left the device")
+
+
+# --------------------------------------------------------------------- main
+
+def analyze(rep, pcap, inst, args):
+    pkts = list(parse_pcap_rtp(pcap))
+    if len(pkts) < 10:
+        rep.fail(f"only {len(pkts)} RTP packets in the capture - "
+                 f"is the stream running?")
+        return
+    pkts.sort(key=lambda p: p[0])
+
+    channels = inst.get("channels", 2)
+    rate = args.rate
+
+    arrivals, rtpts = check_transport(rep, pkts, inst)
+    check_media_clock(rep, arrivals, rtpts, rate)
+
+    audio = np.concatenate([l24_to_float(p[4], channels) for p in pkts])
+    mono, stats = check_content(rep, audio, rate)
+
+    if args.wav:
+        write_wav(args.wav, audio, rate)
+    if args.source and mono is not None:
+        check_against_source(rep, mono, rate, args.source, stats)
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="Verify the audio content of an AES67 stream",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__.split("Usage:")[1] if "Usage:" in __doc__ else None)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    def common(p, with_analysis=True):
+        p.add_argument("-i", "--instance", type=int,
+                       help="AES67 instance id (default: first enabled send)")
+        if with_analysis:
+            p.add_argument("--rate", type=int, default=48000,
+                           help="RTP clock rate (default 48000)")
+            p.add_argument("--source",
+                           help="audio file the stream should be carrying")
+            p.add_argument("--wav", help="write the decoded stream here")
+
+    p = sub.add_parser("check", help="capture and analyse in one step")
+    common(p)
+    p.add_argument("-d", "--duration", type=int, default=15,
+                   help="capture seconds (default 15)")
+    p.add_argument("--max-mb", type=int, default=100,
+                   help="refuse captures larger than this (default 100)")
+
+    p = sub.add_parser("capture", help="capture only")
+    common(p, with_analysis=False)
+    p.add_argument("-d", "--duration", type=int, default=15)
+    p.add_argument("-o", "--output", required=True)
+    p.add_argument("--max-mb", type=int, default=100)
+
+    p = sub.add_parser("analyze", help="analyse an existing capture")
+    common(p)
+    p.add_argument("pcap")
+
+    args = ap.parse_args()
+    inst = load_instance(getattr(args, "instance", None))
+    rep = Report()
+
+    print(f"Instance {inst['id']} \"{inst.get('name')}\": "
+          f"{inst['multicastIP']}:{inst['port']} "
+          f"{inst.get('channels', 2)}ch ptime {inst.get('ptime')}ms")
+
+    if args.cmd == "capture":
+        capture(inst, args.duration, args.output, args.max_mb)
+        return 0
+
+    if args.cmd == "analyze":
+        analyze(rep, args.pcap, inst, args)
+    else:
+        fd, tmp = tempfile.mkstemp(suffix=".pcap", prefix="aes67-")
+        os.close(fd)
+        try:
+            capture(inst, args.duration, tmp, args.max_mb)
+            analyze(rep, tmp, inst, args)
+        finally:
+            # tmpfs is RAM here - never leave a capture behind.
+            os.path.exists(tmp) and os.unlink(tmp)
+
+    return rep.verdict()
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)

@@ -219,6 +219,8 @@ bool AES67Manager::LoadConfig() {
     cfg.ptpRole = root.get("ptpRole", "auto").asString();
     cfg.ptpMediaClock = root.get("ptpMediaClock", true).asBool();
     cfg.sourcePacing = root.get("sourcePacing", false).asBool();
+    cfg.sinkPacing = root.get("sinkPacing", false).asBool();
+    cfg.sinkPacingMs = root.get("sinkPacingMs", 40).asInt();
     cfg.adaptiveResample = root.get("adaptiveResample", false).asBool();
 
     // A domain outside 0-127 is not representable in the PTP header; an
@@ -1110,6 +1112,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     // Correcting the rate only means anything when the timeline it is being
     // corrected against is PTP.
     const bool driftControl = (ptpClock != nullptr) && m_config.adaptiveResample;
+    const bool sinkPacing = m_config.sinkPacing;
     if (!m_config.ptpMediaClock) {
         LogInfo(VB_MEDIAOUT, "AES67 send [%d]: PTP media clock disabled by config\n", inst.id);
     }
@@ -1130,7 +1133,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // feed in the PipeWire graph.
         << (driftControl
                 ? ("! audio/x-raw,format=F32LE,channels=" + std::to_string(inst.channels) +
-                   " ! speed name=drift "
+                   " ! pitch name=drift "
                    "! audio/x-raw,format=F32LE,channels=" + std::to_string(inst.channels) + " ")
                 : "")
         << "! audioconvert "
@@ -1146,8 +1149,16 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // -180ms).  Splitting first removes the choice: buffers are exactly
         // ptime long and correctly timestamped, so the payloader can follow the
         // running time (= PTP time) and still step exactly one packet each time.
-        << (ptpClock ? ("! audiobuffersplit output-buffer-duration=" +
-                        std::to_string(inst.ptime) + "/1000 ") : "")
+        // Also required by sinkPacing, and for a second reason: the payloader
+        // stamps every packet it emits from one input buffer with that
+        // buffer's timestamp, so a whole quantum's worth of packets come out
+        // sharing a PTS.  udpsink then has nothing to pace against and sends
+        // them together -- sync=true on its own leaves the burst untouched
+        // (measured: 5.8 packets per 23.22ms, identical to sync=false).
+        // Splitting first gives each packet its own send time.
+        << ((ptpClock || sinkPacing)
+                ? ("! audiobuffersplit output-buffer-duration=" +
+                   std::to_string(inst.ptime) + "/1000 ") : "")
         << "! rtpL24pay name=pay pt=" << AES67::RTP_PAYLOAD_TYPE
         << " min-ptime=" << ptimeNs
         << " max-ptime=" << ptimeNs
@@ -1165,11 +1176,18 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         << (ptpClock ? " timestamp-offset=0 perfect-rtptime=false" : "")
         << " "
         << "! application/x-rtp,clock-rate=" << AES67::AUDIO_RATE << " "
+        // A queue here is what makes sink pacing safe: it runs the sink on its
+        // own thread, so the sink blocking until a packet's send time cannot
+        // push back into the live pipewiresrc.  Non-leaky on purpose -- in
+        // steady state it drains exactly as fast as it fills, and dropping a
+        // packet to keep up would defeat the point.  See sinkPacing.
+        << (sinkPacing ? "! queue name=sinkq max-size-bytes=0 "
+                         "max-size-buffers=64 max-size-time=200000000 " : "")
         << "! udpsink name=usink host=" << inst.multicastIP
         << " port=" << inst.port
         << " ttl-mc=" << AES67::AUDIO_RTP_TTL
         << " qos-dscp=" << AES67::AUDIO_DSCP
-        << " auto-multicast=true sync=false";
+        << " auto-multicast=true sync=" << (sinkPacing ? "true" : "false");
 
     if (!inst.interface.empty()) {
         oss << " multicast-iface=" << inst.interface;
@@ -1259,6 +1277,33 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         gst_pipeline_use_clock(GST_PIPELINE(pipeline), ptpClock);
         gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE);
         gst_element_set_base_time(pipeline, 0);
+    }
+
+    if (sinkPacing) {
+        // Hold each packet back so it is still in the future when the sink
+        // gets it.  Without the delay every buffer arrives past its running
+        // time, udpsink renders each one immediately, and the burst is
+        // unchanged -- pacing that never waits is not pacing.
+        //
+        // This has to be ts-offset on the sink rather than
+        // gst_pipeline_set_latency(): the pipeline latency is recomputed from
+        // a LATENCY query when the pipeline goes to PLAYING, so a value set
+        // beforehand is replaced by the automatic one.  That is what made an
+        // earlier attempt pace for the first few seconds and then burst for
+        // the rest of the run.  ts-offset is applied per-buffer and survives.
+        GstElement* usink = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
+        if (usink) {
+            g_object_set(usink, "ts-offset",
+                         (gint64)m_config.sinkPacingMs * GST_MSECOND, NULL);
+            gst_object_unref(usink);
+            LogInfo(VB_MEDIAOUT,
+                    "AES67 send [%d]: sink pacing on, %dms send delay\n",
+                    inst.id, m_config.sinkPacingMs);
+        } else {
+            LogWarn(VB_MEDIAOUT,
+                    "AES67 send [%d]: sink pacing on but udpsink not found\n",
+                    inst.id);
+        }
     }
 
     // Store the bus for polling in the watchdog thread.
@@ -1591,7 +1636,15 @@ void AES67Manager::DriftControlLoop() {
     // loop simply hunts.  Fit a slope across the whole window instead, and make
     // the window long: noise falls with both the span and the sample count.
     constexpr int WINDOW_S = 120;          // measurement baseline
-    constexpr double KP_RATE = 0.2;        // fraction of the rate error to take per step
+    // Actuate far more slowly than we sample.  The measurement is a 120s
+    // window, so a correction takes ~60s to show up in it; correcting every 2s
+    // means ~30 further corrections are applied before the first is visible,
+    // and the loop oscillates (measured: trim swinging +140 to -377ppm, drift
+    // swinging +236 to -99ppm).  Classic dead-time instability -- the cure is
+    // to make the control interval comparable to the lag, not to lower the
+    // gain until the ringing is slow.
+    constexpr int ACTUATE_EVERY = 15;      // iterations, i.e. every 30s
+    constexpr double KP_RATE = 0.3;        // fraction of the rate error to take per step
     constexpr double KP_OFFSET = 0.00002;  // per second of accumulated lag
     constexpr double MAX_TRIM = 0.0005;    // +/-500ppm, well beyond any crystal
     constexpr double MAX_STEP = 0.00002;   // +/-20ppm per iteration
@@ -1607,6 +1660,7 @@ void AES67Manager::DriftControlLoop() {
         GstClockTime lastClock = 0;
         bool primed = false;
         double speed = 1.0;
+        int sinceActuate = 0;
     };
     std::map<int, PipelineState> state;
 
@@ -1734,6 +1788,14 @@ void AES67Manager::DriftControlLoop() {
             // Rate term takes a fraction of the error so the loop settles
             // rather than ringing; offset term is tiny and only bleeds off
             // accumulated lag.
+            // Keep accumulating the window every iteration, but only move the
+            // trim once the previous move has had time to show up.
+            if (++st.sinceActuate < ACTUATE_EVERY) {
+                gst_object_unref(drift);
+                continue;
+            }
+            st.sinceActuate = 0;
+
             double next = st.speed * (1.0 + KP_RATE * (ratio - 1.0)) * (1.0 - KP_OFFSET * lagS);
             if (next > st.speed + MAX_STEP) next = st.speed + MAX_STEP;
             if (next < st.speed - MAX_STEP) next = st.speed - MAX_STEP;
@@ -1742,7 +1804,12 @@ void AES67Manager::DriftControlLoop() {
 
             if (fabs(next - st.speed) > 1e-9) {
                 st.speed = next;
-                g_object_set(drift, "speed", (gfloat)st.speed, NULL);
+                // "pitch" (soundtouch) exposes the rate as "rate".  The
+                // previous element, "speed", accepted its property and read it
+                // back while doing nothing to a live source -- so verify any
+                // replacement by watching the measured drift respond, never by
+                // reading the property back.
+                g_object_set(drift, "rate", (gfloat)st.speed, NULL);
             }
 
             LogDebug(VB_MEDIAOUT,
@@ -1841,6 +1908,30 @@ bool AES67Manager::PollPipelinesWatchdog() {
                     guint64 bytesSent = 0;
                     g_object_get(usink, "bytes-served", &bytesSent, NULL);
                     gst_object_unref(usink);
+
+                    // Sink-pacing diagnostics.  The queue is the whole reason
+                    // pacing can be done without starving the source, so its
+                    // depth is what explains a stream that paces correctly for
+                    // a minute and then reverts to bursting: empty means the
+                    // sink is starved and every buffer arrives past its send
+                    // time, full means backpressure has reached pipewiresrc and
+                    // audio is being dropped there.  No element by this name
+                    // exists unless sink pacing is on, so this costs nothing
+                    // and needs no lock on the config.
+                    GstElement* sinkq = gst_bin_get_by_name(GST_BIN(p.pipeline),
+                                                            "sinkq");
+                    if (sinkq) {
+                        guint qBuffers = 0;
+                        guint64 qTime = 0;
+                        g_object_get(sinkq, "current-level-buffers", &qBuffers,
+                                     "current-level-time", &qTime, NULL);
+                        gst_object_unref(sinkq);
+                        LogInfo(VB_MEDIAOUT,
+                                "AES67 send [%d] pacing: queue %u buffers / %llums, +%llu bytes since last check\n",
+                                p.instanceId, qBuffers,
+                                (unsigned long long)(qTime / GST_MSECOND),
+                                (unsigned long long)(bytesSent - p.lastByteCount));
+                    }
 
                     if (bytesSent == p.lastByteCount) {
                         p.stallCount++;

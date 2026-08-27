@@ -153,7 +153,79 @@ struct AES67Config {
     // Note the priority this deserves: the bursty default path plays cleanly on
     // real hardware even at the MRX7-D's minimum 0.25ms receive latency, so the
     // cadence this would fix is not currently blocking anything.
+    //
+    // Prefer sinkPacing below, which fixes the same cadence without touching
+    // the graph and measurably does not distort.  The distortion this one
+    // causes is now measurable too -- scripts/aes67_verify decodes the RTP
+    // payload and correlates it against the source file, which is the check
+    // that was missing when the note above was written.
     bool sourcePacing = false;
+
+    // Pace the packets at the sink instead of at the source.
+    //
+    // The default path bursts: pipewiresrc hands over one graph quantum at a
+    // time and udpsink (sync=false) puts the whole lot on the wire in
+    // microseconds.  Measured on a 1024-sample/44100 graph that is 5.8 packets
+    // back-to-back every 23.22ms -- 83% of packets arrive under 1ms after the
+    // one before, then nothing for 23ms.
+    //
+    // Which receivers that breaks depends entirely on how they clock playout.
+    // Hardware that places samples by RTP timestamp against its own PTP time
+    // does not care when a packet arrived, only that it arrived before its
+    // deadline -- which is why a Yamaha MRX7-D plays this cleanly even at
+    // 0.25ms.  Software monitors generally play out by arrival into a small
+    // jitter buffer, so a 23ms silence underruns them every quantum and the
+    // audio fragments.  Both reports on issue #2848 are the same defect seen
+    // from those two sides.
+    //
+    // sourcePacing fixes the cadence by shrinking the quantum, but it shrinks
+    // it for the whole graph -- the sound card included -- and the audio comes
+    // out distorted.  This does not touch the graph: the queue below gives the
+    // sink its own thread, so it can wait for each packet's running time
+    // without the backpressure reaching the live source.  That backpressure is
+    // what cost ~36% of the stream the last time sync=true was tried without a
+    // queue in between.
+    //
+    // sinkPacingMs is how long each packet is held back so that it is still in
+    // the future when the sink gets it.  It must exceed one graph quantum
+    // (23.22ms at 1024/44100) or every buffer arrives late and goes out
+    // immediately, which is the burst all over again.  40ms leaves real margin
+    // on top of that on purpose: too small a value does not fail loudly, it
+    // silently reverts to bursting, which is expensive to diagnose.  It costs
+    // sender latency, but the receiver no longer has to absorb the burst as
+    // link offset.
+    //
+    // Measured on a 1024/44100 graph, 4ms ptime, against the source audio:
+    //
+    //                      default path        sinkPacing
+    //   median gap         0.028ms             3.999ms
+    //   packets per burst  5.8                 1.00
+    //   back-to-back       83%                 0.0%
+    //   content vs source  0.995 correlation   1.000 correlation
+    //
+    // Unlike sourcePacing it does not touch the graph, so it does not distort.
+    //
+    // It is NOT yet a fix on its own, and default OFF for a concrete reason:
+    // the queue drains.  The sink releases packets on the PTP clock while the
+    // audio arrives on the sound card crystal, and on this hardware those are
+    // 56ppm apart (see adaptiveResample).  Starting from a 40-60ms queue that
+    // is 12-18 minutes to empty, which matches what was measured: cadence held
+    // at exactly 4.000ms and 250.2 packets/s for ~15 minutes, then the queue
+    // touched 0 and in that same instant the median gap went to 0.031ms, 60%
+    // of packets went back-to-back and the rate fell to 187.6/s.  It does not
+    // recover -- with nothing buffered every packet arrives past its send time
+    // and udpsink dumps them all immediately.
+    //
+    // So sink pacing is correct but not self-sufficient: it needs the audio
+    // rate locked to the PTP clock, i.e. a working adaptiveResample, or the
+    // queue empties and it fails worse than not pacing at all.  Raising
+    // sinkPacingMs only buys time proportionally; it does not fix a systematic
+    // rate difference.
+    //
+    // Verified with scripts/aes67_verify, not yet against Dante or Yamaha
+    // hardware.
+    bool sinkPacing = false;
+    int sinkPacingMs = 40;
 
     // Adaptive resampling: continuously trim the send stream's rate so the
     // media timeline advances at exactly PTP rate.
@@ -187,9 +259,32 @@ struct AES67Config {
     // The measurement half of the loop IS sound: on a stereo stream it reads a
     // steady -40 to -100ppm, consistent with the -110.9ppm measured
     // independently from packet captures.  So what needs replacing is the
-    // actuator, not the control loop.  Next candidate is the "pitch" element
-    // (soundtouch), whose "rate" property is documented as controllable and
-    // which does real resampling.
+    // actuator, not the control loop.
+    //
+    // "pitch" (soundtouch) was the next candidate and it is also not usable:
+    //
+    //   - It does not actuate either.  Over six actuations the trim ramped
+    //     83ppm (+11.8 -> -71.4) while the measured ratio just wandered around
+    //     -50ppm with +/-35ppm of noise -- no systematic response, the same
+    //     signature "speed" gave.
+    //   - It destroys the transmit cadence.  soundtouch emits in large internal
+    //     blocks, so everything downstream arrives late in clumps: with pitch in
+    //     the chain, 16.05 packets per burst and 93.8% back-to-back with the
+    //     pacing queue pinned at 0, against 1.00 packets and 0.0% with it
+    //     removed (A/B on the same track, same build).
+    //
+    // Why this matters more than it looks: this is not a nice-to-have.  The
+    // drift is two free-running crystals -- the NIC's PHC against the sound
+    // card's -- measured at -55.8ppm over 10s, -56.36ppm over 60s and -56.9ppm
+    // from packet captures, three independent methods agreeing to ~1ppm.  When
+    // FPP is PTP master (as it is by default with no other grandmaster on the
+    // network) ptp4l never disciplines the PHC at all, so there is nothing to
+    // lock to and no PTP setting can remove this.  It also drains the sinkPacing
+    // queue, so both the drift and the pacing failure are this one cause.
+    //
+    // What is still needed is a variable-rate resampler that (a) actually
+    // responds to a rate property on a live stream and (b) preserves buffer
+    // cadence.  Neither "speed" nor "pitch" does both.
     bool adaptiveResample = false;
 };
 

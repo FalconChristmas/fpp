@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Self-test for scripts/aes67_verify.
+
+Runs every detector against synthetic audio with known defects, so a
+change to the harness cannot silently stop detecting the faults it was
+written for.  No hardware, no running stream, no network needed:
+
+    ./scripts/aes67_verify_selftest
+"""
+import importlib.machinery
+import importlib.util
+import sys
+
+import numpy as np
+
+spec = importlib.util.spec_from_loader("v", importlib.machinery.SourceFileLoader("v","/opt/fpp/scripts/aes67_verify"))
+v = importlib.util.module_from_spec(spec); spec.loader.exec_module(v)
+
+RATE=48000
+def tone(n, f=440, ch=2, phase=0.0):
+    t=np.arange(n)/RATE
+    a=np.zeros((n,ch),dtype=np.float32)
+    for c in range(ch): a[:,c]=0.5*np.sin(2*np.pi*(f+c*7)*t+phase+c*0.9)
+    return a
+
+fails=[]
+def expect(name, cond):
+    print(("  ok  " if cond else "  FAIL") + "  " + name)
+    if not cond: fails.append(name)
+
+# 1. L24 codec round-trip
+a = tone(4800)
+q = np.round(a*8388608).astype(np.int32)
+b = ((q>>16)&0xFF).astype(np.uint8); m=((q>>8)&0xFF).astype(np.uint8); l=(q&0xFF).astype(np.uint8)
+raw = np.stack([b,m,l],axis=-1).reshape(-1).tobytes()
+dec = v.l24_to_float(raw, 2)
+expect("l24 round-trip exact", np.max(np.abs(dec - q/8388608.0)) < 1e-9)
+expect("l24 shape preserved", dec.shape == a.shape)
+# negative values sign-extend
+neg = v.l24_to_float(bytes([0xFF,0xFF,0xFF, 0x80,0x00,0x00]), 1)
+expect("l24 sign extension", abs(neg[0,0]-(-1/8388608))<1e-9 and abs(neg[1,0]+1.0)<1e-9)
+
+class R:
+    def __init__(s): s.failed=0; s.warned=0; s.msgs=[]
+    def ok(s,m): s.msgs.append(("PASS",m))
+    def fail(s,m): s.failed+=1; s.msgs.append(("FAIL",m))
+    def warn(s,m): s.warned+=1; s.msgs.append(("WARN",m))
+    def info(s,m): pass
+    def section(s,t): pass
+    def has(s,kind,sub): return any(k==kind and sub in m for k,m in s.msgs)
+
+# 2. clean stereo passes content checks
+r=R(); v.check_content(r, tone(RATE*3), RATE)
+expect("clean stereo: no failures", r.failed==0)
+expect("clean stereo: channels distinct", r.has("PASS","distinct"))
+
+# 3. mono collapse detected
+a=tone(RATE*3); a[:,1]=a[:,0]
+r=R(); v.check_content(r, a, RATE)
+expect("mono collapse detected", r.has("FAIL","collapsed to mono"))
+
+# 4. silent channel detected
+a=tone(RATE*3); a[:,1]=0
+r=R(); v.check_content(r, a, RATE)
+expect("dead channel detected", r.has("FAIL","are silent while others"))
+
+# 5. digital silence detected
+r=R(); v.check_content(r, np.zeros((RATE*3,2),dtype=np.float32), RATE)
+expect("digital silence detected", r.has("FAIL","digital silence"))
+
+# 6. fragmentation is NOT failed without a source (music trips the detector)
+a=tone(RATE*3)
+for i in range(1,60): a[i*2400:,:] = np.roll(a[i*2400:,:], 137, axis=0)
+r=R(); mono,stats = v.check_content(r, a, RATE)
+expect("fragmentation not failed without source", not r.has("FAIL","discontinu"))
+expect("transient rate reported", stats.get("discontinuities_per_s",0) > 1)
+
+# 6b. with a source, fragmentation IS failed
+import subprocess, tempfile, os
+clean = tone(RATE*8, f=330)
+wav = tempfile.mktemp(suffix=".wav")
+v.write_wav(wav, clean, RATE)
+seg = clean[RATE*2:RATE*5].copy()                      # 3s taken from the source
+r=R(); v.check_against_source(r, seg.mean(axis=1), RATE, wav, {"discontinuities_per_s":0.0})
+expect("clean segment matches source", r.has("PASS","matches the source"))
+expect("clean segment: no failures", r.failed==0)
+
+dmg = seg.copy()
+for i in range(1,30): dmg[i*1200:,:] = np.roll(dmg[i*1200:,:], 211, axis=0)
+mono_d = dmg.mean(axis=1)
+r=R(); v.check_against_source(r, mono_d, RATE, wav, {"discontinuities_per_s": v.transient_rate(mono_d,RATE)})
+expect("damaged segment detected vs source", r.failed>0)
+os.unlink(wav)
+
+# 7. stalled/repeated frames detected
+a=tone(RATE*3)
+for i in range(0,len(a)-64,4800): a[i:i+64,:]=a[i,:]
+r=R(); v.check_content(r, a, RATE)
+expect("stalled frames detected", r.has("FAIL","repeated frames"))
+
+# 8. dropouts detected
+a=tone(RATE*3)
+for i in range(0,len(a)-960,9600): a[i:i+960,:]=0
+r=R(); v.check_content(r, a, RATE)
+expect("dropouts detected", r.has("FAIL","near-silent"))
+
+# 9. clean audio does NOT false-positive on any of the above
+a=tone(RATE*5, f=220)
+noise=np.random.RandomState(0).randn(*a.shape).astype(np.float32)*0.002
+r=R(); v.check_content(r, a+noise, RATE)
+expect("clean+noise: no false positives", r.failed==0)
+
+# 10. fft_align finds a known offset
+src=np.random.RandomState(1).randn(RATE*4).astype(np.float32)
+off,peak = v.fft_align(src[12345:12345+RATE], src)
+expect("fft_align offset exact", off==12345)
+expect("fft_align peak ~1", peak>0.999)
+
+# 11. media clock drift measured correctly at a known ppm
+for true_ppm in (0.0, -110.9, 250.0):
+    n=3000; ptime=0.004
+    arr=np.arange(n)*ptime
+    ts=(arr*RATE*(1+true_ppm/1e6)).astype(np.int64)
+    r=R(); v.check_media_clock(r, arr, ts, RATE)
+    txt=" ".join(m for _,m in r.msgs)
+    import re
+    got=float(re.search(r"([-+]\d+\.\d+) ppm", txt).group(1))
+    expect(f"drift {true_ppm:+.1f}ppm measured as {got:+.1f}", abs(got-true_ppm)<1.0)
+
+# 12. 32-bit RTP timestamp wrap handled
+n=2000; arr=np.arange(n)*0.004
+ts=((np.arange(n)*192 + (2**32-192*1000)) % (2**32)).astype(np.int64)
+r=R(); v.check_media_clock(r, arr, ts, RATE)
+expect("rtp ts wrap handled", not r.has("FAIL","drifting"))
+
+print()
+print(("ALL CHECKS PASSED") if not fails else ("FAILURES: "+", ".join(fails)))
+sys.exit(1 if fails else 0)
