@@ -155,6 +155,10 @@ void AES67Manager::Shutdown() {
     // Stop SAP threads
     m_sapAnnounceRunning.store(false);
     m_sapRecvRunning.store(false);
+    m_driftRunning.store(false);
+    if (m_driftThread.joinable()) {
+        m_driftThread.join();
+    }
     if (m_sapAnnounceThread.joinable()) {
         m_sapAnnounceThread.join();
     }
@@ -214,6 +218,7 @@ bool AES67Manager::LoadConfig() {
     cfg.ptpRole = root.get("ptpRole", "auto").asString();
     cfg.ptpMediaClock = root.get("ptpMediaClock", true).asBool();
     cfg.sourcePacing = root.get("sourcePacing", false).asBool();
+    cfg.adaptiveResample = root.get("adaptiveResample", false).asBool();
 
     // A domain outside 0-127 is not representable in the PTP header; an
     // unknown role would silently fall through to the "auto" branch below,
@@ -293,6 +298,10 @@ bool AES67Manager::ApplyConfig() {
     // Stop existing pipelines and SAP threads
     m_sapAnnounceRunning.store(false);
     m_sapRecvRunning.store(false);
+    m_driftRunning.store(false);
+    if (m_driftThread.joinable()) {
+        m_driftThread.join();
+    }
     if (m_sapAnnounceThread.joinable()) {
         m_sapAnnounceThread.join();
     }
@@ -362,6 +371,12 @@ bool AES67Manager::ApplyConfig() {
         }
     }
 
+    // Start the drift control loop if anything is sending on the PTP clock
+    if (anySend && m_config.ptpMediaClock && m_config.adaptiveResample) {
+        m_driftRunning.store(true);
+        m_driftThread = std::thread(&AES67Manager::DriftControlLoop, this);
+    }
+
     // Start SAP announcer if any send instances have SAP enabled
     if (anySAP && anySend) {
         m_sapAnnounceRunning.store(true);
@@ -389,6 +404,10 @@ void AES67Manager::Cleanup() {
 
     m_sapAnnounceRunning.store(false);
     m_sapRecvRunning.store(false);
+    m_driftRunning.store(false);
+    if (m_driftThread.joinable()) {
+        m_driftThread.join();
+    }
     if (m_sapAnnounceThread.joinable()) {
         m_sapAnnounceThread.join();
     }
@@ -1087,6 +1106,9 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     // Media clock -- see GetOrCreateMediaClock().  Everything below that makes
     // the RTP timestamps mean something depends on having it.
     GstClock* ptpClock = m_config.ptpMediaClock ? GetOrCreateMediaClock() : nullptr;
+    // Correcting the rate only means anything when the timeline it is being
+    // corrected against is PTP.
+    const bool driftControl = (ptpClock != nullptr) && m_config.adaptiveResample;
     if (!m_config.ptpMediaClock) {
         LogInfo(VB_MEDIAOUT, "AES67 send [%d]: PTP media clock disabled by config\n", inst.id);
     }
@@ -1094,6 +1116,11 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     oss << "pipewiresrc name=pwsrc min-buffers=2 "
         << "! audioconvert "
         << "! audioresample "
+        << "! audioconvert "
+        // Rate trim for the drift control loop.  Sits in the float domain
+        // because that is all this element accepts, and ahead of the S24BE
+        // conversion and the packet split so both still see a clean stream.
+        << (driftControl ? "! speed name=drift " : "")
         << "! audioconvert "
         << "! audio/x-raw,format=S24BE,rate=" << AES67::AUDIO_RATE
         << ",channels=" << inst.channels << " "
@@ -1527,6 +1554,133 @@ void AES67Manager::FlushSendPipelines() {
 // Called from the SAP announcer alongside the pipeline watchdog, so it shares
 // that thread's cadence.  Note this means PTP is only supervised while the SAP
 // announcer runs (i.e. there is at least one SAP-enabled send instance).
+
+// Trims the send stream's sample rate so the media timeline advances at exactly
+// PTP rate.  See AES67Config::adaptiveResample for why this is not optional.
+//
+// The loop is deliberately slow and gentle.  What it is correcting is a crystal
+// offset -- constant, order 100ppm -- not a fast disturbance, so it samples
+// every couple of seconds and moves in small steps.  Two terms:
+//
+//   rate    the media clock's measured advance per unit of PTP time.  Feeding
+//           that straight back (speed *= measured ratio) nulls the offset in
+//           rate, which is the bulk of the correction.
+//   offset  a slow pull that burns off however much lag accumulated before the
+//           rate term settled, so the stream ends up at the right rate AND back
+//           at the latency it started from.
+void AES67Manager::DriftControlLoop() {
+    LogInfo(VB_MEDIAOUT, "AES67 drift control thread started\n");
+
+    constexpr int SAMPLE_INTERVAL_S = 2;
+    // Gains are deliberately tiny.  The rate term does nearly all the work --
+    // it is a direct multiplicative correction and nulls a crystal offset in a
+    // couple of iterations.  The offset term only has to bleed off whatever lag
+    // accumulated before that settled, over tens of seconds, so it needs to be
+    // small enough that it never fights the rate term.  A first attempt used
+    // 0.02 here and drove the stream to +890ppm -- worse than the -111ppm it
+    // was correcting -- because a 50ms lag then asked for a 1000ppm trim.
+    constexpr double KP_OFFSET = 0.0002;   // per second of accumulated lag
+    constexpr double MAX_TRIM = 0.0005;    // +/-500ppm, well beyond any crystal
+    constexpr double MAX_STEP = 0.00005;   // +/-50ppm per iteration: no lurching
+
+    struct PipelineState {
+        GstClockTime lastClock = 0;
+        gint64 lastPos = 0;
+        double speed = 1.0;
+        double baselineErr = 0.0;   // ns; the sender latency we started at
+        bool primed = false;
+        int settle = 2;             // skip the first couple of samples
+    };
+    std::map<int, PipelineState> state;
+
+    while (m_driftRunning.load()) {
+        for (int i = 0; i < SAMPLE_INTERVAL_S * 10 && m_driftRunning.load(); i++) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        if (!m_driftRunning.load()) {
+            break;
+        }
+
+        std::unique_lock<std::mutex> lock(m_pipelineMutex, std::try_to_lock);
+        if (!lock.owns_lock()) {
+            continue;   // a rebuild is in progress; nothing worth measuring
+        }
+
+        for (auto& [id, p] : m_sendPipelines) {
+            if (!p.running || !p.pipeline) {
+                continue;
+            }
+            GstElement* drift = gst_bin_get_by_name(GST_BIN(p.pipeline), "drift");
+            if (!drift) {
+                continue;   // built without the rate trim
+            }
+            GstClock* clock = gst_element_get_clock(p.pipeline);
+            gint64 pos = 0;
+            bool havePos = gst_element_query_position(p.pipeline, GST_FORMAT_TIME, &pos);
+            if (!clock || !havePos || pos <= 0) {
+                if (clock) gst_object_unref(clock);
+                gst_object_unref(drift);
+                continue;
+            }
+            GstClockTime now = gst_clock_get_time(clock);
+            gst_object_unref(clock);
+
+            PipelineState& st = state[id];
+            if (!st.primed) {
+                st.lastClock = now;
+                st.lastPos = pos;
+                st.primed = true;
+                gst_object_unref(drift);
+                continue;
+            }
+
+            double dClock = (double)(now - st.lastClock);
+            double dPos = (double)(pos - st.lastPos);
+            st.lastClock = now;
+            st.lastPos = pos;
+            if (dClock <= 0 || dPos <= 0) {
+                gst_object_unref(drift);
+                continue;
+            }
+
+            // How far the media timeline sits behind the wall clock right now.
+            double err = (double)now - (double)pos;
+            if (st.settle > 0) {
+                // Let the pipeline reach steady state before deciding what
+                // "normal" latency looks like, or we would chase startup.
+                st.settle--;
+                st.baselineErr = err;
+                gst_object_unref(drift);
+                continue;
+            }
+
+            double ratio = dPos / dClock;                   // 1.0 = perfectly locked
+            double offsetSec = (err - st.baselineErr) / 1e9; // >0 means falling behind
+
+            double next = st.speed * ratio * (1.0 - KP_OFFSET * offsetSec);
+
+            // Slew limit before clamping: a bad measurement (a stalled query, a
+            // flush) must not be able to move the rate far in one step.
+            if (next > st.speed + MAX_STEP) next = st.speed + MAX_STEP;
+            if (next < st.speed - MAX_STEP) next = st.speed - MAX_STEP;
+            if (next < 1.0 - MAX_TRIM) next = 1.0 - MAX_TRIM;
+            if (next > 1.0 + MAX_TRIM) next = 1.0 + MAX_TRIM;
+
+            if (fabs(next - st.speed) > 1e-9) {
+                st.speed = next;
+                g_object_set(drift, "speed", (gfloat)st.speed, NULL);
+            }
+
+            LogDebug(VB_MEDIAOUT,
+                     "AES67 drift [%d]: media/PTP %.6f (%+.1f ppm), lag %+.2f ms, trim %+.1f ppm\n",
+                     id, ratio, (ratio - 1.0) * 1e6, offsetSec * 1000.0,
+                     (st.speed - 1.0) * 1e6);
+            gst_object_unref(drift);
+        }
+    }
+    LogInfo(VB_MEDIAOUT, "AES67 drift control thread stopped\n");
+}
+
 void AES67Manager::CheckPtpWatchdog() {
     if (!m_config.ptpEnabled || !m_ptpInitialized) {
         return;

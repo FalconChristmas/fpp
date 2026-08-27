@@ -154,6 +154,29 @@ struct AES67Config {
     // real hardware even at the MRX7-D's minimum 0.25ms receive latency, so the
     // cadence this would fix is not currently blocking anything.
     bool sourcePacing = false;
+
+    // Adaptive resampling: continuously trim the send stream's rate so the
+    // media timeline advances at exactly PTP rate.
+    //
+    // Without it the audio is clocked by the sound card's crystal while the RTP
+    // timestamps advance on PTP, so the two walk apart -- measured at -111ppm,
+    // i.e. 6.7ms per minute.  A receiver holding 5ms (the Yamaha MRX7-D's
+    // maximum) runs out in under a minute and mutes; at its 0.25ms minimum, in
+    // seconds.  That is why AES67 audio plays cleanly right after a restart and
+    // then dies, which cost a lot of confusing test reports on #2848.
+    // Default OFF: the loop is implemented but NOT yet working.  With the
+    // gains it shipped with it drove the stream to +890ppm (worse than the
+    // -111ppm it corrects); with the gains fixed it now makes no correction at
+    // all -- measured -112.6ppm against a -110.9ppm uncorrected baseline.
+    //
+    // Next step is to find out which half is broken, which needs the
+    // per-iteration numbers this loop already logs at debug level: either
+    // gst_element_query_position() is not reporting the post-"speed" media
+    // timeline (so `ratio` is always ~1 and no correction is ever computed), or
+    // the speed property is not taking effect on a running pipeline.  Check
+    // `ratio` in the log first: if it tracks the real drift the measurement is
+    // fine and the element is at fault, and vice versa.
+    bool adaptiveResample = false;
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -391,6 +414,12 @@ private:
     PtpQueryCache m_ptpCache;
     std::mutex m_ptpCacheMutex;
     void RefreshPtpCache(bool force = false);
+
+    // Drift control loop -- see AES67Config::adaptiveResample.  Runs on its own
+    // thread because it has to sample far more often than the 30s watchdog.
+    std::thread m_driftThread;
+    std::atomic<bool> m_driftRunning{false};
+    void DriftControlLoop();
 
     // Pipeline watchdog — called from SAP thread to poll bus messages
     // and restart any pipeline that isn't in PLAYING state.
