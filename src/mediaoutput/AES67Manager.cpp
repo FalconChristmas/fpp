@@ -1121,7 +1121,18 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // Rate trim for the drift control loop.  Sits in the float domain
         // because that is all this element accepts, and ahead of the S24BE
         // conversion and the packet split so both still see a clean stream.
-        << (driftControl ? "! speed name=drift " : "")
+        // Pin the format AND channel count across the rate trim.  "speed"
+        // advertises channels [1, MAX] and nothing downstream forces a count
+        // until the S24BE capsfilter, so negotiation happily settles on mono
+        // and audioconvert quietly upmixes back to stereo afterwards: correct
+        // packet sizes, correct timestamps, valid SDP, and a mono stream.
+        // Nothing at the packet level catches it -- it showed up as a mono
+        // feed in the PipeWire graph.
+        << (driftControl
+                ? ("! audio/x-raw,format=F32LE,channels=" + std::to_string(inst.channels) +
+                   " ! speed name=drift "
+                   "! audio/x-raw,format=F32LE,channels=" + std::to_string(inst.channels) + " ")
+                : "")
         << "! audioconvert "
         << "! audio/x-raw,format=S24BE,rate=" << AES67::AUDIO_RATE
         << ",channels=" << inst.channels << " "
