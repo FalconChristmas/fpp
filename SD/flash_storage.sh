@@ -109,6 +109,22 @@ banner() {
     echo ""
 }
 
+# mkfs.ext4 defaults to lazy_itable_init=1: it leaves the inode tables unzeroed and
+# hands that work to the kernel's ext4lazyinit thread on first mount.  On a big root
+# filesystem that means the freshly flashed player spends its first several minutes
+# writing hard with no process to blame it on -- measured on a 250GB root: ~1.35GB
+# written over ~8 minutes of an otherwise idle box, invisible in top and in
+# /proc/<pid>/io because a kernel thread owns it.  A customer unboxing a player sees
+# a disk light that will not stop.
+#
+# Flashing is already a watch-the-progress operation, so do the zeroing here where
+# it is expected and accounted for, and hand over a filesystem that is finished.
+# lazy_journal_init is 0 by default; state it so a future mke2fs.conf cannot quietly
+# turn it on.
+mkfs_ext4() {
+    mkfs.ext4 -F -E lazy_itable_init=0,lazy_journal_init=0 "$@"
+}
+
 usage() {
     # to the first truly blank line, i.e. the end of the header comment block
     sed -n '/^# Usage:/,/^$/p' "$0" | sed 's/^# \?//'
@@ -259,7 +275,7 @@ profile_pi_partition() {
 
 profile_pi_format() {
     mkfs.vfat -F 32 -n "${BOOT_LABEL}" "${DSTPART}1"
-    mkfs.ext4 -F -L "${ROOT_LABEL}" "${DSTPART}2"
+    mkfs_ext4 -L "${ROOT_LABEL}" "${DSTPART}2"
 }
 
 profile_pi_mount() {
@@ -393,10 +409,10 @@ profile_bbb_format() {
         three)
             mkfs.vfat -F 16 "${DSTPART}1" -n boot
             mkswap "${DSTPART}2" -L swap
-            mkfs.ext4 -F -O ^metadata_csum,^64bit "${DSTPART}3" -L rootfs
+            mkfs_ext4 -O ^metadata_csum,^64bit "${DSTPART}3" -L rootfs
             ;;
         single)
-            mkfs.ext4 -F -O ^metadata_csum,^64bit "${DSTPART}1" -L rootfs
+            mkfs_ext4 -O ^metadata_csum,^64bit "${DSTPART}1" -L rootfs
             ;;
     esac
 }
@@ -581,7 +597,7 @@ profile_bb64_partition() {
 profile_bb64_format() {
     mkfs.vfat -F 16 "${DSTPART}1" -n boot
     mkswap "${DSTPART}2" -L swap
-    mkfs.ext4 -F -O ^metadata_csum,^64bit "${DSTPART}3" -L rootfs
+    mkfs_ext4 -O ^metadata_csum,^64bit "${DSTPART}3" -L rootfs
 }
 
 profile_bb64_mount() {
