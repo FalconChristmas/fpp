@@ -227,6 +227,63 @@ struct AES67Config {
     bool sinkPacing = false;
     int sinkPacingMs = 40;
 
+    // Reconcile the audio clock with the PTP clock by inserting or dropping
+    // samples, instead of by varying a resampler's rate.
+    //
+    // The drift is a fixed ~56ppm between the sound card's crystal and the
+    // NIC's PHC (see adaptiveResample), and both variable-rate elements that
+    // could correct it have been measured and rejected -- "speed" and "pitch"
+    // each accept a rate property and neither applies it to a live stream.
+    //
+    // "audiorate" attacks it from the other side.  It does not resample: it
+    // compares each buffer's timestamp against the sample count it has already
+    // emitted and inserts or drops samples to make the two agree.  Since
+    // pipewiresrc timestamps buffers on the pipeline clock (the PHC) while the
+    // sample count comes from the card, that difference IS the drift, so the
+    // correction needs no control loop, no gains and no dead time -- the thing
+    // that made the previous attempt oscillate.
+    //
+    // It also settles the actuation question directly: "add" and "drop" are
+    // readable sample counters, so whether it is doing anything is a fact
+    // rather than an inference from a property read-back.  At 56ppm expect
+    // ~2.7 samples/s of correction.
+    //
+    // rateMatchToleranceNs is how far the two may diverge before it acts.  0
+    // corrects continuously; the element's own default of 40ms lets the error
+    // build and then dumps a 40ms correction, which is plainly audible.
+    //
+    // MEASURED, AND IT DOES NOT WORK.  Keep it default OFF.  audiorate is the
+    // third rejected actuator, after "speed" and "pitch", and it fails
+    // differently from both -- it actuates, but wrongly, and then unrecoverably:
+    //
+    //   - It over-corrects by more than an order of magnitude.  Steady state it
+    //     inserted ~40 samples/s (833ppm) where 2.7 samples/s (56ppm) was
+    //     needed.  It is reconciling per-buffer timestamp rounding, not drift,
+    //     and no tolerance from 0 to 5ms changed that.
+    //   - After ~11 minutes it enters permanent runaway, inserting ~12,000
+    //     samples/s -- a quarter of the stream becomes fabricated silence, and
+    //     it never recovers.  Reproduced twice, at 10-12 and 11 minutes, on an
+    //     otherwise healthy system.  The shape fits a single forward jump in
+    //     the timeline leaving a deficit it then chases forever.
+    //
+    // What this experiment DID establish, and the reason the switch is kept:
+    // with the rate corrected, sinkPacing's queue stops draining.  Over 28
+    // minutes the cadence held at 4.00ms with uniform 1152-byte payloads and
+    // 250.0 packets/s, and the queue oscillated 56-80ms with no downward trend,
+    // against a collapse at ~15 minutes without it.  So "correct the sample
+    // rate, then pace at the sink" is the right architecture; what is missing
+    // is only a correct rate corrector.
+    //
+    // That corrector needs to (a) apply a slow, near-constant ~56ppm
+    // correction rather than tracking per-buffer jitter, (b) preserve exact
+    // ptime blocking, and (c) reset rather than accumulate across a timeline
+    // discontinuity.  No stock GStreamer element on the Pi image does all
+    // three, so it likely has to be written -- a fractional-delay resampler
+    // with its own read pointer, which keeps every output buffer exactly one
+    // packet long while consuming slightly more or fewer input samples.
+    bool rateMatch = false;
+    guint64 rateMatchToleranceNs = 0;
+
     // Adaptive resampling: continuously trim the send stream's rate so the
     // media timeline advances at exactly PTP rate.
     //

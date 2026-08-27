@@ -221,6 +221,9 @@ bool AES67Manager::LoadConfig() {
     cfg.sourcePacing = root.get("sourcePacing", false).asBool();
     cfg.sinkPacing = root.get("sinkPacing", false).asBool();
     cfg.sinkPacingMs = root.get("sinkPacingMs", 40).asInt();
+    cfg.rateMatch = root.get("rateMatch", false).asBool();
+    cfg.rateMatchToleranceNs =
+        (guint64)root.get("rateMatchToleranceNs", 0).asUInt64();
     cfg.adaptiveResample = root.get("adaptiveResample", false).asBool();
 
     // A domain outside 0-127 is not representable in the PTP header; an
@@ -1113,6 +1116,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     // corrected against is PTP.
     const bool driftControl = (ptpClock != nullptr) && m_config.adaptiveResample;
     const bool sinkPacing = m_config.sinkPacing;
+    const bool rateMatch = m_config.rateMatch;
     if (!m_config.ptpMediaClock) {
         LogInfo(VB_MEDIAOUT, "AES67 send [%d]: PTP media clock disabled by config\n", inst.id);
     }
@@ -1149,6 +1153,10 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // -180ms).  Splitting first removes the choice: buffers are exactly
         // ptime long and correctly timestamped, so the payloader can follow the
         // running time (= PTP time) and still step exactly one packet each time.
+        // Reconcile the card's sample count with PTP time before the audio is
+        // cut into packets, so the payloader sees a timeline that already
+        // advances at the PTP rate.  See AES67Config::rateMatch.
+        << (rateMatch ? "! audiorate name=ratematch " : "")
         // Also required by sinkPacing, and for a second reason: the payloader
         // stamps every packet it emits from one input buffer with that
         // buffer's timestamp, so a whole quantum's worth of packets come out
@@ -1277,6 +1285,27 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         gst_pipeline_use_clock(GST_PIPELINE(pipeline), ptpClock);
         gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE);
         gst_element_set_base_time(pipeline, 0);
+    }
+
+    if (rateMatch) {
+        GstElement* rm = gst_bin_get_by_name(GST_BIN(pipeline), "ratematch");
+        if (rm) {
+            // skip-to-first is mandatory here, not a tuning choice.  With the
+            // PTP media clock the base time is 0, so a buffer's timestamp is
+            // absolute PTP nanoseconds -- roughly 1.8e18 at present.  Without
+            // this audiorate treats that as a gap starting at zero and fills
+            // it with silence: measured "in 1081, added 343632000" within a
+            // minute, i.e. it was manufacturing hours of silence.
+            g_object_set(rm,
+                         "tolerance", m_config.rateMatchToleranceNs,
+                         "skip-to-first", TRUE,
+                         NULL);
+            gst_object_unref(rm);
+            LogInfo(VB_MEDIAOUT,
+                    "AES67 send [%d]: rate matching on, tolerance %lluns\n",
+                    inst.id,
+                    (unsigned long long)m_config.rateMatchToleranceNs);
+        }
     }
 
     if (sinkPacing) {
@@ -1918,6 +1947,25 @@ bool AES67Manager::PollPipelinesWatchdog() {
                     // audio is being dropped there.  No element by this name
                     // exists unless sink pacing is on, so this costs nothing
                     // and needs no lock on the config.
+                    // Whether the rate matcher is actually correcting is a
+                    // readable fact here, not an inference -- which is the
+                    // whole reason it was chosen over "speed" and "pitch".
+                    // At ~56ppm this should climb by ~2.7 samples/s.
+                    GstElement* rm = gst_bin_get_by_name(GST_BIN(p.pipeline),
+                                                         "ratematch");
+                    if (rm) {
+                        guint64 added = 0, dropped = 0, in = 0, out = 0;
+                        g_object_get(rm, "add", &added, "drop", &dropped,
+                                     "in", &in, "out", &out, NULL);
+                        gst_object_unref(rm);
+                        LogInfo(VB_MEDIAOUT,
+                                "AES67 send [%d] ratematch: in %llu out %llu, added %llu dropped %llu\n",
+                                p.instanceId, (unsigned long long)in,
+                                (unsigned long long)out,
+                                (unsigned long long)added,
+                                (unsigned long long)dropped);
+                    }
+
                     GstElement* sinkq = gst_bin_get_by_name(GST_BIN(p.pipeline),
                                                             "sinkq");
                     if (sinkq) {

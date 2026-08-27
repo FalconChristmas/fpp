@@ -116,8 +116,22 @@ def capture(inst, seconds, out_path, max_mb):
             f"capture would be ~{est_mb:.0f}MB (limit {max_mb}MB); "
             f"use a shorter -d or raise --max-mb")
 
-    cmd = ["tcpdump", "-i", iface, "-w", out_path, "-q",
-           "-G", str(seconds), "-W", "1", "-s", "0",
+    # Bound the capture with an external timeout rather than tcpdump's -G/-W.
+    # -G expects strftime specifiers in the -w filename; without them the
+    # rotation misfires and tcpdump exits almost immediately -- a 20s request
+    # returned 1.32s of packets, and everything downstream then happily
+    # analysed it, reporting a -296ppm "drift" fitted over 1.3 seconds.  -U
+    # writes each packet through so nothing is lost when the timeout signals.
+    # -c is a hard stop independent of the timeout.  /tmp here is a 2GB
+    # RAM-backed tmpfs, and a capture that outlives its supervisor fills it:
+    # one did, reaching 2,073,164,572 bytes and starving the very pipeline
+    # being measured, which then looked like a 31% audio loss in the stream.
+    # Bounding by packet count means a runaway cannot exceed a known size even
+    # if this process is killed before it can clean up.
+    max_packets = int(seconds * (1000.0 / ptime) * 1.5) + 100
+    cmd = ["timeout", "-s", "INT", str(seconds + 1),
+           "tcpdump", "-i", iface, "-w", out_path, "-q", "-U", "-s", "0",
+           "-c", str(max_packets),
            f"udp and host {ip} and port {port}"]
     print(f"Capturing {seconds}s from {ip}:{port} on {iface} "
           f"(~{est_mb:.0f}MB)...")
@@ -150,6 +164,8 @@ def parse_pcap_rtp(path):
         ts_s, ts_frac, incl, _orig = struct.unpack(
             endian + "IIII", data[pos:pos + 16])
         pos += 16
+        if pos + incl > n:
+            break                       # final record still being written
         pkt, pos = data[pos:pos + incl], pos + incl
         arrival = ts_s + ts_frac / (1e9 if nano else 1e6)
 
@@ -651,6 +667,15 @@ def analyze(rep, pcap, inst, args):
 
     channels = inst.get("channels", 2)
     rate = args.rate
+
+    span = pkts[-1][0] - pkts[0][0]
+    want = getattr(args, "duration", None)
+    if want and span < want * 0.8:
+        rep.fail(f"capture is {span:.2f}s but {want}s was requested - "
+                 f"every rate and drift figure below is fitted over too "
+                 f"little data to mean anything")
+        rep.info("this is a capture failure, not a stream fault; "
+                 "re-run before drawing any conclusion")
 
     arrivals, rtpts = check_transport(rep, pkts, inst)
     check_media_clock(rep, arrivals, rtpts, rate)
