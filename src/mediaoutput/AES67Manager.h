@@ -284,6 +284,54 @@ struct AES67Config {
     bool rateMatch = false;
     guint64 rateMatchToleranceNs = 0;
 
+    // Correct the sound card / PHC rate difference with libsamplerate, which
+    // is what the three rejected elements above were each trying to be.
+    //
+    // See the DriftResampleProbe comment in AES67Manager.cpp for the control
+    // law.  In short: the ratio is computed directly from (input frames / PHC
+    // seconds) rather than servoed towards a target, because that quantity is
+    // the difference between two crystals and is therefore near-constant --
+    // which is why this does not oscillate the way the earlier loops did.
+    //
+    // Requires libsamplerate at build time; without it the switch does nothing
+    // and the send path behaves exactly as before.
+    //
+    // MEASURED.  The resampler itself is transparent and the correction is
+    // right, but this is default OFF because it does not survive past ~11
+    // minutes -- see below.
+    //
+    // Transparency, measured warp-insensitively by comparing power spectra
+    // against the source file (a 57ppm warp moves a bin by 0.006%, so a PSD
+    // sees straight through it): OFF gives mean -3.01 dB / stdev 0.00 dB, ON
+    // gives mean -3.01 dB / stdev 0.09 dB.  Indistinguishable.
+    //
+    // Do NOT judge this with correlation against the source: the stream is
+    // deliberately time-warped, so a fixed alignment cannot match a whole
+    // window and correlation reads ~0.93 on audio that is provably clean.  It
+    // recovers as the window shrinks -- 0.42 at 2s, 0.85 at 100ms, tracking
+    // intra-window slip -- which is a property of the measurement, not the
+    // audio.
+    //
+    // Correction: trim converges to +57ppm and holds, leaving ~2.5ppm residual
+    // against 56ppm uncorrected, with the alignment slipping exactly -5.5
+    // samples per 2s as intended.
+    //
+    // With sinkPacing this produced the first fully correct AES67 stream in
+    // this file's history: 4.000ms cadence, 1.00 packets per burst, 250.1
+    // packets/s, uniform 1152-byte payloads, pacing queue stable at 56-80ms.
+    // That held for 9-11 minutes and then degraded -- send rate falling to
+    // 155/s with ragged payloads, and the media timeline stepping by +/-23.2ms,
+    // which is exactly one graph quantum at 1024/44100.
+    //
+    // That degradation is NOT this code.  The same ~11 minute onset appeared
+    // with audiorate, and sinkPacing alone collapsed at ~15 minutes; the media
+    // file is 220 minutes long and playback was never restarted, so it is
+    // neither a track boundary nor a restart.  Something starves the AES67
+    // branch after ten-odd minutes of playback and that is the next thing to
+    // find -- it is very likely the original "sounds fine then goes fragmented"
+    // report on #2848, which every fix so far has merely postponed.
+    bool driftResample = false;
+
     // Adaptive resampling: continuously trim the send stream's rate so the
     // media timeline advances at exactly PTP rate.
     //

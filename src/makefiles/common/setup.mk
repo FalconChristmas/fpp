@@ -220,6 +220,16 @@ GSTREAMER_LIBS := $(shell pkg-config --libs gstreamer-1.0 gstreamer-app-1.0 gstr
 CFLAGS += $(GSTREAMER_CFLAGS)
 endif
 
+# libsamplerate, for AES67 media clock drift correction.  AES67Manager.cpp
+# enables the resampler on __has_include(<samplerate.h>), so the flags have to
+# key off that same header.  Absent it, the AES67 send path builds and runs
+# exactly as before, just without drift correction.
+ifneq ($(wildcard /usr/include/samplerate.h),)
+SAMPLERATE_CFLAGS := $(shell pkg-config --cflags samplerate)
+SAMPLERATE_LIBS := $(shell pkg-config --libs samplerate)
+CFLAGS += $(SAMPLERATE_CFLAGS)
+endif
+
 # DRM/KMS. fpp.cpp and framebuffer/KMSFrameBuffer.h enable the KMS code on
 # __has_include(<xf86drm.h>), so the flags have to key off that same header --
 # xf86drm.h itself pulls in <drm.h>, which only resolves with libdrm's -I.

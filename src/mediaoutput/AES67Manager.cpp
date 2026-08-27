@@ -23,6 +23,11 @@
 
 #include <gst/gst.h>
 
+#if __has_include(<samplerate.h>)
+#include <samplerate.h>
+#define FPP_HAVE_SAMPLERATE 1
+#endif
+
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -221,6 +226,7 @@ bool AES67Manager::LoadConfig() {
     cfg.sourcePacing = root.get("sourcePacing", false).asBool();
     cfg.sinkPacing = root.get("sinkPacing", false).asBool();
     cfg.sinkPacingMs = root.get("sinkPacingMs", 40).asInt();
+    cfg.driftResample = root.get("driftResample", false).asBool();
     cfg.rateMatch = root.get("rateMatch", false).asBool();
     cfg.rateMatchToleranceNs =
         (guint64)root.get("rateMatchToleranceNs", 0).asUInt64();
@@ -1068,6 +1074,258 @@ void AES67Manager::ReleaseMediaClock() {
 // ──────────────────────────────────────────────────────────────────────────────
 // Pipeline creation — Send
 // ──────────────────────────────────────────────────────────────────────────────
+
+#ifdef FPP_HAVE_SAMPLERATE
+// ─────────────────────────────────────────────────────────────────────────────
+// Media clock drift correction
+//
+// The audio is produced on the sound card's crystal and the RTP timeline runs
+// on the NIC's PHC; on the reference hardware those differ by ~56ppm, which is
+// 3.4ms per minute.  That empties any receiver's buffer, and it empties the
+// sinkPacing queue, so it has to be corrected in the sender.
+//
+// Three GStreamer elements were tried first and all three are recorded as dead
+// ends in AES67Config: "speed" and "pitch" accept a rate property and never
+// apply it to a live stream, and "audiorate" reconciles per-buffer timestamp
+// rounding rather than drift and then runs away.  libsamplerate is used
+// instead because it is built for exactly this: src_process() takes a ratio per
+// block, interpolates it across the block so there is no zipper, and keeps a
+// fractional read pointer across calls.
+//
+// The control law deliberately leads with a direct measurement rather than a
+// feedback loop, because every previous attempt here oscillated:
+//
+//   feedforward -- the card's true rate is (input frames / PHC seconds), which
+//     is two crystals and therefore almost perfectly constant.  The ratio that
+//     cancels it is just AUDIO_RATE / that.  This carries essentially all of
+//     the correction and needs no gain.
+//   feedback -- a small proportional term bleeds off accumulated offset, so a
+//     startup transient or a rounding residue does not persist.  It is
+//     deliberately weak; it is a trim, not the controller.
+//
+// The failure that killed audiorate is handled explicitly: on DISCONT the
+// counters re-anchor rather than treating the gap as drift to be made up.
+struct DriftResampleState {
+    SRC_STATE* src = nullptr;
+    int channels = 2;
+    GstClock* clock = nullptr;
+    int instanceId = 0;
+
+    // Output timeline: monotonic, only re-anchored on a real discontinuity.
+    bool anchored = false;
+    GstClockTime anchorPts = 0;
+    guint64 ptsFrames = 0;
+
+    // Control counters: zeroed again once the pipeline is up to speed.  Keeping
+    // these separate is the point -- a pipeline takes a moment to start
+    // flowing, and counting that startup gap as drift makes the loop chase a
+    // deficit it did not cause (measured: -188ms, which pinned the trim at the
+    // clamp and ran the stream 2000ppm fast for minutes).
+    bool warmed = false;
+    GstClockTime ctlClock = 0;
+    guint64 ctlIn = 0;
+    guint64 ctlOut = 0;
+    double ratio = 1.0;
+
+    std::vector<float> out;
+    guint64 buffers = 0;
+    guint64 shortReads = 0;
+};
+
+static void DestroyDriftResampleState(gpointer data) {
+    auto* st = static_cast<DriftResampleState*>(data);
+    if (st->src) {
+        src_delete(st->src);
+    }
+    if (st->clock) {
+        gst_object_unref(st->clock);
+    }
+    delete st;
+}
+
+static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
+                                            gpointer user) {
+    auto* st = static_cast<DriftResampleState*>(user);
+    GstBuffer* buf = GST_PAD_PROBE_INFO_BUFFER(info);
+    if (!buf || !st->src || !st->clock) {
+        return GST_PAD_PROBE_OK;
+    }
+
+    // A gap is not drift.  Re-anchor and let the resampler start clean, rather
+    // than trying to make up time that was never ours to make up.
+    if (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DISCONT)) {
+        src_reset(st->src);
+        st->anchored = false;
+    }
+
+    GstMapInfo map;
+    if (!gst_buffer_map(buf, &map, GST_MAP_READ)) {
+        return GST_PAD_PROBE_OK;
+    }
+    const int ch = st->channels;
+    const long inFrames = (long)(map.size / (sizeof(float) * ch));
+    if (inFrames <= 0) {
+        gst_buffer_unmap(buf, &map);
+        return GST_PAD_PROBE_OK;
+    }
+
+    const GstClockTime now = gst_clock_get_time(st->clock);
+    if (!st->anchored) {
+        st->anchored = true;
+        st->anchorPts = GST_BUFFER_PTS_IS_VALID(buf) ? GST_BUFFER_PTS(buf) : 0;
+        st->ptsFrames = 0;
+        st->warmed = false;
+        st->ctlClock = now;
+        st->ctlIn = 0;
+        st->ctlOut = 0;
+        st->ratio = 1.0;
+    }
+
+    double elapsed =
+        (now > st->ctlClock) ? (double)(now - st->ctlClock) / GST_SECOND : 0.0;
+
+    // Start controlling from a steady state, not from the pipeline's first
+    // gasp.  Everything before this is discarded rather than corrected.
+    if (!st->warmed && elapsed > 5.0) {
+        st->warmed = true;
+        st->ctlClock = now;
+        st->ctlIn = 0;
+        st->ctlOut = 0;
+        elapsed = 0.0;
+    }
+
+    // A large offset is a gap, not drift, and chasing it is the exact mistake
+    // that made audiorate unusable.  Absorb it instead: realign the output
+    // timeline to PTP, restart the rate estimate, and keep the trim already
+    // learned.  Measured before this was added: a ~200ms startup gap held the
+    // trim at its clamp for minutes, audibly pitching the stream while it
+    // clawed back time that was never lost to drift.
+    constexpr double MAX_OFFSET_S = 0.05;
+    bool resync = false;
+    double err = st->warmed
+                     ? (double)st->ctlOut - (double)AES67::AUDIO_RATE * elapsed
+                     : 0.0;
+    if (st->warmed && std::fabs(err) > MAX_OFFSET_S * AES67::AUDIO_RATE) {
+        LogInfo(VB_MEDIAOUT,
+                "AES67 drift [%d]: %+.0f ms gap absorbed, re-anchoring\n",
+                st->instanceId, err * 1000.0 / AES67::AUDIO_RATE);
+        st->ctlClock = now;
+        st->ctlIn = 0;
+        st->ctlOut = 0;
+        if (GST_BUFFER_PTS_IS_VALID(buf)) {
+            st->anchorPts = GST_BUFFER_PTS(buf);
+        }
+        st->ptsFrames = 0;
+        elapsed = 0.0;
+        err = 0.0;
+        resync = true;
+    }
+
+    // Hold the trim already learned rather than snapping back to 1.0 whenever
+    // there is not yet enough data.  The rate being corrected is a property of
+    // two crystals, so the last good value is always a better guess than "no
+    // correction" -- and resetting it is what turned a burst of absorbed gaps
+    // into a death spiral: trim collapsed to 0, the pacing queue then drained
+    // for want of correction, the drain starved the source into more gaps, and
+    // those gaps absorbed away every chance to re-learn the rate.  Measured:
+    // 9 minutes of correct operation, then trim pinned at 0.0ppm with the send
+    // rate falling from 250/s to 155/s and absorptions climbing past 3500.
+    double target = st->ratio;
+    if (st->warmed && elapsed > 2.0 && st->ctlIn > 0) {
+        // Feedforward: the card's rate against PTP is two crystals, so this is
+        // near-constant and carries the whole correction on its own.
+        const double cardRate = (double)st->ctlIn / elapsed;
+        if (cardRate > 1000.0) {
+            target = (double)AES67::AUDIO_RATE / cardRate;
+        }
+        // Feedback: a weak trim that bleeds off residual offset.  Kept small on
+        // purpose -- it is not the controller, and every earlier attempt here
+        // failed by letting a feedback term do the work.
+        constexpr double KP = 0.002;
+        target *= (1.0 - KP * err / (double)AES67::AUDIO_RATE);
+    }
+
+    // Hard clamp, then slew limit.  300ppm is far beyond any real crystal pair
+    // (the reference hardware needs 56ppm), so hitting the clamp means the
+    // estimate is wrong and the right response is to refuse to act on it
+    // rather than to pitch-shift the audio chasing it.
+    constexpr double MAX_TRIM = 0.0003;   // +/-300ppm
+    constexpr double MAX_STEP = 0.000002; // 2ppm per buffer
+    target = std::clamp(target, 1.0 - MAX_TRIM, 1.0 + MAX_TRIM);
+    st->ratio = std::clamp(target, st->ratio - MAX_STEP, st->ratio + MAX_STEP);
+
+    const size_t capacity = (size_t)(inFrames / st->ratio) + 32;
+    if (st->out.size() < capacity * ch) {
+        st->out.resize(capacity * ch);
+    }
+
+    SRC_DATA d;
+    memset(&d, 0, sizeof(d));
+    d.data_in = reinterpret_cast<const float*>(map.data);
+    d.input_frames = inFrames;
+    d.data_out = st->out.data();
+    d.output_frames = (long)capacity;
+    d.src_ratio = st->ratio;
+    d.end_of_input = 0;
+
+    const int rc = src_process(st->src, &d);
+    gst_buffer_unmap(buf, &map);
+
+    if (rc != 0 || d.output_frames_gen <= 0) {
+        if (rc != 0) {
+            LogWarn(VB_MEDIAOUT, "AES67 drift [%d]: src_process: %s\n",
+                    st->instanceId, src_strerror(rc));
+        }
+        return GST_PAD_PROBE_OK;
+    }
+    if (d.input_frames_used < inFrames) {
+        // Would mean silently discarding input, so it is counted rather than
+        // ignored; the output buffer is sized so this should never happen.
+        st->shortReads++;
+    }
+
+    const size_t bytes = (size_t)d.output_frames_gen * ch * sizeof(float);
+    GstBuffer* out = gst_buffer_new_allocate(nullptr, bytes, nullptr);
+    if (!out) {
+        return GST_PAD_PROBE_OK;
+    }
+    gst_buffer_fill(out, 0, st->out.data(), bytes);
+
+    // Timestamp from the output sample count, so the timeline downstream
+    // advances at exactly AUDIO_RATE.  Producing AUDIO_RATE samples per PHC
+    // second is what the loop above enforces, so media time tracks PTP.
+    GST_BUFFER_PTS(out) =
+        st->anchorPts + gst_util_uint64_scale(st->ptsFrames, GST_SECOND,
+                                              AES67::AUDIO_RATE);
+    GST_BUFFER_DURATION(out) = gst_util_uint64_scale(
+        (guint64)d.output_frames_gen, GST_SECOND, AES67::AUDIO_RATE);
+    if (resync || GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DISCONT)) {
+        GST_BUFFER_FLAG_SET(out, GST_BUFFER_FLAG_DISCONT);
+    }
+
+    st->ptsFrames += (guint64)d.output_frames_gen;
+    st->ctlIn += (guint64)d.input_frames_used;
+    st->ctlOut += (guint64)d.output_frames_gen;
+
+    if ((++st->buffers % 2000) == 0) {
+        LogInfo(VB_MEDIAOUT,
+                "AES67 drift [%d]: trim %+.1f ppm, in %.1f/s out %.1f/s, offset %+.2f ms over %.0fs%s\n",
+                st->instanceId, (st->ratio - 1.0) * 1e6,
+                elapsed > 0 ? (double)st->ctlIn / elapsed : 0.0,
+                elapsed > 0 ? (double)st->ctlOut / elapsed : 0.0,
+                ((double)st->ctlOut -
+                 (double)AES67::AUDIO_RATE * elapsed) * 1000.0 /
+                    AES67::AUDIO_RATE,
+                elapsed,
+                st->shortReads ? " (SHORT READS)" : "");
+    }
+
+    gst_buffer_unref(buf);
+    GST_PAD_PROBE_INFO_DATA(info) = out;
+    return GST_PAD_PROBE_OK;
+}
+#endif // FPP_HAVE_SAMPLERATE
+
 bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     std::string nodeName = SafeNodeName(inst.name) + "_send";
     std::string sourceIP = GetInterfaceIP(inst.interface);
@@ -1117,6 +1375,16 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     const bool driftControl = (ptpClock != nullptr) && m_config.adaptiveResample;
     const bool sinkPacing = m_config.sinkPacing;
     const bool rateMatch = m_config.rateMatch;
+#ifdef FPP_HAVE_SAMPLERATE
+    const bool driftResample = m_config.driftResample && (ptpClock != nullptr);
+#else
+    const bool driftResample = false;
+    if (m_config.driftResample) {
+        LogWarn(VB_MEDIAOUT,
+                "AES67 send [%d]: driftResample requested but this build has "
+                "no libsamplerate\n", inst.id);
+    }
+#endif
     if (!m_config.ptpMediaClock) {
         LogInfo(VB_MEDIAOUT, "AES67 send [%d]: PTP media clock disabled by config\n", inst.id);
     }
@@ -1139,6 +1407,16 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                 ? ("! audio/x-raw,format=F32LE,channels=" + std::to_string(inst.channels) +
                    " ! pitch name=drift "
                    "! audio/x-raw,format=F32LE,channels=" + std::to_string(inst.channels) + " ")
+                : "")
+        // Tap point for drift correction.  identity does nothing itself; the
+        // resampling happens in a pad probe on its src pad, in the float
+        // domain and before the audio is cut into packets, so every packet
+        // downstream is still exactly one ptime long.
+        << (driftResample
+                ? ("! audio/x-raw,format=F32LE,rate=" +
+                   std::to_string(AES67::AUDIO_RATE) + ",channels=" +
+                   std::to_string(inst.channels) +
+                   " ! identity name=driftpoint ")
                 : "")
         << "! audioconvert "
         << "! audio/x-raw,format=S24BE,rate=" << AES67::AUDIO_RATE
@@ -1286,6 +1564,41 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE);
         gst_element_set_base_time(pipeline, 0);
     }
+
+#ifdef FPP_HAVE_SAMPLERATE
+    if (driftResample) {
+        GstElement* dp = gst_bin_get_by_name(GST_BIN(pipeline), "driftpoint");
+        GstPad* dpad = dp ? gst_element_get_static_pad(dp, "src") : nullptr;
+        int err = 0;
+        auto* st = new DriftResampleState();
+        st->channels = inst.channels;
+        st->instanceId = inst.id;
+        st->clock = GST_CLOCK(gst_object_ref(ptpClock));
+        // SINC_FASTEST is bandlimited and far above what a 56ppm correction
+        // needs; the cost is a few percent of one core on a Pi.
+        st->src = src_new(SRC_SINC_FASTEST, inst.channels, &err);
+
+        if (dpad && st->src) {
+            gst_pad_add_probe(dpad, GST_PAD_PROBE_TYPE_BUFFER,
+                              DriftResampleProbe, st,
+                              DestroyDriftResampleState);
+            LogInfo(VB_MEDIAOUT,
+                    "AES67 send [%d]: drift correction on (libsamplerate)\n",
+                    inst.id);
+        } else {
+            LogWarn(VB_MEDIAOUT,
+                    "AES67 send [%d]: drift correction unavailable (%s)\n",
+                    inst.id, st->src ? "no driftpoint pad" : src_strerror(err));
+            DestroyDriftResampleState(st);
+        }
+        if (dpad) {
+            gst_object_unref(dpad);
+        }
+        if (dp) {
+            gst_object_unref(dp);
+        }
+    }
+#endif
 
     if (rateMatch) {
         GstElement* rm = gst_bin_get_by_name(GST_BIN(pipeline), "ratematch");
