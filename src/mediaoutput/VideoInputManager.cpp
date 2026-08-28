@@ -58,6 +58,110 @@ static std::string GstQuote(const std::string& value) {
     return out;
 }
 
+// Sanitise a URI down to URL-safe characters before it is spliced into a
+// single-quoted shell argument, so nothing in it can close the quote.
+static std::string ShellSafeUri(const std::string& uri) {
+    std::string out;
+    out.reserve(uri.size());
+    for (char c : uri) {
+        if (std::isalnum(static_cast<unsigned char>(c)) || c == ':' || c == '/'
+            || c == '.' || c == '-' || c == '_' || c == '~' || c == '?'
+            || c == '&' || c == '=' || c == '%' || c == '+' || c == '@') {
+            out += c;
+        }
+    }
+    return out;
+}
+
+// What a yt-dlp resolution produced.
+struct YtDlpResult {
+    std::string url;         // empty when resolution failed
+    double fps = 0.0;        // 0 when fps wasn't requested, or didn't parse
+    std::string diagnostics; // yt-dlp's own error text, for the log
+};
+
+// Resolve a page URL to a directly playable stream URL via yt-dlp.
+//
+// stderr used to be sent to /dev/null, which made every failure look identical
+// in the log - "returned no valid URL" - while the reason for it was thrown
+// away. The packaged yt-dlp goes stale against YouTube every few months and
+// then fails with a specific, actionable message ("The page needs to be
+// reloaded", "Sign in to confirm you're not a bot"), so that is the failure
+// operators actually hit and the one the log could least afford to swallow.
+// stderr is folded into the capture and reported instead: yt-dlp's own
+// diagnostics are line-oriented and never begin with "http", so the URL line
+// stays unambiguous among them.
+static YtDlpResult RunYtDlp(const std::string& format, const std::string& uri, bool wantFps) {
+    YtDlpResult res;
+    std::string cmd = "yt-dlp -f '" + format + "' --print url";
+    if (wantFps) {
+        cmd += " --print fps";
+    }
+    cmd += " '" + ShellSafeUri(uri) + "' 2>&1";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) {
+        res.diagnostics = "could not run yt-dlp";
+        return res;
+    }
+    std::string output;
+    char buf[4096];
+    while (fgets(buf, sizeof(buf), pipe)) {
+        output += buf;
+    }
+    // pclose() may return -1 when SA_NOCLDWAIT is set on SIGCHLD (the kernel
+    // auto-reaps the child, so waitpid fails with ECHILD), so the exit status
+    // can't be trusted here - validate the output content instead.
+    pclose(pipe);
+
+    std::istringstream iss(output);
+    std::string line;
+    bool fpsLineNext = false;
+    while (std::getline(iss, line)) {
+        while (!line.empty() && (line.back() == '\n' || line.back() == '\r' || line.back() == ' ')) {
+            line.pop_back();
+        }
+        if (line.empty()) {
+            continue;
+        }
+        if (fpsLineNext) {
+            // --print fps emits the framerate on the line right after the URL.
+            fpsLineNext = false;
+            try {
+                res.fps = std::stod(line);
+            } catch (...) {
+                res.fps = 0.0;
+            }
+        } else if (res.url.empty() && line.rfind("http", 0) == 0) {
+            res.url = line;
+            fpsLineNext = wantFps;
+        } else if (res.url.empty() && res.diagnostics.size() < 400) {
+            if (!res.diagnostics.empty()) {
+                res.diagnostics += " | ";
+            }
+            res.diagnostics += line;
+        }
+    }
+    return res;
+}
+
+// Adopt the stream's native framerate, but never above the configured one -
+// don't push a source to 60fps just because the stream is 60fps natively when
+// the user asked for 30. videorate handles the downsampling.
+static void ApplyDetectedFps(double detectedFps, int& framerate, const char* name) {
+    if (detectedFps < 1.0 || detectedFps > 120.0) {
+        LogInfo(VB_MEDIAOUT, "VideoInputManager: yt-dlp fps not available for '%s', using config %dfps\n",
+                name, framerate);
+        return;
+    }
+    int detected = (int)std::lround(detectedFps);
+    int configFps = framerate;
+    framerate = std::min(detected, configFps);
+    LogInfo(VB_MEDIAOUT, "VideoInputManager: yt-dlp detected %dfps for '%s', "
+            "capped to configured %dfps -> using %dfps\n",
+            detected, name, configFps, framerate);
+}
+
 // Control characters have no representation in the description grammar and
 // never belong in a URI, device path or element name, so reject them up front
 // rather than trying to encode them. Checked once per source in StartSource()
@@ -354,9 +458,9 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         }
         std::string resolvedUri = source.uri;
 
-        // Detect YouTube URLs and resolve to direct HLS via yt-dlp.
-        // YouTube page URLs can't be played by GStreamer directly, and
-        // HLS URLs expire after ~1 hour, so we resolve at start time.
+        // Detect YouTube URLs and resolve to a direct stream URL via yt-dlp.
+        // YouTube page URLs can't be played by GStreamer directly, and the
+        // resolved URLs expire after ~1 hour, so we resolve at start time.
         // When audioEnabled is true for YouTube sources, skip resolution here —
         // StartSourceWithAudio resolves separate video + audio URLs.
         if (!source.audioEnabled &&
@@ -370,70 +474,26 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
             // to what the Pi can actually decode and display.
             std::string ytFmt = "bestvideo[height<=" + std::to_string(source.height)
                 + "][vcodec^=avc1]/worst[vcodec^=avc1]";
-            // Resolve URL and detect native framerate in one call.
-            std::string ytdlpCmd = "yt-dlp -f '" + ytFmt + "' --print url --print fps";
-            // Sanitise URI — only allow URL-safe characters to prevent injection
-            std::string safeUri;
-            for (char c : resolvedUri) {
-                if (std::isalnum(c) || c == ':' || c == '/' || c == '.' || c == '-'
-                    || c == '_' || c == '~' || c == '?' || c == '&' || c == '='
-                    || c == '%' || c == '+' || c == '@') {
-                    safeUri += c;
-                }
+            YtDlpResult yt = RunYtDlp(ytFmt, resolvedUri, true);
+            if (yt.url.empty()) {
+                // Do not fall back to the original page URL. uridecodebin will
+                // happily fetch it, get text/html back, and fail with "Your
+                // GStreamer installation is missing a plug-in ... Missing
+                // decoder: text/html" - which reads like a broken GStreamer
+                // install and sends you looking in entirely the wrong place.
+                // The source cannot start until yt-dlp resolves it, so fail
+                // here and say why.
+                LogErr(VB_MEDIAOUT, "VideoInputManager: yt-dlp could not resolve the URL for '%s': %s\n",
+                       source.name.c_str(),
+                       yt.diagnostics.empty() ? "no output" : yt.diagnostics.c_str());
+                WarningHolder::AddWarning(56, "Video input '" + source.name
+                    + "': yt-dlp could not resolve the YouTube URL - it may need updating");
+                return false;
             }
-            ytdlpCmd += " '" + safeUri + "' 2>/dev/null";
-
-            FILE* pipe = popen(ytdlpCmd.c_str(), "r");
-            if (pipe) {
-                char buf[4096];
-                std::string result;
-                while (fgets(buf, sizeof(buf), pipe)) {
-                    result += buf;
-                }
-                pclose(pipe);
-                // Parse two lines: URL then fps
-                std::istringstream iss(result);
-                std::string urlLine, fpsLine;
-                std::getline(iss, urlLine);
-                std::getline(iss, fpsLine);
-                // Trim whitespace
-                while (!urlLine.empty() && (urlLine.back() == '\n' || urlLine.back() == '\r' || urlLine.back() == ' '))
-                    urlLine.pop_back();
-                while (!fpsLine.empty() && (fpsLine.back() == '\n' || fpsLine.back() == '\r' || fpsLine.back() == ' '))
-                    fpsLine.pop_back();
-                // Note: pclose may return -1 when SA_NOCLDWAIT is set on SIGCHLD
-                // (the kernel auto-reaps the child, so waitpid fails with ECHILD).
-                // Validate the output content instead of relying on the exit code.
-                if (!urlLine.empty() && urlLine.find("http") == 0) {
-                    LogInfo(VB_MEDIAOUT, "VideoInputManager: yt-dlp resolved '%s' → %zu-char HLS URL\n",
-                            source.name.c_str(), urlLine.size());
-                    resolvedUri = urlLine;
-                    // Auto-detect framerate from yt-dlp, but cap to the
-                    // user-configured value — don't override 30fps with 60fps
-                    // just because the stream is 60fps natively.  The videorate
-                    // element handles downsampling.
-                    int configFps = source.framerate;
-                    try {
-                        double detectedFps = std::stod(fpsLine);
-                        if (detectedFps >= 1.0 && detectedFps <= 120.0) {
-                            int detected = (int)std::lround(detectedFps);
-                            source.framerate = std::min(detected, configFps);
-                            LogInfo(VB_MEDIAOUT, "VideoInputManager: yt-dlp detected %dfps for '%s', "
-                                    "capped to configured %dfps → using %dfps\n",
-                                    detected, source.name.c_str(), configFps, source.framerate);
-                        }
-                    } catch (...) {
-                        LogInfo(VB_MEDIAOUT, "VideoInputManager: yt-dlp fps not available for '%s', using config %dfps\n",
-                                source.name.c_str(), source.framerate);
-                    }
-                } else {
-                    LogWarn(VB_MEDIAOUT, "VideoInputManager: yt-dlp returned no valid URL for '%s', "
-                            "using original URI\n", source.name.c_str());
-                }
-            } else {
-                LogWarn(VB_MEDIAOUT, "VideoInputManager: Failed to run yt-dlp for '%s'\n",
-                        source.name.c_str());
-            }
+            LogInfo(VB_MEDIAOUT, "VideoInputManager: yt-dlp resolved '%s' -> %zu-char stream URL\n",
+                    source.name.c_str(), yt.url.size());
+            resolvedUri = yt.url;
+            ApplyDetectedFps(yt.fps, source.framerate, source.name.c_str());
         }
 
         // uridecodebin handles full URI negotiation: HTTP, HLS (.m3u8),
@@ -718,68 +778,25 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     // downloads, so we resolve separate video-only and audio-only URLs
     // and use two independent uridecodebin elements.
 
-    // Sanitise URI — only allow URL-safe characters to prevent injection
-    std::string safeUri;
-    for (char c : source.uri) {
-        if (std::isalnum(c) || c == ':' || c == '/' || c == '.' || c == '-'
-            || c == '_' || c == '~' || c == '?' || c == '&' || c == '='
-            || c == '%' || c == '+' || c == '@') {
-            safeUri += c;
-        }
-    }
-
     // Resolve video-only URL and detect native framerate
     std::string videoUrl;
     {
         // Select best H.264 stream fitting the configured height
         std::string ytFmt = "bestvideo[height<=" + std::to_string(source.height)
             + "][vcodec^=avc1]/worst[vcodec^=avc1]";
-        std::string cmd = "yt-dlp -f '" + ytFmt + "' --print url --print fps '" + safeUri + "' 2>/dev/null";
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Resolving YouTube video URL for '%s'\n",
                 source.name.c_str());
-        FILE* pipe = popen(cmd.c_str(), "r");
-        if (pipe) {
-            char buf[4096];
-            std::string result;
-            while (fgets(buf, sizeof(buf), pipe))
-                result += buf;
-            pclose(pipe);
-            // Parse two lines: URL then fps
-            std::istringstream iss(result);
-            std::string urlLine, fpsLine;
-            std::getline(iss, urlLine);
-            std::getline(iss, fpsLine);
-            while (!urlLine.empty() && (urlLine.back() == '\n' || urlLine.back() == '\r' || urlLine.back() == ' '))
-                urlLine.pop_back();
-            while (!fpsLine.empty() && (fpsLine.back() == '\n' || fpsLine.back() == '\r' || fpsLine.back() == ' '))
-                fpsLine.pop_back();
-            if (!urlLine.empty() && urlLine.find("http") == 0) {
-                videoUrl = urlLine;
-                LogInfo(VB_MEDIAOUT, "VideoInputManager: Video URL resolved (%zu chars)\n", videoUrl.size());
-                // Auto-detect framerate from yt-dlp, but cap to the
-                // user-configured value (same rationale as combined path).
-                int configFps = source.framerate;
-                try {
-                    double detectedFps = std::stod(fpsLine);
-                    if (detectedFps >= 1.0 && detectedFps <= 120.0) {
-                        int detected = (int)std::lround(detectedFps);
-                        source.framerate = std::min(detected, configFps);
-                        LogInfo(VB_MEDIAOUT, "VideoInputManager: yt-dlp detected %dfps for '%s', "
-                                "capped to configured %dfps → using %dfps\n",
-                                detected, source.name.c_str(), configFps, source.framerate);
-                    }
-                } catch (...) {
-                    LogInfo(VB_MEDIAOUT, "VideoInputManager: yt-dlp fps not available, using config %dfps\n",
-                            source.framerate);
-                }
-            }
+        YtDlpResult yt = RunYtDlp(ytFmt, source.uri, true);
+        if (yt.url.empty()) {
+            LogWarn(VB_MEDIAOUT, "VideoInputManager: Failed to resolve video URL for '%s': %s\n",
+                    source.name.c_str(),
+                    yt.diagnostics.empty() ? "no output" : yt.diagnostics.c_str());
+            WarningHolder::AddWarning(56, "Video input '" + source.name + "': could not resolve the video URL");
+            return false;
         }
-    }
-    if (videoUrl.empty()) {
-        LogWarn(VB_MEDIAOUT, "VideoInputManager: Failed to resolve video URL for '%s'\n",
-                source.name.c_str());
-        WarningHolder::AddWarning(56, "Video input '" + source.name + "': could not resolve the video URL");
-        return false;
+        videoUrl = yt.url;
+        LogInfo(VB_MEDIAOUT, "VideoInputManager: Video URL resolved (%zu chars)\n", videoUrl.size());
+        ApplyDetectedFps(yt.fps, source.framerate, source.name.c_str());
     }
 
     // Resolve audio-only URL
@@ -787,32 +804,20 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     {
         // 234 = high quality HLS audio, 233 = low quality HLS audio
         // 140 = AAC 128k from DASH (non-live fallback), 139 = HE-AAC 48k
-        std::string ytFmt = "234/233/140/139/bestaudio";
-        std::string cmd = "yt-dlp -f '" + ytFmt + "' -g '" + safeUri + "' 2>/dev/null";
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Resolving YouTube audio URL for '%s'\n",
                 source.name.c_str());
-        FILE* pipe = popen(cmd.c_str(), "r");
-        if (pipe) {
-            char buf[4096];
-            std::string result;
-            while (fgets(buf, sizeof(buf), pipe))
-                result += buf;
-            pclose(pipe);
-            while (!result.empty() && (result.back() == '\n' || result.back() == '\r' || result.back() == ' '))
-                result.pop_back();
-            if (!result.empty() && result.find("http") == 0) {
-                audioUrl = result;
-                LogInfo(VB_MEDIAOUT, "VideoInputManager: Audio URL resolved (%zu chars)\n", audioUrl.size());
-            }
+        YtDlpResult yt = RunYtDlp("234/233/140/139/bestaudio", source.uri, false);
+        if (yt.url.empty()) {
+            LogWarn(VB_MEDIAOUT, "VideoInputManager: Failed to resolve audio URL for '%s' (%s), "
+                    "falling back to video-only\n", source.name.c_str(),
+                    yt.diagnostics.empty() ? "no output" : yt.diagnostics.c_str());
+            // Returning false here is not a no-op: our caller (StartSource())
+            // retries with audioEnabled cleared and builds the regular
+            // video-only pipeline instead of leaving the source unstarted.
+            return false;
         }
-    }
-    if (audioUrl.empty()) {
-        LogWarn(VB_MEDIAOUT, "VideoInputManager: Failed to resolve audio URL for '%s', "
-                "falling back to video-only\n", source.name.c_str());
-        // Returning false here is not a no-op: our caller (StartSource())
-        // retries with audioEnabled cleared and builds the regular
-        // video-only pipeline instead of leaving the source unstarted.
-        return false;
+        audioUrl = yt.url;
+        LogInfo(VB_MEDIAOUT, "VideoInputManager: Audio URL resolved (%zu chars)\n", audioUrl.size());
     }
 
     // Build a SINGLE combined pipeline for video and audio.
