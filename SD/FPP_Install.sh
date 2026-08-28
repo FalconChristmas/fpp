@@ -1738,7 +1738,12 @@ mkdir ${FPPHOME}/.ssh
 chown ${FPPUSER}:${FPPUSER} ${FPPHOME}/.ssh
 chmod 700 ${FPPHOME}/.ssh
 
-mkdir ${FPPHOME}/media
+# -p, not a bare mkdir: an upgrade script run earlier in this same install (see
+# upgrade_config above) can legitimately have created a subdirectory of the
+# media dir already, and failing here aborts the entire install under set -e.
+# The chown/chmod below then puts an early-created dir back under fpp's
+# ownership either way.
+mkdir -p ${FPPHOME}/media
 chown ${FPPUSER}:${FPPUSER} ${FPPHOME}/media
 chmod 775 ${FPPHOME}/media
 

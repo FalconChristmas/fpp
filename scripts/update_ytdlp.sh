@@ -43,6 +43,21 @@ RELEASE_BASE="${RELEASE_BASE:-https://github.com/yt-dlp/yt-dlp/releases/latest/d
 # seconds when there is no route at all.
 CURL="curl -fsSL --connect-timeout 10 --max-time 300 --speed-limit 10000 --speed-time 30 --retry 1"
 
+# Record a successful check. This creates the cache directory itself but never
+# its parent: on a fresh install this runs from upgrade_config (upgrade 136)
+# *before* FPP_Install.sh populates /home/fpp, and a bare "mkdir -p" here
+# created ${MEDIADIR} root-owned, which made the installer's later plain
+# "mkdir ${FPPHOME}/media" fail and abort the whole install. Skipping the stamp
+# when the media directory is not there yet costs nothing -- it only keeps the
+# weekly check from re-running, and the next daily run writes it.
+touch_stamp() {
+    local dir
+    dir=$(dirname "${STAMP}")
+    [ -d "$(dirname "${dir}")" ] || return 0
+    mkdir -p "${dir}" 2>/dev/null && touch "${STAMP}" 2>/dev/null
+    return 0
+}
+
 if [ "$1" = "--if-stale" ]; then
     # The periodic path is opt-out: a show network with no internet, or an
     # operator who wants the binary pinned, sets ytdlpAutoUpdate=0. An explicit
@@ -109,7 +124,7 @@ fi
 OLD_VERSION=$("${INSTALL_PATH}" --version 2>/dev/null | head -1)
 if [ "${NEW_VERSION}" = "${OLD_VERSION}" ]; then
     echo "  Already at ${NEW_VERSION}"
-    mkdir -p "$(dirname "${STAMP}")" && touch "${STAMP}"
+    touch_stamp
     exit 0
 fi
 
@@ -129,5 +144,5 @@ else
     echo "  Installed yt-dlp ${NEW_VERSION} (shadowing the packaged $(/usr/bin/yt-dlp --version 2>/dev/null | head -1))"
 fi
 
-mkdir -p "$(dirname "${STAMP}")" && touch "${STAMP}"
+touch_stamp
 exit 0
