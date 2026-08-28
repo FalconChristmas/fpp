@@ -217,23 +217,35 @@ bool AES67Manager::LoadConfig() {
     // Filling m_config in place would let a status query on another thread
     // observe a half-built instance list, or iterate the vector while
     // push_back() reallocates it.
+    // Every fallback below is the member's own default rather than a literal.
+    // Spelling them out twice does not stay in step: nativeSourceRate and
+    // sourceBufferCopy were changed to false in the struct and kept a literal
+    // true here, so this function -- which always runs -- quietly put them
+    // back.  The shipped behaviour was then the opposite of both the struct
+    // and the commit message that changed it.
     AES67Config cfg;
-    cfg.ptpEnabled = root.get("ptpEnabled", true).asBool();
-    cfg.ptpInterface = root.get("ptpInterface", "eth0").asString();
-    cfg.ptpDomain = root.get("ptpDomain", AES67::DEFAULT_PTP_DOMAIN).asInt();
-    cfg.ptpRole = root.get("ptpRole", "auto").asString();
-    cfg.ptpMediaClock = root.get("ptpMediaClock", true).asBool();
-    cfg.sourcePacing = root.get("sourcePacing", false).asBool();
-    cfg.sinkPacing = root.get("sinkPacing", false).asBool();
-    cfg.sinkPacingMs = root.get("sinkPacingMs", 40).asInt();
-    cfg.driftResample = root.get("driftResample", false).asBool();
-    cfg.pipelineStats = root.get("pipelineStats", false).asBool();
-    cfg.nativeSourceRate = root.get("nativeSourceRate", true).asBool();
-    cfg.sourceBufferCopy = root.get("sourceBufferCopy", true).asBool();
-    cfg.sourceMinBuffers = root.get("sourceMinBuffers", 16).asInt();
-    cfg.rateMatch = root.get("rateMatch", false).asBool();
+    static const AES67Config kDefault;
+    cfg.ptpEnabled = root.get("ptpEnabled", kDefault.ptpEnabled).asBool();
+    cfg.ptpInterface = root.get("ptpInterface", kDefault.ptpInterface).asString();
+    cfg.ptpDomain = root.get("ptpDomain", kDefault.ptpDomain).asInt();
+    cfg.ptpRole = root.get("ptpRole", kDefault.ptpRole).asString();
+    cfg.ptpMediaClock = root.get("ptpMediaClock", kDefault.ptpMediaClock).asBool();
+    cfg.sourcePacing = root.get("sourcePacing", kDefault.sourcePacing).asBool();
+    cfg.sinkPacing = root.get("sinkPacing", kDefault.sinkPacing).asBool();
+    cfg.sinkPacingMs = root.get("sinkPacingMs", kDefault.sinkPacingMs).asInt();
+    cfg.driftResample = root.get("driftResample", kDefault.driftResample).asBool();
+    cfg.pipelineStats = root.get("pipelineStats", kDefault.pipelineStats).asBool();
+    cfg.nativeSourceRate =
+        root.get("nativeSourceRate", kDefault.nativeSourceRate).asBool();
+    cfg.sourceBufferCopy =
+        root.get("sourceBufferCopy", kDefault.sourceBufferCopy).asBool();
+    cfg.sourceMinBuffers =
+        root.get("sourceMinBuffers", kDefault.sourceMinBuffers).asInt();
+    cfg.rateMatch = root.get("rateMatch", kDefault.rateMatch).asBool();
     cfg.rateMatchToleranceNs =
-        (guint64)root.get("rateMatchToleranceNs", 0).asUInt64();
+        (guint64)root.get("rateMatchToleranceNs",
+                          (Json::UInt64)kDefault.rateMatchToleranceNs)
+            .asUInt64();
     cfg.adaptiveResample = root.get("adaptiveResample", false).asBool();
 
     // A domain outside 0-127 is not representable in the PTP header; an
