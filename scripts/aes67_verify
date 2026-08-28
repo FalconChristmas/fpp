@@ -34,7 +34,46 @@ import subprocess
 import sys
 import tempfile
 
-import numpy as np
+# numpy is not present on a stock FPP image, and the transport half of this
+# tool -- rate, sequence, payload, pacing, media clock -- is plain arithmetic
+# that does not need it.  Only the content checks do.  Degrade to those rather
+# than refusing to run: a tester with a failing stream can still produce the
+# numbers that matter without installing anything.
+try:
+    import numpy as np
+    HAVE_NUMPY = True
+except ImportError:
+    np = None
+    HAVE_NUMPY = False
+
+
+def _median(xs):
+    s = sorted(xs)
+    n = len(s)
+    if not n:
+        return 0.0
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2.0
+
+
+def _pct(xs, q):
+    s = sorted(xs)
+    if not s:
+        return 0.0
+    i = min(len(s) - 1, max(0, int(round(q / 100.0 * (len(s) - 1)))))
+    return s[i]
+
+
+def _slope(xs, ys):
+    """Least-squares slope of ys against xs."""
+    n = len(xs)
+    if n < 2:
+        return 0.0
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    num = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    den = sum((x - mx) ** 2 for x in xs)
+    return num / den if den else 0.0
+
 
 INSTANCES = "/home/fpp/media/config/pipewire-aes67-instances.json"
 
@@ -249,11 +288,11 @@ def l24_to_float(payload_bytes, channels):
 
 def check_transport(rep, pkts, inst):
     rep.section("Transport")
-    arrivals = np.array([p[0] for p in pkts])
-    seqs = np.array([p[1] for p in pkts], dtype=np.int64)
-    rtpts = np.array([p[2] for p in pkts], dtype=np.int64)
+    arrivals = [p[0] for p in pkts]
+    seqs = [p[1] for p in pkts]
+    rtpts = [p[2] for p in pkts]
     ssrcs = {p[3] for p in pkts}
-    sizes = np.array([len(p[4]) for p in pkts])
+    sizes = [len(p[4]) for p in pkts]
 
     duration = arrivals[-1] - arrivals[0]
     rep.info(f"{len(pkts)} packets over {duration:.2f}s")
@@ -266,12 +305,17 @@ def check_transport(rep, pkts, inst):
         rep.info("more than one sender is publishing to this address")
 
     # Sequence integrity, unwrapped across the 16-bit rollover.
-    dseq = np.diff(seqs)
-    dseq = np.where(dseq < -32768, dseq + 65536,
-                    np.where(dseq > 32768, dseq - 65536, dseq))
-    lost = int(np.sum(dseq[dseq > 1] - 1))
-    dups = int(np.sum(dseq == 0))
-    reord = int(np.sum(dseq < 0))
+    dseq = []
+    for a, b in zip(seqs, seqs[1:]):
+        d = b - a
+        if d < -32768:
+            d += 65536
+        elif d > 32768:
+            d -= 65536
+        dseq.append(d)
+    lost = sum(d - 1 for d in dseq if d > 1)
+    dups = sum(1 for d in dseq if d == 0)
+    reord = sum(1 for d in dseq if d < 0)
 
     if lost == 0 and dups == 0 and reord == 0:
         rep.ok("sequence numbers contiguous, no loss or reordering")
@@ -292,16 +336,21 @@ def check_transport(rep, pkts, inst):
         rep.info("a low rate means the source is being starved; "
                  "a high one means it is being over-pulled")
 
-    if len(set(sizes.tolist())) == 1:
+    if len(set(sizes)) == 1:
         rep.ok(f"uniform payload {sizes[0]} bytes")
     else:
-        rep.warn(f"payload size varies: {sizes.min()}-{sizes.max()} bytes")
+        rep.warn(f"payload size varies: {min(sizes)}-{max(sizes)} bytes")
 
     # RTP timestamp continuity: every step should equal the frames sent.
-    frames_per_pkt = sizes // (3 * inst.get("channels", 2))
-    dts = np.diff(rtpts)
-    dts = np.where(dts < 0, dts + (1 << 32), dts)
-    jumps = int(np.sum(dts != frames_per_pkt[:-1]))
+    ch = inst.get("channels", 2)
+    frames_per_pkt = [n // (3 * ch) for n in sizes]
+    dts = []
+    for a, b in zip(rtpts, rtpts[1:]):
+        d = b - a
+        if d < 0:
+            d += 1 << 32
+        dts.append(d)
+    jumps = sum(1 for d, f in zip(dts, frames_per_pkt) if d != f)
     if jumps == 0:
         rep.ok("RTP timestamps advance exactly with the payload")
     else:
@@ -323,34 +372,40 @@ def check_pacing(rep, arrivals, ptime):
     the payload itself is perfect.  Nothing else in this tool catches that:
     the rate, sequence and timestamps all look ideal.
     """
-    dt_ms = np.diff(arrivals) * 1000.0
-    rep.info(f"inter-arrival: median {np.median(dt_ms):.3f}ms, "
-             f"p90 {np.percentile(dt_ms, 90):.2f}ms, max {dt_ms.max():.2f}ms")
+    dt_ms = [(b - a) * 1000.0 for a, b in zip(arrivals, arrivals[1:])]
+    if not dt_ms:
+        return
+    rep.info(f"inter-arrival: median {_median(dt_ms):.3f}ms, "
+             f"p90 {_pct(dt_ms, 90):.2f}ms, max {max(dt_ms):.2f}ms")
 
     # A gap under a quarter of a ptime means back-to-back transmission.
-    back_to_back = float(np.mean(dt_ms < ptime * 0.25))
+    back_to_back = sum(1 for d in dt_ms if d < ptime * 0.25) / len(dt_ms)
 
     if back_to_back < 0.05:
         rep.ok(f"packets paced at ptime "
-               f"(median gap {np.median(dt_ms):.2f}ms vs {ptime}ms)")
+               f"(median gap {_median(dt_ms):.2f}ms vs {ptime}ms)")
     else:
         # Group into bursts to report what the receiver actually sees.
-        starts = np.flatnonzero(np.concatenate(
-            ([True], dt_ms > ptime * 0.25)))
-        sizes = np.diff(np.concatenate((starts, [len(arrivals)])))
-        burst_ms = float(np.mean(sizes)) * ptime
+        starts = [0] + [i + 1 for i, d in enumerate(dt_ms)
+                        if d > ptime * 0.25]
+        bounds = starts + [len(arrivals)]
+        sizes = [b - a for a, b in zip(bounds, bounds[1:])]
+        mean_burst = sum(sizes) / len(sizes)
+        burst_ms = mean_burst * ptime
+        burst_gaps = [(arrivals[b] - arrivals[a]) * 1000.0
+                      for a, b in zip(starts, starts[1:])]
         rep.fail(f"{100 * back_to_back:.0f}% of packets are sent back-to-back "
                  f"- the stream is bursting, not paced")
-        rep.info(f"bursts of {np.mean(sizes):.1f} packets = "
+        rep.info(f"bursts of {mean_burst:.1f} packets = "
                  f"{burst_ms:.1f}ms of audio, every "
-                 f"{np.median(np.diff(arrivals[starts])) * 1000:.2f}ms")
+                 f"{_median(burst_gaps):.2f}ms")
         rep.info(f"a receiver with a link offset under {burst_ms:.0f}ms "
                  f"underruns once per burst - this is what 'fragmented' "
                  f"sounds like when the payload itself is clean")
 
-    if dt_ms.max() > ptime * 10:
-        rep.info(f"largest gap {dt_ms.max():.1f}ms "
-                 f"({dt_ms.max() / ptime:.0f}x ptime)")
+    if max(dt_ms) > ptime * 10:
+        rep.info(f"largest gap {max(dt_ms):.1f}ms "
+                 f"({max(dt_ms) / ptime:.0f}x ptime)")
 
 
 def check_media_clock(rep, arrivals, rtpts, rate):
@@ -360,12 +415,18 @@ def check_media_clock(rep, arrivals, rtpts, rate):
         rep.warn("too few packets to measure drift")
         return
 
-    ts = rtpts.astype(np.float64)
-    ts += np.cumsum(np.concatenate(
-        ([0], (np.diff(ts) < -(1 << 31)) * (1 << 32))))
+    ts = []
+    wrap = 0
+    prev = None
+    for v in rtpts:
+        if prev is not None and v - prev < -(1 << 31):
+            wrap += 1 << 32
+        ts.append(float(v) + wrap)
+        prev = v
 
-    t = arrivals - arrivals[0]
-    slope = np.polyfit(t, ts - ts[0], 1)[0]        # media samples per second
+    t0, ts0 = arrivals[0], ts[0]
+    t = [a - t0 for a in arrivals]
+    slope = _slope(t, [v - ts0 for v in ts])       # media samples per second
     ppm = (slope / rate - 1.0) * 1e6
 
     span = t[-1]
@@ -679,6 +740,14 @@ def analyze(rep, pcap, inst, args):
 
     arrivals, rtpts = check_transport(rep, pkts, inst)
     check_media_clock(rep, arrivals, rtpts, rate)
+
+    if not HAVE_NUMPY:
+        rep.section("Audio content")
+        rep.warn("numpy is not installed, so the content checks are skipped")
+        rep.info("everything above -- rate, loss, pacing, media clock -- is "
+                 "unaffected and is usually enough to characterise a fault")
+        rep.info("to enable them: sudo apt install python3-numpy")
+        return
 
     audio = np.concatenate([l24_to_float(p[4], channels) for p in pkts])
     mono, stats = check_content(rep, audio, rate)
