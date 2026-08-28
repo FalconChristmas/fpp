@@ -1637,8 +1637,15 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // push back into the live pipewiresrc.  Non-leaky on purpose -- in
         // steady state it drains exactly as fast as it fills, and dropping a
         // packet to keep up would defeat the point.  See sinkPacing.
+        // Bounded by time only.  A buffer-count cap is a ptime trap: 64 buffers
+        // is 256ms at 4ms ptime but only 64ms at 1ms, and the queue has to hold
+        // the sink latency plus a whole graph quantum's burst -- about 61
+        // buffers at 1ms.  That put the cap right on top of normal steady
+        // state, the queue ran permanently full, and the backpressure silenced
+        // the stream entirely on a Yamaha MRX7-D at 1ms ptime (reported on
+        // #2848: "queue 64 buffers / 64ms" repeating, with no audio).
         << (sinkPacing ? "! queue name=sinkq max-size-bytes=0 "
-                         "max-size-buffers=64 max-size-time=200000000 " : "")
+                         "max-size-buffers=0 max-size-time=200000000 " : "")
         << "! udpsink name=usink host=" << inst.multicastIP
         << " port=" << inst.port
         << " ttl-mc=" << AES67::AUDIO_RTP_TTL
