@@ -1185,6 +1185,23 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         st->ratio = 1.0;
     }
 
+    // A PTP clock can step backwards, which happens when ptp4l first locks to
+    // a grandmaster -- i.e. only when this device is a follower, never when it
+    // is the grandmaster itself.  Without this the elapsed time pins at zero
+    // until the clock catches back up to where it was, and for a large step
+    // (a TAI/UTC correction is 37 seconds) the loop would sit idle that whole
+    // time.  Re-anchoring costs nothing: the learned trim is kept, and only
+    // the measurement window restarts.
+    if (now < st->ctlClock) {
+        LogInfo(VB_MEDIAOUT,
+                "AES67 drift [%d]: clock stepped back, re-anchoring\n",
+                st->instanceId);
+        st->ctlClock = now;
+        st->ctlIn = 0;
+        st->ctlOut = 0;
+        st->warmed = false;
+    }
+
     double elapsed =
         (now > st->ctlClock) ? (double)(now - st->ctlClock) / GST_SECOND : 0.0;
 
