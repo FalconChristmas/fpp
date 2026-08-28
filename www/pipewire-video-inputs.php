@@ -204,6 +204,24 @@
                         on HDMI outputs, pixel overlays, or network streams.
                     </div>
 
+                    <?php $ytdlpVersion = trim(shell_exec('yt-dlp --version 2>/dev/null')); ?>
+                    <div class="alert alert-secondary d-flex flex-wrap align-items-center gap-3">
+                        <div class="me-auto">
+                            <i class="fas fa-cloud-download-alt"></i>
+                            <strong>Web/HTTP URL</strong> sources resolve YouTube links with <code>yt-dlp</code>
+                            <?php if ($ytdlpVersion != "") { ?>
+                                &mdash; installed version <code><?= htmlspecialchars($ytdlpVersion) ?></code>.
+                            <?php } else { ?>
+                                &mdash; <span class="text-danger">not installed</span>.
+                            <?php } ?>
+                            <br>
+                            <small class="text-body-secondary">YouTube reworks its player every few months, and a
+                                yt-dlp older than that stops resolving links entirely &mdash; the source starts but
+                                never produces a frame. FPP checks weekly for a newer one.</small>
+                        </div>
+                        <?php PrintSettingCheckbox('Keep yt-dlp updated', 'ytdlpAutoUpdate', 0, 0, '1', '0', '', '', 1); ?>
+                    </div>
+
                     <div id="pipewireStatus" class="toolbar">
                         <div class="toolbar-left">
                             <span id="pwStatus"><span class="status-indicator status-unknown"></span> Checking PipeWire

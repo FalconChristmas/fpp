@@ -2422,6 +2422,21 @@ fi
 
 install_fpp_services
 
+#######################################
+# FPP's Web/HTTP video inputs resolve YouTube URLs by shelling out to yt-dlp.
+# The packaged yt-dlp is frozen for the life of the Debian release while
+# YouTube reworks its player every few months, so an image built today ships a
+# yt-dlp that stops resolving anything within months -- the video input just
+# never produces a frame. Install upstream's standalone build (into
+# /usr/local/bin, which precedes /usr/bin in fppd's PATH, so it shadows the
+# package rather than replacing it) and leave the daily refresh behind.
+# Best-effort: no internet at install time just means the packaged yt-dlp
+# stands in until the first daily run that has some.
+echo "FPP - Installing upstream yt-dlp and its daily refresh"
+cp /opt/fpp/etc/update-ytdlp /etc/cron.daily/
+chmod 0755 /etc/cron.daily/update-ytdlp
+/opt/fpp/scripts/update_ytdlp.sh || true
+
 if $isimage; then
     finalize_image_services
 fi
