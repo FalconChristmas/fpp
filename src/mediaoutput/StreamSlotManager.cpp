@@ -67,9 +67,15 @@ GStreamerOutput* StreamSlotManager::GetActiveOutput(int slot) {
     return m_slots[slot - 1].activeOutput;
 }
 
-void StreamSlotManager::ClearSlot(int slot) {
+void StreamSlotManager::ClearSlot(int slot, GStreamerOutput* owner) {
     if (slot < 1 || slot > MAX_SLOTS) return;
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (owner && m_slots[slot - 1].activeOutput != owner) {
+        // Another (newer) stream has already claimed this slot -- our
+        // teardown is stale, don't blank out its registration.
+        LogDebug(VB_MEDIAOUT, "StreamSlotManager: slot %d clear skipped, already reclaimed by a newer stream\n", slot);
+        return;
+    }
     m_slots[slot - 1].activeOutput = nullptr;
     m_slots[slot - 1].mediaFilename.clear();
     m_slots[slot - 1].isBackground = false;

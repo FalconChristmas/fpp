@@ -3268,8 +3268,9 @@ int GStreamerOutput::Close(void) {
         }
     }
 
-    // Deregister from StreamSlotManager
-    StreamSlotManager::Instance().ClearSlot(m_streamSlot);
+    // Deregister from StreamSlotManager (only if we still own the slot --
+    // see ClearSlot()'s ownership check).
+    StreamSlotManager::Instance().ClearSlot(m_streamSlot, this);
 
     // Per-track CMA trend line — logged unconditionally (not just when
     // m_pipeline was set) so 24h soak-test logs show CMA after every Close(),
