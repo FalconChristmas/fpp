@@ -483,6 +483,15 @@ struct AES67Pipeline {
     // reports PLAYING, the pipewiresrc has lost its PipeWire connection.
     uint64_t lastByteCount = 0;
     int     stallCount = 0;              // consecutive checks with no progress
+    // Under-delivery detection.  A stall is easy -- bytes stop entirely -- but
+    // the failure that actually bites is partial: after the source has been
+    // idle for 20-odd minutes the send rate settles around 85% of nominal with
+    // periodic gaps, and it never recovers, so a show started after a quiet
+    // afternoon plays broken until fppd is restarted.  bytes-served keeps
+    // climbing throughout, so the stall check above cannot see it.
+    std::chrono::steady_clock::time_point lastByteTime{};
+    int     lowRateCount = 0;
+    int     channels = AES67::DEFAULT_CHANNELS;  // for the expected byte rate
 };
 
 // ──────────────────────────────────────────────────────────────────────────────

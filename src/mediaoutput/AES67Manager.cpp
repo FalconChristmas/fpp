@@ -1886,6 +1886,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         }
         auto [it, ok] = m_sendPipelines.try_emplace(inst.id);
         it->second.instanceId = inst.id;
+        it->second.channels = inst.channels;
         it->second.isSend = true;
         it->second.pipeline = pipeline;
         it->second.bus = bus;
@@ -1997,6 +1998,7 @@ bool AES67Manager::CreateRecvPipeline(const AES67Instance& inst) {
         }
         auto [it, ok] = m_recvPipelines.try_emplace(inst.id);
         it->second.instanceId = inst.id;
+        it->second.channels = inst.channels;
         it->second.isSend = false;
         it->second.pipeline = pipeline;
         it->second.bus = bus;
@@ -2491,6 +2493,48 @@ bool AES67Manager::PollPipelinesWatchdog() {
                                 (unsigned long long)(qTime / GST_MSECOND),
                                 (unsigned long long)(bytesSent - p.lastByteCount));
                     }
+
+                    // Compare throughput against what this instance should
+                    // be emitting.  Payload is ptime worth of 24-bit frames,
+                    // and at nominal that is AUDIO_RATE * 3 * channels bytes a
+                    // second regardless of ptime.
+                    const auto nowT = std::chrono::steady_clock::now();
+                    if (p.lastByteTime.time_since_epoch().count() != 0 &&
+                        bytesSent > p.lastByteCount) {
+                        const double secs =
+                            std::chrono::duration<double>(nowT - p.lastByteTime)
+                                .count();
+                        const double expected =
+                            (double)AES67::AUDIO_RATE * 3.0 * p.channels;
+                        if (secs > 5.0 && expected > 0) {
+                            const double got =
+                                (double)(bytesSent - p.lastByteCount) / secs;
+                            // 95%, not something looser: the degradation
+                            // settles at 89-94% of nominal, so an 85% trigger
+                            // sat below every case actually observed and would
+                            // never have fired.  A healthy stream measures
+                            // 100.0% consistently, so the margin is real, and
+                            // three consecutive checks means ~90s of sustained
+                            // under-delivery -- far longer than the brief dip a
+                            // track change produces.
+                            if (got < expected * 0.95) {
+                                p.lowRateCount++;
+                                LogWarn(VB_MEDIAOUT,
+                                        "AES67 %s pipeline [%d] under-delivering: %.0f of %.0f B/s (%.0f%%), check %d\n",
+                                        direction, p.instanceId, got, expected,
+                                        100.0 * got / expected, p.lowRateCount);
+                                if (p.lowRateCount >= 3) {
+                                    p.running = false;
+                                    p.errorMessage =
+                                        "Watchdog: sustained under-delivery";
+                                    needsRebuild = true;
+                                }
+                            } else {
+                                p.lowRateCount = 0;
+                            }
+                        }
+                    }
+                    p.lastByteTime = nowT;
 
                     if (bytesSent == p.lastByteCount) {
                         p.stallCount++;
