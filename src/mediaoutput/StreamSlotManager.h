@@ -48,8 +48,12 @@ public:
     /// Get the active output for a slot (nullptr if idle).
     GStreamerOutput* GetActiveOutput(int slot);
 
-    /// Clear a slot when playback finishes.
-    void ClearSlot(int slot);
+    /// Clear a slot when playback finishes.  If `owner` is non-null, the slot
+    /// is only cleared when it is still registered to that instance -- a
+    /// stream whose teardown was already superseded by a newer stream on the
+    /// same slot (e.g. a second "Play Media" on slot 1 before the first one
+    /// finished tearing down) must not blank out the newer stream's tracking.
+    void ClearSlot(int slot, GStreamerOutput* owner = nullptr);
 
     /// Get the PipeWire node name for a slot (e.g. "fppd_stream_1").
     static std::string GetNodeName(int slot);

@@ -379,6 +379,20 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
         syncToShow = (args[5] == "true" || args[5] == "1");
     }
 
+    // A slot holds one stream at a time. Without this, a repeated "Play
+    // Media" on the same slot (e.g. pressing play twice) would build a
+    // second GStreamer pipeline that reuses the same PipeWire node name
+    // (StreamSlotManager::GetNodeName() is keyed only by slot number), while
+    // the first pipeline is left running -- StreamSlotManager only ever
+    // tracks the newest output, so the original becomes untracked and
+    // unstoppable via any command, and the two streams mix audibly. Stop
+    // whatever already holds the slot first so only one stream ever owns it.
+    GStreamerOutput* existingSlotOutput = StreamSlotManager::Instance().GetActiveOutput(slot);
+    if (existingSlotOutput) {
+        LogInfo(VB_COMMAND, "Play Media: slot %d already active, stopping previous stream before starting %s\n", slot, args[0].c_str());
+        existingSlotOutput->Stop();
+    }
+
     MediaOutputBase* out = nullptr;
 #ifdef HAS_GSTREAMER
     if (UseGStreamerForPlayMedia()) {

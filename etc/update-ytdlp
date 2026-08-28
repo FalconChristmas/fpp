@@ -1,0 +1,13 @@
+#!/bin/bash
+# Installed to /etc/cron.daily by SD/FPP_Install.sh and upgrade/136.
+#
+# Deliberately a one-line wrapper: all the logic lives in /opt/fpp, so a
+# "git pull" updates it, whereas anything copied into /etc/cron.daily is
+# frozen at whatever the installer wrote.
+#
+# Runs daily but --if-stale only does real work weekly. Daily gives a box that
+# happens to be powered off at cron.weekly's single Sunday slot seven chances
+# to catch up instead of one.
+
+[ -x /opt/fpp/scripts/update_ytdlp.sh ] && /opt/fpp/scripts/update_ytdlp.sh --if-stale
+exit 0

@@ -585,7 +585,19 @@ AddDefaultCharset utf-8
         # per asset per session (a 304, no body) and makes that class of
         # mistake self-healing on the next reload.
 
-        <FilesMatch "\.(appcache|css|cur|geojson|m?js|json(ld)?|x?html?|topojson|xml)$">
+        # php belongs in this list for a stronger reason than the rest: every
+        # FPP page is a .php, they carry "access plus 0 seconds" (max-age=0)
+        # from ExpiresByType above, and it is the page HTML that carries the
+        # ?ref=<filemtime> busters for css/js. `immutable` on a max-age=0
+        # document is self-contradictory, and browsers that honour it skip
+        # revalidation on a normal reload -- so the browser keeps serving the
+        # cached page, which still names the OLD ?ref for every asset, and
+        # those old URLs are cached for a year. The result is that a CSS or JS
+        # change is invisible no matter how many times the user reloads, even
+        # though the server is serving the new file correctly. Ctrl+F5 is the
+        # only way out, which is exactly the trap the note above set out to
+        # avoid.
+        <FilesMatch "\.(appcache|css|cur|geojson|m?js|json(ld)?|php|x?html?|topojson|xml)$">
             Header edit Cache-Control immutable ""
         </FilesMatch>
 
