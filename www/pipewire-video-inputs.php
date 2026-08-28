@@ -545,7 +545,7 @@
                     html += '<div class="row align-items-center mt-2">';
                     html += '<div class="col-auto"><label>RTSP URL:</label></div>';
                     html += '<div class="col-auto">';
-                    html += '<input type="text" class="form-control form-control-sm" style="width:350px;" value="' + EscapeAttr(source.uri || '') + '" onchange="UpdateSourceField(' + index + ',\'uri\',this.value)" placeholder="rtsp://host:554/path">';
+                    html += '<input type="text" class="form-control form-control-sm placeholder-muted" style="width:350px;" value="' + EscapeAttr(source.uri || '') + '" onchange="UpdateSourceField(' + index + ',\'uri\',this.value)" placeholder="rtsp://host:554/path">';
                     html += '</div>';
                     html += '</div>';
                     html += '<div class="row align-items-center mt-1">';
@@ -560,7 +560,7 @@
                     html += '<div class="row align-items-center mt-2">';
                     html += '<div class="col-auto"><label>URL:</label></div>';
                     html += '<div class="col-auto">';
-                    html += '<input type="text" class="form-control form-control-sm" style="width:420px;" value="' + EscapeAttr(source.uri || '') + '" onchange="UpdateSourceField(' + index + ',\'uri\',this.value)" placeholder="https://www.youtube.com/watch?v=... or HLS URL">';
+                    html += '<input type="text" class="form-control form-control-sm placeholder-muted" style="width:420px;" value="' + EscapeAttr(source.uri || '') + '" onchange="UpdateSourceField(' + index + ',\'uri\',this.value)" placeholder="https://www.youtube.com/watch?v=... or HLS URL">';
                     html += '</div>';
                     html += '</div>';
                     html += '<div class="row align-items-center mt-1">';
@@ -609,7 +609,7 @@
                     html += '<div class="row align-items-center mt-1">';
                     html += '<div class="col-auto"><label>Multicast Group:</label></div>';
                     html += '<div class="col-auto">';
-                    html += '<input type="text" class="form-control form-control-sm" style="width:180px;" value="' + EscapeAttr(source.multicastGroup || '') + '" onchange="UpdateSourceField(' + index + ',\'multicastGroup\',this.value)" placeholder="(optional, e.g. 239.1.1.1)">';
+                    html += '<input type="text" class="form-control form-control-sm placeholder-muted" style="width:180px;" value="' + EscapeAttr(source.multicastGroup || '') + '" onchange="UpdateSourceField(' + index + ',\'multicastGroup\',this.value)" placeholder="(optional, e.g. 239.1.1.1)">';
                     html += '</div>';
                     html += '</div>';
                     break;

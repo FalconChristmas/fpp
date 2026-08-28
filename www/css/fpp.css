@@ -4670,6 +4670,27 @@ pre.testData,
 	text-align: center;
 }
 
+/* Generic utility: marks a placeholder that reads as an example or prompt
+   rather than a value, so an empty field is obviously empty at a glance.
+   Needed because this build sets .form-control::placeholder to
+   --bs-secondary-color (75% of the body colour) with opacity forced to 1,
+   which is close enough to real text that a prompt like
+   "https://www.youtube.com/watch?v=..." looks like an entered URL.
+
+   Colour alone does not carry this. Dropping to --bs-tertiary-color (the 50%
+   step) is a contrast cue, and at form-control-sm sizes it still reads as
+   text someone typed. The italic is what actually distinguishes it: a shape
+   difference survives small type, either theme, and low contrast sensitivity,
+   none of which a lighter grey reliably does. Both tokens are defined for
+   light and dark, so this stays readable in both.
+
+   Same rationale as .placeholder-center above for why this is a class at all:
+   ::placeholder is not reachable from a Bootstrap utility. */
+.placeholder-muted::placeholder {
+	color: var(--bs-tertiary-color);
+	font-style: italic;
+}
+
 /* ============================ */
 /* = Upload Drop Zone (FilePond) = */
 /* ============================ */
