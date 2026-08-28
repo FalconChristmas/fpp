@@ -1134,6 +1134,19 @@ struct DriftResampleState {
     std::vector<float> out;
     guint64 buffers = 0;
     guint64 shortReads = 0;
+
+    // Sliding window of (clock, input frames, output frames) used to measure
+    // the card's rate.  A cumulative average was used here first and it is what
+    // made the loop oscillate: it is itself an integrator, so with the phase
+    // feedback -- which integrates too -- the loop had two in series.  It also
+    // grew steadily less responsive as the run went on, which showed up as a
+    // trim still crawling towards its answer 26 minutes in.
+    struct Sample {
+        GstClockTime t;
+        guint64 in;
+        guint64 out;
+    };
+    std::deque<Sample> window;
 };
 
 static void DestroyDriftResampleState(gpointer data) {
@@ -1158,6 +1171,13 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
     // A gap is not drift.  Re-anchor and let the resampler start clean, rather
     // than trying to make up time that was never ours to make up.
     if (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DISCONT)) {
+        // Worth logging: this resets the resampler and restarts the rate
+        // estimate, and it was happening every few minutes with nothing in the
+        // log to say so -- the only visible sign was the loop's own elapsed
+        // counter starting over.
+        LogInfo(VB_MEDIAOUT,
+                "AES67 drift [%d]: source discontinuity, resetting\n",
+                st->instanceId);
         src_reset(st->src);
         st->anchored = false;
     }
@@ -1200,6 +1220,7 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         st->ctlIn = 0;
         st->ctlOut = 0;
         st->warmed = false;
+        st->window.clear();
     }
 
     double elapsed =
@@ -1212,6 +1233,7 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         st->ctlClock = now;
         st->ctlIn = 0;
         st->ctlOut = 0;
+        st->window.clear();
         elapsed = 0.0;
     }
 
@@ -1233,6 +1255,7 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         st->ctlClock = now;
         st->ctlIn = 0;
         st->ctlOut = 0;
+        st->window.clear();
         if (GST_BUFFER_PTS_IS_VALID(buf)) {
             st->anchorPts = GST_BUFFER_PTS(buf);
         }
@@ -1252,18 +1275,46 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
     // 9 minutes of correct operation, then trim pinned at 0.0ppm with the send
     // rate falling from 250/s to 155/s and absorptions climbing past 3500.
     double target = st->ratio;
-    if (st->warmed && elapsed > 2.0 && st->ctlIn > 0) {
-        // Feedforward: the card's rate against PTP is two crystals, so this is
-        // near-constant and carries the whole correction on its own.
-        const double cardRate = (double)st->ctlIn / elapsed;
-        if (cardRate > 1000.0) {
-            target = (double)AES67::AUDIO_RATE / cardRate;
+    double cardRate = 0.0;
+    if (st->warmed) {
+        constexpr double WINDOW_S = 60.0;
+        st->window.push_back({now, st->ctlIn, st->ctlOut});
+        while (st->window.size() > 1 &&
+               (double)(now - st->window.front().t) / GST_SECOND > WINDOW_S) {
+            st->window.pop_front();
         }
-        // Feedback: a weak trim that bleeds off residual offset.  Kept small on
-        // purpose -- it is not the controller, and every earlier attempt here
-        // failed by letting a feedback term do the work.
-        constexpr double KP = 0.002;
-        target *= (1.0 - KP * err / (double)AES67::AUDIO_RATE);
+
+        const auto& a = st->window.front();
+        const double span = (double)(now - a.t) / GST_SECOND;
+        if (span > 5.0) {
+            // Feedforward over the window, not since the anchor.  The card's
+            // rate against PTP is two crystals, so this is near-constant; the
+            // window only keeps the estimate from being anchored to whatever
+            // the first few seconds happened to look like.
+            cardRate = (double)(st->ctlIn - a.in) / span;
+        }
+    }
+
+    if (cardRate > 1000.0) {
+        const double ff = (double)AES67::AUDIO_RATE / cardRate;
+
+        // Phase feedback: pull the accumulated offset back towards zero with a
+        // first-order lag.  The plant is already an integrator (a rate error
+        // accumulates into offset), so proportional is the right shape and a
+        // second integrator here is what previously rang.  Clamping it well
+        // below the feedforward guarantees it can trim but never take over.
+        // Gain set by measurement, not by theory.  At 3000 the loop settled
+        // with a standing 23ms offset it would not remove; 30000 drives it to
+        // +/-0.05ms and holds there, with the trim still sitting on the
+        // feedforward value.  Offset then decays with a ~33s time constant.
+        constexpr double KP_PPM_PER_SEC = 30000.0;
+        // 100ppm is 0.17 cents -- inaudible -- and well under the ~55ppm
+        // feedforward, so this can trim but never take over.
+        constexpr double MAX_FEEDBACK_PPM = 100.0;
+        double fbPpm = -KP_PPM_PER_SEC * err / (double)AES67::AUDIO_RATE;
+        fbPpm = std::clamp(fbPpm, -MAX_FEEDBACK_PPM, MAX_FEEDBACK_PPM);
+
+        target = ff * (1.0 + fbPpm * 1e-6);
     }
 
     // Hard clamp, then slew limit.  300ppm is far beyond any real crystal pair
@@ -1330,13 +1381,16 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
 
     if ((++st->buffers % 2000) == 0) {
         LogInfo(VB_MEDIAOUT,
-                "AES67 drift [%d]: trim %+.1f ppm, in %.1f/s out %.1f/s, offset %+.2f ms over %.0fs%s\n",
-                st->instanceId, (st->ratio - 1.0) * 1e6,
-                elapsed > 0 ? (double)st->ctlIn / elapsed : 0.0,
-                elapsed > 0 ? (double)st->ctlOut / elapsed : 0.0,
-                ((double)st->ctlOut -
-                 (double)AES67::AUDIO_RATE * elapsed) * 1000.0 /
-                    AES67::AUDIO_RATE,
+                "AES67 drift [%d]: trim %+.1f ppm, card %.1f/s (%+.1f ppm), offset %+.2f ms over %.0fs%s\n",
+                st->instanceId, (st->ratio - 1.0) * 1e6, cardRate,
+                cardRate > 1000.0
+                    ? (cardRate / (double)AES67::AUDIO_RATE - 1.0) * 1e6
+                    : 0.0,
+                // err as the controller saw it.  Recomputing here instead
+                // reads one buffer high -- a whole graph quantum, 23.2ms on a
+                // 1024/44100 graph -- which looked exactly like a stuck offset
+                // the loop was failing to correct.
+                err * 1000.0 / AES67::AUDIO_RATE,
                 elapsed,
                 st->shortReads ? " (SHORT READS)" : "");
     }
