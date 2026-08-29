@@ -456,7 +456,7 @@ function PWMixerRender(force) {
 	if (!slotHtml) {
 		slotHtml = "<div class='text-body-secondary small'>No media stream slots reported.</div>";
 	}
-	h += PWMixerSection('streams', 'Media Stream Slots', activeSlots + ' active', slotHtml);
+	var secStreams = PWMixerSection('streams', 'Media Stream Slots', activeSlots + ' active', slotHtml);
 
 	// --- Output groups (and their per-card members) ---
 	var groupHtml = '';
@@ -500,7 +500,7 @@ function PWMixerRender(force) {
 	if (!groupHtml) {
 		groupHtml = "<div class='text-body-secondary small'>No enabled output groups.</div>";
 	}
-	h += PWMixerSection('groups', 'Output Groups', enabledGroups + ' enabled', groupHtml);
+	var secOutputs = PWMixerSection('groups', 'Output Groups', enabledGroups + ' enabled', groupHtml);
 
 	// --- Input groups (mix buses) and their members ---
 	var inputHtml = '';
@@ -527,7 +527,7 @@ function PWMixerRender(force) {
 	if (!inputHtml) {
 		inputHtml = "<div class='text-body-secondary small'>No enabled input groups.</div>";
 	}
-	h += PWMixerSection('inputs', 'Input Groups', inputCount + ' enabled', inputHtml);
+	var secInputs = PWMixerSection('inputs', 'Input Groups', inputCount + ' enabled', inputHtml);
 
 	// --- Routing matrix paths ---
 	var routeHtml = '';
@@ -554,7 +554,12 @@ function PWMixerRender(force) {
 	if (!routeHtml) {
 		routeHtml = "<div class='text-body-secondary small'>No connected routing paths.</div>";
 	}
-	h += PWMixerSection('routing', 'Routing Matrix', routeCount + ' connected', routeHtml);
+	var secRouting = PWMixerSection('routing', 'Routing Matrix', routeCount + ' connected', routeHtml);
+
+	// Laid out the way the audio actually travels: master, then the sources
+	// (stream slots), the buses they feed, how those are routed, and finally
+	// what comes out.
+	h += secStreams + secInputs + secRouting + secOutputs;
 
 	$('#pwMixerBody').html(h);
 }
