@@ -520,9 +520,8 @@ function SystemGetTargetVolume($target)
 
     if ($type === 'slot' && count($parts) >= 2) {
         $slot = intval($parts[1]);
-        if ($slot === 1) {
-            return isset($settings['volume']) ? intval($settings['volume']) : -1;
-        }
+        // Every slot, slot 1 included, has a fader of its own; the master is a
+        // separate control applied downstream.
         $file = "$mediaDir/config/pipewire-stream-slots.json";
         if (file_exists($file)) {
             $data = json_decode(file_get_contents($file), true);

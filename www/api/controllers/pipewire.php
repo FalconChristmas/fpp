@@ -2331,14 +2331,14 @@ function SetInputGroupMemberVolume($bodyOverride = null)
 
 /////////////////////////////////////////////////////////////////////////////
 // Persist a stream slot volume so it survives an fppd restart / reboot.
-// Slot 1 is deliberately not stored here: it maps to the global master volume,
-// which the existing "volume" setting already persists.
-// KEEP IN SYNC with restoreStreamSlotVolumes() in FPPINIT_Audio.cpp.
+// All five slots are stored: a slot's fader is its own stage, independent of
+// the master (which is applied downstream on the output sinks).
+// KEEP IN SYNC with savedStreamSlotVolume() in StreamSlotManager.cpp.
 function SaveStreamSlotVolume($slot, $volume)
 {
     global $settings;
 
-    if ($slot < 2)
+    if ($slot < 1 || $slot > 5)
         return;
 
     $configFile = $settings['mediaDirectory'] . "/config/pipewire-stream-slots.json";
@@ -2386,56 +2386,25 @@ function SetStreamSlotVolume($bodyOverride = null)
     $slot = max(1, min(5, intval($body['slot'])));
     $volume = max(0, min(100, intval($body['volume'])));
 
-    // Use fppd's volume command — for slot 1 this maps to the global volume
-    // For other slots, fppd must handle per-slot volume via StreamSlotManager
+    // Save first: a slot's node only exists while that stream is playing, so a
+    // volume set for an idle slot must still be remembered and applied when it
+    // next starts rather than being reported as a failure.
+    SaveStreamSlotVolume($slot, $volume);
+
+    // Every slot goes through fppd's own Set Slot Volume command, which applies
+    // it to that stream's volume stage.
     //
-    // fppd's own HTTP server does not carry the /api prefix that Apache adds
-    // for the PHP API: /api/command there is a 404, so this silently did
-    // nothing while still reporting OK, and slot 1 could not be set at all.
-    $url = "http://127.0.0.1:32322/command";
-    $cmd = array(
-        "command" => "Volume Set",
-        "args" => array(strval($volume))
-    );
+    // Slot 1 used to be special-cased to the global "Volume Set" instead, which
+    // made it a second control for the master rather than a fader of its own --
+    // moving slot 1 moved the master with it. It is an ordinary slot now; the
+    // master is applied downstream on the output sinks and multiplies with it.
+    //
+    // This is also the same stage StreamSlotManager restores from the saved
+    // value when a stream starts, so a live change and a restored one cannot
+    // stack on top of each other the way a separate pw-cli node property would.
+    $cmd = array("command" => "Set Slot Volume", "args" => array(strval($slot), strval($volume)));
 
-    // For slot > 1, use the stream-slot-specific endpoint
-    if ($slot > 1) {
-        // Direct PipeWire volume control on the stream node
-        $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
-        $nodeName = "fppd_stream_$slot";
-
-        // Save first: the slot's node only exists while that stream is playing,
-        // so a volume set for an idle slot must still be remembered and applied
-        // when it next starts rather than being reported as a failure.
-        SaveStreamSlotVolume($slot, $volume);
-
-        // Find node ID for this stream
-        global $SUDO;
-        $raw = shell_exec($SUDO . " " . $env . " pw-dump 2>/dev/null");
-        if (!empty($raw)) {
-            $objects = json_decode($raw, true);
-            if (is_array($objects)) {
-                $volumeLinear = round($volume / 100.0, 3);
-                foreach ($objects as $obj) {
-                    $type = isset($obj['type']) ? $obj['type'] : '';
-                    if ($type !== 'PipeWire:Interface:Node')
-                        continue;
-                    $props = isset($obj['info']['props']) ? $obj['info']['props'] : array();
-                    $nm = isset($props['node.name']) ? $props['node.name'] : '';
-                    if ($nm === $nodeName) {
-                        $cmd2 = $SUDO . " " . $env . " pw-cli set-param " . $obj['id'] . " Props '{ channelmix.volume: $volumeLinear }' 2>&1";
-                        shell_exec($cmd2);
-                        return json(array("status" => "OK", "slot" => $slot, "volume" => $volume));
-                    }
-                }
-            }
-        }
-        return json(array("status" => "OK", "slot" => $slot, "volume" => $volume,
-            "message" => "Saved; stream node $nodeName is not currently active"));
-    }
-
-    // Slot 1: use fppd's built-in volume command
-    $ch = curl_init($url);
+    $ch = curl_init("http://127.0.0.1:32322/command");
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($cmd));
     curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
@@ -2445,13 +2414,13 @@ function SetStreamSlotVolume($bodyOverride = null)
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    // Report the failure rather than an unconditional OK: a caller that is
-    // told the volume was set has no other way to discover it was not.
     if ($result === false || $code !== 200) {
         return json(array("status" => "error", "slot" => $slot,
-            "message" => "fppd did not accept the volume command (HTTP $code)"));
+            "message" => "fppd did not accept the slot volume command (HTTP $code)"));
     }
 
+    // An idle slot has no stream to apply to; the value is saved either way and
+    // takes effect when it next plays.
     return json(array("status" => "OK", "slot" => $slot, "volume" => $volume));
 }
 
@@ -2825,7 +2794,7 @@ function GetPipeWireVolumeTargets()
     $targets = array();
 
     for ($slot = 1; $slot <= 5; $slot++) {
-        $targets["slot:$slot"] = "Media Stream Slot $slot" . ($slot === 1 ? " (master)" : "");
+        $targets["slot:$slot"] = "Media Stream Slot $slot";
     }
 
     $groupsFile = $settings['mediaDirectory'] . "/config/pipewire-audio-groups.json";

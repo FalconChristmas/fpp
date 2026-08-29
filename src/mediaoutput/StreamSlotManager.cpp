@@ -23,16 +23,18 @@
 #include "settings.h"
 
 // The volume the user last set for a slot, from pipewire-stream-slots.json.
-// Slot volumes are set on a node that only exists while that slot is playing,
-// so they cannot be restored at boot the way group volumes are -- the node has
-// to be reapplied each time the slot starts instead.  Slot 1 is absent by
-// design: it maps to the global master volume, which is persisted separately
-// as the "volume" setting and already restored on its own path.
+// Slot volumes apply to a stream that only exists while that slot is playing,
+// so they cannot be restored at boot the way group volumes are -- they have to
+// be reapplied each time the slot starts instead.
+//
+// All five slots are treated alike.  Slot 1 used to be excluded because its
+// fader was wired to the global master rather than to the stream, which made it
+// a duplicate master control instead of a slot of its own.
 //
 // KEEP IN SYNC with SaveStreamSlotVolume()/GetStreamSlotVolumes() in
 // www/api/controllers/pipewire.php.
 static int savedStreamSlotVolume(int slot) {
-    if (slot < 2) {
+    if (slot < 1 || slot > 5) {
         return -1;
     }
     Json::Value root;

@@ -430,13 +430,13 @@ function PWMixerRender(force) {
 		if (playing) {
 			activeSlots++;
 		}
-		var vol = slotNum === 1 ? PWMixerMasterVolume() : d.slotVolumes[String(slotNum)];
+		var vol = d.slotVolumes[String(slotNum)];
 		if (typeof vol === 'undefined') {
 			vol = 100;
 		}
 		slotHtml += PWMixerStrip({
 			id: 'pwm_slot_' + slotNum,
-			label: 'Slot ' + slotNum + (slotNum === 1 ? ' (master)' : ''),
+			label: 'Slot ' + slotNum,
 			sublabel: s.mediaFilename || (playing ? 'Playing' : 'Idle'),
 			title: s.nodeName,
 			nodeName: s.nodeName,
@@ -707,13 +707,10 @@ function PWMixerSend(id, volume, mute) {
 		$('#slider').val(curVol);
 		$('#volume').html(curVol);
 	} else if (t.kind === 'slot') {
+		// Slot 1 is an ordinary slot: its fader is that stream's own stage and
+		// no longer doubles as the master, which is the Master control above.
 		url = 'api/pipewire/audio/stream/volume';
-		body = { slot: t.slot, volume: volume };
-		// Slot 1 is the global master; keep the page's own slider in step.
-		if (t.slot === 1 && volume !== null) {
-			$('#slider').val(volume);
-			$('#volume').html(volume);
-		}
+		body = { slot: t.slot, volume: curVol };
 	} else if (t.kind === 'group' || t.kind === 'member') {
 		var grp = d.groups[t.groupIndex];
 		if (!grp) {

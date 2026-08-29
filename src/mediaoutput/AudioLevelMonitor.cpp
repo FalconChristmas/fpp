@@ -59,9 +59,20 @@ void AudioLevelMonitor::StartMeter(const std::string& node, bool isSink) {
     // meter read the same signal and move together. (There is no ".monitor"
     // node to target either -- that name is a PulseAudio compatibility
     // construct and matches nothing in the PipeWire graph.)
+    // GStreamer may not have been initialised yet: metering can be switched on
+    // before anything has played, and gst_parse_launch() segfaults rather than
+    // failing when it is called first. Same guard AES67Manager and
+    // OpusRTPManager use.
+    if (!gst_is_initialized()) {
+        gst_init(nullptr, nullptr);
+    }
+
+    // The stream-properties value is a GstStructure and must be quoted, or the
+    // comma inside it terminates the property and the rest is parsed as another
+    // element.
     std::string desc = "pipewiresrc target-object=" + node;
     if (isSink) {
-        desc += " stream-properties=props,stream.capture.sink=true";
+        desc += " stream-properties=\"props,stream.capture.sink=true\"";
     }
     desc += " ! audioconvert ! audio/x-raw,channels=1,rate=8000 ! " +
             std::string("level interval=") + std::to_string(LEVEL_INTERVAL_NS) +
