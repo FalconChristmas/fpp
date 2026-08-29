@@ -13268,7 +13268,15 @@ function startFppdWS () {
 		} catch (e) {
 			return;
 		}
-		if (!msg || msg.type !== 'snapshot' || !msg.data || !msg.data.status) return;
+		if (!msg || msg.type !== 'snapshot' || !msg.data) return;
+		// Audio meters ride the same socket on their own key, at a much higher
+		// rate than status. Handed straight to whoever is drawing them and
+		// deliberately kept out of the status path below, which must only run
+		// for an actual status snapshot.
+		if (msg.data.levels && typeof window.PWMixerOnLevels === 'function') {
+			window.PWMixerOnLevels(msg.data.levels);
+		}
+		if (!msg.data.status) return;
 		// Only a parsed status snapshot may flip the page into WebSocket-fed
 		// mode.  Setting the flag on any received frame instead means a garbage
 		// or future non-snapshot frame switches the poll to ?systemonly=1 -- and

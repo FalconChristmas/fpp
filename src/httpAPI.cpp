@@ -78,6 +78,7 @@ extern volatile int runMainFPPDLoop;
 #include "commands/Condition.h"
 #include "mediaoutput/AES67Manager.h"
 #include "mediaoutput/AudioSourceRegistry.h"
+#include "mediaoutput/AudioLevelMonitor.h"
 #include "mediaoutput/MediaOutputBase.h"
 #include "mediaoutput/MediaOutputStatus.h"
 #include "mediaoutput/OpusRTPManager.h"
@@ -466,6 +467,38 @@ void APIServer::Init(void) {
     };
     app.registerHandler("/opusrtp", copyHandler(handleOpusRTP), {drogon::Get, drogon::Head});
     app.registerHandlerViaRegex("/opusrtp/.*", copyHandler(handleOpusRTP), {drogon::Get, drogon::Head});
+#endif
+
+#ifdef HAS_AUDIO_LEVEL_MONITOR
+    // Subscribe to live signal levels for a set of PipeWire nodes. Internal to
+    // fppd -- the browser reaches it through the PHP passthrough at
+    // /api/pipewire/audio/meters, and reads the levels themselves off the
+    // /fppdws WebSocket rather than polling for them.
+    //
+    // Body: {"nodes":["fpp_group_x", ...], "ttl": 6000}
+    //
+    // Metering is kept alive by time rather than by a connection: a caller
+    // re-posts to hold it open, so a browser that goes away silently stops
+    // costing anything once the TTL lapses. An empty list stops it at once.
+    auto handleMeters = [](const HttpRequestPtr& req,
+                           std::function<void(const HttpResponsePtr&)>&& callback) {
+        Json::Value body;
+        std::vector<std::string> nodes;
+        int ttl = 6000;
+        if (LoadJsonFromString(std::string(req->getBody()), body)) {
+            if (body.isMember("nodes") && body["nodes"].isArray()) {
+                for (const auto& n : body["nodes"]) {
+                    nodes.push_back(n.asString());
+                }
+            }
+            if (body.isMember("ttl")) {
+                ttl = body["ttl"].asInt();
+            }
+        }
+        AudioLevelMonitor::INSTANCE.Subscribe(nodes, ttl);
+        callback(makeStringResponse("{\"status\":\"OK\"}", 200, "application/json"));
+    };
+    app.registerHandler("/fppd/meters", copyHandler(handleMeters), {drogon::Post});
 #endif
 
     // Plugin-published PipeWire audio sources (AudioSourceRegistry). Internal

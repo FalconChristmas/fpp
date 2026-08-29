@@ -70,6 +70,7 @@ OBJECTS_fpp_so += \
 	mediaoutput/mediaoutput.o \
 	mediaoutput/AES67Manager.o \
 	mediaoutput/AudioSourceRegistry.o \
+	mediaoutput/AudioLevelMonitor.o \
 	mediaoutput/OpusRTPManager.o \
 	mediaoutput/GStreamerOut.o \
 	mediaoutput/StreamSlotManager.o \

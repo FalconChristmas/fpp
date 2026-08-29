@@ -27,6 +27,10 @@ var pwMixer = {
 	// browser is already receiving (see PWMixerStartMeter).
 	meterCtx: null,
 	meterRaf: null,
+	// Per-node levels pushed by fppd over the status WebSocket, and the
+	// keepalive that tells it which nodes to meter.
+	levels: {},
+	meterSubTimer: null,
 };
 
 function PWMixerSectionOpen(id) {
@@ -86,12 +90,14 @@ function OpenPipeWireMixer() {
 		.off('shown.bs.modal.pwmixer')
 		.on('shown.bs.modal.pwmixer', function () {
 			PWMixerStartPolling();
+			PWMixerSubscribeMeters();
 		});
 	$('#pipewireMixerDialog')
 		.off('hidden.bs.modal.pwmixer')
 		.on('hidden.bs.modal.pwmixer', function () {
 			PWMixerStopPolling();
 			PWMixerStopPreview();
+			PWMixerStopMeterSubscription();
 		});
 }
 
@@ -217,6 +223,12 @@ function PWMixerStrip(opts) {
 
 	h += "<span class='pw-mixer-value small text-body-secondary' id='" + id + "_val'>" + vol + '%</span>';
 
+	if (opts.nodeName) {
+		h += "<div class='pw-mixer-meter' data-meter-node='" + PWMixerEscape(opts.nodeName) + "' title='Signal level'>";
+		h += "<div class='pw-mixer-meter-fill'></div>";
+		h += '</div>';
+	}
+
 	h += "<div class='d-flex gap-1'>";
 	// Stream slots have no mute in the API (their level is the only control),
 	// so don't offer a button that cannot do anything.
@@ -299,6 +311,72 @@ function PWMixerMasterSection() {
 	h += '</div></section>';
 	return h;
 }
+
+// fppd owns the metering pipelines; tell it which nodes are on screen and keep
+// that alive while the dialog is open. The TTL is what makes this self-healing:
+// stop re-posting (dialog closed, tab gone, browser crashed) and fppd tears the
+// pipelines down on its own a few seconds later.
+function PWMixerSubscribeMeters() {
+	if (!$('#pipewireMixerDialog').is(':visible')) {
+		return;
+	}
+	var nodes = [];
+	// Only what is actually on screen: a collapsed section costs nothing.
+	$('#pwMixerBody')
+		.find('[data-meter-node]')
+		.each(function () {
+			var n = $(this).attr('data-meter-node');
+			if (n && nodes.indexOf(n) === -1) {
+				nodes.push(n);
+			}
+		});
+
+	$.ajax({
+		url: 'api/pipewire/audio/meters',
+		method: 'POST',
+		contentType: 'application/json',
+		data: JSON.stringify({ nodes: nodes, ttl: 6000 }),
+	});
+
+	pwMixer.meterSubTimer = setTimeout(PWMixerSubscribeMeters, 3000);
+}
+
+function PWMixerStopMeterSubscription() {
+	if (pwMixer.meterSubTimer) {
+		clearTimeout(pwMixer.meterSubTimer);
+		pwMixer.meterSubTimer = null;
+	}
+	pwMixer.levels = {};
+	// Release the pipelines now rather than waiting out the TTL.
+	$.ajax({
+		url: 'api/pipewire/audio/meters',
+		method: 'POST',
+		contentType: 'application/json',
+		data: JSON.stringify({ nodes: [], ttl: 0 }),
+	});
+}
+
+// Called from fpp.js for every "levels" frame on the status WebSocket. Writes
+// straight to the bars rather than re-rendering: this arrives ten times a
+// second and rebuilding the dialog at that rate would fight every interaction.
+window.PWMixerOnLevels = function (levels) {
+	pwMixer.levels = levels || {};
+	$('#pwMixerBody')
+		.find('[data-meter-node]')
+		.each(function () {
+			var lvl = pwMixer.levels[$(this).attr('data-meter-node')];
+			var pct = typeof lvl === 'number' ? lvl : 0;
+			var fill = this.firstChild;
+			if (fill && fill.style) {
+				fill.style.width = pct + '%';
+				if (pct > 90) {
+					fill.classList.add('pw-mixer-meter-hot');
+				} else {
+					fill.classList.remove('pw-mixer-meter-hot');
+				}
+			}
+		});
+};
 
 function PWMixerRender(force) {
 	// A poll landing mid-drag would rebuild the input under the user's finger

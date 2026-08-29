@@ -28,9 +28,9 @@
 //
 // Wire format (server -> client):
 //     {"type":"snapshot","data":{"status":{...}}}
-// `data` carries the keys that changed this round; today the only key is
-// "status", and the envelope leaves room to add more (e.g. a slow "system"
-// key) later without a protocol change.  Each snapshot is complete for the
+// `data` carries the keys that changed this round: "status" every second, and
+// "levels" (audio meters) ten times a second while anything is subscribed to
+// them. The envelope leaves room to add more later without a protocol change.  Each snapshot is complete for the
 // keys it contains -- there are no deltas to miss, so there is no sequence
 // number to compare: a client that drops the socket re-syncs by doing one full
 // status poll when it reconnects, which it must do anyway to pick up the PHP
@@ -40,6 +40,8 @@
 // anything else is ignored.  The endpoint is read-only — it never accepts
 // commands — so proxying it to the LAN carries no more authority than the
 // existing status poll did.
+
+#include "mediaoutput/AudioLevelMonitor.h"
 
 #include <drogon/HttpAppFramework.h>
 #include <drogon/WebSocketController.h>
@@ -130,6 +132,32 @@ void broadcastStatusIfChanged() {
     }
 }
 
+#ifdef HAS_AUDIO_LEVEL_MONITOR
+// Push signal levels to anyone watching meters.
+//
+// Separate from the status broadcast and much faster: a meter that updates once
+// a second does not read as a meter. It is also unconditional rather than
+// change-gated -- levels differ on essentially every tick, so diffing them
+// would cost more than it saved -- which is why this only runs while something
+// is actually subscribed. With no meters up, AudioLevelMonitor has no pipelines
+// and this returns immediately.
+void broadcastLevels() {
+    std::string msg;
+    std::vector<WebSocketConnectionPtr> targets;
+    {
+        std::lock_guard<std::mutex> lk(g_mutex);
+        if (g_shutdown || g_conns.empty() || !AudioLevelMonitor::INSTANCE.Active())
+            return;
+        msg = makeSnapshot("levels", SaveJsonToString(AudioLevelMonitor::INSTANCE.GetLevels(), ""));
+        targets.assign(g_conns.begin(), g_conns.end());
+    }
+    for (auto& c : targets) {
+        if (c->connected())
+            c->send(msg);
+    }
+}
+#endif
+
 // Warnings are part of the /fppd/status payload, so a new or cleared warning
 // changes that payload.  Rather than wait up to a second for the timer, push
 // immediately when WarningHolder notifies us.
@@ -207,6 +235,12 @@ void StatusWebSocketInit() {
     // playback.  broadcastStatusIfChanged() is a no-op with no clients, so
     // this is effectively free until a page connects.
     drogon::app().getLoop()->runEvery(1.0, []() { broadcastStatusIfChanged(); });
+
+#ifdef HAS_AUDIO_LEVEL_MONITOR
+    // Meters need a much faster tick than status. This costs nothing until
+    // someone subscribes -- see broadcastLevels().
+    drogon::app().getLoop()->runEvery(0.1, []() { broadcastLevels(); });
+#endif
 }
 
 void StatusWebSocketShutdown() {

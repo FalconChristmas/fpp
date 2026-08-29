@@ -2600,6 +2600,34 @@ function PipeWireEntityStates($nodes, $targets)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// POST /api/pipewire/audio/meters
+// Body: { "nodes": ["fpp_group_x", ...], "ttl": 6000 }
+//
+// Passthrough to fppd, which owns the metering pipelines. The levels come back
+// to the browser over the /fppdws WebSocket, not through here -- this only says
+// which nodes to meter, and has to be re-posted to keep them alive so metering
+// stops on its own when a page goes away.
+function SetPipeWireAudioMeters()
+{
+    $body = file_get_contents('php://input');
+
+    $ch = curl_init("http://127.0.0.1:32322/fppd/meters");
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    $result = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($result === false || $code !== 200) {
+        return json(array("status" => "ERROR", "message" => "fppd did not accept the meter subscription"));
+    }
+    return json(array("status" => "OK"));
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // GET /api/pipewire/audio/preview?node=<nodeName>
 // Streams a node's monitor source back to the browser as MP3 so the user can
 // audition one output without leaving the page.
