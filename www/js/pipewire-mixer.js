@@ -23,11 +23,10 @@ var pwMixer = {
 	dragging: {},
 	openSections: null,
 	previewNode: null,
-	// Meters cost a short audio capture per node per refresh, which is real
-	// work on a Pi mid-show, so they stay off until asked for.
-	metersOn: false,
-	levels: {},
-	levelTimer: null,
+	// Live meter for the node being previewed, driven from the audio the
+	// browser is already receiving (see PWMixerStartMeter).
+	meterCtx: null,
+	meterRaf: null,
 };
 
 function PWMixerSectionOpen(id) {
@@ -93,12 +92,6 @@ function OpenPipeWireMixer() {
 		.on('hidden.bs.modal.pwmixer', function () {
 			PWMixerStopPolling();
 			PWMixerStopPreview();
-			// Meters keep capturing audio until told otherwise -- a closed
-			// dialog must not leave that running.
-			if (pwMixer.levelTimer) {
-				clearTimeout(pwMixer.levelTimer);
-				pwMixer.levelTimer = null;
-			}
 		});
 }
 
@@ -203,11 +196,7 @@ function PWMixerStrip(opts) {
 	var max = opts.max || 100;
 	var muted = !!opts.mute;
 
-	var h = "<div class='pw-mixer-strip border rounded p-2 d-flex align-items-center gap-2" + (muted ? ' opacity-50' : '') + "'";
-	if (pwMixer.metersOn && opts.nodeName) {
-		h += " data-meter-node='" + PWMixerEscape(opts.nodeName) + "'";
-	}
-	h += '>';
+	var h = "<div class='pw-mixer-strip border rounded p-2 d-flex align-items-center gap-2" + (muted ? ' opacity-50' : '') + "'>";
 
 	h += "<div class='pw-mixer-strip-label d-flex align-items-center gap-2' title='" + PWMixerEscape(opts.title || opts.label) + "'>";
 	h += PWMixerLed(opts.nodeName, opts.stateKey);
@@ -227,14 +216,6 @@ function PWMixerStrip(opts) {
 	h += ' onpointercancel="PWMixerDragEnd(\'' + id + "')\"" + '>';
 
 	h += "<span class='pw-mixer-value small text-body-secondary' id='" + id + "_val'>" + vol + '%</span>';
-
-	if (pwMixer.metersOn && opts.nodeName) {
-		var lvl = pwMixer.levels[opts.nodeName];
-		var pct = typeof lvl === 'number' ? lvl : 0;
-		h += "<div class='pw-mixer-meter' title='Signal level'>";
-		h += "<div class='pw-mixer-meter-fill' style='width:" + pct + "%'></div>";
-		h += '</div>';
-	}
 
 	h += "<div class='d-flex gap-1'>";
 	// Stream slots have no mute in the API (their level is the only control),
@@ -287,10 +268,6 @@ function PWMixerMasterSection() {
 	var h = "<section class='mb-3'>";
 	h += "<div class='d-flex align-items-center gap-2 mb-1'>";
 	h += "<span class='fw-semibold'>Master</span>";
-	h += "<button type='button' class='btn btn-sm ms-auto " + (pwMixer.metersOn ? 'btn-primary' : 'btn-outline-secondary') + "'";
-	h += ' onclick="PWMixerToggleMeters()"';
-	h += " title='Show signal level meters. Each meter samples the audio briefly, which costs some CPU -- worth leaving off during a show unless you need it.'>";
-	h += "<i class='fas fa-fw fa-chart-simple'></i> Meters</button>";
 	h += '</div>';
 	h += "<div class='pw-mixer-strips'>";
 	h += PWMixerStrip({
@@ -303,78 +280,6 @@ function PWMixerMasterSection() {
 	});
 	h += '</div></section>';
 	return h;
-}
-
-function PWMixerToggleMeters() {
-	pwMixer.metersOn = !pwMixer.metersOn;
-	if (!pwMixer.metersOn) {
-		if (pwMixer.levelTimer) {
-			clearTimeout(pwMixer.levelTimer);
-			pwMixer.levelTimer = null;
-		}
-		pwMixer.levels = {};
-	} else {
-		PWMixerPollLevels();
-	}
-	PWMixerRender(true);
-}
-
-// Meters are polled on their own slower loop, separate from the status poll:
-// each node costs a ~0.3s capture, so only the nodes actually on screen and
-// currently carrying audio are ever asked for.
-function PWMixerPollLevels() {
-	if (!pwMixer.metersOn || !$('#pipewireMixerDialog').is(':visible')) {
-		return;
-	}
-	if (document.hidden) {
-		pwMixer.levelTimer = setTimeout(PWMixerPollLevels, 2000);
-		return;
-	}
-
-	var wanted = [];
-	$('#pwMixerBody')
-		.find('[data-meter-node]')
-		.each(function () {
-			var n = $(this).attr('data-meter-node');
-			if (n && wanted.indexOf(n) === -1 && wanted.length < 8) {
-				wanted.push(n);
-			}
-		});
-
-	if (!wanted.length) {
-		pwMixer.levelTimer = setTimeout(PWMixerPollLevels, 1500);
-		return;
-	}
-
-	$.ajax({
-		url: 'api/pipewire/audio/levels?nodes=' + encodeURIComponent(wanted.join(',')),
-		dataType: 'json',
-	})
-		.done(function (d) {
-			if (d && d.levels) {
-				pwMixer.levels = d.levels;
-				PWMixerPaintMeters();
-			}
-		})
-		.always(function () {
-			if (pwMixer.metersOn) {
-				pwMixer.levelTimer = setTimeout(PWMixerPollLevels, 400);
-			}
-		});
-}
-
-// Meters repaint in place rather than through a full re-render: they update far
-// more often than anything else and rebuilding the dialog around them would
-// fight every other interaction.
-function PWMixerPaintMeters() {
-	$('#pwMixerBody')
-		.find('[data-meter-node]')
-		.each(function () {
-			var lvl = pwMixer.levels[$(this).attr('data-meter-node')];
-			$(this)
-				.find('.pw-mixer-meter-fill')
-				.css('width', (typeof lvl === 'number' ? lvl : 0) + '%');
-		});
 }
 
 function PWMixerRender(force) {
@@ -791,6 +696,18 @@ function PWMixerTogglePreview(nodeName) {
 		note.textContent = 'connecting...';
 		wrap.appendChild(note);
 
+		// Real-time meter for what is actually being heard. Measured in the
+		// browser off the stream it already has, so it costs the player
+		// nothing and can run at animation rate -- unlike sampling each node
+		// server-side, where every reading is a fresh capture.
+		var meter = document.createElement('div');
+		meter.className = 'pw-mixer-meter pw-mixer-meter-lg';
+		meter.title = 'Live level';
+		var fill = document.createElement('div');
+		fill.className = 'pw-mixer-meter-fill';
+		meter.appendChild(fill);
+		wrap.appendChild(meter);
+
 		var audio = document.createElement('audio');
 		audio.className = 'ms-auto';
 		audio.controls = true;
@@ -809,6 +726,8 @@ function PWMixerTogglePreview(nodeName) {
 		host.innerHTML = '';
 		host.appendChild(wrap);
 
+		PWMixerStartMeter(audio, fill);
+
 		var p = audio.play();
 		if (p && typeof p.catch === 'function') {
 			p.catch(function (err) {
@@ -824,7 +743,97 @@ function PWMixerTogglePreview(nodeName) {
 	PWMixerRender(true);
 }
 
+// Drives a level bar from the previewed stream using an AnalyserNode. The
+// element has to be routed through the graph for this, so it is reconnected to
+// the destination -- without that the audio would go silent.
+function PWMixerStartMeter(audio, fill) {
+	PWMixerStopMeter();
+
+	var Ctx = window.AudioContext || window.webkitAudioContext;
+	if (!Ctx) {
+		return; // no Web Audio: the preview still plays, just without a meter
+	}
+
+	try {
+		var ctx = new Ctx();
+		var src = ctx.createMediaElementSource(audio);
+		var analyser = ctx.createAnalyser();
+		analyser.fftSize = 1024;
+		// Ballistics: fast attack so transients register, slow release so the
+		// bar falls back at a readable rate rather than flickering.
+		analyser.smoothingTimeConstant = 0.3;
+		src.connect(analyser);
+		analyser.connect(ctx.destination);
+
+		// Routing the element through the graph means the graph is now the
+		// only path to the speakers, and a context starts suspended -- without
+		// this resume the preview would play silently. Called here inside the
+		// click handler so the gesture still counts.
+		if (ctx.state === 'suspended' && typeof ctx.resume === 'function') {
+			ctx.resume().catch(function () {
+				// Could not start the graph: drop the analyser out of the path
+				// so the element is audible again, meter or no meter.
+				try {
+					analyser.disconnect();
+					src.disconnect();
+					src.connect(ctx.destination);
+				} catch (e2) {
+					// Nothing further we can do; playback is the priority.
+				}
+			});
+		}
+
+		var buf = new Float32Array(analyser.fftSize);
+		var shown = 0;
+		pwMixer.meterCtx = ctx;
+
+		var tick = function () {
+			analyser.getFloatTimeDomainData(buf);
+			var sum = 0;
+			for (var i = 0; i < buf.length; i++) {
+				sum += buf[i] * buf[i];
+			}
+			// RMS, not peak: peak sits pinned near full scale on almost any
+			// programme material and reads as a static bar.
+			var rms = Math.sqrt(sum / buf.length);
+			var db = rms > 0 ? 20 * Math.log10(rms) : -100;
+			var pct = Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
+			shown = pct > shown ? pct : shown + (pct - shown) * 0.2;
+			fill.style.width = shown.toFixed(1) + '%';
+			fill.classList.toggle('pw-mixer-meter-hot', shown > 90);
+			pwMixer.meterRaf = requestAnimationFrame(tick);
+		};
+		tick();
+	} catch (e) {
+		// A browser that will not give us the stream (or an element already
+		// bound to a context) simply gets no meter. Only the animation is
+		// stopped here -- closing the context would permanently silence an
+		// element that has already been routed into it, and playing the audio
+		// matters more than drawing the bar.
+		if (pwMixer.meterRaf) {
+			cancelAnimationFrame(pwMixer.meterRaf);
+			pwMixer.meterRaf = null;
+		}
+	}
+}
+
+function PWMixerStopMeter() {
+	if (pwMixer.meterRaf) {
+		cancelAnimationFrame(pwMixer.meterRaf);
+		pwMixer.meterRaf = null;
+	}
+	if (pwMixer.meterCtx) {
+		try {
+			pwMixer.meterCtx.close();
+		} catch (e) {
+			// Already closed.
+		}
+		pwMixer.meterCtx = null;
+	}
+}
+
 function PWMixerStopPreview() {
+	PWMixerStopMeter();
 	pwMixer.previewNode = null;
 	var host = document.getElementById('pwMixerPreviewHost');
 	if (host) {

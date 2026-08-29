@@ -140,7 +140,6 @@ dispatch_post('/pipewire/audio/group/volume', 'SetPipeWireGroupVolume');
 dispatch_get('/pipewire/audio/node-states', 'GetPipeWireNodeStates');
 dispatch_get('/pipewire/audio/targets', 'GetPipeWireVolumeTargets');
 dispatch_get('/pipewire/audio/preview', 'GetPipeWireAudioPreview');
-dispatch_get('/pipewire/audio/levels', 'GetPipeWireAudioLevels');
 dispatch_post('/pipewire/audio/eq/update', 'UpdatePipeWireEQRealtime');
 dispatch_post('/pipewire/audio/delay/update', 'UpdatePipeWireDelayRealtime');
 dispatch_post('/pipewire/audio/sync/start', 'StartSyncCalibration');

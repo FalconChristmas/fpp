@@ -2600,68 +2600,6 @@ function PipeWireEntityStates($nodes, $targets)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// GET /api/pipewire/audio/levels?nodes=a,b,c
-// Peak level (0-100) for each named node, for the mixer's meters.
-//
-// Each reading costs a short parec burst against the node's monitor source --
-// there is no cheap way to ask PipeWire for a level, and a burst shorter than
-// ~250ms returns nothing at all because the capture takes that long to start.
-// That is real work on a Pi mid-show, which is why the mixer leaves meters off
-// until asked and only ever sends the handful of nodes actually on screen.
-function GetPipeWireAudioLevels()
-{
-    global $SUDO;
-
-    $requested = isset($_GET['nodes']) ? explode(',', $_GET['nodes']) : array();
-    $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse";
-    $levels = array();
-    $count = 0;
-
-    foreach ($requested as $node) {
-        $node = trim($node);
-        // Interpolated into a shell command; node names are plain identifiers,
-        // so anything else is a reason to skip rather than to quote harder.
-        if ($node === '' || preg_match('/[^a-zA-Z0-9_.\-]/', $node)) {
-            continue;
-        }
-        // Bounded so a caller cannot turn one request into an arbitrarily long
-        // stretch of capture.
-        if (++$count > 8) {
-            break;
-        }
-
-        $cmd = $SUDO . " " . $env . " timeout 0.3 parec --latency-msec=20 -d " .
-            escapeshellarg($node . '.monitor') .
-            " --format=s16le --rate=8000 --channels=1 --raw 2>/dev/null";
-        $raw = shell_exec($cmd);
-        if ($raw === null || strlen($raw) < 2) {
-            $levels[$node] = null; // no data -- meter shows nothing rather than zero
-            continue;
-        }
-
-        $samples = unpack('s*', substr($raw, 0, (intdiv(strlen($raw), 2)) * 2));
-        $peak = 0;
-        foreach ($samples as $v) {
-            $v = abs($v);
-            if ($v > $peak) {
-                $peak = $v;
-            }
-        }
-        // Reported on a dB scale mapped to 0-100: a linear bar spends almost
-        // all its travel near silence and reads as dead for normal programme
-        // material. -60 dBFS is the noise floor here, 0 dBFS is full scale.
-        if ($peak <= 0) {
-            $levels[$node] = 0;
-        } else {
-            $db = 20 * log10($peak / 32768.0);
-            $levels[$node] = max(0, min(100, (int) round((($db + 60) / 60) * 100)));
-        }
-    }
-
-    return json(array("status" => "OK", "levels" => $levels));
-}
-
-/////////////////////////////////////////////////////////////////////////////
 // GET /api/pipewire/audio/preview?node=<nodeName>
 // Streams a node's monitor source back to the browser as MP3 so the user can
 // audition one output without leaving the page.
