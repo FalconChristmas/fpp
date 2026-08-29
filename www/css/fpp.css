@@ -4856,3 +4856,22 @@ pre.testData,
 	outline: 2px solid var(--bs-primary);
 	outline-offset: 2px;
 }
+
+/* Signal meter under a mixer fader. A plain div pair rather than <meter>, whose
+   native rendering cannot be themed consistently across browsers. */
+.pw-mixer-strip .pw-mixer-meter {
+	flex: 0 0 auto;
+	width: 3rem;
+	height: 6px;
+	border-radius: 3px;
+	overflow: hidden;
+	background-color: var(--bs-border-color);
+}
+
+.pw-mixer-strip .pw-mixer-meter-fill {
+	height: 100%;
+	width: 0;
+	border-radius: 3px;
+	background-color: var(--bs-success);
+	transition: width 120ms linear;
+}

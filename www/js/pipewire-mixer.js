@@ -23,6 +23,11 @@ var pwMixer = {
 	dragging: {},
 	openSections: null,
 	previewNode: null,
+	// Meters cost a short audio capture per node per refresh, which is real
+	// work on a Pi mid-show, so they stay off until asked for.
+	metersOn: false,
+	levels: {},
+	levelTimer: null,
 };
 
 function PWMixerSectionOpen(id) {
@@ -56,7 +61,7 @@ function PWMixerToggleSection(id) {
 	} catch (e) {
 		// Not being able to remember the layout is not worth surfacing.
 	}
-	PWMixerRender();
+	PWMixerRender(true);
 }
 
 function OpenPipeWireMixer() {
@@ -88,6 +93,12 @@ function OpenPipeWireMixer() {
 		.on('hidden.bs.modal.pwmixer', function () {
 			PWMixerStopPolling();
 			PWMixerStopPreview();
+			// Meters keep capturing audio until told otherwise -- a closed
+			// dialog must not leave that running.
+			if (pwMixer.levelTimer) {
+				clearTimeout(pwMixer.levelTimer);
+				pwMixer.levelTimer = null;
+			}
 		});
 }
 
@@ -192,7 +203,11 @@ function PWMixerStrip(opts) {
 	var max = opts.max || 100;
 	var muted = !!opts.mute;
 
-	var h = "<div class='pw-mixer-strip border rounded p-2 d-flex align-items-center gap-2" + (muted ? ' opacity-50' : '') + "'>";
+	var h = "<div class='pw-mixer-strip border rounded p-2 d-flex align-items-center gap-2" + (muted ? ' opacity-50' : '') + "'";
+	if (pwMixer.metersOn && opts.nodeName) {
+		h += " data-meter-node='" + PWMixerEscape(opts.nodeName) + "'";
+	}
+	h += '>';
 
 	h += "<div class='pw-mixer-strip-label d-flex align-items-center gap-2' title='" + PWMixerEscape(opts.title || opts.label) + "'>";
 	h += PWMixerLed(opts.nodeName, opts.stateKey);
@@ -212,6 +227,14 @@ function PWMixerStrip(opts) {
 	h += ' onpointercancel="PWMixerDragEnd(\'' + id + "')\"" + '>';
 
 	h += "<span class='pw-mixer-value small text-body-secondary' id='" + id + "_val'>" + vol + '%</span>';
+
+	if (pwMixer.metersOn && opts.nodeName) {
+		var lvl = pwMixer.levels[opts.nodeName];
+		var pct = typeof lvl === 'number' ? lvl : 0;
+		h += "<div class='pw-mixer-meter' title='Signal level'>";
+		h += "<div class='pw-mixer-meter-fill' style='width:" + pct + "%'></div>";
+		h += '</div>';
+	}
 
 	h += "<div class='d-flex gap-1'>";
 	// Stream slots have no mute in the API (their level is the only control),
@@ -254,17 +277,116 @@ function PWMixerSection(id, title, badge, bodyHtml) {
 	return h + '</section>';
 }
 
-function PWMixerRender() {
-	// A poll landing mid-drag would rebuild the input under the user's finger
-	// and snap the thumb back to the server's (older) value.
-	for (var held in pwMixer.dragging) {
-		if (pwMixer.dragging[held]) {
-			return;
+// force: redraw even mid-drag. A change the user just made has to show up at
+// once -- skipping that redraw is what made buttons look like they needed a
+// second press.
+// The page's own master slider, repeated here so the dialog is a complete
+// picture: every level below multiplies with it.
+function PWMixerMasterSection() {
+	var vol = PWMixerMasterVolume();
+	var h = "<section class='mb-3'>";
+	h += "<div class='d-flex align-items-center gap-2 mb-1'>";
+	h += "<span class='fw-semibold'>Master</span>";
+	h += "<button type='button' class='btn btn-sm ms-auto " + (pwMixer.metersOn ? 'btn-primary' : 'btn-outline-secondary') + "'";
+	h += ' onclick="PWMixerToggleMeters()"';
+	h += " title='Show signal level meters. Each meter samples the audio briefly, which costs some CPU -- worth leaving off during a show unless you need it.'>";
+	h += "<i class='fas fa-fw fa-chart-simple'></i> Meters</button>";
+	h += '</div>';
+	h += "<div class='pw-mixer-strips'>";
+	h += PWMixerStrip({
+		id: 'pwm_master',
+		label: 'Master volume',
+		sublabel: 'All outputs',
+		title: 'Global master volume -- multiplies with every level below',
+		volume: vol,
+		noMute: true,
+	});
+	h += '</div></section>';
+	return h;
+}
+
+function PWMixerToggleMeters() {
+	pwMixer.metersOn = !pwMixer.metersOn;
+	if (!pwMixer.metersOn) {
+		if (pwMixer.levelTimer) {
+			clearTimeout(pwMixer.levelTimer);
+			pwMixer.levelTimer = null;
 		}
+		pwMixer.levels = {};
+	} else {
+		PWMixerPollLevels();
+	}
+	PWMixerRender(true);
+}
+
+// Meters are polled on their own slower loop, separate from the status poll:
+// each node costs a ~0.3s capture, so only the nodes actually on screen and
+// currently carrying audio are ever asked for.
+function PWMixerPollLevels() {
+	if (!pwMixer.metersOn || !$('#pipewireMixerDialog').is(':visible')) {
+		return;
+	}
+	if (document.hidden) {
+		pwMixer.levelTimer = setTimeout(PWMixerPollLevels, 2000);
+		return;
+	}
+
+	var wanted = [];
+	$('#pwMixerBody')
+		.find('[data-meter-node]')
+		.each(function () {
+			var n = $(this).attr('data-meter-node');
+			if (n && wanted.indexOf(n) === -1 && wanted.length < 8) {
+				wanted.push(n);
+			}
+		});
+
+	if (!wanted.length) {
+		pwMixer.levelTimer = setTimeout(PWMixerPollLevels, 1500);
+		return;
+	}
+
+	$.ajax({
+		url: 'api/pipewire/audio/levels?nodes=' + encodeURIComponent(wanted.join(',')),
+		dataType: 'json',
+	})
+		.done(function (d) {
+			if (d && d.levels) {
+				pwMixer.levels = d.levels;
+				PWMixerPaintMeters();
+			}
+		})
+		.always(function () {
+			if (pwMixer.metersOn) {
+				pwMixer.levelTimer = setTimeout(PWMixerPollLevels, 400);
+			}
+		});
+}
+
+// Meters repaint in place rather than through a full re-render: they update far
+// more often than anything else and rebuilding the dialog around them would
+// fight every other interaction.
+function PWMixerPaintMeters() {
+	$('#pwMixerBody')
+		.find('[data-meter-node]')
+		.each(function () {
+			var lvl = pwMixer.levels[$(this).attr('data-meter-node')];
+			$(this)
+				.find('.pw-mixer-meter-fill')
+				.css('width', (typeof lvl === 'number' ? lvl : 0) + '%');
+		});
+}
+
+function PWMixerRender(force) {
+	// A poll landing mid-drag would rebuild the input under the user's finger
+	// and snap the thumb back to the server's (older) value. Only a poll is
+	// worth skipping, and only while a pointer really is down.
+	if (!force && PWMixerDragging()) {
+		return;
 	}
 
 	var d = pwMixer.data;
-	var h = '';
+	var h = PWMixerMasterSection();
 
 	// --- Media stream slots ---
 	var slotHtml = '';
@@ -316,7 +438,6 @@ function PWMixerRender() {
 			stateKey: 'sink:' + groupNode,
 			volume: typeof grp.volume === 'undefined' ? 100 : grp.volume,
 			mute: grp.mute,
-			max: 150,
 		});
 		var members = grp.members || [];
 		for (var m = 0; m < members.length; m++) {
@@ -334,7 +455,6 @@ function PWMixerRender() {
 				stateKey: 'sink:' + fxNode,
 				volume: typeof mbr.volume === 'undefined' ? 100 : mbr.volume,
 				mute: mbr.mute,
-				max: 150,
 			});
 		}
 	}
@@ -418,11 +538,28 @@ function PWMixerMasterVolume() {
 // Interaction
 
 function PWMixerDragStart(id) {
-	pwMixer.dragging[id] = true;
+	pwMixer.dragging[id] = Date.now();
 }
 
 function PWMixerDragEnd(id) {
 	delete pwMixer.dragging[id];
+}
+
+// True only while a drag is plausibly still in progress. Entries are stamped
+// rather than flagged so one that never received its pointerup -- released off
+// the control, or a gesture the browser cancelled without telling us -- ages
+// out instead of blocking every future redraw for the life of the dialog.
+function PWMixerDragging() {
+	var now = Date.now();
+	var active = false;
+	for (var id in pwMixer.dragging) {
+		if (now - pwMixer.dragging[id] > 3000) {
+			delete pwMixer.dragging[id];
+		} else {
+			active = true;
+		}
+	}
+	return active;
 }
 
 function PWMixerSlide(el, id) {
@@ -454,6 +591,9 @@ function PWMixerToggleMute(id) {
 function PWMixerParseId(id) {
 	var parts = id.split('_');
 	var kind = parts[1];
+	if (kind === 'master') {
+		return { kind: 'master' };
+	}
 	if (kind === 'slot') {
 		return { kind: 'slot', slot: parseInt(parts[2], 10) };
 	}
@@ -525,7 +665,14 @@ function PWMixerSend(id, volume, mute) {
 		}
 	}
 
-	if (t.kind === 'slot') {
+	if (t.kind === 'master') {
+		// The page's own master path, unchanged -- no target, so this is the
+		// same call the main volume slider makes.
+		url = 'api/system/volume';
+		body = { volume: curVol };
+		$('#slider').val(curVol);
+		$('#volume').html(curVol);
+	} else if (t.kind === 'slot') {
 		url = 'api/pipewire/audio/stream/volume';
 		body = { slot: t.slot, volume: volume };
 		// Slot 1 is the global master; keep the page's own slider in step.
@@ -599,7 +746,7 @@ function PWMixerSend(id, volume, mute) {
 		if (mute !== null) {
 			// Re-render so the button reflects the new state immediately
 			// rather than waiting for the next poll.
-			PWMixerRender();
+			PWMixerRender(true);
 		}
 	});
 }
@@ -614,7 +761,7 @@ function PWMixerSend(id, volume, mute) {
 function PWMixerTogglePreview(nodeName) {
 	if (pwMixer.previewNode === nodeName) {
 		PWMixerStopPreview();
-		PWMixerRender();
+		PWMixerRender(true);
 		return;
 	}
 	PWMixerStopPreview();
@@ -674,7 +821,7 @@ function PWMixerTogglePreview(nodeName) {
 			});
 		}
 	}
-	PWMixerRender();
+	PWMixerRender(true);
 }
 
 function PWMixerStopPreview() {
