@@ -4757,10 +4757,10 @@ pre.testData,
 }
 
 /* PipeWire mixer channel strips.
-   Bootstrap has no vertical range input or fixed-width strip, and the layout is
-   driven by the control's behaviour (a fader column that scroll-snaps), so
-   these are the parts that cannot come from utilities. Everything else on the
-   strip uses stock Bootstrap classes. */
+   Bootstrap has no vertical range input, no fader styling and no fixed-width
+   strip, and the layout is driven by the control's behaviour (a fader column
+   that scroll-snaps), so these are the parts utilities cannot cover. Colours
+   come from Bootstrap's theme variables so the mixer follows light/dark. */
 .pw-mixer-strips {
 	overflow-x: auto;
 	scroll-snap-type: x proximity;
@@ -4768,15 +4768,18 @@ pre.testData,
 
 .pw-mixer-strip {
 	scroll-snap-align: start;
-}
-
-.pw-mixer-strip .pw-mixer-slider {
-	flex: 1 1 auto;
-	min-width: 0;
+	background-color: var(--bs-tertiary-bg);
 }
 
 .pw-mixer-strip .pw-mixer-strip-label {
 	max-width: 100%;
+}
+
+/* Fixed-width readout so the strip does not jitter as the number changes. */
+.pw-mixer-strip .pw-mixer-value {
+	min-width: 3.5em;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
 }
 
 /* Comfortable touch targets: match the existing round volume buttons rather
@@ -4786,23 +4789,106 @@ pre.testData,
 	min-height: 40px;
 }
 
+/* Fader styling. Bootstrap's .form-range only themes the thumb, so the track
+   is drawn here to read as a mixer channel rather than a form input. */
+.pw-mixer-slider {
+	flex: 1 1 auto;
+	min-width: 0;
+	appearance: none;
+	-webkit-appearance: none;
+	background: transparent;
+}
+
+.pw-mixer-slider::-webkit-slider-runnable-track {
+	background-color: var(--bs-secondary-bg);
+	border: 1px solid var(--bs-border-color);
+	border-radius: 1rem;
+}
+
+.pw-mixer-slider::-moz-range-track {
+	background-color: var(--bs-secondary-bg);
+	border: 1px solid var(--bs-border-color);
+	border-radius: 1rem;
+}
+
+.pw-mixer-slider::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	background-color: var(--bs-primary);
+	border: 2px solid var(--bs-body-bg);
+	border-radius: 50%;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.pw-mixer-slider::-moz-range-thumb {
+	background-color: var(--bs-primary);
+	border: 2px solid var(--bs-body-bg);
+	border-radius: 50%;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.pw-mixer-slider:focus-visible {
+	outline: 2px solid var(--bs-primary);
+	outline-offset: 2px;
+}
+
+/* Phone layout: a stacked list of wide horizontal faders, which are far more
+   reliable to drag by thumb than a rotated input. */
+.pw-mixer-slider {
+	height: 1.75rem;
+}
+
+.pw-mixer-slider::-webkit-slider-runnable-track {
+	height: 0.5rem;
+}
+
+.pw-mixer-slider::-moz-range-track {
+	height: 0.5rem;
+}
+
+.pw-mixer-slider::-webkit-slider-thumb {
+	width: 1.25rem;
+	height: 1.25rem;
+	margin-top: -0.4rem;
+}
+
+.pw-mixer-slider::-moz-range-thumb {
+	width: 1.25rem;
+	height: 1.25rem;
+}
+
 @media (min-width: 768px) {
 	.pw-mixer-strip {
-		width: 116px;
-		flex: 0 0 auto;
-	}
-
-	/* Vertical fader. A rotated input is unreliable to drag on touch, so this
-	   only applies from the md breakpoint up, where there is a pointer. */
-	.pw-mixer-strip .pw-mixer-slider {
-		writing-mode: vertical-lr;
-		direction: rtl;
-		width: 1.5rem;
-		height: 140px;
+		width: 118px;
 		flex: 0 0 auto;
 	}
 
 	.pw-mixer-strip .pw-mixer-strip-label {
 		min-height: 2.5em;
+	}
+
+	/* Vertical fader. Only from md up, where there is a pointer: rotated range
+	   inputs are inconsistent to touch-drag across mobile browsers. */
+	.pw-mixer-slider {
+		writing-mode: vertical-lr;
+		direction: rtl;
+		width: 2rem;
+		height: 150px;
+		flex: 0 0 auto;
+	}
+
+	.pw-mixer-slider::-webkit-slider-runnable-track {
+		width: 0.5rem;
+		height: 100%;
+	}
+
+	.pw-mixer-slider::-moz-range-track {
+		width: 0.5rem;
+		height: 100%;
+	}
+
+	.pw-mixer-slider::-webkit-slider-thumb {
+		margin-top: 0;
+		margin-left: -0.4rem;
 	}
 }

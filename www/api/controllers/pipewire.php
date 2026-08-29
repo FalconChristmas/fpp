@@ -2466,6 +2466,7 @@ function GetPipeWireNodeStates()
     }
 
     $nodes = array();
+    $targets = array();
     foreach ($objects as $obj) {
         if (!isset($obj['type']) || $obj['type'] !== 'PipeWire:Interface:Node')
             continue;
@@ -2474,9 +2475,128 @@ function GetPipeWireNodeStates()
         if ($nm === '')
             continue;
         $nodes[$nm] = isset($obj['info']['state']) ? $obj['info']['state'] : 'unknown';
+        if (isset($props['node.target'])) {
+            $targets[$nm] = $props['node.target'];
+        }
     }
 
-    return json(array("status" => "OK", "nodes" => $nodes));
+    return json(array(
+        "status" => "OK",
+        "nodes" => $nodes,
+        "entities" => PipeWireEntityStates($nodes, $targets)
+    ));
+}
+
+// Map each addressable mixer control to the state of the node that actually
+// carries its audio, keyed the same way as GET /api/pipewire/audio/targets.
+//
+// Resolved here rather than in the browser because the node-naming rules
+// (loopbacks, effect chains, combine-stream outputs) already live in this file
+// and are not guessable from the group config alone -- an input group's bus is
+// fpp_input_<slug> or fpp_route_ig_<id> depending on whether it has effects,
+// and a routing path is an internal combine-stream output identified by its
+// node.target rather than by name.
+function PipeWireEntityStates($nodes, $targets)
+{
+    global $settings;
+
+    $entities = array();
+
+    for ($slot = 1; $slot <= 5; $slot++) {
+        $nm = "fppd_stream_$slot";
+        $entities["slot:$slot"] = isset($nodes[$nm]) ? $nodes[$nm] : 'unknown';
+    }
+
+    $groupsFile = $settings['mediaDirectory'] . "/config/pipewire-audio-groups.json";
+    $ogNodeById = array();
+    if (file_exists($groupsFile)) {
+        $data = json_decode(file_get_contents($groupsFile), true);
+        if (is_array($data) && isset($data['groups'])) {
+            foreach ($data['groups'] as $group) {
+                $groupId = isset($group['id']) ? intval($group['id']) : 0;
+                $groupNode = 'fpp_group_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower(isset($group['name']) ? $group['name'] : 'Group'));
+                $ogNodeById[$groupId] = $groupNode;
+                $entities["sink:$groupNode"] = isset($nodes[$groupNode]) ? $nodes[$groupNode] : 'unknown';
+                if (!isset($group['members']))
+                    continue;
+                foreach ($group['members'] as $member) {
+                    $cardId = isset($member['cardId']) ? $member['cardId'] : '';
+                    if ($cardId === '')
+                        continue;
+                    $fxNode = 'fpp_fx_g' . $groupId . '_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cardId));
+                    $entities["sink:$fxNode"] = isset($nodes[$fxNode]) ? $nodes[$fxNode] : 'unknown';
+                }
+            }
+        }
+    }
+
+    $inputFile = $settings['mediaDirectory'] . "/config/pipewire-input-groups.json";
+    if (!file_exists($inputFile)) {
+        return $entities;
+    }
+    $igData = json_decode(file_get_contents($inputFile), true);
+    if (!is_array($igData) || !isset($igData['inputGroups'])) {
+        return $entities;
+    }
+
+    foreach ($igData['inputGroups'] as $ig) {
+        $igId = isset($ig['id']) ? intval($ig['id']) : 0;
+        $igName = isset($ig['name']) ? $ig['name'] : '';
+        $hasEffects = isset($ig['effects']['eq']['enabled']) && $ig['effects']['eq']['enabled']
+            && isset($ig['effects']['eq']['bands']) && !empty($ig['effects']['eq']['bands']);
+        $busNode = $hasEffects ? "fpp_route_ig_$igId"
+            : "fpp_input_" . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($igName));
+        $busState = isset($nodes[$busNode]) ? $nodes[$busNode] : 'unknown';
+
+        // Members: a member gets its own loopback only when it is not the
+        // primary fppd stream (that one feeds the bus directly, with no node of
+        // its own), so fall back to the bus it feeds rather than showing a
+        // control that can never light up.
+        if (isset($ig['members'])) {
+            foreach ($ig['members'] as $idx => $mbr) {
+                $mbrType = isset($mbr['type']) ? $mbr['type'] : '';
+                if ($mbrType === 'fppd_stream') {
+                    $sourceId = isset($mbr['sourceId']) ? $mbr['sourceId'] : 'fppd_stream_1';
+                    $slug = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($sourceId));
+                } else {
+                    $slug = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower(isset($mbr['name']) ? $mbr['name'] : "Member $idx"));
+                }
+                $loopback = "fpp_loopback_ig{$igId}_{$slug}";
+                $state = null;
+                foreach (array($loopback, "output.$loopback", "input.$loopback") as $cand) {
+                    if (isset($nodes[$cand])) {
+                        $state = $nodes[$cand];
+                        break;
+                    }
+                }
+                if ($state === null && $mbrType === 'fppd_stream') {
+                    // No loopback of its own -- report the source stream itself,
+                    // which is exactly what this control is riding on.
+                    $srcNode = isset($mbr['sourceId']) ? $mbr['sourceId'] : 'fppd_stream_1';
+                    $state = isset($nodes[$srcNode]) ? $nodes[$srcNode] : $busState;
+                }
+                $entities["input:$igId:$idx"] = $state === null ? $busState : $state;
+            }
+        }
+
+        // Routing paths: the combine-stream's internal output for a given
+        // destination is identified by node.target, the same test
+        // SetRoutingPathVolume() uses to find the node it writes.
+        foreach ($ogNodeById as $ogId => $ogNode) {
+            $state = 'unknown';
+            foreach ($nodes as $nm => $st) {
+                if (!isset($targets[$nm]) || $targets[$nm] !== $ogNode)
+                    continue;
+                if (strpos($nm, $busNode) === false)
+                    continue;
+                $state = $st;
+                break;
+            }
+            $entities["route:$igId:$ogId"] = $state;
+        }
+    }
+
+    return $entities;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2490,7 +2610,7 @@ function GetPipeWireNodeStates()
 // on what is often a Pi, so they must not be able to accumulate.
 function GetPipeWireAudioPreview()
 {
-    global $SUDO;
+    global $SUDO, $settings;
 
     define('PREVIEW_MAX_SECONDS', 120);
 
@@ -2506,7 +2626,10 @@ function GetPipeWireAudioPreview()
     // Stop whatever was previewing before: one at a time, enforced server-side
     // so a browser that went away without closing cleanly cannot leave a
     // stream running and a second one starting alongside it.
-    $lockFile = '/run/fpp-pipewire-preview.pid';
+    // Under the media dir, not /run: the pid is written by the sudo'd shell
+    // (root) but has to be removed by this script running as the web user, and
+    // unlinking needs write permission on the containing directory.
+    $lockFile = $settings['mediaDirectory'] . '/tmp/pipewire-preview.pid';
     PipeWirePreviewKill(@file_get_contents($lockFile));
     @unlink($lockFile);
 
@@ -2521,15 +2644,25 @@ function GetPipeWireAudioPreview()
     // reports the setsid wrapper, whose group is still the web server's -- so
     // signalling it killed the wrong group (in testing, the request doing the
     // killing rather than the stream being replaced).
-    // -flush_packets/-nobuffer and parec's short latency matter here: by
-    // default ffmpeg fills a large muxer buffer before writing anything, which
-    // turns a live audition into several seconds of silence followed by a
-    // burst.
+    // The flags all exist to get audio moving promptly; without them a live
+    // audition sat silent for ~5s and then burst.  The big one is
+    // -analyzeduration/-probesize: ffmpeg's default is to probe 5 seconds of
+    // input before producing anything, which is pure latency on a raw stream
+    // whose format is already fully specified on the command line.
+    // -flush_packets/-nobuffer stop the muxer hoarding frames, and parec's
+    // short latency keeps the capture side from adding its own delay.
     $pipeline = "parec --latency-msec=100 -d $monitor --format=s16le --rate=48000 --channels=2 --raw | " .
-        "ffmpeg -loglevel quiet -flush_packets 1 -fflags +nobuffer -f s16le -ar 48000 -ac 2 -i pipe:0 " .
-        "-f mp3 -b:a 128k pipe:1";
-    $inner = "echo \$\$ > " . $lockFile . "; exec timeout " . PREVIEW_MAX_SECONDS . " sh -c " .
-        escapeshellarg($pipeline);
+        "ffmpeg -loglevel quiet -analyzeduration 0 -probesize 32 -fflags +nobuffer -flush_packets 1 " .
+        "-f s16le -ar 48000 -ac 2 -i pipe:0 -f mp3 -b:a 128k pipe:1";
+    // The shell records its own group id, then removes the pid file on the way
+    // out -- whether it finishes, hits the timeout, or is signalled when a new
+    // preview replaces it.  Cleanup belongs here rather than only in PHP: the
+    // file is root-owned, and an aborted request cannot be relied on to run its
+    // own teardown.  No exec, so the trap survives to fire.
+    $inner = "echo \$\$ > " . $lockFile . "; " .
+        "trap 'rm -f " . $lockFile . "; exit' TERM INT HUP; " .
+        "timeout " . PREVIEW_MAX_SECONDS . " sh -c " . escapeshellarg($pipeline) . "; " .
+        "rm -f " . $lockFile;
     $cmd = "setsid " . $SUDO . " " . $env . " sh -c " . escapeshellarg($inner);
 
     $descriptors = array(1 => array('pipe', 'w'), 2 => array('file', '/dev/null', 'w'));
@@ -2547,6 +2680,15 @@ function GetPipeWireAudioPreview()
         $myPid = intval(trim(strval(@file_get_contents($lockFile))));
     }
 
+    // A disconnecting client aborts the script outright, so the teardown after
+    // the read loop is not guaranteed to run.  Shutdown functions still do.
+    register_shutdown_function(function () use ($myPid, $lockFile) {
+        PipeWirePreviewKill($myPid);
+        if ($myPid > 0 && intval(trim(strval(@file_get_contents($lockFile)))) === $myPid) {
+            @unlink($lockFile);
+        }
+    });
+
     // Unbuffered passthrough: this response never ends on its own, so nothing
     // downstream may try to accumulate it.
     while (ob_get_level() > 0) {
@@ -2557,9 +2699,13 @@ function GetPipeWireAudioPreview()
     header('X-Accel-Buffering: no');
     ignore_user_abort(false);
 
+    // Small reads, unbuffered: fread() on a pipe blocks until it can fill the
+    // requested length, so a large buffer here shows up as several seconds of
+    // silence before the browser gets its first frame.
+    stream_set_read_buffer($pipes[1], 0);
     $start = time();
     while (!feof($pipes[1])) {
-        $chunk = fread($pipes[1], 8192);
+        $chunk = fread($pipes[1], 1024);
         if ($chunk === false || $chunk === '') {
             break;
         }
@@ -2573,13 +2719,10 @@ function GetPipeWireAudioPreview()
     }
 
     fclose($pipes[1]);
-    PipeWirePreviewKill($myPid);
     proc_close($proc);
-    // Only clear the lock if it is still ours: a newer preview may have taken
-    // over while this one was streaming, and its pid must survive.
-    if ($myPid > 0 && intval(trim(strval(@file_get_contents($lockFile)))) === $myPid) {
-        @unlink($lockFile);
-    }
+    // Teardown (signalling the group, clearing the lock only if it is still
+    // ours) is handled by the shutdown function registered above, so it also
+    // happens when the client disconnects mid-stream.
     exit;
 }
 
@@ -2592,6 +2735,13 @@ function PipeWirePreviewKill($pid)
 
     $pid = intval(trim(strval($pid)));
     if ($pid <= 1) {
+        return;
+    }
+    // A stale pid file can outlive its process, and pids get recycled -- so
+    // confirm this really is one of our capture pipelines before signalling
+    // its whole process group.
+    $cmdline = @file_get_contents("/proc/$pid/cmdline");
+    if ($cmdline === false || strpos($cmdline, 'parec') === false) {
         return;
     }
     @exec($SUDO . " kill -TERM -" . $pid . " 2>/dev/null");

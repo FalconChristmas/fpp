@@ -17,7 +17,7 @@ var pwMixer = {
 	saveTimers: {},
 	// Cached model, rebuilt each poll. Kept so a slider drag can update the
 	// local value immediately without waiting for the next poll to confirm.
-	data: { groups: [], inputGroups: [], routing: [], slots: [], slotVolumes: {}, nodeStates: {} },
+	data: { groups: [], inputGroups: [], routing: [], slots: [], slotVolumes: {}, nodeStates: {}, entities: {} },
 	// Sliders the user is actively dragging, keyed by control id. A poll must
 	// not yank the thumb out from under a finger mid-drag.
 	dragging: {},
@@ -45,8 +45,12 @@ function PWMixerSectionOpen(id) {
 }
 
 function PWMixerToggleSection(id) {
-	PWMixerSectionOpen(id);
-	pwMixer.openSections[id] = !pwMixer.openSections[id];
+	// Toggle the state actually on screen, not the stored one: a section using
+	// its default (nothing stored yet) held `undefined`, so !undefined set it
+	// open when it already looked open and the first click appeared to do
+	// nothing.
+	var open = PWMixerSectionOpen(id);
+	pwMixer.openSections[id] = !open;
 	try {
 		localStorage.setItem('pwMixerOpenSections', JSON.stringify(pwMixer.openSections));
 	} catch (e) {
@@ -128,6 +132,7 @@ function PWMixerPoll() {
 			pwMixer.data.slots = (slots[0] && slots[0].slots) || slots[0] || [];
 			pwMixer.data.slotVolumes = (slotVolumes[0] && slotVolumes[0].slots) || {};
 			pwMixer.data.nodeStates = (nodeStates[0] && nodeStates[0].nodes) || {};
+			pwMixer.data.entities = (nodeStates[0] && nodeStates[0].entities) || {};
 			PWMixerRender();
 		})
 		.fail(function () {
@@ -143,7 +148,14 @@ function PWMixerPoll() {
 /////////////////////////////////////////////////////////////////////////////
 // Rendering
 
-function PWMixerNodeState(nodeName) {
+// Activity comes from the server-resolved entity map where the strip has a
+// target key (input-group members and routing paths ride on nodes whose names
+// are not derivable from the group config), falling back to a direct node
+// lookup for the strips that address a node by name.
+function PWMixerNodeState(nodeName, stateKey) {
+	if (stateKey && typeof pwMixer.data.entities[stateKey] !== 'undefined') {
+		return pwMixer.data.entities[stateKey];
+	}
 	if (!nodeName) {
 		return 'unknown';
 	}
@@ -152,8 +164,8 @@ function PWMixerNodeState(nodeName) {
 
 // Activity LED. "running" means PipeWire is actually moving audio through the
 // node right now; everything else is idle/absent.
-function PWMixerLed(nodeName) {
-	var state = PWMixerNodeState(nodeName);
+function PWMixerLed(nodeName, stateKey) {
+	var state = PWMixerNodeState(nodeName, stateKey);
 	var cls = 'text-secondary';
 	var title = 'Idle';
 	if (state === 'running') {
@@ -183,7 +195,7 @@ function PWMixerStrip(opts) {
 	var h = "<div class='pw-mixer-strip border rounded p-2 d-flex flex-md-column align-items-center gap-2" + (muted ? ' opacity-50' : '') + "'>";
 
 	h += "<div class='pw-mixer-strip-label d-flex align-items-center gap-2 text-truncate' title='" + PWMixerEscape(opts.title || opts.label) + "'>";
-	h += PWMixerLed(opts.nodeName);
+	h += PWMixerLed(opts.nodeName, opts.stateKey);
 	h += "<span class='text-truncate small fw-semibold'>" + PWMixerEscape(opts.label) + '</span>';
 	h += '</div>';
 
@@ -275,6 +287,7 @@ function PWMixerRender() {
 			sublabel: s.mediaFilename || (playing ? 'Playing' : 'Idle'),
 			title: s.nodeName,
 			nodeName: s.nodeName,
+			stateKey: 'slot:' + slotNum,
 			volume: vol,
 			noMute: true,
 		});
@@ -300,6 +313,7 @@ function PWMixerRender() {
 			sublabel: 'Group',
 			title: groupNode,
 			nodeName: groupNode,
+			stateKey: 'sink:' + groupNode,
 			volume: typeof grp.volume === 'undefined' ? 100 : grp.volume,
 			mute: grp.mute,
 			max: 150,
@@ -317,6 +331,7 @@ function PWMixerRender() {
 				sublabel: grp.name,
 				title: fxNode,
 				nodeName: fxNode,
+				stateKey: 'sink:' + fxNode,
 				volume: typeof mbr.volume === 'undefined' ? 100 : mbr.volume,
 				mute: mbr.mute,
 				max: 150,
@@ -344,6 +359,7 @@ function PWMixerRender() {
 				id: 'pwm_input_' + grp2.id + '_' + mi,
 				label: im.name || 'Member ' + mi,
 				sublabel: grp2.name,
+				stateKey: 'input:' + grp2.id + ':' + mi,
 				volume: typeof im.volume === 'undefined' ? 100 : im.volume,
 				mute: im.mute,
 			});
@@ -370,6 +386,7 @@ function PWMixerRender() {
 				id: 'pwm_route_' + row.inputGroupId + '_' + path.outputGroupId,
 				label: row.inputGroupName + ' → ' + path.outputGroupName,
 				sublabel: 'Route',
+				stateKey: 'route:' + row.inputGroupId + ':' + path.outputGroupId,
 				volume: typeof path.volume === 'undefined' ? 100 : path.volume,
 				mute: path.mute,
 			});
@@ -600,16 +617,62 @@ function PWMixerTogglePreview(nodeName) {
 		PWMixerRender();
 		return;
 	}
+	PWMixerStopPreview();
 	pwMixer.previewNode = nodeName;
 
 	var host = document.getElementById('pwMixerPreviewHost');
 	if (host) {
-		var h = "<div class='alert alert-secondary d-flex align-items-center gap-2 mt-2 mb-0'>";
-		h += "<i class='fas fa-headphones'></i>";
-		h += "<span class='small'>Previewing <strong>" + PWMixerEscape(nodeName) + '</strong></span>';
-		h += "<audio class='ms-auto' controls autoplay src='api/pipewire/audio/preview?node=" + encodeURIComponent(nodeName) + "'></audio>";
-		h += '</div>';
-		host.innerHTML = h;
+		// Built as elements rather than innerHTML so play() can be called
+		// inside this click handler's own task -- mobile browsers only treat
+		// playback as user-initiated then, and the autoplay attribute alone is
+		// not reliably credited.
+		var wrap = document.createElement('div');
+		wrap.className = 'alert alert-secondary d-flex align-items-center flex-wrap gap-2 mt-2 mb-0';
+
+		var icon = document.createElement('i');
+		icon.className = 'fas fa-headphones';
+		wrap.appendChild(icon);
+
+		var label = document.createElement('span');
+		label.className = 'small';
+		label.innerHTML = 'Previewing <strong>' + PWMixerEscape(nodeName) + '</strong>';
+		wrap.appendChild(label);
+
+		var note = document.createElement('span');
+		note.className = 'small text-body-secondary';
+		note.id = 'pwMixerPreviewNote';
+		note.textContent = 'connecting...';
+		wrap.appendChild(note);
+
+		var audio = document.createElement('audio');
+		audio.className = 'ms-auto';
+		audio.controls = true;
+		audio.autoplay = true;
+		audio.preload = 'auto';
+		audio.src = 'api/pipewire/audio/preview?node=' + encodeURIComponent(nodeName);
+		audio.addEventListener('playing', function () {
+			note.textContent = '';
+		});
+		audio.addEventListener('error', function () {
+			note.textContent = 'stream failed';
+			note.className = 'small text-danger';
+		});
+		wrap.appendChild(audio);
+
+		host.innerHTML = '';
+		host.appendChild(wrap);
+
+		var p = audio.play();
+		if (p && typeof p.catch === 'function') {
+			p.catch(function (err) {
+				// Only an autoplay block is the user's to resolve; anything
+				// else is a genuine failure and the error handler above will
+				// have said so.
+				if (err && err.name === 'NotAllowedError') {
+					note.textContent = 'press play to listen';
+				}
+			});
+		}
 	}
 	PWMixerRender();
 }
