@@ -475,7 +475,8 @@ void APIServer::Init(void) {
     // /api/pipewire/audio/meters, and reads the levels themselves off the
     // /fppdws WebSocket rather than polling for them.
     //
-    // Body: {"nodes":["fpp_group_x", ...], "ttl": 6000}
+    // Body: {"nodes":[{"name":"fpp_group_x","sink":true}, ...], "ttl": 6000}
+    // "sink" says how to capture the node -- see AudioLevelMonitor::StartMeter.
     //
     // Metering is kept alive by time rather than by a connection: a caller
     // re-posts to hold it open, so a browser that goes away silently stops
@@ -483,12 +484,21 @@ void APIServer::Init(void) {
     auto handleMeters = [](const HttpRequestPtr& req,
                            std::function<void(const HttpResponsePtr&)>&& callback) {
         Json::Value body;
-        std::vector<std::string> nodes;
+        std::vector<AudioLevelMonitor::Target> nodes;
         int ttl = 6000;
         if (LoadJsonFromString(std::string(req->getBody()), body)) {
             if (body.isMember("nodes") && body["nodes"].isArray()) {
                 for (const auto& n : body["nodes"]) {
-                    nodes.push_back(n.asString());
+                    AudioLevelMonitor::Target t;
+                    // Objects carry the node's kind; a bare string is assumed
+                    // to be a sink, which is what most metered nodes are.
+                    if (n.isObject()) {
+                        t.name = n.get("name", "").asString();
+                        t.isSink = n.get("sink", true).asBool();
+                    } else {
+                        t.name = n.asString();
+                    }
+                    nodes.push_back(t);
                 }
             }
             if (body.isMember("ttl")) {

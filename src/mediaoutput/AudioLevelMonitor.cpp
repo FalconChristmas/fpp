@@ -38,7 +38,7 @@ AudioLevelMonitor::~AudioLevelMonitor() {
     Shutdown();
 }
 
-void AudioLevelMonitor::StartMeter(const std::string& node) {
+void AudioLevelMonitor::StartMeter(const std::string& node, bool isSink) {
     // Node names are validated by the callers that accept them from outside
     // (the HTTP endpoint), but this builds a pipeline description string, so
     // anything unexpected is a reason to refuse rather than to quote around.
@@ -50,10 +50,22 @@ void AudioLevelMonitor::StartMeter(const std::string& node) {
         return;
     }
 
-    std::string desc = "pipewiresrc target-object=" + node + ".monitor ! " +
-                       "audioconvert ! audio/x-raw,channels=1,rate=8000 ! " +
-                       "level interval=" + std::to_string(LEVEL_INTERVAL_NS) +
-                       " post-messages=true ! fakesink sync=false";
+    // Capturing what a sink is playing needs stream.capture.sink; a playback
+    // stream is captured by targeting it directly and must NOT have it set.
+    //
+    // Getting this wrong is not visibly an error: pipewiresrc cannot resolve
+    // the target, silently falls back to the default sink, and reports a
+    // plausible level for entirely the wrong node. That is what made every
+    // meter read the same signal and move together. (There is no ".monitor"
+    // node to target either -- that name is a PulseAudio compatibility
+    // construct and matches nothing in the PipeWire graph.)
+    std::string desc = "pipewiresrc target-object=" + node;
+    if (isSink) {
+        desc += " stream-properties=props,stream.capture.sink=true";
+    }
+    desc += " ! audioconvert ! audio/x-raw,channels=1,rate=8000 ! " +
+            std::string("level interval=") + std::to_string(LEVEL_INTERVAL_NS) +
+            " post-messages=true ! fakesink sync=false";
 
     GError* err = nullptr;
     GstElement* pipeline = gst_parse_launch(desc.c_str(), &err);
@@ -70,6 +82,7 @@ void AudioLevelMonitor::StartMeter(const std::string& node) {
     }
 
     Meter m;
+    m.isSink = isSink;
     m.pipeline = pipeline;
     m.bus = gst_element_get_bus(pipeline);
     m.updatedMS = GetTimeMS();
@@ -94,18 +107,27 @@ void AudioLevelMonitor::StopMeter(const std::string& node) {
     LogDebug(VB_MEDIAOUT, "AudioLevelMonitor: stopped metering %s\n", node.c_str());
 }
 
-void AudioLevelMonitor::Subscribe(const std::vector<std::string>& nodes, int ttlMs) {
+void AudioLevelMonitor::Subscribe(const std::vector<Target>& nodes, int ttlMs) {
     std::unique_lock<std::mutex> lk(m_lock);
 
     // Bounded: this is reachable from the web UI, and each entry is a real
     // pipeline against a real audio device.
-    std::set<std::string> wanted(nodes.begin(), nodes.end());
-    while (wanted.size() > 12) {
-        wanted.erase(std::prev(wanted.end()));
+    std::map<std::string, bool> wanted;
+    for (const auto& t : nodes) {
+        if (t.name.empty()) {
+            continue;
+        }
+        if (wanted.size() >= 12 && wanted.find(t.name) == wanted.end()) {
+            break;
+        }
+        wanted[t.name] = t.isSink;
     }
 
     for (auto it = m_meters.begin(); it != m_meters.end();) {
-        if (wanted.find(it->first) == wanted.end()) {
+        auto w = wanted.find(it->first);
+        // A node whose kind changed has to be rebuilt: the capture mode is
+        // fixed when the pipeline is created.
+        if (w == wanted.end() || w->second != it->second.isSink) {
             std::string dead = it->first;
             ++it;
             StopMeter(dead);
@@ -115,9 +137,9 @@ void AudioLevelMonitor::Subscribe(const std::vector<std::string>& nodes, int ttl
     }
     // Already-running nodes are left as they are: a keepalive must not restart
     // a pipeline and blank the meter every few seconds.
-    for (const auto& n : wanted) {
-        if (m_meters.find(n) == m_meters.end()) {
-            StartMeter(n);
+    for (const auto& kv : wanted) {
+        if (m_meters.find(kv.first) == m_meters.end()) {
+            StartMeter(kv.first, kv.second);
         }
     }
 

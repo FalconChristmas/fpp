@@ -224,7 +224,11 @@ function PWMixerStrip(opts) {
 	h += "<span class='pw-mixer-value small text-body-secondary' id='" + id + "_val'>" + vol + '%</span>';
 
 	if (opts.nodeName) {
-		h += "<div class='pw-mixer-meter' data-meter-node='" + PWMixerEscape(opts.nodeName) + "' title='Signal level'>";
+		// The kind decides how fppd captures it: a sink is metered through its
+		// monitor, a playback stream directly. Getting it wrong does not fail
+		// loudly -- it silently meters the default sink instead.
+		h += "<div class='pw-mixer-meter' data-meter-node='" + PWMixerEscape(opts.nodeName) + "'";
+		h += " data-meter-sink='" + (opts.nodeIsStream ? '0' : '1') + "' title='Signal level'>";
 		h += "<div class='pw-mixer-meter-fill'></div>";
 		h += '</div>';
 	}
@@ -321,14 +325,24 @@ function PWMixerSubscribeMeters() {
 		return;
 	}
 	var nodes = [];
+	var seen = {};
 	// Only what is actually on screen: a collapsed section costs nothing.
 	$('#pwMixerBody')
 		.find('[data-meter-node]')
 		.each(function () {
 			var n = $(this).attr('data-meter-node');
-			if (n && nodes.indexOf(n) === -1) {
-				nodes.push(n);
+			if (!n || seen[n]) {
+				return;
 			}
+			// Skip anything not currently in the graph. pipewiresrc cannot
+			// report that a target does not exist -- it falls back to the
+			// default sink and returns a believable level for the wrong node --
+			// so filtering here is what stops a phantom meter appearing.
+			if (typeof pwMixer.data.nodeStates[n] === 'undefined') {
+				return;
+			}
+			seen[n] = true;
+			nodes.push({ name: n, sink: $(this).attr('data-meter-sink') !== '0' });
 		});
 
 	$.ajax({
@@ -410,6 +424,7 @@ function PWMixerRender(force) {
 			sublabel: s.mediaFilename || (playing ? 'Playing' : 'Idle'),
 			title: s.nodeName,
 			nodeName: s.nodeName,
+			nodeIsStream: true,
 			stateKey: 'slot:' + slotNum,
 			volume: vol,
 			noMute: true,

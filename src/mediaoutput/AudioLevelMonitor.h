@@ -48,10 +48,19 @@ class AudioLevelMonitor {
 public:
     static AudioLevelMonitor INSTANCE;
 
+    // A node to meter. isSink distinguishes a sink (a group, a member's filter
+    // chain, an input bus) from a playback stream (fppd_stream_N): capturing a
+    // sink needs stream.capture.sink, and setting it on a stream instead makes
+    // pipewiresrc fall back to the default sink -- see StartMeter().
+    struct Target {
+        std::string name;
+        bool isSink = true;
+    };
+
     // Meter exactly these nodes for the next ttlMs. Pipelines for nodes no
     // longer listed are torn down; nodes already running are left alone so a
     // keepalive does not interrupt them.
-    void Subscribe(const std::vector<std::string>& nodes, int ttlMs);
+    void Subscribe(const std::vector<Target>& nodes, int ttlMs);
 
     // { "<node>": <0-100>, ... } -- empty when nothing is subscribed, which is
     // what makes this free on an idle system.
@@ -73,9 +82,10 @@ private:
         // Written by the bus poll, read by GetLevels().
         double rmsDb = -100.0;
         long long updatedMS = 0;
+        bool isSink = true;
     };
 
-    void StartMeter(const std::string& node);
+    void StartMeter(const std::string& node, bool isSink);
     void StopMeter(const std::string& node);
     void PollThread();
 
