@@ -28,8 +28,10 @@ var pwMixer = {
 	meterCtx: null,
 	meterRaf: null,
 	// Values the user has just set, held briefly so a poll carrying the
-	// pre-change state cannot snap a fader back under them. See PWMixerSlide.
+	// pre-change state cannot snap a fader back under them, and the last value
+	// the server reported for each control. See PWMixerSlide.
 	pending: {},
+	serverValue: {},
 	// Per-node levels pushed by fppd over the status WebSocket, and the
 	// keepalive that tells it which nodes to meter.
 	levels: {},
@@ -202,17 +204,22 @@ function PWMixerStrip(opts) {
 	if (isNaN(vol)) {
 		vol = 100;
 	}
-	// A value the user set moments ago wins over whatever the poll reports,
-	// until the server has had time to catch up. Slot 1 showed this most
-	// clearly: it is the master, so its displayed value comes from the page's
-	// own slider, which the status feed rewrites from fppd about once a second
-	// -- landing before the change registered and snapping the fader back.
+	// What the server currently reports, kept so a later local change knows
+	// which value it is replacing.
+	pwMixer.serverValue[id] = vol;
+
+	// A just-set local value is held only against a stale echo of the state it
+	// replaced -- not against the server generally. Anything else the server
+	// reports is a real change from somewhere else (the API, MQTT, a playlist,
+	// another browser) and the fader follows it immediately.
 	var pend = pwMixer.pending[id];
 	if (pend) {
-		if (Date.now() < pend.until && pend.value !== vol) {
-			vol = pend.value;
-		} else if (Date.now() >= pend.until || pend.value === vol) {
-			delete pwMixer.pending[id];
+		if (vol === pend.value) {
+			delete pwMixer.pending[id]; // confirmed
+		} else if (vol === pend.was && Date.now() < pend.until) {
+			vol = pend.value; // the pre-change value catching up; ignore it
+		} else {
+			delete pwMixer.pending[id]; // changed elsewhere -- follow it
 		}
 	}
 	var max = opts.max || 100;
@@ -596,8 +603,13 @@ function PWMixerDragging() {
 
 function PWMixerSlide(el, id) {
 	$('#' + id + '_val').text(el.value + '%');
-	// Held until the server reports it back, or briefly if it never does.
-	pwMixer.pending[id] = { value: parseInt(el.value, 10), until: Date.now() + 3000 };
+	// Records the value being replaced as well as the new one, so a poll can be
+	// told apart from someone else changing the same control.
+	pwMixer.pending[id] = {
+		value: parseInt(el.value, 10),
+		was: pwMixer.serverValue[id],
+		until: Date.now() + 3000,
+	};
 	var key = 'v_' + id;
 	if (pwMixer.saveTimers[key]) {
 		clearTimeout(pwMixer.saveTimers[key]);
