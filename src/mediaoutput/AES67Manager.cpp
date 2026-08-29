@@ -1831,18 +1831,75 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // beforehand is replaced by the automatic one.  That is what made an
         // earlier attempt pace for the first few seconds and then burst for
         // the rest of the run.  ts-offset is applied per-buffer and survives.
-        GstElement* usink = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
-        if (usink) {
-            g_object_set(usink, "ts-offset",
-                         (gint64)m_config.sinkPacingMs * GST_MSECOND, NULL);
-            gst_object_unref(usink);
+        // Shift the buffer timestamps forward rather than offsetting the sink.
+        //
+        // ts-offset delays only the transmission; the RTP timestamps stay
+        // where they were, so every packet goes out after the playout deadline
+        // it declares and a conformant receiver drops the lot -- measured at
+        // -23.7ms with pacing on against +7.8ms without it, and reported on
+        // #2848 as a Yamaha MRX7-D sitting subscribed, green and silent on a
+        // stream carrying perfectly paced, valid stereo L24.
+        //
+        // Moving the PTS instead carries both with it: the payloader derives
+        // the RTP timestamp from the shifted PTS, and the sink renders at that
+        // same shifted time.  The lead over transmission therefore stays
+        // whatever it was without pacing, whatever latency we choose, instead
+        // of needing a correction factor fitted to one machine.
+        GstElement* pay = gst_bin_get_by_name(GST_BIN(pipeline), "pay");
+        GstPad* payPad = pay ? gst_element_get_static_pad(pay, "sink") : nullptr;
+        if (payPad) {
+            gst_pad_add_probe(
+                payPad, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad*, GstPadProbeInfo* info, gpointer user) {
+                    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+                    if (!b) {
+                        return GST_PAD_PROBE_OK;
+                    }
+                    const GstClockTime shift = (GstClockTime)(guintptr)user;
+                    b = gst_buffer_make_writable(b);
+                    if (GST_BUFFER_PTS_IS_VALID(b)) {
+                        GST_BUFFER_PTS(b) += shift;
+                    }
+                    if (GST_BUFFER_DTS_IS_VALID(b)) {
+                        GST_BUFFER_DTS(b) += shift;
+                    }
+                    GST_PAD_PROBE_INFO_DATA(info) = b;
+                    return GST_PAD_PROBE_OK;
+                },
+                (gpointer)(guintptr)((GstClockTime)m_config.sinkPacingMs *
+                                     GST_MSECOND),
+                nullptr);
+            gst_object_unref(payPad);
+
+            // Cancel the shift again at the sink.  The payloader has already
+            // taken its RTP timestamp from the shifted PTS, so undoing it here
+            // moves only the transmission time back, leaving the timestamp
+            // ahead of the wire by the shift.
+            //
+            // This is what the earlier attempts each got wrong.  ts-offset
+            // alone moved transmission but not the timestamp; shifting the PTS
+            // alone moved both, so the lead did not change at all (-23.73ms
+            // before, -23.73ms after -- identical, which is what gave it
+            // away).  The -23.2ms is GStreamer's own latency compensation:
+            // sinks render at PTS + pipeline latency, and the pipeline latency
+            // here is one graph quantum.
+            GstElement* usink2 = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
+            if (usink2) {
+                g_object_set(usink2, "ts-offset",
+                             -((gint64)m_config.sinkPacingMs * GST_MSECOND),
+                             NULL);
+                gst_object_unref(usink2);
+            }
             LogInfo(VB_MEDIAOUT,
-                    "AES67 send [%d]: sink pacing on, %dms send delay\n",
+                    "AES67 send [%d]: sink pacing on, %dms timestamp lead\n",
                     inst.id, m_config.sinkPacingMs);
         } else {
             LogWarn(VB_MEDIAOUT,
-                    "AES67 send [%d]: sink pacing on but udpsink not found\n",
+                    "AES67 send [%d]: sink pacing on but payloader not found\n",
                     inst.id);
+        }
+        if (pay) {
+            gst_object_unref(pay);
         }
     }
 
