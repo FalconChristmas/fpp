@@ -499,6 +499,7 @@ struct AES67Pipeline {
     std::chrono::steady_clock::time_point lastByteTime{};
     int     lowRateCount = 0;
     int     channels = AES67::DEFAULT_CHANNELS;  // for the expected byte rate
+    bool    pacingTuned = false;         // latency-derived shift applied yet?
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -708,6 +709,11 @@ private:
     PtpQueryCache m_ptpCache;
     std::mutex m_ptpCacheMutex;
     void RefreshPtpCache(bool force = false);
+
+    // Sink-pacing timestamp shift per instance, updatable once the pipeline
+    // reports its real latency.  Owned here so the pad probe can read a live
+    // value rather than one baked in before the latency is known.
+    std::map<int, std::atomic<GstClockTime>*> m_sinkPacingShift;
 
     // Drift control loop -- see AES67Config::adaptiveResample.  Runs on its own
     // thread because it has to sample far more often than the 30s watchdog.

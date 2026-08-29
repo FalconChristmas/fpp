@@ -1845,6 +1845,22 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // same shifted time.  The lead over transmission therefore stays
         // whatever it was without pacing, whatever latency we choose, instead
         // of needing a correction factor fitted to one machine.
+        // Held on the heap so the value can be corrected once the pipeline is
+        // PLAYING and its real latency is known.  See the retune below.
+        // Reused rather than reallocated per rebuild.  The watchdog rebuilds
+        // the pipeline on sustained under-delivery, and a probe on the old
+        // pipeline can still be in flight when the new one is built, so this
+        // cell has to outlive both -- freeing it here would be a
+        // use-after-free, and allocating a fresh one each time would leak on
+        // every rebuild.  One cell per instance id, alive for the process.
+        auto& slot = m_sinkPacingShift[inst.id];
+        if (!slot) {
+            slot = new std::atomic<GstClockTime>(0);
+        }
+        slot->store((GstClockTime)m_config.sinkPacingMs * GST_MSECOND,
+                    std::memory_order_relaxed);
+        auto* shiftCell = slot;
+
         GstElement* pay = gst_bin_get_by_name(GST_BIN(pipeline), "pay");
         GstPad* payPad = pay ? gst_element_get_static_pad(pay, "sink") : nullptr;
         if (payPad) {
@@ -1855,7 +1871,9 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                     if (!b) {
                         return GST_PAD_PROBE_OK;
                     }
-                    const GstClockTime shift = (GstClockTime)(guintptr)user;
+                    const GstClockTime shift =
+                        static_cast<std::atomic<GstClockTime>*>(user)->load(
+                            std::memory_order_relaxed);
                     b = gst_buffer_make_writable(b);
                     if (GST_BUFFER_PTS_IS_VALID(b)) {
                         GST_BUFFER_PTS(b) += shift;
@@ -1866,9 +1884,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                     GST_PAD_PROBE_INFO_DATA(info) = b;
                     return GST_PAD_PROBE_OK;
                 },
-                (gpointer)(guintptr)((GstClockTime)m_config.sinkPacingMs *
-                                     GST_MSECOND),
-                nullptr);
+                (gpointer)shiftCell, nullptr);
             gst_object_unref(payPad);
 
             // Cancel the shift again at the sink.  The payloader has already
@@ -1922,6 +1938,11 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         gst_object_unref(pipeline);
         return false;
     }
+
+    // The latency-derived retune happens in the watchdog, not here: at this
+    // point set_state(PLAYING) has only been *requested*, the pipeline has not
+    // prerolled, and the latency query returns 0 -- which silently left the
+    // shift at its configured default, defeating the whole point.
 
     {
         std::unique_lock<std::mutex> lock(m_pipelineMutex);
@@ -2507,6 +2528,52 @@ bool AES67Manager::PollPipelinesWatchdog() {
                     guint64 bytesSent = 0;
                     g_object_get(usink, "bytes-served", &bytesSent, NULL);
                     gst_object_unref(usink);
+
+                    // Retune the pacing shift once, when the pipeline has
+                    // actually prerolled and can answer a latency query.  The
+                    // presentation lead is (shift - latency), and latency is
+                    // one graph quantum -- 21.3ms at 1024/48000 but 42.7ms at
+                    // 2048.  A fixed 40ms shift is comfortably positive on the
+                    // first and negative on the second, and negative means a
+                    // conformant receiver discards every packet.
+                    if (!p.pacingTuned) {
+                        auto sit = m_sinkPacingShift.find(p.instanceId);
+                        if (sit != m_sinkPacingShift.end() && sit->second) {
+                            GstQuery* lq = gst_query_new_latency();
+                            if (gst_element_query(p.pipeline, lq)) {
+                                gboolean live = FALSE;
+                                GstClockTime minL = 0, maxL = 0;
+                                gst_query_parse_latency(lq, &live, &minL, &maxL);
+                                if (GST_CLOCK_TIME_IS_VALID(minL) && minL > 0) {
+                                    const GstClockTime want =
+                                        minL + 16 * GST_MSECOND;
+                                    const GstClockTime cur =
+                                        sit->second->load(
+                                            std::memory_order_relaxed);
+                                    const GstClockTime shift =
+                                        std::max(want, cur);
+                                    if (shift != cur) {
+                                        sit->second->store(
+                                            shift, std::memory_order_relaxed);
+                                        GstElement* us2 = gst_bin_get_by_name(
+                                            GST_BIN(p.pipeline), "usink");
+                                        if (us2) {
+                                            g_object_set(us2, "ts-offset",
+                                                         -(gint64)shift, NULL);
+                                            gst_object_unref(us2);
+                                        }
+                                    }
+                                    LogInfo(VB_MEDIAOUT,
+                                            "AES67 send [%d]: pipeline latency %.1fms, timestamp lead %.1fms\n",
+                                            p.instanceId,
+                                            (double)minL / GST_MSECOND,
+                                            (double)shift / GST_MSECOND);
+                                    p.pacingTuned = true;
+                                }
+                            }
+                            gst_query_unref(lq);
+                        }
+                    }
 
                     // Sink-pacing diagnostics.  The queue is the whole reason
                     // pacing can be done without starving the source, so its
