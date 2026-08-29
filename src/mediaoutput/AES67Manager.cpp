@@ -1146,6 +1146,19 @@ struct DriftResampleState {
     std::vector<float> out;
     guint64 buffers = 0;
     guint64 shortReads = 0;
+
+    // Sliding window of (clock, input frames, output frames) used to measure
+    // the card's rate.  A cumulative average was used here first and it is what
+    // made the loop oscillate: it is itself an integrator, so with the phase
+    // feedback -- which integrates too -- the loop had two in series.  It also
+    // grew steadily less responsive as the run went on, which showed up as a
+    // trim still crawling towards its answer 26 minutes in.
+    struct Sample {
+        GstClockTime t;
+        guint64 in;
+        guint64 out;
+    };
+    std::deque<Sample> window;
 };
 
 static void DestroyDriftResampleState(gpointer data) {
@@ -1170,6 +1183,13 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
     // A gap is not drift.  Re-anchor and let the resampler start clean, rather
     // than trying to make up time that was never ours to make up.
     if (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DISCONT)) {
+        // Worth logging: this resets the resampler and restarts the rate
+        // estimate, and it was happening every few minutes with nothing in the
+        // log to say so -- the only visible sign was the loop's own elapsed
+        // counter starting over.
+        LogInfo(VB_MEDIAOUT,
+                "AES67 drift [%d]: source discontinuity, resetting\n",
+                st->instanceId);
         src_reset(st->src);
         st->anchored = false;
     }
@@ -1212,6 +1232,7 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         st->ctlIn = 0;
         st->ctlOut = 0;
         st->warmed = false;
+        st->window.clear();
     }
 
     double elapsed =
@@ -1224,6 +1245,7 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         st->ctlClock = now;
         st->ctlIn = 0;
         st->ctlOut = 0;
+        st->window.clear();
         elapsed = 0.0;
     }
 
@@ -1245,6 +1267,7 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         st->ctlClock = now;
         st->ctlIn = 0;
         st->ctlOut = 0;
+        st->window.clear();
         if (GST_BUFFER_PTS_IS_VALID(buf)) {
             st->anchorPts = GST_BUFFER_PTS(buf);
         }
@@ -1264,18 +1287,46 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
     // 9 minutes of correct operation, then trim pinned at 0.0ppm with the send
     // rate falling from 250/s to 155/s and absorptions climbing past 3500.
     double target = st->ratio;
-    if (st->warmed && elapsed > 2.0 && st->ctlIn > 0) {
-        // Feedforward: the card's rate against PTP is two crystals, so this is
-        // near-constant and carries the whole correction on its own.
-        const double cardRate = (double)st->ctlIn / elapsed;
-        if (cardRate > 1000.0) {
-            target = (double)AES67::AUDIO_RATE / cardRate;
+    double cardRate = 0.0;
+    if (st->warmed) {
+        constexpr double WINDOW_S = 60.0;
+        st->window.push_back({now, st->ctlIn, st->ctlOut});
+        while (st->window.size() > 1 &&
+               (double)(now - st->window.front().t) / GST_SECOND > WINDOW_S) {
+            st->window.pop_front();
         }
-        // Feedback: a weak trim that bleeds off residual offset.  Kept small on
-        // purpose -- it is not the controller, and every earlier attempt here
-        // failed by letting a feedback term do the work.
-        constexpr double KP = 0.002;
-        target *= (1.0 - KP * err / (double)AES67::AUDIO_RATE);
+
+        const auto& a = st->window.front();
+        const double span = (double)(now - a.t) / GST_SECOND;
+        if (span > 5.0) {
+            // Feedforward over the window, not since the anchor.  The card's
+            // rate against PTP is two crystals, so this is near-constant; the
+            // window only keeps the estimate from being anchored to whatever
+            // the first few seconds happened to look like.
+            cardRate = (double)(st->ctlIn - a.in) / span;
+        }
+    }
+
+    if (cardRate > 1000.0) {
+        const double ff = (double)AES67::AUDIO_RATE / cardRate;
+
+        // Phase feedback: pull the accumulated offset back towards zero with a
+        // first-order lag.  The plant is already an integrator (a rate error
+        // accumulates into offset), so proportional is the right shape and a
+        // second integrator here is what previously rang.  Clamping it well
+        // below the feedforward guarantees it can trim but never take over.
+        // Gain set by measurement, not by theory.  At 3000 the loop settled
+        // with a standing 23ms offset it would not remove; 30000 drives it to
+        // +/-0.05ms and holds there, with the trim still sitting on the
+        // feedforward value.  Offset then decays with a ~33s time constant.
+        constexpr double KP_PPM_PER_SEC = 30000.0;
+        // 100ppm is 0.17 cents -- inaudible -- and well under the ~55ppm
+        // feedforward, so this can trim but never take over.
+        constexpr double MAX_FEEDBACK_PPM = 100.0;
+        double fbPpm = -KP_PPM_PER_SEC * err / (double)AES67::AUDIO_RATE;
+        fbPpm = std::clamp(fbPpm, -MAX_FEEDBACK_PPM, MAX_FEEDBACK_PPM);
+
+        target = ff * (1.0 + fbPpm * 1e-6);
     }
 
     // Hard clamp, then slew limit.  300ppm is far beyond any real crystal pair
@@ -1342,13 +1393,16 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
 
     if ((++st->buffers % 2000) == 0) {
         LogInfo(VB_MEDIAOUT,
-                "AES67 drift [%d]: trim %+.1f ppm, in %.1f/s out %.1f/s, offset %+.2f ms over %.0fs%s\n",
-                st->instanceId, (st->ratio - 1.0) * 1e6,
-                elapsed > 0 ? (double)st->ctlIn / elapsed : 0.0,
-                elapsed > 0 ? (double)st->ctlOut / elapsed : 0.0,
-                ((double)st->ctlOut -
-                 (double)AES67::AUDIO_RATE * elapsed) * 1000.0 /
-                    AES67::AUDIO_RATE,
+                "AES67 drift [%d]: trim %+.1f ppm, card %.1f/s (%+.1f ppm), offset %+.2f ms over %.0fs%s\n",
+                st->instanceId, (st->ratio - 1.0) * 1e6, cardRate,
+                cardRate > 1000.0
+                    ? (cardRate / (double)AES67::AUDIO_RATE - 1.0) * 1e6
+                    : 0.0,
+                // err as the controller saw it.  Recomputing here instead
+                // reads one buffer high -- a whole graph quantum, 23.2ms on a
+                // 1024/44100 graph -- which looked exactly like a stuck offset
+                // the loop was failing to correct.
+                err * 1000.0 / AES67::AUDIO_RATE,
                 elapsed,
                 st->shortReads ? " (SHORT READS)" : "");
     }
@@ -1777,18 +1831,75 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // beforehand is replaced by the automatic one.  That is what made an
         // earlier attempt pace for the first few seconds and then burst for
         // the rest of the run.  ts-offset is applied per-buffer and survives.
-        GstElement* usink = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
-        if (usink) {
-            g_object_set(usink, "ts-offset",
-                         (gint64)m_config.sinkPacingMs * GST_MSECOND, NULL);
-            gst_object_unref(usink);
+        // Shift the buffer timestamps forward rather than offsetting the sink.
+        //
+        // ts-offset delays only the transmission; the RTP timestamps stay
+        // where they were, so every packet goes out after the playout deadline
+        // it declares and a conformant receiver drops the lot -- measured at
+        // -23.7ms with pacing on against +7.8ms without it, and reported on
+        // #2848 as a Yamaha MRX7-D sitting subscribed, green and silent on a
+        // stream carrying perfectly paced, valid stereo L24.
+        //
+        // Moving the PTS instead carries both with it: the payloader derives
+        // the RTP timestamp from the shifted PTS, and the sink renders at that
+        // same shifted time.  The lead over transmission therefore stays
+        // whatever it was without pacing, whatever latency we choose, instead
+        // of needing a correction factor fitted to one machine.
+        GstElement* pay = gst_bin_get_by_name(GST_BIN(pipeline), "pay");
+        GstPad* payPad = pay ? gst_element_get_static_pad(pay, "sink") : nullptr;
+        if (payPad) {
+            gst_pad_add_probe(
+                payPad, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad*, GstPadProbeInfo* info, gpointer user) {
+                    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+                    if (!b) {
+                        return GST_PAD_PROBE_OK;
+                    }
+                    const GstClockTime shift = (GstClockTime)(guintptr)user;
+                    b = gst_buffer_make_writable(b);
+                    if (GST_BUFFER_PTS_IS_VALID(b)) {
+                        GST_BUFFER_PTS(b) += shift;
+                    }
+                    if (GST_BUFFER_DTS_IS_VALID(b)) {
+                        GST_BUFFER_DTS(b) += shift;
+                    }
+                    GST_PAD_PROBE_INFO_DATA(info) = b;
+                    return GST_PAD_PROBE_OK;
+                },
+                (gpointer)(guintptr)((GstClockTime)m_config.sinkPacingMs *
+                                     GST_MSECOND),
+                nullptr);
+            gst_object_unref(payPad);
+
+            // Cancel the shift again at the sink.  The payloader has already
+            // taken its RTP timestamp from the shifted PTS, so undoing it here
+            // moves only the transmission time back, leaving the timestamp
+            // ahead of the wire by the shift.
+            //
+            // This is what the earlier attempts each got wrong.  ts-offset
+            // alone moved transmission but not the timestamp; shifting the PTS
+            // alone moved both, so the lead did not change at all (-23.73ms
+            // before, -23.73ms after -- identical, which is what gave it
+            // away).  The -23.2ms is GStreamer's own latency compensation:
+            // sinks render at PTS + pipeline latency, and the pipeline latency
+            // here is one graph quantum.
+            GstElement* usink2 = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
+            if (usink2) {
+                g_object_set(usink2, "ts-offset",
+                             -((gint64)m_config.sinkPacingMs * GST_MSECOND),
+                             NULL);
+                gst_object_unref(usink2);
+            }
             LogInfo(VB_MEDIAOUT,
-                    "AES67 send [%d]: sink pacing on, %dms send delay\n",
+                    "AES67 send [%d]: sink pacing on, %dms timestamp lead\n",
                     inst.id, m_config.sinkPacingMs);
         } else {
             LogWarn(VB_MEDIAOUT,
-                    "AES67 send [%d]: sink pacing on but udpsink not found\n",
+                    "AES67 send [%d]: sink pacing on but payloader not found\n",
                     inst.id);
+        }
+        if (pay) {
+            gst_object_unref(pay);
         }
     }
 
@@ -1832,6 +1943,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         }
         auto [it, ok] = m_sendPipelines.try_emplace(inst.id);
         it->second.instanceId = inst.id;
+        it->second.channels = inst.channels;
         it->second.isSend = true;
         it->second.pipeline = pipeline;
         it->second.bus = bus;
@@ -1943,6 +2055,7 @@ bool AES67Manager::CreateRecvPipeline(const AES67Instance& inst) {
         }
         auto [it, ok] = m_recvPipelines.try_emplace(inst.id);
         it->second.instanceId = inst.id;
+        it->second.channels = inst.channels;
         it->second.isSend = false;
         it->second.pipeline = pipeline;
         it->second.bus = bus;
@@ -2437,6 +2550,48 @@ bool AES67Manager::PollPipelinesWatchdog() {
                                 (unsigned long long)(qTime / GST_MSECOND),
                                 (unsigned long long)(bytesSent - p.lastByteCount));
                     }
+
+                    // Compare throughput against what this instance should
+                    // be emitting.  Payload is ptime worth of 24-bit frames,
+                    // and at nominal that is AUDIO_RATE * 3 * channels bytes a
+                    // second regardless of ptime.
+                    const auto nowT = std::chrono::steady_clock::now();
+                    if (p.lastByteTime.time_since_epoch().count() != 0 &&
+                        bytesSent > p.lastByteCount) {
+                        const double secs =
+                            std::chrono::duration<double>(nowT - p.lastByteTime)
+                                .count();
+                        const double expected =
+                            (double)AES67::AUDIO_RATE * 3.0 * p.channels;
+                        if (secs > 5.0 && expected > 0) {
+                            const double got =
+                                (double)(bytesSent - p.lastByteCount) / secs;
+                            // 95%, not something looser: the degradation
+                            // settles at 89-94% of nominal, so an 85% trigger
+                            // sat below every case actually observed and would
+                            // never have fired.  A healthy stream measures
+                            // 100.0% consistently, so the margin is real, and
+                            // three consecutive checks means ~90s of sustained
+                            // under-delivery -- far longer than the brief dip a
+                            // track change produces.
+                            if (got < expected * 0.95) {
+                                p.lowRateCount++;
+                                LogWarn(VB_MEDIAOUT,
+                                        "AES67 %s pipeline [%d] under-delivering: %.0f of %.0f B/s (%.0f%%), check %d\n",
+                                        direction, p.instanceId, got, expected,
+                                        100.0 * got / expected, p.lowRateCount);
+                                if (p.lowRateCount >= 3) {
+                                    p.running = false;
+                                    p.errorMessage =
+                                        "Watchdog: sustained under-delivery";
+                                    needsRebuild = true;
+                                }
+                            } else {
+                                p.lowRateCount = 0;
+                            }
+                        }
+                    }
+                    p.lastByteTime = nowT;
 
                     if (bytesSent == p.lastByteCount) {
                         p.stallCount++;

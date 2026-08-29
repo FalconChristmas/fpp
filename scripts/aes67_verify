@@ -408,6 +408,100 @@ def check_pacing(rep, arrivals, ptime):
                  f"({max(dt_ms) / ptime:.0f}x ptime)")
 
 
+def phc_offset(iface="eth0"):
+    """Seconds to add to CLOCK_REALTIME to get this NIC's PTP hardware time."""
+    idx = PhcIndexForInterface(iface)
+    if idx is None:
+        return None
+    import ctypes
+    try:
+        lib = ctypes.CDLL("libc.so.6", use_errno=True)
+
+        class TS(ctypes.Structure):
+            _fields_ = [("s", ctypes.c_long), ("ns", ctypes.c_long)]
+
+        fd = os.open(f"/dev/ptp{idx}", os.O_RDONLY)
+    except Exception:
+        return None
+    try:
+        t = TS()
+        clkid = (~fd << 3) | 3
+        lib.clock_gettime(clkid, ctypes.byref(t))
+        phc = t.s + t.ns / 1e9
+        lib.clock_gettime(0, ctypes.byref(t))          # CLOCK_REALTIME
+        return phc - (t.s + t.ns / 1e9)
+    except Exception:
+        return None
+    finally:
+        os.close(fd)
+
+
+def PhcIndexForInterface(iface):
+    """PHC index for an interface, via ethtool's timestamping ioctl."""
+    import array
+    import fcntl
+    import socket
+    SIOCETHTOOL = 0x8946
+    ETHTOOL_GET_TS_INFO = 0x00000041
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        buf = array.array("B", struct.pack("I", ETHTOOL_GET_TS_INFO) + b"\x00" * 508)
+        ifr = struct.pack("16s", iface.encode()[:15]) + struct.pack(
+            "P", buf.buffer_info()[0])
+        fcntl.ioctl(s.fileno(), SIOCETHTOOL, ifr)
+        s.close()
+        # struct ethtool_ts_info: cmd, so_timestamping, phc_index, ...
+        return struct.unpack("i", buf[8:12].tobytes())[0]
+    except Exception:
+        return None
+
+
+def check_presentation_time(rep, pkts, rate, iface):
+    """How far each packet's RTP timestamp leads its actual transmission.
+
+    A receiver plays a packet at (RTP timestamp + its link offset).  If we put
+    the packet on the wire after that moment has already passed, a conformant
+    receiver discards it -- and does so silently, while every transport check
+    here still passes and the subscription looks healthy.  That is exactly how
+    a Yamaha MRX7-D ended up subscribed, green, and mute on #2848.
+    """
+    rep.section("Presentation timing")
+    off = phc_offset(iface)
+    if off is None:
+        rep.info(f"no PTP hardware clock on {iface}; skipping")
+        return
+
+    wrap = (1 << 32) / float(rate)          # RTP timestamp period, ~24.8h
+    leads = []
+    for arrival, _seq, ts, _ssrc, _pay in pkts:
+        ptp_arrival = arrival + off
+        # RTP timestamp is PTP time in samples, wrapped.  Recover the cycle
+        # from the arrival time, which is never more than a few ms away.
+        base = ptp_arrival - (ptp_arrival % wrap)
+        lead = (base + ts / float(rate)) - ptp_arrival
+        if lead < -wrap / 2:
+            lead += wrap
+        elif lead > wrap / 2:
+            lead -= wrap
+        leads.append(lead * 1000.0)
+
+    med = _median(leads)
+    rep.info(f"RTP timestamp leads transmission by {med:+.2f}ms "
+             f"(p10 {_pct(leads, 10):+.2f}, p90 {_pct(leads, 90):+.2f})")
+
+    if med > 0.5:
+        rep.ok(f"packets are sent {med:.1f}ms before their playout time")
+        rep.info("a receiver needs its link offset to be less than this")
+    elif med > -0.5:
+        rep.warn(f"packets are sent at essentially their playout time "
+                 f"({med:+.2f}ms) - no margin for the receiver")
+    else:
+        rep.fail(f"packets are sent {-med:.1f}ms AFTER the playout time their "
+                 f"own RTP timestamp declares")
+        rep.info("a conformant receiver discards these and plays silence, "
+                 "even though every check above passes")
+
+
 def check_media_clock(rep, arrivals, rtpts, rate):
     """Fit RTP timestamp growth against wall time to recover drift in ppm."""
     rep.section("Media clock")
@@ -740,6 +834,7 @@ def analyze(rep, pcap, inst, args):
 
     arrivals, rtpts = check_transport(rep, pkts, inst)
     check_media_clock(rep, arrivals, rtpts, rate)
+    check_presentation_time(rep, pkts, rate, inst.get("interface") or "eth0")
 
     if not HAVE_NUMPY:
         rep.section("Audio content")
