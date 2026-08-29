@@ -4756,139 +4756,103 @@ pre.testData,
 	min-height: 100px;
 }
 
-/* PipeWire mixer channel strips.
-   Bootstrap has no vertical range input, no fader styling and no fixed-width
-   strip, and the layout is driven by the control's behaviour (a fader column
-   that scroll-snaps), so these are the parts utilities cannot cover. Colours
-   come from Bootstrap's theme variables so the mixer follows light/dark. */
+/* PipeWire mixer channel rows.
+   Selectors are deliberately `.pw-mixer-strip input[type='range'].pw-mixer-slider`:
+   the global `input[type='range']` rules earlier in this file (and the
+   dark-theme overrides in fpp-dark.css) are more specific than a lone class and
+   size the thumb at 35px for the big master slider, which silently overrode
+   everything here. Colours come from Bootstrap theme variables so both themes
+   work. Horizontal throughout -- a rotated (writing-mode) fader renders
+   inconsistently across browsers and is awkward to drag on touch. */
 .pw-mixer-strips {
-	overflow-x: auto;
-	scroll-snap-type: x proximity;
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 0.5rem;
+}
+
+@media (min-width: 992px) {
+	.pw-mixer-strips {
+		grid-template-columns: 1fr 1fr;
+	}
 }
 
 .pw-mixer-strip {
-	scroll-snap-align: start;
 	background-color: var(--bs-tertiary-bg);
 }
 
+/* Names can be long (fpp_fx_g1_headphones); keep them from pushing the fader
+   off the row. */
 .pw-mixer-strip .pw-mixer-strip-label {
-	max-width: 100%;
+	flex: 0 0 auto;
+	width: 8.5rem;
+	min-width: 0;
 }
 
-/* Fixed-width readout so the strip does not jitter as the number changes. */
+/* Fixed-width readout so the row does not jitter as the number changes. */
 .pw-mixer-strip .pw-mixer-value {
-	min-width: 3.5em;
-	text-align: center;
+	flex: 0 0 auto;
+	min-width: 3.25rem;
+	text-align: end;
 	font-variant-numeric: tabular-nums;
 }
 
-/* Comfortable touch targets: match the existing round volume buttons rather
-   than shrinking controls to fit more channels on a phone screen. */
+/* Comfortable touch targets, matching the round volume buttons rather than
+   shrinking controls to fit more channels onto a phone screen. */
 .pw-mixer-strip .btn {
 	min-width: 44px;
-	min-height: 40px;
+	min-height: 38px;
 }
 
-/* Fader styling. Bootstrap's .form-range only themes the thumb, so the track
-   is drawn here to read as a mixer channel rather than a form input. */
-.pw-mixer-slider {
-	flex: 1 1 auto;
-	min-width: 0;
-	appearance: none;
+.pw-mixer-strip input[type='range'].pw-mixer-slider {
 	-webkit-appearance: none;
+	appearance: none;
 	background: transparent;
+	flex: 1 1 auto;
+	width: auto;
+	min-width: 4rem;
+	height: 1.5rem;
+	padding: 0;
+	margin: 0;
 }
 
-.pw-mixer-slider::-webkit-slider-runnable-track {
-	background-color: var(--bs-secondary-bg);
-	border: 1px solid var(--bs-border-color);
-	border-radius: 1rem;
+.pw-mixer-strip input[type='range'].pw-mixer-slider::-webkit-slider-runnable-track {
+	width: 100%;
+	height: 6px;
+	border-radius: 3px;
+	background: var(--bs-border-color);
 }
 
-.pw-mixer-slider::-moz-range-track {
-	background-color: var(--bs-secondary-bg);
-	border: 1px solid var(--bs-border-color);
-	border-radius: 1rem;
+.pw-mixer-strip input[type='range'].pw-mixer-slider::-moz-range-track {
+	width: 100%;
+	height: 6px;
+	border-radius: 3px;
+	background: var(--bs-border-color);
 }
 
-.pw-mixer-slider::-webkit-slider-thumb {
+.pw-mixer-strip input[type='range'].pw-mixer-slider::-webkit-slider-thumb {
 	-webkit-appearance: none;
 	appearance: none;
-	background-color: var(--bs-primary);
-	border: 2px solid var(--bs-body-bg);
+	width: 18px;
+	height: 18px;
+	margin-top: -6px;
 	border-radius: 50%;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+	border: 2px solid var(--bs-body-bg);
+	background-color: var(--bs-primary);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
-.pw-mixer-slider::-moz-range-thumb {
-	background-color: var(--bs-primary);
-	border: 2px solid var(--bs-body-bg);
+.pw-mixer-strip input[type='range'].pw-mixer-slider::-moz-range-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 18px;
+	height: 18px;
 	border-radius: 50%;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+	border: 2px solid var(--bs-body-bg);
+	background-color: var(--bs-primary);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
-.pw-mixer-slider:focus-visible {
+.pw-mixer-strip input[type='range'].pw-mixer-slider:focus-visible {
 	outline: 2px solid var(--bs-primary);
 	outline-offset: 2px;
-}
-
-/* Phone layout: a stacked list of wide horizontal faders, which are far more
-   reliable to drag by thumb than a rotated input. */
-.pw-mixer-slider {
-	height: 1.75rem;
-}
-
-.pw-mixer-slider::-webkit-slider-runnable-track {
-	height: 0.5rem;
-}
-
-.pw-mixer-slider::-moz-range-track {
-	height: 0.5rem;
-}
-
-.pw-mixer-slider::-webkit-slider-thumb {
-	width: 1.25rem;
-	height: 1.25rem;
-	margin-top: -0.4rem;
-}
-
-.pw-mixer-slider::-moz-range-thumb {
-	width: 1.25rem;
-	height: 1.25rem;
-}
-
-@media (min-width: 768px) {
-	.pw-mixer-strip {
-		width: 118px;
-		flex: 0 0 auto;
-	}
-
-	.pw-mixer-strip .pw-mixer-strip-label {
-		min-height: 2.5em;
-	}
-
-	/* Vertical fader. Only from md up, where there is a pointer: rotated range
-	   inputs are inconsistent to touch-drag across mobile browsers. */
-	.pw-mixer-slider {
-		writing-mode: vertical-lr;
-		direction: rtl;
-		width: 2rem;
-		height: 150px;
-		flex: 0 0 auto;
-	}
-
-	.pw-mixer-slider::-webkit-slider-runnable-track {
-		width: 0.5rem;
-		height: 100%;
-	}
-
-	.pw-mixer-slider::-moz-range-track {
-		width: 0.5rem;
-		height: 100%;
-	}
-
-	.pw-mixer-slider::-webkit-slider-thumb {
-		margin-top: 0;
-		margin-left: -0.4rem;
-	}
 }

@@ -2623,15 +2623,41 @@ function GetPipeWireAudioPreview()
         return json(array("status" => "ERROR", "message" => "Invalid or missing node name"));
     }
 
-    // Stop whatever was previewing before: one at a time, enforced server-side
-    // so a browser that went away without closing cleanly cannot leave a
-    // stream running and a second one starting alongside it.
+    // TEMPORARY diagnostic: record how the client actually asks for this
+    // stream. A media element does not behave like curl -- it may probe, send
+    // a Range, or reconnect -- and that shapes the logic below.
+    @file_put_contents(
+        $settings['mediaDirectory'] . '/logs/preview-debug.log',
+        date('H:i:s') . " node=$node"
+        . " ua=" . substr(isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '-', 0, 40)
+        . " range=" . (isset($_SERVER['HTTP_RANGE']) ? $_SERVER['HTTP_RANGE'] : '-')
+        . " accept=" . (isset($_SERVER['HTTP_ACCEPT']) ? substr($_SERVER['HTTP_ACCEPT'], 0, 30) : '-')
+        . "\n",
+        FILE_APPEND
+    );
+
+    // Only one preview at a time, but keyed on the node: a browser routinely
+    // opens more than one request for a single media element (an initial fetch
+    // then a ranged or retried one), and killing the previous stream on every
+    // request tore down the very stream that element was playing. Switching to
+    // a different output still stops the old one, which is the behaviour that
+    // actually matters; a duplicate for the same node is transient -- the
+    // abandoned one dies when its client goes away, and the runtime cap bounds
+    // it regardless.
+    //
     // Under the media dir, not /run: the pid is written by the sudo'd shell
     // (root) but has to be removed by this script running as the web user, and
     // unlinking needs write permission on the containing directory.
     $lockFile = $settings['mediaDirectory'] . '/tmp/pipewire-preview.pid';
-    PipeWirePreviewKill(@file_get_contents($lockFile));
-    @unlink($lockFile);
+    $prev = trim(strval(@file_get_contents($lockFile)));
+    if ($prev !== '') {
+        $parts = explode(' ', $prev, 2);
+        $prevNode = isset($parts[1]) ? trim($parts[1]) : '';
+        if ($prevNode !== $node) {
+            PipeWirePreviewKill($parts[0]);
+            @unlink($lockFile);
+        }
+    }
 
     $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse";
     $monitor = escapeshellarg($node . '.monitor');
@@ -2659,10 +2685,22 @@ function GetPipeWireAudioPreview()
     // preview replaces it.  Cleanup belongs here rather than only in PHP: the
     // file is root-owned, and an aborted request cannot be relied on to run its
     // own teardown.  No exec, so the trap survives to fire.
-    $inner = "echo \$\$ > " . $lockFile . "; " .
-        "trap 'rm -f " . $lockFile . "; exit' TERM INT HUP; " .
-        "timeout " . PREVIEW_MAX_SECONDS . " sh -c " . escapeshellarg($pipeline) . "; " .
-        "rm -f " . $lockFile;
+    // Record the process GROUP id, not $$. setsid forks when its caller is
+    // already a group leader (which the shell proc_open spawns is), so $$ is a
+    // member of the new group rather than its leader -- and "kill -- -$$" then
+    // names a group that does not exist and silently signals nothing, which is
+    // why switching preview never actually stopped the previous stream.
+    // --foreground matters: GNU timeout otherwise runs the pipeline in a process
+    // group of its own, so the group recorded here would not contain parec or
+    // ffmpeg and signalling it did nothing at all.
+    //
+    // "kill -TERM 0" signals this shell's whole group, which is what actually
+    // tears the pipeline down -- on the way out normally, and from the trap
+    // when a different preview replaces this one.
+    $inner = "echo \"\$(ps -o pgid= -p \$\$ | tr -d ' ') " . $node . "\" > " . $lockFile . "; " .
+        "trap 'rm -f " . $lockFile . "; trap - TERM; kill -TERM 0' TERM INT HUP; " .
+        "timeout --foreground " . PREVIEW_MAX_SECONDS . " sh -c " . escapeshellarg($pipeline) . "; " .
+        "rm -f " . $lockFile . "; trap - TERM; kill -TERM 0";
     $cmd = "setsid " . $SUDO . " " . $env . " sh -c " . escapeshellarg($inner);
 
     $descriptors = array(1 => array('pipe', 'w'), 2 => array('file', '/dev/null', 'w'));
@@ -2677,14 +2715,14 @@ function GetPipeWireAudioPreview()
     $myPid = 0;
     for ($i = 0; $i < 20 && $myPid <= 0; $i++) {
         usleep(50000);
-        $myPid = intval(trim(strval(@file_get_contents($lockFile))));
+        $myPid = intval(strtok(trim(strval(@file_get_contents($lockFile))), ' '));
     }
 
     // A disconnecting client aborts the script outright, so the teardown after
     // the read loop is not guaranteed to run.  Shutdown functions still do.
     register_shutdown_function(function () use ($myPid, $lockFile) {
         PipeWirePreviewKill($myPid);
-        if ($myPid > 0 && intval(trim(strval(@file_get_contents($lockFile)))) === $myPid) {
+        if ($myPid > 0 && intval(strtok(trim(strval(@file_get_contents($lockFile))), ' ')) === $myPid) {
             @unlink($lockFile);
         }
     });

@@ -192,15 +192,15 @@ function PWMixerStrip(opts) {
 	var max = opts.max || 100;
 	var muted = !!opts.mute;
 
-	var h = "<div class='pw-mixer-strip border rounded p-2 d-flex flex-md-column align-items-center gap-2" + (muted ? ' opacity-50' : '') + "'>";
+	var h = "<div class='pw-mixer-strip border rounded p-2 d-flex align-items-center gap-2" + (muted ? ' opacity-50' : '') + "'>";
 
-	h += "<div class='pw-mixer-strip-label d-flex align-items-center gap-2 text-truncate' title='" + PWMixerEscape(opts.title || opts.label) + "'>";
+	h += "<div class='pw-mixer-strip-label d-flex align-items-center gap-2' title='" + PWMixerEscape(opts.title || opts.label) + "'>";
 	h += PWMixerLed(opts.nodeName, opts.stateKey);
 	h += "<span class='text-truncate small fw-semibold'>" + PWMixerEscape(opts.label) + '</span>';
 	h += '</div>';
 
 	if (opts.sublabel) {
-		h += "<div class='small text-body-secondary text-truncate d-none d-md-block'>" + PWMixerEscape(opts.sublabel) + '</div>';
+		h += "<div class='small text-body-secondary text-truncate d-none d-xl-block pw-mixer-sublabel'>" + PWMixerEscape(opts.sublabel) + '</div>';
 	}
 
 	h += "<input type='range' class='form-range pw-mixer-slider' min='0' max='" + max + "' value='" + vol + "'";
