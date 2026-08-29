@@ -484,11 +484,18 @@ struct AES67Pipeline {
     uint64_t lastByteCount = 0;
     int     stallCount = 0;              // consecutive checks with no progress
     // Under-delivery detection.  A stall is easy -- bytes stop entirely -- but
-    // the failure that actually bites is partial: after the source has been
-    // idle for 20-odd minutes the send rate settles around 85% of nominal with
-    // periodic gaps, and it never recovers, so a show started after a quiet
-    // afternoon plays broken until fppd is restarted.  bytes-served keeps
+    // the failure that actually bites is partial: after roughly 105-110
+    // minutes of pipeline uptime the send rate settles around 90% of nominal
+    // with periodic RTP timestamp gaps, and it never recovers on its own, so
+    // the stream plays broken until fppd is restarted.  bytes-served keeps
     // climbing throughout, so the stall check above cannot see it.
+    //
+    // It is uptime, not idle.  That took a while to establish because the test
+    // file used for the long runs turned out to be corrupt 79 minutes in, so
+    // every "long playback" was really 79 minutes of audio followed by
+    // silence, and the degradation always landed in the quiet part.  With a
+    // known-good 4 hour source and playback running continuously throughout,
+    // the same degradation arrives at ~110 minutes regardless.
     std::chrono::steady_clock::time_point lastByteTime{};
     int     lowRateCount = 0;
     int     channels = AES67::DEFAULT_CHANNELS;  // for the expected byte rate
