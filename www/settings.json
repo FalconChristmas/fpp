@@ -799,7 +799,7 @@
 			"type": "modal",
 			"modalUrl": "pipewire-routing-matrix.php?modal=1",
 			"icon": "fas fa-th",
-			"buttonText": "Open Routing Matrix",
+			"buttonText": "Configure Routing Matrix",
 			"modalTitle": "PipeWire Routing Matrix",
 			"platforms": [
 				"!MacOS"
