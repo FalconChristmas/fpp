@@ -4755,3 +4755,54 @@ pre.testData,
 .fileponduploader .filepond--drop-label label {
 	min-height: 100px;
 }
+
+/* PipeWire mixer channel strips.
+   Bootstrap has no vertical range input or fixed-width strip, and the layout is
+   driven by the control's behaviour (a fader column that scroll-snaps), so
+   these are the parts that cannot come from utilities. Everything else on the
+   strip uses stock Bootstrap classes. */
+.pw-mixer-strips {
+	overflow-x: auto;
+	scroll-snap-type: x proximity;
+}
+
+.pw-mixer-strip {
+	scroll-snap-align: start;
+}
+
+.pw-mixer-strip .pw-mixer-slider {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.pw-mixer-strip .pw-mixer-strip-label {
+	max-width: 100%;
+}
+
+/* Comfortable touch targets: match the existing round volume buttons rather
+   than shrinking controls to fit more channels on a phone screen. */
+.pw-mixer-strip .btn {
+	min-width: 44px;
+	min-height: 40px;
+}
+
+@media (min-width: 768px) {
+	.pw-mixer-strip {
+		width: 116px;
+		flex: 0 0 auto;
+	}
+
+	/* Vertical fader. A rotated input is unreliable to drag on touch, so this
+	   only applies from the md breakpoint up, where there is a pointer. */
+	.pw-mixer-strip .pw-mixer-slider {
+		writing-mode: vertical-lr;
+		direction: rtl;
+		width: 1.5rem;
+		height: 140px;
+		flex: 0 0 auto;
+	}
+
+	.pw-mixer-strip .pw-mixer-strip-label {
+		min-height: 2.5em;
+	}
+}

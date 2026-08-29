@@ -135,7 +135,11 @@ dispatch_post('/pipewire/audio/routing/presets/live-apply', 'LiveApplyRoutingPre
 dispatch_delete('/pipewire/audio/routing/presets/:name', 'DeleteRoutingPreset');
 dispatch_post('/pipewire/audio/stream/volume', 'SetStreamSlotVolume');
 dispatch_get('/pipewire/audio/stream/status', 'GetStreamSlotStatus');
+dispatch_get('/pipewire/audio/stream/volumes', 'GetStreamSlotVolumes');
 dispatch_post('/pipewire/audio/group/volume', 'SetPipeWireGroupVolume');
+dispatch_get('/pipewire/audio/node-states', 'GetPipeWireNodeStates');
+dispatch_get('/pipewire/audio/targets', 'GetPipeWireVolumeTargets');
+dispatch_get('/pipewire/audio/preview', 'GetPipeWireAudioPreview');
 dispatch_post('/pipewire/audio/eq/update', 'UpdatePipeWireEQRealtime');
 dispatch_post('/pipewire/audio/delay/update', 'UpdatePipeWireDelayRealtime');
 dispatch_post('/pipewire/audio/sync/start', 'StartSyncCalibration');

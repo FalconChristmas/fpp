@@ -19,6 +19,37 @@
 #include "StreamSlotManager.h"
 #include "GStreamerOut.h"
 #include "mediaoutput.h"
+#include "common.h"
+#include "settings.h"
+
+// The volume the user last set for a slot, from pipewire-stream-slots.json.
+// Slot volumes are set on a node that only exists while that slot is playing,
+// so they cannot be restored at boot the way group volumes are -- the node has
+// to be reapplied each time the slot starts instead.  Slot 1 is absent by
+// design: it maps to the global master volume, which is persisted separately
+// as the "volume" setting and already restored on its own path.
+//
+// KEEP IN SYNC with SaveStreamSlotVolume()/GetStreamSlotVolumes() in
+// www/api/controllers/pipewire.php.
+static int savedStreamSlotVolume(int slot) {
+    if (slot < 2) {
+        return -1;
+    }
+    Json::Value root;
+    if (!LoadJsonFromFile(FPP_DIR_CONFIG("/pipewire-stream-slots.json"), root) ||
+        !root.isMember("slots")) {
+        return -1;
+    }
+    std::string key = std::to_string(slot);
+    if (!root["slots"].isMember(key)) {
+        return -1;
+    }
+    int v = root["slots"][key].asInt();
+    if (v < 0 || v > 100) {
+        return -1;
+    }
+    return v;
+}
 
 StreamSlotManager::StreamSlotManager() {
     for (int i = 0; i < MAX_SLOTS; i++) {
@@ -57,6 +88,11 @@ void StreamSlotManager::SetActiveOutput(int slot, GStreamerOutput* output) {
         m_slots[slot - 1].mediaFilename = output->m_mediaFilename;
         LogInfo(VB_MEDIAOUT, "StreamSlotManager: slot %d active (%s)\n", slot,
                 output->m_mediaFilename.c_str());
+        int saved = savedStreamSlotVolume(slot);
+        if (saved >= 0) {
+            output->SetVolume(saved);
+            LogDebug(VB_MEDIAOUT, "StreamSlotManager: restored slot %d volume to %d%%\n", slot, saved);
+        }
     }
 #endif
 }

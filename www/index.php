@@ -12,6 +12,15 @@
     ?>
     <script type="text/javascript" src="bootstrap-table/js/bootstrap-table.min.js?ref=<?= filemtime('bootstrap-table/js/bootstrap-table.min.js'); ?>"></script>
     <script type="text/javascript" src="bootstrap-table/extensions/bootstrap-table-filter-control.min.js?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-filter-control.min.js'); ?>"></script>
+    <?php
+    // The mixer only has anything to show in PipeWire Advanced mode, where the
+    // graph actually has multiple independently controllable levels.
+    $pwAdvancedMode = isset($settings['MediaBackend']) && strtolower($settings['MediaBackend']) == 'pipewire';
+    if ($pwAdvancedMode) {
+        ?>
+        <script type="text/javascript"
+            src="js/pipewire-mixer.js?ref=<?php echo filemtime('js/pipewire-mixer.js'); ?>"></script>
+    <?php } ?>
     <link rel="stylesheet" href="bootstrap-table/css/bootstrap-table.min.css?ref=<?= filemtime('bootstrap-table/css/bootstrap-table.min.css'); ?>">
     <link rel="stylesheet" href="bootstrap-table/extensions/bootstrap-table-filter-control.min.css?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-filter-control.min.css'); ?>">
 
@@ -476,6 +485,13 @@
                                     aria-label="IncrementVolume">
                                     <i class='fas fa-fw fa-volume-up'></i>
                                 </button>
+                                <?php if ($pwAdvancedMode) { ?>
+                                    <button class='volumeButton buttons' onClick="OpenPipeWireMixer();"
+                                        aria-label="OpenAudioMixer"
+                                        title="Open the audio mixer for per-stream, per-group and per-route levels">
+                                        <i class='fas fa-fw fa-sliders-h'></i>
+                                    </button>
+                                <?php } ?>
                                 <span id='speaker_d_flex'></span> <!-- Volume -->
                             </div>
                             <?php
@@ -682,6 +698,13 @@
                                                             onClick="IncrementVolume();" aria-label="IncrementVolume">
                                                             <i class='fas fa-fw fa-volume-up'></i>
                                                         </button>
+                                                        <?php if ($pwAdvancedMode) { ?>
+                                                            <button class='volumeButton buttons'
+                                                                onClick="OpenPipeWireMixer();" aria-label="OpenAudioMixer"
+                                                                title="Open the audio mixer for per-stream, per-group and per-route levels">
+                                                                <i class='fas fa-fw fa-sliders-h'></i>
+                                                            </button>
+                                                        <?php } ?>
                                                         <span id='speaker'></span> <!-- Volume -->
                                                         </div>
                                                         <?php

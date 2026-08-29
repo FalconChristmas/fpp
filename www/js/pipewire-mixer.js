@@ -1,0 +1,631 @@
+/*
+ * PipeWire Mixer -- realtime multi-node volume control for the player page.
+ *
+ * The main page's volume slider drives one global master. In PipeWire Advanced
+ * mode the graph has many independently controllable levels (media stream
+ * slots, output groups and their per-card members, input-group members, and
+ * routing-matrix paths); this dialog surfaces all of them at once.
+ *
+ * Reads and writes go to the same /api/pipewire/audio/* endpoints the Settings
+ * pages use, so there is one implementation of the node resolution and the
+ * changes persist the same way.
+ */
+
+var pwMixer = {
+	pollTimer: null,
+	pollMs: 2000,
+	saveTimers: {},
+	// Cached model, rebuilt each poll. Kept so a slider drag can update the
+	// local value immediately without waiting for the next poll to confirm.
+	data: { groups: [], inputGroups: [], routing: [], slots: [], slotVolumes: {}, nodeStates: {} },
+	// Sliders the user is actively dragging, keyed by control id. A poll must
+	// not yank the thumb out from under a finger mid-drag.
+	dragging: {},
+	openSections: null,
+	previewNode: null,
+};
+
+function PWMixerSectionOpen(id) {
+	if (pwMixer.openSections === null) {
+		pwMixer.openSections = {};
+		try {
+			var saved = localStorage.getItem('pwMixerOpenSections');
+			if (saved) {
+				pwMixer.openSections = JSON.parse(saved);
+			}
+		} catch (e) {
+			// Private mode / storage disabled -- fall through to defaults.
+		}
+	}
+	if (typeof pwMixer.openSections[id] === 'undefined') {
+		// Streams and output groups are what most people came for.
+		return id === 'streams' || id === 'groups';
+	}
+	return !!pwMixer.openSections[id];
+}
+
+function PWMixerToggleSection(id) {
+	PWMixerSectionOpen(id);
+	pwMixer.openSections[id] = !pwMixer.openSections[id];
+	try {
+		localStorage.setItem('pwMixerOpenSections', JSON.stringify(pwMixer.openSections));
+	} catch (e) {
+		// Not being able to remember the layout is not worth surfacing.
+	}
+	PWMixerRender();
+}
+
+function OpenPipeWireMixer() {
+	DoModalDialog({
+		id: 'pipewireMixerDialog',
+		title: 'Audio Mixer',
+		// Fullscreen on phones: this is a control surface people reach for
+		// mid-show on a handset, not a desktop-only settings panel.
+		class: 'modal-xl modal-dialog-scrollable modal-fullscreen-sm-down',
+		// The preview host lives outside the polled region: re-rendering it
+		// every 2s would tear down and restart the <audio> element mid-listen.
+		body:
+			"<div id='pwMixerBody'><div class='text-center p-4'><i class='fas fa-spinner fa-spin'></i> Loading mixer...</div></div>" +
+			"<div id='pwMixerPreviewHost'></div>",
+		buttons: {
+			Close: function () {
+				CloseModalDialog('pipewireMixerDialog');
+			},
+		},
+	});
+
+	$('#pipewireMixerDialog')
+		.off('shown.bs.modal.pwmixer')
+		.on('shown.bs.modal.pwmixer', function () {
+			PWMixerStartPolling();
+		});
+	$('#pipewireMixerDialog')
+		.off('hidden.bs.modal.pwmixer')
+		.on('hidden.bs.modal.pwmixer', function () {
+			PWMixerStopPolling();
+			PWMixerStopPreview();
+		});
+}
+
+function PWMixerStartPolling() {
+	PWMixerStopPolling();
+	PWMixerPoll();
+}
+
+function PWMixerStopPolling() {
+	if (pwMixer.pollTimer) {
+		clearTimeout(pwMixer.pollTimer);
+		pwMixer.pollTimer = null;
+	}
+}
+
+function PWMixerSchedulePoll() {
+	PWMixerStopPolling();
+	if (!$('#pipewireMixerDialog').is(':visible')) {
+		return;
+	}
+	// Don't burn a phone's battery/data polling a graph nobody is looking at.
+	if (document.hidden) {
+		pwMixer.pollTimer = setTimeout(PWMixerSchedulePoll, pwMixer.pollMs);
+		return;
+	}
+	pwMixer.pollTimer = setTimeout(PWMixerPoll, pwMixer.pollMs);
+}
+
+function PWMixerPoll() {
+	$.when(
+		$.ajax({ url: 'api/pipewire/audio/groups', dataType: 'json' }),
+		$.ajax({ url: 'api/pipewire/audio/input-groups', dataType: 'json' }),
+		$.ajax({ url: 'api/pipewire/audio/routing', dataType: 'json' }),
+		$.ajax({ url: 'api/pipewire/audio/stream/status', dataType: 'json' }),
+		$.ajax({ url: 'api/pipewire/audio/stream/volumes', dataType: 'json' }),
+		$.ajax({ url: 'api/pipewire/audio/node-states', dataType: 'json' })
+	)
+		.done(function (groups, inputGroups, routing, slots, slotVolumes, nodeStates) {
+			pwMixer.data.groups = (groups[0] && groups[0].groups) || [];
+			pwMixer.data.inputGroups = (inputGroups[0] && inputGroups[0].inputGroups) || [];
+			pwMixer.data.routing = (routing[0] && routing[0].matrix) || [];
+			pwMixer.data.slots = (slots[0] && slots[0].slots) || slots[0] || [];
+			pwMixer.data.slotVolumes = (slotVolumes[0] && slotVolumes[0].slots) || {};
+			pwMixer.data.nodeStates = (nodeStates[0] && nodeStates[0].nodes) || {};
+			PWMixerRender();
+		})
+		.fail(function () {
+			$('#pwMixerBody').html(
+				"<div class='alert alert-warning'>Could not read the PipeWire graph. Is the PipeWire backend running?</div>"
+			);
+		})
+		.always(function () {
+			PWMixerSchedulePoll();
+		});
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Rendering
+
+function PWMixerNodeState(nodeName) {
+	if (!nodeName) {
+		return 'unknown';
+	}
+	return pwMixer.data.nodeStates[nodeName] || 'unknown';
+}
+
+// Activity LED. "running" means PipeWire is actually moving audio through the
+// node right now; everything else is idle/absent.
+function PWMixerLed(nodeName) {
+	var state = PWMixerNodeState(nodeName);
+	var cls = 'text-secondary';
+	var title = 'Idle';
+	if (state === 'running') {
+		cls = 'text-success';
+		title = 'Signal present';
+	} else if (state === 'error') {
+		cls = 'text-danger';
+		title = 'Error';
+	} else if (state === 'unknown') {
+		cls = 'text-body-tertiary';
+		title = 'Not present in the graph';
+	}
+	return "<i class='fas fa-circle fs-6 " + cls + "' title='" + title + "'></i>";
+}
+
+// One control: activity LED, label, slider, readout, mute, optional preview.
+// Rendered as a row on phones and a column (channel strip) from md up.
+function PWMixerStrip(opts) {
+	var id = opts.id;
+	var vol = parseInt(opts.volume, 10);
+	if (isNaN(vol)) {
+		vol = 100;
+	}
+	var max = opts.max || 100;
+	var muted = !!opts.mute;
+
+	var h = "<div class='pw-mixer-strip border rounded p-2 d-flex flex-md-column align-items-center gap-2" + (muted ? ' opacity-50' : '') + "'>";
+
+	h += "<div class='pw-mixer-strip-label d-flex align-items-center gap-2 text-truncate' title='" + PWMixerEscape(opts.title || opts.label) + "'>";
+	h += PWMixerLed(opts.nodeName);
+	h += "<span class='text-truncate small fw-semibold'>" + PWMixerEscape(opts.label) + '</span>';
+	h += '</div>';
+
+	if (opts.sublabel) {
+		h += "<div class='small text-body-secondary text-truncate d-none d-md-block'>" + PWMixerEscape(opts.sublabel) + '</div>';
+	}
+
+	h += "<input type='range' class='form-range pw-mixer-slider' min='0' max='" + max + "' value='" + vol + "'";
+	h += " id='" + id + "' aria-label='" + PWMixerEscape(opts.label) + " volume'";
+	h += ' oninput="PWMixerSlide(this,\'' + id + "')\"";
+	h += ' onchange="PWMixerSlideEnd(\'' + id + "')\"";
+	h += ' onpointerdown="PWMixerDragStart(\'' + id + "')\"";
+	h += ' onpointerup="PWMixerDragEnd(\'' + id + "')\"";
+	h += ' onpointercancel="PWMixerDragEnd(\'' + id + "')\"" + '>';
+
+	h += "<span class='pw-mixer-value small text-body-secondary' id='" + id + "_val'>" + vol + '%</span>';
+
+	h += "<div class='d-flex gap-1'>";
+	// Stream slots have no mute in the API (their level is the only control),
+	// so don't offer a button that cannot do anything.
+	if (!opts.noMute) {
+		h += "<button type='button' class='btn btn-sm " + (muted ? 'btn-danger' : 'btn-outline-secondary') + "'";
+		h += " onclick=\"PWMixerToggleMute('" + id + "')\" aria-label='Mute " + PWMixerEscape(opts.label) + "'>";
+		h += "<i class='fas fa-fw fa-volume-" + (muted ? 'mute' : 'up') + "'></i></button>";
+	}
+	if (opts.nodeName) {
+		var previewing = pwMixer.previewNode === opts.nodeName;
+		h += "<button type='button' class='btn btn-sm " + (previewing ? 'btn-primary' : 'btn-outline-secondary') + "'";
+		h += " onclick=\"PWMixerTogglePreview('" + PWMixerEscape(opts.nodeName) + "')\" title='Listen to this output'";
+		h += " aria-label='Preview " + PWMixerEscape(opts.label) + "'>";
+		h += "<i class='fas fa-fw fa-" + (previewing ? 'stop' : 'headphones') + "'></i></button>";
+	}
+	h += '</div>';
+
+	h += '</div>';
+	return h;
+}
+
+function PWMixerEscape(s) {
+	return $('<div>').text(s === null || typeof s === 'undefined' ? '' : s).html().replace(/'/g, '&#39;');
+}
+
+function PWMixerSection(id, title, badge, bodyHtml) {
+	var open = PWMixerSectionOpen(id);
+	var h = "<section class='mb-3'>";
+	h += "<button type='button' class='btn btn-link text-decoration-none w-100 d-flex align-items-center gap-2 px-0' onclick=\"PWMixerToggleSection('" + id + "')\" aria-expanded='" + open + "'>";
+	h += "<i class='fas fa-fw fa-chevron-" + (open ? 'down' : 'right') + "'></i>";
+	h += "<span class='fw-semibold'>" + PWMixerEscape(title) + '</span>';
+	if (badge) {
+		h += "<span class='badge text-bg-secondary ms-auto'>" + PWMixerEscape(badge) + '</span>';
+	}
+	h += '</button>';
+	if (open) {
+		h += "<div class='pw-mixer-strips d-flex flex-column flex-md-row flex-md-wrap gap-2 pt-1'>" + bodyHtml + '</div>';
+	}
+	return h + '</section>';
+}
+
+function PWMixerRender() {
+	// A poll landing mid-drag would rebuild the input under the user's finger
+	// and snap the thumb back to the server's (older) value.
+	for (var held in pwMixer.dragging) {
+		if (pwMixer.dragging[held]) {
+			return;
+		}
+	}
+
+	var d = pwMixer.data;
+	var h = '';
+
+	// --- Media stream slots ---
+	var slotHtml = '';
+	var activeSlots = 0;
+	var slots = Array.isArray(d.slots) ? d.slots : [];
+	for (var i = 0; i < slots.length; i++) {
+		var s = slots[i];
+		var slotNum = s.slot;
+		var playing = s.status === 'playing';
+		if (playing) {
+			activeSlots++;
+		}
+		var vol = slotNum === 1 ? PWMixerMasterVolume() : d.slotVolumes[String(slotNum)];
+		if (typeof vol === 'undefined') {
+			vol = 100;
+		}
+		slotHtml += PWMixerStrip({
+			id: 'pwm_slot_' + slotNum,
+			label: 'Slot ' + slotNum + (slotNum === 1 ? ' (master)' : ''),
+			sublabel: s.mediaFilename || (playing ? 'Playing' : 'Idle'),
+			title: s.nodeName,
+			nodeName: s.nodeName,
+			volume: vol,
+			noMute: true,
+		});
+	}
+	if (!slotHtml) {
+		slotHtml = "<div class='text-body-secondary small'>No media stream slots reported.</div>";
+	}
+	h += PWMixerSection('streams', 'Media Stream Slots', activeSlots + ' active', slotHtml);
+
+	// --- Output groups (and their per-card members) ---
+	var groupHtml = '';
+	var enabledGroups = 0;
+	for (var g = 0; g < d.groups.length; g++) {
+		var grp = d.groups[g];
+		if (!grp.enabled) {
+			continue;
+		}
+		enabledGroups++;
+		var groupNode = 'fpp_group_' + PWMixerSlug(grp.name);
+		groupHtml += PWMixerStrip({
+			id: 'pwm_group_' + g,
+			label: grp.name,
+			sublabel: 'Group',
+			title: groupNode,
+			nodeName: groupNode,
+			volume: typeof grp.volume === 'undefined' ? 100 : grp.volume,
+			mute: grp.mute,
+			max: 150,
+		});
+		var members = grp.members || [];
+		for (var m = 0; m < members.length; m++) {
+			var mbr = members[m];
+			if (!mbr.cardId) {
+				continue;
+			}
+			var fxNode = 'fpp_fx_g' + grp.id + '_' + PWMixerSlug(mbr.cardId);
+			groupHtml += PWMixerStrip({
+				id: 'pwm_member_' + g + '_' + m,
+				label: mbr.cardId,
+				sublabel: grp.name,
+				title: fxNode,
+				nodeName: fxNode,
+				volume: typeof mbr.volume === 'undefined' ? 100 : mbr.volume,
+				mute: mbr.mute,
+				max: 150,
+			});
+		}
+	}
+	if (!groupHtml) {
+		groupHtml = "<div class='text-body-secondary small'>No enabled output groups.</div>";
+	}
+	h += PWMixerSection('groups', 'Output Groups', enabledGroups + ' enabled', groupHtml);
+
+	// --- Input groups (mix buses) and their members ---
+	var inputHtml = '';
+	var inputCount = 0;
+	for (var ig = 0; ig < d.inputGroups.length; ig++) {
+		var grp2 = d.inputGroups[ig];
+		if (!grp2.enabled) {
+			continue;
+		}
+		inputCount++;
+		var mbrs = grp2.members || [];
+		for (var mi = 0; mi < mbrs.length; mi++) {
+			var im = mbrs[mi];
+			inputHtml += PWMixerStrip({
+				id: 'pwm_input_' + grp2.id + '_' + mi,
+				label: im.name || 'Member ' + mi,
+				sublabel: grp2.name,
+				volume: typeof im.volume === 'undefined' ? 100 : im.volume,
+				mute: im.mute,
+			});
+		}
+	}
+	if (!inputHtml) {
+		inputHtml = "<div class='text-body-secondary small'>No enabled input groups.</div>";
+	}
+	h += PWMixerSection('inputs', 'Input Groups', inputCount + ' enabled', inputHtml);
+
+	// --- Routing matrix paths ---
+	var routeHtml = '';
+	var routeCount = 0;
+	for (var r = 0; r < d.routing.length; r++) {
+		var row = d.routing[r];
+		var paths = row.paths || [];
+		for (var p = 0; p < paths.length; p++) {
+			var path = paths[p];
+			if (!path.connected) {
+				continue;
+			}
+			routeCount++;
+			routeHtml += PWMixerStrip({
+				id: 'pwm_route_' + row.inputGroupId + '_' + path.outputGroupId,
+				label: row.inputGroupName + ' → ' + path.outputGroupName,
+				sublabel: 'Route',
+				volume: typeof path.volume === 'undefined' ? 100 : path.volume,
+				mute: path.mute,
+			});
+		}
+	}
+	if (!routeHtml) {
+		routeHtml = "<div class='text-body-secondary small'>No connected routing paths.</div>";
+	}
+	h += PWMixerSection('routing', 'Routing Matrix', routeCount + ' connected', routeHtml);
+
+	$('#pwMixerBody').html(h);
+}
+
+// Node names are slugged identically everywhere in the PHP side; mirror it here
+// so the JS can address a node without another round trip.
+// KEEP IN SYNC with the preg_replace slug in www/api/controllers/pipewire.php.
+function PWMixerSlug(s) {
+	return String(s)
+		.toLowerCase()
+		.replace(/[^a-z0-9_]/g, '_');
+}
+
+function PWMixerMasterVolume() {
+	var v = parseInt($('#slider').val(), 10);
+	return isNaN(v) ? 100 : v;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Interaction
+
+function PWMixerDragStart(id) {
+	pwMixer.dragging[id] = true;
+}
+
+function PWMixerDragEnd(id) {
+	delete pwMixer.dragging[id];
+}
+
+function PWMixerSlide(el, id) {
+	$('#' + id + '_val').text(el.value + '%');
+	var key = 'v_' + id;
+	if (pwMixer.saveTimers[key]) {
+		clearTimeout(pwMixer.saveTimers[key]);
+	}
+	pwMixer.saveTimers[key] = setTimeout(function () {
+		PWMixerSend(id, parseInt(el.value, 10), null);
+	}, 60);
+}
+
+function PWMixerSlideEnd(id) {
+	PWMixerDragEnd(id);
+}
+
+function PWMixerToggleMute(id) {
+	var target = PWMixerParseId(id);
+	if (!target) {
+		return;
+	}
+	var current = PWMixerCurrentMute(target);
+	PWMixerSend(id, null, !current);
+}
+
+// Resolve a control id back to the model entry it came from, so a mute toggle
+// knows the current state and a send knows which endpoint to call.
+function PWMixerParseId(id) {
+	var parts = id.split('_');
+	var kind = parts[1];
+	if (kind === 'slot') {
+		return { kind: 'slot', slot: parseInt(parts[2], 10) };
+	}
+	if (kind === 'group') {
+		return { kind: 'group', groupIndex: parseInt(parts[2], 10) };
+	}
+	if (kind === 'member') {
+		return { kind: 'member', groupIndex: parseInt(parts[2], 10), memberIndex: parseInt(parts[3], 10) };
+	}
+	if (kind === 'input') {
+		return { kind: 'input', groupId: parseInt(parts[2], 10), memberIndex: parseInt(parts[3], 10) };
+	}
+	if (kind === 'route') {
+		return { kind: 'route', inputGroupId: parseInt(parts[2], 10), outputGroupId: parseInt(parts[3], 10) };
+	}
+	return null;
+}
+
+function PWMixerCurrentMute(t) {
+	var d = pwMixer.data;
+	if (t.kind === 'group') {
+		return !!(d.groups[t.groupIndex] && d.groups[t.groupIndex].mute);
+	}
+	if (t.kind === 'member') {
+		var grp = d.groups[t.groupIndex];
+		return !!(grp && grp.members && grp.members[t.memberIndex] && grp.members[t.memberIndex].mute);
+	}
+	if (t.kind === 'input') {
+		for (var i = 0; i < d.inputGroups.length; i++) {
+			if (d.inputGroups[i].id === t.groupId) {
+				var m = (d.inputGroups[i].members || [])[t.memberIndex];
+				return !!(m && m.mute);
+			}
+		}
+	}
+	if (t.kind === 'route') {
+		for (var r = 0; r < d.routing.length; r++) {
+			if (d.routing[r].inputGroupId !== t.inputGroupId) {
+				continue;
+			}
+			var paths = d.routing[r].paths || [];
+			for (var p = 0; p < paths.length; p++) {
+				if (paths[p].outputGroupId === t.outputGroupId) {
+					return !!paths[p].mute;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+// volume === null means "mute toggle only"; mute === null means "volume only".
+function PWMixerSend(id, volume, mute) {
+	var t = PWMixerParseId(id);
+	if (!t) {
+		return;
+	}
+	var d = pwMixer.data;
+	var url = null;
+	var body = {};
+	// On a mute toggle the caller passes no volume; send the level the control
+	// is currently showing so an endpoint that needs one (routing restores the
+	// level on unmute) gets the real value rather than a placeholder.
+	var curVol = volume;
+	if (curVol === null) {
+		curVol = parseInt($('#' + id).val(), 10);
+		if (isNaN(curVol)) {
+			curVol = 100;
+		}
+	}
+
+	if (t.kind === 'slot') {
+		url = 'api/pipewire/audio/stream/volume';
+		body = { slot: t.slot, volume: volume };
+		// Slot 1 is the global master; keep the page's own slider in step.
+		if (t.slot === 1 && volume !== null) {
+			$('#slider').val(volume);
+			$('#volume').html(volume);
+		}
+	} else if (t.kind === 'group' || t.kind === 'member') {
+		var grp = d.groups[t.groupIndex];
+		if (!grp) {
+			return;
+		}
+		var sink;
+		if (t.kind === 'group') {
+			sink = 'fpp_group_' + PWMixerSlug(grp.name);
+			if (volume !== null) {
+				grp.volume = volume;
+			}
+			if (mute !== null) {
+				grp.mute = mute;
+			}
+		} else {
+			var mbr = (grp.members || [])[t.memberIndex];
+			if (!mbr) {
+				return;
+			}
+			sink = 'fpp_fx_g' + grp.id + '_' + PWMixerSlug(mbr.cardId);
+			if (volume !== null) {
+				mbr.volume = volume;
+			}
+			if (mute !== null) {
+				mbr.mute = mute;
+			}
+		}
+		url = 'api/pipewire/audio/group/volume';
+		body = { sink: sink, volume: curVol };
+		if (mute !== null) {
+			body.mute = mute;
+		}
+	} else if (t.kind === 'input') {
+		url = 'api/pipewire/audio/input-groups/volume';
+		body = { groupId: t.groupId, memberIndex: t.memberIndex, volume: curVol };
+		if (mute !== null) {
+			body.mute = mute;
+		}
+	} else if (t.kind === 'route') {
+		url = 'api/pipewire/audio/routing/volume';
+		body = {
+			inputGroupId: t.inputGroupId,
+			outputGroupId: t.outputGroupId,
+			volume: curVol,
+		};
+		if (mute !== null) {
+			body.mute = mute;
+		}
+	}
+
+	if (!url) {
+		return;
+	}
+
+	$.ajax({
+		url: url,
+		method: 'POST',
+		contentType: 'application/json',
+		data: JSON.stringify(body),
+		error: function () {
+			console.warn('PipeWire mixer: failed to set ' + id);
+		},
+	}).done(function () {
+		if (mute !== null) {
+			// Re-render so the button reflects the new state immediately
+			// rather than waiting for the next poll.
+			PWMixerRender();
+		}
+	});
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Preview / audition
+
+// Only one preview runs at a time -- the server enforces this too, but
+// switching here keeps the UI honest about what is actually playing.
+// The <audio> element is built inside the click handler's own turn so mobile
+// browsers count playback as user-initiated rather than blocking autoplay.
+function PWMixerTogglePreview(nodeName) {
+	if (pwMixer.previewNode === nodeName) {
+		PWMixerStopPreview();
+		PWMixerRender();
+		return;
+	}
+	pwMixer.previewNode = nodeName;
+
+	var host = document.getElementById('pwMixerPreviewHost');
+	if (host) {
+		var h = "<div class='alert alert-secondary d-flex align-items-center gap-2 mt-2 mb-0'>";
+		h += "<i class='fas fa-headphones'></i>";
+		h += "<span class='small'>Previewing <strong>" + PWMixerEscape(nodeName) + '</strong></span>';
+		h += "<audio class='ms-auto' controls autoplay src='api/pipewire/audio/preview?node=" + encodeURIComponent(nodeName) + "'></audio>";
+		h += '</div>';
+		host.innerHTML = h;
+	}
+	PWMixerRender();
+}
+
+function PWMixerStopPreview() {
+	pwMixer.previewNode = null;
+	var host = document.getElementById('pwMixerPreviewHost');
+	if (host) {
+		// Detach the source before dropping the element so the browser closes
+		// the connection, which is what stops parec/ffmpeg server-side.
+		var audio = host.querySelector('audio');
+		if (audio) {
+			audio.pause();
+			audio.removeAttribute('src');
+			audio.load();
+		}
+		host.innerHTML = '';
+	}
+}

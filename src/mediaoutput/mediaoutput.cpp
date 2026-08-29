@@ -264,6 +264,25 @@ static const std::vector<std::string>& playbackVolumeControls(int card) {
     return cache.emplace(card, std::move(ctls)).first->second;
 }
 
+// Opus RTP send nodes are named "opusrtp_<safe(name)>_send" by
+// OpusRTPManager::SafeNodeName()+ApplyConfig() (OpusRTPManager.cpp), never
+// fpp_/aes67_ prefixed.  Reimplemented here rather than including
+// OpusRTPManager.h: that header only exists under
+// "#if __has_include(<gst/gst.h>)", so a translation unit that isn't already
+// guarded the same way can't reference it unconditionally.  KEEP IN SYNC with
+// OpusRTPManager::SafeNodeName().
+static std::string opusRtpSafeNodeName(const std::string& name) {
+    std::string result = "opusrtp_";
+    for (char c : name) {
+        if (std::isalnum((unsigned char)c) || c == '_') {
+            result += std::tolower((unsigned char)c);
+        } else {
+            result += '_';
+        }
+    }
+    return result;
+}
+
 // Output sinks the master volume has to attenuate that are NOT FPP-owned.
 //
 // The master targets the terminal output sinks so it multiplies with the group
@@ -280,9 +299,14 @@ static const std::vector<std::string>& playbackVolumeControls(int card) {
 // (it pins them to 100% because WirePlumber initialises them at ~40%), so read
 // the same member list it does and hand the names to the master too.
 //
+// Opus RTP send nodes are a second, separate category: they're FPP-owned but
+// don't carry the fpp_/aes67_ prefix (see opusRtpSafeNodeName() above), so
+// they were being silently skipped the same way HDMI members once were --
+// the master did nothing at all for a box whose only output is Opus RTP.
+//
 // KEEP IN SYNC with restorePipeWireVolumes() in FPPINIT_Audio.cpp and
 // RestorePipeWireGroupVolumes() in pipewire.php -- same file selection, same
-// "not fpp_/aes67_" test.
+// "not fpp_/aes67_" test. Also KEEP IN SYNC with OpusRTPManager::SafeNodeName().
 static std::set<std::string> nonFppOutputSinkNames() {
     std::set<std::string> names;
     // Same default as settings.json: a missing key must not select the retired
@@ -294,30 +318,45 @@ static std::set<std::string> nonFppOutputSinkNames() {
                                                             : "/pipewire-audio-groups.json";
     std::string path = FPP_DIR_CONFIG(groupsFile);
     Json::Value root;
-    if (!LoadJsonFromFile(path, root) || !root.isMember("groups")) {
-        return names;
-    }
-    for (const auto& grp : root["groups"]) {
-        if (!grp.get("enabled", false).asBool() || !grp.isMember("members")) {
-            continue;
-        }
-        for (const auto& mbr : grp["members"]) {
-            std::string t = mbr.get("nodeTarget", "").asString();
-            if (t.empty() || startsWith(t, "fpp_") || startsWith(t, "aes67_")) {
-                continue; // already covered by the prefix match
-            }
-            // Interpolated into a shell command below.  WirePlumber node names
-            // are plain identifiers; anything that could escape the quoting is a
-            // reason to skip the node rather than to quote harder.
-            if (t.find_first_not_of("abcdefghijklmnopqrstuvwxyz"
-                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                    "0123456789_.-") != std::string::npos) {
-                LogWarn(VB_MEDIAOUT, "Skipping master volume for node with unexpected name: %s\n", t.c_str());
+    if (LoadJsonFromFile(path, root) && root.isMember("groups")) {
+        for (const auto& grp : root["groups"]) {
+            if (!grp.get("enabled", false).asBool() || !grp.isMember("members")) {
                 continue;
             }
-            names.insert(t);
+            for (const auto& mbr : grp["members"]) {
+                std::string t = mbr.get("nodeTarget", "").asString();
+                if (t.empty() || startsWith(t, "fpp_") || startsWith(t, "aes67_")) {
+                    continue; // already covered by the prefix match
+                }
+                // Interpolated into a shell command below.  WirePlumber node names
+                // are plain identifiers; anything that could escape the quoting is a
+                // reason to skip the node rather than to quote harder.
+                if (t.find_first_not_of("abcdefghijklmnopqrstuvwxyz"
+                                        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                        "0123456789_.-") != std::string::npos) {
+                    LogWarn(VB_MEDIAOUT, "Skipping master volume for node with unexpected name: %s\n", t.c_str());
+                    continue;
+                }
+                names.insert(t);
+            }
         }
     }
+
+    Json::Value opusRoot;
+    std::string opusPath = FPP_DIR_CONFIG("/pipewire-opus-rtp-instances.json");
+    if (LoadJsonFromFile(opusPath, opusRoot) && opusRoot.isMember("instances")) {
+        for (const auto& inst : opusRoot["instances"]) {
+            if (!inst.get("enabled", true).asBool()) {
+                continue;
+            }
+            if (inst.get("mode", "send").asString() != "send") {
+                continue; // recv nodes are inputs, not outputs the master should touch
+            }
+            std::string name = inst.get("name", "Opus RTP").asString();
+            names.insert(opusRtpSafeNodeName(name) + "_send");
+        }
+    }
+
     return names;
 }
 

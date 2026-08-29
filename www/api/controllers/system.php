@@ -458,8 +458,194 @@ function SystemSetAudio()
     if ($vol > 100) {
         $vol = 100;
     }
+
+    // Optional "target" addresses one node in the PipeWire graph instead of the
+    // global master.  Omitted (the shape every existing caller sends) keeps the
+    // original master-only behaviour untouched.
+    if (isset($input['target'])) {
+        // "adjust" is a delta against the target's own current level, for
+        // Volume Adjust; "volume" is absolute.
+        if (isset($input['adjust'])) {
+            $current = SystemGetTargetVolume($input['target']);
+            if ($current < 0) {
+                http_response_code(400);
+                return json(array("status" => "ERROR", "message" => "Could not read current volume for target"));
+            }
+            $vol = max(0, min(100, $current + intval($input['adjust'])));
+        }
+        return SystemSetTargetedAudio($input['target'], $vol);
+    }
+
     setVolume($vol);
     return json(array("status" => $rc, "volume" => $vol));
+}
+
+/**
+ * Split a volume target into its "type" plus id parts.
+ *
+ * Accepts the flat "type:id[:id2]" key listed by
+ * GET /api/pipewire/audio/targets, or the object form
+ * { "type": "sink", "id": "fpp_group_kitchen" }.
+ */
+function SystemParseVolumeTarget($target)
+{
+    if (is_array($target)) {
+        $parts = array(isset($target['type']) ? $target['type'] : '');
+        if (isset($target['id'])) {
+            $parts[] = strval($target['id']);
+        }
+        if (isset($target['id2'])) {
+            $parts[] = strval($target['id2']);
+        }
+        return $parts;
+    }
+    return explode(':', strval($target));
+}
+
+/**
+ * Current volume (0-100) for a target, or -1 if it cannot be determined.
+ *
+ * Read from the saved PipeWire config rather than the live graph: every setter
+ * now persists on write, so the config is authoritative and readable even when
+ * the node is not currently running (an idle stream slot, a card that is not
+ * playing).
+ */
+function SystemGetTargetVolume($target)
+{
+    global $settings;
+
+    $parts = SystemParseVolumeTarget($target);
+    $type = $parts[0];
+    $mediaDir = $settings['mediaDirectory'];
+
+    if ($type === 'slot' && count($parts) >= 2) {
+        $slot = intval($parts[1]);
+        if ($slot === 1) {
+            return isset($settings['volume']) ? intval($settings['volume']) : -1;
+        }
+        $file = "$mediaDir/config/pipewire-stream-slots.json";
+        if (file_exists($file)) {
+            $data = json_decode(file_get_contents($file), true);
+            if (isset($data['slots'][strval($slot)])) {
+                return intval($data['slots'][strval($slot)]);
+            }
+        }
+        return 100;
+    }
+
+    if ($type === 'sink' && count($parts) >= 2) {
+        $file = "$mediaDir/config/pipewire-audio-groups.json";
+        if (!file_exists($file)) {
+            return -1;
+        }
+        $data = json_decode(file_get_contents($file), true);
+        if (!is_array($data) || !isset($data['groups'])) {
+            return -1;
+        }
+        foreach ($data['groups'] as $group) {
+            $groupName = isset($group['name']) ? $group['name'] : 'Group';
+            $groupNode = 'fpp_group_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($groupName));
+            if ($groupNode === $parts[1]) {
+                return isset($group['volume']) ? intval($group['volume']) : 100;
+            }
+            if (!isset($group['members'])) {
+                continue;
+            }
+            $groupId = isset($group['id']) ? intval($group['id']) : 0;
+            foreach ($group['members'] as $member) {
+                $cardId = isset($member['cardId']) ? $member['cardId'] : '';
+                $fxNode = 'fpp_fx_g' . $groupId . '_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cardId));
+                $nodeTarget = isset($member['nodeTarget']) ? $member['nodeTarget'] : '';
+                if ($fxNode === $parts[1] || ($nodeTarget !== '' && $nodeTarget === $parts[1])) {
+                    return isset($member['volume']) ? intval($member['volume']) : 100;
+                }
+            }
+        }
+        return -1;
+    }
+
+    if (($type === 'input' || $type === 'route') && count($parts) >= 3) {
+        $file = "$mediaDir/config/pipewire-input-groups.json";
+        if (!file_exists($file)) {
+            return -1;
+        }
+        $data = json_decode(file_get_contents($file), true);
+        if (!is_array($data) || !isset($data['inputGroups'])) {
+            return -1;
+        }
+        foreach ($data['inputGroups'] as $ig) {
+            if (intval($ig['id']) !== intval($parts[1])) {
+                continue;
+            }
+            if ($type === 'input') {
+                $idx = intval($parts[2]);
+                if (isset($ig['members'][$idx])) {
+                    return isset($ig['members'][$idx]['volume']) ? intval($ig['members'][$idx]['volume']) : 100;
+                }
+                return -1;
+            }
+            $pathKey = strval(intval($parts[2]));
+            if (isset($ig['routing'][$pathKey]['volume'])) {
+                return intval($ig['routing'][$pathKey]['volume']);
+            }
+            return 100;
+        }
+        return -1;
+    }
+
+    return -1;
+}
+
+/**
+ * Apply a volume to a single PipeWire node.
+ *
+ * $target is either the flat "type:id[:id2]" key listed by
+ * GET /api/pipewire/audio/targets, or the equivalent object form
+ * { "type": "sink", "id": "fpp_group_kitchen" }.  Resolution and the actual
+ * pactl/pw-cli work stay in pipewire.php -- this only routes to the right
+ * setter there.
+ */
+function SystemSetTargetedAudio($target, $vol)
+{
+    $parts = SystemParseVolumeTarget($target);
+    $type = $parts[0];
+
+    switch ($type) {
+        case 'sink':
+            if (count($parts) < 2) {
+                break;
+            }
+            return SetPipeWireGroupVolume(array("sink" => $parts[1], "volume" => $vol));
+        case 'slot':
+            if (count($parts) < 2) {
+                break;
+            }
+            return SetStreamSlotVolume(array("slot" => intval($parts[1]), "volume" => $vol));
+        case 'input':
+            if (count($parts) < 3) {
+                break;
+            }
+            return SetInputGroupMemberVolume(array(
+                "groupId" => intval($parts[1]),
+                "memberIndex" => intval($parts[2]),
+                "volume" => $vol
+            ));
+        case 'route':
+            if (count($parts) < 3) {
+                break;
+            }
+            return SetRoutingPathVolume(array(
+                "inputGroupId" => intval($parts[1]),
+                "outputGroupId" => intval($parts[2]),
+                "volume" => $vol
+            ));
+    }
+
+    http_response_code(400);
+    return json(array(
+        "status" => "ERROR",
+        "message" => "Unrecognized volume target; see GET /api/pipewire/audio/targets"
+    ));
 }
 
 /**
@@ -476,6 +662,21 @@ function SystemSetAudio()
 function SystemGetAudio()
 {
     global $settings;
+
+    // Optional ?target= reports one PipeWire node's level instead of the
+    // master.  Absent (what every existing caller sends) is unchanged.
+    if (isset($_GET['target']) && $_GET['target'] !== '') {
+        $vol = SystemGetTargetVolume($_GET['target']);
+        if ($vol < 0) {
+            http_response_code(404);
+            return json(array(
+                "status" => "ERROR",
+                "message" => "Unknown volume target; see GET /api/pipewire/audio/targets"
+            ));
+        }
+        return json(array("status" => "OK", "method" => "Target",
+            "target" => $_GET['target'], "volume" => $vol));
+    }
 
     $curl = curl_init('http://localhost:32322/fppd/status');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
