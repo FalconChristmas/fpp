@@ -2388,7 +2388,11 @@ function SetStreamSlotVolume($bodyOverride = null)
 
     // Use fppd's volume command — for slot 1 this maps to the global volume
     // For other slots, fppd must handle per-slot volume via StreamSlotManager
-    $url = "http://127.0.0.1:32322/api/command";
+    //
+    // fppd's own HTTP server does not carry the /api prefix that Apache adds
+    // for the PHP API: /api/command there is a 404, so this silently did
+    // nothing while still reporting OK, and slot 1 could not be set at all.
+    $url = "http://127.0.0.1:32322/command";
     $cmd = array(
         "command" => "Volume Set",
         "args" => array(strval($volume))
@@ -2438,7 +2442,15 @@ function SetStreamSlotVolume($bodyOverride = null)
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 3);
     $result = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+
+    // Report the failure rather than an unconditional OK: a caller that is
+    // told the volume was set has no other way to discover it was not.
+    if ($result === false || $code !== 200) {
+        return json(array("status" => "error", "slot" => $slot,
+            "message" => "fppd did not accept the volume command (HTTP $code)"));
+    }
 
     return json(array("status" => "OK", "slot" => $slot, "volume" => $volume));
 }
@@ -2881,8 +2893,10 @@ function GetStreamSlotStatus()
 {
     $result = array();
 
-    // Query fppd status
-    $ch = curl_init("http://127.0.0.1:32322/api/fppd/status");
+    // Query fppd status. No /api prefix: that is added by Apache for the PHP
+    // API and is a 404 on fppd's own server, so this fetched nothing and every
+    // slot reported empty media details.
+    $ch = curl_init("http://127.0.0.1:32322/fppd/status");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 3);
     $raw = curl_exec($ch);
@@ -2922,10 +2936,18 @@ function GetStreamSlotStatus()
             }
         }
 
-        // Slot 1 gets extra info from fppd status
-        if ($slot === 1 && !empty($fppStatus['media_filename'])) {
+        // Slot 1 gets extra info from fppd status. fppd reports the playing
+        // media as current_song; media_filename is not a key it emits, so the
+        // filename was always blank even once the status fetch worked.
+        $nowPlaying = '';
+        if (!empty($fppStatus['current_song'])) {
+            $nowPlaying = $fppStatus['current_song'];
+        } elseif (!empty($fppStatus['media_filename'])) {
+            $nowPlaying = $fppStatus['media_filename'];
+        }
+        if ($slot === 1 && $nowPlaying !== '') {
             $slotInfo['status'] = 'playing';
-            $slotInfo['mediaFilename'] = $fppStatus['media_filename'];
+            $slotInfo['mediaFilename'] = $nowPlaying;
             if (isset($fppStatus['seconds_elapsed']))
                 $slotInfo['secondsElapsed'] = intval($fppStatus['seconds_elapsed']);
             if (isset($fppStatus['seconds_remaining']))

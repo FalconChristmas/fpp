@@ -27,6 +27,9 @@ var pwMixer = {
 	// browser is already receiving (see PWMixerStartMeter).
 	meterCtx: null,
 	meterRaf: null,
+	// Values the user has just set, held briefly so a poll carrying the
+	// pre-change state cannot snap a fader back under them. See PWMixerSlide.
+	pending: {},
 	// Per-node levels pushed by fppd over the status WebSocket, and the
 	// keepalive that tells it which nodes to meter.
 	levels: {},
@@ -198,6 +201,19 @@ function PWMixerStrip(opts) {
 	var vol = parseInt(opts.volume, 10);
 	if (isNaN(vol)) {
 		vol = 100;
+	}
+	// A value the user set moments ago wins over whatever the poll reports,
+	// until the server has had time to catch up. Slot 1 showed this most
+	// clearly: it is the master, so its displayed value comes from the page's
+	// own slider, which the status feed rewrites from fppd about once a second
+	// -- landing before the change registered and snapping the fader back.
+	var pend = pwMixer.pending[id];
+	if (pend) {
+		if (Date.now() < pend.until && pend.value !== vol) {
+			vol = pend.value;
+		} else if (Date.now() >= pend.until || pend.value === vol) {
+			delete pwMixer.pending[id];
+		}
 	}
 	var max = opts.max || 100;
 	var muted = !!opts.mute;
@@ -580,6 +596,8 @@ function PWMixerDragging() {
 
 function PWMixerSlide(el, id) {
 	$('#' + id + '_val').text(el.value + '%');
+	// Held until the server reports it back, or briefly if it never does.
+	pwMixer.pending[id] = { value: parseInt(el.value, 10), until: Date.now() + 3000 };
 	var key = 'v_' + id;
 	if (pwMixer.saveTimers[key]) {
 		clearTimeout(pwMixer.saveTimers[key]);
