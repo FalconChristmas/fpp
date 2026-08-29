@@ -168,8 +168,8 @@ function PWMixerNodeState(nodeName, stateKey) {
 
 // Activity LED. "running" means PipeWire is actually moving audio through the
 // node right now; everything else is idle/absent.
-function PWMixerLed(nodeName, stateKey) {
-	var state = PWMixerNodeState(nodeName, stateKey);
+function PWMixerLed(nodeName, stateKey, explicitState) {
+	var state = explicitState || PWMixerNodeState(nodeName, stateKey);
 	var cls = 'text-secondary';
 	var title = 'Idle';
 	if (state === 'running') {
@@ -199,7 +199,7 @@ function PWMixerStrip(opts) {
 	var h = "<div class='pw-mixer-strip border rounded p-2 d-flex align-items-center gap-2" + (muted ? ' opacity-50' : '') + "'>";
 
 	h += "<div class='pw-mixer-strip-label d-flex align-items-center gap-2' title='" + PWMixerEscape(opts.title || opts.label) + "'>";
-	h += PWMixerLed(opts.nodeName, opts.stateKey);
+	h += PWMixerLed(opts.nodeName, opts.stateKey, opts.state);
 	h += "<span class='text-truncate small fw-semibold'>" + PWMixerEscape(opts.label) + '</span>';
 	h += '</div>';
 
@@ -263,6 +263,23 @@ function PWMixerSection(id, title, badge, bodyHtml) {
 // second press.
 // The page's own master slider, repeated here so the dialog is a complete
 // picture: every level below multiplies with it.
+// The master has no node of its own -- it is applied across every output sink
+// -- so its indicator reflects the graph as a whole: live when anything
+// downstream is actually passing audio.
+function PWMixerAggregateState() {
+	var seen = false;
+	for (var k in pwMixer.data.entities) {
+		var st = pwMixer.data.entities[k];
+		if (st === 'running') {
+			return 'running';
+		}
+		if (st && st !== 'unknown') {
+			seen = true;
+		}
+	}
+	return seen ? 'idle' : 'unknown';
+}
+
 function PWMixerMasterSection() {
 	var vol = PWMixerMasterVolume();
 	var h = "<section class='mb-3'>";
@@ -276,6 +293,7 @@ function PWMixerMasterSection() {
 		sublabel: 'All outputs',
 		title: 'Global master volume -- multiplies with every level below',
 		volume: vol,
+		state: PWMixerAggregateState(),
 		noMute: true,
 	});
 	h += '</div></section>';
