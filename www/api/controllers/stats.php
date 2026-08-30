@@ -499,6 +499,8 @@ function addMultiSyncUUID(&$data)
             $urlHost = fppUrlHost($ip);
             if ($tid >= 160 && $tid < 170) {
                 $curl = curl_init("http://" . $urlHost . "/update/identity");
+            } else if ($tid == 197) {
+                $curl = curl_init("http://" . $urlHost . "/api/system/info");
             } else {
                 $curl = curl_init("http://" . $urlHost . "/api/fppd/status");
             }
