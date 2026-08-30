@@ -1186,6 +1186,65 @@ static void DestroyDriftResampleState(gpointer data) {
     delete st;
 }
 
+// Source-gap instrumentation, deliberately independent of every config switch.
+//
+// The same measurement used to live inside DriftResampleProbe, which meant it
+// only existed when ptpMediaClock and driftResample were both on -- and those
+// are exactly the flags a diagnostic needs to turn off.  Testing whether the
+// PTP pipeline clock is what drains the source pool was impossible for that
+// reason: turning off the clock also turned off the instrument.
+//
+// Sits directly on pipewiresrc's src pad so it sees the source's own timeline
+// before any conversion, and reports each PTS discontinuity against the buffer
+// index it happened at.  The pool empties after (N-1) quanta of accumulated
+// drift -- N with always-copy, which frees the slot a wrapped buffer would
+// hold through the chain -- and from then on the source skips one graph cycle
+// per rotation.  Both the onset and the spacing are read off these lines.
+struct SourceGapState {
+    int instanceId = 0;
+    int rate = AES67::AUDIO_RATE;
+    GstClockTime lastPts = 0;
+    guint64 lastDur = 0;
+    bool have = false;
+    guint64 seen = 0;
+    guint64 gaps = 0;
+};
+
+static void DestroySourceGapState(gpointer data) {
+    delete static_cast<SourceGapState*>(data);
+}
+
+static GstPadProbeReturn SourceGapProbe(GstPad* pad, GstPadProbeInfo* info,
+                                        gpointer user) {
+    auto* st = static_cast<SourceGapState*>(user);
+    GstBuffer* buf = GST_PAD_PROBE_INFO_BUFFER(info);
+    if (!buf) {
+        return GST_PAD_PROBE_OK;
+    }
+    st->seen++;
+    if (GST_BUFFER_PTS_IS_VALID(buf)) {
+        const GstClockTime pts = GST_BUFFER_PTS(buf);
+        if (st->have && pts > st->lastPts) {
+            const gint64 jump = (gint64)(pts - st->lastPts) - (gint64)st->lastDur;
+            if (jump > (gint64)GST_MSECOND) {
+                st->gaps++;
+                LogInfo(VB_MEDIAOUT,
+                        "AES67 source [%d]: gap %+.2f ms at buffer %llu "
+                        "(gap #%llu)\n",
+                        st->instanceId, (double)jump / (double)GST_MSECOND,
+                        (unsigned long long)st->seen,
+                        (unsigned long long)st->gaps);
+            }
+        }
+        st->lastPts = pts;
+        st->lastDur = GST_BUFFER_DURATION_IS_VALID(buf)
+                          ? GST_BUFFER_DURATION(buf)
+                          : 0;
+        st->have = GST_BUFFER_DURATION_IS_VALID(buf);
+    }
+    return GST_PAD_PROBE_OK;
+}
+
 static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
                                             gpointer user) {
     auto* st = static_cast<DriftResampleState*>(user);
@@ -1806,6 +1865,21 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         if (kp) gst_object_unref(kp);
         if (src) gst_object_unref(src);
         if (snk) gst_object_unref(snk);
+    }
+
+    // Always on: see SourceGapProbe.  Costs one comparison per buffer and is
+    // silent unless the source actually skips a cycle.
+    {
+        GstElement* pw = gst_bin_get_by_name(GST_BIN(pipeline), "pwsrc");
+        GstPad* pwpad = pw ? gst_element_get_static_pad(pw, "src") : nullptr;
+        if (pwpad) {
+            auto* gs = new SourceGapState();
+            gs->instanceId = inst.id;
+            gst_pad_add_probe(pwpad, GST_PAD_PROBE_TYPE_BUFFER, SourceGapProbe,
+                              gs, DestroySourceGapState);
+            gst_object_unref(pwpad);
+        }
+        if (pw) gst_object_unref(pw);
     }
 
 #ifdef FPP_HAVE_SAMPLERATE
