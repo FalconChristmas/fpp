@@ -244,8 +244,14 @@ $id = 0;
                             <? } ?>
                         </ul>
                         <div id="settingsManagerTabsContent" class="tab-content">
-                            <div class="spinner-border spinner-danger spinner-lg" role="status">
-                                <span class="visually-hidden">Loading...</span>
+                            <!-- Server-rendered so a spinner is on screen at the very first
+                                 paint, before any JavaScript has run.  Removed once the
+                                 per-tab panes (each with their own spinner) are built. -->
+                            <div id="settingsTabsLoading" class="text-center p-4">
+                                <div class="spinner-border spinner-danger spinner-lg" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <div class="mt-3 text-danger fw-bold">Loading settings...</div>
                             </div>
                         </div>
 
@@ -301,50 +307,118 @@ if(location.hash){
     if( location.hash == '#settings-system'){ activeTabNumber = tabIDs["System"] }
     if( location.hash == '#settings-developer'){ activeTabNumber = tabIDs["Developer"] }
 }
-                var tabs={}
-                $('#settingsManagerTabs .nav-link').each(function(i){
-    var tabName = $(this ).attr('href').slice(1);
-    var dataOption=$(this).data('option');
-    var $tabContent = $('<div class="tab-pane fade" id="'+tabName+'" role="tabpanel" aria-labelledby="'+tabName+'-tab"/>');
-    $('#settingsManagerTabsContent').append($tabContent);
-    if(i                ==activeTabNumber){
-        $tabContent.addClass('show active');
-        $(this).addClass('active');
-                        $.ajax({
-                            url:tabName+".php"
-        }).done(function(data) {
-                            $('#settingsManagerTabsContent .spinner-border').hide();
-                            $tabContent.html(data);
-                            $.each(tabs,function(i,tab){
-                $.ajax({
-                                    url:tab.tabName+".php"
-                                }).done(function(data) {
-                                    tab.$tabContent.html(data);
-                                    UpdateChildSettingsVisibility();
-                                    InitializeTimeInputs();
-                                    InitializeDateInputs();
+                var tabSpinnerHtml = '<div class="text-center p-4">' +
+                    '<div class="spinner-border spinner-danger spinner-lg" role="status">' +
+                    '<span class="visually-hidden">Loading...</span></div>' +
+                    '<div class="mt-3 text-danger fw-bold">Loading settings...</div></div>';
+
+                // 'loading' once a request is in flight, 'loaded' once the content is in
+                // the DOM.  Keeps the prefetch and a click on the same tab from racing.
+                var settingsTabState = {};
+
+                function afterSettingsTabLoad() {
+                    UpdateChildSettingsVisibility();
+                    InitializeTimeInputs();
+                    InitializeDateInputs();
                     SetupToolTips();
-                                })
-                            })
-                        })
-                    }else{
-                        tabs[dataOption]={
-                            navEl: this,
-                            tabNumber: i,
-                            tabName:tabName,
-                            $tabContent:$tabContent
-                        };
+                }
+
+                function loadSettingsTab(tabName, $tabContent, onSuccess) {
+                    if (settingsTabState[tabName]) {
+                        return;
                     }
-                    $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-                        if (($(this).attr("href") == '#settings-localization') &&
-                            ($(this).parent().hasClass('active'))) {
-                            UpdateCurrentTime();
-                        } else if (statusTimeout != null) {
-                            clearTimeout(statusTimeout);
-                            statusTimeout = null;
+                    settingsTabState[tabName] = 'loading';
+                    $tabContent.html(tabSpinnerHtml);
+                    $.ajax({
+                        url: tabName + ".php"
+                    }).done(function (data) {
+                        settingsTabState[tabName] = 'loaded';
+                        $tabContent.html(data);
+                        if (onSuccess) onSuccess();
+                    }).fail(function () {
+                        delete settingsTabState[tabName];
+                        var $error = $('<div class="text-danger p-3">' +
+                            '<i class="fas fa-exclamation-triangle me-2"></i>Failed to load this settings page. ' +
+                            '<a href="#" class="settingsTabRetry">Retry</a></div>');
+                        $error.find('.settingsTabRetry').on('click', function (e) {
+                            e.preventDefault();
+                            loadSettingsTab(tabName, $tabContent, onSuccess);
+                        });
+                        $tabContent.html($error);
+                    });
+                }
+
+                // A hash (or ?tab=) naming a tab that isn't present at this UI level
+                // leaves activeTabNumber undefined, which would leave every pane hidden
+                // and nothing loaded at all.  Fall back to the first tab.
+                var settingsTabCount = $('#settingsManagerTabs .nav-link').length;
+                if (typeof activeTabNumber !== 'number' || isNaN(activeTabNumber) ||
+                    activeTabNumber < 0 || activeTabNumber >= settingsTabCount) {
+                    activeTabNumber = 0;
+                }
+
+                var tabs = {};
+                $('#settingsManagerTabs .nav-link').each(function (i) {
+                    var tabName = $(this).attr('href').slice(1);
+                    var dataOption = $(this).data('option');
+                    var $tabContent = $('<div class="tab-pane fade" id="' + tabName + '" role="tabpanel" aria-labelledby="' + tabName + '-tab"></div>').html(tabSpinnerHtml);
+                    $('#settingsManagerTabsContent').append($tabContent);
+                    tabs[dataOption] = {
+                        navEl: this,
+                        tabNumber: i,
+                        tabName: tabName,
+                        $tabContent: $tabContent
+                    };
+                    if (i == activeTabNumber) {
+                        $tabContent.addClass('show active');
+                        $(this).addClass('active');
+                    }
+                });
+                // Each pane now carries its own spinner, so the placeholder one that was
+                // in the server-rendered HTML is no longer needed.
+                $('#settingsTabsLoading').remove();
+
+                // Load the visible tab first, then prefetch the rest in the background.
+                // A tab clicked before its prefetch finishes keeps showing its spinner;
+                // one clicked before its prefetch has started begins loading right away.
+                $('#settingsManagerTabs a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+                    var tab = tabs[$(this).data('option')];
+                    if (tab) {
+                        loadSettingsTab(tab.tabName, tab.$tabContent, afterSettingsTabLoad);
+                    }
+                    if (($(this).attr("href") == '#settings-localization') &&
+                        ($(this).parent().hasClass('active'))) {
+                        UpdateCurrentTime();
+                    } else if (statusTimeout != null) {
+                        clearTimeout(statusTimeout);
+                        statusTimeout = null;
+                    }
+                });
+
+                function startSettingsTabLoading() {
+                    $.each(tabs, function (dataOption, tab) {
+                        if (tab.tabNumber == activeTabNumber) {
+                            loadSettingsTab(tab.tabName, tab.$tabContent, function () {
+                                afterSettingsTabLoad();
+                                $.each(tabs, function (i, other) {
+                                    loadSettingsTab(other.tabName, other.$tabContent, afterSettingsTabLoad);
+                                });
+                            });
                         }
                     });
-                });
+                }
+
+                // Wait for the browser to actually paint the spinners before firing any
+                // request.  On a slow machine the whole page-load script runs in one long
+                // main-thread block; without this the spinner is inserted and replaced
+                // inside that same block and never reaches the screen.
+                if (window.requestAnimationFrame) {
+                    requestAnimationFrame(function () {
+                        setTimeout(startSettingsTabLoading, 0);
+                    });
+                } else {
+                    setTimeout(startSettingsTabLoading, 0);
+                }
                 
                 // $.when.apply( undefined, tabRequests ).then(function() {
                 //    $('#settingsManagerTabsContent>.spinner-border').hide();
