@@ -490,12 +490,33 @@ struct AES67Pipeline {
     // the stream plays broken until fppd is restarted.  bytes-served keeps
     // climbing throughout, so the stall check above cannot see it.
     //
-    // It is uptime, not idle.  That took a while to establish because the test
-    // file used for the long runs turned out to be corrupt 79 minutes in, so
-    // every "long playback" was really 79 minutes of audio followed by
-    // silence, and the degradation always landed in the quiet part.  With a
-    // known-good 4 hour source and playback running continuously throughout,
-    // the same degradation arrives at ~110 minutes regardless.
+    // The cause is the source buffer pool draining, and the interval is set by
+    // clock drift, not by uptime.  pipewiresrc receives into sourceMinBuffers
+    // slots while the pipeline consumes against PTP; the PipeWire graph clock
+    // free-runs ~54ppm slow of the NIC's PHC on this hardware, so the pool
+    // loses that difference steadily and empties after (N-1) quanta of
+    // accumulated slip.  From then on the source skips exactly one graph cycle
+    // every N buffers, forever, until the pipeline is rebuilt with a full pool.
+    //
+    // Measured both ways round, which is what confirmed it:
+    //
+    //   min-buffers  onset buffer   onset    gap spacing   implied drift
+    //   16           273985         97.4m    every 16      54.7 ppm
+    //    8           128604         45.7m    every  8      54.4 ppm
+    //
+    // against 54.2ppm measured directly with phc_ctl.  Onset ratio 2.130 vs
+    // 15/7 = 2.143 predicted.  Forcing the graph to 48000 shifts the onset to
+    // 98 minutes from 108 -- 10% off in wall time, but the same buffer count,
+    // which is what first showed the trigger counts cycles rather than seconds.
+    //
+    // So sourceMinBuffers is a reservoir, not a fix: it sets how long the
+    // stream survives, not whether it degrades.  Raising it buys proportional
+    // time and nothing else.  A reporter whose clock drifts ~17ppm sees the
+    // same failure at 5h18m for the same reason.
+    //
+    // Earlier notes here read this as uptime-driven.  That was fitted to runs
+    // that happened to contain no restarts; the cadence in fact continues
+    // straight through an fppd restart, which is what ruled uptime out.
     std::chrono::steady_clock::time_point lastByteTime{};
     int     lowRateCount = 0;
     int     channels = AES67::DEFAULT_CHANNELS;  // for the expected byte rate

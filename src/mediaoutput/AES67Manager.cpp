@@ -1147,6 +1147,20 @@ struct DriftResampleState {
     guint64 buffers = 0;
     guint64 shortReads = 0;
 
+    // Onset instrumentation for the periodic under-delivery.  The absorb path
+    // below only reports gaps over 50ms, because that is the threshold that
+    // matters to the control loop -- but that hides when a burst actually
+    // starts, since the first gaps can be a single graph quantum.  Measuring
+    // from the >50ms line put the onset at 275k-284k buffers across seven
+    // runs; the 3% spread is most likely this bias, not the mechanism.  These
+    // fields report every discontinuity against the buffer index it happened
+    // at, which is what separates a fixed-count trigger from an accumulation.
+    GstClockTime lastPts = 0;
+    long lastFrames = 0;
+    bool lastPtsValid = false;
+    guint64 seen = 0;
+    guint64 gapsSeen = 0;
+
     // Sliding window of (clock, input frames, output frames) used to measure
     // the card's rate.  A cumulative average was used here first and it is what
     // made the loop oscillate: it is itself an integrator, so with the phase
@@ -1203,6 +1217,33 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
     if (inFrames <= 0) {
         gst_buffer_unmap(buf, &map);
         return GST_PAD_PROBE_OK;
+    }
+
+    // Report source-side PTS discontinuities at full resolution, tagged with
+    // the buffer index so the onset can be located exactly.  1ms is chosen to
+    // sit far below one quantum (21.3ms at 48000, 23.2ms at 44100) while
+    // staying above any rounding in the PTS arithmetic; every gap observed so
+    // far has been an exact multiple of the quantum, most often 3x.
+    st->seen++;
+    if (GST_BUFFER_PTS_IS_VALID(buf)) {
+        const GstClockTime pts = GST_BUFFER_PTS(buf);
+        if (st->lastPtsValid && pts > st->lastPts) {
+            const gint64 expected =
+                (gint64)st->lastFrames * GST_SECOND / AES67::AUDIO_RATE;
+            const gint64 jump = (gint64)(pts - st->lastPts) - expected;
+            if (jump > (gint64)GST_MSECOND) {
+                st->gapsSeen++;
+                LogInfo(VB_MEDIAOUT,
+                        "AES67 drift [%d]: source gap %+.2f ms at buffer %llu "
+                        "(gap #%llu)\n",
+                        st->instanceId, (double)jump / (double)GST_MSECOND,
+                        (unsigned long long)st->seen,
+                        (unsigned long long)st->gapsSeen);
+            }
+        }
+        st->lastPts = pts;
+        st->lastFrames = inFrames;
+        st->lastPtsValid = true;
     }
 
     const GstClockTime now = gst_clock_get_time(st->clock);
@@ -1262,8 +1303,10 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
                      : 0.0;
     if (st->warmed && std::fabs(err) > MAX_OFFSET_S * AES67::AUDIO_RATE) {
         LogInfo(VB_MEDIAOUT,
-                "AES67 drift [%d]: %+.0f ms gap absorbed, re-anchoring\n",
-                st->instanceId, err * 1000.0 / AES67::AUDIO_RATE);
+                "AES67 drift [%d]: %+.0f ms gap absorbed, re-anchoring "
+                "at buffer %llu\n",
+                st->instanceId, err * 1000.0 / AES67::AUDIO_RATE,
+                (unsigned long long)st->seen);
         st->ctlClock = now;
         st->ctlIn = 0;
         st->ctlOut = 0;
@@ -1393,7 +1436,7 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
 
     if ((++st->buffers % 2000) == 0) {
         LogInfo(VB_MEDIAOUT,
-                "AES67 drift [%d]: trim %+.1f ppm, card %.1f/s (%+.1f ppm), offset %+.2f ms over %.0fs%s\n",
+                "AES67 drift [%d]: trim %+.1f ppm, card %.1f/s (%+.1f ppm), offset %+.2f ms over %.0fs%s [buffer %llu, %llu gaps]\n",
                 st->instanceId, (st->ratio - 1.0) * 1e6, cardRate,
                 cardRate > 1000.0
                     ? (cardRate / (double)AES67::AUDIO_RATE - 1.0) * 1e6
@@ -1404,7 +1447,9 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
                 // the loop was failing to correct.
                 err * 1000.0 / AES67::AUDIO_RATE,
                 elapsed,
-                st->shortReads ? " (SHORT READS)" : "");
+                st->shortReads ? " (SHORT READS)" : "",
+                (unsigned long long)st->seen,
+                (unsigned long long)st->gapsSeen);
     }
 
     gst_buffer_unref(buf);
