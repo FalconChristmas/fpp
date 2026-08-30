@@ -396,6 +396,29 @@ struct AES67Config {
     bool sourceBufferCopy = false;
     int sourceMinBuffers = 16;
 
+    // Schedule the capture node from PTP instead of from the sound card.
+    //
+    // This is the producer-side half of the pool problem.  pipewiresrc receives
+    // into sourceMinBuffers slots that PipeWire fills at the graph's rate --
+    // the card crystal, ~54ppm slow of PTP here -- while the pipeline drains
+    // them against the PTP clock.  driftResample corrects the rate downstream
+    // of the pool, so it cannot refill it; the pool empties after (N-1) quanta
+    // and the source then skips a cycle per rotation for good.
+    //
+    // PipeWire supports exactly this case.  A support.node.driver clocked from
+    // the NIC's PHC drives any node that joins its node.group, and PipeWire
+    // rate-matches at the boundary with the card-driven graph using the
+    // adapter's DLL-driven adaptive resampler -- upstream of our pool rather
+    // than downstream of it.  It is the same mechanism pipewire-aes67.conf
+    // uses, where the comment on aes67.driver-group calls it "force rate
+    // matching on the AES67 node rather than other nodes".
+    //
+    // Requires a driver node to exist with a matching group; FPP ships one in
+    // 98-fpp-ptp-driver.conf.  Harmless if absent -- the node keeps the graph
+    // driver and behaves exactly as before.
+    bool sourcePtpGroup = false;
+    std::string sourcePtpGroupName = "pipewire.ptp0";
+
     // Adaptive resampling: continuously trim the send stream's rate so the
     // media timeline advances at exactly PTP rate.
     //

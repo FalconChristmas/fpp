@@ -241,6 +241,10 @@ bool AES67Manager::LoadConfig() {
         root.get("sourceBufferCopy", kDefault.sourceBufferCopy).asBool();
     cfg.sourceMinBuffers =
         root.get("sourceMinBuffers", kDefault.sourceMinBuffers).asInt();
+    cfg.sourcePtpGroup =
+        root.get("sourcePtpGroup", kDefault.sourcePtpGroup).asBool();
+    cfg.sourcePtpGroupName =
+        root.get("sourcePtpGroupName", kDefault.sourcePtpGroupName).asString();
     cfg.rateMatch = root.get("rateMatch", kDefault.rateMatch).asBool();
     cfg.rateMatchToleranceNs =
         (guint64)root.get("rateMatchToleranceNs",
@@ -1810,6 +1814,17 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
             gst_structure_set(props, "node.latency", G_TYPE_STRING, nodeLatency.c_str(), NULL);
         } else {
             LogInfo(VB_MEDIAOUT, "AES67 send [%d]: source pacing disabled by config\n", inst.id);
+        }
+        // Schedule this node from PTP rather than the card.  See
+        // AES67Config::sourcePtpGroup.  This has to go in *this* structure --
+        // g_object_set replaces the property wholesale, so setting it in the
+        // gst_parse_launch string is silently discarded here.
+        if (m_config.sourcePtpGroup) {
+            gst_structure_set(props, "node.group", G_TYPE_STRING,
+                              m_config.sourcePtpGroupName.c_str(), NULL);
+            LogInfo(VB_MEDIAOUT,
+                    "AES67 send [%d]: source node joining PTP driver group %s\n",
+                    inst.id, m_config.sourcePtpGroupName.c_str());
         }
         g_object_set(pwsrc, "stream-properties", props, NULL);
         gst_structure_free(props);
