@@ -27,6 +27,13 @@ $schedulerEnabled = isset($data['schedule']['enabled']) ? $data['schedule']['ena
         --fc-button-active-bg-color: var(--bs-primary);
         --fc-button-active-border-color: var(--bs-primary);
         --fc-event-border-color: transparent;
+        /*
+         * FullCalendar paints the event text from this property on an inner
+         * element, so it beats any colour set on the event itself.  Its default
+         * is white, which vanishes against the subtle backgrounds below in the
+         * light theme; following the emphasis colour keeps it legible in both.
+         */
+        --fc-event-text-color: var(--bs-emphasis-color);
         color: var(--fpp-text-primary);
     }
 
@@ -61,6 +68,7 @@ $schedulerEnabled = isset($data['schedule']['enabled']) ? $data['schedule']['ena
     .sch-cal-event-disabled {
         border-left-color: var(--fpp-border-dark);
         background-color: var(--fpp-bg-disabled);
+        --fc-event-text-color: var(--fpp-text-muted);
         color: var(--fpp-text-muted);
         opacity: 0.75;
     }
