@@ -13659,6 +13659,24 @@ function RefreshHeaderBar () {
 		} else if (data.status_name == 'testing') {
 			row =
 				'<span title="Display Testing Active"><i class="fas fa-heart-pulse text-info"></i><small>Testing</small></span>';
+		} else if (data.status_name == 'playing media') {
+			var mtitle = 'Playing media outside a playlist';
+			if (data.current_song != undefined && data.current_song != '') {
+				mtitle += ':\n' + data.current_song;
+			}
+			row =
+				'<span title="' +
+				mtitle +
+				'"><i class="fas fa-music text-success"></i><small>Media</small></span>';
+		} else if (data.status_name == 'playing background') {
+			var btitle = 'Background audio playing';
+			if (data.current_song != undefined && data.current_song != '') {
+				btitle += ':\n' + data.current_song;
+			}
+			row =
+				'<span title="' +
+				btitle +
+				'"><i class="fas fa-music text-info"></i><small>Background</small></span>';
 		} else if (data.status_name == 'idle') {
 			row =
 				'<span title="Idle"><i class="fas fa-pause"></i><small>Idle</small></span>';

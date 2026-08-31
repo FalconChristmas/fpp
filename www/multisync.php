@@ -1321,7 +1321,20 @@
                             status = '<span class="text-danger">Protected</span>';
                         } else if (data.status_name == 'unknown') {
                             status = '-';
-                        } else if (data.status_name == 'idle') {
+                        } else if ((data.status_name == 'idle') ||
+                                   (data.status_name == 'playing media') ||
+                                   (data.status_name == 'playing background')) {
+                            // 'playing media'/'playing background' mean a stream
+                            // slot is active outside a playlist.  The player is
+                            // still idle, so a remote in this state may equally
+                            // be syncing -- keep running the sync check below
+                            // rather than falling through to the raw string,
+                            // which would drop the "Syncing: <files>" detail.
+                            if (data.status_name == 'playing media') {
+                                status = 'Playing Media';
+                            } else if (data.status_name == 'playing background') {
+                                status = 'Background Audio';
+                            }
                             if (data.mode_name == 'remote') {
                                 if ((data.sequence_filename != "") ||
                                     (data.media_filename != "")) {

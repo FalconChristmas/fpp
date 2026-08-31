@@ -267,7 +267,64 @@ void GetCurrentFPPDStatus(Json::Value& result) {
         result["scheduler"] = scheduler->GetInfo();
 
         // Add multi-stream slot status
-        result["streamSlots"] = StreamSlotManager::Instance().GetAllSlotsStatus();
+        Json::Value slots = StreamSlotManager::Instance().GetAllSlotsStatus();
+        result["streamSlots"] = slots;
+
+        // Media started outside a playlist -- "Play Media", a PSA, background
+        // music -- runs on a stream slot rather than through the player, so
+        // status_name read "idle" while audio was audibly playing.  The slot
+        // data was already here; nothing looked at it.  That cost real
+        // debugging time more than once: a box was declared silent on the
+        // strength of this field while a track was running.
+        //
+        // Only the display fields move.  result["status"] deliberately stays
+        // FPP_STATUS_IDLE, because the scheduler gates on it in eight places
+        // and both Player::StopNow() and Scheduler wait on
+        // `while (GetStatus() != FPP_STATUS_IDLE)`.  Those loops stop the
+        // playlist, not a slot, so reporting a slot as player activity would
+        // spin them forever.
+        bool anyForeground = false, anyBackground = false;
+        int lead = -1;
+        for (Json::ArrayIndex i = 0; i < slots.size(); i++) {
+            if (slots[i]["status"].asString() != "playing") {
+                continue;
+            }
+            // StreamSlot::isBackground exists but nothing currently sets it,
+            // so it cannot be the only test or this never fires.  The manager
+            // already treats slots 2-5 as background everywhere else --
+            // StopBackgroundSlots() and ProcessBackgroundSlots() both operate
+            // on exactly that range -- so follow the same rule here, and keep
+            // honouring the flag for when it does get populated.
+            const bool bg = slots[i]["isBackground"].asBool() ||
+                            slots[i]["slot"].asInt() > 1;
+            anyForeground |= !bg;
+            anyBackground |= bg;
+            // Prefer a foreground slot as the one to describe; fall back to a
+            // background slot so a PSA or background music still names itself.
+            if (lead < 0 || (!bg && slots[lead]["isBackground"].asBool())) {
+                lead = (int)i;
+            }
+        }
+
+        result["media_playing"] = anyForeground || anyBackground;
+        if (lead >= 0) {
+            result["status_name"] = anyForeground ? "playing media" : "playing background";
+            const std::string f = slots[lead]["mediaFilename"].asString();
+            result["current_song"] = f.substr(f.find_last_of("/\\") + 1);
+            // Only publish a position when the slot actually tracks one.
+            // Nothing drives slot 1's Process() when media is started outside
+            // a playlist -- both StreamSlotManager loops begin at slot 2,
+            // because slot 1 is normally the playlist's own media and the
+            // playlist pumps it -- so setMediaElapsed() never runs and these
+            // stay 0 for the whole track.  Reporting that as a real position
+            // is worse than omitting it.
+            const int elapsed = slots[lead]["secondsElapsed"].asInt();
+            const int remaining = slots[lead]["secondsRemaining"].asInt();
+            if (elapsed > 0 || remaining > 0) {
+                result["seconds_played"] = std::to_string(elapsed);
+                result["seconds_remaining"] = std::to_string(remaining);
+            }
+        }
     }
 }
 

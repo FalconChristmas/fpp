@@ -432,7 +432,7 @@
         // (Variables.cpp). Keep in sync with that function.
         var FPP_VARIABLE_DESCRIPTIONS = {
             fpp_status: 'Numeric player status code (0=idle, 1=playing, 2-4=stopping variants, 5=paused).',
-            fpp_status_name: 'Player status as text: idle, playing, stopping gracefully, stopping gracefully after loop, stopping now, or paused.',
+            fpp_status_name: 'Player status as text: idle, playing, playing media, playing background, stopping gracefully, stopping gracefully after loop, stopping now, or paused.  "playing media" and "playing background" mean a stream slot is active outside a playlist (Play Media, a PSA, background music); the numeric status stays idle in that case because the player itself is idle.',
             fpp_mode_name: 'Current FPP mode, e.g. "player", "bridge", "master", "remote".',
             fpp_volume: 'Current audio output volume (0-100).',
             fpp_multisync: '1 if MultiSync is enabled, 0 otherwise.',
