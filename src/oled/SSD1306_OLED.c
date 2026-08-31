@@ -373,6 +373,16 @@ int display_Init_seq()
 {
     /* Add the reset code, If needed */
 
+    /* The drawing routines clip and mirror against _width/_height, so those
+     * have to track the geometry of the panel that is actually attached.
+     * Left at the 128x64 default, a rotated 180 128x32 panel has every pixel
+     * mirrored about row 63, putting the whole image in GDDRAM pages 4-7 -
+     * which a 32 row panel never scans out, so the display just stays dark.
+     * A 128x128 SSD1327 has the opposite problem: everything below row 63
+     * gets clipped away. */
+    _width = LED_DISPLAY_WIDTH;
+    _height = LED_DISPLAY_HEIGHT;
+
     
     if (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SSD1306) {
         /* Send display OFF command */
