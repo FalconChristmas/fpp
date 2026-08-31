@@ -3835,8 +3835,8 @@
                             <table id='fppSystemsTable' class="bootstrap-popup" cellpadding='3'>
                                 <thead>
                                     <tr>
-                                        <th data-field="hostname" data-sortable="true" data-filter-control="input">
-                                            Hostname</th>
+                                        <th data-field="hostname" data-sortable="true" data-filter-control="input"
+                                            data-sorter="hostnameSorter">Hostname</th>
                                         <th data-field="ipaddress" data-sortable="true" data-filter-control="input"
                                             data-sorter="ipSorter">IP Address</th>
                                         <th data-field="platform" data-sortable="true" data-filter-control="select"
@@ -4095,6 +4095,18 @@
             $("#MultiSyncBroadcast").on("change", validateMultiSyncSettings);
             $("#MultiSyncMulticast").on("change", validateMultiSyncSettings);
             $("#MultiSyncUnicast").on("change", validateMultiSyncSettings);
+
+            // Custom hostname sorter for Bootstrap Table.
+            // The hostname cell is HTML (grip icon, link, host description) and the
+            // markup ahead of the name is identical on every row, so a plain string
+            // sort of the cell ends up comparing the IP baked into the span id
+            // rather than the hostname.  Sort on the raw name stashed on the row.
+            window.hostnameSorter = function (a, b, rowA, rowB) {
+                var nameA = (rowA && rowA._hostname) ? rowA._hostname : String(a).replace(/<[^>]*>/g, ' ');
+                var nameB = (rowB && rowB._hostname) ? rowB._hostname : String(b).replace(/<[^>]*>/g, ' ');
+                // numeric so pi2 sorts ahead of pi10, base so case is ignored
+                return nameA.trim().localeCompare(nameB.trim(), undefined, { numeric: true, sensitivity: 'base' });
+            };
 
             // Custom IP sorter for Bootstrap Table - numeric IP comparison
             window.ipSorter = function (a, b) {
