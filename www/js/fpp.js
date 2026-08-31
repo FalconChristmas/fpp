@@ -1758,7 +1758,38 @@ function GetItemCount (url, id, key = '') {
 	});
 }
 
+// Hide every tooltip currently on screen.
+//
+// A tooltip whose trigger ends up underneath a modal can never dismiss itself.
+// On touch, the tap that opens a dialog fires an emulated mouseenter that shows
+// the tooltip, and the mouseleave that would hide it -- which is also what arms
+// the 3s auto-hide below -- can no longer reach a button the dialog is now
+// covering. Tooltips render at z-index 1080, above the modal's 1055, so the
+// hint is left stranded on top of the dialog with nothing on screen able to
+// clear it. A modal opening is therefore the moment to clear them, for every
+// titled control in the UI rather than per dialog.
+function HideAllToolTips () {
+	if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+		return;
+	}
+	document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+		var tooltipInstance = bootstrap.Tooltip.getInstance(el);
+		if (tooltipInstance) {
+			tooltipInstance.hide();
+		}
+	});
+}
+
 function SetupToolTips (delay = 100) {
+	// Delegated on document so it covers dialogs built long after this sweep,
+	// and namespaced + rebound because several pages call SetupToolTips again
+	// after adding markup -- without that, each call would stack another
+	// handler. Bootstrap 5 dispatches bubbling events, so the modal does not
+	// need to exist yet.
+	$(document)
+		.off('show.bs.modal.fppTooltips')
+		.on('show.bs.modal.fppTooltips', HideAllToolTips);
+
 	var titles = document.querySelectorAll('[title]');
 
 	titles.forEach(value => {

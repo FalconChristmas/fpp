@@ -76,20 +76,29 @@ function OpenPipeWireMixer() {
 	DoModalDialog({
 		id: 'pipewireMixerDialog',
 		title: 'Audio Mixer',
-		// Fullscreen on phones: this is a control surface people reach for
-		// mid-show on a handset, not a desktop-only settings panel.
-		class: 'modal-xl modal-dialog-scrollable modal-fullscreen-sm-down',
 		// The preview host lives outside the polled region: re-rendering it
 		// every 2s would tear down and restart the <audio> element mid-listen.
 		body:
 			"<div id='pwMixerBody'><div class='text-center p-4'><i class='fas fa-spinner fa-spin'></i> Loading mixer...</div></div>" +
-			"<div id='pwMixerPreviewHost'></div>",
+			"<div id='pwMixerPreviewHost' class='pw-mixer-preview-host'></div>",
 		buttons: {
 			Close: function () {
 				CloseModalDialog('pipewireMixerDialog');
 			},
 		},
 	});
+
+	// Fullscreen on phones: this is a control surface people reach for mid-show
+	// on a handset, not a desktop-only settings panel.
+	//
+	// These go on .modal-dialog, not on the .modal that DoModalDialog's `class`
+	// option targets. Only .modal-xl works from there (it sets a custom
+	// property that inherits down); .modal-dialog-scrollable and
+	// .modal-fullscreen-sm-down size .modal-dialog itself, so from the outer
+	// element they did nothing -- the dialog stayed a floating auto-height box
+	// with the whole modal scrolling behind it instead of a full-height sheet
+	// with a pinned header and a scrolling body.
+	$('#pipewireMixerDialog .modal-dialog').addClass('modal-xl modal-dialog-scrollable modal-fullscreen-sm-down');
 
 	$('#pipewireMixerDialog')
 		.off('shown.bs.modal.pwmixer')
@@ -225,16 +234,22 @@ function PWMixerStrip(opts) {
 	var max = opts.max || 100;
 	var muted = !!opts.mute;
 
-	var h = "<div class='pw-mixer-strip border rounded p-2 d-flex align-items-center gap-2" + (muted ? ' opacity-50' : '') + "'>";
+	// One structure at every width: .pw-mixer-strip is a grid whose areas
+	// re-flow in CSS, so a phone gets name / fader / meter stacked with the
+	// buttons alongside, and a wide screen gets the classic one-line strip.
+	var h = "<div class='pw-mixer-strip border rounded p-2" + (muted ? ' opacity-50' : '') + "'>";
 
 	h += "<div class='pw-mixer-strip-label d-flex align-items-center gap-2' title='" + PWMixerEscape(opts.title || opts.label) + "'>";
 	h += PWMixerLed(opts.nodeName, opts.stateKey, opts.state);
-	h += "<span class='text-truncate small fw-semibold'>" + PWMixerEscape(opts.label) + '</span>';
-	h += '</div>';
-
+	// The sublabel sits under the name rather than in a column of its own: on a
+	// phone it is what tells two identically named members apart (which group,
+	// which file), so it has to survive the narrow layout.
+	h += "<div class='pw-mixer-strip-names'>";
+	h += "<div class='text-truncate small fw-semibold'>" + PWMixerEscape(opts.label) + '</div>';
 	if (opts.sublabel) {
-		h += "<div class='small text-body-secondary text-truncate d-none d-xl-block pw-mixer-sublabel'>" + PWMixerEscape(opts.sublabel) + '</div>';
+		h += "<div class='pw-mixer-sublabel small text-body-secondary text-truncate'>" + PWMixerEscape(opts.sublabel) + '</div>';
 	}
+	h += '</div></div>';
 
 	h += "<input type='range' class='form-range pw-mixer-slider' min='0' max='" + max + "' value='" + vol + "'";
 	h += " id='" + id + "' aria-label='" + PWMixerEscape(opts.label) + " volume'";
@@ -256,7 +271,7 @@ function PWMixerStrip(opts) {
 		h += '</div>';
 	}
 
-	h += "<div class='d-flex gap-1'>";
+	h += "<div class='pw-mixer-actions d-flex gap-1'>";
 	// Stream slots have no mute in the API (their level is the only control),
 	// so don't offer a button that cannot do anything.
 	if (!opts.noMute) {
@@ -292,7 +307,10 @@ function PWMixerSection(id, title, badge, bodyHtml) {
 	}
 	h += '</button>';
 	if (open) {
-		h += "<div class='pw-mixer-strips d-flex flex-column flex-md-row flex-md-wrap gap-2 pt-1'>" + bodyHtml + '</div>';
+		// No d-flex here: Bootstrap's display utilities are !important and were
+		// silently beating the .pw-mixer-strips grid that decides how many
+		// strips share a row.
+		h += "<div class='pw-mixer-strips pt-1'>" + bodyHtml + '</div>';
 	}
 	return h + '</section>';
 }
@@ -322,10 +340,7 @@ function PWMixerAggregateState() {
 function PWMixerMasterSection() {
 	var vol = PWMixerMasterVolume();
 	var h = "<section class='mb-3'>";
-	h += "<div class='d-flex align-items-center gap-2 mb-1'>";
-	h += "<span class='fw-semibold'>Master</span>";
-	h += '</div>';
-	h += "<div class='pw-mixer-strips'>";
+	h += "<div class='fw-semibold mb-1'>Master</div>";
 	h += PWMixerStrip({
 		id: 'pwm_master',
 		label: 'Master volume',
@@ -335,7 +350,7 @@ function PWMixerMasterSection() {
 		state: PWMixerAggregateState(),
 		noMute: true,
 	});
-	h += '</div></section>';
+	h += '</section>';
 	return h;
 }
 

@@ -4763,34 +4763,89 @@ pre.testData,
    size the thumb at 35px for the big master slider, which silently overrode
    everything here. Colours come from Bootstrap theme variables so both themes
    work. Horizontal throughout -- a rotated (writing-mode) fader renders
-   inconsistently across browsers and is awkward to drag on touch. */
+   inconsistently across browsers and is awkward to drag on touch.
+
+   Tracks and meter grounds are --bs-tertiary-color, NOT --bs-border-color: the
+   strip sits on --bs-tertiary-bg, against which the border colour is 1.7:1 in
+   dark mode and is also exactly the colour of the strip's own border, so the
+   line vanished into the frame. The tertiary *foreground* token composites to
+   a mid grey over the strip in both themes (~#868c92 dark, ~#8d9094 light), so
+   one declaration covers both rather than a theme-specific override. */
+
+/* How many strips share a row. Single column until the dialog is genuinely
+   wide: .modal-xl is only 800px at lg, and two 400px columns leave a fader
+   narrower than the readout beside it. */
 .pw-mixer-strips {
 	display: grid;
 	grid-template-columns: 1fr;
 	gap: 0.5rem;
 }
 
-@media (min-width: 992px) {
+@media (min-width: 1200px) {
 	.pw-mixer-strips {
 		grid-template-columns: 1fr 1fr;
 	}
 }
 
+/* The strip itself is a grid of named areas rather than a flex row, so the same
+   markup re-flows. A portrait phone cannot fit name + fader + readout + meter +
+   two 44px touch targets on one line (they need ~440px inside a ~320px strip),
+   which is what pushed the fader down to its minimum and overflowed the row.
+   Stacked, the fader gets the full width and the buttons stay beside it:
+
+       [LED] Name             100%   [mute][cue]
+       [========== fader ==========]
+       [========== meter ==========]
+
+   From lg up -- where the dialog is 800px or wider -- the areas collapse back
+   to the one-line channel strip. */
 .pw-mixer-strip {
+	display: grid;
+	align-items: center;
+	column-gap: 0.5rem;
+	row-gap: 0.25rem;
+	grid-template-columns: minmax(0, 1fr) auto auto;
+	grid-template-areas:
+		'label value actions'
+		'slider slider actions'
+		'meter meter actions';
 	background-color: var(--bs-tertiary-bg);
 }
 
-/* Names can be long (fpp_fx_g1_headphones); keep them from pushing the fader
-   off the row. */
 .pw-mixer-strip .pw-mixer-strip-label {
-	flex: 0 0 auto;
-	width: 8.5rem;
+	grid-area: label;
 	min-width: 0;
+}
+
+/* Names can be long (fpp_fx_g1_headphones); this is the box text-truncate
+   measures itself against, so it has to be allowed to shrink. */
+.pw-mixer-strip .pw-mixer-strip-names {
+	min-width: 0;
+}
+
+.pw-mixer-strip .pw-mixer-meter {
+	grid-area: meter;
+	width: auto;
+}
+
+.pw-mixer-strip .pw-mixer-actions {
+	grid-area: actions;
+}
+
+@media (min-width: 992px) {
+	.pw-mixer-strip {
+		grid-template-columns: 11rem minmax(4rem, 1fr) auto auto auto;
+		grid-template-areas: 'label slider value meter actions';
+	}
+
+	.pw-mixer-strip .pw-mixer-meter {
+		width: 4rem;
+	}
 }
 
 /* Fixed-width readout so the row does not jitter as the number changes. */
 .pw-mixer-strip .pw-mixer-value {
-	flex: 0 0 auto;
+	grid-area: value;
 	min-width: 3.25rem;
 	text-align: end;
 	font-variant-numeric: tabular-nums;
@@ -4804,12 +4859,12 @@ pre.testData,
 }
 
 .pw-mixer-strip input[type='range'].pw-mixer-slider {
+	grid-area: slider;
 	-webkit-appearance: none;
 	appearance: none;
 	background: transparent;
-	flex: 1 1 auto;
-	width: auto;
-	min-width: 4rem;
+	width: 100%;
+	min-width: 0;
 	height: 1.5rem;
 	padding: 0;
 	margin: 0;
@@ -4819,14 +4874,14 @@ pre.testData,
 	width: 100%;
 	height: 6px;
 	border-radius: 3px;
-	background: var(--bs-border-color);
+	background: var(--bs-tertiary-color);
 }
 
 .pw-mixer-strip input[type='range'].pw-mixer-slider::-moz-range-track {
 	width: 100%;
 	height: 6px;
 	border-radius: 3px;
-	background: var(--bs-border-color);
+	background: var(--bs-tertiary-color);
 }
 
 .pw-mixer-strip input[type='range'].pw-mixer-slider::-webkit-slider-thumb {
@@ -4857,17 +4912,36 @@ pre.testData,
 	outline-offset: 2px;
 }
 
+/* Touch: a thumb sized for a mouse is hard to catch with a fingertip, and the
+   fader is the one control on this dialog that has to be draggable mid-show.
+   The track stays 6px, so the thumb's negative margin grows with it. */
+@media (pointer: coarse) {
+	.pw-mixer-strip input[type='range'].pw-mixer-slider {
+		height: 2rem;
+	}
+
+	.pw-mixer-strip input[type='range'].pw-mixer-slider::-webkit-slider-thumb {
+		width: 26px;
+		height: 26px;
+		margin-top: -10px;
+	}
+
+	.pw-mixer-strip input[type='range'].pw-mixer-slider::-moz-range-thumb {
+		width: 26px;
+		height: 26px;
+	}
+}
+
 /* Live level meter shown beside the preview player. Driven by the browser from
    the stream it is already playing, so it can run at animation rate; a plain
    div pair rather than <meter>, whose native rendering cannot be themed
    consistently across browsers. */
 .pw-mixer-meter {
-	flex: 0 0 auto;
 	width: 4rem;
 	height: 8px;
 	border-radius: 4px;
 	overflow: hidden;
-	background-color: var(--bs-border-color);
+	background-color: var(--bs-tertiary-color);
 }
 
 .pw-mixer-meter-lg {
@@ -4884,4 +4958,22 @@ pre.testData,
 /* Near clipping. */
 .pw-mixer-meter-fill.pw-mixer-meter-hot {
 	background-color: var(--bs-warning);
+}
+
+/* The preview player is appended below the strips inside the scrolling body.
+   On a phone that puts it off-screen as soon as you scroll to the fader you
+   wanted to listen to, so it stays pinned to the bottom of the scroller; the
+   alert it contains supplies its own background. */
+.pw-mixer-preview-host {
+	position: sticky;
+	bottom: 0;
+	z-index: 3;
+}
+
+/* A default <audio> control is ~300px wide and will not shrink on its own,
+   which is enough to overflow a portrait phone. */
+.pw-mixer-preview-host audio {
+	flex: 1 1 14rem;
+	min-width: 0;
+	max-width: 100%;
 }
