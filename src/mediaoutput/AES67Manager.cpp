@@ -245,6 +245,7 @@ bool AES67Manager::LoadConfig() {
         root.get("sourcePtpGroup", kDefault.sourcePtpGroup).asBool();
     cfg.sourcePtpGroupName =
         root.get("sourcePtpGroupName", kDefault.sourcePtpGroupName).asString();
+    cfg.sourceAsync = root.get("sourceAsync", kDefault.sourceAsync).asBool();
     cfg.rateMatch = root.get("rateMatch", kDefault.rateMatch).asBool();
     cfg.rateMatchToleranceNs =
         (guint64)root.get("rateMatchToleranceNs",
@@ -1822,9 +1823,21 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         if (m_config.sourcePtpGroup) {
             gst_structure_set(props, "node.group", G_TYPE_STRING,
                               m_config.sourcePtpGroupName.c_str(), NULL);
+            // node.group alone stalls: joining the PTP group puts this node in
+            // its own driver domain, and the link back to the card-driven graph
+            // then has nothing to bridge it -- measured, delivery went to zero
+            // within two minutes.  node.async is the mechanism PipeWire 1.2
+            // added for exactly that link: output ports write to the
+            // (cycle+1)&1 async buffer slot and input ports read (cycle&1), so
+            // the two ends need not be in the same cycle.  Costs one quantum of
+            // latency and needs at least two buffers negotiated on the link.
+            if (m_config.sourceAsync) {
+                gst_structure_set(props, "node.async", G_TYPE_BOOLEAN, TRUE, NULL);
+            }
             LogInfo(VB_MEDIAOUT,
-                    "AES67 send [%d]: source node joining PTP driver group %s\n",
-                    inst.id, m_config.sourcePtpGroupName.c_str());
+                    "AES67 send [%d]: source node joining PTP driver group %s%s\n",
+                    inst.id, m_config.sourcePtpGroupName.c_str(),
+                    m_config.sourceAsync ? " (async)" : "");
         }
         g_object_set(pwsrc, "stream-properties", props, NULL);
         gst_structure_free(props);

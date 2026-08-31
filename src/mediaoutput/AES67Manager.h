@@ -419,6 +419,11 @@ struct AES67Config {
     bool sourcePtpGroup = false;
     std::string sourcePtpGroupName = "pipewire.ptp0";
 
+    // Schedule the capture node asynchronously from its producer.  Required
+    // whenever sourcePtpGroup is on: crossing driver domains without it stalls
+    // the stream outright.  See the comment at the node.async call site.
+    bool sourceAsync = true;
+
     // Adaptive resampling: continuously trim the send stream's rate so the
     // media timeline advances at exactly PTP rate.
     //
