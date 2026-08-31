@@ -831,10 +831,11 @@
 			"name": "PipeWireVideoInputSources",
 			"description": "Video Input Sources",
 			"tip": "Configure persistent video input sources (test patterns, cameras) that appear in the PipeWire graph. Video Output Groups can target these sources to display them on HDMI outputs, pixel overlays, or network streams.",
-			"type": "link",
-			"linkUrl": "pipewire-video-inputs.php",
+			"type": "modal",
+			"modalUrl": "pipewire-video-inputs.php?modal=1",
 			"icon": "fas fa-video",
 			"buttonText": "Configure Video Input Sources",
+			"modalTitle": "PipeWire Video Input Sources",
 			"platforms": [
 				"!MacOS"
 			]

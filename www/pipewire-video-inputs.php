@@ -11,6 +11,8 @@
 
     <title><? echo $pageTitle; ?> - PipeWire Video Input Sources</title>
 
+    <?php $modalMode = isset($_GET['modal']) && $_GET['modal'] == '1'; ?>
+
     <style>
         .source-card {
             border: 1px solid var(--bs-border-color, #dee2e6);
@@ -164,15 +166,18 @@
     </style>
 </head>
 
-<body>
-    <div id="bodyWrapper">
-        <?php
-        $activeParentMenuItem = 'status';
-        include 'menu.inc';
-        ?>
-        <div class="mainContainer">
-            <h1 class="title">PipeWire Video Input Sources</h1>
-            <div class="pageContent">
+<body<?php if ($modalMode)
+    echo ' class="modal-mode" style="margin:0;padding:1rem;"'; ?>>
+    <?php if (!$modalMode) { ?>
+        <div id="bodyWrapper">
+            <?php
+            $activeParentMenuItem = 'status';
+            include 'menu.inc';
+            ?>
+            <div class="mainContainer">
+                <h1 class="title">PipeWire Video Input Sources</h1>
+                <div class="pageContent">
+                <?php } ?>
 
                 <?php
                 $mediaBackend = isset($settings['MediaBackend']) ? $settings['MediaBackend'] : 'alsa';
@@ -228,10 +233,12 @@
                                 status...</span>
                         </div>
                         <div class="toolbar-right">
-                            <a class="btn btn-sm btn-outline-secondary" href="settings.php#settings-av"
-                                title="Back to Pipewire Settings">
-                                <i class="fas fa-arrow-left"></i> Pipewire Settings
-                            </a>
+                            <?php if (!$modalMode) { ?>
+                                <a class="btn btn-sm btn-outline-secondary" href="settings.php#settings-av"
+                                    title="Back to Pipewire Settings">
+                                    <i class="fas fa-arrow-left"></i> Pipewire Settings
+                                </a>
+                            <?php } ?>
                             <button class="buttons btn-outline-success" onclick="AddSource()">
                                 <i class="fas fa-plus"></i> Add Source
                             </button>
@@ -270,11 +277,28 @@
 
                 <?php } ?>
 
+                <?php if (!$modalMode) { ?>
+                </div>
+            </div>
+
+            <?php include 'common/footer.inc'; ?>
+        </div>
+    <?php } else { ?>
+        <div class="modal fade" id="modalDialogBase" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"
+            aria-labelledby="modalDialogLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title fs-5" id="modalDialogLabel"></h3>
+                        <button id="modalCloseButton" type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body"></div>
+                    <div class="modal-footer"></div>
+                </div>
             </div>
         </div>
-
-        <?php include 'common/footer.inc'; ?>
-    </div>
+    <?php } ?>
 
     <script>
         // Available V4L2 devices
