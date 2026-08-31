@@ -821,6 +821,13 @@ private:
                                         const std::string& sdp,
                                         bool isDeletion = false);
 
+    // The SDP for one instance as the announcer would emit it right now, for
+    // the /aes67/sdp export.  Deliberately the same BuildSDP() the SAP path
+    // uses: a file the user hands to Stream Monitor or VLC has to describe the
+    // stream that is actually on the wire, refclk and all, or it is worse than
+    // no file at all when the point of it is troubleshooting.
+    std::string ExportSDPFor(const AES67Instance& inst, const AES67Config& cfg);
+
     // RFC 2974 requires the message id hash to change whenever the announced
     // payload changes, so it is computed over the SDP text itself rather than
     // over the instance -- otherwise receivers dedupe an updated announcement

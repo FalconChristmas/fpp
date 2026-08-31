@@ -5552,6 +5552,99 @@ function GetAES67Status()
     ));
 }
 
+// Ask fppd for the SDP of every send instance.  Generated there rather than
+// here on purpose: the same BuildSDP() that feeds the SAP announcer also feeds
+// this, so an exported file cannot drift from what is actually being
+// announced, and it carries the live PTP grandmaster in ts-refclk -- neither
+// of which this layer can know.  Returns null when fppd is not reachable.
+function AES67FetchSDP()
+{
+    $result = @file_get_contents('http://localhost:32322/aes67/sdp');
+    if ($result === false) {
+        return null;
+    }
+    $data = json_decode($result, true);
+    if ($data === null || !isset($data['streams'])) {
+        return null;
+    }
+    return $data['streams'];
+}
+
+/**
+ * Get the SDP session descriptions for the configured AES67 send streams
+ *
+ * Returns one entry per send instance, each carrying the RFC 4566 session
+ * description fppd is announcing for it.  Intended for handing a stream to a
+ * tool that cannot see FPP's SAP announcements -- Stream Monitor
+ * (https://aes67.app), VLC, or an analyser on another VLAN.
+ *
+ * @route GET /api/pipewire/aes67/sdp
+ * @response 200 Session descriptions for every send instance
+ * ```json
+ * {"status":"OK","streams":[{"instanceId":1,"name":"AES67 Stream 1","sessionName":"AES67 Stream 1","enabled":true,"sapEnabled":true,"multicastIP":"239.69.0.1","port":5004,"channels":2,"ptime":4,"filename":"aes67_stream_1.sdp","sdp":"v=0\r\n..."}]}
+ * ```
+ * @response 503 fppd is not running, so there is no applied configuration to describe
+ */
+function GetAES67SDP()
+{
+    $streams = AES67FetchSDP();
+    if ($streams === null) {
+        // Not an error the caller can fix by retrying: without fppd there is
+        // no applied config and no PTP grandmaster, so any SDP built here
+        // would describe a stream that is not on the wire.
+        http_response_code(503);
+        return json(array(
+            "status" => "ERROR",
+            "message" => "fppd is not responding — start fppd and apply the AES67 configuration first.",
+            "streams" => array()
+        ));
+    }
+    return json(array("status" => "OK", "streams" => $streams));
+}
+
+/**
+ * Download one AES67 send stream as a .sdp file
+ *
+ * The same description as the endpoint above, served as application/sdp with
+ * a Content-Disposition filename so it can be saved and opened directly in
+ * VLC.  The web UI builds its download from the JSON; this exists so a stream
+ * can be pulled with curl from the machine running the monitor.
+ *
+ * @route GET /api/pipewire/aes67/sdp/{InstanceId}
+ * @response 200 The .sdp file for that instance
+ * @response 404 No send instance with that id
+ * @response 503 fppd is not running
+ */
+function GetAES67SDPFile()
+{
+    $id = intval(params('InstanceId'));
+    $streams = AES67FetchSDP();
+    if ($streams === null) {
+        http_response_code(503);
+        return json(array("status" => "ERROR", "message" => "fppd is not responding"));
+    }
+    foreach ($streams as $s) {
+        if (isset($s['instanceId']) && intval($s['instanceId']) === $id) {
+            $name = isset($s['filename']) ? basename($s['filename']) : ('aes67_' . $id . '.sdp');
+            header("Content-Type: application/sdp");
+            header("Content-Disposition: attachment; filename=\"" . $name . "\"");
+            // application/sdp has no ExpiresByType rule, so Apache's
+            // ExpiresDefault ("access plus 1 year") would apply here and a
+            // browser would keep serving this description long after the
+            // multicast address or channel count changed.  Setting Expires
+            // ourselves also stops mod_expires from overwriting it.
+            header("Cache-Control: no-store, must-revalidate");
+            header("Expires: 0");
+            ob_clean();
+            flush();
+            echo $s['sdp'];
+            return;
+        }
+    }
+    http_response_code(404);
+    return json(array("status" => "ERROR", "message" => "No send instance with id " . $id));
+}
+
 // GET /api/pipewire/aes67/interfaces
 function GetAES67NetworkInterfaces()
 {

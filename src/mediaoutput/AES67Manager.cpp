@@ -3067,6 +3067,51 @@ std::string AES67Manager::BuildSDP(const AES67Instance& inst,
     return sdp.str();
 }
 
+// Filename to offer for a downloaded .sdp.  Not SafeNodeName(): that prefixes
+// "aes67_" for the PipeWire node namespace, and instance names usually already
+// start with "AES67", which produced aes67_aes67_stream_1.sdp.
+static std::string SDPFileName(const AES67Instance& inst) {
+    std::string base;
+    for (char c : inst.name) {
+        if (std::isalnum((unsigned char)c) || c == '_' || c == '-') {
+            base += (char)std::tolower((unsigned char)c);
+        } else if (!base.empty() && base.back() != '_') {
+            base += '_';
+        }
+    }
+    while (!base.empty() && base.back() == '_') {
+        base.pop_back();
+    }
+    if (base.empty()) {
+        base = "aes67_" + std::to_string(inst.id);
+    }
+    return base + ".sdp";
+}
+
+std::string AES67Manager::ExportSDPFor(const AES67Instance& inst,
+                                       const AES67Config& cfg) {
+    // Same refclk rule as the announcer: advertise the domain's grandmaster,
+    // not our own identity, and fall back to our own only when BMCA has not
+    // settled or PTP is off.
+    std::string gm = GetActiveGrandmasterId();
+    std::string ptpClockId = gm.empty() ? GetPTPClockId() : gm;
+    std::string sourceIP = GetInterfaceIP(inst.interface.empty() ?
+                                          cfg.ptpInterface : inst.interface);
+
+    // Reuse whatever version the announcer last stamped so an exported file
+    // and the SAP announcement describe the same revision of the session.
+    // Not SDPVersionFor(): that mints a new version and rewrites the version
+    // file, and a GET must not renumber the sessions being announced.  With
+    // SAP off, or before the first announcement, there is no version to match
+    // and 1 will do -- sess-version only ever gets compared against an earlier
+    // reading of the same session.
+    uint32_t version = m_lastSdpVersion.load(std::memory_order_relaxed);
+    if (version == 0) {
+        version = 1;
+    }
+    return BuildSDP(inst, sourceIP, ptpClockId, version);
+}
+
 std::vector<uint8_t> AES67Manager::BuildSAPPacket(const std::string& sourceIP,
                                                    uint16_t msgIdHash,
                                                    const std::string& sdp,
@@ -4155,6 +4200,71 @@ HttpResponsePtr AES67Manager::render_GET(const HttpRequestPtr& req) {
         std::string resultStr = Json::writeString(wbuilder, result);
 
         return makeStringResponse(resultStr, 200, "application/json");
+    }
+
+    // SDP export.  SAP only reaches receivers on the same subnet with a tool
+    // that speaks it; anything else -- Stream Monitor on a laptop, VLC, a
+    // scope on another VLAN -- needs the session description handed to it as a
+    // file.  "sdp" lists every send instance as JSON for the UI; "sdp/<id>"
+    // returns one instance as a raw .sdp for curl and direct download.
+    if (url == "sdp" || url.compare(0, 4, "sdp/") == 0) {
+        AES67Config cfg = GetConfigSnapshot();
+        bool single = (url != "sdp");
+        int wantId = single ? atoi(url.substr(4).c_str()) : 0;
+
+        Json::Value streams(Json::arrayValue);
+        std::string singleSDP;
+        std::string singleName;
+        for (const auto& inst : cfg.instances) {
+            // Only a sender has an SDP to publish; a receive-only instance is
+            // described by whoever is transmitting to it.
+            if (inst.mode != "send" && inst.mode != "both") {
+                continue;
+            }
+            if (single && inst.id != wantId) {
+                continue;
+            }
+            std::string sdp = ExportSDPFor(inst, cfg);
+            if (single) {
+                singleSDP = sdp;
+                singleName = SDPFileName(inst);
+                break;
+            }
+            Json::Value sj;
+            sj["instanceId"] = inst.id;
+            sj["name"] = inst.name;
+            sj["sessionName"] = inst.sessionName;
+            // Exported even while disabled or with SAP off -- that is exactly
+            // when an external monitor is the only way to look at the stream
+            // -- so say which it is and let the UI warn.
+            sj["enabled"] = inst.enabled;
+            sj["sapEnabled"] = inst.sapEnabled;
+            sj["multicastIP"] = inst.multicastIP;
+            sj["port"] = inst.port;
+            sj["channels"] = inst.channels;
+            sj["ptime"] = inst.ptime;
+            sj["filename"] = SDPFileName(inst);
+            sj["sdp"] = sdp;
+            streams.append(sj);
+        }
+
+        if (single) {
+            if (singleSDP.empty()) {
+                return makeStringResponse("{\"error\":\"no such send instance\"}",
+                                          404, "application/json");
+            }
+            auto resp = makeStringResponse(singleSDP, 200, "application/sdp");
+            resp->addHeader("Content-Disposition",
+                            "attachment; filename=\"" + singleName + "\"");
+            return resp;
+        }
+
+        Json::Value result;
+        result["streams"] = streams;
+        Json::StreamWriterBuilder wbuilder;
+        wbuilder["indentation"] = "";
+        return makeStringResponse(Json::writeString(wbuilder, result), 200,
+                                  "application/json");
     }
 
     if (url == "test") {

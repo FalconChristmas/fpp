@@ -302,6 +302,12 @@
 
         <script>
             var aes67Data = { instances: [], ptpEnabled: true, ptpInterface: '', ptpDomain: 0, ptpRole: 'auto' };
+            // Raw SDP behind the export dialog.  Held here rather than read
+            // back out of the textarea because a textarea's value normalises
+            // CRLF to LF, and SDP lines are CRLF-terminated (RFC 4566 §5) --
+            // copying through the DOM would hand out a subtly different file
+            // from the one fppd announces.
+            var currentSDP = { text: '', filename: '' };
             var availableInterfaces = [];
             var nextInstanceId = 1;
             var hasUnsavedChanges = false;
@@ -595,6 +601,11 @@
                 }
 
                 html += '<div style="flex:1"></div>';
+                // Only a sender has a session to describe -- a receive-only
+                // instance is described by whoever transmits to it.
+                if (mode === 'send' || mode === 'both') {
+                    html += '<button class="buttons btn-outline-secondary btn-instance-action" onclick="ShowSDP(' + index + ')" title="Session description (SDP) for Stream Monitor, VLC and other external tools"><i class="fas fa-file-export"></i> SDP</button>';
+                }
                 html += '<button class="buttons btn-outline-danger btn-instance-action" onclick="DeleteInstance(' + index + ')" title="Delete Instance"><i class="fas fa-trash"></i></button>';
                 html += '</div>';
 
@@ -689,6 +700,182 @@
                 html += '</div>'; // instance-card
 
                 return html;
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
+            // SDP export
+            //
+            // SAP announcements only reach a receiver on the same subnet that
+            // is listening for them.  Anything else -- Stream Monitor
+            // (https://aes67.app) on a laptop, VLC, a scope on another VLAN --
+            // needs the session description handed to it as text, which is
+            // what this dialog is for.
+            //
+            // The text comes from fppd rather than from the fields on this
+            // page: fppd generates it with the same builder that feeds the SAP
+            // announcer, so it carries the live PTP grandmaster in ts-refclk
+            // and cannot disagree with what is on the wire.  The cost is that
+            // it describes the *applied* config, so edits that have not been
+            // saved and applied are called out below rather than silently
+            // exported.
+            function ShowSDP(index) {
+                var inst = aes67Data.instances[index];
+
+                DoModalDialog({
+                    id: 'aes67SDPDialog',
+                    title: '<i class="fas fa-file-export"></i> Stream Description (SDP) &mdash; ' + EscapeHtml(inst.name),
+                    class: 'modal-lg modal-dialog-scrollable',
+                    keyboard: true,
+                    backdrop: true,
+                    body: '<div id="aes67SDPBody"><i class="fas fa-spinner fa-spin"></i> Loading session description&hellip;</div>',
+                    // Reopening reuses the same dialog, so the previous
+                    // instance's text must not survive into the new one.
+                    open: function () {
+                        currentSDP = { text: '', filename: '' };
+                    },
+                    buttons: {
+                        Copy: {
+                            text: '<i class="fas fa-copy"></i> Copy',
+                            id: 'aes67SDPCopyBtn',
+                            class: 'btn-outline-primary',
+                            disabled: true,
+                            click: function () {
+                                CopyTextToClipboard(currentSDP.text);
+                                $.jGrowl('SDP copied to clipboard', { themeState: 'success' });
+                            }
+                        },
+                        Download: {
+                            text: '<i class="fas fa-download"></i> Download .sdp',
+                            id: 'aes67SDPDownloadBtn',
+                            class: 'btn-outline-primary',
+                            disabled: true,
+                            click: function () {
+                                DownloadSDP(currentSDP.filename, currentSDP.text);
+                            }
+                        },
+                        Close: {
+                            class: 'btn-success',
+                            click: function () {
+                                CloseModalDialog('aes67SDPDialog');
+                            }
+                        }
+                    }
+                });
+
+                $.getJSON('api/pipewire/aes67/sdp')
+                    .done(function (data) {
+                        var streams = (data && data.streams) || [];
+                        var stream = null;
+                        for (var i = 0; i < streams.length; i++) {
+                            if (streams[i].instanceId === inst.id) {
+                                stream = streams[i];
+                                break;
+                            }
+                        }
+                        if (!stream) {
+                            $('#aes67SDPBody').html(SDPNotice('warning',
+                                'This instance has not been applied yet. Click <b>Save &amp; Apply</b>, ' +
+                                'then reopen this dialog.'));
+                            return;
+                        }
+                        RenderSDPBody(inst, stream);
+                    })
+                    .fail(function (xhr) {
+                        var msg = (xhr.responseJSON && xhr.responseJSON.message)
+                            ? xhr.responseJSON.message
+                            : 'Could not read the session description from fppd.';
+                        $('#aes67SDPBody').html(SDPNotice('danger', EscapeHtml(msg)));
+                    });
+            }
+
+            function SDPNotice(kind, html) {
+                return '<div class="alert alert-' + kind + ' mb-3">' + html + '</div>';
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
+            // The dialog reports the applied stream, so anything edited on the
+            // card since the last Apply would be exported wrong without a
+            // word.  Comparing the fields that actually appear in the SDP
+            // catches that -- hasUnsavedChanges only tracks added and deleted
+            // instances, not edits to an existing one.
+            function SDPStaleFields(inst, stream) {
+                // Same fallbacks the card itself renders with, so a config
+                // that omits a field is compared against the value the user is
+                // looking at rather than against undefined -- which would
+                // report every such field as changed.
+                var checks = [
+                    ['multicastIP', 'Multicast IP', inst.multicastIP || '239.69.0.1'],
+                    ['port', 'RTP Port', parseInt(inst.port, 10) || 5004],
+                    ['channels', 'Audio Channels', parseInt(inst.channels, 10) || 2],
+                    ['ptime', 'Packet Time', parseInt(inst.ptime, 10) || 4],
+                    ['sessionName', 'Session Name', inst.sessionName || inst.name]
+                ];
+                var stale = [];
+                for (var i = 0; i < checks.length; i++) {
+                    if (stream[checks[i][0]] != checks[i][2])
+                        stale.push(checks[i][1]);
+                }
+                return stale;
+            }
+
+            function RenderSDPBody(inst, stream) {
+                var html = '';
+
+                var stale = SDPStaleFields(inst, stream);
+                if (stale.length > 0) {
+                    html += SDPNotice('warning',
+                        '<b>' + EscapeHtml(stale.join(', ')) + '</b> ' +
+                        (stale.length === 1 ? 'has' : 'have') +
+                        ' been changed on this page but not applied. The description below is the ' +
+                        'stream fppd is currently sending. Click <b>Save &amp; Apply</b> to make them match.');
+                }
+                if (!stream.enabled) {
+                    html += SDPNotice('warning',
+                        'This instance is <b>disabled</b>, so nothing is being transmitted. ' +
+                        'The description is still accurate for the stream it would send once enabled.');
+                }
+
+                html += '<p>Paste this into <a href="https://aes67.app" target="_blank" rel="noopener">Stream Monitor</a>, ' +
+                    'or download it as a <code>.sdp</code> file and open it with <b>VLC</b> ' +
+                    '(Media &rarr; Open File).</p>';
+
+                html += '<textarea id="aes67SDPText" class="form-control font-monospace mb-3" rows="12" readonly ' +
+                    'spellcheck="false" onclick="this.select()">' +
+                    EscapeHtml(stream.sdp) + '</textarea>';
+
+                html += '<dl class="row mb-0 small">';
+                html += '<dt class="col-sm-4 fw-normal text-body-secondary">Multicast Group</dt>' +
+                    '<dd class="col-sm-8 mb-1">' + EscapeHtml(stream.multicastIP) + ':' + stream.port + '</dd>';
+                html += '<dt class="col-sm-4 fw-normal text-body-secondary">Format</dt>' +
+                    '<dd class="col-sm-8 mb-1">L24 / 48000 Hz / ' + stream.channels +
+                    ' ch, ' + stream.ptime + ' ms packets</dd>';
+                html += '<dt class="col-sm-4 fw-normal text-body-secondary">SAP Announcement</dt>' +
+                    '<dd class="col-sm-8 mb-0">' + (stream.sapEnabled
+                        ? 'On &mdash; tools on this subnet should find the stream on their own'
+                        : '<span class="text-warning">Off</span> &mdash; the stream is not announced, so this file is the only way to subscribe') +
+                    '</dd>';
+                html += '</dl>';
+
+                $('#aes67SDPBody').html(html);
+                currentSDP.text = stream.sdp;
+                currentSDP.filename = stream.filename || ('aes67_' + stream.instanceId + '.sdp');
+                $('#aes67SDPCopyBtn').prop('disabled', false);
+                $('#aes67SDPDownloadBtn').prop('disabled', false);
+            }
+
+            // Built from the text already in the dialog rather than fetched
+            // again, so the file and what the user just read are the same
+            // bytes.  A .sdp is a few hundred characters -- no need to stream it.
+            function DownloadSDP(filename, text) {
+                var blob = new Blob([text], { type: 'application/sdp' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             }
 
             /////////////////////////////////////////////////////////////////////////////
