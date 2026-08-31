@@ -568,7 +568,7 @@ function sortHTMLSelectByText (selector, skip_first, sortAscending) {
 }
 
 function getManualLink () {
-	return 'https://falconchristmas.github.io/FPP_Manual(9.x).pdf';
+	return 'https://manual.falconplayer.com';
 }
 
 function CloseModalDialog (id) {
