@@ -977,6 +977,62 @@ function stats_getSettings()
  *
  * @return array Universe input stats including universeCount, rowCount, channelCount, and rowType.
  */
+/**
+ * True for the universe-output types that address a flat channel range rather
+ * than a run of universes: DDP (4 and 5) and Twinkly (8).
+ *
+ * fppd reads channelCount alone for these -- DDP.cpp and Twinkly.cpp never look
+ * at universeCount -- but the UI disables the universe-count input for exactly
+ * these types while still saving whatever value was left sitting in the
+ * disabled field.  The stored universeCount is therefore a leftover: 1 on some
+ * installs, a stale count on others.
+ *
+ * @param int $type Row type as stored in the config.
+ * @return bool True when channelCount alone is the row's channel span.
+ */
+function stats_universeRowIsFlat($type)
+{
+    return $type == 4 || $type == 5 || $type == 8;
+}
+
+/**
+ * Channel span of one universe row.
+ *
+ * Multiplying by universeCount unconditionally made the span wrong for DDP and
+ * Twinkly rows in a way that differed per install rather than uniformly -- zero
+ * where the leftover was zero, correct where it happened to be one, inflated
+ * otherwise.  A uniform error can be corrected for in aggregate; this one could
+ * not, so it is fixed at the source rather than annotated.
+ *
+ * @param array $row One entry from a universes list.
+ * @return int Channels covered by the row.
+ */
+function stats_universeRowChannels($row)
+{
+    $channels = isset($row["channelCount"]) ? intval($row["channelCount"]) : 0;
+    if (stats_universeRowIsFlat(isset($row["type"]) ? $row["type"] : -1)) {
+        return $channels;
+    }
+    return $channels * stats_universeRowUniverses($row);
+}
+
+/**
+ * Universes covered by one row.  A flat row has none -- the count stored on it
+ * is the leftover described above -- so it contributes zero rather than noise.
+ * rowType already reports how many rows of each type there were.
+ *
+ * @param array $row One entry from a universes list.
+ * @return int Universes covered by the row.
+ */
+function stats_universeRowUniverses($row)
+{
+    if (stats_universeRowIsFlat(isset($row["type"]) ? $row["type"] : -1)) {
+        return 0;
+    }
+    $count = isset($row["universeCount"]) ? intval($row["universeCount"]) : 1;
+    return $count < 1 ? 1 : $count;
+}
+
 function stats_universe_in()
 {
     global $settings;
@@ -1003,11 +1059,11 @@ function stats_universe_in()
     if (isset($data["universes"])) {
         foreach ($data["universes"] as $row) {
             ++$rowCount;
-            if ($row["active"] == 1) {
+            if (isset($row["active"]) && $row["active"] == 1) {
                 ++$activeRowCount;
-                $universeCount += $row["universeCount"];
-                $channelCount += ($row["universeCount"] * $row["channelCount"]);
-                $type = "type_" . strval($row['type']);
+                $universeCount += stats_universeRowUniverses($row);
+                $channelCount += stats_universeRowChannels($row);
+                $type = "type_" . strval(isset($row['type']) ? $row['type'] : "unknown");
                 if (!isset($rowType[$type])) {
                     $rowType[$type] = 0;
                 }
@@ -1020,6 +1076,11 @@ function stats_universe_in()
     $rc['activeRowCount'] = $activeRowCount;
     $rc['channelCount'] = $channelCount;
     $rc['rowType'] = $rowType;
+    // universeCount and channelCount changed meaning for DDP/Twinkly rows here;
+    // see stats_universeRowChannels.  Bump on any further change to how these
+    // are derived so a consumer can tell a corrected payload from an old one
+    // without inferring it from the FPP version.
+    $rc['countsVersion'] = 2;
 
     return $rc;
 }
@@ -1053,14 +1114,19 @@ function stats_peerCapeRecord($cape, $mapping)
 }
 
 /**
- * Maps each known peer address to the CLASS of device at that address, so an
- * output row can be tagged with what it feeds without the address ever leaving
- * the machine.  FPP already holds both halves of this join -- the multisync
- * table knows IP to type -- and the stats payload threw one half away.
+ * Builds the lookup from a configured destination name to the peer discovery
+ * found there.
  *
- * @return array Map of address => device type string, e.g. "Falcon F16v4".
+ * A device is keyed under every name discovery knows it by -- each of its
+ * addresses and its hostname -- because an output row may name its destination
+ * either way, and a hostname-configured row that only matched on address would
+ * read as an unknown, undiscovered target.  Each entry also carries a stable
+ * identity so two rows naming one box under two different names are recognised
+ * as a single destination rather than two.
+ *
+ * @return array Map of lowercased address/hostname => array(type, id).
  */
-function stats_multiSyncPeerTypes()
+function stats_multiSyncPeerLookup()
 {
     static $map = null;
     if ($map !== null) {
@@ -1072,14 +1138,88 @@ function stats_multiSyncPeerTypes()
         return $map;
     }
     $data = json_decode($raw, true);
-    if (isset($data["systems"])) {
-        foreach ($data["systems"] as $system) {
-            if (isset($system['address']) && $system['address'] !== "" && isset($system['type'])) {
-                $map[$system['address']] = $system['type'];
+    if (!isset($data["systems"])) {
+        return $map;
+    }
+    foreach ($data["systems"] as $system) {
+        if (!isset($system['type'])) {
+            continue;
+        }
+        // A box with several addresses is announced once per address, so the
+        // uuid is what collapses those back into one device.  Falling back to
+        // the address keeps a peer with no uuid distinct from every other peer
+        // instead of merging them all under one empty identity.
+        $id = "";
+        if (isset($system['uuid']) && $system['uuid'] !== "") {
+            $id = "uuid:" . $system['uuid'];
+        } elseif (isset($system['address'])) {
+            $id = "addr:" . strtolower($system['address']);
+        }
+        $entry = array("type" => $system['type'], "id" => $id);
+
+        if (isset($system['address']) && $system['address'] !== "") {
+            $map[strtolower($system['address'])] = $entry;
+        }
+        if (isset($system['hostname']) && $system['hostname'] !== "") {
+            $host = strtolower($system['hostname']);
+            foreach (array($host, $host . ".local") as $key) {
+                if (!isset($map[$key])) {
+                    $map[$key] = $entry;
+                }
             }
         }
     }
     return $map;
+}
+
+/**
+ * Maps each known peer name to the CLASS of device at that name, so an output
+ * row can be tagged with what it feeds without the address ever leaving the
+ * machine.  FPP already holds both halves of this join -- the multisync table
+ * knows IP to type -- and the stats payload threw one half away.
+ *
+ * @return array Map of address/hostname => device type string, e.g. "Falcon F16v4".
+ */
+function stats_multiSyncPeerTypes()
+{
+    $map = array();
+    foreach (stats_multiSyncPeerLookup() as $key => $entry) {
+        $map[$key] = $entry['type'];
+    }
+    return $map;
+}
+
+/**
+ * Classifies a configured destination by the FORM of the address, never by its
+ * value.  An undiscovered target is far more actionable when we can tell a
+ * hostname that never resolved from a literal address on a subnet discovery
+ * cannot reach, so the shape of the string is kept even though the string
+ * itself never leaves the machine.
+ *
+ * @param string $address Destination as configured on the output row.
+ * @return string One of ipv4, ipv4_broadcast, ipv4_multicast, ipv6, hostname.
+ */
+function stats_addressForm($address)
+{
+    if (strpos($address, ':') !== false) {
+        return "ipv6";
+    }
+    if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
+        return "hostname";
+    }
+    $octets = explode('.', $address);
+    $first = intval($octets[0]);
+    if ($first >= 224 && $first <= 239) {
+        return "ipv4_multicast";
+    }
+    // Assumes a /24: the config carries no netmask and the interface it will be
+    // sent from is not known here, so a .255 host on a wider subnet is called a
+    // broadcast.  It is the common case by a wide margin, and the cost of the
+    // misread is one target moving between "count" and "nonUnicast".
+    if (intval($octets[3]) == 255 || $address == "255.255.255.255") {
+        return "ipv4_broadcast";
+    }
+    return "ipv4";
 }
 
 /**
@@ -1123,6 +1263,15 @@ function stats_universe_out()
     $priority = array();
     $destType = array();
     $peers = stats_multiSyncPeerTypes();
+    $peerIds = array();
+    foreach (stats_multiSyncPeerLookup() as $peerKey => $peerEntry) {
+        $peerIds[$peerKey] = $peerEntry['id'];
+    }
+    // Per-destination roll-up.  rowCount alone cannot tell twelve rows aimed at
+    // one controller from twelve controllers, and nothing in the payload said
+    // whether a destination was ever discovered, so an install quietly pushing
+    // data at an address that answers nothing looked identical to a healthy one.
+    $targets = array();
 
     // Every entry, not just channelOutputs[0].  A second universe-output block
     // was silently invisible, and with it every row it carried.
@@ -1136,8 +1285,9 @@ function stats_universe_out()
                 continue;
             }
             ++$activeRowCount;
-            $rowChannels = $row["universeCount"] * $row["channelCount"];
-            $universeCount += $row["universeCount"];
+            $rowChannels = stats_universeRowChannels($row);
+            $rowUniverses = stats_universeRowUniverses($row);
+            $universeCount += $rowUniverses;
             $channelCount += $rowChannels;
             if (isset($row["deDuplicate"])) {
                 $deDupeCount += $row["deDuplicate"];
@@ -1145,7 +1295,7 @@ function stats_universe_out()
             if (isset($row["monitor"])) {
                 $monitorCount += $row["monitor"];
             }
-            $type = "type_" . strval($row['type']);
+            $type = "type_" . strval(isset($row['type']) ? $row['type'] : "unknown");
             if (!isset($rowType[$type])) {
                 $rowType[$type] = 0;
             }
@@ -1163,9 +1313,33 @@ function stats_universe_out()
             // Classify the destination, never transmit it.  An address we cannot
             // resolve is "unknown" and an empty one is multicast, which has no
             // single destination to classify.
+            $address = isset($row["address"]) ? trim($row["address"]) : "";
             $dest = "multicast";
-            if (isset($row["address"]) && $row["address"] !== "") {
-                $dest = isset($peers[$row["address"]]) ? $peers[$row["address"]] : "unknown";
+            if ($address !== "") {
+                $key = strtolower($address);
+                $dest = isset($peers[$key]) ? $peers[$key] : "unknown";
+
+                // Key the roll-up by device identity when discovery knows one,
+                // so the same controller named by address on one row and by
+                // hostname on another is one target, not two.
+                $tkey = isset($peerIds[$key]) ? $peerIds[$key] : "name:" . $key;
+                if (!isset($targets[$tkey])) {
+                    $targets[$tkey] = array(
+                        "rows" => 0,
+                        "universes" => 0,
+                        "channels" => 0,
+                        "discovered" => isset($peers[$key]),
+                        "form" => stats_addressForm($address),
+                        "protocol" => array(),
+                    );
+                }
+                $targets[$tkey]["rows"] += 1;
+                $targets[$tkey]["universes"] += $rowUniverses;
+                $targets[$tkey]["channels"] += $rowChannels;
+                if (!isset($targets[$tkey]["protocol"][$type])) {
+                    $targets[$tkey]["protocol"][$type] = 0;
+                }
+                $targets[$tkey]["protocol"][$type] += 1;
             }
             if (!isset($destType[$dest])) {
                 $destType[$dest] = array("rows" => 0, "channels" => 0, "protocol" => array());
@@ -1187,6 +1361,99 @@ function stats_universe_out()
     $rc['monitorCount'] = $monitorCount;
     $rc['priority'] = $priority;
     $rc['destType'] = $destType;
+    $rc['targets'] = stats_summarizeUDPTargets($targets);
+    $rc['countsVersion'] = 2;
+
+    return $rc;
+}
+
+/**
+ * Reduces the per-destination roll-up to counts only -- no address ever appears
+ * in the result, only how many there were and what shape they had.
+ *
+ * Answers two things the payload could not previously express:
+ *  - unique UDP destinations, and how many output rows each one carries, so a
+ *    one-row-per-controller install is distinguishable from one that splits a
+ *    single controller across many rows;
+ *  - whether each destination was found by discovery.  An undiscovered target
+ *    is either a device FPP cannot see (wrong subnet, discovery blocked, a
+ *    controller that does not announce) or a stale address left in the config,
+ *    and both are worth knowing about in aggregate.
+ *
+ * Two limits a consumer cannot see from the numbers alone:
+ *
+ * "undiscovered" counts are an UPPER BOUND on devices, not a device count.
+ * Targets collapse on the peer uuid, which an undiscovered target by definition
+ * does not have, so those fall back to keying on the configured string and one
+ * controller named by address on one row and by hostname on another counts
+ * twice.  The slack is bounded by undiscoveredForm.hostname: an over-count
+ * requires a hostname-form target aliasing an address-form one, so with no
+ * undiscovered hostname targets the count is exact.
+ *
+ * Only UNICAST destinations are counted.  A row naming a broadcast or multicast
+ * literal has no single destination -- it feeds an unknown number of devices,
+ * and can never be "discovered" -- so counting it as one target would both
+ * inflate any devices-per-show figure and inflate the undiscovered bucket.
+ * Those rows are reported separately under "nonUnicast", which is the same
+ * treatment an empty (multicast) address already gets by not being a target.
+ *
+ * @param array $targets Map of destination key => row/universe/channel counts.
+ * @return array Counts by discovery state, address form, and rows-per-target.
+ */
+function stats_summarizeUDPTargets($targets)
+{
+    $rc = array(
+        "count" => 0,
+        "discovered" => array("targets" => 0, "rows" => 0, "universes" => 0, "channels" => 0),
+        "undiscovered" => array("targets" => 0, "rows" => 0, "universes" => 0, "channels" => 0),
+        "nonUnicast" => array("targets" => 0, "rows" => 0, "universes" => 0, "channels" => 0),
+        "form" => array(),
+        "undiscoveredForm" => array(),
+        "rowsPerTarget" => array(),
+        "maxRowsPerTarget" => 0,
+    );
+
+    foreach ($targets as $t) {
+        // Every target contributes its form, unicast or not, so the split
+        // between the counted and uncounted destinations stays visible.
+        if (!isset($rc["form"][$t["form"]])) {
+            $rc["form"][$t["form"]] = 0;
+        }
+        $rc["form"][$t["form"]] += 1;
+
+        if ($t["form"] == "ipv4_broadcast" || $t["form"] == "ipv4_multicast") {
+            $rc["nonUnicast"]["targets"] += 1;
+            $rc["nonUnicast"]["rows"] += $t["rows"];
+            $rc["nonUnicast"]["universes"] += $t["universes"];
+            $rc["nonUnicast"]["channels"] += $t["channels"];
+            continue;
+        }
+        $rc["count"] += 1;
+
+        $bucket = $t["discovered"] ? "discovered" : "undiscovered";
+        $rc[$bucket]["targets"] += 1;
+        $rc[$bucket]["rows"] += $t["rows"];
+        $rc[$bucket]["universes"] += $t["universes"];
+        $rc[$bucket]["channels"] += $t["channels"];
+
+        if (!$t["discovered"]) {
+            if (!isset($rc["undiscoveredForm"][$t["form"]])) {
+                $rc["undiscoveredForm"][$t["form"]] = 0;
+            }
+            $rc["undiscoveredForm"][$t["form"]] += 1;
+        }
+
+        // Histogram rather than a mean: the interesting installs are the tails,
+        // and an average of 1.4 rows per target hides the box with 30.
+        $b = "rows_" . strval($t["rows"]);
+        if (!isset($rc["rowsPerTarget"][$b])) {
+            $rc["rowsPerTarget"][$b] = 0;
+        }
+        $rc["rowsPerTarget"][$b] += 1;
+        if ($t["rows"] > $rc["maxRowsPerTarget"]) {
+            $rc["maxRowsPerTarget"] = $t["rows"];
+        }
+    }
 
     return $rc;
 }
