@@ -108,8 +108,14 @@ fi
 echo "kiosk" > /etc/fpp/kiosk
 
 mkdir -p /etc/chromium/policies/managed/
+# Same URL fppinit's setupKiosk() writes -- honour KioskUrl here too rather
+# than clobbering a configured URL with localhost until the next boot (#2867).
+KIOSK_URL=$(getSetting KioskUrl)
+if [ "x$KIOSK_URL" == "x" ]; then
+    KIOSK_URL="http://localhost/"
+fi
 cat > /etc/chromium/policies/managed/policy.json <<EOF
-{"RestoreOnStartup": 4,"RestoreOnStartupURLs": ["http://localhost/"]}
+{"RestoreOnStartup": 4,"RestoreOnStartupURLs": ["$KIOSK_URL"]}
 EOF
 
 setSetting Kiosk 1
