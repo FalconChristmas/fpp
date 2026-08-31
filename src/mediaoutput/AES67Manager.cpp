@@ -518,6 +518,17 @@ bool AES67Manager::WritePtpConf(const std::string& path, bool hwTimestamping, bo
          << "logMinDelayReqInterval\t0\n"
          << "announceReceiptTimeout\t3\n"
          << "syncReceiptTimeout\t0\n"
+         // Step rather than slew a large offset.  linuxptp defaults
+         // step_threshold to 0, meaning it only ever steps on the very first
+         // correction (first_step_threshold, 20us) and slews everything after.
+         // Initial lock is therefore fine -- a follower does converge on real
+         // hardware -- but a grandmaster changeover or a GM time jump after
+         // that leaves a large offset to be slewed out at the servo's frequency
+         // limit, which takes hours for anything past a second.  The published
+         // AES67 profile sets this for the same reason ("converge faster when
+         // time jumps").  Harmless as grandmaster, where there is nothing to
+         // step towards.
+         << "step_threshold\t\t1\n"
          << "transportSpecific\t0x0\n"
          << "network_transport\tUDPv4\n"
          << "delay_mechanism\t\tE2E\n"
