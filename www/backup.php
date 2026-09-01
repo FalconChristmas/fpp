@@ -1278,7 +1278,15 @@ function BackupConfigFolderConfigs()
     foreach ($json_config_files as $filename => $fn_bool) {
         //If the filename has the extension of .json, then we want to keep it, discard all others
         //eg no .htaccess, .htpassword or .db files
-        if (stripos(strtolower($filename), ".json") === false) {
+        //
+        //This tests the extension, not "contains .json anywhere".  A substring
+        //test also matched every sidecar copy sitting beside a config file -
+        //co-other.json.backup, gpio.json.conflict, channeloutputs.json_not_working,
+        //xlights-modelgroups.json.pre-grouptype - so each backup carried a second
+        //copy of config it had already backed up.  On a box with a large xLights
+        //layout that was a third of the whole backup, repeated for every kept
+        //backup.  A copy of a config file is not itself config.
+        if (!str_ends_with(strtolower($filename), ".json")) {
             unset($json_config_files[$filename]);
         }
         //else true so we keep the filename
