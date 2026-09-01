@@ -1752,7 +1752,19 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // perfect-rtptime=false: follow the (now exactly aligned) running time
         // so the RTP timeline stays anchored to PTP instead of free-running
         // off a sample counter.  See the audiobuffersplit note above.
-        << (ptpClock ? " timestamp-offset=0 perfect-rtptime=false" : "")
+        // With splitClockDomains the pipeline is no longer on PTP, so running
+        // time is not PTP and perfect-rtptime=false would unanchor the RTP
+        // timeline entirely (measured: -36,135,744 ms of presentation error).
+        // perfect-rtptime=true makes the payloader count samples instead, and
+        // driftResample already guarantees exactly 48000 of them per PTP
+        // second -- so the counter runs at PTP rate whatever clock the pipeline
+        // uses.  The remaining job is anchoring its start via timestamp-offset,
+        // which is why the absolute lead is still wrong here.
+        << (ptpClock
+                ? (m_config.splitClockDomains
+                       ? " timestamp-offset=0 perfect-rtptime=true"
+                       : " timestamp-offset=0 perfect-rtptime=false")
+                : "")
         << " "
         << "! application/x-rtp,clock-rate=" << AES67::AUDIO_RATE << " "
         // A queue here is what makes sink pacing safe: it runs the sink on its
