@@ -1561,8 +1561,14 @@ function render_file($filename, $return = false)
   // {
   //   
   // }
-  $filename = str_replace('../', '', $filename);
-  if(file_exists($filename))
+   // Defense-in-depth: single-pass str_replace bypassable via ....// -> ../
+   $filename = str_replace(chr(0), '', $filename);
+   if (strpos($filename, '..') !== false) {
+       $rp = @realpath($filename);
+       if ($rp === false) halt(NOT_FOUND, "invalid path");
+       $filename = $rp;
+   }
+   if(file_exists($filename))
   {
     $content_type = mime_type(file_extension($filename));
     $header = 'Content-type: '.$content_type;

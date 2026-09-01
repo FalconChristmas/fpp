@@ -1,6 +1,43 @@
 <?
 
 /**
+ * Validate that a requested config path stays within the config directory.
+ * Returns the contained absolute path on success, false otherwise.
+ */
+function ConfigFileWithinBase($baseDir, $requested) {
+    $base = realpath($baseDir);
+    if ($base === false) return false;
+    $candidate = $base . '/' . $requested;
+    $parent = dirname($candidate);
+    $realParent = realpath($parent);
+    if ($realParent === false) {
+        $parts = explode('/', $requested);
+        array_pop($parts);
+        $cur = $base;
+        foreach ($parts as $p) {
+            if ($p === '' || $p === '.') continue;
+            if (strpos($p, '..') !== false) return false;
+            $cur .= '/' . $p;
+            $rp = realpath($cur);
+            if ($rp !== false && strpos($rp, $base) !== 0) return false;
+        }
+        $rpBase = $realParent !== false ? $realParent : $base;
+        return strpos($rpBase, $base) === 0 ? $base . '/' . $requested : false;
+    }
+    $realCandidate = realpath($candidate);
+    if ($realCandidate !== false) return strpos($realCandidate, $base) === 0 ? $realCandidate : false;
+    return strpos($realParent, $base) === 0 ? $realParent . '/' . basename($candidate) : false;
+}
+function ConfigFileValidateOrFail($baseDir, $requested) {
+    if ($requested === '' || strpos($requested, '\\') !== false || strpos($requested, "\0") !== false) { http_response_code(400); echo json_encode(["Status"=>"Error","Message"=>"Invalid path"]); exit; }
+    $decoded = rawurldecode($requested);
+    if (strpos($requested, '..') !== false || strpos($decoded, '..') !== false || (isset($decoded[0]) && $decoded[0] === '/') || preg_match('/%2e/i', $requested)) { http_response_code(403); echo json_encode(["Status"=>"Error","Message"=>"Invalid path"]); exit; }
+    $san = ConfigFileWithinBase($baseDir, $requested);
+    if ($san === false) { http_response_code(403); echo json_encode(["Status"=>"Error","Message"=>"Invalid path: outside config directory"]); exit; }
+    return $san;
+}
+
+/**
  * Get files
  *
  * Recursively collects relative file paths within a directory.
@@ -47,10 +84,11 @@ function GetConfigFileList($dir = '')
 	global $settings;
 
 	$origDir = $dir;
+	$base = $settings['configDirectory'];
 	if ($dir == '')
-		$dir = $settings['configDirectory'];
+		$dir = $base;
 	else
-		$dir = $settings['configDirectory'] . '/' . $dir;
+		$dir = ConfigFileValidateOrFail($base, $dir);
 
 	$result = array();
 
@@ -78,13 +116,15 @@ function DownloadConfigFile()
 {
 	global $settings;
 
-	$fileName = params(0);
-
-	if (is_dir($settings['configDirectory'] . '/' . $fileName))
-		return GetConfigFileList($fileName);
-
-	$fileName = $settings['configDirectory'] . '/' . $fileName;
-
+	$raw = params(0);
+	$base = $settings['configDirectory'];
+	$probe = $base . '/' . $raw;
+	$realProbe = realpath($probe);
+	if ($realProbe !== false && is_dir($realProbe)) {
+		ConfigFileValidateOrFail($base, $raw);
+		return GetConfigFileList($raw);
+	}
+	$fileName = ConfigFileValidateOrFail($base, $raw);
 	render_file($fileName);
 }
 
@@ -126,15 +166,10 @@ function UploadConfigFile()
 	$result = array();
 
 	$baseFile = params(0);
-	if (preg_match('/\//', $baseFile)) {
-		// baseFile contains a subdir, so create if needed
-		$subDir = $settings['configDirectory'] . '/' . $baseFile;
-		$subDir = preg_replace('/\/[^\/]*$/', '', $subDir);
-
-		mkdir($subDir, 0755, true);
-	}
-
-	$fileName = $settings['configDirectory'] . '/' . $baseFile;
+	$base = $settings['configDirectory'];
+	$fileName = ConfigFileValidateOrFail($base, $baseFile);
+	$subDir = dirname($fileName);
+	if ($subDir !== $base && !is_dir($subDir)) mkdir($subDir, 0755, true);
 
 	// Read the full contents (multipart upload or raw POST body) and write them
 	// atomically. The old code truncated the destination in place and streamed
@@ -205,8 +240,8 @@ function DeleteConfigFile()
 	$result = array();
 
 	$fileName = params(0);
-
-	$fullFile = $settings['configDirectory'] . '/' . $fileName;
+	$base = $settings['configDirectory'];
+	$fullFile = ConfigFileValidateOrFail($base, $fileName);
 
 	if (is_file($fullFile)) {
 		unlink($fullFile);
