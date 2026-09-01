@@ -522,8 +522,8 @@ int ChannelTester::SetupTestInternal(const Json::Value& config) {
     std::unique_lock<std::mutex> lock(m_testLock);
     int result = 0;
 
-    if (config["enabled"].asInt()) {
-        std::string patternName = config["mode"].asString();
+    if (JsonInt(config, "enabled")) {
+        std::string patternName = JsonString(config, "mode");
 
         if (m_testPattern) {
             if (patternName != m_testPattern->Name()) {

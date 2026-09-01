@@ -68,14 +68,16 @@ int TestPatternBase::Init(std::string configStr) {
  *
  */
 int TestPatternBase::Init(Json::Value config) {
-    if (m_cycleMS != config["cycleMS"].asInt()) {
-        m_cycleMS = config["cycleMS"].asInt();
+    int cycleMS = JsonInt(config, "cycleMS");
+    if (m_cycleMS != cycleMS) {
+        m_cycleMS = cycleMS;
         m_nextCycleTime = GetTime() + (m_cycleMS * 1000);
     }
 
     if (config.isMember("channelSet")) {
-        if (m_channelSetStr != config["channelSet"].asString()) {
-            m_channelSetStr = config["channelSet"].asString();
+        std::string channelSet = JsonString(config, "channelSet");
+        if (m_channelSetStr != channelSet) {
+            m_channelSetStr = channelSet;
             SetChannelSet(m_channelSetStr);
             m_configChanged = 1;
         }

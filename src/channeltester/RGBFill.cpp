@@ -45,27 +45,31 @@ TestPatternRGBFill::~TestPatternRGBFill() {
 int TestPatternRGBFill::Init(Json::Value config) {
     m_configChanged = 0;
 
-    if (m_color1 != config["color1"].asInt()) {
-        m_color1 = config["color1"].asInt();
+    int color1 = JsonInt(config, "color1");
+    if (m_color1 != color1) {
+        m_color1 = color1;
         m_configChanged = 1;
     }
 
-    if (m_color2 != config["color2"].asInt()) {
-        m_color2 = config["color2"].asInt();
+    int color2 = JsonInt(config, "color2");
+    if (m_color2 != color2) {
+        m_color2 = color2;
         m_configChanged = 1;
     }
 
-    if (m_color3 != config["color3"].asInt()) {
-        m_color3 = config["color3"].asInt();
+    int color3 = JsonInt(config, "color3");
+    if (m_color3 != color3) {
+        m_color3 = color3;
         m_configChanged = 1;
     }
 
-    if (m_color4 != config["color4"].asInt()) {
-        m_color4 = config["color4"].asInt();
+    int color4 = JsonInt(config, "color4");
+    if (m_color4 != color4) {
+        m_color4 = color4;
         m_configChanged = 1;
     }
 
-    int cpn = config.isMember("channelsPerNode") ? config["channelsPerNode"].asInt() : 3;
+    int cpn = JsonInt(config, "channelsPerNode", 3);
     if (cpn != 3 && cpn != 4) {
         cpn = 3;
     }

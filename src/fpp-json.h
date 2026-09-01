@@ -38,3 +38,28 @@
 inline bool JsonHas(const Json::Value& v, const std::string& key) {
     return v.isObject() && v.isMember(key);
 }
+
+// asInt()/asString() throw Json::LogicError when the value is present but holds
+// a type that cannot convert (a string where a number was expected, an object,
+// an out-of-range number). Config that reaches FPP from the API, a command
+// argument, or a hand-edited file is not shape-checked, so reading it with a
+// bare .asInt() turns a malformed field into an uncaught exception that aborts
+// fppd. These return the default in every case a bare accessor would throw.
+//
+// A missing or null member yields the default, matching what the bare accessor
+// already did for that case (Json::nullValue converts to 0 / "").
+inline int JsonInt(const Json::Value& v, const std::string& key, int def = 0) {
+    if (!JsonHas(v, key)) {
+        return def;
+    }
+    const Json::Value& e = v[key];
+    return e.isConvertibleTo(Json::intValue) ? e.asInt() : def;
+}
+
+inline std::string JsonString(const Json::Value& v, const std::string& key, const std::string& def = "") {
+    if (!JsonHas(v, key)) {
+        return def;
+    }
+    const Json::Value& e = v[key];
+    return e.isConvertibleTo(Json::stringValue) ? e.asString() : def;
+}

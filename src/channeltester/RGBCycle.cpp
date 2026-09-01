@@ -44,12 +44,13 @@ TestPatternRGBCycle::~TestPatternRGBCycle() {
 int TestPatternRGBCycle::Init(Json::Value config) {
     m_configChanged = 0;
 
-    if (m_colorPatternStr != config["colorPattern"].asString()) {
-        m_colorPatternStr = config["colorPattern"].asString();
+    std::string colorPattern = JsonString(config, "colorPattern");
+    if (m_colorPatternStr != colorPattern) {
+        m_colorPatternStr = colorPattern;
         m_configChanged = 1;
     }
 
-    int cpn = config.isMember("channelsPerNode") ? config["channelsPerNode"].asInt() : 3;
+    int cpn = JsonInt(config, "channelsPerNode", 3);
     if (cpn != 3 && cpn != 4) {
         cpn = 3;
     }

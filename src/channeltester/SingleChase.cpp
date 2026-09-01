@@ -41,13 +41,15 @@ TestPatternSingleChase::~TestPatternSingleChase() {
 int TestPatternSingleChase::Init(Json::Value config) {
     m_configChanged = 0;
 
-    if (m_chaseSize != config["chaseSize"].asInt()) {
-        m_chaseSize = config["chaseSize"].asInt();
+    int chaseSize = JsonInt(config, "chaseSize");
+    if (m_chaseSize != chaseSize) {
+        m_chaseSize = chaseSize;
         m_configChanged = 1;
     }
 
-    if (m_chaseValue != config["chaseValue"].asInt()) {
-        m_chaseValue = config["chaseValue"].asInt();
+    int chaseValue = JsonInt(config, "chaseValue");
+    if (m_chaseValue != chaseValue) {
+        m_chaseValue = chaseValue;
         m_configChanged = 1;
     }
 

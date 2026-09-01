@@ -26,8 +26,8 @@ OutputTester::~OutputTester() {
 }
 int OutputTester::Init(Json::Value config) {
     outputTypes.clear();
-    testType = config["type"].asInt();
-    std::string s = config["outputs"].asString();
+    testType = JsonInt(config, "type");
+    std::string s = JsonString(config, "outputs");
     if (s != "--ALL--" && s != "") {
         outputTypes.insert(s);
     }
