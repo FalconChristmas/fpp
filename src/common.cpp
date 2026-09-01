@@ -141,13 +141,15 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
 int CheckForHostSpecificFile(const std::string& hostname, std::string& filename) {
     std::string localFilename = filename;
 
-    int len = localFilename.length();
+    int len = (int)localFilename.length();
+    if (len < 4)
+        return 0;
     int extIdx = 0;
 
     // Check for 3 or 4-digit extension
     if (localFilename[len - 4] == '.') {
         extIdx = len - 4;
-    } else if (localFilename[len - 5] == '.') {
+    } else if (len >= 5 && localFilename[len - 5] == '.') {
         extIdx = len - 5;
     }
 

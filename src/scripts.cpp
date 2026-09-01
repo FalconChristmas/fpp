@@ -43,14 +43,19 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 
     LogDebug(VB_COMMAND, "Script %s:  Args: %s\n", script.c_str(), scriptArgs.c_str());
 
-    // Setup the script from our user
-    strcpy(userScript, FPP_DIR_SCRIPT("/").c_str());
-    strncat(userScript, script.c_str(), 1024 - strlen(userScript));
-    userScript[1023] = '\0';
+    // Setup the script from our user - snprintf is truncation-safe
+    int n = snprintf(userScript, sizeof(userScript), "%s%s", FPP_DIR_SCRIPT("/").c_str(), script.c_str());
+    if (n < 0 || n >= (int)sizeof(userScript)) {
+        LogWarn(VB_COMMAND, "RunScript: script path truncated: %s\n", script.c_str());
+        userScript[sizeof(userScript) - 1] = '\0';
+    }
 
     // Setup the wrapper
-    strcpy(eventScript, FPP_DIR.c_str());
-    strcat(eventScript, "/scripts/eventScript");
+    n = snprintf(eventScript, sizeof(eventScript), "%s/scripts/eventScript", FPP_DIR.c_str());
+    if (n < 0 || n >= (int)sizeof(eventScript)) {
+        LogWarn(VB_COMMAND, "RunScript: eventScript path truncated\n");
+        eventScript[sizeof(eventScript) - 1] = '\0';
+    }
 
     pid = fork();
 
@@ -84,17 +89,27 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
                     quote = std::string("'");
                     tmpPart = parts[p].substr(1);
                 } else {
-                    args[i] = strdup(parts[p].c_str());
-                    i++;
+                    if (i < 127) {
+                        args[i] = strdup(parts[p].c_str());
+                        i++;
+                    } else {
+                        LogWarn(VB_COMMAND, "RunScript: too many args, truncating\n");
+                        break;
+                    }
                 }
 
                 if ((tmpPart != "") && (quote != "") && (endsWith(tmpPart, quote))) {
-                    args[i] = strdup(tmpPart.c_str());
+                    if (i < 127) {
+                        args[i] = strdup(tmpPart.c_str());
 
-                    // Chop off the ending quote
-                    args[i][strlen(args[i]) - 1] = 0;
+                        // Chop off the ending quote
+                        args[i][strlen(args[i]) - 1] = 0;
 
-                    i++;
+                        i++;
+                    } else {
+                        LogWarn(VB_COMMAND, "RunScript: too many args, truncating\n");
+                        break;
+                    }
 
                     quote = "";
                     tmpPart = "";
@@ -104,12 +119,17 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
                 tmpPart += parts[p];
 
                 if (endsWith(parts[p], quote)) {
-                    args[i] = strdup(tmpPart.c_str());
+                    if (i < 127) {
+                        args[i] = strdup(tmpPart.c_str());
 
-                    // Chop off the ending quote
-                    args[i][strlen(args[i]) - 1] = 0;
+                        // Chop off the ending quote
+                        args[i][strlen(args[i]) - 1] = 0;
 
-                    i++;
+                        i++;
+                    } else {
+                        LogWarn(VB_COMMAND, "RunScript: too many args, truncating\n");
+                        break;
+                    }
 
                     quote = "";
                     tmpPart = "";
