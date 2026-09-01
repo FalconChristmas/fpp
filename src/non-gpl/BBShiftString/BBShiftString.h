@@ -230,6 +230,14 @@ private:
     std::chrono::steady_clock::time_point m_bpWindowStart{};
     void setFrameRateWarning(bool on);
 
+    // predictive frame-rate budget: computed once in Init() from the longest
+    // string, compared against the sequence rate whenever output starts
+    int m_frameTimeUs = 0;
+    float m_lastBudgetRate = -1.0f;
+    std::string m_budgetWarnText;
+    void checkFrameRateBudget(float rate);
+    void clearBudgetWarning();
+
     int m_testCycle = -1;
     int m_testType = 0;
     float m_testPercent = 0.0f;
