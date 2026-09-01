@@ -31,6 +31,7 @@
 
 // FPP includes
 #include "../../Sequence.h"
+#include "../../channeloutput/channeloutputthread.h"
 #include "../../Warnings.h"
 #include "../../common.h"
 #include "../../log.h"
@@ -106,6 +107,7 @@ BBShiftStringOutput::~BBShiftStringOutput() {
     // idempotent; Close() normally does this, but an output torn down without
     // one must not leave its frame rate warning stranded in the UI
     setFrameRateWarning(false);
+    clearBudgetWarning();
     BBBPru::ddrRelease("BBShiftString");
     m_pumpRunning = false;
     if (m_pumpThread.joinable()) {
@@ -615,6 +617,15 @@ int BBShiftStringOutput::Init(Json::Value config) {
         m_pru1.maxStringLen = m_pru0.maxStringLen + 1;
     }
 
+    int maxLen = std::max(m_pru0.maxStringLen, m_pru1.maxStringLen);
+    if (maxLen > 0) {
+        // 10us/byte at 800KHz plus ~1700us of measured per-frame overhead
+        // (reset latch + packet staging; measured on a K32-Max, see #2855)
+        m_frameTimeUs = maxLen * 10 + 1700;
+        LogInfo(VB_CHANNELOUT, "BBShiftString: longest string %d bytes -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
+                maxLen, m_frameTimeUs / 1000.0, 1000000.0 / m_frameTimeUs);
+    }
+
     if (!StartPRU()) {
         return 0;
     }
@@ -904,6 +915,7 @@ int BBShiftStringOutput::Close(void) {
     }
     StopPRU();
     setFrameRateWarning(false);
+    clearBudgetWarning();
     for (auto& a : m_usedPins) {
         PinCapabilities::getPinByName(a.first).releasePin();
     }
@@ -1361,8 +1373,51 @@ void BBShiftStringOutput::setFrameRateWarning(bool on) {
     m_bpWarned = on;
 }
 
+// Predictive companion to the measured warning above, run whenever the
+// refresh rate changes.  Sequence.cpp publishes the sequence's rate before the
+// first frame reaches SendData(), so an over-budget configuration is flagged
+// immediately instead of after a minute of measured drops - and a rate that
+// changes mid-playlist (sequences at different frame rates back to back, where
+// the output thread never restarts) is caught on the next frame.
+void BBShiftStringOutput::checkFrameRateBudget(float rate) {
+    if (m_frameTimeUs <= 0) {
+        return;
+    }
+    float ceiling = 1000000.0f / m_frameTimeUs;
+    // 1% grace: a hair past the budget is absorbed by the back-pressure gate
+    // at a drop rate nobody will see, and rounding noise must not warn
+    if (rate > ceiling * 1.01f) {
+        char buf[192];
+        snprintf(buf, sizeof(buf),
+                 "Sequence frame rate (%.4g fps) is higher than the configured pixel strings can output (~%.4g fps); frames will be dropped",
+                 rate, ceiling);
+        std::string msg = buf;
+        if (msg != m_budgetWarnText) {
+            clearBudgetWarning();
+            LogWarn(VB_CHANNELOUT, "BBShiftString: %s\n", msg.c_str());
+            WarningHolder::AddWarning(63, msg);
+            m_budgetWarnText = msg;
+        }
+    } else {
+        clearBudgetWarning();
+    }
+}
+
+void BBShiftStringOutput::clearBudgetWarning() {
+    if (!m_budgetWarnText.empty()) {
+        WarningHolder::RemoveWarning(63, m_budgetWarnText);
+        m_budgetWarnText.clear();
+    }
+}
+
 int BBShiftStringOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBShiftStringOutput::SendData(%p)\n", channelData);
+
+    float bwRate = GetChannelOutputRefreshRate();
+    if (bwRate != m_lastBudgetRate) {
+        m_lastBudgetRate = bwRate;
+        checkFrameRateBudget(bwRate);
+    }
     if (!hasStrings()) {
         return 0;
     }
