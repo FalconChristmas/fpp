@@ -619,11 +619,15 @@ int BBShiftStringOutput::Init(Json::Value config) {
 
     int maxLen = std::max(m_pru0.maxStringLen, m_pru1.maxStringLen);
     if (maxLen > 0) {
-        // 10us/byte at 800KHz plus ~1700us of measured per-frame overhead
-        // (reset latch + packet staging; measured on a K32-Max, see #2855)
-        m_frameTimeUs = maxLen * 10 + 1700;
-        LogInfo(VB_CHANNELOUT, "BBShiftString: longest string %d bytes -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
-                maxLen, m_frameTimeUs / 1000.0, 1000000.0 / m_frameTimeUs);
+        // m_lowNs is the programmed bit cell from resolveTiming(); the bit loop
+        // carries ~130ns/bit of instruction time outside the waits.  Measured
+        // on a K32-Max at two cells: ws281x 1120 -> 1245-1252ns achieved,
+        // ucs1903 2500 -> 2619ns achieved.  The 1700us covers the reset gap
+        // and receiver packet staging (#2855).
+        int bitNs = m_lowNs + 130;
+        m_frameTimeUs = (int)((maxLen * 8LL * bitNs) / 1000) + 1700;
+        LogInfo(VB_CHANNELOUT, "BBShiftString: longest string %d bytes at %dns/bit -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
+                maxLen, bitNs, m_frameTimeUs / 1000.0, 1000000.0 / m_frameTimeUs);
     }
 
     if (!StartPRU()) {
@@ -1384,9 +1388,10 @@ void BBShiftStringOutput::checkFrameRateBudget(float rate) {
         return;
     }
     float ceiling = 1000000.0f / m_frameTimeUs;
-    // 1% grace: a hair past the budget is absorbed by the back-pressure gate
-    // at a drop rate nobody will see, and rounding noise must not warn
-    if (rate > ceiling * 1.01f) {
+    // 5% grace: covers the overhead constant's own uncertainty (the receiver
+    // packet share of the 1700us is config-dependent) and keeps a config a
+    // hair past budget - absorbed invisibly by the back-pressure gate - quiet
+    if (rate > ceiling * 1.05f) {
         char buf[192];
         snprintf(buf, sizeof(buf),
                  "Sequence frame rate (%.4g fps) is higher than the configured pixel strings can output (~%.4g fps); frames will be dropped",
@@ -1412,14 +1417,14 @@ void BBShiftStringOutput::clearBudgetWarning() {
 
 int BBShiftStringOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBShiftStringOutput::SendData(%p)\n", channelData);
+    if (!hasStrings()) {
+        return 0;
+    }
 
     float bwRate = GetChannelOutputRefreshRate();
     if (bwRate != m_lastBudgetRate) {
         m_lastBudgetRate = bwRate;
         checkFrameRateBudget(bwRate);
-    }
-    if (!hasStrings()) {
-        return 0;
     }
 
     if (falconV5Support) {
