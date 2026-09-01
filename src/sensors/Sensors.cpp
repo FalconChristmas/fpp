@@ -282,7 +282,7 @@ public:
     double min = 0.0;
     double max = 0.0;
     bool isMinMax = false;
-    int channel;
+    int channel = 0;
 };
 
 class AINSensor : public Sensor {

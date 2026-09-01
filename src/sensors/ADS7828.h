@@ -26,7 +26,11 @@ public:
 
     virtual void update(bool forceInstant = false) override {}
 
-    virtual void enable(int id) override { enabled[id] = true; }
+    virtual void enable(int id) override {
+        if (id >= 0 && id < (int)enabled.size()) {
+            enabled[id] = true;
+        }
+    }
     virtual int32_t getValue(int id) override;
 
 private:
@@ -38,4 +42,9 @@ private:
     std::mutex updateMutex;
 
     std::array<bool, 8> enabled;
+    // Last successfully read value per channel.  A failed transfer is nearly
+    // always transient (one NAK on a marginal bus), and the next status poll
+    // re-reads a second later, so hold the previous reading rather than
+    // reporting 0 and blipping the displayed value down and back up.
+    std::array<int32_t, 8> lastValue = { 0 };
 };

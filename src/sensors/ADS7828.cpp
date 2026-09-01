@@ -53,21 +53,40 @@ ADS7828Sensor::~ADS7828Sensor() {
 }
 
 int32_t ADS7828Sensor::getValue(int ch) {
+    if (ch < 0 || ch >= (int)enabled.size()) {
+        return 0;
+    }
     if (enabled[ch] && i2c->isOk()) {
         std::unique_lock<std::mutex> lock(updateMutex);
         uint8_t baseCmd = 0x80 | (internalRefVoltage ? 0xC : 0x4);
         uint8_t cmd = baseCmd | (((ch >> 1) | (ch & 0x01) << 2) << 4);
         constexpr int samples = 4;
+        constexpr int wanted = samples * 2;
         uint16_t b2[samples] = { 0, 0, 0, 0 };
-        int c = i2c->readI2CBlockData(cmd, (uint8_t*)b2, samples * 2 - 2);
-        while (c < (samples * 2)) {
-            c += i2c->readI2CBlockData(cmd, (uint8_t*)&b2[c / 2], samples * 2 - c);
+        // readI2CBlockData() returns -1 on any failed transfer, and isOk() only
+        // says the bus was opened, not that the chip still answers.  The read
+        // count must therefore never be accumulated blindly: a negative c both
+        // indexes before b2 and asks for more than sizeof(b2) bytes on the next
+        // pass, and c never reaches wanted, so the loop runs away scribbling
+        // over the caller's stack.  Bail on the first failure instead.
+        int c = i2c->readI2CBlockData(cmd, (uint8_t*)b2, wanted - 2);
+        while (c > 0 && c < wanted) {
+            int r = i2c->readI2CBlockData(cmd, ((uint8_t*)b2) + c, wanted - c);
+            if (r <= 0) {
+                c = -1;
+                break;
+            }
+            c += r;
+        }
+        if (c != wanted) {
+            return lastValue[ch];
         }
         uint32_t sum = 0;
         for (int x = 0; x < samples; x++) {
             sum += bswap_16(b2[x]);
         }
-        return sum / samples;
+        lastValue[ch] = sum / samples;
+        return lastValue[ch];
     }
     return 0;
 };
