@@ -242,6 +242,8 @@ bool AES67Manager::LoadConfig() {
         root.get("sourceBufferCopy", kDefault.sourceBufferCopy).asBool();
     cfg.sourceMinBuffers =
         root.get("sourceMinBuffers", kDefault.sourceMinBuffers).asInt();
+    cfg.splitClockDomains =
+        root.get("splitClockDomains", kDefault.splitClockDomains).asBool();
     cfg.sourcePtpGroup =
         root.get("sourcePtpGroup", kDefault.sourcePtpGroup).asBool();
     cfg.sourcePtpGroupName =
@@ -1880,10 +1882,33 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     // across track changes and flushes: RTP timestamps stay tied to wall-clock
     // PTP instead of jumping whenever the pipeline is disturbed, which is how a
     // Dante/AES67 receiver expects a transmitter to behave.
-    if (ptpClock) {
+    // splitClockDomains: leave the pipeline on the graph's own clock and use
+    // PTP only where it is actually required.  Putting the whole pipeline on
+    // PTP is what drains the source ring: pipewiresrc pulls on pipeline time
+    // while PipeWire fills at the sound card's rate, so at ~54ppm the ring
+    // empties after (min-buffers - 1) quanta and the source then skips a graph
+    // cycle per rotation forever.  Measured both ways, min-buffers=8:
+    //
+    //   pipeline on PTP     gap burst at buffer 145407 (~56 min)
+    //   pipeline on graph   no burst in 74 min (~190000 buffers)
+    //
+    // driftResample keeps its own reference to ptpClock, so the output is still
+    // converted to exactly 48000 samples per PTP second and its PTS are still
+    // anchored to PTP -- the RTP timestamps stay conformant either way.  What
+    // this does give up is sink pacing against PTP, since udpsink syncs to the
+    // pipeline clock; that is the ts-offset servo's job.
+    if (ptpClock && !m_config.splitClockDomains) {
         gst_pipeline_use_clock(GST_PIPELINE(pipeline), ptpClock);
         gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE);
         gst_element_set_base_time(pipeline, 0);
+    } else if (ptpClock) {
+        // Still pin the timeline so RTP timestamps do not jump on a flush or a
+        // track change, which is the other half of what the block above does.
+        gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE);
+        gst_element_set_base_time(pipeline, 0);
+        LogInfo(VB_MEDIAOUT,
+                "AES67 send [%d]: split clock domains -- pipeline on the graph "
+                "clock, PTP for the media clock and RTP timestamps\n", inst.id);
     }
 
     if (m_config.pipelineStats) {

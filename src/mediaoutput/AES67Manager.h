@@ -416,6 +416,32 @@ struct AES67Config {
     // Requires a driver node to exist with a matching group; FPP ships one in
     // 98-fpp-ptp-driver.conf.  Harmless if absent -- the node keeps the graph
     // driver and behaves exactly as before.
+    // Run the pipeline on the graph's clock and use PTP only for the media
+    // clock and the RTP timestamps.
+    //
+    // MEASURED, AND IT IS THE WRONG ARCHITECTURE.  Keep it default OFF.
+    //
+    // It does fix the source side -- the ring stops draining, because
+    // pipewiresrc no longer pulls on PTP time while PipeWire fills at the card's
+    // rate.  But rtpL24pay derives RTP timestamps from the pipeline's running
+    // time, so moving the pipeline off PTP unanchors the whole RTP timeline:
+    // presentation timing measured -36,135,744 ms, and aes67_verify put the
+    // media clock at -56.3ppm, i.e. not locked at all.  A ts-offset servo does
+    // not rescue that; the timestamps themselves would have to be re-derived.
+    //
+    // The deeper reason not to pursue it: it keeps the sound card as clock
+    // master and bolts PTP on beside it, and that is the opposite of how AES67
+    // is done.  In professional practice the audio sample clock is slaved to
+    // PTP -- Dante and RAVENNA interfaces derive their word clock from the
+    // network.  The Linux reference implementation (bondagit/aes67-linux-daemon)
+    // uses Merging's MergingRavennaALSA.ko, a kernel module presenting a virtual
+    // ALSA device that IS the PTP clock domain; everything else adapts to it.
+    // That is the same shape as PipeWire's node.group = pipewire.ptp0, which
+    // means the "graph takeover" that approach causes -- the sound cards moving
+    // onto the PTP driver and being rate-matched -- is not a side effect to be
+    // avoided.  It is the intended behaviour, and the point of a clock domain.
+    bool splitClockDomains = false;
+
     bool sourcePtpGroup = false;
     std::string sourcePtpGroupName = "pipewire.ptp0";
 
