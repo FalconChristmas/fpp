@@ -101,6 +101,8 @@ function SaveUIPasswordSettings() {
 $( document ).ready(function() {
     if ($('#passwordEnable').val() == '1') {
         $('.passwordEnableChild').show();
+    } else {
+        $('.passwordEnableChild').hide();
     }
 
     // Replace the auto-generated onChange handlers for the UI password settings
@@ -111,6 +113,14 @@ $( document ).ready(function() {
 
             if (typeof window['Update' + name + 'Children'] === 'function') {
                 window['Update' + name + 'Children'](0);
+            }
+
+            if (name == 'passwordEnable') {
+                if ($('#passwordEnable').val() == '1') {
+                    $('.passwordEnableChild').show();
+                } else {
+                    $('.passwordEnableChild').hide();
+                }
             }
 
             MarkUIPasswordDirty();
@@ -153,7 +163,7 @@ PrintSetting('passwordEnable');
 PrintSetting('password');
 PrintSetting('passwordVerify');
 ?>
-            <div class='row'>
+            <div class='row passwordEnableChild' style='display: none;'>
                 <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2"></div>
                 <div class='printSettingFieldCol col-md'>
                     <input type='button' class='buttons btn-success' id='saveUIPasswordBtn'
