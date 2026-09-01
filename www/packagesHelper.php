@@ -19,6 +19,13 @@ if ($action === 'install' && !empty($packageName)) {
     exit;
 }
 
+if ($action === 'reinstall' && !empty($packageName)) {
+    header('Content-Type: text/plain');
+    $ok = ReinstallSystemPackage($packageName, true);
+    echo $ok ? "\nCompleted" : "\nFailed";
+    exit;
+}
+
 if ($action === 'uninstall' && !empty($packageName)) {
     header('Content-Type: text/plain');
     // Drops the "user" requester; the package is only apt-removed if no plugin

@@ -203,6 +203,39 @@ function InstallSystemPackage($package, $requester, $doUpdate = true)
     return true;
 }
 
+// Reinstalls a system package via 'apt-get install --reinstall'. The manifest
+// is not modified -- reinstall simply refreshes the files for an already
+// tracked/installed package (useful for repairing a broken install). Pass
+// $doUpdate=false to skip 'apt-get update' when the caller has already
+// refreshed the lists. Returns true on success.
+// Keeps the same hardening/timeout/DEBIAN_FRONTEND handling as InstallSystemPackage.
+function ReinstallSystemPackage($package, $doUpdate = true)
+{
+    if (!AptAvailable()) {
+        echo "\nERROR: cannot reinstall package '$package' -- this platform does not support system packages.\n";
+        flush();
+        return false;
+    }
+    if ($doUpdate && !AptGetUpdate()) {
+        echo "\nERROR: 'apt-get update' did not succeed; not reinstalling '$package'.\n";
+        flush();
+        return false;
+    }
+
+    echo "\nReinstalling package '$package'...\n";
+    flush();
+    $rc = RunAptStreaming("sudo apt-get -o DPkg::Lock::Timeout=60 install --reinstall -y " . escapeshellarg($package));
+    if ($rc !== 0) {
+        echo "\nERROR: failed to reinstall '$package' (apt exit $rc).\n";
+        flush();
+        return false;
+    }
+
+    echo "\nReinstalled '$package'.\n";
+    flush();
+    return true;
+}
+
 // Drops $requester from a package's requester list. If no requester remains the
 // package is apt-removed; otherwise it is kept and left installed. Returns true
 // if the package was actually apt-removed.
