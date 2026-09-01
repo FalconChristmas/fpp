@@ -660,6 +660,40 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
     }
     flush();
     if ($lines == -1) {
+        //A configuration backup keeps its large, unchanged areas in a shared blob
+        //store instead of a copy per backup (see InlineBackupBlobs).  Anything
+        //leaving the box has to be whole or the recipient gets a file referring to
+        //blobs they do not have, so rebuild it on the way out exactly as the
+        //Backups page does for its own download button.  The file manager reaches
+        //these through the Config tab, which lists config/backups recursively.
+        $backupDir = @realpath(GetDirSetting('JsonBackups'));
+        $filePath = @realpath($dir . '/' . $filename);
+
+        if ($backupDir !== false && $filePath !== false &&
+            strpos($filePath, $backupDir . '/') === 0 &&
+            str_ends_with(strtolower($filePath), '.json')) {
+            $raw = file_get_contents($filePath);
+
+            if ($raw !== false && strpos($raw, '"__fppBlob"') !== false) {
+                $blobError = '';
+                $whole = InlineBackupBlobs($raw, GetBackupBlobDir($backupDir), $blobError);
+
+                if ($whole === false) {
+                    //Handing over the raw file would give them a backup that cannot
+                    //be restored, and no indication of why until they tried
+                    error_log("GetFileImpl: cannot rebuild backup '$filePath' - $blobError");
+                    http_response_code(500);
+                    header('Content-type: text/plain');
+                    echo "Unable to rebuild backup $filename: $blobError";
+                    exit;
+                }
+
+                header('Content-Length: ' . strlen($whole));
+                echo $whole;
+                exit;
+            }
+        }
+
         header('Content-Length: ' . real_filesize($dir . '/' . $filename));
         passthru($SUDO . " cat " . escapeshellarg($dir . '/' . $filename));
     } else {
@@ -1143,10 +1177,18 @@ function DeleteFile()
     $constructedPath = "$dir/$fileName";
     $fullPath = realpath($constructedPath); // Full resolved path of the target file
 
+    //The Config tab lists config/backups recursively, which puts the blob store
+    //within reach of the delete button.  A blob is shared config rather than a
+    //file of its own, so refuse - and say which backups would be lost.  Enforced
+    //here rather than as a prompt on the page so it holds for every caller.
+    $blobRefusal = ($fullPath !== false) ? DescribeBackupBlobDeletion($fullPath) : '';
+
     if (!$allowedDir || !$fullPath || strpos($fullPath, $allowedDir) !== 0) {
         $status = "Invalid path: directory traversal detected or file outside allowed directory";
     } else if (!file_exists($fullPath)) {
         $status = "File Not Found";
+    } else if ($blobRefusal !== '') {
+        $status = "Refusing to delete - " . $blobRefusal;
     } else if (is_dir($fullPath)) {
         removeDir($fullPath);
         $status = "OK";

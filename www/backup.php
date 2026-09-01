@@ -267,11 +267,25 @@ if (isset($_POST['btnDownloadConfig'])) {
                 $rstftmp_name = $_FILES['conffile']['tmp_name'];
                 //file contents
                 $file_contents = file_get_contents($rstftmp_name);
-                //decode back into an array
-                $file_contents_decoded = json_decode($file_contents, true);
 
-                //successful decode
-                doRestore($restore_area, $file_contents_decoded, $rstfname, $keepNetworkSettings, $keepMasterSlaveSettings, 'page');
+                //An uploaded backup is normally already whole - downloads are
+                //written out that way.  One copied off the box by hand is not, so
+                //resolve against this box's own blob store; anything still
+                //unresolved is reported rather than restored with a hole in it.
+                $blob_error = '';
+                $file_contents = InlineBackupBlobs($file_contents, GetBackupBlobDir(GetDirSetting('JsonBackups')), $blob_error);
+
+                if ($file_contents === false) {
+                    $backup_error_string = "Restore: the uploaded backup " . $rstfname . " is incomplete - " . $blob_error;
+                    $backup_errors[] = $backup_error_string;
+                    error_log($backup_error_string);
+                } else {
+                    //decode back into an array
+                    $file_contents_decoded = json_decode($file_contents, true);
+
+                    //successful decode
+                    doRestore($restore_area, $file_contents_decoded, $rstfname, $keepNetworkSettings, $keepMasterSlaveSettings, 'page');
+                }
             }
         }
     }
@@ -1774,17 +1788,32 @@ function doBackupDownload($settings_data, $area)
             }
         }
 
+        //Store the large, rarely-changing areas out of line so that every backup
+        //sharing an unchanged one shares a single copy of it - see
+        //ExtractBackupBlobs().  Only for backups that stay on the box: one being
+        //handed straight to a browser has to be self-contained, and is written
+        //whole.
+        $backup_blob_refs = array();
+        if ($fpp_backup_prompt_download == false) {
+            $settings_data = ExtractBackupBlobs(
+                $settings_data,
+                GetBackupBlobDir($fpp_backup_location),
+                $backup_blob_refs
+            );
+        }
+
         $json = json_encode($settings_data);
 
         //Write data into backup file
         if (file_put_contents($backup_local_fpath, $json) !== false) {
             //Record what we just wrote in the metadata cache so that listing the
             //backups - which pruneOrRemoveAgedBackupFiles() is about to do - does
-            //not have to read this whole file back to recover two of its fields.
+            //not have to read this whole file back to recover its fields.
             RememberBackupMetadata(
                 $backup_local_fpath,
                 isset($settings_data['backup_comment']) ? $settings_data['backup_comment'] : '',
-                isset($settings_data['backup_trigger_source']) ? $settings_data['backup_trigger_source'] : null
+                isset($settings_data['backup_trigger_source']) ? $settings_data['backup_trigger_source'] : null,
+                $backup_blob_refs
             );
 
             //Once the backup has been written into our local directory, prune/remove any backups older than the max set age
@@ -2101,6 +2130,37 @@ function pruneOrRemoveAgedBackupFiles()
         //Note what happened in the logs also
         $aged_backup_removal_message = "SETTINGS BACKUP: Removed ($num_backups_deleted) old JSON settings backup files, because we only want to keep the $fpp_backup_min_number_kept most recent backups";
         error_log($aged_backup_removal_message . PHP_EOL);
+    }
+
+    //Now the old backups are gone, drop any blob they were the last user of.
+    //
+    //$config_dir_files is the complete listing this function fetched above, so
+    //subtracting the ones just deleted leaves the full set of backups that
+    //remain - and every hash any of them still needs.  Working from anything
+    //less than a complete set would delete data that is still referenced, which
+    //is why this is done here and not from somewhere with a partial view.
+    $deleted_backups = array();
+    foreach ($backups_to_delete as $deleted_backup) {
+        $deleted_backups[$deleted_backup['backup_filename']] = true;
+    }
+
+    $referenced_blobs = array();
+    foreach ($config_dir_files as $remaining_backup) {
+        if (isset($deleted_backups[$remaining_backup['backup_filename']])) {
+            continue;
+        }
+        if (!empty($remaining_backup['backup_alternative_location'])) {
+            //Lives on the removable device, along with its own copy of the blobs
+            continue;
+        }
+        foreach (isset($remaining_backup['backup_blob_refs']) ? $remaining_backup['backup_blob_refs'] : array() as $hash) {
+            $referenced_blobs[$hash] = $hash;
+        }
+    }
+
+    $blobs_removed = CollectUnreferencedBackupBlobs(GetDirSetting('JsonBackups'), $referenced_blobs);
+    if ($blobs_removed > 0) {
+        error_log("SETTINGS BACKUP: Removed ($blobs_removed) stored config blobs that no remaining backup referenced" . PHP_EOL);
     }
 }
 

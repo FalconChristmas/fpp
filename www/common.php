@@ -3986,6 +3986,423 @@ function read_directory_files($directory, $return_data = true, $sort_by_date = f
 }
 
 /**
+ * Configuration backup blob store.
+ *
+ * A backup is a snapshot of every config file on the box, and on a configured
+ * show a handful of those files dwarf everything else - an xLights model group
+ * export, the virtual display map.  They also change very rarely.  Writing a
+ * backup on every settings change therefore stored the same tens of megabytes
+ * again and again: on the box this was written for, 59 backups held exactly one
+ * distinct version of each of the three big areas, 750MB of byte-identical
+ * duplication in a 1.16GB directory, and every checkbox tick wrote another 13MB
+ * to the SD card.
+ *
+ * So anything big is written once, to a file named after the SHA-256 of its
+ * contents, and the backup carries a reference in its place.  Backups that share
+ * an unchanged area share the one blob.
+ *
+ * The store lives in 'blobs' inside the backups directory rather than beside it,
+ * because copying backups to a USB device is an rsync of that whole directory -
+ * the blobs go along with them, and a backup restored from the device resolves
+ * against the copy sitting next to it.
+ *
+ * A backup that leaves the box is always made whole again first: downloads are
+ * inlined on the way out (see DownloadJsonBackup) so what a user downloads is a
+ * self-contained file that restores anywhere, exactly as it was before.
+ *
+ * @param string $backup_dir Directory holding the backup files.
+ * @return string Blob directory for that backup directory, no trailing slash.
+ */
+function GetBackupBlobDir($backup_dir)
+{
+    return rtrim($backup_dir, '/') . '/blobs';
+}
+
+/**
+ * Sub-trees at or above this many encoded bytes are worth storing out of line.
+ * Well above any ordinary config file (the next largest on the box this was
+ * written for is 25KB) so a normal backup is untouched and still readable as
+ * plain JSON.
+ */
+define('FPP_BACKUP_BLOB_MIN_BYTES', 262144);
+
+/**
+ * True if $value is a blob reference produced by ExtractBackupBlobs().
+ *
+ * Deliberately strict - a single key, and a well-formed hash - so a config file
+ * that happens to contain a '__fppBlob' key cannot be mistaken for one.
+ *
+ * @param mixed $value
+ * @return bool
+ */
+function IsBackupBlobRef($value)
+{
+    return is_array($value)
+        && count($value) === 1
+        && isset($value['__fppBlob']['sha256'])
+        && is_string($value['__fppBlob']['sha256'])
+        && preg_match('/^[0-9a-f]{64}$/', $value['__fppBlob']['sha256']) === 1;
+}
+
+/**
+ * Replaces the large sub-trees of an assembled backup with blob references,
+ * writing each one to the blob store.
+ *
+ * Walks down to file granularity and no further: it recurses through the
+ * containers that group areas and filenames, but not into the contents of a file
+ * (a 160,000 line display map is one blob, not 160,000 of them).  Hence the depth
+ * limit and the element-count limit - a short array is a wrapper, a long one is
+ * data.
+ *
+ * Storing a blob is best effort.  If the store cannot be written the sub-tree is
+ * simply left where it is: a bigger backup is a cost, a backup that references a
+ * blob that was never written is a corrupt one.
+ *
+ * @param mixed $node        Backup data (modified in place through the return value).
+ * @param string $blob_dir   Blob directory, from GetBackupBlobDir().
+ * @param array $written     Collects the hashes this backup references.
+ * @param int $depth         Recursion depth, callers pass 0.
+ * @return mixed The node with large sub-trees replaced by references.
+ */
+function ExtractBackupBlobs($node, $blob_dir, &$written, $depth = 0)
+{
+    if (!is_array($node)) {
+        return $node;
+    }
+
+    //A short array is a container to walk through; a long one is a file's worth
+    //of data and is a blob candidate in its own right.  The depth limit stops the
+    //walk at file granularity: deep enough to reach a single file inside the
+    //misc-configs bundle (area -> 'configs' -> [0] -> filename), so that changing
+    //one small config file there does not give every large one a new hash and
+    //rewrite the lot; not so deep that a file's own contents get split up.
+    if ($depth < 4 && count($node) <= 256) {
+        foreach ($node as $key => $value) {
+            $node[$key] = ExtractBackupBlobs($value, $blob_dir, $written, $depth + 1);
+        }
+
+        return $node;
+    }
+
+    $encoded = json_encode($node);
+    if ($encoded === false || strlen($encoded) < FPP_BACKUP_BLOB_MIN_BYTES) {
+        return $node;
+    }
+
+    $hash = hash('sha256', $encoded);
+    $blob_path = $blob_dir . '/' . $hash . '.json';
+
+    if (!file_exists($blob_path)) {
+        if (!is_dir($blob_dir) && @mkdir($blob_dir, 0775, true) === false) {
+            error_log("ExtractBackupBlobs: cannot create '$blob_dir'; storing this data inline instead.");
+            return $node;
+        }
+
+        //Named after its own contents, so a blob is either absent or complete -
+        //write it somewhere else first and move it into place.
+        if (!WriteFileAtomic($blob_path, $encoded)) {
+            error_log("ExtractBackupBlobs: cannot write '$blob_path'; storing this data inline instead.");
+            return $node;
+        }
+    }
+
+    $written[$hash] = $hash;
+
+    return array('__fppBlob' => array(
+        'sha256' => $hash,
+        'bytes' => strlen($encoded),
+        'note' => 'Large unchanged config stored once in backups/blobs and shared by every backup that contains it. Download this backup through the FPP web UI to get a self-contained copy.',
+    ));
+}
+
+/**
+ * Returns every blob hash referenced by an encoded backup.
+ *
+ * Reads the encoded form rather than a decoded one: this is called while
+ * listing the backups, where decoding each file is the very cost the blob store
+ * exists to avoid.
+ *
+ * @param string $json Encoded backup.
+ * @return array Hashes, values and keys both the hash.
+ */
+function BackupBlobRefsInJson($json)
+{
+    $refs = array();
+
+    if (preg_match_all('/"__fppBlob":\{[^{}]*"sha256":"([0-9a-f]{64})"/', (string) $json, $matches)) {
+        foreach ($matches[1] as $hash) {
+            $refs[$hash] = $hash;
+        }
+    }
+
+    return $refs;
+}
+
+/**
+ * Puts the blobs back, returning a backup that stands on its own.
+ *
+ * Works on the encoded backup rather than a decoded one so that making a 20MB
+ * backup whole does not first cost the ~60MB a decoded copy of it occupies -
+ * php-fpm here is capped at 128MB.  A blob holds exactly the json_encode() of
+ * the sub-tree it replaced, so splicing it back in reproduces, byte for byte,
+ * the file that would have been written with no blob store at all.
+ *
+ * A reference that cannot be resolved fails the whole thing.  Restoring a
+ * backup with a hole in it would write a placeholder over a live config file.
+ *
+ * @param string $json      Encoded backup, possibly containing references.
+ * @param string $blob_dir  Where that backup's blobs live.
+ * @param string $error     Set to a description when this returns false.
+ * @return string|false     The backup with every reference resolved, or false.
+ */
+function InlineBackupBlobs($json, $blob_dir, &$error = '')
+{
+    $json = (string) $json;
+
+    //Overwhelmingly the common case, including every backup written before the
+    //blob store existed and every backup a user uploads.
+    if (strpos($json, '"__fppBlob"') === false) {
+        return $json;
+    }
+
+    $fallback_dir = '';
+    if (function_exists('GetDirSetting')) {
+        $fallback_dir = GetBackupBlobDir(GetDirSetting('JsonBackups'));
+    }
+
+    $failed = '';
+    $resolved = preg_replace_callback(
+        '/\{"__fppBlob":\{[^{}]*"sha256":"([0-9a-f]{64})"[^{}]*\}\}/',
+        function ($m) use ($blob_dir, $fallback_dir, &$failed) {
+            $hash = $m[1];
+
+            foreach (array($blob_dir, $fallback_dir) as $dir) {
+                if ($dir === '') {
+                    continue;
+                }
+
+                $path = $dir . '/' . $hash . '.json';
+                if (!file_exists($path)) {
+                    continue;
+                }
+
+                $blob = @file_get_contents($path);
+                //The name is the hash of the contents, so a damaged blob is
+                //detectable rather than something we splice in regardless.
+                if ($blob !== false && hash('sha256', $blob) === $hash) {
+                    return $blob;
+                }
+
+                $failed = "blob $hash in $dir is damaged";
+                return $m[0];
+            }
+
+            $failed = "blob $hash is missing";
+            return $m[0];
+        },
+        $json
+    );
+
+    if ($resolved === null) {
+        $error = 'failed to scan the backup for blob references';
+        return false;
+    }
+
+    if ($failed !== '') {
+        $error = $failed . '. A backup copied off the box by hand does not bring its blobs with it - ' .
+            'download it through the FPP web UI instead, which writes out a self-contained file.';
+        return false;
+    }
+
+    return $resolved;
+}
+
+/**
+ * Deletes blobs that no backup refers to any more.
+ *
+ * $referenced has to be the complete set for the directory, so this is only
+ * safe to call from somewhere that has just listed every backup in it - see
+ * pruneOrRemoveAgedBackupFiles().  Given an incomplete set it would delete data
+ * that is still in use, so it declines to do anything when handed nothing.
+ *
+ * @param string $backup_dir
+ * @param array $referenced Hashes still in use, as keys.
+ * @return int Number of blobs removed.
+ */
+function CollectUnreferencedBackupBlobs($backup_dir, $referenced)
+{
+    $blob_dir = GetBackupBlobDir($backup_dir);
+    if (!is_dir($blob_dir)) {
+        return 0;
+    }
+
+    $blobs = @scandir($blob_dir);
+    if ($blobs === false) {
+        return 0;
+    }
+
+    $removed = 0;
+    foreach ($blobs as $blob) {
+        if (!preg_match('/^([0-9a-f]{64})\.json$/', $blob, $m)) {
+            continue;
+        }
+
+        if (isset($referenced[$m[1]])) {
+            continue;
+        }
+
+        if (@unlink($blob_dir . '/' . $blob)) {
+            $removed++;
+        }
+    }
+
+    return $removed;
+}
+
+/**
+ * Which backups reference which blobs.
+ *
+ * Answers from the metadata cache wherever its recorded size and mtime still
+ * describe the file on disk, and only opens the ones it does not cover, so in
+ * the steady state this reads the small cache file and nothing else.  It is
+ * still authoritative: an entry that no longer matches is not trusted, it is
+ * re-read.
+ *
+ * @param string $backup_dir Directory holding the backup files.
+ * @return array Blob hash => array of backup filenames that reference it.
+ */
+function GetBackupBlobReferenceMap($backup_dir)
+{
+    $map = array();
+    $cache = LoadBackupMetadataCache();
+    $names = @scandir($backup_dir);
+
+    if ($names === false) {
+        return $map;
+    }
+
+    foreach ($names as $name) {
+        if (!str_ends_with(strtolower($name), '.json')) {
+            continue;
+        }
+
+        $path = $backup_dir . '/' . $name;
+        if (!is_file($path)) {
+            continue;
+        }
+
+        clearstatcache(true, $path);
+        $size = @filesize($path);
+        $mtime = @filemtime($path);
+
+        if (isset($cache[$path]['blob_refs']) &&
+            isset($cache[$path]['size']) && $cache[$path]['size'] === $size &&
+            isset($cache[$path]['mtime']) && $cache[$path]['mtime'] === $mtime) {
+            $refs = $cache[$path]['blob_refs'];
+        } else {
+            $refs = array_values(BackupBlobRefsInJson(@file_get_contents($path)));
+        }
+
+        foreach ($refs as $hash) {
+            $map[$hash][] = $name;
+        }
+    }
+
+    return $map;
+}
+
+/**
+ * Explains why a path must not be deleted, for the blob store's sake.
+ *
+ * A blob is not a file in its own right - it is a piece of config that several
+ * backups share, held once instead of copied into each of them.  Deleting one by
+ * hand does not free anything a user would recognise, and it quietly makes every
+ * backup holding a reference to it unrestorable.  The right way to get rid of a
+ * blob is to delete the backups that use it, after which pruning drops it on its
+ * own (see CollectUnreferencedBackupBlobs).
+ *
+ * A blob nothing references is fair game - pruning would have removed it anyway.
+ *
+ * This lives behind the delete API rather than in a confirmation dialog on the
+ * file manager, so that it holds for anything that can reach the API and not
+ * just for the one page that happens to ask first.
+ *
+ * @param string $full_path Resolved path the caller is about to delete.
+ * @return string Reason to refuse, or '' to allow the delete.
+ */
+function DescribeBackupBlobDeletion($full_path)
+{
+    if (!function_exists('GetDirSetting')) {
+        return '';
+    }
+
+    $backup_dir = @realpath(GetDirSetting('JsonBackups'));
+    if ($backup_dir === false) {
+        return '';
+    }
+
+    $blob_dir = @realpath(GetBackupBlobDir($backup_dir));
+    if ($blob_dir === false) {
+        return '';
+    }
+
+    $full_path = (string) $full_path;
+    $is_blob_dir = ($full_path === $blob_dir);
+    $is_blob_file = (strpos($full_path, $blob_dir . '/') === 0)
+        && preg_match('/^([0-9a-f]{64})\.json$/', basename($full_path), $m) === 1;
+
+    if (!$is_blob_dir && !$is_blob_file) {
+        return '';
+    }
+
+    $references = GetBackupBlobReferenceMap($backup_dir);
+
+    if ($is_blob_file) {
+        $users = isset($references[$m[1]]) ? $references[$m[1]] : array();
+        if (empty($users)) {
+            //Nothing points at it; pruning would have removed it anyway
+            return '';
+        }
+
+        return 'this is not a file of its own - it is configuration that '
+            . DescribeBackupList($users)
+            . ' share a single copy of. Deleting it leaves '
+            . (count($users) == 1 ? 'that backup' : 'those backups')
+            . ' unrestorable. To reclaim the space, delete the backups themselves and this is removed automatically.';
+    }
+
+    //The whole store.  Everything referenced anywhere would go at once.
+    $used_by = array();
+    foreach ($references as $users) {
+        foreach ($users as $user) {
+            $used_by[$user] = true;
+        }
+    }
+
+    if (empty($used_by)) {
+        return '';
+    }
+
+    return 'this folder holds configuration shared by ' . count($used_by)
+        . ' backups rather than files of its own, and emptying it leaves all of them unrestorable.'
+        . ' To reclaim the space, delete the backups themselves and this empties automatically.';
+}
+
+/**
+ * Renders a list of backup filenames for a message, without running to pages.
+ *
+ * @param array $names
+ * @return string
+ */
+function DescribeBackupList($names)
+{
+    $shown = array_slice($names, 0, 3);
+    $rest = count($names) - count($shown);
+
+    return implode(', ', $shown) . ($rest > 0 ? ' and ' . $rest . ' other backup' . ($rest == 1 ? '' : 's') : '');
+}
+
+/**
  * Backup metadata cache.
  *
  * Listing the configuration backups needs exactly two things out of each backup
@@ -4063,9 +4480,10 @@ function SaveBackupMetadataCache($cache)
  * @param string $backup_file_path Full path of the backup that was written.
  * @param string $backup_comment
  * @param string|null $backup_trigger_source
+ * @param array $blob_refs Blob hashes the backup references, as keys.
  * @return bool
  */
-function RememberBackupMetadata($backup_file_path, $backup_comment, $backup_trigger_source)
+function RememberBackupMetadata($backup_file_path, $backup_comment, $backup_trigger_source, $blob_refs = array())
 {
     clearstatcache(true, $backup_file_path);
     $size = @filesize($backup_file_path);
@@ -4081,6 +4499,7 @@ function RememberBackupMetadata($backup_file_path, $backup_comment, $backup_trig
         'mtime' => $mtime,
         'backup_comment' => $backup_comment,
         'backup_trigger_source' => $backup_trigger_source,
+        'blob_refs' => array_values($blob_refs),
     );
 
     return SaveBackupMetadataCache($cache);

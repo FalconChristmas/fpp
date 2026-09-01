@@ -45,6 +45,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         exit;
     }
 
+    //A backup copied off a box by hand can reference config stored out of line;
+    //resolve against this box's blob store before decoding.  A backup downloaded
+    //through the UI is already whole and passes straight through.
+    $blob_error = '';
+    $content = InlineBackupBlobs($content, GetBackupBlobDir(GetDirSetting('JsonBackups')), $blob_error);
+    if ($content === false) {
+        ob_end_clean();
+        echo json_encode(['Status' => 'Error', 'Message' => 'Incomplete backup file: ' . $blob_error]);
+        exit;
+    }
+
     $data = json_decode($content, true);
     if ($data === null) {
         ob_end_clean();

@@ -481,8 +481,19 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 
 	//process each of the backups and read out the backup comment, and work out the date it was created
 	foreach ($json_config_backup_Data as $backup_filename => $backup_data) {
+		//Only actual backup files.  The directory listing also returns anything
+		//else that happens to be in there - a subdirectory (the blob store), a
+		//README somebody dropped in - and the date parsing below cannot survive a
+		//name it does not recognise: createFromFormat() returns false and calling
+		//->format() on it is a fatal that takes out the whole listing, the Backups
+		//page with it, and every settings-change backup (they prune through here).
+		if (!str_ends_with(strtolower($backup_filename), '.json')) {
+			continue;
+		}
+
 		$backup_data_comment = '';
 		$backup_data_trigger_source = null;
+		$backup_blob_refs = array();
 		$backup_alternative = false;
 		$backup_filepath = $source_directory;
 		//Check to see if the source direct is the same as the default or not, if it is't then the the directory is the alternative backup directory (USB or something)
@@ -500,17 +511,26 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 
 		if (isset($metadata_cache[$backup_fullpath]) &&
 			$metadata_cache[$backup_fullpath]['size'] === $backup_file_size &&
-			$metadata_cache[$backup_fullpath]['mtime'] === $backup_file_mtime) {
+			$metadata_cache[$backup_fullpath]['mtime'] === $backup_file_mtime &&
+			isset($metadata_cache[$backup_fullpath]['blob_refs'])) {
 			//Cached: the file has not changed since we last read it
 			$backup_data_comment = $metadata_cache[$backup_fullpath]['backup_comment'];
 			$backup_data_trigger_source = $metadata_cache[$backup_fullpath]['backup_trigger_source'];
+			$backup_blob_refs = $metadata_cache[$backup_fullpath]['blob_refs'];
 		} else {
 			//Read the backup file so we can extract some metadata
-			$decoded_backup_data = json_decode(file_get_contents($backup_fullpath), true);
+			$raw_backup_data = file_get_contents($backup_fullpath);
+			//Which blobs this backup holds on to, so that pruning can tell which
+			//blobs are still needed without decoding anything.  Read off the
+			//encoded text - see BackupBlobRefsInJson().
+			$backup_blob_refs = array_values(BackupBlobRefsInJson($raw_backup_data));
+
+			$decoded_backup_data = json_decode($raw_backup_data, true);
 			if (is_null($decoded_backup_data)) {
-				$decode_error_result = array('Status' => 'Error', 'Message' => 'Unable to decode JSON backup file (' . $backup_fullpath, 'IsReadable' => is_readable($backup_fullpath), 'FileContent' => file_get_contents($backup_fullpath));
+				$decode_error_result = array('Status' => 'Error', 'Message' => 'Unable to decode JSON backup file (' . $backup_fullpath, 'IsReadable' => is_readable($backup_fullpath), 'FileContent' => $raw_backup_data);
 				error_log('process_jsonbackup_file_data_helper: ( ' . json_encode($decode_error_result) . ' )');
 			}
+			unset($raw_backup_data);
 
 			if (is_array($decoded_backup_data) && array_key_exists('backup_comment', $decoded_backup_data)) {
 				$backup_data_comment = $decoded_backup_data['backup_comment'];
@@ -528,6 +548,7 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 					'mtime' => $backup_file_mtime,
 					'backup_comment' => $backup_data_comment,
 					'backup_trigger_source' => $backup_data_trigger_source,
+					'blob_refs' => $backup_blob_refs,
 				);
 				$metadata_cache_dirty = true;
 			}
@@ -549,7 +570,8 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 			'backup_comment' => $backup_data_comment,
 			'backup_trigger_source' => $backup_data_trigger_source,
 			'backup_time' => $backup_date_time,
-			'backup_time_unix' => $backup_date_time_unix
+			'backup_time_unix' => $backup_date_time_unix,
+			'backup_blob_refs' => $backup_blob_refs
 		);
 	}
 
@@ -671,7 +693,14 @@ function GetAvailableJSONBackupsOnDevice(){
 	$json_config_backup_filenames = DriveMountHelper($deviceName, 'read_directory_files', array($dir_jsonbackupsalternate, false, true));
 
 	//do some additional massaging of the data
-	$json_config_backup_filenames = array_keys($json_config_backup_filenames);
+	//Backup files only - the directory also holds the blob store subdirectory,
+	//which is not a backup and must not be offered as one.
+	$json_config_backup_filenames = array_values(array_filter(
+		array_keys($json_config_backup_filenames),
+		function ($name) {
+			return str_ends_with(strtolower($name), '.json');
+		}
+	));
 
 	return json($json_config_backup_filenames);
 }
@@ -729,6 +758,7 @@ function RestoreJsonBackup(){
 	$fullPath = "$dir/$restore_from_filename";
 
 	$file_contents_decoded = null;
+	$blob_error = '';
 	$restore_status = array('Success' => 'Failed', 'Message' => '');
 
 	//check that the area supplied is not empty, if so then assume we're restoring all araeas
@@ -748,17 +778,31 @@ function RestoreJsonBackup(){
 			$file_contents = file_get_contents($fullPath);
 
 			if ($file_contents !== FALSE) {
+				//Put back anything stored out of line before decoding - a restore
+				//must see the whole backup.  See InlineBackupBlobs().
+				$blob_error = '';
+				$file_contents = InlineBackupBlobs($file_contents, GetBackupBlobDir($dir), $blob_error);
+			}
+
+			if ($file_contents !== FALSE) {
 				//decode back into an array
 				$file_contents_decoded = json_decode($file_contents, true);
 			} else {
 				//file_get_contents will return false if it couldn't read the file so
 				$restore_status['Success'] = "Ok";
-				$restore_status['Message'] = 'Backup File ' . $fullPath . ' could not be read.';
+				$restore_status['Message'] = 'Backup File ' . $fullPath . ' could not be read.' .
+					(!empty($blob_error) ? ' ' . $blob_error : '');
 			}
 		} else if ((strtolower($restore_from_directory) === 'jsonbackupsalternate')) {
 			if (isset($settings['jsonConfigBackupUSBLocation']) && !empty($settings['jsonConfigBackupUSBLocation']) && strtolower($settings['jsonConfigBackupUSBLocation']) !== 'none') {
 				//Mount and read the json backup from the jsonConfigBackupUSBLocation location
 				$file_contents = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_get_contents', array($fullPath));
+
+				//As above, rebuild the backup before decoding it
+				$blob_error = '';
+				if ($file_contents !== FALSE) {
+					$file_contents = InlineBackupBlobs($file_contents, GetBackupBlobDir($dir), $blob_error);
+				}
 
 				//If the file was read ok, $file_contents will be false if there was issue reading the file
 				if ($file_contents !== FALSE) {
@@ -767,7 +811,8 @@ function RestoreJsonBackup(){
 				} else {
 					//file_get_contents will return false if it couldn't read the file so
 					$restore_status['Success'] = "Ok";
-					$restore_status['Message'] = 'Backup File ' . $fullPath . ' could not be read.';
+					$restore_status['Message'] = 'Backup File ' . $fullPath . ' could not be read.' .
+						(!empty($blob_error) ? ' ' . $blob_error : '');
 				}
 			}
 		}
@@ -826,15 +871,27 @@ function DownloadJsonBackup(){
 		$fileExists = file_exists($fullPath);
 
 		if ($fileExists) {
+			//What leaves the box has to stand on its own, so put back anything
+			//stored out of line - see InlineBackupBlobs().  A backup with nothing
+			//stored out of line is streamed straight from disk as before.
+			$blob_error = '';
+			$outgoing = InlineBackupBlobs(file_get_contents($fullPath), GetBackupBlobDir($dir), $blob_error);
+
+			if ($outgoing === false) {
+				error_log("DownloadJsonBackup: cannot rebuild '$fullPath' - $blob_error");
+				return json(array("Status" => "Unable to rebuild backup: " . $blob_error, "file" => $fileName, "dir" => $dirName));
+			}
+
 			//Content type will always be json so see the header
 			header("Content-Type: application/json");
 			header("Content-Disposition: attachment; filename=\"" . basename($fileName) . "\"");
+			header("Content-Length: " . strlen($outgoing));
 
 			//Empty the output buffers
 			ob_clean();
 			flush();
 
-			readfile($fullPath);
+			echo $outgoing;
 		} else {
 			$status = "File Not Found";
 			return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
@@ -847,15 +904,30 @@ function DownloadJsonBackup(){
 		}
 
 		if ($fileExists) {
+			//As above - the copy on the device carries its own blobs alongside it,
+			//because copying backups there is an rsync of the whole directory.
+			$blob_error = '';
+			$raw = DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'file_get_contents', array($fullPath));
+			$outgoing = ($raw === false) ? false : InlineBackupBlobs($raw, GetBackupBlobDir($dir), $blob_error);
+			if ($raw === false) {
+				$blob_error = 'the file could not be read from the device';
+			}
+
+			if ($outgoing === false) {
+				error_log("DownloadJsonBackup: cannot rebuild '$fullPath' - $blob_error");
+				return json(array("Status" => "Unable to rebuild backup: " . $blob_error, "file" => $fileName, "dir" => $dirName));
+			}
+
 			//Content type will always be json so see the header
 			header("Content-Type: application/json");
 			header("Content-Disposition: attachment; filename=\"" . basename($fileName) . "\"");
+			header("Content-Length: " . strlen($outgoing));
 
 			//Empty the output buffers
 			ob_clean();
 			flush();
 
-			DriveMountHelper($settings['jsonConfigBackupUSBLocation'], 'readfile', array($fullPath));
+			echo $outgoing;
 		} else {
 			$status = "File Not Found";
 			return json(array("Status" => $status, "file" => $fileName, "dir" => $dirName));
