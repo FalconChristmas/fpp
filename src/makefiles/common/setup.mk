@@ -37,12 +37,26 @@ endif
 # exists to remove -- and a NOPCH build never matches the PCH-built global ccache
 # anyway. nocc does a light include scan and preprocesses+compiles on the helper,
 # so nothing heavy runs on the (often single-core) client.
+# nocc is active when the helper list is given explicitly (NOCC_SERVERS) OR when
+# the daemon is told to find helpers itself over mDNS (NOCC_DISCOVER_MDNS=1),
+# which is the recommended setup -- so "NOCC_DISCOVER_MDNS=1 make" needs no host
+# list at all.
+NOCC_ACTIVE :=
 ifneq ($(NOCC_SERVERS),)
+NOCC_ACTIVE := 1
+endif
+ifneq ($(NOCC_DISCOVER_MDNS),)
+NOCC_ACTIVE := 1
+export NOCC_DISCOVER_MDNS
+endif
+
+ifneq ($(NOCC_ACTIVE),)
 CCACHE = nocc
 # nocc also requires the daemon path in NOCC_GO_EXECUTABLE -- it errors out even
 # when just running a local link if it is unset. FPP's SetupBuildEnv exports it,
 # but default it here (only if unset) so a manual "NOCC_SERVERS=host:port make"
-# works too; the nocc deb installs the daemon at /usr/bin/nocc-daemon.
+# (or "NOCC_DISCOVER_MDNS=1 make") works too; the nocc deb installs the daemon at
+# /usr/bin/nocc-daemon.
 NOCC_GO_EXECUTABLE ?= /usr/bin/nocc-daemon
 export NOCC_GO_EXECUTABLE
 endif
@@ -82,7 +96,7 @@ DISTRIBUTED_COMPILE :=
 ifneq ($(DISTCC_HOSTS),)
 DISTRIBUTED_COMPILE := 1
 endif
-ifneq ($(NOCC_SERVERS),)
+ifneq ($(NOCC_ACTIVE),)
 DISTRIBUTED_COMPILE := 1
 endif
 
@@ -91,7 +105,8 @@ endif
 # compiler NAME we hand them on the helper, so the triplet name makes the helper
 # select the matching (cross-)compiler -- letting an aarch64 Pi cross-build for a
 # 32-bit BeagleBone. Doing it here means a manual build is just
-# "DISTCC_HOSTS=host make" (or "NOCC_SERVERS=host:43210 make") with no compiler
+# "DISTCC_HOSTS=host make" (or "NOCC_SERVERS=host:43210 make", or
+# "NOCC_DISCOVER_MDNS=1 make") with no compiler
 # override. Skipped for clang (macOS) and if the triplet compiler is not
 # installed.
 ifneq ($(DISTRIBUTED_COMPILE),)

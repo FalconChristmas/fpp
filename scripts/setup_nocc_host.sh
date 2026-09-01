@@ -178,28 +178,67 @@ for t in aarch64-linux-gnu arm-linux-gnueabihf; do
 done
 
 HOSTNAME_S="$(hostname)"
+if grep -q -- "-advertise-mdns" "$ENVF" 2>/dev/null; then
+    MDNS_NOTE="${MDNS_NOTE}"
+else
+    MDNS_NOTE="NOTE: mDNS advertising is OFF on this helper, so option 1 will not find
+it. Re-run this script without NOCC_MDNS=0 to turn advertising on."
+fi
 cat <<EOF
 
+============================================================
+NEXT STEP -- on the SLOW board you want to speed up
+============================================================
+
+This machine is now a helper. Nothing else happens until a client is
+pointed at it. Do ONE of the following on that client.
+
 ------------------------------------------------------------
-CLIENT USAGE (on the SLOW board you want to speed up):
+1) RECOMMENDED -- let the client find this helper by itself
+------------------------------------------------------------
+${MDNS_NOTE}
 
-  Install the nocc package (from FPP's apt repo):
-      sudo apt-get install nocc
+  In the FPP UI:
+      Status/Control -> FPP Settings -> Developer  (UI level 3)
+      Distributed Compile -> "nocc + mdns"
+      Leave Compile Hosts empty -- it is ignored in this mode.
+      Then use "Rebuild FPP" on the Developer tab.
 
-  Point the FPP build at this helper AND keep ccache (so the shared/global
-  ccache still works -- nocc is just the compile backend):
-      export CCACHE_PREFIX=nocc
-      export NOCC_SERVERS=${HOSTNAME_S}:${PORT}
-      export NOCC_GO_EXECUTABLE=/usr/bin/nocc-daemon
-      cd /opt/fpp/src && make -j6 CXXCOMPILER=<triplet>-g++ ...
+  From a shell on the client:
+      cd /opt/fpp/src
+      NOCC_DISCOVER_MDNS=1 make -j6
 
-  <triplet> is arm-linux-gnueabihf (32-bit) or aarch64-linux-gnu (64-bit).
+  To see what is out there:
+      nocc-daemon -print-discovered-servers
 
-  Or skip the host list entirely: in the FPP UI, Settings -> Developer ->
-  Distributed Compile -> "nocc + mdns" finds this helper on the LAN by itself.
-  Outside FPP, that is NOCC_DISCOVER_MDNS=1 (and 'nocc -print-discovered-servers'
-  prints what is out there).
+------------------------------------------------------------
+2) MANUAL -- name this helper explicitly
+------------------------------------------------------------
+Use this when mDNS does not cross your network (VLANs, some APs).
 
-To turn the helper back off:  sudo $0 disable
+  In the FPP UI:
+      Distributed Compile -> "nocc"
+      Compile Hosts       -> ${HOSTNAME_S}:${PORT}
+
+  From a shell on the client:
+      cd /opt/fpp/src
+      NOCC_SERVERS=${HOSTNAME_S}:${PORT} make -j6
+
+  Several helpers are ';'-separated, and the port is required:
+      NOCC_SERVERS="hostA:${PORT};hostB:${PORT}"
+
+------------------------------------------------------------
+Notes
+------------------------------------------------------------
+* No compiler flags are needed. FPP's makefiles disable the PCH and
+  select the target-triplet compiler on their own, so an aarch64 helper
+  cross-builds for a 32-bit board.
+* Do NOT set CCACHE_PREFIX=nocc. nocc replaces ccache as the compiler
+  launcher; putting ccache in front would preprocess locally -- exactly
+  the work nocc exists to move off the slow board.
+* nocc must be installed on the client too:  sudo apt-get install nocc
+  (recent FPP images already have it).
+
+To turn this helper back off:  sudo $0 disable
 ============================================================
 EOF

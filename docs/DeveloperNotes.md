@@ -62,13 +62,16 @@ Under the hood a small `nocc` wrapper talks to a persistent per-machine `nocc-da
 which streams work over gRPC to an `nocc-server` running on the helper.
 
 nocc isn't in Debian, so FPP serves it from its own signed apt repository
-(`https://falconchristmas.github.io/fpp-apt`). Recent FPP images already include it;
-otherwise `apt-get install nocc` once that repo is configured (the FPP installer does
-this automatically).
+(`https://falconchristmas.github.io/fpp-apt`). **FPP 10 images already ship nocc on both
+the client and the helper** -- there is nothing to install. On an older or hand-built
+system, `apt-get install nocc` once that repo is configured (the FPP installer configures
+it automatically).
 
 ### What FPP does automatically when nocc is selected
 
-With `NOCC_SERVERS` set (the web UI and build scripts export it), the makefiles:
+When nocc is active -- either a helper list in `NOCC_SERVERS`, or `NOCC_DISCOVER_MDNS=1`
+to let the daemon find helpers itself (the web UI and build scripts export these) -- the
+makefiles:
 
 * use **`nocc` as the compiler launcher directly** -- deliberately *not* `ccache nocc`.
   ccache in front would run the preprocessor locally just to build its cache key --
@@ -91,28 +94,51 @@ On the fast machine that will do the compiling:
 sudo /opt/fpp/scripts/setup_nocc_host.sh
 ```
 
-This installs the aarch64 + armhf toolchains and enables the `nocc-server` service on
-TCP **43210**. nocc-server has **no access control of its own**, so keep the port
-LAN-only: pass `NOCC_FIREWALL=1` to add an nftables rule that allows 43210 only from
-your LAN (`sudo NOCC_FIREWALL=1 ./setup_nocc_host.sh 192.168.7.0/24` to force the
-CIDR). Override the port with `PORT=...`. Turn the helper back off with
+This installs the aarch64 + armhf toolchains, enables the `nocc-server` service on
+TCP **43210**, and makes the helper **advertise itself on the LAN over mDNS** as
+`_nocc._tcp` so clients can find it without being told a hostname. Pass `NOCC_MDNS=0`
+if you'd rather it stayed silent and named clients explicitly.
+
+nocc-server has **no access control of its own**, so keep the port LAN-only: pass
+`NOCC_FIREWALL=1` to add an nftables rule that allows 43210 only from your LAN
+(`sudo NOCC_FIREWALL=1 ./setup_nocc_host.sh 192.168.7.0/24` to force the CIDR).
+Override the port with `PORT=...`. Turn the helper back off with
 `sudo /opt/fpp/scripts/setup_nocc_host.sh disable`.
 
-(nocc has no mDNS auto-discovery -- list the helper explicitly.)
+That is the whole helper side. Nothing else is needed on it -- pick one of the two
+client setups below.
 
-## Using it from the web UI
+## Using it from the web UI (recommended: mDNS)
 
-On the client, go to **Status/Control > FPP Settings > Developer** (UI level 3), set
-**Distributed Compile** to **nocc**, and set **Compile Hosts** to your helper. A
+On the client, go to **Status/Control > FPP Settings > Developer** (UI level 3) and set
+**Distributed Compile** to **nocc + mdns**. That's it -- **Compile Hosts** is ignored in
+this mode; FPP browses the LAN for advertised `_nocc._tcp` helpers at build time. A
 **Rebuild FPP** from the Developer tab, or a branch change, then builds through nocc.
+If no helper answers, the build simply falls back to compiling locally and says so.
+
+To name the helper yourself instead -- mDNS doesn't cross VLANs, and some APs block
+multicast -- set **Distributed Compile** to **nocc** and put the helper in
+**Compile Hosts** (`myhelper` or `myhelper:43210`; space-separate several, FPP normalises
+them into nocc's `;`-separated `host:port` form).
 
 ## Using it from the command line
 
-On the client, export `NOCC_SERVERS` and build. **No compiler flags are needed** -- the
-makefiles select the triplet compiler and default `NOCC_GO_EXECUTABLE` automatically:
+**No compiler flags are needed** -- the makefiles disable the PCH, select the triplet
+compiler and default `NOCC_GO_EXECUTABLE` automatically. With the helper advertising
+itself (the default), the client doesn't need a host list either:
 
 ```
-export NOCC_SERVERS="fpppi5:43210"     # host:PORT -- the port is REQUIRED (default 43210)
+cd /opt/fpp/src
+NOCC_DISCOVER_MDNS=1 make -j6
+```
+
+`nocc-daemon -print-discovered-servers` prints the helpers it can see, which is the quick
+way to tell whether mDNS reaches the client at all.
+
+To point at a helper explicitly, export `NOCC_SERVERS` instead:
+
+```
+export NOCC_SERVERS="myhelper:43210"     # host:PORT -- the port is REQUIRED (default 43210)
 cd /opt/fpp/src
 make -j6
 ```
@@ -121,6 +147,9 @@ Unlike distcc's space-separated `host[:port]`, `NOCC_SERVERS` **must include the
 and is **`;`-separated** for several helpers (`hostA:43210;hostB:43210`). Set
 `NOCC_LOG_FILENAME=/tmp/nocc.log` to capture nocc's log; it prints `num servers 1` when
 it's offloading and "compiling locally" if it ever falls back.
+
+> **Don't set `CCACHE_PREFIX=nocc`.** nocc *replaces* ccache as the compiler launcher
+> (see above); wrapping it behind ccache puts the local preprocessing back.
 
 > **-j sizing.** Because nocc offloads preprocessing too, the only local work is the
 > link, so `-j` can go much higher than with distcc. With the **mold** linker (FPP's
@@ -191,7 +220,7 @@ by default; pass `MDNS=0` to disable the advertising. Turn the helper back off w
 On the client, go to **Status/Control > FPP Settings > Developer** (UI level 3) and set
 **Distributed Compile** to either:
 
-* **distcc** and set **Compile Hosts** to your helper, e.g. `fpppi5:3632/6,lzo` (each
+* **distcc** and set **Compile Hosts** to your helper, e.g. `myhelper:3632/6,lzo` (each
   entry is `host[:port][/jobs][,options]`; space-separate several), or
 * **distcc + zeroconf** to auto-discover helpers via mDNS (the helper advertises itself
   by default, so nothing extra is needed on it -- **Compile Hosts** is ignored).
