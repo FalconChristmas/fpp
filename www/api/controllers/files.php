@@ -63,6 +63,34 @@ function MapDirectoryKey($dirName)
 }
 
 /**
+ * Validate that a requested file path stays within its base directory.
+ * Returns the contained absolute path on success, otherwise sends 403 and exits.
+ */
+function FilesValidatePathOrFail($baseDir, $requested, $allowMissingParent = false)
+{
+    if ($requested === '' || strpos($requested, "\\") !== false || strpos($requested, "\0") !== false) { http_response_code(400); echo json_encode(["status"=>"Invalid path"]); exit; }
+    $decoded = rawurldecode($requested);
+    if (strpos($requested, '..') !== false || strpos($decoded, '..') !== false || (isset($decoded[0]) && $decoded[0] === '/') || preg_match('/%2e/i', $requested)) { http_response_code(403); echo json_encode(["status"=>"Invalid path"]); exit; }
+    $baseReal = realpath($baseDir);
+    if ($baseReal === false) { http_response_code(500); exit; }
+    $candidate = $baseReal . '/' . $requested;
+    $parent = dirname($candidate);
+    $realParent = realpath($parent);
+    if ($realParent === false) {
+        if (!$allowMissingParent) { http_response_code(403); echo json_encode(["status"=>"Invalid path: outside allowed directory"]); exit; }
+        $parts = explode('/', $requested);
+        array_pop($parts);
+        $cur = $baseReal;
+        foreach ($parts as $p) { if ($p === '' || $p === '.') continue; if (strpos($p, '..') !== false) { http_response_code(403); exit; } $cur .= '/' . $p; $rp = realpath($cur); if ($rp !== false && strpos($rp, $baseReal) !== 0) { http_response_code(403); exit; } }
+        $realParent = $baseReal;
+    }
+    if (strpos($realParent, $baseReal) !== 0) { http_response_code(403); echo json_encode(["status"=>"Invalid path: directory traversal"]); exit; }
+    $realLeaf = realpath($candidate);
+    if ($realLeaf !== false && strpos($realLeaf, $baseReal) !== 0) { http_response_code(403); exit; }
+    return $candidate;
+}
+
+/**
  * Copy file
  *
  * Copies the specified file from `:source` to `:dest` within the given directory.
@@ -88,10 +116,16 @@ function files_copy()
     if ($dir == "") {
         return json(array("status" => "Invalid Directory"));
     }
+    if (strpos($filename, '..') !== false || strpos($filename, '/') !== false || strpos($filename, '\\') !== false ||
+        strpos($newfilename, '..') !== false || strpos($newfilename, '/') !== false || strpos($newfilename, '\\') !== false) {
+        return json(array("status" => "Invalid filename"));
+    }
+    $srcPath = FilesValidatePathOrFail($dir, $filename);
+    $dstPath = FilesValidatePathOrFail($dir, $newfilename, true);
 
     $result = array();
 
-    if (copy($dir . '/' . $filename, $dir . '/' . $newfilename)) {
+    if (copy($srcPath, $dstPath)) {
         $result['status'] = 'success';
     } else {
         $result['status'] = 'failure';
@@ -128,10 +162,16 @@ function files_rename()
     if ($dir == "") {
         return json(array("status" => "Invalid Directory"));
     }
+    if (strpos($filename, '..') !== false || strpos($filename, '/') !== false || strpos($filename, '\\') !== false ||
+        strpos($newfilename, '..') !== false || strpos($newfilename, '/') !== false || strpos($newfilename, '\\') !== false) {
+        return json(array("status" => "Invalid filename"));
+    }
+    $srcPath = FilesValidatePathOrFail($dir, $filename);
+    $dstPath = FilesValidatePathOrFail($dir, $newfilename, true);
 
     $result = array();
 
-    if (rename($dir . '/' . $filename, $dir . '/' . $newfilename)) {
+    if (rename($srcPath, $dstPath)) {
         $result['status'] = 'success';
     } else {
         $result['status'] = 'failure';
@@ -181,7 +221,7 @@ function GetFilesHelper($dirName, $prefix = '')
     if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
         $rc = array();
         $filelist = array();
-        exec("$doSudo find $dirName$depthArg -type f -follow -printf \"%P\n\"", $filelist);
+        exec($doSudo . " find " . escapeshellarg($dirName) . $depthArg . " -type f -follow -printf \"%P\n\"", $filelist);
         foreach ($filelist as $fileName) {
             if ($fileName != '.' && $fileName != '..') {
                 if (!preg_match("//u", $fileName)) {
@@ -204,7 +244,7 @@ function GetFilesHelper($dirName, $prefix = '')
     } else {
         $files = array();
         $subDirList = array();
-        exec("$doSudo find $dirName$depthArg -type d -follow -printf \"%P|||%T@\n\" | sort", $subDirList);
+        exec($doSudo . " find " . escapeshellarg($dirName) . $depthArg . " -type d -follow -printf \"%P|||%T@\n\" | sort", $subDirList);
         foreach ($subDirList as $dirDetails) {
             $Details = explode("|||", $dirDetails);
             $fileName = $Details[0];
@@ -223,7 +263,7 @@ function GetFilesHelper($dirName, $prefix = '')
         }
 
         $filelist = array();
-        exec("$doSudo find $dirName$depthArg -type f -follow -printf \"%P|||%s|||%T@\n\" | sort", $filelist);
+        exec($doSudo . " find " . escapeshellarg($dirName) . $depthArg . " -type f -follow -printf \"%P|||%s|||%T@\n\" | sort", $filelist);
 
         foreach ($filelist as $fileDetails) {
             $Details = explode("|||", $fileDetails);
@@ -610,9 +650,10 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         $filename = substr($filename, 8);
     }
 
-    if (!file_exists($dir . '/' . $filename) || !is_file($dir . '/' . $filename)) {
+    $fullPath = FilesValidatePathOrFail($dir, $filename);
+    if (!file_exists($fullPath) || !is_file($fullPath)) {
         http_response_code(404);
-        echo "File $dir/$filename does not exist.";
+        echo "File $fullPath does not exist.";
         return;
     }
 
@@ -644,7 +685,7 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         }
 
     } else if ($isImage) {
-        header('Content-type: ' . mime_content_type($dir . '/' . $filename));
+        header('Content-type: ' . mime_content_type($fullPath));
 
         if ($attach == 1) {
             header('Content-disposition: attachment;filename="' . $filename . '"');
@@ -667,7 +708,7 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         //Backups page does for its own download button.  The file manager reaches
         //these through the Config tab, which lists config/backups recursively.
         $backupDir = @realpath(GetDirSetting('JsonBackups'));
-        $filePath = @realpath($dir . '/' . $filename);
+        $filePath = @realpath($fullPath);
 
         if ($backupDir !== false && $filePath !== false &&
             strpos($filePath, $backupDir . '/') === 0 &&
@@ -694,10 +735,10 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
             }
         }
 
-        header('Content-Length: ' . real_filesize($dir . '/' . $filename));
-        passthru($SUDO . " cat " . escapeshellarg($dir . '/' . $filename));
+        header('Content-Length: ' . real_filesize($fullPath));
+        passthru($SUDO . " cat " . escapeshellarg($fullPath));
     } else {
-        passthru($SUDO . ' tail -' . $lines . ' ' . escapeshellarg($dir . '/' . $filename));
+        passthru($SUDO . ' tail -' . $lines . ' ' . escapeshellarg($fullPath));
     }
     exit;
 }
@@ -1275,7 +1316,9 @@ function PatchFile()
     $length = $_SERVER['HTTP_UPLOAD_LENGTH'];
 
     $dir = MapDirectoryKey($dirName);
-    $fullPath = "$dir/$fileName";
+    if ($dir == "") { http_response_code(400); return json(["status"=>"Invalid Directory"]); }
+    if (strpos($fileName, '..') !== false || strpos($fileName, '/') !== false || strpos($fileName, '\\') !== false) { http_response_code(400); return json(["status"=>"Invalid filename"]); }
+    $fullPath = FilesValidatePathOrFail($dir, $fileName, true);
     if ($offset == 0) {
         //for the first chunk, clear out any existing patches
         $patch = glob($fullPath . '.patch.*');
@@ -1301,7 +1344,7 @@ function PatchFile()
     fclose($patch_handle);
 
     $size = 0;
-    $patch = glob(escapeshellcmd($fullPath) . '.patch.*');
+    $patch = glob($fullPath . '.patch.*');
     foreach ($patch as $fn) {
         $fileLen = real_filesize($fn);
         $size = bcadd($size, $fileLen, 0);
@@ -1387,15 +1430,18 @@ function PostFile()
     $status = "OK";
     $dirName = params("DirName");
     $fileName = params("Name");
+    if (strpos($fileName, '..') !== false || strpos($fileName, '/') !== false || strpos($fileName, '\\') !== false) { http_response_code(400); return json(["status"=>"Invalid filename"]); }
 
     $dir = MapDirectoryKey($dirName);
-    $fullPath = "$dir/$fileName";
+    if ($dir == "") {
+        $status = "Invalid Directory";
+        return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "written" => 0, "size" => 0, "offset" => 0));
+    }
+    $fullPath = FilesValidatePathOrFail($dir, $fileName, true);
     $size = 0;
     $totalSize = 0;
     $offset = 0;
-    if ($dir == "") {
-        $status = "Invalid Directory";
-    } else {
+    {
         $fpIn = fopen("php://input", 'rb');
         $mode = "w";
         if (isset($_REQUEST["sb"])) {
