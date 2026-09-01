@@ -62,9 +62,15 @@ function downloadImage($localFile): bool
 {
     echo "==========================================================================\n";
     echo "Downloading OS Image:\n";
+    // Validate URL before SSRF; keep http/https only — matches UI contract.
+    $rawUrl = $_GET['os'] ?? '';
+    if (!filter_var($rawUrl, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $rawUrl)) {
+        echo "Invalid OS URL\n";
+        return false;
+    }
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_FILE, $localFile);
-    curl_setopt($ch, CURLOPT_URL, $_GET['os']);
+    curl_setopt($ch, CURLOPT_URL, $rawUrl);
     curl_setopt($ch, CURLOPT_HEADER, 0);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // Connect in 10 seconds or less
     curl_setopt($ch, CURLOPT_TIMEOUT, 86400); // 1 Day Timeout to transfer
@@ -97,14 +103,19 @@ if (!$wrapped) {
 
     <body>
         <h2>FPP OS Upgrade</h2>
-        Image: <? echo strip_tags($_GET['os']); ?><br>
+        Image: <? echo htmlspecialchars($_GET['os'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?><br>
         <pre><?
 } else {
     echo "\nFPP OS Upgrade\n";
-    echo "Image: " . strip_tags($_GET['os']) . "\n";
+    echo "Image: " . htmlspecialchars($_GET['os'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\n";
 }
 
-if (preg_match('/^https?:/', $_GET['os'])) {
+if (isset($_GET['os']) && preg_match('/^https?:/', $_GET['os'])) {
+    // Defense in depth: reject non-http(s) / malformed URLs before wget
+    if (!filter_var($_GET['os'], FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $_GET['os'])) {
+        echo "Invalid OS URL\n";
+        exit(1);
+    }
     $baseFile = basename($_GET['os']);
     if (!preg_match('/^[a-zA-Z0-9._-]+$/', $baseFile)) { echo 'Invalid filename'; exit(1); }
 
@@ -130,6 +141,11 @@ if (preg_match('/^https?:/', $_GET['os'])) {
     logStage("Downloading OS image");
     $rc = 1;
     foreach ($urls as $idx => $url) {
+        // Validate each URL (including mirror) before shell use
+        if (!filter_var($url, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $url)) {
+            UpgradeLog('os-upgrade', $baseFile, "Skipping invalid URL: " . $url);
+            continue;
+        }
         if (count($urls) > 1) {
             if ($idx == 0) {
                 UpgradeEchoLog('os-upgrade', $baseFile, "Downloading from local FPP mirror ${upgradeSource}...\n");
@@ -145,7 +161,7 @@ if (preg_match('/^https?:/', $_GET['os'])) {
         // new line per update. dot:giga instead emits real \n-terminated summary
         // lines at large (1GB-per-row) intervals, which suits both the streamed
         // dialog and an OS-image-sized download.
-        $command = "sudo wget -c --quiet --show-progress --progress=dot:giga " . $url . " -O /home/fpp/media/upload/$baseFile 2>&1";
+        $command = "sudo wget -c --quiet --show-progress --progress=dot:giga " . escapeshellarg($url) . " -O " . escapeshellarg("/home/fpp/media/upload/$baseFile") . " 2>&1";
         $retryCount = 0;
         while ($retryCount < 20 && $rc != 0) {
             echo "Running command: $command\n";
