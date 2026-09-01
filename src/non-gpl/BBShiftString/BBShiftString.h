@@ -171,8 +171,10 @@ private:
         std::chrono::steady_clock::time_point stalledSince{};
         // pump-internal streaming state
         // atomic: the pump thread writes this while the output thread reads it
-        // in SendData's back-pressure gate.  The pump's own uses compile
-        // unchanged as implicit seq_cst operations.
+        // in SendData's back-pressure gate.  It is published with release only
+        // once the pump's copy of pendingFrame is known good - the gate reads
+        // it as permission to restage, so an early store would hand the output
+        // thread a frame the pump is still reading.
         std::atomic<uint32_t> pumpedSeq{ 0 };
         PumpFrame activeFrame;
         uint32_t activeOff = 0;
@@ -218,6 +220,15 @@ private:
 
     uint32_t m_curFrame = 0;
     uint32_t m_licensedOutputs = 0;
+
+    // back-pressure gate accounting, touched only on the output thread.
+    // Members rather than function statics so a config reload starts a fresh
+    // window and so a removed output cannot leave its warning stuck in the UI.
+    uint32_t m_bpOffered = 0;
+    uint32_t m_bpDeclined = 0;
+    bool m_bpWarned = false;
+    std::chrono::steady_clock::time_point m_bpWindowStart{};
+    void setFrameRateWarning(bool on);
 
     int m_testCycle = -1;
     int m_testType = 0;

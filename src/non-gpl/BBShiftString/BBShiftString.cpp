@@ -103,6 +103,9 @@ BBShiftStringOutput::BBShiftStringOutput(unsigned int startChannel, unsigned int
  */
 BBShiftStringOutput::~BBShiftStringOutput() {
     LogDebug(VB_CHANNELOUT, "BBShiftStringOutput::~BBShiftStringOutput()\n");
+    // idempotent; Close() normally does this, but an output torn down without
+    // one must not leave its frame rate warning stranded in the UI
+    setFrameRateWarning(false);
     BBBPru::ddrRelease("BBShiftString");
     m_pumpRunning = false;
     if (m_pumpThread.joinable()) {
@@ -755,6 +758,9 @@ static std::string pruFirmware(int pru, int stringsPerPin) {
 
 int BBShiftStringOutput::StartPRU() {
     m_curFrame = 0;
+    m_bpOffered = 0;
+    m_bpDeclined = 0;
+    m_bpWindowStart = {};
     for (auto& a : m_usedPins) {
         PinCapabilities::getPinByName(a.first).configPin(a.second, true, "BBShiftString");
     }
@@ -897,6 +903,7 @@ int BBShiftStringOutput::Close(void) {
         PixelOverlayManager::INSTANCE.removeAutoOverlayModel(n);
     }
     StopPRU();
+    setFrameRateWarning(false);
     for (auto& a : m_usedPins) {
         PinCapabilities::getPinByName(a.first).releasePin();
     }
@@ -1337,6 +1344,23 @@ void BBShiftStringOutput::sendData(FrameData& d) {
     }
 }
 
+// Persistent UI warning for "the sequence rate is past what these strings can
+// clock out".  The flag is per output so Close() can retract it; a warning left
+// behind by an output that no longer exists has nothing left to clear it.
+void BBShiftStringOutput::setFrameRateWarning(bool on) {
+    static const std::string BP_WARN =
+        "Sequence frame rate is higher than the configured pixel strings can output; frames are being dropped";
+    if (on == m_bpWarned) {
+        return;
+    }
+    if (on) {
+        WarningHolder::AddWarning(61, BP_WARN);
+    } else {
+        WarningHolder::RemoveWarning(61, BP_WARN);
+    }
+    m_bpWarned = on;
+}
+
 int BBShiftStringOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "BBShiftStringOutput::SendData(%p)\n", channelData);
     if (!hasStrings()) {
@@ -1347,6 +1371,7 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
         falconV5Support->processListenerData();
     }
 
+#ifndef PLATFORM_BBB
     // ---- back-pressure gate --------------------------------------------------
     // pumpFrameData() only snapshots pendingFrame once the firmware is ready for
     // another frame (command == 0 && ring drained).  A frame staged before that
@@ -1359,57 +1384,78 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
     // to mis-tune, and configurations already inside their budget are untouched
     // (nothing is pending when the next frame arrives, so nothing is declined).
     //
+    // It is also what keeps the two-phase write of pendingFrame safe: sendData()
+    // fills the byte counts and the block below fills the command, and only a
+    // frame the pump has already taken may be restaged, so the pump can never
+    // snapshot one phase of one frame with the other phase of the next.  Ditto
+    // the FalconV5 packet cursor - curV5ConfigPacket only advances for a frame
+    // that will actually be streamed, where before, over budget, better than
+    // half the receiver's config and dynamic packets were marked consumed and
+    // never sent.
+    //
+    // AM335x never reaches this: it has no ring and no pump, every frame
+    // restates its own DDR address and length, and pendingSeq is never bumped.
+    //
     // Cannot wedge: we only decline while pendingSeq != pumpedSeq, so
     // pumpFrameData() still enters its busy branch and its 250ms watchdog
-    // still runs.
+    // still runs.  A PRU is only party to the gate if the pump actually
+    // services it (pump thread condition below) - otherwise its pendingSeq
+    // would climb against a pumpedSeq nothing advances and every frame,
+    // including the other PRU's, would be declined forever.
     //
-    // Gated to falconV5Support because that is the configuration where the
-    // misalignment was reproduced and where this fix has soak-time behind it;
-    // trivially widened later if wanted.
-    if (falconV5Support) {
+    // A declined frame is not retried, so a one-shot frame can land late: the
+    // end-of-sequence blank is offered three times (the forced output, then
+    // twice more as onceMore unwinds), the last of those BridgeLightDelay
+    // (E131BridgingInterval, 50ms default) after the one before it, which is
+    // past the drain time of any frame this gate declines.  Set that interval
+    // below a frame's clocking time and blanking would be delayed further.
+    {
         bool taken = true;
-        if (m_pru1.maxStringLen) {
+        if (m_pru1.pru && m_pru1.ring.attached()) {
             taken = taken && (m_pru1.pendingSeq.load(std::memory_order_acquire) ==
                               m_pru1.pumpedSeq.load(std::memory_order_acquire));
         }
-        if (m_pru0.maxStringLen) {
+        if (m_pru0.pru && m_pru0.ring.attached()) {
             taken = taken && (m_pru0.pendingSeq.load(std::memory_order_acquire) ==
                               m_pru0.pumpedSeq.load(std::memory_order_acquire));
         }
-        static uint32_t bpOffered = 0;
-        static uint32_t bpDeclined = 0;
-        static bool bpWarned = false;
-        ++bpOffered;
+        ++m_bpOffered;
         if (!taken) {
-            ++bpDeclined;
+            ++m_bpDeclined;
         }
-        if ((m_curFrame % 6000) == 0 && bpOffered) {
-            LogWarn(VB_CHANNELOUT,
-                    "BBShiftString: back-pressure gate declined %u of %u frames (%.1f%%)\n",
-                    bpDeclined, bpOffered, 100.0 * bpDeclined / bpOffered);
+        // report on a wall-clock window rather than a frame count so the
+        // hysteresis reacts at the same speed whatever the sequence rate
+        auto now = std::chrono::steady_clock::now();
+        if (m_bpWindowStart.time_since_epoch().count() == 0) {
+            m_bpWindowStart = now;
+        } else if ((now - m_bpWindowStart) >= std::chrono::seconds(60)) {
+            if (m_bpDeclined) {
+                LogWarn(VB_CHANNELOUT,
+                        "BBShiftString: back-pressure gate declined %u of %u frames (%.1f%%)\n",
+                        m_bpDeclined, m_bpOffered, 100.0 * m_bpDeclined / m_bpOffered);
+            } else {
+                LogInfo(VB_CHANNELOUT, "BBShiftString: back-pressure gate declined no frames of %u\n",
+                        m_bpOffered);
+            }
             // Surface a persistent UI warning once the sequence rate is clearly
             // beyond what the strings can output; clear it again when the rate
             // drops back (e.g. a different sequence starts).  The thresholds
             // are hysteresis: on at >=10% dropped, off again below 2%.
-            static const std::string BP_WARN =
-                "Sequence frame rate is higher than the configured pixel strings can output; frames are being dropped";
-            if (bpDeclined * 10 >= bpOffered) {
-                if (!bpWarned) {
-                    WarningHolder::AddWarning(61, BP_WARN);
-                    bpWarned = true;
-                }
-            } else if (bpWarned && bpDeclined * 50 <= bpOffered) {
-                WarningHolder::RemoveWarning(61, BP_WARN);
-                bpWarned = false;
+            if (m_bpDeclined * 10 >= m_bpOffered) {
+                setFrameRateWarning(true);
+            } else if (m_bpDeclined * 50 <= m_bpOffered) {
+                setFrameRateWarning(false);
             }
-            bpOffered = 0;
-            bpDeclined = 0;
+            m_bpOffered = 0;
+            m_bpDeclined = 0;
+            m_bpWindowStart = now;
         }
         if (!taken) {
             return m_channelCount;
         }
     }
     // --------------------------------------------------------------------------
+#endif
 
     sendData(m_pru0);
     sendData(m_pru1);
@@ -1449,7 +1495,8 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
         m_pru0.pruData->command = c;
 #else
         // the pump thread writes the command once the PRU has taken the
-        // previous one, matching the latest-frame-wins drop behavior
+        // previous one; the gate above guarantees the previous one is gone,
+        // so this can never overwrite a frame the pump has yet to snapshot
         m_pru0.pendingFrame.command = c;
         m_pru0.pendingSeq.fetch_add(1, std::memory_order_release);
 #endif
@@ -1498,7 +1545,7 @@ bool BBShiftStringOutput::pumpFrameData(FrameData& d) {
         // still buffered when the first command went out, and every frame
         // after that renders that many bytes into the previous one.  Streaming
         // ahead within a frame is unaffected (that is the loop below).
-        if (seq == d.pumpedSeq) {
+        if (seq == d.pumpedSeq.load(std::memory_order_relaxed)) {
             return false;
         }
         if (d.pruData->command != 0 || !d.ring.drained()) {
@@ -1523,12 +1570,21 @@ bool BBShiftStringOutput::pumpFrameData(FrameData& d) {
             return false;
         }
         d.stalledSince = {};
-        // snapshot the newest pending frame; retry if SendData raced us
-        do {
-            d.pumpedSeq = seq;
+        // Snapshot the newest pending frame; retry if SendData raced us.
+        // pumpedSeq is published only once the copy is known good, never
+        // before it: the back-pressure gate in SendData() treats
+        // pumpedSeq == pendingSeq as its licence to restage, so publishing
+        // first would invite the output thread to rewrite pendingFrame while
+        // this copy is still reading it.
+        while (true) {
+            uint32_t snapped = seq;
             d.activeFrame = d.pendingFrame;
             seq = d.pendingSeq.load(std::memory_order_acquire);
-        } while (seq != d.pumpedSeq);
+            if (seq == snapped) {
+                d.pumpedSeq.store(snapped, std::memory_order_release);
+                break;
+            }
+        }
         d.activeOff = 0;
         d.pumpActive = true;
         // Publish where in the ring this frame starts before the command that
