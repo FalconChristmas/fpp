@@ -44,8 +44,13 @@ std::string getFPPDDir(const std::string& path) {
         uint32_t len = sizeof(exePath);
         _NSGetExecutablePath(exePath, &len);
 #else
-        ssize_t len = ::readlink("/proc/self/exe", exePath, sizeof(exePath));
-        exePath[len] = '\0';
+        ssize_t len = ::readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
+        if (len == -1) {
+            LogWarn(VB_GENERAL, "readlink /proc/self/exe failed: %s\n", strerror(errno));
+            exePath[0] = '\0';
+        } else {
+            exePath[len] = '\0';
+        }
 #endif
         FPP_BIN_DIR = exePath;
         FPP_BIN_DIR = FPP_BIN_DIR.substr(0, FPP_BIN_DIR.rfind("/"));
