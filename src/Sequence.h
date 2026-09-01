@@ -98,6 +98,16 @@ private:
     void ProcessVariableHeaders();
     void SetLastFrameData(FSEQFile::FrameData* data);
 
+    // A sequence file we are asked to play that isn't present here.  The
+    // "does not exist" warning carries a timeout so it clears itself once the
+    // player moves on, but a remote gets no second open attempt after the
+    // first failure (m_seqFilename is left set, so StartSequence short-circuits),
+    // so the warning has to be re-armed from the sync path or it expires while
+    // the sequence is still playing on the player.
+    void SetMissingSequenceWarning(const std::string& filename, const std::string& warning);
+    void RefreshMissingSequenceWarning();
+    void ClearMissingSequenceWarning();
+
     void setBridgePrioritySetting(const std::string& value);
     bool m_prioritize_sequence_over_bridge;
     bool m_warn_if_bridging = false;
@@ -135,6 +145,10 @@ private:
     int m_numSeek;
 
     int m_blankBetweenSequences;
+
+    // Both guarded by m_sequenceLock.
+    std::string m_missingSeqFilename;
+    std::string m_missingSeqWarning;
 
     std::recursive_mutex m_sequenceLock;
     // Covers m_seqFilename only, and is always the innermost lock taken.  The

@@ -252,6 +252,38 @@ inline void checkForReplacementFile(const std::string &fname) {
     }
 }
 
+// Warning ID / lifetime for "sequence file does not exist".  The warning is
+// re-armed on every sync packet for the missing file, so this is the grace
+// period after the player goes quiet (or after it sends a stop, which closes
+// the sequence and clears the warning outright), not the total display time.
+static constexpr int MISSING_SEQUENCE_WARNING_ID = 25;
+static constexpr int MISSING_SEQUENCE_WARNING_TIMEOUT = 30;
+
+void Sequence::SetMissingSequenceWarning(const std::string& filename, const std::string& warning) {
+    ClearMissingSequenceWarning();
+    m_missingSeqFilename = filename;
+    m_missingSeqWarning = warning;
+    WarningHolder::AddWarningTimeout(MISSING_SEQUENCE_WARNING_TIMEOUT, MISSING_SEQUENCE_WARNING_ID, warning);
+}
+
+void Sequence::RefreshMissingSequenceWarning() {
+    if (m_missingSeqWarning.empty()) {
+        return;
+    }
+    // AddWarningTimeout only ever pushes an existing warning's timeout later,
+    // so this keeps it up for as long as the sync packets keep arriving.
+    WarningHolder::AddWarningTimeout(MISSING_SEQUENCE_WARNING_TIMEOUT, MISSING_SEQUENCE_WARNING_ID, m_missingSeqWarning);
+}
+
+void Sequence::ClearMissingSequenceWarning() {
+    if (m_missingSeqWarning.empty()) {
+        return;
+    }
+    WarningHolder::RemoveWarning(MISSING_SEQUENCE_WARNING_ID, m_missingSeqWarning);
+    m_missingSeqWarning.clear();
+    m_missingSeqFilename.clear();
+}
+
 int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int startSecond) {
     LogDebug(VB_SEQUENCE, "OpenSequenceFile(%s, %d, %d)\n", filename.c_str(), startFrame, startSecond);
 
@@ -334,7 +366,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
             if (!FileExists(tmpFilename)) {
                 LogDebug(VB_SEQUENCE, "Fallback Sequence file %s does not exist\n", tmpFilename);
-                WarningHolder::AddWarningTimeout(60, 25, warning);
+                SetMissingSequenceWarning(filename, warning);
                 m_seqStarting = 0;
                 return 0;
 
@@ -348,11 +380,14 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
         } else {
             LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
-            WarningHolder::AddWarningTimeout(60, 25, warning);
+            SetMissingSequenceWarning(filename, warning);
             m_seqStarting = 0;
             return 0;
         }
     }
+
+    // We have a file to play (the requested one, or the fallback)
+    ClearMissingSequenceWarning();
 
     if (multiSync->isMultiSyncEnabled()) {
         seqLock.unlock();
@@ -545,6 +580,10 @@ void Sequence::StartSequence(const std::string& filename, int frameNumber) {
     if (sequence->m_seqFilename != filename) {
         CloseSequenceFile();
         OpenSequenceFile(filename, frameNumber);
+    } else if (!m_seqFile.load() && m_missingSeqFilename == filename) {
+        // The file is still missing and the player is still syncing to it, so
+        // keep the warning up instead of letting it time out mid-sequence.
+        RefreshMissingSequenceWarning();
     }
     if ((sequence->m_seqFilename == filename) || (sequence->m_seqFilename == "fallback.fseq")) {
         StartSequence();
@@ -932,6 +971,10 @@ void Sequence::CloseSequenceFile(void) {
         multiSync->SendSeqSyncStopPacket(seqName);
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+
+    // The player told us to stop (or we're moving on); a file that never
+    // opened is no longer worth warning about.
+    ClearMissingSequenceWarning();
 
     std::unique_lock<std::mutex> readLock(readFileLock);
     if (std::shared_ptr<FSEQFile> old = m_seqFile.load()) {
