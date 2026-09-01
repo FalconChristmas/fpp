@@ -419,29 +419,40 @@ body.has-touch .pageContent-tabs > .nav-item:not(.hidden) {
 	padding-top: 0.5em;
 }
 
-.settingsGroupTable .row > :last-child:after {
-	content: '';
-	width: 0;
-	height: 0;
-	opacity: 0;
+/* Spinner shown on a settings row while that setting's save is in flight.
+   SetSetting() in js/fpp.js adds .settingSaving before the request goes out and
+   removes it when the reply lands.  The API applies the setting before it
+   replies - restarting a service, rewriting the hostname, hashing a password -
+   so this is regularly a multi-second wait.
+
+   No fade and no transition-delay: the point is to tell the user *immediately*
+   that their change was picked up.  A delayed fade-in never made it onto the
+   screen anyway, because the save used to be a synchronous XHR that blocked the
+   main thread for the whole request. */
+@keyframes fppSettingSaveSpin {
+	to {
+		transform: rotate(360deg);
+	}
 }
 
-.settingsGroupTable .row.loading > :last-child:after {
+.row.settingSaving > :last-child::after {
 	content: '';
 	display: inline-block;
 	color: var(--bs-danger);
 	width: 22px;
 	height: 22px;
-	opacity: 1;
 	vertical-align: middle;
 	margin-left: 0.5em;
 	border: 0.25em solid currentColor;
 	border-right-color: transparent;
 	border-radius: 50%;
-	-webkit-animation: spinner-border 0.75s linear infinite;
-	animation: spinner-border 0.75s linear infinite;
-	transition: 0.3s opacity ease-out;
-	transition-delay: 0.5s;
+	animation: fppSettingSaveSpin 0.75s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.row.settingSaving > :last-child::after {
+		animation-duration: 1.5s;
+	}
 }
 
 [data-bs-theme='light'] .pageContent .multiSelect {

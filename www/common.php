@@ -1418,7 +1418,6 @@ function PrintSettingCheckbox($title, $setting, $restart, $reboot, $checkedValue
 function " . $changedFunction . "() {
 	var value = '$uncheckedValue';
 	var checked = 0;
-	$('#$escSetting').parent().parent().addClass('loading');
 	if ($('#$escSetting').is(':checked')) {
 		checked = 1;
 		value = '$checkedValue';
@@ -1438,7 +1437,6 @@ function " . $changedFunction . "() {
 
     echo "
 			$callbackName
-			$('#$escSetting').parent().parent().removeClass('loading');
             if (checked)
                 $('.$escSetting' + 'Child').show();
             else
@@ -3985,6 +3983,107 @@ function read_directory_files($directory, $return_data = true, $sort_by_date = f
     }
 
     return $file_list;
+}
+
+/**
+ * Backup metadata cache.
+ *
+ * Listing the configuration backups needs exactly two things out of each backup
+ * file - the comment and the trigger source.  Everything else on a listing row
+ * comes from the filename or a stat().  Reading those two fields out of the
+ * files themselves means json_decode()ing every backup on every listing, and a
+ * backup of a configured show is tens of megabytes: with the default of 60 kept
+ * backups that is a gigabyte of JSON parsed to recover a few hundred bytes.
+ *
+ * That cost was not confined to the Backups page.  Every settings change writes
+ * a backup, and writing one prunes the old ones through the same listing, so a
+ * single checkbox on the settings page paid for a full re-read of every backup
+ * on the box - several seconds of it.
+ *
+ * The cache maps a backup's full path to those two fields plus the size and
+ * mtime they were read at, so an unchanged file is never opened twice.  It is
+ * only ever a cache: a miss (or a missing/corrupt cache file) falls back to
+ * reading the backup, so deleting it costs one slow listing and nothing else.
+ *
+ * It lives in media/cache rather than the config directory because anything
+ * ending in .json under config/ is swept into the "misc configs" area of the
+ * backups, and anything in config/backups/ is itself listed as a backup.
+ *
+ * @return string Full path of the cache file.
+ */
+function GetBackupMetadataCachePath()
+{
+    global $settings;
+    return $settings['mediaDirectory'] . '/cache/backupMetadata.json';
+}
+
+/**
+ * Reads the backup metadata cache.
+ *
+ * @return array Map of backup path => array('size', 'mtime', 'backup_comment', 'backup_trigger_source').
+ */
+function LoadBackupMetadataCache()
+{
+    $path = GetBackupMetadataCachePath();
+    if (!file_exists($path)) {
+        return array();
+    }
+
+    $cache = json_decode(@file_get_contents($path), true);
+
+    return is_array($cache) ? $cache : array();
+}
+
+/**
+ * Writes the backup metadata cache.
+ *
+ * Concurrent writers can lose each other's entries here.  That is harmless: a
+ * lost entry is re-read from the backup file on the next listing, and a stale
+ * one is rejected by the size/mtime check before it is ever used.
+ *
+ * @param array $cache
+ * @return bool
+ */
+function SaveBackupMetadataCache($cache)
+{
+    $path = GetBackupMetadataCachePath();
+    $dir = dirname($path);
+
+    if (!is_dir($dir) && @mkdir($dir, 0775, true) === false) {
+        return false;
+    }
+
+    return WriteFileAtomic($path, json_encode($cache));
+}
+
+/**
+ * Builds a cache entry for a backup file that has just been written, so the
+ * next listing never has to open it.  Called by doBackupDownload().
+ *
+ * @param string $backup_file_path Full path of the backup that was written.
+ * @param string $backup_comment
+ * @param string|null $backup_trigger_source
+ * @return bool
+ */
+function RememberBackupMetadata($backup_file_path, $backup_comment, $backup_trigger_source)
+{
+    clearstatcache(true, $backup_file_path);
+    $size = @filesize($backup_file_path);
+    $mtime = @filemtime($backup_file_path);
+
+    if ($size === false || $mtime === false) {
+        return false;
+    }
+
+    $cache = LoadBackupMetadataCache();
+    $cache[$backup_file_path] = array(
+        'size' => $size,
+        'mtime' => $mtime,
+        'backup_comment' => $backup_comment,
+        'backup_trigger_source' => $backup_trigger_source,
+    );
+
+    return SaveBackupMetadataCache($cache);
 }
 
 /**

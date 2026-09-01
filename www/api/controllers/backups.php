@@ -472,6 +472,13 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 
 	$json_config_backup_filenames_clean = array();
 
+	//The comment and the trigger source are the only fields that live inside the
+	//backup file itself, and a backup can be tens of megabytes.  Read them from
+	//the metadata cache where we can - see GetBackupMetadataCachePath() - and only
+	//open a backup whose size or mtime says the cached entry no longer describes it.
+	$metadata_cache = LoadBackupMetadataCache();
+	$metadata_cache_dirty = false;
+
 	//process each of the backups and read out the backup comment, and work out the date it was created
 	foreach ($json_config_backup_Data as $backup_filename => $backup_data) {
 		$backup_data_comment = '';
@@ -486,18 +493,46 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 		//cleanup the filename so it can be used as as a ID
 		$backup_filename_clean = trim(str_replace('.json', '', $backup_filename));
 
-		//Read the backup file so we can extract some metadata
-		$decoded_backup_data = json_decode(file_get_contents($backup_filepath . '/' . $backup_filename), true);
-		if (is_null($decoded_backup_data)) {
-			$decode_error_result = array('Status' => 'Error', 'Message' => 'Unable to decode JSON backup file (' . $backup_filepath . '/' . $backup_filename, 'IsReadable' => is_readable($backup_filepath . '/' . $backup_filename), 'FileContent' => file_get_contents($backup_filepath . '/' . $backup_filename));
-			error_log('process_jsonbackup_file_data_helper: ( ' . json_encode($decode_error_result) . ' )');
-		}
+		$backup_fullpath = $backup_filepath . '/' . $backup_filename;
+		clearstatcache(true, $backup_fullpath);
+		$backup_file_size = @filesize($backup_fullpath);
+		$backup_file_mtime = @filemtime($backup_fullpath);
 
-		if (is_array($decoded_backup_data) && array_key_exists('backup_comment', $decoded_backup_data)) {
-			$backup_data_comment = $decoded_backup_data['backup_comment'];
-		}
-		if (is_array($decoded_backup_data) && array_key_exists('backup_trigger_source', $decoded_backup_data)) {
-			$backup_data_trigger_source = $decoded_backup_data['backup_trigger_source'];
+		if (isset($metadata_cache[$backup_fullpath]) &&
+			$metadata_cache[$backup_fullpath]['size'] === $backup_file_size &&
+			$metadata_cache[$backup_fullpath]['mtime'] === $backup_file_mtime) {
+			//Cached: the file has not changed since we last read it
+			$backup_data_comment = $metadata_cache[$backup_fullpath]['backup_comment'];
+			$backup_data_trigger_source = $metadata_cache[$backup_fullpath]['backup_trigger_source'];
+		} else {
+			//Read the backup file so we can extract some metadata
+			$decoded_backup_data = json_decode(file_get_contents($backup_fullpath), true);
+			if (is_null($decoded_backup_data)) {
+				$decode_error_result = array('Status' => 'Error', 'Message' => 'Unable to decode JSON backup file (' . $backup_fullpath, 'IsReadable' => is_readable($backup_fullpath), 'FileContent' => file_get_contents($backup_fullpath));
+				error_log('process_jsonbackup_file_data_helper: ( ' . json_encode($decode_error_result) . ' )');
+			}
+
+			if (is_array($decoded_backup_data) && array_key_exists('backup_comment', $decoded_backup_data)) {
+				$backup_data_comment = $decoded_backup_data['backup_comment'];
+			}
+			if (is_array($decoded_backup_data) && array_key_exists('backup_trigger_source', $decoded_backup_data)) {
+				$backup_data_trigger_source = $decoded_backup_data['backup_trigger_source'];
+			}
+
+			//Only cache a file we could actually stat and decode - caching the
+			//fallback values for an unreadable file would hide the problem behind
+			//an empty comment on every later listing.
+			if (is_array($decoded_backup_data) && $backup_file_size !== false && $backup_file_mtime !== false) {
+				$metadata_cache[$backup_fullpath] = array(
+					'size' => $backup_file_size,
+					'mtime' => $backup_file_mtime,
+					'backup_comment' => $backup_data_comment,
+					'backup_trigger_source' => $backup_data_trigger_source,
+				);
+				$metadata_cache_dirty = true;
+			}
+
+			unset($decoded_backup_data);
 		}
 
 		//Locate the last underscore, this appears before the date/time in the filename
@@ -516,8 +551,21 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 			'backup_time' => $backup_date_time,
 			'backup_time_unix' => $backup_date_time_unix
 		);
+	}
 
-		unset($decoded_backup_data);
+	//Drop entries for backups in this directory that have since been deleted, so
+	//the cache cannot grow without bound.  Entries for other directories (the
+	//alternate/USB location) belong to a different pass and are left alone.
+	foreach (array_keys($metadata_cache) as $cached_path) {
+		if (dirname($cached_path) === rtrim($source_directory, '/') &&
+			!isset($json_config_backup_Data[basename($cached_path)])) {
+			unset($metadata_cache[$cached_path]);
+			$metadata_cache_dirty = true;
+		}
+	}
+
+	if ($metadata_cache_dirty) {
+		SaveBackupMetadataCache($metadata_cache);
 	}
 
 	return $json_config_backup_filenames_clean;

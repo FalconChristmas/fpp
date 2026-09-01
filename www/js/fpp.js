@@ -6421,6 +6421,57 @@ function SingleStepSequence () {
 		});
 }
 
+// ---------------------------------------------------------------------------
+// Saving a setting is not instant.  The API writes the value and then APPLIES
+// it before it replies, and some of those applies are slow: restarting a
+// service, rewriting /etc/hostname, hashing a password with yescrypt, reloading
+// apache.  Several seconds with no feedback looks like the UI ignored the
+// change, so the setting's row gets a spinner for as long as its save is in
+// flight (the '.row.settingSaving' rule in css/fpp.css).
+//
+// The row is '<setting>Row', emitted by PrintSetting() in common.php, so every
+// setting type - checkbox, select, text, number, colour - gets the indicator
+// from here rather than each generated onChange handler rolling its own.
+function SettingRow (key) {
+	// Setting names may contain '.' (e.g. 'backup.Path'), which is a class
+	// separator in a jQuery selector unless it is escaped.
+	return $('#' + String(key).replace(/\./g, '\\.') + 'Row');
+}
+
+function SettingSaveStarted (key) {
+	SettingRow(key).addClass('settingSaving');
+}
+
+function SettingSaveFinished (key) {
+	SettingRow(key).removeClass('settingSaving');
+}
+
+// Setting saves used to be synchronous XHRs.  That serialized them, but it also
+// froze the browser for the whole request, so nothing the change handler drew
+// beforehand - a spinner included - could ever reach the screen.  They are async
+// now; queue them so exactly one is in flight at a time and the ordering the
+// synchronous calls used to guarantee is kept.  Rows waiting their turn show
+// their spinner straight away.
+var settingSaveQueue = [];
+var settingSaveInFlight = false;
+
+function QueueSettingSave (fn) {
+	settingSaveQueue.push(fn);
+	if (!settingSaveInFlight) {
+		RunNextSettingSave();
+	}
+}
+
+function RunNextSettingSave () {
+	var fn = settingSaveQueue.shift();
+	if (!fn) {
+		settingSaveInFlight = false;
+		return;
+	}
+	settingSaveInFlight = true;
+	fn();
+}
+
 function SetSettingReboot (key, value) {
 	SetSetting(key, value, 0, 1);
 }
@@ -6436,15 +6487,53 @@ function SetSetting (
 	failCallback = ''
 ) {
 	// console.log("api/settings/", key);
-	$.ajax({
-		url: 'api/settings/' + key,
-		data: '' + value,
-		method: 'PUT',
-		timeout: 1000,
-		async: false,
-		success: function () {
-			settings[key] = value;
-			if (key != 'restartFlag' && key != 'rebootFlag') {
+
+	// The restart/reboot flags are written from inside another save's success
+	// handler, whose callback may reload the page - the whole point of setting
+	// them there (see the comment further down).  Keep those two synchronous and
+	// out of the queue so the flag reaches disk before a reload can cancel the
+	// request.  They have no apply step, so the block is just the round trip.
+	if (key == 'restartFlag' || key == 'rebootFlag') {
+		$.ajax({
+			url: 'api/settings/' + key,
+			data: '' + value,
+			method: 'PUT',
+			async: false,
+			success: function () {
+				settings[key] = value;
+			}
+		}).fail(function () {
+			DialogError('Save Setting', 'Failed to save ' + key + ' setting.');
+			if (typeof failCallback === 'function') {
+				failCallback();
+			}
+		});
+		return;
+	}
+
+	// Silent background writes (hideChange) are not something the user asked
+	// for, so they get no spinner; everything else marks its row before the
+	// request goes out.
+	if (!hideChange) {
+		SettingSaveStarted(key);
+	}
+	QueueSettingSave(function () {
+		$.ajax({
+			url: 'api/settings/' + key,
+			data: '' + value,
+			method: 'PUT',
+			// The reply does not come back until the value has been applied, and
+			// an apply can legitimately run for several seconds.  The timeout is
+			// only here so a connection that dies mid-save cannot wedge the queue
+			// behind a request that will never complete.
+			timeout: 120000,
+			complete: function () {
+				SettingSaveFinished(key);
+				RunNextSettingSave();
+			},
+			success: function () {
+				settings[key] = value;
+
 				// Set restart/reboot flags BEFORE callback to ensure they're saved
 				// even if callback reloads the page
 				if (restart > 0 && restart != settings['restartFlag']) {
@@ -6468,19 +6557,19 @@ function SetSetting (
 					callback();
 				}
 			}
-		}
-	}).fail(function () {
-		if (isBool === null) {
-			DialogError('Save Setting', 'Failed to save ' + key + ' setting.');
-		} else if (isBool) {
-			DialogError('Save Setting', 'Failed to Enable ' + key + '.');
-		} else {
-			DialogError('Save Setting', 'Failed to Disable ' + key + '.');
-		}
-		if (typeof failCallback === 'function') {
-			failCallback();
-		}
-		CheckRestartRebootFlags();
+		}).fail(function () {
+			if (isBool === null) {
+				DialogError('Save Setting', 'Failed to save ' + key + ' setting.');
+			} else if (isBool) {
+				DialogError('Save Setting', 'Failed to Enable ' + key + '.');
+			} else {
+				DialogError('Save Setting', 'Failed to Disable ' + key + '.');
+			}
+			if (typeof failCallback === 'function') {
+				failCallback();
+			}
+			CheckRestartRebootFlags();
+		});
 	});
 }
 
@@ -6491,50 +6580,58 @@ function SetPluginSetting (
 	restart,
 	reboot,
 	isBool = false,
-	callback = ''
+	callback = '',
+	failCallback = ''
 ) {
-	$.ajax({
-		url: 'api/plugin/' + plugin + '/settings/' + key,
-		data: '' + value,
-		method: 'PUT',
-		timeout: 1000,
-		async: false,
-		success: function () {
-			if (key != 'restartFlag' && key != 'rebootFlag') {
-				// Set restart/reboot flags BEFORE callback to ensure they're saved
-				// even if callback reloads the page
-				if (restart > 0 && restart != settings['restartFlag']) {
-					SetRestartFlag(restart);
-				}
-				if (reboot > 0 && reboot != settings['rebootFlag']) {
-					SetRebootFlag(reboot);
-				}
-				CheckRestartRebootFlags();
+	SettingSaveStarted(key);
+	QueueSettingSave(function () {
+		$.ajax({
+			url: 'api/plugin/' + plugin + '/settings/' + key,
+			data: '' + value,
+			method: 'PUT',
+			// See SetSetting() above.
+			timeout: 120000,
+			complete: function () {
+				SettingSaveFinished(key);
+				RunNextSettingSave();
+			},
+			success: function () {
+				if (key != 'restartFlag' && key != 'rebootFlag') {
+					// Set restart/reboot flags BEFORE callback to ensure they're saved
+					// even if callback reloads the page
+					if (restart > 0 && restart != settings['restartFlag']) {
+						SetRestartFlag(restart);
+					}
+					if (reboot > 0 && reboot != settings['rebootFlag']) {
+						SetRebootFlag(reboot);
+					}
+					CheckRestartRebootFlags();
 
-				if (isBool === null) {
-					$.jGrowl(key + ' setting saved.', { themeState: 'success' });
-				} else if (isBool) {
-					$.jGrowl(key + ' Enabled.', { themeState: 'success' });
-				} else {
-					$.jGrowl(key + ' Disabled.', { themeState: 'detract' });
-				}
-				if (typeof callback === 'function') {
-					callback();
+					if (isBool === null) {
+						$.jGrowl(key + ' setting saved.', { themeState: 'success' });
+					} else if (isBool) {
+						$.jGrowl(key + ' Enabled.', { themeState: 'success' });
+					} else {
+						$.jGrowl(key + ' Disabled.', { themeState: 'detract' });
+					}
+					if (typeof callback === 'function') {
+						callback();
+					}
 				}
 			}
-		}
-	}).fail(function () {
-		if (isBool === null) {
-			DialogError('Save Setting', 'Failed to save ' + key + ' setting.');
-		} else if (isBool) {
-			DialogError('Save Setting', 'Failed to Enable ' + key + '.');
-		} else {
-			DialogError('Save Setting', 'Failed to Disable ' + key + '.');
-		}
-		CheckRestartRebootFlags();
-		if (typeof failCallback === 'function') {
-			failCallback();
-		}
+		}).fail(function () {
+			if (isBool === null) {
+				DialogError('Save Setting', 'Failed to save ' + key + ' setting.');
+			} else if (isBool) {
+				DialogError('Save Setting', 'Failed to Enable ' + key + '.');
+			} else {
+				DialogError('Save Setting', 'Failed to Disable ' + key + '.');
+			}
+			CheckRestartRebootFlags();
+			if (typeof failCallback === 'function') {
+				failCallback();
+			}
+		});
 	});
 }
 

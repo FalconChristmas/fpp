@@ -331,7 +331,52 @@ function PutSetting()
     if (!$skipBackup && in_array(ltrim(rtrim($setting)), array('restartFlag', 'rebootFlag', 'currentHeaderSensor')) === false) {
         //Make a call to the configuration backup API endpoint so we can generate a backup
         $backup_comment = GenerateBackupComment($setting, $value);
-        GenerateBackupViaAPI($backup_comment);
+
+        //The backup is a safety net, not part of saving the setting: by this point
+        //the value is already on disk and has been applied.  Writing one
+        //serialises every config file on the box and is the slowest thing a
+        //settings save does by a wide margin, so hand it to a detached process
+        //rather than making the settings page sit through it on every checkbox.
+        //Same '< /dev/null ... &' shape as the PipeWire restart above.
+        //
+        //It has to be a separate *request*, not just work done after the reply:
+        //making the backup runs nested calls back into our own web server (the
+        //prune step lists and deletes through the API), and those never complete
+        //once the request they are running inside has closed its own response.
+        //
+        //If curl is not there for any reason, fall back to making the backup
+        //inline - slow, but a settings change should never silently lose its
+        //restore point.
+        $curl = '';
+        foreach (array('/usr/bin/curl', '/bin/curl', '/usr/local/bin/curl', '/opt/homebrew/bin/curl') as $candidate) {
+            if (is_executable($candidate)) {
+                $curl = $candidate;
+                break;
+            }
+        }
+
+        if ($curl !== '') {
+            $backupCmd = escapeshellarg($curl) . ' -s -m 300 -X POST -H "Content-Type: text/plain" --data-binary ' .
+                escapeshellarg($backup_comment) . ' http://localhost/api/backups/configuration';
+
+            //Run them one at a time.  Changing several settings quickly would
+            //otherwise have that many full backups writing at once, which on an SD
+            //card is a good way to stall the box - and the backup filename is only
+            //precise to the second, so simultaneous backups also fight over names.
+            //Waiting costs nothing here: this is a detached process, not the
+            //request.  Locking is safe for the same reason - nothing holds this
+            //lock while waiting on the web server, so it cannot deadlock against it.
+            if (is_executable('/usr/bin/flock')) {
+                $lockFile = $settings['mediaDirectory'] . '/cache/backup.lock';
+                $backupCmd = 'mkdir -p ' . escapeshellarg(dirname($lockFile)) . ' && ' .
+                    'flock -w 600 ' . escapeshellarg($lockFile) . ' ' . $backupCmd;
+            }
+
+            exec("nohup bash -c " . escapeshellarg($backupCmd) . " < /dev/null > /dev/null 2>&1 &");
+        } else {
+            error_log("PutSetting: no curl found, generating the '$setting' backup inline.");
+            GenerateBackupViaAPI($backup_comment);
+        }
     }
 
     $status = array("status" => "OK");

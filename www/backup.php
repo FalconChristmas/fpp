@@ -1718,7 +1718,7 @@ function doBackupDownload($settings_data, $area)
         if ($protectSensitiveData == false) {
             $backup_fname .= "unprotected_";
         }
-        $backup_fname .= date("YmdHis") . ".json";
+        $backup_fname_prefix = $backup_fname;
 
         //check to see fi the backup directory exists
         if (!file_exists($fpp_backup_location)) {
@@ -1737,11 +1737,48 @@ function doBackupDownload($settings_data, $area)
         }
 
         //Write a copy locally into "config/backups"
-        $backup_local_fpath = $fpp_backup_location . '/' . $backup_fname;
+        //
+        //The name carries a timestamp that is only precise to the second, so two
+        //backups started within the same second would pick the same name and one
+        //would silently overwrite the other.  A settings save now hands its backup
+        //to a detached process and returns (see PutSetting), so two backups
+        //overlapping is realistic rather than theoretical.  Claim the name with an
+        //exclusive create - the first process to get the file owns that second -
+        //and step forward a second at a time for anyone who loses the race.  The
+        //name has to stay strictly YmdHis: the listing recovers a backup's date by
+        //parsing everything after the last underscore.
+        $backup_stamp = time();
+        for ($backup_name_attempt = 0; $backup_name_attempt < 60; $backup_name_attempt++) {
+            $backup_fname = $backup_fname_prefix . date("YmdHis", $backup_stamp + $backup_name_attempt) . ".json";
+            $backup_local_fpath = $fpp_backup_location . '/' . $backup_fname;
+
+            $reserved = @fopen($backup_local_fpath, 'x');
+            if ($reserved !== false) {
+                //Ours.  The write below fills in the placeholder we just created.
+                fclose($reserved);
+                break;
+            }
+            if (!file_exists($backup_local_fpath)) {
+                //Failed for some reason other than the name being taken (an
+                //unwritable directory, say).  Stop here and let the write below
+                //fail and report it the way it always has.
+                break;
+            }
+        }
+
         $json = json_encode($settings_data);
 
         //Write data into backup file
         if (file_put_contents($backup_local_fpath, $json) !== false) {
+            //Record what we just wrote in the metadata cache so that listing the
+            //backups - which pruneOrRemoveAgedBackupFiles() is about to do - does
+            //not have to read this whole file back to recover two of its fields.
+            RememberBackupMetadata(
+                $backup_local_fpath,
+                isset($settings_data['backup_comment']) ? $settings_data['backup_comment'] : '',
+                isset($settings_data['backup_trigger_source']) ? $settings_data['backup_trigger_source'] : null
+            );
+
             //Once the backup has been written into our local directory, prune/remove any backups older than the max set age
             pruneOrRemoveAgedBackupFiles();
 
