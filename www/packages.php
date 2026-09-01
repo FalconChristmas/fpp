@@ -30,6 +30,15 @@
             max-height: calc(100% - 120px);
             overflow-y: auto;
         }
+
+        /* Limit autocomplete dropdown height to prevent browser lockup when
+           filtering 100k+ packages — short terms like "li" or "py" can match
+           thousands; rendering all at once freezes the DOM. */
+        .ui-autocomplete {
+            max-height: 250px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
     </style>
     <script>
         var systemPackages = [];
@@ -76,7 +85,24 @@
             }
 
             $("#packageInput").autocomplete({
-                source: systemPackages,
+                minLength: 2,
+                delay: 300,
+                source: function (request, response) {
+                    var term = (request.term || '').trim();
+                    if (term.length < 2) {
+                        response([]);
+                        return;
+                    }
+                    // $.ui.autocomplete.filter is the same filter jQuery UI uses
+                    // internally — case-insensitive substring match. Slicing to 50
+                    // avoids rendering thousands of <li>s for 2-letter terms
+                    // (e.g. "li", "py" match 5k+ of the 105k packages on trixie).
+                    var results = $.ui.autocomplete.filter(systemPackages, term);
+                    if (results.length > 50) {
+                        results = results.slice(0, 50);
+                    }
+                    response(results);
+                },
                 select: function (event, ui) {
                     const selectedPackage = ui.item.value;
                     $(this).val(selectedPackage);
@@ -116,6 +142,7 @@
                 const removeBtn = byUser
                     ? `<button class='btn btn-sm btn-outline-danger ms-2' onClick='UninstallPackage("${pkg}")'>Uninstall</button>`
                     : '';
+                const reinstallBtn = `<button class='btn btn-sm btn-outline-warning ms-2' onClick='ReinstallPackage("${pkg}")'><i class="fas fa-sync-alt"></i> Reinstall Package</button>`;
 
                 $.ajax({
                     url: `/api/system/packages/info/${encodeURIComponent(pkg)}`,
@@ -124,7 +151,7 @@
                     success: function (data) {
                         const isInstalled = data.Installed === 'Yes';
                         rows[idx] = `<li>${pkg}${note}
-                            ${isInstalled ? removeBtn
+                            ${isInstalled ? reinstallBtn + removeBtn
                                 : `<button class='btn btn-sm btn-outline-warning' onClick='InstallPackage("${pkg}")'>Reinstall Required</button>${removeBtn}`}
                         </li>`;
                     },
@@ -172,10 +199,14 @@
                         ${data.Installed !== "Yes"
                             ? `<strong>Description:</strong> ${description}<br>
                                <strong>Will also install these packages (if not already installed):</strong> ${dependencies}<br>
-                               <div class="buttons btn-lg btn-rounded btn-outline-success mt-2" onClick="InstallPackage('${selectedPackageName}');">
-                                   <i class="fas fa-download"></i> Install Package
-                               </div>`
-                            : ""}
+                                <div class="buttons btn-lg btn-rounded btn-outline-success mt-2" onClick="InstallPackage('${selectedPackageName}');">
+                                    <i class="fas fa-download"></i> Install Package
+                                </div>`
+                            : `<strong>Description:</strong> ${description}<br>
+                               <strong>Dependencies:</strong> ${dependencies}<br>
+                                <div class="buttons btn-lg btn-rounded btn-outline-warning mt-2" onClick="ReinstallPackage('${selectedPackageName}');">
+                                    <i class="fas fa-sync-alt"></i> Reinstall Package
+                                </div>`}
                     `);
                 },
                 error: function () {
@@ -192,6 +223,22 @@
 
             const url = `packagesHelper.php?action=install&package=${encodeURIComponent(packageName)}`;
             DisplayProgressDialog("packageProgressPopup", `Installing Package: ${packageName}`);
+            StreamURL(
+                url,
+                'packageProgressPopupText',
+                'ProgressDialogDone',
+                'ProgressDialogDone'
+            );
+        }
+
+        function ReinstallPackage(packageName) {
+            if (!packageName) {
+                alert('Invalid package name.');
+                return;
+            }
+
+            const url = `packagesHelper.php?action=reinstall&package=${encodeURIComponent(packageName)}`;
+            DisplayProgressDialog("packageProgressPopup", `Reinstalling Package: ${packageName}`);
             StreamURL(
                 url,
                 'packageProgressPopupText',
@@ -231,7 +278,7 @@
 
 
                     <h2>Please Note:</h2>
-                    Installing additional packages can break your FPP installation requiring complete reinstallation of
+                    Installing or reinstalling packages can break your FPP installation requiring complete reinstallation of
                     FPP. Continue at your own risk.
                     <p>
                     <h2>Installed User Packages</h2>
