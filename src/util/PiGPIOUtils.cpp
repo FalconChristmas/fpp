@@ -21,7 +21,9 @@
 
 #include "PiFaceUtils.h"
 #include "PiGPIOUtils.h"
+#include "Warnings.h"
 #include "common_mini.h"
+#include "log.h"
 
 static bool isPi5() {
     static bool pi5 = [] {
