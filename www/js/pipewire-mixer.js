@@ -289,18 +289,30 @@ function PWMixerStrip(opts) {
 	}
 
 	h += "<div class='pw-mixer-actions d-flex gap-1'>";
+	// Plain title attributes rather than Bootstrap tooltips: the dialog
+	// re-renders on every poll, and tooltip instances would have to be disposed
+	// and re-initialised each time, leaving orphaned popups behind whenever a
+	// strip is replaced mid-hover. A title also shows on a long press.
+	//
+	// Each label says what the button will do and which channel it will do it
+	// to, since a column of identical icons gives no other clue.
+
 	// Stream slots have no mute in the API (their level is the only control),
 	// so don't offer a button that cannot do anything.
 	if (!opts.noMute) {
+		var muteLabel = (muted ? 'Unmute ' : 'Mute ') + PWMixerEscape(opts.label);
 		h += "<button type='button' class='btn btn-sm " + (muted ? 'btn-danger' : 'btn-outline-secondary') + "'";
-		h += " onclick=\"PWMixerToggleMute('" + id + "')\" aria-label='Mute " + PWMixerEscape(opts.label) + "'>";
+		h += " onclick=\"PWMixerToggleMute('" + id + "')\" title='" + muteLabel + "' aria-label='" + muteLabel + "'>";
 		h += "<i class='fas fa-fw fa-volume-" + (muted ? 'mute' : 'up') + "'></i></button>";
 	}
 	if (opts.nodeName) {
 		var previewing = pwMixer.previewNode === opts.nodeName;
+		var listenLabel = previewing
+			? 'Stop listening to ' + PWMixerEscape(opts.label)
+			: 'Listen to ' + PWMixerEscape(opts.label) + ' in the browser';
 		h += "<button type='button' class='btn btn-sm " + (previewing ? 'btn-primary' : 'btn-outline-secondary') + "'";
-		h += " onclick=\"PWMixerTogglePreview('" + PWMixerEscape(opts.nodeName) + "')\" title='Listen to this output'";
-		h += " aria-label='Preview " + PWMixerEscape(opts.label) + "'>";
+		h += " onclick=\"PWMixerTogglePreview('" + PWMixerEscape(opts.nodeName) + "')\"";
+		h += " title='" + listenLabel + "' aria-label='" + listenLabel + "'>";
 		h += "<i class='fas fa-fw fa-" + (previewing ? 'stop' : 'headphones') + "'></i></button>";
 	}
 	h += '</div>';
