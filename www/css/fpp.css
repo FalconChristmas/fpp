@@ -4843,12 +4843,22 @@ pre.testData,
 	}
 }
 
-/* Fixed-width readout so the row does not jitter as the number changes. */
+/* Fixed-width readout so the row does not jitter as the number changes. The
+   effective level sits under the number rather than beside it, so the cell
+   stays the same width whether or not it is shown. */
 .pw-mixer-strip .pw-mixer-value {
 	grid-area: value;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	line-height: 1.2;
 	min-width: 3.25rem;
 	text-align: end;
 	font-variant-numeric: tabular-nums;
+}
+
+.pw-mixer-strip .pw-mixer-eff {
+	font-size: 0.75em;
 }
 
 /* Comfortable touch targets, matching the round volume buttons rather than

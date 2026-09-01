@@ -259,7 +259,24 @@ function PWMixerStrip(opts) {
 	h += ' onpointerup="PWMixerDragEnd(\'' + id + "')\"";
 	h += ' onpointercancel="PWMixerDragEnd(\'' + id + "')\"" + '>';
 
-	h += "<span class='pw-mixer-value small text-body-secondary' id='" + id + "_val'>" + vol + '%</span>';
+	// The number keeps the _val id and nothing else lives in it, so the drag
+	// handler can rewrite it without disturbing the effective figure beside it.
+	h += "<span class='pw-mixer-value small text-body-secondary'>";
+	h += "<span id='" + id + "_val'>" + vol + '%</span>';
+
+	// What this control's own setting actually becomes once the rest of the
+	// chain is applied -- the master in particular, which attenuates at the card
+	// sink and so never moves these faders. Without this, moving the master
+	// looks like it does nothing to the output groups.
+	//
+	// The percentages multiply exactly rather than approximately: each is a
+	// cubic-tapered pactl percentage, and (a^3)(b^3) == (ab)^3, so the product
+	// of the numbers is the correct number for the combined amplitude.
+	if (typeof opts.effective === 'number' && opts.effective !== vol) {
+		h += "<span class='pw-mixer-eff text-body-tertiary' title='Effective level once the rest of the chain is applied, the master included'>";
+		h += '&rarr;' + opts.effective + '%</span>';
+	}
+	h += '</span>';
 
 	if (opts.nodeName) {
 		// The kind decides how fppd captures it: a sink is metered through its
@@ -474,6 +491,10 @@ function PWMixerRender(force) {
 	var secStreams = PWMixerSection('streams', 'Media Stream Slots', activeSlots + ' active', slotHtml);
 
 	// --- Output groups (and their per-card members) ---
+	// The master attenuates at the card sink, downstream of both of these, so it
+	// never moves their faders. Each strip therefore also reports what its own
+	// setting actually becomes once the rest of the chain is applied.
+	var master = PWMixerMasterVolume();
 	var groupHtml = '';
 	var enabledGroups = 0;
 	for (var g = 0; g < d.groups.length; g++) {
@@ -482,6 +503,7 @@ function PWMixerRender(force) {
 			continue;
 		}
 		enabledGroups++;
+		var grpVol = typeof grp.volume === 'undefined' ? 100 : grp.volume;
 		var groupNode = 'fpp_group_' + PWMixerSlug(grp.name);
 		groupHtml += PWMixerStrip({
 			id: 'pwm_group_' + g,
@@ -490,7 +512,8 @@ function PWMixerRender(force) {
 			title: groupNode,
 			nodeName: groupNode,
 			stateKey: 'sink:' + groupNode,
-			volume: typeof grp.volume === 'undefined' ? 100 : grp.volume,
+			volume: grpVol,
+			effective: Math.round((grpVol * master) / 100),
 			mute: grp.mute,
 		});
 		var members = grp.members || [];
@@ -499,6 +522,9 @@ function PWMixerRender(force) {
 			if (!mbr.cardId) {
 				continue;
 			}
+			// A member's audience hears the group fader as well as its own trim,
+			// so the effective figure carries both.
+			var mbrVol = typeof mbr.volume === 'undefined' ? 100 : mbr.volume;
 			var fxNode = 'fpp_fx_g' + grp.id + '_' + PWMixerSlug(mbr.cardId);
 			groupHtml += PWMixerStrip({
 				id: 'pwm_member_' + g + '_' + m,
@@ -507,7 +533,8 @@ function PWMixerRender(force) {
 				title: fxNode,
 				nodeName: fxNode,
 				stateKey: 'sink:' + fxNode,
-				volume: typeof mbr.volume === 'undefined' ? 100 : mbr.volume,
+				volume: mbrVol,
+				effective: Math.round((grpVol * mbrVol * master) / 10000),
 				mute: mbr.mute,
 			});
 		}
