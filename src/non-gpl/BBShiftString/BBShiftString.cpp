@@ -1346,6 +1346,71 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
     if (falconV5Support) {
         falconV5Support->processListenerData();
     }
+
+    // ---- back-pressure gate --------------------------------------------------
+    // pumpFrameData() only snapshots pendingFrame once the firmware is ready for
+    // another frame (command == 0 && ring drained).  A frame staged before that
+    // point is simply overwritten and never rendered.  When the requested frame
+    // rate exceeds what the configured string length can physically clock out,
+    // that surplus of never-rendered frames is what eventually leaves the PRU
+    // ring misaligned (#2855).  Declining the frame while the previous one is
+    // still pending drives the surplus to zero at whatever rate the hardware
+    // actually sustains - frame dropping at the source, with no fixed divisor
+    // to mis-tune, and configurations already inside their budget are untouched
+    // (nothing is pending when the next frame arrives, so nothing is declined).
+    //
+    // Cannot wedge: we only decline while pendingSeq != pumpedSeq, so
+    // pumpFrameData() still enters its busy branch and its 250ms watchdog
+    // still runs.
+    //
+    // Gated to falconV5Support because that is the configuration where the
+    // misalignment was reproduced and where this fix has soak-time behind it;
+    // trivially widened later if wanted.
+    if (falconV5Support) {
+        bool taken = true;
+        if (m_pru1.maxStringLen) {
+            taken = taken && (m_pru1.pendingSeq.load(std::memory_order_acquire) ==
+                              m_pru1.pumpedSeq.load(std::memory_order_acquire));
+        }
+        if (m_pru0.maxStringLen) {
+            taken = taken && (m_pru0.pendingSeq.load(std::memory_order_acquire) ==
+                              m_pru0.pumpedSeq.load(std::memory_order_acquire));
+        }
+        static uint32_t bpOffered = 0;
+        static uint32_t bpDeclined = 0;
+        static bool bpWarned = false;
+        ++bpOffered;
+        if (!taken) {
+            ++bpDeclined;
+        }
+        if ((m_curFrame % 6000) == 0 && bpOffered) {
+            LogWarn(VB_CHANNELOUT,
+                    "BBShiftString: back-pressure gate declined %u of %u frames (%.1f%%)\n",
+                    bpDeclined, bpOffered, 100.0 * bpDeclined / bpOffered);
+            // Surface a persistent UI warning once the sequence rate is clearly
+            // beyond what the strings can output; clear it again when the rate
+            // drops back (e.g. a different sequence starts).  The thresholds
+            // are hysteresis: on at >=10% dropped, off again below 2%.
+            static const std::string BP_WARN =
+                "Sequence frame rate is higher than the configured pixel strings can output; frames are being dropped";
+            if (bpDeclined * 10 >= bpOffered) {
+                if (!bpWarned) {
+                    WarningHolder::AddWarning(61, BP_WARN);
+                    bpWarned = true;
+                }
+            } else if (bpWarned && bpDeclined * 50 <= bpOffered) {
+                WarningHolder::RemoveWarning(61, BP_WARN);
+                bpWarned = false;
+            }
+            bpOffered = 0;
+            bpDeclined = 0;
+        }
+        if (!taken) {
+            return m_channelCount;
+        }
+    }
+    // --------------------------------------------------------------------------
+
     sendData(m_pru0);
     sendData(m_pru1);
     // make sure memory is flushed before command is set to 1

@@ -170,7 +170,10 @@ private:
         // zero while it is keeping up
         std::chrono::steady_clock::time_point stalledSince{};
         // pump-internal streaming state
-        uint32_t pumpedSeq = 0;
+        // atomic: the pump thread writes this while the output thread reads it
+        // in SendData's back-pressure gate.  The pump's own uses compile
+        // unchanged as implicit seq_cst operations.
+        std::atomic<uint32_t> pumpedSeq{ 0 };
         PumpFrame activeFrame;
         uint32_t activeOff = 0;
         bool pumpActive = false;
