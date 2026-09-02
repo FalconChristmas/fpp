@@ -2257,7 +2257,7 @@ if ($skipHTMLCodeOutput === false) {
         <title><?= $pageTitle ?></title>
         <!--    <script>var helpPage = "help/backup.php";</script>-->
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <script src="js/fpp-backup-filecopy.js"></script>
+        <script src="js/fpp-backup-filecopy.js?ref=<?= filemtime('js/fpp-backup-filecopy.js'); ?>"></script>
 
         <?php
         $backupHosts = getKnownFPPSystems();

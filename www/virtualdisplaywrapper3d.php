@@ -35,8 +35,8 @@
 
     <?php if (!$standalone): ?>
         <!-- FilePond CSS and JS for file uploads -->
-        <link rel="stylesheet" href="css/filepond.min.css" />
-        <script src="js/filepond.min.js"></script>
+        <link rel="stylesheet" href="css/filepond.min.css?ref=<?= filemtime('css/filepond.min.css'); ?>" />
+        <script src="js/filepond.min.js?ref=<?= filemtime('js/filepond.min.js'); ?>"></script>
     <?php endif; ?>
 
     <?php

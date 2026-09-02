@@ -87,9 +87,9 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 	<?php include 'common/htmlMeta.inc';
 	include 'common/menuHead.inc'; ?>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-	<link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
-	<link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
-	<script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
+	<link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css?ref=<?= filemtime('jquery/colpick/css/colpick.css'); ?>">
+	<link rel="stylesheet" type="text/css" href="css/jquery.colpick.css?ref=<?= filemtime('css/jquery.colpick.css'); ?>">
+	<script type="text/javascript" src="jquery/colpick/js/colpick.js?ref=<?= filemtime('jquery/colpick/js/colpick.js'); ?>"></script>
 	<title><? echo $pageTitle; ?></title>
 
 </head>

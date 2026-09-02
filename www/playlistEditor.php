@@ -7,8 +7,8 @@ if (!isset($simplifiedPlaylist)) {
 
 ?>
 
-<link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
-<script type="text/javascript" src="js/jquery.timepicker.js" defer></script>
+<link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css?ref=<?= filemtime('css/jquery.timepicker.css'); ?>">
+<script type="text/javascript" src="js/jquery.timepicker.js?ref=<?= filemtime('js/jquery.timepicker.js'); ?>" defer></script>
 
 <script language="Javascript">
     var simplifiedPlaylist = 0;

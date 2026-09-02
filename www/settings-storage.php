@@ -3,8 +3,8 @@ $skipJSsettings = 1;
 require_once('common.php');
 ?>
 
-<script type="text/javascript" src="jquery/jQuery.msgBox/scripts/jquery.msgBox.js"></script>
-<link href="jquery/jQuery.msgBox/styles/msgBoxLight.css" rel="stylesheet" type="text/css">
+<script type="text/javascript" src="jquery/jQuery.msgBox/scripts/jquery.msgBox.js?ref=<?= filemtime('jquery/jQuery.msgBox/scripts/jquery.msgBox.js'); ?>"></script>
+<link href="jquery/jQuery.msgBox/styles/msgBoxLight.css?ref=<?= filemtime('jquery/jQuery.msgBox/styles/msgBoxLight.css'); ?>" rel="stylesheet" type="text/css">
 
 <script>
     function StorageDialogDone() {

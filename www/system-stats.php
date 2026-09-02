@@ -21,7 +21,7 @@ if (isset($_GET['cpu'])) {
     include 'common/menuHead.inc';
     ?>
     <title><?php echo $pageTitle; ?></title>
-    <link rel="stylesheet" href="css/fpp-system-design.css">
+    <link rel="stylesheet" href="css/fpp-system-design.css?ref=<?= filemtime('css/fpp-system-design.css'); ?>">
     <script>
         var uptimeInterval;
         var uptimeSeconds = 0;

@@ -14,8 +14,8 @@ error_reporting(E_ALL);
     include 'common/menuHead.inc';
     ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
-    <script type="text/javascript" src="js/jquery.timepicker.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css?ref=<?= filemtime('css/jquery.timepicker.css'); ?>">
+    <script type="text/javascript" src="js/jquery.timepicker.js?ref=<?= filemtime('js/jquery.timepicker.js'); ?>"></script>
     <script language="Javascript">
         $(document).ready(function () {
             $('.default-value').each(function () {

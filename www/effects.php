@@ -16,10 +16,10 @@
   include 'common/menuHead.inc';
   ?>
 
-  <link rel="stylesheet" href="bootstrap-table/css/bootstrap-table.min.css">
-  <link rel="stylesheet" href="bootstrap-table/extensions/bootstrap-table-filter-control.min.css">
-  <script src="bootstrap-table/js/bootstrap-table.min.js"></script>
-  <script src="bootstrap-table/extensions/bootstrap-table-filter-control.min.js"></script>
+  <link rel="stylesheet" href="bootstrap-table/css/bootstrap-table.min.css?ref=<?= filemtime('bootstrap-table/css/bootstrap-table.min.css'); ?>">
+  <link rel="stylesheet" href="bootstrap-table/extensions/bootstrap-table-filter-control.min.css?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-filter-control.min.css'); ?>">
+  <script src="bootstrap-table/js/bootstrap-table.min.js?ref=<?= filemtime('bootstrap-table/js/bootstrap-table.min.js'); ?>"></script>
+  <script src="bootstrap-table/extensions/bootstrap-table-filter-control.min.js?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-filter-control.min.js'); ?>"></script>
 
   <script>
     var EffectSelectedName = "";

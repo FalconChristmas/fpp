@@ -18,11 +18,11 @@
 		$canvasHeight = (int) ($canvasWidth * 9.0 / 16.0);
 	}
 	?>
-	<script type="text/javascript" src="js/jquery-latest.min.js"></script>
-	<script type="text/javascript" src="js/jquery-ui.min.js"></script>
-	<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
-	<link rel="stylesheet" href="css/jquery-ui.css" />
-	<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
+	<script type="text/javascript" src="js/jquery-latest.min.js?ref=<?= filemtime('js/jquery-latest.min.js'); ?>"></script>
+	<script type="text/javascript" src="js/jquery-ui.min.js?ref=<?= filemtime('js/jquery-ui.min.js'); ?>"></script>
+	<script type="text/javascript" src="js/jquery.ui.touch-punch.js?ref=<?= filemtime('js/jquery.ui.touch-punch.js'); ?>"></script>
+	<link rel="stylesheet" href="css/jquery-ui.css?ref=<?= filemtime('css/jquery-ui.css'); ?>" />
+	<link rel="stylesheet" href="css/jquery.jgrowl.min.css?ref=<?= filemtime('css/jquery.jgrowl.min.css'); ?>" />
 	<link rel="stylesheet" href="css/minimal.css?ref=<?php echo filemtime('css/minimal.css'); ?>" />
 	<script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
 

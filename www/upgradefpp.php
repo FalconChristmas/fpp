@@ -21,11 +21,11 @@ if (!$wrapped) {
 <title>
 Upgrading FPP
 </title>
-<script type="text/javascript" src="js/jquery-latest.min.js"></script>
-<script type="text/javascript" src="js/jquery-ui.min.js"></script>
-<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
-<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
-<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
+<script type="text/javascript" src="js/jquery-latest.min.js?ref=<?= filemtime('js/jquery-latest.min.js'); ?>"></script>
+<script type="text/javascript" src="js/jquery-ui.min.js?ref=<?= filemtime('js/jquery-ui.min.js'); ?>"></script>
+<script type="text/javascript" src="js/jquery.ui.touch-punch.js?ref=<?= filemtime('js/jquery.ui.touch-punch.js'); ?>"></script>
+<script type="text/javascript" src="js/jquery.jgrowl.min.js?ref=<?= filemtime('js/jquery.jgrowl.min.js'); ?>"></script>
+<link rel="stylesheet" href="css/jquery.jgrowl.min.css?ref=<?= filemtime('css/jquery.jgrowl.min.css'); ?>" />
 <script>
 function Reboot() {
     $.get({

@@ -8,13 +8,13 @@
     require_once "common.php";
     include 'common/menuHead.inc';
     ?>
-    <script type="text/javascript" src="bootstrap-table/js/bootstrap-table.min.js"></script>
-    <script type="text/javascript" src="bootstrap-table/extensions/bootstrap-table-filter-control.min.js"></script>
-    <link rel="stylesheet" href="bootstrap-table/css/bootstrap-table.min.css" />
-    <link rel="stylesheet" href="bootstrap-table/extensions/bootstrap-table-filter-control.min.css" />
+    <script type="text/javascript" src="bootstrap-table/js/bootstrap-table.min.js?ref=<?= filemtime('bootstrap-table/js/bootstrap-table.min.js'); ?>"></script>
+    <script type="text/javascript" src="bootstrap-table/extensions/bootstrap-table-filter-control.min.js?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-filter-control.min.js'); ?>"></script>
+    <link rel="stylesheet" href="bootstrap-table/css/bootstrap-table.min.css?ref=<?= filemtime('bootstrap-table/css/bootstrap-table.min.css'); ?>" />
+    <link rel="stylesheet" href="bootstrap-table/extensions/bootstrap-table-filter-control.min.css?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-filter-control.min.css'); ?>" />
 
-    <script type="text/javascript" src="js/xlsx.full.min.js" async></script>
-    <script type="text/javascript" src="js/FileSaver.min.js" async></script>
+    <script type="text/javascript" src="js/xlsx.full.min.js?ref=<?= filemtime('js/xlsx.full.min.js'); ?>" async></script>
+    <script type="text/javascript" src="js/FileSaver.min.js?ref=<?= filemtime('js/FileSaver.min.js'); ?>" async></script>
 
     <title><? echo $pageTitle; ?></title>
     <!-- TODO: extract to www/css/multisync.css when ready to split into external files -->

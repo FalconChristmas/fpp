@@ -10,10 +10,10 @@
     include 'playlistEntryTypes.php';
     include 'common/menuHead.inc';
     ?>
-    <script type="text/javascript" src="bootstrap-table/js/bootstrap-table.min.js"></script>
-    <script type="text/javascript" src="bootstrap-table/extensions/bootstrap-table-filter-control.min.js"></script>
-    <link rel="stylesheet" href="bootstrap-table/css/bootstrap-table.min.css">
-    <link rel="stylesheet" href="bootstrap-table/extensions/bootstrap-table-filter-control.min.css">
+    <script type="text/javascript" src="bootstrap-table/js/bootstrap-table.min.js?ref=<?= filemtime('bootstrap-table/js/bootstrap-table.min.js'); ?>"></script>
+    <script type="text/javascript" src="bootstrap-table/extensions/bootstrap-table-filter-control.min.js?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-filter-control.min.js'); ?>"></script>
+    <link rel="stylesheet" href="bootstrap-table/css/bootstrap-table.min.css?ref=<?= filemtime('bootstrap-table/css/bootstrap-table.min.css'); ?>">
+    <link rel="stylesheet" href="bootstrap-table/extensions/bootstrap-table-filter-control.min.css?ref=<?= filemtime('bootstrap-table/extensions/bootstrap-table-filter-control.min.css'); ?>">
 
     <link rel="manifest" href="manifest.json">
 

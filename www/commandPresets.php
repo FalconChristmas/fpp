@@ -205,9 +205,9 @@
     </script>
 
     <!--jQuery Colpicker to get the fancy color picker-->
-    <link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
-    <link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
-    <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
+    <link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css?ref=<?= filemtime('jquery/colpick/css/colpick.css'); ?>">
+    <link rel="stylesheet" type="text/css" href="css/jquery.colpick.css?ref=<?= filemtime('css/jquery.colpick.css'); ?>">
+    <script type="text/javascript" src="jquery/colpick/js/colpick.js?ref=<?= filemtime('jquery/colpick/js/colpick.js'); ?>"></script>
 
     <title><? echo $pageTitle; ?></title>
 </head>

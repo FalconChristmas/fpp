@@ -54,7 +54,7 @@
 
 
     ?>
-    <script type="text/javascript" src="js/validate.min.js"></script>
+    <script type="text/javascript" src="js/validate.min.js?ref=<?= filemtime('js/validate.min.js'); ?>"></script>
 
     <style>
         .pendingDhcpProxy {

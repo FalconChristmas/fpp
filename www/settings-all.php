@@ -48,11 +48,11 @@
         array("name" => "developer", "title" => "Developer", "ui" => 1)
     );
     ?>
-    <link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
-    <link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
-    <link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
-    <script type="text/javascript" src="js/jquery.timepicker.js"></script>
-    <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css?ref=<?= filemtime('css/jquery.timepicker.css'); ?>">
+    <link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css?ref=<?= filemtime('jquery/colpick/css/colpick.css'); ?>">
+    <link rel="stylesheet" type="text/css" href="css/jquery.colpick.css?ref=<?= filemtime('css/jquery.colpick.css'); ?>">
+    <script type="text/javascript" src="js/jquery.timepicker.js?ref=<?= filemtime('js/jquery.timepicker.js'); ?>"></script>
+    <script type="text/javascript" src="jquery/colpick/js/colpick.js?ref=<?= filemtime('jquery/colpick/js/colpick.js'); ?>"></script>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title><? echo $pageTitle; ?></title>
 </head>

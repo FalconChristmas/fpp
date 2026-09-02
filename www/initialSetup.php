@@ -139,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         }
     }
     ?>
-    <script src="js/fpp-backup-filecopy.js"></script>
+    <script src="js/fpp-backup-filecopy.js?ref=<?= filemtime('js/fpp-backup-filecopy.js'); ?>"></script>
     <script>
         fppFileCopy.config = {
             direction: '#fileCopyDirection',
