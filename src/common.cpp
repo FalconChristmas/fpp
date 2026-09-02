@@ -675,6 +675,12 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)timeout);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 2);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    // Accept (and transparently decode) whatever encodings this libcurl was built
+    // with.  Some controllers gzip a response whether or not the client asked for
+    // it, and without this the caller is handed the compressed bytes and every
+    // find()/JSON parse on them quietly fails.  CurlManager has always done this;
+    // this path had not, which is what made such a device undetectable.
+    curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
 
     if (method == "POST")
         curl_easy_setopt(curl, CURLOPT_POST, 1);
