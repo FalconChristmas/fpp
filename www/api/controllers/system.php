@@ -602,19 +602,14 @@ function SystemGetStatus()
                     $data = '{"T":"Q","M":"ST","B":0,"E":0,"I":0,"P":{}}';
                     curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
                     curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-                } else if ($type == "ESPixelStick") {
-                    $curl = curl_init("http://$urlHost/ws"); // WebSocket URL (use wss:// for secure connections)
-                    curl_setopt($curl, CURLOPT_URL, "http://$urlHost/ws");
-                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($curl, CURLOPT_HTTPHEADER, [
-                        "Connection: Upgrade",
-                        "Upgrade: websocket",
-                        "Host: $urlHost",
-                        "Origin: http://$urlHost",
-                        "Sec-WebSocket-Key: " . base64_encode(random_bytes(16)),
-                        "Sec-WebSocket-Version: 13"
-                    ]);
                 } else {
+                    // Everything else, ESPixelStick 4.x included, answers FPP's
+                    // own status URL.  (There used to be an "ESPixelStick" branch
+                    // here that curled http://<ip>/ws with WebSocket upgrade
+                    // headers; curl cannot complete a WS handshake, let alone
+                    // frame a request, so it only ever returned "unreachable".
+                    // ESPixelStick 3.x really is WebSocket-only and is polled
+                    // from the browser through /proxy/<ip>/ws instead.)
                     $curl = curl_init("http://" . $urlHost . "/api/system/status");
                 }
                 curl_setopt($curl, CURLOPT_FAILONERROR, true);

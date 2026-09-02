@@ -1504,7 +1504,10 @@
                                 item.gitversions = u;
                             }
 
-                            if (data.advancedView.OSVersion !== "") {
+                            // Absent, not just empty: a device that isn't running
+                            // FPP OS (an ESPixelStick, say) sends no OSVersion at
+                            // all, and `undefined !== ""` rendered "OS: undefined".
+                            if (data.advancedView.OSVersion) {
                                 item.version = "<table class='multiSyncVerboseTable'>" +
                                     "<tr><td><small class='text-muted'>FPP:</small></td><td>" + item._versionStr + "</td></tr>" +
                                     "<tr><td><small class='text-muted'>OS:</small></td><td>" + data.advancedView.OSVersion + "</td></tr>" +
@@ -1999,14 +2002,21 @@
                 if (isFPP(data[i].typeId)) {
                     fppIpAddresses.push(ip);
                 } else if (isESPixelStick(data[i].typeId)) {
-                    if ((majorVersion == 4) || (majorVersion == 0)) {
-                        // Collect and probe after the table is built, the way every
-                        // other device type here already does.  Probing inline let a
-                        // single device abort the whole render -- see the comment on
-                        // getESPixelStickBridgeStatus().
-                        espIpAddresses.push(ip);
-                    } else {
+                    // Which firmware generation decides how we ask:
+                    //   3.x serves the two-letter command protocol (XJ/G1/G2) on a
+                    //        WebSocket at /ws, and nothing else.
+                    //   4.x dropped that socket entirely and answers FPP's own
+                    //        /api/system/status, so it needs no special case at all.
+                    // These were the wrong way round, which is why no ESPixelStick
+                    // of either generation ever reported status.  An unparsed
+                    // version means a device too new to know about: assume 4.x.
+                    if ((majorVersion >= 4) || (majorVersion == 0)) {
                         fppIpAddresses.push(ip);
+                    } else {
+                        // Probed after the table is built, the way every other
+                        // device type here already does; probing inline let one
+                        // device abort the whole render.
+                        espIpAddresses.push(ip);
                     }
                 } else if (isFalconV4(data[i].typeId)) {
                     falconV4Addresses.push(ip);
@@ -2296,7 +2306,14 @@
             safeInitBody($tbl);
 
             if ($('#MultiSyncRefreshStatus').is(":checked")) {
-                setTimeout(function () { ESPSockets[ips].send("XJ"); }, 1000);
+                setTimeout(function () {
+                    // onclose deletes the entry, and send() throws on a socket
+                    // that is closing or already gone.
+                    var sock = ESPSockets[ips];
+                    if (sock && sock.readyState === WebSocket.OPEN) {
+                        sock.send("XJ");
+                    }
+                }, 1000);
             }
         }
 
@@ -2734,10 +2751,10 @@
                     ips.push(ip);
                 } else if (isESPixelStick(typeId)) {
                     var majorVersion = parseInt((item._versionStr || '0').split('.')[0]);
-                    if (majorVersion >= 4) {
-                        getESPixelStickBridgeStatus(ip);
-                    } else {
+                    if ((majorVersion >= 4) || (majorVersion == 0)) {
                         ips.push(ip);
+                    } else {
+                        getESPixelStickBridgeStatus(ip);
                     }
                 } else if (isFalconV4(typeId)) {
                     fv4ips.push(ip);
