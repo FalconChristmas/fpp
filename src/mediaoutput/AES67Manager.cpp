@@ -244,6 +244,7 @@ bool AES67Manager::LoadConfig() {
         root.get("sourceMinBuffers", kDefault.sourceMinBuffers).asInt();
     cfg.splitClockDomains =
         root.get("splitClockDomains", kDefault.splitClockDomains).asBool();
+    cfg.targetLeadMs = root.get("targetLeadMs", kDefault.targetLeadMs).asInt();
     cfg.sourcePtpGroup =
         root.get("sourcePtpGroup", kDefault.sourcePtpGroup).asBool();
     cfg.sourcePtpGroupName =
@@ -1180,23 +1181,6 @@ struct DriftResampleState {
     guint64 seen = 0;
     guint64 gapsSeen = 0;
 
-    // splitClockDomains pacing servo.  The sink syncs to the pipeline clock,
-    // which under splitClockDomains is the graph clock, while the buffers it
-    // renders carry PTS advancing at the PTP rate that driftResample enforces.
-    // Left alone the sink therefore emits at graph rate -- measured 249.986
-    // packets per PTP second against the 250 AES67 requires, i.e. the receiver
-    // is fed 54ppm slow and its buffer drains.  Walking ts-offset by the
-    // accumulated PTP-minus-pipeline difference pulls emission back onto PTP.
-    // 54ppm is 54us/s, so a 1Hz update moves it in steps far below any
-    // receiver's link offset.
-    GstElement* usink = nullptr;
-    GstClock* pipeClock = nullptr;
-    bool servoInit = false;
-    GstClockTime servoPtp0 = 0;
-    GstClockTime servoPipe0 = 0;
-    gint64 servoBase = 0;
-    gint64 servoLast = 0;
-    guint64 servoTick = 0;
 
     // Sliding window of (clock, input frames, output frames) used to measure
     // the card's rate.  A cumulative average was used here first and it is what
@@ -1340,34 +1324,6 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         st->lastPts = pts;
         st->lastFrames = inFrames;
         st->lastPtsValid = true;
-    }
-
-    // splitClockDomains pacing servo -- see the fields on DriftResampleState.
-    // Runs about once a second rather than per buffer; the correction is tens
-    // of microseconds and does not need to be finer than that.
-    if (st->usink && st->pipeClock && (++st->servoTick % 250) == 0) {
-        const GstClockTime ptpNow = gst_clock_get_time(st->clock);
-        const GstClockTime pipeNow = gst_clock_get_time(st->pipeClock);
-        gint64 cur = 0;
-        g_object_get(st->usink, "ts-offset", &cur, NULL);
-        // Re-anchor whenever something else moved ts-offset -- the sink pacing
-        // watchdog retunes it once the real pipeline latency is known, and the
-        // servo must ride on top of that rather than fight it.
-        if (!st->servoInit || cur != st->servoLast) {
-            st->servoInit = true;
-            st->servoBase = cur;
-            st->servoPtp0 = ptpNow;
-            st->servoPipe0 = pipeNow;
-            st->servoLast = cur;
-        } else if (ptpNow > st->servoPtp0 && pipeNow > st->servoPipe0) {
-            const gint64 drift = (gint64)(ptpNow - st->servoPtp0) -
-                                 (gint64)(pipeNow - st->servoPipe0);
-            const gint64 want = st->servoBase - drift;
-            if (want != cur) {
-                g_object_set(st->usink, "ts-offset", want, NULL);
-                st->servoLast = want;
-            }
-        }
     }
 
     const GstClockTime now = gst_clock_get_time(st->clock);
@@ -1975,19 +1931,32 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                 "clock, PTP for the media clock and RTP timestamps\n", inst.id);
     }
 
-    // splitClockDomains: anchor the RTP timeline to PTP.
+    // splitClockDomains: anchor the RTP timeline to PTP, then hold the lead.
     //
-    // perfect-rtptime makes the payloader count samples from timestamp-offset,
-    // which is what keeps the timeline at PTP rate when the pipeline is not on
-    // PTP -- but it also means the RTP timestamp no longer derives from the
-    // PTS, so the sinkPacing PTS shift no longer produces the transmit lead.
-    // Both jobs fall to this offset: AES67's mediaclk:direct=0 is exactly this,
-    // the RTP timestamp being PTP time projected onto the sample rate.
+    // The anchor sets where the timeline starts; the servo keeps it there.
+    // Both are needed.  perfect-rtptime makes the payloader count samples, so
+    // the RTP timestamp no longer derives from the PTS and the sinkPacing PTS
+    // shift no longer produces the transmit lead -- the offset below does.
+    // It must be set before PLAYING: rtpL24pay latches its base on the segment,
+    // and setting it from a probe on the first buffer was measured to do
+    // nothing at all.
     //
-    // It has to be set before the pipeline reaches PLAYING.  rtpL24pay latches
-    // its base when the segment arrives, so setting it from a probe on the
-    // first buffer is too late -- measured, the offset was applied and the
-    // presentation lead did not move at all.
+    // On its own that anchor does not hold.  Every source discontinuity makes
+    // the drift loop re-anchor its PTS timeline to absorb the gap ("-231 ms gap
+    // absorbed"), while the RTP sample counter does not move with it, so the
+    // fixed relationship the anchor established is broken and the lead steps.
+    // Measured across a night of media restarts it ratcheted one way only,
+    // +23.2 -> +30.6 -> +34.1 -> +40.6 -> +44.5 ms, roughly 4-7ms per restart,
+    // never recovering, with the pacing degrading alongside it.  An open-loop
+    // servo cannot fix that by construction: it corrects the clock difference
+    // it is told about, not the error it actually produces.
+    //
+    // So the servo measures the lead and drives it to targetLeadMs.  For each
+    // outgoing packet it reads the RTP timestamp straight out of the header
+    // (bytes 4-7; no gstreamer-rtp dependency for four bytes), works out when
+    // the sink will actually transmit it, projects that onto the sample rate,
+    // and compares.  The subtraction is done in guint32 so the RTP wrap at
+    // 2^32 handles itself.
     if (ptpClock && m_config.splitClockDomains) {
         GstElement* payEl = gst_bin_get_by_name(GST_BIN(pipeline), "pay");
         if (payEl) {
@@ -1998,8 +1967,120 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
             g_object_set(payEl, "timestamp-offset", base, NULL);
             LogInfo(VB_MEDIAOUT,
                     "AES67 send [%d]: RTP timeline anchored to PTP "
-                    "(timestamp-offset %u)\n", inst.id, base);
+                    "(timestamp-offset %u, holding %dms lead)\n",
+                    inst.id, base, m_config.targetLeadMs);
             gst_object_unref(payEl);
+        }
+
+        struct LeadServo {
+            GstClock* ptp;
+            GstClock* pipe;
+            GstElement* sink;
+            gint64 targetNs;
+            guint64 tick;
+            int instanceId;
+            bool logged;
+            gint64 latency;   // sink render delay; -1 until queried
+        };
+        GstElement* sinkEl = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
+        GstPad* sinkPad = sinkEl ? gst_element_get_static_pad(sinkEl, "sink") : nullptr;
+        if (sinkPad) {
+            auto* sv = new LeadServo{ GST_CLOCK(gst_object_ref(ptpClock)),
+                                      gst_pipeline_get_pipeline_clock(GST_PIPELINE(pipeline)),
+                                      sinkEl,
+                                      (gint64)m_config.targetLeadMs * GST_MSECOND,
+                                      0, inst.id, false, -1 };
+            gst_pad_add_probe(
+                sinkPad, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad*, GstPadProbeInfo* info, gpointer user) -> GstPadProbeReturn {
+                    auto* v = static_cast<LeadServo*>(user);
+                    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+                    // ~1Hz at any ptime; the correction is tens of microseconds
+                    // and does not need to be finer.
+                    if (!b || (++v->tick % 250) != 0 || !GST_BUFFER_PTS_IS_VALID(b)) {
+                        return GST_PAD_PROBE_OK;
+                    }
+                    GstMapInfo m;
+                    if (!gst_buffer_map(b, &m, GST_MAP_READ)) {
+                        return GST_PAD_PROBE_OK;
+                    }
+                    if (m.size < 12) {
+                        gst_buffer_unmap(b, &m);
+                        return GST_PAD_PROBE_OK;
+                    }
+                    const guint32 rtpTs = ((guint32)m.data[4] << 24) |
+                                          ((guint32)m.data[5] << 16) |
+                                          ((guint32)m.data[6] << 8) | m.data[7];
+                    gst_buffer_unmap(b, &m);
+
+                    // A sink renders at PTS + base + latency + ts-offset.  The
+                    // latency term is not optional: leaving it out biases every
+                    // measurement by exactly the pipeline latency, and the servo
+                    // then drives the real lead that far past target -- measured,
+                    // it ran a 20ms target down to -4.10ms, which is the
+                    // receiver-discards-everything failure.
+                    if (v->latency < 0) {
+                        GstQuery* lq = gst_query_new_latency();
+                        if (gst_element_query(v->sink, lq)) {
+                            gboolean live = FALSE;
+                            GstClockTime minL = 0, maxL = 0;
+                            gst_query_parse_latency(lq, &live, &minL, &maxL);
+                            v->latency = GST_CLOCK_TIME_IS_VALID(minL) ? (gint64)minL : 0;
+                        }
+                        gst_query_unref(lq);
+                        if (v->latency < 0) {
+                            v->latency = 0;
+                        }
+                    }
+                    gint64 tsOff = 0;
+                    g_object_get(v->sink, "ts-offset", &tsOff, NULL);
+                    const GstClockTime baseT = gst_element_get_base_time(v->sink);
+                    const GstClockTime pipeNow = gst_clock_get_time(v->pipe);
+                    const GstClockTime ptpNow = gst_clock_get_time(v->ptp);
+                    // When the sink will put this packet on the wire, expressed
+                    // in PTP time so it is comparable with the RTP timestamp.
+                    const gint64 txPipe = (gint64)GST_BUFFER_PTS(b) + (gint64)baseT +
+                                          v->latency + tsOff;
+                    const gint64 txPtp = (gint64)ptpNow + (txPipe - (gint64)pipeNow);
+                    if (txPtp <= 0) {
+                        return GST_PAD_PROBE_OK;
+                    }
+                    const guint32 txRtp = (guint32)gst_util_uint64_scale(
+                        (guint64)txPtp, AES67::AUDIO_RATE, GST_SECOND);
+                    const gint64 leadNs = (gint64)(gint32)(rtpTs - txRtp) *
+                                          GST_SECOND / AES67::AUDIO_RATE;
+
+                    // Delaying transmission (larger ts-offset) reduces the lead.
+                    gint64 corr = (leadNs - v->targetNs) / 4;
+                    const gint64 kSlew = 200 * GST_USECOND;
+                    if (corr > kSlew) corr = kSlew;
+                    if (corr < -kSlew) corr = -kSlew;
+                    if (corr != 0) {
+                        g_object_set(v->sink, "ts-offset", tsOff + corr, NULL);
+                    }
+                    if (!v->logged) {
+                        v->logged = true;
+                        LogInfo(VB_MEDIAOUT,
+                                "AES67 send [%d]: lead servo active "
+                                "(lead %.2f ms, target %.0f ms, sink latency "
+                                "%.1f ms)\n",
+                                v->instanceId, (double)leadNs / GST_MSECOND,
+                                (double)v->targetNs / GST_MSECOND,
+                                (double)v->latency / GST_MSECOND);
+                    }
+                    return GST_PAD_PROBE_OK;
+                },
+                sv,
+                [](gpointer user) {
+                    auto* v = static_cast<LeadServo*>(user);
+                    if (v->ptp) gst_object_unref(v->ptp);
+                    if (v->pipe) gst_object_unref(v->pipe);
+                    if (v->sink) gst_object_unref(v->sink);
+                    delete v;
+                });
+            gst_object_unref(sinkPad);
+        } else if (sinkEl) {
+            gst_object_unref(sinkEl);
         }
     }
 
@@ -2051,13 +2132,6 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // SINC_FASTEST is bandlimited and far above what a 56ppm correction
         // needs; the cost is a few percent of one core on a Pi.
         st->src = src_new(SRC_SINC_FASTEST, inst.channels, &err);
-        // Wire up the pacing servo when the pipeline is not on PTP; see the
-        // servo fields on DriftResampleState.  Harmless otherwise -- with the
-        // pipeline on PTP the two clocks are the same and the drift is zero.
-        if (m_config.splitClockDomains) {
-            st->usink = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
-            st->pipeClock = gst_pipeline_get_pipeline_clock(GST_PIPELINE(pipeline));
-        }
 
         if (dpad && st->src) {
             gst_pad_add_probe(dpad, GST_PAD_PROBE_TYPE_BUFFER,

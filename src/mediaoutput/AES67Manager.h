@@ -442,6 +442,16 @@ struct AES67Config {
     // avoided.  It is the intended behaviour, and the point of a clock domain.
     bool splitClockDomains = false;
 
+    // Transmit lead the splitClockDomains servo holds, in milliseconds.
+    //
+    // How far ahead of its own declared playout time each packet goes on the
+    // wire.  It must stay above the receiver's link offset plus network jitter
+    // or a conformant receiver discards everything and plays silence -- that is
+    // the -23.7ms failure that silenced a Yamaha MRX7-D in issue #2848.  It is
+    // also latency, so it should not be larger than it needs to be: 20ms clears
+    // a Dante/RAVENNA link offset (0.25-5ms typical) with a wide margin.
+    int targetLeadMs = 20;
+
     bool sourcePtpGroup = false;
     std::string sourcePtpGroupName = "pipewire.ptp0";
 
