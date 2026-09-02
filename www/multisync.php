@@ -407,6 +407,17 @@
             return buildHttpURL(ip, path);
         }
 
+        /**
+         * WebSocket counterpart to wrapUrlWithProxy(): a same-origin ws:// (or
+         * wss:// on an https page) URL that Apache's /proxy/<ip>/ upgrade rule
+         * tunnels to the device.  Keeping the socket on our own origin is what
+         * keeps it inside the page's CSP connect-src and clear of CORS.
+         */
+        function wsProxyUrl(ip, path) {
+            var scheme = (window.location.protocol === 'https:') ? 'wss://' : 'ws://';
+            return scheme + window.location.host + '/proxy/' + ip + path;
+        }
+
         function ipLink(ip) {
             if (fppConfig.hideExternalURLs) {
                 return ip;
@@ -1701,6 +1712,7 @@
             var wledIpAddresses = [];
             var geniusIpAddresses = [];
             var baldrickIpAddresses = [];
+            var espIpAddresses = [];
             var falconV4Addresses = [];
             var falconV3Addresses = [];
 
@@ -1988,7 +2000,11 @@
                     fppIpAddresses.push(ip);
                 } else if (isESPixelStick(data[i].typeId)) {
                     if ((majorVersion == 4) || (majorVersion == 0)) {
-                        getESPixelStickBridgeStatus(ip);
+                        // Collect and probe after the table is built, the way every
+                        // other device type here already does.  Probing inline let a
+                        // single device abort the whole render -- see the comment on
+                        // getESPixelStickBridgeStatus().
+                        espIpAddresses.push(ip);
                     } else {
                         fppIpAddresses.push(ip);
                     }
@@ -2008,6 +2024,9 @@
             getWLEDControllerStatus(wledIpAddresses, false);
             getGeniusControllerStatus(geniusIpAddresses, false);
             getBaldrickControllerStatus(baldrickIpAddresses, false);
+            for (var ei = 0; ei < espIpAddresses.length; ei++) {
+                getESPixelStickBridgeStatus(espIpAddresses[ei]);
+            }
             getFalconControllerStatus(falconV3Addresses, falconV4Addresses, false);
 
             var extraRemotes = [];
@@ -2304,13 +2323,30 @@
             safeInitBody($tbl);
         }
 
+        /**
+         * Poll an ESPixelStick v4 for status.
+         *
+         * The socket goes through the player's own /proxy/<ip>/ws route, never
+         * straight at the device: same-origin keeps it inside the page's CSP
+         * connect-src and out of CORS, exactly like every other device on this
+         * page reaches its controller through our PHP.  Connecting direct also
+         * broke more than the stick -- new WebSocket() throws a SecurityError
+         * when CSP blocks the URL, and Firefox surfaced that as a thrown
+         * NS_ERROR_CONTENT_BLOCKED that unwound parseFPPSystems() and left the
+         * whole system table empty.
+         */
         function getESPixelStickBridgeStatus(ip) {
             var ips = ip.replace(/\./g, '_');
 
             if (ESPSockets.hasOwnProperty(ips)) {
-                ESPSockets[ips].send("XJ");
+                // send() throws InvalidStateError while the socket is still
+                // CONNECTING; the onopen handler below already sends the first XJ.
+                var open = ESPSockets[ips];
+                if (open.readyState === WebSocket.OPEN) {
+                    open.send("XJ");
+                }
             } else {
-                var ws = new WebSocket("ws://" + ip + "/ws");
+                var ws = new WebSocket(wsProxyUrl(ip, "/ws"));
                 ESPSockets[ips] = ws;
 
                 ws.binaryType = "arraybuffer";
@@ -2349,7 +2385,6 @@
                 };
             }
         }
-
 
         // ============================================================
         // SECTION: Falcon polling
@@ -2562,7 +2597,10 @@
                 var $tbl = $('#fppSystemsTable');
                 Object.entries(alldata).forEach(function (entry) {
                     var ip = entry[0], data = entry[1];
-                    if (data == null || data == "" || data == "null") {
+                    // A controller can answer without a "system" block; reading
+                    // through it unguarded threw and abandoned every device left
+                    // in this response, including the safeInitBody() below.
+                    if (data == null || data == "" || data == "null" || data.system == null) {
                         return;
                     }
                     var uf = formatUptime(data.system.uptime_seconds);
@@ -2576,7 +2614,7 @@
                     if (!item) return;
                     item.utilization = u;
                     item.status = data.status_name;
-                    var friendlyName = (data.system && data.system.friendly_name) ? data.system.friendly_name : "";
+                    var friendlyName = data.system.friendly_name ? data.system.friendly_name : "";
                     if (friendlyName != "" && item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                         item.hostname = item.hostname.replace(
                             "class='hostDescriptionSM'></small>",
