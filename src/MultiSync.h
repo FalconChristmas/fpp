@@ -15,6 +15,7 @@
 #include "fpp-json-fwd.h"
 #include <sys/types.h>
 #include <atomic>
+#include <deque>
 #include <functional>
 #include <mutex>
 #include <pthread.h>
@@ -402,7 +403,10 @@ public:
     static std::string GetTypeString(MultiSyncSystemType type, bool local = false);
     static MultiSyncSystemType ModelStringToType(std::string model);
 
-    void StoreHTTPResponse(std::string* ipp, uint8_t* data, int sz);
+    // Was the curl write callback for the HTTP discovery scan, which now
+    // receives whole responses from CurlManager instead.  Retained as a no-op
+    // only because it is public and an external plugin could reference it.
+    void StoreHTTPResponse(std::string* ipp, uint8_t* data, int sz) {}
 
     [[nodiscard]] std::vector<MultiSyncSystem> const& GetLocalSystems() { return m_localSystems; }
     [[nodiscard]] std::vector<MultiSyncSystem> const& GetRemoteSystems() { return m_remoteSystems; }
@@ -455,7 +459,18 @@ private:
 
     void PerformHTTPDiscovery(void);
     void DiscoverViaHTTP(const std::set<std::string>& ips, const std::set<std::string>& exacts);
-    void DiscoverIPViaHTTP(const std::string& ip, bool allowUnknown = false);
+    void DiscoverIPViaHTTP(const std::string& ip, const std::string& html, bool allowUnknown = false);
+
+    // Both HTTP probe paths are queue-and-pump rather than fire-everything:
+    // each hands its addresses to a queue and then starts as many requests as
+    // the in-flight cap allows, and each completion starts the next one.  See
+    // the cap defines in MultiSync.cpp for why an unbounded fan-out is the
+    // wrong thing on a show network.
+    void PumpHTTPPings();
+    void StartHTTPPing(const std::string& address);
+    void FinishHTTPPing();
+    void PumpHTTPDiscovery();
+    void FinishHTTPDiscovery();
 
     void ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stats);
     void ProcessCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* stats);
@@ -543,9 +558,6 @@ private:
 
     unsigned long m_lastPingTime;
     unsigned long m_lastCheckTime;
-    // Set while a background thread is running the blocking HTTP remote probes
-    // kicked off by PeriodicPing(), so we never pile up overlapping probe threads.
-    std::atomic_bool m_httpPingInProgress{ false };
     int m_lastMediaHalfSecond;
     int m_lastFrame;
     int m_lastFrameSent;
@@ -589,8 +601,16 @@ private:
     unsigned char rcvCmbuf[MAX_MS_RCV_MSG][0x100];
     struct sockaddr_storage rcvSrcAddr[MAX_MS_RCV_MSG];
 
-    std::mutex m_httpResponsesLock;
-    std::map<std::string, std::vector<uint8_t>> m_httpResponses;
+    // Pending work for the two HTTP probe paths, plus how many of each are
+    // outstanding.  A lock rather than bare atomics because a CurlManager
+    // completion does not reliably land on the main loop: processCurls() is
+    // also called from UDPOutput's init and teardown, so a callback can run on
+    // whichever thread is reloading channel outputs.
+    std::mutex m_httpProbeLock;
+    std::deque<std::string> m_httpPingQueue;
+    int m_httpPingsInFlight = 0;
+    std::deque<std::pair<std::string, bool>> m_httpDiscoveryQueue; // address, isExact
+    int m_httpDiscoveriesInFlight = 0;
 
     std::recursive_mutex m_statsLock;
     std::map<std::string, MultiSyncStats*> m_syncStats;

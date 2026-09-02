@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "CurlManager.h"
 #include "NetworkController.h"
 #include "common.h"
 #include "log.h"
@@ -40,56 +41,113 @@ NetworkController::NetworkController(const std::string& ipStr) :
     systemMode(PLAYER_MODE) {
 }
 
-NetworkController* NetworkController::DetectControllerViaHTML(const std::string& ip,
-                                                              const std::string& html) {
+// One in-progress detection.  The detectors below are tried in order, and any
+// of them may have to ask the device a question before it can say yes or no --
+// so the walk cannot be a loop.  Each step either claims the device
+// (matched()), passes (noMatch(), which advances to the next detector), or
+// issues a fetch() whose completion does one of those two later.  The object
+// lives until one of those outcomes is reached and deletes it.
+class NetworkController::Detection {
+public:
+    Detection(const std::string& ipStr, const std::string& htmlStr,
+              std::function<void(NetworkController*)>&& cb) :
+        ip(ipStr),
+        html(htmlStr),
+        nc(new NetworkController(ipStr)),
+        callback(std::move(cb)) {
+    }
+
+    const std::string ip;
+    const std::string html;
+
+    // Deliberately shared by every detector in turn, exactly as the old
+    // sequential version shared one object: a detector that fills in vendor and
+    // typeId and only then fails its probe leaves that behind for whichever
+    // detector claims the device to overwrite.
+    NetworkController* const nc;
+
+    std::function<void(NetworkController*)> callback;
+    size_t step = 0;
+
+    // Run the detector at `step`, or finish empty once the list is exhausted.
+    void run() {
+        typedef void (NetworkController::*DetectStep)(Detection*);
+        // Order is significant and is the order the blocking version used.
+        static const DetectStep STEPS[] = {
+            &NetworkController::DetectFPP,
+            &NetworkController::DetectFalconController,
+            &NetworkController::DetectSanDevicesController,
+            &NetworkController::DetectESPixelStickController,
+            &NetworkController::DetectBaldrickController,
+            &NetworkController::DetectAlphaPixController,
+            &NetworkController::DetectHinksPixController,
+            &NetworkController::DetectDIYLEDExpressController,
+            &NetworkController::DetectExperienceController,
+            &NetworkController::DetectWLEDController,
+        };
+        if (step >= (sizeof(STEPS) / sizeof(STEPS[0]))) {
+            finish(nullptr);
+            return;
+        }
+        (nc->*STEPS[step])(this);
+    }
+
+    void matched() {
+        finish(nc);
+    }
+
+    // Only the detectors that settle it from the HTML alone reach this
+    // synchronously; the rest come back through it from a curl completion.  The
+    // recursion is bounded by the length of STEPS.
+    void noMatch() {
+        ++step;
+        run();
+    }
+
+    // Ask the device something.  `ok` is false only when the transfer itself
+    // failed -- which is exactly what the blocking urlGet() this replaced
+    // reported, so a 404 still reaches the handler with the error page as its
+    // body and the detectors, which only look for their own fields in the
+    // response, behave as they did before.
+    void fetch(const std::string& url, std::function<void(bool ok, const std::string& resp)>&& handler) {
+        CurlManager::INSTANCE.addGet(url, [this, handler](int rc, const std::string& resp) {
+            handler(rc != 0, resp);
+        });
+    }
+
+private:
+    void finish(NetworkController* result) {
+        // Move the callback out and destroy ourselves before running it: it may
+        // well start the next piece of work, and it must not do that while a
+        // half-finished Detection is still alive.
+        std::function<void(NetworkController*)> cb = std::move(callback);
+        if (!result) {
+            delete nc;
+        }
+        delete this;
+        cb(result);
+    }
+};
+
+void NetworkController::DetectControllerViaHTML(const std::string& ip, const std::string& html,
+                                                std::function<void(NetworkController*)>&& callback) {
     if (html.empty()) {
-        return nullptr;
+        callback(nullptr);
+        return;
     }
-
-    NetworkController* nc = new NetworkController(ip);
-    if (nc->DetectFPP(ip, html)) {
-        return nc;
-    }
-    if (nc->DetectFalconController(ip, html)) {
-        return nc;
-    }
-    if (nc->DetectSanDevicesController(ip, html)) {
-        return nc;
-    }
-    if (nc->DetectESPixelStickController(ip, html)) {
-        return nc;
-    }
-    if (nc->DetectBaldrickController(ip, html)) {
-        return nc;
-    }
-    if (nc->DetectAlphaPixController(ip, html)) {
-        return nc;
-    }
-    if (nc->DetectHinksPixController(ip, html)) {
-        return nc;
-    }
-    if (nc->DetectDIYLEDExpressController(ip, html)) {
-        return nc;
-    }
-    if (nc->DetectExperienceController(ip, html)) {
-        return nc;
-    }
-    if (nc->DetectWLEDController(ip, html)) {
-        return nc;
-    }
-
-    delete nc;
-
-    return nullptr;
+    (new Detection(ip, html, std::move(callback)))->run();
 }
-bool NetworkController::DetectFPP(const std::string& ip, const std::string& html) {
-    if (html.find("Falcon Player - FPP") == std::string::npos) {
-        return false;
-    }
-    std::string url = buildHttpURL(ip, "/api/system/info?simple=1");
-    std::string resp;
 
-    if (urlGet(url, resp)) {
+void NetworkController::DetectFPP(Detection* st) {
+    if (st->html.find("Falcon Player - FPP") == std::string::npos) {
+        st->noMatch();
+        return;
+    }
+    st->fetch(buildHttpURL(st->ip, "/api/system/info?simple=1"), [this, st](bool ok, const std::string& resp) {
+        if (!ok) {
+            st->noMatch();
+            return;
+        }
         Json::Value v;
         LoadJsonFromString(resp, v, JsonRoot::Object);
         hostname = v["HostName"].asString();
@@ -128,104 +186,101 @@ bool NetworkController::DetectFPP(const std::string& ip, const std::string& html
         }
         majorVersion = v["majorVersion"].asInt();
         minorVersion = v["minorVersion"].asInt();
-        return true;
-    }
-    return false;
+        st->matched();
+    });
 }
 
-bool NetworkController::DetectFalconController(const std::string& ip,
-                                               const std::string& html) {
-    LogExcess(VB_SYNC, "Checking if %s is a Falcon controller\n", ip.c_str());
+void NetworkController::DetectFalconController(Detection* st) {
+    LogExcess(VB_SYNC, "Checking if %s is a Falcon controller\n", st->ip.c_str());
 
     RegExCache re("\"css/falcon.css\"|\"/f16v2.js\"|\"js/cntrlr_(\\d+).js\"");
     std::smatch m;
 
-    if (!std::regex_search(html, m, *re.regex))
-        return false;
+    if (!std::regex_search(st->html, m, *re.regex)) {
+        st->noMatch();
+        return;
+    }
 
-    LogExcess(VB_SYNC, "%s is potentially a Falcon controller, checking further\n", ip.c_str());
+    LogExcess(VB_SYNC, "%s is potentially a Falcon controller, checking further\n", st->ip.c_str());
 
     vendor = "Falcon";
     vendorURL = "https://pixelcontroller.com";
 
-    std::string url = buildHttpURL(ip, "/status.xml");
-    std::string resp;
-
-    if (urlGet(url, resp)) {
-        std::size_t fStart = resp.find("<p>");
-        if (fStart != std::string::npos) {
-            typeId = (systemType)(atoi(getSimpleXMLTag(resp, "p").c_str()));
-
-            if (typeId >= 0x80) { // v4 is just 0x80
-                if (typeId == 0x82) {
-                    typeId = kSysTypeFalconF16v5;
-                } else if (getSimpleXMLTag(resp, "np") == "16") {
-                    typeId = kSysTypeFalconF16v4;
-                } else if (getSimpleXMLTag(resp, "np") == "48" || getSimpleXMLTag(resp, "np") == "32") {
-                    typeId = kSysTypeFalconF48v4;
-                }
-            } else { // v3 and below, 0x80 + p tag
-                typeId = (systemType)(atoi(resp.substr(fStart + 3).c_str()) + 0x80);
-            }
-
-            typeStr = MultiSync::GetTypeString(typeId);
-
-            version = getSimpleXMLTag(resp, "fv");
-            systemMode = BRIDGE_MODE;
-
-            if ((typeId == kSysTypeFalconF16v2) ||
-                (typeId == kSysTypeFalconF4v2_64Mb) ||
-                (typeId == kSysTypeFalconF16v2R) ||
-                (typeId == kSysTypeFalconF4v2)) {
-                hostname = getSimpleHTMLTTag(html, "Name:</td>", "\">", "</td>");
-                version = getSimpleHTMLTTag(html, "SW Version:</td>", "\">", "</td>");
-                if ((hostname != "") && (startsWith(version, hostname))) {
-                    std::string tmpStr(hostname);
-                    version.erase(0, hostname.length());
-                    TrimWhiteSpace(version);
-
-                    if (startsWith(version, "- "))
-                        version.erase(0, 2);
-                }
-            } else if ((typeId == kSysTypeFalconF16v4) ||
-                       (typeId == kSysTypeFalconF48v4)) {
-                hostname = getSimpleXMLTag(resp, "n");
-                std::size_t spacePos = version.find(" ");
-                if (spacePos != std::string::npos) {
-                    majorVersion = atoi(version.substr(spacePos + 1).c_str());
-                }
-            } else {
-                hostname = getSimpleXMLTag(resp, "n");
-
-                if (version != "") {
-                    majorVersion = atoi(version.c_str());
-
-                    std::size_t verDot = version.find(".");
-                    if (verDot != std::string::npos) {
-                        minorVersion = atoi(version.substr(verDot + 1).c_str());
-                    }
-                }
-            }
-
-            DumpControllerInfo();
-
-            return true;
+    st->fetch(buildHttpURL(st->ip, "/status.xml"), [this, st](bool ok, const std::string& resp) {
+        std::size_t fStart = ok ? resp.find("<p>") : std::string::npos;
+        if (fStart == std::string::npos) {
+            st->noMatch();
+            return;
         }
-    }
+        typeId = (systemType)(atoi(getSimpleXMLTag(resp, "p").c_str()));
 
-    return false;
+        if (typeId >= 0x80) { // v4 is just 0x80
+            if (typeId == 0x82) {
+                typeId = kSysTypeFalconF16v5;
+            } else if (getSimpleXMLTag(resp, "np") == "16") {
+                typeId = kSysTypeFalconF16v4;
+            } else if (getSimpleXMLTag(resp, "np") == "48" || getSimpleXMLTag(resp, "np") == "32") {
+                typeId = kSysTypeFalconF48v4;
+            }
+        } else { // v3 and below, 0x80 + p tag
+            typeId = (systemType)(atoi(resp.substr(fStart + 3).c_str()) + 0x80);
+        }
+
+        typeStr = MultiSync::GetTypeString(typeId);
+
+        version = getSimpleXMLTag(resp, "fv");
+        systemMode = BRIDGE_MODE;
+
+        if ((typeId == kSysTypeFalconF16v2) ||
+            (typeId == kSysTypeFalconF4v2_64Mb) ||
+            (typeId == kSysTypeFalconF16v2R) ||
+            (typeId == kSysTypeFalconF4v2)) {
+            hostname = getSimpleHTMLTTag(st->html, "Name:</td>", "\">", "</td>");
+            version = getSimpleHTMLTTag(st->html, "SW Version:</td>", "\">", "</td>");
+            if ((hostname != "") && (startsWith(version, hostname))) {
+                std::string tmpStr(hostname);
+                version.erase(0, hostname.length());
+                TrimWhiteSpace(version);
+
+                if (startsWith(version, "- "))
+                    version.erase(0, 2);
+            }
+        } else if ((typeId == kSysTypeFalconF16v4) ||
+                   (typeId == kSysTypeFalconF48v4)) {
+            hostname = getSimpleXMLTag(resp, "n");
+            std::size_t spacePos = version.find(" ");
+            if (spacePos != std::string::npos) {
+                majorVersion = atoi(version.substr(spacePos + 1).c_str());
+            }
+        } else {
+            hostname = getSimpleXMLTag(resp, "n");
+
+            if (version != "") {
+                majorVersion = atoi(version.c_str());
+
+                std::size_t verDot = version.find(".");
+                if (verDot != std::string::npos) {
+                    minorVersion = atoi(version.substr(verDot + 1).c_str());
+                }
+            }
+        }
+
+        DumpControllerInfo();
+        st->matched();
+    });
 }
 
-bool NetworkController::DetectSanDevicesController(const std::string& ip,
-                                                   const std::string& html) {
-    LogExcess(VB_SYNC, "Checking if %s is a SanDevices controller\n", ip.c_str());
+void NetworkController::DetectSanDevicesController(Detection* st) {
+    LogExcess(VB_SYNC, "Checking if %s is a SanDevices controller\n", st->ip.c_str());
     RegExCache re("Controller Model (E[0-9]+)");
     std::smatch m;
 
-    if (!std::regex_search(html, m, *re.regex))
-        return false;
+    if (!std::regex_search(st->html, m, *re.regex)) {
+        st->noMatch();
+        return;
+    }
 
-    LogExcess(VB_SYNC, "%s is potentially a SanDevices controller, checking further\n", ip.c_str());
+    LogExcess(VB_SYNC, "%s is potentially a SanDevices controller, checking further\n", st->ip.c_str());
 
     vendor = "SanDevices";
     vendorURL = "http://sandevices.com/";
@@ -236,8 +291,8 @@ bool NetworkController::DetectSanDevicesController(const std::string& ip,
     RegExCache v4re("Firmware Version:</th></td><td></td><td>([0-9]+.[0-9]+)</td>");
     RegExCache v5re("Firmware Version:</th></td><td>\\s?([0-9]+.[0-9]+)(-W\\d+)?</td>");
 
-    if ((std::regex_search(html, m, *v4re.regex)) ||
-        (std::regex_search(html, m, *v5re.regex))) {
+    if ((std::regex_search(st->html, m, *v4re.regex)) ||
+        (std::regex_search(st->html, m, *v5re.regex))) {
         version = m[1];
 
         if (version != "") {
@@ -250,21 +305,22 @@ bool NetworkController::DetectSanDevicesController(const std::string& ip,
         }
 
         DumpControllerInfo();
-
-        return true;
+        st->matched();
+        return;
     }
 
-    return false;
+    st->noMatch();
 }
 
-bool NetworkController::DetectESPixelStickController(const std::string& ip,
-                                                     const std::string& html) {
-    LogExcess(VB_SYNC, "Checking if %s is running ESPixelStick firmware\n", ip.c_str());
+void NetworkController::DetectESPixelStickController(Detection* st) {
+    LogExcess(VB_SYNC, "Checking if %s is running ESPixelStick firmware\n", st->ip.c_str());
 
-    if (!contains(html, "\"esps.js\""))
-        return false;
+    if (!contains(st->html, "\"esps.js\"")) {
+        st->noMatch();
+        return;
+    }
 
-    LogExcess(VB_SYNC, "%s is potentially an ESPixelStick, checking further\n", ip.c_str());
+    LogExcess(VB_SYNC, "%s is potentially an ESPixelStick, checking further\n", st->ip.c_str());
 
     vendor = "ESPixelStick";
     vendorURL = "https://forkineye.com";
@@ -272,34 +328,36 @@ bool NetworkController::DetectESPixelStickController(const std::string& ip,
     typeStr = "ESPixelStick";
     systemMode = BRIDGE_MODE;
 
-    std::string url = ip + "/conf";
-    std::string resp;
+    // buildHttpURL() rather than the bare "<ip>/conf" this used to build: that
+    // relied on curl guessing the scheme, and it could not work at all for an
+    // IPv6 literal, which has to be bracketed.
+    st->fetch(buildHttpURL(st->ip, "/conf"), [this, st](bool ok, const std::string& resp) {
+        if (ok) {
+            Json::Value config;
+            LoadJsonFromString(resp, config, JsonRoot::Object);
+            if (JsonHas(config, "network") && JsonHas(config["network"], "hostname")) {
+                hostname = config["network"]["hostname"].asString();
+            }
 
-    if (urlGet(url, resp)) {
-        Json::Value config;
-        LoadJsonFromString(resp, config, JsonRoot::Object);
-        if (JsonHas(config, "network") && JsonHas(config["network"], "hostname")) {
-            hostname = config["network"]["hostname"].asString();
+            if (hostname != "") {
+                DumpControllerInfo();
+                st->matched();
+                return;
+            }
         }
-
-        if (hostname != "") {
-            DumpControllerInfo();
-
-            return true;
-        }
-    }
-
-    return false;
+        st->noMatch();
+    });
 }
 
-bool NetworkController::DetectBaldrickController(const std::string& ip,
-                                                  const std::string& html) {
-    LogExcess(VB_SYNC, "Checking if %s is a Baldrick controller\n", ip.c_str());
+void NetworkController::DetectBaldrickController(Detection* st) {
+    LogExcess(VB_SYNC, "Checking if %s is a Baldrick controller\n", st->ip.c_str());
 
-    if (!contains(html, "Baldrick Board"))
-        return false;
+    if (!contains(st->html, "Baldrick Board")) {
+        st->noMatch();
+        return;
+    }
 
-    LogExcess(VB_SYNC, "%s is potentially a Baldrick controller, checking further\n", ip.c_str());
+    LogExcess(VB_SYNC, "%s is potentially a Baldrick controller, checking further\n", st->ip.c_str());
 
     vendor = "ILightThat";
     vendorURL = "https://www.ilightthat.com";
@@ -307,55 +365,56 @@ bool NetworkController::DetectBaldrickController(const std::string& ip,
     typeStr = "Baldrick";
     systemMode = BRIDGE_MODE;
 
-    std::string url = buildHttpURL(ip, "/system_state");
-    std::string resp;
+    st->fetch(buildHttpURL(st->ip, "/system_state"), [this, st](bool ok, const std::string& resp) {
+        if (ok) {
+            Json::Value state;
+            LoadJsonFromString(resp, state, JsonRoot::Object);
+            if (JsonHas(state, "hostname")) {
+                hostname = state["hostname"].asString();
+            }
+            if (JsonHas(state, "board_model")) {
+                typeStr = state["board_model"].asString();
+            }
+            if (JsonHas(state, "ota") && JsonHas(state["ota"], "current_firmware_version")) {
+                version = state["ota"]["current_firmware_version"].asString();
 
-    if (urlGet(url, resp)) {
-        Json::Value state;
-        LoadJsonFromString(resp, state, JsonRoot::Object);
-        if (JsonHas(state, "hostname")) {
-            hostname = state["hostname"].asString();
-        }
-        if (JsonHas(state, "board_model")) {
-            typeStr = state["board_model"].asString();
-        }
-        if (JsonHas(state, "ota") && JsonHas(state["ota"], "current_firmware_version")) {
-            version = state["ota"]["current_firmware_version"].asString();
-
-            // Parse version string like "v3.1.0"
-            if (version.length() > 1 && version[0] == 'v') {
-                std::string verNum = version.substr(1);
-                std::size_t verDot = verNum.find(".");
-                if (verDot != std::string::npos) {
-                    majorVersion = atoi(verNum.substr(0, verDot).c_str());
-                    std::size_t verDot2 = verNum.find(".", verDot + 1);
-                    if (verDot2 != std::string::npos) {
-                        minorVersion = atoi(verNum.substr(verDot + 1, verDot2 - (verDot + 1)).c_str());
+                // Parse version string like "v3.1.0"
+                if (version.length() > 1 && version[0] == 'v') {
+                    std::string verNum = version.substr(1);
+                    std::size_t verDot = verNum.find(".");
+                    if (verDot != std::string::npos) {
+                        majorVersion = atoi(verNum.substr(0, verDot).c_str());
+                        std::size_t verDot2 = verNum.find(".", verDot + 1);
+                        if (verDot2 != std::string::npos) {
+                            minorVersion = atoi(verNum.substr(verDot + 1, verDot2 - (verDot + 1)).c_str());
+                        }
                     }
                 }
             }
-        }
 
-        if (hostname != "") {
-            DumpControllerInfo();
-            return true;
+            if (hostname != "") {
+                DumpControllerInfo();
+                st->matched();
+                return;
+            }
         }
-    }
-
-    return false;
+        st->noMatch();
+    });
 }
 
-bool NetworkController::DetectAlphaPixController(const std::string& ip, const std::string& html) {
-    LogExcess(VB_SYNC, "Checking if %s is a AlphaPix controller\n", ip.c_str());
+void NetworkController::DetectAlphaPixController(Detection* st) {
+    LogExcess(VB_SYNC, "Checking if %s is a AlphaPix controller\n", st->ip.c_str());
 
     RegExCache re("AlphaPix (\\d+|Flex|Evolution)");
     RegExCache re2("(\\d+) Port Ethernet to SPI Controller");
     std::smatch m, m2;
 
-    if ((!std::regex_search(html, m, *re.regex)) && (!std::regex_search(html, m2, *re2.regex)))
-        return false;
+    if ((!std::regex_search(st->html, m, *re.regex)) && (!std::regex_search(st->html, m2, *re2.regex))) {
+        st->noMatch();
+        return;
+    }
 
-    LogExcess(VB_SYNC, "%s is potentially a AlphaPix controller, checking further\n", ip.c_str());
+    LogExcess(VB_SYNC, "%s is potentially a AlphaPix controller, checking further\n", st->ip.c_str());
 
     vendor = "HolidayCoro";
     vendorURL = "https://www.holidaycoro.com/";
@@ -365,7 +424,7 @@ bool NetworkController::DetectAlphaPixController(const std::string& ip, const st
 
     RegExCache vre("Currently Installed Firmware Version:  ([0-9]+.[0-9]+)");
 
-    if (std::regex_search(html, m, *vre.regex)) {
+    if (std::regex_search(st->html, m, *vre.regex)) {
         version = m[1];
 
         if (version != "") {
@@ -378,19 +437,20 @@ bool NetworkController::DetectAlphaPixController(const std::string& ip, const st
         }
 
         DumpControllerInfo();
-
-        return true;
+        st->matched();
+        return;
     }
 
-    return false;
+    st->noMatch();
 }
 
-bool NetworkController::DetectHinksPixController(const std::string& ip, const std::string& html) {
-    LogExcess(VB_SYNC, "Checking if %s is a HinksPix controller\n", ip.c_str());
-    if (!contains(html, "HinksPix Config")) {
-        return false;
+void NetworkController::DetectHinksPixController(Detection* st) {
+    LogExcess(VB_SYNC, "Checking if %s is a HinksPix controller\n", st->ip.c_str());
+    if (!contains(st->html, "HinksPix Config")) {
+        st->noMatch();
+        return;
     }
-    LogExcess(VB_SYNC, "%s is potentially a HinksPix controller, checking further\n", ip.c_str());
+    LogExcess(VB_SYNC, "%s is potentially a HinksPix controller, checking further\n", st->ip.c_str());
 
     vendor = "HolidayCoro";
     vendorURL = "https://www.holidaycoro.com/";
@@ -399,20 +459,21 @@ bool NetworkController::DetectHinksPixController(const std::string& ip, const st
     systemMode = BRIDGE_MODE;
 
     DumpControllerInfo();
-    return true;
+    st->matched();
 }
 
-bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
-                                                      const std::string& html) {
-    LogExcess(VB_SYNC, "Checking if %s is a DIYLEDExpress controller\n", ip.c_str());
+void NetworkController::DetectDIYLEDExpressController(Detection* st) {
+    LogExcess(VB_SYNC, "Checking if %s is a DIYLEDExpress controller\n", st->ip.c_str());
 
     RegExCache re("DIYLEDExpress E1.31 Bridge Configuration Page");
     std::smatch m;
 
-    if (!std::regex_search(html, *re.regex))
-        return false;
+    if (!std::regex_search(st->html, *re.regex)) {
+        st->noMatch();
+        return;
+    }
 
-    LogExcess(VB_SYNC, "%s is potentially a DIYLEDExpress controller, checking further\n", ip.c_str());
+    LogExcess(VB_SYNC, "%s is potentially a DIYLEDExpress controller, checking further\n", st->ip.c_str());
 
     vendor = "DIYLEDExpress";
     vendorURL = "http://www.diyledexpress.com/";
@@ -423,7 +484,7 @@ bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
     // Firmware Rev: 4.02
     RegExCache vre("Firmware Rev: ([0-9]+.[0-9]+)");
 
-    if (std::regex_search(html, m, *vre.regex)) {
+    if (std::regex_search(st->html, m, *vre.regex)) {
         version = m[1];
 
         if (version != "") {
@@ -436,11 +497,11 @@ bool NetworkController::DetectDIYLEDExpressController(const std::string& ip,
         }
 
         DumpControllerInfo();
-
-        return true;
+        st->matched();
+        return;
     }
 
-    return false;
+    st->noMatch();
 }
 
 // The Experience controllers -- the Genius Pixel / PRO / Long Range / Pixel Link
@@ -485,113 +546,127 @@ static std::string ExperienceNetworkMac(const std::string& ip, const Json::Value
     return fallback;
 }
 
-bool NetworkController::DetectExperienceController(const std::string& ip, const std::string& html) {
-    if (html.find("FriendlyNameBar()") == std::string::npos &&
-        html.find("CurrentMonitoring()") == std::string::npos &&
-        html.find("<title>Genius") == std::string::npos) {
-        return false;
+void NetworkController::DetectExperienceController(Detection* st) {
+    if (st->html.find("FriendlyNameBar()") == std::string::npos &&
+        st->html.find("CurrentMonitoring()") == std::string::npos &&
+        st->html.find("<title>Genius") == std::string::npos) {
+        st->noMatch();
+        return;
     }
 
-    LogExcess(VB_SYNC, "%s is potentially an Experience controller, checking further\n", ip.c_str());
+    LogExcess(VB_SYNC, "%s is potentially an Experience controller, checking further\n", st->ip.c_str());
 
-    std::string resp;
-    if (!urlGet(buildHttpURL(ip, "/api/state"), resp)) {
-        return false;
-    }
-    Json::Value v;
-    if (!LoadJsonFromString(resp, v, JsonRoot::Object) || !JsonHas(v, "system")) {
-        return false;
-    }
-    const Json::Value& sys = v["system"];
-    if (!JsonHas(sys, "controller_model") || !JsonHas(sys, "controller_model_name")) {
-        return false;
-    }
-
-    vendor = "Experience";
-
-    // Deliberately the generic Experience type rather than a model-code lookup.
-    // A table mapping every retail code to its own kSysTypeExperience* value
-    // would be guesswork for the models we cannot test, and it would rot as the
-    // range grows.  The generic id still lands in the range the UI treats as
-    // this family, the exact model name below is the part a user reads, and
-    // where a ping does reach the device it supplies the precise type anyway --
-    // MultiSyncSystem::update() will not let this HTTP result overwrite it.
-    typeId = kSysTypeExperienceGenius;
-    typeStr = sys["controller_model_name"].asString();
-
-    // The firmware string is not a stable shape across releases: the 1.x line
-    // reported "Genius_PRO_Controller_16 v1.3.1-2", the 2.x line reports a bare
-    // "2.2.0-0".  Accept the dotted version either at the start of the string or
-    // after a "v", and require the dot so a model number ("...16 Port") cannot
-    // be mistaken for one.  Anything unrecognised is passed through as-is rather
-    // than dropped.
-    std::string fw = sys.get("firmware_version", "").asString();
-    std::smatch m;
-    RegExCache re("(?:^|v)([0-9]+)\\.([0-9]+)(?:\\.([0-9]+))?");
-    if (std::regex_search(fw, m, *re.regex)) {
-        version = m[1].str() + "." + m[2].str();
-        if (m[3].matched) {
-            version += "." + m[3].str();
+    st->fetch(buildHttpURL(st->ip, "/api/state"), [this, st](bool ok, const std::string& resp) {
+        Json::Value v;
+        if (!ok || !LoadJsonFromString(resp, v, JsonRoot::Object) || !JsonHas(v, "system")) {
+            st->noMatch();
+            return;
         }
-        majorVersion = atoi(m[1].str().c_str());
-        minorVersion = atoi(m[2].str().c_str());
-    } else if (!fw.empty()) {
-        version = fw;
-    }
+        const Json::Value& sys = v["system"];
+        if (!JsonHas(sys, "controller_model") || !JsonHas(sys, "controller_model_name")) {
+            st->noMatch();
+            return;
+        }
 
-    // The identity endpoint is the only place these report something stable and
-    // their own.  Build the same string the statistics collector has always
-    // built from it, so a controller is not identified two different ways
-    // depending on which side of FPP is asking.
-    std::string idResp;
-    if (urlGet(buildHttpURL(ip, "/update/identity"), idResp)) {
-        Json::Value idv;
-        if (LoadJsonFromString(idResp, idv, JsonRoot::Object) && JsonHas(idv, "id")) {
-            std::string id = idv["id"].asString();
-            std::string hw = idv.get("hardware", "").asString();
-            if (!id.empty()) {
-                uuid = hw.empty() ? id : (hw + "-" + id);
+        vendor = "Experience";
+
+        // Deliberately the generic Experience type rather than a model-code lookup.
+        // A table mapping every retail code to its own kSysTypeExperience* value
+        // would be guesswork for the models we cannot test, and it would rot as the
+        // range grows.  The generic id still lands in the range the UI treats as
+        // this family, the exact model name below is the part a user reads, and
+        // where a ping does reach the device it supplies the precise type anyway --
+        // MultiSyncSystem::update() will not let this HTTP result overwrite it.
+        typeId = kSysTypeExperienceGenius;
+        typeStr = sys["controller_model_name"].asString();
+
+        // The firmware string is not a stable shape across releases: the 1.x line
+        // reported "Genius_PRO_Controller_16 v1.3.1-2", the 2.x line reports a bare
+        // "2.2.0-0".  Accept the dotted version either at the start of the string or
+        // after a "v", and require the dot so a model number ("...16 Port") cannot
+        // be mistaken for one.  Anything unrecognised is passed through as-is rather
+        // than dropped.
+        std::string fw = sys.get("firmware_version", "").asString();
+        std::smatch m;
+        RegExCache re("(?:^|v)([0-9]+)\\.([0-9]+)(?:\\.([0-9]+))?");
+        if (std::regex_search(fw, m, *re.regex)) {
+            version = m[1].str() + "." + m[2].str();
+            if (m[3].matched) {
+                version += "." + m[3].str();
             }
+            majorVersion = atoi(m[1].str().c_str());
+            minorVersion = atoi(m[2].str().c_str());
+        } else if (!fw.empty()) {
+            version = fw;
         }
-    }
 
-    // No identity of its own.  The 2.x firmware dropped the endpoint above
-    // entirely, so for that line this is the only identity there is -- and
-    // unlike the ARP table it works for a controller on another subnet, which
-    // is exactly where seeding discovery from the configured output addresses
-    // reaches.  The 1.x line carries the addresses in the state document
-    // already fetched; 2.x moved them to their own endpoint, so only ask for it
-    // when the first place came up empty.
-    if (uuid.empty() || uuid == "Unknown") {
-        std::string mac = ExperienceNetworkMac(ip, v["network"]);
-        if (mac.empty()) {
-            std::string curResp;
-            if (urlGet(buildHttpURL(ip, "/api/current_state"), curResp)) {
-                Json::Value cur;
-                if (LoadJsonFromString(curResp, cur, JsonRoot::Object)) {
-                    mac = ExperienceNetworkMac(ip, cur["network"]);
+        // The 1.x line carries the interface addresses in the state document, so
+        // keep them: if the identity endpoint below comes up empty they are the
+        // MAC fallback, and `v` does not survive this callback.
+        Json::Value network = v["network"];
+
+        // The identity endpoint is the only place these report something stable and
+        // their own.  Build the same string the statistics collector has always
+        // built from it, so a controller is not identified two different ways
+        // depending on which side of FPP is asking.
+        st->fetch(buildHttpURL(st->ip, "/update/identity"), [this, st, network](bool idOk, const std::string& idResp) {
+            Json::Value idv;
+            if (idOk && LoadJsonFromString(idResp, idv, JsonRoot::Object) && JsonHas(idv, "id")) {
+                std::string id = idv["id"].asString();
+                std::string hw = idv.get("hardware", "").asString();
+                if (!id.empty()) {
+                    uuid = hw.empty() ? id : (hw + "-" + id);
                 }
             }
-        }
-        if (!mac.empty()) {
-            // Same spelling MultiSync uses for an ARP-derived address, so a
-            // device keeps one identity however it was discovered.
-            uuid = MAC_UUID_PREFIX + mac;
-        }
-    }
+            if (!uuid.empty() && uuid != "Unknown") {
+                DumpControllerInfo();
+                st->matched();
+                return;
+            }
 
-    DumpControllerInfo();
-    return true;
+            // No identity of its own.  The 2.x firmware dropped the endpoint above
+            // entirely, so for that line this is the only identity there is -- and
+            // unlike the ARP table it works for a controller on another subnet, which
+            // is exactly where seeding discovery from the configured output addresses
+            // reaches.  The 1.x line carries the addresses in the state document
+            // already fetched; 2.x moved them to their own endpoint, so only ask for it
+            // when the first place came up empty.
+            std::string mac = ExperienceNetworkMac(st->ip, network);
+            if (!mac.empty()) {
+                // Same spelling MultiSync uses for an ARP-derived address, so a
+                // device keeps one identity however it was discovered.
+                uuid = MAC_UUID_PREFIX + mac;
+                DumpControllerInfo();
+                st->matched();
+                return;
+            }
+
+            st->fetch(buildHttpURL(st->ip, "/api/current_state"), [this, st](bool curOk, const std::string& curResp) {
+                Json::Value cur;
+                if (curOk && LoadJsonFromString(curResp, cur, JsonRoot::Object)) {
+                    std::string curMac = ExperienceNetworkMac(st->ip, cur["network"]);
+                    if (!curMac.empty()) {
+                        uuid = MAC_UUID_PREFIX + curMac;
+                    }
+                }
+                DumpControllerInfo();
+                st->matched();
+            });
+        });
+    });
 }
 
-bool NetworkController::DetectWLEDController(const std::string& ip, const std::string& html) {
-    if (html.find("WLED UI") == std::string::npos) {
-        return false;
+void NetworkController::DetectWLEDController(Detection* st) {
+    if (st->html.find("WLED UI") == std::string::npos) {
+        st->noMatch();
+        return;
     }
-    std::string url = buildHttpURL(ip, "/json/info");
-    std::string resp;
 
-    if (urlGet(url, resp)) {
+    st->fetch(buildHttpURL(st->ip, "/json/info"), [this, st](bool ok, const std::string& resp) {
+        if (!ok) {
+            st->noMatch();
+            return;
+        }
         Json::Value v;
         LoadJsonFromString(resp, v, JsonRoot::Object);
 
@@ -614,9 +689,8 @@ bool NetworkController::DetectWLEDController(const std::string& ip, const std::s
                 }
             }
         }
-        return true;
-    }
-    return false;
+        st->matched();
+    });
 }
 
 void NetworkController::DumpControllerInfo(void) {

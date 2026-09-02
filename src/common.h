@@ -124,6 +124,21 @@ std::string NormalizeMacAddress(const std::string& mac);
 // MAC for a device behind it).  Used to give controllers that report no UUID of
 // their own a stable identity; see MultiSyncSystem::update().
 std::string GetMacForAddress(const std::string& address);
+// DEPRECATED.  These drive a private curl easy handle to completion inline, so
+// the calling thread is stopped for as long as the request takes -- up to the
+// connect timeout plus `timeout` per call, and a caller that makes several in a
+// row pays that for each one.  New FPP code must use CurlManager instead: its
+// add()/addGet()/addPost()/addPut() queue onto the shared multi handle and hand
+// the answer to a callback run from the main loop, so nothing blocks.
+//
+// They are kept, and will stay kept, because external channel-output plugins
+// link against them.  They are also still the only correct choice for the FPP
+// code that has no main loop to complete against: fppmm and fppoled are their
+// own binaries, and CurlManager's synchronous doGet()/doPut() are not usable
+// off the main-loop thread -- they spin on processCurls(), which drains and
+// invokes *every* subsystem's pending callbacks on whatever thread calls it.
+// Until CurlManager grows a thread-safe blocking call, "deprecated" here means
+// "do not reach for this in new fppd code", not "unusable".
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const std::list<std::string>& headers, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout = 30);
 bool urlHelper(const std::string method, const std::string& url, std::string& resp, const unsigned int timeout = 30);

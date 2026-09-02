@@ -599,17 +599,15 @@ void MDNSManager::HandleResolveIP(const std::string& ip, bool isWled) {
     });
     MultiSync::INSTANCE.PingSingleRemote(ip.c_str(), 1);
 
-    // Always probe over HTTP as well, on a detached thread so the blocking curl
-    // request doesn't stall the main event loop. The FPP discover-ping does not
-    // carry the remote's System UUID, so without this probe an FPP peer's UUID
-    // stays empty in the systems list - HTTP controller detection populates it
-    // (needed for device identification). This runs
-    // only once per newly discovered host. Harmless for a pure WLED node;
-    // detection just identifies it as WLED. PingSingleRemoteViaHTTP calls
-    // UpdateSystem itself.
-    std::thread([ip]() {
-        MultiSync::INSTANCE.PingSingleRemoteViaHTTP(ip);
-    }).detach();
+    // Always probe over HTTP as well. The FPP discover-ping does not carry the
+    // remote's System UUID, so without this probe an FPP peer's UUID stays empty
+    // in the systems list - HTTP controller detection populates it (needed for
+    // device identification). This runs only once per newly discovered host.
+    // Harmless for a pure WLED node; detection just identifies it as WLED.
+    // PingSingleRemoteViaHTTP returns as soon as the request is queued and calls
+    // UpdateSystem itself from the completion, so there is nothing to keep off
+    // this thread and no detached thread needed to do it.
+    MultiSync::INSTANCE.PingSingleRemoteViaHTTP(ip);
 
     // Take a snapshot of callbacks while holding the lock, then invoke them without the lock
     // to avoid deadlock/iterator invalidation if callbacks modify m_callbacks

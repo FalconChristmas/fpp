@@ -611,6 +611,9 @@ std::string buildHttpURL(const std::string& address, const std::string& path) {
     return "http://" + host + path;
 }
 
+// DEPRECATED -- see the comment on the declarations in common.h.  Kept for
+// external plugins and for the callers that have no main loop to complete a
+// CurlManager request against.
 bool urlHelper(const std::string method, const std::string& url, const std::string& data, std::string& resp, const unsigned int timeout) {
     return urlHelper(method, url, data, resp, std::list<std::string>(), timeout);
 }
