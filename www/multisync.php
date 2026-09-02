@@ -2166,8 +2166,22 @@
             $('.masterOptions').hide();
             $('#fppSystems').html("<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>");
 
-            const r = await fetch('api/fppd/multiSyncSystems');
-            const data = await r.json();
+            var data;
+            try {
+                const r = await fetch('api/fppd/multiSyncSystems');
+                if (!r.ok) {
+                    throw new Error("HTTP " + r.status);
+                }
+                data = await r.json();
+            } catch (err) {
+                console.log("Could not load the system list: " + err);
+                $('#fppSystems').html("<tr><td colspan=8 align='center'>Could not load the system list from fppd. <a href='javascript:getFPPSystems();'>Retry</a></td></tr>");
+                return;
+            }
+            if (!data || !Array.isArray(data.systems)) {
+                $('#fppSystems').html("<tr><td colspan=8 align='center'>fppd returned no system list. <a href='javascript:getFPPSystems();'>Retry</a></td></tr>");
+                return;
+            }
             data.systems.forEach(foldSystemInfo);
             systemsList = data.systems;
             parseFPPSystems(data.systems);
@@ -4062,6 +4076,11 @@
                 }
             });
 
+            // The proxy list only decorates the links, so it must never gate the
+            // system list.  Chaining getFPPSystems() inside this .then() meant a
+            // single failed/slow api/proxies request left the table stuck on
+            // "Loading system list from fppd." forever, even though
+            // api/fppd/multiSyncSystems was answering fine.
             fetch("api/proxies")
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
@@ -4073,7 +4092,12 @@
                         let ip = $(this).attr('data-ip');
                         $(this).attr('href', wrapUrlWithProxy(ip, "/"));
                     });
-
+                })
+                .catch(function (err) {
+                    console.log("Could not load proxy list: " + err);
+                    proxies = [];
+                })
+                .finally(function () {
                     getFPPSystems();
                     getLocalFpposFiles();
                 });
