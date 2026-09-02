@@ -245,6 +245,8 @@ bool AES67Manager::LoadConfig() {
     cfg.splitClockDomains =
         root.get("splitClockDomains", kDefault.splitClockDomains).asBool();
     cfg.targetLeadMs = root.get("targetLeadMs", kDefault.targetLeadMs).asInt();
+    cfg.sourceSilenceFloor =
+        root.get("sourceSilenceFloor", kDefault.sourceSilenceFloor).asBool();
     cfg.sourcePtpGroup =
         root.get("sourcePtpGroup", kDefault.sourcePtpGroup).asBool();
     cfg.sourcePtpGroupName =
@@ -1181,9 +1183,16 @@ struct DriftResampleState {
     guint64 seen = 0;
     guint64 gapsSeen = 0;
 
-    // Buffer index the last re-anchor happened at, for the hold-off below.
+    // Buffer index the last re-anchor happened at.
     guint64 lastResyncAt = 0;
     bool everResynced = false;
+
+    // Rate estimate that survives a re-anchor.  The card's rate against PTP is
+    // a property of two crystals: it does not change because a track did.  The
+    // sliding window that measures it does get discarded at every re-anchor,
+    // so without somewhere to keep the answer the loop has to re-learn a 54ppm
+    // figure from scratch after every track boundary.
+    double cardRateEst = 0.0;
 
 
     // Sliding window of (clock, input frames, output frames) used to measure
@@ -1441,13 +1450,39 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
 
         const auto& a = st->window.front();
         const double span = (double)(now - a.t) / GST_SECOND;
-        if (span > 5.0) {
+
+        // Long enough to actually resolve the figure being measured.  54ppm
+        // over 5 seconds is 270us, which sample quantisation and normal jitter
+        // swamp -- measured, a 5s minimum left trim thrashing between +59, +29
+        // and +22 ppm after every track boundary.  Over 30s the same drift is
+        // 1.6ms and stands clear of the noise.
+        // Two thresholds, because one cannot serve both jobs.  Updating a
+        // settled estimate wants a long window: 54ppm over 5s is 270us, which
+        // sample quantisation and jitter swamp, and a 5s minimum left trim
+        // thrashing between +59, +29 and +22 ppm after every track boundary.
+        // But bootstrapping wants a short one -- a re-anchor clears the window,
+        // so if tracks change every 25s a 30s minimum is never reached at all
+        // and the estimate stays unset forever.  Measured with only the long
+        // threshold: trim sat at +0.0 ppm with no feedforward and the media
+        // clock ran to -4442 ppm.
+        const double MIN_ESTIMATE_S = (st->cardRateEst > 1000.0) ? 30.0 : 10.0;
+        if (span > MIN_ESTIMATE_S) {
             // Feedforward over the window, not since the anchor.  The card's
             // rate against PTP is two crystals, so this is near-constant; the
             // window only keeps the estimate from being anchored to whatever
             // the first few seconds happened to look like.
-            cardRate = (double)(st->ctlIn - a.in) / span;
+            const double raw = (double)(st->ctlIn - a.in) / span;
+            if (raw > 1000.0) {
+                // Smooth into the persistent estimate rather than replacing it,
+                // so one noisy window cannot move the trim far.
+                st->cardRateEst = (st->cardRateEst > 1000.0)
+                                      ? st->cardRateEst * 0.8 + raw * 0.2
+                                      : raw;
+            }
         }
+        // Use the persistent estimate, which is still valid across the gap the
+        // window just lost.  A track change disturbs phase, not rate.
+        cardRate = st->cardRateEst;
     }
 
     if (cardRate > 1000.0) {
@@ -1698,6 +1733,21 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                 inst.id, graphRate, AES67::AUDIO_RATE);
     }
 
+    // A permanently connected silence source, mixed with the captured audio.
+    // See AES67Config::sourceSilenceFloor.  audiomixer is the documented idiom
+    // for this: it is built not to stall when a source goes away, and silence
+    // being the additive identity means no arbitration is needed -- silence
+    // alone when nothing is playing, the audio itself when something is.  The
+    // sources are declared before the mixer they reference, which gst_parse
+    // resolves by name.
+    const std::string silenceCaps =
+        "audio/x-raw,format=F32LE,rate=" + std::to_string(AES67::AUDIO_RATE) +
+        ",channels=" + std::to_string(inst.channels);
+    if (m_config.sourceSilenceFloor) {
+        oss << "audiotestsrc name=silfloor wave=silence is-live=true "
+            << "! " << silenceCaps << " ! silmix. ";
+    }
+
     oss << "pipewiresrc name=pwsrc"
         << " min-buffers=" << m_config.sourceMinBuffers
         << " always-copy=" << (m_config.sourceBufferCopy ? "true" : "false")
@@ -1708,6 +1758,19 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         << "! audioconvert "
         << "! audioresample "
         << "! audioconvert "
+        // Join the silence floor here, before the rate trim, so everything
+        // downstream sees one continuous stream whatever the source does.
+        // latency gives the capture branch slack to deliver for the current
+        // position before the mixer emits without it.
+        << (m_config.sourceSilenceFloor
+                ? ("! " + silenceCaps + " ! silmix. "
+                   // No trailing "!" -- the next segment supplies its own,
+                   // and two in a row is a parse error that takes the whole
+                   // send pipeline out ("send pipeline error: syntax error",
+                   // 0 pipelines built, no stream at all).
+                   "audiomixer name=silmix latency=" +
+                   std::to_string(10 * GST_MSECOND) + " ")
+                : "")
         // Rate trim for the drift control loop.  Sits in the float domain
         // because that is all this element accepts, and ahead of the S24BE
         // conversion and the packet split so both still see a clean stream.
@@ -1858,6 +1921,23 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         GstStructure* props = gst_structure_new("props",
             "node.name", G_TYPE_STRING, nodeName.c_str(),
             "node.autoconnect", G_TYPE_BOOLEAN, FALSE,
+            // Keep this node scheduled even when nothing is feeding it, so the
+            // AES67 side sees one continuous stream -- silence when idle, audio
+            // when a track is playing -- instead of a hole at every transition.
+            //
+            // Idle already works: with no media at all the stream still runs at
+            // 100% delivery with no gaps, because PipeWire hands us silence.
+            // The hole appears only at the moment fppd_stream_1 disconnects and
+            // the graph relinks, when this node is briefly unscheduled: measured
+            // as a +232 ms PTS jump at every track change.  That matters because
+            // the RTP timestamp is a sample count, so samples that never arrive
+            // put the media clock permanently behind PTP -- measured at
+            // -6078 ppm under a 25s file on repeat, which is AES67 running ahead
+            // of the local sound card by ~180 ms per track and accumulating.
+            //
+            // Upstream sets the same property on module-rtp-sink's stream for
+            // the same reason (pipewire-aes67.conf).
+            "node.always-process", G_TYPE_BOOLEAN, TRUE,
             NULL);
         if (m_config.sourcePacing) {
             gst_structure_set(props, "node.latency", G_TYPE_STRING, nodeLatency.c_str(), NULL);

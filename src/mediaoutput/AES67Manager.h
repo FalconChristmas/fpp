@@ -452,6 +452,26 @@ struct AES67Config {
     // a Dante/RAVENNA link offset (0.25-5ms typical) with a wide margin.
     int targetLeadMs = 20;
 
+    // Mix a permanent silence source in with the captured audio.
+    //
+    // The AES67 media clock is a sample count, so audio that never arrives puts
+    // the timeline permanently behind PTP -- it cannot be corrected later,
+    // because the samples are not late, they are absent.  FPP tearing down and
+    // rebuilding its media pipeline at a track change leaves a ~232ms hole, and
+    // measured with a 25s file on repeat that ran the media clock to -6589ppm:
+    // AES67 drifting ahead of the local sound card by ~180ms per track, and
+    // accumulating.  The listener hears tracks butted together on AES67 while
+    // the sound card has the pause.
+    //
+    // Silence is the additive identity, so mixing a constant silence source
+    // with the real audio needs no arbitration: silence alone when nothing is
+    // playing, the audio itself when something is.  Proven by hand -- linking a
+    // silence source alongside the media took the media clock from -6589ppm to
+    // +0.9ppm.  That was done in FPP's routing matrix and killed the audio, so
+    // it belongs here in our own pipeline instead, where nothing else is
+    // arbitrating the links.
+    bool sourceSilenceFloor = false;
+
     bool sourcePtpGroup = false;
     std::string sourcePtpGroupName = "pipewire.ptp0";
 
