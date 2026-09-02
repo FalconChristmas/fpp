@@ -1818,6 +1818,8 @@
 				"128x64 Flipped I2C (SH1106)": 6,
 				"128x128 I2C (SSD1327)": 9,
 				"128x128 Flipped I2C (SSD1327)": 10,
+				"128x128 I2C (SH1107)": 34,
+				"128x128 Flipped I2C (SH1107)": 35,
 				"Adafruit 16x2 LCD (I2C 0x20)": 11,
 				"PCF8574A 16x2 LCD (I2C 0x3F)": 12,
 				"PCF8574A 20x4 LCD (I2C 0x3F)": 13,

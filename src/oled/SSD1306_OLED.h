@@ -67,6 +67,7 @@ extern "C" {
 #define LED_DISPLAY_TYPE_SSD1306 0
 #define LED_DISPLAY_TYPE_SH1106  1
 #define LED_DISPLAY_TYPE_SSD1327 2
+#define LED_DISPLAY_TYPE_SH1107  3
 
 /* LCD HxW i.e. 64x128 || WxL i.e. 128x64 */
 extern int LED_DISPLAY_WIDTH;

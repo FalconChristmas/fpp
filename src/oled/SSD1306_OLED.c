@@ -602,6 +602,41 @@ int display_Init_seq()
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x12) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_VCOMDETECT) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x40) != I2C_TWO_BYTES) { return 1; }
+    } else if (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SH1107) {
+        /* The SH1107 is a 128x128 1bpp controller.  It is close enough to the
+         * SSD1306 to share the page based framebuffer and every drawing routine,
+         * but it differs in two ways that matter.  It has no 0x21/0x22 column and
+         * page range commands - 0x21 selects vertical addressing instead - so the
+         * frame is pushed a page at a time in transfer().  And its panel supply is
+         * enabled with 0xAD 0x8A, not the SSD1306 charge pump: get that one byte
+         * wrong and the controller ACKs every command and reports itself as on
+         * while the glass stays completely dark. */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAY_OFF) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_CLK) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x51) != I2C_TWO_BYTES) { return 1; }
+        /* 0x20 on its own selects page addressing */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_MEM_ADDR_MODE) != I2C_TWO_BYTES) { return 1; }
+        /* Not SSD1306_SEG_REMAP: that is the pre-mirrored 0xA1.  The flipped
+         * variant of this display is handled in software by setRotation(). */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0xA0) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0xC0) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_MULTIPLEX) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_MULT_DAT) != I2C_TWO_BYTES) { return 1; }
+        /* Offset 0, not the 0x60 the widely copied SH1107 init recipes use:
+         * those are written for the 128x64 boards, where 96 lines of offset
+         * are correct.  On a full height 128x128 panel it rotates the frame
+         * by 32 columns and the right hand edge wraps around to the left. */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_OFFSET) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x00) != I2C_TWO_BYTES) { return 1; }
+        /* DC-DC converter on, internal */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0xAD) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x8A) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_PRECHARGE) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x22) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_VCOMDETECT) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x35) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAYALLON_RESUME) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_NORMAL_DISPLAY) != I2C_TWO_BYTES) { return 1; }
     } else if (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SSD1327) {
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0xae) != I2C_TWO_BYTES) { return 1; } //--turn off oled panel
         
@@ -782,13 +817,19 @@ int transfer()
         
         chunk[0] = 0x40;
         
-        for (uint8_t k=0; k < 8; k++) {
+        /* One page is 8 rows, so a 64 row SH1106 walks 8 of them and a 128 row
+         * SH1107 walks 16.  The SH1106 is a 132 column controller behind a 128
+         * column panel and its framebuffer therefore starts at column 2; the
+         * SH1107 is a true 128 columns and starts at 0. */
+        int pages = LED_DISPLAY_HEIGHT / 8;
+        unsigned char colLow = (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SH1107) ? 0x00 : 0x02;
+        for (uint8_t k=0; k < pages; k++) {
             //set page addressSSD_Data_Mode;
             if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0xB0+k) != I2C_TWO_BYTES) {
                 return 1;
             }
             //set lower column address
-            if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x02) != I2C_TWO_BYTES) {
+            if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, colLow) != I2C_TWO_BYTES) {
                 return 1;
             }
             //set higher column address
@@ -822,7 +863,10 @@ int transfer()
  ****************************************************************/
 int Display()
 {
-    if (LED_DISPLAY_TYPE != LED_DISPLAY_TYPE_SSD1327) {
+    /* The SSD1327 sets its own window inside transfer().  The SH1107 has to be
+     * skipped too: 0x21 is not a column range command there, it switches the
+     * controller into vertical addressing and would break the page walk. */
+    if (LED_DISPLAY_TYPE != LED_DISPLAY_TYPE_SSD1327 && LED_DISPLAY_TYPE != LED_DISPLAY_TYPE_SH1107) {
         if (Init_Col_PG_addrs(SSD1306_COL_START_ADDR,SSD1306_COL_END_ADDR,
                                SSD1306_PG_START_ADDR,SSD1306_PG_END_ADDR) ) {
             return 1;

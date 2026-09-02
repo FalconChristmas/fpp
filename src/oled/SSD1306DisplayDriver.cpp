@@ -27,6 +27,9 @@ SSD1306DisplayDriver::SSD1306DisplayDriver(int lt) :
     } else if (ledType == 9 || ledType == 10) {
         LED_DISPLAY_HEIGHT = 128;
         LED_DISPLAY_TYPE = LED_DISPLAY_TYPE_SSD1327;
+    } else if (ledType == 34 || ledType == 35) {
+        LED_DISPLAY_HEIGHT = 128;
+        LED_DISPLAY_TYPE = LED_DISPLAY_TYPE_SH1107;
     }
     if (ledType == 5 || ledType == 6) {
         LED_DISPLAY_TYPE = LED_DISPLAY_TYPE_SH1106;
@@ -74,7 +77,7 @@ bool SSD1306DisplayDriver::initialize(int& i2cBus) {
     }
     i2cBus = I2C_DEV_2.i2c_dev_path[strlen(I2C_DEV_2.i2c_dev_path) - 1] - '0';
     setTextSize(1);
-    if (ledType == 2 || ledType == 4 || ledType == 6 || ledType == 8 || ledType == 10) {
+    if (ledType == 2 || ledType == 4 || ledType == 6 || ledType == 8 || ledType == 10 || ledType == 35) {
         ::setRotation(2);
     } else if (ledType == 32 || ledType == 33) {
         ::setRotation(1);

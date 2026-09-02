@@ -40,7 +40,7 @@ bool OLEDPage::InitializeDisplay(int ledType) {
         } else {
             SetOLEDType(OLEDPage::OLEDType::SINGLE_COLOR);
         }
-        if (ledType == 2 || ledType == 4 || ledType == 6 || ledType == 8 || ledType == 10) {
+        if (ledType == 2 || ledType == 4 || ledType == 6 || ledType == 8 || ledType == 10 || ledType == 35) {
             SetOLEDOrientationFlipped(true);
         }
 
