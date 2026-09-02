@@ -349,6 +349,22 @@ void NetworkController::DetectESPixelStickController(Detection* st) {
     });
 }
 
+// Pulls "v3.5.4" apart into major/minor.  Tolerates the leading "v" being
+// absent, and leaves the numbers alone if the string is not that shape.
+void NetworkController::ParseBaldrickVersion(const std::string& fw) {
+    version = fw;
+    std::string verNum = (!version.empty() && version[0] == 'v') ? version.substr(1) : version;
+    std::size_t verDot = verNum.find(".");
+    if (verDot == std::string::npos) {
+        return;
+    }
+    majorVersion = atoi(verNum.substr(0, verDot).c_str());
+    std::size_t verDot2 = verNum.find(".", verDot + 1);
+    if (verDot2 != std::string::npos) {
+        minorVersion = atoi(verNum.substr(verDot + 1, verDot2 - (verDot + 1)).c_str());
+    }
+}
+
 void NetworkController::DetectBaldrickController(Detection* st) {
     LogExcess(VB_SYNC, "Checking if %s is a Baldrick controller\n", st->ip.c_str());
 
@@ -366,39 +382,52 @@ void NetworkController::DetectBaldrickController(Detection* st) {
     systemMode = BRIDGE_MODE;
 
     st->fetch(buildHttpURL(st->ip, "/system_state"), [this, st](bool ok, const std::string& resp) {
-        if (ok) {
-            Json::Value state;
-            LoadJsonFromString(resp, state, JsonRoot::Object);
-            if (JsonHas(state, "hostname")) {
-                hostname = state["hostname"].asString();
-            }
-            if (JsonHas(state, "board_model")) {
-                typeStr = state["board_model"].asString();
-            }
-            if (JsonHas(state, "ota") && JsonHas(state["ota"], "current_firmware_version")) {
-                version = state["ota"]["current_firmware_version"].asString();
-
-                // Parse version string like "v3.1.0"
-                if (version.length() > 1 && version[0] == 'v') {
-                    std::string verNum = version.substr(1);
-                    std::size_t verDot = verNum.find(".");
-                    if (verDot != std::string::npos) {
-                        majorVersion = atoi(verNum.substr(0, verDot).c_str());
-                        std::size_t verDot2 = verNum.find(".", verDot + 1);
-                        if (verDot2 != std::string::npos) {
-                            minorVersion = atoi(verNum.substr(verDot + 1, verDot2 - (verDot + 1)).c_str());
-                        }
+        if (!ok) {
+            st->noMatch();
+            return;
+        }
+        Json::Value state;
+        LoadJsonFromString(resp, state, JsonRoot::Object);
+        if (JsonHas(state, "board_model")) {
+            typeStr = state["board_model"].asString();
+        }
+        if (JsonHas(state, "ota")) {
+            const Json::Value& ota = state["ota"];
+            // Two firmware generations, two shapes.  The older boards put the
+            // version directly on "ota"; current ones report a list of
+            // separately-updatable components under "ota.updatable" and carry
+            // the version on each entry.  The first entry that has one is the
+            // board itself.
+            if (JsonHas(ota, "current_firmware_version")) {
+                ParseBaldrickVersion(ota["current_firmware_version"].asString());
+            } else if (JsonHas(ota, "updatable") && ota["updatable"].isArray()) {
+                for (const auto& part : ota["updatable"]) {
+                    if (part.isObject() && JsonHas(part, "current_firmware_version")) {
+                        ParseBaldrickVersion(part["current_firmware_version"].asString());
+                        break;
                     }
                 }
             }
-
-            if (hostname != "") {
-                DumpControllerInfo();
-                st->matched();
-                return;
-            }
         }
-        st->noMatch();
+
+        // /system_state has no hostname -- that lives in /settings, which is why
+        // this used to be left showing the bare IP.  A failure here is not fatal:
+        // the board is already identified, it just keeps the IP as its name.
+        st->fetch(buildHttpURL(st->ip, "/settings"), [this, st](bool sok, const std::string& sresp) {
+            Json::Value settings;
+            if (sok && LoadJsonFromString(sresp, settings, JsonRoot::Object) &&
+                JsonHas(settings, "hostname")) {
+                std::string h = settings["hostname"].asString();
+                if (!h.empty()) {
+                    hostname = h;
+                }
+            }
+            DumpControllerInfo();
+            // Answering /system_state at all is what identifies the board; the
+            // old `hostname != ""` test here could never fail, because the
+            // constructor seeds hostname with the IP.
+            st->matched();
+        });
     });
 }
 

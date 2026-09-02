@@ -67,6 +67,7 @@ private:
     void DetectSanDevicesController(Detection* st);
     void DetectESPixelStickController(Detection* st);
     void DetectBaldrickController(Detection* st);
+    void ParseBaldrickVersion(const std::string& fw);
     void DetectAlphaPixController(Detection* st);
     void DetectHinksPixController(Detection* st);
     void DetectDIYLEDExpressController(Detection* st);
