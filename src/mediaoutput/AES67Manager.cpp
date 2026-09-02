@@ -1181,6 +1181,10 @@ struct DriftResampleState {
     guint64 seen = 0;
     guint64 gapsSeen = 0;
 
+    // Buffer index the last re-anchor happened at, for the hold-off below.
+    guint64 lastResyncAt = 0;
+    bool everResynced = false;
+
 
     // Sliding window of (clock, input frames, output frames) used to measure
     // the card's rate.  A cumulative average was used here first and it is what
@@ -1398,6 +1402,22 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         elapsed = 0.0;
         err = 0.0;
         resync = true;
+        // Re-warm rather than resume controlling straight away.  Re-anchoring
+        // rewrites the output timeline, and the buffers right after it measure
+        // that as a fresh offset -- so absorbing a gap and immediately
+        // controlling again makes the loop re-trigger on itself.  Measured
+        // under a 25s file on repeat it re-anchored three times in four
+        // buffers, and a fixed buffer hold-off only paced the oscillation
+        // rather than stopping it: the spacing histogram came back with 526
+        // re-anchors at exactly the hold-off length.
+        //
+        // The warm-up path above already does the right thing -- it waits 5s,
+        // discards what it saw meanwhile, and starts the measurement clean --
+        // and the learned trim is deliberately kept across it, so rate
+        // correction continues at the last good value while adaptation pauses.
+        st->warmed = false;
+        st->lastResyncAt = st->seen;
+        st->everResynced = true;
     }
 
     // Hold the trim already learned rather than snapping back to 1.0 whenever
@@ -2051,12 +2071,50 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                                           GST_SECOND / AES67::AUDIO_RATE;
 
                     // Delaying transmission (larger ts-offset) reduces the lead.
-                    gint64 corr = (leadNs - v->targetNs) / 4;
+                    //
+                    // Step for a large error, slew for a small one -- the same
+                    // split linuxptp makes with step_threshold, and for the same
+                    // reason.  Every source discontinuity re-anchors the drift
+                    // loop's PTS timeline while the RTP sample counter stays
+                    // put, so the lead takes a step; slew-only cannot survive
+                    // that if the steps arrive faster than the slew rate.
+                    // Measured with a 25s file on repeat (a restart every ~25s
+                    // against a 200us/s slew, i.e. 12ms/min of authority): the
+                    // lead ran away to +3614 ms in sawtooth cycles, each ending
+                    // in under-delivery and a watchdog rebuild.  Stepping puts
+                    // it back at the moment of the disturbance, which is the
+                    // right moment -- the transmission timeline is already
+                    // discontinuous there.
+                    const gint64 err = leadNs - v->targetNs;
+                    const gint64 kStepThreshold = 5 * GST_MSECOND;
                     const gint64 kSlew = 200 * GST_USECOND;
-                    if (corr > kSlew) corr = kSlew;
-                    if (corr < -kSlew) corr = -kSlew;
+                    gint64 corr;
+                    if (err > kStepThreshold || err < -kStepThreshold) {
+                        corr = err;
+                    } else {
+                        corr = err / 4;
+                        if (corr > kSlew) corr = kSlew;
+                        if (corr < -kSlew) corr = -kSlew;
+                    }
                     if (corr != 0) {
                         g_object_set(v->sink, "ts-offset", tsOff + corr, NULL);
+                    }
+                    // Diagnostic: the servo drove the lead to -56ms once and
+                    // took 50 minutes to recover, which no combination of its
+                    // own gains explains.  Log what it actually sees so the
+                    // measurement can be checked against aes67_verify rather
+                    // than reasoned about.
+                    if ((v->tick % 15000) == 0) {
+                        LogInfo(VB_MEDIAOUT,
+                                "AES67 send [%d]: servo lead %+.2f ms err %+.2f "
+                                "corr %+.3f ms ts-offset %+.2f ms%s\n",
+                                v->instanceId,
+                                (double)leadNs / GST_MSECOND,
+                                (double)err / GST_MSECOND,
+                                (double)corr / GST_MSECOND,
+                                (double)(tsOff + corr) / GST_MSECOND,
+                                (err > kStepThreshold || err < -kStepThreshold)
+                                    ? " STEP" : "");
                     }
                     if (!v->logged) {
                         v->logged = true;
