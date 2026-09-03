@@ -551,6 +551,20 @@ int DPIPixelsOutput::Init(Json::Value config) {
     LogInfo(VB_CHANNELOUT, "DPIPixels: framebuffer %dx%d, max refresh %d fps for %d channel longest string\n",
             fb->Width(), fb->Height(), m_configuredMaxFps, longestString);
 
+    // Don't leave the display at that maximum.  PrepData() only retimes the
+    // output once something drives it, and a remote (or otherwise idle) box
+    // may sit for hours with nothing doing so, rescanning the string at
+    // hundreds of Hz from boot.  Start at the idle rate PrepData() would pick.
+    {
+        int intervalMS = getSettingInt("E131BridgingInterval", 50);
+        int startFps = intervalMS > 0 ? (int)std::lround(1000.0 / intervalMS) : 20;
+        startFps = std::clamp(startFps, 1, m_configuredMaxFps);
+        if (startFps != m_currentFps && fb->SetRefreshRate(startFps)) {
+            LogInfo(VB_CHANNELOUT, "DPIPixels: DPI refresh -> %d fps (startup, max %d)\n", startFps, m_configuredMaxFps);
+            m_currentFps = startFps;
+        }
+    }
+
     bool initOK = false;
     if (protocol == "ws2811") {
         initOK = InitializeWS281x();
