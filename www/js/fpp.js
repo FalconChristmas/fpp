@@ -4086,9 +4086,18 @@ function SetUniverseCount (input) {
 	}
 }
 
+// DDP (4 and 5) and Twinkly (8) address a flat channel range rather than a run
+// of universes: fppd reads channelCount alone for these and never looks at the
+// universe number or the universe count, which is why the UI hides both inputs
+// for them.  Named rather than repeated so the three places that have to agree
+// on the list cannot drift apart.
+function isFlatUniverseType (type) {
+	return type == 4 || type == 5 || type == 8;
+}
+
 function IPOutputTypeChanged (item, input) {
 	var type = $(item).val();
-	if (type == 4 || type == 5 || type == 8) {
+	if (isFlatUniverseType(type)) {
 		// DDP, Twinkly
 		var univ = $(item).parent().parent().find('input.txtUniverse');
 		univ.prop('hidden', true);
@@ -4268,7 +4277,7 @@ function populateUniverseData (data, reload, input) {
 		var universeNumberDisable = '';
 		var monitorDisabled = '';
 		var ipDisabled = '';
-		if (type == 4 || type == 5 || type == 8) {
+		if (isFlatUniverseType(type)) {
 			universeSize = FPPD_MAX_CHANNELS;
 			universeCountDisable = ' disabled';
 			universeNumberDisable = ' disabled';
@@ -4789,16 +4798,23 @@ function postUniverseJSON (input) {
 		universe.startChannel = parseInt(
 			document.getElementById('txtStartAddress[' + i + ']').value
 		);
-		universe.universeCount = parseInt(
-			document.getElementById('numUniverseCount[' + i + ']').value
-		);
-
 		universe.channelCount = parseInt(
 			document.getElementById('txtSize[' + i + ']').value
 		);
 		universe.type = parseInt(
 			document.getElementById('universeType[' + i + ']').value
 		);
+		// The universe-count input is hidden for the flat types, but its value
+		// was still read and saved -- so a DDP or Twinkly row kept whatever was
+		// last left in that field.  fppd ignores it, but nothing reading the
+		// config back can tell a leftover from a real count, and multiplying by
+		// it gives a channel span that is wrong differently on every install.
+		// Write the one value that means "not a run of universes" instead.
+		universe.universeCount = isFlatUniverseType(universe.type)
+			? 1
+			: parseInt(
+					document.getElementById('numUniverseCount[' + i + ']').value
+			  );
 		universe.address = document.getElementById('txtIP[' + i + ']').value;
 		universe.priority = parseInt(
 			document.getElementById('txtPriority[' + i + ']').value
@@ -4934,7 +4950,7 @@ function validateUniverseData () {
 		// size
 		txtSize = document.getElementById('txtSize[' + i + ']');
 		var max = 512;
-		if (universeType == 4 || universeType == 5 || universeType == 8) {
+		if (isFlatUniverseType(universeType)) {
 			max = FPPD_MAX_CHANNELS;
 		}
 		if (!validateNumber(txtSize, 1, max)) {
