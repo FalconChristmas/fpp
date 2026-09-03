@@ -563,6 +563,29 @@ void NetworkController::DetectAlphaPixController(Detection* st) {
     typeStr = matchedModel ? m[1].str() : m2[1].str();
     systemMode = BRIDGE_MODE;
 
+    // These boards state a "Device ID", and on the one that could be measured
+    // it is the low 24 bits of the board's MAC written in decimal: 0404361 is
+    // 0x062B89, and the address ARP reports is 00:00:00:06:2B:89.  The vendor
+    // appears to use an all-zero OUI and hand out the id as the rest, which
+    // makes this the only identity these boards expose that survives crossing a
+    // subnet -- they publish no MAC on any page, and the xLights implementation
+    // extracts none either.
+    //
+    // Spelled as the MAC it encodes rather than as an id of its own, so a board
+    // identified from this page and one identified only from the ARP table land
+    // on the same value instead of on two names for one device.
+    RegExCache didre("Device ID:\\s*([0-9]+)");
+    if (std::regex_search(st->html, m, *didre.regex)) {
+        long id = strtol(m[1].str().c_str(), nullptr, 10); // base 10: the id is zero-padded
+        if (id > 0 && id <= 0xFFFFFF) {
+            char buf[16];
+            snprintf(buf, sizeof(buf), "000000%06lX", id);
+            // Same spelling MultiSync uses for an ARP-derived address, so a
+            // device keeps one identity however it was discovered.
+            uuid = MAC_UUID_PREFIX + std::string(buf);
+        }
+    }
+
     RegExCache vre("Currently Installed Firmware Version:  ([0-9]+.[0-9]+)");
 
     // The version is reported when it can be read, but is NOT what decides
