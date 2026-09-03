@@ -71,6 +71,18 @@ constexpr int DPI_LEAD_ROWS = 2;
 // the 16 px phases.
 constexpr int DPI_T0H_PX = 12;
 
+// Latched outputs get the same 312/729ns cell when the cape uses at most
+// three latch banks.  A phase is one 4 px slot per bank (set data, LE high for
+// 2 px, hold), so with L banks the "go high" slots occupy px 0..4L-1 and the
+// "go to data" slots can start at px 12 and the "go low" slots at px 28 for
+// L <= 3 without overlapping.  Each bank's LE fires at the same offset within
+// its phase, so every bank sees T0H = 12 px and T1H = 28 px exactly.  Four
+// banks need the full 16 px phases (16/16/16, T0H 417ns) because the fourth
+// "go high" slot sits at px 12..15.  The LE pulse, setup and hold are the same
+// in both layouts.
+inline int latchDataPhasePx(int latchCount) { return latchCount <= 3 ? 12 : 16; }
+inline int latchLowPhasePx(int latchCount) { return latchCount <= 3 ? 28 : 32; }
+
 // Uncomment to log elapsed time in PrepData()
 // #define LOG_ELAPSED_TIME
 // Uncomment to enable the HSync (P1-5) and VSync (P1-3) pins for logic analyzing
@@ -571,8 +583,9 @@ int DPIPixelsOutput::Init(Json::Value config) {
     // min(sequenceRate, m_configuredMaxFps) in PrepData().
     m_configuredMaxFps = fb->GetMaxRefreshRate();
     m_currentFps = m_configuredMaxFps;
-    LogInfo(VB_CHANNELOUT, "DPIPixels: framebuffer %dx%d, max refresh %d fps for %d channel longest string\n",
-            fb->Width(), fb->Height(), m_configuredMaxFps, longestString);
+    LogInfo(VB_CHANNELOUT, "DPIPixels: framebuffer %dx%d, max refresh %d fps for %d channel longest string, %s\n",
+            fb->Width(), fb->Height(), m_configuredMaxFps, longestString,
+            usingLatches ? (std::to_string(latchCount) + " latch banks").c_str() : "no latches");
 
     // Don't leave the display at that maximum.  PrepData() only retimes the
     // output once something drives it, and a remote (or otherwise idle) box
@@ -806,7 +819,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     // rows) but skip the first third of the WS bit which is already populated
     // and doesn't change
     protoDest = m_shadow + (DPI_LEAD_ROWS * fb->RowStride()) +
-                ((usingLatches ? fbPixelMult : DPI_T0H_PX) * fb->BytesPerPixel());
+                ((usingLatches ? latchDataPhasePx(latchCount) : DPI_T0H_PX) * fb->BytesPerPixel());
 
     uint32_t dataIn[MAX_DPI_PIXEL_LATCHES][32];
     uint32_t dataOut[MAX_DPI_PIXEL_LATCHES][32];
@@ -1070,35 +1083,35 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
                 }
             }
 
-            // Populate 8 bits for each channel
+            // Populate 8 bits for each channel.  Each WS bit is a 48 px cell
+            // holding three phases of latch pulses; where the data and low
+            // phases start depends on the bank count (see latchDataPhasePx).
+            const int bitBytes = fbPixelMult * 3 * fb->BytesPerPixel();
+            const int dataPhaseBytes = latchDataPhasePx(latchCount) * fb->BytesPerPixel();
+            const int lowPhaseBytes = latchLowPhasePx(latchCount) * fb->BytesPerPixel();
             for (int b = 0; b < 8; b++) {
-                // Setup FB pixels for first third of WS bit.  These will not be modified later.
+                uint8_t* bitStart = protoDest;
+
+                // "Go high" phase at the start of the cell.  Never modified later.
                 // Stays high whether WS bit is a 0 or 1.
-                for (int lp = 0; lp < MAX_DPI_PIXEL_LATCHES; lp++) {
-                    if (lp < latchCount)
-                        WriteLatchedDataAtPosition(protoDest, pinsOn[lp], latchPinMasks[lp]);
-                    else
-                        protoDest += 4 * fb->BytesPerPixel();
+                for (int lp = 0; lp < latchCount; lp++) {
+                    WriteLatchedDataAtPosition(protoDest, pinsOn[lp], latchPinMasks[lp]);
                 }
 
-                // Setup FB pixels for middle third of WS bit
-                // Set Low or High depending on whether WS bit is a 0 or 1.  Set to low initially.
-                for (int lp = 0; lp < MAX_DPI_PIXEL_LATCHES; lp++) {
-                    if (lp < latchCount)
-                        WriteLatchedDataAtPosition(protoDest, 0x000000, latchPinMasks[lp]);
-                    else
-                        protoDest += 4 * fb->BytesPerPixel();
+                // "Go to data" phase: low or high depending on whether the WS
+                // bit is a 0 or 1.  Set to low initially; PrepData() rewrites it.
+                protoDest = bitStart + dataPhaseBytes;
+                for (int lp = 0; lp < latchCount; lp++) {
+                    WriteLatchedDataAtPosition(protoDest, 0x000000, latchPinMasks[lp]);
                 }
 
-                // Setup FB pixels for last third of WS bit.  These will not be modified later.
-                // Stays low whether WS bit is a 0 or 1.
-                for (int lp = 0; lp < MAX_DPI_PIXEL_LATCHES; lp++) {
-                    if (lp < latchCount)
-                        WriteLatchedDataAtPosition(protoDest, 0x000000, latchPinMasks[lp]);
-                    else
-                        protoDest += 4 * fb->BytesPerPixel();
+                // "Go low" phase.  Never modified later.
+                protoDest = bitStart + lowPhaseBytes;
+                for (int lp = 0; lp < latchCount; lp++) {
+                    WriteLatchedDataAtPosition(protoDest, 0x000000, latchPinMasks[lp]);
                 }
 
+                protoDest = bitStart + bitBytes;
                 protoBitOnLine++;
 
                 if (protoBitOnLine >= protoBitsPerLine) {
