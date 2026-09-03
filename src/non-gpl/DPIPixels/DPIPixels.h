@@ -53,6 +53,7 @@ private:
 
     bool InitializeWS281x(void);
     void CopyShadowToAllPages(void);
+    int IdleFpsFromSetting(void);
 
     std::string device = "DPI-1";
     std::string protocol = "ws2811";
@@ -98,6 +99,7 @@ private:
     // only the vertical blanking (see KMSFrameBuffer::SetRefreshRate).
     int m_configuredMaxFps = 0; // highest rate the longest string allows
     int m_currentFps = 0;       // last rate applied to the framebuffer
+    int m_idleFps = 20;         // 1000 / E131BridgingInterval, kept current by a settings listener
     bool m_initialized = false; // gates runtime rate control (off during Init/Close)
     // GetTime() when output went idle, for the settle window in PrepData().
     // 0 means "a sequence is running, or none has stopped yet".

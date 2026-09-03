@@ -351,6 +351,12 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
             m_mode = mode;
             m_connectorId = conn->connector_id;
             m_crtcId = crtcId;
+            m_crtcPipe = 0;
+            for (int ci = 0; ci < res->count_crtcs; ci++) {
+                if (res->crtcs[ci] == crtcId) {
+                    m_crtcPipe = ci;
+                }
+            }
             m_connectorName = cname;
             m_cardFd = card->fd;
             m_cardInfo = card;
@@ -572,14 +578,38 @@ void KMSFrameBuffer::WaitForPageFree() {
             // The completion event never came, so it is unknown whether the
             // hardware has switched pages yet.  A queued flip lands at the next
             // vblank at the latest, so wait one out before the caller writes
-            // into the page it is about to leave.  Only the broken-flip path
-            // pays for this; the kernel bounds the wait itself.
+            // into the page it is about to leave.  Ask for the vblank as an
+            // event on OUR crtc (the pipe bits select it; without them this
+            // would be pipe 0, which on a Pi 4 with HDMI up is not the DPI) and
+            // poll for it with the same bound as the flip wait, so a display
+            // whose vblanks have stopped cannot wedge the output thread here.
             drmVBlank vbl = {};
-            vbl.request.type = DRM_VBLANK_RELATIVE;
+            unsigned int type = DRM_VBLANK_RELATIVE | DRM_VBLANK_EVENT;
+            if (m_crtcPipe > 0) {
+                type |= (unsigned int)((m_crtcPipe << _DRM_VBLANK_HIGH_CRTC_SHIFT) & _DRM_VBLANK_HIGH_CRTC_MASK);
+            }
+            vbl.request.type = (drmVBlankSeqType)type;
             vbl.request.sequence = 1;
-            drmWaitVBlank(m_cardFd, &vbl);
+            vbl.request.signal = 0;
+            if (drmWaitVBlank(m_cardFd, &vbl) == 0) {
+                struct pollfd pfd = {};
+                pfd.fd = m_cardFd;
+                pfd.events = POLLIN;
+                if (poll(&pfd, 1, (1000 / vr) + 20) > 0 && (pfd.revents & POLLIN)) {
+                    drmEventContext evctx = {};
+                    evctx.version = 2;
+                    evctx.page_flip_handler = &KMSFrameBuffer::PageFlipHandler;
+                    evctx.vblank_handler = &KMSFrameBuffer::VBlankHandler;
+                    drmHandleEvent(m_cardFd, &evctx);
+                }
+            }
         }
     }
+}
+
+void KMSFrameBuffer::VBlankHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data) {
+    // Nothing to record; the wait in WaitForPageFree() only needs the event
+    // to have been delivered.
 }
 
 void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
@@ -831,13 +861,15 @@ bool KMSFrameBuffer::SetRefreshRate(int fps) {
     if (mediaOutputStatus.output == m_connectorName) {
         // The connector is currently presenting media playback; don't fight it.
         // The updated m_mode is applied on the next EnableDisplay()/modeset.
-        return true;
+        // Report "not applied" so the caller's idea of the live rate stays
+        // honest and it asks again next frame.
+        return false;
     }
     int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
     if (im != 0) {
         // Couldn't grab master right now; m_mode is updated and the next modeset
-        // in SyncDisplay() will pick up the new timing.
-        return true;
+        // in SyncDisplay() will pick up the new timing.  As above, not applied.
+        return false;
     }
     // Drain any in-flight flip so the modeset starts from a known state.
     if (m_flipPending) {

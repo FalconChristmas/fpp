@@ -61,6 +61,7 @@ public:
     int m_cardFd = -1;
     uint32_t m_connectorId = 0;
     uint32_t m_crtcId = 0;
+    int m_crtcPipe = 0; // index of m_crtcId in the card's crtc list (vblank pipe)
     uint32_t m_planeId = 0;
     std::string m_connectorName;
     drmModeModeInfo m_mode = {};
@@ -87,6 +88,7 @@ private:
     // so it costs no CPU while waiting.
     void WaitForPendingFlip(int timeoutMs);
     static void PageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data);
+    static void VBlankHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data);
 
     // True while a drmModePageFlip has been queued but its vblank completion
     // event has not yet been drained.  Guarded by mediaOutputLock (only touched

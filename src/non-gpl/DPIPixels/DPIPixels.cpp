@@ -184,6 +184,8 @@ DPIPixelsOutput::DPIPixelsOutput(unsigned int startChannel, unsigned int channel
 
 DPIPixelsOutput::~DPIPixelsOutput() {
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::~DPIPixelsOutput()\n");
+    // Idempotent; Close() normally did this, but the listener captures this.
+    unregisterSettingsListener("DPIPixels", "E131BridgingInterval");
 
     if (!m_configuredDPIPins.empty()) {
         for (const auto& pinName : m_configuredDPIPins) {
@@ -576,6 +578,11 @@ int DPIPixelsOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "The framebuffer device %s was opened successfully.\n", device.c_str());
 
     m_shadow = (uint8_t*)calloc(1, fb->PageSize());
+    if (!m_shadow) {
+        LogErr(VB_CHANNELOUT, "DPIPixels: could not allocate %d bytes for the shadow page\n", fb->PageSize());
+        WarningHolder::AddWarning(13, "DPIPixels: could not allocate the shadow page");
+        return 0;
+    }
     m_shadowCopyBytes = std::min(fb->PageSize(), (DPI_LEAD_ROWS + dataRows) * fb->RowStride());
 
     // Highest refresh rate this string length allows.  KMS starts the display at
@@ -591,10 +598,14 @@ int DPIPixelsOutput::Init(Json::Value config) {
     // output once something drives it, and a remote (or otherwise idle) box
     // may sit for hours with nothing doing so, rescanning the string at
     // hundreds of Hz from boot.  Start at the idle rate PrepData() would pick.
-    {
-        int intervalMS = getSettingInt("E131BridgingInterval", 50);
-        int startFps = intervalMS > 0 ? (int)std::lround(1000.0 / intervalMS) : 20;
-        startFps = std::clamp(startFps, 1, m_configuredMaxFps);
+    // The idle rate follows the E1.31 bridging interval; cache it behind a
+    // settings listener rather than reading the settings map every frame.
+    m_idleFps = IdleFpsFromSetting();
+    registerSettingsListener("DPIPixels", "E131BridgingInterval", [this](const std::string&) {
+        m_idleFps = IdleFpsFromSetting();
+    });
+    if (m_configuredMaxFps > 0) {
+        int startFps = std::clamp(m_idleFps, 1, m_configuredMaxFps);
         if (startFps != m_currentFps && fb->SetRefreshRate(startFps)) {
             LogInfo(VB_CHANNELOUT, "DPIPixels: DPI refresh -> %d fps (startup, max %d)\n", startFps, m_configuredMaxFps);
             m_currentFps = startFps;
@@ -648,8 +659,14 @@ int DPIPixelsOutput::Init(Json::Value config) {
     return ChannelOutput::Init(config);
 }
 
+int DPIPixelsOutput::IdleFpsFromSetting() {
+    int intervalMS = getSettingInt("E131BridgingInterval", 50);
+    return intervalMS > 0 ? std::max(1, (int)std::lround(1000.0 / intervalMS)) : 20;
+}
+
 int DPIPixelsOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::Close()\n");
+    unregisterSettingsListener("DPIPixels", "E131BridgingInterval");
 
     // Stop runtime rate control so the blanking PrepData() calls below don't
     // trigger a modeset while we're tearing down.
@@ -659,11 +676,17 @@ int DPIPixelsOutput::Close(void) {
     if (fb && pixelStrings.size() > 0 && protocol == "ws2811") {
         std::vector<unsigned char> blankData(FPPD_MAX_CHANNELS, 0);
         PrepData(blankData.data());
+        // Deliberately write both pages, the live one included: at shutdown
+        // there is no flip coming, so the blank reaches the wire only by
+        // overwriting whatever the DPI is scanning.  Tearing is harmless here
+        // (both halves of a torn frame are dark or about to be), and this is
+        // the one place the "never write the page being scanned" rule is
+        // waived - see CopyShadowToAllPages().  Then wait two full scans at
+        // the live rate so the last frame out is entirely the blank one.
         CopyShadowToAllPages();
         fbPage = 0;
-
-        fb->SyncDisplay(false);
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        int periodMS = m_currentFps > 0 ? (1000 / m_currentFps) : 50;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2 * periodMS + 10));
     }
 
     // Reconfigure DPI pins back to GPIO input
@@ -745,10 +768,7 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
                 // at the E1.31 bridging interval, so that is the rate to scan
                 // at; anything faster only rescans the same page.  A current
                 // rate that is an exact multiple of it is kept below.
-                int intervalMS = getSettingInt("E131BridgingInterval", 50);
-                if (intervalMS > 0) {
-                    target = (int)std::lround(1000.0 / intervalMS);
-                }
+                target = m_idleFps;
             }
         }
         if (target < 1) {
@@ -906,6 +926,10 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
 #endif
 }
 
+// Writes every page, including the one currently being scanned.  Only valid
+// while the pins are not yet live (Init, template build) or when a torn frame
+// is acceptable (the shutdown blank in Close()).  Do not add WaitForPageFree()
+// here: SendData() is the per-frame path and already waits for the free page.
 void DPIPixelsOutput::CopyShadowToAllPages() {
     for (int page = 0; page < fb->PageCount(); page++) {
         memcpy(fb->BufferPage(page), m_shadow, m_shadowCopyBytes);
@@ -913,10 +937,12 @@ void DPIPixelsOutput::CopyShadowToAllPages() {
 }
 
 int DPIPixelsOutput::SendData(unsigned char* channelData) {
-    // The page PrepData() targeted was being scanned out until the previous
-    // flip retired; make sure it has before overwriting it.
-    fb->WaitForPageFree();
-    memcpy(fb->BufferPage(fbPage), m_shadow, m_shadowCopyBytes);
+    if (fbPage >= 0) {
+        // The page PrepData() targeted was being scanned out until the
+        // previous flip retired; make sure it has before overwriting it.
+        fb->WaitForPageFree();
+        memcpy(fb->BufferPage(fbPage), m_shadow, m_shadowCopyBytes);
+    }
 #ifdef USE_AUTO_SYNC
     if (fbPage >= 0) {
         // LogInfo(VB_CHANNELOUT, "%d - SendData() marking page dirty\n", fbPage);
