@@ -668,20 +668,16 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     // longest string physically allows.  A change only happens when a sequence
     // with a different frame rate starts, so the (brief) modeset is rare.
     //
-    // With no sequence running, the rate this follows is whatever the last
-    // sequence left behind -- nothing in core lowers or restores it -- or the
-    // 20fps default at boot.  That pinned live control (pixel overlays, effects,
-    // a lighting desk driving overlays) to a 50ms vblank, so a colour change
-    // waited up to a full frame to reach the string on top of the output
-    // thread's own period.  Running fast while idle costs nothing: SetRefreshRate
-    // only shortens vertical blanking, so the pixel clock and the WS bit timing
-    // are untouched and the string is simply rescanned more often.
-    //
-    // Only raise after a settle window, though.  A rate change is a full
-    // drmModeSetCrtc that drains the pending flip and restarts the vblank
-    // stream, so bouncing on the brief gaps between playlist items would glitch
-    // the output every time.  Dropping back to a sequence's rate stays immediate
-    // -- that direction has to track the data.
+    // With no sequence running, the output thread runs at the E1.31 bridging
+    // interval (overlays, effects, bridge data, test mode), so after a settle
+    // window the DPI is retimed to that rate rather than left at whatever the
+    // last sequence used.  Only change after the settle window, though: a rate
+    // change is a full drmModeSetCrtc that drains the pending flip and restarts
+    // the vblank stream (cutting the WS stream mid-frame), so bouncing on the
+    // brief gaps between playlist items would glitch the output every time.
+    // Tracking a sequence's rate stays immediate -- that has to follow the data.
+    // A current rate that is an exact multiple of the wanted one is kept,
+    // so the common 20/40 fps mix never modesets at all.
     if (m_initialized && m_configuredMaxFps > 0) {
         constexpr long long IDLE_SETTLE_US = 3000000;
 
@@ -695,7 +691,14 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
                 m_idleSinceUS = now;
             }
             if ((now - m_idleSinceUS) >= IDLE_SETTLE_US) {
-                target = m_configuredMaxFps;
+                // With no sequence running the output thread produces frames
+                // at the E1.31 bridging interval, so that is the rate to scan
+                // at; anything faster only rescans the same page.  A current
+                // rate that is an exact multiple of it is kept below.
+                int intervalMS = getSettingInt("E131BridgingInterval", 50);
+                if (intervalMS > 0) {
+                    target = (int)std::lround(1000.0 / intervalMS);
+                }
             }
         }
         if (target < 1) {
@@ -703,6 +706,13 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
         }
         if (target > m_configuredMaxFps) {
             target = m_configuredMaxFps;
+        }
+        // A refresh that is an exact multiple of the wanted rate is as good as
+        // the wanted rate: each frame is just scanned N times and the flip
+        // still lands on a vblank.  Keep it and skip the modeset, which cuts
+        // the DPI stream mid-frame every time it runs.
+        if (m_currentFps > target && (m_currentFps % target) == 0) {
+            target = m_currentFps;
         }
         if (target != m_currentFps && fb->SetRefreshRate(target)) {
             LogInfo(VB_CHANNELOUT, "DPIPixels: DPI refresh -> %d fps (%s, sequence rate %.1f, max %d)\n",
