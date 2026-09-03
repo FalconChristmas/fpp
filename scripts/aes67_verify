@@ -77,6 +77,9 @@ def _slope(xs, ys):
 
 INSTANCES = "/home/fpp/media/config/pipewire-aes67-instances.json"
 
+# AES67 mandates 48kHz, and the L24 payload arithmetic here assumes it.
+RTP_CLOCK_RATE = 48000
+
 # ---------------------------------------------------------------- reporting
 
 class Report:
@@ -359,7 +362,57 @@ def check_transport(rep, pkts, inst):
         rep.info("each one is an audible seam in the receiver's buffer")
 
     check_pacing(rep, arrivals, ptime)
+    check_tx_jitter(rep, arrivals, rtpts, ptime)
     return arrivals, rtpts
+
+
+def check_tx_jitter(rep, arrivals, rtpts, ptime):
+    """AES67 sender transmission jitter.
+
+    AES67 requires a sender to hold transmission jitter below 17 packet
+    times, or 17ms if that is shorter, and recommends below one packet time
+    (or 1ms).  Jitter here is not the inter-arrival spread check_pacing
+    reports -- it is how far each packet strayed from the time its OWN media
+    clock says it should have left.  So the reference grid is the RTP
+    timestamp: ideal = rtpts / 48000, error = actual - ideal, with the median
+    removed, since that constant is the link offset and not jitter.
+
+    The two measures disagree in a way that matters.  A packet sent one slot
+    late shows up here as one late packet; check_pacing sees both a long gap
+    and a short one either side of it and can average them away.
+    """
+    if len(arrivals) < 100:
+        return
+    t0, ts0 = arrivals[0], rtpts[0]
+    err = [((a - t0) - (((t - ts0) & 0xFFFFFFFF) / float(RTP_CLOCK_RATE))) * 1000.0
+           for a, t in zip(arrivals, rtpts)]
+    med = _median(err)
+    mag = [abs(e - med) for e in err]
+
+    required = min(17.0, 17 * ptime)
+    recommended = min(1.0, float(ptime))
+
+    rep.info(f"transmission jitter: p50 {_median(mag):.3f}ms, "
+             f"p99 {_pct(mag, 99):.3f}ms, max {max(mag):.3f}ms")
+
+    over_req = sum(1 for m in mag if m > required)
+    if over_req:
+        rep.fail(f"{over_req} packets ({100.0 * over_req / len(mag):.3f}%) "
+                 f"past the {required:.0f}ms AES67 requires")
+        rep.info("receivers size their buffer against this; past it they "
+                 "underrun no matter how large the link offset")
+    else:
+        rep.ok(f"transmission jitter within the {required:.0f}ms AES67 requires")
+
+    over_rec = sum(1 for m in mag if m > recommended)
+    if over_rec:
+        rep.warn(f"{over_rec} packets ({100.0 * over_rec / len(mag):.3f}%) "
+                 f"past the {recommended:g}ms AES67 recommends")
+        rep.info("usually the pacing thread is not SCHED_FIFO -- each miss "
+                 "is one packet sent up to a full ptime late")
+    else:
+        rep.ok(f"transmission jitter within the {recommended:g}ms "
+               f"AES67 recommends")
 
 
 def check_pacing(rep, arrivals, ptime):
