@@ -1768,6 +1768,23 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                    // and two in a row is a parse error that takes the whole
                    // send pipeline out ("send pipeline error: syntax error",
                    // 0 pipelines built, no stream at all).
+                   // Do not set output-buffer-duration here.  Forcing the
+                   // mixer to emit one ptime per buffer fights audiobuffersplit
+                   // downstream and made pacing worse, not better: measured
+                   // 46% of packets back-to-back against 13% with the mixer
+                   // left to choose its own block size.
+                   // KNOWN COST: the mixer disturbs sink pacing.  Measured
+                   // in steady state on a long file with no transitions at
+                   // all, so it is the mixer itself and not the track changes:
+                   //
+                   //   splitClockDomains, floor OFF  paced at 4.00ms, PASS
+                   //   splitClockDomains, floor ON   46-48% back-to-back
+                   //
+                   // Decoupling it with a queue on its own thread did not help
+                   // (46%), and forcing output-buffer-duration to one ptime
+                   // made it worse (46% -> 49%) by fighting audiobuffersplit.
+                   // So the silence floor and clean pacing are currently
+                   // mutually exclusive, and that is the open problem.
                    "audiomixer name=silmix latency=" +
                    std::to_string(10 * GST_MSECOND) + " ")
                 : "")
