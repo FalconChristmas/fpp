@@ -660,7 +660,7 @@ install_base_packages() {
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev libnl-3-dev libnl-genl-3-dev \
                       fonts-freefont-ttf flex bison pkg-config libasound2-dev libsdl2-dev libsdl3-dev mesa-common-dev qrencode libusb-1.0-0-dev \
                       pipewire pipewire-bin pipewire-alsa pipewire-pulse pipewire-jack pipewire-audio-client-libraries wireplumber \
-                      libpipewire-0.3-dev libspa-0.2-bluetooth pulseaudio-utils linuxptp \
+                      libpipewire-0.3-dev libspa-0.2-bluetooth pulseaudio-utils linuxptp libsamplerate0-dev \
                       gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-base-apps gstreamer1.0-plugins-good gstreamer1.0-alsa \
                       gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-pipewire \
                       gstreamer1.0-libav gstreamer1.0-gl gstreamer1.0-x \
