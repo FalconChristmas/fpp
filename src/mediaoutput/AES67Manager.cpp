@@ -1187,6 +1187,11 @@ struct DriftResampleState {
     guint64 lastResyncAt = 0;
     bool everResynced = false;
 
+    // Frames of silence owed to the timeline, from a source gap not yet filled.
+    // See AES67Config::sourceSilenceFloor.
+    bool fillGaps = false;
+    guint64 fillFrames = 0;
+
     // Rate estimate that survives a re-anchor.  The card's rate against PTP is
     // a property of two crystals: it does not change because a track did.  The
     // sliding window that measures it does get discarded at every re-anchor,
@@ -1282,6 +1287,7 @@ static GstPadProbeReturn SourceGapProbe(GstPad* pad, GstPadProbeInfo* info,
 static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
                                             gpointer user) {
     auto* st = static_cast<DriftResampleState*>(user);
+    const bool fillGaps = st->fillGaps;
     GstBuffer* buf = GST_PAD_PROBE_INFO_BUFFER(info);
     if (!buf || !st->src || !st->clock) {
         return GST_PAD_PROBE_OK;
@@ -1326,6 +1332,20 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
             const gint64 jump = (gint64)(pts - st->lastPts) - expected;
             if (jump > (gint64)GST_MSECOND) {
                 st->gapsSeen++;
+                // Owe the timeline this much silence.  The RTP timestamp is a
+                // sample count, so audio that never arrives puts the media
+                // clock permanently behind PTP -- it cannot be corrected
+                // later, because the samples are not late, they are absent.
+                // Filling keeps the count aligned and keeps AES67 in step with
+                // the local sound card, which already plays the same pause.
+                // Capped so a pathological jump cannot ask for a huge
+                // allocation; anything longer is a stream restart, not a gap.
+                if (fillGaps) {
+                    const gint64 f = gst_util_uint64_scale(
+                        (guint64)jump, AES67::AUDIO_RATE, GST_SECOND);
+                    st->fillFrames = (guint64)std::min<gint64>(
+                        f, (gint64)AES67::AUDIO_RATE);   // <= 1 second
+                }
                 LogInfo(VB_MEDIAOUT,
                         "AES67 drift [%d]: source gap %+.2f ms at buffer %llu "
                         "(gap #%llu)\n",
@@ -1394,7 +1414,14 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
     double err = st->warmed
                      ? (double)st->ctlOut - (double)AES67::AUDIO_RATE * elapsed
                      : 0.0;
-    if (st->warmed && std::fabs(err) > MAX_OFFSET_S * AES67::AUDIO_RATE) {
+    // Do not absorb a gap we are about to fill.  Absorbing re-anchors the
+    // timeline to skip the hole; filling puts the missing samples back.  Doing
+    // both means the loop re-anchors and then the fill pushes the timeline
+    // again -- measured, 4 absorptions still fired alongside 8 successful fills
+    // and the media clock stayed at -54.7 ppm.  Filling is the correct response
+    // when it is available, so it wins.
+    if (st->warmed && st->fillFrames == 0 &&
+        std::fabs(err) > MAX_OFFSET_S * AES67::AUDIO_RATE) {
         LogInfo(VB_MEDIAOUT,
                 "AES67 drift [%d]: %+.0f ms gap absorbed, re-anchoring "
                 "at buffer %llu\n",
@@ -1546,12 +1573,24 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         st->shortReads++;
     }
 
+    // Any silence owed from a source gap goes ahead of this buffer's audio, so
+    // the sample count downstream stays continuous across a track change.
+    const size_t fill = (size_t)st->fillFrames;
+    const size_t fillBytes = fill * ch * sizeof(float);
     const size_t bytes = (size_t)d.output_frames_gen * ch * sizeof(float);
-    GstBuffer* out = gst_buffer_new_allocate(nullptr, bytes, nullptr);
+    GstBuffer* out = gst_buffer_new_allocate(nullptr, fillBytes + bytes, nullptr);
     if (!out) {
         return GST_PAD_PROBE_OK;
     }
-    gst_buffer_fill(out, 0, st->out.data(), bytes);
+    if (fill) {
+        gst_buffer_memset(out, 0, 0, fillBytes);
+        LogInfo(VB_MEDIAOUT,
+                "AES67 drift [%d]: filled %.1f ms of source gap with silence\n",
+                st->instanceId,
+                (double)fill * 1000.0 / (double)AES67::AUDIO_RATE);
+        st->fillFrames = 0;
+    }
+    gst_buffer_fill(out, fillBytes, st->out.data(), bytes);
 
     // Timestamp from the output sample count, so the timeline downstream
     // advances at exactly AUDIO_RATE.  Producing AUDIO_RATE samples per PHC
@@ -1565,9 +1604,17 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         GST_BUFFER_FLAG_SET(out, GST_BUFFER_FLAG_DISCONT);
     }
 
-    st->ptsFrames += (guint64)d.output_frames_gen;
-    st->ctlIn += (guint64)d.input_frames_used;
-    st->ctlOut += (guint64)d.output_frames_gen;
+    st->ptsFrames += (guint64)fill + (guint64)d.output_frames_gen;
+    // Count the filled silence as input as well as output.  It is synthetic
+    // input standing in for audio that never arrived, so leaving it out of the
+    // input side makes the loop measure a source that is slow by exactly the
+    // gaps -- measured, cardRate read 47235/s (-15926 ppm) and the trim pinned
+    // at its +300 ppm clamp with the offset growing 11.5 -> 22.9 ms, even
+    // though the wire was correct at +1.2 ppm.  Counting it on both sides keeps
+    // the rate estimate honest: after filling, the effective input really is
+    // aligned to real time.
+    st->ctlIn += (guint64)fill + (guint64)d.input_frames_used;
+    st->ctlOut += (guint64)fill + (guint64)d.output_frames_gen;
 
     if ((++st->buffers % 2000) == 0) {
         LogInfo(VB_MEDIAOUT,
@@ -1733,21 +1780,6 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                 inst.id, graphRate, AES67::AUDIO_RATE);
     }
 
-    // A permanently connected silence source, mixed with the captured audio.
-    // See AES67Config::sourceSilenceFloor.  audiomixer is the documented idiom
-    // for this: it is built not to stall when a source goes away, and silence
-    // being the additive identity means no arbitration is needed -- silence
-    // alone when nothing is playing, the audio itself when something is.  The
-    // sources are declared before the mixer they reference, which gst_parse
-    // resolves by name.
-    const std::string silenceCaps =
-        "audio/x-raw,format=F32LE,rate=" + std::to_string(AES67::AUDIO_RATE) +
-        ",channels=" + std::to_string(inst.channels);
-    if (m_config.sourceSilenceFloor) {
-        oss << "audiotestsrc name=silfloor wave=silence is-live=true "
-            << "! " << silenceCaps << " ! silmix. ";
-    }
-
     oss << "pipewiresrc name=pwsrc"
         << " min-buffers=" << m_config.sourceMinBuffers
         << " always-copy=" << (m_config.sourceBufferCopy ? "true" : "false")
@@ -1758,36 +1790,6 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         << "! audioconvert "
         << "! audioresample "
         << "! audioconvert "
-        // Join the silence floor here, before the rate trim, so everything
-        // downstream sees one continuous stream whatever the source does.
-        // latency gives the capture branch slack to deliver for the current
-        // position before the mixer emits without it.
-        << (m_config.sourceSilenceFloor
-                ? ("! " + silenceCaps + " ! silmix. "
-                   // No trailing "!" -- the next segment supplies its own,
-                   // and two in a row is a parse error that takes the whole
-                   // send pipeline out ("send pipeline error: syntax error",
-                   // 0 pipelines built, no stream at all).
-                   // Do not set output-buffer-duration here.  Forcing the
-                   // mixer to emit one ptime per buffer fights audiobuffersplit
-                   // downstream and made pacing worse, not better: measured
-                   // 46% of packets back-to-back against 13% with the mixer
-                   // left to choose its own block size.
-                   // KNOWN COST: the mixer disturbs sink pacing.  Measured
-                   // in steady state on a long file with no transitions at
-                   // all, so it is the mixer itself and not the track changes:
-                   //
-                   //   splitClockDomains, floor OFF  paced at 4.00ms, PASS
-                   //   splitClockDomains, floor ON   46-48% back-to-back
-                   //
-                   // Decoupling it with a queue on its own thread did not help
-                   // (46%), and forcing output-buffer-duration to one ptime
-                   // made it worse (46% -> 49%) by fighting audiobuffersplit.
-                   // So the silence floor and clean pacing are currently
-                   // mutually exclusive, and that is the open problem.
-                   "audiomixer name=silmix latency=" +
-                   std::to_string(10 * GST_MSECOND) + " ")
-                : "")
         // Rate trim for the drift control loop.  Sits in the float domain
         // because that is all this element accepts, and ahead of the S24BE
         // conversion and the packet split so both still see a clean stream.
@@ -2287,6 +2289,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         // SINC_FASTEST is bandlimited and far above what a 56ppm correction
         // needs; the cost is a few percent of one core on a Pi.
         st->src = src_new(SRC_SINC_FASTEST, inst.channels, &err);
+        st->fillGaps = m_config.sourceSilenceFloor;
 
         if (dpad && st->src) {
             gst_pad_add_probe(dpad, GST_PAD_PROBE_TYPE_BUFFER,
