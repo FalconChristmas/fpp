@@ -510,6 +510,7 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
             found = true;
             bool wasUnicast = sys.supportsUnicast;
             sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync, sendingMultiSync);
+            ApplyUUIDHint(sys);
             sys.lastSeenStr = timeStr;
             sys.lastSeen = t;
             unicastChanged |= (wasUnicast != sys.supportsUnicast);
@@ -527,6 +528,7 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
     if (!found) {
         MultiSyncSystem sys;
         sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync, sendingMultiSync);
+        ApplyUUIDHint(sys);
         sys.lastSeenStr = timeStr;
         sys.lastSeen = t;
         unicastChanged |= sys.supportsUnicast;
@@ -1274,6 +1276,7 @@ void MultiSync::DiscoverIPViaHTTP(const std::string& ip, const std::string& html
             UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
                          nc->systemMode, nc->ip, nc->hostname, nc->version,
                          nc->typeStr, nc->ranges, nc->uuid, false, nc->sendingMultiSync);
+            ApplyPeerUUIDs(nc->peerUUIDs);
             delete nc;
         } else if (allowUnknown) {
             UpdateSystem(kSysTypeUnknown, 0, 0, UNKNOWN_MODE, ip, ip, "Unknown", "Unknown", "0-0", "Unknown", false, false);
@@ -1715,6 +1718,58 @@ void MultiSync::InvalidateSystemInfo(const std::string& address) {
 //
 // This is only about filling in for entries that have no identity of their own.
 // A real UUID is never overwritten by another.
+// Records identities one device reported for OTHER addresses.  Some vendors
+// describe their neighbours but not themselves, so this is the only place those
+// devices' identities ever come from.
+//
+// The hints are kept, not applied once and dropped.  Discovery reaches
+// addresses in whatever order it reaches them, so the neighbour describing a
+// device is very often probed BEFORE that device is found -- applying only to
+// what exists right now would silently lose exactly the identities that arrive
+// early.  UpdateSystem() consults the map for every system it touches, so the
+// two orders behave the same.
+//
+// A hint never creates a system: a name in somebody's peer list is not evidence
+// that a device is on this network, and a system discovery has not found has no
+// business appearing in the list.
+void MultiSync::ApplyPeerUUIDs(const std::map<std::string, std::string>& peerUUIDs) {
+    if (peerUUIDs.empty()) {
+        return;
+    }
+    std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+    for (const auto& [addr, uuid] : peerUUIDs) {
+        if (!addr.empty() && !uuid.empty()) {
+            m_peerUUIDHints[addr] = uuid;
+        }
+    }
+    for (auto& sys : m_remoteSystems) {
+        ApplyUUIDHint(sys);
+    }
+}
+
+// Precedence matches MultiSyncSystem::update(): a device's own UUID always
+// wins, and a MAC-derived stand-in may only replace another stand-in.
+//
+// That a hint OVERRIDES an ARP-derived stand-in is deliberate, and it matters:
+// the two are not the same value.  An ESP32 running on Ethernet uses base+3 as
+// its interface address, so ARP sees a MAC three higher than the one the device
+// reports for itself (measured on WLED and on two Baldricks; Genius, which
+// reports its interface address rather than the base, matches ARP exactly).
+// Both are stable identities for the device -- but they are DIFFERENT stable
+// identities, and letting a device carry whichever one its observer happened to
+// obtain would split it in two, which is the failure this whole path exists to
+// remove.  So the vendor-reported value wins everywhere it is available, and
+// ARP stays the fallback for devices no detector could identify at all.
+void MultiSync::ApplyUUIDHint(MultiSyncSystem& sys) {
+    if (!sys.uuid.empty() && !startsWith(sys.uuid, MAC_UUID_PREFIX)) {
+        return;
+    }
+    auto it = m_peerUUIDHints.find(sys.address);
+    if (it != m_peerUUIDHints.end() && !it->second.empty()) {
+        sys.uuid = it->second;
+    }
+}
+
 void MultiSync::ReconcileDeviceIdentity(const std::string& hostname, FPPMode fppMode) {
     if (hostname.empty()) {
         return;
@@ -1931,6 +1986,7 @@ void MultiSync::StartHTTPPing(const std::string& address) {
                 UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
                              nc->systemMode, nc->ip, nc->hostname, nc->version,
                              nc->typeStr, nc->ranges, nc->uuid, false, nc->sendingMultiSync);
+                ApplyPeerUUIDs(nc->peerUUIDs);
                 delete nc;
             } else {
                 UpdateSystem(kSysTypeUnknown, 0, 0, UNKNOWN_MODE, address,

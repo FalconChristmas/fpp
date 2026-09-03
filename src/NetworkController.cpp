@@ -115,6 +115,17 @@ public:
         });
     }
 
+    // Same contract as fetch(), for the one vendor whose status is only
+    // reachable by POST.  Kept beside it so a detector never has to touch
+    // CurlManager directly and risk a path that reaches none of matched() /
+    // noMatch() / fetch().
+    void post(const std::string& url, const std::string& body, const std::string& contentType,
+              std::function<void(bool ok, const std::string& resp)>&& handler) {
+        CurlManager::INSTANCE.addPost(url, body, contentType, [this, handler](int rc, const std::string& resp) {
+            handler(rc != 0, resp);
+        });
+    }
+
 private:
     void finish(NetworkController* result) {
         // Move the callback out and destroy ourselves before running it: it may
@@ -265,6 +276,41 @@ void NetworkController::DetectFalconController(Detection* st) {
             }
         }
 
+        // status.xml carries no identity on any generation.  The V4/V5 line has
+        // a JSON API that reports one, reachable only by POST; everything older
+        // answers 404 there and keeps the derived identity MultiSync gives it.
+        //
+        // Deliberately not allowed to affect detection: the XML above already
+        // settled that this is a Falcon, so the request only ever adds a uuid,
+        // and both outcomes reach matched().  An F48 predating the API is a
+        // real example of the 404 path -- it is still a Falcon.
+        if ((typeId == kSysTypeFalconF16v4) ||
+            (typeId == kSysTypeFalconF48v4) ||
+            (typeId == kSysTypeFalconF16v5)) {
+            st->post(buildHttpURL(st->ip, "/api"),
+                     "{\"T\":\"Q\",\"M\":\"ST\",\"B\":0,\"E\":0,\"I\":0,\"P\":{}}",
+                     "application/json",
+                     [this, st](bool aok, const std::string& aresp) {
+                         Json::Value av;
+                         // isObject() guards the get() below: jsoncpp rejects a
+                         // keyed lookup on a scalar, and nothing here controls
+                         // what a device puts in "P".
+                         if (aok && LoadJsonFromString(aresp, av, JsonRoot::Object) &&
+                             JsonHas(av, "P") && av["P"].isObject()) {
+                             // Same spelling MultiSync uses for an ARP-derived
+                             // address, so a device keeps one identity however
+                             // it was discovered.
+                             std::string mac = NormalizeMacAddress(av["P"].get("C", "").asString());
+                             if (!mac.empty()) {
+                                 uuid = MAC_UUID_PREFIX + mac;
+                             }
+                         }
+                         DumpControllerInfo();
+                         st->matched();
+                     });
+            return;
+        }
+
         DumpControllerInfo();
         st->matched();
     });
@@ -390,6 +436,28 @@ void NetworkController::DetectBaldrickController(Detection* st) {
         LoadJsonFromString(resp, state, JsonRoot::Object);
         if (JsonHas(state, "board_model")) {
             typeStr = state["board_model"].asString();
+        }
+
+        // A Baldrick does not report its OWN board id, but it reports one for
+        // each Baldrick it can see.  Note this is the ESP32 base address, which
+        // is NOT what ARP sees for a board on Ethernet (that is base+3) -- see
+        // MultiSync::ApplyUUIDHint() for why the hint must win over ARP rather
+        // than merely fill in behind it.  So an identity for this board arrives from
+        // its neighbour rather than from itself, and with two or more on a
+        // network every one of them ends up identified.  Recorded against the
+        // peer address for the caller to apply; nothing here invents a system
+        // that discovery has not otherwise found.
+        if (JsonHas(state, "buddies") && state["buddies"].isArray()) {
+            for (const auto& buddy : state["buddies"]) {
+                if (!buddy.isObject()) {
+                    continue;
+                }
+                std::string bip = buddy.get("ip", "").asString();
+                std::string bid = NormalizeMacAddress(buddy.get("board_id", "").asString());
+                if (!bip.empty() && !bid.empty()) {
+                    peerUUIDs[bip] = MAC_UUID_PREFIX + bid;
+                }
+            }
         }
         if (JsonHas(state, "ota")) {
             const Json::Value& ota = state["ota"];
@@ -701,6 +769,17 @@ void NetworkController::DetectWLEDController(Detection* st) {
 
         vendor = "WLED";
         vendorURL = "https://github.com/Aircoookie/WLED";
+
+        // WLED reports its own MAC in the document already being read here, so
+        // this costs no extra request.  Unlike the ARP fallback in MultiSync it
+        // works for a controller on another subnet, which is where discovery
+        // seeded from configured output addresses usually reaches.
+        std::string mac = NormalizeMacAddress(v.get("mac", "").asString());
+        if (!mac.empty()) {
+            // Same spelling MultiSync uses for an ARP-derived address, so a
+            // device keeps one identity however it was discovered.
+            uuid = MAC_UUID_PREFIX + mac;
+        }
 
         version = v["ver"].asString();
         hostname = v["name"].asString();

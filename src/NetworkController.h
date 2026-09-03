@@ -12,6 +12,7 @@
  */
 
 #include <functional>
+#include <map>
 #include <string>
 
 #include "MultiSync.h"
@@ -45,6 +46,11 @@ public:
     std::string ranges;
     std::string version;
     std::string uuid;
+    // Identities this device reported for OTHER addresses.  Some vendors
+    // describe their neighbours but not themselves, so an identity can only be
+    // learned second-hand; the caller applies these to systems discovery has
+    // already found.  Keyed by address.
+    std::map<std::string, std::string> peerUUIDs;
     unsigned int majorVersion;
     unsigned int minorVersion;
     FPPMode systemMode;

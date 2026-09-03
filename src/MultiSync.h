@@ -484,6 +484,13 @@ private:
     std::recursive_mutex m_systemsLock;
     std::vector<MultiSyncSystem> m_localSystems;
     std::vector<MultiSyncSystem> m_remoteSystems;
+    // Identities learned second-hand: some vendors report a stable id for each
+    // neighbour they can see but none for themselves, so a device's identity
+    // arrives while a DIFFERENT address is being probed.  Kept rather than
+    // applied and discarded, because the neighbour is often identified before
+    // the device it describes has been discovered at all.  Guarded by
+    // m_systemsLock.  Keyed by address.
+    std::map<std::string, std::string> m_peerUUIDHints;
 
     // Channel-output ranges parsed from co-universes.json, keyed by each output
     // target's configured address and its resolved IP. Used to backfill the
@@ -539,6 +546,10 @@ private:
     // Makes every entry for one device agree on its identity; see the comment
     // above the definition.  Caller must hold m_systemsLock.
     void ReconcileDeviceIdentity(const std::string& hostname, FPPMode fppMode);
+    void ApplyPeerUUIDs(const std::map<std::string, std::string>& peerUUIDs);
+    // Fills in a system's identity from m_peerUUIDHints.  Caller holds
+    // m_systemsLock.
+    void ApplyUUIDHint(MultiSyncSystem& sys);
     void FetchSystemInfo(const std::string& address);
     void FetchCapeInfo(const std::string& address);
     // Runs `apply` on every remote entry describing the same device as
