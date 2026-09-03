@@ -639,16 +639,25 @@
 
                 // Channels
                 html += '<div>';
-                html += '<label>Audio Channels' + HelpIcon('Number of audio channels in this AES67 stream. Standard AES67 supports up to 8 channels per stream. Most use cases need 2 (stereo).') + '</label>';
+                html += '<label>Audio Channels' + HelpIcon('AES67 allows up to 8 channels per stream, but FPP can only carry stereo to an AES67 stream today: the audio graph feeding it is fixed at 2 channels. Selecting more stops the stream starting at all, so the wider options are disabled until that is supported.') + '</label>';
                 html += '<select class="form-select form-select-sm" onchange="UpdateChannels(' + index + ', parseInt(this.value))">';
+                // Anything above stereo fails caps negotiation against the
+                // stereo delay chain and the pipeline never produces a packet,
+                // so these are shown-but-disabled rather than removed -- a
+                // config saved with 8 still has to render as something.
                 var chOpts = [
                     { v: 2, l: '2 (Stereo)' }, { v: 4, l: '4' },
                     { v: 6, l: '6 (5.1)' }, { v: 8, l: '8 (7.1)' }
                 ];
+                var chVal = inst.channels || 2;
                 for (var c = 0; c < chOpts.length; c++) {
-                    html += '<option value="' + chOpts[c].v + '"' + ((inst.channels || 2) === chOpts[c].v ? ' selected' : '') + '>' + chOpts[c].l + '</option>';
+                    var wide = chOpts[c].v > 2;
+                    html += '<option value="' + chOpts[c].v + '"' + (chVal === chOpts[c].v ? ' selected' : '') + (wide ? ' disabled' : '') + '>' + chOpts[c].l + (wide ? ' - not yet supported' : '') + '</option>';
                 }
                 html += '</select>';
+                if (chVal > 2) {
+                    html += '<div class="text-danger small mt-1">This stream is set to ' + chVal + ' channels, which FPP cannot carry - it will run as stereo. Select 2 (Stereo) to clear this.</div>';
+                }
                 html += '</div>';
 
                 // Network Interface
@@ -665,7 +674,7 @@
 
                 // Packet Time (ptime)
                 html += '<div>';
-                html += '<label>Packet Time (ptime)' + HelpIcon('Audio packetization interval in milliseconds. 1ms is mandatory for all AES67 devices and is what Dante requires; 4ms is optional and lower CPU. 4ms is only available in stereo -- at 4 or more channels it will not fit in one packet. Must match between sender and receiver.') + '</label>';
+                html += '<label>Packet Time (ptime)' + HelpIcon('Audio packetization interval in milliseconds. 1ms is the default: it is mandatory for all AES67 devices, is the only packet time Dante will transmit, and measured tighter packet timing here than 4ms. 4ms is optional and uses less CPU. Must match between sender and receiver.') + '</label>';
                 html += '<select class="form-select form-select-sm" onchange="UpdateField(' + index + ', \'ptime\', parseInt(this.value))">';
                 // 4ms of L24 is 576 bytes per channel: fine in stereo (1152),
                 // over the 1440-byte packet limit from 4 channels up (2304).
@@ -673,8 +682,8 @@
                 var wideOk = (inst.channels || 2) <= 2;
                 var ptimeVal = inst.ptime || 4;
                 if (!wideOk) { ptimeVal = 1; }
-                html += '<option value="1"' + (ptimeVal === 1 ? ' selected' : '') + '>1 ms (low latency)</option>';
-                html += '<option value="4"' + (ptimeVal === 4 ? ' selected' : '') + (wideOk ? '' : ' disabled') + '>4 ms' + (wideOk ? ' (default)' : ' (stereo only)') + '</option>';
+                html += '<option value="1"' + (ptimeVal === 1 ? ' selected' : '') + '>1 ms (default)</option>';
+                html += '<option value="4"' + (ptimeVal === 4 ? ' selected' : '') + (wideOk ? '' : ' disabled') + '>4 ms' + (wideOk ? '' : ' (stereo only)') + '</option>';
                 html += '</select>';
                 html += '</div>';
 
@@ -936,7 +945,7 @@
             // shows what is actually in effect.
             function UpdateChannels(index, value) {
                 aes67Data.instances[index].channels = value;
-                if (value > 2 && (aes67Data.instances[index].ptime || 4) > 1) {
+                if (value > 2 && (aes67Data.instances[index].ptime || 1) > 1) {
                     aes67Data.instances[index].ptime = 1;
                 }
                 RenderInstances();

@@ -295,6 +295,16 @@ bool AES67Manager::LoadConfig() {
                 inst.ptime = AES67::DEFAULT_PTIME_MS;
             }
 
+            if (inst.channels > AES67::MAX_SUPPORTED_CHANNELS) {
+                LogWarn(VB_MEDIAOUT,
+                        "AES67Manager: instance '%s' asks for %d channels, but the "
+                        "audio graph only carries %d -- the stream would not start "
+                        "at all. Using %d.\n",
+                        inst.name.c_str(), inst.channels,
+                        AES67::MAX_SUPPORTED_CHANNELS, AES67::MAX_SUPPORTED_CHANNELS);
+                inst.channels = AES67::MAX_SUPPORTED_CHANNELS;
+            }
+
             // ...then against the channel count.  These are independent
             // dropdowns in the UI with no interlock, and most of their
             // combinations describe a packet that cannot be sent: 4ms of L24

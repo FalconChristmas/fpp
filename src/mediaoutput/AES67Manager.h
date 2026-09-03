@@ -50,9 +50,35 @@ namespace AES67 {
 constexpr int RTP_PAYLOAD_TYPE      = 96;
 constexpr int AUDIO_RATE            = 48000;
 constexpr int AUDIO_RTP_TTL         = 4;
-constexpr int DEFAULT_PTIME_MS      = 4;        // 4ms packet time
+// 1ms is mandatory for every AES67 device and is the only packet time Dante
+// will transmit, so it is the interoperable default.  It is also the only one
+// that fits above stereo (see MaxPtimeForChannels), and measured better than
+// 4ms here rather than worse: over 180k packets, worst-case transmission
+// lateness 0.235ms against 0.64ms at 4ms ptime, because smaller buffers give
+// the pacing thread less to slip.  Existing configs keep whatever they have --
+// this only applies where no ptime was ever stored.
+constexpr int DEFAULT_PTIME_MS      = 1;        // 1ms packet time
 constexpr int DEFAULT_PORT          = 5004;
 constexpr int DEFAULT_CHANNELS      = 2;
+
+// Multichannel is not wired up, and the failure is total rather than partial.
+// Every AES67 stream is fed through the delay filter-chain that FPPINIT_Audio
+// emits, and that chain is unconditionally stereo: two delay nodes,
+// audio.channels = 2, audio.position = [ FL FR ], stream.dont-remix = true.
+// It never reads this setting.  Ask the pipeline for 8 channels and caps
+// negotiation against that node fails outright -- "Internal data stream
+// error" on the bus and not one packet on the wire, verified by capture.
+//
+// The UI offered 2/4/6/8 against a graph that could only ever do 2, so any
+// user selecting more than stereo silently lost their stream.  Clamp here as
+// well as in the UI: a config that already stored 8 would otherwise stay dead
+// after an upgrade, and the person hitting it has no way to know why.
+//
+// Raising this needs the delay chain to emit N nodes, the delay control path
+// in GStreamerOut to stop addressing them as delay_l/delay_r, the group
+// combine-stream to carry N positions, and the routing matrix to have
+// something to put in channels 3-8.
+constexpr int MAX_SUPPORTED_CHANNELS = 2;
 constexpr int DEFAULT_LATENCY_MS    = 10;
 
 // DSCP codepoints (AES67-2018 / AES-R16 QoS recommendations)
