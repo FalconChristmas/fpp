@@ -168,6 +168,9 @@ DPIPixelsOutput::~DPIPixelsOutput() {
     if (onOffMap)
         free(onOffMap);
 
+    if (m_shadow)
+        free(m_shadow);
+
     if (fb)
         delete fb;
 }
@@ -537,6 +540,9 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
     LogDebug(VB_CHANNELOUT, "The framebuffer device %s was opened successfully.\n", device.c_str());
 
+    m_shadow = (uint8_t*)calloc(1, fb->PageSize());
+    m_shadowCopyBytes = std::min(fb->PageSize(), dataRows * fb->RowStride());
+
     // Highest refresh rate this string length allows.  KMS starts the display at
     // that rate (minimal blanking); the actual rate is lowered per-sequence to
     // min(sequenceRate, m_configuredMaxFps) in PrepData().
@@ -562,11 +568,8 @@ int DPIPixelsOutput::Init(Json::Value config) {
     // This prevents garbage/flash when pins start outputting
     if (protocol == "ws2811") {
         std::vector<unsigned char> blankData(FPPD_MAX_CHANNELS, 0);
-
-        for (int page = 0; page < fb->PageCount(); page++) {
-            fbPage = page;
-            PrepData(blankData.data());
-        }
+        PrepData(blankData.data());
+        CopyShadowToAllPages();
         fbPage = 0;
     }
 
@@ -605,11 +608,8 @@ int DPIPixelsOutput::Close(void) {
     // Send blank WS281x data to clear latched pixels before shutdown
     if (fb && pixelStrings.size() > 0 && protocol == "ws2811") {
         std::vector<unsigned char> blankData(FPPD_MAX_CHANNELS, 0);
-
-        for (int page = 0; page < fb->PageCount(); page++) {
-            fbPage = page;
-            PrepData(blankData.data());
-        }
+        PrepData(blankData.data());
+        CopyShadowToAllPages();
         fbPage = 0;
 
         fb->SyncDisplay(false);
@@ -755,9 +755,9 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
         }
     }
 
-    // Start at front of page but skip the first third of the WS bit
+    // Start at front of the shadow page but skip the first third of the WS bit
     // which is already populated and doesn't change
-    protoDest = fb->BufferPage(fbPage) + (fbPixelMult * fb->BytesPerPixel());
+    protoDest = m_shadow + (fbPixelMult * fb->BytesPerPixel());
 
     uint32_t dataIn[MAX_DPI_PIXEL_LATCHES][32];
     uint32_t dataOut[MAX_DPI_PIXEL_LATCHES][32];
@@ -844,7 +844,17 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
 #endif
 }
 
+void DPIPixelsOutput::CopyShadowToAllPages() {
+    for (int page = 0; page < fb->PageCount(); page++) {
+        memcpy(fb->BufferPage(page), m_shadow, m_shadowCopyBytes);
+    }
+}
+
 int DPIPixelsOutput::SendData(unsigned char* channelData) {
+    // The page PrepData() targeted was being scanned out until the previous
+    // flip retired; make sure it has before overwriting it.
+    fb->WaitForPageFree();
+    memcpy(fb->BufferPage(fbPage), m_shadow, m_shadowCopyBytes);
 #ifdef USE_AUTO_SYNC
     if (fbPage >= 0) {
         // LogInfo(VB_CHANNELOUT, "%d - SendData() marking page dirty\n", fbPage);
@@ -962,6 +972,7 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     uint32_t pinsOn[MAX_DPI_PIXEL_LATCHES];
 
     fb->ClearAllPages();
+    memset(m_shadow, 0, fb->PageSize());
 
     // 16 FB pixels per third of WS bit gives us room to turn on/off 4 sets of latches
     fbPixelMult = 16; // @ 38.4Mhz, 1920 FB width
@@ -971,8 +982,9 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     // Each WS bit is split into three chunks of fbPixelMult FB pixels
     protoBitsPerLine = fb->Width() / (3 * fbPixelMult);
 
-    // Initialize to first FB pixel
-    protoDest = fb->BufferPage(0);
+    // Build the static template in the shadow page; it is copied to the
+    // (uncached) KMS pages below and only its middle thirds change afterwards.
+    protoDest = m_shadow;
 
     // Skip over the hsync/porch pad area
     protoDestExtra = fb->RowPadding();
@@ -1105,10 +1117,7 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
     LogInfo(VB_CHANNELOUT, "InitializeWS2811 Elapsed: %lld\n", elapsed);
 #endif
 
-    for (int p = 1; p < fb->PageCount(); p++) {
-        // Copy first page to rest of pages
-        memcpy(fb->BufferPage(p), fb->BufferPage(0), fb->PageSize());
-    }
+    CopyShadowToAllPages();
 
     fb->SyncDisplay(true);
     fb->NextPage();

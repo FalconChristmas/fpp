@@ -559,6 +559,17 @@ void KMSFrameBuffer::WaitForPendingFlip(int timeoutMs) {
     m_flipPending = false;
 }
 
+void KMSFrameBuffer::WaitForPageFree() {
+    if (m_pages == 1) {
+        return;
+    }
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    if (m_flipPending) {
+        int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
+        WaitForPendingFlip((1000 / vr) + 20);
+    }
+}
+
 void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
     if (!pageChanged || m_pages == 1)
         return;

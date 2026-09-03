@@ -49,6 +49,7 @@ public:
     virtual void DestroyFrameBuffer() override;
     virtual void SyncLoop() override;
     virtual void SyncDisplay(bool pageChanged = false) override;
+    virtual void WaitForPageFree() override;
 
     virtual void EnableDisplay() override;
     virtual void DisableDisplay() override;

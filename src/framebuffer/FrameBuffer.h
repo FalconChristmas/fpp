@@ -89,6 +89,11 @@ public:
     // Set the output refresh rate (fps).  Returns true when applied (or already
     // at that rate); a no-op returning false when unsupported.
     virtual bool SetRefreshRate(int fps) { return false; }
+    // Block until the page returned by Page() is no longer being scanned out,
+    // i.e. the previous SyncDisplay() flip has retired.  Lets a caller that
+    // prepares frames elsewhere copy into the free page without tearing.  The
+    // base class has no flip tracking, so this is a no-op.
+    virtual void WaitForPageFree() {}
 
     void FBStartDraw(ImageTransitionType transitionType = IT_Default);
 
