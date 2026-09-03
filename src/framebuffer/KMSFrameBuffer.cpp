@@ -566,7 +566,19 @@ void KMSFrameBuffer::WaitForPageFree() {
     std::unique_lock<std::mutex> lock(mediaOutputLock);
     if (m_flipPending) {
         int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
+        uint32_t timeoutsBefore = m_flipWaitTimeouts;
         WaitForPendingFlip((1000 / vr) + 20);
+        if (m_flipWaitTimeouts != timeoutsBefore) {
+            // The completion event never came, so it is unknown whether the
+            // hardware has switched pages yet.  A queued flip lands at the next
+            // vblank at the latest, so wait one out before the caller writes
+            // into the page it is about to leave.  Only the broken-flip path
+            // pays for this; the kernel bounds the wait itself.
+            drmVBlank vbl = {};
+            vbl.request.type = DRM_VBLANK_RELATIVE;
+            vbl.request.sequence = 1;
+            drmWaitVBlank(m_cardFd, &vbl);
+        }
     }
 }
 
