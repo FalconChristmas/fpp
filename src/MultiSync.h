@@ -188,6 +188,9 @@ public:
     bool sendStats = true;
 
     Json::Value toJSON() const;
+    // Build from a /api/cape style object (a remote's reply, or the local
+    // media/tmp/cape-info.json).  Result is valid+present.
+    static MultiSyncCapeInfo fromCapeJSON(const Json::Value& v);
 };
 
 // Identity synthesised from a device's MAC when it reports no UUID of its own.

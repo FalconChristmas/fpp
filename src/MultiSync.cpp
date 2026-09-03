@@ -284,6 +284,27 @@ Json::Value MultiSyncCapeInfo::toJSON() const {
     return v;
 }
 
+MultiSyncCapeInfo MultiSyncCapeInfo::fromCapeJSON(const Json::Value& v) {
+    MultiSyncCapeInfo cape;
+    cape.valid = true;
+    cape.present = true;
+    cape.id = v.get("id", "").asString();
+    cape.name = v.get("name", "").asString();
+    cape.description = v.get("description", "").asString();
+    cape.version = v.get("version", "").asString();
+    cape.designer = v.get("designer", "").asString();
+    // Absent (including on every unsigned cape) means no opt-out.
+    cape.sendStats = v.get("sendStats", 1).asInt() != 0;
+    if (JsonHas(v, "vendor") && v["vendor"].isObject()) {
+        const Json::Value& vendor = v["vendor"];
+        cape.vendorName = vendor.get("name", "").asString();
+        cape.vendorURL = vendor.get("url", "").asString();
+        cape.vendorEmail = vendor.get("email", "").asString();
+        cape.vendorImage = vendor.get("image", "").asString();
+    }
+    return cape;
+}
+
 Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
     Json::Value system;
 
@@ -692,6 +713,22 @@ bool MultiSync::FillLocalSystemInfo(void) {
     LogDebug(VB_SYNC, "Version: %s\n", newSystem.version.c_str());
     LogDebug(VB_SYNC, "Model: %s\n", newSystem.model.c_str());
 
+    // The local system's cape.  Remotes are probed for theirs over HTTP (see
+    // FetchCapeInfo); the local entry is never probed, so without this the
+    // systems list showed a cape on every box except the one serving the page.
+    // Same file the local /api/cape answers from; absent means no cape, which
+    // is an answer (present=false), not "unknown".
+    {
+        Json::Value capeJson;
+        std::string capeFile = FPP_DIR_MEDIA("/tmp/cape-info.json");
+        if (FileExists(capeFile) && LoadJsonFromFile(capeFile, capeJson) && capeJson.isObject()) {
+            newSystem.capeInfo = MultiSyncCapeInfo::fromCapeJSON(capeJson);
+        } else {
+            newSystem.capeInfo.valid = true;
+            newSystem.capeInfo.present = false;
+        }
+    }
+
     bool changed = false;
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
 
@@ -705,6 +742,7 @@ bool MultiSync::FillLocalSystemInfo(void) {
         for (auto& sys : m_localSystems) {
             if (sys.address == address) {
                 found = true;
+                sys.capeInfo = newSystem.capeInfo;
             }
         }
         if (!found) {
@@ -1800,22 +1838,7 @@ void MultiSync::FetchCapeInfo(const std::string& address) {
         MultiSyncCapeInfo cape;
         Json::Value v;
         if (rc == 200 && LoadJsonFromString(resp, v, JsonRoot::Object)) {
-            cape.valid = true;
-            cape.present = true;
-            cape.id = v.get("id", "").asString();
-            cape.name = v.get("name", "").asString();
-            cape.description = v.get("description", "").asString();
-            cape.version = v.get("version", "").asString();
-            cape.designer = v.get("designer", "").asString();
-            // Absent (including on every unsigned cape) means no opt-out.
-            cape.sendStats = v.get("sendStats", 1).asInt() != 0;
-            if (JsonHas(v, "vendor") && v["vendor"].isObject()) {
-                const Json::Value& vendor = v["vendor"];
-                cape.vendorName = vendor.get("name", "").asString();
-                cape.vendorURL = vendor.get("url", "").asString();
-                cape.vendorEmail = vendor.get("email", "").asString();
-                cape.vendorImage = vendor.get("image", "").asString();
-            }
+            cape = MultiSyncCapeInfo::fromCapeJSON(v);
         } else if (rc == 404) {
             // GetCapeInfo() answers 404 with {"id": "No Cape!"} when nothing is
             // installed.  Cache that: it is an answer, not a failure.  (An FPP
