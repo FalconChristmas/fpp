@@ -334,6 +334,24 @@ void NetworkController::DetectSanDevicesController(Detection* st) {
     typeStr = m[1];
     systemMode = BRIDGE_MODE;
 
+    // The status page states the board's MAC, so this costs no extra request --
+    // and unlike the ARP fallback in MultiSync it works for a board on another
+    // subnet.  Matched loosely across the intervening markup rather than against
+    // one firmware's exact table layout, which the version regexes below already
+    // have to be spelled twice to cope with.  Measured equal to the address ARP
+    // reports for the same board, so it shares the one identity namespace (see
+    // MultiSync::ApplyUUIDHint() for why that matters).
+    RegExCache macre("MAC Address:[\\s\\S]{0,64}?((?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2})");
+    std::smatch mm;
+    if (std::regex_search(st->html, mm, *macre.regex)) {
+        std::string mac = NormalizeMacAddress(mm[1].str());
+        if (!mac.empty()) {
+            // Same spelling MultiSync uses for an ARP-derived address, so a
+            // device keeps one identity however it was discovered.
+            uuid = MAC_UUID_PREFIX + mac;
+        }
+    }
+
     RegExCache v4re("Firmware Version:</th></td><td></td><td>([0-9]+.[0-9]+)</td>");
     RegExCache v5re("Firmware Version:</th></td><td>\\s?([0-9]+.[0-9]+)(-W\\d+)?</td>");
 
