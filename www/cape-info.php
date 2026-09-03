@@ -350,36 +350,80 @@ if (isset($settings["cape-info"])) {
             }
             return a == b || a.indexOf(b) === 0 || b.indexOf(a) === 0;
         }
+        var eepromIndexURL = 'https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromVendors.json';
+        function addEEPROMVendorList(eepromjson) {
+            if (typeof eepromjson === 'string') {
+                eepromjson = JSON.parse(eepromjson);
+            }
+            var vendName = eepromjson.name;
+            if ("url" in eepromjson) {
+                vendName += " (" + eepromjson.url + ")";
+            }
+            if (vendName in eepromList) {
+                return; // already added by the other path
+            }
+            eepromList[vendName] = eepromjson["capes"];
+            var options = "<option value='" + vendName + "'>" + vendName + '</option>';
+            $('#eepromVendorList').append(options);
+            $('#eepromVendorList').removeAttr('disabled');
+            $('#eepromVendorList').show();
+            // Default the dropdowns to the currently-installed cape (issue #2564).
+            // Vendor files load asynchronously, so attempt the match as each arrives.
+            if (!eepromCurrentVendorSelected && currentCapeVendor != ''
+                && eepromVendorNamesMatch(eepromjson.name, currentCapeVendor)) {
+                eepromCurrentVendorSelected = true;
+                $('#eepromVendorList').val(vendName).trigger("change");
+            }
+        }
+        // Browser-side fetch of the vendor lists named in an index object.
+        // Needs the vendor host in the CSP connect-src (see
+        // ManageApacheContentPolicy.sh) and CORS on the vendor host.
+        function fetchEEPROMVendorListsDirect(index, skipURLs) {
+            for (var vendor in index["vendors"]) {
+                var url = index["vendors"][vendor].url;
+                if (url && url != "" && skipURLs.indexOf(url) < 0) {
+                    $.get(url, addEEPROMVendorList);
+                }
+            }
+        }
         function GetDownloadableEEPROMList() {
-            $.get('https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromVendors.json', function (eepromVendors) {
-                if (typeof eepromVendors === 'string') {
-                    eepromVendors = JSON.parse(eepromVendors);
+            // Two ways to reach the vendor lists, because either side may be the
+            // one without internet: an offline show box is driven from an online
+            // laptop or phone, while a box that is online may be talking to a
+            // browser whose CSP/CORS rules block the vendor hosts.  So ask the box
+            // first (api/cape/eeprom/vendors fetches everything server-side, no
+            // CSP or CORS involved) and fall back to fetching directly from the
+            // browser for whatever the box could not get: individual vendor lists
+            // it reported errors for, or the whole index if the box is offline.
+            $.get('api/cape/eeprom/vendors').done(function (data) {
+                if (typeof data === 'string') {
+                    data = JSON.parse(data);
                 }
-                for (var vendor in eepromVendors["vendors"]) {
-                    if (eepromVendors["vendors"][vendor].url != "") {
-                        $.get(eepromVendors["vendors"][vendor].url, function (eepromjson) {
-                            if (typeof eepromjson === 'string') {
-                                eepromjson = JSON.parse(eepromjson);
-                            }
-                            var vendName = eepromjson.name;
-                            if ("url" in eepromjson) {
-                                vendName += " (" + eepromjson.url + ")";
-                            }
-                            eepromList[vendName] = eepromjson["capes"];
-                            var options = "<option value='" + vendName + "'>" + vendName + '</option>';
-                            $('#eepromVendorList').append(options);
-                            $('#eepromVendorList').removeAttr('disabled');
-                            $('#eepromVendorList').show();
-                            // Default the dropdowns to the currently-installed cape (issue #2564).
-                            // Vendor files load asynchronously, so attempt the match as each arrives.
-                            if (!eepromCurrentVendorSelected && currentCapeVendor != ''
-                                && eepromVendorNamesMatch(eepromjson.name, currentCapeVendor)) {
-                                eepromCurrentVendorSelected = true;
-                                $('#eepromVendorList').val(vendName).trigger("change");
-                            }
-                        });
+                var got = [];
+                for (var i = 0; i < data.vendors.length; i++) {
+                    addEEPROMVendorList(data.vendors[i]);
+                    got.push(data.vendors[i].listURL);
+                }
+                if (data.errors && data.errors.length) {
+                    console.info('EEPROM vendor lists the box could not fetch, trying from the browser: ' + data.errors.join('; '));
+                }
+                if (data.index) {
+                    fetchEEPROMVendorListsDirect(data.index, got);
+                } else {
+                    $.get(eepromIndexURL, function (index) {
+                        if (typeof index === 'string') {
+                            index = JSON.parse(index);
+                        }
+                        fetchEEPROMVendorListsDirect(index, got);
+                    });
+                }
+            }).fail(function () {
+                $.get(eepromIndexURL, function (index) {
+                    if (typeof index === 'string') {
+                        index = JSON.parse(index);
                     }
-                }
+                    fetchEEPROMVendorListsDirect(index, []);
+                });
             });
         }
 

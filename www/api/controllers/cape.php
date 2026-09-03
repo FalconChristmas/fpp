@@ -52,6 +52,105 @@ function GetCapeInfo()
 }
 
 /**
+ * Get the downloadable EEPROM lists of every known cape vendor
+ *
+ * Fetches the vendor index from fpp-data and then each vendor's own list, all
+ * server-side, so the browser makes one same-origin request.  Doing this from
+ * the browser needed every vendor host in the CSP connect-src AND sending CORS
+ * headers, and most vendor hosts do neither (issue seen with a vendor list
+ * hosted on the bare domain while the CSP carried the www. form).  The eeprom
+ * file itself was already downloaded server-side by upgradeCapeFirmware.
+ *
+ * @route GET /api/cape/eeprom/vendors
+ * @response 200 Vendor lists, each in the vendor's own file format
+ * ```json
+ * {"vendors": [{"name": "...", "url": "...", "capes": {...}}], "errors": ["..."]}
+ * ```
+ */
+function GetEEPROMVendorLists()
+{
+    $indexURL = 'https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromVendors.json';
+    $result = array('vendors' => array(), 'errors' => array());
+
+    $mkHandle = function ($url) {
+        $c = curl_init($url);
+        curl_setopt($c, CURLOPT_HEADER, 0);
+        curl_setopt($c, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($c, CURLOPT_TIMEOUT, 15);
+        curl_setopt($c, CURLOPT_USERAGENT, getFPPVersion());
+        curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($c, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($c, CURLOPT_MAXREDIRS, 3);
+        curl_setopt($c, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+        return $c;
+    };
+
+    $c = $mkHandle($indexURL);
+    $body = curl_exec($c);
+    $rc = curl_getinfo($c, CURLINFO_RESPONSE_CODE);
+    curl_close($c);
+    $index = ($body !== false && $rc == 200) ? json_decode($body, true) : null;
+    if (!is_array($index) || !isset($index['vendors']) || !is_array($index['vendors'])) {
+        $result['errors'][] = "Could not fetch the vendor index from $indexURL (HTTP $rc)";
+        $result['index'] = null;
+        return json($result);
+    }
+    $result['index'] = $index;
+
+    // Cache the index for the CSP generator, which adds every vendor list host
+    // to connect-src so the browser-side fallback (an offline box with an
+    // online browser) is allowed to fetch them directly.  Only when it changed,
+    // since applying it means a graceful apache reload.
+    global $settings, $fppDir, $SUDO;
+    $cacheFile = $settings['mediaDirectory'] . '/tmp/eepromVendors.json';
+    $old = file_exists($cacheFile) ? file_get_contents($cacheFile) : '';
+    if ($old !== $body) {
+        if (file_put_contents($cacheFile, $body) !== false) {
+            exec($SUDO . ' ' . escapeshellarg($fppDir . '/scripts/ManageApacheContentPolicy.sh') . ' regenerate > /dev/null 2>&1 &');
+        }
+    }
+
+    // One handle per vendor list, fetched concurrently so a slow vendor does not
+    // serialise behind the others; the per-handle timeout bounds the whole call.
+    $multi = curl_multi_init();
+    $handles = array();
+    foreach ($index['vendors'] as $vendor) {
+        $url = isset($vendor['url']) ? trim($vendor['url']) : '';
+        if ($url == '' || !preg_match('#^https?://#i', $url)) {
+            continue;
+        }
+        $h = $mkHandle($url);
+        curl_multi_add_handle($multi, $h);
+        $handles[] = array('url' => $url, 'handle' => $h);
+    }
+    do {
+        $status = curl_multi_exec($multi, $running);
+        if ($running) {
+            curl_multi_select($multi, 1.0);
+        }
+    } while ($running && $status == CURLM_OK);
+
+    foreach ($handles as $entry) {
+        $h = $entry['handle'];
+        $body = curl_multi_getcontent($h);
+        $rc = curl_getinfo($h, CURLINFO_RESPONSE_CODE);
+        $err = curl_error($h);
+        curl_multi_remove_handle($multi, $h);
+        curl_close($h);
+        $list = ($body !== false && $body !== null && $rc == 200) ? json_decode($body, true) : null;
+        if (!is_array($list) || !isset($list['capes'])) {
+            $result['errors'][] = $entry['url'] . ': ' . ($err != '' ? $err : "HTTP $rc or not a cape list");
+            continue;
+        }
+        $list['listURL'] = $entry['url'];
+        $result['vendors'][] = $list;
+    }
+    curl_multi_close($multi);
+
+    return json($result);
+}
+
+/**
  * Get cape options
  *
  * Returns a list of available cape EEPROM options for the current platform.

@@ -17,7 +17,7 @@ JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 declare -A DEFAULT_VALUES
 DEFAULT_VALUES=( 
     ["default-src"]="'self' http://www.w3.org"
-    ["connect-src"]="'self' https://raw.githubusercontent.com https://ipapi.co https://kulplights.com https://www.hansonelectronics.com.au https://www.wiredwatts.com https://fppstats.falconchristmas.com https://api.falconplayer.com https://api.github.com"
+    ["connect-src"]="'self' https://raw.githubusercontent.com https://ipapi.co https://kulplights.com https://www.kulplights.com https://hansonelectronics.com.au https://www.hansonelectronics.com.au https://wiredwatts.com https://www.wiredwatts.com https://fppstats.falconchristmas.com https://api.falconplayer.com https://api.github.com"
     ["object-src"]="'none' "
     ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
     ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
@@ -104,6 +104,36 @@ detectCapeDomains() {
 
     # Output the distinct URLs
     echo "${distinct_urls[@]}"
+}
+
+# Origins of the EEPROM vendor lists (cape-info.php's downloadable EEPROM
+# dropdown).  The list of vendors lives in fpp-data and changes without an FPP
+# release, so the index is cached by /api/cape/eeprom/vendors whenever the box
+# can reach it and read from there.  Each origin is emitted in both its bare
+# and www. form: a vendor list that 301-redirects between the two is fetched by
+# the browser only if the redirect target is allowed too (seen with a vendor
+# whose index URL is www. and whose site redirects to the bare domain).
+detectEEPROMVendorDomains() {
+    if [ ! -f $MEDIADIR/tmp/eepromVendors.json ]; then
+        return
+    fi
+    local origins
+    origins=$(jq -r '.vendors | (if type == "object" then to_entries | map(.value) else . end) | .[] | .url // empty' $MEDIADIR/tmp/eepromVendors.json 2>/dev/null | sed -n 's|^\(https\?://[^/]*\).*|\1|p')
+    local out=()
+    local o host scheme
+    for o in $origins; do
+        scheme="${o%%://*}"
+        host="${o#*://}"
+        out+=("$o")
+        # Pair bare and www. forms only for a plain two-label host (or its www.
+        # form); a deeper host like raw.githubusercontent.com has no www. twin.
+        if [[ "$host" == www.* ]]; then
+            out+=("$scheme://${host#www.}")
+        elif [[ "$host" =~ ^[^.]+\.[^.]+$ ]]; then
+            out+=("$scheme://www.$host")
+        fi
+    done
+    printf "%s\n" "${out[@]}" | sort -u | tr '\n' ' '
 }
 
 # Function to detect all IPv4 /24 subnets related to the interfaces the device is using
@@ -223,6 +253,12 @@ generate_csp() {
     if [ -n "$cape_domains" ]; then
         combined_values["img-src"]="${combined_values["img-src"]} $cape_domains"
         combined_values["connect-src"]="${combined_values["connect-src"]} $cape_domains"
+    fi
+
+    # EEPROM vendor list hosts (browser-side fallback fetch in cape-info.php)
+    eeprom_domains=$(detectEEPROMVendorDomains)
+    if [ -n "$eeprom_domains" ]; then
+        combined_values["connect-src"]="${combined_values["connect-src"]} $eeprom_domains"
     fi
 
     # Allow WebSocket connections to all local interfaces (any port)
