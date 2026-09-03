@@ -85,8 +85,38 @@ constexpr int SAP_VERSION                  = 1;
 constexpr int SAP_ANNOUNCE_INTERVAL_S      = 30;
 constexpr int SAP_TTL                      = 255;
 
+// Largest RTP packet we will emit.  AES67 forbids IP fragmentation, so one
+// ptime of audio has to fit in a single datagram: 1500 (Ethernet MTU) - 20
+// (IPv4) - 8 (UDP) = 1472 bytes of RTP.  1440 keeps headroom for the RTP
+// header and for a VLAN tag or tunnel on the path.  GStreamer's payloader
+// defaults to 1400 and SPLITS anything larger, which silently breaks the
+// min-ptime=max-ptime contract and emits packets that do not match the
+// a=ptime we advertise -- so we always set this explicitly.
+constexpr int MAX_RTP_PACKET_BYTES = 1440;
+
+// L24 is 3 bytes per sample per channel.
+inline int L24PayloadBytes(int ptime, int channels) {
+    return ptime * (AUDIO_RATE / 1000) * channels * 3;
+}
+
 // Valid AES67 ptimes
 inline bool IsValidPtime(int ptime) { return ptime == 1 || ptime == 4; }
+
+// The largest valid ptime whose payload still fits in one datagram at this
+// channel count.  At 8 channels, 4ms of L24 is 4608 bytes -- over three
+// times the limit -- so anything above stereo is 1ms only:
+//
+//   ch    1ms     4ms
+//    2    288     1152
+//    4    576     2304  (too big)
+//    6    864     3456  (too big)
+//    8   1152     4608  (too big)
+//
+// 1ms is also the packet time Dante requires when receiving an AES67 flow,
+// so it is the safe choice for interoperability as well as for MTU.
+inline int MaxPtimeForChannels(int channels) {
+    return (L24PayloadBytes(4, channels) + 12 <= MAX_RTP_PACKET_BYTES) ? 4 : 1;
+}
 
 // Channel position names for SDP
 const char* GetSDPChannelNames(int channels);

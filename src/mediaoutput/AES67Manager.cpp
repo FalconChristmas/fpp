@@ -295,6 +295,27 @@ bool AES67Manager::LoadConfig() {
                 inst.ptime = AES67::DEFAULT_PTIME_MS;
             }
 
+            // ...then against the channel count.  These are independent
+            // dropdowns in the UI with no interlock, and most of their
+            // combinations describe a packet that cannot be sent: 4ms of L24
+            // is 2304 bytes at 4 channels and 4608 at 8, against a 1440-byte
+            // limit.  Left alone the payloader quietly splits each one, so
+            // the receiver gets several short packets per ptime instead of
+            // the single one a=ptime promises.  Clamping is better than
+            // failing -- the stream stays up and stays legal -- but it is a
+            // config error, so say so at a level the user will see.
+            int maxPtime = AES67::MaxPtimeForChannels(inst.channels);
+            if (inst.ptime > maxPtime) {
+                LogWarn(VB_MEDIAOUT,
+                        "AES67Manager: instance '%s' asks for %dms ptime at %d channels, "
+                        "which is %d bytes of L24 -- over the %d-byte packet limit. "
+                        "Using %dms instead.\n",
+                        inst.name.c_str(), inst.ptime, inst.channels,
+                        AES67::L24PayloadBytes(inst.ptime, inst.channels),
+                        AES67::MAX_RTP_PACKET_BYTES, maxPtime);
+                inst.ptime = maxPtime;
+            }
+
             cfg.instances.push_back(inst);
         }
     }
@@ -1843,6 +1864,11 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                 ? ("! audiobuffersplit output-buffer-duration=" +
                    std::to_string(inst.ptime) + "/1000 ") : "")
         << "! rtpL24pay name=pay pt=" << AES67::RTP_PAYLOAD_TYPE
+        // Explicit, not GStreamer's 1400 default: the payloader silently
+        // splits a payload larger than this, which would contradict the
+        // min-ptime=max-ptime pair right below.  ParseConfig has already
+        // clamped ptime so one packet fits.
+        << " mtu=" << AES67::MAX_RTP_PACKET_BYTES
         << " min-ptime=" << ptimeNs
         << " max-ptime=" << ptimeNs
         // timestamp-offset=0 anchors the RTP timeline to PTP (see the media

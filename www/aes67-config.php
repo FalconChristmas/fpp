@@ -640,7 +640,7 @@
                 // Channels
                 html += '<div>';
                 html += '<label>Audio Channels' + HelpIcon('Number of audio channels in this AES67 stream. Standard AES67 supports up to 8 channels per stream. Most use cases need 2 (stereo).') + '</label>';
-                html += '<select class="form-select form-select-sm" onchange="UpdateField(' + index + ', \'channels\', parseInt(this.value))">';
+                html += '<select class="form-select form-select-sm" onchange="UpdateChannels(' + index + ', parseInt(this.value))">';
                 var chOpts = [
                     { v: 2, l: '2 (Stereo)' }, { v: 4, l: '4' },
                     { v: 6, l: '6 (5.1)' }, { v: 8, l: '8 (7.1)' }
@@ -665,11 +665,16 @@
 
                 // Packet Time (ptime)
                 html += '<div>';
-                html += '<label>Packet Time (ptime)' + HelpIcon('Audio packetization interval in milliseconds. AES67 supports 1ms (low latency, higher CPU) or 4ms (common, more compatible). Must match between sender and receiver. Default is 4ms.') + '</label>';
+                html += '<label>Packet Time (ptime)' + HelpIcon('Audio packetization interval in milliseconds. 1ms is mandatory for all AES67 devices and is what Dante requires; 4ms is optional and lower CPU. 4ms is only available in stereo -- at 4 or more channels it will not fit in one packet. Must match between sender and receiver.') + '</label>';
                 html += '<select class="form-select form-select-sm" onchange="UpdateField(' + index + ', \'ptime\', parseInt(this.value))">';
+                // 4ms of L24 is 576 bytes per channel: fine in stereo (1152),
+                // over the 1440-byte packet limit from 4 channels up (2304).
+                // fppd clamps this anyway, so disable rather than mislead.
+                var wideOk = (inst.channels || 2) <= 2;
                 var ptimeVal = inst.ptime || 4;
+                if (!wideOk) { ptimeVal = 1; }
                 html += '<option value="1"' + (ptimeVal === 1 ? ' selected' : '') + '>1 ms (low latency)</option>';
-                html += '<option value="4"' + (ptimeVal === 4 ? ' selected' : '') + '>4 ms (default)</option>';
+                html += '<option value="4"' + (ptimeVal === 4 ? ' selected' : '') + (wideOk ? '' : ' disabled') + '>4 ms' + (wideOk ? ' (default)' : ' (stereo only)') + '</option>';
                 html += '</select>';
                 html += '</div>';
 
@@ -924,6 +929,17 @@
                 if (field === 'mode' || field === 'name') {
                     RenderInstances();
                 }
+            }
+
+            // Channel count constrains ptime: 4ms only fits in a single
+            // packet in stereo.  Drop to 1ms and re-render so the select
+            // shows what is actually in effect.
+            function UpdateChannels(index, value) {
+                aes67Data.instances[index].channels = value;
+                if (value > 2 && (aes67Data.instances[index].ptime || 4) > 1) {
+                    aes67Data.instances[index].ptime = 1;
+                }
+                RenderInstances();
             }
 
             function UpdatePTPEnabled(enabled) {
