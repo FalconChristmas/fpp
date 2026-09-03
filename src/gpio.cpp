@@ -572,6 +572,17 @@ void GPIOManager::addState(GPIOState* state) {
         if (wantRising || wantFalling) {
             wantRising = wantFalling = true;
         }
+        // A raw callback registration (eFuse status lines, etc.) has no actions,
+        // so neither edge is "wanted" above. Requesting a line with no edge
+        // detection still succeeds under libgpiod v2 and hands back an fd that
+        // never becomes readable, which parked the callback in eventStates
+        // where it could never fire. (Under v1 that request had no event fd, so
+        // it fell through to polling and worked.) Ask for both edges; if the
+        // line cannot do events, requestEventFile() returns -1 and the state
+        // lands in the polling list as before.
+        if (state->hasCallback) {
+            wantRising = wantFalling = true;
+        }
         state->file = state->pin->requestEventFile(wantRising, wantFalling);
     } else {
         state->file = -1;

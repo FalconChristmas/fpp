@@ -26,24 +26,6 @@
 
 #include "common_mini.h"
 
-static int getSettingInt() {
-    if (!FileExists("/home/fpp/media/settings")) {
-        return 0;
-    }
-    std::string c = GetFileContents("/home/fpp/media/settings");
-    size_t idx = c.find("piRTC = ");
-    if (idx != std::string::npos) {
-        uint8_t ch = c[idx + 9] - '0';
-        uint8_t ch2 = c[idx + 10];
-        if (ch2 != '\"' && ch2 != '\n' && ch2 != '\r') {
-            ch *= 10;
-            ch += ch2 - '0';
-        }
-        return ch;
-    }
-    return 0;
-}
-
 static int getBus() {
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
     return 2;
@@ -110,7 +92,10 @@ static void removeI2CDevice(const std::string& dev, int bus) {
 }
 
 static bool setupRTC(std::string& devAd, bool newDev) {
-    int ledType = getSettingInt();
+    // common_mini's parser handles both the quoted and unquoted forms of
+    // the settings file; the old local copy only handled quoted values and
+    // returned garbage for `piRTC = 5`, so no RTC was ever configured.
+    int ledType = getRawSettingInt("piRTC", 0);
 
     int bus = getBus();
     switch (ledType) {
