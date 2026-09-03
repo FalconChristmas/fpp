@@ -524,7 +524,29 @@ void NetworkController::DetectAlphaPixController(Detection* st) {
     RegExCache re2("(\\d+) Port Ethernet to SPI Controller");
     std::smatch m, m2;
 
-    if ((!std::regex_search(st->html, m, *re.regex)) && (!std::regex_search(st->html, m2, *re2.regex))) {
+    // These boards serve one client at a time.  While another computer holds
+    // the session every page, this one included, is replaced by a stub that
+    // names no model and no version -- so without this the board matches
+    // nothing, is dropped as an unrecognised address, and simply vanishes from
+    // discovery with nothing said about why.  Claim it anyway: an AlphaPix with
+    // no detail is far more use to somebody looking for a missing controller
+    // than no row at all, and the log line names the actual cause.
+    if (contains(st->html, "Existing user login")) {
+        LogWarn(VB_SYNC, "%s looks like an AlphaPix whose web session is held by another client; "
+                         "no model or version can be read until that session is released\n",
+                st->ip.c_str());
+        vendor = "HolidayCoro";
+        vendorURL = "https://www.holidaycoro.com/";
+        typeId = kSysTypeAlphaPix;
+        typeStr = "AlphaPix";
+        systemMode = BRIDGE_MODE;
+        DumpControllerInfo();
+        st->matched();
+        return;
+    }
+
+    bool matchedModel = std::regex_search(st->html, m, *re.regex);
+    if (!matchedModel && !std::regex_search(st->html, m2, *re2.regex)) {
         st->noMatch();
         return;
     }
@@ -534,11 +556,20 @@ void NetworkController::DetectAlphaPixController(Detection* st) {
     vendor = "HolidayCoro";
     vendorURL = "https://www.holidaycoro.com/";
     typeId = kSysTypeAlphaPix;
-    typeStr = m[1];
+    // Read from whichever pattern actually matched.  This took m[1]
+    // unconditionally, but m holds the result of the FAILED search whenever the
+    // model is named only as "<n> Port Ethernet to SPI Controller" -- so every
+    // board whose page uses that wording alone was typed as an empty string.
+    typeStr = matchedModel ? m[1].str() : m2[1].str();
     systemMode = BRIDGE_MODE;
 
     RegExCache vre("Currently Installed Firmware Version:  ([0-9]+.[0-9]+)");
 
+    // The version is reported when it can be read, but is NOT what decides
+    // whether this is an AlphaPix -- the model above already settled that.
+    // Requiring it here meant a board whose page states a model but spells the
+    // version differently (the 2.16+ web UI is a different layout) was rejected
+    // outright rather than reported without a version.
     if (std::regex_search(st->html, m, *vre.regex)) {
         version = m[1];
 
@@ -550,13 +581,10 @@ void NetworkController::DetectAlphaPixController(Detection* st) {
                 minorVersion = atoi(version.substr(verDot + 1).c_str());
             }
         }
-
-        DumpControllerInfo();
-        st->matched();
-        return;
     }
 
-    st->noMatch();
+    DumpControllerInfo();
+    st->matched();
 }
 
 void NetworkController::DetectHinksPixController(Detection* st) {
