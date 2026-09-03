@@ -27,6 +27,11 @@ ExecStartPost=-/opt/fpp/src/fppinit bootPost
 ExecReload=/opt/fpp/src/fpp -r
 Restart=always
 TimeoutStopSec=15
+# The AES67 sender raises its packet-pacing thread to SCHED_FIFO; without a
+# ceiling here that call fails with EPERM and the stream transmits packets up
+# to a full ptime late every few thousand.  95 matches the PipeWire units.
+# It is a ceiling, not a request -- nothing runs RT unless it asks.
+LimitRTPRIO=95
 
 
 [Install]

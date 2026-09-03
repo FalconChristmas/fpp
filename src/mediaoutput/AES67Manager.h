@@ -59,6 +59,22 @@ constexpr int DEFAULT_LATENCY_MS    = 10;
 constexpr int AUDIO_DSCP             = 34;      // AF41 -- RTP audio (udpsink qos-dscp)
 constexpr int PTP_DSCP                = 46;     // EF   -- PTP event/general messages (ptp4l dscp_event/dscp_general)
 
+// SCHED_FIFO priority for the thread that paces RTP packets onto the wire.
+//
+// Left at SCHED_OTHER nice 0 this thread misses a timeslice every few
+// thousand packets, and each miss is a packet transmitted up to a full ptime
+// late.  Measured over 60k packets at 4ms ptime: worst-case lateness 8.6ms
+// and 0.08% of packets past the 1ms AES67 recommends, versus 0.64ms worst
+// case and none past 1ms once the thread is SCHED_FIFO.  The load average
+// was 0.24 on 4 cores in both runs -- this is wakeup latency, not
+// contention, so no amount of spare CPU fixes it.
+//
+// 80 sits deliberately below the 88 PipeWire gives its data-loop: if both
+// are ever runnable at once the audio graph must win, because starving it
+// underruns every stream on the box, not just this one.  Kernel RT
+// throttling (sched_rt_runtime_us, 95% by default) is the backstop.
+constexpr int SINK_RT_PRIORITY       = 80;
+
 // PTP (IEEE 1588) profile defaults
 constexpr int DEFAULT_PTP_DOMAIN     = 0;
 

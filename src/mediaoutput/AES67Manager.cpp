@@ -2288,6 +2288,45 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         if (snk) gst_object_unref(snk);
     }
 
+    // Raise the packet-pacing thread to SCHED_FIFO.  GStreamer creates this
+    // thread itself and offers no way to set its scheduling, so we take the
+    // one opportunity we have to run code on it: a probe fires on the
+    // streaming thread, so the first buffer through can elevate the thread
+    // that carried it.  The probe removes itself immediately afterwards and
+    // costs nothing for the rest of the stream.
+    //
+    // This is not a splitClockDomains refinement -- an unpaced tail is worse
+    // in every mode -- so it is unconditional.  EPERM is expected and
+    // survivable: fppd.service sets LimitRTPRIO, but a hand-started fppd or
+    // a container without CAP_SYS_NICE will not have it, and the stream is
+    // still conformant without it, just with a wider tail.
+    {
+        GstElement* snk = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
+        GstPad* kp = snk ? gst_element_get_static_pad(snk, "sink") : nullptr;
+        if (kp) {
+            gst_pad_add_probe(
+                kp, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad*, GstPadProbeInfo*, gpointer user) -> GstPadProbeReturn {
+                    const int id = GPOINTER_TO_INT(user);
+                    if (SetThreadRealtimePriority(AES67::SINK_RT_PRIORITY)) {
+                        LogInfo(VB_MEDIAOUT,
+                                "AES67 send [%d]: pacing thread raised to "
+                                "SCHED_FIFO %d\n", id, AES67::SINK_RT_PRIORITY);
+                    } else {
+                        LogWarn(VB_MEDIAOUT,
+                                "AES67 send [%d]: could not raise pacing thread to "
+                                "SCHED_FIFO %d (%s); packets will occasionally "
+                                "transmit up to a ptime late\n",
+                                id, AES67::SINK_RT_PRIORITY, strerror(errno));
+                    }
+                    return GST_PAD_PROBE_REMOVE;
+                },
+                GINT_TO_POINTER(inst.id), nullptr);
+            gst_object_unref(kp);
+        }
+        if (snk) gst_object_unref(snk);
+    }
+
     // Always on: see SourceGapProbe.  Costs one comparison per buffer and is
     // silent unless the source actually skips a cycle.
     {
