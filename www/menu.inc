@@ -167,24 +167,34 @@ function list_plugin_entries($menu)
                     <div class="capeVendorLogo">
                         <a href="<? echo $landing; ?>" id="capeVendorLink" target="capeVendor"></a>
                         <script>
-                            const url = '<? echo $iurl; ?>';
-                            var request = new XMLHttpRequest();
-                            request.open('GET', url, true);
-                            request.responseType = "arraybuffer";
-                            request.onload = function (e) {
-                                var arrayBufferView = new Uint8Array(this.response);
-                                var blob = new Blob([arrayBufferView], { type: "image/jpeg" });
-                                var urlCreator = window.URL || window.webkitURL;
-                                var imageUrl = urlCreator.createObjectURL(blob);
-                                const img = new Image();
-                                img.onload = function () {
-                                    img.classList.add("logo")
-                                    img.setAttribute("alt", "Cape Logo");
-                                    $("#capeVendorLink").append(img);
+                            // Load the vendor logo only after the page's own load
+                            // event: an <img> in the markup would hold that event
+                            // (and everything waiting on it) hostage to a DNS/connect
+                            // timeout when the vendor host is unreachable, which is
+                            // the normal state of an offline show box.  An image
+                            // created afterwards fetches asynchronously, delays
+                            // nothing, and unlike the XHR this used to be it is not
+                            // subject to CORS, so a vendor host that doesn't send
+                            // Access-Control-Allow-Origin (most don't) still works.
+                            // Failure is silent by design: no logo, nothing else.
+                            (function () {
+                                const url = '<? echo $iurl; ?>';
+                                const load = function () {
+                                    const img = new Image();
+                                    img.onload = function () {
+                                        img.classList.add("logo");
+                                        img.setAttribute("alt", "Cape Logo");
+                                        $("#capeVendorLink").append(img);
+                                    };
+                                    img.onerror = function () { };
+                                    img.src = url;
                                 };
-                                img.src = imageUrl;
-                            };
-                            request.send();
+                                if (document.readyState === "complete") {
+                                    load();
+                                } else {
+                                    window.addEventListener("load", load, { once: true });
+                                }
+                            })();
                         </script>
                     </div>
                 </div>

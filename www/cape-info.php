@@ -1037,6 +1037,7 @@ if (isset($settings["cape-info"])) {
                                                                     echo "<tr><td><b>Support Forum:</b></td><td><a href=\"" . $currentCapeInfo['vendor']['forum'] . "\">" . $currentCapeInfo['vendor']['forum'] . "</td></tr>";
                                                                 }
                                                                 if (isset($currentCapeInfo['vendor']['image']) && $settings['FetchVendorLogos']) {
+                                                                    $iurl = $currentCapeInfo['vendor']['image'];
                                                                     if ($settings['SendVendorSerial'] == 1) {
                                                                         $iurl = $currentCapeInfo['vendor']['image'] . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
                                                                     }
