@@ -6,7 +6,10 @@
 #include "I2C.h"
 #include "RobotoFont-14.h"
 #include "SSD1306_OLED.h"
+#include "../common.h"
 #include "../log.h"
+#include <chrono>
+#include <thread>
 
 extern I2C_DeviceT I2C_DEV_2;
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
@@ -44,9 +47,30 @@ int SSD1306DisplayDriver::getHeight() {
     return LED_DISPLAY_HEIGHT;
 }
 
+// fppoled starts from sysinit.target, before udev/modules-load has created the
+// i2c device nodes, so the first open of the display bus failed at every boot
+// and the panel only came up on the retry after cape detection.  Wait for the
+// node instead: load i2c-dev ourselves (usually enough on its own, ~100ms)
+// and poll for up to 30s so a slow boot is covered without blocking forever
+// on a box that has no I2C at all.
+static void waitForI2CDevice(const char* path) {
+    if (FileExists(path)) {
+        return;
+    }
+    LogInfo(VB_GENERAL, "Waiting for %s to appear\n", path);
+    system("/sbin/modprobe i2c-dev > /dev/null 2>&1");
+    for (int i = 0; i < 300 && !FileExists(path); i++) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    if (!FileExists(path)) {
+        LogWarn(VB_GENERAL, "%s did not appear within 30s\n", path);
+    }
+}
+
 bool SSD1306DisplayDriver::initialize(int& i2cBus) {
+    waitForI2CDevice(I2C_DEV_PATH);
     if (init_i2c_dev2(I2C_DEV_PATH, SSD1306_OLED_ADDR) != 0) {
-        LogErr(VB_GENERAL, "(Main)i2c: OOPS! Something Went Wrong\n");
+        LogErr(VB_GENERAL, "(Main)i2c: could not open %s for the display at 0x%02x\n", I2C_DEV_PATH, SSD1306_OLED_ADDR);
         return false;
     }
     if (ledType && display_Init_seq()) {
