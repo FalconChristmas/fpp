@@ -48,6 +48,16 @@
 
 #define POSITION_TO_BITMASK(x) (0x000001 << (x))
 
+// Blank scanlines at the top of every frame, before the first WS bit.  The
+// very first FB pixel of a frame is the first third of channel 0's MSB, i.e.
+// the first pixel's red MSB, and it is emitted at the moment the scan-out
+// pipeline restarts after vertical blanking (display list reload, DMA/FIFO
+// priming).  Any stretch of that first high period there reads as a 1 on
+// pixels with a tight T0H threshold: a red first pixel.  Starting the frame
+// with fully low lines moves the pipeline start-up into the reset gap where
+// it cannot matter.  Costs ~50us of low per row, which only lengthens reset.
+constexpr int DPI_LEAD_ROWS = 2;
+
 // Uncomment to log elapsed time in PrepData()
 // #define LOG_ELAPSED_TIME
 // Uncomment to enable the HSync (P1-5) and VSync (P1-3) pins for logic analyzing
@@ -489,7 +499,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
     constexpr int DPI_MAX_CHANNELS = 4800;    // onOffMask[][4800] limit (1600 pixels)
     int cappedChannels = std::min(longestString, DPI_MAX_CHANNELS);
     int dataRows = (cappedChannels + DPI_CHANNELS_PER_ROW - 1) / DPI_CHANNELS_PER_ROW;
-    int neededRows = dataRows + DPI_RESET_ROWS;
+    int neededRows = DPI_LEAD_ROWS + dataRows + DPI_RESET_ROWS;
 
     Json::Value fbConfig;
     // Width 0 => use the connector's (1920) width.  Height is our computed row
@@ -541,7 +551,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "The framebuffer device %s was opened successfully.\n", device.c_str());
 
     m_shadow = (uint8_t*)calloc(1, fb->PageSize());
-    m_shadowCopyBytes = std::min(fb->PageSize(), dataRows * fb->RowStride());
+    m_shadowCopyBytes = std::min(fb->PageSize(), (DPI_LEAD_ROWS + dataRows) * fb->RowStride());
 
     // Highest refresh rate this string length allows.  KMS starts the display at
     // that rate (minimal blanking); the actual rate is lowered per-sequence to
@@ -779,9 +789,10 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
         }
     }
 
-    // Start at front of the shadow page but skip the first third of the WS bit
-    // which is already populated and doesn't change
-    protoDest = m_shadow + (fbPixelMult * fb->BytesPerPixel());
+    // Start at the first data row of the shadow page (after the blank lead
+    // rows) but skip the first third of the WS bit which is already populated
+    // and doesn't change
+    protoDest = m_shadow + (DPI_LEAD_ROWS * fb->RowStride()) + (fbPixelMult * fb->BytesPerPixel());
 
     uint32_t dataIn[MAX_DPI_PIXEL_LATCHES][32];
     uint32_t dataOut[MAX_DPI_PIXEL_LATCHES][32];
@@ -1008,7 +1019,8 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
 
     // Build the static template in the shadow page; it is copied to the
     // (uncached) KMS pages below and only its middle thirds change afterwards.
-    protoDest = m_shadow;
+    // The lead rows stay all-zero so the frame starts with a fully low line.
+    protoDest = m_shadow + (DPI_LEAD_ROWS * fb->RowStride());
 
     // Skip over the hsync/porch pad area
     protoDestExtra = fb->RowPadding();
