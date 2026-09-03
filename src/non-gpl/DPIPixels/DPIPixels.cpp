@@ -58,6 +58,19 @@
 // it cannot matter.  Costs ~50us of low per row, which only lengthens reset.
 constexpr int DPI_LEAD_ROWS = 2;
 
+// FB pixels the non-latched WS bit stays high before its data section, i.e.
+// the 0-bit high time in 26ns steps.  The bit cell is 48 px: this many high,
+// then 16 px of data (high for a 1) written by PrepData(), then low.  12 gives
+// T0H 312ns / T1H 729ns, which is what FPP's PRU string drivers have shipped
+// for years (320/750) and sits inside every datasheet window: WS2811 wants a
+// 0-bit high of 100-400ns, SK6812/WS2815 150-450, WS2812B 250-550.  The old
+// even thirds gave 417ns, outside the WS2811 window, and the first pixel on a
+// string of older WS2811 parts (the only one that sees the Pi's raw edge,
+// every later pixel gets a regenerated one) would randomly read 0 bits as 1.
+// The latched layout keeps its 16/16/16 thirds: its 4-latch pulse train needs
+// the 16 px phases.
+constexpr int DPI_T0H_PX = 12;
+
 // Uncomment to log elapsed time in PrepData()
 // #define LOG_ELAPSED_TIME
 // Uncomment to enable the HSync (P1-5) and VSync (P1-3) pins for logic analyzing
@@ -792,7 +805,8 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     // Start at the first data row of the shadow page (after the blank lead
     // rows) but skip the first third of the WS bit which is already populated
     // and doesn't change
-    protoDest = m_shadow + (DPI_LEAD_ROWS * fb->RowStride()) + (fbPixelMult * fb->BytesPerPixel());
+    protoDest = m_shadow + (DPI_LEAD_ROWS * fb->RowStride()) +
+                ((usingLatches ? fbPixelMult : DPI_T0H_PX) * fb->BytesPerPixel());
 
     uint32_t dataIn[MAX_DPI_PIXEL_LATCHES][32];
     uint32_t dataOut[MAX_DPI_PIXEL_LATCHES][32];
@@ -1116,18 +1130,18 @@ bool DPIPixelsOutput::InitializeWS281x(void) {
                         onOff = 0xFFFFFF;
                     }
 
-                    // Update FB pixels making up the first third of the WS bit.
-                    // These FB pixel will never be modified again.
-                    for (int i = 0; i < fbPixelMult; i++) {
+                    // Update the FB pixels making up the leading high of the WS
+                    // bit (T0H).  These FB pixels will never be modified again.
+                    for (int i = 0; i < DPI_T0H_PX; i++) {
                         *(protoDest++) = (onOff >> 16);
                         *(protoDest++) = (onOff >> 8);
                         *(protoDest++) = (onOff);
                     }
 
-                    // Skip over the last two-thirds of the current WS bit.
-                    // The middle third will get updated by in PrepData() later
-                    // and the last two-thirds is always 0x000000 for the low.
-                    protoDest += fb->BytesPerPixel() * fbPixelMult * 2;
+                    // Skip over the rest of the current WS bit.  The 16 px data
+                    // section right after the leading high gets updated in
+                    // PrepData() later and the remainder is always 0x000000.
+                    protoDest += fb->BytesPerPixel() * (fbPixelMult * 3 - DPI_T0H_PX);
                 }
 
                 y++;
