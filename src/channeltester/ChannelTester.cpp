@@ -568,10 +568,13 @@ int ChannelTester::SetupTestInternal(const Json::Value& config) {
     }
 
     // Matches the coverage of the original pthread_mutex_unlock() here:
-    // m_configStr is intentionally set outside the lock.
+    // m_configStr is intentionally set outside m_testLock.
     lock.unlock();
 
-    m_configStr = SaveJsonToString(config);
+    {
+        std::lock_guard<std::mutex> cl(m_configLock);
+        m_configStr = SaveJsonToString(config);
+    }
     return result;
 }
 
@@ -606,5 +609,21 @@ int ChannelTester::Testing(void) {
 std::string ChannelTester::GetConfig(void) {
     if (!m_testPattern)
         return std::string("{ \"enabled\": 0 }");
+    std::lock_guard<std::mutex> cl(m_configLock);
     return m_configStr;
+}
+
+Json::Value ChannelTester::GetStatusJson(void) {
+    Json::Value result;
+    if (!m_testPattern)
+        return result;
+    std::string cfg;
+    {
+        std::lock_guard<std::mutex> cl(m_configLock);
+        cfg = m_configStr;
+    }
+    if (!LoadJsonFromString(cfg, result) || !result.isObject())
+        return Json::Value();
+    result.removeMember("config");
+    return result;
 }

@@ -33,6 +33,11 @@ public:
     int Testing(void);
 
     std::string GetConfig(void);
+    // The running test's config as JSON for the /fppd/status payload.  Returns
+    // an empty (null) value when no test is running.  The bulky per-output
+    // "config" blob some tests carry is omitted; status readers only need to
+    // know which test is running.
+    Json::Value GetStatusJson(void);
 
     void RegisterCommands();
     HttpResponsePtr render_GET(const HttpRequestPtr& req);
@@ -47,5 +52,9 @@ private:
 
     TestPatternBase* m_testPattern;
     std::mutex m_testLock;
+    // Guards m_configStr only.  Written at the end of SetupTestInternal() and
+    // read from HTTP/WebSocket threads; it is deliberately not m_testLock so a
+    // status build never waits on the output loop.
+    std::mutex m_configLock;
     std::string m_configStr;
 };

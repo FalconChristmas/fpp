@@ -13377,6 +13377,53 @@ function OnSystemStatusChange (funcToCall) {
 }
 
 /*
+ * Keep an output test "Testing" dropdown in step with the test fppd is actually
+ * running.  fppd reports the running test in the status payload as testMode
+ * (same shape as api/testmode), so this follows a test started, changed or
+ * stopped from any tab or device -- and restores the dropdown on page load,
+ * since the first status snapshot arrives right after the WebSocket connects.
+ *
+ * selectId    -- id of the <select> whose option values are the test "type"s
+ * outputTypes -- the "outputs" names this page's tests are started with.  Pixel,
+ *                panel and PWM tests are all fppd mode "Outputs" with a numeric
+ *                type, so this is what keeps a panel test from claiming the
+ *                pixel dropdown (and vice versa).
+ *
+ * The value is set programmatically, which fires no change event, so the page
+ * never re-issues a test it merely observed.  Only a *changed* testMode is
+ * applied: a snapshot built between the user's Test Start and fppd acting on
+ * it still carries the previous state, and applying that would flip the
+ * dropdown back to Off for a second.
+ */
+function SyncTestModeSelect (selectId, outputTypes) {
+	if (!Array.isArray(outputTypes)) outputTypes = [outputTypes];
+	var lastApplied = null;
+	OnSystemStatusChange(function () {
+		if (!lastStatusJSON || !('status_name' in lastStatusJSON)) return; // not an fppd status yet
+		var tm = lastStatusJSON.testMode;
+		var key = tm ? JSON.stringify(tm) : '';
+		if (key === lastApplied) return;
+		lastApplied = key;
+
+		var sel = $('#' + selectId);
+		if (!sel.length) return;
+		var val = '0';
+		if (
+			tm &&
+			tm.enabled &&
+			tm.mode == 'Outputs' &&
+			tm.hasOwnProperty('type') &&
+			outputTypes.indexOf(String(tm.outputs)) !== -1
+		) {
+			val = String(tm.type);
+		}
+		if (sel.find("option[value='" + val + "']").length && sel.val() != val) {
+			sel.val(val);
+		}
+	});
+}
+
+/*
  * Helper function to format IP address with CIDR notation
  */
 function formatIPWithCIDR (ip, prefixlen) {

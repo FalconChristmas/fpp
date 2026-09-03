@@ -122,6 +122,12 @@ void GetCurrentFPPDStatus(Json::Value& result) {
 
     if (ChannelTester::INSTANCE.Testing()) {
         result["status_name"] = "testing";
+        // Which test is running (same shape as GET api/testmode, minus any
+        // per-output "config" blob).  Pushed over the status WebSocket, so
+        // every open page can track a test started or stopped elsewhere.
+        Json::Value tm = ChannelTester::INSTANCE.GetStatusJson();
+        if (!tm.isNull())
+            result["testMode"] = tm;
     } else {
         switch (result["status"].asInt()) {
         case FPP_STATUS_IDLE:

@@ -2860,6 +2860,11 @@ function readCapes($cd, $capes)
             .done(data => selected_string_details.gpio = data)
             .fail(err => $.jGrowl('Error: Unable to retrieve GPIO pin info.', { themeState: 'danger' }));
         populateCapeList();
+        // Follow whatever pixel test fppd reports as running (from any tab or
+        // device), so the dropdown never reads "Off" over a live test.
+        if (typeof SyncTestModeSelect === 'function') {
+            SyncTestModeSelect('PixelTestPatternType', ['BBB Pixel Strings', 'DPI Pixels']);
+        }
         loadPixelStringOutputs();
         // keep the max-fps estimate live as color order / null nodes / etc. change
         $('#PixelString').on('change', 'input, select', CalculatePixelStringMaxFPS);

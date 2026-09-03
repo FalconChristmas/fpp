@@ -323,6 +323,11 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
         }
         ?>
         loadPWMOutputs();
+        // Follow whatever PWM test fppd reports as running (from any tab or
+        // device), so the dropdown never reads "Off" over a live test.
+        if (typeof SyncTestModeSelect === 'function') {
+            SyncTestModeSelect('PWMTestPatternType', ['PCA9685 PWM']);
+        }
         // pagehide, not beforeunload - it also covers the cases where the
         // page is put in the back/forward cache or the tab is discarded
         window.addEventListener('pagehide', StopServoTesting, false);
