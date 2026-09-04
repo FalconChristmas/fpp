@@ -196,6 +196,17 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 	$fsTypeOutput = $mountCmdOutput = $unmountCmdOutput = array();
 	$unmountCmdResultCode = null;
 
+	// Validate deviceName strictly — only real block devices. Prevents injection like "sda1; rm -rf /".
+	if (!preg_match('/^(sd[a-z][0-9]*|mmcblk[0-9]+p[0-9]+|nvme[0-9]+n[0-9]+p[0-9]+)$/', $deviceName)) {
+		array_push($dirs, "ERROR: Invalid device name");
+		return json($dirs);
+	}
+	// Validate mountPath stays under /mnt — prevents traversal like "/mnt/tmp; rm -rf /".
+	if (!preg_match('#^/mnt(/[A-Za-z0-9._-]+)?$#', $mountPath)) {
+		array_push($dirs, "ERROR: Invalid mount path");
+		return json($dirs);
+	}
+
 	//Run commands so mount is available to entire system
 	if ($globalNameSpace === true) {
 		//Since Apache sandboxes all mount interactions and makes them private to the apache process(s)
@@ -204,8 +215,8 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 		$nsEnter = ' nsenter -m -t 1 ';
 	}
 
-	// unmount just in case
-	exec($SUDO . $nsEnter . ' umount ' . $mountPath);
+	// unmount just in case — quote mountPath so it cannot be split on space/;.
+	exec($SUDO . $nsEnter . ' umount -- ' . escapeshellarg($mountPath));
 
 	$unusable = CheckIfDeviceIsUsable($deviceName);
 	if ($unusable != '') {
@@ -213,15 +224,18 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 		return json($dirs);
 	}
 
-	exec($SUDO . $nsEnter . ' mkdir -p ' . $mountPath);
+	exec($SUDO . $nsEnter . ' mkdir -p -- ' . escapeshellarg($mountPath));
 
-	$fsType = exec($SUDO . $nsEnter . ' file -sL /dev/' . $deviceName, $fsTypeOutput, $fsTypeResultCode);
+	$devPath = "/dev/" . $deviceName;
+	$fsType = exec($SUDO . $nsEnter . ' file -sL -- ' . escapeshellarg($devPath), $fsTypeOutput, $fsTypeResultCode);
 
 	$mountCmd = '';
 	$isFatMount = false;
 	// Same mount options used in scripts/copy_settings_to_storage.sh
+	$devArg = escapeshellarg($devPath);
+	$mntArg = escapeshellarg($mountPath);
 	if (preg_match('/BTRFS/', $fsType)) {
-		$mountCmd = "mount -t btrfs -o noatime,nodiratime,compress=zstd,nofail /dev/$deviceName $mountPath";
+		$mountCmd = "mount -t btrfs -o noatime,nodiratime,compress=zstd,nofail -- $devArg $mntArg";
 	} else if ((preg_match('/FAT/', $fsType)) ||
 		(preg_match('/DOS/', $fsType))) {
 		// FAT/exFAT have no on-disk ownership, so it must be set at mount time to
@@ -230,10 +244,10 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 		// can't write into the mount. See issue #2782.
 		$isFatMount = true;
 		$fppIds = GetFPPUserIds();
-		$mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,uid=" . $fppIds['uid'] . ",gid=" . $fppIds['gid'] . " /dev/$deviceName $mountPath";
+		$mountCmd = "mount -t auto -o noatime,nodiratime,exec,nofail,uid=" . (int)$fppIds['uid'] . ",gid=" . (int)$fppIds['gid'] . " -- $devArg $mntArg";
 	} else {
 		// Default to ext4
-		$mountCmd = "mount -t ext4 -o noatime,nodiratime,nofail /dev/$deviceName $mountPath";
+		$mountCmd = "mount -t ext4 -o noatime,nodiratime,nofail -- $devArg $mntArg";
 	}
 
 	exec($SUDO . $nsEnter . ' ' . $mountCmd, $mountCmdOutput, $mountCmdResultCode);
@@ -247,7 +261,7 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 	// just writes, and a large drive's existing content would make that slow.
 	if (!$isFatMount && $mountCmdResultCode == 0) {
 		$fppIds = GetFPPUserIds();
-		exec($SUDO . $nsEnter . ' chown ' . $fppIds['uid'] . ':' . $fppIds['gid'] . ' ' . $mountPath);
+		exec($SUDO . $nsEnter . ' chown ' . (int)$fppIds['uid'] . ':' . (int)$fppIds['gid'] . ' -- ' . escapeshellarg($mountPath));
 	}
 
 	if (isset($usercallback_function) && !empty($functionArgs)) {
@@ -257,7 +271,7 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 
 	//Unmount by default before we finish
 	if ($unmountWhenDone === true) {
-		$umountCmd = exec($SUDO . $nsEnter . ' umount -l ' . $mountPath, $unmountCmdOutput, $unmountCmdResultCode);
+		$umountCmd = exec($SUDO . $nsEnter . ' umount -l -- ' . escapeshellarg($mountPath), $unmountCmdOutput, $unmountCmdResultCode);
 	}
 
 	//Return more detail about the what has happened with each command
@@ -297,6 +311,9 @@ function MountDevice()
 	$mountLocation = params('MountLocation');
 	//If a mount location was supplied, adjust the drive mount location to latch it
 	if (isset($mountLocation) && !empty($mountLocation)) {
+		if (!preg_match('/^[A-Za-z0-9._-]+$/', $mountLocation)) {
+			return json(array('Status' => 'Error', 'Message' => 'Invalid mount location'));
+		}
 		$drive_mount_location = "/mnt/" . $mountLocation;
 	}
 
@@ -305,6 +322,9 @@ function MountDevice()
 
 	//Make sure we have a valid device name supplied
 	if (isset($deviceName) && ($deviceName !== "no" || $deviceName !== "")) {
+		if (!preg_match('/^(sd[a-z][0-9]*|mmcblk[0-9]+p[0-9]+|nvme[0-9]+n[0-9]+p[0-9]+)$/', $deviceName)) {
+			return json(array('Status' => 'Error', 'Message' => 'Invalid device name'));
+		}
 		//Mount the device at the specified location
 		$mountResult = DriveMountHelper($deviceName, '', array(), $drive_mount_location, false, true, true);
 
@@ -362,7 +382,14 @@ function UnmountDevice()
 	}
 	//If a mount location was supplied, adjust the drive mount location to latch it
 	if (isset($mountLocation) && !empty($mountLocation)) {
+		if (!preg_match('/^[A-Za-z0-9._-]+$/', $mountLocation)) {
+			return json(array('Status' => 'Error', 'Message' => 'Invalid mount location'));
+		}
 		$drive_mount_location = "/mnt/" . $mountLocation;
+	}
+	// Validate deviceName even for unmount — prevents injection via rmdir path confusion
+	if (!preg_match('/^(sd[a-z][0-9]*|mmcblk[0-9]+p[0-9]+|nvme[0-9]+n[0-9]+p[0-9]+)$/', $deviceName)) {
+		return json(array('Status' => 'Error', 'Message' => 'Invalid device name'));
 	}
 
 	$unmountCmdOutput = array();
@@ -371,12 +398,12 @@ function UnmountDevice()
 	//Make sure we have a valid device name supplied
 	if (isset($deviceName) && ($deviceName !== "no" || $deviceName !== "")) {
 		//Unmount device from the root namespace (it will be mounted there)
-		$umountCmd = exec($SUDO . $nsEnter . ' umount -l ' . $drive_mount_location, $unmountCmdOutput, $unmountCmdResultCode);
+		$umountCmd = exec($SUDO . $nsEnter . ' umount -l -- ' . escapeshellarg($drive_mount_location), $unmountCmdOutput, $unmountCmdResultCode);
 		//This could be incorrect as this result codes are for the mount command, but will give us an idea
 		$unmountCmdOutputText = MountReturnCodeMap($unmountCmdResultCode);
 
 		//Remove the folder that is created for the device to be mounted under
-		exec($SUDO . ' rmdir ' . $drive_mount_location);
+		exec($SUDO . ' rmdir -- ' . escapeshellarg($drive_mount_location));
 
 		//Success
 		if ($unmountCmdResultCode == 0) {
