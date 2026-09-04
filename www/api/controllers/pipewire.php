@@ -4410,6 +4410,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
     $sinkCardNumMap = array(); // ALSA card number (int) => node.name
     $sinkCardIdMap = array();  // ALSA card ID (string) => node.name
     $sinkCardRateMap = array(); // ALSA card ID (string) => negotiated audio.rate (int)
+    $sinkNodeCardIdMap = array(); // node.name => ALSA card ID (string) it plays out of
     $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
     $pwDumpJson = '';
     exec($SUDO . " " . $env . " pw-dump 2>/dev/null", $pwDumpLines);
@@ -4464,6 +4465,10 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                             if ($isFppNode || !isset($sinkCardIdMap[$cardIdFromProc])) {
                                 $sinkCardIdMap[$cardIdFromProc] = $nodeName;
                             }
+                            // Reverse direction: unlike cardId => node, which
+                            // has to pick a winner per card, a node plays out
+                            // of exactly one card, so this never contends.
+                            $sinkNodeCardIdMap[$nodeName] = $cardIdFromProc;
                             // Capture the rate WirePlumber negotiated for this device.
                             $nodeRate = isset($props['audio.rate']) ? intval($props['audio.rate']) : 0;
                             if ($nodeRate > 0 && !isset($sinkCardRateMap[$cardIdFromProc])) {
@@ -4480,7 +4485,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
     // Resolve card IDs to PipeWire node names.
     // Priority order:
     //   0. Existing FPP adapter named for this card's stable ALSA ID
-    //   1. Previously-stored nodeTarget in member JSON (validated for FPP adapters)
+    //   1. Previously-stored nodeTarget in member JSON (validated against its card)
     //   2. Direct cardId→nodeName via sinkCardIdMap (no card-number dependency)
     //   3. cardId→cardNum→nodeName via sinkCardNumMap (legacy fallback)
     //   4. Create FPP ALSA adapter if card exists but has no PipeWire sink
@@ -4551,12 +4556,31 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                 $cardNodeMap[$cardId] = $fppTarget;
                 continue;
             }
-            // Also reject mismatched FPP targets when the intended adapter is
-            // absent, so neither cached-target fallback can select another card.
-            if (isset($member['nodeTarget'])
-                && strpos($member['nodeTarget'], 'fpp_alsa_') === 0
-                && $member['nodeTarget'] !== $fppTarget) {
-                unset($member['nodeTarget']);
+            // With that adapter absent, the cached target still has to be
+            // disqualified before the fallbacks below can reach it.  A cached
+            // nodeTarget is only evidence about the card it was resolved for:
+            // point a member at a different sound card and the stale value can
+            // still name a live sink, which Priority 1 accepts and then caches
+            // as this card's hardware for every member using it (issue #2894).
+            // Two independent ways to catch that, needed because neither
+            // covers the other's case:
+            //   - the name.  fpp_alsa_* encodes the stable ALSA card ID, so a
+            //     mismatch shows up even while the node is not in the graph.
+            //   - the graph.  Any live sink resolves to the card it plays out
+            //     of, which is what settles WirePlumber-named targets, whose
+            //     names say nothing about the card.
+            // A target no live sink accounts for and no fpp_alsa_ name to read
+            // is left alone: it is the unplugged-device case Priority 4 exists
+            // to serve, and the card-derived lookups cannot answer it either.
+            if (isset($member['nodeTarget']) && !empty($member['nodeTarget'])) {
+                $cachedTarget = $member['nodeTarget'];
+                $cachedIsFppAdapter = (strpos($cachedTarget, 'fpp_alsa_') === 0);
+                $cachedTargetCardId = isset($sinkNodeCardIdMap[$cachedTarget])
+                    ? $sinkNodeCardIdMap[$cachedTarget] : '';
+                if (($cachedIsFppAdapter && $cachedTarget !== $fppTarget)
+                    || (!empty($cachedTargetCardId) && $cachedTargetCardId !== $cardId)) {
+                    unset($member['nodeTarget']);
+                }
             }
 
             // Priority 1: Previously-stored nodeTarget from last successful Apply
