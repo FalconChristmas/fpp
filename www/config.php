@@ -249,19 +249,19 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $settings['Logo'] = "Raspberry_Pi_B.svg";
     } else if (preg_match('/Pi Model A Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Model A+";
-        $settings['Logo'] = "Raspberry_Pi_A+.svg";
+        $settings['Logo'] = "Raspberry_Pi_Aplus.svg";
     } else if (preg_match('/Pi Model B Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Model B+";
-        $settings['Logo'] = "Raspberry_Pi_B+.svg";
+        $settings['Logo'] = "Raspberry_Pi_Bplus.svg";
     } else if (preg_match('/Pi 2 Model B/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 2 Model B";
         $settings['Logo'] = "Raspberry_Pi_2.svg";
     } else if (preg_match('/Pi 3 Model B Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model B+";
-        $settings['Logo'] = "Raspberry_Pi_3B+.svg";
+        $settings['Logo'] = "Raspberry_Pi_3Bplus.svg";
     } else if (preg_match('/Pi 3 Model A Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model A+";
-        $settings['Logo'] = "Raspberry_Pi_3A+.svg";
+        $settings['Logo'] = "Raspberry_Pi_3Aplus.svg";
     } else if (preg_match('/Pi 3 Model B/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model B";
         $settings['Logo'] = "Raspberry_Pi_3.svg";
