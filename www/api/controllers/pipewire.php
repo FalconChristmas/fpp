@@ -5541,6 +5541,8 @@ function GetAES67Status()
             "synced" => false,
             "offsetNs" => 0,
             "grandmasterId" => "",
+            "grandmasterAddress" => "",
+            "grandmasterViaBoundary" => false,
             "portState" => "fppd not responding",
             "isGrandmaster" => false,
             "enabled" => false,

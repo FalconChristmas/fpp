@@ -119,6 +119,18 @@ constexpr int PTP_CONVERGENCE_WINDOW_S   = 60;
 // query forks a pmc process, so repeated hits must not fork per request.
 constexpr int PTP_QUERY_CACHE_MS         = 1000;
 
+// PTP Announce listener.  No PTP management response carries the
+// grandmaster's IP address -- TIME_STATUS_NP names it only by clock identity
+// -- so the address is read off the source of the Announce messages ptp4l is
+// already following, on the same multicast group and general-message port.
+constexpr const char* PTP_MCAST_ADDRESS  = "224.0.1.129";
+constexpr int PTP_GENERAL_PORT           = 320;
+
+// An Announce arrives every 2s (logAnnounceInterval 1) and ptp4l declares the
+// master gone after 3 missed ones, so an address older than this is no longer
+// the live path to the clock and must not be reported as if it were.
+constexpr int PTP_ANNOUNCE_STALE_MS      = 10000;
+
 constexpr const char* DEFAULT_MULTICAST_IP = "239.69.0.1";
 constexpr const char* AUDIO_FORMAT         = "S24BE";
 constexpr const char* SAP_MCAST_ADDRESS    = "239.255.255.255";
@@ -736,6 +748,13 @@ public:
         bool ptpSynced = false;
         int64_t ptpOffsetNs = 0;     // offset from PTP master
         std::string ptpGrandmasterId;
+        // IP the grandmaster's Announce messages come from -- our own
+        // interface address when we hold the role.  Empty when no Announce
+        // for this identity has been seen recently (see PTP_ANNOUNCE_STALE_MS).
+        std::string ptpGrandmasterAddress;
+        // True when that address is the boundary clock relaying the domain
+        // rather than the grandmaster itself, i.e. stepsRemoved > 0.
+        bool ptpGrandmasterViaBoundary = false;
         std::string ptpPortState;    // ptp4l portState (MASTER/SLAVE/LISTENING/...)
         bool ptpIsGrandmaster = false;  // true when *we* hold the grandmaster role
         // Copied out of m_config under m_configMutex so the HTTP handler can
@@ -886,6 +905,27 @@ private:
     PtpQueryCache m_ptpCache;
     std::mutex m_ptpCacheMutex;
     void RefreshPtpCache(bool force = false);
+
+    // Where a grandmaster identity is announcing from.  Populated by the
+    // Announce listener below, which is the only source of this: pmc reports
+    // clock identities, never addresses, and a clock identity is an EUI-64
+    // derived from a MAC that need not belong to the interface carrying PTP,
+    // so it cannot be resolved to an address by inspection.
+    struct PtpAnnounceSource {
+        std::string address;
+        bool direct = false;         // sender IS the grandmaster (stepsRemoved 0)
+        int64_t lastSeenMs = 0;
+    };
+    std::map<std::string, PtpAnnounceSource> m_ptpAnnounceSources;  // keyed by GM id
+    std::mutex m_ptpAnnounceMutex;
+    std::thread m_ptpAnnounceThread;
+    std::atomic<bool> m_ptpAnnounceRunning{false};
+    void PtpAnnounceListenLoop();
+    void HandlePtpAnnounce(const uint8_t* data, size_t len, const std::string& senderAddr);
+
+    // Address the given grandmaster is currently announcing from.  False when
+    // nothing recent has been heard from it, leaving the out-params untouched.
+    bool GetGrandmasterAddress(const std::string& gmId, std::string& address, bool& viaBoundary);
 
     // Sink-pacing timestamp shift per instance, updatable once the pipeline
     // reports its real latency.  Owned here so the pad probe can read a live

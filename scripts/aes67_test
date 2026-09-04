@@ -280,7 +280,9 @@ print(f'  Active: {data.get(\"active\", False)}')
 ptp = data.get('ptp', {})
 print(f'  PTP synced: {ptp.get(\"synced\", False)}')
 print(f'  PTP offset: {ptp.get(\"offsetNs\", 0)} ns')
-print(f'  PTP grandmaster: {ptp.get(\"grandmasterId\", \"unknown\")}')
+gm_addr = ptp.get('grandmasterAddress', '')
+gm_where = ((' via boundary clock ' if ptp.get('grandmasterViaBoundary') else ' at ') + gm_addr) if gm_addr else ''
+print(f'  PTP grandmaster: {ptp.get(\"grandmasterId\", \"unknown\")}{gm_where}')
 
 pipelines = data.get('pipelines', [])
 print(f'  Pipelines: {len(pipelines)}')

@@ -429,9 +429,20 @@
                     (ptp.synced ? 'status-running' : 'status-stopped') + '"></span>' +
                     EscapeHtml(state));
 
-                $('#ptpDetailGm').html(ptp.grandmasterId
+                // The clock identity alone does not tell you which box on the
+                // network it is -- it is an EUI-64 off some MAC, not
+                // necessarily the one carrying PTP, so it cannot be looked up
+                // in ARP.  The address is what gets typed into a browser when
+                // the clock turns out to be the wrong device.
+                var gm = ptp.grandmasterId
                     ? EscapeHtml(ptp.grandmasterId)
-                    : '<span class="text-warning">none selected yet</span>');
+                    : '<span class="text-warning">none selected yet</span>';
+                if (ptp.grandmasterId && ptp.grandmasterAddress) {
+                    gm += ' <span class="text-body-secondary">' +
+                        (ptp.grandmasterViaBoundary ? 'via boundary clock ' : 'at ') +
+                        EscapeHtml(ptp.grandmasterAddress) + '</span>';
+                }
+                $('#ptpDetailGm').html(gm);
                 $('#ptpDetailDomain').text(ptp.domain != null ? ptp.domain : '\u2014');
                 $('#ptpDetailOffset').text(
                     ptp.synced && !ptp.isGrandmaster && typeof ptp.offsetNs === 'number'
