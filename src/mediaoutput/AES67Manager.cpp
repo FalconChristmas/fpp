@@ -343,6 +343,19 @@ bool AES67Manager::LoadConfig() {
                 "so it does nothing -- the gap fill runs inside the drift probe. "
                 "Set driftResample too.\n");
     }
+    if (cfg.splitClockDomains && !cfg.ptpMediaClock) {
+        LogWarn(VB_MEDIAOUT,
+                "AES67Manager: splitClockDomains is set but ptpMediaClock is not. "
+                "Without a PTP media clock there is nothing to split, so the whole "
+                "block is skipped -- no PTP anchor and no lead servo. "
+                "ptpMediaClock defaults on, so something has turned it off.\n");
+    }
+    if (cfg.splitClockDomains && !cfg.ptpEnabled) {
+        LogWarn(VB_MEDIAOUT,
+                "AES67Manager: splitClockDomains is set but PTP is disabled, so the "
+                "media clock falls back to an undisciplined system clock and the RTP "
+                "timestamps mean nothing to a receiver.\n");
+    }
     if (cfg.splitClockDomains && !cfg.sinkPacing) {
         LogWarn(VB_MEDIAOUT,
                 "AES67Manager: splitClockDomains is set but sinkPacing is not. "
@@ -699,6 +712,14 @@ bool AES67Manager::InitPTP() {
     // systemd with an offset appropriate to its grandmaster; that is a
     // deliberate site decision, not something an audio stream should impose.
 
+    // Passive reader for the grandmaster's IP address -- see
+    // PtpAnnounceListenLoop().  Started only once ptp4l is up, so it lives
+    // exactly as long as the domain membership it is reporting on.
+    if (!m_ptpAnnounceThread.joinable()) {
+        m_ptpAnnounceRunning.store(true);
+        m_ptpAnnounceThread = std::thread(&AES67Manager::PtpAnnounceListenLoop, this);
+    }
+
     m_ptpInitialized = true;
     LogInfo(VB_MEDIAOUT, "AES67Manager: PTP initialized — ptp4l PID %d on %s\n",
             (int)m_ptp4lPid, m_config.ptpInterface.c_str());
@@ -747,6 +768,15 @@ static void StopChildProcess(pid_t& pid, const char* name) {
 }
 
 void AES67Manager::ShutdownPTP() {
+    m_ptpAnnounceRunning.store(false);
+    if (m_ptpAnnounceThread.joinable()) {
+        m_ptpAnnounceThread.join();
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_ptpAnnounceMutex);
+        m_ptpAnnounceSources.clear();
+    }
+
     StopChildProcess(m_phc2sysPid, "phc2sys");
     StopChildProcess(m_ptp4lPid, "ptp4l");
 
@@ -960,6 +990,188 @@ std::string AES67Manager::GetActiveGrandmasterId() {
         return GetPTPClockId();
     }
     return "";
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// PTP Announce listener — resolves a grandmaster identity to an IP address
+//
+// "Which box is the clock?" is the first question at a commissioning, and a
+// clock identity does not answer it: it is an EUI-64 built from *a* MAC on the
+// device, which need not be the interface carrying PTP and cannot be looked up
+// in ARP.  Nothing in PTP management gives the address either -- TIME_STATUS_NP
+// names the grandmaster by identity only.
+//
+// The address is therefore taken from where the Announce messages arrive from.
+// This is a passive second reader on the group ptp4l is already joined to:
+// SO_REUSEADDR (never SO_REUSEPORT, which would load-balance the flow away
+// from ptp4l instead of duplicating it) means both sockets get every packet.
+// ──────────────────────────────────────────────────────────────────────────────
+
+// Parses one PTPv2 Announce and records the address it came from against the
+// grandmaster it advertises.  Anything else on the group is ignored.
+void AES67Manager::HandlePtpAnnounce(const uint8_t* data, size_t len,
+                                     const std::string& senderAddr) {
+    // PTPv2 common header is 34 bytes.  Within the Announce body:
+    // originTimestamp(10) currentUtcOffset(2) reserved(1) priority1(1)
+    // clockQuality(4) priority2(1) grandmasterIdentity(8) stepsRemoved(2).
+    constexpr size_t PTP_HEADER_LEN = 34;
+    constexpr size_t GM_ID_OFFSET   = PTP_HEADER_LEN + 19;  // 53
+    constexpr size_t STEPS_OFFSET   = PTP_HEADER_LEN + 27;  // 61
+    constexpr uint8_t MSG_ANNOUNCE  = 0x0B;
+
+    if (len < STEPS_OFFSET + 2) {
+        return;
+    }
+    if ((data[0] & 0x0F) != MSG_ANNOUNCE) {
+        return;
+    }
+    if ((data[1] & 0x0F) != 2) {  // versionPTP
+        return;
+    }
+    // Other domains share the multicast group; their grandmaster is not ours.
+    if (data[4] != (uint8_t)GetPtpDomain()) {
+        return;
+    }
+
+    char gmId[24];
+    snprintf(gmId, sizeof(gmId), "%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X",
+             data[GM_ID_OFFSET], data[GM_ID_OFFSET + 1], data[GM_ID_OFFSET + 2],
+             data[GM_ID_OFFSET + 3], data[GM_ID_OFFSET + 4], data[GM_ID_OFFSET + 5],
+             data[GM_ID_OFFSET + 6], data[GM_ID_OFFSET + 7]);
+
+    uint16_t stepsRemoved = ((uint16_t)data[STEPS_OFFSET] << 8) | data[STEPS_OFFSET + 1];
+
+    int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+
+    std::lock_guard<std::mutex> lock(m_ptpAnnounceMutex);
+
+    // A boundary clock relays the domain under the real grandmaster's
+    // identity, so its address is the nearest master rather than the clock
+    // itself.  Never let one overwrite an address heard direct from the
+    // grandmaster -- that is the one the user is looking for.
+    auto it = m_ptpAnnounceSources.find(gmId);
+    if (it != m_ptpAnnounceSources.end() && it->second.direct && stepsRemoved > 0 &&
+        (nowMs - it->second.lastSeenMs) < AES67::PTP_ANNOUNCE_STALE_MS) {
+        return;
+    }
+
+    PtpAnnounceSource src;
+    src.address = senderAddr;
+    src.direct = (stepsRemoved == 0);
+    src.lastSeenMs = nowMs;
+    m_ptpAnnounceSources[gmId] = src;
+
+    // Drop clocks that have stopped announcing.  A domain holds a handful of
+    // masters at most, but BMCA churn would otherwise accumulate them for the
+    // life of the process.
+    for (auto i = m_ptpAnnounceSources.begin(); i != m_ptpAnnounceSources.end();) {
+        if ((nowMs - i->second.lastSeenMs) > 10 * AES67::PTP_ANNOUNCE_STALE_MS) {
+            i = m_ptpAnnounceSources.erase(i);
+        } else {
+            ++i;
+        }
+    }
+}
+
+bool AES67Manager::GetGrandmasterAddress(const std::string& gmId, std::string& address,
+                                         bool& viaBoundary) {
+    if (gmId.empty()) {
+        return false;
+    }
+
+    int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+
+    std::lock_guard<std::mutex> lock(m_ptpAnnounceMutex);
+    auto it = m_ptpAnnounceSources.find(gmId);
+    if (it == m_ptpAnnounceSources.end()) {
+        return false;
+    }
+    // Stale means the clock we are reporting is no longer announcing from
+    // there -- a changeover, or the listener socket having been shut out.
+    if ((nowMs - it->second.lastSeenMs) > AES67::PTP_ANNOUNCE_STALE_MS) {
+        return false;
+    }
+    address = it->second.address;
+    viaBoundary = !it->second.direct;
+    return true;
+}
+
+void AES67Manager::PtpAnnounceListenLoop() {
+    LogInfo(VB_MEDIAOUT, "AES67 PTP announce listener thread started\n");
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        LogWarn(VB_MEDIAOUT, "AES67 PTP announce: socket failed: %s\n", FPPstrerror(errno));
+        return;
+    }
+
+    // SO_REUSEADDR only: ptp4l holds this port and multicast is delivered to
+    // every socket bound to it.  SO_REUSEPORT would instead put us in a
+    // load-balancing group with ptp4l and steal its Announce messages.
+    int reuse = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+
+    struct sockaddr_in bindAddr;
+    memset(&bindAddr, 0, sizeof(bindAddr));
+    bindAddr.sin_family = AF_INET;
+    bindAddr.sin_port = htons(AES67::PTP_GENERAL_PORT);
+    bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    if (bind(sock, (struct sockaddr*)&bindAddr, sizeof(bindAddr)) < 0) {
+        // Not fatal to anything: PTP itself is ptp4l's socket, so all that is
+        // lost here is the grandmaster's address in the status display.
+        LogWarn(VB_MEDIAOUT, "AES67 PTP announce: bind to port %d failed (%s) — "
+                "grandmaster address will not be shown\n",
+                AES67::PTP_GENERAL_PORT, FPPstrerror(errno));
+        close(sock);
+        return;
+    }
+
+    struct ip_mreq mreq;
+    memset(&mreq, 0, sizeof(mreq));
+    inet_pton(AF_INET, AES67::PTP_MCAST_ADDRESS, &mreq.imr_multiaddr);
+
+    std::string iface = GetPtpInterface();
+    if (!iface.empty()) {
+        std::string ifIP = GetInterfaceIP(iface);
+        inet_pton(AF_INET, ifIP.c_str(), &mreq.imr_interface);
+    } else {
+        mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+    }
+
+    if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+        LogWarn(VB_MEDIAOUT, "AES67 PTP announce: join %s failed: %s\n",
+                AES67::PTP_MCAST_ADDRESS, FPPstrerror(errno));
+        close(sock);
+        return;
+    }
+
+    // Bounds how long ShutdownPTP() waits on the join.
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    uint8_t buf[512];
+    while (m_ptpAnnounceRunning.load()) {
+        struct sockaddr_in senderAddr;
+        socklen_t addrLen = sizeof(senderAddr);
+
+        ssize_t n = recvfrom(sock, buf, sizeof(buf), 0,
+                             (struct sockaddr*)&senderAddr, &addrLen);
+        if (n <= 0) continue;  // timeout or error
+
+        char senderIP[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &senderAddr.sin_addr, senderIP, sizeof(senderIP));
+
+        HandlePtpAnnounce(buf, (size_t)n, senderIP);
+    }
+
+    setsockopt(sock, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
+    close(sock);
+    LogInfo(VB_MEDIAOUT, "AES67 PTP announce listener thread stopped\n");
 }
 
 std::string AES67Manager::GetPTPClockId() {
@@ -4334,6 +4546,8 @@ AES67Manager::Status AES67Manager::GetStatus() {
             status.ptpSynced = true;
             status.ptpGrandmasterId = gmId;
             status.ptpOffsetNs = offsetNs;
+            GetGrandmasterAddress(gmId, status.ptpGrandmasterAddress,
+                                  status.ptpGrandmasterViaBoundary);
         } else if (status.ptpIsGrandmaster) {
             // We won the BMCA and ARE the domain grandmaster.  pmc reports
             // gmPresent=false in that case because there is no *remote* GM to
@@ -4344,6 +4558,9 @@ AES67Manager::Status AES67Manager::GetStatus() {
             status.ptpSynced = true;
             status.ptpGrandmasterId = GetPTPClockId();
             status.ptpOffsetNs = 0;
+            // Taken from the interface rather than the Announce listener: we
+            // are the one clock whose address is known without hearing it.
+            status.ptpGrandmasterAddress = GetInterfaceIP(GetPtpInterface());
         } else {
             // ptp4l not running, or no grandmaster selected yet (e.g. still
             // in LISTENING/PRE_MASTER) — do not claim we're synced or report
@@ -4454,7 +4671,15 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
             r.message = "No grandmaster selected yet (port state " + state + ") — domain " +
                         std::to_string(config.ptpDomain) + ", role " + config.ptpRole;
         } else {
-            r.message = "Grandmaster " + gm + " (port state " + state + ") — domain " +
+            std::string where;
+            std::string gmAddr;
+            bool viaBoundary = false;
+            if (IsGrandmasterPortState(state)) {
+                where = " at " + GetInterfaceIP(config.ptpInterface);
+            } else if (GetGrandmasterAddress(gm, gmAddr, viaBoundary)) {
+                where = (viaBoundary ? " via boundary clock " : " at ") + gmAddr;
+            }
+            r.message = "Grandmaster " + gm + where + " (port state " + state + ") — domain " +
                         std::to_string(config.ptpDomain) + ", role " + config.ptpRole +
                         (IsGrandmasterPortState(state) ? " — this node holds the role" : "");
         }
@@ -4640,6 +4865,8 @@ HttpResponsePtr AES67Manager::render_GET(const HttpRequestPtr& req) {
         ptp["synced"] = st.ptpSynced;
         ptp["offsetNs"] = (Json::Int64)st.ptpOffsetNs;
         ptp["grandmasterId"] = st.ptpGrandmasterId;
+        ptp["grandmasterAddress"] = st.ptpGrandmasterAddress;
+        ptp["grandmasterViaBoundary"] = st.ptpGrandmasterViaBoundary;
         ptp["portState"] = st.ptpPortState;
         ptp["isGrandmaster"] = st.ptpIsGrandmaster;
         ptp["enabled"] = st.ptpEnabled;
