@@ -668,6 +668,11 @@ bool VideoOutputManager::LoadConfig() {
 
 bool VideoOutputManager::StartHdmiConsumerGroup(const std::vector<size_t>& indices) {
 #ifdef HAS_GSTREAMER_VIDEO_OUTPUT
+    // Consumers start from a config reload, which can happen before any media
+    // has played -- and playback used to be the only caller of gst_init().
+    // See VideoInputManager::StartSource().
+    GStreamerOutput::EnsureGStreamerInit();
+
     if (indices.size() < 2) return false;
 
     // The first consumer in the group owns the pipeline
@@ -898,6 +903,8 @@ bool VideoOutputManager::StartHdmiConsumerGroup(const std::vector<size_t>& indic
 
 bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
 #ifdef HAS_GSTREAMER_VIDEO_OUTPUT
+    GStreamerOutput::EnsureGStreamerInit();
+
     if (consumer.running) {
         LogWarn(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' already running\n", consumer.name.c_str());
         return true;

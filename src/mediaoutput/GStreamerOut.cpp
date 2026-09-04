@@ -215,10 +215,24 @@ int GStreamerOutput::s_sampleWritePos = 0;
 int GStreamerOutput::s_sampleRate = 0;
 std::mutex GStreamerOutput::s_sampleMutex;
 
-// One-time GStreamer initialization
-static bool gst_initialized = false;
+// One-time GStreamer initialization.
+//
+// Every entry point that touches the GStreamer API has to come through here
+// first: gst_parse_launch() against an uninitialized library dereferences the
+// (still null) value table and segfaults inside gst_value_deserialize() rather
+// than reporting a GError.  Media playback used to be the only such entry
+// point, so a lazy init on the playback path was enough; the video input and
+// output managers now build pipelines from a config reload with no media in
+// sight, which on a box that had never played anything took fppd down.
+//
+// Guarded on gst_is_initialized() rather than a local flag so it stays correct
+// alongside any other caller that reached gst_init() first, and serialized
+// because the WLED overlay, the managers and the playback path can all arrive
+// here from different threads.
 void GStreamerOutput::EnsureGStreamerInit() {
-    if (!gst_initialized) {
+    static std::mutex initMutex;
+    std::lock_guard<std::mutex> lock(initMutex);
+    if (!gst_is_initialized()) {
         LogWarn(VB_MEDIAOUT, "GStreamer: EnsureGStreamerInit() entered\n");
         // Set PipeWire env vars so pipewiresink can find the FPP PipeWire runtime.
         // Both Simple PipeWire and PipeWire Advanced share the same runtime stack.
@@ -233,7 +247,6 @@ void GStreamerOutput::EnsureGStreamerInit() {
         }
         LogWarn(VB_MEDIAOUT, "GStreamer: Calling gst_init()...\n");
         gst_init(nullptr, nullptr);
-        gst_initialized = true;
         LogWarn(VB_MEDIAOUT, "GStreamer initialized: %s\n", gst_version_string());
     }
 }

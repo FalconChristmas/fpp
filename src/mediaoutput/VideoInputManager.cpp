@@ -15,6 +15,7 @@
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 #include <cmath>
 
+#include "GStreamerOut.h"
 #include "V4L2Device.h"
 #include "VideoInputManager.h"
 #include "VideoOutputManager.h"
@@ -470,6 +471,13 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         return true;
     }
 
+    // Sources start from Init()/Reload(), which a config change can trigger
+    // before any media has played -- and media playback is what used to be the
+    // only thing that called gst_init().  Without this, gst_parse_launch()
+    // below segfaults inside GStreamer's own parser on a perfectly well-formed
+    // pipeline description.
+    GStreamerOutput::EnsureGStreamerInit();
+
     setenv("PIPEWIRE_RUNTIME_DIR", "/run/pipewire-fpp", 0);
 
     if (!GstValueUsable(source.uri, "URI", source.name) ||
@@ -889,6 +897,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
 // ─── Start source with separate video + audio streams (YouTube HLS) ───────
 bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
 #ifdef HAS_GSTREAMER_VIDEO_INPUT
+    GStreamerOutput::EnsureGStreamerInit();
     if (source.running) {
         LogWarn(VB_MEDIAOUT, "VideoInputManager: Source '%s' already running\n", source.name.c_str());
         return true;
@@ -1308,6 +1317,8 @@ bool VideoInputManager::GrabSnapshotJPEG(int sourceId, int maxWidth, int timeout
     if (maxWidth > 1280) maxWidth = 1280;
     if (timeoutMs < 100) timeoutMs = 100;
     if (timeoutMs > 10000) timeoutMs = 10000;
+
+    GStreamerOutput::EnsureGStreamerInit();
 
     std::string channel;
     {

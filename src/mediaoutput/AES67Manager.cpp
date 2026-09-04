@@ -18,6 +18,7 @@
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
 #include "AES67Manager.h"
+#include "GStreamerOut.h"
 
 #ifdef HAS_AES67_GSTREAMER
 
@@ -116,10 +117,10 @@ bool AES67Manager::Init() {
         return true;  // not an error — just no AES67 configured
     }
 
-    // Ensure GStreamer is initialized
-    if (!gst_is_initialized()) {
-        gst_init(nullptr, nullptr);
-    }
+    // Shared with the playback path and the video managers so gst_init()
+    // happens exactly once, under one lock, whichever subsystem gets here
+    // first.
+    GStreamerOutput::EnsureGStreamerInit();
 
     // Set PipeWire env vars so pipewiresrc/pipewiresink can find the FPP PipeWire runtime
     setenv("PIPEWIRE_RUNTIME_DIR", "/run/pipewire-fpp", 0);

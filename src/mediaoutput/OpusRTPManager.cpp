@@ -18,6 +18,7 @@
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
 #include "OpusRTPManager.h"
+#include "GStreamerOut.h"
 
 #ifdef HAS_OPUS_RTP_GSTREAMER
 
@@ -79,9 +80,10 @@ bool OpusRTPManager::Init() {
         return true;
     }
 
-    if (!gst_is_initialized()) {
-        gst_init(nullptr, nullptr);
-    }
+    // Shared with the playback path and the video managers so gst_init()
+    // happens exactly once, under one lock, whichever subsystem gets here
+    // first.
+    GStreamerOutput::EnsureGStreamerInit();
 
     // Set PipeWire env vars
     setenv("PIPEWIRE_RUNTIME_DIR", "/run/pipewire-fpp", 0);
