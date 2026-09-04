@@ -673,6 +673,76 @@
             return false;
         }
 
+        /**
+         * Collects this machine's own addresses out of the multiSync system list.
+         * Only routable IPv4 is useful for the comparison below; loopback and
+         * link-local say nothing about which subnets we can reach.
+         */
+        function localIPv4Addresses(data) {
+            var ips = [];
+            for (var i = 0; i < data.length; i++) {
+                if (data[i].local != 1)
+                    continue;
+                var ip = data[i].address || '';
+                if (ip.indexOf('.') < 0 || ip.indexOf('127.') == 0 || ip.indexOf('169.254') == 0)
+                    continue;
+                ips.push(ip);
+            }
+            return ips;
+        }
+
+        /**
+         * How well an address matches one of ours: 3 = same /24 as a local
+         * address, 2 = same /16, 1 = same /8, 0 = no match (or not IPv4).
+         * A device that advertises an AP or second-NIC address alongside its LAN
+         * address must be polled on the one this browser can actually route to,
+         * so the higher-scoring address wins the row's poll slot.
+         */
+        function ipLocalityScore(ip, localIps) {
+            if (!ip || ip.indexOf('.') < 0)
+                return 0;
+            for (var o = 3; o > 0; o--) {
+                for (var i = 0; i < localIps.length; i++) {
+                    if (IPsCanTalk(localIps[i], ip, o))
+                        return o;
+                }
+            }
+            return 0;
+        }
+
+        /**
+         * Points a row's poll slot at a different address of the same device:
+         * swaps oldIp for newIp in whichever poll list already holds it.
+         */
+        function swapPollAddress(pollLists, oldIp, newIp) {
+            for (var l = 0; l < pollLists.length; l++) {
+                var idx = pollLists[l].indexOf(oldIp);
+                if (idx >= 0) {
+                    pollLists[l][idx] = newIp;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * The hostname cell: the device name over its host description, with the
+         * name linked to that device's own web UI (unless the link would point
+         * back at ourselves or external links are disabled).  Built from the
+         * row's preferred address and rebuilt when a better one turns up, so the
+         * link stays clickable — the WLED poller also locates the name span by
+         * that address.
+         */
+        function buildHostnameCell(ctx) {
+            var hostTxt = (!isWLED(ctx.typeId) && (fppConfig.hideExternalURLs || ctx.local || ctx.ip == ctx.hostname))
+                ? ctx.hostname
+                : "<a target='host_" + ctx.ip + "' href='" + wrapUrlWithProxy(ctx.ip, "/") + "'>" + ctx.hostname + "</a>";
+
+            return "<span class='reorder-grip'><i class='rowGripIcon fpp-icon-grip'></i></span>" +
+                   "<span id='fpp_" + ctx.ip.replace(/\./g, '_') + "_hostname'" + ctx.spanStyle + ">" + hostTxt + "</span>" +
+                   "<br><small class='hostDescriptionSM'>" + msEscape(ctx.description) + "</small>";
+        }
+
         function getReachableIPFromRowID(id) {
             var ip = ipFromRowID(id);
             var ipListStr = $('#' + id).attr('data-iplist');
@@ -1711,6 +1781,10 @@
                 }
             }
 
+            // Our own addresses, used to score each remote address so a device
+            // advertising several gets polled on the one we can reach.
+            var localIps = localIPv4Addresses(data);
+
             var fppIpAddresses = [];
             var wledIpAddresses = [];
             var geniusIpAddresses = [];
@@ -1837,13 +1911,29 @@
 
                 if (seenUuids.hasOwnProperty(uuid)) {
                     // Same physical device, additional IP — merge into existing row.
-                    // Do NOT add to poll list; the primary IP already covers this device.
+                    // Do NOT add a second poll entry; one address covers the device.
                     var mergeExtra = '<br>' + ipLink(data[i].address);
                     if (data[i].fppModeString == 'remote') mergeExtra += star;
                     var mergeItem = seenUuids[uuid]._item;
                     mergeItem.ipaddress    += mergeExtra;
                     mergeItem._baseIpHtml  += mergeExtra;
                     mergeItem._dataIplist  += ',' + data[i].address;
+
+                    // The address the row landed on first is whichever one the
+                    // device happened to announce first, which may be an AP or
+                    // second-NIC address on a subnet we have no route into —
+                    // polling it would report the whole device as Unreachable.
+                    // If this address sits closer to one of ours, move the row's
+                    // poll slot (and its action buttons, via _dataIp) onto it.
+                    if (ipLocalityScore(ip, localIps) > ipLocalityScore(mergeItem._dataIp, localIps)) {
+                        swapPollAddress([fppIpAddresses, wledIpAddresses, geniusIpAddresses,
+                                         baldrickIpAddresses, espIpAddresses,
+                                         falconV4Addresses, falconV3Addresses],
+                                        mergeItem._dataIp, ip);
+                        mergeItem._dataIp = ip;
+                        mergeItem._hostCtx.ip = ip;
+                        mergeItem.hostname = buildHostnameCell(mergeItem._hostCtx);
+                    }
                     continue;
                 }
 
@@ -1867,10 +1957,6 @@
 
                 if ((data[i].fppModeString == 'remote') && (star != ""))
                     ipTxt = "<small class='unicastPickerLabel'>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
-
-                var hostTxt = (!isWLED(data[i].typeId) && (fppConfig.hideExternalURLs || data[i].local || data[i].address == hostname))
-                    ? hostname
-                    : "<a target='host_" + data[i].address + "' href='" + wrapUrlWithProxy(data[i].address, "/") + "'>" + hostname + "</a>";
 
                 // Detail fppd already fetched from this remote over HTTP.  Every
                 // field below used to arrive only with the api/system/status poll,
@@ -1910,7 +1996,6 @@
                     selectboxHtml = "<input type='checkbox' class='remoteCheckbox largeCheckbox multisyncRowCheckbox' name='" + data[i].address + "'>";
                 }
 
-                var ipDash = ip.replace(/\./g, '_');
                 var typeIdHex = '0x' + parseInt(data[i].typeId).toString(16);
 
                 // Prefer the remote's own SubPlatform/Variant over the model
@@ -1944,9 +2029,21 @@
                     gitHtml += "</table>";
                 }
 
+                // Everything the hostname cell is built from, kept on the row so
+                // the cell can be rebuilt if the row's preferred address moves.
+                var hostCtx = {
+                    ip:          data[i].address,
+                    hostname:    hostname,
+                    typeId:      data[i].typeId,
+                    local:       data[i].local,
+                    spanStyle:   hnSpanStyle,
+                    description: si.HostDescription || ''
+                };
+
                 var newItem = {
                     _id:           rowID,
                     _dataIp:       data[i].address,
+                    _hostCtx:      hostCtx,
                     _dataIplist:   data[i].address,
                     _hostname:     hostname,
                     _isFPP:        isFPP(data[i].typeId),
@@ -1956,9 +2053,7 @@
                     _capeHtml:     capeHtml,
                     _versionStr:   versionStr,
                     _baseIpHtml:   ipTxt,
-                    hostname:     "<span class='reorder-grip'><i class='rowGripIcon fpp-icon-grip'></i></span>" +
-                                  "<span id='fpp_" + ipDash + "_hostname'" + hnSpanStyle + ">" + hostTxt + "</span>" +
-                                  "<br><small class='hostDescriptionSM'>" + msEscape(si.HostDescription || '') + "</small>",
+                    hostname:     buildHostnameCell(hostCtx),
                     ipaddress:    ipTxt,
                     platform:     "<span id='" + rowID + "_platform'>" + msEscape(platformInit) + "</span>" +
                                   "<br><small id='" + rowID + "_variant'>" + msEscape(variantInit) + "</small>" +
