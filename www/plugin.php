@@ -24,8 +24,15 @@ if (!isset($_GET['nopage'])):
     }
 
     if (isset($_GET['plugin'])) {
-        $pluginName = htmlspecialchars($_GET['plugin'], ENT_QUOTES, 'UTF-8');
-        LoadPluginSettings($pluginName);
+        $rawPlugin = $_GET['plugin'];
+        // Strict allow-list for plugin names — prevents ../ traversal and shell metachars.
+        // Valid names are like "my-plugin_1.2" — only A-Z, 0-9, _, ., -
+        $pluginName = preg_replace('/[^A-Za-z0-9_.-]/', '', $rawPlugin);
+        if ($pluginName !== $rawPlugin || $pluginName === '' || strpos($pluginName, '..') !== false) {
+            $pluginName = '';
+        } else {
+            LoadPluginSettings($pluginName);
+        }
     }
 
     $infoFile = $pluginDirectory . '/' . $pluginName . '/pluginInfo.json';
@@ -150,7 +157,11 @@ else:
 endif;
 
 if (isset($_GET['plugin'])) {
-    $pluginName = htmlspecialchars($_GET['plugin'], ENT_QUOTES, 'UTF-8');
+    $rawPlugin = $_GET['plugin'];
+    $pluginName = preg_replace('/[^A-Za-z0-9_.-]/', '', $rawPlugin);
+    if ($pluginName !== $rawPlugin || $pluginName === '' || strpos($pluginName, '..') !== false) {
+        $pluginName = '';
+    }
 }
 
 if (!isset($_GET['plugin'])) {
@@ -158,19 +169,52 @@ if (!isset($_GET['plugin'])) {
 } elseif (empty($_GET['plugin'])) {
     echo "Plugin variable empty, please don't access this page directly";
 } elseif (isset($_GET['page']) && !empty($_GET['page'])) {
-    $pageName = htmlspecialchars($_GET['page'], ENT_QUOTES, 'UTF-8');
-
-    if (file_exists($pluginDirectory . "/" . $pluginName . "/" . $pageName)) {
-        -include_once $pluginDirectory . "/" . $pluginName . "/" . $pageName;
+    // Strip directory components and enforce allow-list; then verify realpath stays under pluginDirectory.
+    $pageName = basename($_GET['page']);
+    $pageName = preg_replace('/[^A-Za-z0-9_.-]/', '', $pageName);
+    $candidate = $pluginDirectory . "/" . $pluginName . "/" . $pageName;
+    $realBase = realpath($pluginDirectory);
+    $realPath = realpath($candidate);
+    if ($realPath && $realBase && strpos($realPath, $realBase) === 0 && file_exists($realPath)) {
+        include_once $realPath;
     } else {
         http_response_code(404);
         echo "Error with plugin, requesting a page that doesn't exist: $pluginName/$pageName";
     }
 } elseif (isset($_GET['file']) && !empty($_GET['file'])) {
-    $fileName = htmlspecialchars($_GET['file'], ENT_QUOTES, 'UTF-8');
-
-    $file = $pluginDirectory . "/" . $pluginName . "/" . $fileName;
-
+    $rawFile = $_GET['file'];
+    // Reject traversal and null bytes
+    if (strpos($rawFile, '..') !== false || strpos($rawFile, "\0") !== false) {
+        http_response_code(404);
+        echo "Error with plugin, requesting a file that doesn't exist";
+        return;
+    }
+    // Validate each path component (allows js/file.js, css/style.css)
+    $parts = explode('/', $rawFile);
+    $cleanParts = [];
+    $valid = true;
+    foreach ($parts as $p) {
+        if ($p === '' || $p === '.') continue;
+        $clean = preg_replace('/[^A-Za-z0-9_.-]/', '', $p);
+        if ($clean !== $p || $clean === '') { $valid = false; break; }
+        $cleanParts[] = $clean;
+    }
+    if (!$valid || empty($cleanParts)) {
+        http_response_code(404);
+        echo "Error with plugin, requesting a file that doesn't exist";
+        return;
+    }
+    $fileName = implode('/', $cleanParts);
+    $candidate = $pluginDirectory . "/" . $pluginName . "/" . $fileName;
+    $realBase = realpath($pluginDirectory);
+    $realPath = realpath($candidate);
+    if (!$realPath || !$realBase || strpos($realPath, $realBase) !== 0 || !file_exists($realPath)) {
+        error_log("Error, could not find file $candidate");
+        http_response_code(404);
+        echo "Error with plugin, requesting a file that doesn't exist";
+        return;
+    }
+    $file = $realPath;
     if (file_exists($file)) {
         $filename = basename($file);
         $file_extension = strtolower(substr(strrchr($filename, "."), 1));
