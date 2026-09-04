@@ -580,8 +580,16 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                 source.name.c_str());
     }
 
+    // pixel-aspect-ratio=1/1 is load-bearing.  Forcing width and height
+    // alone lets videoscale hit the requested size by changing the PAR
+    // instead of actually rescaling: a 4:3 camera configured as 1280x720
+    // produced caps of 1280x720 with pixel-aspect-ratio=3/4, i.e. a frame
+    // that still displays 4:3.  Pinning square pixels makes videoscale do
+    // the real work, and its add-borders default letterboxes rather than
+    // distorting when the source and target aspects differ.
     std::string capsStr = "video/x-raw,width=" + std::to_string(source.width)
                         + ",height=" + std::to_string(source.height)
+                        + ",pixel-aspect-ratio=1/1"
                         + ",framerate=" + std::to_string(source.framerate) + "/1";
 
     std::string pipelineDesc;
@@ -845,8 +853,16 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     // A/V drift that occurs when separate pipelines pace independently.
     // (intervideosink + pipewiresink in one pipeline works fine;
     // the original deadlock was two pipewiresinks in provide mode.)
+    // pixel-aspect-ratio=1/1 is load-bearing.  Forcing width and height
+    // alone lets videoscale hit the requested size by changing the PAR
+    // instead of actually rescaling: a 4:3 camera configured as 1280x720
+    // produced caps of 1280x720 with pixel-aspect-ratio=3/4, i.e. a frame
+    // that still displays 4:3.  Pinning square pixels makes videoscale do
+    // the real work, and its add-borders default letterboxes rather than
+    // distorting when the source and target aspects differ.
     std::string capsStr = "video/x-raw,width=" + std::to_string(source.width)
                         + ",height=" + std::to_string(source.height)
+                        + ",pixel-aspect-ratio=1/1"
                         + ",framerate=" + std::to_string(source.framerate) + "/1";
 
     // Convert bufferSec to nanoseconds for GStreamer properties.
@@ -1219,7 +1235,7 @@ bool VideoInputManager::GrabSnapshotJPEG(int sourceId, int maxWidth, int timeout
     // carries no PAR the preview showed a squashed picture.  Pinning PAR to
     // square forces videoscale to pick the height instead, so the preview
     // has the same shape as the real output.
-    std::string desc = "intervideosrc timeout=" + std::to_string((long long)timeoutMs * 1000000LL)
+    std::string desc = "intervideosrc name=isrc timeout=" + std::to_string((long long)timeoutMs * 1000000LL)
                      + " channel=" + GstQuote(channel)
                      + " ! videoconvert"
                      + " ! videoscale"
@@ -1261,6 +1277,30 @@ bool VideoInputManager::GrabSnapshotJPEG(int sourceId, int maxWidth, int timeout
                 ok = !jpegOut.empty();
             }
             gst_sample_unref(sample);
+
+            // Log what intervideosrc actually negotiated off the shared
+            // surface, now that a frame has arrived and caps are fixed.
+            // This is the only in-process view of the channel's real caps:
+            // an out-of-process gst-launch probe can never see it, because
+            // the inter elements share a surface registry private to one
+            // process and would report the element default (320x240) and
+            // emit black frames instead.
+            GstElement* isrc = gst_bin_get_by_name(GST_BIN(pipeline), "isrc");
+            if (isrc) {
+                GstPad* pad = gst_element_get_static_pad(isrc, "src");
+                if (pad) {
+                    GstCaps* c = gst_pad_get_current_caps(pad);
+                    if (c) {
+                        gchar* cs = gst_caps_to_string(c);
+                        LogDebug(VB_MEDIAOUT, "VideoInputManager: channel '%s' negotiated caps: %s\n",
+                                 channel.c_str(), cs ? cs : "?");
+                        g_free(cs);
+                        gst_caps_unref(c);
+                    }
+                    gst_object_unref(pad);
+                }
+                gst_object_unref(isrc);
+            }
         } else {
             LogDebug(VB_MEDIAOUT, "VideoInputManager: snapshot timed out for source %d (no frames on channel %s)\n",
                      sourceId, channel.c_str());

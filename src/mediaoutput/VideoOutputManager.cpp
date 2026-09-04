@@ -728,8 +728,12 @@ bool VideoOutputManager::StartHdmiConsumerGroup(const std::vector<size_t>& indic
         std::string sinkName = "sink" + std::to_string(i);
         pipelineDesc += " t. ! queue max-size-buffers=2 leaky=downstream ! videoscale ! ";
         if (c.width > 0 && c.height > 0) {
+            // Square pixels for the same reason as the producer caps: without
+            // it videoscale satisfies the size request by bending the PAR and
+            // the picture reaches the sink with the wrong display aspect.
             pipelineDesc += "video/x-raw,format=BGRx,width=" + std::to_string(c.width)
-                         + ",height=" + std::to_string(c.height) + " ! ";
+                         + ",height=" + std::to_string(c.height)
+                         + ",pixel-aspect-ratio=1/1 ! ";
         } else {
             pipelineDesc += "video/x-raw,format=BGRx ! ";
         }
@@ -1023,6 +1027,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         if (consumer.width > 0 && consumer.height > 0 && !cropping) {
             pipelineDesc += "video/x-raw,width=" + std::to_string(consumer.width)
                          + ",height=" + std::to_string(consumer.height)
+                         + ",pixel-aspect-ratio=1/1"
                          + ",framerate=" + std::to_string(fps) + "/1 ! ";
         } else {
             pipelineDesc += "video/x-raw,framerate=" + std::to_string(fps) + "/1 ! ";
@@ -1085,6 +1090,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         // Build pipeline: pipewiresrc → videoconvert → videoscale → capsfilter(RGB, WxH) → appsink
         pipelineDesc += "video/x-raw,format=RGB,width=" + std::to_string(overlayW)
                      + ",height=" + std::to_string(overlayH)
+                     + ",pixel-aspect-ratio=1/1"
                      + " ! appsink name=sink emit-signals=true sync=true max-buffers=2 drop=true";
 
         LogInfo(VB_MEDIAOUT, "VideoOutputManager: Overlay consumer '%s' targeting model '%s' (%dx%d)\n",
