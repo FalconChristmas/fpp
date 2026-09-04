@@ -317,6 +317,7 @@
             // from the one fppd announces.
             var currentSDP = { text: '', filename: '' };
             var availableInterfaces = [];
+            var audioGroups = [];
             var nextInstanceId = 1;
             var hasUnsavedChanges = false;
             // Must track AES67::DEFAULT_PTIME_MS in AES67Manager.h: fppd
@@ -345,6 +346,7 @@
                 LoadInterfaces().then(function () {
                     LoadInstances();
                 });
+                LoadAudioGroups();
             });
 
             /////////////////////////////////////////////////////////////////////////////
@@ -522,6 +524,36 @@
             }
 
             /////////////////////////////////////////////////////////////////////////////
+            // A send instance is a PipeWire *sink* that something else has to
+            // feed.  Its pipewiresrc is created with node.autoconnect=false, so
+            // with no Audio Output Group member targeting it nothing ever links
+            // in, the pipeline cannot preroll, and gst_element_set_state() sits
+            // there for 30s before returning FAILURE -- which reaches the user
+            // as the bare warning "AES67: audio send stream failed to start",
+            // 30 seconds after an Apply that reported success.  Groups reference
+            // the instance as cardId "aes67_<id>" (see GetPipeWireAudioCards),
+            // so the page can see this coming and say so instead.
+            function LoadAudioGroups() {
+                return $.getJSON('api/pipewire/audio/groups')
+                    .done(function (data) {
+                        audioGroups = (data && data.groups) ? data.groups : [];
+                        RenderInstances();
+                    });
+            }
+
+            function InstanceHasAudioSource(inst) {
+                var cardId = 'aes67_' + inst.id;
+                for (var g = 0; g < audioGroups.length; g++) {
+                    if (audioGroups[g].enabled === false) continue;
+                    var members = audioGroups[g].members || [];
+                    for (var m = 0; m < members.length; m++) {
+                        if (members[m].cardId === cardId) return true;
+                    }
+                }
+                return false;
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
             function LoadInstances() {
                 hasUnsavedChanges = false;
                 $.getJSON('api/pipewire/aes67/instances')
@@ -634,6 +666,23 @@
 
                 // Body
                 html += '<div class="instance-body">';
+
+                // Nothing feeds this sender -- see LoadAudioGroups().  Only
+                // meaningful once the groups have actually loaded, and only for
+                // an enabled sender: a disabled or receive-only instance has no
+                // sink to feed.
+                if (inst.enabled && (mode === 'send' || mode === 'both') &&
+                    audioGroups.length > 0 && !InstanceHasAudioSource(inst)) {
+                    html += '<div class="alert alert-warning d-flex align-items-start gap-2 mb-3">' +
+                        '<i class="fas fa-exclamation-triangle mt-1"></i>' +
+                        '<div>No audio is routed to this stream. It is not a member of any enabled ' +
+                        '<a href="pipewire-audio.php">Audio Output Group</a>, so nothing feeds ' +
+                        '<code>' + nodeName + '_send</code> and FPPD cannot start the stream ' +
+                        '(&ldquo;audio send stream failed to start&rdquo;). Add it as a member of a group, ' +
+                        'then apply the Audio Output Groups config.</div>' +
+                        '</div>';
+                }
+
                 html += '<div class="instance-settings">';
 
                 // Stream Mode

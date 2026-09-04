@@ -381,6 +381,22 @@ bool AES67Manager::LoadConfig() {
 // ──────────────────────────────────────────────────────────────────────────────
 // ApplyConfig — called from PHP API and boot sequence
 // ──────────────────────────────────────────────────────────────────────────────
+// Retract the pipeline warnings for the kinds of stream that are no longer
+// failing.  CreateSendPipeline()/CreateRecvPipeline() raise these, and nothing
+// used to take them back: a warning with no timeout stays in the banner until
+// fppd restarts, so a user who fixed the cause (usually routing a group to the
+// sender) and re-applied successfully was still told the stream had failed.
+// Called from every path that ends with no failing pipeline of that kind --
+// including the ones that end with no pipelines at all.
+static void ClearAES67PipelineWarnings(bool clearSend, bool clearRecv) {
+    if (clearSend) {
+        WarningHolder::RemoveWarning(AES67::WARNING_ID_PIPELINE, AES67::WARNING_SEND_FAILED);
+    }
+    if (clearRecv) {
+        WarningHolder::RemoveWarning(AES67::WARNING_ID_PIPELINE, AES67::WARNING_RECV_FAILED);
+    }
+}
+
 bool AES67Manager::ApplyConfig() {
     // Serialize against concurrent ApplyConfig()/Shutdown()/Cleanup() calls -
     // see m_applyMutex.  Without this, two callers can both get past the SAP
@@ -420,6 +436,7 @@ bool AES67Manager::ApplyConfig() {
 
     if (!FileExists(m_configPath)) {
         LogInfo(VB_MEDIAOUT, "AES67Manager: No config file, nothing to apply\n");
+        ClearAES67PipelineWarnings(true, true);
         m_active.store(false);
         return true;
     }
@@ -436,6 +453,7 @@ bool AES67Manager::ApplyConfig() {
 
     if (enabledCount == 0) {
         LogInfo(VB_MEDIAOUT, "AES67Manager: No enabled instances\n");
+        ClearAES67PipelineWarnings(true, true);
         m_active.store(false);
         return true;
     }
@@ -451,6 +469,8 @@ bool AES67Manager::ApplyConfig() {
     bool anySend = false;
     bool anyRecv = false;
     bool anySAP = false;
+    bool sendFailed = false;
+    bool recvFailed = false;
 
     for (const auto& inst : m_config.instances) {
         if (!inst.enabled) continue;
@@ -461,12 +481,16 @@ bool AES67Manager::ApplyConfig() {
         if (wantSend) {
             if (CreateSendPipeline(inst)) {
                 anySend = true;
+            } else {
+                sendFailed = true;
             }
         }
 
         if (wantRecv) {
             if (CreateRecvPipeline(inst)) {
                 anyRecv = true;
+            } else {
+                recvFailed = true;
             }
         }
 
@@ -474,6 +498,11 @@ bool AES67Manager::ApplyConfig() {
             anySAP = true;
         }
     }
+
+    // Every enabled pipeline of that kind started, so whatever raised the
+    // warning last time has been dealt with.  Note this runs after the create
+    // calls that raise it, so a still-failing kind keeps its warning.
+    ClearAES67PipelineWarnings(!sendFailed, !recvFailed);
 
     // Start the drift control loop if anything is sending on the PTP clock
     if (anySend && m_config.ptpMediaClock && m_config.adaptiveResample) {
@@ -521,6 +550,10 @@ void AES67Manager::Cleanup() {
     StopAllPipelines();
     ShutdownPTP();
     ReleaseMediaClock();
+
+    // Nothing is running any more, so a "failed to start" warning describes a
+    // stream that no longer exists.
+    ClearAES67PipelineWarnings(true, true);
 
     m_active.store(false);
 }
@@ -2769,7 +2802,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         LogErr(VB_MEDIAOUT, "AES67 send pipeline [%d] failed to start\n", inst.id);
-        WarningHolder::AddWarning(44, "AES67: audio send stream failed to start");
+        WarningHolder::AddWarning(AES67::WARNING_ID_PIPELINE, AES67::WARNING_SEND_FAILED);
         // Drop back to NULL before unreffing -- elements may already hold
         // READY/PAUSED resources (sockets, threads, PipeWire connections)
         // that gst_object_unref() alone will not release.
@@ -2894,7 +2927,7 @@ bool AES67Manager::CreateRecvPipeline(const AES67Instance& inst) {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         LogErr(VB_MEDIAOUT, "AES67 recv pipeline [%d] failed to start\n", inst.id);
-        WarningHolder::AddWarning(44, "AES67: audio receive stream failed to start");
+        WarningHolder::AddWarning(AES67::WARNING_ID_PIPELINE, AES67::WARNING_RECV_FAILED);
         // Drop back to NULL before unreffing -- elements may already hold
         // READY/PAUSED resources (sockets, threads, PipeWire connections)
         // that gst_object_unref() alone will not release.

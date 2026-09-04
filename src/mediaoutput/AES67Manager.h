@@ -61,6 +61,15 @@ constexpr int DEFAULT_PTIME_MS      = 1;        // 1ms packet time
 constexpr int DEFAULT_PORT          = 5004;
 constexpr int DEFAULT_CHANNELS      = 2;
 
+// Warning raised when a pipeline will not start.  WarningHolder::RemoveWarning()
+// matches on the id *and* the exact message text, and these warnings have no
+// timeout, so the strings have to be shared between the code that raises one
+// and the code that retracts it -- otherwise a warning outlives the problem it
+// describes and the banner only clears on an fppd restart.
+constexpr int WARNING_ID_PIPELINE = 44;
+constexpr const char* WARNING_SEND_FAILED = "AES67: audio send stream failed to start";
+constexpr const char* WARNING_RECV_FAILED = "AES67: audio receive stream failed to start";
+
 // Multichannel is not wired up, and the failure is total rather than partial.
 // Every AES67 stream is fed through the delay filter-chain that FPPINIT_Audio
 // emits, and that chain is unconditionally stereo: two delay nodes,
