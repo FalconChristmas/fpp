@@ -148,9 +148,12 @@ static bool findBlockingChildDriver(const std::string& devPath, std::string& blo
     return false;
 }
 
-// Hand a pin back from the peripheral that claimed it in the device tree so it can be
-// used as a GPIO. Returns true if the pin is usable when it returns.
-static bool releasePinFromKernelDriver(int gpio, const std::string& pinName) {
+// Hand a pin back from the peripheral that claimed it in the device tree so FPP can
+// use it itself - as a GPIO, or re-muxed to another function such as DPI (a pixel
+// string output on the SPI header pins, say, with spi0 still enabled in config.txt).
+// "use" names what the caller wants the pin for, for the messages.  Returns true if
+// the pin is usable when it returns.
+static bool releasePinFromKernelDriver(int gpio, const std::string& pinName, const std::string& use = "GPIO") {
     // configPin() is reachable from the REST API as well as from startup, so the
     // once-per-pin bookkeeping needs to be serialized.
     static std::mutex handledLock;
@@ -176,7 +179,7 @@ static bool releasePinFromKernelDriver(int gpio, const std::string& pinName) {
     std::filesystem::path driverLink = std::filesystem::read_symlink(devPath + "/driver", ec);
     if (ec) {
         std::string w = "Pin " + pinName + " is claimed by " + owner.device + " (" + owner.function +
-                        ") and cannot be used as a GPIO; no driver to unbind";
+                        ") and cannot be used for " + use + "; no driver to unbind";
         WarningHolder::AddWarning(51, w);
         LogWarn(VB_GPIO, "%s\n", w.c_str());
         return false;
@@ -187,14 +190,14 @@ static bool releasePinFromKernelDriver(int gpio, const std::string& pinName) {
     if (findBlockingChildDriver(devPath, blocker)) {
         std::string w = "Pin " + pinName + " is claimed by " + owner.function + " (" + owner.device +
                         "), which is in use by the " + blocker +
-                        " driver. Disable " + owner.function + " in config.txt to use this pin as a GPIO.";
+                        " driver. Disable " + owner.function + " in config.txt to use this pin for " + use + ".";
         WarningHolder::AddWarning(51, w);
         LogWarn(VB_GPIO, "%s\n", w.c_str());
         return false;
     }
 
-    LogInfo(VB_GPIO, "Pin %s is claimed by %s (%s); unbinding %s to free it for GPIO use\n",
-            pinName.c_str(), owner.function.c_str(), owner.device.c_str(), driver.c_str());
+    LogInfo(VB_GPIO, "Pin %s is claimed by %s (%s); unbinding %s to free it for %s use\n",
+            pinName.c_str(), owner.function.c_str(), owner.device.c_str(), driver.c_str(), use.c_str());
     std::ofstream unbind("/sys/bus/platform/drivers/" + driver + "/unbind");
     unbind << owner.device;
     unbind.close();
@@ -202,7 +205,7 @@ static bool releasePinFromKernelDriver(int gpio, const std::string& pinName) {
     PinMuxOwner check;
     if (findPinMuxOwner(gpio, check)) {
         std::string w = "Pin " + pinName + " is claimed by " + check.function + " (" + check.device +
-                        ") and could not be freed for GPIO use";
+                        ") and could not be freed for " + use + " use";
         WarningHolder::AddWarning(51, w);
         LogWarn(VB_GPIO, "%s\n", w.c_str());
         return false;
@@ -266,10 +269,12 @@ public:
         // 4/5: https://elinux.org/RPi_BCM2711_GPIOs
 
         // Under strict pinmux a pin the device tree handed to a peripheral has to be
-        // reclaimed from that driver before any gpiod request on it can succeed; re-muxing
-        // the pad is not enough. See releasePinFromKernelDriver() above.
-        if (startsWith(mode, "gpio")) {
-            releasePinFromKernelDriver(gpio, name);
+        // reclaimed from that driver before any gpiod request on it can succeed, and
+        // before a "pinctrl set" to another alt function sticks: the pinctrl driver
+        // reasserts its claim, so a string output on a pin spi0 owns silently stayed
+        // SPI.  See releasePinFromKernelDriver() above.
+        if (startsWith(mode, "gpio") || mode == "dpi" || mode == "pwm" || mode == "uart") {
+            releasePinFromKernelDriver(gpio, name, mode == "dpi" ? "DPI" : mode == "pwm" ? "PWM" : mode == "uart" ? "UART" : "GPIO");
         }
 
         if (mode == "pwm" && pwm != -1) {
