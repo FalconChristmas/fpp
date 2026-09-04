@@ -1364,6 +1364,9 @@
 
         function UpdateMemberCard(groupIndex, memberIndex, cardId) {
             var member = audioGroups.groups[groupIndex].members[memberIndex];
+            if (member.cardId !== cardId) {
+                delete member.nodeTarget;
+            }
             member.cardId = cardId;
 
             // Find card info and auto-set channels to the card's capability
