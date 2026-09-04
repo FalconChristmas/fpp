@@ -166,7 +166,12 @@ static bool dumpstack_gdb(const char** reason = nullptr) {
     char thread_buf[30];
     snprintf(thread_buf, sizeof(thread_buf), "(LWP %ld)", syscall(__NR_gettid));
     char name_buf[512];
-    name_buf[readlink("/proc/self/exe", name_buf, 511)] = 0;
+    ssize_t nLink = readlink("/proc/self/exe", name_buf, sizeof(name_buf) - 1);
+    if (nLink > 0 && nLink < (ssize_t)sizeof(name_buf)) {
+        name_buf[nLink] = '\0';
+    } else {
+        name_buf[0] = '\0';
+    }
 
     constexpr static int kTimeoutSec = 30;
 
