@@ -10,7 +10,16 @@ if (!isset($_GET['ip'])) {
     exit(0);
 }
 
-$ip = escapeshellcmd($_GET['ip']);
+$rawIp = $_GET['ip'];
+// Validate IP or hostname strictly — reject shell metachars/spaces.
+// filter_var handles IPv4/IPv6; hostname regex covers simple DNS names (RFC 1123) used for local FPP hosts.
+$validIp = filter_var($rawIp, FILTER_VALIDATE_IP);
+$validHost = preg_match('/^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$/', $rawIp);
+if (!$validIp && !$validHost) {
+    echo "Invalid 'ip' URL argument.\n";
+    exit(0);
+}
+$ip = $rawIp;
 
 $dirs = Array();
 
@@ -47,7 +56,11 @@ foreach ( $dirs as $dir ) {
 		$compress = "-z";
 	}
 
-	$command = "rsync -rtDlv --modify-window=1 $compress --stats $fppHome/media/$dir/ $ip::media/$dir/ 2>&1";
+	// Quote src and dest as single shell args so the shell cannot split on space/;.
+	// $fppHome is trusted (from mediaDirectory) but quote for consistency; $ip is validated above.
+	$src = escapeshellarg($fppHome . "/media/" . $dir . "/");
+	$dest = escapeshellarg($ip . "::media/" . $dir . "/");
+	$command = "rsync -rtDlv --modify-window=1 $compress --stats $src $dest 2>&1";
 
 	echo "Command: $command\n";
 	echo "----------------------------------------------------------------------------------\n";
