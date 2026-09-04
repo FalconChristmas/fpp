@@ -7314,7 +7314,17 @@ function ApplyPipeWireVideoInputSources()
 
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/pipewire/video/input-sources/v4l2-devices
-// Returns available V4L2 video capture devices
+// Returns available V4L2 video capture devices.
+//
+// Only single-planar capture devices are returned.  That is deliberate:
+// GStreamer's v4l2src (what VideoInputManager builds its pipelines around)
+// only handles single-planar V4L2 capture, and every UVC webcam / USB
+// capture dongle sets V4L2_CAP_VIDEO_CAPTURE (0x1).  Filtering on a
+// substring match of "Video Capture" instead — as this used to — matched
+// the Pi's internal m2m nodes (rpi-hevc-dec's "Format Video Capture
+// Multiplanar:" heading, and pispbe's CAPTURE_MPLANE nodes), so the
+// dropdown was full of decoder/ISP devices that can never produce a
+// picture, with no way for the user to tell which entry was their camera.
 function GetV4L2Devices()
 {
     $devices = array();
@@ -7324,6 +7334,11 @@ function GetV4L2Devices()
     if ($videoDevs === false) {
         return json(array("devices" => array()));
     }
+
+    // V4L2 capability bits (linux/videodev2.h)
+    $V4L2_CAP_VIDEO_CAPTURE = 0x00000001;
+    $V4L2_CAP_VIDEO_OUTPUT = 0x00000002;
+    $V4L2_CAP_VIDEO_M2M = 0x00008000;
 
     foreach ($videoDevs as $devPath) {
         // Use v4l2-ctl to get device capabilities
@@ -7335,8 +7350,19 @@ function GetV4L2Devices()
 
         $info = implode("\n", $output);
 
-        // Only include capture devices (not output or m2m)
-        if (strpos($info, 'Video Capture') === false)
+        // Prefer "Device Caps" (what this node can do) over "Capabilities"
+        // (what the whole physical device can do across all its nodes).
+        if (!preg_match('/Device Caps\s*:\s*0x([0-9a-fA-F]+)/', $info, $m) &&
+            !preg_match('/Capabilities\s*:\s*0x([0-9a-fA-F]+)/', $info, $m)) {
+            continue;
+        }
+        $caps = hexdec($m[1]);
+
+        // Must be a single-planar capture node, and must not be a
+        // memory-to-memory (decoder/encoder/ISP) or output node.
+        if (!($caps & $V4L2_CAP_VIDEO_CAPTURE))
+            continue;
+        if ($caps & ($V4L2_CAP_VIDEO_OUTPUT | $V4L2_CAP_VIDEO_M2M))
             continue;
 
         // Extract device name
@@ -7345,13 +7371,154 @@ function GetV4L2Devices()
             $name = trim($m[1]);
         }
 
+        // Bus info distinguishes two identical cameras from each other.
+        $bus = '';
+        if (preg_match('/Bus info\s*:\s*(.+)/', $info, $m)) {
+            $bus = trim($m[1]);
+        }
+
         $devices[] = array(
             'device' => $devPath,
             'name' => $name,
+            'busInfo' => $bus,
+            'modes' => GetV4L2DeviceModes($devPath),
         );
     }
 
     return json(array("devices" => $devices));
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Return the discrete capture modes a V4L2 device actually supports, as
+// [ {format, width, height, framerates[]}, ... ].
+//
+// The UI uses this to offer real resolutions instead of free-text boxes:
+// a webcam only negotiates its native sizes, so an arbitrary value like
+// 240x135 @ 10fps fails to start with nothing but "failed to start" in
+// the log.
+function GetV4L2DeviceModes($devPath)
+{
+    $modes = array();
+    $output = array();
+    $ret = 0;
+    exec("v4l2-ctl -d " . escapeshellarg($devPath) . " --list-formats-ext 2>/dev/null", $output, $ret);
+    if ($ret !== 0)
+        return $modes;
+
+    $curFormat = '';
+    $curSize = null;
+    foreach ($output as $line) {
+        if (preg_match("/\[\d+\]:\s*'(\w+)'/", $line, $m)) {
+            $curFormat = $m[1];
+            $curSize = null;
+        } else if (preg_match('/Size:\s*Discrete\s*(\d+)x(\d+)/', $line, $m)) {
+            if ($curSize !== null)
+                $modes[] = $curSize;
+            $curSize = array(
+                'format' => $curFormat,
+                'width' => intval($m[1]),
+                'height' => intval($m[2]),
+                'framerates' => array(),
+            );
+        } else if ($curSize !== null &&
+                   preg_match('/Interval:\s*Discrete\s*[\d.]+s\s*\(([\d.]+)\s*fps\)/', $line, $m)) {
+            $fps = intval(round(floatval($m[1])));
+            if ($fps > 0 && !in_array($fps, $curSize['framerates']))
+                $curSize['framerates'][] = $fps;
+        }
+    }
+    if ($curSize !== null)
+        $modes[] = $curSize;
+
+    return $modes;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// GET /api/pipewire/video/input-sources/:id/preview
+// Returns a JPEG snapshot of a video input source, for the config page's
+// live preview.  Two paths, because a capture device can only be opened once:
+//   - source running in fppd -> ask fppd, which taps its intervideo channel
+//   - source stopped/disabled -> grab straight off the device ourselves, so
+//     the operator can confirm they picked the right camera before enabling it
+function GetVideoInputPreview()
+{
+    global $settings;
+
+    $id = intval(params('id'));
+    $width = isset($_GET['width']) ? intval($_GET['width']) : 320;
+    if ($width < 32)
+        $width = 32;
+    if ($width > 1280)
+        $width = 1280;
+
+    // Try fppd first — works whenever the source is actually running.
+    $ctx = stream_context_create(array('http' => array('timeout' => 4)));
+    $jpeg = @file_get_contents('http://localhost:32322/videoinput/preview?id=' . $id .
+                               '&width=' . $width, false, $ctx);
+    if ($jpeg !== false && strlen($jpeg) > 2 && substr($jpeg, 0, 2) === "\xFF\xD8") {
+        header('Content-Type: image/jpeg');
+        header('Cache-Control: no-store');
+        echo $jpeg;
+        exit(0);
+    }
+
+    // Source isn't running — fall back to opening the device directly.
+    $sourcesFile = $settings['mediaDirectory'] . "/config/pipewire-video-input-sources.json";
+    $device = '';
+    $srcType = '';
+    if (file_exists($sourcesFile)) {
+        $data = json_decode(file_get_contents($sourcesFile), true);
+        if (is_array($data) && isset($data['videoInputSources'])) {
+            foreach ($data['videoInputSources'] as $src) {
+                if (intval($src['id']) === $id) {
+                    $srcType = isset($src['type']) ? $src['type'] : '';
+                    $device = isset($src['device']) ? $src['device'] : '';
+                    break;
+                }
+            }
+        }
+    }
+
+    // Only V4L2 devices are grabbable without fppd; network sources would
+    // mean opening a second RTSP/HTTP session, which is not what a preview
+    // button should quietly do.
+    if ($srcType !== 'v4l2src' || $device === '' || !preg_match('#^/dev/video\d+$#', $device)) {
+        header('HTTP/1.1 503 Service Unavailable');
+        header('Content-Type: application/json');
+        echo json_encode(array('status' => 'error',
+                               'message' => 'No preview available. Enable and save the source, then retry.'));
+        exit(0);
+    }
+
+    $tmp = tempnam('/tmp', 'fppvidprev') . '.jpg';
+    // decodebin + videoscale for the same reason the capture pipeline needs
+    // them: cameras hand back MJPEG or a native size we didn't ask for.
+    // num-buffers=8 discards the first few frames, which are often black or
+    // mid-auto-exposure on a freshly opened webcam.
+    $cmd = 'timeout 8 gst-launch-1.0 -q'
+         . ' v4l2src device=' . escapeshellarg($device) . ' num-buffers=8'
+         . ' ! decodebin ! videoconvert ! videoscale'
+         . ' ! video/x-raw,width=' . $width . ',pixel-aspect-ratio=1/1'
+         . ' ! jpegenc quality=70'
+         . ' ! multifilesink location=' . escapeshellarg($tmp) . ' 2>/dev/null';
+    exec($cmd, $out, $ret);
+
+    if (file_exists($tmp) && filesize($tmp) > 0) {
+        header('Content-Type: image/jpeg');
+        header('Cache-Control: no-store');
+        readfile($tmp);
+        unlink($tmp);
+        exit(0);
+    }
+    if (file_exists($tmp))
+        unlink($tmp);
+
+    header('HTTP/1.1 503 Service Unavailable');
+    header('Content-Type: application/json');
+    echo json_encode(array('status' => 'error',
+                           'message' => 'Could not read a frame from ' . $device .
+                                        '. Check the device is connected and not in use.'));
+    exit(0);
 }
 
 /////////////////////////////////////////////////////////////////////////////

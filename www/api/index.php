@@ -152,6 +152,7 @@ dispatch_get('/pipewire/video/input-sources', 'GetPipeWireVideoInputSources');
 dispatch_post('/pipewire/video/input-sources', 'SavePipeWireVideoInputSources');
 dispatch_post('/pipewire/video/input-sources/apply', 'ApplyPipeWireVideoInputSources');
 dispatch_get('/pipewire/video/input-sources/v4l2-devices', 'GetV4L2Devices');
+dispatch_get('/pipewire/video/input-sources/:id/preview', 'GetVideoInputPreview');
 
 dispatch_get('/pipewire/aes67/instances', 'GetAES67Instances');
 dispatch_post('/pipewire/aes67/instances', 'SaveAES67Instances');

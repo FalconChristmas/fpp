@@ -12,6 +12,7 @@
  */
 
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -70,6 +71,18 @@ public:
     /// Get the framerate of a source by its intervideo channel name.
     /// Returns the detected (or configured) fps, or 0 if not found.
     int GetSourceFramerate(const std::string& channelName) const;
+
+    /// Grab a single JPEG frame from a running source, for UI preview.
+    ///
+    /// Taps the source's intervideo channel with a short-lived
+    /// intervideosrc, so it costs the source pipeline nothing and — unlike
+    /// opening /dev/videoN a second time — never contends with the capture
+    /// device (UVC cameras allow a single opener).
+    ///
+    /// Returns false if the source isn't running or no frame arrived within
+    /// timeoutMs.
+    bool GrabSnapshotJPEG(int sourceId, int maxWidth, int timeoutMs,
+                          std::vector<uint8_t>& jpegOut);
 
 private:
     VideoInputManager() = default;

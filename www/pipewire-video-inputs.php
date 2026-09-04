@@ -409,7 +409,140 @@
                 '</div>';
         }
 
+        // ------------------------------------------------------------------
+        // Live preview
+        //
+        // The preview endpoint returns a single JPEG, so "live" here is a
+        // polled still refreshed a couple of times a second. That is enough
+        // to answer the only question it needs to answer -- "is this the
+        // right camera, and is it producing a picture?" -- without a second
+        // decode pipeline running for every open config page.
+        var previewTimers = {};
+
+        // Warn when the configured size/rate isn't one the camera advertises.
+        // FPP scales and re-times whatever the camera gives it, so a mismatch
+        // is not fatal -- but a native mode costs less CPU and looks better.
+        function BuildNativeModeHint(source) {
+            var dev = null;
+            for (var i = 0; i < availableV4l2Devices.length; i++) {
+                if (availableV4l2Devices[i].device === source.device) {
+                    dev = availableV4l2Devices[i];
+                    break;
+                }
+            }
+            if (!dev || !dev.modes || dev.modes.length === 0) return '';
+
+            var exact = false;
+            var sizes = {};
+            for (var j = 0; j < dev.modes.length; j++) {
+                var m = dev.modes[j];
+                sizes[m.width + 'x' + m.height] = true;
+                if (m.width === source.width && m.height === source.height) exact = true;
+            }
+            if (exact) return '';
+
+            var list = Object.keys(sizes).slice(0, 8).join(', ');
+            return '<div class="row mt-1"><div class="col-auto">' +
+                '<small class="text-warning"><i class="fas fa-info-circle"></i> ' +
+                EscapeAttr(source.width + 'x' + source.height) + ' is not a native mode for this camera ' +
+                '(FPP will scale). Native sizes: ' + EscapeAttr(list) + '</small>' +
+                '</div></div>';
+        }
+
+        function BuildPreviewBlock(source) {
+            var id = parseInt(source.id, 10);
+
+            // A v4l2 source can be previewed straight off the device even
+            // while stopped, so the operator can confirm the camera before
+            // committing.  Every other type is only reachable through fppd's
+            // running pipeline, so say so rather than letting them press a
+            // button that can only fail.
+            var hint = '<small>Preview stopped.</small>';
+            if (!source.enabled && source.type !== 'v4l2src') {
+                hint = '<small>Enable this source and click <b>Save &amp; Apply</b> to preview it.</small>';
+            }
+
+            return '<div class="row align-items-start mt-2">' +
+                '<div class="col-auto"><label>Preview:</label></div>' +
+                '<div class="col-auto">' +
+                '<div class="d-flex flex-column gap-1">' +
+                '<img id="videoPreviewImg' + id + '" class="border rounded d-none" alt="Video input preview" width="320">' +
+                '<div id="videoPreviewMsg' + id + '" class="text-muted">' + hint + '</div>' +
+                '<div class="d-flex gap-2">' +
+                '<button type="button" class="btn btn-sm btn-outline-primary" id="videoPreviewBtn' + id + '" onclick="TogglePreview(' + id + ')">' +
+                '<i class="fas fa-play"></i> Start Preview</button>' +
+                '</div></div></div></div>';
+        }
+
+        function TogglePreview(id) {
+            if (previewTimers[id]) {
+                StopPreview(id);
+            } else {
+                StartPreview(id);
+            }
+        }
+
+        function StopPreview(id) {
+            if (previewTimers[id]) {
+                clearTimeout(previewTimers[id]);
+                delete previewTimers[id];
+            }
+            $('#videoPreviewImg' + id).addClass('d-none').removeAttr('src');
+            $('#videoPreviewMsg' + id).removeClass('text-danger').addClass('text-muted')
+                .html('<small>Preview stopped.</small>');
+            $('#videoPreviewBtn' + id).html('<i class="fas fa-play"></i> Start Preview');
+        }
+
+        function StartPreview(id) {
+            $('#videoPreviewBtn' + id).html('<i class="fas fa-stop"></i> Stop Preview');
+            $('#videoPreviewMsg' + id).removeClass('text-danger').addClass('text-muted')
+                .html('<small>Connecting&hellip;</small>');
+            previewTimers[id] = setTimeout(function () { PreviewTick(id); }, 0);
+        }
+
+        // Chained timeouts rather than setInterval: a slow or failing grab
+        // must not stack up requests behind itself, and a device that has
+        // gone away should back off instead of hammering gst-launch.
+        function PreviewTick(id) {
+            if (!previewTimers[id]) return;
+            var img = document.getElementById('videoPreviewImg' + id);
+            if (!img) {           // row was re-rendered out from under us
+                StopPreview(id);
+                return;
+            }
+            var url = 'api/pipewire/video/input-sources/' + id + '/preview?width=320&_=' + Date.now();
+            var probe = new Image();
+            probe.onload = function () {
+                if (!previewTimers[id]) return;
+                img.src = probe.src;
+                $('#videoPreviewImg' + id).removeClass('d-none');
+                $('#videoPreviewMsg' + id).addClass('d-none');
+                previewTimers[id] = setTimeout(function () { PreviewTick(id); }, 500);
+            };
+            probe.onerror = function () {
+                if (!previewTimers[id]) return;
+                $('#videoPreviewImg' + id).addClass('d-none');
+                $('#videoPreviewMsg' + id).removeClass('d-none text-muted').addClass('text-danger')
+                    .html('<small><i class="fas fa-exclamation-triangle"></i> No frames. ' +
+                          'Check the device is connected, then Save &amp; Apply and retry.</small>');
+                previewTimers[id] = setTimeout(function () { PreviewTick(id); }, 3000);
+            };
+            probe.src = url;
+        }
+
+        // Re-rendering the source list destroys the <img> elements the
+        // running previews write into, so drop the timers with them.
+        function StopAllPreviews() {
+            for (var id in previewTimers) {
+                if (previewTimers.hasOwnProperty(id)) {
+                    clearTimeout(previewTimers[id]);
+                }
+            }
+            previewTimers = {};
+        }
+
         function RenderSources() {
+            StopAllPreviews();
             var container = $('#sourcesContainer');
             container.empty();
             container.append(UnsavedChangesBanner());
@@ -549,7 +682,7 @@
                     html += '<div class="col-auto"><label>Device:</label></div>';
                     html += '<div class="col-auto">';
                     if (availableV4l2Devices.length > 0) {
-                        html += '<select class="form-select form-select-sm" style="width:auto;" onchange="UpdateSourceField(' + index + ',\'device\',this.value)">';
+                        html += '<select class="form-select form-select-sm w-auto" onchange="UpdateSourceField(' + index + ',\'device\',this.value)">';
                         html += '<option value="">-- Select Device --</option>';
                         for (var i = 0; i < availableV4l2Devices.length; i++) {
                             var d = availableV4l2Devices[i];
@@ -558,11 +691,12 @@
                         }
                         html += '</select>';
                     } else {
-                        html += '<input type="text" class="form-control form-control-sm" style="width:200px;" value="' + EscapeAttr(source.device || '/dev/video0') + '" onchange="UpdateSourceField(' + index + ',\'device\',this.value)" placeholder="/dev/video0">';
-                        html += ' <span class="text-muted" style="font-size:0.85rem;">(no V4L2 devices detected)</span>';
+                        html += '<input type="text" class="form-control form-control-sm w-auto" value="' + EscapeAttr(source.device || '/dev/video0') + '" onchange="UpdateSourceField(' + index + ',\'device\',this.value)" placeholder="/dev/video0">';
+                        html += ' <span class="text-muted"><small>(no capture devices detected &mdash; check the camera is plugged in)</small></span>';
                     }
                     html += '</div>';
                     html += '</div>';
+                    html += BuildNativeModeHint(source);
                     break;
 
                 case 'rtspsrc':
@@ -638,6 +772,12 @@
                     html += '</div>';
                     break;
             }
+
+            // Every source type benefits from a preview, not just cameras:
+            // it is the quickest way to tell a mis-typed RTSP URL or a dead
+            // stream from a routing problem further downstream.
+            html += BuildPreviewBlock(source);
+
             return html;
         }
 

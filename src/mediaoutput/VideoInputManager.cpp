@@ -26,6 +26,10 @@
 
 #include "fpp-json.h"
 
+#ifdef HAS_GSTREAMER_VIDEO_INPUT
+#include <gst/app/gstappsink.h>
+#endif
+
 // pipewiresink mode=provide enum value (GST_PIPEWIRE_SINK_MODE_PROVIDE)
 static constexpr int PIPEWIRE_SINK_MODE_PROVIDE = 2;
 
@@ -606,6 +610,22 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
             + " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0"
             + " ! clocksync"
             + " ! intervideosink sync=false channel=" + GstQuote(source.pipeWireNodeName);
+    } else if (source.type == "v4l2src") {
+        // Cameras only negotiate their own native modes.  Asking v4l2src
+        // directly for video/x-raw at an arbitrary width/height/framerate
+        // fails to negotiate and the pipeline never leaves READY, which
+        // surfaced only as "failed to start" in the log.  decodebin covers
+        // MJPEG-only and H.264 webcams (very common above VGA), and passes
+        // already-raw formats straight through; videoscale/videorate then
+        // convert whatever the camera gave us to the configured size/rate.
+        pipelineDesc = srcElement
+            + " ! decodebin"
+            + " ! videoconvert"
+            + " ! videoscale"
+            + " ! videorate"
+            + " ! " + capsStr
+            + " ! queue max-size-buffers=2 leaky=downstream"
+            + " ! intervideosink sync=false channel=" + GstQuote(source.pipeWireNodeName);
     } else {
         pipelineDesc = srcElement
             + " ! " + capsStr
@@ -1164,4 +1184,94 @@ void VideoInputManager::JoinTeardownThreads() {
             t.join();
         }
     }
+}
+
+
+bool VideoInputManager::GrabSnapshotJPEG(int sourceId, int maxWidth, int timeoutMs,
+                                         std::vector<uint8_t>& jpegOut) {
+    jpegOut.clear();
+#ifdef HAS_GSTREAMER_VIDEO_INPUT
+    if (maxWidth < 32) maxWidth = 32;
+    if (maxWidth > 1280) maxWidth = 1280;
+    if (timeoutMs < 100) timeoutMs = 100;
+    if (timeoutMs > 10000) timeoutMs = 10000;
+
+    std::string channel;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (const auto& src : m_sources) {
+            if (src.id == sourceId) {
+                if (!src.running.load()) {
+                    return false;
+                }
+                channel = src.pipeWireNodeName;
+                break;
+            }
+        }
+    }
+    if (channel.empty() || !GstValueUsable(channel, "node name", "snapshot")) {
+        return false;
+    }
+
+    // pixel-aspect-ratio=1/1 is load-bearing.  With a width-only capsfilter
+    // videoscale satisfies the request by changing the PAR rather than the
+    // height -- a 240x135 source came out as a 320x135 JPEG, and since JPEG
+    // carries no PAR the preview showed a squashed picture.  Pinning PAR to
+    // square forces videoscale to pick the height instead, so the preview
+    // has the same shape as the real output.
+    std::string desc = "intervideosrc timeout=" + std::to_string((long long)timeoutMs * 1000000LL)
+                     + " channel=" + GstQuote(channel)
+                     + " ! videoconvert"
+                     + " ! videoscale"
+                     + " ! video/x-raw,width=" + std::to_string(maxWidth)
+                     + ",pixel-aspect-ratio=1/1"
+                     + " ! jpegenc quality=70"
+                     + " ! appsink name=snap max-buffers=1 drop=true sync=false";
+
+    GError* error = nullptr;
+    GstElement* pipeline = gst_parse_launch(desc.c_str(), &error);
+    if (!pipeline) {
+        LogWarn(VB_MEDIAOUT, "VideoInputManager: snapshot pipeline failed for source %d: %s\n",
+                sourceId, error ? error->message : "unknown error");
+        if (error) g_error_free(error);
+        return false;
+    }
+    if (error) {
+        g_error_free(error);
+        error = nullptr;
+    }
+
+    GstElement* sink = gst_bin_get_by_name(GST_BIN(pipeline), "snap");
+    if (!sink) {
+        gst_element_set_state(pipeline, GST_STATE_NULL);
+        gst_object_unref(pipeline);
+        return false;
+    }
+
+    bool ok = false;
+    if (gst_element_set_state(pipeline, GST_STATE_PLAYING) != GST_STATE_CHANGE_FAILURE) {
+        GstSample* sample = gst_app_sink_try_pull_sample(
+            GST_APP_SINK(sink), (GstClockTime)timeoutMs * GST_MSECOND);
+        if (sample) {
+            GstBuffer* buf = gst_sample_get_buffer(sample);
+            GstMapInfo map;
+            if (buf && gst_buffer_map(buf, &map, GST_MAP_READ)) {
+                jpegOut.assign(map.data, map.data + map.size);
+                gst_buffer_unmap(buf, &map);
+                ok = !jpegOut.empty();
+            }
+            gst_sample_unref(sample);
+        } else {
+            LogDebug(VB_MEDIAOUT, "VideoInputManager: snapshot timed out for source %d (no frames on channel %s)\n",
+                     sourceId, channel.c_str());
+        }
+    }
+
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(sink);
+    gst_object_unref(pipeline);
+    return ok;
+#else
+    return false;
+#endif
 }

@@ -51,6 +51,7 @@ extern volatile int runMainFPPDLoop;
 
 #include "MultiSync.h"
 #include "OutputMonitor.h"
+#include "mediaoutput/VideoInputManager.h"
 #include "RecurringTasks.h"
 #include "Player.h"
 #include "Plugins.h"
@@ -739,6 +740,50 @@ void APIServer::Init(void) {
     // document POST/PUT here without checking Player.cpp again.
     app.registerHandler("/player", copyHandler(handlePlayer), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
     app.registerHandlerViaRegex("/player/.*", copyHandler(handlePlayer), {drogon::Get, drogon::Post, drogon::Put, drogon::Head});
+
+    // Video input preview (/videoinput/preview?id=N)
+    //
+    // Returns a single JPEG frame tapped off a running video input source's
+    // intervideo channel, so the config page can show the operator what the
+    // capture device is actually producing.  Tapping the channel (rather than
+    // opening /dev/videoN again) means the preview works while the source is
+    // live -- UVC cameras only allow a single opener.
+    auto handleVideoInputPreview = [](const HttpRequestPtr& req,
+                                      std::function<void(const HttpResponsePtr&)>&& callback) {
+        int id = 0;
+        auto idStr = req->getParameter("id");
+        if (!idStr.empty()) {
+            id = std::atoi(idStr.c_str());
+        }
+        int width = 320;
+        auto wStr = req->getParameter("width");
+        if (!wStr.empty()) {
+            width = std::atoi(wStr.c_str());
+        }
+
+        std::vector<uint8_t> jpeg;
+        if (id <= 0 || !VideoInputManager::Instance().GrabSnapshotJPEG(id, width, 2000, jpeg)) {
+            auto resp = makeStringResponse("No frame available", 503);
+            resp->addHeader("Cache-Control", "no-store");
+            callback(resp);
+            return;
+        }
+
+        auto resp = drogon::HttpResponse::newHttpResponse();
+        resp->setStatusCode(drogon::k200OK);
+        resp->setContentTypeCode(drogon::CT_IMAGE_JPG);
+        resp->setBody(std::string(reinterpret_cast<const char*>(jpeg.data()), jpeg.size()));
+        resp->addHeader("Cache-Control", "no-store");
+        callback(resp);
+    };
+    /**
+     * Get a JPEG snapshot of a running video input source, for UI preview.
+     *
+     * @route GET /api/videoinput/preview
+     * @response 200 JPEG image of the most recent frame.
+     * @response 503 Source is not running or produced no frame.
+     */
+    app.registerHandler("/videoinput/preview", copyHandler(handleVideoInputPreview), {drogon::Get, drogon::Head});
 
     // Let plugins register their own routes
     PluginManager::INSTANCE.registerApis();
