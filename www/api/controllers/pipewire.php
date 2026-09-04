@@ -4479,7 +4479,8 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
 
     // Resolve card IDs to PipeWire node names.
     // Priority order:
-    //   1. Previously-stored nodeTarget in member JSON (survives PipeWire being down)
+    //   0. Existing FPP adapter named for this card's stable ALSA ID
+    //   1. Previously-stored nodeTarget in member JSON (validated for FPP adapters)
     //   2. Direct cardId→nodeName via sinkCardIdMap (no card-number dependency)
     //   3. cardId→cardNum→nodeName via sinkCardNumMap (legacy fallback)
     //   4. Create FPP ALSA adapter if card exists but has no PipeWire sink
@@ -4541,6 +4542,21 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                     $unresolvedCards[] = $cardId . " (Opus RTP instance not found or disabled)";
                 }
                 continue;
+            }
+
+            // FPP adapter names encode the stable ALSA card ID. Prefer the
+            // matching live adapter over a cached target from another card.
+            $fppTarget = 'fpp_alsa_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cardId));
+            if (isset($existingSinks[$fppTarget])) {
+                $cardNodeMap[$cardId] = $fppTarget;
+                continue;
+            }
+            // Also reject mismatched FPP targets when the intended adapter is
+            // absent, so neither cached-target fallback can select another card.
+            if (isset($member['nodeTarget'])
+                && strpos($member['nodeTarget'], 'fpp_alsa_') === 0
+                && $member['nodeTarget'] !== $fppTarget) {
+                unset($member['nodeTarget']);
             }
 
             // Priority 1: Previously-stored nodeTarget from last successful Apply
