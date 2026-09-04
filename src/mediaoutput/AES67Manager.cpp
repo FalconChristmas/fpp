@@ -330,6 +330,27 @@ bool AES67Manager::LoadConfig() {
         }
     }
 
+    // These flags are not independent, and a partial set fails quietly in ways
+    // that look like a different bug entirely.  A tester enabling only
+    // splitClockDomains and sourceSilenceFloor reported a stream bursting a
+    // whole PipeWire quantum at a time (23 packets back-to-back every 23.22ms)
+    // -- the payload, sequence and timestamps were all perfect, so nothing
+    // pointed at the config.  Say so at load rather than let the measurement
+    // be blamed.
+    if (cfg.sourceSilenceFloor && !cfg.driftResample) {
+        LogWarn(VB_MEDIAOUT,
+                "AES67Manager: sourceSilenceFloor is set but driftResample is not, "
+                "so it does nothing -- the gap fill runs inside the drift probe. "
+                "Set driftResample too.\n");
+    }
+    if (cfg.splitClockDomains && !cfg.sinkPacing) {
+        LogWarn(VB_MEDIAOUT,
+                "AES67Manager: splitClockDomains is set but sinkPacing is not. "
+                "The sink will transmit a whole quantum at once instead of pacing "
+                "it, so receivers see bursts rather than one packet per ptime. "
+                "Set sinkPacing too.\n");
+    }
+
     LogInfo(VB_MEDIAOUT, "AES67Manager: Loaded config with %d instances, PTP=%s interface=%s domain=%d role=%s\n",
             (int)cfg.instances.size(),
             cfg.ptpEnabled ? "enabled" : "disabled",
