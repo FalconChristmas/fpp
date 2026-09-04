@@ -34,6 +34,45 @@ var statusChangeFuncs = [];
 // system without the proxy_wstunnel apache module, an odd reverse proxy, or fppd
 // itself being down -- everything falls back to the full poll at gblStatusRefreshSeconds,
 // which is also the only path that can report "fppd Not Running".
+
+// The path prefix this FPP's document root is being served under, with a
+// trailing slash ('/' when it is served at the root).
+//
+// It cannot be derived from window.location.pathname.  That is the path of the
+// *page*, which says nothing about how much of it belongs to a reverse proxy:
+// /api/commandhelp.php and /proxy/1.2.3.4/index.php are indistinguishable by
+// shape, and matching one known proxy layout only ever works for that layout.
+//
+// This script is always at <root>/js/fpp.js, so its own resolved src is the one
+// thing that reliably names the prefix -- whatever it is, and whichever
+// subdirectory the page loading it lives in, since the browser has already
+// resolved '../js/fpp.js' and 'js/fpp.js' to the same absolute URL.
+//
+// currentScript is only valid while this file is first evaluated, so it is read
+// here at the top rather than at point of use.
+var gblFPPRoot = (function () {
+	var el = document.currentScript;
+	if (!el) {
+		var all = document.getElementsByTagName('script');
+		for (var i = 0; i < all.length; i++) {
+			if (/\/js\/fpp\.js(\?|$)/.test(all[i].src)) {
+				el = all[i];
+				break;
+			}
+		}
+	}
+	if (!el || !el.src) {
+		return '/';
+	}
+	try {
+		var path = new URL(el.src, document.baseURI).pathname;
+		var root = path.replace(/js\/fpp\.js.*$/, '');
+		return root.charAt(root.length - 1) === '/' ? root : root + '/';
+	} catch (e) {
+		return '/';
+	}
+})();
+
 var fppdWS = null;
 var fppdWSConnected = false;
 var fppdWSReconnectDelay = 1000; // ms, backoff up to 30s
@@ -13176,24 +13215,16 @@ function startFppdWS () {
 		fppdWSReconnectTimer = null;
 	}
 	var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-	// Keep the current page's path prefix ONLY when viewed through FPP's
-	// built-in /proxy/<host>/ relay (etc/apache2.site), which serves another
-	// FPP's pages under a path prefix instead of at the root. A plain '/fppdws'
-	// there connects to THIS Apache's own fppd instead of the one being proxied
-	// to; mod_proxy_html can't fix this the way it rewrites static markup,
-	// since this URL is only ever built at runtime in the browser. The /proxy/
-	// Directory block's own WebSocket-upgrade rule already relays a prefixed
-	// path (e.g. /proxy/<ip>/fppdws) correctly - it just never receives one.
-	//
-	// Anywhere else the prefix has to be dropped: fppd registers the socket at
-	// the root (WS_PATH_ADD("/fppdws") in src/StatusWebSocket.cpp) and Apache
-	// only ProxyPasses /fppdws, so a page living in a subdirectory - /api/ (the
-	// API docs) or /wled/ - asked for ws://<host>/api/fppdws, which nothing
-	// listens on. That connection was refused and then retried forever, filling
-	// the console with NS_ERROR_WEBSOCKET_CONNECTION_REFUSED on those pages.
-	var proxyPrefix = window.location.pathname.match(/^\/proxy\/[^\/]+\//);
-	var pathPrefix = proxyPrefix ? proxyPrefix[0] : '/';
-	var url = proto + '//' + window.location.host + pathPrefix + 'fppdws';
+	// gblFPPRoot, not the page's own path: this URL is only ever built at
+	// runtime in the browser, so mod_proxy_html cannot rewrite it the way it
+	// rewrites static markup, and it has to name the same prefix the rest of
+	// the site is served under. Getting it from the page path instead meant a
+	// subdirectory page - /api/ (the API docs) or /wled/ - asked for
+	// ws://<host>/api/fppdws, which nothing listens on: fppd registers the
+	// socket at the root (WS_PATH_ADD("/fppdws") in src/StatusWebSocket.cpp).
+	// That was refused and retried forever, filling the console with
+	// NS_ERROR_WEBSOCKET_CONNECTION_REFUSED.
+	var url = proto + '//' + window.location.host + gblFPPRoot + 'fppdws';
 	// Detach the socket being replaced.  Belt and suspenders for the generation
 	// check below: an abandoned socket is unreachable once nothing points at its
 	// handlers, but the check is what makes a late event harmless either way.
