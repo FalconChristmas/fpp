@@ -240,7 +240,21 @@ public:
     }
     virtual void releasePin() const override {
         char buf[256];
-        snprintf(buf, 256, "/usr/bin/pinctrl set %d %s", gpio, resetMode.c_str());
+        if (dpiConfigured) {
+            // A pixel data (or latch) line.  Returning it to a plain input leaves
+            // it floating - or on the Pi 5, at "function none" with a weak
+            // pull-down - and the hat's buffer then amplifies whatever noise it
+            // picks up into random colours on the string for the rest of the
+            // shutdown/reboot (issue #2895).  Park it as a driven-low output
+            // instead: pinctrl writes the pad registers directly, so this
+            // survives fppd exiting, and low is idle for WS281x.  It holds until
+            // the next boot resets the pad; fppd's Init() then muxes the pin back
+            // to DPI only after a blank frame is already in the framebuffer.
+            snprintf(buf, 256, "/usr/bin/pinctrl set %d op dl", gpio);
+            dpiConfigured = false;
+        } else {
+            snprintf(buf, 256, "/usr/bin/pinctrl set %d %s", gpio, resetMode.c_str());
+        }
         system(buf);
         GPIODCapabilities::releasePin();
     }
@@ -272,6 +286,7 @@ public:
             char buf[256];
             snprintf(buf, 256, "/usr/bin/pinctrl set %d %s", gpio, alt);
             system(buf);
+            dpiConfigured = true;
             return 0;
         }
         if (mode == "uart" && !uart.empty() && !uartMode.empty()) {
@@ -419,6 +434,7 @@ public:
     static int pinctrlRpiChip;
     static std::string pinctrlRpiChipName;
     std::string resetMode = "a0";
+    mutable bool dpiConfigured = false; // muxed for DPI; released as output-low, see releasePin()
     std::string uartMode;
 };
 int PiGPIODCapabilities::pinctrlRpiChip = -1;
