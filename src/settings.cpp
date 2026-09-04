@@ -423,9 +423,6 @@ int SettingsConfig::LoadSettings(const std::string& base, bool logChanges) {
             char* saveptr = nullptr;
             char* token = strtok_r(line, "=", &saveptr);
             if (!token) {
-                if (line) {
-                    free(line);
-                }
                 continue;
             }
 
