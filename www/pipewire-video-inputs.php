@@ -103,15 +103,15 @@
         }
 
         .status-running {
-            background: #28a745;
+            background: var(--bs-success, #28a745);
         }
 
         .status-stopped {
-            background: #dc3545;
+            background: var(--bs-danger, #dc3545);
         }
 
         .status-unknown {
-            background: #ffc107;
+            background: var(--bs-warning, #ffc107);
         }
 
         .pipewire-badge {
@@ -167,7 +167,7 @@
 </head>
 
 <body<?php if ($modalMode)
-    echo ' class="modal-mode" style="margin:0;padding:1rem;"'; ?>>
+    echo ' class="modal-mode m-0 p-3"'; ?>>
     <?php if (!$modalMode) { ?>
         <div id="bodyWrapper">
             <?php
@@ -190,7 +190,7 @@
                 if ($mediaBackend !== 'pipewire') {
                     ?>
                     <div class="alsa-warning">
-                        <i class="fas fa-exclamation-triangle fa-2x" style="color: var(--bs-warning, #ffc107);"></i>
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
                         <h4>Advanced PipeWire Required</h4>
                         <p>Video Input Sources require the Advanced PipeWire backend.<br>
                             Currently using: <strong><?= htmlspecialchars($mbDisplay) ?></strong></p>
@@ -253,7 +253,7 @@
 
                     <div id="sourcesContainer">
                         <div class="no-sources-msg" id="noSourcesMsg">
-                            <i class="fas fa-video" style="font-size:2rem; color:var(--bs-secondary-color,#6c757d);"></i>
+                            <i class="fas fa-video fs-1 text-secondary"></i>
                             <h4>No Video Input Sources Configured</h4>
                             <p>Add a source to create a persistent video signal in the PipeWire graph
                                 (test patterns, cameras, etc.).</p>
@@ -263,7 +263,7 @@
                         </div>
                     </div>
 
-                    <div id="bottomToolbar" class="toolbar" style="display:none; margin-top:1rem;">
+                    <div id="bottomToolbar" class="toolbar d-none mt-3">
                         <div class="toolbar-left"></div>
                         <div class="toolbar-right">
                             <button class="buttons" onclick="SaveSources()">
@@ -654,7 +654,7 @@
             if (videoInputSources.videoInputSources.length === 0) {
                 container.append(
                     '<div class="no-sources-msg" id="noSourcesMsg">' +
-                    '<i class="fas fa-video" style="font-size:2rem; color:var(--bs-secondary-color,#6c757d);"></i>' +
+                    '<i class="fas fa-video fs-1 text-secondary"></i>' +
                     '<h4>No Video Input Sources Configured</h4>' +
                     '<p>Add a source to create a persistent video signal in the PipeWire graph.</p>' +
                     '<button class="buttons btn-outline-success" onclick="AddSource()">' +
@@ -664,15 +664,11 @@
                 // Keep the toolbar (and its Save buttons) available when the last source
                 // has just been deleted, otherwise the deletion can never be saved and
                 // the source reappears on reload.
-                if (hasUnsavedChanges) {
-                    $('#bottomToolbar').show();
-                } else {
-                    $('#bottomToolbar').hide();
-                }
+                $('#bottomToolbar').toggleClass('d-none', !hasUnsavedChanges);
                 return;
             }
 
-            $('#bottomToolbar').show();
+            $('#bottomToolbar').removeClass('d-none');
 
             for (var i = 0; i < videoInputSources.videoInputSources.length; i++) {
                 container.append(RenderSourceCard(videoInputSources.videoInputSources[i], i));
@@ -692,8 +688,8 @@
             html += '<input type="checkbox" class="form-check-input" onchange="ToggleSourceEnabled(' + index + ', this.checked)"' + enabledChecked + ' title="Enable/Disable source">';
             html += '<input type="text" class="source-name-input" value="' + EscapeAttr(source.name || '') + '" onchange="UpdateSourceName(' + index + ', this.value)" placeholder="Source Name">';
             html += '<span class="badge bg-success pipewire-badge" title="PipeWire node name">' + EscapeAttr(nodeName) + '</span>';
-            html += '<div style="flex:1"></div>';
-            html += '<button class="buttons btn-outline-danger" onclick="DeleteSource(' + index + ')" title="Delete Source" style="padding:0.25rem 0.5rem;"><i class="fas fa-trash"></i></button>';
+            html += '<div class="flex-grow-1"></div>';
+            html += '<button class="buttons btn-outline-danger" onclick="DeleteSource(' + index + ')" title="Delete Source"><i class="fas fa-trash"></i></button>';
             html += '</div>';
 
             // Body
@@ -703,7 +699,7 @@
             html += '<div class="row align-items-center">';
             html += '<div class="col-auto"><label>Type:</label></div>';
             html += '<div class="col-auto">';
-            html += '<select class="form-select form-select-sm" style="width:auto;" onchange="UpdateSourceType(' + index + ',this.value)">';
+            html += '<select class="form-select form-select-sm w-auto" onchange="UpdateSourceType(' + index + ',this.value)">';
             html += '<option value="videotestsrc"' + (source.type === 'videotestsrc' ? ' selected' : '') + '>Test Pattern</option>';
             html += '<option value="v4l2src"' + (source.type === 'v4l2src' ? ' selected' : '') + '>USB Camera (V4L2)</option>';
             html += '<option value="rtspsrc"' + (source.type === 'rtspsrc' ? ' selected' : '') + '>RTSP Network Stream</option>';
@@ -721,7 +717,7 @@
             html += '<div class="col-auto"><label>Resolution:</label></div>';
             html += '<div class="col-auto">';
             var presetVal = (source.width || 320) + 'x' + (source.height || 240);
-            html += '<select class="form-select form-select-sm" style="width:auto;display:inline-block;" onchange="ApplyResolutionPreset(' + index + ',this.value)">';
+            html += '<select class="form-select form-select-sm w-auto d-inline-block" onchange="ApplyResolutionPreset(' + index + ',this.value)">';
             var presets = [
                 { label: 'Custom', w: 0, h: 0 },
                 { label: '240p', w: 426, h: 240 },
@@ -748,8 +744,8 @@
             html += '</select>';
             html += '</div>';
             html += '<div class="col-auto">';
-            html += '<input type="number" class="form-control form-control-sm" id="resW_' + index + '" style="width:80px;display:inline-block;" value="' + (source.width || 320) + '" onchange="UpdateResolution(' + index + ')" min="16" max="7680"> x ';
-            html += '<input type="number" class="form-control form-control-sm" id="resH_' + index + '" style="width:80px;display:inline-block;" value="' + (source.height || 240) + '" onchange="UpdateResolution(' + index + ')" min="16" max="4320">';
+            html += '<input type="number" class="form-control form-control-sm d-inline-block" id="resW_' + index + '" style="width:80px;" value="' + (source.width || 320) + '" onchange="UpdateResolution(' + index + ')" min="16" max="7680"> x ';
+            html += '<input type="number" class="form-control form-control-sm d-inline-block" id="resH_' + index + '" style="width:80px;" value="' + (source.height || 240) + '" onchange="UpdateResolution(' + index + ')" min="16" max="4320">';
             html += '</div>';
             html += '<div class="col-auto"><label>FPS:</label></div>';
             html += '<div class="col-auto">';
@@ -770,7 +766,7 @@
                     html += '<div class="row align-items-center mt-2">';
                     html += '<div class="col-auto"><label>Pattern:</label></div>';
                     html += '<div class="col-auto">';
-                    html += '<select class="form-select form-select-sm" style="width:auto;" onchange="UpdateSourceField(' + index + ',\'pattern\',this.value)">';
+                    html += '<select class="form-select form-select-sm w-auto" onchange="UpdateSourceField(' + index + ',\'pattern\',this.value)">';
                     for (var i = 0; i < testPatterns.length; i++) {
                         var p = testPatterns[i];
                         var sel = ((source.pattern || 'smpte') === p.value) ? ' selected' : '';
@@ -831,22 +827,22 @@
                     html += '<div class="col-auto">';
                     html += '<input type="number" class="form-control form-control-sm" style="width:80px;" value="' + (source.bufferSec != null ? source.bufferSec : 3) + '" onchange="UpdateSourceField(' + index + ',\'bufferSec\',parseFloat(this.value))" min="0" max="30" step="0.5">';
                     html += '</div>';
-                    html += '<div class="col-auto text-muted" style="font-size:0.85rem;">YouTube URL, HTTP, HLS, or any GStreamer-supported URI</div>';
+                    html += '<div class="col-auto text-muted"><small>YouTube URL, HTTP, HLS, or any GStreamer-supported URI</small></div>';
                     html += '</div>';
                     // Audio extraction (YouTube only)
                     html += '<div class="row align-items-center mt-2">';
                     html += '<div class="col-auto"><label>Audio:</label></div>';
                     html += '<div class="col-auto">';
                     html += '<input type="checkbox" class="form-check-input" id="audioEn_' + index + '"' + (source.audioEnabled ? ' checked' : '') + ' onchange="ToggleAudioEnabled(' + index + ', this.checked)"> ';
-                    html += '<label class="form-check-label" for="audioEn_' + index + '" style="font-weight:normal;">Extract audio from stream</label>';
+                    html += '<label class="form-check-label fw-normal" for="audioEn_' + index + '">Extract audio from stream</label>';
                     html += '</div>';
                     if (source.audioEnabled) {
                         var audioNode = source.audioPipeWireNodeName || ('fpp_audio_src_' + source.id + '_' + EscapeNodeName(source.name || 'source'));
-                        html += '<span class="badge bg-info pipewire-badge" title="PipeWire audio source node" style="margin-left:0.5rem;">' + EscapeAttr(audioNode) + '</span>';
+                        html += '<span class="badge bg-info pipewire-badge ms-2" title="PipeWire audio source node">' + EscapeAttr(audioNode) + '</span>';
                     }
                     html += '</div>';
                     if (source.audioEnabled) {
-                        html += '<div class="row mt-1"><div class="col text-muted" style="font-size:0.8rem; padding-left:5.5rem;">Audio is extracted as a separate PipeWire source node. Add it to an Audio Input Group to route it to an Output Group.</div></div>';
+                        html += '<div class="row mt-1"><div class="col text-muted" style="padding-left:5.5rem;"><small>Audio is extracted as a separate PipeWire source node. Add it to an Audio Input Group to route it to an Output Group.</small></div></div>';
                     }
                     break;
 
@@ -860,7 +856,7 @@
                     html += '<div class="row align-items-center mt-1">';
                     html += '<div class="col-auto"><label>Encoding:</label></div>';
                     html += '<div class="col-auto">';
-                    html += '<select class="form-select form-select-sm" style="width:auto;" onchange="UpdateSourceField(' + index + ',\'encoding\',this.value)">';
+                    html += '<select class="form-select form-select-sm w-auto" onchange="UpdateSourceField(' + index + ',\'encoding\',this.value)">';
                     var encodings = [{ v: 'H264', l: 'H.264' }, { v: 'H265', l: 'H.265 (HEVC)' }, { v: 'MP2T', l: 'MPEG-TS' }, { v: 'RAW', l: 'Raw Video' }, { v: 'JPEG', l: 'Motion JPEG' }];
                     for (var e = 0; e < encodings.length; e++) {
                         var sel = ((source.encoding || 'H264') === encodings[e].v) ? ' selected' : '';
