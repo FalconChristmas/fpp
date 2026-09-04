@@ -413,11 +413,49 @@
         // Live preview
         //
         // The preview endpoint returns a single JPEG, so "live" here is a
-        // polled still refreshed a couple of times a second. That is enough
-        // to answer the only question it needs to answer -- "is this the
-        // right camera, and is it producing a picture?" -- without a second
-        // decode pipeline running for every open config page.
+        // polled still rather than a video stream -- no second decode
+        // pipeline is held open for every config page someone leaves sitting
+        // on a monitor.
+        //
+        // Two things decide how fluid that looks:
+        //
+        //  * Pacing.  This used to sleep a flat 500ms *after* each frame
+        //    finished loading, so the real interval was 500ms + round-trip
+        //    (measured 33-77ms) -- about 1.8fps, with the cadence visibly
+        //    wandering as the round-trip moved.  Scheduling on a fixed
+        //    period instead makes the spacing even, which reads as much
+        //    smoother than the raw frame count suggests.
+        //
+        //  * Whether anyone is looking.  A frame costs roughly 2% of a core
+        //    on a Pi (snapshot pipeline build, 1080p->320 scale, JPEG
+        //    encode), so 10fps is around 20% of one core.  That is only
+        //    affordable because a preview that is scrolled out of view or in
+        //    a background tab stops asking for frames entirely.
         var previewTimers = {};
+
+        // Per-preview pacing state, keyed by source id: { rtt, targetMs }.
+        var previewPacing = {};
+
+        var PREVIEW_TARGET_MS = 100;   // 10fps ceiling
+        var PREVIEW_MAX_MS = 1000;     // floor of 1fps when the server is slow
+        var PREVIEW_IDLE_MS = 1000;    // re-check rate while nothing is watching
+
+        // Is this preview worth spending a frame on right now?
+        function PreviewWorthDrawing(img) {
+            if (document.visibilityState === 'hidden') return false;
+
+            // The <img> carries d-none until the first frame lands, so it
+            // measures 0x0 at exactly the moment we most need to fetch.
+            // Measure its container in that case, and if nothing can be
+            // measured at all, fail open -- a preview that stalls forever is
+            // far worse than one that draws a frame nobody is looking at.
+            var el = (img.getBoundingClientRect().height > 0) ? img : (img.parentElement || img);
+            var r = el.getBoundingClientRect();
+            if (r.width === 0 && r.height === 0) return true;
+
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+            return r.bottom > 0 && r.top < vh;
+        }
 
         // Warn when the configured size/rate isn't one the camera advertises.
         // FPP scales and re-times whatever the camera gives it, so a mismatch
@@ -591,6 +629,7 @@
                 clearTimeout(previewTimers[id]);
                 delete previewTimers[id];
             }
+            delete previewPacing[id];
             $('#videoPreviewImg' + id).addClass('d-none').removeAttr('src');
             $('#videoPreviewMsg' + id).removeClass('text-danger').addClass('text-muted')
                 .html('<small>Preview stopped.</small>');
@@ -614,22 +653,62 @@
                 StopPreview(id);
                 return;
             }
-            var url = 'api/pipewire/video/input-sources/' + id + '/preview?width=320&_=' + Date.now();
+
+            function schedule(delay) {
+                previewTimers[id] = setTimeout(function () { PreviewTick(id); }, delay);
+            }
+
+            // Nothing is looking at it: skip the frame entirely rather than
+            // paying for one nobody sees.  This is what pays for the higher
+            // rate above.
+            if (!PreviewWorthDrawing(img)) {
+                schedule(PREVIEW_IDLE_MS);
+                return;
+            }
+
+            var pace = previewPacing[id];
+            if (!pace) {
+                pace = previewPacing[id] = { rtt: 0, targetMs: PREVIEW_TARGET_MS };
+            }
+
+            var started = Date.now();
+            var url = 'api/pipewire/video/input-sources/' + id + '/preview?width=320&_=' + started;
             var probe = new Image();
+
             probe.onload = function () {
                 if (!previewTimers[id]) return;
                 img.src = probe.src;
                 $('#videoPreviewImg' + id).removeClass('d-none');
                 $('#videoPreviewMsg' + id).addClass('d-none');
-                previewTimers[id] = setTimeout(function () { PreviewTick(id); }, 500);
+
+                // Never ask for frames faster than the server has actually
+                // been delivering them.  Smoothing the round-trip rather than
+                // reacting to the last one keeps a single slow frame from
+                // lurching the rate, and the 1.1 margin leaves the daemon
+                // some headroom instead of running it at exactly saturation.
+                // On a slower Pi, or a 4K source, this settles at whatever
+                // rate is sustainable instead of queueing up requests.
+                var elapsed = Date.now() - started;
+                pace.rtt = pace.rtt ? (pace.rtt * 0.7 + elapsed * 0.3) : elapsed;
+                pace.targetMs = Math.min(PREVIEW_MAX_MS,
+                                         Math.max(PREVIEW_TARGET_MS, Math.round(pace.rtt * 1.1)));
+
+                // Fixed period, not a fixed gap: the time already spent
+                // fetching comes out of the wait, so the spacing stays even.
+                schedule(Math.max(0, pace.targetMs - elapsed));
             };
+
             probe.onerror = function () {
                 if (!previewTimers[id]) return;
                 $('#videoPreviewImg' + id).addClass('d-none');
                 $('#videoPreviewMsg' + id).removeClass('d-none text-muted').addClass('text-danger')
                     .html('<small><i class="fas fa-exclamation-triangle"></i> No frames. ' +
                           'Check the device is connected, then Save &amp; Apply and retry.</small>');
-                previewTimers[id] = setTimeout(function () { PreviewTick(id); }, 3000);
+                // Nothing learned about pacing from a failure -- start clean
+                // when frames come back.
+                pace.rtt = 0;
+                pace.targetMs = PREVIEW_TARGET_MS;
+                schedule(3000);
             };
             probe.src = url;
         }
@@ -643,6 +722,7 @@
                 }
             }
             previewTimers = {};
+            previewPacing = {};
         }
 
         function RenderSources() {
