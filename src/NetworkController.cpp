@@ -49,12 +49,17 @@ NetworkController::NetworkController(const std::string& ipStr) :
 // lives until one of those outcomes is reached and deletes it.
 class NetworkController::Detection {
 public:
+    // `blocking` drives the whole walk inline on the calling thread, using the
+    // synchronous curl helpers, so the callback has run by the time run()
+    // returns.  That is only for the deprecated blocking overload below; FPP's
+    // own callers leave it false.
     Detection(const std::string& ipStr, const std::string& htmlStr,
-              std::function<void(NetworkController*)>&& cb) :
+              std::function<void(NetworkController*)>&& cb, bool blockingCalls = false) :
         ip(ipStr),
         html(htmlStr),
         nc(new NetworkController(ipStr)),
-        callback(std::move(cb)) {
+        callback(std::move(cb)),
+        blocking(blockingCalls) {
     }
 
     const std::string ip;
@@ -67,6 +72,7 @@ public:
     NetworkController* const nc;
 
     std::function<void(NetworkController*)> callback;
+    const bool blocking = false;
     size_t step = 0;
 
     // Run the detector at `step`, or finish empty once the list is exhausted.
@@ -110,6 +116,12 @@ public:
     // body and the detectors, which only look for their own fields in the
     // response, behave as they did before.
     void fetch(const std::string& url, std::function<void(bool ok, const std::string& resp)>&& handler) {
+        if (blocking) {
+            std::string resp;
+            bool ok = urlGet(url, resp);
+            handler(ok, resp);
+            return;
+        }
         CurlManager::INSTANCE.addGet(url, [this, handler](int rc, const std::string& resp) {
             handler(rc != 0, resp);
         });
@@ -121,6 +133,12 @@ public:
     // noMatch() / fetch().
     void post(const std::string& url, const std::string& body, const std::string& contentType,
               std::function<void(bool ok, const std::string& resp)>&& handler) {
+        if (blocking) {
+            std::string resp;
+            bool ok = urlHelper("POST", url, body, resp, { "Content-Type: " + contentType });
+            handler(ok, resp);
+            return;
+        }
         CurlManager::INSTANCE.addPost(url, body, contentType, [this, handler](int rc, const std::string& resp) {
             handler(rc != 0, resp);
         });
@@ -147,6 +165,18 @@ void NetworkController::DetectControllerViaHTML(const std::string& ip, const std
         return;
     }
     (new Detection(ip, html, std::move(callback)))->run();
+}
+
+NetworkController* NetworkController::DetectControllerViaHTML(const std::string& ip, const std::string& html) {
+    if (html.empty()) {
+        return nullptr;
+    }
+    // The same detector walk, driven with the blocking curl helpers so it is
+    // finished before this returns.  Kept for out-of-tree plugins compiled
+    // against the pre-async signature; nothing in FPP calls it.
+    NetworkController* result = nullptr;
+    (new Detection(ip, html, [&result](NetworkController* nc) { result = nc; }, true))->run();
+    return result;
 }
 
 void NetworkController::DetectFPP(Detection* st) {

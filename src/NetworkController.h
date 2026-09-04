@@ -37,6 +37,14 @@ public:
     static void DetectControllerViaHTML(const std::string& ip, const std::string& html,
                                         std::function<void(NetworkController*)>&& callback);
 
+    // Deprecated blocking form, kept only so out-of-tree plugins compiled
+    // against the pre-async signature still build and behave as they did: the
+    // same detector walk, driven with the synchronous curl helpers, returning
+    // the heap-allocated NetworkController the caller owns and must delete (or
+    // nullptr).  It blocks the calling thread for up to three sequential HTTP
+    // requests, so nothing in FPP should use it -- use the callback form above.
+    static NetworkController* DetectControllerViaHTML(const std::string& ip, const std::string& html);
+
     std::string ip;
     std::string hostname;
     std::string vendor;
