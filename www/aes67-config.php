@@ -143,6 +143,14 @@
             cursor: help;
         }
 
+        /* Busy overlay: everything else about it is Bootstrap utilities, but
+           there is no z-index utility that clears a Bootstrap modal, and this
+           page raises its own modals to 99999 when embedded (below).  The
+           overlay has to cover those too, or it is invisible in modal mode. */
+        .aes67-busy-overlay {
+            z-index: 100000;
+        }
+
         <?php if ($modalMode) { ?>
             .modal {
                 z-index: 99999 !important;
@@ -988,8 +996,41 @@
             }
 
             /////////////////////////////////////////////////////////////////////////////
+            // Busy overlay
+            //
+            // Save & Apply is two round trips, and the second one can restart the
+            // whole PipeWire stack and fppd with it (see RebuildAudioGraphForSenderChange
+            // in api/controllers/pipewire.php), which takes tens of seconds.  Without
+            // an overlay the page looks inert for that whole time and the button
+            // invites a second click, so block input and say what is happening.
+            function ShowBusyOverlay(message) {
+                if ($('#aes67BusyOverlay').length === 0) {
+                    $('body').append(
+                        '<div id="aes67BusyOverlay" class="aes67-busy-overlay position-fixed top-0 start-0 ' +
+                        'w-100 h-100 d-flex align-items-center justify-content-center bg-black bg-opacity-50">' +
+                        '<div class="bg-body rounded-3 shadow p-4 mx-3 text-center">' +
+                        '<div class="spinner-border text-primary mb-3" role="status">' +
+                        '<span class="visually-hidden">Working&hellip;</span></div>' +
+                        '<div id="aes67BusyMsg"></div>' +
+                        '</div></div>'
+                    );
+                }
+                UpdateBusyOverlay(message);
+                $('#aes67BusyOverlay').removeClass('d-none');
+            }
+
+            function UpdateBusyOverlay(message) {
+                $('#aes67BusyMsg').html(message);
+            }
+
+            function HideBusyOverlay() {
+                $('#aes67BusyOverlay').addClass('d-none');
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
             // Save & Apply
             function SaveAndApply() {
+                ShowBusyOverlay('Saving AES67 configuration&hellip;');
                 // Save first
                 $.ajax({
                     url: 'api/pipewire/aes67/instances',
@@ -1004,15 +1045,23 @@
                         hasUnsavedChanges = false;
                         RenderInstances();
                         // Then apply
+                        UpdateBusyOverlay('Applying configuration&hellip;<br>' +
+                            '<small class="text-body-secondary">If the audio graph changed, PipeWire and FPPD ' +
+                            'are restarted — this can take up to a minute.</small>');
                         $.post('api/pipewire/aes67/apply', '')
                             .done(function (applyData) {
-                                if (applyData && applyData.restartRequired) {
+                                HideBusyOverlay();
+                                // The endpoint reports failures in the body with HTTP 200
+                                // (e.g. fppd not running), so .done() alone is not success.
+                                if (applyData && applyData.status === 'ERROR') {
+                                    DialogError('Apply Failed', 'Error applying AES67 config: ' +
+                                        (applyData.message || 'unknown error'));
+                                } else if (applyData && applyData.restartRequired) {
                                     DialogOK('Configuration Applied',
-                                        '<p>AES67 instances have been applied and PipeWire has been restarted.</p>' +
+                                        '<p>AES67 instances have been applied. The audio graph changed, so ' +
+                                        'PipeWire and FPPD have both been restarted.</p>' +
                                         '<p>If you are using AES67 sinks as members of Audio Output Groups, ' +
-                                        're-apply the Audio Groups config as well.</p>' +
-                                        '<p><b>FPPD must be restarted</b> for audio routing changes to take effect.</p>' +
-                                        '<button class="btn btn-warning mt-2" onclick="RestartFPPD()"><i class="fas fa-sync"></i> Restart FPPD Now</button>'
+                                        're-apply the Audio Groups config as well.</p>'
                                     );
                                 } else {
                                     DialogOK('Saved', 'AES67 configuration applied successfully.');
@@ -1020,21 +1069,13 @@
                                 CheckPipeWireStatus();
                             })
                             .fail(function (xhr) {
+                                HideBusyOverlay();
                                 DialogError('Apply Failed', 'Error applying AES67 config: ' + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
                             });
                     })
                     .fail(function (xhr) {
+                        HideBusyOverlay();
                         DialogError('Save Failed', 'Error saving AES67 config: ' + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
-                    });
-            }
-
-            function RestartFPPD() {
-                $.get('api/system/fppd/restart')
-                    .done(function () {
-                        $.jGrowl('FPPD restart requested', { themeState: 'success' });
-                    })
-                    .fail(function () {
-                        $.jGrowl('FPPD restart failed', { themeState: 'danger' });
                     });
             }
 

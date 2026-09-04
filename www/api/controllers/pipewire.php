@@ -5464,6 +5464,58 @@ function RebuildAudioGraphForSenderChange()
     return true;
 }
 
+// Run an fppd command over fppd's own HTTP API and report what happened.
+//
+// The AES67/Opus RTP applies used to POST to http://localhost/api/command with
+// a 10s timeout, which was wrong twice over.  That URL loops the request back
+// through Apache into a second PHP worker just to reach fppd, when fppd serves
+// the same commands directly on 32322 (as the rest of this file already does).
+// And 10s is not enough: applying an AES67 config tears down the GStreamer
+// pipelines and joins the SAP/PTP threads, each of which waits out a 1-2s
+// socket timeout, so a real apply regularly runs longer than that -- longer
+// still when it queues behind another apply on AES67Manager's mutex.
+// file_get_contents() returns false on timeout exactly as it does when nothing
+// is listening, so a slow but perfectly successful apply came back to the user
+// as "Failed to signal fppd - is it running?".
+//
+// ignore_errors keeps the body of a non-2xx reply, so fppd's own error text
+// (it answers 500 when a command fails) survives instead of collapsing to
+// false and being reported as an unreachable daemon.
+//
+// Returns array(bool ok, string message).
+function SignalFPPDCommand($command, $timeoutSeconds = 120)
+{
+    $url = 'http://localhost:32322/command/' . rawurlencode($command);
+    $ctx = stream_context_create(array(
+        'http' => array(
+            'method' => 'GET',
+            'timeout' => $timeoutSeconds,
+            'ignore_errors' => true
+        )
+    ));
+
+    $body = @file_get_contents($url, false, $ctx);
+    if ($body === false) {
+        return array(false, "Could not reach fppd on port 32322, or '" . $command .
+            "' did not finish within " . $timeoutSeconds . "s");
+    }
+
+    // file_get_contents() populates $http_response_header in this scope.
+    $code = 0;
+    if (isset($http_response_header) && is_array($http_response_header)) {
+        foreach ($http_response_header as $hdr) {
+            if (preg_match('#^HTTP/\S+\s+(\d+)#', $hdr, $m)) {
+                $code = (int) $m[1];
+            }
+        }
+    }
+    if ($code >= 400) {
+        return array(false, "fppd could not run '" . $command . "' (HTTP " . $code . "): " . trim($body));
+    }
+
+    return array(true, trim($body));
+}
+
 function ApplyAES67Instances()
 {
     global $settings;
@@ -5474,14 +5526,7 @@ function ApplyAES67Instances()
 
     if (!file_exists($configFile)) {
         // Signal cleanup
-        $result = @file_get_contents('http://localhost/api/command', false, stream_context_create(array(
-            'http' => array(
-                'method' => 'POST',
-                'header' => 'Content-Type: application/json',
-                'content' => json_encode(array('command' => 'AES67 Cleanup')),
-                'timeout' => 5
-            )
-        )));
+        SignalFPPDCommand('AES67 Cleanup');
         return json(array("status" => "OK", "message" => "No AES67 instances configured"));
     }
 
@@ -5491,25 +5536,17 @@ function ApplyAES67Instances()
     if (RebuildAudioGraphForSenderChange()) {
         return json(array(
             "status" => "OK",
-            "message" => "AES67 configuration applied; audio graph rebuilt and FPPD restarted"
+            "message" => "AES67 configuration applied; audio graph rebuilt and FPPD restarted",
+            // Same flag the audio/input group applies return, so callers can tell
+            // the slow path (stack restarted underneath them) from the cheap one.
+            "restartRequired" => true
         ));
     }
 
     // Signal fppd to apply config
-    $result = @file_get_contents('http://localhost/api/command', false, stream_context_create(array(
-        'http' => array(
-            'method' => 'POST',
-            'header' => 'Content-Type: application/json',
-            'content' => json_encode(array('command' => 'AES67 Apply')),
-            'timeout' => 10
-        )
-    )));
-
-    if ($result === false) {
-        return json(array(
-            "status" => "ERROR",
-            "message" => "Failed to signal fppd — is it running?"
-        ));
+    list($ok, $msg) = SignalFPPDCommand('AES67 Apply');
+    if (!$ok) {
+        return json(array("status" => "ERROR", "message" => $msg));
     }
 
     return json(array(
@@ -5747,14 +5784,7 @@ function ApplyOpusRTPInstances()
     $configFile = $settings['mediaDirectory'] . "/config/pipewire-opus-rtp-instances.json";
 
     if (!file_exists($configFile)) {
-        $result = @file_get_contents('http://localhost/api/command', false, stream_context_create(array(
-            'http' => array(
-                'method' => 'POST',
-                'header' => 'Content-Type: application/json',
-                'content' => json_encode(array('command' => 'Opus RTP Cleanup')),
-                'timeout' => 5
-            )
-        )));
+        SignalFPPDCommand('Opus RTP Cleanup');
         return json(array("status" => "OK", "message" => "No Opus RTP instances configured"));
     }
 
@@ -5768,20 +5798,9 @@ function ApplyOpusRTPInstances()
         ));
     }
 
-    $result = @file_get_contents('http://localhost/api/command', false, stream_context_create(array(
-        'http' => array(
-            'method' => 'POST',
-            'header' => 'Content-Type: application/json',
-            'content' => json_encode(array('command' => 'Opus RTP Apply')),
-            'timeout' => 10
-        )
-    )));
-
-    if ($result === false) {
-        return json(array(
-            "status" => "ERROR",
-            "message" => "Failed to signal fppd — is it running?"
-        ));
+    list($ok, $msg) = SignalFPPDCommand('Opus RTP Apply');
+    if (!$ok) {
+        return json(array("status" => "ERROR", "message" => $msg));
     }
 
     return json(array(
