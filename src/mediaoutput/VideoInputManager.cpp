@@ -15,6 +15,7 @@
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 #include <cmath>
 
+#include "V4L2Device.h"
 #include "VideoInputManager.h"
 #include "VideoOutputManager.h"
 #include "common.h"
@@ -369,6 +370,20 @@ bool VideoInputManager::LoadConfig() {
             si.pattern = entry.get("pattern", "smpte").asString();
         } else if (si.type == "v4l2src") {
             si.device = entry.get("device", "/dev/video0").asString();
+            si.powerLineFrequency = entry.get("powerLineFrequency", -1).asInt();
+            si.exposureMode = entry.get("exposureMode", "camera").asString();
+            si.exposureTime100us = entry.get("exposureTime100us", -1).asInt();
+            si.dynamicFramerate = entry.get("dynamicFramerate", -1).asInt();
+            if (si.powerLineFrequency < 0 || si.powerLineFrequency > 2)
+                si.powerLineFrequency = -1;
+            if (si.exposureMode != "auto" && si.exposureMode != "manual")
+                si.exposureMode = "camera";
+            if (si.dynamicFramerate < 0 || si.dynamicFramerate > 1)
+                si.dynamicFramerate = -1;
+            // 100us units: 1 .. 1s.  The device's own range is applied on
+            // top of this in V4L2Device::ApplyControls.
+            if (si.exposureTime100us < 1 || si.exposureTime100us > 10000)
+                si.exposureTime100us = -1;
         } else if (si.type == "rtspsrc") {
             si.uri = entry.get("uri", "").asString();
             si.latency = entry.get("latency", 200).asInt();
@@ -408,6 +423,44 @@ bool VideoInputManager::LoadConfig() {
     }
 
     return !m_sources.empty();
+}
+
+std::string VideoInputManager::BuildDeviceCaps(const SourceInfo& source) {
+    std::vector<V4L2Device::Mode> modes = V4L2Device::EnumerateModes(source.device);
+    if (modes.empty()) {
+        LogInfo(VB_MEDIAOUT, "VideoInputManager: %s enumerated no capture modes, "
+                             "letting the device pick its own\n", source.device.c_str());
+        return "";
+    }
+
+    V4L2Device::Mode chosen;
+    if (!V4L2Device::SelectMode(modes, source.width, source.height, source.framerate, chosen))
+        return "";
+
+    std::string caps = V4L2Device::ModeToCaps(chosen);
+    if (caps.empty()) {
+        LogInfo(VB_MEDIAOUT, "VideoInputManager: %s best mode is %s (no caps mapping), "
+                             "letting the device pick its own\n",
+                source.device.c_str(), chosen.fourcc.c_str());
+        return "";
+    }
+
+    if (chosen.width != source.width || chosen.height != source.height ||
+        chosen.fps() < source.framerate - 0.01) {
+        // Worth saying out loud: this is the difference between what the
+        // operator typed and what the camera can actually deliver, and the
+        // scaler silently papering over it is what made the old behaviour
+        // hard to spot.
+        LogInfo(VB_MEDIAOUT, "VideoInputManager: %s has no %dx%d@%d mode; capturing %s %dx%d@%.3g "
+                             "and converting\n",
+                source.device.c_str(), source.width, source.height, source.framerate,
+                chosen.fourcc.c_str(), chosen.width, chosen.height, chosen.fps());
+    } else {
+        LogInfo(VB_MEDIAOUT, "VideoInputManager: %s capturing %s %dx%d@%.3g\n",
+                source.device.c_str(), chosen.fourcc.c_str(), chosen.width, chosen.height, chosen.fps());
+    }
+
+    return caps;
 }
 
 bool VideoInputManager::StartSource(SourceInfo& source) {
@@ -626,7 +679,20 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         // MJPEG-only and H.264 webcams (very common above VGA), and passes
         // already-raw formats straight through; videoscale/videorate then
         // convert whatever the camera gave us to the configured size/rate.
+        //
+        // Leaving the device *entirely* unconstrained, though, meant the
+        // configured resolution and framerate never reached it at all:
+        // v4l2src picked the device's own preferred mode (a 1920x1080@30
+        // source was observed capturing 640x480@60) and videoscale/videorate
+        // resampled that to the configured numbers, so the settings looked
+        // applied while the capture ignored them.  BuildDeviceCaps asks the
+        // device what it actually supports and pins the closest real mode,
+        // returning "" -- and so restoring exactly the unconstrained
+        // behaviour above -- whenever it can't be sure.
+        std::string deviceCaps = BuildDeviceCaps(source);
+
         pipelineDesc = srcElement
+            + (deviceCaps.empty() ? "" : " ! " + deviceCaps)
             + " ! decodebin"
             + " ! videoconvert"
             + " ! videoscale"
@@ -675,9 +741,38 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     std::atomic<bool>* shutdownFlag = &source.shutdownRequested;
     std::atomic<bool>* runningFlag = &source.running;
 
-    source.runThread = std::thread([pipeline, sourceName, nodeNameCopy, shutdownFlag, runningFlag]() {
+    // Copied by value into the thread rather than reached through `source`:
+    // the run thread outlives this call and m_sources can be reallocated by
+    // a Reload while it is still going.
+    std::string deviceCopy = source.device;
+    V4L2Device::ControlSettings controls;
+    if (source.type == "v4l2src") {
+        controls.powerLineFrequency = source.powerLineFrequency;
+        controls.exposureMode = source.exposureMode;
+        controls.exposureTime100us = source.exposureTime100us;
+        controls.dynamicFramerate = source.dynamicFramerate;
+    }
+
+    source.runThread = std::thread([pipeline, sourceName, nodeNameCopy, shutdownFlag, runningFlag,
+                                    deviceCopy, controls]() {
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Source '%s' thread starting pipeline (node=%s)\n",
                 sourceName.c_str(), nodeNameCopy.c_str());
+
+        // Device controls (anti-flicker / exposure) are applied twice on
+        // purpose: once here so v4l2src inherits them when it opens the
+        // node, and again once the pipeline is actually PLAYING so a driver
+        // that resets on open doesn't undo them.  The writes are idempotent
+        // and cost one ioctl each.
+        auto applyControls = [deviceCopy, controls, sourceName]() {
+            if (!controls.AnyRequested())
+                return;
+            std::string summary;
+            if (V4L2Device::ApplyControls(deviceCopy, controls, summary) && !summary.empty()) {
+                LogInfo(VB_MEDIAOUT, "VideoInputManager: Source '%s' device controls: %s\n",
+                        sourceName.c_str(), summary.c_str());
+            }
+        };
+        applyControls();
 
         GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
         if (ret == GST_STATE_CHANGE_FAILURE) {
@@ -696,6 +791,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
 
         // If pipeline went straight to PLAYING (no async), notify consumers now.
         if (ret == GST_STATE_CHANGE_SUCCESS) {
+            applyControls();
             VideoOutputManager::Instance().NotifyProducerReady(nodeNameCopy);
         }
 
@@ -752,6 +848,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                                 gst_element_state_get_name(newState),
                                 gst_element_state_get_name(pending));
                         if (newState == GST_STATE_PLAYING && pending == GST_STATE_VOID_PENDING) {
+                            applyControls();
                             VideoOutputManager::Instance().NotifyProducerReady(nodeNameCopy);
                         }
                     }

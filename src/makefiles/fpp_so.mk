@@ -73,6 +73,7 @@ OBJECTS_fpp_so += \
 	mediaoutput/OpusRTPManager.o \
 	mediaoutput/GStreamerOut.o \
 	mediaoutput/StreamSlotManager.o \
+	mediaoutput/V4L2Device.o \
 	mediaoutput/VideoInputManager.o \
 	mediaoutput/VideoOutputManager.o \
 	mqtt.o \

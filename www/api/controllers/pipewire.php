@@ -7259,6 +7259,23 @@ function ApplyPipeWireVideoInputSources()
                 break;
             case 'v4l2src':
                 $entry['device'] = isset($src['device']) ? $src['device'] : '/dev/video0';
+
+                // Device controls.  Every one of these defaults to "leave
+                // the camera's own setting alone" so a source configured
+                // before they existed keeps behaving identically.
+                $plf = isset($src['powerLineFrequency']) ? intval($src['powerLineFrequency']) : -1;
+                $entry['powerLineFrequency'] = ($plf >= 0 && $plf <= 2) ? $plf : -1;
+
+                $em = isset($src['exposureMode']) ? $src['exposureMode'] : 'camera';
+                $entry['exposureMode'] = in_array($em, array('auto', 'manual')) ? $em : 'camera';
+
+                // 100us units, so 1..10000 is 0.1ms..1s.  The camera's own
+                // range is applied on top of this by V4L2Device.
+                $et = isset($src['exposureTime100us']) ? intval($src['exposureTime100us']) : -1;
+                $entry['exposureTime100us'] = ($et >= 1 && $et <= 10000) ? $et : -1;
+
+                $df = isset($src['dynamicFramerate']) ? intval($src['dynamicFramerate']) : -1;
+                $entry['dynamicFramerate'] = ($df === 0 || $df === 1) ? $df : -1;
                 break;
             case 'rtspsrc':
                 $entry['uri'] = isset($src['uri']) ? $src['uri'] : '';
@@ -7377,10 +7394,23 @@ function GetV4L2Devices()
             $bus = trim($m[1]);
         }
 
+        // The camera's *current* anti-flicker setting, parsed out of the
+        // --all output we already have.  Surfacing it matters: a camera
+        // whose power_line_frequency is set for the wrong region bands or
+        // pulses under mains lighting, and the symptom (flicker) gives no
+        // hint that a device control is responsible.  0 = disabled,
+        // 1 = 50Hz, 2 = 60Hz, null = camera has no such control.
+        $powerLine = null;
+        if (preg_match('/power_line_frequency\s+0x[0-9a-fA-F]+\s*\(menu\)\s*:.*?value=(\d+)/', $info, $m)) {
+            $powerLine = intval($m[1]);
+        }
+
         $devices[] = array(
             'device' => $devPath,
             'name' => $name,
             'busInfo' => $bus,
+            'powerLineFrequency' => $powerLine,
+            'hasExposureControls' => (strpos($info, 'auto_exposure') !== false),
             'modes' => GetV4L2DeviceModes($devPath),
         );
     }

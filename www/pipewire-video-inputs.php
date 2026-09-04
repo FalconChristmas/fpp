@@ -449,6 +449,110 @@
                 '</div></div>';
         }
 
+        // Device-level controls for a capture card / webcam.
+        //
+        // These are deliberately separate from the Resolution/FPS row: those
+        // describe the stream FPP produces, while these are settings pushed
+        // into the camera itself.  Flicker under mains lighting is the case
+        // that forces the distinction -- it is decided at exposure time, so
+        // nothing downstream of the capture can undo it.
+        function BuildV4L2ControlsBlock(source, index) {
+            var dev = null;
+            for (var i = 0; i < availableV4l2Devices.length; i++) {
+                if (availableV4l2Devices[i].device === source.device) {
+                    dev = availableV4l2Devices[i];
+                    break;
+                }
+            }
+
+            var plf = (typeof source.powerLineFrequency === 'number') ? source.powerLineFrequency : -1;
+            var expMode = source.exposureMode || 'camera';
+            var dynFps = (typeof source.dynamicFramerate === 'number') ? source.dynamicFramerate : -1;
+
+            function Options(opts, current) {
+                var out = '';
+                for (var i = 0; i < opts.length; i++) {
+                    var sel = (opts[i].v === current) ? ' selected' : '';
+                    out += '<option value="' + opts[i].v + '"' + sel + '>' + EscapeAttr(opts[i].label) + '</option>';
+                }
+                return out;
+            }
+
+            var html = '<div class="row align-items-center mt-2">';
+            html += '<div class="col-auto"><label>Anti-flicker:</label></div>';
+            html += '<div class="col-auto">';
+            html += '<select class="form-select form-select-sm w-auto" onchange="UpdateSourceField(' + index + ',\'powerLineFrequency\',parseInt(this.value))">';
+            html += Options([
+                { v: -1, label: 'Camera default (leave unchanged)' },
+                { v: 0, label: 'Off' },
+                { v: 1, label: '50 Hz mains (UK, Europe, Asia, Africa, Australia)' },
+                { v: 2, label: '60 Hz mains (Americas, Japan, Taiwan, South Korea)' }
+            ], plf);
+            html += '</select>';
+            html += '</div>';
+
+            // What the camera is set to *right now* -- the mismatch between
+            // this and the room is the whole diagnosis, and it is invisible
+            // otherwise.
+            if (dev && dev.powerLineFrequency !== null && typeof dev.powerLineFrequency !== 'undefined') {
+                var names = { 0: 'Off', 1: '50 Hz', 2: '60 Hz' };
+                var cur = names[dev.powerLineFrequency] || 'unknown';
+                html += '<div class="col-auto"><small class="text-muted">Camera currently reports <b>' + EscapeAttr(cur) + '</b></small></div>';
+            }
+            html += '</div>';
+
+            html += '<div class="row"><div class="col-auto">';
+            html += '<small class="text-muted">Locks the camera\'s exposure to whole cycles of the mains supply. ' +
+                    'Rolling bands or a pulsing brightness under artificial lighting nearly always means this is set ' +
+                    'for the wrong region &mdash; changing the FPS above will not fix it.</small>';
+            html += '</div></div>';
+
+            // Only offered when the camera actually implements the control;
+            // otherwise the select would silently do nothing.
+            if (!dev || dev.hasExposureControls) {
+                html += '<div class="row align-items-center mt-2">';
+                html += '<div class="col-auto"><label>Exposure:</label></div>';
+                html += '<div class="col-auto">';
+                html += '<select class="form-select form-select-sm w-auto" onchange="UpdateExposureMode(' + index + ',this.value)">';
+                html += Options([
+                    { v: 'camera', label: 'Camera default (leave unchanged)' },
+                    { v: 'auto', label: 'Auto' },
+                    { v: 'manual', label: 'Manual' }
+                ], expMode);
+                html += '</select>';
+                html += '</div>';
+
+                var shutterMs = (typeof source.exposureTime100us === 'number' && source.exposureTime100us > 0)
+                    ? (source.exposureTime100us / 10) : 10;
+                html += '<div class="col-auto' + (expMode === 'manual' ? '' : ' d-none') + '" id="shutterGroup_' + index + '">';
+                html += '<label class="me-1">Shutter:</label>';
+                html += '<input type="number" class="form-control form-control-sm d-inline-block w-auto" value="' + shutterMs + '" ' +
+                        'onchange="UpdateShutterMs(' + index + ',this.value)" min="0.1" max="1000" step="0.1"> ms';
+                html += '</div>';
+                html += '</div>';
+
+                html += '<div class="row' + (expMode === 'manual' ? '' : ' d-none') + '" id="shutterHint_' + index + '"><div class="col-auto">';
+                html += '<small class="text-muted">Use 10 ms (or any multiple) under 50 Hz mains, 8.33 ms under 60 Hz. ' +
+                        'A fixed shutter also stops the picture breathing as the lighting state changes mid-show.</small>';
+                html += '</div></div>';
+
+                html += '<div class="row align-items-center mt-2">';
+                html += '<div class="col-auto"><label>Auto-exposure may lower FPS:</label></div>';
+                html += '<div class="col-auto">';
+                html += '<select class="form-select form-select-sm w-auto" onchange="UpdateSourceField(' + index + ',\'dynamicFramerate\',parseInt(this.value))">';
+                html += Options([
+                    { v: -1, label: 'Camera default (leave unchanged)' },
+                    { v: 0, label: 'No \u2014 hold the frame rate' },
+                    { v: 1, label: 'Yes \u2014 allow longer exposures in low light' }
+                ], dynFps);
+                html += '</select>';
+                html += '</div>';
+                html += '</div>';
+            }
+
+            return html;
+        }
+
         function BuildPreviewBlock(source) {
             var id = parseInt(source.id, 10);
 
@@ -697,6 +801,7 @@
                     html += '</div>';
                     html += '</div>';
                     html += BuildNativeModeHint(source);
+                    html += BuildV4L2ControlsBlock(source, index);
                     break;
 
                 case 'rtspsrc':
@@ -838,6 +943,10 @@
             delete src.encoding;
             delete src.multicastGroup;
             delete src.audioEnabled;
+            delete src.powerLineFrequency;
+            delete src.exposureMode;
+            delete src.exposureTime100us;
+            delete src.dynamicFramerate;
             if (type === 'videotestsrc') {
                 src.pattern = 'smpte';
             } else if (type === 'v4l2src') {
@@ -858,6 +967,26 @@
 
         function UpdateSourceField(index, field, value) {
             videoInputSources.videoInputSources[index][field] = value;
+        }
+
+        function UpdateExposureMode(index, mode) {
+            videoInputSources.videoInputSources[index].exposureMode = mode;
+            // Toggled in place rather than via RenderSources(), which stops
+            // every running preview.
+            $('#shutterGroup_' + index).toggleClass('d-none', mode !== 'manual');
+            $('#shutterHint_' + index).toggleClass('d-none', mode !== 'manual');
+            if (mode === 'manual' && !videoInputSources.videoInputSources[index].exposureTime100us) {
+                // 10ms: one full 50Hz half-cycle, and a sane starting point.
+                videoInputSources.videoInputSources[index].exposureTime100us = 100;
+            }
+        }
+
+        function UpdateShutterMs(index, val) {
+            // Stored in the V4L2 control's own 100us units so the config maps
+            // 1:1 onto exposure_time_absolute; milliseconds are just the UI.
+            var ms = parseFloat(val);
+            if (isNaN(ms) || ms <= 0) return;
+            videoInputSources.videoInputSources[index].exposureTime100us = Math.round(ms * 10);
         }
 
         function ApplyResolutionPreset(index, val) {

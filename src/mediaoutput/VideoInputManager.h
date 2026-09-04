@@ -104,6 +104,15 @@ private:
         // v4l2src settings
         std::string device;          // "/dev/video0"
 
+        // v4l2src device controls.  Defaults mean "leave the camera's own
+        // setting alone", so a config written before these existed behaves
+        // exactly as it did.  See V4L2Device.h for why these are device
+        // controls and not something the pipeline can do downstream.
+        int powerLineFrequency = -1;      // -1 camera default, 0 off, 1 = 50Hz, 2 = 60Hz
+        std::string exposureMode = "camera"; // "camera", "auto", "manual"
+        int exposureTime100us = -1;       // manual shutter, 100us units
+        int dynamicFramerate = -1;        // -1 camera default, 0 hold fps, 1 allow AE to drop it
+
         // rtspsrc settings
         std::string uri;             // "rtsp://host/path"
         int latency = 200;           // ms
@@ -145,6 +154,10 @@ private:
               pipeWireNodeName(std::move(o.pipeWireNodeName)),
               enabled(o.enabled), pattern(std::move(o.pattern)),
               device(std::move(o.device)),
+              powerLineFrequency(o.powerLineFrequency),
+              exposureMode(std::move(o.exposureMode)),
+              exposureTime100us(o.exposureTime100us),
+              dynamicFramerate(o.dynamicFramerate),
               uri(std::move(o.uri)), latency(o.latency),
               bufferSec(o.bufferSec),
               port(o.port), encoding(std::move(o.encoding)),
@@ -178,6 +191,11 @@ private:
 
     /// Build and start pipeline with separate video + audio streams.
     bool StartSourceWithAudio(SourceInfo& source);
+
+    /// Build the capsfilter constraining what we ask the capture device
+    /// for, or "" to leave the device unconstrained.  See the call site
+    /// for why an unsupported mode must not be pinned.
+    std::string BuildDeviceCaps(const SourceInfo& source);
 
     /// Stop a single source pipeline.
     void StopSource(SourceInfo& source);
