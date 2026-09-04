@@ -111,6 +111,31 @@ std::string buildHttpURL(const std::string& address, const std::string& path = "
 // "this box finding itself" and never as a peer -- see MultiSync::UpdateSystem().
 bool IsLoopbackAddress(const std::string& address);
 
+// Resolve `host` to a single IPv4 address, stored in `addr` in network byte
+// order.  A dotted-quad is parsed directly; anything else goes to getaddrinfo()
+// and is remembered -- successes and failures alike -- in a small process-wide
+// cache with a short TTL.
+//
+// The negative caching is the point.  An unresolvable name costs a flat ~4s
+// through systemd-resolved, and a name only has to appear once in
+// co-universes.json to be looked up from several places during startup; six
+// such lookups for two dead output hostnames were 23s of a 26s fppd start.
+// Callers must still hold onto the address they get -- this is a stampede
+// guard, not a substitute for the resolver.
+//
+// TTLs are deliberately short in both directions: long enough to collapse a
+// startup burst, short enough that a controller which comes up (or moves) is
+// picked up on the next poll rather than at the next restart.
+bool ResolveHostToIPv4(const std::string& host, uint32_t& addr);
+
+// As above, returning the dotted-quad form, or "" if it could not be resolved.
+std::string ResolveHostToIPv4(const std::string& host);
+
+// Drop every cached entry.  Call this when the network underneath the resolver
+// changes (an interface gaining or losing an address), so a name that failed
+// while the link was down is retried immediately instead of after the TTL.
+void FlushHostResolveCache();
+
 // Reduces a MAC in any of the usual spellings to 12 uppercase hex digits with
 // no separators, or "" if it isn't one.  Every path that derives an identity
 // from a hardware address must go through this, so that the same device gets

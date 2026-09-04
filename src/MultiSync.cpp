@@ -86,31 +86,20 @@ NetInterfaceInfo::~NetInterfaceInfo() {
 }
 
 static bool GetIPForHost(std::string& target) {
-    // gethostbyname()/inet_ntoa() return pointers into static, per-process
-    // buffers and are not thread-safe. MultiSync resolves hosts from several
-    // threads concurrently (e.g. DiscoverIPViaHTTP, which runs from a curl
-    // completion, and the main-loop ProcessControlPacket path), and a concurrent
-    // call could corrupt the
-    // static hostent, leaving h_addr dangling and crashing here. getaddrinfo()
-    // and inet_ntop() are reentrant. We still resolve to the first IPv4 address
-    // and rewrite target as a dotted-quad, because callers depend on that form
-    // (split(target, '.') and inet_addr(target)).
-    struct addrinfo hints{};
-    hints.ai_family = AF_INET;      // IPv4 only -- callers expect a dotted-quad
-    hints.ai_socktype = SOCK_DGRAM; // one result per address, not one per socktype
-
-    struct addrinfo* res = nullptr;
-    if (getaddrinfo(target.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
+    // ResolveHostToIPv4() is reentrant (gethostbyname()/inet_ntoa() return
+    // pointers into static, per-process buffers, and MultiSync resolves from
+    // several threads concurrently -- DiscoverIPViaHTTP runs from a curl
+    // completion while the main-loop ProcessControlPacket path resolves too).
+    // It also caches, which matters here: this is called once per configured
+    // output address from three separate points during startup, and a name that
+    // does not resolve costs seconds every time.  We still rewrite target as a
+    // dotted-quad, because callers depend on that form (split(target, '.') and
+    // inet_addr(target)).
+    std::string ip = ResolveHostToIPv4(target);
+    if (ip.empty()) {
         return false;
     }
-    char buf[INET_ADDRSTRLEN] = {0};
-    struct sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
-    const char* str = inet_ntop(AF_INET, &addr->sin_addr, buf, sizeof(buf));
-    freeaddrinfo(res);
-    if (!str) {
-        return false;
-    }
-    target = buf;
+    target = ip;
     return true;
 }
 
@@ -2677,20 +2666,16 @@ void MultiSync::ReloadSyncDestinations() {
         bool isHostname = std::find_if(s.begin(), s.end(), [](char c) { return (isalpha(c) || (c == ' ')); }) != s.end();
         bool valid = true;
         if (isHostname) {
-            // Use the reentrant getaddrinfo() rather than gethostbyname(), which
-            // shares a single static hostent across the process.
-            struct addrinfo hints{};
-            hints.ai_family = AF_INET;
-            hints.ai_socktype = SOCK_DGRAM;
-            struct addrinfo* res = nullptr;
-            if (getaddrinfo(s.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
+            // Reentrant and cached, unlike gethostbyname(), which shares a
+            // single static hostent across the process.
+            uint32_t resolved = 0;
+            if (!ResolveHostToIPv4(s, resolved)) {
                 LogErr(VB_SYNC,
                        "Error looking up Remote hostname: %s\n",
                        s.c_str());
                 valid = false;
             } else {
-                newRemote.sin_addr = ((struct sockaddr_in*)res->ai_addr)->sin_addr;
-                freeaddrinfo(res);
+                newRemote.sin_addr.s_addr = resolved;
             }
         } else {
             newRemote.sin_addr.s_addr = inet_addr(s.c_str());

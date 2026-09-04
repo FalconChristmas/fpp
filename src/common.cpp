@@ -598,6 +598,104 @@ bool IsLoopbackAddress(const std::string& address) {
     return address == "::1" || address == "0:0:0:0:0:0:0:1";
 }
 
+// See the comment on the declarations in common.h.
+namespace {
+struct ResolveCacheEntry {
+    uint32_t addr = 0;
+    bool valid = false;
+    uint64_t expiresMS = 0;
+};
+std::mutex resolveCacheLock;
+std::map<std::string, ResolveCacheEntry> resolveCache;
+
+// Short enough that a peer coming online is noticed on the next poll of
+// whatever is watching it, long enough to collapse a startup burst.
+constexpr uint64_t RESOLVE_TTL_OK_MS = 60000;
+constexpr uint64_t RESOLVE_TTL_FAIL_MS = 30000;
+// Nothing should be resolving thousands of distinct names; if it is, drop the
+// expired entries rather than growing without bound.
+constexpr size_t RESOLVE_CACHE_MAX = 256;
+} // namespace
+
+bool ResolveHostToIPv4(const std::string& host, uint32_t& addr) {
+    if (host.empty()) {
+        return false;
+    }
+    // A literal needs no resolver and must not take a cache slot -- the HTTP
+    // discovery scan walks whole /24s of them.
+    struct in_addr numeric;
+    if (inet_pton(AF_INET, host.c_str(), &numeric) == 1) {
+        addr = numeric.s_addr;
+        return true;
+    }
+
+    uint64_t now = (uint64_t)GetTimeMS();
+    {
+        std::unique_lock<std::mutex> lock(resolveCacheLock);
+        auto it = resolveCache.find(host);
+        if (it != resolveCache.end() && it->second.expiresMS > now) {
+            addr = it->second.addr;
+            return it->second.valid;
+        }
+    }
+
+    // Resolve with the lock released: this blocks for seconds on a name that
+    // does not exist, and holding the lock across it would hand that stall to
+    // every other thread resolving anything at all.  Two threads racing on the
+    // same new name can both pay for it; that is cheaper than serialising all
+    // lookups behind one.
+    struct addrinfo hints{};
+    hints.ai_family = AF_INET;      // IPv4 only -- callers want a dotted-quad
+    hints.ai_socktype = SOCK_DGRAM; // one result per address, not per socktype
+    struct addrinfo* res = nullptr;
+    bool valid = false;
+    uint32_t resolved = 0;
+    if (getaddrinfo(host.c_str(), nullptr, &hints, &res) == 0 && res != nullptr) {
+        resolved = ((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr;
+        valid = true;
+    }
+    if (res) {
+        freeaddrinfo(res);
+    }
+
+    {
+        std::unique_lock<std::mutex> lock(resolveCacheLock);
+        if (resolveCache.size() >= RESOLVE_CACHE_MAX) {
+            uint64_t cutoff = (uint64_t)GetTimeMS();
+            for (auto it = resolveCache.begin(); it != resolveCache.end();) {
+                it = (it->second.expiresMS <= cutoff) ? resolveCache.erase(it) : std::next(it);
+            }
+        }
+        ResolveCacheEntry& e = resolveCache[host];
+        e.addr = resolved;
+        e.valid = valid;
+        e.expiresMS = now + (valid ? RESOLVE_TTL_OK_MS : RESOLVE_TTL_FAIL_MS);
+    }
+    if (valid) {
+        addr = resolved;
+    }
+    return valid;
+}
+
+std::string ResolveHostToIPv4(const std::string& host) {
+    uint32_t addr = 0;
+    if (!ResolveHostToIPv4(host, addr)) {
+        return "";
+    }
+    struct in_addr ia;
+    ia.s_addr = addr;
+    char buf[INET_ADDRSTRLEN] = { 0 };
+    if (!inet_ntop(AF_INET, &ia, buf, sizeof(buf))) {
+        return "";
+    }
+    return buf;
+}
+
+void FlushHostResolveCache() {
+    std::unique_lock<std::mutex> lock(resolveCacheLock);
+    resolveCache.clear();
+}
+
 std::string buildHttpURL(const std::string& address, const std::string& path) {
     std::string host = address;
     // An IPv6 literal contains ':' (hostnames and IPv4 never do).  curl requires

@@ -296,21 +296,19 @@ in_addr_t UDPOutputData::toInetAddr(const std::string& ipAddress, bool& valid) {
     }
 
     if (isAlpha) {
-        // getaddrinfo() is thread-safe; gethostbyname() returns a shared static
-        // hostent and can be corrupted by concurrent resolves on other threads.
-        struct addrinfo hints{};
-        hints.ai_family = AF_INET;
-        hints.ai_socktype = SOCK_DGRAM;
-        struct addrinfo* res = nullptr;
-        if (getaddrinfo(ipAddress.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
+        // ResolveHostToIPv4() is thread-safe; gethostbyname() returns a shared
+        // static hostent and can be corrupted by concurrent resolves on other
+        // threads.  It also caches the answer, so a destination configured by a
+        // name that no longer resolves costs its multi-second timeout once at
+        // startup rather than once per caller.
+        uint32_t addr = 0;
+        if (!ResolveHostToIPv4(ipAddress, addr)) {
             LogErr(VB_CHANNELOUT,
                    "Error looking up hostname: %s\n",
                    ipAddress.c_str());
             valid = false;
             return 0;
         }
-        in_addr_t addr = ((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr;
-        freeaddrinfo(res);
         return addr;
     }
     return inet_addr(ipAddress.c_str());

@@ -109,6 +109,13 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
 #endif
 }
 void NetworkMonitor::callCallbacks(NetEventType nl, int up, const std::string& n) {
+    // Every network event lands here, ahead of any registered callback, which
+    // makes this the one place that can guarantee nobody resolves a name
+    // against a cache filled in under the old network.  A link coming up brings
+    // reachable DNS servers with it, so names that failed while it was down
+    // have to be retried now rather than at the end of their negative TTL.
+    FlushHostResolveCache();
+
     // Held for the whole dispatch: this both keeps the map stable while we walk
     // it and makes removeCallback() block until an in-flight callback returns,
     // so a caller that removes its callback (e.g. UDPOutput::Close) can then
