@@ -311,6 +311,10 @@
             var availableInterfaces = [];
             var nextInstanceId = 1;
             var hasUnsavedChanges = false;
+            // Must track AES67::DEFAULT_PTIME_MS in AES67Manager.h: fppd
+            // falls back to that for any instance with no stored ptime, so
+            // a different default here would show a value fppd never used.
+            var AES67_DEFAULT_PTIME = 1;
 
             // Help icon tooltip builder
             function HelpIcon(text) {
@@ -691,7 +695,7 @@
                 // over the 1440-byte packet limit from 4 channels up (2304).
                 // fppd clamps this anyway, so disable rather than mislead.
                 var wideOk = (inst.channels || 2) <= 2;
-                var ptimeVal = inst.ptime || 4;
+                var ptimeVal = inst.ptime || AES67_DEFAULT_PTIME;
                 if (!wideOk) { ptimeVal = 1; }
                 html += '<option value="1"' + (ptimeVal === 1 ? ' selected' : '') + '>1 ms (default)</option>';
                 html += '<option value="4"' + (ptimeVal === 4 ? ' selected' : '') + (wideOk ? '' : ' disabled') + '>4 ms' + (wideOk ? '' : ' (stereo only)') + '</option>';
@@ -832,7 +836,7 @@
                     ['multicastIP', 'Multicast IP', inst.multicastIP || '239.69.0.1'],
                     ['port', 'RTP Port', parseInt(inst.port, 10) || 5004],
                     ['channels', 'Audio Channels', parseInt(inst.channels, 10) || 2],
-                    ['ptime', 'Packet Time', parseInt(inst.ptime, 10) || 4],
+                    ['ptime', 'Packet Time', parseInt(inst.ptime, 10) || AES67_DEFAULT_PTIME],
                     ['sessionName', 'Session Name', inst.sessionName || inst.name]
                 ];
                 var stale = [];
@@ -917,7 +921,7 @@
                     channels: 2,
                     interface: '',
                     sessionName: 'AES67 Stream ' + id,
-                    ptime: 4,
+                    ptime: AES67_DEFAULT_PTIME,
                     latency: 10,
                     sapEnabled: true
                 });
@@ -956,7 +960,7 @@
             // shows what is actually in effect.
             function UpdateChannels(index, value) {
                 aes67Data.instances[index].channels = value;
-                if (value > 2 && (aes67Data.instances[index].ptime || 1) > 1) {
+                if (value > 2 && (aes67Data.instances[index].ptime || AES67_DEFAULT_PTIME) > 1) {
                     aes67Data.instances[index].ptime = 1;
                 }
                 RenderInstances();
