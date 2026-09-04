@@ -583,7 +583,7 @@ bool ParseTimeString(const std::string& str, int& hour, int& minute, int& second
 }
 
 inline std::string dequote(const std::string& s) {
-    if ((s[0] == '\'' || s[0] == '"') && s[0] == s[s.length() - 1] && s.length() > 2) {
+    if (s.length() > 2 && (s[0] == '\'' || s[0] == '"') && s[0] == s[s.length() - 1]) {
         return s.substr(1, s.length() - 2);
     }
     return s;
