@@ -2193,7 +2193,14 @@
             });
 
             // Installed cards
-            var installedVisible = 0, updateVisible = 0;
+            // installedMatchingSearch is the search-filtered total for the Installed tab
+            // badge (independent of which manage-tab is active); installedVisible is the
+            // count actually visible in the current manage pane (updates-tab filters to
+            // hasUpdate). updateVisible is the total pending-updates count (not search-
+            // filtered) for the Updates badge. Separating installedMatchingSearch from
+            // installedVisible prevents the Installed badge from dropping to 0 when the
+            // Updates tab is selected.
+            var installedVisible = 0, installedMatchingSearch = 0, updateVisible = 0;
             $('#installedGrid').children('.pluginCard').each(function () {
                 if (urlLoadedMode) {
                     $(this).addClass('d-none');
@@ -2206,6 +2213,7 @@
                 if (descTxt) searchText += ' ' + descTxt;
                 var matchesSearch = value === '' || searchText.indexOf(value) > -1;
                 var hasUpdate = $(this).hasClass('fppHasUpdate');
+                if (matchesSearch) installedMatchingSearch++;
                 if (hasUpdate) updateVisible++;
                 var matchesTab = (activeTopTab !== 'updates') || hasUpdate;
                 var vis = matchesSearch && matchesTab;
@@ -2260,8 +2268,8 @@
                 $('#noAvailableResults').toggleClass('d-none', !showAvailEmpty);
                 $('#noUrlResults').addClass('d-none');
                 $('#noUrlSchemeResults').addClass('d-none');
-                if (showAvailEmpty && installedVisible > 0) {
-                    $('#noAvailCrossRef').text('Found ' + installedVisible + ' plugin' + (installedVisible === 1 ? '' : 's') + ' that match on the Installed list. ');
+                if (showAvailEmpty && installedMatchingSearch > 0) {
+                    $('#noAvailCrossRef').text('Found ' + installedMatchingSearch + ' plugin' + (installedMatchingSearch === 1 ? '' : 's') + ' that match on the Installed list. ');
                 } else {
                     $('#noAvailCrossRef').text('');
                 }
@@ -2292,7 +2300,7 @@
             }
 
             $('#topCountAvailable').text(availVisible);
-            $('#topCountInstalled').text(installedVisible);
+            $('#topCountInstalled').text(installedMatchingSearch);
             $('#topCountUpdates').text(updateVisible);
         }
         $(document).ready(function () {
