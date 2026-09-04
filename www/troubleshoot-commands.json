@@ -196,6 +196,63 @@
                 }
             }
         },
+        "PCI": {
+            "grpDisplayTitle": "PCI",
+            "grpDescription": "Set of tools for PCI / PCIe troubleshooting",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "PCIDeviceList": {
+                    "title": "PCI Device List",
+                    "description": "Every device on the PCI/PCIe bus, with numeric vendor:device IDs. No output at all means nothing enumerated - check that the slot is enabled in config.txt and that the link trained (see PCI Kernel Messages).",
+                    "cmd": "if [ ! -d /sys/bus/pci/devices ]; then echo \"No PCI bus present on this system\"; elif ! command -v lspci >/dev/null 2>&1; then echo \"lspci not installed (pciutils package)\"; else lspci -nn; fi",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PCIDeviceTree": {
+                    "title": "PCI Device Tree",
+                    "description": "PCI bus topology. Devices sitting behind a PCIe switch or bridge (multi-port adapter cards) appear indented underneath it.",
+                    "cmd": "if [ ! -d /sys/bus/pci/devices ]; then echo \"No PCI bus present on this system\"; elif ! command -v lspci >/dev/null 2>&1; then echo \"lspci not installed (pciutils package)\"; else lspci -tvnn; fi",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PCIDrivers": {
+                    "title": "PCI Drivers and Link Status",
+                    "description": "Which kernel driver claimed each PCI device, plus the negotiated link speed and width. A driver of ** NONE ** means the device enumerated but nothing bound to it - either the module is missing or the driver probe failed, which PCI Kernel Messages will show.",
+                    "cmd": "if [ ! -d /sys/bus/pci/devices ]; then echo \"No PCI bus present on this system\"; else for d in /sys/bus/pci/devices/*; do [ -d \"$d\" ] || continue; a=$(basename \"$d\"); drv=$(readlink -f \"$d/driver\" 2>/dev/null); if [ -n \"$drv\" ]; then drv=$(basename \"$drv\"); else drv=\"** NONE **\"; fi; ven=$(sed -e \"s/0x//\" \"$d/vendor\" 2>/dev/null); dev=$(sed -e \"s/0x//\" \"$d/device\" 2>/dev/null); cs=$(cat \"$d/current_link_speed\" 2>/dev/null); cw=$(cat \"$d/current_link_width\" 2>/dev/null); ms=$(cat \"$d/max_link_speed\" 2>/dev/null); mw=$(cat \"$d/max_link_width\" 2>/dev/null); echo \"$a  [$ven:$dev]  class $(cat \"$d/class\" 2>/dev/null)\"; echo \"    driver : $drv\"; echo \"    link   : ${cs:-n/a} x${cw:-?}   (max ${ms:-n/a} x${mw:-?})\"; done; fi",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PCIKernelMessages": {
+                    "title": "PCI Kernel Messages",
+                    "description": "Kernel messages from the PCI subsystem and from any driver bound to a PCI address - link training, BAR assignment, ASPM/AER, and driver probe failures. Capped at the last 300 matching lines.",
+                    "cmd": "out=$(dmesg 2>/dev/null | grep -E \"([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\\.[0-9a-f])|brcm-pcie|pci_bus|pcieport|PCIe|\\] PCI\" | tail -n 300); if [ -n \"$out\" ]; then echo \"$out\"; else echo \"No PCI-related kernel messages found\"; fi",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PCIDeviceDetails": {
+                    "title": "PCI Device Details",
+                    "description": "Full configuration space decode for every device - BARs, capabilities, link status and power management. Verbose.",
+                    "cmd": "if [ ! -d /sys/bus/pci/devices ]; then echo \"No PCI bus present on this system\"; elif ! command -v lspci >/dev/null 2>&1; then echo \"lspci not installed (pciutils package)\"; else lspci -vvnn; fi",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PCIeDeviceTreeConfig": {
+                    "title": "PCIe Device Tree Config",
+                    "description": "Configured state of each PCIe controller as the firmware handed it to the kernel: whether the slot is enabled, its maximum link speed, and the dma-ranges window that decides which addresses a device is allowed to DMA to. Useful when a device enumerates but its driver fails to allocate DMA memory.",
+                    "cmd": "found=0; for n in /proc/device-tree/*/pcie@* /proc/device-tree/*/*/pcie@*; do [ -d \"$n\" ] || continue; found=1; echo \"=== $n\"; echo \"    status         : $(tr -d \"\\000\" < \"$n/status\" 2>/dev/null)\"; if command -v dtc >/dev/null 2>&1; then dtc -f -I fs -O dts \"$n\" 2>/dev/null | grep -E \"max-link-speed|dma-ranges|linux,pci-domain\" | sed -e \"s/^\t*/    /\"; fi; echo; done; [ \"$found\" = \"1\" ] || echo \"No PCIe nodes found in the device tree\"",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                }
+            }
+        },
         "USB": {
             "grpDisplayTitle": "USB",
             "grpDescription": "Set of tools for USB troubleshooting",
