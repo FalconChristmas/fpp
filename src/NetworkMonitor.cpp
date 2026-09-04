@@ -25,6 +25,7 @@
 #include <string>
 #include <unistd.h>
 
+#include "common.h"
 #include "log.h"
 #include "commands/Commands.h"
 

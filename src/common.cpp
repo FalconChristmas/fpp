@@ -44,8 +44,10 @@
 #include <fstream>
 #include <ifaddrs.h>
 #include <iomanip>
+#include <iterator>
 #include <list>
 #include <map>
+#include <mutex>
 #include <netdb.h>
 #include <pwd.h>
 #include <sstream>
