@@ -331,8 +331,11 @@ bool LoadInputUniversesFromFile(void) {
     LogDebug(VB_E131BRIDGE, "Opening File Now %s\n", filename.c_str());
 
     if (!FileExists(filename)) {
-        LogErr(VB_E131BRIDGE, "Universe file %s does not exist\n",
-               filename.c_str());
+        // Normal on any player with no bridge input configured, which is most of
+        // them -- not an error.  (ci-dmx.json below already treats its own
+        // absence this way.)
+        LogDebug(VB_E131BRIDGE, "Universe file %s does not exist\n",
+                 filename.c_str());
         return false;
     }
 

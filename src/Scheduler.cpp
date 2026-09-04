@@ -788,7 +788,13 @@ void Scheduler::LoadScheduleFromFile(void) {
 
     std::string playlistFile;
 
-    Json::Value sch = LoadJsonFromFile(SCHEDULE_FILE, JsonRoot::Array);
+    // A player that has never had a schedule has no schedule.json, which is a
+    // normal state and not worth reading a file for -- an absent file and an
+    // empty schedule are the same thing to everything below.
+    Json::Value sch;
+    if (FileExists(SCHEDULE_FILE)) {
+        sch = LoadJsonFromFile(SCHEDULE_FILE, JsonRoot::Array);
+    }
     for (int i = 0; i < sch.size(); i++) {
         ScheduleEntry scheduleEntry;
         if (!scheduleEntry.LoadFromJson(sch[i]))

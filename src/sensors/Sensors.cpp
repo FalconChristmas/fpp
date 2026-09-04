@@ -555,8 +555,15 @@ void Sensors::DetectFanSensors() {
     // media/tmp/fan_probe.json, keyed by "<hwmon name>:<fan index>". Skip the RPM
     // sensor for any fan that probed as absent -- there is nothing useful to
     // show. A missing file or entry means "unknown", so we register as before.
+    // fppinit only writes the probe file when it finds a fanN_input to probe, so
+    // a board with no tachometer-capable fan node -- the overwhelming majority --
+    // never has one.  That is the "unknown" case handled above, not a problem, so
+    // skip the load entirely rather than have it report the file as missing.
     Json::Value fanProbe;
-    LoadJsonFromFile(FPP_DIR_MEDIA("/tmp/fan_probe.json"), fanProbe, JsonRoot::Object);
+    std::string fanProbeFile = FPP_DIR_MEDIA("/tmp/fan_probe.json");
+    if (FileExists(fanProbeFile)) {
+        LoadJsonFromFile(fanProbeFile, fanProbe, JsonRoot::Object);
+    }
 
     for (int h = 0; h < 32; h++) {
         char hwmonPath[256];
