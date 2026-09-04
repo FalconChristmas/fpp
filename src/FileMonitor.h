@@ -28,7 +28,17 @@ public:
     FileMonitor& AddFile(const std::string& id, const std::string& file, const std::function<void()>& callback, bool modificationsOnly = false);
     FileMonitor& RemoveFile(const std::string& id, const std::string& file);
 
+    // Fire every callback registered against `file`.  This is what an inotify
+    // event does, so it is the right call when the file really did change.
     FileMonitor& TriggerFileChanged(const std::string& file);
+
+    // Fire only the callback registered under `id`.  This is the one to use for
+    // the AddFile(...).TriggerFileChanged(...) "prime it now" idiom: the whole-
+    // file overload above also runs every OTHER watcher's callback, so a second
+    // registrant re-runs work the first one already did at startup.  That was
+    // costing a duplicate pass over co-universes.json -- including its blocking
+    // hostname resolution -- every time a new watcher was added to the file.
+    FileMonitor& TriggerFileChanged(const std::string& id, const std::string& file);
 
 private:
     FileMonitor();
@@ -38,6 +48,8 @@ private:
     FileMonitor& operator=(const FileMonitor&) = delete;
 
     void fileChangedEvent();
+    // `id` empty fires every callback on `file`, otherwise just that one.
+    void fireCallbacks(const std::string& id, const std::string& file);
 
     std::map<std::string, FileMonitorInfo> files_;
     std::map<int, std::string> fileMapping_;

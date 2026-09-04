@@ -405,7 +405,7 @@ int MultiSync::Init(void) {
     std::string coUniversesFile = FPP_DIR_CONFIG("/co-universes.json");
     FileMonitor::INSTANCE.AddFile("MultiSync/co-universes.json", coUniversesFile,
                                   [this]() { ReloadConfiguredOutputRanges(); })
-        .TriggerFileChanged(coUniversesFile);
+        .TriggerFileChanged("MultiSync/co-universes.json", coUniversesFile);
 
     if (!OpenReceiveSocket())
         return 0;

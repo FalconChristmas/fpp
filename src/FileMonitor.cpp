@@ -139,19 +139,27 @@ FileMonitor& FileMonitor::RemoveFile(const std::string& id, const std::string& f
     return *this;
 }
 
-FileMonitor& FileMonitor::TriggerFileChanged(const std::string& file) {
-    // Copy the callbacks out and invoke them with mutex_ released.  Callbacks
-    // do arbitrary heavyweight work (reloading channel outputs, plugin
-    // teardown); if one crashes, the process exit path runs ~Plugin ->
-    // RemoveFile on this same thread, and holding mutex_ here turns that
-    // crash into a self-deadlocked zombie instead of a clean crash-exit.
+// Copy the matching callbacks out and invoke them with mutex_ released.
+// Callbacks do arbitrary heavyweight work (reloading channel outputs, plugin
+// teardown); if one crashes, the process exit path runs ~Plugin -> RemoveFile
+// on this same thread, and holding mutex_ here turns that crash into a
+// self-deadlocked zombie instead of a clean crash-exit.
+// `id` empty means "every callback on this file".
+void FileMonitor::fireCallbacks(const std::string& id, const std::string& file) {
     std::vector<std::function<void()>> callbacks;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto it = files_.find(file);
         if (it != files_.end()) {
-            for (const auto& callback : it->second.callbacks) {
-                callbacks.push_back(callback.second);
+            if (id.empty()) {
+                for (const auto& callback : it->second.callbacks) {
+                    callbacks.push_back(callback.second);
+                }
+            } else {
+                auto cit = it->second.callbacks.find(id);
+                if (cit != it->second.callbacks.end()) {
+                    callbacks.push_back(cit->second);
+                }
             }
         }
     }
@@ -161,6 +169,20 @@ FileMonitor& FileMonitor::TriggerFileChanged(const std::string& file) {
             callback();
         }
     }
+}
+
+FileMonitor& FileMonitor::TriggerFileChanged(const std::string& file) {
+    fireCallbacks("", file);
+    return *this;
+}
+
+FileMonitor& FileMonitor::TriggerFileChanged(const std::string& id, const std::string& file) {
+    // An empty id would mean "all" to fireCallbacks(); AddFile() allows one, so
+    // keep the two overloads from silently converging on different behaviour.
+    if (id.empty()) {
+        return *this;
+    }
+    fireCallbacks(id, file);
     return *this;
 }
 

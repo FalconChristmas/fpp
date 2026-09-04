@@ -522,7 +522,7 @@ int InitializeChannelOutputs(void) {
                                      ComputeOutputRanges();
                                  }
                              })
-            .TriggerFileChanged(configFile);
+            .TriggerFileChanged("ChannelOutputSetup", configFile);
     }
     skipOutputRangeCompute = false;
 
@@ -542,7 +542,7 @@ int InitializeChannelOutputs(void) {
                              outputProcessors.loadFromJSON(newRoot);
                              ComputeOutputRanges();
                          })
-        .TriggerFileChanged(opfilename);
+        .TriggerFileChanged("outputprocessors.json", opfilename);
     return 1;
 }
 

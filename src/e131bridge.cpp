@@ -1491,14 +1491,14 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
                                   []() {
                                       BridgeReloadUDP();
                                   })
-        .TriggerFileChanged(udpInFile);
+        .TriggerFileChanged("ci-universes.json", udpInFile);
 
     std::string dmxInFile = FPP_DIR_CONFIG("/ci-dmx.json");
     FileMonitor::INSTANCE.AddFile("ci-dmx.json", dmxInFile,
                                   []() {
                                       BridgeReloadDMXInputs();
                                   })
-        .TriggerFileChanged(dmxInFile);
+        .TriggerFileChanged("ci-dmx.json", dmxInFile);
 }
 
 bool HasBridgeData() {
