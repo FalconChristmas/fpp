@@ -594,13 +594,14 @@
         function BuildPreviewBlock(source) {
             var id = parseInt(source.id, 10);
 
-            // A v4l2 source can be previewed straight off the device even
-            // while stopped, so the operator can confirm the camera before
-            // committing.  Every other type is only reachable through fppd's
-            // running pipeline, so say so rather than letting them press a
-            // button that can only fail.
+            // A v4l2 source can be previewed straight off the device, and a
+            // test pattern can be rendered from nothing at all, so both work
+            // while stopped -- the operator can confirm the camera, or see
+            // what a pattern looks like, before committing.  Every other type
+            // is only reachable through fppd's running pipeline, so say so
+            // rather than letting them press a button that can only fail.
             var hint = '<small>Preview stopped.</small>';
-            if (!source.enabled && source.type !== 'v4l2src') {
+            if (!source.enabled && source.type !== 'v4l2src' && source.type !== 'videotestsrc') {
                 hint = '<small>Enable this source and click <b>Save &amp; Apply</b> to preview it.</small>';
             }
 
@@ -646,6 +647,14 @@
         // Chained timeouts rather than setInterval: a slow or failing grab
         // must not stack up requests behind itself, and a device that has
         // gone away should back off instead of hammering gst-launch.
+        function FindSourceById(id) {
+            var list = videoInputSources.videoInputSources || [];
+            for (var i = 0; i < list.length; i++) {
+                if (parseInt(list[i].id, 10) === parseInt(id, 10)) return list[i];
+            }
+            return null;
+        }
+
         function PreviewTick(id) {
             if (!previewTimers[id]) return;
             var img = document.getElementById('videoPreviewImg' + id);
@@ -673,6 +682,17 @@
 
             var started = Date.now();
             var url = 'api/pipewire/video/input-sources/' + id + '/preview?width=320&_=' + started;
+
+            // A test pattern is generated from nothing, so the server can
+            // render whatever is selected right now rather than what was last
+            // saved.  Without this the preview answers with the saved pattern
+            // and appears frozen while the dropdown changes.
+            var src = FindSourceById(id);
+            if (src && src.type === 'videotestsrc') {
+                url += '&pattern=' + encodeURIComponent(src.pattern || 'smpte') +
+                       '&srcw=' + (parseInt(src.width, 10) || 320) +
+                       '&srch=' + (parseInt(src.height, 10) || 240);
+            }
             var probe = new Image();
 
             probe.onload = function () {

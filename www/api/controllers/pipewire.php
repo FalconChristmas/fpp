@@ -7470,6 +7470,18 @@ function GetV4L2DeviceModes($devPath)
 //   - source running in fppd -> ask fppd, which taps its intervideo channel
 //   - source stopped/disabled -> grab straight off the device ourselves, so
 //     the operator can confirm they picked the right camera before enabling it
+// Ask fppd for a frame from a running source.  Returns the JPEG bytes, or
+// false when the source isn't running (or fppd isn't answering).
+function FetchFppdVideoPreview($id, $width)
+{
+    $ctx = stream_context_create(array('http' => array('timeout' => 4)));
+    $jpeg = @file_get_contents('http://localhost:32322/videoinput/preview?id=' . intval($id) .
+                               '&width=' . intval($width), false, $ctx);
+    if ($jpeg !== false && strlen($jpeg) > 2 && substr($jpeg, 0, 2) === "\xFF\xD8")
+        return $jpeg;
+    return false;
+}
+
 function GetVideoInputPreview()
 {
     global $settings;
@@ -7481,21 +7493,17 @@ function GetVideoInputPreview()
     if ($width > 1280)
         $width = 1280;
 
-    // Try fppd first — works whenever the source is actually running.
-    $ctx = stream_context_create(array('http' => array('timeout' => 4)));
-    $jpeg = @file_get_contents('http://localhost:32322/videoinput/preview?id=' . $id .
-                               '&width=' . $width, false, $ctx);
-    if ($jpeg !== false && strlen($jpeg) > 2 && substr($jpeg, 0, 2) === "\xFF\xD8") {
-        header('Content-Type: image/jpeg');
-        header('Cache-Control: no-store');
-        echo $jpeg;
-        exit(0);
-    }
-
-    // Source isn't running — fall back to opening the device directly.
+    // Read the source config up front rather than only on the fallback path.
+    // A test pattern the operator has just picked but not saved yet has to be
+    // recognised *before* fppd is asked for a frame, because fppd would answer
+    // with the pattern it is actually running -- i.e. the previously saved one
+    // -- and the preview would sit there unchanged no matter what was selected.
     $sourcesFile = $settings['mediaDirectory'] . "/config/pipewire-video-input-sources.json";
     $device = '';
     $srcType = '';
+    $pattern = 'smpte';
+    $srcWidth = 320;
+    $srcHeight = 240;
     if (file_exists($sourcesFile)) {
         $data = json_decode(file_get_contents($sourcesFile), true);
         if (is_array($data) && isset($data['videoInputSources'])) {
@@ -7503,15 +7511,134 @@ function GetVideoInputPreview()
                 if (intval($src['id']) === $id) {
                     $srcType = isset($src['type']) ? $src['type'] : '';
                     $device = isset($src['device']) ? $src['device'] : '';
+                    $pattern = isset($src['pattern']) ? $src['pattern'] : 'smpte';
+                    $srcHeight = isset($src['height']) ? intval($src['height']) : 240;
+                    $srcWidth = isset($src['width']) ? intval($src['width']) : 320;
                     break;
                 }
             }
         }
     }
 
-    // Only V4L2 devices are grabbable without fppd; network sources would
-    // mean opening a second RTSP/HTTP session, which is not what a preview
-    // button should quietly do.
+    // A test pattern is synthetic: no device to contend for, no second
+    // network session to open, nothing to warm up.  It is the one source
+    // type that can always be rendered on demand, so a disabled one should
+    // still preview rather than telling the operator to enable and save
+    // first just to see what "pinwheel" looks like.
+    //
+    // The page sends the pattern and size it currently has selected, which
+    // may not be what is on disk yet.  Honouring that is the whole point of
+    // a preview button: it answers "what will this look like" before the
+    // operator commits, so an unsaved selection has to win over both the
+    // saved config and whatever fppd happens to be running.
+    $validPatterns = array('smpte', 'snow', 'black', 'white', 'red', 'green', 'blue',
+                           'checkers-1', 'checkers-4', 'circular', 'smpte75',
+                           'ball', 'bar', 'pinwheel', 'gradient');
+
+    if ($srcType === 'videotestsrc') {
+        $livePattern = $pattern;
+
+        // Whitelisted rather than escaped: this is a GStreamer enum with a
+        // known set of values, and the list is the same one the UI offers.
+        // An unrecognised request falls back to the saved pattern instead of
+        // silently rendering something the operator did not ask for.
+        if (isset($_GET['pattern']) && in_array($_GET['pattern'], $validPatterns, true))
+            $pattern = $_GET['pattern'];
+        if (!in_array($pattern, $validPatterns, true))
+            $pattern = 'smpte';
+
+        // Unsaved dimensions matter too -- they set the preview's aspect.
+        if (isset($_GET['srcw']) && intval($_GET['srcw']) > 0)
+            $srcWidth = min(7680, intval($_GET['srcw']));
+        if (isset($_GET['srch']) && intval($_GET['srch']) > 0)
+            $srcHeight = min(4320, intval($_GET['srch']));
+
+        // When the selection matches what is already running, prefer fppd's
+        // live frame: it comes from one continuous pipeline, so the animated
+        // patterns move exactly as they will in the real output.
+        if ($pattern === $livePattern) {
+            $jpeg = FetchFppdVideoPreview($id, $width);
+            if ($jpeg !== false) {
+                header('Content-Type: image/jpeg');
+                header('Cache-Control: no-store');
+                echo $jpeg;
+                exit(0);
+            }
+        }
+
+        // Preserve the source's own aspect ratio at the requested preview
+        // width, matching what the running-source path produces.
+        $h = ($srcWidth > 0) ? intval(round($width * $srcHeight / $srcWidth)) : $width;
+        if ($h < 1)
+            $h = 1;
+
+        // Each request here is its own gst-launch, starting from frame zero,
+        // so without help every poll returns a byte-identical image and even
+        // a moving pattern looks frozen.
+        //
+        // Only three of videotestsrc's fifteen patterns actually move: ball,
+        // snow, and smpte (which carries a noise block in one corner).  The
+        // other twelve are static images by design -- there is nothing to
+        // advance, and no reason to pay for extra frames.
+        // All three animate off an internal frame counter that restarts with
+        // every process, so vary how far into the stream we grab: multifilesink
+        // overwrites, leaving the last buffer.  Tying the offset to a 10Hz
+        // clock means consecutive polls advance one frame each, which is
+        // exactly what the live path does at 10fps -- so the motion matches.
+        //
+        // videotestsrc does expose animation-mode=wall-time, but it only
+        // drives 'ball' and runs it far faster than a 10fps poll can sample:
+        // the ball teleported around the frame instead of tracking across it.
+        //
+        // The counter wraps every 24 frames (~2.4s), which costs one visible
+        // jump per cycle.  Extending it is pure cost -- roughly 1.5ms per
+        // extra frame, every request -- and this is a preview of a source
+        // that is not running; enable it and the live path takes over with
+        // genuinely continuous motion.
+        $numBuffers = 2;
+        if ($pattern === 'ball' || $pattern === 'snow' || $pattern === 'smpte')
+            $numBuffers = 2 + (intval(floor(microtime(true) * 10)) % 24);
+
+        $tmp = tempnam('/tmp', 'fppvidprev') . '.jpg';
+        $cmd = 'timeout 5 gst-launch-1.0 -q'
+             . ' videotestsrc num-buffers=' . $numBuffers
+             . ' pattern=' . escapeshellarg($pattern)
+             . ' ! video/x-raw,width=' . $width . ',height=' . $h . ',pixel-aspect-ratio=1/1'
+             . ' ! videoconvert'
+             . ' ! jpegenc quality=70'
+             . ' ! multifilesink location=' . escapeshellarg($tmp) . ' 2>/dev/null';
+        exec($cmd, $out, $ret);
+
+        if (file_exists($tmp) && filesize($tmp) > 0) {
+            header('Content-Type: image/jpeg');
+            header('Cache-Control: no-store');
+            readfile($tmp);
+            unlink($tmp);
+            exit(0);
+        }
+        if (file_exists($tmp))
+            unlink($tmp);
+
+        header('HTTP/1.1 503 Service Unavailable');
+        header('Content-Type: application/json');
+        echo json_encode(array('status' => 'error',
+                               'message' => 'Could not render the "' . $pattern . '" test pattern.'));
+        exit(0);
+    }
+
+    // Every other type: fppd's running pipeline is the only source of a
+    // frame that reflects reality, so ask it first.
+    $jpeg = FetchFppdVideoPreview($id, $width);
+    if ($jpeg !== false) {
+        header('Content-Type: image/jpeg');
+        header('Cache-Control: no-store');
+        echo $jpeg;
+        exit(0);
+    }
+
+    // Not running.  Network sources would mean opening a second RTSP/HTTP
+    // session, which is not what a preview button should quietly do, so only
+    // a local capture device is grabbable from here.
     if ($srcType !== 'v4l2src' || $device === '' || !preg_match('#^/dev/video\d+$#', $device)) {
         header('HTTP/1.1 503 Service Unavailable');
         header('Content-Type: application/json');
