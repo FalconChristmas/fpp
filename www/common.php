@@ -4998,13 +4998,56 @@ function fppSendCacheValidators($etag, $mtime = 0)
  * size-mtime-inode changes whenever the file does, without reading a byte of
  * it, so a client that already has the file costs one stat and no I/O.
  *
+ * Except while the timestamp is still racy. st_mtime has one-second
+ * resolution, so two writes inside the same second produce the same mtime, and
+ * if they also leave the size and inode alone -- an in-place rewrite of the
+ * same number of bytes -- the validator repeats for different content. A
+ * client that read between the two writes then holds a tag that still matches,
+ * and gets a 304 carrying the older file. Worse, it stays wrong: nothing
+ * changes the tag again until some later write alters the size or the mtime.
+ * FPP's own config writers go through WriteFileAtomic(), whose rename() gives
+ * the file a new inode and so happens to avoid this -- but that is a property
+ * of one writer, not of the validator, and anything editing a config in place
+ * (a script, an editor, a plugin, an rsync) reintroduces it.
+ *
+ * So a stat is only trusted once its mtime is safely in the past; inside that
+ * window the content is hashed instead. Once now is more than a second past
+ * the mtime, no later write can land on that same mtime value again -- time
+ * only moves forward -- so a stat-derived tag handed out after the window can
+ * never be reused for different content. The `>=` also covers a clock that
+ * steps backwards, which on these boards happens every boot before NTP
+ * settles: mtime then reads as being in the future, and the conservative path
+ * is the one that gets taken.
+ *
+ * The cost is a read and a hash of a file that was just written, which is
+ * exactly when a page is reloading its config anyway. Beyond a few megabytes
+ * that is no longer worth it, so an oversized file in the racy window is sent
+ * with no validator at all -- always a 200, never a wrong 304.
+ *
  * @return bool True if a 304 was sent and the caller should stop.
  */
 function fppSendFileCacheValidators($path)
 {
+    // Callers reach here after their own file_exists()/is_dir() checks, which
+    // populate PHP's per-request stat cache. Read the file's real current
+    // state rather than whatever those left behind.
+    clearstatcache(true, $path);
+
     $st = @stat($path);
     if ($st === false) {
         return false;
+    }
+
+    if ($st['mtime'] >= time() - 1) {
+        if ($st['size'] > 4 * 1024 * 1024) {
+            return false;
+        }
+        $content = @file_get_contents($path);
+        if ($content === false) {
+            return false;
+        }
+
+        return fppSendContentCacheValidators($content);
     }
 
     return fppSendCacheValidators(
