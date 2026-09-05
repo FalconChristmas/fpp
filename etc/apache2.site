@@ -601,6 +601,16 @@ AddDefaultCharset utf-8
             Header edit Cache-Control immutable ""
         </FilesMatch>
 
+        # 3) And remove it from anything that says max-age=0, whatever it is
+        #    named. FilesMatch can only see an extension, so every extension-
+        #    less route -- which is all of /api/ -- fell through the list above
+        #    and was served as `max-age=0, immutable`. That pairing is the same
+        #    self-contradiction described for .php, and it is worse on an API:
+        #    a client told never to revalidate cannot pick up new state at all,
+        #    and cannot even send a conditional request to find out. Matching on
+        #    the value rather than the name covers both cases for good.
+        Header edit Cache-Control "max-age=0,\s*immutable" "max-age=0"
+
     </IfModule>
 
 </IfModule>

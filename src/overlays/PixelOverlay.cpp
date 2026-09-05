@@ -1206,6 +1206,7 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
         std::string p4 = plen > 3 ? parts[3] : "";
         std::string p5 = plen > 4 ? parts[4] : "";
         Json::Value result;
+        bool etagable = false;
         if (p2 == "fonts") {
             for (auto& a : fonts) {
                 result.append(a.first);
@@ -1297,6 +1298,11 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
                 }
             }
         } else if (p2 == "effects") {
+            // The effect list is derived from what is registered plus what is
+            // on disk (fonts, images), so it changes rarely but not never --
+            // exactly the shape an ETag is for. ?full=true is ~350KB, and the
+            // UI asks for it on every page load.
+            etagable = true;
             if (p3 == "") {
                 bool fullResult = getRequestArg(req, "full") == "true";
                 for (auto& a : PixelOverlayEffect::GetPixelOverlayEffects()) {
@@ -1316,6 +1322,9 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
             result = getActiveOverlayEffects();
         }
         std::string resultStr = SaveJsonToString(result, "");
+        if (etagable) {
+            return makeETagResponse(req, resultStr);
+        }
         return makeStringResponse(resultStr, 200, "application/json");
     }
     return makeStringResponse("Not found: " + p1, 404);

@@ -35,6 +35,8 @@
 #undef LOG_DEBUG
 #endif
 
+#include <cstdint>
+#include <cstdio>
 #include <functional>
 #include <memory>
 #include <string>
@@ -74,6 +76,43 @@ inline HttpResponsePtr makeStringResponse(const std::string& body, int statusCod
     } else {
         resp->setContentTypeCodeAndCustomString(drogon::CT_CUSTOM, contentType);
     }
+    return resp;
+}
+
+// Build a response that carries a content-derived ETag, answering 304 when the
+// client already holds this version.
+//
+// For a large, rarely-changing API result this is the difference between
+// sending the body on every page load and sending nothing at all: the overlay
+// effect list alone is ~350KB, and a client that goes through FPPMon's MQTT
+// proxy pays for those bytes over someone's internet connection. The tag is a
+// plain FNV-1a over the bytes, which is a validator rather than a digest -- it
+// only has to change when the content does.
+inline HttpResponsePtr makeETagResponse(const HttpRequestPtr& req, const std::string& body,
+                                        const std::string& contentType = "application/json") {
+    uint64_t h = 0xcbf29ce484222325ULL;
+    for (unsigned char c : body) {
+        h ^= c;
+        h *= 0x100000001b3ULL;
+    }
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%llx-%llx", (unsigned long long)body.size(), (unsigned long long)h);
+    std::string bare(buf);
+    std::string etag = "\"" + bare + "\"";
+
+    // If-None-Match may carry a list, and a cache that compressed the response
+    // on the way past can append a suffix to the tag it echoes back
+    // (`"...-gzip"`), so match on the bare tag appearing anywhere rather than
+    // on string equality.
+    std::string inm = req->getHeader("if-none-match");
+    if (!inm.empty() && inm.find(bare) != std::string::npos) {
+        auto resp = drogon::HttpResponse::newHttpResponse();
+        resp->setStatusCode(drogon::k304NotModified);
+        resp->addHeader("ETag", etag);
+        return resp;
+    }
+    auto resp = makeStringResponse(body, 200, contentType);
+    resp->addHeader("ETag", etag);
     return resp;
 }
 
