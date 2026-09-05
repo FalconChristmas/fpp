@@ -65,3 +65,56 @@ almost never necessary — those hooks run synchronously on **every** `fppd`
 start/stop, so a build step there repeats work already done and just delays
 startup every boot for no benefit. See `PLUGIN_GUIDELINES.md` §2.8 in the template
 repo for the recommended pattern.
+
+## Publishing a PipeWire audio source from a plugin
+
+A C++ plugin can put its own audio into FPP's mix buses by publishing an
+`Audio/Source` node into fppd's PipeWire graph and then telling FPP about it.
+Creating the node is the plugin's job; FPP only needs the metadata so the node
+can be offered in the **Input/Output Setup → Input Mixing** member picker
+(member type "PipeWire Source"). The SMPTE plugin's LTC timecode node
+(`fpp_smpte_ltc`) is the reference implementation.
+
+Register with `AudioSourceRegistry::INSTANCE` the same way a plugin registers
+with `MultiSync::INSTANCE`:
+
+```cpp
+#include "mediaoutput/AudioSourceRegistry.h"
+
+AudioSourceRegistry::AudioSource src;
+src.id = "fpp-smpte:ltc";        // unique, "<plugin>:<source>" by convention
+src.name = "SMPTE LTC Timecode"; // label shown in the picker
+src.nodeName = "fpp_smpte_ltc";  // PW_KEY_NODE_NAME of the node you created
+src.plugin = "fpp-smpte";
+src.channels = 1;
+src.sampleRate = 48000;
+AudioSourceRegistry::INSTANCE.registerSource(src);
+```
+
+and drop the registration in `shutdown()` (not just the destructor — the
+registry outlives an unload):
+
+```cpp
+AudioSourceRegistry::INSTANCE.unregisterPluginSources("fpp-smpte");
+```
+
+The registry is metadata only and lives in fppd memory; routing configs store
+the `nodeName` themselves, so nothing is persisted for you. The list is served
+to the UI at `GET /api/pipewire/audio/plugin-sources`.
+
+Things that bite:
+
+- **Connect to fppd's PipeWire, not the session one.** fppd runs its own daemon
+  with its own runtime dir — set `PIPEWIRE_RUNTIME_DIR` and `XDG_RUNTIME_DIR` to
+  `/run/pipewire-fpp` (with `overwrite = 0`) before `pw_init()`.
+- **Advertise the channel layout in the node properties**, not just in the
+  format: FPP reads `audio.channels` off `pw-dump` when it builds the loopback
+  that patches your node into a mix bus. A mono node that does not say
+  `PW_KEY_AUDIO_CHANNELS`/`SPA_KEY_AUDIO_POSITION` gets mixed in as silence.
+- **`node.autoconnect = false`, `node.always-process = true`** — FPP does the
+  patching; the node must keep running while nothing is linked to it.
+- **Input Mixing only exists on the advanced backend.** If `MediaBackend` is not
+  `pipewire`, the settings group is hidden and there is nowhere to route your
+  source — worth a `LogWarn` so the user knows why their node went nowhere.
+- **Guard the include** so your plugin still builds against older cores:
+  `#if __has_include("mediaoutput/AudioSourceRegistry.h")`.

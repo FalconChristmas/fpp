@@ -183,6 +183,7 @@ When an audio group with 3 members is configured, PipeWire creates these nodes:
 | **Combine-Stream Output**  | `output.fpp_group_stuart_headphones_and_hdmi_fpp_fx_g1_s3`                                | Stream/Output/Audio | One output leg per member — streams to that member's filter-chain                    |
 | **GStreamer pipewiresink** | `fppd`                                                                                    | Stream/Output/Audio | GStreamer playback node — connects to combine-stream sink                            |
 | **GStreamer pipewiresrc**  | `aes67_aes67_stream_1_send`                                                               | Stream/Input/Audio  | AES67 send pipeline — captures from filter-chain output                              |
+| **Plugin Audio Source**    | `fpp_smpte_ltc`                                                                           | Audio/Source        | Virtual source published by a plugin, routable as an Input Mixing member (see [Plugin_Development.md](Plugin_Development.md#publishing-a-pipewire-audio-source-from-a-plugin)) |
 
 ### Live Topology Example
 
