@@ -947,6 +947,94 @@ function SystemGetInfo()
     return json($result);
 }
 
+function GetFPPDRestartBlocked()
+{
+    // Check if systemd is available
+    $hasSystemctl = trim(shell_exec("which systemctl 2>/dev/null")) !== "";
+    if (!$hasSystemctl) {
+        return array("blocked" => false);
+    }
+    // Quick check: is fppd in failed state?
+    $activeState = trim(shell_exec("systemctl show fppd --property=ActiveState --value 2>/dev/null"));
+    $result = trim(shell_exec("systemctl show fppd --property=Result --value 2>/dev/null"));
+    if ($activeState !== "failed") {
+        return array("blocked" => false);
+    }
+    // Check if the failure is due to restart limit (Start request repeated too quickly)
+    $statusOutput = shell_exec("systemctl status fppd 2>&1 | head -n 30");
+    if (strpos($statusOutput, "Start request repeated too quickly") === false) {
+        // Also check journal for the message in case status doesn't show it
+        $statusOutput2 = shell_exec("journalctl -u fppd --no-pager -n 20 2>&1 | grep -q 'Start request repeated too quickly' && echo found || echo notfound");
+        if (trim($statusOutput2) !== "found") {
+            return array("blocked" => false);
+        }
+    }
+    // Get interval and timestamps
+    $intervalStr = trim(shell_exec("systemctl show fppd --property=StartLimitIntervalSec --value 2>/dev/null"));
+    // StartLimitIntervalSec may be in microseconds (e.g. 200000000 for 200s) or seconds (200)
+    $intervalSec = 200; // default from fppd.service
+    if ($intervalStr !== "" && is_numeric($intervalStr)) {
+        $intervalVal = intval($intervalStr);
+        if ($intervalVal > 10000) {
+            $intervalSec = intval($intervalVal / 1000000);
+        } else if ($intervalVal > 0) {
+            $intervalSec = $intervalVal;
+        }
+    }
+    // Also try manager property if unit doesn't have it
+    if ($intervalSec === 200) {
+        $managerInterval = trim(shell_exec("systemctl show --property=StartLimitIntervalSec --value 2>/dev/null"));
+        if ($managerInterval !== "" && is_numeric($managerInterval)) {
+            $mVal = intval($managerInterval);
+            if ($mVal > 10000) $mVal = intval($mVal / 1000000);
+            if ($mVal > 0) $intervalSec = $mVal;
+        }
+    }
+    $inactiveTimestamp = trim(shell_exec("systemctl show fppd --property=InactiveEnterTimestamp --value 2>/dev/null"));
+    $remainingSec = $intervalSec;
+    if ($inactiveTimestamp !== "" && $inactiveTimestamp !== "n/a") {
+        $inactiveTime = strtotime($inactiveTimestamp);
+        if ($inactiveTime !== false) {
+            $elapsed = time() - $inactiveTime;
+            $remainingSec = max(0, $intervalSec - $elapsed);
+        }
+    } else {
+        // Fallback: try monotonic timestamp
+        $inactiveMonotonic = trim(shell_exec("systemctl show fppd --property=InactiveEnterTimestampMonotonic --value 2>/dev/null"));
+        if ($inactiveMonotonic !== "" && $inactiveMonotonic !== "0") {
+            // Monotonic is microseconds since boot; compare to current monotonic
+            $nowMonotonic = trim(shell_exec("cat /proc/uptime 2>/dev/null | awk '{print int(\$1*1000000)}'"));
+            if (is_numeric($inactiveMonotonic) && is_numeric($nowMonotonic)) {
+                $elapsedSec = intval((intval($nowMonotonic) - intval($inactiveMonotonic)) / 1000000);
+                $remainingSec = max(0, $intervalSec - $elapsedSec);
+            }
+        }
+    }
+    return array(
+        "blocked" => $remainingSec > 0,
+        "remainingSec" => intval($remainingSec),
+        "intervalSec" => intval($intervalSec),
+        "burst" => 5
+    );
+}
+
+/**
+ * Get FPPD restart blocked status
+ *
+ * Returns whether FPPD is currently blocked from restarting due to systemd's
+ * StartLimitBurst (too many restarts in a short time) and how long to wait.
+ *
+ * @route GET /api/system/fppd/restartStatus
+ * @response 200 Restart blocked status
+ * ```json
+ * {"blocked": true, "remainingSec": 87, "intervalSec": 200, "burst": 5}
+ * ```
+ */
+function GetFPPDRestartStatus()
+{
+    return json(GetFPPDRestartBlocked());
+}
+
 /**
  * Adds network interfaces, reboot/restart flags, boot delay status, advanced system info,
  * plugin header indicators, and crash warnings to the `fppd` status array.
@@ -1029,6 +1117,9 @@ function finalizeStatusJson($obj)
             $obj["warningInfo"][] = $wi;
         }
     }
+
+    // Check if FPPD restart limit has been hit (Start request repeated too quickly)
+    $obj['fppdRestartBlocked'] = GetFPPDRestartBlocked();
 
     return $obj;
 }

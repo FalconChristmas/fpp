@@ -8191,6 +8191,47 @@
         }
       }
     },
+    "/api/system/fppd/restartStatus": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get FPPD restart blocked status",
+        "description": "Returns whether FPPD is currently blocked from restarting due to systemd's StartLimitBurst (too many restarts in a short time) and how long to wait.",
+        "responses": {
+          "200": {
+            "description": "Restart blocked status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "blocked": {
+                      "type": "boolean"
+                    },
+                    "remainingSec": {
+                      "type": "integer"
+                    },
+                    "intervalSec": {
+                      "type": "integer"
+                    },
+                    "burst": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "example": {
+                  "blocked": true,
+                  "remainingSec": 87,
+                  "intervalSec": 200,
+                  "burst": 5
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/system/info": {
       "get": {
         "tags": [

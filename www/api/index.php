@@ -276,6 +276,7 @@ dispatch_delete('/statistics/usage', 'stats_delete_last_file');
 dispatch_get('/system/fppd/restart', 'RestartFPPD');
 dispatch_get('/system/fppd/start', 'StartFPPD');
 dispatch_get('/system/fppd/stop', 'StopFPPD');
+dispatch_get('/system/fppd/restartStatus', 'GetFPPDRestartStatus');
 dispatch_post('/system/fppd/skipBootDelay', 'SkipBootDelay');
 dispatch_get('/system/reboot', 'RebootDevice');
 dispatch_get('/system/releaseNotes/:version', 'ViewReleaseNotes');
