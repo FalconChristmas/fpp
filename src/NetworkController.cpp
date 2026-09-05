@@ -486,15 +486,27 @@ void NetworkController::DetectBaldrickController(Detection* st) {
             typeStr = state["board_model"].asString();
         }
 
-        // A Baldrick does not report its OWN board id, but it reports one for
-        // each Baldrick it can see.  Note this is the ESP32 base address, which
-        // is NOT what ARP sees for a board on Ethernet (that is base+3) -- see
-        // MultiSync::ApplyUUIDHint() for why the hint must win over ARP rather
-        // than merely fill in behind it.  So an identity for this board arrives from
-        // its neighbour rather than from itself, and with two or more on a
-        // network every one of them ends up identified.  Recorded against the
-        // peer address for the caller to apply; nothing here invents a system
-        // that discovery has not otherwise found.
+        // Newer firmware states the board's OWN id at the top level; older
+        // firmware states only its neighbours'.  Note this is the ESP32 base
+        // address, which is NOT what ARP sees for a board on Ethernet (that is
+        // base+3) -- see MultiSync::ApplyUUIDHint() for why a vendor-reported
+        // id must win over ARP rather than merely fill in behind it.  Measured
+        // on a board reporting both: the id it gives for itself is byte-for-byte
+        // the one its neighbour gives for it, so the two sources agree and
+        // neither has to be preferred for correctness.
+        if (JsonHas(state, "board_id")) {
+            std::string bid = NormalizeMacAddress(state["board_id"].asString());
+            if (!bid.empty()) {
+                uuid = MAC_UUID_PREFIX + bid;
+            }
+        }
+
+        // The neighbour list is still read, and still matters for two reasons:
+        // it is the only identity a board on older firmware ever has, and it
+        // names Baldricks of other kinds -- signal boards, DMX boards, input
+        // boards -- that discovery may reach before or without reaching this
+        // one.  Recorded against the peer address for the caller to apply;
+        // nothing here invents a system that discovery has not otherwise found.
         if (JsonHas(state, "buddies") && state["buddies"].isArray()) {
             for (const auto& buddy : state["buddies"]) {
                 if (!buddy.isObject()) {
