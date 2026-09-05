@@ -237,7 +237,7 @@ function PWMixerStrip(opts) {
 	// One structure at every width: .pw-mixer-strip is a grid whose areas
 	// re-flow in CSS, so a phone gets name / fader / meter stacked with the
 	// buttons alongside, and a wide screen gets the classic one-line strip.
-	var h = "<div class='pw-mixer-strip border rounded p-2" + (muted ? ' opacity-50' : '') + "'>";
+	var h = "<div class='pw-mixer-strip border rounded p-2" + (muted ? ' opacity-50' : '') + (opts.cls ? ' ' + opts.cls : '') + "'>";
 
 	h += "<div class='pw-mixer-strip-label d-flex align-items-center gap-2' title='" + PWMixerEscape(opts.title || opts.label) + "'>";
 	h += PWMixerLed(opts.nodeName, opts.stateKey, opts.state);
@@ -509,6 +509,7 @@ function PWMixerRender(force) {
 	var master = PWMixerMasterVolume();
 	var groupHtml = '';
 	var enabledGroups = 0;
+	var enabledOutputs = 0;
 	for (var g = 0; g < d.groups.length; g++) {
 		var grp = d.groups[g];
 		if (!grp.enabled) {
@@ -517,10 +518,27 @@ function PWMixerRender(force) {
 		enabledGroups++;
 		var grpVol = typeof grp.volume === 'undefined' ? 100 : grp.volume;
 		var groupNode = 'fpp_group_' + PWMixerSlug(grp.name);
+		var members = grp.members || [];
+		var cards = 0;
+		for (var c = 0; c < members.length; c++) {
+			if (members[c].cardId) {
+				cards++;
+			}
+		}
+		enabledOutputs += cards;
+
+		// A group and the cards it feeds are one block, not a flat list of
+		// peers: the group fader is the bus everything in it passes through,
+		// and each strip below it trims one card on the way out. Listed flat
+		// they read as unrelated outputs -- a group with a single card looked
+		// like two separate outputs. The group strip carries the accent
+		// border; its cards are indented behind a rule.
+		groupHtml += "<div class='pw-mixer-group'>";
 		groupHtml += PWMixerStrip({
 			id: 'pwm_group_' + g,
 			label: grp.name,
-			sublabel: 'Group',
+			sublabel: 'Group \u00b7 ' + cards + (cards === 1 ? ' output' : ' outputs'),
+			cls: 'border-primary',
 			title: groupNode,
 			nodeName: groupNode,
 			stateKey: 'sink:' + groupNode,
@@ -528,7 +546,7 @@ function PWMixerRender(force) {
 			effective: Math.round((grpVol * master) / 100),
 			mute: grp.mute,
 		});
-		var members = grp.members || [];
+		var memberHtml = '';
 		for (var m = 0; m < members.length; m++) {
 			var mbr = members[m];
 			if (!mbr.cardId) {
@@ -538,10 +556,14 @@ function PWMixerRender(force) {
 			// so the effective figure carries both.
 			var mbrVol = typeof mbr.volume === 'undefined' ? 100 : mbr.volume;
 			var fxNode = 'fpp_fx_g' + grp.id + '_' + PWMixerSlug(mbr.cardId);
-			groupHtml += PWMixerStrip({
+			// The parent is now structural, so the sublabel says what the strip
+			// is instead of repeating the group name, and names the card when
+			// the config carries a description the bare cardId does not.
+			var mbrSub = mbr.cardName && mbr.cardName !== mbr.cardId ? 'Output \u00b7 ' + mbr.cardName : 'Output';
+			memberHtml += PWMixerStrip({
 				id: 'pwm_member_' + g + '_' + m,
 				label: mbr.cardId,
-				sublabel: grp.name,
+				sublabel: mbrSub,
 				title: fxNode,
 				nodeName: fxNode,
 				stateKey: 'sink:' + fxNode,
@@ -550,11 +572,23 @@ function PWMixerRender(force) {
 				mute: mbr.mute,
 			});
 		}
+		if (memberHtml) {
+			groupHtml += "<div class='pw-mixer-strips border-start ms-3 ps-3'>" + memberHtml + '</div>';
+		}
+		groupHtml += '</div>';
 	}
 	if (!groupHtml) {
 		groupHtml = "<div class='text-body-secondary small'>No enabled output groups.</div>";
 	}
-	var secOutputs = PWMixerSection('groups', 'Output Groups', enabledGroups + ' enabled', groupHtml);
+	// Counting groups and cards separately is what tells someone whether the
+	// extra strips are more outputs or the trims inside one group.
+	var outputsBadge =
+		enabledGroups +
+		(enabledGroups === 1 ? ' group' : ' groups') +
+		' \u00b7 ' +
+		enabledOutputs +
+		(enabledOutputs === 1 ? ' output' : ' outputs');
+	var secOutputs = PWMixerSection('groups', 'Output Groups', outputsBadge, groupHtml);
 
 	// --- Input groups (mix buses) and their members ---
 	var inputHtml = '';

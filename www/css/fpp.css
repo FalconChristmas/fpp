@@ -4787,6 +4787,24 @@ pre.testData,
 	}
 }
 
+/* An output group and the card strips it feeds are one block, so the block --
+   not each strip -- is what the section grid lays out: a group owns a full row
+   and its cards share the columns inside it. Without this a group fader and a
+   card trim could sit side by side as apparent peers, which is what made a
+   one-card group read as two independent outputs. */
+.pw-mixer-strips > .pw-mixer-group {
+	grid-column: 1 / -1;
+	display: grid;
+	gap: 0.5rem;
+}
+
+/* A group holding one card would otherwise leave that card marooned in the
+   left column of a two-column row, reading as half a pair rather than as the
+   group's only output. */
+.pw-mixer-group > .pw-mixer-strips > .pw-mixer-strip:only-child {
+	grid-column: 1 / -1;
+}
+
 /* The strip itself is a grid of named areas rather than a flex row, so the same
    markup re-flows. A portrait phone cannot fit name + fader + readout + meter +
    two 44px touch targets on one line (they need ~440px inside a ~320px strip),
