@@ -1,5 +1,10 @@
 <?php
 
+// Seconds a collected set of indicators is served for before it is refreshed.
+// The UI polls status every few seconds, so this only ever drops sub-requests
+// that would have returned the same badges.
+define('FPP_PLUGIN_INDICATOR_TTL', 5);
+
 /**
  * Get header indicators
  *
@@ -20,11 +25,43 @@
  */
 function GetPluginHeaderIndicators()
 {
+    global $settings;
+
+    // Collecting the indicators means one HTTP request per plugin back into this
+    // same web server, from inside a request that is already holding a php-fpm
+    // worker.  /api/system/status calls this on every poll of every open page, so
+    // without a brake N clients need N * (1 + plugins) workers at once: the pool
+    // fills with outer status requests, the inner per-plugin requests have no
+    // worker left to run on, and the UI stops loading for everyone until php-fpm
+    // is restarted.  Serving a short-lived cache, and letting only one request at
+    // a time refresh it, keeps the fan-out at one set of sub-requests per
+    // FPP_PLUGIN_INDICATOR_TTL regardless of how many clients are polling.
+    $mediaDir = isset($settings['mediaDirectory']) ? $settings['mediaDirectory'] : '/home/fpp/media';
+    $cacheFile = $mediaDir . '/tmp/plugin-header-indicators.json';
+    $cached = FreshPluginHeaderIndicatorCache($cacheFile, FPP_PLUGIN_INDICATOR_TTL);
+    if ($cached !== null) {
+        return json($cached);
+    }
+
+    // Non-blocking: if another request is already refreshing, serve what we have
+    // (even if stale) rather than queue up behind it holding a worker.
+    $lock = @fopen($cacheFile . '.lock', 'c');
+    if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
+        if ($lock !== false) {
+            fclose($lock);
+        }
+        $stale = ReadPluginHeaderIndicatorCache($cacheFile);
+        return json($stale === null ? array() : $stale);
+    }
+
     $indicators = array();
 
     // Get list of installed plugins
-    $pluginDir = '/home/fpp/media/plugins';
+    $pluginDir = $mediaDir . '/plugins';
     if (!is_dir($pluginDir)) {
+        WritePluginHeaderIndicatorCache($cacheFile, $indicators);
+        flock($lock, LOCK_UN);
+        fclose($lock);
         return json($indicators);
     }
 
@@ -68,5 +105,41 @@ function GetPluginHeaderIndicators()
         }
     }
 
+    WritePluginHeaderIndicatorCache($cacheFile, $indicators);
+    flock($lock, LOCK_UN);
+    fclose($lock);
+
     return json($indicators);
+}
+
+
+function ReadPluginHeaderIndicatorCache($cacheFile)
+{
+    if (!file_exists($cacheFile)) {
+        return null;
+    }
+    $data = @file_get_contents($cacheFile);
+    if ($data === false) {
+        return null;
+    }
+    $decoded = json_decode($data, true);
+    return is_array($decoded) ? $decoded : null;
+}
+
+function FreshPluginHeaderIndicatorCache($cacheFile, $ttl)
+{
+    clearstatcache(true, $cacheFile);
+    if (!file_exists($cacheFile) || (time() - filemtime($cacheFile)) >= $ttl) {
+        return null;
+    }
+    return ReadPluginHeaderIndicatorCache($cacheFile);
+}
+
+function WritePluginHeaderIndicatorCache($cacheFile, $indicators)
+{
+    // Write then rename so a reader never sees a half-written file.
+    $tmp = $cacheFile . '.' . getmypid() . '.tmp';
+    if (@file_put_contents($tmp, json_encode($indicators)) !== false) {
+        @rename($tmp, $cacheFile);
+    }
 }
