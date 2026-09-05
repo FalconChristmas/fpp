@@ -122,6 +122,7 @@ dispatch_get('/pipewire/audio/input-groups', 'GetPipeWireInputGroups');
 dispatch_post('/pipewire/audio/input-groups', 'SavePipeWireInputGroups');
 dispatch_post('/pipewire/audio/input-groups/apply', 'ApplyPipeWireInputGroups');
 dispatch_post('/pipewire/audio/input-groups/volume', 'SetInputGroupMemberVolume');
+dispatch_post('/pipewire/audio/input-group/volume', 'SetInputGroupVolume');
 dispatch_post('/pipewire/audio/input-groups/effects', 'SaveInputGroupEffects');
 dispatch_post('/pipewire/audio/input-groups/eq/update', 'UpdateInputGroupEQRealtime');
 dispatch_get('/pipewire/audio/routing', 'GetRoutingMatrix');

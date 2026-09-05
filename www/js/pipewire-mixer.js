@@ -237,7 +237,9 @@ function PWMixerStrip(opts) {
 	// One structure at every width: .pw-mixer-strip is a grid whose areas
 	// re-flow in CSS, so a phone gets name / fader / meter stacked with the
 	// buttons alongside, and a wide screen gets the classic one-line strip.
-	var h = "<div class='pw-mixer-strip border rounded p-2" + (muted ? ' opacity-50' : '') + (opts.cls ? ' ' + opts.cls : '') + "'>";
+	var h = "<div class='pw-mixer-strip border rounded p-2" + (muted ? ' opacity-50' : '');
+	h += opts.disabled ? ' pw-mixer-strip-readonly' : '';
+	h += (opts.cls ? ' ' + opts.cls : '') + "'>";
 
 	h += "<div class='pw-mixer-strip-label d-flex align-items-center gap-2' title='" + PWMixerEscape(opts.title || opts.label) + "'>";
 	h += PWMixerLed(opts.nodeName, opts.stateKey, opts.state);
@@ -247,17 +249,35 @@ function PWMixerStrip(opts) {
 	h += "<div class='pw-mixer-strip-names'>";
 	h += "<div class='text-truncate small fw-semibold'>" + PWMixerEscape(opts.label) + '</div>';
 	if (opts.sublabel) {
-		h += "<div class='pw-mixer-sublabel small text-body-secondary text-truncate'>" + PWMixerEscape(opts.sublabel) + '</div>';
+		// No text-truncate here: these say what the strip is ("Output ·
+		// bcm2835 Headphones", a media filename), and one line of a ~150px
+		// column cut all of them off mid-word. They wrap to two lines instead,
+		// with the full text on the element for a hover or a long press.
+		h += "<div class='pw-mixer-sublabel small text-body-secondary' title='" + PWMixerEscape(opts.sublabel) + "'>";
+		// The padlock rides the sublabel rather than the name: it is the line
+		// that already explains why the strip cannot be moved, and the name has
+		// no room to spare on a phone.
+		if (opts.disabled) {
+			h += "<i class='fas fa-lock me-1' title='Read-only'></i>";
+		}
+		h += PWMixerEscape(opts.sublabel) + '</div>';
 	}
 	h += '</div></div>';
 
 	h += "<input type='range' class='form-range pw-mixer-slider' min='0' max='" + max + "' value='" + vol + "'";
 	h += " id='" + id + "' aria-label='" + PWMixerEscape(opts.label) + " volume'";
-	h += ' oninput="PWMixerSlide(this,\'' + id + "')\"";
-	h += ' onchange="PWMixerSlideEnd(\'' + id + "')\"";
-	h += ' onpointerdown="PWMixerDragStart(\'' + id + "')\"";
-	h += ' onpointerup="PWMixerDragEnd(\'' + id + "')\"";
-	h += ' onpointercancel="PWMixerDragEnd(\'' + id + "')\"" + '>';
+	// A read-only strip is one whose level exists but has no stage of its own to
+	// move -- it reports what is coming through, and the handlers are left off
+	// so nothing can be sent for it.
+	if (opts.disabled) {
+		h += ' disabled>';
+	} else {
+		h += ' oninput="PWMixerSlide(this,\'' + id + "')\"";
+		h += ' onchange="PWMixerSlideEnd(\'' + id + "')\"";
+		h += ' onpointerdown="PWMixerDragStart(\'' + id + "')\"";
+		h += ' onpointerup="PWMixerDragEnd(\'' + id + "')\"";
+		h += ' onpointercancel="PWMixerDragEnd(\'' + id + "')\"" + '>';
+	}
 
 	// The number keeps the _val id and nothing else lives in it, so the drag
 	// handler can rewrite it without disturbing the effective figure beside it.
@@ -591,8 +611,32 @@ function PWMixerRender(force) {
 	var secOutputs = PWMixerSection('groups', 'Output Groups', outputsBadge, groupHtml);
 
 	// --- Input groups (mix buses) and their members ---
+	// Which fppd streams feed exactly one enabled bus. Those get no loopback:
+	// fppd's sink connects straight to the bus, so there is no send stage
+	// between the source and the mix, and what arrives is the source's own
+	// level. Their strips are shown read-only below rather than given a fader
+	// that could only move the source -- which would turn that source down
+	// everywhere else it is used.
+	// KEEP IN SYNC with the tee rule in GeneratePipeWireInputGroupsConfig()
+	// and the direct-to-bus case in SetInputGroupMemberVolume() (pipewire.php).
+	var streamBusCount = {};
+	for (var ic = 0; ic < d.inputGroups.length; ic++) {
+		if (!d.inputGroups[ic].enabled) {
+			continue;
+		}
+		var cm = d.inputGroups[ic].members || [];
+		for (var cmi = 0; cmi < cm.length; cmi++) {
+			if (cm[cmi].type !== 'fppd_stream') {
+				continue;
+			}
+			var csid = cm[cmi].sourceId || 'fppd_stream_1';
+			streamBusCount[csid] = (streamBusCount[csid] || 0) + 1;
+		}
+	}
+
 	var inputHtml = '';
 	var inputCount = 0;
+	var sendCount = 0;
 	for (var ig = 0; ig < d.inputGroups.length; ig++) {
 		var grp2 = d.inputGroups[ig];
 		if (!grp2.enabled) {
@@ -600,22 +644,77 @@ function PWMixerRender(force) {
 		}
 		inputCount++;
 		var mbrs = grp2.members || [];
+		var busVol = typeof grp2.volume === 'undefined' ? 100 : grp2.volume;
+		var busNode = 'fpp_input_' + PWMixerSlug(grp2.name);
+
+		// The bus and its sends are one block, the same shape the output groups
+		// use: the bus fader is this mix's own output, each strip under it a
+		// send into it. They are separate stages -- turning a send down must not
+		// turn its source down everywhere else that source is used, and the bus
+		// output is independent of both.
+		inputHtml += "<div class='pw-mixer-group'>";
+		inputHtml += PWMixerStrip({
+			id: 'pwm_inputgroup_' + grp2.id,
+			label: grp2.name,
+			sublabel: 'Mix bus \u00b7 ' + mbrs.length + (mbrs.length === 1 ? ' source' : ' sources'),
+			cls: 'border-primary',
+			title: busNode,
+			nodeName: busNode,
+			stateKey: 'sink:' + busNode,
+			volume: busVol,
+			mute: grp2.mute,
+		});
+
+		var sendHtml = '';
 		for (var mi = 0; mi < mbrs.length; mi++) {
 			var im = mbrs[mi];
-			inputHtml += PWMixerStrip({
+			var imVol = typeof im.volume === 'undefined' ? 100 : im.volume;
+			var imSub = 'Send';
+			var imDisabled = false;
+			var imNoMute = false;
+			if (im.type === 'fppd_stream') {
+				var sid = im.sourceId || 'fppd_stream_1';
+				var sm = /fppd_stream_(\d+)/.exec(sid);
+				var sNum = sm ? sm[1] : '1';
+				if (streamBusCount[sid] === 1) {
+					// Feeding one bus means fppd's sink connects straight to it,
+					// with no loopback in between -- so this send has no stage of
+					// its own. Show the source's level, read-only, and say where
+					// it is set rather than offering a fader that would have to
+					// borrow the source's or do nothing at all.
+					if (typeof d.slotVolumes[sNum] !== 'undefined') {
+						imVol = d.slotVolumes[sNum];
+					}
+					imSub = 'Direct \u00b7 level is slot ' + sNum;
+					imDisabled = true;
+					imNoMute = true;
+				}
+			}
+			if (!imDisabled) {
+				sendCount++;
+			}
+			sendHtml += PWMixerStrip({
 				id: 'pwm_input_' + grp2.id + '_' + mi,
 				label: im.name || 'Member ' + mi,
-				sublabel: grp2.name,
+				sublabel: imSub,
 				stateKey: 'input:' + grp2.id + ':' + mi,
-				volume: typeof im.volume === 'undefined' ? 100 : im.volume,
+				volume: imVol,
 				mute: im.mute,
+				disabled: imDisabled,
+				noMute: imNoMute,
 			});
 		}
+		if (sendHtml) {
+			inputHtml += "<div class='pw-mixer-strips border-start ms-3 ps-3'>" + sendHtml + '</div>';
+		}
+		inputHtml += '</div>';
 	}
 	if (!inputHtml) {
 		inputHtml = "<div class='text-body-secondary small'>No enabled input groups.</div>";
 	}
-	var secInputs = PWMixerSection('inputs', 'Input Groups', inputCount + ' enabled', inputHtml);
+	var inputsBadge =
+		inputCount + (inputCount === 1 ? ' bus' : ' buses') + ' \u00b7 ' + sendCount + (sendCount === 1 ? ' send' : ' sends');
+	var secInputs = PWMixerSection('inputs', 'Input Groups', inputsBadge, inputHtml);
 
 	// --- Routing matrix paths ---
 	var routeHtml = '';
@@ -742,6 +841,9 @@ function PWMixerParseId(id) {
 	if (kind === 'member') {
 		return { kind: 'member', groupIndex: parseInt(parts[2], 10), memberIndex: parseInt(parts[3], 10) };
 	}
+	if (kind === 'inputgroup') {
+		return { kind: 'inputgroup', groupId: parseInt(parts[2], 10) };
+	}
 	if (kind === 'input') {
 		return { kind: 'input', groupId: parseInt(parts[2], 10), memberIndex: parseInt(parts[3], 10) };
 	}
@@ -759,6 +861,13 @@ function PWMixerCurrentMute(t) {
 	if (t.kind === 'member') {
 		var grp = d.groups[t.groupIndex];
 		return !!(grp && grp.members && grp.members[t.memberIndex] && grp.members[t.memberIndex].mute);
+	}
+	if (t.kind === 'inputgroup') {
+		for (var b = 0; b < d.inputGroups.length; b++) {
+			if (d.inputGroups[b].id === t.groupId) {
+				return !!d.inputGroups[b].mute;
+			}
+		}
 	}
 	if (t.kind === 'input') {
 		for (var i = 0; i < d.inputGroups.length; i++) {
@@ -848,6 +957,13 @@ function PWMixerSend(id, volume, mute) {
 		if (mute !== null) {
 			body.mute = mute;
 		}
+	} else if (t.kind === 'inputgroup') {
+		// The bus's own output, not any of the sources feeding it.
+		url = 'api/pipewire/audio/input-group/volume';
+		body = { groupId: t.groupId, volume: curVol };
+		if (mute !== null) {
+			body.mute = mute;
+		}
 	} else if (t.kind === 'input') {
 		url = 'api/pipewire/audio/input-groups/volume';
 		body = { groupId: t.groupId, memberIndex: t.memberIndex, volume: curVol };
@@ -878,7 +994,18 @@ function PWMixerSend(id, volume, mute) {
 		error: function () {
 			console.warn('PipeWire mixer: failed to set ' + id);
 		},
-	}).done(function () {
+	}).done(function (resp) {
+		// These endpoints answer 200 with a status field, so a refusal never
+		// reached the error handler: a fader that could not be applied moved
+		// and reported nothing at all. Say so instead.
+		var status = resp && resp.status ? String(resp.status).toLowerCase() : 'ok';
+		if (status !== 'ok') {
+			var msg = (resp && resp.message) || 'could not be applied';
+			console.warn('PipeWire mixer: ' + id + ': ' + msg);
+			if (typeof $.jGrowl === 'function') {
+				$.jGrowl(msg, { themeState: status === 'warning' ? 'warning' : 'danger' });
+			}
+		}
 		if (mute !== null) {
 			// Re-render so the button reflects the new state immediately
 			// rather than waiting for the next poll.

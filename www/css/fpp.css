@@ -4841,6 +4841,21 @@ pre.testData,
 	min-width: 0;
 }
 
+/* The name stays on one line and truncates; the sublabel under it wraps to two
+   and only then clamps. It carries the sentence that says what the strip is,
+   and a label column this narrow ended every one of them in an ellipsis --
+   "Output · bcm2835 Head…", "Direct · level is s…" -- which is exactly the
+   half that mattered. Two lines fit them all without taking width from the
+   fader. */
+.pw-mixer-strip .pw-mixer-sublabel {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
+	overflow-wrap: anywhere;
+}
+
 .pw-mixer-strip .pw-mixer-meter {
 	grid-area: meter;
 	width: auto;
@@ -4938,6 +4953,34 @@ pre.testData,
 .pw-mixer-strip input[type='range'].pw-mixer-slider:focus-visible {
 	outline: 2px solid var(--bs-primary);
 	outline-offset: 2px;
+}
+
+/* A read-only strip reports a level that has no stage of its own to move (a
+   source wired straight into a mix bus, say). Bootstrap's own :disabled range
+   styling never showed here: the thumb rules above set the colour
+   unconditionally and outrank it, so a strip nobody could drag looked exactly
+   as draggable as the rest. The dashed frame carries at a glance, the grey
+   thumb on approach, the cursor on the attempt.
+
+   border-style needs the flag to beat Bootstrap's .border shorthand, which
+   sets all three border properties as !important; 5.3 has no border-style
+   utility to use instead. */
+.pw-mixer-strip-readonly {
+	border-style: dashed !important;
+}
+
+.pw-mixer-strip input[type='range'].pw-mixer-slider:disabled {
+	cursor: not-allowed;
+}
+
+.pw-mixer-strip input[type='range'].pw-mixer-slider:disabled::-webkit-slider-thumb {
+	background-color: var(--bs-secondary-color);
+	box-shadow: none;
+}
+
+.pw-mixer-strip input[type='range'].pw-mixer-slider:disabled::-moz-range-thumb {
+	background-color: var(--bs-secondary-color);
+	box-shadow: none;
 }
 
 /* Touch: a thumb sized for a mouse is hard to catch with a fingertip, and the

@@ -33,6 +33,89 @@ function pw_volume_body($override = null)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Helper: the internal streams a combine-stream creates for its targets.
+//
+// A routing path (input group -> output group) has no node of its own: it is
+// the stream the input group's combine-stream creates towards that output
+// group's sink, and that stream is where the path's level lives.
+// module-combine-stream names those "output.<combine>_<target>"; earlier
+// builds used "<combine>.<target>", so both are accepted, and the target is
+// confirmed from node.target/target.object rather than trusted to the name.
+//
+// Returns array(nodeId => channelCount) for every matching stream.
+function pw_find_combine_streams($objects, $combineNodeName, $targetNodeName)
+{
+    $found = array();
+    if (!is_array($objects) || $combineNodeName === '' || $targetNodeName === '')
+        return $found;
+
+    foreach ($objects as $obj) {
+        if (!isset($obj['type']) || $obj['type'] !== 'PipeWire:Interface:Node')
+            continue;
+        $props = isset($obj['info']['props']) ? $obj['info']['props'] : array();
+        $nm = isset($props['node.name']) ? $props['node.name'] : '';
+        $target = isset($props['node.target']) ? $props['node.target'] : '';
+        $targetObj = isset($props['target.object']) ? $props['target.object'] : '';
+
+        $nameMatches = ($nm === $combineNodeName)
+            || strpos($nm, $combineNodeName . '.') === 0
+            || strpos($nm, 'output.' . $combineNodeName . '_') === 0;
+        if (!$nameMatches)
+            continue;
+        if ($target !== $targetNodeName && $targetObj !== $targetNodeName)
+            continue;
+
+        $found[$obj['id']] = pw_node_channel_count($obj);
+    }
+
+    return $found;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Helper: how many channels a node's volume array needs.  Taken from the
+// channelVolumes it already reports so the replacement is the same length;
+// stereo is the fallback for a node that reports nothing.
+function pw_node_channel_count($obj)
+{
+    $params = isset($obj['info']['params']['Props']) ? $obj['info']['params']['Props'] : array();
+    foreach ($params as $entry) {
+        if (isset($entry['channelVolumes']) && is_array($entry['channelVolumes']) && !empty($entry['channelVolumes'])) {
+            return count($entry['channelVolumes']);
+        }
+    }
+    return 2;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Helper: set a live node's playback level, as a linear gain (1.0 = unity).
+//
+// channelVolumes, not channelmix.volume: channelmix.volume works as a
+// create-stream property in the generated config, but setting it on a running
+// node through pw-cli is accepted without error and changes nothing --
+// measured on a combine-stream output, where 0.25 left the level where 1.0 put
+// it while channelVolumes 0.25 attenuated it by exactly a quarter.
+// channelVolumes is the same stage pactl drives, so it also reads back.
+//
+// The gain is linear here rather than a pactl percentage because that is what
+// the generated config's channelmix.volume values are: a path re-applied by
+// Apply and one set live this way then land on the same level.
+function pw_set_node_volume_linear($nodeId, $linear, $channels = 2)
+{
+    global $SUDO;
+
+    $linear = max(0.0, min(1.0, floatval($linear)));
+    $channels = max(1, intval($channels));
+    $vals = implode(', ', array_fill(0, $channels, round($linear, 4)));
+
+    $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
+    $cmd = $SUDO . " " . $env . " pw-cli set-param " . intval($nodeId)
+        . " Props '{ channelVolumes: [ $vals ] }' 2>&1";
+    $output = shell_exec($cmd);
+
+    return (strpos((string) $output, 'Error') === false);
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // Helper: Stop fppd playback with a timeout to prevent deadlocks.
 // Returns array('wasPlaying' => bool, 'playlist' => string, 'repeat' => bool)
 // Uses stream context timeout so PHP doesn't hang if fppd's HTTP handler
@@ -2156,6 +2239,10 @@ function ApplyPipeWireInputGroups($skipRestart = false)
         RestartPipeWireStack();
     }
 
+    // The rebuilt combine-stream sinks come up at full volume, so put the saved
+    // bus levels back before anything starts playing through them.
+    RestorePipeWireInputGroupVolumes();
+
     // Set PipeWire default sink and push setting to fppd (best-effort)
     if (!empty($fppdTarget)) {
         $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse";
@@ -2190,10 +2277,153 @@ function ApplyPipeWireInputGroups($skipRestart = false)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// The mix bus's own sink node, from the group's name.  Shared by every caller
+// that has to address the bus rather than something feeding it.
+// KEEP IN SYNC with the node.name GeneratePipeWireInputGroupsConfig() emits.
+function InputGroupNodeName($groupName)
+{
+    return "fpp_input_" . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($groupName));
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// POST /api/pipewire/audio/input-group/volume
+// Set a mix bus's own output level (and optionally mute it).
+// Body: { "groupId": 1, "volume": 0-100 } or { ..., "mute": true|false }
+//
+// This is the bus's fader, not a source's: the combine-stream sink every
+// member mixes into, downstream of what feeds it and upstream of the routing
+// paths that leave it.  The saved inputGroups[].volume had no control and
+// nothing applying it, so a mix bus had no output level of its own at all --
+// the only reachable levels were its sources' and its routes'.
+//
+// pactl, matching the output-group and master faders, so a percentage means
+// the same thing on every fader the UI shows.
+function SetInputGroupVolume($bodyOverride = null)
+{
+    global $SUDO, $settings;
+
+    $body = pw_volume_body($bodyOverride);
+    if (!$body || !isset($body['groupId']) || !isset($body['volume'])) {
+        return json(array("status" => "error", "message" => "Missing groupId or volume"));
+    }
+
+    $groupId = intval($body['groupId']);
+    $volumePct = max(0, min(100, intval($body['volume'])));
+    $isMuteToggle = isset($body['mute']);
+    $muted = $isMuteToggle ? (bool) $body['mute'] : false;
+
+    $configFile = $settings['mediaDirectory'] . "/config/pipewire-input-groups.json";
+    if (!file_exists($configFile)) {
+        return json(array("status" => "error", "message" => "No input groups configured"));
+    }
+    $data = json_decode(file_get_contents($configFile), true);
+    if (!is_array($data) || !isset($data['inputGroups'])) {
+        return json(array("status" => "error", "message" => "Invalid input groups config"));
+    }
+
+    $nodeName = '';
+    foreach ($data['inputGroups'] as $ig) {
+        if (isset($ig['id']) && intval($ig['id']) === $groupId) {
+            $nodeName = InputGroupNodeName(isset($ig['name']) ? $ig['name'] : 'Input Group');
+            break;
+        }
+    }
+    if ($nodeName === '') {
+        return json(array("status" => "error", "message" => "Input group $groupId not found"));
+    }
+
+    $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse";
+    if ($isMuteToggle) {
+        exec($SUDO . " " . $env . " pactl set-sink-mute " . escapeshellarg($nodeName) . " " . ($muted ? "1" : "0") . " 2>&1", $out, $rv);
+    } else {
+        exec($SUDO . " " . $env . " pactl set-sink-volume " . escapeshellarg($nodeName) . " {$volumePct}% 2>&1", $out, $rv);
+    }
+    $success = ($rv === 0);
+
+    foreach ($data['inputGroups'] as &$ig) {
+        if (isset($ig['id']) && intval($ig['id']) === $groupId) {
+            if ($isMuteToggle) {
+                $ig['mute'] = $muted;
+            } else {
+                $ig['volume'] = $volumePct;
+                $ig['mute'] = false;
+            }
+            break;
+        }
+    }
+    unset($ig);
+    file_put_contents($configFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    $what = $isMuteToggle
+        ? ($muted ? "Muted $nodeName" : "Unmuted $nodeName")
+        : "Bus volume set to {$volumePct}% on $nodeName";
+
+    return json(array(
+        "status" => $success ? "OK" : "error",
+        "message" => $success ? $what : "Failed to set volume on $nodeName",
+        "nodeName" => $nodeName,
+        "volume" => $volumePct
+    ));
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Reapply the saved mix bus levels.  The combine-stream sinks are rebuilt at
+// full volume every time the PipeWire stack starts, so without this a bus
+// fader lasts only until the next apply or reboot.
+// KEEP IN SYNC with restorePipeWireVolumes() in FPPINIT_Audio.cpp.
+function RestorePipeWireInputGroupVolumes($inputGroups = null)
+{
+    global $SUDO, $settings;
+
+    if ($inputGroups === null) {
+        $configFile = $settings['mediaDirectory'] . "/config/pipewire-input-groups.json";
+        if (!file_exists($configFile))
+            return;
+        $data = json_decode(file_get_contents($configFile), true);
+        if (!is_array($data) || !isset($data['inputGroups']))
+            return;
+        $inputGroups = $data['inputGroups'];
+    }
+
+    $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse";
+
+    foreach ($inputGroups as $ig) {
+        if (!isset($ig['enabled']) || !$ig['enabled'])
+            continue;
+        $nodeName = escapeshellarg(InputGroupNodeName(isset($ig['name']) ? $ig['name'] : 'Input Group'));
+        $vol = isset($ig['volume']) ? intval($ig['volume']) : 100;
+        exec($SUDO . " " . $env . " pactl set-sink-volume $nodeName {$vol}% 2>/dev/null");
+        exec($SUDO . " " . $env . " pactl set-sink-mute $nodeName " . (!empty($ig['mute']) ? "1" : "0") . " 2>/dev/null");
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Helper: persist an input-group member's level so it survives a restart and
+// so the next GET reports what the fader was just moved to.  A mute keeps the
+// saved percentage -- that is what unmuting restores it to.
+function PersistInputGroupMemberVolume($configFile, $data, $groupId, $memberIndex, $volumePct, $isMuteToggle, $muted)
+{
+    foreach ($data['inputGroups'] as &$ig) {
+        if (isset($ig['id']) && intval($ig['id']) === $groupId) {
+            if ($isMuteToggle) {
+                $ig['members'][$memberIndex]['mute'] = $muted;
+            } else {
+                $ig['members'][$memberIndex]['volume'] = $volumePct;
+                $ig['members'][$memberIndex]['mute'] = false;
+            }
+            break;
+        }
+    }
+    unset($ig);
+    file_put_contents($configFile, json_encode($data, JSON_PRETTY_PRINT));
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // POST /api/pipewire/audio/input-groups/volume
-// Real-time volume control for input group loopback nodes
+// Real-time volume control for an input group member.
 // Body: { "groupId": 1, "memberIndex": 0, "volume": 75 }
-// Sets channelmix.volume on the running PipeWire loopback node without restart
+// Moves the running loopback node's level without a restart -- or, for a
+// stream that feeds only this bus and so has no loopback, fppd's own stage.
 function SetInputGroupMemberVolume($bodyOverride = null)
 {
     global $SUDO, $settings;
@@ -2206,7 +2436,12 @@ function SetInputGroupMemberVolume($bodyOverride = null)
     $groupId = intval($body['groupId']);
     $memberIndex = intval($body['memberIndex']);
     $volumePct = max(0, min(100, intval($body['volume'])));
-    $volumeLinear = round($volumePct / 100.0, 3);
+    // A mute is a zero on the same level, with the saved percentage left alone
+    // so unmuting restores it.  This used to apply $volumePct either way, so
+    // muting a member persisted the flag and changed nothing anyone could hear.
+    $isMuteToggle = isset($body['mute']);
+    $muted = $isMuteToggle ? (bool) $body['mute'] : false;
+    $volumeLinear = round(($muted ? 0 : $volumePct) / 100.0, 3);
 
     // Load input groups config to resolve the node name
     $configFile = $settings['mediaDirectory'] . "/config/pipewire-input-groups.json";
@@ -2265,64 +2500,77 @@ function SetInputGroupMemberVolume($bodyOverride = null)
         return json(array("status" => "error", "message" => "Invalid PipeWire dump"));
     }
 
-    // Find all nodes that belong to this loopback (capture + playback sides)
-    // PipeWire loopback modules create sub-nodes named input.NAME and output.NAME
-    // (there is no bare parent node), so we match both patterns.
+    // Find the node that carries this loopback's level.  PipeWire loopback
+    // modules create sub-nodes named input.NAME and output.NAME (there is no
+    // bare parent node); the level belongs on the playback side alone -- set
+    // on both, one member's trim would be applied twice.
     $nodeIds = array();
+    $fallbackIds = array();
     foreach ($objects as $obj) {
         $type = isset($obj['type']) ? $obj['type'] : '';
         if ($type !== 'PipeWire:Interface:Node')
             continue;
         $props = isset($obj['info']['props']) ? $obj['info']['props'] : array();
         $nm = isset($props['node.name']) ? $props['node.name'] : '';
-        if (
-            $nm === $loopbackNodeName ||
-            $nm === 'input.' . $loopbackNodeName ||
-            $nm === 'output.' . $loopbackNodeName
-        ) {
-            $nodeIds[] = $obj['id'];
+        if ($nm === 'output.' . $loopbackNodeName) {
+            $nodeIds[$obj['id']] = pw_node_channel_count($obj);
+        } elseif ($nm === $loopbackNodeName || $nm === 'input.' . $loopbackNodeName) {
+            $fallbackIds[$obj['id']] = pw_node_channel_count($obj);
         }
+    }
+    if (empty($nodeIds)) {
+        $nodeIds = $fallbackIds;
+    }
+
+    if (empty($nodeIds) && $mbrType === 'fppd_stream') {
+        // No loopback, because this stream feeds only this one bus:
+        // GeneratePipeWireInputGroupsConfig() lets fppd's sink connect straight
+        // to the combine-stream and only builds a tee and per-group loopbacks
+        // once a stream fans out to two or more groups.  There is therefore no
+        // send stage between this source and this bus to move.
+        //
+        // The one level that does exist is fppd's own, inside the stream -- but
+        // that is the source's level, the media stream slot fader, and driving
+        // it from here would make a per-bus send silently turn the source down
+        // for every bus it feeds.  A source, its send into a bus and the bus's
+        // own output are three separate stages; say what is missing instead of
+        // borrowing one of the others.
+        $slot = 1;
+        if (preg_match('/fppd_stream_(\d+)/', $sourceId, $slotMatch)) {
+            $slot = intval($slotMatch[1]);
+        }
+        return json(array(
+            "status" => "error",
+            "message" => "$sourceId feeds this bus directly, so it has no send level of its own."
+                . " Set the source on media stream slot $slot, or the bus output on this group.",
+            "nodeName" => $sourceId,
+            "slot" => $slot,
+            "directToBus" => true
+        ));
     }
 
     if (empty($nodeIds)) {
-        if ($mbrType === 'fppd_stream') {
-            // Primary group — no loopback exists; volume controlled via fppd
-            return json(array("status" => "error", "message" => "This stream's primary group volume is controlled via fppd, not PipeWire loopback"));
-        }
         return json(array("status" => "error", "message" => "Loopback node '$loopbackNodeName' not found in PipeWire (is it muted or not applied?)"));
     }
 
-    // Set volume on the playback side using pw-cli set-param
-    // The channelmix.volume prop is on the node's Props param
+    // Move the playback side's level.  channelVolumes rather than
+    // channelmix.volume -- see pw_set_node_volume_linear().
     $success = false;
-    foreach ($nodeIds as $nid) {
-        $cmd = $SUDO . " " . $env . " pw-cli set-param $nid Props '{ channelmix.volume: $volumeLinear }' 2>&1";
-        $output = shell_exec($cmd);
-        if (strpos($output, 'Error') === false) {
+    foreach ($nodeIds as $nid => $channels) {
+        if (pw_set_node_volume_linear($nid, $volumeLinear, $channels)) {
             $success = true;
         }
     }
 
-    // Also update the saved config for persistence
-    // If this is a mute toggle, persist the mute flag but don't overwrite the saved volume
-    $isMuteToggle = isset($body['mute']);
-    foreach ($data['inputGroups'] as &$ig) {
-        if (isset($ig['id']) && intval($ig['id']) === $groupId) {
-            if ($isMuteToggle) {
-                $ig['members'][$memberIndex]['mute'] = (bool) $body['mute'];
-            } else {
-                $ig['members'][$memberIndex]['volume'] = $volumePct;
-                $ig['members'][$memberIndex]['mute'] = false;
-            }
-            break;
-        }
-    }
-    unset($ig);
-    file_put_contents($configFile, json_encode($data, JSON_PRETTY_PRINT));
+    PersistInputGroupMemberVolume($configFile, $data, $groupId, $memberIndex, $volumePct, $isMuteToggle, $muted);
+
+    $what = $isMuteToggle
+        ? ($muted ? "Muted $loopbackNodeName" : "Unmuted $loopbackNodeName at {$volumePct}%")
+        : "Volume set to {$volumePct}% on $loopbackNodeName";
 
     return json(array(
         "status" => $success ? "OK" : "error",
-        "message" => $success ? "Volume set to {$volumePct}% on $loopbackNodeName" : "Failed to set volume on PipeWire node",
+        "message" => $success ? $what : "Failed to set volume on PipeWire node",
         "nodeName" => $loopbackNodeName,
         "volume" => $volumePct,
         "volumeLinear" => $volumeLinear
@@ -3145,8 +3393,7 @@ function SetRoutingPathVolume($bodyOverride = null)
 
     // The combine-stream that routes to output groups is either:
     // - fpp_input_<name> (no effects) or fpp_route_ig_<id> (with effects)
-    $routingNodeName = $hasEffects ? "fpp_route_ig_$igId"
-        : "fpp_input_" . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($igName));
+    $routingNodeName = $hasEffects ? "fpp_route_ig_$igId" : InputGroupNodeName($igName);
 
     // Find the internal combine-stream output that targets this output group
     // The internal stream name pattern: <combine_name>.<target_name>
@@ -3161,25 +3408,15 @@ function SetRoutingPathVolume($bodyOverride = null)
         return json(array("status" => "error", "message" => "Invalid PipeWire dump"));
     }
 
-    // Find nodes that belong to the routing combine-stream and target this output group
+    // Find the internal stream the routing combine-stream created towards this
+    // output group and move its level.  The match used to require the name to
+    // be "<combine>.<target>", which module-combine-stream never produces --
+    // it names them "output.<combine>_<target>" -- so nothing was ever found
+    // and every routing fader reported success while doing nothing.
     $success = false;
-    foreach ($objects as $obj) {
-        if (!isset($obj['type']) || $obj['type'] !== 'PipeWire:Interface:Node')
-            continue;
-        $props = isset($obj['info']['props']) ? $obj['info']['props'] : array();
-        $nm = isset($props['node.name']) ? $props['node.name'] : '';
-        $target = isset($props['node.target']) ? $props['node.target'] : '';
-
-        // Match internal stream: node.name starts with routing node name and targets output group
-        if (
-            ($nm === $routingNodeName || strpos($nm, $routingNodeName . '.') === 0)
-            && $target === $ogNodeName
-        ) {
-            $cmd = $SUDO . " " . $env . " pw-cli set-param " . $obj['id'] . " Props '{ channelmix.volume: $volumeLinear }' 2>&1";
-            $output = shell_exec($cmd);
-            if (strpos($output, 'Error') === false) {
-                $success = true;
-            }
+    foreach (pw_find_combine_streams($objects, $routingNodeName, $ogNodeName) as $nid => $channels) {
+        if (pw_set_node_volume_linear($nid, $volumeLinear, $channels)) {
+            $success = true;
         }
     }
 
@@ -3203,9 +3440,13 @@ function SetRoutingPathVolume($bodyOverride = null)
     unset($ig);
     file_put_contents($configFile, json_encode($igData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
+    $what = $isMuteToggle
+        ? ($muted ? "Route muted" : "Route unmuted at {$volumePct}%")
+        : "Route volume set to {$volumePct}%";
+
     return json(array(
         "status" => $success ? "OK" : "warning",
-        "message" => $success ? "Route volume set to {$volumePct}%" : "Volume saved but real-time update may need Apply",
+        "message" => $success ? $what : "Volume saved but real-time update may need Apply",
         "volume" => $volumePct
     ));
 }
@@ -3634,26 +3875,11 @@ function LiveApplyRoutingPreset()
 
                 $volumeLinear = $mute ? 0.0 : round($volumePct / 100.0, 3);
 
-                // Find the combine-stream output member targeting this OG
-                foreach ($pwObjects as $obj) {
-                    if (
-                        !isset($obj['type']) ||
-                        $obj['type'] !== 'PipeWire:Interface:Node'
-                    )
-                        continue;
-                    $props = isset($obj['info']['props']) ? $obj['info']['props'] : array();
-                    $nm = isset($props['node.name']) ? $props['node.name'] : '';
-                    $target = isset($props['node.target']) ? $props['node.target'] : '';
-
-                    if (
-                        ($nm === $routingNodeName ||
-                            strpos($nm, $routingNodeName . '.') === 0)
-                        && $target === $ogTarget
-                    ) {
-                        $cmd = $SUDO . " " . $env
-                            . " pw-cli set-param " . $obj['id']
-                            . " Props '{ channelmix.volume: $volumeLinear }' 2>&1";
-                        shell_exec($cmd);
+                // Find the combine-stream output member targeting this OG.
+                // Shared with SetRoutingPathVolume() so a preset and a fader
+                // move the same node the same way.
+                foreach (pw_find_combine_streams($pwObjects, $routingNodeName, $ogTarget) as $nid => $channels) {
+                    if (pw_set_node_volume_linear($nid, $volumeLinear, $channels)) {
                         $volumeChanges++;
                     }
                 }
