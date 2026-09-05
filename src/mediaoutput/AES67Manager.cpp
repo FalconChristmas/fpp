@@ -3031,12 +3031,22 @@ void AES67Manager::ResumeSendPipelines() {
 // Pad probe callback: drops buffers while dropCounter > 0, passes through otherwise.
 // Installed once on pipewiresrc's src pad and stays active for the pipeline's lifetime.
 static GstPadProbeReturn DropBufferProbe(GstPad* pad, GstPadProbeInfo* info, gpointer userData) {
-    std::atomic<int>* counter = static_cast<std::atomic<int>*>(userData);
+    std::atomic<gint64>* remaining = static_cast<std::atomic<gint64>*>(userData);
     if (!(info->type & GST_PAD_PROBE_TYPE_BUFFER))
         return GST_PAD_PROBE_OK;
-    if (*counter <= 0)
+    if (remaining->load() <= 0)
         return GST_PAD_PROBE_OK;
-    (*counter)--;
+
+    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+    GstClockTime dur = b ? GST_BUFFER_DURATION(b) : GST_CLOCK_TIME_NONE;
+    if (!GST_CLOCK_TIME_IS_VALID(dur)) {
+        // Nothing to subtract, so stop rather than drop indefinitely.  Under-
+        // dropping leaves a little stale audio; over-dropping is the bug this
+        // whole change exists to fix.
+        remaining->store(0);
+        return GST_PAD_PROBE_DROP;
+    }
+    remaining->fetch_sub((gint64)dur);
     return GST_PAD_PROBE_DROP;
 }
 
@@ -3047,16 +3057,24 @@ void AES67Manager::FlushSendPipelines() {
         if (!p.pipeline || !p.running)
             continue;
 
-        // Drop the next ~10 buffers (~53ms at 256-sample quantum / 48kHz)
-        // from pipewiresrc's src pad.  This discards any stale audio that
-        // was queued in GStreamer elements between the old track stopping
-        // and the new one starting, without disrupting the pipeline's
-        // event flow (no flush-start/stop, no state change).
-        constexpr int DROP_COUNT = 10;
-        LogInfo(VB_MEDIAOUT, "AES67 send pipeline [%d]: dropping next %d buffers\n",
-                p.instanceId, DROP_COUNT);
-
-        p.dropCounter = DROP_COUNT;
+        // Drop SOURCE_FLUSH_MS of audio from pipewiresrc's src pad.  This
+        // discards whatever was queued in GStreamer elements between the old
+        // track stopping and the new one starting, without disrupting the
+        // pipeline's event flow (no flush-start/stop, no state change).
+        //
+        // Three call sites in GStreamerOut fire at a single track change, so
+        // restart the window rather than adding to it -- the old counter was
+        // reset to 10 buffers by each one, and only stayed bounded because
+        // the calls happened to land within one window.  Log just the first,
+        // since three identical lines per transition made this look like
+        // three separate events in the logs testers sent back.
+        const gint64 target = (gint64)AES67::SOURCE_FLUSH_MS * GST_MSECOND;
+        if (p.dropRemainingNs.load() <= 0) {
+            LogInfo(VB_MEDIAOUT,
+                    "AES67 send pipeline [%d]: discarding %dms of stale audio\n",
+                    p.instanceId, AES67::SOURCE_FLUSH_MS);
+        }
+        p.dropRemainingNs.store(target);
 
         // Install the probe once; subsequent calls just reset the counter.
         if (p.probeId != 0)
@@ -3081,7 +3099,7 @@ void AES67Manager::FlushSendPipelines() {
                     srcpad,
                     GST_PAD_PROBE_TYPE_BUFFER,
                     DropBufferProbe,
-                    &p.dropCounter,
+                    &p.dropRemainingNs,
                     nullptr);
             }
             gst_object_unref(srcElem);

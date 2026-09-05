@@ -110,6 +110,18 @@ constexpr int PTP_DSCP                = 46;     // EF   -- PTP event/general mes
 // throttling (sched_rt_runtime_us, 95% by default) is the backstop.
 constexpr int SINK_RT_PRIORITY       = 80;
 
+// How much audio FlushSendPipelines() discards at a track boundary, to throw
+// away whatever was queued between the old track stopping and the new one
+// starting.  Expressed as a duration so it means the same thing at any
+// PipeWire quantum -- see the note on dropRemainingNs for what happened when
+// it was a buffer count instead.
+//
+// It has to stay comfortably under the sink queue's depth (measured 55-77ms
+// in a long soak).  The queue drains during the gap and covers it, so the
+// wire keeps flowing and a receiver sees nothing at all; overshoot it and the
+// wire goes quiet for the difference.
+constexpr int SOURCE_FLUSH_MS        = 50;
+
 // PTP (IEEE 1588) profile defaults
 constexpr int DEFAULT_PTP_DOMAIN     = 0;
 
@@ -648,10 +660,21 @@ struct AES67Pipeline {
     bool running = false;
     std::string errorMessage;
 
-    // Buffer-drop probe: when > 0, the probe drops buffers and
-    // decrements the counter.  Used by FlushSendPipelines() to
-    // discard stale audio between tracks.
-    std::atomic<int> dropCounter = 0;
+    // Buffer-drop probe: while > 0, the probe drops buffers and subtracts
+    // each one's duration.  Used by FlushSendPipelines() to discard stale
+    // audio between tracks.
+    //
+    // This is a DURATION, not a buffer count, and that distinction was the
+    // whole of the track-transition fault.  The old code dropped a fixed 10
+    // buffers, sized against a 256-sample quantum ("~53ms" per its comment).
+    // Nothing runs a 256-sample quantum: at the 1024 both a Pi 5 and this box
+    // actually use, 10 buffers is 213ms at 48kHz and 232ms at 44.1kHz -- four
+    // times the audio it meant to discard. That self-inflicted gap is what
+    // the drift probe then reported as a "source gap" and filled with
+    // silence, and what a receiver saw as ~158ms of dead wire once the sink
+    // queue had drained through it. Both numbers matched to the millisecond
+    // on two different machines.
+    std::atomic<gint64> dropRemainingNs = 0;
     GstPad* probePad = nullptr;          // pad where probe is installed
     gulong probeId = 0;                  // installed probe handle (0 = none)
 
