@@ -316,4 +316,14 @@ private:
     std::map<std::string, Command*> commands;
     std::map<std::string, CommandMeta> commandMeta;
     std::set<std::string> missingPresets;
+
+    // Bumped on every registration change so /api/commands can answer a
+    // conditional request without re-describing every command. Sound as a
+    // version only because a command's description is fixed at construction:
+    // args are built in constructors and every list that varies at runtime is
+    // declared as a contentListUrl the client fetches separately, so nothing
+    // else can change that response. Appended here (private, and the class is
+    // a singleton plugins only ever reach through INSTANCE) so no plugin needs
+    // rebuilding.
+    std::atomic<uint64_t> commandsGeneration{0};
 };

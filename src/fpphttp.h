@@ -37,9 +37,12 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <ctime>
 #include <functional>
 #include <memory>
 #include <string>
+#include <unistd.h>
+#include <utility>
 #include <vector>
 
 // HttpRequestPtr / HttpResponsePtr / HttpCallback are defined in fpphttp_types.h
@@ -79,40 +82,140 @@ inline HttpResponsePtr makeStringResponse(const std::string& body, int statusCod
     return resp;
 }
 
+// ---- ETags -----------------------------------------------------------------
+//
+// FNV-1a, used to turn either a response body or a caller-supplied version
+// string into a compact validator. This is a validator rather than a digest --
+// it only has to change when the content does, and nothing depends on it being
+// hard to forge.
+inline uint64_t fppETagHash(const std::string& s, uint64_t h = 0xcbf29ce484222325ULL) {
+    for (unsigned char c : s) {
+        h ^= c;
+        h *= 0x100000001b3ULL;
+    }
+    return h;
+}
+
+// True when the client's If-None-Match carries `bare`.
+//
+// If-None-Match may hold a list, and a cache that compressed the response on
+// the way past can append a suffix to the tag it echoes back (`"...-gzip"`), so
+// match on the bare tag appearing anywhere rather than on string equality.
+inline bool fppETagPresent(const HttpRequestPtr& req, const std::string& bare) {
+    std::string inm = req->getHeader("if-none-match");
+    return !inm.empty() && inm.find(bare) != std::string::npos;
+}
+
+inline HttpResponsePtr makeNotModifiedResponse(const std::string& bare) {
+    auto resp = drogon::HttpResponse::newHttpResponse();
+    resp->setStatusCode(drogon::k304NotModified);
+    resp->addHeader("ETag", "\"" + bare + "\"");
+    return resp;
+}
+
 // Build a response that carries a content-derived ETag, answering 304 when the
 // client already holds this version.
 //
 // For a large, rarely-changing API result this is the difference between
 // sending the body on every page load and sending nothing at all: the overlay
 // effect list alone is ~350KB, and a client that goes through FPPMon's MQTT
-// proxy pays for those bytes over someone's internet connection. The tag is a
-// plain FNV-1a over the bytes, which is a validator rather than a digest -- it
-// only has to change when the content does.
+// proxy pays for those bytes over someone's internet connection.
+//
+// This form still builds the body before it can hash it, so it saves transfer
+// and compression but not generation. When the handler can name what it is
+// about to serialize more cheaply than serializing it, prefer the versioned
+// form below.
 inline HttpResponsePtr makeETagResponse(const HttpRequestPtr& req, const std::string& body,
                                         const std::string& contentType = "application/json") {
-    uint64_t h = 0xcbf29ce484222325ULL;
-    for (unsigned char c : body) {
-        h ^= c;
-        h *= 0x100000001b3ULL;
-    }
     char buf[64];
-    snprintf(buf, sizeof(buf), "%llx-%llx", (unsigned long long)body.size(), (unsigned long long)h);
+    snprintf(buf, sizeof(buf), "%llx-%llx", (unsigned long long)body.size(),
+             (unsigned long long)fppETagHash(body));
     std::string bare(buf);
-    std::string etag = "\"" + bare + "\"";
 
-    // If-None-Match may carry a list, and a cache that compressed the response
-    // on the way past can append a suffix to the tag it echoes back
-    // (`"...-gzip"`), so match on the bare tag appearing anywhere rather than
-    // on string equality.
-    std::string inm = req->getHeader("if-none-match");
-    if (!inm.empty() && inm.find(bare) != std::string::npos) {
-        auto resp = drogon::HttpResponse::newHttpResponse();
-        resp->setStatusCode(drogon::k304NotModified);
-        resp->addHeader("ETag", etag);
-        return resp;
+    if (fppETagPresent(req, bare)) {
+        return makeNotModifiedResponse(bare);
     }
     auto resp = makeStringResponse(body, 200, contentType);
-    resp->addHeader("ETag", etag);
+    resp->addHeader("ETag", "\"" + bare + "\"");
+    return resp;
+}
+
+// ---- Versioned ETags -------------------------------------------------------
+//
+// The content hash above cannot answer a conditional request without first
+// building the answer, and on the slow boards building is the expensive half:
+// /api/overlays/effects?full=true takes 0.9-3.4s of a PocketBeagle2 to
+// serialize but only ~10KB to send once gzipped. A handler that can name its
+// own version -- a counter bumped when the underlying data changes, a file
+// mtime -- can answer 304 without doing that work at all.
+//
+// `version` need only distinguish one state of the data from the next; it is
+// never parsed by the client. Two things are folded in for you:
+//
+//  - the request path and query string, so a handler whose output varies on
+//    parameters (?simple=true, ?full=true) cannot serve one variant's body
+//    under another variant's tag by using a single counter for all of them;
+//  - a per-process salt, because an in-memory counter restarts at zero. Without
+//    it a client holding a tag from before an fppd restart would be told 304
+//    against a *different* command or model set that happens to be at the same
+//    count. The cost is that a restart invalidates these tags, which is the
+//    right way round: a false 304 serves stale content, a false 200 only costs
+//    bytes.
+inline std::string makeETagToken(const HttpRequestPtr& req, const std::string& version) {
+    static const uint64_t salt = fppETagHash(std::to_string((unsigned long long)::time(nullptr)) + "-" + std::to_string((long)::getpid()));
+
+    uint64_t h = fppETagHash(version, salt);
+    h = fppETagHash(req->path(), h);
+    h = fppETagHash(req->query(), h);
+    char buf[64];
+    snprintf(buf, sizeof(buf), "v%llx", (unsigned long long)h);
+    return std::string(buf);
+}
+
+// True when the client already holds this version of this route, and the
+// handler can skip building the body entirely. Pair it with
+// makeVersionedETagResponse() below so the 200 goes back carrying the same tag:
+//
+//     std::string ver = std::to_string(generation);
+//     if (etagMatches(req, ver)) {
+//         return makeNotModifiedResponse(makeETagToken(req, ver));
+//     }
+//     ... build body ...
+//     return makeVersionedETagResponse(req, ver, body);
+//
+// The callable overload does both halves in one step and is harder to get
+// wrong -- forgetting the tag on the 200 leaves a client that can never
+// revalidate, which fails silently as "the ETag does nothing".
+inline bool etagMatches(const HttpRequestPtr& req, const std::string& version) {
+    return fppETagPresent(req, makeETagToken(req, version));
+}
+
+// Body already in hand.
+inline HttpResponsePtr makeVersionedETagResponse(const HttpRequestPtr& req, const std::string& version,
+                                                 const std::string& body,
+                                                 const std::string& contentType = "application/json") {
+    std::string bare = makeETagToken(req, version);
+    if (fppETagPresent(req, bare)) {
+        return makeNotModifiedResponse(bare);
+    }
+    auto resp = makeStringResponse(body, 200, contentType);
+    resp->addHeader("ETag", "\"" + bare + "\"");
+    return resp;
+}
+
+// Preferred form: `bodyFn` runs only on a miss, so a 304 costs a hash and
+// nothing else. SFINAE on callability keeps this from competing with the
+// std::string overload above.
+template <typename BodyFn, typename = decltype(std::declval<BodyFn&>()())>
+inline HttpResponsePtr makeVersionedETagResponse(const HttpRequestPtr& req, const std::string& version,
+                                                 BodyFn&& bodyFn,
+                                                 const std::string& contentType = "application/json") {
+    std::string bare = makeETagToken(req, version);
+    if (fppETagPresent(req, bare)) {
+        return makeNotModifiedResponse(bare);
+    }
+    auto resp = makeStringResponse(bodyFn(), 200, contentType);
+    resp->addHeader("ETag", "\"" + bare + "\"");
     return resp;
 }
 

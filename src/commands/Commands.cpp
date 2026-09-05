@@ -364,6 +364,7 @@ void CommandManager::Cleanup() {
         delete cmd;
     }
     commands.clear();
+    ++commandsGeneration;
 }
 
 void CommandManager::addCommand(Command* cmd) {
@@ -377,6 +378,7 @@ void CommandManager::addCommand(Command* cmd) {
 void CommandManager::addCategorizedCommand(Command* cmd, const std::string& category, int level) {
     commands[cmd->name] = cmd;
     commandMeta[cmd->name] = { category, level };
+    ++commandsGeneration;
 }
 void CommandManager::removeCommand(Command* cmd) {
     auto a = commands.find(cmd->name);
@@ -384,6 +386,7 @@ void CommandManager::removeCommand(Command* cmd) {
         commands.erase(a);
     }
     commandMeta.erase(cmd->name);
+    ++commandsGeneration;
 }
 void CommandManager::removeCommand(const std::string& cmdName) {
     auto a = commands.find(cmdName);
@@ -391,6 +394,7 @@ void CommandManager::removeCommand(const std::string& cmdName) {
         commands.erase(a);
     }
     commandMeta.erase(cmdName);
+    ++commandsGeneration;
 }
 std::vector<std::pair<std::string, Command*>> CommandManager::getRegisteredCommands() const {
     std::vector<std::pair<std::string, Command*>> ret;
@@ -667,9 +671,16 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
                 return makeStringResponse(resultStr, 200, "application/json");
             }
         } else {
-            Json::Value result = getDescriptions();
-            std::string resultStr = SaveJsonToString(result, "  ");
-            return makeStringResponse(resultStr, 200, "application/json");
+            // The full list is ~33KB and every page that can edit a command
+            // fetches it twice on load (PopulateCommandListCache and
+            // captureCommandListJSON), plus once more after an fppd restart.
+            // Its content is fixed until something registers or unregisters a
+            // command, so the generation counter answers a conditional request
+            // without describing all of them again.
+            return makeVersionedETagResponse(req, std::to_string(commandsGeneration.load()), [this]() {
+                Json::Value result = getDescriptions();
+                return SaveJsonToString(result, "  ");
+            });
         }
     } else if (p1 == "commandPresets") {
         std::string commandsFile = FPP_DIR_CONFIG("/commandPresets.json");
