@@ -16,7 +16,14 @@ require_once "common.php";
 
 DisableOutputBuffering();
 
-$version = strip_tags(escapeshellcmd($_GET['version']));
+$rawVersion = $_GET['version'] ?? '';
+// Allow branch/tag/SHA names (e.g. master, v10.0, HEAD, a1b2c3d4) — letters, numbers, _, ., -, / only, no .. or leading -.
+if (!preg_match('/^[A-Za-z0-9_.\/-]+$/', $rawVersion) || strpos($rawVersion, '..') !== false || $rawVersion === '' || $rawVersion[0] === '-') {
+    http_response_code(400);
+    echo "Invalid version";
+    exit(0);
+}
+$version = $rawVersion;
 if (!$wrapped) {
     ?>
 <head>
@@ -38,7 +45,7 @@ Version: <?echo ($version); ?><br>
 ==========================================================================
 Switching versions:
 <?
-system($SUDO . " $fppDir/scripts/git_checkout_version $version");
+system($SUDO . " " . escapeshellarg($fppDir . "/scripts/git_checkout_version") . " " . escapeshellarg($version));
 ?>
 ==========================================================================
 <?

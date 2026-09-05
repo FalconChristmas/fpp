@@ -23,15 +23,20 @@ DisableOutputBuffering();
 <?php
 echo "==================================================================================\n";
 
-$branch = escapeshellcmd(htmlspecialchars($_GET['branch']));
-$remote = isset($_GET['remote']) ? escapeshellcmd(htmlspecialchars($_GET['remote'])) : 'origin';
-
-// Validate remote name to prevent injection
-if (!preg_match('/^[a-zA-Z0-9_-]+$/', $remote)) {
-	$remote = 'origin';
+$rawBranch = $_GET['branch'] ?? '';
+if (!preg_match('/^[A-Za-z0-9_.\/-]+$/', $rawBranch) || strpos($rawBranch, '..') !== false || $rawBranch === '' || $rawBranch[0] === '-') {
+	http_response_code(400);
+	echo "Invalid branch";
+	exit(0);
 }
+$branch = $rawBranch;
+$rawRemote = $_GET['remote'] ?? 'origin';
+if (!preg_match('/^[a-zA-Z0-9_-]+$/', $rawRemote)) {
+	$rawRemote = 'origin';
+}
+$remote = $rawRemote;
 
-$command = "$SUDO " . $fppDir . "/scripts/git_branch " . $branch . " " . $remote . " 2>&1";
+$command = $SUDO . " " . escapeshellarg($fppDir . "/scripts/git_branch") . " " . escapeshellarg($branch) . " " . escapeshellarg($remote) . " 2>&1";
 
 echo "Command: $command\n";
 echo "----------------------------------------------------------------------------------\n";
