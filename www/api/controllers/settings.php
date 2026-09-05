@@ -430,7 +430,15 @@ function ResetFanThermalTrips()
 function GetSettings()
 {
     global $settings;
-    return file_get_contents($settings['fppDir'] . '/www/settings.json');
+    $file = $settings['fppDir'] . '/www/settings.json';
+    // ~100KB of metadata that only changes on an FPP upgrade. The UI loads
+    // settings.json as a static file (where Apache validates it already); this
+    // route is what external tools and remote clients use, and it had no
+    // validator at all.
+    if (fppSendFileCacheValidators($file)) {
+        return '';
+    }
+    return file_get_contents($file);
 }
 
 /**

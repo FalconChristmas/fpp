@@ -1574,6 +1574,15 @@ function render_file($filename, $return = false)
     $header = 'Content-type: '.$content_type;
     if(file_is_text($filename)) $header .= '; charset='.strtolower(option('encoding'));
     send_header($header);
+    // Every config file the API serves comes through here, and none of them
+    // carried a validator of any kind -- no ETag, no Last-Modified -- so a
+    // client re-fetching an unchanged channel output or model config was sent
+    // the whole thing every time with no way to ask whether it needed to be.
+    // The tag comes from a stat(), so a client that is already current costs
+    // one stat and no read. Not applied when $return is set: that contract is
+    // "hand me the bytes", and the caller may not be sending them as the
+    // response at all.
+    if(!$return && function_exists('fppSendFileCacheValidators') && fppSendFileCacheValidators($filename)) return 0;
     return file_read($filename, $return);
   }
   else halt(NOT_FOUND, "unknown filename $filename");

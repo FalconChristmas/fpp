@@ -50,7 +50,15 @@ function ServeOpenApiSpec() {
     MergeUndocumentedFppdRoutes($spec);
 
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($spec, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    // A content validator rather than the base file's stat: the served spec is
+    // the file merged with whatever routes the installed plugins contribute, so
+    // it changes when a plugin is installed or removed as well as on upgrade.
+    // ~250KB, and the docs page fetches all of it every time it opens.
+    $body = json_encode($spec, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    if (fppSendContentCacheValidators($body)) {
+        exit;
+    }
+    echo $body;
     exit;
 }
 

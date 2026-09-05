@@ -613,4 +613,23 @@ AddDefaultCharset utf-8
 
     </IfModule>
 
+    # Compress JSON.
+    #
+    # Debian's stock mods-available/deflate.conf lists text/*, the javascript
+    # types, application/xml and application/wasm -- but not application/json,
+    # which did not exist when that list was written and has never been added.
+    # So every API response that sets its content type correctly went out
+    # uncompressed, while the handlers that return a bare string (and so fall
+    # back to text/html) were compressed by accident. That is exactly backwards:
+    # /api/cape/eeprom/vendors is 30KB of JSON that gzips to 3KB, and none of
+    # the file listings, config files or channel output configs were compressed
+    # at all.
+    #
+    # fppd's own routes are unaffected either way -- drogon compresses its
+    # responses itself before Apache ever sees them.
+    <IfModule mod_filter.c>
+        AddOutputFilterByType DEFLATE application/json application/json+ld
+        AddOutputFilterByType DEFLATE application/manifest+json text/csv
+    </IfModule>
+
 </IfModule>

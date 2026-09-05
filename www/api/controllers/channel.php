@@ -209,6 +209,14 @@ function channel_get_output()
     if (!isset($settings[$file])) {
         $rc['status'] = "Invalid file $file";
     } else if (file_exists($settings[$file])) {
+        // The response is a re-encode of this one file plus a status key, so
+        // the file's stat is a complete validator for it. Only on GET: the
+        // save handler below calls this to echo the config back, and that
+        // reply must never come back bodiless.
+        if ($_SERVER['REQUEST_METHOD'] === 'GET'
+            && fppSendFileCacheValidators($settings[$file])) {
+            return '';
+        }
         $rc = json_decode(file_get_contents($settings[$file]), true);
         $rc["status"] = "OK";
     } else {

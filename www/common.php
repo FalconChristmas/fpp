@@ -4941,5 +4941,88 @@ function fppUrlHost(string $host): string
     return $host;
 }
 
+/**
+ * Send cache validators for a response, and answer 304 if the client already
+ * has this version.
+ *
+ * Two things make this worth doing in PHP rather than leaving it to Apache.
+ * Apache does apply the conditional itself once a handler has set an ETag or
+ * Last-Modified -- it will turn the response into a 304 on its own -- but by
+ * then PHP has already produced the body it is about to throw away. Returning
+ * early here skips that work. And for a file, the validator can be derived
+ * from a stat() alone, so a repeat request never reads the file at all.
+ *
+ * Matching is on the bare tag appearing anywhere in If-None-Match rather than
+ * on equality: the header may carry a list, and a cache that compressed the
+ * response on the way past can echo the tag back with a "-gzip" suffix.
+ *
+ * @param string $etag  Bare validator, no quotes.
+ * @param int    $mtime Unix mtime for Last-Modified, or 0 to omit it.
+ * @return bool True if a 304 was sent and the caller should stop.
+ */
+function fppSendCacheValidators($etag, $mtime = 0)
+{
+    if (headers_sent()) {
+        return false;
+    }
+
+    header('ETag: "' . $etag . '"');
+    if ($mtime > 0) {
+        header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $mtime) . ' GMT');
+    }
+
+    $inm = isset($_SERVER['HTTP_IF_NONE_MATCH']) ? $_SERVER['HTTP_IF_NONE_MATCH'] : '';
+    if ($inm !== '' && strpos($inm, $etag) !== false) {
+        http_response_code(304);
+        return true;
+    }
+
+    // Only consulted when the client sent no ETag at all. If-None-Match wins
+    // outright per RFC 9110: a client that holds a tag has already been told
+    // above that it does not match, and a second opinion from a timestamp --
+    // which has only one-second resolution -- must not override that.
+    if ($inm === '' && $mtime > 0 && isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) {
+        $since = strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']);
+        if ($since !== false && $mtime <= $since) {
+            http_response_code(304);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Validators for a file on disk, derived from a stat() rather than its content.
+ *
+ * size-mtime-inode changes whenever the file does, without reading a byte of
+ * it, so a client that already has the file costs one stat and no I/O.
+ *
+ * @return bool True if a 304 was sent and the caller should stop.
+ */
+function fppSendFileCacheValidators($path)
+{
+    $st = @stat($path);
+    if ($st === false) {
+        return false;
+    }
+
+    return fppSendCacheValidators(
+        sprintf('%x-%x-%x', $st['size'], $st['mtime'], $st['ino']),
+        $st['mtime']
+    );
+}
+
+/**
+ * Validators for a body PHP has already built. Falls back to hashing the bytes
+ * because there is nothing cheaper to key on; use fppSendFileCacheValidators()
+ * instead wherever the answer is a file.
+ *
+ * @return bool True if a 304 was sent and the caller should stop.
+ */
+function fppSendContentCacheValidators($body)
+{
+    return fppSendCacheValidators(sprintf('%x-%s', strlen($body), substr(md5($body), 0, 16)));
+}
 
 ?>
