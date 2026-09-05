@@ -4557,12 +4557,50 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
         $numCh = min($groupChannels, count($channelLabels));
 
         // Helper: generate stream.rules block for output groups with per-path volume
-        $generateOutputRules = function ($rules) use (&$conf, $channelPositions) {
+        //
+        // Channel layout, both ends (issue #2620 is the same bug on the output
+        // group side):
+        //   - combine.audio.position names channels of THIS input group's
+        //     combine sink -- the source of the stream.  It may only contain
+        //     labels that sink actually has, i.e. the input group's layout.
+        //   - audio.position is the layout the created stream presents to the
+        //     output group's sink.
+        // Emitting the OUTPUT group's layout for both breaks every path where
+        // the two channel counts differ: a stereo mix bus feeding an 8ch group
+        // asks combine-stream for FC/LFE/RL/RR/SL/SR that the 2ch combine does
+        // not have, and the stream then carries silence on every channel --
+        // links go active, volumes read 1.0, and nothing is audible.
+        // So map the positions the two layouts share, in output order, and let
+        // the output channels with no counterpart stay silent.  Layouts are not
+        // prefixes of each other (4ch is FL FR RL RR, not the first four of
+        // 8ch), so this has to be a positional intersection, not a truncation.
+        $generateOutputRules = function ($rules) use (&$conf, $groupChannels) {
+            $inPosList = PipeWireChannelPositions($groupChannels);
             $conf .= "      stream.rules = [\n";
             foreach ($rules as $rule) {
                 $volLinear = round($rule['volume'] / 100.0, 3);
                 $outCh = isset($rule['channels']) ? intval($rule['channels']) : 2;
-                $outPos = isset($channelPositions[$outCh]) ? $channelPositions[$outCh] : "[ FL FR ]";
+                $outPosList = PipeWireChannelPositions($outCh);
+                // array_intersect keeps the first array's order, so the shared
+                // channels come out in the output group's order.
+                $common = array_values(array_intersect($outPosList, $inPosList));
+                $remixLine = '';
+                if (!empty($common)) {
+                    $posStr = "[ " . implode(" ", $common) . " ]";
+                    $combinePos = $posStr;
+                    $streamPos = $posStr;
+                } else {
+                    // No shared labels at all -- MONO on exactly one side, which
+                    // shares no position name with any multichannel layout.
+                    // Direct mapping is impossible, so hand channelmix the input
+                    // group's own layout and let it fold or spread to the
+                    // target.  dont-remix has to come off for that to happen;
+                    // create-stream props override the stream.props default.
+                    $posStr = "[ " . implode(" ", $inPosList) . " ]";
+                    $combinePos = $posStr;
+                    $streamPos = $posStr;
+                    $remixLine = "              stream.dont-remix = false\n";
+                }
                 $conf .= "        { matches = [\n";
                 $conf .= "            { media.class = \"Audio/Sink\"\n";
                 $conf .= "              node.name = \"" . $rule['name'] . "\"\n";
@@ -4571,8 +4609,9 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                 $conf .= "          actions = {\n";
                 $conf .= "            create-stream = {\n";
                 $conf .= "              node.target = \"" . $rule['name'] . "\"\n";
-                $conf .= "              combine.audio.position = $outPos\n";
-                $conf .= "              audio.position = $outPos\n";
+                $conf .= "              combine.audio.position = $combinePos\n";
+                $conf .= "              audio.position = $streamPos\n";
+                $conf .= $remixLine;
                 if ($volLinear < 0.999) {
                     $conf .= "              channelmix.volume = $volLinear\n";
                 }
