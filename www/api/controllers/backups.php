@@ -169,7 +169,11 @@ function GetAvailableBackupsOnDevice()
 	}
 	$dirs = array();
 
-	$dirs = DriveMountHelper($deviceName, 'GetAvailableBackupsFromDir', array('/mnt/tmp/'));
+	// Use a per-device mountpoint so concurrent requests for sda1 and sdb1
+	// do not race on the shared /mnt/tmp (see DriveMountHelper locking).
+	// Validation in DriveMountHelper allows /mnt/tmp_<dev>.
+	$mountPath = '/mnt/tmp_' . $deviceName;
+	$dirs = DriveMountHelper($deviceName, 'GetAvailableBackupsFromDir', array($mountPath . '/'), $mountPath);
 
 	return json($dirs);
 }
@@ -207,6 +211,21 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 		return json($dirs);
 	}
 
+	// Prevent concurrent mounts to the same mountpoint from racing.
+	// When multiple USB drives are present the UI fires api/backups/list/sda1
+	// and api/backups/list/sdb1 concurrently; without serialization the second
+	// umount would pull the first mount out from under its scandir, making it
+	// appear as "/" only. A file lock serializes the mount/scan/umount.
+	// Use a per-mountpoint lock so sda1 and sdb1 (now on /mnt/tmp_sda1 etc.)
+	// can run concurrently; requests for the same device remain serialized.
+	$lockFp = null;
+	$lockKey = preg_replace('/[^A-Za-z0-9]/', '_', $mountPath);
+	$lockFile = '/tmp/fpp_backup_mount_' . $lockKey . '.lock';
+	$lockFp = @fopen($lockFile, 'c');
+	if ($lockFp) {
+		flock($lockFp, LOCK_EX);
+	}
+
 	//Run commands so mount is available to entire system
 	if ($globalNameSpace === true) {
 		//Since Apache sandboxes all mount interactions and makes them private to the apache process(s)
@@ -221,6 +240,10 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 	$unusable = CheckIfDeviceIsUsable($deviceName);
 	if ($unusable != '') {
 		array_push($dirs, $unusable);
+		if ($lockFp) {
+			flock($lockFp, LOCK_UN);
+			fclose($lockFp);
+		}
 		return json($dirs);
 	}
 
@@ -276,15 +299,23 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 
 	//Return more detail about the what has happened with each command
 	if ($returnResultCodes === true) {
+		if ($lockFp) {
+			flock($lockFp, LOCK_UN);
+			fclose($lockFp);
+		}
 		return (array('dirs' => $dirs,
 			'fsType' => array('fsTypeOutput' => $fsTypeOutput, 'fsTypeResultCode' => $fsTypeResultCode),
 			'mountCmd' => array('mountCmdOutput' => $mountCmdOutput, 'mountCmdResultCode' => $mountCmdResultCode, 'mountCmdResultCodeText' => MountReturnCodeMap($mountCmdResultCode), 'actualMountCmd' => $mountCmd),
 			'unmountCmd' => array('unmountCmdOutput' => $unmountCmdOutput, 'unmountCmdResultCode' => $unmountCmdResultCode),
-			'args' => array('mountPath' => '/mnt/tmp', 'unmountWhenDone' => $unmountWhenDone, 'globalNameSpace' => $globalNameSpace)
+			'args' => array('mountPath' => $mountPath, 'unmountWhenDone' => $unmountWhenDone, 'globalNameSpace' => $globalNameSpace)
 		)
 		);
 	}
 
+	if ($lockFp) {
+		flock($lockFp, LOCK_UN);
+		fclose($lockFp);
+	}
 	return ($dirs);
 }
 

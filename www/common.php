@@ -4633,33 +4633,61 @@ function GetAvailableBackupsDevices($all = false)
     $devices = array();
 
     foreach (scandir("/dev/") as $deviceName) {
-        if (preg_match("/^sd[a-z][0-9]/", $deviceName)) {
-            exec($SUDO . " sfdisk -s /dev/$deviceName", $output, $return_val);
-            $GB = round(intval($output[0]) / 1024.0 / 1024.0, 1);
+        if (!preg_match('/^(sd[a-z][0-9]+|mmcblk[0-9]+p[0-9]+|nvme[0-9]+n[0-9]+p[0-9]+)$/', $deviceName)) {
+            continue;
+        }
+        // Use lsblk for size so it works for sd, mmcblk and nvme alike.
+        // sfdisk -s is sd-specific and reports in 1K blocks; lsblk reports bytes.
+        $sizeBytes = trim(shell_exec($SUDO . " lsblk -bno SIZE " . escapeshellarg("/dev/" . $deviceName) . " 2>/dev/null | head -1"));
+        $GB = 0;
+        if ($sizeBytes !== '' && is_numeric($sizeBytes)) {
+            $GB = round(intval($sizeBytes) / 1024.0 / 1024.0 / 1024.0, 1);
+        } else {
+            // Fallback to previous sfdisk method for older kernels/types
+            exec($SUDO . " sfdisk -s " . escapeshellarg("/dev/" . $deviceName), $output, $return_val);
+            if (isset($output[0])) {
+                $GB = round(intval($output[0]) / 1024.0 / 1024.0, 1);
+            }
             unset($output);
+        }
 
-            if ($GB <= 0.1) {
+        if ($GB <= 0.1) {
+            continue;
+        }
+
+        if (!$all) {
+            $unusable = CheckIfDeviceIsUsable($deviceName);
+            if ($unusable != '') {
                 continue;
             }
 
-            if (!$all) {
-                $unusable = CheckIfDeviceIsUsable($deviceName);
-                if ($unusable != '') {
-                    continue;
-                }
-
-            }
-
-            $baseDevice = preg_replace('/[0-9]*$/', '', $deviceName);
-
-            $device = array();
-            $device['name'] = $deviceName;
-            $device['size'] = $GB;
-            $device['model'] = exec("cat /sys/block/$baseDevice/device/model");
-            $device['vendor'] = exec("cat /sys/block/$baseDevice/device/vendor");
-
-            array_push($devices, $device);
         }
+
+        // Derive base block device for model/vendor lookup:
+        // sda1 -> sda, mmcblk0p1 -> mmcblk0, nvme0n1p1 -> nvme0n1
+        $baseDevice = $deviceName;
+        if (preg_match('/^(sd[a-z])[0-9]+$/', $deviceName, $m)) {
+            $baseDevice = $m[1];
+        } elseif (preg_match('/^(mmcblk[0-9]+)p[0-9]+$/', $deviceName, $m)) {
+            $baseDevice = $m[1];
+        } elseif (preg_match('/^(nvme[0-9]+n[0-9]+)p[0-9]+$/', $deviceName, $m)) {
+            $baseDevice = $m[1];
+        }
+
+        $device = array();
+        $device['name'] = $deviceName;
+        $device['size'] = $GB;
+        $device['model'] = exec("cat /sys/block/$baseDevice/device/model 2>/dev/null");
+        if ($device['model'] == '') {
+            // mmcblk and nvme expose model elsewhere; try lsblk as fallback
+            $device['model'] = trim(shell_exec("lsblk -dno MODEL " . escapeshellarg("/dev/" . $baseDevice) . " 2>/dev/null"));
+        }
+        $device['vendor'] = exec("cat /sys/block/$baseDevice/device/vendor 2>/dev/null");
+        if ($device['vendor'] == '') {
+            $device['vendor'] = trim(shell_exec("lsblk -dno VENDOR " . escapeshellarg("/dev/" . $baseDevice) . " 2>/dev/null"));
+        }
+
+        array_push($devices, $device);
     }
 
     return $devices;
@@ -4675,15 +4703,24 @@ function CheckIfDeviceIsUsable($deviceName)
 {
     global $SUDO;
 
-    // Check if in use / Mount / List / Unmount
-    $mountPoint = exec($SUDO . " lsblk /dev/$deviceName");
-    $mountPoint = preg_replace('/.*disk ?/', '', $mountPoint);
-    $mountPoint = preg_replace('/.*part ?/', '', $mountPoint);
-    if (preg_match('/[a-z0-9\/]/', $mountPoint)) {
-        return "ERROR: Partition is mounted on: $mountPoint";
+    // Use lsblk MOUNTPOINTS / findmnt for a reliable, column-aware check.
+    // The old code did `lsblk /dev/X` + regex on TYPE words, which breaks with
+    // multi-device lsblk tree output and with newer MOUNTPOINTS column.
+    $mountPoint = trim(shell_exec($SUDO . " lsblk -nro MOUNTPOINTS " . escapeshellarg("/dev/" . $deviceName) . " 2>/dev/null | head -1"));
+    // lsblk may return multiple mountpoints space-separated for bind mounts; check first entry
+    if ($mountPoint !== '') {
+        $firstMount = preg_split('/\s+/', $mountPoint)[0];
+        if ($firstMount !== '' && $firstMount !== '0') {
+            return "ERROR: Partition is mounted on: $firstMount";
+        }
+    }
+    // Fallback to findmnt if lsblk not available or empty but still mounted
+    $findmnt = trim(shell_exec($SUDO . " findmnt -n -o TARGET -- " . escapeshellarg("/dev/" . $deviceName) . " 2>/dev/null | head -1"));
+    if ($findmnt !== '') {
+        return "ERROR: Partition is mounted on: $findmnt";
     }
 
-    $isSwap = exec("grep /dev/$deviceName /proc/swaps");
+    $isSwap = exec("grep -F " . escapeshellarg("/dev/" . $deviceName) . " /proc/swaps 2>/dev/null");
     if ($isSwap != "") {
         return "ERROR: $deviceName is a swap partition";
     }
