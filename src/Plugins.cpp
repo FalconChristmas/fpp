@@ -401,9 +401,12 @@ void PluginManager::loadUserPlugins() {
     dp = opendir(FPP_DIR_PLUGIN("").c_str());
     if (dp != NULL) {
         while ((ep = readdir(dp))) {
-            char *dot = strstr(ep->d_name, ".");
-            // We're one of ".", "..", or hidden, or have no dot — skip to avoid null deref
-            if (!dot || dot == ep->d_name) {
+            // Skip ".", "..", and hidden entries. The test is on the LEADING
+            // character: a plugin directory is normally named "fpp-Something"
+            // and contains no dot at all, so keying off "has a dot anywhere"
+            // skips every real plugin instead of the three entries meant to be
+            // excluded.
+            if (ep->d_name[0] == '.') {
                 continue;
             }
             struct stat statbuf;
