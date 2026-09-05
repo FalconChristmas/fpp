@@ -80,7 +80,64 @@ INSTANCES = "/home/fpp/media/config/pipewire-aes67-instances.json"
 # AES67 mandates 48kHz, and the L24 payload arithmetic here assumes it.
 RTP_CLOCK_RATE = 48000
 
-# ---------------------------------------------------------------- reporting
+
+def _phc_sample():
+    """(PHC seconds, CLOCK_REALTIME seconds), or None if there is no PHC."""
+    import ctypes, glob, time as _t
+
+    class _TS(ctypes.Structure):
+        _fields_ = [("tv_sec", ctypes.c_long), ("tv_nsec", ctypes.c_long)]
+
+    for dev in sorted(glob.glob("/dev/ptp*")):
+        try:
+            fd = os.open(dev, os.O_RDONLY)
+        except OSError:
+            continue
+        try:
+            lib = ctypes.CDLL("libc.so.6", use_errno=True)
+            t = _TS()
+            if lib.clock_gettime((~fd << 3) | 3, ctypes.byref(t)):
+                continue
+            return (t.tv_sec + t.tv_nsec / 1e9,
+                    _t.clock_gettime(_t.CLOCK_REALTIME))
+        except OSError:
+            continue
+        finally:
+            os.close(fd)
+    return None
+
+
+# Filled in by capture(): PHC and CLOCK_REALTIME either side of the window.
+_PHC_SPAN = [None, None]
+
+
+def phc_vs_system_ppm():
+    """How fast the PHC runs against CLOCK_REALTIME over the capture, in ppm.
+
+    The media-clock check fits RTP growth against pcap timestamps, and those
+    come from CLOCK_REALTIME.  The RTP timeline is locked to PTP, so when the
+    two clocks differ the check reports that difference as sender drift.
+
+    It is not a small effect.  A Pi acting as its own grandmaster runs PTP off
+    a free-running PHC while NTP disciplines the system clock, and the crystal
+    error between them measured -54ppm here -- reported as a media clock fault
+    on a stream whose RTP was locked to PTP exactly as intended.  A follower
+    sees the grandmaster-vs-NTP difference instead, which is usually small, so
+    this hides until someone runs as grandmaster and reports it.
+
+    Measured across the whole capture, not a short window of its own: at 1ppm
+    per 2us, a 2s window turns ordinary scheduling jitter into tens of ppm of
+    error, and did -- the same clock read -54.8ppm and then +31.7ppm on
+    consecutive runs.  Over a 60s capture the same jitter is under 2ppm.
+    """
+    a, b = _PHC_SPAN
+    if not a or not b:
+        return None
+    dr = b[1] - a[1]
+    if dr < 5.0:            # too short to say anything useful
+        return None
+    return ((b[0] - a[0]) - dr) / dr * 1e6
+
 
 class Report:
     """Collects pass/fail lines so a run ends with one verdict."""
@@ -177,7 +234,9 @@ def capture(inst, seconds, out_path, max_mb):
            f"udp and host {ip} and port {port}"]
     print(f"Capturing {seconds}s from {ip}:{port} on {iface} "
           f"(~{est_mb:.0f}MB)...")
+    _PHC_SPAN[0] = _phc_sample()
     proc = subprocess.run(cmd, capture_output=True, text=True)
+    _PHC_SPAN[1] = _phc_sample()
     if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
         raise SystemExit(f"capture produced nothing:\n{proc.stderr}")
     print(f"Captured {os.path.getsize(out_path) / 1024 / 1024:.1f}MB")
@@ -386,8 +445,22 @@ def check_tx_jitter(rep, arrivals, rtpts, ptime):
     t0, ts0 = arrivals[0], rtpts[0]
     err = [((a - t0) - (((t - ts0) & 0xFFFFFFFF) / float(RTP_CLOCK_RATE))) * 1000.0
            for a, t in zip(arrivals, rtpts)]
-    med = _median(err)
-    mag = [abs(e - med) for e in err]
+
+    # Remove the linear trend, not just the median.  A media clock running
+    # slow against the sender's wall time puts a straight ramp through this
+    # error, and subtracting only a constant leaves the whole ramp behind and
+    # calls it jitter: at -54ppm over a 45s capture that is 2.45ms of ramp
+    # reported as +/-1.22ms of jitter, which is exactly what it printed.
+    # Drift has its own check right below this one, so counting it here too
+    # reports one fault as two and points at the wrong thing.  The residual
+    # after detrending is the packet-to-packet timing error AES67 bounds.
+    n = len(err)
+    mean_x = (n - 1) / 2.0
+    mean_y = sum(err) / n
+    sxx = sum((i - mean_x) ** 2 for i in range(n))
+    sxy = sum((i - mean_x) * (e - mean_y) for i, e in enumerate(err))
+    slope = (sxy / sxx) if sxx else 0.0
+    mag = [abs(e - (mean_y + slope * (i - mean_x))) for i, e in enumerate(err)]
 
     required = min(17.0, 17 * ptime)
     recommended = min(1.0, float(ptime))
@@ -578,7 +651,19 @@ def check_media_clock(rep, arrivals, rtpts, rate):
 
     span = t[-1]
     rep.info(f"media advances {slope:.2f} samples/s against a {rate}Hz clock")
-    rep.info(f"drift {ppm:+.1f} ppm = {ppm * 60 / 1000:+.2f} ms/minute")
+
+    # pcap timestamps are CLOCK_REALTIME; the RTP timeline follows PTP.  Take
+    # the difference out so this reports RTP against PTP, which is what a
+    # receiver actually locks to.
+    phc_ppm = phc_vs_system_ppm()
+    if phc_ppm is not None and abs(phc_ppm) >= 1.0:
+        rep.info(f"raw drift {ppm:+.1f} ppm vs the system clock, which itself "
+                 f"runs {phc_ppm:+.1f} ppm against the PTP hardware clock")
+        ppm -= phc_ppm
+        rep.info(f"drift {ppm:+.1f} ppm against PTP "
+                 f"= {ppm * 60 / 1000:+.2f} ms/minute")
+    else:
+        rep.info(f"drift {ppm:+.1f} ppm = {ppm * 60 / 1000:+.2f} ms/minute")
 
     if abs(ppm) < 20:
         rep.ok(f"media clock within {ppm:+.1f} ppm of the RTP rate")
