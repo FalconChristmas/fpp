@@ -383,6 +383,11 @@ if (is_dir($stringsDir)) {
         ?>;
         var availablePins = <?php echo json_encode(array_map(fn($g) => $g['pin'], $availablePins)); ?>;
 
+        // The gpiochip/line and GPIO number a header pin maps to are only meaningful
+        // on the Pi, and there only for the P1 header: on a BeagleBone (and the PB2)
+        // the numbers say nothing a user would act on, so they are not shown at all.
+        var showPinGpioNumbers = <?php echo ($settings['Platform'] == "Raspberry Pi") ? 'true' : 'false'; ?>;
+
         extraCommands = [{
             "name": "OLED Navigation",
             "args": [{
@@ -474,7 +479,8 @@ if (is_dir($stringsDir)) {
 
         function buildTriggerCard(idx, t) {
             var pinInfo = getPinInfo(t.pin);
-            var gpioLbl = pinInfo ? ' <span class="text-muted small">(' + esc(pinInfo.gpioChip) + '/' + esc(pinInfo.gpioLine) + ')</span>' : '';
+            var gpioLbl = (pinInfo && pinHasGpioNumbers(t.pin))
+                ? ' <span class="text-muted small">(' + esc(pinInfo.gpioChip) + '/' + esc(pinInfo.gpioLine) + ')</span>' : '';
             var enBadge = t.enabled
                 ? '<span class="badge bg-success">Enabled</span>'
                 : '<span class="badge bg-secondary">Disabled</span>';
@@ -564,9 +570,15 @@ if (is_dir($stringsDir)) {
             return null;
         }
 
+        // Whether to annotate a pin with the GPIO it maps to -- Pi P1 header only.
+        function pinHasGpioNumbers(n) {
+            return showPinGpioNumbers && /^P1-/.test(n);
+        }
+
         // Header pin plus the gpiochip/line it drives, e.g. "P1-11 (0/17)", so the
         // GPIO a pin maps to is visible while picking it rather than only after saving.
         function pinLabel(n) {
+            if (!pinHasGpioNumbers(n)) return esc(n);
             var info = getPinInfo(n);
             if (!info || info.gpioChip === undefined || info.gpioLine === undefined) return esc(n);
             return esc(n) + ' (' + esc(info.gpioChip) + '/' + esc(info.gpioLine) + ')';
@@ -670,10 +682,12 @@ if (is_dir($stringsDir)) {
             var info = getPinInfo(pinName), lbl = $('#gpioModalPinInfo');
             if (!info) { lbl.text(''); return; }
             var parts = [];
-            if (info.gpioChip !== undefined && info.gpioLine !== undefined) {
-                parts.push('gpiochip' + info.gpioChip + ' line ' + info.gpioLine);
+            if (pinHasGpioNumbers(pinName)) {
+                if (info.gpioChip !== undefined && info.gpioLine !== undefined) {
+                    parts.push('gpiochip' + info.gpioChip + ' line ' + info.gpioLine);
+                }
+                if (info.gpio !== undefined) parts.push('GPIO' + info.gpio);
             }
-            if (info.gpio !== undefined) parts.push('GPIO' + info.gpio);
             if (!info.supportsPullUp && !info.supportsPullDown) parts.push('no internal pull');
             if (usedGpioPins[pinName]) parts.push('reserved: ' + usedGpioPins[pinName]);
             lbl.text(parts.join(' · '));
@@ -906,7 +920,7 @@ if (is_dir($stringsDir)) {
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label fw-semibold">GPIO Pin <?= helpTip('The GPIO input pin to monitor for signal changes. Each pin is listed with the gpiochip/line it maps to. Only pins not reserved by capes or channel outputs are listed.') ?></label>
+                                    <label class="form-label fw-semibold">GPIO Pin <?= helpTip('The GPIO input pin to monitor for signal changes.' . (($settings['Platform'] == "Raspberry Pi") ? ' Each P1 pin is listed with the gpiochip/line it maps to.' : '') . ' Only pins not reserved by capes or channel outputs are listed.') ?></label>
                                     <select class="form-select" id="gpioModalPin"></select>
                                     <div class="form-text" id="gpioModalPinInfo"></div>
                                 </div>
