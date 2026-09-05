@@ -1,4 +1,55 @@
 <?php
+/**
+ * Resolve a plugin-relative path to a real path inside the plugin directory,
+ * or null if it is not one.
+ *
+ * Both callers below need the same answer, and they need it to mean the same
+ * thing: a page and a file are equally allowed to live in a subdirectory. The
+ * `page` branch used basename(), which does not reject a bad path -- it
+ * silently rewrites a good one, so a plugin whose help lives in help/ asked
+ * for help/help.php and was told help.php does not exist.
+ *
+ * Traversal is refused component by component. Note that "\x2e\x2e" survives an
+ * [A-Za-z0-9_.-] allow-list, since a dot is a legal filename character, so it
+ * has to be rejected by name rather than by character class.
+ */
+function pluginRealPath($pluginDirectory, $pluginName, $rawPath)
+{
+    if (!is_string($rawPath) || strpos($rawPath, "\0") !== false) {
+        return null;
+    }
+    $parts = explode('/', str_replace('\\', '/', $rawPath));
+    $clean = array();
+    foreach ($parts as $part) {
+        if ($part === '' || $part === '.') {
+            continue;
+        }
+        if ($part === '..') {
+            return null;
+        }
+        if (preg_replace('/[^A-Za-z0-9_.-]/', '', $part) !== $part) {
+            return null;
+        }
+        $clean[] = $part;
+    }
+    if (empty($clean)) {
+        return null;
+    }
+    $realBase = realpath($pluginDirectory);
+    $realPath = realpath($pluginDirectory . '/' . $pluginName . '/' . implode('/', $clean));
+    if ($realBase === false || $realPath === false) {
+        return null;
+    }
+    // The separator is part of the test on purpose: a plain prefix comparison
+    // also accepts a sibling whose name merely starts with the base, so
+    // ".../pluginsOther" would count as being inside ".../plugins".
+    if (strpos($realPath, rtrim($realBase, '/') . '/') !== 0) {
+        return null;
+    }
+    return $realPath;
+}
+?>
+<?php
 $pluginName = "";
 $activeParentMenuItem = "status";
 if (!isset($_GET['nopage'])):
@@ -169,47 +220,18 @@ if (!isset($_GET['plugin'])) {
 } elseif (empty($_GET['plugin'])) {
     echo "Plugin variable empty, please don't access this page directly";
 } elseif (isset($_GET['page']) && !empty($_GET['page'])) {
-    // Strip directory components and enforce allow-list; then verify realpath stays under pluginDirectory.
-    $pageName = basename($_GET['page']);
-    $pageName = preg_replace('/[^A-Za-z0-9_.-]/', '', $pageName);
-    $candidate = $pluginDirectory . "/" . $pluginName . "/" . $pageName;
-    $realBase = realpath($pluginDirectory);
-    $realPath = realpath($candidate);
-    if ($realPath && $realBase && strpos($realPath, $realBase) === 0 && file_exists($realPath)) {
+    $pageName = $_GET['page'];
+    $realPath = pluginRealPath($pluginDirectory, $pluginName, $pageName);
+    if ($realPath !== null && is_file($realPath)) {
         include_once $realPath;
     } else {
         http_response_code(404);
-        echo "Error with plugin, requesting a page that doesn't exist: $pluginName/$pageName";
+        echo "Error with plugin, requesting a page that doesn't exist: $pluginName/" .
+            htmlspecialchars($pageName, ENT_QUOTES, 'UTF-8');
     }
 } elseif (isset($_GET['file']) && !empty($_GET['file'])) {
-    $rawFile = $_GET['file'];
-    // Reject traversal and null bytes
-    if (strpos($rawFile, '..') !== false || strpos($rawFile, "\0") !== false) {
-        http_response_code(404);
-        echo "Error with plugin, requesting a file that doesn't exist";
-        return;
-    }
-    // Validate each path component (allows js/file.js, css/style.css)
-    $parts = explode('/', $rawFile);
-    $cleanParts = [];
-    $valid = true;
-    foreach ($parts as $p) {
-        if ($p === '' || $p === '.') continue;
-        $clean = preg_replace('/[^A-Za-z0-9_.-]/', '', $p);
-        if ($clean !== $p || $clean === '') { $valid = false; break; }
-        $cleanParts[] = $clean;
-    }
-    if (!$valid || empty($cleanParts)) {
-        http_response_code(404);
-        echo "Error with plugin, requesting a file that doesn't exist";
-        return;
-    }
-    $fileName = implode('/', $cleanParts);
-    $candidate = $pluginDirectory . "/" . $pluginName . "/" . $fileName;
-    $realBase = realpath($pluginDirectory);
-    $realPath = realpath($candidate);
-    if (!$realPath || !$realBase || strpos($realPath, $realBase) !== 0 || !file_exists($realPath)) {
-        error_log("Error, could not find file $candidate");
+    $realPath = pluginRealPath($pluginDirectory, $pluginName, $_GET['file']);
+    if ($realPath === null || !is_file($realPath)) {
         http_response_code(404);
         echo "Error with plugin, requesting a file that doesn't exist";
         return;
