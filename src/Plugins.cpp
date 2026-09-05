@@ -401,9 +401,9 @@ void PluginManager::loadUserPlugins() {
     dp = opendir(FPP_DIR_PLUGIN("").c_str());
     if (dp != NULL) {
         while ((ep = readdir(dp))) {
-            int location = strstr(ep->d_name, ".") - ep->d_name;
-            // We're one of ".", "..", or hidden, so let's skip
-            if (location == 0) {
+            char *dot = strstr(ep->d_name, ".");
+            // We're one of ".", "..", or hidden, or have no dot — skip to avoid null deref
+            if (!dot || dot == ep->d_name) {
                 continue;
             }
             struct stat statbuf;

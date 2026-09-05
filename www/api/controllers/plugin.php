@@ -762,7 +762,13 @@ function InstallPlugin()
 
 	$stream = isset($_REQUEST['stream']) ? $_REQUEST['stream'] : null;
 	$streaming = PluginStreaming($stream);
-	$plugin = escapeshellcmd($pluginInfo['repoName']);
+	// Strict allow-list for plugin repo name — prevents shell injection via repoName.
+	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $pluginInfo['repoName'])) {
+		$result['Status'] = 'Error';
+		$result['Message'] = 'Invalid repoName';
+		return json($result);
+	}
+	$plugin = $pluginInfo['repoName'];
 
 	if (file_exists($settings['pluginDirectory'] . '/' . $plugin)) {
 		if ($streaming) {
@@ -868,8 +874,17 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	// embedded user:token@ -- IsOfficialPluginSrcURL()'s host/path parse
 	// doesn't need credentials and it's one less thing carrying a PAT around.
 	$origSrcURL = $srcURL;
-	$branch = escapeshellcmd(isset($pluginInfo['branch']) && $pluginInfo['branch'] !== '' ? $pluginInfo['branch'] : 'master');
+	$branchRaw = isset($pluginInfo['branch']) && $pluginInfo['branch'] !== '' ? $pluginInfo['branch'] : 'master';
+	if (!preg_match('/^[A-Za-z0-9_.\/-]+$/', $branchRaw) || strpos($branchRaw, '..') !== false) {
+		PluginEchoLog('install', $repoName, "\nERROR: Invalid branch name.\n", $stream);
+		return false;
+	}
+	$branch = $branchRaw;
 	$sha = isset($pluginInfo['sha']) ? $pluginInfo['sha'] : '';
+	if ($sha !== '' && !preg_match('/^[a-fA-F0-9]{4,40}$/', $sha)) {
+		PluginEchoLog('install', $repoName, "\nERROR: Invalid SHA.\n", $stream);
+		return false;
+	}
 	$infoURL = isset($pluginInfo['infoURL']) ? $pluginInfo['infoURL'] : '';
 	$useCredentials = isset($pluginInfo['useCredentials']) && $pluginInfo['useCredentials'];
 
@@ -887,7 +902,12 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	// FPP_SKIP_INSTALL_SCRIPT) so dependencies can be resolved first.
 	$return_val = 0;
 	$envPrefix = "export FPP_SKIP_INSTALL_SCRIPT=1; export SUDO=\"" . $SUDO . "\"; export PLUGINDIR=\"" . $settings['pluginDirectory'] . "\"; ";
-	$cloneCmd = $envPrefix . "$fppDir/scripts/install_plugin $plugin \"$srcURL\" \"$branch\" \"$sha\"";
+	// Use escapeshellarg for each arg so spaces/semicolons cannot split into extra commands.
+	if ($srcURL !== '' && filter_var($srcURL, FILTER_VALIDATE_URL) === false) {
+		PluginEchoLog('install', $repoName, "\nERROR: Invalid srcURL.\n", $stream);
+		return false;
+	}
+	$cloneCmd = $envPrefix . escapeshellarg($fppDir . "/scripts/install_plugin") . " " . escapeshellarg($plugin) . " " . escapeshellarg($srcURL) . " " . escapeshellarg($branch) . " " . escapeshellarg($sha);
 	if ($streaming) {
 		system($cloneCmd, $return_val);
 	} else {
