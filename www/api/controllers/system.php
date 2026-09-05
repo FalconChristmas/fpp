@@ -844,25 +844,69 @@ function finalizeStatusJson($obj)
  * ["apache2", "ffmpeg", "php"]
  * ```
  */
-function GetOSPackages()
+function ReadPackageNamesFrom($cmd)
 {
     $packages = [];
-    $cmd = 'apt list --all-versions 2>&1'; // Fetch all package names and versions
-    $handle = popen($cmd, 'r'); // Open a process for reading the output
-
-    if ($handle) {
-        while (($line = fgets($handle)) !== false) {
-            // Extract the package name before the slash
-            if (preg_match('/^([^\s\/]+)\//', $line, $matches)) {
-                $packages[] = $matches[1];
-            }
+    $handle = popen($cmd, 'r');
+    if ($handle === false) {
+        return $packages;
+    }
+    while (($line = fgets($handle)) !== false) {
+        $line = rtrim($line, "\r\n");
+        if ($line !== '') {
+            $packages[] = $line;
         }
-        pclose($handle); // Close the process
-    } else {
-        error_log("Error: Unable to fetch package list.");
+    }
+    pclose($handle);
+
+    return $packages;
+}
+
+/**
+ * Every package name apt knows about, sorted and deduplicated.
+ *
+ * The obvious implementation -- parsing `apt list` -- is what this replaces,
+ * and it was slow enough to be the whole cost of the Packages page: `apt list`
+ * builds and formats a record per package (version, archive, architecture,
+ * install state) and then this threw all of that away and kept the name. On a
+ * PocketBeagle2 that was 5.5s warm and far worse on the first load of the day,
+ * when the 56MB index has to come off eMMC. `--all-versions` made it worse
+ * again for nothing: it repeats a package once per available version, so the
+ * list arrived with tens of thousands of duplicates in it (34,750 of 104,875
+ * entries on one box here) that the page then had to hold and search.
+ *
+ * Reading the index files directly is the same data from the same source --
+ * these are the files apt itself parses -- for the one field that is wanted.
+ * The dpkg status file is included alongside them so a package that is
+ * installed but no longer in any configured repository still appears, which is
+ * what `apt list` does too. Measured against it on a PocketBeagle2: 0.52s
+ * versus 5.5s, and the two produce identical name sets.
+ *
+ * Falls back to asking apt if that yields implausibly little -- an apt
+ * configured to keep its indexes compressed (Acquire::GzipIndexes) would leave
+ * no *_Packages for the glob to match.
+ */
+function CollectOSPackageNames()
+{
+    $packages = ReadPackageNamesFrom(
+        'grep -h "^Package: " /var/lib/apt/lists/*_Packages /var/lib/dpkg/status 2>/dev/null'
+        . ' | sed "s/^Package: //" | LC_ALL=C sort -u'
+    );
+
+    if (count($packages) > 100) {
+        return $packages;
     }
 
-    return json_encode($packages);
+    error_log("GetOSPackages: no usable apt index files, falling back to apt list");
+
+    return ReadPackageNamesFrom(
+        'apt list 2>/dev/null | sed -n "s|^\([^ /]*\)/.*|\1|p" | LC_ALL=C sort -u'
+    );
+}
+
+function GetOSPackages()
+{
+    return json(CollectOSPackageNames());
 }
 
 /**
